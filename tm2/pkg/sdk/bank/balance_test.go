@@ -700,7 +700,9 @@ func TestConservation(t *testing.T) {
 
 	vesting := std.Coins{{Denom: testAccountDenom, Amount: vesterFunded}}
 	dva, err := std.NewDelayedVestingAccount(
-		std.NewBaseAccount(vester, vesting, nil, 0, 0),
+		// Draw a real account number: hardcoding 0 collides with the first
+		// auto-allocated account and leaves the global counter behind the state.
+		std.NewBaseAccount(vester, vesting, nil, env.acck.GetNextAccountNumber(ctx), 0),
 		std.VestingSchedule{
 			OriginalVesting: vesting,
 			StartTime:       100,
@@ -740,6 +742,19 @@ func TestConservation(t *testing.T) {
 				require.Equal(t, model[a][d], env.bankk.GetCoin(ctx, a, d),
 					"step %d (%s): GetCoin(%s) disagrees with the model", step, op, d)
 			}
+		}
+		// Structural invariants, after every operation including the rejected ones.
+		// This runs both ways: the random walk is a fuzzer for the invariants — 500
+		// keeper-produced states that must all be reported healthy, which is the
+		// cheap defence against a check that fires on legitimate state — and the
+		// invariants are extra oracles for the keeper, seeing what the map model
+		// structurally cannot: whether a balance is in the right tier, whether its
+		// key is well formed, and whether an address holding one can still sign.
+		if msg, broken := AllInvariants(env.bankk.ViewKeeper)(ctx); broken {
+			t.Fatalf("step %d (%s): invariant broken:\n%s", step, op, msg)
+		}
+		if msg, broken := auth.AllInvariants(env.acck)(ctx); broken {
+			t.Fatalf("step %d (%s): auth invariant broken:\n%s", step, op, msg)
 		}
 		// The vesting lock is a separate invariant from conservation: dropping the
 		// check entirely would keep every balance consistent with the model, so

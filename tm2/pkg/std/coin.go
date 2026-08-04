@@ -736,6 +736,55 @@ func IsRealmDenom(denom string) bool {
 	return strings.HasPrefix(denom, "/")
 }
 
+// ParseRealmDenom splits a realm-issued denom into its package path and base name
+// and reports whether it has the shape the banker can actually issue:
+// "/" + pkgPath + ":" + base.
+//
+// Callers must have established IsRealmDenom. This mirrors assertCoinDenom and
+// isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno — deliberately without
+// their minimum base length, which is banker ergonomics with no consequence for
+// stored state, and which existing realm denoms in tests do not satisfy.
+//
+// A realm-shaped denom that fails this is not necessarily corruption: ValidateDenom
+// accepts shapes no realm could ever mint (a genesis file may name one), so a
+// caller checking stored state should report rather than reject.
+func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
+	if !IsRealmDenom(denom) {
+		return "", "", fmt.Errorf("denom %q is not realm-qualified", denom)
+	}
+	rest := denom[1:]
+	// The package path admits no colon, so the first one separates the base name.
+	i := strings.IndexByte(rest, ':')
+	if i < 0 {
+		return "", "", fmt.Errorf("denom %q has no base name", denom)
+	}
+	pkgPath, base = rest[:i], rest[i+1:]
+	if len(pkgPath) > pkgPathLimit {
+		return "", "", fmt.Errorf("denom %q package path is %d bytes, over the %d limit",
+			denom, len(pkgPath), pkgPathLimit)
+	}
+	if base == "" {
+		return "", "", fmt.Errorf("denom %q has an empty base name", denom)
+	}
+	if len(base) > maxBaseDenomLength {
+		return "", "", fmt.Errorf("denom %q base name is %d bytes, over the %d limit",
+			denom, len(base), maxBaseDenomLength)
+	}
+	if base[0] < 'a' || base[0] > 'z' {
+		return "", "", fmt.Errorf("denom %q base name must start with a-z", denom)
+	}
+	for i := 1; i < len(base); i++ {
+		c := base[i]
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return "", "", fmt.Errorf("denom %q base name must be [a-z][a-z0-9]*", denom)
+		}
+	}
+	if strings.ContainsRune(base, ':') {
+		return "", "", fmt.Errorf("denom %q has more than one colon", denom)
+	}
+	return pkgPath, base, nil
+}
+
 func mustValidateDenom(denom string) {
 	if err := ValidateDenom(denom); err != nil {
 		panic(err)

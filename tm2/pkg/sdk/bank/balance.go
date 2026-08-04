@@ -1,6 +1,7 @@
 package bank
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -76,11 +77,27 @@ func AccountBalancePrefix(addr crypto.Address) []byte {
 // denomFromBalanceKey recovers the denom from a full balance key. The address is
 // fixed-width, so this is a constant offset.
 func denomFromBalanceKey(key []byte) (string, error) {
+	_, denom, err := parseBalanceKey(key)
+	return denom, err
+}
+
+// parseBalanceKey splits a full balance key into its address and denom.
+//
+// Unlike denomFromBalanceKey this also checks the prefix, because a caller that
+// did not get the key from an iterator bounded by BalancePrefix has no other
+// guarantee it is a balance key at all. That is the case for the invariants,
+// which sweep the whole keyspace.
+func parseBalanceKey(key []byte) (crypto.Address, string, error) {
+	var addr crypto.Address
+	if !bytes.HasPrefix(key, []byte(BalancePrefix)) {
+		return addr, "", fmt.Errorf("key %X is not under %q", key, BalancePrefix)
+	}
 	prefixLen := len(BalancePrefix) + crypto.AddressSize
 	if len(key) <= prefixLen {
-		return "", fmt.Errorf("malformed balance key: %X", key)
+		return addr, "", fmt.Errorf("malformed balance key: %X", key)
 	}
-	return string(key[prefixLen:]), nil
+	copy(addr[:], key[len(BalancePrefix):prefixLen])
+	return addr, string(key[prefixLen:]), nil
 }
 
 // encodeBalance encodes a positive amount as fixed-width big-endian.
@@ -102,15 +119,32 @@ func encodeBalance(amount int64) []byte {
 // decodeBalance decodes a stored amount. A stored value is always a positive
 // int64, so anything else means state corruption.
 func decodeBalance(bz []byte) int64 {
+	amount, err := tryDecodeBalance(bz)
+	if err != nil {
+		// panic with the string, not the error: the recovered value's type is
+		// observable, and tests assert on it.
+		panic(err.Error())
+	}
+	return amount
+}
+
+// tryDecodeBalance is decodeBalance without the panic.
+//
+// The money path must panic — a corrupt balance must never be silently treated as
+// a number. The invariants are the one caller that has to survive the corruption
+// they are looking for, and must report every instance rather than stop at the
+// first. Keeping both on one implementation means the wire format has a single
+// source of truth.
+func tryDecodeBalance(bz []byte) (int64, error) {
 	if len(bz) != balanceAmountLen {
-		panic(fmt.Sprintf("corrupt balance value: expected %d bytes, got %d",
-			balanceAmountLen, len(bz)))
+		return 0, fmt.Errorf("corrupt balance value: expected %d bytes, got %d",
+			balanceAmountLen, len(bz))
 	}
 	u := binary.BigEndian.Uint64(bz)
 	if u == 0 || u > uint64(math.MaxInt64) {
-		panic(fmt.Sprintf("corrupt balance value: %d out of range", u))
+		return 0, fmt.Errorf("corrupt balance value: %d out of range", u)
 	}
-	return int64(u)
+	return int64(u), nil
 }
 
 // getSplitBalance returns addr's balance of a split-tier denom, or zero.
