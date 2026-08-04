@@ -171,9 +171,12 @@ account object like `ugnot`.
 1. Add it to `accountTierDenoms` in `gno.land/pkg/gnoland/app.go` and build.
 2. Do **not** restart validators on the existing database. Existing holders have
    balances in `/b/` keys, and the new binary looks for them in the account
-   object: transfers would fail as insufficient funds, a later credit would create
-   a second home for the same denom, and the first `GetCoins` would panic on the
-   exclusivity assertion. Nothing is lost, but the balance is frozen.
+   object: transfers fail with `InsufficientCoinsError` — not
+   `InsufficientFundsError`, which gnokey reports differently — a later credit
+   creates a second home for the same denom, and the first `GetCoins` panics on the
+   exclusivity assertion. Nothing is lost, but the balance is frozen. All three are
+   pinned by `TestAMisMigratedBalanceIsFrozenNotSpendable` and
+   `TestSplitKeyForAnAccountTierDenomFailsLoudly`.
 3. Regenerate state instead. `gnogenesis fork generate` assembles a new genesis
    from the source chain's state *and* its transaction history — note the
    subcommand; bare `gnogenesis fork` only prints help. Smoke-test it first with

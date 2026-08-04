@@ -1372,6 +1372,38 @@ func TestSplitKeyForAnAccountTierDenomFailsLoudly(t *testing.T) {
 		func() { env.bankk.GetCoins(ctx, addr) })
 }
 
+// The operator-visible half of the same mis-migration: before anything calls
+// GetCoins and panics, the balance is simply frozen. Pinned because the failure mode
+// if a future reader "fixes" the exclusivity assertion by summing both tiers is not
+// a louder error — it is 500 spendable coins that the invariants call corrupt.
+func TestAMisMigratedBalanceIsFrozenNotSpendable(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	holder := crypto.AddressFromPreimage([]byte("frozen"))
+	dest := crypto.AddressFromPreimage([]byte("dest"))
+	require.NoError(t, env.bankk.SetCoins(ctx, dest, std.Coins{{Denom: testAccountDenom, Amount: 1}}))
+
+	// The state a node restarted on the old database after the allowlist grew: the
+	// gas denom's balance is still under /b/, where the router no longer looks.
+	env.bankk.setSplitBalance(ctx, holder, testAccountDenom, 500)
+
+	err := env.bankk.SendCoins(ctx, holder, dest, std.Coins{{Denom: testAccountDenom, Amount: 10}})
+	require.Error(t, err, "a balance in the wrong tier must not be spendable")
+	// Asserted on the message rather than the type: the keeper returns it wrapped,
+	// and the wrapper is what a caller reads. "coins" not "funds" — gnokey reports
+	// InsufficientCoinsError and InsufficientFundsError differently.
+	require.ErrorContains(t, err, "insufficient coins error")
+	require.Equal(t, int64(500), env.bankk.getSplitBalance(ctx, holder, testAccountDenom),
+		"and nothing was taken from the stranded balance")
+
+	// A credit lands in the tier the router now prefers, giving the denom two homes.
+	require.NoError(t, env.bankk.AddCoins(ctx, holder, std.Coins{{Denom: testAccountDenom, Amount: 7}}))
+	require.Equal(t, "7"+testAccountDenom, env.acck.GetAccount(ctx, holder).GetCoins().String())
+	require.Equal(t, int64(500), env.bankk.getSplitBalance(ctx, holder, testAccountDenom))
+}
+
 // The allowlist holds one denom today, so nothing otherwise exercises a second.
 // A second gas denom is the expected way it grows — a chain accepting fees in an
 // IBC voucher, for instance — and such a denom sorts *before* "ugnot", which makes
