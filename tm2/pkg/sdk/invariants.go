@@ -39,11 +39,8 @@ type InvariantReport struct {
 // reportCap is how many findings are described individually. The rest are counted.
 const reportCap = 10
 
-func NewInvariantReport(module, name string) *InvariantReport {
-	return &InvariantReport{module: module, name: name}
-}
-
-// Addf records one finding.
+// Addf records one finding. It is the only method a check body needs; Guard
+// builds the report and renders it.
 func (r *InvariantReport) Addf(format string, args ...any) {
 	r.found++
 	if r.found <= reportCap {
@@ -51,11 +48,8 @@ func (r *InvariantReport) Addf(format string, args ...any) {
 	}
 }
 
-// Broken reports whether anything was found.
-func (r *InvariantReport) Broken() bool { return r.found > 0 }
-
-// Result renders the report in the form Invariant returns.
-func (r *InvariantReport) Result() (string, bool) {
+// result renders the report in the form Invariant returns.
+func (r *InvariantReport) result() (string, bool) {
 	if r.found == 0 {
 		return FormatInvariant(r.module, r.name, "no violations found"), false
 	}
@@ -80,7 +74,7 @@ func (r *InvariantReport) Result() (string, bool) {
 // which is why the checks bound their own allocations rather than relying on this.
 func Guard(module, name string, body func(Context, *InvariantReport)) Invariant {
 	return func(ctx Context) (string, bool) {
-		rep := NewInvariantReport(module, name)
+		rep := &InvariantReport{module: module, name: name}
 		func() {
 			defer func() {
 				if rec := recover(); rec != nil {
@@ -89,6 +83,6 @@ func Guard(module, name string, body func(Context, *InvariantReport)) Invariant 
 			}()
 			body(ctx, rep)
 		}()
-		return rep.Result()
+		return rep.result()
 	}
 }
