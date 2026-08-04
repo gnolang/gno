@@ -69,9 +69,16 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 // chain/banker's assertCoinDenom already enforces the full
 // "/" + pkgPath + ":" + base shape, but it lives in interpreted stdlib source
 // and neither X_bankerIssueCoin nor this type validated anything. That was
-// tolerable while the prefix was only a naming convention. It is not now: the
-// prefix is what separates denoms a realm may create from those it may not, so a
-// bare denom reaching here would let a realm mint the chain's own gas denom.
+// tolerable while the prefix was only a naming convention. It is not now: a bare
+// denom reaching here would let a realm mint the chain's own gas denom.
+//
+// This deliberately checks less than assertCoinDenom does. It answers "is this
+// denom realm-qualified at all", not "is it *this* realm's" — the latter stays
+// enforced only in .gno, because SDKBanker holds a keeper and a context and not
+// the calling realm's package path, which is a machine-frame property. So one
+// realm minting another's denom is still blocked one layer up, and only there.
+// What is backstopped in Go is the case with a privilege boundary behind it:
+// minting outside the realm-denom namespace entirely.
 //
 // Note this is not the storage-tier question — that is an allowlist in the bank
 // (ViewKeeper.inAccountTier), and the two must not be conflated.
