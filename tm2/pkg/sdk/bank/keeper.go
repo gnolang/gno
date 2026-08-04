@@ -290,6 +290,11 @@ func (bank BankKeeper) setAccountTierCoins(ctx sdk.Context, acc std.Account, add
 //
 // Enforces vesting: if the account is a VestingAccount, the amount must not
 // exceed the spendable (unlocked) balance at the current block time.
+//
+// Does not enforce the session spend limit or the transfer restriction, which
+// both live in SendCoins. BurnCoins debits through here, so a realm removing its
+// own coin does not consume a session's allowance — which changes nothing it
+// could not already do, since removal needs no consent from the holder.
 func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
