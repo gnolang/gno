@@ -353,8 +353,10 @@ alone.
   the cost lands on the party using a realm denom instead of on every account
   that has ever been sent one.
   Measured end to end, by running the same transaction against both binaries
-  (`realm_banker_issued_coin_denom.txtar`, identical tx lines, gas-wanted raised
-  only because the true cost now exceeds the old ceiling):
+  (`realm_banker_issued_coin_denom.txtar`, identical tx lines; gas-wanted raised
+  because the true cost now exceeds the old ceiling, to the same ~18% headroom
+  the rest of that file uses — 95 commits in this repo have had to bump those
+  ceilings, so a tight one is a tax on the next contributor):
 
   | transaction | master | this branch | delta |
   |---|---|---|---|
