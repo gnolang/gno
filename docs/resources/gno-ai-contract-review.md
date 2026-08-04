@@ -207,8 +207,13 @@ if banker.NewReadonlyBanker().GetCoin(addr, "ugnot") < price {
 ```
 
 Reserve `GetCoins` for cases that genuinely need every balance, and treat it as
-unbounded when the address is caller-supplied. Note repeated `GetCoins` calls are each
-charged in full, so hoisting the call out of a loop is not enough.
+unbounded when the address is caller-supplied. Hoisting the call out of a
+loop helps but is not enough: a second `GetCoins` on the same address is much cheaper —
+its per-key reads are cache hits, and a cache hit costs no gas — but the iterator walk
+over the address's balance keys is charged again, so the part that scales with the denom
+count survives. Measured on an address holding 64 unsolicited denoms, a second
+`GetCoins` cost about a quarter of the first, while a second single-denom `GetCoin` cost
+nothing at all.
 
 Two cases where the swap is **wrong**, both found by making it:
 
