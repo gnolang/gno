@@ -261,11 +261,24 @@ empty — which is exactly how a chain would move to full ADR-004:
 The per-key attribution is **not** uniform, and an earlier draft of this ADR got
 that wrong by quoting a flat "+306,600 per address touched". Only the *signer*
 pays a full extra read+write (+306,197), because only the signer's account object
-is written anyway for the sequence bump. For the fee collector and the recipient
-the account object is written *only* to carry a balance, so splitting turns their
-write into a read and the true cost is +58,000, not +306,600. The aggregate
-conclusion holds — the numbers above are measured end to end — but the mechanism
-is "the signer's write is already paid for", not "every account write is free".
+is written anyway for the sequence bump. Where an account object is written *only*
+to carry a balance, splitting turns that write into a read, and the saving depends
+on whether the object survives at all. Reconciling the measured rows above against
+the per-key constants:
+
+| address | delta | why |
+|---|---|---|
+| signer | +306,600 | its object is written anyway, for the sequence bump |
+| fee collector | +58,000 | its object write becomes a read |
+| existing recipient | +118,000 | a full key, minus the write, plus the read |
+| recipient being created | +306,600 | its object is written either way |
+
+Those add up against the measured rows: fee-only +364,281 vs 364,600 (0.09%),
+`MsgSend` to an existing recipient +422,275 vs 424,600 (0.55%), the realm-denom
+send below +611,653 vs 613,200 (0.25%). The aggregate conclusion holds — those
+totals are measured end to end — but the mechanism is "the signer's write is
+already paid for", not "every account write is free", and the per-address figure
+is not one number.
 
 Whether this gap would erode over time was the one open question, since it is a
 function of gas constants rather than of structure. Resolved in favour of keeping
@@ -331,9 +344,12 @@ alone.
   such balance — but the pin *does* move on this change, because adding
   `banker.GetCoin` adds bytes to `banker.gno`, and stdlib source is itself chain
   state. That is the only reason it moves.
-- **Split-tier operations cost one more key** (~+306,600 gas per address) than
-  before, since they no longer ride along in the account object. Native-denom
-  operations, including the entire fee path, are unchanged. This is the trade:
+- **Split-tier operations cost one more key** than before, since they no longer
+  ride along in the account object. That is ~+306,600 for an address whose account
+  object is written anyway — the signer, or a recipient being created — and less
+  where splitting turns that write into a read; the attribution note above gives
+  the cases. Native-denom operations, including the entire fee path, are
+  unchanged. This is the trade:
   the cost lands on the party using a realm denom instead of on every account
   that has ever been sent one.
   Measured end to end, by running the same transaction against both binaries
@@ -345,9 +361,11 @@ alone.
   | send `1330/gno.land/r/test/realm_banker:ugnot` | 1,240,231 | 1,851,884 | **+611,653 (+49%)** |
   | mint a realm denom from a maximum-length package path | 2,648,993 | 3,221,477 | +572,484 (+22%) |
 
-  The transfer touches two addresses, so it pays for two new keys: 2 × 306,600 =
-  613,200, within 0.3% of the measured delta. That is the per-key figure above,
-  confirmed through the whole stack rather than derived from the gas constants. The
+  The transfer touches two addresses and the recipient holds no prior account, so
+  both objects are written either way and each address pays a full extra key:
+  2 × 306,600 = 613,200, within 0.3% of the measured delta. That confirms the
+  per-key figure through the whole stack rather than deriving it from the gas
+  constants — but it is the uniform case, not the general one. The
   mint is lower than two keys' worth because the account object it writes also got
   smaller by the length of the denom it no longer carries.
 - **Bulk denom spam becomes ~76× dearer per denom** (a fresh key at ~306,600 vs
