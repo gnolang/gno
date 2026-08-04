@@ -352,6 +352,205 @@ func TestAnteHandlerFees(t *testing.T) {
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 
+// TestAnteHandlerRejectsSponsorStorageOnFeeTx verifies that Fee.SponsorStorage is
+// rejected on a normal fee-paying tx (it only applies to 0-fee sponsored txs).
+// The mistake must surface at the ante — CheckTx admission and DeliverTx — rather
+// than failing opaquely at end-of-tx inclusion. A tx without SponsorStorage is
+// unaffected.
+func TestAnteHandlerRejectsSponsorStorageOnFeeTx(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // block height 1
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 10000)))
+	env.acck.SetAccount(ctx, acc1)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr1)}
+	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+
+	// Fee-paying tx with SponsorStorage=true -> rejected (Unauthorized) before
+	// any state is touched.
+	feeSponsor := tu.NewTestFee()
+	feeSponsor.SponsorStorage = true
+	txReject := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, feeSponsor)
+	checkInvalidTx(t, anteHandler, ctx, txReject, false, std.UnauthorizedError{})
+
+	// The same fee-paying tx WITHOUT SponsorStorage is accepted — F4 must not
+	// over-reject ordinary txs.
+	txOK := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx, txOK, false)
+}
+
+// TestAnteHandlerRejectsSponsorStorageMultiSigner verifies that SponsorStorage is
+// rejected on a multi-signer tx. Deferred storage settlement loses per-message
+// caller identity and can only refund freed storage to a single tx caller, so a
+// co-signer's refund would be misrouted; the ante rejects the ambiguity up front.
+func TestAnteHandlerRejectsSponsorStorageMultiSigner(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // block height 1
+	// Enable the credit window so a 0-fee tx is recognized as sponsored, and the
+	// fee-based SponsorStorage rejection does not shadow the multi-signer one.
+	cp := ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 1_000_000
+	ctx = ctx.WithConsensusParams(cp)
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	priv2, _, addr2 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	require.NoError(t, acc1.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc1)
+	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	require.NoError(t, acc2.SetAccountNumber(1))
+	env.acck.SetAccount(ctx, acc2)
+
+	// 0-fee (sponsored) tx with a two-signer message and SponsorStorage=true.
+	msg := tu.NewTestMsg(addr1, addr2)
+	fee := std.NewFee(1_000_000, std.NewCoin("ugnot", 0))
+	fee.SponsorStorage = true
+	privs, accnums, seqs := []crypto.PrivKey{priv1, priv2}, []uint64{0, 1}, []uint64{0, 0}
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee)
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
+// TestAnteHandlerSponsorStorageGuardsAtHeightZero verifies that the two
+// SponsorStorage guards are exempted for GENESIS DELIVERY only, not for every
+// height-0 context. CheckTx is served from node start and checkState carries
+// InitChain's zero height until the first Commit, so a height-only exemption
+// would let ordinary mempool traffic bypass both guards in that window and admit
+// txs that are then rejected deterministically at DeliverTx.
+func TestAnteHandlerSponsorStorageGuardsAtHeightZero(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	cp := env.ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 1_000_000
+	// Height 0: the genesis-shaped context.
+	ctx := env.ctx.WithConsensusParams(cp).WithBlockHeader(&bft.Header{ChainID: env.ctx.ChainID(), Height: 0})
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 10000)))
+	env.acck.SetAccount(ctx, acc1)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr1)}
+	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+
+	// A fee-paying tx with SponsorStorage=true is invalid. Submitted through
+	// CheckTx at height 0 it must still be rejected...
+	feeSponsor := tu.NewTestFee()
+	feeSponsor.SponsorStorage = true
+	tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, feeSponsor)
+	checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeCheck), tx, false, std.UnauthorizedError{})
+
+	// ...while genesis DELIVERY at height 0 stays exempt, so trusted genesis txs
+	// are not newly rejected.
+	_, res, abort := anteHandler(ctx.WithMode(sdk.RunTxModeDeliver), tx, false)
+	require.False(t, abort, "genesis delivery must remain exempt: %v", res)
+}
+
+// TestAnteHandlerRejectsSponsoredTxBeforeFirstBlock verifies that a sponsored
+// (0-fee) tx is not ADMITTED while the context still carries InitChain's zero
+// height — the window between InitChain and the first Commit, during which
+// gno.land's genesis wrapper auto-creates and funds any unknown signer. Admitting
+// against that synthetic state lets a fresh key pass CheckTx and be gossiped,
+// only to fail at DeliverTx in block 1, once per attempt, on every opting-in node.
+// Genesis DELIVERY must stay exempt.
+func TestAnteHandlerRejectsSponsoredTxBeforeFirstBlock(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	cp := env.ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 1_000_000 // credit window OPEN
+	ctx := env.ctx.WithConsensusParams(cp).
+		WithBlockHeader(&bft.Header{ChainID: env.ctx.ChainID(), Height: 0})
+	// An OPTING-IN validator: without AllowZeroFeeTxs the mempool gate would
+	// reject the tx first and the height-0 guard would never be exercised.
+	opts := defaultAnteOptions()
+	opts.AllowZeroFeeTxs = true
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, opts)
+
+	fee := std.NewFee(50000, std.NewCoin("ugnot", 0)) // 0-fee => sponsored
+
+	// A distinct account per assertion: the ante advances the sequence on the
+	// paths that succeed, which would otherwise invalidate the later txs.
+	// Account number 0 / sequence 0 so the signature matches the genesis sign
+	// bytes used at height 0 as well as the normal ones at height 1.
+	newSponsoredTx := func() std.Tx {
+		priv, _, addr := tu.KeyTestPubAddr()
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		require.NoError(t, acc.SetAccountNumber(0))
+		env.acck.SetAccount(ctx, acc)
+		return tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+			[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, fee)
+	}
+
+	// Admission at height 0 must refuse it.
+	checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeCheck), newSponsoredTx(), false, std.UnauthorizedError{})
+
+	// Genesis DELIVERY at height 0 stays exempt.
+	_, res, abort := anteHandler(ctx.WithMode(sdk.RunTxModeDeliver), newSponsoredTx(), false)
+	require.False(t, abort, "genesis delivery must remain exempt: %v", res)
+
+	// Once a block exists, admission works normally again — so the guard is
+	// scoped to the startup window and does not disable sponsorship.
+	ctx1 := ctx.WithBlockHeader(&bft.Header{ChainID: env.ctx.ChainID(), Height: 1})
+	_, res, abort = anteHandler(ctx1.WithMode(sdk.RunTxModeCheck), newSponsoredTx(), false)
+	require.False(t, abort, "sponsored tx must be admissible at height 1: %v", res)
+}
+
+// TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled verifies that with the
+// credit window OFF (MaxGasCreditPerTx == 0 — the default and the kill switch) a
+// 0-fee tx is rejected in EVERY mode, not just CheckTx.
+//
+// There is no sponsorship path when the window is closed: PayGas is inert and no
+// settlement runs, so such a tx would execute for free on its own GasWanted. The
+// mempool minimum-fee check is CheckTx-only local policy and cannot stop a
+// proposer from force-including one. Before this feature, Tx.ValidateBasic
+// rejected these (a zero amount amino-encodes to the empty Coin, which failed
+// IsValid); relaxing that to admit canonical zero fees for sponsorship removed
+// the backstop, so the ante has to provide it.
+func TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	cp := env.ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 0 // credit window disabled
+	ctx := env.ctx.WithConsensusParams(cp)
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv1, _, addr1 := tu.KeyTestPubAddr()
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	require.NoError(t, acc1.SetAccountNumber(0))
+	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 10000)))
+	env.acck.SetAccount(ctx, acc1)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr1)}
+	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
+
+	// Both spellings of "no fee": the canonical zero-value Coin (what a zero
+	// amount amino-decodes to) and an explicit zero amount with a valid denom.
+	for _, feeCoin := range []std.Coin{{}, std.NewCoin("atom", 0)} {
+		fee := std.NewFee(50000, feeCoin)
+		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
+		// DeliverTx — a proposer force-including it must not get free execution.
+		checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeDeliver), tx, false, std.InsufficientFeeError{})
+		// CheckTx too.
+		checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeCheck), tx, false, std.InsufficientFeeError{})
+	}
+
+	// Sanity: the same tx WITH a fee is accepted, so the guard is not blanket.
+	txOK := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeDeliver), txOK, false)
+}
+
 // Test logic around memo gas consumption.
 func TestAnteHandlerMemoGas(t *testing.T) {
 	t.Parallel()
@@ -367,30 +566,34 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 	// set the accounts
 	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
 	require.NoError(t, acc1.SetAccountNumber(0))
+	// Funded, and the fees below are non-zero: a ZERO fee is only legal when the
+	// credit window is open (see the 0-fee guard in NewAnteHandler), and this
+	// test is about memo/gas accounting, not sponsorship.
+	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 10000)))
 	env.acck.SetAccount(ctx, acc1)
 
 	// msg and signatures
 	var tx std.Tx
 	msg := tu.NewTestMsg(addr1)
 	privs, accnums, seqs := []crypto.PrivKey{priv1}, []uint64{0}, []uint64{0}
-	fee := std.NewFee(0, std.NewCoin("atom", 0))
+	fee := std.NewFee(0, std.NewCoin("atom", 1))
 
 	// tx does not have enough gas
 	tx = tu.NewTestTx(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.OutOfGasError{})
 
 	// tx with memo doesn't have enough gas
-	fee = std.NewFee(801, std.NewCoin("atom", 0))
+	fee = std.NewFee(801, std.NewCoin("atom", 1))
 	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, "abcininasidniandsinasindiansdiansdinaisndiasndiadninsd")
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.OutOfGasError{})
 
 	// memo too large
-	fee = std.NewFee(9000, std.NewCoin("atom", 0))
+	fee = std.NewFee(9000, std.NewCoin("atom", 1))
 	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("01234567890", 99000))
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.MemoTooLargeError{})
 
 	// tx with memo has enough gas
-	fee = std.NewFee(9000, std.NewCoin("atom", 0))
+	fee = std.NewFee(9000, std.NewCoin("atom", 1))
 	tx = tu.NewTestTxWithMemo(t, ctx.ChainID(), []std.Msg{msg}, privs, accnums, seqs, fee, strings.Repeat("0123456789", 10))
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }

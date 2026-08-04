@@ -112,7 +112,21 @@ import (
 // consensus-breaking change, even though no behavior changes. Confirmed by
 // reverting that comment alone, which restores the previous hash. No
 // executable code was touched.
-const expectedCrossrealm38Hash = "7b4bcfa6765f197dc7a3ad7e01deaca765526ae258275358059aad1b3c01946e"
+//
+// Hash bumped by the realm transaction sponsorship PR: adding the PayGas and
+// PayStorage natives to the chain/runtime stdlib changes that stdlib's committed
+// genesis MemPackage, which shifts the committed multistore root — same class of
+// change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
+// (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
+// shifted. This covers the whole sponsorship stdlib surface: the paygas.gno /
+// paystorage.gno doc comments (including the "PayGas and PayStorage are
+// independent" note added when two-realm sponsorship was allowed) are stdlib
+// .gno source bytes committed into genesis, so they are consensus-relevant even
+// though they are comments. The native .go changes are NOT part of the committed
+// MemPackage and do not affect this hash. Re-derived after merging master, so
+// this value reflects the bptree store + #5890 + #5891 + #5892 + #5867 + the
+// banker comment + this PR together.
+const expectedCrossrealm38Hash = "7464fac928833ad0a92ac3c065b41209cc3813d645497cd4d79c787f2108f0f8"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

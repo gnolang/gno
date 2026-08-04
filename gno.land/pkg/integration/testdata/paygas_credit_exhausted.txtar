@@ -1,0 +1,32 @@
+# Test that a 0-fee tx fails with OOG when the credit window is exhausted
+# before PayGas is reached. Heavy computation runs first, exceeding MaxGasCreditPerTx.
+
+## start a new node
+gnoland start
+
+## deploy realm that does heavy work before PayGas
+gnokey maketx addpkg -pkgdir $WORK/exhaust -pkgpath gno.land/r/test/exhaust -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call with 0 fee — credit window should be exhausted before PayGas
+! gnokey maketx call -pkgpath gno.land/r/test/exhaust -func HeavyWork -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'out of gas'
+
+-- exhaust/gnomod.toml --
+module = "exhaust"
+gno = "0.9"
+
+-- exhaust/exhaust.gno --
+package exhaust
+
+import "chain/runtime"
+
+func HeavyWork(cur realm) string {
+	// Exhaust the credit window (MaxGasCreditPerTx = 10M gas) before PayGas
+	s := ""
+	for i := 0; i < 100000; i++ {
+		s += "x"
+	}
+	runtime.PayGas(1000000) // never reached — OOG first
+	return s
+}

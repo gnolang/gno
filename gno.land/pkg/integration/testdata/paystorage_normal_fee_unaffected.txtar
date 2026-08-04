@@ -1,0 +1,48 @@
+# Regression for the PayStorage "Eligible" gate: PayStorage must be a NO-OP on a
+# normal fee-paying (GasFee > 0) tx, exactly like PayGas. A realm that calls
+# PayStorage unconditionally must NOT pay the storage deposit for a normal
+# (non-sponsored) caller's writes — otherwise it silently self-drains on every
+# ordinary call. The caller pays their own storage deposit; the realm balance
+# is unchanged.
+
+## start a new node
+gnoland start
+
+## deploy a realm that calls PayStorage then grows its own state
+gnokey maketx addpkg -pkgdir $WORK/psnoop -pkgpath gno.land/r/test/paystorenoop -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund the realm so its balance is observable
+gnokey maketx send -send 10000000ugnot -to g18nfl9mzu2l53aaat30n3qxp0h2ttqukpcjpcql -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## realm balance before
+gnokey query bank/balances/g18nfl9mzu2l53aaat30n3qxp0h2ttqukpcjpcql
+stdout '10000000ugnot'
+
+## normal fee-paying call that grows storage — the USER covers storage via
+## -max-deposit; PayStorage is a no-op because this is not a 0-fee sponsored tx
+gnokey maketx call -pkgpath gno.land/r/test/paystorenoop -func Grow -args hello -gas-fee 1000000ugnot -gas-wanted 3000000 -max-deposit 5000000ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"grown" string'
+
+## realm balance UNCHANGED — PayStorage did not charge the realm
+gnokey query bank/balances/g18nfl9mzu2l53aaat30n3qxp0h2ttqukpcjpcql
+stdout '10000000ugnot'
+
+-- psnoop/gnomod.toml --
+module = "paystorenoop"
+gno = "0.9"
+
+-- psnoop/psnoop.gno --
+package paystorenoop
+
+import "chain/runtime"
+
+var data []string
+
+func Grow(cur realm, s string) string {
+	runtime.PayStorage(5000000) // unconditional — must be a no-op on a fee-paying tx
+	data = append(data, s)      // grows realm storage
+	return "grown"
+}

@@ -1,0 +1,28 @@
+# Test that PayGas panics when realm has insufficient gnot balance.
+
+## start a new node
+gnoland start
+
+## deploy a realm that calls PayGas
+gnokey maketx addpkg -pkgdir $WORK/broke -pkgpath gno.land/r/test/broke -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## do NOT fund the realm — it has 0 gnot
+
+## call with 0-fee — realm calls PayGas but has no balance
+! gnokey maketx call -pkgpath gno.land/r/test/broke -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'insufficient realm balance'
+
+-- broke/gnomod.toml --
+module = "broke"
+gno = "0.9"
+
+-- broke/broke.gno --
+package broke
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000)
+	return "done"
+}

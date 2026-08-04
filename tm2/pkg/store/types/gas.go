@@ -166,6 +166,7 @@ type GasMeter interface {
 	Remaining() Gas
 	ConsumeGas(amount Gas, descriptor string)
 	RefundGas(amount Gas, descriptor string)
+	SetLimit(limit Gas)
 	IsPastLimit() bool
 	IsOutOfGas() bool
 }
@@ -244,6 +245,13 @@ func (g *basicGasMeter) RefundGas(amount Gas, descriptor string) {
 	g.consumed -= amount
 }
 
+func (g *basicGasMeter) SetLimit(limit Gas) {
+	if limit < 0 {
+		panic("gas limit must not be negative")
+	}
+	g.limit = limit
+}
+
 func (g *basicGasMeter) DebugTotals() (charge, refund Gas) {
 	return g.totalCharge, g.totalRefund
 }
@@ -304,6 +312,10 @@ func (g *infiniteGasMeter) RefundGas(amount Gas, descriptor string) {
 	}
 }
 
+func (g *infiniteGasMeter) SetLimit(_ Gas) {
+	// no-op: infinite meter has no limit
+}
+
 func (g *infiniteGasMeter) IsPastLimit() bool {
 	return false
 }
@@ -359,6 +371,10 @@ func (g passthroughGasMeter) ConsumeGas(amount Gas, descriptor string) {
 func (g passthroughGasMeter) RefundGas(amount Gas, descriptor string) {
 	g.Base.RefundGas(amount, descriptor)
 	g.Head.RefundGas(amount, descriptor)
+}
+
+func (g passthroughGasMeter) SetLimit(limit Gas) {
+	g.Head.SetLimit(limit)
 }
 
 func (g passthroughGasMeter) IsPastLimit() bool {
