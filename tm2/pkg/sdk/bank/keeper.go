@@ -256,6 +256,14 @@ func (view ViewKeeper) splitByTier(amt std.Coins) (split, account std.Coins) {
 // recipient funded without one would hold visible but permanently unspendable
 // coins. Account creation also allocates an account number from a global
 // counter, so *when* it happens is consensus state.
+//
+// A failed credit does not consume a number, and that holds by ordering rather than by
+// a guard: this runs before AddCoins' only fallible step, but both reachable failures —
+// a stored account that refuses coins, and an overflowing balance — require an account
+// to exist already, so nothing is created and then abandoned. Measured. The property
+// would break if a freshly created account could refuse coins, which BaseAccount cannot
+// (its SetCoins returns nil unconditionally); no test can pin that, because the state
+// is unconstructible, so the ordering here is the guard.
 func (bank BankKeeper) ensureAccount(ctx sdk.Context, addr crypto.Address) std.Account {
 	acc := bank.acck.GetAccount(ctx, addr)
 	if acc == nil {
