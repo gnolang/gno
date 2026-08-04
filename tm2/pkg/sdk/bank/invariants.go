@@ -157,11 +157,12 @@ func vestingScheduleOf(acc std.Account) (std.VestingSchedule, bool) {
 // credit produces; a record with nothing held is what a lost balance write produces.
 func SupplyInvariant(view ViewKeeper) sdk.Invariant {
 	return sdk.Guard(ModuleName, "total-supply", func(ctx sdk.Context, rep *sdk.InvariantReport) {
-		held, err := computeSupply(ctx, view, maxSupplyDenoms)
-		if err != nil {
-			rep.Addf("cannot total the balances, so supply was NOT verified: %v", err)
-			return
-		}
+		// The records are swept before the balances are totalled, because the checks
+		// on them — key parseable, value decodable — need no totals. Totalling can
+		// fail for reasons an attacker influences (it bails past maxSupplyDenoms, and
+		// denom count is not bounded), and a failure there must not also blind the
+		// structural checks on this keyspace.
+		recorded := make(map[string]int64)
 		iter := store.PrefixIterator(nil, ctx.Store(view.key), []byte(SupplyPrefix))
 		defer iter.Close()
 		for ; iter.Valid(); iter.Next() {
@@ -170,23 +171,32 @@ func SupplyInvariant(view ViewKeeper) sdk.Invariant {
 				rep.Addf("%v", err)
 				continue
 			}
-			recorded, err := tryDecodeBalance(iter.Value())
+			amount, err := tryDecodeBalance(iter.Value())
 			if err != nil {
 				rep.Addf("supply record for %q: %v", denom, err)
-				delete(held, denom)
 				continue
 			}
-			if sum, ok := held[denom]; !ok {
-				rep.Addf("supply of %q is recorded as %d but no address holds any",
-					denom, recorded)
-			} else if sum != recorded {
-				rep.Addf("supply of %q is recorded as %d but %d is held",
-					denom, recorded, sum)
-			}
-			delete(held, denom)
+			recorded[denom] = amount
 		}
 		if err := iter.Error(); err != nil {
 			rep.Addf("iteration over %q failed, so the sweep is incomplete: %v", SupplyPrefix, err)
+		}
+
+		held, err := computeSupply(ctx, view, maxSupplyDenoms)
+		if err != nil {
+			rep.Addf("cannot total the balances, so supply was NOT verified: %v", err)
+			return
+		}
+		for _, denom := range slices.Sorted(maps.Keys(recorded)) {
+			switch sum, ok := held[denom]; {
+			case !ok:
+				rep.Addf("supply of %q is recorded as %d but no address holds any",
+					denom, recorded[denom])
+			case sum != recorded[denom]:
+				rep.Addf("supply of %q is recorded as %d but %d is held",
+					denom, recorded[denom], sum)
+			}
+			delete(held, denom)
 		}
 		// Whatever is left was never recorded: value exists that nothing minted.
 		// Sorted, because the report is truncated: ranging the map directly made two

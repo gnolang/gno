@@ -218,6 +218,35 @@ func TestComputeSupplyRefusesToAllocatePastItsCap(t *testing.T) {
 	require.Len(t, totals, 2)
 }
 
+// A failure to total the balances must not blind the structural checks on the supply
+// keyspace. Totalling bails past maxSupplyDenoms and on an untotallable sum, both of
+// which an attacker influences — denom count is unbounded — so if the record sweep ran
+// second behind an early return, inflating the denom count would also hide a malformed
+// or corrupt supply record.
+func TestSupplyInvariantChecksRecordsEvenWhenItCannotTotal(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	a := crypto.AddressFromPreimage([]byte("blind-a"))
+	b := crypto.AddressFromPreimage([]byte("blind-b"))
+
+	// A malformed record, reachable only past the keeper.
+	rawSet(t, env, []byte(SupplyPrefix), encodeBalance(5))
+
+	// And a state totalling cannot complete: two individually legal balances whose
+	// sum leaves int64.
+	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{{Denom: testRealmDenom, Amount: math.MaxInt64}}))
+	require.NoError(t, env.bankk.SetCoins(ctx, b, std.Coins{{Denom: testRealmDenom, Amount: 1000}}))
+
+	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
+	require.True(t, broken)
+	require.Contains(t, msg, "cannot total the balances",
+		"the invariant must say it could not verify the totals")
+	require.Contains(t, msg, "malformed supply key",
+		"and must still report the malformed record it can see without them")
+}
+
 func TestSupplyInvariantReportsAnUnparseableKey(t *testing.T) {
 	t.Parallel()
 
