@@ -75,6 +75,17 @@ by an ordinary realm minting too much, which is a caller's mistake.
 ordinary transaction abort. Everything fallible happens before anything is written,
 so a rejected mint leaves neither the balance nor the counter changed.
 
+**Closing the hole makes a chain that already exercised it unforkable until the
+balances are reduced.** Measured: with two addresses each holding `MaxInt64` of one
+denom, `computeSupply` returns `balances of %q sum past int64` and `RecomputeSupply`
+panics on it, so the node aborts during `InitChain`. That is the correct failure —
+seeding a truncated or wrapped total would put the counter permanently at odds with
+the balances, and the supply invariant would flag it on every node forever. But it
+means the remedy is a policy decision, not an edit: unlike an over-long denom, which
+can simply be dropped from the genesis file, these are real balances, so someone has
+to choose whether to burn, cap or split them before the fork. `gnogenesis fork test`
+surfaces it in memory first.
+
 ### Genesis seeds by sweeping, not by delta
 
 `RecomputeSupply` totals every balance across both tiers and rewrites the records. It
