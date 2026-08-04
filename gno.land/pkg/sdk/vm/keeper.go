@@ -807,20 +807,21 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	localPGIAdd := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    creator.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, creator),
-		PayGasInfo:      localPGIAdd,
-		PayStorageInfo:  ctx.PayStorageInfo(),
-		GasPrice:        getGasPrice(ctx),
+		ChainID:             ctx.ChainID(),
+		ChainDomain:         chainDomain,
+		Height:              ctx.BlockHeight(),
+		Timestamp:           ctx.BlockTime().Unix(),
+		OriginCaller:        creator.Bech32(),
+		OriginSend:          send,
+		OriginSendSpent:     new(std.Coins),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, creator),
+		PayGasInfo:          localPGIAdd,
+		PayStorageInfo:      ctx.PayStorageInfo(),
+		GasPrice:            getGasPrice(ctx),
+		StorageDepositDenom: ugnot.Denom,
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -929,20 +930,21 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	ctx = ContextWithParamsAccum(ctx)
 	localPGI := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    caller.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
-		PayGasInfo:      localPGI,
-		PayStorageInfo:  ctx.PayStorageInfo(),
-		GasPrice:        getGasPrice(ctx),
+		ChainID:             ctx.ChainID(),
+		ChainDomain:         chainDomain,
+		Height:              ctx.BlockHeight(),
+		Timestamp:           ctx.BlockTime().Unix(),
+		OriginCaller:        caller.Bech32(),
+		OriginSend:          send,
+		OriginSendSpent:     new(std.Coins),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, caller),
+		PayGasInfo:          localPGI,
+		PayStorageInfo:      ctx.PayStorageInfo(),
+		GasPrice:            getGasPrice(ctx),
+		StorageDepositDenom: ugnot.Denom,
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -1167,20 +1169,21 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Parse and run the files, construct *PV.
 	localPGIRun := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    caller.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
-		PayGasInfo:      localPGIRun,
-		PayStorageInfo:  ctx.PayStorageInfo(),
-		GasPrice:        getGasPrice(ctx),
+		ChainID:             ctx.ChainID(),
+		ChainDomain:         chainDomain,
+		Height:              ctx.BlockHeight(),
+		Timestamp:           ctx.BlockTime().Unix(),
+		OriginCaller:        caller.Bech32(),
+		OriginSend:          send,
+		OriginSendSpent:     new(std.Coins),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, caller),
+		PayGasInfo:          localPGIRun,
+		PayStorageInfo:      ctx.PayStorageInfo(),
+		GasPrice:            getGasPrice(ctx),
+		StorageDepositDenom: ugnot.Denom,
 	}
 
 	buf := new(bytes.Buffer)

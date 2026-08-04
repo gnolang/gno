@@ -31,6 +31,17 @@ stdout 'Tx successfully signed and saved to '
 gnokey broadcast $WORK/multi_msg.tx -quiet=false
 stdout OK!
 
+## Deferred (end-of-tx) storage settlement must report its events in the tx
+## response, exactly as the per-message path does. runMsgs freezes result.Events
+## before the settlement hook runs, so the hook's events have to be spliced on
+## afterwards; without that, this tx reported EVENTS: [] and gnokey showed no
+## STORAGE DELTA / STORAGE FEE at all, even though the realm was charged.
+## result.Events feeds LastResultsHash, so this is consensus-relevant.
+stdout 'STORAGE DELTA:'
+stdout 'STORAGE FEE:'
+stdout '"bytes_delta"'
+stdout 'gno.land/r/test/ss_counter'
+
 ## check payer realm balance decreased (paid gas + storage for ALL messages)
 gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
 ! stdout '10000000ugnot'

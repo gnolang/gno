@@ -273,9 +273,18 @@ After transaction execution completes **successfully**:
 
 **On failure after `PayGas`**: The realm does **not** pay. All state is reverted, including the settlement. This protects realm authors from griefing attacks where an attacker engineers a failure after `PayGas` to drain the realm's gnot while the realm gets nothing (e.g., USDC collection reverted but gnot deducted).
 
-**Why this is safe**: CheckTx simulation already validated that `PayGas` is called and the realm has funds. Failed txs in DeliverTx only occur on state divergence (another tx changed conditions between CheckTx and DeliverTx) — the same race condition that exists for all txs today. This is rare and bounded.
+**Why this is safe**: CheckTx admission runs the settlement as a **dry run** (`endTxHook` is invoked in `RunTxModeCheckExecute`, where every write lands in a cache that is then discarded), so a tx whose settlement cannot succeed — insolvent sponsor, storage over budget, or a `SponsorStorage` tx that grew storage without calling `PayStorage` — is rejected before it is gossiped. Failed txs in DeliverTx therefore only occur on state divergence (another tx changed conditions between CheckTx and DeliverTx) — the same race that exists for all txs today.
 
-**Why not charge for gas on failure (parity with normal fee txs)?** It was considered — a normal fee-paying tx keeps its fee on failure, so charging a sponsor on failure looks symmetric, and it would close a narrow "free block gas on a force-included failing tx" vector. It is rejected because it reintroduces the griefing attack above: settling gnot on a path where the realm's message-side collection (e.g. the USDC it was paid) reverts lets an attacker engineer a failure to drain the realm's gnot for nothing. The residual "free execution on failure" is already bounded by the credit window and is only reachable by a block proposer (who can waste their own block anyway) or a rare check/deliver divergence, so the atomic all-or-nothing rule (realm pays only when the whole tx — collection included — commits) is the safer choice.
+**What that divergence still allows**: admission and delivery necessarily evaluate the tx against *different* state, and a realm can condition `PayGas` on the difference. Two constructions:
+
+- **Height.** CheckTx runs against `checkState`'s last committed header, delivery against a later one. A realm taking an `expectedHeight` argument and sponsoring only when `runtime.ChainHeight() == expectedHeight` passes admission at height H and then, at H+1, burns the credit window without sponsoring.
+- **Pending effects.** CheckTx cannot see the message-side effects of other pending txs (no mempool can). A realm gating on a one-shot allowance admits N sequentially-signed txs of which only the first succeeds.
+
+In both cases the failed tx charges nobody, so it consumes block gas at no one's expense. This is *not* fixable by making settlement stricter: at delivery the realm never called `PayGas`, so there is no commitment to charge — and charging one anyway would reintroduce the griefing attack above. It is bounded by `MaxGasCreditPerTx` and the account sequence; the durable mitigation is a per-account in-flight cap on 0-fee txs, which is deferred (Section 12) and which these constructions make the highest-priority follow-up. Realm authors should prefer sponsorship conditions that are stable across a block.
+
+**Why not charge for gas on failure (parity with normal fee txs)?** It was considered — a normal fee-paying tx keeps its fee on failure, so charging a sponsor on failure looks symmetric, and it would close a narrow "free block gas on a force-included failing tx" vector. It is rejected because it reintroduces the griefing attack above: settling gnot on a path where the realm's message-side collection (e.g. the USDC it was paid) reverts lets an attacker engineer a failure to drain the realm's gnot for nothing. The atomic all-or-nothing rule (realm pays only when the whole tx — collection included — commits) is the safer choice.
+
+The cost of that choice is a residual "free execution on failure": a sponsored tx that fails is compute nobody pays for. It is bounded by the credit window, and admission closes the *deterministic* routes to it by dry-running settlement (a tx that provably cannot settle never enters the mempool). What remains is reachable by a block proposer force-including a failing tx (who can waste their own block anyway) and by check/deliver divergence on pending message state, as described in §8.5.
 
 **Gas price for 0-fee txs:** Normal txs derive gas price from `GasFee / GasWanted`. For 0-fee txs, this is `0/0` (undefined). Instead, the auth module's dynamic gas price (`auth.GasPriceKeeper.LastGasPrice`, exposed on the context via `auth.GasPriceContextKey`) is used for both the derived gas limit and settlement.
 
@@ -416,10 +425,15 @@ func Action(cur realm) {
 | **Exhaust credit window for free** | Credit gas is bounded by `MaxGasCreditPerTx` and counts toward the block gas limit. CheckTx simulation filters txs that don't call `PayGas`; **and DeliverTx also rejects a 0-fee tx that didn't call `PayGas`** (its state changes are discarded), so a proposer cannot force-include one. |
 | **Force-include a free tx (proposer)** | DeliverTx enforces "PayGas must be called" for 0-fee credit-window txs in every mode, not just CheckTx — so a malicious proposer cannot commit free state. |
 | **Call PayGas in a normal fee-paying tx** | No-op — `PayGas` only takes effect in a 0-fee credit-window tx, so the realm is never charged on top of the signer's fee. |
-| **Call PayGas from sub-realm** | Allowed — the calling realm explicitly consents by calling `PayGas`. Realm authors must validate before calling. |
+| **Call PayGas from a nested realm** (e.g. `r/x/app/sub`, a distinct package) | Allowed — the calling realm explicitly consents by calling `PayGas`. Realm authors must validate before calling. |
+| **Call PayGas under `cross(cur.Sub("..."))`** | Allowed, and the **host** pays — see the note below. A `realm.Sub()` identity can never be designated as the payer. |
 | **Unconditional PayGas in public function** | Realm author bug — any caller can drain the realm's gnot. Realm authors must guard `PayGas` with validation logic. |
 | **Call PayGas multiple times** | Only first call is valid; subsequent calls panic |
 | **Trigger failure after PayGas** | Realm does NOT pay on failure — all state reverts. Free execution is bounded by the credit window and the CheckTx/DeliverTx "PayGas was called" enforcement. |
+
+**`realm.Sub()` identities and sponsorship.** A sub-realm minted with `cur.Sub("dao/1")` has its own address and can hold funds, but it can **never be the payer**. Entering a crossing function via `cross(cur.Sub("dao/1"))` leaves `CurrentRealm` as the *host* — the sub-identity is only ever the *presented* (previous) realm — so `PayGas`/`PayStorage` commit the host's balance. This is benign (funds move from the host, which called the native and consented; nothing panics), and a realm wanting the sub to bear the cost can reimburse the host from the sub address in the same tx via `banker.BankerTypeRealmSend`.
+
+Designating a sub-identity as payer is deliberately **not** supported. The `creator == payer` check is package-granular (`callerFrame.Func.PkgPath`) and cannot distinguish `host#dao/1` from `host#dao/2`, while any code in a host may mint any subpath of that host. Accepting synthesized paths would therefore let an ordinary public crossing function such as `func Do(cur realm, s string) { Helper(cross(cur.Sub(s))) }` aim sponsorship at *another* sub's treasury within the same host. Safe support needs a per-sub authorization concept the language does not have yet.
 
 ### 7.2 Validator Cost Analysis
 
@@ -483,8 +497,9 @@ Validators who don't opt in bear zero additional cost. Opt-in validators accept 
   1. Switch mode from `RunTxModeCheck` to `RunTxModeCheckExecute` so message execution is NOT skipped, while still persisting the ante's account-sequence increment to checkState (unlike `RunTxModeSimulate`, which would discard it)
   2. Run full tx (ante handler + messages) with credit gas meter; signatures are verified normally
   3. After execution, check if `PayGasInfo` is set on context
-  4. If set and realm has funds → accept into mempool (ante writes flushed via `WriteCheckpoint`, message writes discarded)
-  5. If not set → reject (tx would fail in DeliverTx anyway); the sequence is not consumed
+  4. Run end-of-tx settlement as a **dry run** (the same `endTxHook` DeliverTx uses), which is what actually verifies the sponsor has funds and that storage has an authorized payer within budget. All of its writes land in the discarded message cache; the gno store commit is deliberately NOT part of this hook (it lives in `commitTxHook`, delivery-only) because it writes through to a node-level cache the rollback does not cover
+  5. If `PayGas` was called and settlement succeeded → accept into mempool (ante writes flushed via `WriteCheckpoint`, message writes discarded)
+  6. Otherwise → reject (the tx would fail in DeliverTx anyway); the sequence is not consumed
 
 ## 9. Alternatives Considered
 

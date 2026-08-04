@@ -52,30 +52,39 @@ func PayStorage(m *gno.Machine, maxDeposit int64) {
 		return
 	}
 
-	// 7. Check gas price denom is set (needed for balance lookup)
-	if ctx.GasPrice.Price.Denom == "" {
-		m.Panic(typedString("PayStorage: gas price not set"))
+	// 7. Check the storage deposit denom is set. NOTE: PayStorage deliberately
+	// does NOT require a gas price — unlike PayGas it never converts gas to a
+	// fee, so demanding one would make PayStorage unusable on a chain whose
+	// genesis omits initial_gasprice (a plausible config for a sponsored chain).
+	depositDenom := ctx.StorageDepositDenom
+	if depositDenom == "" {
+		m.Panic(typedString("PayStorage: storage deposit denom not set"))
 		return
 	}
 
-	// 8. Check realm balance. Fold an existing PayGas commitment into the required
-	// balance ONLY when this SAME realm made it (then one realm covers storage +
-	// gas together). A different realm sponsoring gas pays from its own balance
-	// (settlement charges each realm separately), so its commitment must not
-	// inflate this realm's storage-affordability pre-check. (Two-realm sponsorship
-	// is supported: realm A may pay gas while realm B pays storage.)
+	// 8. Check realm balance, in the denom storage deposits are actually charged
+	// in (NOT the gas-price denom — the chain may price gas in another token).
+	// Fold an existing PayGas commitment into the required balance ONLY when this
+	// SAME realm made it (then one realm covers storage + gas together) AND the
+	// gas fee is charged in that same denom — otherwise the two commitments are
+	// different tokens and summing them is meaningless. A different realm
+	// sponsoring gas pays from its own balance (settlement charges each realm
+	// separately), so its commitment must not inflate this realm's
+	// storage-affordability pre-check. (Two-realm sponsorship is supported:
+	// realm A may pay gas while realm B pays storage.)
 	realmAddr := gno.DerivePkgBech32Addr(currentPkgPath)
 	coins := ctx.Banker.GetCoins(realmAddr)
-	ugnotBalance := int64(0)
+	depositBalance := int64(0)
 	for _, c := range coins {
-		if c.Denom == ctx.GasPrice.Price.Denom {
-			ugnotBalance = c.Amount
+		if c.Denom == depositDenom {
+			depositBalance = c.Amount
 			break
 		}
 	}
 	totalRequired := maxDeposit
 	if ctx.PayGasInfo != nil && ctx.PayGasInfo.MaxFee > 0 &&
-		ctx.PayGasInfo.RealmPkgPath == currentPkgPath {
+		ctx.PayGasInfo.RealmPkgPath == currentPkgPath &&
+		ctx.GasPrice.Price.Denom == depositDenom {
 		sum, ok := overflow.Add(maxDeposit, ctx.PayGasInfo.MaxFee)
 		if !ok {
 			m.Panic(typedString("PayStorage: total commitment overflow"))
@@ -83,7 +92,7 @@ func PayStorage(m *gno.Machine, maxDeposit int64) {
 		}
 		totalRequired = sum
 	}
-	if ugnotBalance < totalRequired {
+	if depositBalance < totalRequired {
 		m.Panic(typedString("PayStorage: insufficient realm balance for storage + gas"))
 		return
 	}

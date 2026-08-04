@@ -43,8 +43,9 @@ type BaseApp struct {
 	beginBlocker BeginBlocker // logic to run before any txs
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
 
-	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
-	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
+	beginTxHook  BeginTxHook  // BaseApp-specific hook run before running transaction messages.
+	endTxHook    EndTxHook    // BaseApp-specific hook run after running transaction messages.
+	commitTxHook CommitTxHook // BaseApp-specific hook run only when a delivered tx is committed.
 
 	// --------------------
 	// Volatile state
@@ -645,7 +646,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 	}
 	ctx := app.getContextForTx(mode, req.Tx)
 
-	result := app.runTx(ctx, req.Tx)
+	// Hand over the tx decoded above: re-decoding it in runTx would double the
+	// unmetered amino work an attacker can force per rejected mempool tx.
+	result := app.runTxWithDecoded(ctx, req.Tx, &tx)
 
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
@@ -698,9 +701,11 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 }
 
 // / runMsgs iterates through all the messages and executes them.
+//
+// The caller (runTx, its only caller) owns the per-tx EventLogger on ctx, so
+// that end-of-tx settlement can emit into the same logger and have its events
+// reach the response. runMsgs must therefore NOT install a fresh one here.
 func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Result) {
-	ctx = ctx.WithEventLogger(NewEventLogger())
-
 	msgLogs := make([]string, 0, len(msgs))
 	msgInfos := make([]string, 0, len(msgs))
 	data := make([]byte, 0, len(msgs))
@@ -788,6 +793,15 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
 func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
+	return app.runTxWithDecoded(ctx, txBytes, nil)
+}
+
+// runTxWithDecoded is runTx with an optionally pre-decoded tx. CheckTx has to
+// decode the tx up front to pick the run mode, and amino decoding of a
+// maximum-size tx is unmetered work on the mempool hot path — so it hands the
+// decoded value over here instead of making us decode the same bytes twice.
+// Callers that have not already decoded pass nil.
+func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (result Result) {
 	var (
 		// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
 		// determined by the GasMeter. We need access to the context to get the gas
@@ -840,6 +854,14 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 
 	defer func() {
 		if r := recover(); r != nil {
+			// A recovered tx is a FAILED tx: its writes are reverted, so it must
+			// not report events describing state that no longer exists. runMsgs
+			// may already have populated result.Events by the time we get here —
+			// notably when end-of-tx settlement panics (it can still trip OOG on
+			// the tx meter) after every message succeeded. Clearing here covers
+			// both recovery branches below; the non-panicking paths clear it in
+			// runTx proper. result.Events feeds LastResultsHash.
+			result.Events = nil
 			switch ex := r.(type) {
 			case store.OutOfGasError:
 				gasUsed := ctx.GasMeter().GasConsumed()
@@ -907,7 +929,9 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	}()
 
 	var tx Tx
-	if err := amino.Unmarshal(txBytes, &tx); err != nil {
+	if decoded != nil {
+		tx = *decoded
+	} else if err := amino.Unmarshal(txBytes, &tx); err != nil {
 		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	}
@@ -966,9 +990,16 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
 	// PayGas is only meaningful — and only permitted to move funds or resize the
 	// gas meter — for such txs; in a normal fee-paying tx it is a no-op.
-	// Genesis (height 0) is exempt: genesis txs are trusted and never call PayGas,
-	// so they must not be subjected to the credit-window enforcement below.
-	zeroFeeCreditTx := ctx.BlockHeight() > 0 &&
+	//
+	// Genesis is exempt: genesis txs are trusted and never call PayGas, so they
+	// must not be subjected to the credit-window enforcement below. But "genesis"
+	// is a property of the DELIVERY, not of the raw height: CheckTx is served from
+	// node start (the RPC listener opens before the first block — see
+	// bft/node.Node), and checkState keeps InitChain's zero-height header until
+	// the first Commit. Gating on height alone therefore disabled PayGas
+	// enforcement for every mempool admission in that window. Scope the exemption
+	// to DeliverTx so CheckExecute still enforces sponsorship.
+	zeroFeeCreditTx := (ctx.BlockHeight() > 0 || mode != RunTxModeDeliver) &&
 		tx.Fee.GasFee.IsZero() &&
 		app.consensusParams != nil && app.consensusParams.Block != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0
@@ -981,6 +1012,12 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	runMsgCtx = runMsgCtx.
 		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
 		WithPayStorageInfo(psi)
+
+	// Own the per-tx event logger here rather than inside runMsgs, so that
+	// end-of-tx settlement emits into the SAME logger and its events can be
+	// spliced onto the result after runMsgs has frozen result.Events.
+	txEvents := NewEventLogger()
+	runMsgCtx = runMsgCtx.WithEventLogger(txEvents)
 
 	cp.Checkpoint()
 
@@ -1000,6 +1037,10 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
+	// Number of logger events already folded into result.Events by runMsgs;
+	// anything the settlement hook emits beyond this is appended after it runs.
+	nMsgEvents := len(txEvents.Events())
+
 	// Whether a realm called PayGas is read from the (in-process) context, not
 	// carried on result — result must stay wire-compatible with ResponseDeliverTx.
 	pgi := runMsgCtx.PayGasInfo()
@@ -1013,15 +1054,54 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 
-	// Non-Deliver modes return after msg execution without committing message
-	// state. CheckExecute (0-fee mempool admission) additionally persists the
-	// ante writes — notably the account sequence increment — to checkState when
-	// the tx is ADMITTED (result OK), so a subsequent sponsored tx from the same
-	// account at sequence+1 is accepted. WriteCheckpoint flushes only the ante
-	// snapshot and discards the message writes (CheckTx must not commit state). A
-	// rejected tx flushes nothing, leaving the mempool sequence unadvanced, so it
-	// can be resubmitted. Simulate (RPC gas estimation) discards everything via
-	// the outer CacheContext.
+	// End-of-tx settlement runs ONLY on success. On failure every message write
+	// reverts and a gas sponsor does NOT pay — see the design note in
+	// docs/design/realm-gas-sponsorship-hld.md. A settlement error fails the tx,
+	// which then takes the revert branch below.
+	//
+	// It runs for CheckExecute as well as DeliverTx. A tx whose settlement cannot
+	// succeed is deterministically doomed, and because a FAILED sponsored tx
+	// charges nobody, admitting one would let any user burn block gas for free
+	// (and make every opting-in validator re-run its VM). Settling here is a dry
+	// run: under CheckExecute every write lands in msCache, which is discarded
+	// below — only the ante checkpoint is kept.
+	//
+	// Simulate is deliberately excluded: it is unauthenticated RPC gas estimation,
+	// and a caller asking "what would this cost" must not be answered with a
+	// settlement failure (nor pay the cost of running one).
+	if (mode == RunTxModeDeliver || mode == RunTxModeCheckExecute) &&
+		result.IsOK() && app.endTxHook != nil {
+		if err := app.endTxHook(runMsgCtx, result); err != nil {
+			result.Error = ABCIError(err)
+		}
+
+		// Events emitted by settlement (e.g. storage deposit/unlock) are appended
+		// AFTER the hook, because runMsgs froze result.Events before it ran.
+		if result.IsOK() {
+			result.Events = append(result.Events, txEvents.Events()[nMsgEvents:]...)
+		}
+	}
+
+	// A failed tx reports NO events: everything it wrote is reverted below, so
+	// reporting its events would tell subscribers about state that does not
+	// exist. This mirrors runMsgs, which nils events when a message fails, and
+	// must stay OUTSIDE the hook guard above — result.Error is also set by the
+	// PayGas-not-called check, which runs whether or not a hook is installed and
+	// leaves runMsgs' events populated. result.Events feeds LastResultsHash, and
+	// EventTx is published for every tx regardless of error.
+	if !result.IsOK() {
+		result.Events = nil
+	}
+
+	// Non-Deliver modes return without committing message state. CheckExecute
+	// (0-fee mempool admission) additionally persists the ante writes — notably
+	// the account sequence increment — to checkState when the tx is ADMITTED
+	// (result OK), so a subsequent sponsored tx from the same account at
+	// sequence+1 is accepted. WriteCheckpoint flushes only the ante snapshot and
+	// discards the message writes (CheckTx must not commit state). A rejected tx
+	// flushes nothing, leaving the mempool sequence unadvanced, so it can be
+	// resubmitted. Simulate (RPC gas estimation) discards everything via the
+	// outer CacheContext.
 	if mode != RunTxModeDeliver {
 		if mode == RunTxModeCheckExecute && result.IsOK() {
 			cp.WriteCheckpoint()
@@ -1029,17 +1109,12 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		return result
 	}
 
-	// End-of-tx settlement + commit runs ONLY on success. On failure every
-	// message write reverts and a gas sponsor does NOT pay — see the design note
-	// in docs/design/realm-gas-sponsorship-hld.md. A settlement error fails the
-	// tx, which then takes the revert branch below.
-	if result.IsOK() && app.endTxHook != nil {
-		if err := app.endTxHook(runMsgCtx, result); err != nil {
-			result.Error = ABCIError(err)
-		}
-	}
-
 	if result.IsOK() {
+		// Commit app-side stores that live OUTSIDE msCache and so were not rolled
+		// back by a CheckExecute dry run. Only a delivered tx reaches here.
+		if app.commitTxHook != nil {
+			app.commitTxHook(runMsgCtx)
+		}
 		msCache.MultiWrite()
 	} else {
 		// Failure: discard the message writes, keeping only the ante writes.

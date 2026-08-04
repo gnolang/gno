@@ -1,5 +1,11 @@
-# Test that a sub-realm can call PayGas and pay for the tx.
+# Test that a nested realm can call PayGas and pay for the tx.
 # MsgCall targets realm A → A calls B.SponsoredHelper() → B calls PayGas → B pays.
+#
+# NOTE: "sub-realm" here means a realm at a NESTED PACKAGE PATH (a separate
+# realm with its own package), not a `realm.Sub()` identity. The two are
+# unrelated: a `cur.Sub("x")` identity is only ever the PRESENTED realm, so it
+# can never be the payer — the host pays. See the "realm.Sub() identities and
+# sponsorship" note in docs/design/realm-gas-sponsorship-hld.md.
 
 ## start a new node
 gnoland start

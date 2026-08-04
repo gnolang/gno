@@ -203,17 +203,34 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) error {
-		// End-of-tx settlement runs ONLY on success — baseapp invokes this hook
-		// solely for a committed tx. On failure every message write reverts and a
-		// gas sponsor does NOT pay: free execution is instead bounded by the
-		// credit window and the "PayGas was called" enforcement. See the design
-		// note in docs/design/realm-gas-sponsorship-hld.md for the rationale.
+		// End-of-tx settlement runs ONLY on success. On failure every message
+		// write reverts and a gas sponsor does NOT pay: free execution is instead
+		// bounded by the credit window and the "PayGas was called" enforcement.
+		// See the design note in docs/design/realm-gas-sponsorship-hld.md.
+		//
+		// baseapp also runs this at 0-fee mempool admission (CheckExecute), where
+		// it acts as a DRY RUN: every write below lands in the discarded cache, so
+		// a tx that cannot settle is rejected before it is gossiped rather than
+		// being included and failing at nobody's expense. Nothing here may write
+		// outside that cache — the gno store commit lives in SetCommitTxHook.
 		//
 		// Settlement runs on a fresh infinite gas meter: it is deterministic
 		// protocol bookkeeping (like the ante's fee deduction), not user
-		// computation, so it must neither consume the tx's (tightened) gas
-		// budget / trip OOG nor inflate the tx's reported GasUsed. gasUsed for
-		// the fee is read from the REAL tx meter before the swap.
+		// computation, so it should not consume the tx's (tightened) gas budget
+		// or inflate its reported GasUsed. gasUsed for the fee is read from the
+		// REAL tx meter before the swap.
+		//
+		// CAVEAT: this covers only the bank/params side. The gno transaction
+		// store was built in BeginTxHook and captured the ORIGINAL meter (see
+		// VMKeeper.MakeGnoTransactionStore), so the realm reads/writes that
+		// ProcessStorageDepositFromDiffs performs still charge the tx meter —
+		// proportional to the number of realms in AccumulatedDiffs. A sponsor
+		// sizing maxFee purely from an RPC gas estimate (Simulate does not run
+		// settlement) can therefore come up short and OOG inside settlement.
+		// That tx is deterministically doomed, so admission now rejects it
+		// rather than letting it burn block gas, but the estimate is still
+		// optimistic. Making settlement's store metering match this comment is
+		// a consensus-affecting change and is deliberately not done here.
 		gasUsed := ctx.GasMeter().GasConsumed()
 		settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
 
@@ -299,8 +316,16 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		}
 		// Per-message storage (SponsorStorage=false) was already settled in handlers.
 
-		vmk.CommitGnoTransactionStore(ctx)
 		return nil
+	})
+
+	// Commit the gno transaction store only when the tx is actually committed.
+	// This CANNOT live in the EndTxHook: that hook also runs as a dry run during
+	// 0-fee mempool admission, and CommitGnoTransactionStore writes through to the
+	// node-level gno store cache, which the CheckExecute rollback does not cover —
+	// a CheckTx would otherwise mutate shared state.
+	baseApp.SetCommitTxHook(func(ctx sdk.Context) {
+		vmk.CommitGnoTransactionStore(ctx)
 	})
 
 	// Set EndBlocker

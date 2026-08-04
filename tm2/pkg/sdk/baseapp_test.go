@@ -605,13 +605,66 @@ func TestCheckTx(t *testing.T) {
 // CheckTx's ante write persisted. This is a regression guard for the earlier
 // behavior where 0-fee CheckTx ran in Simulate mode and discarded ante writes,
 // capping a sender to one in-flight sponsored tx per block.
+// TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute is the companion guard to
+// TestCheckTxSponsoredSequencePersists: a 0-fee tx whose messages never call
+// PayGas has no payer and must be REJECTED at admission — including before the
+// first block is committed, when checkState still carries InitChain's zero
+// height. Gating that enforcement on BlockHeight() > 0 previously disabled it
+// for every CheckTx in that window.
+func TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute(t *testing.T) {
+	t.Parallel()
+
+	counterKey := []byte("counter-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
+	routerOpt := func(bapp *BaseApp) {
+		// Emits an event and never calls PayGas.
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.EventLogger().EmitEvent(abci.EventString("test_evt"))
+			return Result{}
+		}))
+	}
+	allowOpt := func(bapp *BaseApp) { bapp.SetAllowZeroFeeTxs(true) }
+
+	app := setupBaseApp(t, anteOpt, routerOpt, allowOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:        1_000_000,
+				MaxGas:            10_000_000,
+				MaxGasCreditPerTx: 1_000_000,
+			},
+		},
+	})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+
+	// Admission must reject it, even though the header height is still 0.
+	r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.False(t, r.IsOK(), "0-fee tx without PayGas must not be admitted: %v", r)
+
+	// And a rejected tx reports no events: its writes are reverted, so surfacing
+	// the message's events would describe state that does not exist.
+	require.Empty(t, r.Events, "a failed tx must not report events")
+}
+
 func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	t.Parallel()
 
 	counterKey := []byte("counter-key")
 	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
 	routerOpt := func(bapp *BaseApp) {
-		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			// Stand in for a realm calling runtime.PayGas: the native sets MaxFee
+			// on the shared PayGasInfo pointer, which is what runTx checks. Without
+			// this the tx is (correctly) rejected as a 0-fee tx with no sponsor —
+			// admission enforces that in CheckExecute regardless of block height.
+			if pgi := ctx.PayGasInfo(); pgi != nil {
+				pgi.MaxFee = 1
+			}
+			return Result{}
+		}))
 	}
 	allowOpt := func(bapp *BaseApp) { bapp.SetAllowZeroFeeTxs(true) }
 

@@ -100,6 +100,13 @@ func (app *BaseApp) SetEndTxHook(endTx EndTxHook) {
 	app.endTxHook = endTx
 }
 
+func (app *BaseApp) SetCommitTxHook(commitTx CommitTxHook) {
+	if app.sealed {
+		panic("SetCommitTxHook() on sealed BaseApp")
+	}
+	app.commitTxHook = commitTx
+}
+
 func (app *BaseApp) SetAllowZeroFeeTxs(allow bool) {
 	if app.sealed {
 		panic("SetAllowZeroFeeTxs() on sealed BaseApp")

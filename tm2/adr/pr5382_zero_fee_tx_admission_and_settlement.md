@@ -72,6 +72,25 @@ gno.land implements the actual debiting. On failure everything reverts and the
 realm pays nothing (see Alternatives). `store.GasMeter` gains `SetLimit`, used by
 `PayGas` to *shrink* the credit window to what `maxFee` affords (never raise it).
 
+The hook runs in **both** `RunTxModeDeliver` and `RunTxModeCheckExecute`. Running
+it at admission is what makes the "realm has funds" half of the admission contract
+real: settlement is where sponsor solvency, the storage budget, and the
+"`SponsorStorage` grew storage but nobody called `PayStorage`" case are decided.
+Without it those txs were admitted, gossiped, and included — burning block gas at
+nobody's expense, since a failed sponsored tx charges no one. Under CheckExecute
+the hook is a **dry run**: its writes go to the message cache, which is discarded.
+
+That forces a second hook. `CommitTxHook(ctx)` runs only for a delivered,
+successful tx and is where gno.land calls `CommitGnoTransactionStore`. It cannot
+live in `EndTxHook`, because it writes through to the **node-level** gno store
+cache — outside the cache-wrapped `MultiStore` — so a CheckExecute dry run would
+mutate shared state that the rollback does not cover.
+
+Settlement events are spliced onto `result.Events` after the hook, since
+`runMsgs` freezes the result before it runs, and are cleared if settlement fails
+(mirroring `runMsgs`, which drops events when a message fails). `result.Events`
+feeds `LastResultsHash`, so both halves are consensus-relevant.
+
 ### 6. `std.Fee.SponsorStorage` and the `ValidateBasic` relaxation
 
 `std.Fee` gains a `SponsorStorage bool` (proto field 3, `omitempty`) that defers
@@ -109,6 +128,36 @@ client-supplied value) so the mempool packs blocks against real worst-case gas.
   (up to `MaxGasCreditPerTx`) per first-time 0-fee tx, with no per-account
   admission rate limit in v1 (deferred). Rechecks are ante-only to avoid
   per-block re-execution.
+- **Opening the credit window without a gas price makes sponsorship inert.**
+  `MaxGasCreditPerTx` is a consensus param while the gas price is an auth param,
+  so nothing cross-validates them: a genesis that sets the window but leaves
+  `auth.initial_gasprice` at its zero default passes validation, and then every
+  `PayGas` call panics with "gas price not set" (it must divide by the price to
+  derive a gas limit). Sponsorship simply never works, while opt-in validators
+  still spend credit-window CPU rejecting the txs. The failure is loud and
+  immediate rather than silent, so this is left as an operator-configuration
+  concern; enabling the window is a deliberate act and should be paired with a
+  non-zero `initial_gasprice`. Note `PayStorage` deliberately does NOT require a
+  gas price — it never converts gas to a fee.
+- **Deferred storage is priced once, at end-of-tx.** With `SponsorStorage`, the
+  accumulator holds raw byte deltas and settlement prices them all with the VM
+  params read at end-of-tx, whereas the per-message path snapshots params before
+  each message. A tx that changes `StoragePrice` in one message and grows storage
+  in another is therefore priced differently under the two paths. Retaining the
+  per-message price (or the already-computed deposit) in `AccumulatedDiffs` would
+  fix it, but that changes settlement arithmetic and so is consensus-relevant;
+  deferred. Reaching it requires a single tx that performs a governance param
+  change *and* grows storage under `SponsorStorage`.
+- **Hardfork replay of a sponsored tx does not reproduce the source debit.**
+  Settlement recomputes the sponsor's charge from the *replay's* gas consumption
+  and the target chain's current `LastGasPrice`. Genesis replay does not replay
+  historical per-block gas-price updates, and source-gas mode deliberately allows
+  different metering, so a replayed sponsored tx can debit a different amount
+  than it did on the source chain — diverging the sponsor's balance and the
+  AppHash. Reproducing it faithfully requires archiving the source settlement
+  amount (or the source gas price) in the tx metadata, which is a genesis-format
+  change and is deliberately out of scope here. This is currently unreachable:
+  no chain has sponsored txs to replay, since the feature ships disabled.
 - **A `MaxGasCreditPerTx` change is latent** until node restart (memoized at
   InitChain), despite being governance-tunable.
 - **Open item:** sponsored-tx compute is charged to the block gas meter, which
@@ -127,8 +176,11 @@ client-supplied value) so the mempool packs blocks against real worst-case gas.
   griefing attack where an attacker engineers a post-`PayGas` failure so the
   realm's message-side collection reverts but its gnot is still taken. The atomic
   all-or-nothing rule (realm pays only when the whole tx commits) is safer; the
-  residual free-execution-on-failure is bounded by the credit window and only
-  reachable by a block proposer (who can waste their own block anyway).
+  residual free-execution-on-failure is bounded by the credit window, and the
+  deterministic routes to it are closed at admission by dry-running settlement
+  (see below). What remains is a block proposer force-including a failing tx (who
+  can waste their own block anyway) and check/deliver divergence on pending
+  message state.
 - **`RunTxModeSimulate` for admission.** Rejected: it discards the ante sequence
   increment (one in-flight sponsored tx per account per block) and required a
   signature-verification override; `RunTxModeCheckExecute` avoids both.

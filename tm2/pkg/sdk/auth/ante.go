@@ -49,13 +49,58 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		consParams := ctx.ConsensusParams()
 		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
 
+		// Genesis is exempt from the two SponsorStorage guards below — genesis txs
+		// are trusted and never sponsor. "Genesis" is a property of the DELIVERY,
+		// not of the raw height: CheckTx is served from node start and checkState
+		// carries InitChain's zero height until the first Commit, so gating on
+		// height alone would let ordinary mempool traffic skip both guards in that
+		// window and admit txs that are then rejected deterministically at
+		// DeliverTx. Mirrors the credit-window scoping in baseapp.runTx.
+		notGenesis := ctx.BlockHeight() > 0 || ctx.Mode() != sdk.RunTxModeDeliver
+
+		// A sponsored (0-fee) tx cannot be ADMITTED before the first block is
+		// committed. checkState carries InitChain's zero height until the first
+		// Commit, and at height 0 gno.land's genesis wrapper auto-creates and
+		// funds any unknown signer (see gnoland.NewAppWithOptions). Admission
+		// decisions taken against that synthetic state are meaningless: a tx from
+		// a fresh key passes CheckTx and is gossiped, then fails deterministically
+		// at DeliverTx in block 1 where the account never existed — and repeating
+		// it with fresh keys forces one credit-window VM execution per attempt on
+		// every opting-in node, during startup.
+		//
+		// Genesis DELIVERY is unaffected (trusted genesis txs never sponsor), and
+		// there is nothing to lose by refusing: the chain is not producing blocks
+		// yet, so clients simply resubmit once block 1 exists.
+		if isZeroFeeTx && ctx.BlockHeight() == 0 && ctx.Mode() != sdk.RunTxModeDeliver {
+			res = abciResult(std.ErrUnauthorized(
+				"sponsored transactions are not accepted before the first block"))
+			return ctx, res, true
+		}
+
+		// A 0-fee tx is only legitimate when the credit window is OPEN, because
+		// that is the only path that gives it a payer. With the window disabled
+		// (MaxGasCreditPerTx == 0 — the default, and the kill switch) there is no
+		// sponsorship: PayGas is inert, no settlement runs, and the tx would
+		// simply execute for free on the caller's GasWanted.
+		//
+		// This must be rejected in EVERY mode, not just CheckTx. The mempool
+		// minimum-fee check below is deliberately CheckTx-only (it is local
+		// validator policy), so it cannot stop a proposer from force-including a
+		// 0-fee tx. Before this feature, Tx.ValidateBasic rejected such txs
+		// outright; relaxing it to admit canonical zero fees for sponsorship
+		// removed that backstop, and this restores it.
+		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx && notGenesis {
+			res = abciResult(std.ErrInsufficientFee(
+				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx"))
+			return ctx, res, true
+		}
+
 		// Fee.SponsorStorage only applies to sponsored (0-fee) txs, where a realm
 		// covers deferred storage via PayStorage. Reject it on a normal fee-paying
 		// tx so the mistake surfaces at submission (CheckTx) rather than failing
 		// opaquely at inclusion (the deferred path would skip the signer's
-		// per-message deposit and then abort at end-of-tx). Genesis (height 0) is
-		// exempt — genesis txs are trusted and never sponsor.
-		if tx.Fee.SponsorStorage && !isZeroFeeTx && ctx.BlockHeight() > 0 {
+		// per-message deposit and then abort at end-of-tx).
+		if tx.Fee.SponsorStorage && !isZeroFeeTx && notGenesis {
 			res = abciResult(std.ErrUnauthorized("SponsorStorage requires a 0-fee sponsored transaction"))
 			return ctx, res, true
 		}
@@ -64,9 +109,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// the per-message caller identity is lost: the deferred settlement can
 		// attribute a freed-storage refund only to a single tx caller (the first
 		// signer). Restrict it to single-signer txs so that caller is unambiguous,
-		// avoiding routing one signer's refund to a co-signer. Genesis (height 0)
-		// is exempt.
-		if tx.Fee.SponsorStorage && len(tx.GetSigners()) > 1 && ctx.BlockHeight() > 0 {
+		// avoiding routing one signer's refund to a co-signer.
+		if tx.Fee.SponsorStorage && len(tx.GetSigners()) > 1 && notGenesis {
 			res = abciResult(std.ErrUnauthorized("SponsorStorage is not supported for multi-signer transactions"))
 			return ctx, res, true
 		}
@@ -107,6 +151,15 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
 		if isZeroFeeTx {
 			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
+			// SetGasMeter hands out an INFINITE meter at height 0 (genesis) and
+			// for source-gas replay. That exemption is correct when DELIVERING a
+			// trusted genesis/replay tx, but CheckTx is served from node start
+			// while checkState still carries InitChain's zero height, so mempool
+			// admission of a 0-fee tx would otherwise run the VM unmetered.
+			// Outside DeliverTx, always bound a credit-window tx by the window.
+			if ctx.Mode() != sdk.RunTxModeDeliver {
+				newCtx = newCtx.WithGasMeter(store.NewGasMeter(consParams.Block.MaxGasCreditPerTx))
+			}
 		} else {
 			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
 		}
