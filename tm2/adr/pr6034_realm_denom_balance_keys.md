@@ -375,8 +375,15 @@ alone.
   unbounded denom is unbounded free key. Accepting: `-` was excluded, so a realm at
   a path as ordinary as `gno.land/r/my-org/token` could deploy and then fail to
   issue its own coin. Two nodes disagreeing on either half fork, so both must land
-  in the same upgrade — and a chain that has already admitted an over-long denom
-  cannot adopt the bound without replay.
+  in the same upgrade.
+
+  A chain that has already admitted an over-long denom cannot fork to this binary at
+  all until that balance is edited out of the genesis file: replay is where it fails,
+  not what fixes it. `SetCoins` rejects the denom and `applyBalance` panics on that
+  error (`gno.land/pkg/gnoland/app.go`), so the node aborts during `InitChain` rather
+  than starting with the balance dropped — which is the right failure, since silently
+  discarding someone's coins would be worse. `gnogenesis fork test` surfaces it before
+  any validator is asked to start.
 - `AddCoins`/`SubtractCoins` signatures changed (dropped the returned `Coins`), which is
   a breaking change to `bank.BankKeeperI`. They were later **removed from
   `vm.BankKeeperI`** entirely in favour of `MintCoins`/`BurnCoins`/`TotalSupply`, so a
