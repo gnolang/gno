@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-Splitting balances into two homes (`tm2/adr/prxxxx_realm_denom_balance_keys.md`) created
+Splitting balances into two homes (`tm2/adr/pr6034_realm_denom_balance_keys.md`) created
 correctness properties that span two keyspaces and that no single read can verify. The
 point-of-use assertions added with that change fire only on paths that execute: they
 catch a violation when someone happens to read the affected account, not when it is
@@ -110,7 +110,7 @@ read as an active check that isn't — which is what made the deleted file dead 
 this ADR*: there was no supply record, `TotalCoin` was `panic("not yet implemented")`,
 and the reverse denom index was deliberately omitted, so summing balances would have
 compared them against themselves. **Since superseded** — see
-`prxxxx_coin_supply.md`, which adds the counter and `SupplyInvariant` with it.
+`pr6034_coin_supply.md`, which adds the counter and `SupplyInvariant` with it.
 
 **Checks that were specified and dropped, because they are false on a healthy chain:**
 

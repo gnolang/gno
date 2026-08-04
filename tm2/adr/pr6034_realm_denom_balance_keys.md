@@ -118,7 +118,7 @@ Layout choices, and why:
 - **Zero balances are deleted**, never stored. Required, not stylistic: a zero
   would make the reconstructed `Coins` invalid.
 - **No reverse denom→address index and no supply tracking.** (**Superseded** for supply:
-  `prxxxx_coin_supply.md` adds a per-denom counter and implements `TotalCoin`. The
+  `pr6034_coin_supply.md` adds a per-denom counter and implements `TotalCoin`. The
   reverse index is still deliberately absent.) cosmos needs the
   index only for `DenomOwners`, which tm2 does not have, and `TotalCoin` is
   `panic("not yet implemented")`. Omitting the index halves the write cost of a
@@ -321,7 +321,7 @@ alone.
 - `AddCoins`/`SubtractCoins` signatures changed (dropped the returned `Coins`), which is
   a breaking change to `bank.BankKeeperI`. They were later **removed from
   `vm.BankKeeperI`** entirely in favour of `MintCoins`/`BurnCoins`/`TotalSupply`, so a
-  realm cannot reach a supply-blind credit — see `prxxxx_coin_supply.md`.
+  realm cannot reach a supply-blind credit — see `pr6034_coin_supply.md`.
 - Receiving coins still creates the recipient's account. This is deliberate and
   load-bearing: an address with no account cannot sign, so the funds would
   otherwise be visible and permanently unspendable. Account creation allocates

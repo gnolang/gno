@@ -146,7 +146,7 @@ live proper ancestor remains.
 ### Denom-flood gas-bomb (known limitation)
 
 > **Partly resolved.** Non-gas balances now live in their own store keys
-> (`tm2/adr/prxxxx_realm_denom_balance_keys.md`), so an account's own transactions
+> (`tm2/adr/pr6034_realm_denom_balance_keys.md`), so an account's own transactions
 > no longer get more expensive as junk denoms accumulate — the gas-bomb below can
 > no longer be aimed at a treasury from outside. Two caveats: a realm that
 > *enumerates* balances still pays O(number of denoms held) — use the new

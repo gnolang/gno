@@ -9,7 +9,7 @@ Proposed
 `SDKBanker.TotalCoin(denom)` was `panic("not yet implemented")` and is reachable from
 Gno through the `Banker` interface, so a realm calling it aborted its transaction.
 
-More importantly, the invariants added in `prxxxx_bank_invariants.md` are all
+More importantly, the invariants added in `pr6034_bank_invariants.md` are all
 *structural*: they check key shapes, tier membership, and that an account's address
 agrees with the key it is filed under. None is a **redundancy** check — two numbers
 maintained by different code that must agree. That is what makes cosmos's
@@ -112,7 +112,7 @@ every transfer rather than of issuance.
 
 - **Consensus-visible.** The `/supply/` keyspace appears at genesis for every denom
   in the balances file. Migration is fork-and-replay, the same answer
-  `prxxxx_realm_denom_balance_keys.md` committed to and for the same reason: replay
+  `pr6034_realm_denom_balance_keys.md` committed to and for the same reason: replay
   regenerates supply through the code that maintains it, so there is no migration
   code to get wrong.
 - **A mint or burn costs ~+306,700 gas** — one extra read and write on the supply
