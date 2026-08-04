@@ -1617,3 +1617,53 @@ func TestClient_EstimateGas(t *testing.T) {
 		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }
+
+func TestQueryBalanceAndSupply(t *testing.T) {
+	t.Parallel()
+
+	addr, err := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	require.NoError(t, err)
+	const realmDenom = "/gno.land/r/demo/foo:gold"
+
+	// Records the path so the realm denom's slashes can be checked to survive.
+	newClient := func(data string, gotPath *string) *Client {
+		return &Client{
+			RPCClient: &mockRPCClient{
+				abciQuery: func(_ context.Context, path string, _ []byte) (*ctypes.ResultABCIQuery, error) {
+					*gotPath = path
+					return &ctypes.ResultABCIQuery{Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{Data: []byte(data)},
+					}}, nil
+				},
+			},
+		}
+	}
+
+	t.Run("balance across both tiers", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		coins, _, err := newClient(`"7`+realmDenom+`,100ugnot"`, &path).QueryBalance(addr)
+		require.NoError(t, err)
+		require.Equal(t, "bank/balances/"+crypto.AddressToBech32(addr), path)
+		require.Equal(t, int64(100), coins.AmountOf("ugnot"))
+		require.Equal(t, int64(7), coins.AmountOf(realmDenom))
+	})
+
+	t.Run("supply of a realm denom keeps its slashes", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		supply, _, err := newClient(`"42"`, &path).QuerySupply(realmDenom)
+		require.NoError(t, err)
+		require.Equal(t, "bank/supply/"+realmDenom, path,
+			"the denom must reach the route whole, not split")
+		require.Equal(t, int64(42), supply)
+	})
+
+	t.Run("a malformed denom is rejected before the round trip", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		_, _, err := newClient(`"0"`, &path).QuerySupply("UPPER")
+		require.Error(t, err)
+		require.Empty(t, path, "an invalid denom must not reach the node")
+	})
+}

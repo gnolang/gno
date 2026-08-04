@@ -215,23 +215,25 @@ func (bank BankKeeper) sendCoins(
 
 // upgradeVestingAccount replaces a fully-vested VestingAccount with a plain
 // BaseAccount. Returns the replacement account, or the original if not ready.
-func (bank BankKeeper) upgradeVestingAccount(ctx sdk.Context, acc std.Account) std.Account {
+func (bank BankKeeper) upgradeVestingAccount(ctx sdk.Context, acc std.Account) (std.Account, bool) {
 	va, ok := acc.(std.VestingAccount)
 	if !ok {
-		return acc
+		return acc, false
 	}
 	if !va.GetVestingCoins(ctx.BlockTime()).IsZero() {
-		return acc
+		return acc, false
 	}
-	baseAcc := &std.BaseAccount{
+	// Deliberately does not persist. Callers write it on their success path only:
+	// this used to SetAccount here, which meant a debit that then failed its
+	// affordability check still rewrote the account object — a write on an operation
+	// that reported failure. The caller knows whether it succeeded; this does not.
+	return &std.BaseAccount{
 		Address:       va.GetAddress(),
 		Coins:         va.GetCoins(),
 		PubKey:        va.GetPubKey(),
 		AccountNumber: va.GetAccountNumber(),
 		Sequence:      va.GetSequence(),
-	}
-	bank.acck.SetAccount(ctx, baseAcc)
-	return baseAcc
+	}, true
 }
 
 // splitByTier partitions amt by where each denom is stored. Both halves keep
@@ -287,7 +289,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 
 	// Once the schedule completes the account becomes a plain BaseAccount, so
 	// later transfers skip the vesting check entirely.
-	acc := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
+	acc, upgraded := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
 
 	// The schedule is checked one denom at a time, reading only the denoms being
 	// spent — never the whole balance set, which is what makes this O(len(amt))
@@ -315,7 +317,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		}
 	}
 
-	return bank.subtract(ctx, acc, addr, amt)
+	return bank.subtract(ctx, acc, addr, amt, upgraded)
 }
 
 // subtractCoinsUnrestricted performs raw coin subtraction without vesting or
@@ -327,8 +329,8 @@ func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Ad
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}
-	acc := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
-	return bank.subtract(ctx, acc, addr, amt)
+	acc, upgraded := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
+	return bank.subtract(ctx, acc, addr, amt, upgraded)
 }
 
 // subtract debits amt: one key per split-tier denom, plus at most one account
@@ -348,7 +350,7 @@ func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Ad
 // construction; nothing here should be less safe. A transaction abort would
 // usually roll a partial debit back, but that puts the invariant in the caller,
 // and it does not hold for a caller that logs and continues.
-func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins) error {
+func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins, upgraded bool) error {
 	// A non-positive amount turns this debit into a credit, on either tier, so
 	// reject it before splitting. Every caller validates amt, so this cannot fire
 	// today; it is here because neither tier defends itself otherwise:
@@ -398,6 +400,14 @@ func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Ad
 			return std.ErrInsufficientCoins(fmt.Sprintf(
 				"insufficient account funds; %s < %s", oldCoins, account))
 		}
+	}
+
+	// A completed vesting schedule is collapsed to a plain account here, on the
+	// success path, rather than when it was detected — so a failed debit leaves the
+	// account object untouched. setAccountTierCoins below may write it again; the
+	// cache store refund-dedups repeated writes, so the cost is unchanged.
+	if upgraded {
+		bank.acck.SetAccount(ctx, acc)
 	}
 
 	// The account write goes first because it is the only step that can still
@@ -466,6 +476,12 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 // object with the full pre-split amount before calling this, so the old value read
 // here equals the new one and any delta would be zero for a vesting account. Call
 // RecomputeSupply after a batch of these; see supply.go.
+//
+// Stays exported despite that, because genesis lives in another package
+// (gno.land/pkg/gnoland) and has to call it. The protection that matters is already
+// structural rather than lexical: SetCoins is absent from both vm.BankKeeperI and
+// auth.BankKeeperI, so neither a realm nor the ante handler can reach it. Only a new
+// tm2-side handler holding BankKeeperI could, which is what the warning below is for.
 //
 // Cost is O(denoms currently held), and each removal is a full store write, so
 // this is not safe to call on an address whose denom count an attacker controls —

@@ -352,3 +352,46 @@ func generateKeyFromSeed(seed []byte, index uint32) crypto.PrivKey {
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }
+
+// Coins.String joins denoms with commas, so a multi-denom vesting schedule used to
+// serialise to a line its own parser could not read back — which meant a
+// gnogenesis export of such state produced an unbootable file.
+func TestBalanceRoundTripsMultiDenomVesting(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("vester"))
+	vesting := std.Coins{
+		{Denom: "atom", Amount: 100},
+		{Denom: "ugnot", Amount: 200},
+	}
+	vesting.Sort()
+
+	for _, vt := range []std.VestingScheduleType{std.VestingContinuous, std.VestingDelayed} {
+		original := Balance{
+			Address: addr,
+			Amount:  vesting,
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: vesting, StartTime: 1000, EndTime: 2000, Type: vt,
+			},
+		}
+
+		var got Balance
+		require.NoError(t, got.Parse(original.String()),
+			"a balance must parse back from its own String()")
+		require.Equal(t, original.String(), got.String())
+		require.Equal(t, vesting.String(), got.Vesting.OriginalVesting.String())
+		require.Equal(t, int64(1000), got.Vesting.StartTime)
+		require.Equal(t, int64(2000), got.Vesting.EndTime)
+		require.Equal(t, vt, got.Vesting.Type)
+	}
+
+	// Single-denom lines, the only shape that worked before, must be unchanged.
+	var single Balance
+	require.NoError(t, single.Parse(addr.String()+"=200ugnot;vesting=200ugnot,1000,2000"))
+	require.Equal(t, int64(1000), single.Vesting.StartTime)
+	require.Equal(t, "200ugnot", single.Vesting.OriginalVesting.String())
+
+	// And a genuinely malformed schedule is still rejected.
+	var bad Balance
+	require.Error(t, bad.Parse(addr.String()+"=200ugnot;vesting=200ugnot,1000"))
+}

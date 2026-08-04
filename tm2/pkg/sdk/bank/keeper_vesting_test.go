@@ -120,3 +120,46 @@ func TestBankKeeper_VestingUnrestrictedBypass(t *testing.T) {
 	require.Equal(t, int64(900), env.bankk.GetCoins(ctx, fromAddr).AmountOf("ugnot"))
 	require.Equal(t, int64(100), env.bankk.GetCoins(ctx, toAddr).AmountOf("ugnot"))
 }
+
+// A completed vesting schedule is collapsed to a plain account, but only when the
+// operation that noticed actually succeeds. It used to be written the moment it was
+// detected, so a debit that then failed its affordability check still rewrote the
+// account object — a write on an operation that reported failure.
+func TestFailedSubtractDoesNotRewriteAFullyVestedAccount(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("vested"))
+	vesting := std.Coins{{Denom: "ugnot", Amount: 100}}
+
+	cva, err := std.NewContinuousVestingAccount(
+		std.NewBaseAccount(addr, vesting, nil, 0, 0),
+		std.VestingSchedule{OriginalVesting: vesting, StartTime: 100, EndTime: 200},
+	)
+	require.NoError(t, err)
+	env.acck.SetAccount(env.ctx, cva)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, vesting))
+
+	// Past EndTime, so the schedule is complete and the upgrade would trigger.
+	ctx := atTime(env, 500)
+	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr))
+
+	// More than is held: the debit must fail.
+	require.Error(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: "ugnot", Amount: 500}}))
+	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr),
+		"a failed debit must not have rewritten the account object")
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"))
+
+	// A debit that succeeds still collapses it, as before — and this case debits only
+	// a SPLIT-tier denom, so setAccountTierCoins never touches the account object.
+	// That makes the explicit success-path write the only thing that can persist the
+	// collapse; an account-tier debit would have written the account regardless and
+	// so cannot distinguish the two.
+	env.bankk.setSplitBalance(ctx, addr, testRealmDenom, 50)
+	require.NoError(t, env.bankk.SubtractCoins(ctx, addr,
+		std.Coins{{Denom: testRealmDenom, Amount: 10}}))
+	require.IsType(t, &std.BaseAccount{}, env.acck.GetAccount(ctx, addr),
+		"a successful split-only debit must still collapse a completed schedule")
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"), "untouched")
+}

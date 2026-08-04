@@ -1148,7 +1148,7 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 		acc := env.acck.GetAccount(ctx, from)
 		require.NotPanics(t, func() {
 			require.Error(t, env.bankk.subtract(ctx, acc, from,
-				std.Coins{{Denom: testRealmDenom, Amount: bad}}),
+				std.Coins{{Denom: testRealmDenom, Amount: bad}}, false),
 				"subtract must reject a %d debit on its own", bad)
 		})
 		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom),
@@ -1204,7 +1204,7 @@ func TestNeitherTierInvertsOnANonPositiveAmount(t *testing.T) {
 			amt := std.Coins{{Denom: tier.denom, Amount: bad}}
 
 			require.NotPanics(t, func() {
-				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt),
+				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt, false),
 					"%s tier: debit of %d must be refused", tier.name, bad)
 			})
 			require.NotPanics(t, func() {
@@ -1265,7 +1265,7 @@ func TestSubtractWritesNothingWhenTheAccountWriteFails(t *testing.T) {
 	err := env.bankk.subtract(ctx, refusingAccount{env.acck.GetAccount(ctx, addr)}, addr, std.Coins{
 		{Denom: testRealmDenom, Amount: 40},
 		{Denom: testAccountDenom, Amount: 40},
-	})
+	}, false)
 	require.Error(t, err, "the account write must fail")
 	require.Equal(t, int64(100), env.bankk.getSplitBalance(ctx, addr, testRealmDenom),
 		"a failed subtract must not have debited the split tier")

@@ -95,7 +95,8 @@ the money path, left in place for contracts. Note this widens the Gno `Banker`
 **interface**, so it breaks any implementor or mock, not just callers. A sweep
 found the practical impact small — two implementors in this repo (the stdlib and
 one test mock), none at all in gnoswap — because the concrete type is unexported
-and the APIs accepting a `Banker` reject non-canonical ones. See `RISKS.md`.
+and the APIs accepting a `Banker` reject non-canonical ones, so a custom implementor
+cannot be plugged into either of the interfaces that accept one today.
 
 Balances are per-denom throughout. `AddCoins`/`SubtractCoins` touch one key per
 denom moved instead of rewriting the whole set; `HasCoins`, the new `GetCoin`,
@@ -251,9 +252,11 @@ in an object that is being written regardless. It also avoids ADR-004's incident
 change — `BaseAccount.Coins` would simply always be empty — but it does make
 `auth/accounts` report `"coins": ""` for every account, which breaks 20
 assertions across 11 txtar files, `gnoclient.QueryAccount`, and every wallet or
-explorer reading that endpoint. Vesting constructors also keep working here
-(today's genesis files vest only the gas denom, though nothing enforces that —
-see `RISKS.md`).
+explorer reading that endpoint. Vesting constructors also keep working here, though
+note they validate `OriginalVesting` against `baseAcc.Coins`, which is now only the
+account tier: that is correct at genesis by ordering (`applyBalance` writes the full
+pre-split amount before `SetCoins` narrows it) but would silently pass for any future
+caller building a vesting account from an already-split account object.
 
 **A per-account denom or byte cap.** Attractive — smallest diff, near-zero gas
 cost, and one reviewer recommended it. Rejected because the cap must fire in
@@ -373,6 +376,6 @@ alone.
 
 Implemented with AI assistance. The plan and the storage-design choice were each
 taken through three independent review rounds — the design decision was escalated
-to the repo owner with measured gas numbers rather than decided by the agent, and
-the dissenting recommendation is recorded above. Open questions and residual risks
-are in `RISKS.md`. The human author reviewed and owns the change.
+to the repo owner with measured gas numbers rather than decided by the agent, and the
+dissenting recommendation is recorded above. The human author reviewed and owns the
+change.
