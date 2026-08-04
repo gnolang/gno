@@ -1,4 +1,4 @@
-# PRXXXX: Store non-gas balances in their own keys
+# PR6034: Store non-gas balances in their own keys
 
 ## Status
 

@@ -1,4 +1,4 @@
-# PRXXXX: Track per-denom coin supply
+# PR6034: Track per-denom coin supply
 
 ## Status
 

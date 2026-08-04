@@ -1,4 +1,4 @@
-# PRXXXX: Invariant checks for the two-tier balance layout
+# PR6034: Invariant checks for the two-tier balance layout
 
 ## Status
 
