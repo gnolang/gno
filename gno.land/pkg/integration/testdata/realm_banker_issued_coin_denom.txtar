@@ -83,6 +83,20 @@ gnokey maketx call -pkgpath gno.land/r/test/my-org/token -func Mint -args ${test
 gnokey query bank/balances/${test2_user_addr}
 stdout '42/gno.land/r/test/my-org/token:abcdefghijklmnop'
 
+## Total supply is readable from outside the chain. A realm denom contains slashes,
+## which is why the route takes the path remainder rather than a path component — a
+## component split would truncate it at the first slash.
+## 31337 minted then 7 burned, and the 1330 transfer below is supply-neutral.
+gnokey query bank/supply//gno.land/r/test/realm_banker:ugnot
+stdout 'data: "31330"'
+
+gnokey query bank/supply//gno.land/r/test/my-org/token:abcdefghijklmnop
+stdout 'data: "42"'
+
+## a denom nobody holds reports zero rather than an error
+gnokey query bank/supply/atom
+stdout 'data: "0"'
+
 ## read one denom back with GetCoin, the per-denom accessor
 ## This is the whole point of splitting balances: a realm can read one denom
 ## without enumerating everything the address happens to have been sent.
