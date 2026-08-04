@@ -63,8 +63,8 @@ producer expects, never an instruction to the wallet.
 
 ## Network resolution
 
-Every request that reaches a wallet — `connect`, `sendtx`, `signtx` — resolves
-its network the same way, before anything is signed or disclosed.
+Every request that names a chain resolves it the same way, on either transport,
+before anything is signed or disclosed.
 
 A **configured network** is a chain id, one or more endpoints, and the endpoint
 the user has selected for it. The **active network** is the configured network
@@ -72,10 +72,24 @@ currently in use. A wallet queries and broadcasts only through the selected
 endpoint of a configured network.
 
 **1. Determine the chain.** From the request's `chainid`; for an in-page request,
-falling back to the page's `gnoconnect:chainid`. If neither names a chain the
-wallet answers `invalid_request` — a signature is chain-bound, so a producer
-always knows which chain it wants, and "whichever the wallet happens to be on" is
-how a dapp built for one chain gets a signature valid on another.
+falling back to the page's `gnoconnect:chainid`.
+
+Whether naming no chain is an error depends on what the request does:
+
+- **A request that signs — `sendtx`, `signtx`, and their in-page equivalents —
+  MUST name one**, or the wallet answers `invalid_request`. A signature is
+  chain-bound, so a producer always knows which chain it wants, and "whichever
+  the wallet happens to be on" is how a dapp built for one chain gets a signature
+  valid on another.
+- **A request that only discloses — `connect` — MAY omit it.** Nothing is signed,
+  so there is no chain-bound artefact to get wrong, and "whichever chain you are
+  on" is a complete and honest answer to "who are you": the response carries the
+  `chainid` it was answered against, so the producer is never left guessing. A
+  wallet MUST NOT answer `invalid_request` merely because a `connect` named no
+  chain.
+
+When a `connect` does name one, it resolves like any other request and MAY
+therefore prompt the user to switch, or to add a chain the wallet does not have.
 
 **2. Find it among the configured networks.** Its selected endpoint is the one
 the wallet will use. The request's `rpc` plays no part: the user has already
@@ -230,6 +244,73 @@ a producer-supplied sequence would be one more value the dapp chooses that shape
 what gets signed. The positional form is what makes offline signing reachable,
 since named arguments require the `vm/qdoc` lookup.
 
+## The `signer` pin
+
+A request MAY pin the identity it expects to act as: `signer` in a launch link,
+`signer` on an in-page intent. Both transports carry the same field and it means
+the same thing in both, which is why it is defined here rather than twice.
+
+**What it names.** The `address` a prior `connect` returned — an *identity*, not
+a key. A producer MUST pin that address. It MUST NOT pin a delegated address
+(the `session` a `connect` callback may also carry): a delegated key is
+ephemeral, so a pin taken at connect time goes stale on rotation, and it names
+key material rather than the party the producer means.
+
+Pinning therefore presupposes a way to learn the address: `connect`, or in-page
+`getAccount`. A wallet that implements neither cannot be pinned against, and a
+producer holding no address simply omits `signer` — it is optional, and a request
+without it is answered by whichever account the user approves.
+
+**What the wallet owes.** If `signer` is present the wallet MUST produce a
+transaction authorised by that identity, and MUST NOT substitute another. A
+wallet that holds no account resolving to it MUST decline —
+`signer_unavailable`, and for a launch link
+`status=error&code=signer_unavailable` — rather than sign as whoever is to hand.
+
+**What it does not constrain.** Which key signs. A wallet MAY sign with a
+delegated or session key whose on-chain authority derives from the pinned
+identity; that transaction is still authorised by the identity, which is what the
+producer pinned. Key selection is the wallet's business, and a wallet that
+rotates session keys could not honour a pin at all if it were not.
+
+This is also what the chain records. A delegated key acts on the identity's
+behalf: the message's caller and the state changes are credited to the identity,
+not to the key that signed. So pinning the identity pins what the transaction
+will be attributed to on chain, which is the thing a producer actually means —
+pinning a key would pin something the chain does not attribute the action to.
+
+So what a producer may rely on, stated exactly:
+
+- The transaction is authorised by the identity it pinned, and the chain will
+  attribute it there; or there is no transaction and the wallet said
+  `signer_unavailable`.
+- Nothing about *which key* produced the signature. A producer needing that must
+  read it from the chain; the pin does not carry it.
+
+For `sendtx` a producer that did not pin can still identify the transaction
+afterwards, since the wallet returns its `hash`. For `signtx` it cannot: the
+signed bytes are opaque and there is no hash until the producer broadcasts. See
+the `signtx` obligations.
+
+A wallet MAY additionally accept an address that on-chain resolves to the pinned
+identity — its own delegated key, say — as naming that identity. This is
+leniency about input, not a second meaning: the guarantee above is unchanged
+either way, which is why the latitude is harmless where a wallet-specific
+definition of the identity itself would not be.
+
+**Where it is enforced.** At the point the signature is produced. A pin checked
+only when the request arrives is not enforced: on both transports the user may
+change the selected account between arrival and approval, and the guarantee is a
+property of the signature, not of the request. Checking early as well is useful —
+it refuses a hopeless request before spending the user's attention on it — but it
+does not discharge the obligation.
+
+`signer_unavailable` means the wallet *cannot* be the pinned identity, not that
+it cannot right now: a held identity whose session has expired is a state the
+user can fix, and a wallet SHOULD offer that rather than declining. Declining
+tells the producer to re-`connect`, which is the wrong advice when the wallet
+holds the identity all along.
+
 ## In-Page Wallets (browser extensions)
 
 A wallet that runs code in the page announces itself; the page collects the
@@ -322,7 +403,7 @@ interface GnoTxIntent {
   send?: string;   // coins, gnokey syntax
   chainid?: string; // falls back to gnoconnect:chainid
   rpc?: string;    // advisory only — see Network resolution
-  signer?: string; // bech32; MUST sign as this identity or decline
+  signer?: string; // bech32 identity — see The `signer` pin
 }
 
 type UserResponse<T> =
@@ -330,10 +411,10 @@ type UserResponse<T> =
   | { status: "Rejected"; code?: ErrorCode };
 ```
 
-`ErrorCode` is the launch links' enumerated `code` set, unchanged (see `sendtx`
-callback results). A rejection carries it rather than an untyped error, so a page
-handles failures identically whether it called the wallet directly or handed off
-a launch link:
+`ErrorCode` is the launch links' enumerated `code` set (see `sendtx` callback
+results). A rejection carries it rather than an untyped error, so a page handles
+failures identically whether it called the wallet directly or handed off a launch
+link:
 
 ```ts
 type ErrorCode =
@@ -341,9 +422,14 @@ type ErrorCode =
   | "network_declined"
   | "signer_unavailable"
   | "no_signer"
+  | "not_connected"    // in-page only — see Connecting, and what it gates
   | "unsupported_host"
   | "tx_failed";
 ```
+
+One set serves both transports; `not_connected` is the one code a launch-link
+producer never sees, because a launch link carries its own consent and there is
+no connection to be outside of.
 
 `sendTx` is the core method: one call, signed and broadcast, returning the
 `hash`.
@@ -358,11 +444,10 @@ enumerated `code` a launch link would have returned (see `sendtx` callback resul
 so a page has one error vocabulary whatever transport it used. User review before
 signing is mandatory, as for `sendtx`.
 
-`signer`, when present, pins the identity the producer expects to act as — the
-`address` from a prior `connect`. The wallet MUST sign as that identity and MUST
-NOT sign as another; one that cannot answers `signer_unavailable`. Without it a
-page that connected as one account and rendered its address will sign as whatever
-account the user has since switched to, and only find out from the chain.
+`signer`, when present, pins the identity the producer expects to act as — see
+The `signer` pin, which governs both transports. Without it a page that connected
+as one account and rendered its address will sign as whatever account the user
+has since switched to, and only find out from the chain.
 
 #### Optional methods
 
@@ -376,12 +461,17 @@ another wallet, a launch link, or the copy-paste command — when it is absent.
 signTx(tx: GnoTxIntent): Promise<UserResponse<{ signedtx: string }>>;
 
 // Ask the user which identity to act as. Discloses nothing until they agree.
-connect(): Promise<UserResponse<GnoAccount>>;
+// `chainid` is optional: given, it resolves like any other request and may
+// prompt a switch; omitted, the wallet answers against the active network and
+// says which in GnoAccount.chainid. See Network resolution, step 1.
+connect(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
 
-// The connected identity, without re-asking.
+// The connected identity, without re-asking. Answered against the active
+// network; it names no chain, so it resolves none.
 getAccount(): Promise<UserResponse<GnoAccount>>;
 
-// The active network, after Network resolution.
+// The active network. Reports what is in effect; it names no chain, so it
+// resolves none and never prompts.
 getNetwork(): Promise<UserResponse<GnoNetwork>>;
 
 // Ask the user to switch to a configured chain. A chain the user does not have
@@ -394,7 +484,7 @@ sendTxs(txs: GnoTxIntent[]): Promise<UserResponse<{ hash: string }>>;
 
 interface GnoAccount {
   address: string;         // bech32
-  chainid: string;
+  chainid: string;         // the chain this answer was given against
   pubkey: string | null;   // gpub, when the wallet exposes one
 }
 
@@ -414,6 +504,46 @@ Message signing is deliberately absent. Everything signable in Gno today is a
 transaction — `gnokey sign` takes a tx document and nothing else — so a
 `signMessage` would have no defined meaning to agree on. When one exists it
 arrives as a new method, not as a re-reading of these.
+
+### Connecting, and what it gates
+
+A page reaches an in-page wallet whenever it likes: the provider is simply there,
+and calling a method costs nothing. So a wallet MAY require the user to approve
+an **origin** before it answers that origin at all, and most do. Approving is
+what `connect` performs, and the approval persists for the origin rather than for
+the call — that is the whole difference between this transport and a launch link,
+where each link carries its own consent and there is no state between them.
+
+This is a wallet's choice, not a requirement. What the standard fixes is what a
+page sees either way.
+
+**A wallet MAY gate any method on an approved origin**, including `getAccount`
+and `getNetwork`. Both disclose: one the user's identity, the other the endpoint
+they chose, which is a durable fingerprint and sometimes a private or paid URL.
+Answering either before the user has agreed to talk to the origin discloses what
+they have not agreed to disclose.
+
+**A gated method called from an unapproved origin answers `not_connected`.** Not
+`no_signer` — the wallet may hold plenty of accounts, and telling a page its
+`getNetwork` failed for want of a signer sends it looking for a problem that is
+not there.
+
+**A wallet that gates MUST implement `connect`**, otherwise `not_connected` names
+no way forward and the page is simply stuck. `connect` is listed as optional
+because a wallet that gates nothing does not need it — not because a page can be
+left without a route to what it was refused.
+
+**A signing request MAY carry its own approval.** `sendTx` is the core method and
+`connect` is optional, so a page may reasonably implement `sendTx` alone; a
+wallet that gates then has two conforming answers — perform the origin approval
+as part of the request (the user sees the connect approval, then the transaction
+approval), or refuse with `not_connected`. A page MUST handle both: on
+`not_connected`, call `connect` and retry. Whichever the wallet does, it MUST NOT
+sign before the origin is approved.
+
+A page that wants the connection established deliberately — to show who is
+connected before offering anything to sign — calls `connect` and does not rely on
+either behaviour.
 
 ### Announcements are untrusted
 
@@ -553,12 +683,11 @@ and rewriting it would break the correlation check it exists for.
   should always send one and drop responses that match no outstanding request.
   The wallet treats `state` as opaque and SHOULD bound its length (e.g. ≤256
   characters).
-- `signer` (optional) pins the **identity** the producer expects to act as —
-  the `address` from a prior `connect`. If present, the wallet MUST sign as that
-  identity and MUST NOT sign as another; a wallet that cannot MUST decline
-  (`status=error&code=signer_unavailable`) rather than substitute one. What
-  counts as "that identity" — an exact address match, or an account the chain
-  links to it (e.g. a delegated/session key) — is wallet-specific.
+- `signer` (optional) pins the **identity** the producer expects to act as — the
+  `address` from a prior `connect`. See The `signer` pin, which governs both
+  transports: the wallet MUST produce a transaction authorised by that identity
+  or decline with `status=error&code=signer_unavailable`, and MAY sign it with a
+  delegated key of that identity.
 The `sendtx` host always signs **and broadcasts**; the callback returns `hash`. User
 review before signing is mandatory. A producer that needs the signed transaction
 *without* broadcasting uses the `signtx` host below.
@@ -588,8 +717,12 @@ human text; producers MUST NOT parse it as prose):
   positional arguments mixed, or an argument naming no declared parameter.
 - `network_declined` — the user rejected the network switch, or declined to add
   a chain the wallet does not have.
-- `signer_unavailable` — the wallet cannot sign as the pinned `signer`.
-- `no_signer` — the wallet holds no account to sign with.
+- `signer_unavailable` — the wallet holds no account resolving to the pinned
+  `signer`, so it cannot produce a transaction authorised by that identity.
+- `no_signer` — the wallet holds no account to sign with at all.
+- `not_connected` — **in-page only.** The origin has not been approved and the
+  wallet gates this method on that; see Connecting, and what it gates. A launch
+  link carries its own consent, so this never appears in a callback.
 - `unsupported_host` — the wallet does not implement the requested verb.
 - `tx_failed` — the wallet could not sign or broadcast the transaction. The
   wallet has already shown the user the cause; the producer should still confirm
@@ -642,6 +775,16 @@ Sign-only moves real obligations to the producer, and they are easy to miss:
 - **`status=success` means _signed_, not _landed_.** Nothing has been broadcast
   when the callback fires; a producer that treats it as completion will report
   success for a transaction that never reached the chain.
+- **It does not learn who signed unless it pinned `signer`.** `signedtx` is
+  opaque by the rule above, so a producer cannot read the identity out of it —
+  and the reason it must not is exactly the reason it could not do so reliably:
+  a session or multisig signature needs a client able to represent it. Without a
+  pin, a `connect` earlier in the session proves nothing, because the user may
+  have switched accounts since. A producer that will attribute the transaction to
+  someone — gate on it, credit it, show it — MUST pin `signer`, and therefore
+  MUST have called `connect` to obtain the identity to pin. Reading the caller
+  back from the chain after broadcasting also works, but only once the
+  transaction is already away.
 
 Prefer `sendtx` when the producer has no specific reason to broadcast itself: the
 wallet built the transaction, resolved the account sequence, and understands its
@@ -681,9 +824,16 @@ echoing and the answer-every-request duty are identical.
 Asks the wallet which address the user wants to act as — the sign-in step
 before any `sendtx`. `callback` is **required**: the verb exists only to deliver an
 answer, so a request without a usable one is dropped. `state` behaves as for
-`sendtx`. `chainid` is required and `rpc` advisory, resolved exactly as for
-`sendtx` (see Network resolution) — so a `connect` may prompt the user to switch,
-or to add a chain the wallet does not have, before it answers.
+`sendtx`.
+
+`chainid` is **optional** here, unlike on `sendtx` and `signtx`. Given, it is
+resolved exactly as theirs is (see Network resolution) and a `connect` may
+therefore prompt the user to switch, or to add a chain the wallet does not have,
+before it answers. Omitted, the wallet answers against its active network and
+reports which in the callback's `chainid`. Nothing is signed either way, so
+there is no chain-bound artefact for a missing `chainid` to spoil — and a
+producer that only wants to know who the user is should not have to guess a
+chain to ask. `rpc` is advisory as everywhere.
 
 The wallet MUST ask the user before disclosing anything, and MUST show the
 callback's host: a producer's claimed name is self-asserted and unverifiable,
@@ -699,6 +849,14 @@ is its callback destination.
 
 Error codes (`code`): `no_signer`, `network_declined`, `invalid_request`. As on
 `tx`, `status` is the closed outcome class and `code` the enumerated reason.
+
+`address` is the identity, and it is the only one of these a later request may
+pin as its `signer`. `session` (optional) is the delegated key the wallet
+currently signs with, if it uses one: informational — it lets a producer read the
+right account on chain — and explicitly **not** pinnable, because it rotates. A
+wallet that signs directly with the identity omits it. The in-page `GnoAccount`
+carries no equivalent field for the same reason: nothing a producer must do
+depends on knowing the key.
 
 `features` (optional) is a comma-separated list of the wallet's optional
 capabilities, letting a producer tailor later requests. v1 tokens: the **hosts**
