@@ -170,7 +170,7 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
-func (m *mockBankKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
 	return 0
 }
 

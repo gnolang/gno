@@ -162,7 +162,7 @@ func (view ViewKeeper) splitCoins(ctx sdk.Context, addr crypto.Address) std.Coin
 		}
 		// A denom must live in exactly one tier. If one is ever moved into the
 		// account tier without migrating its existing key, both would hold it and
-		// GetCoins would silently sum them — reporting a balance GetBalance
+		// GetCoins would silently sum them — reporting a balance GetCoin
 		// disagrees with. Fail loudly at the first read instead. This is the
 		// invariant that makes the allowlist a construction argument rather than
 		// a governance param; see the ADR.

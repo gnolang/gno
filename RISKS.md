@@ -45,9 +45,9 @@ load-bearing.
    while it was being edited — **process fix: agents get their own worktree.** One
    CI confirmation run is still worth it.
 4. ~~Gno has no per-denom balance read~~ — **resolved.** `banker.GetCoin(addr,
-   denom)` now exposes the O(1) read, plumbed through `vm.BankKeeperI.GetBalance`
+   denom)` now exposes the O(1) read, plumbed through `vm.BankKeeperI.GetCoin`
    and `SDKBanker`. Its cost is pinned as independent of how many other denoms the
-   address holds (`TestGetBalanceCostIsFlat`), and it is exercised end to end from
+   address holds (`TestGetCoinCostIsFlat`), and it is exercised end to end from
    Gno in the txtar. Two consequences worth knowing: this is new Gno stdlib
    surface, and editing stdlib `.gno` source moved the app-hash pin — which is the
    *only* reason this branch moves it, since the balance split alone does not.
@@ -192,7 +192,7 @@ against an old chain: the `auth/accounts` wire format is unchanged.
 timing) — `ensureAccount` fires for both tiers, pinned by test. 3 (`SpendableCoins`
 reintroducing O(n)) — the vesting check loops per denom against `LockedCoins`
 instead, and `std.SpendableCoins` now has no production caller. 7
-(`auth.BankKeeperI` lacking a balance read) — widened with `GetBalance`; the error
+(`auth.BankKeeperI` lacking a balance read) — widened with `GetCoin`; the error
 stays `InsufficientFundsError`. 8 and 9 (zero-value encoding, overflow) — fixed
 8-byte big-endian with delete-on-zero, and `overflow.Add`, both pinned.
 
@@ -307,7 +307,7 @@ These are not the storage layout. Each is independently actionable.
    denom back out — so `OriginalVesting` can reference a denom the account object
    no longer shows. Enforcement still reads the right tier. Falls out of item 1.
 3. **`DeductFees` now does one extra account decode per transaction** for a
-   genesis-denom fee: it calls `bk.GetBalance`, which re-fetches and amino-decodes
+   genesis-denom fee: it calls `bk.GetCoin`, which re-fetches and amino-decodes
    the account the caller already holds. Gas is unchanged (`cacheStore` refunds the
    repeat read) but it is real CPU on the hottest path. A one-line fix is to branch
    on `IsRealmDenom` and use the account in hand otherwise; I left it alone because
@@ -442,7 +442,7 @@ exactly its attack region).
   caller today runs at genesis with a known count, but it is exported on
   `BankKeeperI`, so a future handler reaching for it would be an instant
   block-gas-limit DoS. Now carries a doc warning; consider unexporting it.
-- **`DeductFees` re-reads the account it already holds** (`bk.GetBalance` on an
+- **`DeductFees` re-reads the account it already holds** (`bk.GetCoin` on an
   address whose `acc` is in hand): ~3.6 µs of amino decode per fee-paying
   transaction, gas-free because `cacheStore` refunds the repeat read. It exists
   only to keep the ABCI error as `InsufficientFundsError`. Fixable by exposing
@@ -462,7 +462,7 @@ Measured under tm2's **default** gas config (which scales reads by tree depth);
 gno.land pins depth flat, so its absolute numbers differ. The ratio — and the fact
 that repeats are free on one and charged on the other — is what matters here.
 
-| | `GetCoins` | `GetBalance` / `GetCoin` |
+| | `GetCoins` | `GetCoin` |
 |---|---|---|
 | first call | 179,360 | 118,136 |
 | **each repeat** | **60,136** | **0** |
@@ -479,7 +479,7 @@ in-tree callers remedial rather than scope creep. Migrated:
   check one, on every non-member post, for a caller-controlled address.
 - `r/gnoland/coins/coins.gno` — a single-coin balance view that read them all.
 
-Pinned by `TestRepeatedGetCoinsIsChargedButRepeatedGetBalanceIsFree`, which will
+Pinned by `TestRepeatedGetCoinsIsChargedButRepeatedGetCoinIsFree`, which will
 fail if iterator opens ever become refundable and the argument above stops holding.
 The `examples/` change does **not** move the app-hash pin — verified — so the pin
 comment still correctly attributes its shift solely to `banker.GetCoin`.
@@ -519,7 +519,7 @@ worktree — the process fix from §3d. Findings acted on:
   identical gas, and one agent drove it through `vm/qeval` — **no transaction, no
   fee, no signature** — for ~15 GiB retained and ~12 s of CPU per block-gas-limit
   of unauthenticated query. Fixed in two places: `SDKBanker.GetCoin` validates and
-  panics like every other entry point, and `ViewKeeper.GetBalance` rejects an
+  panics like every other entry point, and `ViewKeeper.GetCoin` rejects an
   over-long denom before hashing or building a key, which makes the bound
   `balance.go` documents structurally true rather than caller-dependent.
 - **`subtract` trusted its callers on both tiers, not just the split one.** The
@@ -569,6 +569,67 @@ Reported and deliberately **not** changed:
   `unrestricted_addrs` aborts InitChain with an interface-conversion panic. Also
   `Balance.MarshalAmino`/`Parse` cannot round-trip a multi-denom vesting schedule,
   so `gnogenesis export` of such state emits an unbootable file.
+
+## 3g. Round-6 sweep: classes no earlier round had examined
+
+Checked and clean, recorded so they are not re-checked:
+
+- **Determinism.** `accountDenoms` is a Go map, whose iteration order is random. It
+  is only ever written at construction (ranging the ordered input slice) and read
+  by key lookup — never iterated — so it cannot influence consensus state.
+- **State export.** Neither `bank.ExportGenesis` nor `auth.ExportGenesis` exports
+  balances; both return `Params` only. So there is no module export path that could
+  silently drop split-tier balances.
+- **`gnogenesis fork`.** It queries `auth/accounts`, which now reports a partial
+  balance — but only for `(accNum, sequence)` to resolve transaction ordering. Zero
+  balance reads in that package. Balances come back via replay, as the ADR assumes.
+- **`gnogenesis balances add/export/remove`** operate on the genesis file's
+  `state.Balances` only, never a live chain, so they route through `InitGenesis` →
+  `SetCoins`.
+- **`gnokey`.** `maketx` and `verify` read `auth/accounts` for account number,
+  sequence and pubkey — never coins.
+- **Balance events.** Every `EmitEvent` in the bank module is commented out
+  (pre-existing), so no event stream can miss a split-tier movement.
+- **Storage deposits.** `RealmStorageDiffs()` is a VM-internal map keyed by PkgID
+  built from realm object tracking, not a store-level diff, so a `/b/` write cannot
+  be miscounted as realm storage and charged a deposit.
+- **`canSendCoins` / `RestrictedDenoms`** test the denoms in the *request* plus the
+  account's whitelist flag. Tier-agnostic; unaffected.
+- **Every module that builds against this branch** (13 via a local `replace`)
+  compiles: gnodev, gnogenesis, tx-archive, gnohealth, github-bot, gnobr, gnokms,
+  gnobro, gnomigrate, gnokeykc, misc/loop, misc/autocounterd, stress-test. Of these
+  only gnodev read a balance, and it was changed. `gnofaucet` and
+  `misc/docs/tools/linter` pin a released version and are unaffected until bumped.
+- **The shipped `genesis_balances.txt`** contains `ugnot` only — zero slash-prefixed
+  denoms — so nothing in it changes tier.
+
+Gap found and fixed: **the guidance realm authors read had not been updated.** Only
+the API reference (`gno-stdlibs.md`) mentioned `GetCoin`. Reading one balance with
+`GetCoins(addr).AmountOf(denom)` is now both slower per call and a griefing surface
+whenever `addr` is caller-supplied, and three in-tree realms had exactly that bug,
+so it is a pattern people write. Added to `docs/resources/effective-gno.md`, as case
+11 of `docs/resources/gno-ai-contract-review.md` (with a checklist entry), and as a
+rule in `AGENTS.md` — whose "(10 cases)" count was stale as a result.
+
+## 3h. Naming, and a pinned extension point
+
+- **`ViewKeeper.GetBalance` renamed to `GetCoin`.** Every other balance method on the
+  keeper uses the "Coins" vocabulary — `GetCoins`, `HasCoins`, `SetCoins`, `AddCoins`,
+  `SubtractCoins`, `SendCoins`, `InputOutputCoins` — so `GetBalance` was the sole
+  outlier, importing half of cosmos's naming (`GetBalance`/`GetAllBalances`) into a
+  keeper that does not use the other half. `TotalCoin(denom) int64` was already
+  precedent for a singular `...Coin` returning a scalar. 60 sites across 9 files; the
+  Go and Gno layers now share one name. The `bank/balances` query route is unchanged —
+  it is an external wire path, and plural is right for it.
+- **`TestSecondGasDenomInAccountTier`** pins the allowlist's growth path, which nothing
+  otherwise exercised: a second gas denom (an IBC voucher, lowercase-normalised) held
+  in the account tier alongside `ugnot`. It matters because such a denom sorts *before*
+  `ugnot`, so the account tier is neither a prefix nor a suffix of the sorted result
+  and `GetCoins` has to interleave three ways. The test deliberately includes split-tier
+  denoms on **both** sides of the account-tier ones — with all split denoms sorting
+  first, concatenating the tiers coincidentally yields sorted output and the merge is
+  not actually under test. Verified: it now fails both when the merge is replaced by a
+  concatenation and when the tier rule is hardcoded to `ugnot`.
 
 ## 4. Things to review even after this looks done
 

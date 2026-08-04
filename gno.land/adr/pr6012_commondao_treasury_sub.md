@@ -148,11 +148,12 @@ live proper ancestor remains.
 > **Partly resolved.** Non-gas balances now live in their own store keys
 > (`tm2/adr/prxxxx_realm_denom_balance_keys.md`), so an account's own transactions
 > no longer get more expensive as junk denoms accumulate — the gas-bomb below can
-> no longer be aimed at a treasury from outside. Two caveats: the bank's
-> single-denom read is Go-only, so a realm still has to call `banker.GetCoins`
-> and pay O(number of denoms held); and the dissolution sweep now writes one key
-> per denom rather than one blob, so it got *more* expensive. The analysis below
-> still applies to every path that enumerates.
+> no longer be aimed at a treasury from outside. Two caveats: a realm that
+> *enumerates* balances still pays O(number of denoms held) — use the new
+> `banker.GetCoin(addr, denom)` where a single balance will do; and the
+> dissolution sweep now writes one key per denom rather than one blob, so it got
+> *more* expensive. The analysis below still applies to every path that
+> enumerates.
 
 The bank keeper stores each account's coins as **one amino blob**, read
 and rewritten whole on any movement (`GetAccount`/`SetAccount`), and store

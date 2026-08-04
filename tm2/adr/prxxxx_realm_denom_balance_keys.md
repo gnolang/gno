@@ -27,9 +27,10 @@ and the victim then pays for it on every transaction they send, forever:
 | 128 | ~35 KB | ~+1,095,000 |
 | 1,000 | ~276 KB | **~+8,556,000** |
 
-The victim cannot undo it. There is no burn message anywhere in the tree, and
-`RemoveCoin` is issuer-only, so the only disposal is to transfer the junk to
-another address. Minting is also cheap for the attacker: `cacheStore` refunds the
+The victim cannot cheaply undo it. There is no burn message anywhere in the tree
+and `RemoveCoin` is issuer-only, so the only disposal is to transfer the junk to
+another address — one transaction per cleanup, against an attacker who can re-mint
+for less and chooses the timing. Minting is also cheap for the attacker: `cacheStore` refunds the
 prior charge for repeated writes to the same key, so minting N denoms in one
 transaction costs one write at the final size — roughly 4.0M gas for 1,000
 denoms, i.e. payback on the victim's second transaction. There is no
@@ -97,7 +98,7 @@ one test mock), none at all in gnoswap — because the concrete type is unexport
 and the APIs accepting a `Banker` reject non-canonical ones. See `RISKS.md`.
 
 Balances are per-denom throughout. `AddCoins`/`SubtractCoins` touch one key per
-denom moved instead of rewriting the whole set; `HasCoins`, the new `GetBalance`,
+denom moved instead of rewriting the whole set; `HasCoins`, the new `GetCoin`,
 and the vesting check read only the denoms involved. `AddCoins`/`SubtractCoins`
 now return only `error` — no production caller used the returned `Coins`, and
 returning the full set would have reinstated the O(n) read the change exists to
@@ -133,6 +134,72 @@ The `/` prefix is now also re-asserted **in Go** at `SDKBanker.IssueCoin`/
 source; that was acceptable while it was a naming convention, but a bare denom
 reaching issuance would now let a realm mint into the genesis tier, including
 the native token.
+
+## Changing the allowlist
+
+The allowlist decides where a balance physically lives, so editing it moves state.
+It is compiled into the binary on purpose — not a flag, not a config value, not a
+governance param — because two nodes with different lists route the same denom to
+different keys and produce different app hashes. That is a silent fork, not a
+failed startup. Editing it is therefore a coordinated upgrade.
+
+**Adding a non-realm denom — an IBC voucher, or any second gas denom.** Say the
+chain decides to accept `ibc/<hash>` for fees, so it should ride along in the
+account object like `ugnot`.
+
+1. Add it to `accountTierDenoms` in `gno.land/pkg/gnoland/app.go` and build.
+2. Do **not** restart validators on the existing database. Existing holders have
+   balances in `/b/` keys, and the new binary looks for them in the account
+   object: transfers would fail as insufficient funds, a later credit would create
+   a second home for the same denom, and the first `GetCoins` would panic on the
+   exclusivity assertion. Nothing is lost, but the balance is frozen.
+3. Regenerate state instead, with `gnogenesis fork`. It copies the source genesis
+   and replays history through the new binary, and since a balance can only be
+   produced by a transaction or a genesis entry, replay rewrites every balance
+   under the new routing. Both tiers come out consistent with no migration code.
+4. Start the new chain from that genesis, with every validator on the new binary.
+   The app hash changes; that is expected and unavoidable.
+5. Tell integrators: `auth/accounts` will now include the new denom in `coins` for
+   holders. Anything treating that field as "the balance" sees a different set.
+   `bank/balances` is unaffected.
+
+The denom must satisfy `ValidateDenom`, which is lowercase-only — so a cosmos-style
+`ibc/` + uppercase-hex hash has to be lowercased on ingress (or the grammar
+widened, which is its own consensus decision) before any of this applies.
+
+**Adding a realm-issued denom: don't.** `NewViewKeeper` refuses one outright, and
+this is not the same decision as the IBC case even though both are "just another
+denom". The account tier is a blob every account-tier denom shares, and the
+question that matters is who can put a denom into a stranger's blob:
+
+- `ugnot` requires someone to send it, which costs them the coins.
+- an IBC voucher requires a real transfer from another chain.
+- a **realm denom** can be minted from nothing, to any address, without consent —
+  `IssueCoin` has no recipient check.
+
+The mechanism is the same one described in Context. The account object is read and
+rewritten on **every transaction its owner sends**, because the ante handler bumps
+the sequence, and store gas is charged per byte of that value. So any denom sitting
+in the account tier is paid for on every transaction that address ever makes. A
+realm denom is ~40 bytes (`/pkgPath:base`), which at 17 gas/byte read plus 14/byte
+write is roughly **1,200 gas per transaction, forever** — imposed on any address
+the issuing realm picks, at no cost to the issuer.
+
+The victim is not without recourse, and it is worth being precise about this: they
+can clear it by transferring the balance away, since a zero balance drops out of
+the `Coins` set. But that costs them a transaction, and the issuer can re-mint for
+less than the cleanup cost. So it is a griefing loop rather than a permanent brick
+— the same asymmetry noted in Context for the multi-denom case, where with no burn
+path a holder can only relocate junk, at cost parity favouring whoever chooses the
+timing.
+
+Exact matching holds the damage to a single denom rather than unlimited ones, which
+is what makes it a tax rather than a brick. It is still a non-consensual recurring
+cost imposed by a third party, which is the thing this ADR exists to remove.
+
+If a realm-issued token genuinely becomes a fee token, leave it in the split tier
+and accept one extra key per holder (~306,600 gas on a transfer that touches it).
+That cost falls on the party using the token, which is where it belongs.
 
 ## Alternatives considered
 
@@ -284,7 +351,7 @@ alone.
 - `TestConservation` runs 500 deterministic operations against a map oracle,
   comparing after every one including failures, over `SendCoins`, `AddCoins`,
   `SubtractCoins`, `SetCoins` and `InputOutputCoins`.
-- `TestGetBalanceCostIsFlat` pins the property the split exists to buy: reading
+- `TestGetCoinCostIsFlat` pins the property the split exists to buy: reading
   one denom costs the same whether the address holds 1 or 200 others. It is
   written comparatively, holding key count equal across both arms, because tm2's
   *default* gas config scales reads by tree depth even though gno.land pins it

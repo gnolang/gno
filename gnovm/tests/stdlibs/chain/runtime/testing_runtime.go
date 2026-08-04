@@ -213,6 +213,16 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 	return tb.CoinTable[addr]
 }
 
+func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
+	// Panics on a malformed denom, matching SDKBanker.GetCoin. Kept explicit
+	// rather than relying on Coins.AmountOf's own check so the two bankers fail
+	// the same way for the same reason.
+	if err := tm2std.ValidateDenom(denom); err != nil {
+		panic("invalid denom: " + err.Error())
+	}
+	return tb.CoinTable[addr].AmountOf(denom)
+}
+
 // SendCoins implements the Banker interface.
 func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
 	fcoins, fexists := tb.CoinTable[from]

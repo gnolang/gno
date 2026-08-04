@@ -23,11 +23,11 @@ var _ AccountKeeperI = AccountKeeper{}
 
 // Limited interface only needed for auth.
 type BankKeeperI interface {
-	// GetBalance reads one denom without touching any other. The fee check needs
+	// GetCoin reads one denom without touching any other. The fee check needs
 	// it because a balance does not necessarily live in the account object —
 	// realm-issued denoms have their own keys — so it cannot be read from
 	// std.Account.
-	GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64
+	GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 }

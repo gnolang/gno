@@ -722,6 +722,7 @@ const (
 
 type Banker interface {
     GetCoins(addr address) (dst chain.Coins)
+    GetCoin(addr address, denom string) int64
     SendCoins(from, to address, amt chain.Coins)
     TotalCoin(denom string) int64
     IssueCoin(addr address, denom string, amount int64)
@@ -767,6 +768,22 @@ control. If you only care about one denomination, use
 [GetCoin](#getcoin) instead; its cost does not grow with the rest.
 
 :::
+
+---
+
+### GetCoin
+Returns the amount of a single `denom` owned by `addr`, without reading any
+other. Prefer this to [GetCoins](#getcoins) whenever one denomination will do.
+
+##### Parameters
+- `addr` **address** to read
+- `denom` **string** denomination to read
+
+##### Usage
+
+```go
+amount := banker.GetCoin(addr, denom)
+```
 
 ---
 

@@ -291,17 +291,17 @@ func TestSubtractRealmInsufficientFunds(t *testing.T) {
 
 	err := env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 100}})
 	require.Error(t, err, "over-spending a realm denom must fail, not clamp")
-	require.Equal(t, int64(7), env.bankk.GetBalance(ctx, addr, testRealmDenom),
+	require.Equal(t, int64(7), env.bankk.GetCoin(ctx, addr, testRealmDenom),
 		"a failed debit must leave the balance untouched")
 
 	// Exactly one over must fail too — the gross case alone would not catch an
 	// off-by-one in the comparison.
 	require.Error(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 8}}))
-	require.Equal(t, int64(7), env.bankk.GetBalance(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(7), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 
 	// And exactly the whole balance must succeed, draining the key.
 	require.NoError(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 7}}))
-	require.Zero(t, env.bankk.GetBalance(ctx, addr, testRealmDenom))
+	require.Zero(t, env.bankk.GetCoin(ctx, addr, testRealmDenom))
 }
 
 // TestAddCoinsRealmAmount pins the credited amount, not merely that the account
@@ -315,9 +315,9 @@ func TestAddCoinsRealmAmount(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 
 	require.NoError(t, env.bankk.AddCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 40}}))
-	require.Equal(t, int64(40), env.bankk.GetBalance(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 	require.NoError(t, env.bankk.AddCoins(ctx, addr, std.Coins{{Denom: testRealmDenom, Amount: 2}}))
-	require.Equal(t, int64(42), env.bankk.GetBalance(ctx, addr, testRealmDenom),
+	require.Equal(t, int64(42), env.bankk.GetCoin(ctx, addr, testRealmDenom),
 		"a second credit must accumulate onto the first")
 }
 
@@ -361,9 +361,9 @@ func TestMixedTierFailureIsAtomic(t *testing.T) {
 		{Denom: "ugnot", Amount: 999},
 	})
 	require.Error(t, err)
-	require.Equal(t, int64(100), env.bankk.GetBalance(ctx, addr, testRealmDenom),
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, testRealmDenom),
 		"the affordable realm debit must not have been applied")
-	require.Equal(t, int64(10), env.bankk.GetBalance(ctx, addr, "ugnot"))
+	require.Equal(t, int64(10), env.bankk.GetCoin(ctx, addr, "ugnot"))
 
 	// And the mirror: genesis affordable, realm not.
 	err = env.bankk.SubtractCoins(ctx, addr, std.Coins{
@@ -371,8 +371,8 @@ func TestMixedTierFailureIsAtomic(t *testing.T) {
 		{Denom: "ugnot", Amount: 10},
 	})
 	require.Error(t, err)
-	require.Equal(t, int64(100), env.bankk.GetBalance(ctx, addr, testRealmDenom))
-	require.Equal(t, int64(10), env.bankk.GetBalance(ctx, addr, "ugnot"))
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(10), env.bankk.GetCoin(ctx, addr, "ugnot"))
 }
 
 // TestBalanceAmountWidthIsPinned guards the encoded width separately from the
@@ -412,8 +412,8 @@ func TestDeductFeesRealmDenom(t *testing.T) {
 	res := auth.DeductFees(env.bankk, ctx, acc, collector, fees)
 	require.True(t, res.IsOK(),
 		"a fee in a realm denom must be payable; the balance is not in the account object: %v", res.Error)
-	require.Equal(t, int64(70), env.bankk.GetBalance(ctx, payer, testRealmDenom))
-	require.Equal(t, int64(30), env.bankk.GetBalance(ctx, collector, testRealmDenom))
+	require.Equal(t, int64(70), env.bankk.GetCoin(ctx, payer, testRealmDenom))
+	require.Equal(t, int64(30), env.bankk.GetCoin(ctx, collector, testRealmDenom))
 
 	// Insufficient must still surface as InsufficientFundsError, which gnokey
 	// and the ante tests distinguish from InsufficientCoinsError.
@@ -499,11 +499,11 @@ func TestSendCoinsMixedTierMovesBoth(t *testing.T) {
 	}))
 
 	// Both tiers debited...
-	require.Equal(t, int64(60), env.bankk.GetBalance(ctx, from, testRealmDenom))
-	require.Equal(t, int64(300), env.bankk.GetBalance(ctx, from, "ugnot"))
+	require.Equal(t, int64(60), env.bankk.GetCoin(ctx, from, testRealmDenom))
+	require.Equal(t, int64(300), env.bankk.GetCoin(ctx, from, "ugnot"))
 	// ...and both credited. Totals conserved on each denom.
-	require.Equal(t, int64(40), env.bankk.GetBalance(ctx, to, testRealmDenom))
-	require.Equal(t, int64(200), env.bankk.GetBalance(ctx, to, "ugnot"))
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, to, testRealmDenom))
+	require.Equal(t, int64(200), env.bankk.GetCoin(ctx, to, "ugnot"))
 }
 
 // TestSendCoinsMultipleRealmDenoms pins that every realm denom in the set moves,
@@ -531,12 +531,12 @@ func TestSendCoinsMultipleRealmDenoms(t *testing.T) {
 		{Denom: c, Amount: 3},
 	}))
 
-	require.Equal(t, int64(99), env.bankk.GetBalance(ctx, from, a))
-	require.Equal(t, int64(198), env.bankk.GetBalance(ctx, from, b))
-	require.Equal(t, int64(297), env.bankk.GetBalance(ctx, from, c))
-	require.Equal(t, int64(1), env.bankk.GetBalance(ctx, to, a))
-	require.Equal(t, int64(2), env.bankk.GetBalance(ctx, to, b))
-	require.Equal(t, int64(3), env.bankk.GetBalance(ctx, to, c))
+	require.Equal(t, int64(99), env.bankk.GetCoin(ctx, from, a))
+	require.Equal(t, int64(198), env.bankk.GetCoin(ctx, from, b))
+	require.Equal(t, int64(297), env.bankk.GetCoin(ctx, from, c))
+	require.Equal(t, int64(1), env.bankk.GetCoin(ctx, to, a))
+	require.Equal(t, int64(2), env.bankk.GetCoin(ctx, to, b))
+	require.Equal(t, int64(3), env.bankk.GetCoin(ctx, to, c))
 }
 
 // TestVestingChecksEveryDenom pins that the lock check covers every denom in the
@@ -573,8 +573,8 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 		{Denom: "ugnot", Amount: 1000},
 	})
 	require.Error(t, err, "an unlocked leading denom must not let a locked one through")
-	require.Equal(t, int64(1000), env.bankk.GetBalance(ctx, addr, "ugnot"))
-	require.Equal(t, int64(50), env.bankk.GetBalance(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, "ugnot"))
+	require.Equal(t, int64(50), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 }
 
 // TestTierFollowsAllowlistNotDenomShape pins that storage tier is decided by the
@@ -600,7 +600,7 @@ func TestTierFollowsAllowlistNotDenomShape(t *testing.T) {
 	} {
 		require.NoError(t, std.ValidateDenom(denom), "test denom must be valid: %s", denom)
 		require.NoError(t, env.bankk.AddCoins(ctx, addr, std.Coins{{Denom: denom, Amount: 5}}))
-		require.Equal(t, int64(5), env.bankk.GetBalance(ctx, addr, denom),
+		require.Equal(t, int64(5), env.bankk.GetCoin(ctx, addr, denom),
 			"must be readable from the tier it was written to: %s", denom)
 		require.Equal(t, int64(5), env.bankk.getSplitBalance(ctx, addr, denom),
 			"a denom outside the allowlist must get its own key: %s", denom)
@@ -610,7 +610,7 @@ func TestTierFollowsAllowlistNotDenomShape(t *testing.T) {
 				"a denom outside the allowlist must not be in the account object: %s", denom)
 		}
 		require.NoError(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: denom, Amount: 5}}))
-		require.Zero(t, env.bankk.GetBalance(ctx, addr, denom))
+		require.Zero(t, env.bankk.GetCoin(ctx, addr, denom))
 	}
 
 	// And the allowlisted denom does live in the account object.
@@ -737,14 +737,14 @@ func TestConservation(t *testing.T) {
 			require.Equal(t, want.String(), got.String(),
 				"step %d (%s): GetCoins disagrees with the model for %s", step, op, a)
 			for _, d := range denoms {
-				require.Equal(t, model[a][d], env.bankk.GetBalance(ctx, a, d),
-					"step %d (%s): GetBalance(%s) disagrees with the model", step, op, d)
+				require.Equal(t, model[a][d], env.bankk.GetCoin(ctx, a, d),
+					"step %d (%s): GetCoin(%s) disagrees with the model", step, op, d)
 			}
 		}
 		// The vesting lock is a separate invariant from conservation: dropping the
 		// check entirely would keep every balance consistent with the model, so
 		// only this assertion can catch it.
-		require.GreaterOrEqual(t, env.bankk.GetBalance(ctx, vester, testAccountDenom),
+		require.GreaterOrEqual(t, env.bankk.GetCoin(ctx, vester, testAccountDenom),
 			int64(vesterLocked),
 			"step %d (%s): spent into the locked portion via a restricted path", step, op)
 		// Per-denom supply must be conserved by transfers and match the model
@@ -753,7 +753,7 @@ func TestConservation(t *testing.T) {
 			var want, got int64
 			for _, a := range addrs {
 				want += model[a][d]
-				got += env.bankk.GetBalance(ctx, a, d)
+				got += env.bankk.GetCoin(ctx, a, d)
 			}
 			require.Equal(t, want, got, "step %d (%s): total supply of %s diverged", step, op, d)
 		}
@@ -795,12 +795,12 @@ func TestConservation(t *testing.T) {
 		// Guarantee an unlocked denom to lead with. Without one the probe degenerates
 		// to a single locked denom, and a check that stops at the first unlocked
 		// denom would survive it.
-		if env.bankk.GetBalance(ctx, vester, testRealmDenom) == 0 {
+		if env.bankk.GetCoin(ctx, vester, testRealmDenom) == 0 {
 			require.NoError(t, env.bankk.AddCoins(ctx, vester,
 				std.Coins{{Denom: testRealmDenom, Amount: 1}}))
 			model[vester][testRealmDenom]++
 		}
-		spendable := env.bankk.GetBalance(ctx, vester, testAccountDenom) - vesterLocked
+		spendable := env.bankk.GetCoin(ctx, vester, testAccountDenom) - vesterLocked
 		amt := std.Coins{
 			{Denom: testRealmDenom, Amount: 1},
 			{Denom: testAccountDenom, Amount: spendable + 1},
@@ -912,7 +912,7 @@ func TestConservation(t *testing.T) {
 	require.Positive(t, total, "the run ended with every balance zero")
 }
 
-// TestGetBalanceCostIsFlat pins the property that justifies exposing a per-denom
+// TestGetCoinCostIsFlat pins the property that justifies exposing a per-denom
 // read to Gno at all: reading one denom must not get more expensive as the
 // address accumulates others, whereas reading them all must.
 //
@@ -926,7 +926,7 @@ func TestConservation(t *testing.T) {
 // bigger store. gno.land pins depth flat (Fixed*Depth100), so on chain the two
 // figures coincide exactly; holding the key count equal is what isolates the
 // property from that artifact.
-func TestGetBalanceCostIsFlat(t *testing.T) {
+func TestGetCoinCostIsFlat(t *testing.T) {
 	t.Parallel()
 
 	const junk = 200
@@ -960,7 +960,7 @@ func TestGetBalanceCostIsFlat(t *testing.T) {
 		if readAll {
 			env.bankk.GetCoins(cctx, addr)
 		} else {
-			env.bankk.GetBalance(cctx, addr, target)
+			env.bankk.GetCoin(cctx, addr, target)
 		}
 		return meter.GasConsumed() - before
 	}
@@ -1010,7 +1010,7 @@ func TestAccountObjectHoldingASplitDenomFailsLoudly(t *testing.T) {
 	// ...and neither may the O(1) point read, even for a denom that is correctly
 	// in the account tier: silently returning a wrong balance is the failure mode
 	// this guard exists to prevent.
-	require.Panics(t, func() { env.bankk.GetBalance(ctx, addr, testAccountDenom) })
+	require.Panics(t, func() { env.bankk.GetCoin(ctx, addr, testAccountDenom) })
 }
 
 func TestAccountTierAllowlistIsValidatedAtConstruction(t *testing.T) {
@@ -1028,13 +1028,13 @@ func TestAccountTierAllowlistIsValidatedAtConstruction(t *testing.T) {
 	require.NotPanics(t, func() { NewViewKeeper(auth.AccountKeeper{}, nil, []string{"ugnot"}) })
 }
 
-// Why GetBalance exists, and why realms should reach for banker.GetCoin rather
+// Why GetCoin exists, and why realms should reach for banker.GetCoin rather
 // than GetCoins().AmountOf(): a repeated point read is refunded by the cache
 // store, but a repeated GetCoins is not, because splitCoins opens an iterator and
 // iterator opens are charged every time. A realm reading balances in a loop
 // therefore pays per iteration, where before the split it paid for one account
 // read and got the rest free.
-func TestRepeatedGetCoinsIsChargedButRepeatedGetBalanceIsFree(t *testing.T) {
+func TestRepeatedGetCoinsIsChargedButRepeatedGetCoinIsFree(t *testing.T) {
 	t.Parallel()
 
 	measure := func(t *testing.T, readAll bool) (first, repeat store.Gas) {
@@ -1053,7 +1053,7 @@ func TestRepeatedGetCoinsIsChargedButRepeatedGetBalanceIsFree(t *testing.T) {
 			if readAll {
 				env.bankk.GetCoins(cctx, addr)
 			} else {
-				env.bankk.GetBalance(cctx, addr, testRealmDenom)
+				env.bankk.GetCoin(cctx, addr, testRealmDenom)
 			}
 		}
 		read()
@@ -1129,7 +1129,7 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 				std.Coins{{Denom: testRealmDenom, Amount: bad}}),
 				"subtract must reject a %d debit on its own", bad)
 		})
-		require.Equal(t, int64(1000), env.bankk.GetBalance(ctx, from, testRealmDenom),
+		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom),
 			"a rejected %d debit must not move the balance", bad)
 	}
 
@@ -1144,7 +1144,7 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 			})
 		}
 	}
-	require.Equal(t, int64(1000), env.bankk.GetBalance(ctx, from, testRealmDenom))
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom))
 
 	// A zero amount is a documented no-op on SendCoins (pre-existing), not an
 	// error. It must still never reach a write.
@@ -1154,9 +1154,9 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 	})
 
 	// Nothing may have moved.
-	require.Equal(t, int64(1000), env.bankk.GetBalance(ctx, from, testRealmDenom))
-	require.Equal(t, int64(1000), env.bankk.GetBalance(ctx, from, testAccountDenom))
-	require.Zero(t, env.bankk.GetBalance(ctx, to, testRealmDenom))
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom))
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testAccountDenom))
+	require.Zero(t, env.bankk.GetCoin(ctx, to, testRealmDenom))
 }
 
 // Both tiers must reject a non-positive amount, on both directions of the money
@@ -1189,7 +1189,7 @@ func TestNeitherTierInvertsOnANonPositiveAmount(t *testing.T) {
 				require.Error(t, env.bankk.AddCoins(ctx, addr, amt),
 					"%s tier: credit of %d must be refused", tier.name, bad)
 			})
-			require.Equal(t, int64(100), env.bankk.GetBalance(ctx, addr, tier.denom),
+			require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, tier.denom),
 				"%s tier: balance moved on a rejected %d", tier.name, bad)
 		}
 	}
@@ -1212,7 +1212,7 @@ func TestOverlongDenomNeverReachesTheStore(t *testing.T) {
 	meter := store.NewGasMeter(100_000_000_000)
 	cctx, _ := env.ctx.CacheContext()
 	cctx = cctx.WithGasMeter(meter)
-	require.Zero(t, env.bankk.GetBalance(cctx, addr, huge))
+	require.Zero(t, env.bankk.GetCoin(cctx, addr, huge))
 	require.Zero(t, meter.GasConsumed(),
 		"an impossible denom must not reach the store at all")
 }
@@ -1252,7 +1252,7 @@ func TestSubtractWritesNothingWhenTheAccountWriteFails(t *testing.T) {
 // The mirror of TestAccountObjectHoldingASplitDenomFailsLoudly: a split key for a
 // denom that IS in the account tier. This is the direction the allowlist grows —
 // adding a denom to it without migrating existing keys — where GetCoins would
-// otherwise sum both homes and report a balance GetBalance disagrees with.
+// otherwise sum both homes and report a balance GetCoin disagrees with.
 func TestSplitKeyForAnAccountTierDenomFailsLoudly(t *testing.T) {
 	t.Parallel()
 
@@ -1268,4 +1268,57 @@ func TestSplitKeyForAnAccountTierDenomFailsLoudly(t *testing.T) {
 		`denom "`+testAccountDenom+`" has a split-tier key but is in the account tier: `+
 			`the allowlist changed without migrating existing balances`,
 		func() { env.bankk.GetCoins(ctx, addr) })
+}
+
+// The allowlist holds one denom today, so nothing otherwise exercises a second.
+// A second gas denom is the expected way it grows — a chain accepting fees in an
+// IBC voucher, for instance — and such a denom sorts *before* "ugnot", which makes
+// this the first case where the account tier is neither a prefix nor a suffix of
+// the sorted result. GetCoins must interleave three-ways: split, account, account.
+func TestSecondGasDenomInAccountTier(t *testing.T) {
+	t.Parallel()
+
+	// Lowercase, because ValidateDenom's charset is lowercase-only — a cosmos-style
+	// uppercase-hex IBC hash would have to be normalised before reaching here.
+	const voucher = "ibc/" + "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
+	require.NoError(t, std.ValidateDenom(voucher))
+	require.Less(t, voucher, testAccountDenom, "the point of this test is that it sorts first")
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	k := NewBankKeeper(env.acck, env.prmk.ForModule(ModuleName), env.key,
+		[]string{testAccountDenom, voucher})
+	addr := crypto.AddressFromPreimage([]byte("holder"))
+
+	// The split-tier denoms must straddle the account-tier ones. If every split
+	// denom sorted before every account one, concatenating the two tiers would
+	// coincidentally produce sorted output and the merge would not be under test.
+	amt := std.Coins{
+		{Denom: testRealmDenom, Amount: 5},    // split,   sorts first  ("/")
+		{Denom: voucher, Amount: 20},          // account, sorts second ("i")
+		{Denom: testAccountDenom, Amount: 50}, // account, sorts third  ("u")
+		{Denom: "zeta", Amount: 7},            // split,   sorts last   ("z")
+	}
+	amt.Sort()
+	require.NoError(t, k.SetCoins(ctx, addr, amt))
+
+	require.Equal(t, amt.String(), k.GetCoins(ctx, addr).String(),
+		"GetCoins must interleave the tiers, not concatenate them")
+	require.True(t, k.GetCoins(ctx, addr).IsValid())
+
+	// Both account-tier denoms live in the account object; the realm one does not.
+	require.Equal(t, std.Coins{{Denom: voucher, Amount: 20}, {Denom: testAccountDenom, Amount: 50}}.String(),
+		env.acck.GetAccount(ctx, addr).GetCoins().String())
+	require.Zero(t, k.getSplitBalance(ctx, addr, voucher),
+		"an allowlisted denom must not also have a split key")
+
+	require.Equal(t, int64(20), k.GetCoin(ctx, addr, voucher))
+	require.Equal(t, int64(5), k.GetCoin(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(7), k.GetCoin(ctx, addr, "zeta"))
+
+	// And it spends like any other account-tier denom.
+	to := crypto.AddressFromPreimage([]byte("dest"))
+	require.NoError(t, k.SendCoins(ctx, addr, to, std.Coins{{Denom: voucher, Amount: 3}}))
+	require.Equal(t, int64(17), k.GetCoin(ctx, addr, voucher))
+	require.Equal(t, int64(3), k.GetCoin(ctx, to, voucher))
 }

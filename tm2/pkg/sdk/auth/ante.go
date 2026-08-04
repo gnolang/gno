@@ -402,7 +402,7 @@ func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector cryp
 	// denoms the payer happens to hold.
 	addr := acc.GetAddress()
 	for _, fee := range fees {
-		if balance := bk.GetBalance(ctx, addr, fee.Denom); balance < fee.Amount {
+		if balance := bk.GetCoin(ctx, addr, fee.Denom); balance < fee.Amount {
 			return abciResult(std.ErrInsufficientFunds(
 				fmt.Sprintf("insufficient funds to pay for fees; %d%s < %s", balance, fee.Denom, fee),
 			))

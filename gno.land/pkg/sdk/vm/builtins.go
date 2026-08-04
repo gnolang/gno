@@ -33,6 +33,18 @@ func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 // GetCoin reads one denom without touching any other — the O(1) accessor the
 // balance split exists to provide. GetCoins costs O(denoms held) and an address
 // does not control how many denoms it has been sent.
+func (bnk *SDKBanker) GetCoin(b32addr crypto.Bech32Address, denom string) int64 {
+	// Every other denom entry point validates — IssueCoin and RemoveCoin via
+	// assertCoinDenom, transfers and fees via Coins.IsValid. This one takes a
+	// realm-supplied string straight from Gno, so without this it is the only
+	// unbounded, unvalidated input reaching a store key. Panic rather than return
+	// zero, to match how a malformed denom is treated everywhere else.
+	if err := std.ValidateDenom(denom); err != nil {
+		panic("invalid denom: " + err.Error())
+	}
+	addr := crypto.MustAddressFromString(string(b32addr))
+	return bnk.vmk.bank.GetCoin(bnk.ctx, addr, denom)
+}
 
 func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
 	from := crypto.MustAddressFromString(string(b32from))

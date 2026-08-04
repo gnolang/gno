@@ -181,6 +181,35 @@ import "gno.land/p/nt/markdown/sanitize/v0"
 b.WriteString("| " + sanitize.InlineText(key) + " | " + sanitize.InlineText(val) + " |\n")
 ```
 
+### 11. `GetCoins` to read one balance — attacker-influenced cost
+
+Any realm can mint an arbitrary denom to any address without the holder's consent, and
+nothing bounds how many distinct denoms an address accumulates. `banker.GetCoins(addr)`
+reads every one of them, so its cost is set by whoever last sent that address a coin —
+not by the realm. When `addr` comes from the caller, a third party can make the function
+run out of gas, permanently.
+
+```go
+// WRONG: cost grows with denoms the address happens to hold
+if banker.NewReadonlyBanker().GetCoins(addr).AmountOf("ugnot") < price {
+    panic("insufficient balance")
+}
+
+// WRONG AND QUADRATIC: a full read per iteration
+for _, coin := range coins {
+    if bnk.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount { ... }
+}
+
+// RIGHT: one denom, one store read
+if banker.NewReadonlyBanker().GetCoin(addr, "ugnot") < price {
+    panic("insufficient balance")
+}
+```
+
+Reserve `GetCoins` for cases that genuinely need every balance, and treat it as
+unbounded when the address is caller-supplied. Note repeated `GetCoins` calls are each
+charged in full, so hoisting the call out of a loop is not enough.
+
 ---
 
 ## Review Checklist
@@ -197,6 +226,7 @@ b.WriteString("| " + sanitize.InlineText(key) + " | " + sanitize.InlineText(val)
 - [ ] `/p/`-type fields with callback iterators are unexported
 - [ ] Data types holding sensitive state are declared in this realm (`/r/`), not in shared `/p/`
 - [ ] `Render` sanitizes path segments, keys, and user-supplied values before writing to output
+- [ ] Single-denom balance checks use `GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)`
 
 ---
 

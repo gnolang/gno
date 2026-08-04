@@ -69,9 +69,9 @@ func NewDummyBankKeeper(acck AccountKeeper, prmk params.ParamsKeeperI) DummyBank
 	return DummyBankKeeper{acck}
 }
 
-// GetBalance mirrors the real keeper's per-denom read. The dummy keeps every
+// GetCoin mirrors the real keeper's per-denom read. The dummy keeps every
 // balance in the account object, so it reads from there.
-func (bankk DummyBankKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+func (bankk DummyBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
 	acc := bankk.acck.GetAccount(ctx, addr)
 	if acc == nil {
 		return 0

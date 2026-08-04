@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -165,4 +166,34 @@ func TestSDKBankerRejectsGenesisDenom(t *testing.T) {
 		"IssueCoin must refuse a denom that is not realm-qualified")
 	require.Panics(t, func() { banker.RemoveCoin(crypto.Bech32Address(addr.String()), "ugnot", 1) },
 		"RemoveCoin must refuse a denom that is not realm-qualified")
+}
+
+// GetCoin takes a realm-supplied string straight from Gno and turns it into a
+// store key. Every other denom entry point validates — IssueCoin and RemoveCoin
+// via assertCoinDenom, transfers and fees via Coins.IsValid — so without a check
+// here this would be the only unvalidated, unbounded input reaching the store.
+// That matters beyond hygiene: the charge for a read is flat, while hashing and
+// copying the key is proportional to the denom's length, so an unbounded denom
+// buys unmetered work. Reachable from a non-crossing function through vm/qeval,
+// which needs no transaction and no fee.
+func TestSDKBankerGetCoinValidatesDenom(t *testing.T) {
+	env := setupTestEnv()
+	bnk := NewSDKBanker(env.vmk, env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("holder")).Bech32()
+
+	for _, denom := range []string{
+		"",
+		"UPPERCASE",
+		"has space",
+		"..",
+		strings.Repeat("z", 275), // one over the cap
+		"/gno.land/r/x/" + strings.Repeat("z", 1<<20) + ":c", // the unmetered-work case
+	} {
+		require.Panics(t, func() { bnk.GetCoin(addr, denom) },
+			"GetCoin must reject a denom of length %d", len(denom))
+	}
+
+	// A well-formed denom nobody holds is zero, not a panic.
+	require.Zero(t, bnk.GetCoin(addr, "/gno.land/r/x/tok:c"))
+	require.Zero(t, bnk.GetCoin(addr, "ugnot"))
 }

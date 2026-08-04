@@ -289,7 +289,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 	// spent — never the whole balance set, which is what makes this O(len(amt))
 	// rather than O(n). It is deliberately tier-agnostic: a genesis balances file
 	// may name a "/"-prefixed denom (ValidateDenom accepts one), so locking is
-	// not assumed to apply only to the account-object tier. GetBalance routes
+	// not assumed to apply only to the account-object tier. GetCoin routes
 	// each denom to wherever it actually lives.
 	if va, ok := acc.(std.VestingAccount); ok {
 		locked := va.LockedCoins(ctx.BlockTime())
@@ -301,7 +301,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 			// The schedule can lock more than the account holds, once an
 			// unrestricted transfer has spent into the locked portion. Clamp so
 			// the error reports nothing spendable rather than a negative.
-			spendable := max(bank.GetBalance(ctx, addr, coin.Denom)-lockedAmt, 0)
+			spendable := max(bank.GetCoin(ctx, addr, coin.Denom)-lockedAmt, 0)
 			if spendable < coin.Amount {
 				return std.ErrVestingLockedCoins(fmt.Sprintf(
 					"insufficient spendable coins; %d%s < %s (locked=%s)",
@@ -481,7 +481,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 // account balances.
 type ViewKeeperI interface {
 	GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins
-	GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64
+	GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64
 	HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool
 }
 
@@ -502,11 +502,22 @@ type ViewKeeper struct {
 func NewViewKeeper(acck auth.AccountKeeper, key store.StoreKey, accountDenoms []string) ViewKeeper {
 	allow := make(map[string]struct{}, len(accountDenoms))
 	for _, denom := range accountDenoms {
-		// The account tier is a metered blob shared by every denom in it, so an
-		// entry here is a security decision, not a config detail: a realm-issuable
-		// denom on this list would reinstate the unbounded-growth attack the split
-		// exists to close. Reject at construction, where the chain fails to start,
-		// rather than at the first mint.
+		// An entry here is a security decision, not a config detail. The account
+		// object is read and rewritten on every transaction its owner sends (the
+		// ante handler bumps the sequence) and its value is metered per byte, so
+		// every denom in this tier is paid for on every transaction that address
+		// ever makes. What matters is therefore who can put a denom into a
+		// stranger's blob: sending ugnot costs the sender the coins, an IBC
+		// voucher costs a real transfer, but IssueCoin mints a realm denom from
+		// nothing to any address with no recipient check. Allowlisting one would
+		// let its issuer add ~40 bytes — roughly 1,200 gas per transaction at
+		// 17/byte read plus 14/byte write — to any account it picks, for free.
+		// The victim can clear it by transferring the balance away, since a zero
+		// drops out of the Coins set, but that costs them a transaction and the
+		// issuer can re-mint for less: a griefing loop, not a permanent brick.
+		// Exact matching holds it to one denom rather than unlimited ones, which
+		// is what keeps it a tax. Reject at construction, where the chain fails to
+		// start, rather than at the first mint.
 		if err := std.ValidateDenom(denom); err != nil {
 			panic(fmt.Sprintf("invalid account-tier denom %q: %v", denom, err))
 		}
@@ -542,7 +553,7 @@ func (view ViewKeeper) inAccountTier(denom string) bool {
 // the allowlist is actually expected to move: shrinking it is how a chain
 // migrates to a fully split layout. Run such a binary against unmigrated state
 // and a denom sits in the account object while the keeper believes it is split —
-// GetCoins would sum both homes while GetBalance saw only one, so a balance would
+// GetCoins would sum both homes while GetCoin saw only one, so a balance would
 // read as spendable that is not. A denom must live in exactly one tier; fail
 // loudly at the first read rather than report a number nobody can spend.
 func (view ViewKeeper) accountTierCoins(acc std.Account) std.Coins {
@@ -588,7 +599,7 @@ func (view ViewKeeper) Logger(ctx sdk.Context) *slog.Logger {
 // universally ascending. Coins.Add is a merge over sorted sets, and the tiers
 // are disjoint by construction, so no two amounts are ever summed.
 //
-// Costs O(number of split-tier denoms held). Use GetBalance when one denom will
+// Costs O(number of split-tier denoms held). Use GetCoin when one denom will
 // do — that is the whole point of the split.
 func (view ViewKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins {
 	split := view.splitCoins(ctx, addr)
@@ -612,9 +623,9 @@ func (view ViewKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins 
 	return split.AddUnsafe(account)
 }
 
-// GetBalance returns addr's balance of one denom without reading any other. This
+// GetCoin returns addr's balance of one denom without reading any other. This
 // is the O(1) accessor.
-func (view ViewKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+func (view ViewKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
 	// Bound the denom before touching anything. No balance can exist for an
 	// over-long denom, since every write validates, so returning zero is exact —
 	// and this is the only thing standing between a caller-supplied string and
@@ -640,7 +651,7 @@ func (view ViewKeeper) GetBalance(ctx sdk.Context, addr crypto.Address, denom st
 // zero amount.
 func (view ViewKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	for _, coin := range amt {
-		if view.GetBalance(ctx, addr, coin.Denom) < coin.Amount {
+		if view.GetCoin(ctx, addr, coin.Denom) < coin.Amount {
 			return false
 		}
 	}

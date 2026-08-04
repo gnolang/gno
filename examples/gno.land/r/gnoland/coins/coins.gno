@@ -185,7 +185,7 @@ func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) s
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker_.GetCoins(address(addr)).AmountOf(denom), denom, runtime.ChainHeight())
+		name, banker_.GetCoin(address(addr), denom), denom, runtime.ChainHeight())
 
 	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
 
