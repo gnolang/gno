@@ -307,7 +307,7 @@ alone.
   unconditionally, and an open charges a flat `ReadCostFlat` even over an empty
   range, so `banker.GetCoins` on an account holding only the gas denom went from
   ~60,300 to ~119,300 gas (**+59,000**). Realms wanting one denom should call the
-  new `GetCoin`: ~59,100 for a split-tier denom, ~60,200 for a gas denom, which
+  new `GetCoin`: ~59,100 for a split-tier denom, ~60,300 for a gas denom, which
   reads the account object. All figures here are under gno.land's pinned depth
   config; tm2's default config scales reads by tree depth and gives different
   absolute numbers for the same operations.
