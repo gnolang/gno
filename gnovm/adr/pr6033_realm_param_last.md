@@ -23,7 +23,7 @@ inviteMembers(0, cur, boardID, invites...)
 
 The `0` carries no information. It exists only to occupy the position that
 would otherwise make the function crossing. It appears in 126 signatures
-and 419 call sites, and readers have to know the convention before the
+and 424 call sites, and readers have to know the convention before the
 signature parses as anything but a mistake.
 
 [#5786][issue] reports the same mechanism from the other end. A `/p/` package
@@ -85,9 +85,12 @@ argument and only moves it.
 
 ## Consequences
 
-- Breaking for any caller of a changed signature. The compiler catches every
-  one: the parameter count changes, so a stale call site fails to build rather
-  than silently passing a realm into the wrong slot.
+- Breaking for any caller of a changed signature. Removing the sentinel drops
+  the parameter count by one, so a stale call site is rejected rather than
+  silently passing a realm into the wrong slot. Where that rejection lands
+  depends on where the call site lives: a `.gno` file under `examples/` fails
+  the build, while a realm embedded in a `.txtar` archive is only compiled when
+  the integration test deploys it, and fails there.
 - Two conventions coexist rather than one. The trailing form is the default;
   the sentinel is what remains where the trailing form is not expressible.
 - `gnovm/adr/interrealm_v2.md`, `pr_cross_explicit.md` and `pr5890_realm_sub.md`
@@ -103,6 +106,27 @@ and the declaring directory for a bare one, because bare-name matching would
 rewrite `ulist.Set(0, v)`, which has nothing to do with realms. A call is only
 rewritten when its second argument is a realm by syntax: a realm-typed
 parameter in scope, a `cross()` of one, or `.Previous()`/`.Sub()` on one.
+
+The codemod walks `.gno` files, so it never saw the five call sites in realms
+embedded in `gno.land/pkg/integration/testdata/*.txtar` or the three snippets
+in `docs/resources/`. Nothing in `main / lint` or `main / build` covers them
+either. They surfaced only when the integration suite deployed the realm, as a
+panic rather than a build error:
+
+```
+panic: msg:0,success:false,log:--= Error =--
+	Data: vm.TypeCheckError{abciError:vm.abciError{}}
+	    0  gno/gno.land/pkg/sdk/vm/errors.go:90 - gno.land/r/testing/resource/resource.gno:21:27:
+	       cannot use 0 (untyped int constant) as string value in argument to a.DoByPrevious
+```
+
+The panic aborts the test binary, so every later case in that package goes
+unreported: the first red run showed one failure where there were five. Sweep
+the archives directly before trusting a green build:
+
+```bash
+grep -rn '<FuncName>(0, ' --include=*.txtar --include=*.md .
+```
 
 Two things the CI jobs do not say on their own. `go test ./...` in `gnovm/`
 fails `TestFiles/types/*` and `TestTranspile/*` here, and fails the same set
