@@ -276,6 +276,17 @@ func computeSupply(ctx sdk.Context, view ViewKeeper, maxDenoms int) (map[string]
 // pre-split balance *before* calling SetCoins, so SetCoins reads old == new and a
 // delta would be zero for every vesting account — and that pre-write cannot be
 // removed, since the vesting constructors validate OriginalVesting against it.
+//
+// Do not run this to silence a SupplyInvariant finding. It makes the record agree
+// with whatever is held, corruption included: on a double-homed denom — one with both
+// an account-object entry and a /b/ key — the totals sum both homes, so this records
+// the doubled figure and the supply invariant then reports healthy. Measured: 20
+// recorded against 25 held becomes 25 against 25. The corruption itself stays visible,
+// because BalanceKeysInvariant owns the stray key and still reports it, so check the
+// other invariants before concluding a supply mismatch was a bookkeeping error.
+// Genesis cannot reach that state — a balances file lists one amount per denom per
+// address, so SetCoins produces a single home — which is why this is a caution for
+// offline tooling rather than a guard here.
 func (bank BankKeeper) RecomputeSupply(ctx sdk.Context) {
 	totals, err := computeSupply(ctx, bank.ViewKeeper, 0)
 	if err != nil {
