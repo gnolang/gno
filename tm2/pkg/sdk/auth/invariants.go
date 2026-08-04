@@ -59,6 +59,15 @@ func ParseAccountKey(key []byte) (kind AccountKeyKind, master, addr crypto.Addre
 // A zero-length value is accepted by the store and unmarshals to a nil interface
 // with no error, so "err == nil" is not enough to conclude the account is usable —
 // every caller must treat a nil account as a finding, not as an empty one.
+//
+// The recover is a backstop, like sdk.Guard's, and is not the mechanism: the panic
+// this function exists to avoid is decodeAccount's, which panics on an unmarshal
+// error rather than returning it. Amino itself returns errors for malformed input in
+// practice — a zero-length value, random bytes, a huge length prefix, a truncated
+// varint, a bad type prefix and a deeply nested payload were all tried and all
+// errored — so the recover should not be read as evidence that it panics, nor
+// removed for being unreached. An invariant that dies on the state it exists to
+// report is worse than one that reports a decoder bug.
 func DecodeAccountSafe(bz []byte) (acc std.Account, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
