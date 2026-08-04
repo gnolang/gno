@@ -714,40 +714,25 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 	return nil
 }
 
+// applyBalance creates the genesis account for bal and writes its balance.
+//
+// A balance list may name one address twice — they are assembled from several
+// sources, and the integration harness appends to a loaded default set. That is
+// handled by being idempotent in effect rather than in mechanism: the account is
+// recreated (which it must be, so a plain entry after a vesting one clears the
+// schedule) and SetCoins is replace-all, so the last entry wins. The only trace a
+// repeat leaves is a gap in account numbering, which is harmless — numbers must be
+// unique and below the global counter, not dense.
+//
+// Reusing the account to close that gap was tried and reverted: it shifts every
+// later account number, which changes the genesis state of any chain whose balance
+// file repeats an address, for no correctness gain.
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
-	// Reuse the account if this address already has one. A genesis balance list can
-	// legitimately name an address twice — they are assembled from several sources,
-	// and the integration harness appends to a loaded default set — and creating a
-	// second account would draw a fresh account number and overwrite the first,
-	// burning a number and discarding the account's identity. Account numbers are
-	// consensus state, so that is not cosmetic.
-	//
-	// The amount is still replace-all, so a later entry for the same address wins.
-	existing := cfg.acck.GetAccount(ctx, bal.Address)
-	accountNumber := func() uint64 {
-		if existing != nil {
-			return existing.GetAccountNumber()
-		}
-		return cfg.acck.GetNextAccountNumber(ctx)
-	}
-	// newPlainAccount builds a fresh account of the chain's normal type, carrying an
-	// existing number rather than drawing a new one.
-	newPlainAccount := func() std.Account {
-		acc := ProtoGnoAccount()
-		if err := acc.SetAddress(bal.Address); err != nil {
-			panic(fmt.Errorf("invalid genesis balance address %s: %w", bal.Address, err))
-		}
-		if err := acc.SetAccountNumber(accountNumber()); err != nil {
-			panic(fmt.Errorf("cannot set account number for %s: %w", bal.Address, err))
-		}
-		return acc
-	}
-
 	if bal.IsVesting() {
 		baseAcc := std.BaseAccount{
 			Address:       bal.Address,
 			Coins:         bal.Amount,
-			AccountNumber: accountNumber(),
+			AccountNumber: cfg.acck.GetNextAccountNumber(ctx),
 		}
 		var acc std.Account
 		var err error
@@ -762,11 +747,8 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		}
 		cfg.acck.SetAccount(ctx, acc)
 	} else {
-		// Replace the account even when one exists, so a plain entry after a vesting
-		// entry for the same address clears the schedule. Reusing the vesting account
-		// would leave the funds locked until EndTime — the amount is replace-all, so
-		// the account's *kind* has to be too. The number is carried over.
-		cfg.acck.SetAccount(ctx, newPlainAccount())
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
 	}
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		panic(err)

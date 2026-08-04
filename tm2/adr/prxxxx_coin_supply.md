@@ -160,9 +160,13 @@ the sweep gets it right.
 Implemented with AI assistance. Three agents planned independently and converged,
 each verifying by execution rather than reading: all three found that supply could
 already exceed `int64`, and all three found the genesis delta defect. One additionally
-found a latent bug on master — `applyBalance` on a repeat address drew a fresh account
-number and overwrote the account. **Fixed in this branch**: it now reuses an existing
-account, so the number and identity survive and no number is burned. The amount stays
-replace-all, so a later entry still wins. Pinned by
-`TestApplyBalanceReusesAnExistingAccount`.
+noted that `applyBalance` on a repeat address draws a fresh account number and
+overwrites the account. That was investigated and **deliberately left alone**: the
+account is recreated either way (a plain entry after a vesting one must clear the
+schedule), the balance and the supply seed are both replace-all/swept, and the only
+trace is a gap in account numbering, which is harmless. Closing the gap was tried and
+reverted — it shifts every later account number, changing the genesis state of any
+chain whose balance file repeats an address and breaking nine integration goldens, for
+no correctness gain. The behaviour is now pinned by
+`TestApplyBalanceWithARepeatedAddress`.
 The human author reviewed and owns the change.

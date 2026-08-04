@@ -63,3 +63,5 @@ node_modules/
 /contribs/gnomd/gnomd
 /misc/stdlib_diff/stdlib_diff
 /misc/stress-test/stress-test-many-posts/stress_test_many_posts
+/misc/docs/tools/indexparser/indexparser
+/misc/docs/tools/linter/linter

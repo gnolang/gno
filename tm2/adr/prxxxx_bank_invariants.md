@@ -12,7 +12,8 @@ point-of-use assertions added with that change fire only on paths that execute: 
 catch a violation when someone happens to read the affected account, not when it is
 introduced.
 
-`bank/invariants.go` existed on master and was deleted by that change. Two reasons, and
+`bank/invariants.go` existed on master; that change removed its contents (an unreachable
+check with no caller) and this one re-creates the file with the checks below. Two reasons, and
 the second is the stronger: it walked accounts checking `acc.GetCoins()` for negative
 amounts, which post-split is only the gas denom — but it could never have fired on any
 chain, before or after, because a negative amount in an account object **fails amino
@@ -150,8 +151,12 @@ compared them against themselves. **Since superseded** — see
 ## Tests
 
 Every check has a healthy-state test and a violating-state test asserting the specific
-finding, and **all eight were mutation-verified**: deleting any single check fails its own
-test. Violating states are built by raw store writes where the keeper's guards make them
+finding, and each check that has a violating test was mutation-verified: deleting it fails that
+test. Six do **not** have one, and are known-unpinned rather than believed-covered: the
+key-ordering and iterator-error reports in `BalanceKeysInvariant`, the iteration-error
+report in `AccountTierInvariant`, and all three session checks in
+`AccountKeyspaceInvariant`. The first three fire only on a store-level fault, which no
+state can produce; the session ones are a genuine gap. Violating states are built by raw store writes where the keeper's guards make them
 otherwise unreachable, and through the public API where possible — the stranded-denom case
 uses a keeper whose allowlist shrank, which is the ADR's documented
 upgrade-without-replay scenario rather than a synthetic corruption.

@@ -2,12 +2,12 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 

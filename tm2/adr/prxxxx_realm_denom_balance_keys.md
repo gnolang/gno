@@ -116,7 +116,9 @@ Layout choices, and why:
   balance's magnitude.
 - **Zero balances are deleted**, never stored. Required, not stylistic: a zero
   would make the reconstructed `Coins` invalid.
-- **No reverse denom→address index and no supply tracking.** cosmos needs the
+- **No reverse denom→address index and no supply tracking.** (**Superseded** for supply:
+  `prxxxx_coin_supply.md` adds a per-denom counter and implements `TotalCoin`. The
+  reverse index is still deliberately absent.) cosmos needs the
   index only for `DenomOwners`, which tm2 does not have, and `TotalCoin` is
   `panic("not yet implemented")`. Omitting the index halves the write cost of a
   balance update.
@@ -273,9 +275,11 @@ would require consent on every inbound transfer of every denom, a much larger
 semantic change. It also leaves the layout defect for consenting holders.
 
 **Keying the split on "the fee denom" rather than the `/` prefix.** Rejected as
-unsound. tm2 has no native-denom concept: `ugnot` is defined in
-`gno.land/pkg/gnoland/ugnot`, and the only mentions inside `tm2/` are in gnokey
-test fixtures. The fee denom is whatever `tx.Fee.GasFee.Denom` names, and the one
+unsound — note this alternative was weighed against the *earlier* `/`-prefix draft,
+which the Decision above also rejects, for a different reason (it does not survive
+IBC). Neither shape survived; the allowlist replaced both. tm2 has no native-denom concept: `ugnot` is defined in
+`gno.land/pkg/gnoland/ugnot`, and the only mentions inside `tm2/` are in tests and
+comments, never in logic. The fee denom is whatever `tx.Fee.GasFee.Denom` names, and the one
 place it is checked (`EnsureSufficientMempoolFees`) is CheckTx-only and therefore
 non-consensus. The `/` prefix, by contrast, is a property of the denom string
 alone.
@@ -311,8 +315,10 @@ alone.
   out-of-gas.
 - Denom **count** remains unbounded, and denom bytes move from a metered value
   into an **unmetered key**.
-- `AddCoins`/`SubtractCoins` signatures changed (dropped the returned `Coins`),
-  which is a breaking change to `bank.BankKeeperI` and `vm.BankKeeperI`.
+- `AddCoins`/`SubtractCoins` signatures changed (dropped the returned `Coins`), which is
+  a breaking change to `bank.BankKeeperI`. They were later **removed from
+  `vm.BankKeeperI`** entirely in favour of `MintCoins`/`BurnCoins`/`TotalSupply`, so a
+  realm cannot reach a supply-blind credit — see `prxxxx_coin_supply.md`.
 - Receiving coins still creates the recipient's account. This is deliberate and
   load-bearing: an address with no account cannot sign, so the funds would
   otherwise be visible and permanently unspendable. Account creation allocates
@@ -349,8 +355,11 @@ alone.
   balance for a non-allowlisted one (`accountTierCoins`, covering it shrinking,
   which is the documented path to a fully split layout).
 - `TestConservation` runs 500 deterministic operations against a map oracle,
-  comparing after every one including failures, over `SendCoins`, `AddCoins`,
-  `SubtractCoins`, `SetCoins` and `InputOutputCoins`.
+  comparing after every one including failures, over `SendCoins`, `MintCoins`,
+  `BurnCoins`, `SetCoins` and `InputOutputCoins` (the credit and debit arms became
+  mint and burn when the supply counter landed), plus a directed vesting probe. Arms
+  skip when their randomly drawn amount is unusable, so somewhat fewer than 500
+  operations execute.
 - `TestGetCoinCostIsFlat` pins the property the split exists to buy: reading
   one denom costs the same whether the address holds 1 or 200 others. It is
   written comparatively, holding key count equal across both arms, because tm2's

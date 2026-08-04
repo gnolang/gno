@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
@@ -42,6 +42,7 @@ func TestAccountKeyspaceInvariantReportsCorruption(t *testing.T) {
 			// account under its own Address field, so a mismatch redirects writes.
 			"account filed under the wrong key", "would be filed under",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				bz := amino.MustMarshalAny(std.NewBaseAccount(other, nil, nil, 0, 0))
 				rawSet(t, env, AddressStoreKey(master), bz)
 			},
@@ -50,17 +51,22 @@ func TestAccountKeyspaceInvariantReportsCorruption(t *testing.T) {
 			// Accepted by the store; amino returns a nil account with no error, so
 			// "decoded without error" is not enough to call an account usable.
 			"zero-length value", "does not decode",
-			func(t *testing.T, env testEnv) { rawSet(t, env, AddressStoreKey(master), []byte{}) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, AddressStoreKey(master), []byte{})
+			},
 		},
 		{
 			"undecodable value", "does not decode",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, AddressStoreKey(master), []byte{0xff, 0xfe, 0xfd})
 			},
 		},
 		{
 			"key of an unrecognised shape", "unrecognised shape",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, append(AddressStoreKey(master), 0xAA), []byte{1})
 			},
 		},
@@ -69,6 +75,7 @@ func TestAccountKeyspaceInvariantReportsCorruption(t *testing.T) {
 			// this to a session decoder.
 			"session-length key without the infix", "unrecognised shape",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				key := append(AddressStoreKey(master), make([]byte, SessionStoreKeyLen-AccountStoreKeyLen)...)
 				rawSet(t, env, key, []byte{1})
 			},
@@ -76,6 +83,7 @@ func TestAccountKeyspaceInvariantReportsCorruption(t *testing.T) {
 		{
 			"duplicate account number", "used more than once",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				a := env.acck.NewAccountWithAddress(env.ctx, master)
 				env.acck.SetAccount(env.ctx, a)
 				dup := std.NewBaseAccount(other, nil, nil, a.GetAccountNumber(), 0)
@@ -85,6 +93,7 @@ func TestAccountKeyspaceInvariantReportsCorruption(t *testing.T) {
 		{
 			"account number at or above the counter", "above the global counter",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				env.acck.SetAccount(env.ctx, std.NewBaseAccount(master, nil, nil, 1<<20, 0))
 			},
 		},

@@ -64,42 +64,60 @@ func TestBalanceKeysInvariantReportsCorruption(t *testing.T) {
 	}{
 		{
 			"value of the wrong width", "expected 8 bytes, got 3",
-			func(t *testing.T, env testEnv) { rawSet(t, env, BalanceKey(addr, "atom"), []byte{1, 2, 3}) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, BalanceKey(addr, "atom"), []byte{1, 2, 3})
+			},
 		},
 		{
 			// A zero-length value is accepted by the store; only nil is refused.
 			"zero-length value", "expected 8 bytes, got 0",
-			func(t *testing.T, env testEnv) { rawSet(t, env, BalanceKey(addr, "atom"), []byte{}) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, BalanceKey(addr, "atom"), []byte{})
+			},
 		},
 		{
 			"stored zero", "0 out of range",
-			func(t *testing.T, env testEnv) { rawSet(t, env, BalanceKey(addr, "atom"), make([]byte, 8)) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, BalanceKey(addr, "atom"), make([]byte, 8))
+			},
 		},
 		{
 			"amount over MaxInt64", "out of range",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, BalanceKey(addr, "atom"), []byte{255, 255, 255, 255, 255, 255, 255, 255})
 			},
 		},
 		{
 			"key too short to hold an address", "malformed balance key",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, append([]byte(BalancePrefix), addr[:9]...), enc)
 			},
 		},
 		{
 			"key with no denom", "malformed balance key",
-			func(t *testing.T, env testEnv) { rawSet(t, env, AccountBalancePrefix(addr), enc) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, AccountBalancePrefix(addr), enc)
+			},
 		},
 		{
 			"invalid denom", "invalid denom",
-			func(t *testing.T, env testEnv) { rawSet(t, env, BalanceKey(addr, "UPPER"), enc) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, BalanceKey(addr, "UPPER"), enc)
+			},
 		},
 		{
 			// The allowlist grew without migrating: the denom now belongs in the
 			// account object but an old split key survives.
 			"split key for an account-tier denom", "the allowlist grew",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				env.bankk.setSplitBalance(env.ctx, addr, testAccountDenom, 500)
 			},
 		},
@@ -107,18 +125,23 @@ func TestBalanceKeysInvariantReportsCorruption(t *testing.T) {
 			// Realm-shaped but unissuable: base name over the 16-byte limit.
 			"realm-shaped denom no realm could issue", "no realm could issue",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, BalanceKey(addr, "/gno.land/r/x:"+strings.Repeat("z", 17)), enc)
 			},
 		},
 		{
 			"realm-shaped denom with no base name", "no realm could issue",
-			func(t *testing.T, env testEnv) { rawSet(t, env, BalanceKey(addr, "/nocolon"), enc) },
+			func(t *testing.T, env testEnv) {
+				t.Helper()
+				rawSet(t, env, BalanceKey(addr, "/nocolon"), enc)
+			},
 		},
 		{
 			// Every keeper credit path calls ensureAccount, so only a raw write
 			// can leave a balance with no account to sign for it.
 			"balance with no account object", "no account object",
 			func(t *testing.T, env testEnv) {
+				t.Helper()
 				rawSet(t, env, BalanceKey(crypto.AddressFromPreimage([]byte("ghost")), "atom"), enc)
 			},
 		},

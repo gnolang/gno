@@ -56,9 +56,10 @@ func TestBalances(t *testing.T) {
 	require.True(t, coins.AmountOf("foo") == 10)
 }
 
-// A malformed address must report an error. Before the fix the error was written
-// into res and then overwritten by the success path, so a bad address came back as
-// an empty balance — indistinguishable from an address holding nothing.
+// A malformed address must report an error and carry no data. The error alone is not
+// enough to pin the fix: it was set before the fix too, and only the fall-through to
+// the success path — which populated Data from a GetCoins on the zero address — was
+// removed. Asserting Data is empty is what makes this test fail without the return.
 func TestBalancesRejectsMalformedAddress(t *testing.T) {
 	t.Parallel()
 
@@ -67,7 +68,9 @@ func TestBalancesRejectsMalformedAddress(t *testing.T) {
 	res := h.Query(env.ctx, abci.RequestQuery{
 		Path: "bank/balances/not-a-bech32-address",
 	})
-	require.NotNil(t, res.Error, "a malformed address must not report an empty balance")
+	require.NotNil(t, res.Error, "a malformed address must report an error")
+	require.Empty(t, res.Data,
+		"a malformed address must not also carry a balance in Data")
 }
 
 func TestQuerierRouteNotFound(t *testing.T) {

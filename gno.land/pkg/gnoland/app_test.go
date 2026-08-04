@@ -3480,12 +3480,91 @@ func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState
 	return dst
 }
 
-// A genesis balance list may name one address twice — they are assembled from
-// several sources, and the integration harness appends to a loaded default set.
-// Creating a second account for it would draw a fresh account number and overwrite
-// the first, burning a number and changing the account's identity. Account numbers
-// are consensus state.
-func TestApplyBalanceReusesAnExistingAccount(t *testing.T) {
+// The genesis path must call RecomputeSupply. Pinned through the mock rather than by
+// calling RecomputeSupply directly: a test that invokes it itself proves the function
+// works, not that InitChainer uses it, and would pass with both call sites deleted.
+func TestInitChainerSeedsSupply(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{
+		vmk:   &mockVMKeeper{},
+		acck:  &mockAuthKeeper{},
+		bankk: bankk,
+		prmk:  &mockParamsKeeper{},
+		gpk:   &mockGasPriceKeeper{},
+	}
+	res := cfg.InitChainer(ctx, abci.RequestInitChain{AppState: DefaultGenState()})
+	require.Nil(t, res.Error, "InitChainer must succeed for this to mean anything")
+	require.Equal(t, 1, bankk.recomputeSupplyCalls,
+		"InitChainer must seed the supply counter from the genesis balances")
+}
+
+// Genesis must seed the supply counter. Removing the RecomputeSupply call from either
+// InitChainer path leaves every other test in this package green, so without this a
+// chain could boot with no supply records at all — and SupplyInvariant would then flag
+// every genesis denom as held-but-unrecorded.
+func TestGenesisSeedsTheSupplyCounter(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	// Both tiers, and a vesting entry — the shape where a delta hook would compute
+	// zero, which is why seeding is a sweep.
+	realm := "/gno.land/r/x/tok:c"
+	vesting := std.Coins{{Denom: ugnot.Denom, Amount: 400}}
+	for _, bal := range []Balance{
+		{Address: crypto.AddressFromPreimage([]byte("g1")), Amount: std.Coins{{Denom: ugnot.Denom, Amount: 100}}},
+		{Address: crypto.AddressFromPreimage([]byte("g2")), Amount: std.Coins{{Denom: realm, Amount: 7}, {Denom: ugnot.Denom, Amount: 250}}},
+		{Address: crypto.AddressFromPreimage([]byte("g3")), Amount: vesting, Vesting: &std.VestingSchedule{
+			OriginalVesting: vesting, StartTime: 100, EndTime: 1_000_000,
+		}},
+	} {
+		cfg.applyBalance(ctx, bal)
+	}
+
+	// Before seeding the counter is empty and the invariant says so.
+	require.Zero(t, bankk.TotalSupply(ctx, ugnot.Denom))
+	_, broken := bank.SupplyInvariant(bankk.ViewKeeper)(ctx)
+	require.True(t, broken, "unseeded supply must be reported, or the seed is untested")
+
+	cfg.bankk.RecomputeSupply(ctx)
+
+	require.Equal(t, int64(100+250+400), bankk.TotalSupply(ctx, ugnot.Denom))
+	require.Equal(t, int64(7), bankk.TotalSupply(ctx, realm))
+	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "seeded genesis state must be clean:\n%s", msg)
+}
+
+// A genesis balance list may name one address twice — they are assembled from several
+// sources, and the integration harness appends to a loaded default set. Pins what that
+// actually does, since it is easy to assume it either accumulates or errors: one
+// account survives, the last entry's amount wins, and supply seeding agrees.
+func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
@@ -3505,52 +3584,31 @@ func TestApplyBalanceReusesAnExistingAccount(t *testing.T) {
 	cfg := InitChainerConfig{acck: acck, bankk: bankk}
 
 	addr := crypto.AddressFromPreimage([]byte("dup"))
-	other := crypto.AddressFromPreimage([]byte("other"))
-
 	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 100}}})
-	first := acck.GetAccount(ctx, addr)
-	require.NotNil(t, first)
-	firstNum := first.GetAccountNumber()
-
-	// A second entry for the same address, as an appended list produces.
 	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 250}}})
 
-	again := acck.GetAccount(ctx, addr)
-	require.NotNil(t, again)
-	require.Equal(t, firstNum, again.GetAccountNumber(),
-		"the account must keep its number rather than being recreated")
+	acc := acck.GetAccount(ctx, addr)
+	require.NotNil(t, acc, "one account must survive")
 	require.Equal(t, int64(250), bankk.GetCoin(ctx, addr, ugnot.Denom),
-		"the later entry's amount wins")
+		"the later entry's amount wins; the balance is not accumulated")
 
-	// And no account number was burned: the next address gets the next number.
-	cfg.applyBalance(ctx, Balance{Address: other, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 1}}})
-	require.Equal(t, firstNum+1, acck.GetAccount(ctx, other).GetAccountNumber(),
-		"a duplicate entry must not consume an account number")
-
-	// The account's *kind* is replace-all too. Reusing a vesting account for a
-	// later plain entry would leave the schedule in place and the funds locked
-	// until EndTime, which is worse than the renumbering this fix is about.
+	// A plain entry after a vesting one must clear the schedule, or the funds stay
+	// locked until EndTime. This is why the account is recreated rather than reused.
 	vester := crypto.AddressFromPreimage([]byte("vester"))
 	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
-	cfg.applyBalance(ctx, Balance{
-		Address: vester,
-		Amount:  amount,
-		Vesting: &std.VestingSchedule{
-			// Fixed positive times: the test context's block time is the zero time,
-			// whose Unix() is negative, which VestingSchedule.Validate rejects.
-			OriginalVesting: amount,
-			StartTime:       100,
-			EndTime:         1_000_000,
-		},
-	})
-	vestingNum := acck.GetAccount(ctx, vester).GetAccountNumber()
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: amount, Vesting: &std.VestingSchedule{
+		OriginalVesting: amount, StartTime: 100, EndTime: 1_000_000,
+	}})
 	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
-
 	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
-	replaced := acck.GetAccount(ctx, vester)
-	require.IsType(t, &GnoAccount{}, replaced,
-		"a plain entry must clear an earlier vesting schedule, not inherit it")
-	require.Equal(t, vestingNum, replaced.GetAccountNumber(), "the number must survive")
-	// The funds must actually be spendable.
-	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}))
+	require.IsType(t, &GnoAccount{}, acck.GetAccount(ctx, vester),
+		"a plain entry must clear an earlier vesting schedule")
+	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
+		"and the funds must be spendable")
+
+	// Supply seeding sums what is actually held, so a repeat cannot double-count.
+	bankk.RecomputeSupply(ctx)
+	require.Equal(t, int64(250+499), bankk.TotalSupply(ctx, ugnot.Denom))
+	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
 }

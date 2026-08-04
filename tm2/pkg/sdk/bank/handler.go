@@ -119,9 +119,11 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 	b32addr := thirdPart(req.Path)
 	addr, err := crypto.AddressFromBech32(b32addr)
 	if err != nil {
-		// Must return: otherwise res is overwritten below and a malformed
-		// address reports an empty balance, indistinguishable from a real one.
-		// gnodev and the gnokey docs both point users at this query.
+		// Must return: otherwise execution falls through to the success path, which
+		// sets res.Data from a GetCoins on the zero address. The error survives, so
+		// a caller checking it is fine — but the response carries both an error and
+		// a balance, and a caller reading Data first sees an empty balance for what
+		// is actually a malformed request.
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrInvalidAddress("invalid query address " + b32addr))
 	}

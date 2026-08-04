@@ -835,7 +835,7 @@ address's own transactions more expensive.
 under its own `pkgPath`. The leading `/` is what distinguishes a realm-issued
 denomination from one defined at genesis, such as `ugnot`; a realm cannot issue
 the latter. `GetCoins` and `SendCoins` take whatever denomination the coin
-actually has, qualified or not. (`TotalCoin` is not yet implemented.)
+actually has, qualified or not.
 
 :::
 

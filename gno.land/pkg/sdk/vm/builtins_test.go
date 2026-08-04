@@ -164,7 +164,12 @@ func TestSDKBankerRejectsGenesisDenom(t *testing.T) {
 
 	require.Panics(t, func() { banker.IssueCoin(crypto.Bech32Address(addr.String()), "ugnot", 1) },
 		"IssueCoin must refuse a denom that is not realm-qualified")
-	require.Panics(t, func() { banker.RemoveCoin(crypto.Bech32Address(addr.String()), "ugnot", 1) },
+	// Asserted by message, not merely that it panics: BurnCoins rejects a burn
+	// against zero recorded supply, so a bare require.Panics here is satisfied by the
+	// wrong panic and the guard could be deleted without the test noticing.
+	require.PanicsWithValue(t,
+		"cannot issue or remove a non realm-qualified denom: ugnot",
+		func() { banker.RemoveCoin(crypto.Bech32Address(addr.String()), "ugnot", 1) },
 		"RemoveCoin must refuse a denom that is not realm-qualified")
 }
 
@@ -196,4 +201,25 @@ func TestSDKBankerGetCoinValidatesDenom(t *testing.T) {
 	// A well-formed denom nobody holds is zero, not a panic.
 	require.Zero(t, bnk.GetCoin(addr, "/gno.land/r/x/tok:c"))
 	require.Zero(t, bnk.GetCoin(addr, "ugnot"))
+}
+
+// TotalCoin went from panic("not yet implemented") to a working, denom-validating,
+// Gno-reachable read. Nothing asserted either half.
+func TestSDKBankerTotalCoin(t *testing.T) {
+	env := setupTestEnv()
+	bnk := NewSDKBanker(env.vmk, env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("holder")).Bech32()
+
+	require.Zero(t, bnk.TotalCoin("/gno.land/r/x/tok:c"), "a denom nobody minted has no supply")
+
+	bnk.IssueCoin(addr, "/gno.land/r/x/tok:c", 42)
+	require.Equal(t, int64(42), bnk.TotalCoin("/gno.land/r/x/tok:c"))
+	bnk.RemoveCoin(addr, "/gno.land/r/x/tok:c", 12)
+	require.Equal(t, int64(30), bnk.TotalCoin("/gno.land/r/x/tok:c"))
+
+	// Same unbounded-string hazard as GetCoin: this reaches a store key.
+	for _, denom := range []string{"", "UPPER", strings.Repeat("z", 275)} {
+		require.Panics(t, func() { bnk.TotalCoin(denom) },
+			"TotalCoin must reject a denom of length %d", len(denom))
+	}
 }

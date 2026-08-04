@@ -68,7 +68,7 @@ load-bearing.
    denom-validation commits have nothing open, while the storage commit has
    item 4 open and could stall on it.
 6. **The `.gitignore` hunk is unrelated** to denoms — a reviewer asked for it to
-   be split out. I kept it because the four contribs/misc binaries it ignores got
+   be split out. I kept it because the seven contribs/misc binaries it ignores got
    swept into a commit once already (90 MB, purged), and reappeared within one
    command of my removing the entries. Split it into a `chore:` PR if you prefer.
 
@@ -169,7 +169,9 @@ IBC, and the ADR explains why.
 ## 2. What I implemented
 
 (c′), as described above. The tier decision lives in exactly one predicate so that
-moving to full (d) later is a one-line change plus a genesis-boundary migration —
+moving to full (d) later is a small code change plus a genesis-boundary migration
+  (the ADR is the authority here and is blunter: calling it "a one-line change" would
+  be wrong — it also breaks the `auth/accounts` wire format and 20 txtar assertions) —
 `gnogenesis fork` already rebuilds chains from exported balances, so there is no
 in-place migration code to write either way. The keeper API is per-denom
 throughout, which is the expensive, review-heavy part of ADR-004 and is shared by
@@ -506,7 +508,7 @@ arrange.
 
 ## 3f. Round-5 adversarial review of the final tree (four agents, own worktrees)
 
-Four agents attacked `94c6a37f2` with distinct lenses. Each worked in its own git
+Four agents attacked the then-final tree with distinct lenses. Each worked in its own git
 worktree — the process fix from §3d. Findings acted on:
 
 - **Critical, introduced by this PR and now fixed: `banker.GetCoin`'s denom was
@@ -531,10 +533,14 @@ worktree — the process fix from §3d. Findings acted on:
 - **`subtract` wrote the infallible split keys before the fallible account write**,
   so its "past this point nothing can fail" comment was false and a failing account
   write would have kept the split debits. Reordered to match `AddCoins`.
-- **Test gaps closed**, each mutation-verified: `splitCoins`'s exclusivity panic had
-  no test (and the ADR claimed both directions were tested — corrected); the
-  `bank/balances` missing-return fix had none; `AddCoins`'s `IsValid` gate had none;
-  `SDKBanker.GetCoin` had no Go-level test. One test I wrote this round was itself
+- **Test gaps closed**: `splitCoins`'s exclusivity panic had no test (and the ADR
+  claimed both directions were tested — corrected); the `bank/balances` missing-return
+  fix had none; `AddCoins`'s `IsValid` gate had none; `SDKBanker.GetCoin` had no
+  Go-level test. Three were mutation-verified at the time; the `bank/balances` one was
+  **not**, and a later audit found it hollow — the pre-fix code did set `res.Error`, so
+  asserting the error alone could not fail. It now asserts `res.Data` is empty, which
+  is what the fix actually changes. Recorded because the round-5 note claiming
+  otherwise was wrong. One test I wrote this round was itself
   hollow — it used `BaseSessionAccount`, which reports no coins, so `subtract`
   failed its solvency check before reaching the code under test. Replaced with a
   local account type that holds coins but refuses to store them.
@@ -700,6 +706,39 @@ Reported, pre-existing, and **not** fixed here:
   (~29µs/key before the `ValidateDenom` fix), and a nil-gas-context read warms the
   cache store so a later metered read on the same key is free. No production caller
   exists today; the mitigation is a nested `CacheContext` around the sweep.
+
+## 3j. What this file does and does not cover
+
+Written during the storage split and extended as the branch grew, so it is organised by
+review round rather than by subject. Three later changes are documented primarily in
+their own ADRs rather than here:
+
+- **The invariant functions** — `tm2/adr/prxxxx_bank_invariants.md`. Called from tests
+  only; no registry, no runner, deliberately.
+- **Per-denom supply tracking** — `tm2/adr/prxxxx_coin_supply.md`. Note the one
+  consequence a reviewer should not miss: **per-denom supply is now capped at
+  `MaxInt64`**, which is a new consensus rule. It closes a hole (two addresses could
+  each hold `MaxInt64` before) but it is a tightening, and a mint past the cap now
+  fails.
+- **`INVARIANTS.md`** — the roadmap for what was deliberately not built. Its invariant
+  table is the original specification and four of its rows were refuted; read the ADR
+  first.
+
+### Known-unpinned checks, stated rather than implied
+
+Six invariant checks have no violating test and are known-unpinned: the key-ordering and
+iterator-error reports in `BalanceKeysInvariant`, the iteration-error report in
+`AccountTierInvariant`, and the three session checks in `AccountKeyspaceInvariant`. The
+first three fire only on a store-level fault that no state can produce, so they are
+untestable without a fake store. **The three session ones are a real gap** — a session
+whose master has no account object, a session claiming a different master, and a
+delegated account filed at a regular path all survive deletion with the suites green.
+Worth closing.
+
+Also unpinned: `sdk.Guard`'s recover and `InvariantReport`'s ten-finding cap (nothing
+references either in a test), `std.ParseRealmDenom`'s charset and pkgPathLimit branches,
+`SubtractCoins`'s vesting clamp, `auth.DecodeAccountSafe`'s recover, and
+`peekGlobalAccountNumber`'s must-not-bump property.
 
 ## 4. Things to review even after this looks done
 

@@ -779,13 +779,11 @@ func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
 	if !IsRealmDenom(denom) {
 		return "", "", fmt.Errorf("denom %q is not realm-qualified", denom)
 	}
-	rest := denom[1:]
 	// The package path admits no colon, so the first one separates the base name.
-	i := strings.IndexByte(rest, ':')
-	if i < 0 {
+	pkgPath, base, ok := strings.Cut(denom[1:], ":")
+	if !ok {
 		return "", "", fmt.Errorf("denom %q has no base name", denom)
 	}
-	pkgPath, base = rest[:i], rest[i+1:]
 	if len(pkgPath) > pkgPathLimit {
 		return "", "", fmt.Errorf("denom %q package path is %d bytes, over the %d limit",
 			denom, len(pkgPath), pkgPathLimit)
@@ -805,9 +803,6 @@ func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
 		if (c < 'a' || c > 'z') && (c < '0' || c > '9') {
 			return "", "", fmt.Errorf("denom %q base name must be [a-z][a-z0-9]*", denom)
 		}
-	}
-	if strings.ContainsRune(base, ':') {
-		return "", "", fmt.Errorf("denom %q has more than one colon", denom)
 	}
 	return pkgPath, base, nil
 }

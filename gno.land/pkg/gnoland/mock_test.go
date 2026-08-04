@@ -137,7 +137,7 @@ func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
-type mockBankKeeper struct{}
+type mockBankKeeper struct{ recomputeSupplyCalls int }
 
 func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
 	return nil
@@ -178,7 +178,7 @@ func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std
 	return nil
 }
 
-func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {}
+func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) { m.recomputeSupplyCalls++ }
 
 func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
 	return 0

@@ -1,6 +1,13 @@
 # Invariant checking for gno.land — a plan
 
-Status: **proposal**. Nothing here is implemented. Written alongside the balance-split
+Status: **Phase 0 and Phase 3 implemented** (see `tm2/adr/prxxxx_bank_invariants.md` and
+`tm2/adr/prxxxx_coin_supply.md`); Phases 1 and 2 — a registry implementor, CLI/query
+access, and periodic local checking — are still proposals.
+
+**The invariant table below is the original specification, kept for the record. Four of
+its rows were refuted during implementation and are NOT implemented — B1, I1, A2's
+"nothing at a session path is enumerated as a regular account", and A3. Two of those
+would halt healthy nodes. Read the ADR before implementing from this table.** Written alongside the balance-split
 branch (`tm2/adr/prxxxx_realm_denom_balance_keys.md`), which added several point-of-use
 assertions and made the absence of global ones conspicuous.
 
@@ -35,7 +42,8 @@ invariants earned their keep — without arming a liveness weapon.
 - `sdk.Invariant` — `func(Context) (string, bool)`. Fine as-is.
 - `sdk.InvariantRegistry` — an interface with **no implementor anywhere in the repo**.
 - `sdk.FormatInvariant` — a message formatter.
-- `bank/invariants.go` — **deleted** on the balance-split branch. It walked accounts and
+- `bank/invariants.go` — deleted by the balance-split commit and **re-created** by the
+  invariants commit with the checks that survived review. It walked accounts and
   checked `acc.GetCoins()`, which post-split is only the gas denom, so it would have
   inspected a fraction of balances while reporting that it checked all of them. It also
   had no caller. See RISKS.md §3f.
