@@ -21,10 +21,11 @@ func Exec(fn func()) {
 
 // ExecRlm mirrors Exec but threads rlm into the callback so it can
 // use `cross(rlm)` instead of bare cross.
-// The callback keeps the `_ int` sentinel: a realm is its only parameter,
-// so there is nothing for a trailing realm to follow and `func(realm)`
-// would type as crossing.
-func ExecRlm(fn func(_ int, rlm realm), rlm realm) {
+// Both realms keep the `_ int` sentinel. The callback's realm is its only
+// parameter, so nothing can trail it. ExecRlm's own realm could trail `fn`,
+// but that evicts the closure from the last argument and every call site
+// ends `}, cur)`.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
 	fn(0, rlm)
 }
 
@@ -95,7 +96,7 @@ func main(cur realm) {
 			printColumns(baseCallStack+tt.callStackAdd, callersByAddr[r.Address()])
 
 		}
-		ExecRlm(func(_ int, rlm realm) {
+		ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross(rlm))
@@ -104,8 +105,8 @@ func main(cur realm) {
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/crossrealm.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
-		}, cur)
-		rtests.ExecRlm(func(_ int, rlm realm) {
+		})
+		rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross(rlm))
@@ -114,7 +115,7 @@ func main(cur realm) {
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
-		}, cur)
+		})
 		rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
@@ -125,7 +126,7 @@ func main(cur realm) {
 			assertRealm(r)
 			printColumns(baseCallStack+" !> r/demo/tests.ExecSwitch"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		ptests.ExecRlm(func(_ int, rlm realm) {
+		ptests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross(rlm))
@@ -134,7 +135,7 @@ func main(cur realm) {
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> p/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
-		}, cur)
+		})
 	}
 }
 

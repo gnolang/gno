@@ -22,8 +22,8 @@ inviteMembers(0, cur, boardID, invites...)
 ```
 
 The `0` carries no information. It exists only to occupy the position that
-would otherwise make the function crossing. It appears in 126 signatures
-and 424 call sites, and readers have to know the convention before the
+would otherwise make the function crossing. It appears in 123 signatures
+and 421 call sites, and readers have to know the convention before the
 signature parses as anything but a mistake.
 
 [#5786][issue] reports the same mechanism from the other end. A `/p/` package
@@ -49,15 +49,35 @@ keep the signature they already have. Parameter position is part of
 `FuncType.TypeID`, so the property is carried by the type itself and
 survives assignment through interfaces and func values.
 
-Two shapes have nowhere to put a trailing realm and keep the sentinel:
+Three shapes keep the sentinel:
 
 ```go
 func checkCurrent(_ int, rlm realm) bool               // nothing to trail
 func (a *MemberAuthority) AddMembers(_ int, rlm realm, addrs ...address) error
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm))
 ```
 
-A realm cannot follow a variadic parameter, and with no other parameter at
-all "last" is "first". 186 signatures fall in this group.
+A realm cannot follow a variadic parameter, and with no other parameter at all
+"last" is "first". The third is a judgement rather than an impossibility: a
+trailing realm is expressible, but it evicts the callback from the final
+argument, and a closure that no longer closes the call reads worse than the
+sentinel it removes.
+
+```go
+rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
+	// ...
+})                      // crossing, realm first, closure last
+
+rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
+	// ...
+})                      // sentinel kept, closure last
+
+rtests.ExecRlm(func(_ int, rlm realm) {
+	// ...
+}, cur)                 // trailing realm, closure evicted
+```
+
+189 signatures fall in this group.
 
 So this decision narrows [#5786][issue] rather than answering it. The
 sole-realm helper the issue opens with is still unwritable, and the junk
