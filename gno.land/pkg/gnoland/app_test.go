@@ -3479,3 +3479,51 @@ func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState
 	require.NoError(t, doc.SaveAs(dst))
 	return dst
 }
+
+// A genesis balance list may name one address twice — they are assembled from
+// several sources, and the integration harness appends to a loaded default set.
+// Creating a second account for it would draw a fresh account number and overwrite
+// the first, burning a number and changing the account's identity. Account numbers
+// are consensus state.
+func TestApplyBalanceReusesAnExistingAccount(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("dup"))
+	other := crypto.AddressFromPreimage([]byte("other"))
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 100}}})
+	first := acck.GetAccount(ctx, addr)
+	require.NotNil(t, first)
+	firstNum := first.GetAccountNumber()
+
+	// A second entry for the same address, as an appended list produces.
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 250}}})
+
+	again := acck.GetAccount(ctx, addr)
+	require.NotNil(t, again)
+	require.Equal(t, firstNum, again.GetAccountNumber(),
+		"the account must keep its number rather than being recreated")
+	require.Equal(t, int64(250), bankk.GetCoin(ctx, addr, ugnot.Denom),
+		"the later entry's amount wins")
+
+	// And no account number was burned: the next address gets the next number.
+	cfg.applyBalance(ctx, Balance{Address: other, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 1}}})
+	require.Equal(t, firstNum+1, acck.GetAccount(ctx, other).GetAccountNumber(),
+		"a duplicate entry must not consume an account number")
+}
