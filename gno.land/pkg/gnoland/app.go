@@ -79,6 +79,12 @@ func (c AppOptions) validate() error {
 }
 
 // NewAppWithOptions creates the gno.land application with specified options.
+// genesisSignerFunding is what a genesis transaction's signer is minted when it has
+// no account yet, so the transaction can pay for itself. Consensus-relevant: it
+// lands in the supply counter, so it is named rather than inline to keep the mint
+// and the test that checks the counter from drifting apart.
+const genesisSignerFunding int64 = 10_000_000_000
+
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -182,7 +188,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 						// A genuine mint: guarded by the account not existing, so
 						// there is no prior balance and this creates the coins.
 						// Runs during genesis tx delivery, i.e. after the seed above.
-						err := bankk.MintCoins(ctx, signer, std.Coins{std.NewCoin("ugnot", 10_000_000_000)})
+						err := bankk.MintCoins(ctx, signer, std.Coins{std.NewCoin("ugnot", genesisSignerFunding)})
 						if err != nil {
 							panic(fmt.Sprintf("failed to set coins for genesis account %s: %v", signer, err))
 						}

@@ -3693,3 +3693,60 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
 	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
 }
+
+// TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
+// outside the balances file: a genesis transaction whose signer has no account is
+// funded so it can pay for itself. That has to mint rather than credit. The supply
+// counter is seeded from the balances before genesis txs replay, so a
+// counter-blind credit would leave the chain holding coins it has no record of,
+// and SupplyInvariant broken from block one.
+func TestGenesisSignerMintIsAccounted(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	const funding int64 = 1e15
+	deployer := crypto.AddressFromPreimage([]byte("test1"))
+	unfunded := crypto.AddressFromPreimage([]byte("genesis-signer-with-no-balance"))
+
+	appState := DefaultGenState()
+	appState.Balances = []Balance{
+		{Address: deployer, Amount: []std.Coin{{Amount: funding, Denom: "ugnot"}}},
+	}
+	appState.Txs = []TxWithMetadata{
+		{Tx: std.Tx{
+			Msgs: []std.Msg{vm.NewMsgAddPackage(deployer, "gno.land/r/demo", []*std.MemFile{
+				{Name: "demo.gno", Body: "package demo; func Hello(cur realm) string { return `hello`; }"},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/demo")},
+			})},
+			Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}},
+		}},
+		// Signed by an address with no balances entry, which is what triggers the mint.
+		{Tx: std.Tx{
+			Msgs:       []std.Msg{vm.NewMsgCall(unfunded, nil, "gno.land/r/demo", "Hello", nil)},
+			Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}},
+		}},
+	}
+
+	resp := bapp.InitChain(abci.RequestInitChain{
+		Time:            time.Now(),
+		ChainID:         "dev",
+		ConsensusParams: &abci.ConsensusParams{Block: defaultBlockParams()},
+		Validators:      []abci.ValidatorUpdate{},
+		AppState:        appState,
+	})
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+	require.NotNil(t, bapp.Commit())
+
+	// The mint must be reflected in the counter. Fees only move coins to the
+	// collector, so the total is the funded balance plus exactly what was minted.
+	qres := bapp.Query(abci.RequestQuery{Path: "bank/supply/ugnot"})
+	require.True(t, qres.IsOK(), "supply query: %v", qres)
+	require.Equal(t, strconv.Quote(strconv.FormatInt(funding+genesisSignerFunding, 10)),
+		string(qres.Data),
+		"genesis auto-funding must mint, or the counter under-records what the chain holds")
+}
