@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -28,6 +29,55 @@ func fundHealthy(t *testing.T, env testEnv, addr crypto.Address) {
 
 // State the keeper produces must always be reported healthy. A check that fires on
 // legitimate state is worse than no check: it would halt nodes on a working chain.
+// Why the key/field agreement check in auth.AccountKeyspaceInvariant is worth its
+// cost, measured rather than argued. SetAccount files an account under its own
+// GetAddress(), while every reader looks it up by the address it already has, so a
+// misfiled object silently redirects writes.
+func TestAMisfiledAccountRedirectsCreditsAndBreaksSupply(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	a := crypto.AddressFromPreimage([]byte("redirect-a"))
+	b := crypto.AddressFromPreimage([]byte("redirect-b"))
+
+	require.NoError(t, env.bankk.SetCoins(ctx, b, std.Coins{{Denom: testAccountDenom, Amount: 1000}}))
+	env.bankk.RecomputeSupply(ctx)
+
+	swept := func() int64 {
+		totals, err := computeSupply(ctx, env.bankk.ViewKeeper, 0)
+		require.NoError(t, err)
+		return totals[testAccountDenom]
+	}
+	require.Equal(t, int64(1000), swept())
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(ctx, testAccountDenom))
+
+	// File B's account object under A's key. Reached past the keeper because
+	// SetAccount would file it under B again, which is the whole point.
+	rawSet(t, env, auth.AddressStoreKey(a), amino.MustMarshalAny(env.acck.GetAccount(ctx, b)))
+
+	// The misfiling alone doubles the swept total: B's balance is now counted at both
+	// keys, while the recorded supply is untouched.
+	require.Equal(t, int64(2000), swept())
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(ctx, testAccountDenom))
+	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
+	require.True(t, broken, "a doubled sweep must break the supply invariant")
+	require.Contains(t, msg, "is held")
+
+	// And an ordinary credit to A lands on B, because the object A's key holds says
+	// its address is B.
+	require.NoError(t, env.bankk.AddCoins(ctx, a, std.Coins{{Denom: testAccountDenom, Amount: 1}}))
+	require.Equal(t, int64(1001), env.bankk.GetCoin(ctx, b, testAccountDenom),
+		"the credit to A must be observed landing on B")
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, a, testAccountDenom),
+		"A gains nothing from being credited")
+	require.Equal(t, int64(2001), swept())
+
+	msg, broken = auth.AccountKeyspaceInvariant(env.acck)(ctx)
+	require.True(t, broken)
+	require.Contains(t, msg, "would be filed under")
+}
+
 func TestInvariantsHealthyOnKeeperState(t *testing.T) {
 	t.Parallel()
 

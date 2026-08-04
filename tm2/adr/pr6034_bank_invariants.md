@@ -64,8 +64,12 @@ naming a master that exists and claiming that same master.
 The key/field agreement check was not in the original list and is the most valuable one
 here. `SetAccount` files an account under `AddressStoreKey(acc.GetAddress())` while every
 reader looks it up by the address it already has, so a disagreement silently redirects
-writes — crediting one address lands the coins in another. Demonstrated: with B's account
-stored at A's key, one ordinary `AddCoins(A, 1ugnot)` took supply from 1000 to 2001.
+writes — crediting one address lands the coins in another. Measured, with B's account
+object filed at A's key and B holding 1000ugnot
+(`TestAMisfiledAccountRedirectsCreditsAndBreaksSupply`): the misfiling alone takes the
+swept total to 2000, since B's balance is counted at both keys while the recorded supply
+stays 1000; then one ordinary `AddCoins(A, 1ugnot)` leaves A unchanged and puts B at
+1001. So the state is both a phantom 1000 and a redirect of every subsequent credit.
 
 ### Reading state without inheriting its panics
 
