@@ -317,6 +317,33 @@ func TestSessionSendCoinsUnrestrictedBypasses(t *testing.T) {
 	assert.Equal(t, int64(900), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
 }
 
+// TestSendCoinsUnrestrictedCreditsNothingWhenTheDebitFails pins debit-before-credit
+// on the one path that bypasses every other check. sendCoins' equivalent guard is
+// pinned by the suite; this one was not, and it is the path that collects gas, so a
+// debit error swallowed here would credit the collector out of nothing.
+func TestSendCoinsUnrestrictedCreditsNothingWhenTheDebitFails(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	from := crypto.AddressFromPreimage([]byte("unrestricted-payer"))
+	to := crypto.AddressFromPreimage([]byte("unrestricted-collector"))
+	require.NoError(t, env.bankk.AddCoins(ctx, from, std.NewCoins(std.NewCoin("foo", 100))))
+
+	// A send within the balance moves coins, so this cannot pass against a
+	// SendCoinsUnrestricted that refuses everything.
+	require.NoError(t, env.bankk.SendCoinsUnrestricted(ctx, from, to, std.NewCoins(std.NewCoin("foo", 40))))
+	require.Equal(t, int64(60), env.bankk.GetCoin(ctx, from, "foo"))
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, to, "foo"))
+
+	// 61 > 60, so the debit fails; the credit must not happen regardless.
+	err := env.bankk.SendCoinsUnrestricted(ctx, from, to, std.NewCoins(std.NewCoin("foo", 61)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insufficient")
+	require.Equal(t, int64(60), env.bankk.GetCoin(ctx, from, "foo"), "sender must be untouched")
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, to, "foo"), "recipient must not be credited")
+}
+
 // TestNonSessionSendCoinsNoOp verifies the hook no-ops for txs that don't
 // carry a session map in ctx (master-signed, all other non-session txs).
 func TestNonSessionSendCoinsNoOp(t *testing.T) {

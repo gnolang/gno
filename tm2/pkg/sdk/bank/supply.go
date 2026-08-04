@@ -243,6 +243,11 @@ func computeSupply(ctx sdk.Context, view ViewKeeper, maxDenoms int) (map[string]
 	// would then agree with.
 	var addErr error
 	err := view.acck.IterateAccountEntries(ctx, func(e auth.AccountEntry) bool {
+		// Only regular entries can hold coins: every bank write goes through
+		// SetAccount at /a/<addr>, and crediting a session *address* creates a
+		// regular account there, so skipping the rest cannot undercount. Skipping
+		// the undecodable and nil ones is what keeps totalling from panicking on
+		// exactly the state the invariant exists to report.
 		if e.Kind != auth.AccountKeyRegular || e.DecodeErr != nil || e.Account == nil {
 			return false
 		}
