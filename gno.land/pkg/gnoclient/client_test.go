@@ -1639,6 +1639,38 @@ func TestQueryBalanceAndSupply(t *testing.T) {
 		}
 	}
 
+	// Every other Client method has a nil-RPCClient case (TestBlockErrors,
+	// TestLatestBlockHeightErrors, TestEstimateGas, ...); these two are new, so
+	// they need one too, or nothing checks that they validate before dereferencing.
+	t.Run("no RPC client", func(t *testing.T) {
+		t.Parallel()
+		c := &Client{RPCClient: nil}
+
+		coins, _, err := c.QueryBalance(addr)
+		assert.ErrorIs(t, err, ErrMissingRPCClient)
+		assert.Nil(t, coins)
+
+		supply, _, err := c.QuerySupply("ugnot")
+		assert.ErrorIs(t, err, ErrMissingRPCClient)
+		assert.Zero(t, supply)
+	})
+
+	// A response that does not decode must not read as an empty answer. This is the
+	// same defect as the node-error case below, one layer down: swallowing the
+	// decode error returns a zero balance or a zero supply with err == nil.
+	t.Run("an undecodable response is not an empty answer", func(t *testing.T) {
+		t.Parallel()
+		var path string
+
+		coins, _, err := newClient(`{`, &path).QueryBalance(addr)
+		require.Error(t, err, "an undecodable response must not be read as a balance")
+		require.Nil(t, coins)
+
+		supply, _, err := newClient(`{`, &path).QuerySupply("ugnot")
+		require.Error(t, err, "an undecodable response must not be read as a supply")
+		require.Zero(t, supply)
+	})
+
 	t.Run("balance across both tiers", func(t *testing.T) {
 		t.Parallel()
 		var path string
