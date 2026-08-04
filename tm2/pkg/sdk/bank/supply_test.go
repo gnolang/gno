@@ -2,6 +2,7 @@ package bank
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -182,6 +183,46 @@ func TestRecomputeSupplyCoversBothTiersAndGenesisShape(t *testing.T) {
 // A supply key whose denom cannot be recovered is only reachable past the keeper,
 // which is the point: setSupply always builds a well-formed key, so nothing else
 // exercises the report.
+// The twin of TestOverlongDenomNeverReachesTheStore. TotalCoin is reachable from
+// an unauthenticated qeval, so an unbounded denom here is a free way to make the
+// node hash and copy megabytes per call.
+func TestTotalSupplyRejectsAnOverlongDenomBeforeTheStore(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	huge := "/gno.land/r/x/" + strings.Repeat("z", 1<<20) + ":c"
+	meter := store.NewGasMeter(100_000_000_000)
+	cctx, _ := env.ctx.CacheContext()
+	cctx = cctx.WithGasMeter(meter)
+
+	require.Zero(t, env.bankk.TotalSupply(cctx, huge))
+	require.Zero(t, meter.GasConsumed(),
+		"a denom that cannot have a supply record must not reach the store")
+}
+
+// computeSupply builds a map keyed by denom while sweeping the whole balance
+// keyspace, so without a cap a chain with enough denoms makes the sweep allocate
+// without bound. It must fail rather than return a short answer, which would make
+// the supply invariant compare against a total it silently truncated.
+func TestComputeSupplyRefusesToAllocatePastItsCap(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("many-denoms"))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, std.Coins{
+		{Denom: "/gno.land/r/a/x:one", Amount: 1},
+		{Denom: "/gno.land/r/a/x:two", Amount: 1},
+	}))
+
+	_, err := computeSupply(env.ctx, env.bankk.ViewKeeper, 1)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "distinct denoms")
+
+	totals, err := computeSupply(env.ctx, env.bankk.ViewKeeper, 2)
+	require.NoError(t, err, "the cap must admit exactly as many as it names")
+	require.Len(t, totals, 2)
+}
+
 func TestSupplyInvariantReportsAnUnparseableKey(t *testing.T) {
 	t.Parallel()
 

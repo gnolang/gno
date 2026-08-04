@@ -1240,6 +1240,19 @@ func TestOverlongDenomNeverReachesTheStore(t *testing.T) {
 		"an impossible denom must not reach the store at all")
 }
 
+// parseBalanceKey checks the prefix where denomFromBalanceKey does not, because the
+// invariants hand it keys from a sweep of the whole store rather than from an
+// iterator already bounded by BalancePrefix.
+func TestParseBalanceKeyRequiresThePrefix(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("holder"))
+	foreign := append([]byte("/a/"), addr[:]...)
+	_, _, err := parseBalanceKey(append(foreign, testRealmDenom...))
+	require.Error(t, err, "a key outside /b/ must not be read as a balance key")
+	require.Contains(t, err.Error(), BalancePrefix)
+}
+
 // refusingAccount holds coins but will not store them. No shipped account type
 // does both — BaseSessionAccount refuses SetCoins but also reports no coins, so
 // subtract fails its solvency check before reaching any write, which makes it

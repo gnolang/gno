@@ -103,6 +103,10 @@ func (bank BankKeeper) nextSupply(ctx sdk.Context, amt std.Coins, sign int64) (s
 	for i, coin := range amt {
 		old := bank.TotalSupply(ctx, coin.Denom)
 		sum, ok := overflow.Add(old, sign*coin.Amount)
+		// No test can reach !ok without sum < 0 also holding: old is a supply in
+		// [0, MaxInt64] and the delta is ±[1, MaxInt64], so only the positive side
+		// can leave the range and it wraps negative. Both are kept so this does not
+		// depend on what overflow.Add leaves in sum when it reports failure.
 		if !ok || sum < 0 {
 			return nil, std.ErrInvalidCoins(fmt.Sprintf(
 				"supply of %s would go from %d to %d%+d, which is out of range",
