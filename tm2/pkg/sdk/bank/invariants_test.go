@@ -35,7 +35,10 @@ func TestInvariantsHealthyOnKeeperState(t *testing.T) {
 	a := crypto.AddressFromPreimage([]byte("a"))
 	b := crypto.AddressFromPreimage([]byte("b"))
 	fundHealthy(t, env, a)
-	require.NoError(t, env.bankk.AddCoins(env.ctx, b, std.Coins{{Denom: "atom", Amount: 7}}))
+	// fundHealthy uses SetCoins, which is supply-blind by design; seed the counter
+	// so the supply invariant has something consistent to check against.
+	env.bankk.RecomputeSupply(env.ctx)
+	require.NoError(t, env.bankk.MintCoins(env.ctx, b, std.Coins{{Denom: "atom", Amount: 7}}))
 	require.NoError(t, env.bankk.SendCoins(env.ctx, a, b, std.Coins{{Denom: testAccountDenom, Amount: 1}}))
 
 	for name, inv := range map[string]func() (string, bool){

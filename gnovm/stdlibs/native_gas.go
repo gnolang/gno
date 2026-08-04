@@ -101,7 +101,10 @@ var calibratedNativeGas = []nativeGasEntry{
 	// safe direction meanwhile. BenchmarkNative_Banker_GetCoin and its NATIVE_SPECS
 	// row exist, so regenerating replaces this with a fitted value.
 	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat},
-	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 88.6ns
+	// Conservative placeholder, same base as bankerGetCoin: the calibrated 89ns was
+	// measured against a mock returning 0, so it cannot see the real path's
+	// ValidateDenom regexp or its store read. Wants re-derivation on the bench box.
+	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat},
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 140.6ns
 	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 195.9ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000

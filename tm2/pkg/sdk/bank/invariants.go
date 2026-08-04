@@ -144,12 +144,62 @@ func vestingScheduleOf(acc std.Account) (std.VestingSchedule, bool) {
 	return std.VestingSchedule{}, false
 }
 
+// SupplyInvariant checks the recorded supply against the balances actually held.
+//
+// This is the only redundancy check in the set: two numbers maintained by different
+// code that must agree. The others are structural — they check shapes, tiers and
+// key/field agreement — and a mint that bypassed the counter looks perfectly well
+// formed to all of them. Here it does not.
+//
+// Reports in both directions. A denom held with no record is what an unaccounted
+// credit produces; a record with nothing held is what a lost balance write produces.
+func SupplyInvariant(view ViewKeeper) sdk.Invariant {
+	return sdk.Guard(ModuleName, "total-supply", func(ctx sdk.Context, rep *sdk.InvariantReport) {
+		held, err := computeSupply(ctx, view)
+		if err != nil {
+			rep.Addf("cannot total the balances, so supply was NOT verified: %v", err)
+			return
+		}
+		iter := store.PrefixIterator(nil, ctx.Store(view.key), []byte(SupplyPrefix))
+		defer iter.Close()
+		for ; iter.Valid(); iter.Next() {
+			denom, err := denomFromSupplyKey(iter.Key())
+			if err != nil {
+				rep.Addf("%v", err)
+				continue
+			}
+			recorded, err := tryDecodeBalance(iter.Value())
+			if err != nil {
+				rep.Addf("supply record for %q: %v", denom, err)
+				delete(held, denom)
+				continue
+			}
+			if sum, ok := held[denom]; !ok {
+				rep.Addf("supply of %q is recorded as %d but no address holds any",
+					denom, recorded)
+			} else if sum != recorded {
+				rep.Addf("supply of %q is recorded as %d but %d is held",
+					denom, recorded, sum)
+			}
+			delete(held, denom)
+		}
+		if err := iter.Error(); err != nil {
+			rep.Addf("iteration over %q failed, so the sweep is incomplete: %v", SupplyPrefix, err)
+		}
+		// Whatever is left was never recorded: value exists that nothing minted.
+		for denom, sum := range held {
+			rep.Addf("%d%s is held but there is no supply record for it", sum, denom)
+		}
+	})
+}
+
 // AllInvariants runs every bank invariant.
 func AllInvariants(view ViewKeeper) sdk.Invariant {
 	return func(ctx sdk.Context) (string, bool) {
 		for _, inv := range []sdk.Invariant{
 			BalanceKeysInvariant(view),
 			AccountTierInvariant(view),
+			SupplyInvariant(view),
 		} {
 			if msg, broken := inv(ctx); broken {
 				return msg, true

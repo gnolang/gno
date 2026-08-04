@@ -714,6 +714,8 @@ func TestConservation(t *testing.T) {
 	env.acck.SetAccount(ctx, dva)
 	require.NoError(t, env.bankk.SetCoins(ctx, vester, vesting))
 	model[vester][testAccountDenom] = vesterFunded
+	// SetCoins does not maintain the counter, so seed it from what is now held.
+	env.bankk.RecomputeSupply(ctx)
 
 	// modelCoins renders one address's model row as std.Coins, which is what
 	// GetCoins must return: ascending, positive, no duplicates.
@@ -811,7 +813,7 @@ func TestConservation(t *testing.T) {
 		// to a single locked denom, and a check that stops at the first unlocked
 		// denom would survive it.
 		if env.bankk.GetCoin(ctx, vester, testRealmDenom) == 0 {
-			require.NoError(t, env.bankk.AddCoins(ctx, vester,
+			require.NoError(t, env.bankk.MintCoins(ctx, vester,
 				std.Coins{{Denom: testRealmDenom, Amount: 1}}))
 			model[vester][testRealmDenom]++
 		}
@@ -843,25 +845,27 @@ func TestConservation(t *testing.T) {
 			if amt == nil {
 				continue
 			}
-			require.NoError(t, env.bankk.AddCoins(ctx, from, amt))
+			// MintCoins, not AddCoins: this arm creates value, so it must move the
+			// supply counter or SupplyInvariant will (correctly) report the drift.
+			require.NoError(t, env.bankk.MintCoins(ctx, from, amt))
 			for _, c := range amt {
 				model[from][c.Denom] += c.Amount
 			}
-			check(t, step, "AddCoins")
+			check(t, step, "MintCoins")
 
 		case 1: // debit, sometimes unaffordable
 			amt := pick(from, overspend)
 			if amt == nil {
 				continue
 			}
-			if err := env.bankk.SubtractCoins(ctx, from, amt); err != nil {
-				check(t, step, "SubtractCoins(rejected)") // must have written nothing
+			if err := env.bankk.BurnCoins(ctx, from, amt); err != nil {
+				check(t, step, "BurnCoins(rejected)") // must have written nothing
 				continue
 			}
 			for _, c := range amt {
 				model[from][c.Denom] -= c.Amount
 			}
-			check(t, step, "SubtractCoins")
+			check(t, step, "BurnCoins")
 
 		case 2: // transfer, sometimes unaffordable
 			amt := pick(from, overspend)
@@ -904,6 +908,8 @@ func TestConservation(t *testing.T) {
 			if from == vester {
 				continue // unrestricted: allowed to spend into the locked portion
 			}
+			// SetCoins is replace-all and deliberately supply-blind (it cannot
+			// compute its own delta — see RecomputeSupply), so reseed after it.
 			amt := pick(from, false)
 			if amt == nil {
 				continue
@@ -913,6 +919,7 @@ func TestConservation(t *testing.T) {
 			for _, c := range amt {
 				model[from][c.Denom] = c.Amount
 			}
+			env.bankk.RecomputeSupply(ctx)
 			check(t, step, "SetCoins")
 		}
 	}

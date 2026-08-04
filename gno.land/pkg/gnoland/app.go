@@ -179,7 +179,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 						acck.SetAccount(ctx, acc)
 						// Give it enough funds to pay for the transaction
 						// This is only for genesis - in normal operation accounts must be funded
-						err := bankk.SetCoins(ctx, signer, std.Coins{std.NewCoin("ugnot", 10_000_000_000)})
+						// A genuine mint: guarded by the account not existing, so
+						// there is no prior balance and this creates the coins.
+						// Runs during genesis tx delivery, i.e. after the seed above.
+						err := bankk.MintCoins(ctx, signer, std.Coins{std.NewCoin("ugnot", 10_000_000_000)})
 						if err != nil {
 							panic(fmt.Sprintf("failed to set coins for genesis account %s: %v", signer, err))
 						}
@@ -564,6 +567,13 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	for _, bal := range state.Balances {
 		cfg.applyBalance(ctx, bal)
 	}
+	// Seed the supply counter from the balances just written. It has to be a sweep
+	// rather than an incremental hook: applyBalance writes the account object with
+	// the full pre-split amount before calling SetCoins, so SetCoins reads
+	// old == new and any delta would be zero for every vesting account — and that
+	// pre-write cannot be removed, since the vesting constructors validate
+	// OriginalVesting against it.
+	cfg.bankk.RecomputeSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
 	cfg.acck.InitGenesis(ctx, state.Auth)
@@ -631,6 +641,13 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		}
 		cfg.applyBalance(ctx, bal)
 	}
+	// Seed the supply counter from the balances just written. It has to be a sweep
+	// rather than an incremental hook: applyBalance writes the account object with
+	// the full pre-split amount before calling SetCoins, so SetCoins reads
+	// old == new and any delta would be zero for every vesting account — and that
+	// pre-write cannot be removed, since the vesting constructors validate
+	// OriginalVesting against it.
+	cfg.bankk.RecomputeSupply(ctx)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)

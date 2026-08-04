@@ -170,6 +170,20 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
+func (m *mockBankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {}
+
+func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
+	return 0
+}
+
 func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
 	return 0
 }

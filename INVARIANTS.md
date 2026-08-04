@@ -73,20 +73,23 @@ test is indistinguishable from `return "", false`.
 - Document that validators should leave both off, and that archive/sentry nodes are the
   place to enable them.
 
-### Phase 3 — supply tracking, and the invariant that needs it
+### Phase 3 — supply tracking — **DONE**, see `tm2/adr/prxxxx_coin_supply.md`
 
-The most valuable cosmos invariant is `total-supply`: two independently maintained
-numbers that must agree. gno.land has no supply record — `SDKBanker.TotalCoin` is
-`panic("not yet implemented")` — so that check has nothing to compare against.
+Implemented, with two changes from what this section originally proposed:
 
-Adding one is cheap because **transfers are supply-neutral**: only `IssueCoin`,
-`RemoveCoin`, and genesis change supply. A `/s/<denom> -> int64` counter costs one extra
-key per mint and **zero on every transfer**. The hook must sit at
-`SDKBanker.IssueCoin`/`RemoveCoin`, not at `bank.AddCoins`/`subtract` — those carry
-transfers too, and wiring it there would make the counter drift and the invariant lie.
+- The prefix is `/supply/`, not `/s/`. `/s/` is `auth.SessionStoreKeyInfix` verbatim;
+  byte-safe, since a session key begins `/a/`, but it makes a search for one return
+  the other. Cosmos's opaque single-byte prefixes are not a precedent — each of its
+  modules has its own mounted store, and tm2 shares one.
+- The hook is `bank.MintCoins`/`bank.BurnCoins` in tm2, **not** at
+  `SDKBanker.IssueCoin`/`RemoveCoin` as written here. Putting it in gno.land would
+  make a tm2 invariant's correctness depend on a gno.land caller, and would not cover
+  the height-0 signer funding. `AddCoins`/`SubtractCoins` were also removed from
+  `vm.BankKeeperI`, so an unaccounted mint is not expressible from a realm.
 
-This is its own PR (new keyspace, moves the app hash, needs genesis seeding). It also
-implements `TotalCoin`, which is currently a panic reachable from Gno.
+Genesis seeds by sweeping (`RecomputeSupply`), not by an incremental delta: `SetCoins`
+cannot compute its own delta, because the account object is written with the full
+pre-split amount before `SetCoins` is called.
 
 ## The invariants
 
@@ -103,7 +106,7 @@ Cost classes: **O(1)** cheap; **O(A)** one pass over accounts; **O(B)** one pass
 | B4 | **No orphan balances.** Every address holding any balance has an account object at `/a/<addr>`. | O(A+B) | Unspendable funds: an address with no account cannot sign, so a balance without an account is permanently stuck. `AddCoins` calls `ensureAccount` precisely to prevent this. |
 | B5 | **Account tier ⊆ allowlist.** Every denom in every account object is in the keeper's `accountDenoms`. | O(A) | An allowlist that shrank without migrating — the documented path to a fully split layout. |
 | B6 | **Split tier ∩ allowlist = ∅.** No denom in `/b/` is in `accountDenoms`. | O(B) | An allowlist that grew without migrating. B5 and B6 together are B1 stated per-tier, and are cheaper to check. |
-| B7 | **Total supply.** For each denom, `supply[denom] == Σ balances` across both tiers. | O(A+B) | Mints and burns that bypass the accounting — the classic detector. **Blocked on Phase 3.** |
+| B7 | **Total supply.** For each denom, `supply[denom] == Σ balances` across both tiers. | O(A+B) | Mints and burns that bypass the accounting — the classic detector. **Implemented** as `bank.SupplyInvariant`. |
 
 ### Issuance
 

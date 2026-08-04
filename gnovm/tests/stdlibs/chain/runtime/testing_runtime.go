@@ -248,7 +248,18 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 
 // TotalCoin implements the Banker interface.
 func (tb *TestBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	// Summed from the table rather than kept as a counter: the test banker has no
+	// mint/burn asymmetry, so the sum *is* the supply. Total, like the chain — a
+	// denom nobody holds has zero supply, and a malformed one panics as SDKBanker's
+	// does, so `gno test` and production agree.
+	if err := tm2std.ValidateDenom(denom); err != nil {
+		panic("invalid denom: " + err.Error())
+	}
+	var total int64
+	for _, coins := range tb.CoinTable {
+		total += coins.AmountOf(denom)
+	}
+	return total
 }
 
 // IssueCoin implements the Banker interface.

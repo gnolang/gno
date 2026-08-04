@@ -56,7 +56,12 @@ func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coi
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	// Validated for the reason GetCoin is: this is a realm-supplied string that
+	// reaches a store key, and nothing on the .gno side bounds it.
+	if err := std.ValidateDenom(denom); err != nil {
+		panic("invalid denom: " + err.Error())
+	}
+	return bnk.vmk.bank.TotalSupply(bnk.ctx, denom)
 }
 
 // assertIssuable re-checks in Go that denom is realm-qualified.
@@ -79,7 +84,7 @@ func assertIssuable(denom string) {
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.MintCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +93,7 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.BurnCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}

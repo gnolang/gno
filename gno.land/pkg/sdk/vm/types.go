@@ -20,8 +20,12 @@ type BankKeeperI interface {
 	GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
-	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
-	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	// Issuance goes through Mint/Burn, which maintain the supply counter. The raw
+	// AddCoins/SubtractCoins are deliberately absent: they are supply-blind, so
+	// exposing them here would make an unaccounted mint expressible from a realm.
+	MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	TotalSupply(ctx sdk.Context, denom string) int64
 	RestrictedDenoms(ctx sdk.Context) []string
 }
 

@@ -28,6 +28,10 @@ type BankKeeperI interface {
 
 	InitGenesis(ctx sdk.Context, data GenesisState)
 	GetParams(ctx sdk.Context) Params
+
+	MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	RecomputeSupply(ctx sdk.Context)
 }
 
 var _ BankKeeperI = &BankKeeper{}
@@ -452,6 +456,11 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 // present but absent from amt are deleted, so this is a replacement and not a
 // merge.
 //
+// Does not maintain the supply counter. It cannot: InitChainer writes the account
+// object with the full pre-split amount before calling this, so the old value read
+// here equals the new one and any delta would be zero for a vesting account. Call
+// RecomputeSupply after a batch of these; see supply.go.
+//
 // Cost is O(denoms currently held), and each removal is a full store write, so
 // this is not safe to call on an address whose denom count an attacker controls —
 // clearing a few hundred would exceed the block gas limit. Every caller today
@@ -483,6 +492,7 @@ type ViewKeeperI interface {
 	GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins
 	GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64
 	HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool
+	TotalSupply(ctx sdk.Context, denom string) int64
 }
 
 var _ ViewKeeperI = ViewKeeper{}

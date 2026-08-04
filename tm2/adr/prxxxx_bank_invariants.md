@@ -105,11 +105,11 @@ The invariants call none of them. Instead:
 so a registered check is unreachable, and a `RegisterInvariants` in the bank module would
 read as an active check that isn't — which is what made the deleted file dead code.
 
-**A total-supply invariant**, cosmos's headline check. Not possible: there is no supply
-record, `TotalCoin` is `panic("not yet implemented")`, and the reverse denom index was
-deliberately omitted. Summing balances to compare against themselves is a tautology.
-Supply tracking is cheap to add later (transfers are supply-neutral, so only issuance
-touches it) and would make this the most valuable check in the set.
+**A total-supply invariant**, cosmos's headline check. Not possible *at the time of
+this ADR*: there was no supply record, `TotalCoin` was `panic("not yet implemented")`,
+and the reverse denom index was deliberately omitted, so summing balances would have
+compared them against themselves. **Since superseded** — see
+`prxxxx_coin_supply.md`, which adds the counter and `SupplyInvariant` with it.
 
 **Checks that were specified and dropped, because they are false on a healthy chain:**
 
