@@ -405,8 +405,8 @@ interface GnoMsgIntent {
 }
 
 // One transaction carrying one message. The fields below the message belong to
-// the transaction, not to the call — see sendTxs for why that distinction is in
-// the types rather than in prose.
+// the transaction, not to the call — see sendMsgs for why that distinction is
+// in the types rather than in prose.
 interface GnoTxIntent extends GnoMsgIntent {
   chainid?: string; // falls back to gnoconnect:chainid
   rpc?: string;    // advisory only — see Network resolution
@@ -485,10 +485,11 @@ getNetwork(): Promise<UserResponse<GnoNetwork>>;
 // is network_declined, not a silent add.
 switchNetwork(chainid: string): Promise<UserResponse<{ chainid: string }>>;
 
-// Several messages, one signature, one broadcast. The launch-link analogue is
-// the multi_msg feature. The chain and the signer sit on the transaction, not
-// on each message — see below.
-sendTxs(tx: GnoBatchIntent): Promise<UserResponse<{ hash: string }>>;
+// Several messages, ONE transaction: one signature, one broadcast, one hash.
+// The launch-link analogue is the multi_msg feature, and the name matches it —
+// what you supply is messages. The chain and the signer sit on the transaction,
+// not on each message; see below.
+sendMsgs(tx: GnoBatchIntent): Promise<UserResponse<{ hash: string }>>;
 
 interface GnoBatchIntent {
   msgs: GnoMsgIntent[];  // at least one; empty is invalid_request
@@ -522,7 +523,13 @@ arrives as a new method, not as a re-reading of these.
 
 ### One transaction, several messages
 
-`sendTxs` takes a **batch intent**, not an array of transaction intents, and the
+`sendMsgs` sends **one transaction carrying several messages** — one signature,
+one broadcast, one `hash`. It is named for what a page supplies, because what it
+sends is a transaction, singular. Several *transactions* would be a different
+method: several signatures, several hashes, and an answer to what happens when
+the third fails after the first two have landed. Nothing here offers that.
+
+It takes a **batch intent**, not an array of transaction intents, and the
 difference is the whole point: `chainid`, `rpc` and `signer` describe the
 transaction, `path`/`func`/`args`/`send` describe a message, and only the second
 group can vary within one broadcast. One transaction lands on one chain under
