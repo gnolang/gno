@@ -567,13 +567,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	for _, bal := range state.Balances {
 		cfg.applyBalance(ctx, bal)
 	}
-	// Seed the supply counter from the balances just written. It has to be a sweep
-	// rather than an incremental hook: applyBalance writes the account object with
-	// the full pre-split amount before calling SetCoins, so SetCoins reads
-	// old == new and any delta would be zero for every vesting account — and that
-	// pre-write cannot be removed, since the vesting constructors validate
-	// OriginalVesting against it.
-	cfg.bankk.RecomputeSupply(ctx)
+	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
 	cfg.acck.InitGenesis(ctx, state.Auth)
@@ -641,13 +635,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		}
 		cfg.applyBalance(ctx, bal)
 	}
-	// Seed the supply counter from the balances just written. It has to be a sweep
-	// rather than an incremental hook: applyBalance writes the account object with
-	// the full pre-split amount before calling SetCoins, so SetCoins reads
-	// old == new and any delta would be zero for every vesting account — and that
-	// pre-write cannot be removed, since the vesting constructors validate
-	// OriginalVesting against it.
-	cfg.bankk.RecomputeSupply(ctx)
+	cfg.seedSupply(ctx)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -727,6 +715,20 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 // Reusing the account to close that gap was tried and reverted: it shifts every
 // later account number, which changes the genesis state of any chain whose balance
 // file repeats an address, for no correctness gain.
+// seedSupply rebuilds the supply counter from the balances genesis just wrote.
+//
+// A sweep rather than an incremental hook: applyBalance writes the account object with
+// the full pre-split amount before calling SetCoins, so SetCoins reads old == new and
+// any delta would be zero for every vesting account — and that pre-write cannot be
+// removed, since the vesting constructors validate OriginalVesting against it.
+//
+// Both genesis paths call this. It is a method rather than two inline calls so that a
+// step required by one path cannot be added to the other alone; that asymmetry is
+// exactly what left the streaming path's seeding untested until it was noticed.
+func (cfg InitChainerConfig) seedSupply(ctx sdk.Context) {
+	cfg.bankk.RecomputeSupply(ctx)
+}
+
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	if bal.IsVesting() {
 		baseAcc := std.BaseAccount{
