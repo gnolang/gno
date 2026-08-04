@@ -1122,8 +1122,9 @@ to hold account data. It contains the following information:
 
 - `address` - the address of the account
 - `coins` - the gas-denom coins the account owns. This is **not** the full
-  balance: every other denom — realm-issued coins, IBC vouchers, anything but the gas denom — is stored separately
-  and appear only under `bank/balances`. Use that query for a complete balance.
+  balance: every other denom — realm-issued coins, IBC vouchers, anything but the
+  gas denom — is stored separately and appears only under `bank/balances`. Use that
+  query for a complete balance.
 - `public_key` - the TM2 public key of the account, from which the address is derived
 - `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks

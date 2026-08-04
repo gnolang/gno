@@ -775,6 +775,10 @@ control. If you only care about one denomination, use
 Returns the amount of a single `denom` owned by `addr`, without reading any
 other. Prefer this to [GetCoins](#getcoins) whenever one denomination will do.
 
+Panics if `denom` is malformed, where `GetCoins(addr).AmountOf(denom)` would have
+returned zero. Validate first if the denomination comes from somewhere you do not
+control — a `Render` path segment or query parameter, for instance.
+
 ##### Parameters
 - `addr` **address** to read
 - `denom` **string** denomination to read
