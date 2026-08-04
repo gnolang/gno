@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -986,6 +987,11 @@ func TestIsRealmDenom(t *testing.T) {
 			"IsRealmDenom must key on the first byte alone: %q", denom)
 	}
 }
+
+// reDnm is the compiled grammar, kept here rather than in coin.go: validDenom
+// replaced its only production caller, so leaving it there compiled a regexp at
+// package init for every binary importing this package, to serve one test.
+var reDnm = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
 
 // validDenom replaces reDnm on hot paths and must accept exactly the same strings.
 // A divergence would either reject a legal denom (breaking consensus) or admit an

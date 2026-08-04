@@ -679,7 +679,6 @@ var (
 	reDnmString = `[a-z\/][a-z0-9_.:\/\-]{2,}`
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
-	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
@@ -728,7 +727,8 @@ func ValidateDenom(denom string) error {
 	return nil
 }
 
-// validDenom is reDnm as a byte scan, and must stay exactly equivalent to it —
+// validDenom is `^reDnmString$` as a byte scan, and must stay exactly equivalent to
+// the compiled form (built in coin_test.go, the only place it is still needed) —
 // TestValidDenomMatchesRegexp is the gate.
 //
 // Hand-rolled because this is on paths where the cost is visible: banker.GetCoin and
