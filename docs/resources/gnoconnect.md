@@ -396,11 +396,18 @@ type GnoArg =
   | { name: string; value: string }   // named — resolved via vm/qdoc
   | { value: string };                // positional — order is the producer's
 
-interface GnoTxIntent {
+// One message. Everything here varies per MsgCall.
+interface GnoMsgIntent {
   path: string;    // full package path
   func: string;    // exported function name
   args: GnoArg[];  // one form per call; mixing is invalid_request
   send?: string;   // coins, gnokey syntax
+}
+
+// One transaction carrying one message. The fields below the message belong to
+// the transaction, not to the call — see sendTxs for why that distinction is in
+// the types rather than in prose.
+interface GnoTxIntent extends GnoMsgIntent {
   chainid?: string; // falls back to gnoconnect:chainid
   rpc?: string;    // advisory only — see Network resolution
   signer?: string; // bech32 identity — see The `signer` pin
@@ -479,8 +486,16 @@ getNetwork(): Promise<UserResponse<GnoNetwork>>;
 switchNetwork(chainid: string): Promise<UserResponse<{ chainid: string }>>;
 
 // Several messages, one signature, one broadcast. The launch-link analogue is
-// the multi_msg feature.
-sendTxs(txs: GnoTxIntent[]): Promise<UserResponse<{ hash: string }>>;
+// the multi_msg feature. The chain and the signer sit on the transaction, not
+// on each message — see below.
+sendTxs(tx: GnoBatchIntent): Promise<UserResponse<{ hash: string }>>;
+
+interface GnoBatchIntent {
+  msgs: GnoMsgIntent[];  // at least one; empty is invalid_request
+  chainid?: string;      // falls back to gnoconnect:chainid
+  rpc?: string;          // advisory only — see Network resolution
+  signer?: string;       // bech32 identity — see The `signer` pin
+}
 
 interface GnoAccount {
   address: string;         // bech32
@@ -504,6 +519,35 @@ Message signing is deliberately absent. Everything signable in Gno today is a
 transaction — `gnokey sign` takes a tx document and nothing else — so a
 `signMessage` would have no defined meaning to agree on. When one exists it
 arrives as a new method, not as a re-reading of these.
+
+### One transaction, several messages
+
+`sendTxs` takes a **batch intent**, not an array of transaction intents, and the
+difference is the whole point: `chainid`, `rpc` and `signer` describe the
+transaction, `path`/`func`/`args`/`send` describe a message, and only the second
+group can vary within one broadcast. One transaction lands on one chain under
+one signature.
+
+An array of `GnoTxIntent` let a page write `[{chainid: "dev"}, {chainid:
+"test5"}]` — a request with no meaning at all. Every wallet then had to invent an
+answer: reject it, take the first, take the last, take whichever element
+happened to carry one. All four were conforming, because the standard said
+nothing, and the two behaviours are indistinguishable to the page that sent it.
+Hoisting the transaction-level fields is what makes that unwritable, which is
+better than a rule against writing it.
+
+This also matches the launch-link multi-message form, where the indexed fields
+are `msg.<i>.path` / `msg.<i>.func` / `msg.<i>.arg.<name>` and `chainid`,
+`signer`, `callback` and `state` stay top-level. The two transports now agree on
+which fields belong to the message and which to the transaction.
+
+`msgs` MUST carry at least one message; an empty batch is `invalid_request`,
+since there is nothing to sign and nothing to show the user.
+
+A wallet MAY decline a batch it cannot review honestly — see the review
+obligations in Network resolution — rather than present a list the user cannot
+follow. Signing several messages the user did not individually understand is
+worse than refusing one request.
 
 ### Connecting, and what it gates
 
