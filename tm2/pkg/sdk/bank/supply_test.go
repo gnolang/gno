@@ -179,6 +179,21 @@ func TestRecomputeSupplyCoversBothTiersAndGenesisShape(t *testing.T) {
 	require.False(t, broken, "state seeded by RecomputeSupply must be healthy:\n%s", msg)
 }
 
+// A supply key whose denom cannot be recovered is only reachable past the keeper,
+// which is the point: setSupply always builds a well-formed key, so nothing else
+// exercises the report.
+func TestSupplyInvariantReportsAnUnparseableKey(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	// SupplyPrefix with no denom after it.
+	rawSet(t, env, []byte(SupplyPrefix), encodeBalance(5))
+
+	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(env.ctx)
+	require.True(t, broken)
+	require.Contains(t, msg, "denom")
+}
+
 func TestSupplyInvariantReportsBothDirections(t *testing.T) {
 	t.Parallel()
 

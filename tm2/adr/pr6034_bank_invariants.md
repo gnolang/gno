@@ -155,11 +155,14 @@ mutation-verified: deleting the check fails that test, and only that test. Asser
 message rather than merely that the invariant broke is the point — the checks share a
 sweep, so a bare "broken" assertion passes whenever any sibling fires.
 
-Three checks have **no** violating test and are known-unpinned rather than
-believed-covered: the key-ordering and iterator-error reports in `BalanceKeysInvariant`,
-and the iteration-error report in `AccountTierInvariant`. All three fire only on a
-store-level fault that no stored state can produce, so pinning them would need a fake
-store.
+Five checks have **no** violating test and are known-unpinned rather than
+believed-covered, established by mutating every finding in both files one at a time and
+recording which survived: the key-ordering and iterator-error reports in
+`BalanceKeysInvariant`, and the iteration-error reports in `AccountTierInvariant`,
+`SupplyInvariant` and `AccountKeyspaceInvariant`. All five fire only on a store-level
+fault that no stored state can produce — an iterator that errors, or one that yields
+keys out of order — so pinning them would need a fake store. Every other finding in
+both files is killed by a test that names it.
 
 Violating states are built through the public API wherever possible and by raw store
 write only where the keeper's guards make a state otherwise unreachable. Two worth

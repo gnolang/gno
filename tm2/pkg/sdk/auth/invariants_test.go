@@ -136,6 +136,64 @@ func TestInvariantReportsWhatIterateAccountsPanicsOn(t *testing.T) {
 	})
 }
 
+// The account-number checks and the two decode reports below have no violating
+// state reachable through the keeper, so each reaches past it. Without these the
+// checks could be deleted with the rest of the suite still green.
+func TestAccountKeyspaceInvariantReportsCounterAndDecodeFaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("counter unreadable skips the number checks", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		rawSet(t, env, []byte(GlobalAccountNumberKey), []byte{0xff, 0xfe, 0xfd})
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "global account number is unreadable")
+	})
+
+	t.Run("counter above the allocation bound skips uniqueness", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		// The bitset is sized from this number, so the check must refuse to allocate
+		// rather than trust it. Reported, not silently skipped.
+		rawSet(t, env, []byte(GlobalAccountNumberKey), amino.MustMarshal(uint64(maxUniquenessBits+1)))
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "uniqueness was NOT verified")
+	})
+
+	t.Run("session account that does not decode", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		master := crypto.AddressFromPreimage([]byte("decode-master"))
+		env.acck.SetAccount(env.ctx, env.acck.NewAccountWithAddress(env.ctx, master))
+		session := crypto.AddressFromPreimage([]byte("decode-session"))
+		rawSet(t, env, SessionStoreKey(master, session), []byte{0xff, 0xfe, 0xfd})
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "does not decode")
+	})
+
+	t.Run("delegated account filed at a regular path", func(t *testing.T) {
+		t.Parallel()
+		// The mirror of "session path holds a non-delegated account" below, and the
+		// state bank.SetCoins has to survive: SetAccount files by the account's own
+		// address, so a session account reaches the regular keyspace through it.
+		env := setupTestEnv()
+		master := crypto.AddressFromPreimage([]byte("regular-path-master"))
+		_, sessPub, _ := tu.KeyTestPubAddr()
+		sess := env.acck.NewSessionAccount(env.ctx, master, sessPub)
+		env.acck.SetAccount(env.ctx, sess)
+
+		msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
+		require.True(t, broken)
+		require.Contains(t, msg, "filed at a regular path")
+	})
+}
+
 // The session checks each get their own test, and each asserts its own message.
 // They all live in one sweep, so require.True(t, broken) alone would pass whenever any
 // sibling fired — which is how a check gets deleted without its test noticing.
