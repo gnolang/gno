@@ -24,6 +24,12 @@ func TestAccountKeyspaceInvariantHealthy(t *testing.T) {
 		acc := env.acck.NewAccountWithAddress(env.ctx, crypto.AddressFromPreimage([]byte(seed)))
 		env.acck.SetAccount(env.ctx, acc)
 	}
+	// Without this the assertion below also holds for a keyspace the sweep found
+	// empty, which is the one thing a healthy-state test must not be satisfied by:
+	// its whole job is to catch a check that fires on legitimate state.
+	require.Len(t, env.acck.GetAllAccounts(env.ctx), 3,
+		"the sweep must have accounts to examine, or \"healthy\" only means \"empty\"")
+
 	msg, broken := AccountKeyspaceInvariant(env.acck)(env.ctx)
 	require.False(t, broken, "healthy keyspace reported broken:\n%s", msg)
 }
