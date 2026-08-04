@@ -678,6 +678,40 @@ func TestVestingBindsOnASplitTierDenom(t *testing.T) {
 		"the locked half must remain locked")
 }
 
+// The accepting half of the denom-length boundary, at the storage layer.
+// TestOverlongDenomNeverReachesTheStore covers the rejecting half, and
+// std.TestValidateDenomLength proves ValidateDenom admits a maximal denom — but
+// nothing put one through the store. MaxDenomLength appears in no other test outside
+// tm2/pkg/std.
+//
+// It matters because a realm at the package-path limit issuing a maximum-length base
+// name is legal and deployable, so if any layer below imposed a tighter bound the
+// result would be a realm that deploys and then cannot issue — the same class of bug
+// this branch fixed for hyphenated paths. Nothing checks a maximum key size: mdbx
+// exposes MaxKeySize() and the store layer never calls it.
+func TestAMaximalDenomRoundTripsThroughTheStore(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("maximal"))
+
+	const prefix = "gno.land/r/"
+	denom := "/" + prefix + strings.Repeat("a", 256-len(prefix)) + ":" + strings.Repeat("b", 16)
+	require.Len(t, denom, std.MaxDenomLength, "this must be exactly the longest legal denom")
+	require.NoError(t, std.ValidateDenom(denom))
+	require.Len(t, BalanceKey(addr, denom), len(BalancePrefix)+crypto.AddressSize+std.MaxDenomLength,
+		"the widest key the store is ever asked to hold")
+
+	require.NoError(t, env.bankk.MintCoins(env.ctx, addr, std.Coins{{Denom: denom, Amount: 7}}))
+	require.Equal(t, int64(7), env.bankk.GetCoin(env.ctx, addr, denom))
+	require.Equal(t, int64(7), env.bankk.TotalSupply(env.ctx, denom))
+	require.Equal(t, int64(7), env.bankk.GetCoins(env.ctx, addr).AmountOf(denom),
+		"a maximal denom must survive the iterate-and-merge path too")
+
+	msg, broken := AllInvariants(env.bankk.ViewKeeper)(env.ctx)
+	require.False(t, broken, "a maximal denom must not look like corruption:\n%s", msg)
+}
+
 // TestTierFollowsAllowlistNotDenomShape pins that storage tier is decided by the
 // allowlist alone, never by what the denom looks like.
 //
