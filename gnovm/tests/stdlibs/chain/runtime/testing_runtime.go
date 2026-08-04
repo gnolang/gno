@@ -271,6 +271,14 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 }
 
 // IssueCoin implements the Banker interface.
+//
+// Deliberately does not enforce the chain's per-denom supply cap: there is no counter
+// here, so an aggregate past MaxInt64 is reachable under `gno test` where MintCoins
+// would refuse the second mint. TotalCoin above panics rather than reporting a wrapped
+// total, so the state cannot be read as a number, and the divergence is in the
+// permissive direction. See the "Known limitation" note in
+// tm2/adr/pr6034_coin_supply.md before changing this — an overflow check here alone
+// refuses at the right point for the wrong reason and still does not model burn.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})

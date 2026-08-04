@@ -147,7 +147,23 @@ every transfer rather than of issuance.
   59,000-gas read.
 - **`TotalCoin` validates its denom**, for the reason `GetCoin` does: it is a
   realm-supplied string reaching a store key and nothing on the `.gno` side bounds
-  it. `TestBanker.TotalCoin` is implemented too, so `gno test` and the chain agree.
+  it. `TestBanker.TotalCoin` is implemented too, and both filetests
+  (`zrealm_banker_getcoin_denom.gno`, `zrealm_banker_totalcoin_denom.gno`) pin that a
+  malformed denom panics under `gno test` exactly as it does on chain.
+
+  **Known limitation: `gno test` does not enforce the supply cap.** `TestBanker` keeps
+  no counter — its `TotalCoin` sums the table — so `IssueCoin` will mint past
+  `MaxInt64` in aggregate where the chain refuses the second mint outright. Measured:
+  issuing `MaxInt64` to one address and `1` to another succeeds under `gno test`, and
+  the state only becomes visible on the next `TotalCoin`, which panics with
+  "total supply of ... overflows int64". The divergence is one of *timing*, and in the
+  safe direction: `gno test` is the more permissive of the two, so nothing passes on
+  chain that fails locally, and the over-cap state can never be read as a number.
+  Closing it would mean a second implementation of the counter, its mint/burn ordering
+  and its arithmetic in test-only code, to catch a case needing ~9.2e18 of one denom —
+  and a second implementation is itself a divergence risk. Do not "fix" it by adding an
+  overflow check to `IssueCoin` alone: that refuses at the right point for the wrong
+  reason, and still does not model burn.
 
 ## Tests
 
