@@ -442,8 +442,7 @@ validation), so the synthesized form can never collide with a deployed
 package, and exact-match pkgpath auth is never silently broadened.
 
 The token is a first-class `realm` value. Cross with it (two-step —
-`cross(...)` takes a bare identifier) or hand it to an API taking a realm,
-which cannot be its first parameter:
+`cross(...)` takes a bare identifier) or hand it to token-style APIs:
 
 ```go
 sub := cur.Sub("dao/42")
