@@ -21,6 +21,9 @@ func Exec(fn func()) {
 
 // ExecRlm mirrors Exec but threads rlm into the callback so it can
 // use `cross(rlm)` instead of bare cross.
+// The callback keeps the `_ int` sentinel: a realm is its only parameter,
+// so there is nothing for a trailing realm to follow and `func(realm)`
+// would type as crossing.
 func ExecRlm(fn func(_ int, rlm realm), rlm realm) {
 	fn(0, rlm)
 }
