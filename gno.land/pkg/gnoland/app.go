@@ -751,7 +751,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		cfg.acck.SetAccount(ctx, acc)
 	}
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
-		panic(err)
+		// Name the address and the amount. This aborts genesis, and the causes
+		// include a denom that is too long or malformed — so an operator forking a
+		// chain needs to know which entry to fix. std.ErrInvalidCoins carries the
+		// coins only under %+v, and a panic renders its value with %v, so a bare
+		// panic(err) here says nothing but "invalid coins error".
+		panic(fmt.Errorf("invalid genesis balance for %s (%s): %w", bal.Address, bal.Amount, err))
 	}
 }
 
