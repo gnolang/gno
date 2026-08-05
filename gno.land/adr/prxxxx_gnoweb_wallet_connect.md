@@ -90,10 +90,14 @@ that failed to open an app left them staring at nothing at all.
 | `not_connected` | `connect`, retry once, never surfaced to the user |
 
 For the in-page transport the order is sign-then-navigate: `sendTx` returns a
-promise, and navigating first would destroy it. For the launch link it is
-fire-then-navigate: the result comes back through the callback URL on a fresh
-load, so there is no promise to protect, and the user lands on the fallback if
-the app never opens.
+promise, and navigating first would destroy it.
+
+For the launch link there is **no navigation at all** — the args are pinned with
+`history.replaceState` and the link is fired last. This was originally written
+as fire-then-navigate; measuring it on iOS showed that shape never reaches the
+wallet (see Validation). Nothing is lost: the destination was this same page
+with the args pinned, which `replaceState` reaches without tearing the page
+down, and the result comes back through the callback URL.
 
 ### The QR is server-rendered on the destination page
 
@@ -185,12 +189,17 @@ Two bugs were found by running the checklist and fixed in the same branch:
   navigation, since a stub clicked after load was not announced when the
   controllers booted. Stubs can now be armed from the URL (`?stub=one`).
 
-One pre-existing wart, unchanged here and worth a separate fix: the two paths
-that fall through to the *native* submit — "Continue in browser", and a wallet
-announcing no `sendTx` — land on `$help` with the query string emptied, because
-the form's inputs carry no `name` attribute and a native GET submit rebuilds the
-query from them. This predates the branch (`master` has the same markup). Every
-path that navigates explicitly pins the args correctly.
+A third bug the checklist surfaced, also fixed here: the two paths that fell
+through to the *native* submit — "Continue in browser", and a wallet announcing
+no `sendTx` — landed on `$help` with the args emptied, because the form's inputs
+carry no `name` attribute and a native GET submit rebuilds the query from them.
+Both now navigate explicitly to the help URL instead. "Continue in browser"
+therefore reaches the same place dismissing the dialog does; the button stays
+because it says so out loud.
+
+The one native submit that remains is the no-candidate case, where gnoweb has
+nothing to route to and a legacy extension may still want to intercept the
+event. That path keeps `master`'s behaviour, args included.
 
 The spec flagged two open questions to measure rather than assume:
 
@@ -200,11 +209,25 @@ The spec flagged two open questions to measure rather than assume:
    post-chooser path (picking an entry is itself a gesture). No reordering was
    needed.
 2. **Does iOS Safari block a gesture-less custom-scheme navigation?**
-   Not verified — no iOS device was available. `_openWallet` assigns
-   `window.location.href` inside the submit handler, so it is still within the
-   gesture; if it turns out to be blocked, the fix is local (move the
-   `_navigate` call into a `setTimeout(…, 0)` so the scheme navigation commits
-   first).
+   Measured on an iPhone 17 simulator (iOS 26.5) with gnokey-mobile installed,
+   driving real taps through `idb`. The answer is more specific than the
+   question: iOS does not block the navigation, it gates it behind a system
+   **"Open in 'Gnokey'?"** prompt — and *any* navigation issued after firing the
+   link dismisses that prompt before the user can answer, so the wallet never
+   opens. Four shapes were compared:
+
+   | Shape | Result |
+   |---|---|
+   | fire, then `location.assign` (as written) | no prompt; page goes to the fallback; app never opens |
+   | fire, then `setTimeout(assign, 0)` (the suggested fix) | same — the deferral does not help |
+   | fire alone | prompt appears; Open launches the app |
+   | `history.replaceState`, then fire | prompt appears; Open launches the app; args pinned |
+
+   The last shape is what shipped. Verified end to end from the fixture's own
+   Execute button: the prompt appears, Open brings up gnokey-mobile prefilled
+   with the path, function, both arguments and the network from gnoweb's link.
+   The plan's proposed remedy would not have worked, which is why it was
+   measured rather than assumed.
 
 `go test ./gno.land/pkg/gnoweb/...` passes, as do `make -C gno.land/pkg/gnoweb
 lint.go` and `make -C gno.land/pkg/gnoweb/frontend lint`.
