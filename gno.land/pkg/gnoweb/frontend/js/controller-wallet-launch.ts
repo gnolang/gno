@@ -203,13 +203,16 @@ export class WalletLaunchController extends BaseController {
 		return `${wallet.scheme}://sendtx?${parts.join("&")}`;
 	}
 
-	// Fire the launch link, then navigate. There is no promise to protect —
-	// the result returns through the callback URL on a fresh load — so the
-	// silent-launch problem disappears: if the app opens, the page is behind
-	// it; if it does not, the user is already looking at the fallback.
+	// Pin the args in the URL, then fire the launch link — and do not navigate
+	// after it. iOS gates a custom scheme behind a system "Open in …?" prompt,
+	// and any navigation dismisses that prompt before the user can answer, so
+	// the wallet never opens; deferring it to a task does not help. Nothing is
+	// lost by staying: the destination was this same page with the args pinned,
+	// which replaceState reaches without tearing the page down, and the result
+	// comes back through the callback URL.
 	private _openWallet(wallet: RegistryWallet): void {
+		window.history.replaceState(null, "", this._helpURL());
 		window.location.href = this._buildLink(wallet);
-		this._navigate(this._helpURL());
 	}
 
 	// Sign first, navigate on the outcome. sendTx() returns a Promise in the
