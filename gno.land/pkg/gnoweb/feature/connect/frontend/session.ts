@@ -174,3 +174,10 @@ export async function reconcile(): Promise<GnoSession | null> {
 	writeSession(updated);
 	return updated;
 }
+
+// Header display form: enough of each end to recognise, short enough to fit.
+export function truncate(address: string): string {
+	return address.length <= 15
+		? address
+		: `${address.slice(0, 8)}…${address.slice(-4)}`;
+}

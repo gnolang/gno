@@ -75,6 +75,23 @@ LAYOUT - Header component
     </div>
 
     <div class="b-main-menu">
+      {{/* Identity control; filled in by controller-connect.ts from localStorage. */}}
+      <div class="b-identity" data-controller="connect">
+        <button type="button" class="b-btn b-btn--secondary b-identity__connect"
+          data-connect-target="connect-btn">Connect</button>
+        <div data-connect-target="account" class="b-identity__account" hidden>
+          <button type="button" class="b-identity__toggle" data-connect-target="toggle" aria-haspopup="menu"
+            aria-expanded="false" aria-controls="identity-menu">
+            <span class="b-identity__avatar" data-connect-target="avatar"></span>
+            <span class="b-identity__address u-font-mono" data-connect-target="address"></span>
+          </button>
+          <div class="b-identity__menu" id="identity-menu" role="menu" data-connect-target="menu" hidden>
+            <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
+            <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+            <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+          </div>
+        </div>
+      </div>
       {{ if .Mode.IsHome }}
       <label for="header-input-devmode" class="menu-toggle">
         <svg>
