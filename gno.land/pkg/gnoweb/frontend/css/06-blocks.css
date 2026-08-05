@@ -4582,3 +4582,11 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
+
+.b-wallet-chooser__install {
+	display: block;
+	margin-block: 0.5rem;
+	font-size: 0.875rem;
+	text-align: center;
+	text-decoration: underline;
+}

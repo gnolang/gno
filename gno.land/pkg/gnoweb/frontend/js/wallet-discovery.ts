@@ -51,6 +51,8 @@ export interface GnoTxRequest {
 	// configured endpoint for this chain, never through one we named.
 	chainid?: string;
 	rpc?: string;
+	// bech32 identity the producer expects to act as — see The `signer` pin.
+	signer?: string;
 }
 
 // Only the method gnoweb calls is declared. It is optional: a wallet may

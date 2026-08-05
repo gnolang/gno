@@ -173,3 +173,17 @@ func TestHelpView_StillRenders(t *testing.T) {
 	require.NoError(t, view.Render(&buf))
 	assert.Contains(t, buf.String(), "test")
 }
+
+// The chooser now lives in the header layout, so the help view must not embed
+// a second copy of the registry.
+func TestHelpView_NoLongerEmbedsRegistry(t *testing.T) {
+	t.Parallel()
+
+	view := HelpView(HelpData{RealmName: "test"})
+	var buf bytes.Buffer
+	require.NoError(t, view.Render(&buf))
+
+	out := buf.String()
+	assert.NotContains(t, out, `data-wallet-launch-target="wallet-registry"`)
+	assert.NotContains(t, out, `data-wallet-launch-target="chooser"`)
+}

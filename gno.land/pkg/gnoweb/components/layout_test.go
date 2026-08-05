@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -552,6 +553,24 @@ func TestNewBannerData(t *testing.T) {
 	}
 }
 
+func TestHeader_RendersWalletRegistryAndChooser(t *testing.T) {
+	t.Parallel()
+
+	data := EnrichHeaderData(HeaderData{ChainId: "dev", Remote: "127.0.0.1:26657"}, ViewModeRealm)
+	require.NotEmpty(t, data.WalletsJSON, "EnrichHeaderData must populate WalletsJSON")
+
+	var buf bytes.Buffer
+	require.NoError(t, tmpl.ExecuteTemplate(&buf, "layouts/header", data))
+
+	out := buf.String()
+	assert.Contains(t, out, `data-wallet-launch-target="wallet-registry"`)
+	assert.Contains(t, out, `data-connect-target="wallet-registry"`)
+	assert.Contains(t, out, `data-wallet-launch-target="chooser"`)
+	assert.Contains(t, out, `data-connect-target="chooser"`)
+	assert.Contains(t, out, "land.gno.gnokey")
+	assert.Contains(t, out, "land.gno.adena")
+}
+
 func TestIndexLayout_Banner(t *testing.T) {
 	t.Parallel()
 
@@ -730,7 +749,8 @@ func TestIndexLayout_RealmNotice(t *testing.T) {
 		t.Parallel()
 		out := realmNoticeLayout(t, RealmNotice{}, "")
 		assert.Empty(t, noticeRow(out))
-		assert.Contains(t, out, "</nav>\n</header>")
+		// No row between the nav and the wallet registry that follows it.
+		assert.Contains(t, out, "</nav>\n  <script type=\"application/json\" data-wallet-launch-target=\"wallet-registry\"")
 		assert.Contains(t, out, `<html lang="en">`)
 		assert.NotContains(t, out, "aria-describedby")
 	})

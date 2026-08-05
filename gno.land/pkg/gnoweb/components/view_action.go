@@ -35,9 +35,6 @@ type HelpData struct {
 	// Community is set on packages outside the trusted paths, the pages that
 	// show the realm notice.
 	Community bool
-
-	// External-wallet registry for the GnoConnect chooser; set by HelpView.
-	WalletsJSON template.JS
 }
 
 type HelpTocData struct {
@@ -115,8 +112,6 @@ func registerHelpFuncs(funcs template.FuncMap) {
 }
 
 func HelpView(data HelpData) *View {
-	data.WalletsJSON = WalletsJSON()
-
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),
