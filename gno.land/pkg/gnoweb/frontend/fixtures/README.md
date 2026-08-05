@@ -44,3 +44,23 @@ clicking afterwards was not there when the page asked.
 | 16 | `/wallets` with nothing announced | the install page still lists every registry entry |
 
 Record the results in the PR description or the ADR.
+
+## The external transport, on iOS
+
+The launch link can only be checked on a real iOS browser: iOS gates a custom
+scheme behind a system "Open in …?" prompt, and a page that navigates after
+firing the link dismisses that prompt before the user can answer — so the wallet
+never opens, silently. Desktop Chrome cannot show this.
+
+With gnokey-mobile installed on a booted simulator, and the server above still
+running:
+
+```bash
+xcrun simctl openurl booted "http://localhost:8000/frontend/fixtures/wallet-connect.html"
+idb ui tap --udid <udid> 20 93   # the Execute button, in points
+```
+
+Expected: the "Open in 'Gnokey'?" prompt appears — the page must **not** have
+navigated — and Open brings up the wallet prefilled with the path, function,
+arguments and network. `idb` (fb-idb) needs Python ≤ 3.12; taps are in points,
+so divide screenshot pixel coordinates by the device scale.
