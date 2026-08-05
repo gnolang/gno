@@ -38,6 +38,12 @@ type Wallet struct {
 	Install   []InstallLink `json:"install"`
 }
 
+// IconURL is the icon as a template URL. Safe: validateWallet rejects any
+// icon that is not a data:image/ URI, so nothing else can reach a template.
+func (w Wallet) IconURL() template.URL {
+	return template.URL(w.Icon) //nolint:gosec // validated as a data:image/ URI at init
+}
+
 // WalletPlatforms is the accepted `platforms` set, in the order the install
 // page groups them.
 var WalletPlatforms = []string{"ios", "android", "chrome", "firefox", "brave", "edge", "safari"}

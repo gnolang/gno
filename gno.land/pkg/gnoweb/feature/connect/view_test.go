@@ -63,3 +63,19 @@ func TestNewWalletsView_Renders(t *testing.T) {
 	assert.Contains(t, out, "Extension")
 	assert.Contains(t, out, "App")
 }
+
+// Regression: html/template treats src as a URL attribute and only allows
+// http/https/mailto by default, mangling data: icon URIs to "#ZgotmplZ"
+// unless the template renders them through a template.URL accessor.
+func TestNewWalletsView_IconsRenderAsDataURIs(t *testing.T) {
+	t.Parallel()
+
+	view := NewWalletsView(WalletsData{Groups: GroupWallets(components.Wallets())})
+
+	var buf bytes.Buffer
+	require.NoError(t, view.Render(&buf))
+
+	out := buf.String()
+	assert.Contains(t, out, `src="data:image/`)
+	assert.NotContains(t, out, "ZgotmplZ")
+}
