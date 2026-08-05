@@ -5,8 +5,6 @@ package zp_2_a_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
-
 	"gno.land/r/nt/commondao/v0"
 )
 
@@ -17,7 +15,7 @@ const (
 	members = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\ng1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -25,29 +23,25 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowChildren(true)
-	options.SetAllowSubDAOPorposals(true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateSubDAOProposal(cross(cur), dao.ID(), name, members)
+	pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", members)
 
-	p := dao.ActiveProposals().Get(pID)
-	if p == nil {
+	p, found := commondao.GetView(daoID).GetProposal(pID)
+	if !found {
 		panic("expected proposal to be created")
 	}
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == ("New SubDAO: " + name))
+	println(p.Title() == ("New SubDAO: " + name))
 	println(p.VotingDeadline())
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:
@@ -61,6 +55,9 @@ func main(cur realm) {
 // **SubDAO Name:**
 // Foo SubDAO
 //
-// **Members:**
+// **SubDAO Purpose:**
+// Purpose
+//
+// **Council Members:**
 // - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
 // - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
