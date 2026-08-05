@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>gnoweb wallet fixture</title>
+  <meta name="gnoconnect:rpc" content="127.0.0.1:26657" />
+  <meta name="gnoconnect:chainid" content="dev" />
+  <link rel="stylesheet" href="/public/main.css" />
+</head>
+
+<body>
+  <!-- Mirrors layouts/header.html: registry, chooser, identity control. -->
+  <script type="application/json" data-wallet-launch-target="wallet-registry"
+    data-connect-target="wallet-registry">[{"name":"Gnokey","id":"gnokey","icon":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=","rdns":"land.gno.gnokey","kind":"app","scheme":"land.gno.gnokey","global":"","platforms":["ios","android"],"install":[{"label":"GitHub","url":"https://github.com/gnolang/gnokey-mobile"}]},{"name":"Adena","id":"adena","icon":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=","rdns":"land.gno.adena","kind":"extension","scheme":"","global":"adena","platforms":["chrome"],"install":[{"label":"adena.app","url":"https://adena.app/"}]}]</script>
+
+  <dialog class="b-wallet-chooser" data-wallet-launch-target="chooser" data-connect-target="chooser">
+    <div class="b-wallet-chooser__inner">
+      <h3 data-wallet-launch-target="chooser-title" data-connect-target="chooser-title">Open with a wallet</h3>
+      <ul data-wallet-launch-target="chooser-list" data-connect-target="chooser-list"></ul>
+      <a href="/wallets">Install a compatible wallet</a>
+      <button type="button" data-wallet-launch-target="chooser-browser" data-connect-target="chooser-browser"
+        hidden>Continue in browser</button>
+      <button type="button" data-wallet-launch-target="chooser-cancel"
+        data-connect-target="chooser-cancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <div class="b-identity" data-controller="connect">
+    <button type="button" data-connect-target="connect-btn">Connect</button>
+    <div class="b-identity__account" data-connect-target="account" hidden>
+      <button type="button" data-connect-target="toggle" aria-expanded="false" aria-controls="identity-menu">
+        <span data-connect-target="avatar"></span>
+        <span data-connect-target="address"></span>
+      </button>
+      <div id="identity-menu" role="menu" data-connect-target="menu" hidden>
+        <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
+        <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+        <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mirrors views/action.html for one function. -->
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="Transfer"
+    data-action-function-pkgpath-value="gno.land/r/demo/bank">
+    <h2 id="func-Transfer">Transfer</h2>
+    <button type="submit" form="form-Transfer">Execute</button>
+    <a href="http://localhost:8000/frontend/fixtures/wallet-connect.html?func=Transfer&to=&amount=#qr-Transfer"
+      data-action-function-target="qr-anchor">QR</a>
+    <form class="params" id="form-Transfer" method="GET"
+      action="http://localhost:8000/frontend/fixtures/wallet-connect.html?func=Transfer&to=&amount="
+      data-controller="wallet-launch" data-action-function-target="function-execute">
+      <input type="text" data-action-function-param-value="to" value="g1abc"
+        data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" />
+      <input type="text" data-action-function-param-value="amount" value="42"
+        data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" />
+    </form>
+    <div class="b-qr" id="qr-Transfer">QR panel stands in for the server-rendered image.</div>
+  </article>
+
+  <h2>Stub controls</h2>
+  <p><button type="button" id="stub-one">Announce one wallet</button>
+    <button type="button" id="stub-two">Announce a second</button>
+    <button type="button" id="stub-reject">Announce one that rejects</button>
+    <button type="button" id="stub-nosendtx">Announce one without sendTx</button>
+    <button type="button" id="stub-noconnect">Announce one without connect</button>
+    <button type="button" id="stub-notconnected">Announce one answering not_connected once</button>
+    <button type="button" id="stub-legacy">Install a legacy interceptor (window.adena)</button>
+    <button type="button" id="stub-clear">Clear the session</button>
+  </p>
+  <pre id="log"></pre>
+
+  <script type="module" src="/public/js/index.js"></script>
+  <script>
+    const log = (...args) => {
+      document.getElementById("log").textContent += args.map(String).join(" ") + "\n";
+      console.log("[fixture]", ...args);
+    };
+
+    const announce = (info, provider) =>
+      window.dispatchEvent(new CustomEvent("gno:registerWallet", { detail: { info, provider } }));
+
+    const account = (address) => ({ status: "Approved", args: { address, chainid: "dev", pubkey: null } });
+
+    const stub = (uuid, name, rdns, overrides = {}) => ({
+      info: { uuid, name, icon: "", rdns },
+      provider: {
+        sendTx: async (tx) => { log("sendTx", JSON.stringify(tx)); return { status: "Approved", args: { hash: "ABC123" } }; },
+        connect: async () => { log("connect", name); return account("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"); },
+        getAccount: async () => account("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+        ...overrides,
+      },
+    });
+
+    const on = (id, fn) => document.getElementById(id).addEventListener("click", fn);
+    const re = (w) => { window.addEventListener("gno:requestWallet", () => announce(w.info, w.provider)); announce(w.info, w.provider); };
+
+    on("stub-one", () => re(stub("uuid-1", "Stub One", "test.stub.one")));
+    on("stub-two", () => re(stub("uuid-2", "Stub Two", "test.stub.two")));
+    on("stub-reject", () => re(stub("uuid-6", "Rejecting", "test.stub.reject", {
+      sendTx: async () => { log("sendTx rejected"); return { status: "Rejected", code: "user_rejected" }; },
+    })));
+    on("stub-nosendtx", () => re(stub("uuid-3", "No sendTx", "test.stub.nosendtx", { sendTx: undefined })));
+    on("stub-noconnect", () => re(stub("uuid-4", "No connect", "test.stub.noconnect", { connect: undefined, getAccount: undefined })));
+    on("stub-notconnected", () => {
+      let refused = false;
+      re(stub("uuid-5", "Gated", "test.stub.gated", {
+        sendTx: async (tx) => {
+          if (!refused) { refused = true; log("sendTx refused: not_connected"); return { status: "Rejected", code: "not_connected" }; }
+          log("sendTx after connect", JSON.stringify(tx));
+          return { status: "Approved", args: { hash: "DEF456" } };
+        },
+      }));
+    });
+    on("stub-legacy", () => {
+      window.adena = {};
+      document.addEventListener("submit", (e) => { e.preventDefault(); log("legacy interceptor fired"); }, true);
+      log("legacy interceptor installed");
+    });
+    on("stub-clear", () => { localStorage.removeItem("gnoweb:session:v1"); log("session cleared — reload"); });
+
+    // `?stub=one&stub=legacy` arms stubs from the URL. This inline script runs
+    // while parsing, before the deferred module bundle, so a wallet armed this
+    // way is announced before the controllers boot — which is the only way to
+    // test what survives a navigation, and Execute always ends in one.
+    for (const id of new URLSearchParams(location.search).getAll("stub")) {
+      document.getElementById(`stub-${id}`)?.click();
+    }
+  </script>
+</body>
+
+</html>
