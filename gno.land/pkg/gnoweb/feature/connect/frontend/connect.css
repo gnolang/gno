@@ -1,0 +1,75 @@
+/* ===== WALLETS INSTALL PAGE ===== */
+.b-wallets__intro {
+	max-width: 60ch;
+	margin-block-end: 2rem;
+}
+
+.b-wallets__groups {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+
+.b-wallets__list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+	gap: 1rem;
+	margin-block-start: 0.75rem;
+	list-style: none;
+	padding: 0;
+}
+
+.b-wallets__item {
+	display: flex;
+	gap: 0.75rem;
+	align-items: flex-start;
+	padding: 0.75rem;
+	border: 1px solid var(--gs-100, #e5e5e5);
+	border-radius: 0.5rem;
+}
+
+.b-wallets__icon {
+	width: 2.5rem;
+	height: 2.5rem;
+	flex: none;
+	border-radius: 0.375rem;
+}
+
+.b-wallets__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.b-wallets__name {
+	font-weight: 600;
+}
+
+.b-wallets__kind {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.7;
+}
+
+.b-wallets__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	list-style: none;
+	padding: 0;
+	font-size: 0.875rem;
+}
+
+.b-wallets__links a {
+	text-decoration: underline;
+}
+
+/* "Grouped by platform, with the current platform first" — no UA sniffing:
+   a coarse primary pointer floats the mobile groups to the front. */
+@media (pointer: coarse) {
+	.b-wallets__group[data-platform="ios"],
+	.b-wallets__group[data-platform="android"] {
+		order: -1;
+	}
+}
