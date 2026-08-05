@@ -9,6 +9,8 @@ import (
 
 type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	// GetCoin reads one denom. GetCoins costs O(denoms held); this does not.
+	GetCoin(addr crypto.Bech32Address, denom string) int64
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
