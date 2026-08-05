@@ -1,0 +1,42 @@
+{{ define "renderWallets" }}
+<div class="b-wallets">
+  <h1 class="b-content-h1">Compatible wallets</h1>
+  <p class="b-wallets__intro">
+    gno.land works with any wallet that speaks GnoConnect. Install one to sign
+    transactions from this site; without one, every Actions page still shows a
+    <code>gnokey</code> command you can copy and paste.
+  </p>
+
+  {{ if not .Groups }}
+  <p class="b-wallets__empty">No wallets are listed yet.</p>
+  {{ end }}
+
+  <div class="b-wallets__groups">
+    {{ range .Groups }}
+    <section class="b-wallets__group" data-platform="{{ .Platform }}">
+      <h2 class="b-content-h2">{{ .Label }}</h2>
+      <ul class="b-wallets__list">
+        {{ range .Wallets }}
+        <li class="b-wallets__item">
+          <img class="b-wallets__icon" src="{{ .Icon }}" alt="" />
+          <div class="b-wallets__body">
+            <span class="b-wallets__name">{{ .Name }}</span>
+            <span class="b-wallets__kind">
+              {{ if eq .Kind "extension" }}Extension{{ else }}App{{ end }}
+            </span>
+            <ul class="b-wallets__links">
+              {{ range .Install }}
+              <li>
+                <a href="{{ .URL }}" target="_blank" rel="noopener noreferrer">{{ .Label }}</a>
+              </li>
+              {{ end }}
+            </ul>
+          </div>
+        </li>
+        {{ end }}
+      </ul>
+    </section>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
