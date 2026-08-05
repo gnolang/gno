@@ -95,6 +95,13 @@ UI - Help Function component
           </svg>
           <span>Execute</span>
         </button>
+        <a class="b-btn b-btn--secondary c-with-icon b-qr-anchor" href="{{ buildHelpURL $data . }}#qr-{{ .Name }}"
+          data-action-function-target="qr-anchor" title="Sign on another device">
+          <svg class="c-icon">
+            <use href="#ico-tx-link"></use>
+          </svg>
+          <span>QR</span>
+        </a>
       </span>
     </header>
 
@@ -148,6 +155,18 @@ UI - Help Function component
       </div>
       {{ end }}
     </form>
+    {{/* Rendered on the destination page, whose URL carries the exact
+         submitted args, so page render and tx-link are one event. */}}
+    <div class="b-qr" id="qr-{{ .Name }}">
+      <div class="b-qr__touch">
+        <a class="b-btn b-btn--secondary" href="/wallets">Install a wallet app</a>
+      </div>
+      <div class="b-qr__pointer">
+        <h3 class="title">Sign on another device</h3>
+        <img class="b-qr__code" src="{{ buildHelpQR $data . }}" alt="QR code for this transaction link" width="256"
+          height="256" />
+      </div>
+    </div>
     <div>
       <h3 class="title">Command</h3>
       <div class="b-code u-mb-2">

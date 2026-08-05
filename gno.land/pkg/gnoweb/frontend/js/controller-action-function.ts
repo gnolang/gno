@@ -168,6 +168,7 @@ export class ActionFunctionController extends BaseController {
 		// Update function execute (form) and anchor (copy button) with new parameter
 		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
 		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
+		const qrAnchor = this.getTarget("qr-anchor") as HTMLAnchorElement | null;
 		if (!executeForm && !anchorButton) return;
 
 		const baseUrl =
@@ -190,6 +191,12 @@ export class ActionFunctionController extends BaseController {
 
 		executeForm?.setAttribute("action", updatedUrl);
 		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
+		// The QR is server-rendered, so editing an argument must navigate to the
+		// fresh URL rather than reveal a stale code.
+		qrAnchor?.setAttribute(
+			"href",
+			`${updatedUrl}#qr-${qrAnchor.closest("[data-action-function-name-value]")?.getAttribute("data-action-function-name-value") ?? ""}`,
+		);
 	}
 
 	// Update the qeval result

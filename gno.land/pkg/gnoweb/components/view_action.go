@@ -1,8 +1,15 @@
 package components
 
 import (
+	"bytes"
+	"encoding/base64"
+	"fmt"
 	"html/template"
+	"image/png"
 	"strings"
+
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 
 	// for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -58,6 +65,53 @@ type helpViewParams struct {
 	ComponentTOC Component
 }
 
+// helpQRSize is the rendered QR edge in pixels: large enough to scan from a
+// laptop screen, small enough that the data URI stays a few KB.
+const helpQRSize = 256
+
+// buildHelpURL is the function's help page with its args pinned:
+// `$help&func=Name&p1=v1&...`. The Execute form's action, the anchor link and
+// the QR all resolve to this one URL.
+func buildHelpURL(data HelpData, fn HelpFunction) string {
+	pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
+	var url strings.Builder
+	url.WriteString(data.Origin + pkgPath + "$help&func=" + fn.Name)
+	if len(fn.Params) > 0 {
+		url.WriteString("&")
+		for i, param := range fn.Params {
+			if i > 0 {
+				url.WriteString("&")
+			}
+			url.WriteString(param.Name + "=")
+			if val, ok := data.SelectedArgs[param.Name]; ok {
+				url.WriteString(val)
+			}
+		}
+	}
+	return url.String()
+}
+
+// buildHelpQR renders that URL as a QR, embedded as a data URI so the page
+// needs no JS encoder and works offline. The URL already carries the submitted
+// args, so the code cannot drift from what the form holds.
+func buildHelpQR(data HelpData, fn HelpFunction) (template.URL, error) {
+	code, err := qr.Encode(buildHelpURL(data, fn), qr.M, qr.Auto)
+	if err != nil {
+		return "", fmt.Errorf("unable to encode help QR: %w", err)
+	}
+	scaled, err := barcode.Scale(code, helpQRSize, helpQRSize)
+	if err != nil {
+		return "", fmt.Errorf("unable to scale help QR: %w", err)
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, scaled); err != nil {
+		return "", fmt.Errorf("unable to encode help QR PNG: %w", err)
+	}
+	// template.URL: html/template rewrites an unknown scheme in src to
+	// "#ZgotmplZ", and data: is one.
+	return template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())), nil //nolint:gosec // self-generated PNG data URI
+}
+
 func registerHelpFuncs(funcs template.FuncMap) {
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
@@ -67,24 +121,8 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return data.SelectedArgs[param.Name], nil
 	}
 
-	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
-		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		var url strings.Builder
-		url.WriteString(data.Origin + pkgPath + "$help&func=" + fn.Name)
-		if len(fn.Params) > 0 {
-			url.WriteString("&")
-			for i, param := range fn.Params {
-				if i > 0 {
-					url.WriteString("&")
-				}
-				url.WriteString(param.Name + "=")
-				if val, ok := data.SelectedArgs[param.Name]; ok {
-					url.WriteString(val)
-				}
-			}
-		}
-		return url.String()
-	}
+	funcs["buildHelpURL"] = buildHelpURL
+	funcs["buildHelpQR"] = buildHelpQR
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
 		// Extract parameter names
