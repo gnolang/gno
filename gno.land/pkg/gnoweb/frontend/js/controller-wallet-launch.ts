@@ -244,6 +244,9 @@ export class WalletLaunchController extends BaseController {
 
 		void openChooser({
 			refresh: () => this._candidates(),
+			// Re-dispatch gno:requestWallet on open: a wallet that only answers
+			// explicit requests may have missed the connect-time one.
+			onOpen: () => this._discovery.request(),
 			browser: {
 				label: "Continue in browser",
 				// Native submit; bypasses submit listeners, so no re-interception.
