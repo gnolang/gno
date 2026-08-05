@@ -1,6 +1,7 @@
 package components
 
 import (
+	"html/template"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -31,6 +32,8 @@ type HeaderData struct {
 	Remote     string
 	Mode       ViewMode
 	Static     bool
+	// Wallet registry for the GnoConnect chooser; set by EnrichHeaderData.
+	WalletsJSON template.JS
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
@@ -91,6 +94,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
+	data.WalletsJSON = WalletsJSON()
 	data.RealmPath = data.RealmURL.EncodeURL()
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	data.Links.General = nil

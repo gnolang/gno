@@ -96,6 +96,27 @@ LAYOUT - Header component
       {{ end }}
     </div>
   </nav>
+  {{/* Wallet registry and chooser, shared by controller-wallet-launch and
+       controller-connect; both read them through their own target attribute. */}}
+  <script type="application/json" data-wallet-launch-target="wallet-registry"
+    data-connect-target="wallet-registry">{{ .WalletsJSON }}</script>
+  <dialog class="b-wallet-chooser" data-wallet-launch-target="chooser" data-connect-target="chooser">
+    <div class="b-wallet-chooser__inner">
+      <h3 class="b-wallet-chooser__title" data-wallet-launch-target="chooser-title"
+        data-connect-target="chooser-title">Open with a wallet</h3>
+      <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"
+        data-connect-target="chooser-list"></ul>
+      <a class="b-wallet-chooser__install" href="/wallets">Install a compatible wallet</a>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-browser"
+        data-connect-target="chooser-browser" hidden>
+        Continue in browser
+      </button>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-cancel"
+        data-connect-target="chooser-cancel">
+        Cancel
+      </button>
+    </div>
+  </dialog>
 </header>
 {{ end }}
 
