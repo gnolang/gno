@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -596,12 +597,15 @@ func randomIndex(n int) int {
 		return 0
 	}
 
-	var randBytes [8]byte
-	if _, err := rand.Read(randBytes[:]); err != nil {
+	index, err := rand.Int(
+		rand.Reader,
+		big.NewInt(int64(n)),
+	)
+	if err != nil {
 		return 0
 	}
 
-	return int(binary.NativeEndian.Uint64(randBytes[:]) % uint64(n))
+	return int(index.Int64())
 }
 
 // calculateBackoff calculates the backoff interval by exponentiating the base interval

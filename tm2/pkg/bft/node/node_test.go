@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -367,6 +369,83 @@ func TestNodeSetAppVersion(t *testing.T) {
 	appVersion2, ok := n.nodeInfo.VersionSet.Get("app")
 	assert.True(t, ok)
 	assert.Equal(t, appVersion2.Version, appVersion)
+}
+
+// TestNodeSeedAddrs verifies the wiring of config.P2P.Seeds on the node. The
+// addresses are parsed once in NewNode and kept on the node, invalid entries
+// are dropped, and the seeds are ignored entirely when peer exchange is
+// disabled: without the discovery reactor there is no way to ask a seed for
+// peers, so the connection would serve no purpose.
+func TestNodeSeedAddrs(t *testing.T) {
+	generateSeed := func(t *testing.T, hostPort string) string {
+		t.Helper()
+
+		return p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), hostPort)
+	}
+
+	t.Run("seeds are parsed and kept on the node", func(t *testing.T) {
+		config, genesisFile := cfg.ResetTestRoot("node_seeds_parsed_test")
+		defer os.RemoveAll(config.RootDir)
+
+		seeds := []string{
+			generateSeed(t, "127.0.0.1:26656"),
+			generateSeed(t, "127.0.0.1:26657"),
+		}
+
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join(seeds, ",")
+
+		n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+		require.NoError(t, err)
+
+		require.Len(t, n.seedAddrs, len(seeds))
+
+		for index, addr := range n.seedAddrs {
+			assert.Equal(t, seeds[index], addr.String())
+		}
+	})
+
+	t.Run("invalid seed addresses are dropped", func(t *testing.T) {
+		config, genesisFile := cfg.ResetTestRoot("node_seeds_invalid_test")
+		defer os.RemoveAll(config.RootDir)
+
+		validSeed := generateSeed(t, "127.0.0.1:26656")
+
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join([]string{"not-a-seed-address", validSeed}, ",")
+
+		n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+		require.NoError(t, err)
+
+		require.Len(t, n.seedAddrs, 1)
+		assert.Equal(t, validSeed, n.seedAddrs[0].String())
+	})
+
+	t.Run("seeds are ignored when peer exchange is disabled", func(t *testing.T) {
+		config, genesisFile := cfg.ResetTestRoot("node_seeds_no_pex_test")
+		defer os.RemoveAll(config.RootDir)
+
+		config.P2P.PeerExchange = false
+		config.P2P.Seeds = generateSeed(t, "127.0.0.1:26656")
+
+		n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+		require.NoError(t, err)
+
+		assert.Empty(t, n.seedAddrs)
+	})
+
+	t.Run("no seeds configured", func(t *testing.T) {
+		config, genesisFile := cfg.ResetTestRoot("node_seeds_none_test")
+		defer os.RemoveAll(config.RootDir)
+
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = ""
+
+		n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+		require.NoError(t, err)
+
+		assert.Empty(t, n.seedAddrs)
+	})
 }
 
 func TestNodeSetPrivValTCP(t *testing.T) {
