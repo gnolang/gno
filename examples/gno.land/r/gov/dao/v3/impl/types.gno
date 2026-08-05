@@ -90,9 +90,8 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 //
 // Non-crossing: rlm is threaded into the crossing getMembers(cross(rlm))
 // call. The proposalStatus methods that compose this (votePowerPercent,
-// YesPercent etc., String) all take rlm off the first position for the same
-// reason: trailing where there is another parameter to trail, and behind the
-// `_ int` sentinel where there is not.
+// YesPercent etc., String) all take the realm last, or behind `_ int`
+// when nothing can trail it, for the same reason.
 func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	members := getMembers(cross(rlm))
 	var tp float64

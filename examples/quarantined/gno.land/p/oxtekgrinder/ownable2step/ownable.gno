@@ -9,10 +9,8 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // accept ownership before the transfer completes.
 //
 // Authority-mutating methods (TransferOwnership, AcceptOwnership,
-// DropOwnership) keep the realm off the first position, since a leading
-// realm is what marks a crossing function: trailing where there is
-// another parameter to trail, and behind the `_ int` sentinel where
-// there is not. The caller threads its own cur; the method asserts
+// DropOwnership) take the realm last, or behind `_ int` when nothing can
+// trail it. The caller threads its own cur; the method asserts
 // rlm.IsCurrent() and identifies the principal as
 // rlm.Previous().Address() — unforgeable.
 //

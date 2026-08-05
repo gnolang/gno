@@ -9,11 +9,10 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // Ownable is safe to export as a top-level object.
 //
 // Authority-mutating methods (TransferOwnership, DropOwnership) take the
-// realm off the first position, since a leading realm is what marks a
-// crossing function: trailing where there is another parameter to trail,
-// and behind the `_ int` sentinel where there is not. The caller threads
-// its own cur; the method asserts rlm.IsCurrent() and identifies the
-// principal as rlm.Previous().Address() — which must equal the current owner.
+// realm last, or behind `_ int` when nothing can trail it. The caller
+// threads its own cur; the method asserts rlm.IsCurrent() and identifies
+// the principal as rlm.Previous().Address() — which must equal the
+// current owner.
 //
 //	o.TransferOwnership(newOwner, cur)
 //	o.DropOwnership(0, cur)

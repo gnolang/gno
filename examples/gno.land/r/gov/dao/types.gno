@@ -234,11 +234,11 @@ func (e *SafeExecutor) CreationRealm() string {
 }
 
 // DAO is the govDAO implementation interface. All mutating/auth-gated
-// methods take rlm as their last parameter (the non-crossing form, since
-// only a realm in first position marks a crossing function): callers thread the proxy's
-// cur as data without forcing a realm transition, so the impl's existing
-// unsafe.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
-// continue to see the proxy realm. Render stays unchanged.
+// methods take rlm as their last parameter, which keeps them
+// non-crossing. Callers thread the proxy's cur as data without forcing a
+// realm transition, so the impl's existing unsafe.CurrentRealm()-based
+// auth gates (isValidCall, memberstore.Get) continue to see the proxy
+// realm. Render stays unchanged.
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
 	// It is intended to be used to get the address of the proposal, that

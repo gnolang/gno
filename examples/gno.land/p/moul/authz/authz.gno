@@ -183,11 +183,9 @@ func (a *Authorizer) Transfer(newAuthority Authority, rlm realm) error {
 //	auth.DoByCurrent("update_config", func() error { ... }, cur)    // current realm authorizes
 //	auth.DoByPrevious("update_config", func() error { ... }, cur)   // calling realm authorizes
 //
-// `rlm realm` trails the other parameters deliberately: only a realm in
-// first position marks a crossing function, so keeping it last leaves
-// DoByCurrent non-crossing — otherwise it would be a crossing method and
-// rlm.Previous() inside would resolve one realm deeper than the caller
-// intended.
+// `rlm realm` sits after the other parameters because it cannot sit
+// first: a leading realm reads as a crossing function, which a /p/
+// package cannot declare. The position works around that limitation.
 //
 // SECURITY: the IsCurrent guard closes Class-2 designation forgery (see
 // docs/resources/gno-security.md). A realm value's .Address() is set

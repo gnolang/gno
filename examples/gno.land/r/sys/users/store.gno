@@ -216,9 +216,9 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 //
-// rlm is the cur of the caller's enclosing crossing function (passed as
-// data as the last parameter, which keeps this non-crossing). rlm.Address() is
-// the calling realm against which we authorize.
+// rlm is the cur of the caller's enclosing crossing function, passed as
+// data in the last parameter, which keeps this non-crossing. rlm.Address()
+// is the calling realm against which we authorize.
 func (u *UserData) UpdateName(newName string, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrInvalidRealm

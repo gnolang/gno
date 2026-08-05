@@ -78,10 +78,6 @@ func Exec(fn func()) {
 
 // ExecRlm mirrors Exec but threads the caller's rlm into the callback
 // so the callback can use `cross(rlm)` instead of bare `cross`.
-// Both realms keep the `_ int` sentinel. The callback's realm is its only
-// parameter, so nothing can trail it. ExecRlm's own realm could trail `fn`,
-// but that evicts the closure from the last argument and every call site
-// ends `}, cur)`.
-func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+func ExecRlm(fn func(_ int, rlm realm), rlm realm) {
 	fn(0, rlm)
 }

@@ -5,8 +5,7 @@ import "strings"
 
 // Subpath validation grammar: '/'-separated segments of [a-z0-9], with
 // '_.-' allowed only inside a segment. try is non-crossing (its realm
-// trails sp instead of leading it) so main's cur stays the topmost
-// crossing cur.
+// comes last) so main's cur stays the topmost crossing cur.
 func try(sp string, rlm realm) {
 	defer func() {
 		if r := recover(); r != nil {
