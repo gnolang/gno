@@ -156,7 +156,7 @@ function show(dialog: HTMLDialogElement): void {
 export function openChooser(opts: {
 	refresh: () => Candidate[];
 	title?: string;
-	browser?: { label: string; onPick: () => void } | null;
+	browser?: { label: string; onPick?: () => void } | null;
 	onOpen?: () => void;
 }): Promise<Candidate | null> {
 	const dialog = el("chooser") as HTMLDialogElement | null;
