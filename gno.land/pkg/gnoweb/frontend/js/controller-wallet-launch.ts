@@ -219,11 +219,11 @@ export class WalletLaunchController extends BaseController {
 		const sign = wallet.provider?.sendTx;
 		if (typeof sign !== "function") {
 			// A wallet announcing without the tx surface is non-conforming, but
-			// gnoweb still must not dead-end: degrade to the native submit.
+			// gnoweb still must not dead-end: go where a rejection would.
 			this.warn(
 				`wallet "${wallet.info.name}" announced no sendTx; continuing in browser`,
 			);
-			(this.element as HTMLFormElement).submit();
+			this._navigate(this._helpURL());
 			return;
 		}
 
@@ -328,32 +328,23 @@ export class WalletLaunchController extends BaseController {
 			return;
 		}
 
-		// openChooser resolves null for cancel, Esc, backdrop dismissal, and the
-		// browser fallback alike, so this flag is what tells the fallback (which
-		// already navigates via the native submit) apart from an actual cancel.
-		let fallbackTaken = false;
 		void openChooser({
 			refresh: () => this._candidates(),
 			// Re-dispatch gno:requestWallet on open: a wallet that only answers
 			// explicit requests may have missed the connect-time one.
 			onOpen: () => this._discovery.request(),
-			browser: {
-				label: "Continue in browser",
-				// Native submit; bypasses submit listeners, so no re-interception.
-				onPick: () => {
-					fallbackTaken = true;
-					(this.element as HTMLFormElement).submit();
-				},
-			},
+			// Dismissing the dialog already lands on the help page with the args
+			// pinned, so the fallback needs no action of its own — it only says
+			// that out loud. Not the native submit: that rebuilds the query from
+			// the form's unnamed inputs and drops the args on the floor.
+			browser: { label: "Continue in browser" },
 		}).then((picked) => {
 			if (picked) {
 				this._pick(picked);
 				return;
 			}
-			// The native submit is already navigating; a second assign would race it.
-			if (fallbackTaken) return;
-			// Cancelling is still a navigation: nothing stays put, and the args
-			// round-trip through the URL, so nothing is lost.
+			// Cancel, Esc, backdrop, browser fallback: all still a navigation, and
+			// the args round-trip through the URL, so nothing is lost.
 			this._navigate(this._helpURL());
 		});
 	}
