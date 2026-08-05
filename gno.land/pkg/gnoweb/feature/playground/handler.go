@@ -15,8 +15,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -41,6 +46,12 @@ const (
 	// forwarded to the RPC node. Legitimate values are far smaller.
 	maxEvalPkgPathLen    = 1024
 	maxEvalExpressionLen = 64 * 1024
+
+	// maxDryRunBodyBytes caps the dry run request body to guard against memory
+	// exhaustion from oversized JSON payloads. A script that does not fit
+	// is not one the node would accept as a MsgRun either. Same bound as
+	// the eval body: both carry one JSON blob of user-authored text.
+	maxDryRunBodyBytes = maxEvalBodyBytes
 
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
@@ -180,6 +191,11 @@ func (h *Handler) FuncsHandler() http.Handler {
 	return http.HandlerFunc(h.serveFuncs)
 }
 
+// DryRunHandler returns the http.Handler for POST /_/api/dryrun.
+func (h *Handler) DryRunHandler() http.Handler {
+	return http.HandlerFunc(h.serveDryRun)
+}
+
 // evalRequest is the JSON request body for the eval endpoint.
 type evalRequest struct {
 	PkgPath    string `json:"pkg_path"`
@@ -209,6 +225,22 @@ type funcInfo struct {
 type paramInfo struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
+}
+
+// dryRunRequest is the JSON request body for the dry run endpoint.
+type dryRunRequest struct {
+	PkgPath string `json:"pkg_path"`
+	Script  string `json:"script"`
+
+	// Address is the caller the simulation runs as. serveDryRun will check
+	// that it is a bech32 address.
+	Address string `json:"address"`
+}
+
+// dryRunResponse is the JSON response for the dry run endpoint.
+type dryRunResponse struct {
+	Result string `json:"result,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
@@ -307,6 +339,90 @@ func (h *Handler) serveFuncs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// serveDryRun dry-runs the posted script: it simulates the equivalent
+// `gnokey maketx run` against the node without committing the transaction.
+func (h *Handler) serveDryRun(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Shares the eval limiter: both endpoints put work on the same node.
+	if h.limiter != nil && !h.limiter.allow(clientIP(r)) {
+		writeJSON(w, http.StatusTooManyRequests, dryRunResponse{Error: "rate limit exceeded, please slow down"})
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxDryRunBodyBytes)
+
+	var req dryRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Script == "" {
+		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "script is required"})
+		return
+	}
+
+	// We have no way to look up a key name, so require a bech32 address.
+	addr, err := crypto.AddressFromBech32(req.Address)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "address must be a bech32 address"})
+		return
+	}
+
+	h.deps.Logger.Debug("playground run", "pkg_path", req.PkgPath, "address", addr, "script_len", len(req.Script))
+
+	// XXX: Need to get these from the request
+	var send std.Coins
+	var deposit std.Coins
+	gasWanted := int64(1_000_000_000)
+	gasFee := sdk.Coin{Amount: 1000000, Denom: ugnot.Denom}
+
+	// Make a run tx.
+	memPkg := &std.MemPackage{
+		Name: "main",
+		// Path will be automatically set by handler.
+		Files: []*std.MemFile{
+			{
+				Name: "main.gno",
+				Body: req.Script,
+			},
+		},
+	}
+	msg := vm.MsgRun{
+		Caller:     addr,
+		Package:    memPkg,
+		Send:       send,
+		MaxDeposit: deposit,
+	}
+	tx := &std.Tx{
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(gasWanted, gasFee),
+		// Simulate will add the signature
+		Signatures: nil,
+	}
+
+	start := time.Now()
+	result, err := h.deps.Client.Simulate(r.Context(), tx, addr)
+	took := time.Since(start)
+
+	h.deps.Logger.Debug("playground run result", "took", took, "error", err)
+
+	if err != nil {
+		writeJSON(w, http.StatusOK, dryRunResponse{Error: err.Error()})
+		return
+	}
+	if result.IsErr() {
+		writeJSON(w, http.StatusOK, dryRunResponse{Error: result.Error.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dryRunResponse{Result: string(result.Data)})
 }
 
 // isSource reports whether a file is source code that can be displayed in the code editor.

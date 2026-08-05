@@ -1,6 +1,9 @@
 import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
 import { BaseController } from "@gnoweb/js/controller.js";
 
+// Terminates the heredoc that carries the script.
+const HEREDOC_DELIMITER = "__GNO_EOF__";
+
 export class RunController extends BaseController {
 	private declare pkgPath: string;
 	private declare pkgAlias: string;
@@ -11,8 +14,9 @@ export class RunController extends BaseController {
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
-	private declare dryRunCmdEl: HTMLElement;
-	private declare executeCmdEl: HTMLElement;
+	private declare includeScriptEl: HTMLInputElement;
+	private declare cmdEl: HTMLElement;
+	private declare resultEl: HTMLElement;
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
@@ -25,16 +29,18 @@ export class RunController extends BaseController {
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
-		this.dryRunCmdEl = this.getTarget("dryRunCmd") as HTMLElement;
-		this.executeCmdEl = this.getTarget("executeCmd") as HTMLElement;
+		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
+		this.cmdEl = this.getTarget("cmd") as HTMLElement;
+		this.resultEl = this.getTarget("result") as HTMLElement;
 
-		if (!this.editorEl || !this.dryRunCmdEl || !this.executeCmdEl) return;
+		if (!this.editorEl || !this.cmdEl) return;
 
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
 			content: this._buildTemplate(),
 			fileName: "script.gno",
 			isDarkMode: isDarkMode(),
+			onChange: () => this._updateCommand(),
 		});
 
 		this.on("theme:changed", () => {
@@ -42,7 +48,7 @@ export class RunController extends BaseController {
 		});
 
 		this._setupInputListeners();
-		this._updateCommands();
+		this._updateCommand();
 	}
 
 	private _buildTemplate(): string {
@@ -58,14 +64,15 @@ func main() {
 	}
 
 	private _setupInputListeners(): void {
-		const update = (): void => this._updateCommands();
+		const update = (): void => this._updateCommand();
 		this.keyEl.addEventListener("input", update);
 		this.gasWantedEl.addEventListener("input", update);
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
+		this.includeScriptEl.addEventListener("change", update);
 	}
 
-	private _buildCmd(dryRun: boolean): string {
+	private _buildCmd(): string {
 		const key = this.keyEl.value.trim() || "<key-name>";
 		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
 		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
@@ -83,10 +90,6 @@ func main() {
 
 		parts.push("  -broadcast");
 
-		if (dryRun) {
-			parts.push("  -simulate only");
-		}
-
 		if (this.chainId) {
 			parts.push(`  -chainid ${this.chainId}`);
 		}
@@ -99,13 +102,61 @@ func main() {
 		return parts.join(" \\\n");
 	}
 
-	private _updateCommands(): void {
-		this.dryRunCmdEl.textContent = this._buildCmd(true);
-		this.executeCmdEl.textContent = this._buildCmd(false);
+	// Wraps the editor content in a quoted heredoc so the script can be written
+	// from the same paste as the command.
+	private _buildHeredoc(): string {
+		const code = this.editor.getCode().replace(/\n+$/, "");
+		return `cat > script.gno <<'${HEREDOC_DELIMITER}'\n${code}\n${HEREDOC_DELIMITER}`;
+	}
+
+	private _updateCommand(): void {
+		const cmd = this._buildCmd();
+		this.cmdEl.textContent = this.includeScriptEl.checked
+			? `${this._buildHeredoc()}\n\n${cmd}`
+			: cmd;
 	}
 
 	public resetCode(): void {
 		this.editor.setCode(this._buildTemplate());
+	}
+
+	// Simulates the script against the remote node without broadcasting.
+	public async dryRun(): Promise<void> {
+		this._setResult("Running...", false);
+
+		try {
+			const response = await fetch("/_/api/dryrun", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					pkg_path: this.pkgPath,
+					script: this.editor.getCode(),
+					address: this.keyEl.value.trim(),
+				}),
+			});
+
+			if (response.status === 429)
+				throw new Error("rate limit exceeded — please wait a moment");
+
+			const json = await response.json();
+			if (json.error) {
+				this._setResult(`Error: ${json.error}`, true);
+			} else {
+				this._setResult(json.result || "(no output)", false);
+			}
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			this._setResult(`Error: ${msg}`, true);
+		}
+	}
+
+	private _setResult(text: string, isError: boolean): void {
+		this.resultEl.textContent = text;
+		this.resultEl.classList.toggle("u-color-danger", isError);
+	}
+
+	public clearResult(): void {
+		this._setResult("// Press Dry Run to simulate the script above", false);
 	}
 
 	public downloadCode(): void {
