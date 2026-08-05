@@ -4596,7 +4596,7 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
    fresh URL, and landing there opens the panel. */
 .b-qr {
 	display: none;
-	margin-block: 1rem;
+	margin-block: var(--g-space-4);
 }
 
 .b-qr:target {
