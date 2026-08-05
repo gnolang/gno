@@ -1,4 +1,15 @@
 /* ===== WALLETS INSTALL PAGE ===== */
+/* main > section is a ten-column grid; without a span the page would render in
+   one column, a word wide. There is no aside here, so it takes them all. */
+.b-wallets {
+	grid-column: 1 / -1;
+}
+
+/* The shared h1 centers itself for realm titles; this page reads as prose. */
+.b-wallets .b-content-h1 {
+	text-align: start;
+}
+
 .b-wallets__intro {
 	max-width: 60ch;
 	margin-block-end: 2rem;
