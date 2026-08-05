@@ -220,11 +220,17 @@ export function openChooser(opts: {
 // Reopen the chooser to say why a wallet did nothing. A request refused
 // without ever reaching a wallet screen otherwise leaves the user staring at
 // an unchanged page. `code` is the standard's enumerated reason, rendered as
-// text — nothing coming back from a wallet is trusted as markup.
-export function reportChooserError(walletName: string, err: unknown): void {
+// text — nothing coming back from a wallet is trusted as markup. Resolves
+// when the dialog closes, so a caller can navigate only once the user has
+// actually seen the message; resolves immediately if there is no dialog to
+// show, so a page without the chooser markup is never stranded.
+export function reportChooserError(
+	walletName: string,
+	err: unknown,
+): Promise<void> {
 	const dialog = el("chooser") as HTMLDialogElement | null;
 	const list = el("chooser-list");
-	if (!dialog || !list) return;
+	if (!dialog || !list) return Promise.resolve();
 
 	const code = (err as { code?: unknown })?.code;
 	const reason = typeof code === "string" ? ` (${code})` : "";
@@ -235,5 +241,8 @@ export function reportChooserError(walletName: string, err: unknown): void {
 	li.textContent = `${walletName} could not take this transaction${reason}. The gnokey command below works without a wallet.`;
 	list.appendChild(li);
 
-	if (!dialog.open) show(dialog);
+	return new Promise<void>((resolve) => {
+		dialog.addEventListener("close", () => resolve(), { once: true });
+		if (!dialog.open) show(dialog);
+	});
 }

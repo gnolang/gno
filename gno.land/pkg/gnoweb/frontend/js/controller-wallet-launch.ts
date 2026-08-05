@@ -232,7 +232,7 @@ export class WalletLaunchController extends BaseController {
 			response = await sign.call(wallet.provider, this._txRequest());
 		} catch (err) {
 			this.warn(`wallet "${wallet.info.name}" failed to sign`, err);
-			reportChooserError(wallet.info.name, err);
+			await reportChooserError(wallet.info.name, err);
 			this._navigate(this._helpURL());
 			return;
 		}
