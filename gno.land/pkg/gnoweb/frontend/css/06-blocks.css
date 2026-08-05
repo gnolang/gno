@@ -3534,3 +3534,40 @@ main.dev-mode > section:has(.c-overview-view) {
 	text-align: center;
 	text-decoration: underline;
 }
+
+/* ===== HELP PAGE QR ===== */
+/* Collapsed until its anchor is the target: the QR button navigates to the
+   fresh URL, and landing there opens the panel. */
+.b-qr {
+	display: none;
+	margin-block: 1rem;
+}
+
+.b-qr:target {
+	display: block;
+}
+
+.b-qr__code {
+	display: block;
+	width: 16rem;
+	max-width: 100%;
+	height: auto;
+	image-rendering: pixelated;
+}
+
+/* The help page is pointer-aware: a fine pointer leads with the QR, a touch
+   device leads with the app and drops the QR, which is useless on the phone
+   holding it. */
+.b-qr__touch {
+	display: none;
+}
+
+@media (pointer: coarse) {
+	.b-qr__pointer {
+		display: none;
+	}
+
+	.b-qr__touch {
+		display: block;
+	}
+}
