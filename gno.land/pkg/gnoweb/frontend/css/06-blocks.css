@@ -3540,7 +3540,7 @@ main.dev-mode > section:has(.c-overview-view) {
    fresh URL, and landing there opens the panel. */
 .b-qr {
 	display: none;
-	margin-block: 1rem;
+	margin-block: var(--g-space-4);
 }
 
 .b-qr:target {
