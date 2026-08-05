@@ -66,8 +66,15 @@ type VestingAccount interface {
 	GetOriginalVesting() Coins
 }
 
-// SpendableCoins returns the total spendable coins for a vesting account.
-// It is the total balance minus locked coins.
+// SpendableCoins returns the account's unlocked coins at blockTime, computed as
+// its own Coins minus LockedCoins.
+//
+// Scope: this sees only the coins held in the account object, i.e. genesis
+// denominations. Realm-issued balances live outside it (see
+// tm2/pkg/sdk/bank/balance.go), so this under-reports for an account holding
+// any. It has no production caller — the bank enforces vesting per denomination,
+// reading each from whichever tier holds it — and is kept for tests and external
+// callers that only deal in gas denominations.
 func SpendableCoins(va VestingAccount, blockTime time.Time) Coins {
 	locked := va.LockedCoins(blockTime)
 	balance := va.GetCoins()

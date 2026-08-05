@@ -849,6 +849,13 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
+store key, while `GetCoins(addr)` reads every denom the address holds. That
+distinction is not just an optimization. Anyone can send any address a new denom
+without its consent, so `GetCoins` on a caller-supplied address costs whatever a
+third party decided it should — enough of them and your function can no longer be
+called at all.
+
 #### Verifying inbound Coin payments
 
 A realm that wants to charge for a function typically attaches a payment check
