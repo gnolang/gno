@@ -193,10 +193,7 @@ export class ActionFunctionController extends BaseController {
 		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
 		// The QR is server-rendered, so editing an argument must navigate to the
 		// fresh URL rather than reveal a stale code.
-		qrAnchor?.setAttribute(
-			"href",
-			`${updatedUrl}#qr-${qrAnchor.closest("[data-action-function-name-value]")?.getAttribute("data-action-function-name-value") ?? ""}`,
-		);
+		qrAnchor?.setAttribute("href", `${updatedUrl}#qr-${this._funcName ?? ""}`);
 	}
 
 	// Update the qeval result
