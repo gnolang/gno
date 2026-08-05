@@ -16,6 +16,7 @@ import (
 // transpiling.
 type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	GetCoin(addr crypto.Bech32Address, denom string) int64
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
@@ -36,6 +37,10 @@ const (
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
 	coins := execctx.GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
 	return ExpandCoins(coins)
+}
+
+func X_bankerGetCoin(m *gno.Machine, bt uint8, addr string, denom string) int64 {
+	return execctx.GetContext(m).Banker.GetCoin(crypto.Bech32Address(addr), denom)
 }
 
 func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []string, amounts []int64) {

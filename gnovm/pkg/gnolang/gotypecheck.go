@@ -47,6 +47,8 @@ type realm interface {
     IsUserRun() bool
     IsEphemeral() bool
     IsCurrent() bool
+    Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm
@@ -79,7 +81,6 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
-var cross1 realm // shim — legacy sentinel migration aid; lowers to .origin-shaped AST at preprocess
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
@@ -175,6 +176,18 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
+			// Pin the accepted Go language version. Left empty, go/types gates
+			// syntax at whatever version the validator binary was built with,
+			// so the accept/reject verdict (and its error text) becomes a
+			// function of the build, not the package — a consensus fork. This
+			// is a syntax-acceptance floor only, NOT Gno's runtime semantics:
+			// Gno matches no single Go version (no generics, like <go1.18, yet
+			// go1.22 per-iteration loopvars, implemented in the interpreter
+			// regardless of this value). go1.18 is the minimum the injected
+			// .gnobuiltins shim needs (it uses any/type params) and rejects
+			// features Gno can't run (min/max, range-over-int/func) here rather
+			// than downstream.
+			GoVersion: "go1.18",
 			Error: func(err error) {
 				gimp.Error(err)
 			},

@@ -28,7 +28,7 @@
 //	token.Approve(swapAddr, 1000)
 //
 //	// Alice creates a swap with 1000 tokens for Bob
-//	id, _ := atomicswap.NewGRC20Swap(bobAddr, hashlock, "gno.land/r/demo/token")
+//	id, _ := atomicswap.NewGRC20Swap(bobAddr, hashlock, "gno.land/r/demo/token.TKN")
 //
 //	// Bob claims the swap by providing the secret
 //	atomicswap.Claim(id, "mysecret")
