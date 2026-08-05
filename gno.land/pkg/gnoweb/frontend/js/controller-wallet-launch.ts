@@ -328,6 +328,10 @@ export class WalletLaunchController extends BaseController {
 			return;
 		}
 
+		// openChooser resolves null for cancel, Esc, backdrop dismissal, and the
+		// browser fallback alike, so this flag is what tells the fallback (which
+		// already navigates via the native submit) apart from an actual cancel.
+		let fallbackTaken = false;
 		void openChooser({
 			refresh: () => this._candidates(),
 			// Re-dispatch gno:requestWallet on open: a wallet that only answers
@@ -336,13 +340,18 @@ export class WalletLaunchController extends BaseController {
 			browser: {
 				label: "Continue in browser",
 				// Native submit; bypasses submit listeners, so no re-interception.
-				onPick: () => (this.element as HTMLFormElement).submit(),
+				onPick: () => {
+					fallbackTaken = true;
+					(this.element as HTMLFormElement).submit();
+				},
 			},
 		}).then((picked) => {
 			if (picked) {
 				this._pick(picked);
 				return;
 			}
+			// The native submit is already navigating; a second assign would race it.
+			if (fallbackTaken) return;
 			// Cancelling is still a navigation: nothing stays put, and the args
 			// round-trip through the URL, so nothing is lost.
 			this._navigate(this._helpURL());
