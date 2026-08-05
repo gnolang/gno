@@ -47,9 +47,12 @@ read traffic, custom indexing, or archival history.
 ## Join a network as a full node
 
 A full node syncs a public network's blocks without taking part in
-consensus. Each network pins its own binary, genesis file, and peer
-list, so the instructions live with the network:
-[Networks → deployment files](../resources/gnoland-networks.md#deployment-files).
+consensus. Two things to read, and neither is in this section of the
+docs: the operator guide in
+[`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland),
+and the target network's own genesis, peer list, and `README.md` under
+[deployment files](../resources/gnoland-networks.md#deployment-files) —
+each network pins its own.
 
 :::warning
 Don't point a `master` build at a released network. Chains run pinned
@@ -58,25 +61,27 @@ releases; a node built from `master` will not reach consensus with them.
 
 ## Become a validator
 
-Start from the full-node setup above, then register as a validator
-candidate — getting into the set is a governance decision, not a config
-change: the network's DAO votes candidates in.
+This is not "a full node, but voted in". It's a full node behind
+sentries, signing through a remote signer (tmkms), monitored, run by an
+operator who completed the network's onboarding — identity checks
+included — and who stays reachable on Discord for upgrades and
+incidents. Then GovDAO votes; registering entitles you to nothing.
 
-- Per-network instructions live next to that network's
-  [deployment files](../resources/gnoland-networks.md#deployment-files),
-  as `README.md` or `VALIDATOR.md`.
-- [Signing with TMKMS](../validators/tmkms.md) — keep validator keys off
-  the node.
-- Sentry architectures and other operator guides: [gnops.io](https://gnops.io).
+Three places, in order:
 
-New networks and their validator onboarding are announced on
-[Discord](https://discord.gg/YFtMjWwUN7).
+- [Discord](https://discord.gg/YFtMjWwUN7) — ask for the validator role
+  in `#testnet-general`; onboarding and coordination happen there.
+- [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland)
+  — the operator documentation: sentry architecture, remote signing,
+  hardware, and the full checklist.
+- [`misc/deployments/`](../../misc/deployments)
+  — the target network's own genesis, peers, and `VALIDATOR.md`.
 
 ## Run a chain locally
 
 Here a node is the point: no network to join, no genesis to fetch — just
 `gnoland` running a single-validator chain you can break. See
-[`gno.land/cmd/gnoland`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland).
+[`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland).
 
 Install the binary with the `--full` flag of the
 [one-line installer](./install.md).
