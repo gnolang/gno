@@ -287,9 +287,11 @@ ephemeral, so a pin taken at connect time goes stale on rotation, and it names
 key material rather than the party the producer means.
 
 Pinning therefore presupposes a way to learn the address: `connect`, or in-page
-`getAccount`. A wallet that implements neither cannot be pinned against, and a
-producer holding no address simply omits `signer` — it is optional, and a request
-without it is answered by whichever account the user approves.
+`getAccount`. Every in-page wallet implements `connect`, so an in-page producer
+always has the route; an external wallet that does not answer the `connect` host
+cannot be pinned against, and a producer holding no address simply omits `signer`
+— it is optional, and a request without it is answered by whichever account the
+user approves.
 
 **What the wallet owes.** If `signer` is present the wallet MUST produce a
 transaction authorised by that identity, and MUST NOT substitute another. A
@@ -486,6 +488,28 @@ The `signer` pin, which governs both transports. Without it a page that connecte
 as one account and rendered its address will sign as whatever account the user
 has since switched to, and only find out from the chain.
 
+`connect` is the other core method: it is how a page learns *who* the user is,
+and it is what a producer must call before it can pin a `signer`.
+
+```ts
+// Ask the user which identity to act as. Discloses nothing until they agree.
+// `chainid` is optional: given, it resolves like any other request and may
+// prompt a switch; omitted, the wallet answers against the active network and
+// says which in GnoAccount.chainid. See Network resolution, step 1.
+connect(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
+
+interface GnoAccount {
+  address: string;         // bech32
+  chainid: string;         // the chain this answer was given against
+  pubkey: string | null;   // gpub, when the wallet exposes one
+}
+```
+
+**`connect` on an already-approved origin MUST resolve without prompting.** A
+page restoring a session on every navigation would otherwise throw a wallet
+popup on every page load, which makes the feature unusable. Re-approval is for
+origins the user has not already approved.
+
 #### Optional methods
 
 A wallet MAY implement more of the surface. These are the defined shapes; a page
@@ -496,12 +520,6 @@ another wallet, a launch link, or the copy-paste command — when it is absent.
 // Sign without broadcasting. The producer broadcasts; see signtx for the
 // obligations that moves. `signedtx` is base64 amino-binary, opaque.
 signTx(tx: GnoTxIntent): Promise<UserResponse<{ signedtx: string }>>;
-
-// Ask the user which identity to act as. Discloses nothing until they agree.
-// `chainid` is optional: given, it resolves like any other request and may
-// prompt a switch; omitted, the wallet answers against the active network and
-// says which in GnoAccount.chainid. See Network resolution, step 1.
-connect(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
 
 // The connected identity, without re-asking. Answered against the active
 // network; it names no chain, so it resolves none.
@@ -526,12 +544,6 @@ interface GnoBatchIntent {
   chainid?: string;      // falls back to gnoconnect:chainid
   rpc?: string;          // advisory only — see Network resolution
   signer?: string;       // bech32 identity — see The `signer` pin
-}
-
-interface GnoAccount {
-  address: string;         // bech32
-  chainid: string;         // the chain this answer was given against
-  pubkey: string | null;   // gpub, when the wallet exposes one
 }
 
 interface GnoNetwork {
@@ -609,14 +621,15 @@ they have not agreed to disclose.
 `getNetwork` failed for want of a signer sends it looking for a problem that is
 not there.
 
-**A wallet that gates MUST implement `connect`**, otherwise `not_connected` names
-no way forward and the page is simply stuck. `connect` is listed as optional
-because a wallet that gates nothing does not need it — not because a page can be
-left without a route to what it was refused.
+**Every in-page wallet MUST implement `connect`.** It is a core method, not a
+gating convenience: it is how a page learns who the user is, and a wallet that
+cannot be identified cannot be logged into or pinned against as `signer`.
+Origin-gating is one thing a wallet MAY hang off it, not the reason it exists.
+A gated wallet therefore always names a way forward from `not_connected`.
 
-**A signing request MAY carry its own approval.** `sendTx` is the core method and
-`connect` is optional, so a page may reasonably implement `sendTx` alone; a
-wallet that gates then has two conforming answers — perform the origin approval
+**A signing request MAY carry its own approval.** A page may reasonably call
+`sendTx` without having called `connect` first; a wallet that gates then has two
+conforming answers — perform the origin approval
 as part of the request (the user sees the connect approval, then the transaction
 approval), or refuse with `not_connected`. A page MUST handle both: on
 `not_connected`, call `connect` and retry. Whichever the wallet does, it MUST NOT
@@ -907,6 +920,10 @@ Asks the wallet which address the user wants to act as — the sign-in step
 before any `sendtx`. `callback` is **required**: the verb exists only to deliver an
 answer, so a request without a usable one is dropped. `state` behaves as for
 `sendtx`.
+
+Supporting this host is **required** of an external wallet. Without it a mobile
+login flow has no defined route, and the failure is silent — a launch that goes
+nowhere is indistinguishable to the producer from the user abandoning it.
 
 `chainid` is **optional** here, unlike on `sendtx` and `signtx`. Given, it is
 resolved exactly as theirs is (see Network resolution) and a `connect` may
