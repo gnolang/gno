@@ -32,6 +32,7 @@ export type ErrorCode =
 	| "network_declined"
 	| "signer_unavailable"
 	| "no_signer"
+	| "not_connected"
 	| "unsupported_host"
 	| "tx_failed";
 
@@ -55,11 +56,21 @@ export interface GnoTxRequest {
 	signer?: string;
 }
 
-// Only the method gnoweb calls is declared. It is optional: a wallet may
-// announce itself while implementing more (or less) of the standard's surface,
-// and the caller must degrade instead of assuming.
+// The identity a wallet discloses. `chainid` is the chain the answer was
+// given against, not one the page asked for.
+export interface GnoAccount {
+	address: string;
+	chainid: string;
+	pubkey: string | null;
+}
+
+// The methods gnoweb calls. `connect` is core per the standard, but a wallet
+// in the page is untrusted input like any other announcement, so every method
+// stays optional here and every call site feature-detects.
 export interface GnoWalletProvider {
 	sendTx?(tx: GnoTxRequest): Promise<UserResponse<{ hash: string }>>;
+	connect?(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
+	getAccount?(): Promise<UserResponse<GnoAccount>>;
 }
 
 export interface GnoWallet {
