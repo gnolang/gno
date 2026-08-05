@@ -478,11 +478,13 @@ Two properties are worth calling out:
 
 - the loop ticks on a fixed interval, which doubles as the minimum delay between two dial rounds. Without it, an empty
   dial queue would trigger a seed dial on every pass.
-- seeds go through the regular `DialPeers` path, so they count against `p2p.max_num_outbound_peers` like any other
-  peer. A node that already has all the outbound peers it needs has no reason to dial a seed.
+- seeds exist to fill open outbound slots, so the service does nothing while those slots are full. They go through the
+  regular `DialPeers` path, and count against `p2p.max_num_outbound_peers` like any other peer.
 
 Seeds are only wired into the `Switch` when peer discovery is enabled (`p2p.pex`). Without the discovery reactor, a
-seed connection cannot be used to request peers, which makes it pointless.
+seed connection cannot be used to request peers, which makes it pointless. A freshly dialed seed is asked for peers as
+soon as the connection is established, through `Reactor.AddPeer`, rather than waiting for the random discovery tick to
+select it.
 
 #### Events
 
@@ -636,6 +638,11 @@ This background service works in the following (albeit primitive) way:
 
 This process repeats at specific intervals. It is worth nothing that if the limit of outbound peers is reached, the peer
 dials have no effect.
+
+In addition to the interval, a discovery request is sent as soon as an outbound connection is established, through
+`Reactor.AddPeer`. Without it, a freshly dialed peer would have to wait to be picked by the random tick, which takes
+`interval x N` on average, where `N` is the size of the peer set. Inbound peers are not solicited this way: we did not
+choose them, and they are their own source of addresses.
 
 #### Bootnodes (Seeds)
 

@@ -799,6 +799,29 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.Equal(t, seedAddr, sw.dialQueue.Peek().Address)
 	})
 
+	t.Run("outbound peer limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+			WithMaxOutboundPeers(1),
+		)
+
+		// Every outbound slot is taken
+		sw.peers = &mockSet{
+			numOutboundFn: func() uint64 {
+				return 1
+			},
+		}
+
+		sw.dialSeed()
+
+		assert.Nil(t, sw.dialQueue.Peek())
+	})
+
 	t.Run("connected seed skipped", func(t *testing.T) {
 		t.Parallel()
 

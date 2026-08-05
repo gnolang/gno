@@ -541,6 +541,14 @@ func (sw *MultiplexSwitch) hasDialableItem() bool {
 // nothing left to dial. Seeds go through the regular outbound dial path, so
 // they are subject to the maximum outbound peer limit like any other peer
 func (sw *MultiplexSwitch) dialSeed() {
+	peers := sw.Peers()
+
+	// Seeds exist to fill open outbound slots. With none available,
+	// there is nothing a seed could contribute
+	if peers.NumOutbound() >= sw.maxOutboundPeers {
+		return
+	}
+
 	// Check if there is anything left to dial.
 	// As long as the switch has dialable peers, the seeds are not needed
 	if sw.hasDialableItem() {
@@ -548,10 +556,7 @@ func (sw *MultiplexSwitch) dialSeed() {
 	}
 
 	// Gather the seeds that are neither connected nor already queued
-	var (
-		peers      = sw.Peers()
-		candidates = make([]*types.NetAddress, 0)
-	)
+	candidates := make([]*types.NetAddress, 0)
 
 	sw.seeds.Range(func(key, value any) bool {
 		var (
