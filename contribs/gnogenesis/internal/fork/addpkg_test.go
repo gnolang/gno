@@ -61,7 +61,12 @@ func TestAddpkg_HappyPath(t *testing.T) {
 	assert.Equal(t, defaultDeployerAddr, msg.Creator.String())
 	require.NotNil(t, at.Metadata)
 	assert.Equal(t, int64(0), at.Metadata.BlockHeight)
-	assert.Empty(t, at.Tx.Signatures, "signatures stripped (consumer skips sig verification)")
+	// One zero-value Signature placeholder per signer — sig verification is
+	// skipped at consume time but ValidateBasic still requires the slice
+	// length to match GetSigners.
+	require.Len(t, at.Tx.Signatures, 1)
+	assert.Nil(t, at.Tx.Signatures[0].PubKey)
+	assert.Empty(t, at.Tx.Signatures[0].Signature)
 	assert.Equal(t, "addpkg: gno.land/r/test/foo", at.Reason)
 }
 

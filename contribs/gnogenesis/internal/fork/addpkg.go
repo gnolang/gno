@@ -117,8 +117,11 @@ func execAddpkg(_ context.Context, cfg *addpkgCfg, io commands.IO, args []string
 			}
 			// Set BlockHeight=0 so the emitted .jsonl is self-describing as genesis-mode.
 			tx.Metadata.BlockHeight = 0
-			// Strip signatures: consumer runs with --skip-genesis-sig-verification.
-			tx.Tx.Signatures = []std.Signature{}
+			// One zero-value Signature per signer: the consumer runs with
+			// --skip-genesis-sig-verification so sig verification never runs,
+			// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+			// equal to len(GetSigners()). Mirrors gno.land/pkg/gnoland/genesis.go.
+			tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
 			allTxs = append(allTxs, AnnotatedTx{
 				Tx:       tx.Tx,
 				Metadata: tx.Metadata,
