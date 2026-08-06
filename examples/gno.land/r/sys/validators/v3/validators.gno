@@ -66,5 +66,6 @@ func Render(string) string {
 		}
 	}
 	sb.WriteString(renderFrozen())
+	sb.WriteString(renderAutoFreeze())
 	return sb.String()
 }

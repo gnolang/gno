@@ -406,10 +406,9 @@ func doDropFrozen(op address, reason string) {
 // ---- invariants -------------------------------------------------------------
 
 // heldOutCount is how many validators this realm is currently holding
-// out of the effective valset. Phase B (autofreeze.gno) widens it to
-// cover auto-frozen entries too.
+// out of the effective valset — manually frozen plus auto-frozen.
 func heldOutCount() int {
-	return frozenSet.Size()
+	return frozenSet.Size() + autoFrozenSet.Size()
 }
 
 // heldOutPower is the voting power of everything heldOutCount covers.
@@ -419,7 +418,7 @@ func heldOutPower() uint64 {
 		total += raw.(frozenEntry).VotingPower
 		return false
 	})
-	return total
+	return total + autoFrozenPower()
 }
 
 // assertLivenessFloor panics unless at least freezeFloorNum/freezeFloorDen
