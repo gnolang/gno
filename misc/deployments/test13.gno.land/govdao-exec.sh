@@ -4,5 +4,5 @@
 export GOVDAO_LABEL="test-13"
 export GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
 export CHAIN_ID="${CHAIN_ID:-test-13}"
-export REMOTE="${REMOTE:-127.0.0.1:26657}"
+export REMOTE="${REMOTE:-https://rpc.test13.testnets.gno.land}"
 source "$(cd "$(dirname "$0")/../../govdao-scripts" && pwd)/govdao-wrapper.sh" "$@"
