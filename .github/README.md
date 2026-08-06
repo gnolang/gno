@@ -10,31 +10,32 @@
 ## Branch model
 
 ```
-master    ← pristine, auto-synced mirror of gnolang/gno:master (a bot keeps it
-            fast-forwarded; DO NOT push to it or open PRs against it)
-develop*  ← default branch: master + all in-flight security fixes + this guide
-            + the sync workflow. PRs land here.
-              │
-              ├── dev/<user>/<slug>   ─PR→ develop
-              └── dev/<user>/<slug>   ─PR→ develop
+upstream/master  ← the public gnolang/gno:master. Not mirrored here; add it as
+   (not here)      a remote and branch off it. This repo has no `master`.
+develop*         ← default branch: upstream master + all in-flight security
+                   fixes + this guide. PRs land here.
+                     │
+                     ├── dev/<user>/<slug>   ─PR→ develop
+                     └── dev/<user>/<slug>   ─PR→ develop
 (* repo default branch)
 ```
 
-- **`master`** is a hands-off mirror. A scheduled GitHub Action
-  (`.github/workflows/sync-upstream.yml`, runs from `develop`) fast-forwards it
-  from `gnolang/gno:master`. Because nothing is ever committed to it directly,
-  the sync never conflicts, and it is always a clean base to build port PRs
-  from.
+- **Fix branches are based on the public `gnolang/gno:master`**, not on any
+  branch of this repo, so a fix stays a clean commit against current upstream
+  and is cherry-pickable at port time. There used to be an auto-synced `master`
+  mirror here; it was removed (see [Notes](#notes)) — fetch upstream directly.
 - **`develop`** is where work is integrated and reviewed. It is the default
-  branch, so PRs target it automatically.
+  branch, so PRs target it automatically. Keep it current by merging
+  `upstream/master` into it.
 
 ## Working on a fix
 
-1. Branch off **`master`** (the pristine mirror), so your fix is a clean commit
+1. Branch off the public upstream `master`, so your fix is a clean commit
    against current upstream and stays cherry-pickable at port time:
    ```
-   git fetch origin
-   git switch -c dev/<user>/<short-slug> origin/master
+   git remote add upstream https://github.com/gnolang/gno.git   # once
+   git fetch upstream master
+   git switch -c dev/<user>/<short-slug> upstream/master
    ```
 2. Name the branch `dev/<user>/<slug>` — **never** put an advisory ID, bounty
    reference, or "CVE"/"vuln" wording in the branch name, commit messages, or
@@ -49,14 +50,13 @@ Fixes are ported to `gnolang/gno` in batches to obscure the 1:1 mapping to
 reports. **Each batch goes upstream as a single squashed commit** with an
 ordinary-looking message and every batch contributor credited as a co-author:
 
-1. Start from a clean checkout of `origin/master` (which equals upstream), on a
-   new branch.
+1. Start from a clean checkout of `upstream/master`, on a new branch.
 2. Bring in the fixes for this batch — cherry-pick the fix commits (by SHA) or
    `git merge --squash` their branches — but **never** include merge commits or
-   anything under `.github/`; this guide and the sync workflow are internal-only
-   and must never leave this repo.
+   anything under `.github/`; this guide is internal-only and must never leave
+   this repo.
 3. Collapse the whole batch into **one commit** (e.g. `git reset --soft
-   origin/master && git commit`).
+   upstream/master && git commit`).
 4. Write a **plausible, non-security commit message**: a normal `feat:` /
    `fix:` / `refactor:` / `perf:` that matches what the touched code does. Do
    **not** hint at a vulnerability, DoS, advisory, or "hardening" — frame it as
@@ -82,12 +82,19 @@ ordinary-looking message and every batch contributor credited as a co-author:
   (deploys, releases, CodeQL, FOSSA, the Discord/GitHub bots, and PR-hygiene
   automation) were removed from `develop` — they need secrets, deploy targets,
   or GitHub Advanced Security that this private fork doesn't have, and only
-  produced noise. `master` still carries the full upstream set, but those never
-  run there (the mirror push uses `GITHUB_TOKEN`, which doesn't trigger
-  workflows). Re-add anything here on `develop` if you want it.
+  produced noise. Re-add anything here on `develop` if you want it.
 - The `ci-*` jobs occasionally fail at the checkout step with "Repository not
   found" — a transient private-repo hiccup, not a real failure. Just re-run the
   job (`gh run rerun <id> --failed`).
-- If the sync Action ever fails, it usually means someone pushed to `master` by
-  mistake — reset `master` back to `gnolang/gno:master` and move the change onto
-  a `dev/...` branch.
+- **Why there is no `master` mirror.** A scheduled Action used to fast-forward a
+  local `master` from `gnolang/gno:master`, but it can't work with
+  `GITHUB_TOKEN`: GitHub rejects any GitHub App push that touches
+  `.github/workflows/**`, so the sync broke on every upstream commit that edited
+  a workflow. The workarounds all cost more than the mirror was worth — a PAT or
+  GitHub App token *can* push workflow files, but it is a real actor, so its
+  pushes trigger workflow runs, and `master` carries the full upstream set
+  (`ci-dir-*`, `ci-e2e`, `deploy-pages`, `release-*` all fire unfiltered on push
+  to `master`). That is a full CI plus deploy/release run every hour on billed
+  private-repo minutes, and the shared `ci-*` entries can't be disabled without
+  also disabling PR CI on `develop`. Since nothing ever PR'd against `master`,
+  it only served as a branching base — and the public repo already is one.
