@@ -81,13 +81,13 @@ func TestFreeze_RemovesOperatorFromEffectiveValset(cur realm, t *testing.T) {
 func TestFreeze_RecordsPreFreezePower(cur realm, t *testing.T) {
 	opA, _, _ := seedThreeValidators(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
-		pubKeyA + ":42", pubKeyB + ":10", pubKeyC + ":10",
+		pubKeyA + ":7", pubKeyB + ":100", pubKeyC + ":100",
 	})
 
 	doFreeze(cur, opA, "downtime")
 
 	e := mustFrozen(opA)
-	uassert.Equal(t, uint64(42), e.VotingPower, "pre-freeze power captured")
+	uassert.Equal(t, uint64(7), e.VotingPower, "pre-freeze power captured")
 	uassert.Equal(t, mustAddr(t, pubKeyA), e.SigningAddress)
 	uassert.Equal(t, "downtime", e.Reason)
 }
@@ -142,6 +142,34 @@ func TestFreeze_LivenessFloorCountsHeldOutValidators(cur realm, t *testing.T) {
 	uassert.Equal(t, 2, len(sysparams.GetValsetEffective()), "valset unchanged")
 }
 
+// A count-only floor would wave this through: three validators, freeze
+// one, 2/3 still live. But that one holds 40% of the power, so the
+// remaining 60% cannot reach the 2/3 Tendermint needs.
+func TestFreeze_PowerFloorCatchesWhatTheCountFloorMisses(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":40", pubKeyB + ":30", pubKeyC + ":30",
+	})
+
+	uassert.PanicsContains(t, cur, "would leave 60 of 100 voting power live", func() {
+		doFreeze(cur, opA, "heavyweight")
+	})
+	uassert.False(t, IsFrozen(opA))
+	uassert.Equal(t, 3, len(sysparams.GetValsetEffective()), "valset unchanged")
+}
+
+func TestFreeze_PowerFloorAllowsALightValidator(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":10", pubKeyB + ":45", pubKeyC + ":45",
+	})
+
+	doFreeze(cur, opA, "lightweight")
+
+	urequire.True(t, IsFrozen(opA))
+	uassert.Equal(t, 2, len(sysparams.GetValsetEffective()))
+}
+
 func TestFreeze_LivenessFloorMessageReportsRosterNotEffective(cur realm, t *testing.T) {
 	opA, opB, _ := seedThreeValidators(t)
 	doFreeze(cur, opA, "first")
@@ -158,7 +186,7 @@ func TestFreeze_LivenessFloorMessageReportsRosterNotEffective(cur realm, t *test
 func TestUnfreeze_RestoresAtRecordedPower(cur realm, t *testing.T) {
 	opA, _, _ := seedThreeValidators(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
-		pubKeyA + ":42", pubKeyB + ":10", pubKeyC + ":10",
+		pubKeyA + ":7", pubKeyB + ":100", pubKeyC + ":100",
 	})
 
 	doFreeze(cur, opA, "downtime")
@@ -167,7 +195,7 @@ func TestUnfreeze_RestoresAtRecordedPower(cur realm, t *testing.T) {
 	uassert.False(t, IsFrozen(opA), "frozen entry cleared")
 	powers := powerByPubKey()
 	urequire.Equal(t, 3, len(powers), "back to three validators")
-	uassert.Equal(t, uint64(42), powers[pubKeyA], "restored at pre-freeze power")
+	uassert.Equal(t, uint64(7), powers[pubKeyA], "restored at pre-freeze power")
 }
 
 // The regression this whole operator-keyed design exists for: an

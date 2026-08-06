@@ -38,8 +38,8 @@ import (
 )
 
 // Liveness floor: at least freezeFloorNum/freezeFloorDen of the full
-// validator roster must remain live after a freeze. Count-based in
-// Phase A; Phase B adds a power-weighted floor on top for the
+// validator roster — by count AND by voting power — must remain live
+// after a freeze. Phase B tightens this further for the untrusted
 // monitor-driven path.
 const (
 	freezeFloorNum = 2
@@ -319,7 +319,7 @@ func doFreeze(cur realm, op address, reason string) {
 		panic("operator is not in the effective valset: " + key)
 	}
 
-	assertLivenessFloor(len(effective))
+	assertLivenessFloor(effective, power)
 
 	frozenSet.Set(key, frozenEntry{
 		Op:             op,
@@ -412,19 +412,50 @@ func heldOutCount() int {
 	return frozenSet.Size()
 }
 
+// heldOutPower is the voting power of everything heldOutCount covers.
+func heldOutPower() uint64 {
+	total := uint64(0)
+	frozenSet.Iterate("", "", func(_ string, raw any) bool {
+		total += raw.(frozenEntry).VotingPower
+		return false
+	})
+	return total
+}
+
 // assertLivenessFloor panics unless at least freezeFloorNum/freezeFloorDen
-// of the full validator roster would still be live after one more freeze.
+// of the validator roster — by COUNT and by POWER — would still be live
+// after removing targetPower.
 //
-// effectiveCount comes from GetValsetEffective, which ALREADY excludes
-// everything this realm is holding out — so the roster is
-// effectiveCount + heldOutCount(), not effectiveCount.
-func assertLivenessFloor(effectiveCount int) {
-	roster := effectiveCount + heldOutCount()
-	live := effectiveCount - 1
+// Both checks matter. Tendermint needs >2/3 of voting POWER to make
+// progress, so under weighted voting a count-only floor is close to
+// meaningless: freezing one of three validators is fine by count and
+// halts the chain if that validator holds 40% of the power. The count
+// floor stays as a cheap backstop against a roster shrinking to a
+// handful of members.
+//
+// effective comes from GetValsetEffective, which ALREADY excludes
+// everything this realm is holding out — hence the heldOut* addends
+// that put the roster back together.
+func assertLivenessFloor(effective []validators.Validator, targetPower uint64) {
+	roster := len(effective) + heldOutCount()
+	live := len(effective) - 1
 	if live*freezeFloorDen < roster*freezeFloorNum {
 		panic(ufmt.Sprintf(
 			"freeze would leave %d of %d validators live, below the %d/%d floor",
 			live, roster, freezeFloorNum, freezeFloorDen,
+		))
+	}
+
+	livePower := uint64(0)
+	for _, v := range effective {
+		livePower += v.VotingPower
+	}
+	rosterPower := livePower + heldOutPower()
+	postFreezePower := livePower - targetPower
+	if postFreezePower*freezeFloorDen < rosterPower*freezeFloorNum {
+		panic(ufmt.Sprintf(
+			"freeze would leave %d of %d voting power live, below the %d/%d floor",
+			postFreezePower, rosterPower, freezeFloorNum, freezeFloorDen,
 		))
 	}
 }
