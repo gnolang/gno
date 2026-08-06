@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -1503,7 +1505,7 @@ func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Appli
 	prmk := params.NewParamsKeeper(mainKey)
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
@@ -3484,4 +3486,274 @@ func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState
 	}
 	require.NoError(t, doc.SaveAs(dst))
 	return dst
+}
+
+// Both genesis paths must call RecomputeSupply. Pinned through the mock rather than
+// by calling RecomputeSupply directly: a test that invokes it itself proves the
+// function works, not that InitChainer uses it, and would pass with every call site
+// deleted. Table-driven over both AppState shapes because the streaming path is a
+// separate call site, and covering only the in-memory one left it free to be dropped.
+func TestInitChainerSeedsSupply(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		appState func(t *testing.T) any
+	}{
+		{"in-memory", func(*testing.T) any {
+			def := DefaultGenState()
+			def.Balances = []Balance{{
+				Address: crypto.AddressFromPreimage([]byte("streamed-holder")),
+				Amount:  std.Coins{{Denom: ugnot.Denom, Amount: 10}},
+			}}
+			return def
+		}},
+		{"streaming", func(t *testing.T) any {
+			t.Helper()
+			// Marshalled from the same defaults the in-memory case uses, so the two
+			// cases differ only in how genesis is delivered.
+			def := DefaultGenState()
+			small := map[string]string{}
+			for k, v := range map[string]any{"auth": def.Auth, "bank": def.Bank, "vm": def.VM} {
+				bz, err := amino.MarshalJSON(v)
+				require.NoError(t, err)
+				small[k] = string(bz)
+			}
+			holder := crypto.AddressFromPreimage([]byte("streamed-holder"))
+			bal := fmt.Sprintf("%q", holder.String()+"=10ugnot")
+			ref, err := OpenGenesisStateRef(writeTestCache(t, []string{bal}, nil, small))
+			require.NoError(t, err)
+			return ref
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			seedsSupply(t, tc.appState(t))
+		})
+	}
+}
+
+func seedsSupply(t *testing.T, appState any) {
+	t.Helper()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{
+		vmk:   &mockVMKeeper{},
+		acck:  &mockAuthKeeper{},
+		bankk: bankk,
+		prmk:  &mockParamsKeeper{},
+		gpk:   &mockGasPriceKeeper{},
+	}
+	res := cfg.InitChainer(ctx, abci.RequestInitChain{AppState: appState})
+	require.Nil(t, res.Error, "InitChainer must succeed for this to mean anything")
+	require.Equal(t, 1, bankk.recomputeSupplyCalls,
+		"InitChainer must seed the supply counter from the genesis balances")
+	require.Equal(t, 1, bankk.setCoinsAtRecompute,
+		"the counter must be recomputed after every balance is applied: SetCoins does "+
+			"not maintain it, so recomputing first leaves balances with no supply record")
+}
+
+// The values RecomputeSupply seeds, and that an unseeded chain is actually reported.
+// Whether InitChainer calls it at all is TestInitChainerSeedsSupply's job: this one
+// calls it directly, so it has no opinion on the call sites.
+func TestGenesisSeedsTheSupplyCounter(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	// Both tiers, and a vesting entry — the shape where a delta hook would compute
+	// zero, which is why seeding is a sweep.
+	realm := "/gno.land/r/x/tok:c"
+	vesting := std.Coins{{Denom: ugnot.Denom, Amount: 400}}
+	for _, bal := range []Balance{
+		{Address: crypto.AddressFromPreimage([]byte("g1")), Amount: std.Coins{{Denom: ugnot.Denom, Amount: 100}}},
+		{Address: crypto.AddressFromPreimage([]byte("g2")), Amount: std.Coins{{Denom: realm, Amount: 7}, {Denom: ugnot.Denom, Amount: 250}}},
+		{Address: crypto.AddressFromPreimage([]byte("g3")), Amount: vesting, Vesting: &std.VestingSchedule{
+			OriginalVesting: vesting, StartTime: 100, EndTime: 1_000_000,
+		}},
+	} {
+		cfg.applyBalance(ctx, bal)
+	}
+
+	// Before seeding the counter is empty and the invariant says so.
+	require.Zero(t, bankk.TotalSupply(ctx, ugnot.Denom))
+	_, broken := bank.SupplyInvariant(bankk.ViewKeeper)(ctx)
+	require.True(t, broken, "unseeded supply must be reported, or the seed is untested")
+
+	cfg.bankk.RecomputeSupply(ctx)
+
+	require.Equal(t, int64(100+250+400), bankk.TotalSupply(ctx, ugnot.Denom))
+	require.Equal(t, int64(7), bankk.TotalSupply(ctx, realm))
+	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "seeded genesis state must be clean:\n%s", msg)
+}
+
+// A genesis balance list may name one address twice — they are assembled from several
+// sources, and the integration harness appends to a loaded default set. Pins what that
+// actually does, since it is easy to assume it either accumulates or errors: one
+// account survives, the last entry's amount wins, and supply seeding agrees.
+// A rejected genesis balance aborts InitChain, and the causes include a denom past
+// the length bound. The panic has to name the entry: std.ErrInvalidCoins carries its
+// detail only under %+v and a panic renders its value with %v, so a bare panic(err)
+// would say nothing but "invalid coins error" out of a genesis holding thousands.
+func TestGenesisBalanceRejectionNamesTheEntry(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("bad-genesis-entry"))
+	overlong := "/gno.land/r/x/" + strings.Repeat("z", 300) + ":c"
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: overlong, Amount: 5}}})
+	}()
+	require.NotNil(t, recovered, "a denom past the length bound must abort genesis")
+	msg := fmt.Sprintf("%v", recovered)
+	require.Contains(t, msg, addr.String(), "the panic must name the address to fix")
+	require.Contains(t, msg, overlong, "and the amount that was rejected")
+}
+
+func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("dup"))
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 100}}})
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 250}}})
+
+	acc := acck.GetAccount(ctx, addr)
+	require.NotNil(t, acc, "one account must survive")
+	require.Equal(t, int64(250), bankk.GetCoin(ctx, addr, ugnot.Denom),
+		"the later entry's amount wins; the balance is not accumulated")
+
+	// A plain entry after a vesting one must clear the schedule, or the funds stay
+	// locked until EndTime. This is why the account is recreated rather than reused.
+	vester := crypto.AddressFromPreimage([]byte("vester"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: amount, Vesting: &std.VestingSchedule{
+		OriginalVesting: amount, StartTime: 100, EndTime: 1_000_000,
+	}})
+	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
+	require.IsType(t, &GnoAccount{}, acck.GetAccount(ctx, vester),
+		"a plain entry must clear an earlier vesting schedule")
+	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
+		"and the funds must be spendable")
+
+	// Supply seeding sums what is actually held, so a repeat cannot double-count.
+	bankk.RecomputeSupply(ctx)
+	require.Equal(t, int64(250+499), bankk.TotalSupply(ctx, ugnot.Denom))
+	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
+	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
+}
+
+// TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
+// outside the balances file: a genesis transaction whose signer has no account is
+// funded so it can pay for itself. That has to mint rather than credit. The supply
+// counter is seeded from the balances before genesis txs replay, so a
+// counter-blind credit would leave the chain holding coins it has no record of,
+// and SupplyInvariant broken from block one.
+func TestGenesisSignerMintIsAccounted(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	const funding int64 = 1e15
+	deployer := crypto.AddressFromPreimage([]byte("test1"))
+	unfunded := crypto.AddressFromPreimage([]byte("genesis-signer-with-no-balance"))
+
+	appState := DefaultGenState()
+	appState.Balances = []Balance{
+		{Address: deployer, Amount: []std.Coin{{Amount: funding, Denom: "ugnot"}}},
+	}
+	appState.Txs = []TxWithMetadata{
+		{Tx: std.Tx{
+			Msgs: []std.Msg{vm.NewMsgAddPackage(deployer, "gno.land/r/demo", []*std.MemFile{
+				{Name: "demo.gno", Body: "package demo; func Hello(cur realm) string { return `hello`; }"},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/demo")},
+			})},
+			Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}},
+		}},
+		// Signed by an address with no balances entry, which is what triggers the mint.
+		{Tx: std.Tx{
+			Msgs:       []std.Msg{vm.NewMsgCall(unfunded, nil, "gno.land/r/demo", "Hello", nil)},
+			Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}},
+		}},
+	}
+
+	resp := bapp.InitChain(abci.RequestInitChain{
+		Time:            time.Now(),
+		ChainID:         "dev",
+		ConsensusParams: &abci.ConsensusParams{Block: defaultBlockParams()},
+		Validators:      []abci.ValidatorUpdate{},
+		AppState:        appState,
+	})
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+	require.NotNil(t, bapp.Commit())
+
+	// The mint must be reflected in the counter. Fees only move coins to the
+	// collector, so the total is the funded balance plus exactly what was minted.
+	qres := bapp.Query(abci.RequestQuery{Path: "bank/supply/ugnot"})
+	require.True(t, qres.IsOK(), "supply query: %v", qres)
+	require.Equal(t, strconv.Quote(strconv.FormatInt(funding+genesisSignerFunding, 10)),
+		string(qres.Data),
+		"genesis auto-funding must mint, or the counter under-records what the chain holds")
 }

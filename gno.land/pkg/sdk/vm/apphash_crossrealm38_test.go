@@ -104,7 +104,22 @@ import (
 // Behavior is unchanged for all typed values; only the constant-folding
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
-const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
+//
+// Bumped again by a doc-comment-only edit to chain/banker's package comment
+// (the NewBanker capability-persistence warning). Stdlib .gno sources are
+// stored in chain state, so their bytes — comments included — are covered by
+// the multistore root: editing a comment in a stdlib package is a
+// consensus-breaking change, even though no behavior changes. Confirmed by
+// reverting that comment alone, which restores the previous hash. No
+// executable code was touched.
+// Hash bumped by adding banker.GetCoin: the chain/banker stdlib gained an
+// interface method, a native declaration and a method body, and stdlib .gno
+// source bytes are committed into genesis state, so the multistore root moves.
+// The crossrealm38 scenario itself does not call GetCoin; the shift is purely the
+// stdlib source change and is intended. Note this is the *only* reason this
+// branch moves the pin — the balance split alone does not, because that scenario
+// holds no non-gas denom.
+const expectedCrossrealm38Hash = "914602d9e206bf666cbfdf6e28f9147317e96e2d16b665bda67ffb33b7d0e1a8"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
