@@ -161,15 +161,15 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test13
+### Sapphire / Test15
 
-The latest Gno.land testnet, released on the 15th of June, 2026.
+The latest Gno.land testnet, released on the 6th of August, 2026.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
+  - Pre-deployed packages and realms are at release tag [chain/sapphire](https://github.com/gnolang/gno/releases/tag/chain%2Fsapphire)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -177,6 +177,14 @@ The latest Gno.land testnet, released on the 15th of June, 2026.
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Topaz / Test14 (archive)
+
+Topaz (Test14) is the testnet released on the 17th of July, 2026.
+
+### Test13 (archive)
+
+Test13 is the testnet released on the 15th of June, 2026.
 
 ### Test12 (archive)
 
