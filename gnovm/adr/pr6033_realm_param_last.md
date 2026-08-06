@@ -22,8 +22,8 @@ inviteMembers(0, cur, boardID, invites...)
 ```
 
 The `0` carries no information. It exists only to occupy the position that
-would otherwise make the function crossing. It appears in 116 signatures
-and 422 call sites, and readers have to know the convention before the
+would otherwise make the function crossing. It appears in 111 signatures
+and 425 call sites, and readers have to know the convention before the
 signature parses as anything but a mistake.
 
 [#5786][issue] reports the same mechanism from the other end. A `/p/` package
@@ -73,12 +73,12 @@ rtests.ExecRlm(func(_ int, rlm realm) {
 }, cur)                 // rejected
 ```
 
-68 signatures fall in this group.
+64 signatures fall in this group.
 
 Every figure above is a difference between two revisions, re-derivable with:
 
 ```bash
-for rev in ddb752cac HEAD; do
+for rev in 242ee6f8a HEAD; do
   git grep -hE '^(func (\([^)]*\) )?[A-Za-z0-9_]+|\t[A-Za-z0-9_]+)\(_ int, (rlm|cur) realm' $rev -- '*.gno' | wc -l
   git grep -hoE '\(0, (cur|rlm|sub|crossed|callerRlm|r)[,)]|\(0, [a-zA-Z_]+\.Previous\(\)' $rev -- '*.gno' | wc -l
 done
@@ -92,7 +92,7 @@ parameter is still its workaround. The issue stays open.
 
 **Make crossing-ness depend on the parameter name.** Treat `func F(rlm realm)`
 as non-crossing and only `func F(cur realm)` as crossing. This would remove
-the sentinel everywhere, including the 186 signatures above, and would answer
+the sentinel everywhere, including the 64 signatures above, and would answer
 [#5786][issue] outright.
 
 Rejected: [`FuncType.TypeID`][typeid] is built from `UnnamedTypeID()`, so
@@ -153,10 +153,11 @@ the archives directly before trusting a green build:
 grep -rn '<FuncName>(0, ' --include=*.txtar --include=*.md .
 ```
 
-Two things the CI jobs do not say on their own. `go test ./...` in `gnovm/`
-fails `TestFiles/types/*` and `TestTranspile/*` here, and fails the same set
-on `ddb752cac` with no diff applied, so that red predates this change. The
-gno2go job was not reproduced locally; it needs a full Go build of the
+Two things the CI jobs do not say on their own. `go test ./...` in `gnovm/` is
+green here and green on `242ee6f8a` with no diff applied, run under the Go
+version `go.mod` pins; a newer local toolchain drifts `go/types` message text
+and reddens `TestFiles/types/*` and `TestTranspile/*` on both revisions alike.
+The gno2go job was not reproduced locally; it needs a full Go build of the
 transpiled tree.
 
 `gno lint` is what caught both signature desynchronisations this change made
