@@ -226,11 +226,8 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 
 	// wtests nil runs every pass; a pointer to false stops after the
 	// production pass (see ProdOnly).
-	var wtests *bool
-	if opts.ProdOnly {
-		wtests = new(bool)
-	}
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
+	wtests := !opts.ProdOnly
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, &wtests)
 	return
 }
 
