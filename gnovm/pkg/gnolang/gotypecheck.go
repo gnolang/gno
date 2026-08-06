@@ -224,10 +224,17 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	// wtests nil runs every pass; a pointer to false stops after the
-	// production pass (see ProdOnly).
-	wtests := !opts.ProdOnly
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, &wtests)
+	// wtests is three-state and must NOT be collapsed to !opts.ProdOnly:
+	// nil stops nowhere (prod, w/ tests, xxx_test and _filetest all run),
+	// a pointer to false stops after the production pass (see ProdOnly),
+	// and a pointer to TRUE stops after the with-tests pass — which would
+	// silently drop the xxx_test and _filetest passes for `gno test`,
+	// `gno lint` and the gnovm test harness.
+	var wtests *bool
+	if opts.ProdOnly {
+		wtests = new(bool)
+	}
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
 	return
 }
 
