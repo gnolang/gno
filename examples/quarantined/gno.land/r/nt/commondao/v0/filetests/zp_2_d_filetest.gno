@@ -21,21 +21,16 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowChildren(true)
-	options.SetAllowSubDAOPorposals(true)
-
-	daoID = dao.ID()
 }
 
 func main(cur realm) {
 	// Call with a user that is not a member of the DAO
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross(cur), daoID, "", "")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, "", "Purpose", "", "")
 }
 
 // Error:
-// caller is not a DAO member
+// caller is not a council member

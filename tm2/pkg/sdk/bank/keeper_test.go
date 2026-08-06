@@ -145,7 +145,7 @@ func TestViewKeeper(t *testing.T) {
 
 	env := setupTestEnv()
 	ctx := env.ctx
-	view := NewViewKeeper(env.acck)
+	view := NewViewKeeper(env.acck, env.key, accountTierTestDenoms)
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
@@ -172,8 +172,11 @@ func setupSessionCtx(t *testing.T, env testEnv, masterCoins, spendLimit std.Coin
 	t.Helper()
 	masterAddr := crypto.AddressFromPreimage([]byte("master"))
 	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(masterCoins)
 	env.acck.SetAccount(env.ctx, masterAcc)
+	// Seed through the bank, not acc.SetCoins: the bank routes each denom to
+	// whichever tier owns it, and writing the account object directly would put
+	// split-tier denoms where nothing reads them.
+	require.NoError(t, env.bankk.SetCoins(env.ctx, masterAddr, masterCoins))
 
 	sessionPub := crypto.AddressFromPreimage([]byte("session"))
 	// ProtoBaseSessionAccount creates a *BaseSessionAccount directly.
@@ -269,7 +272,7 @@ func TestSessionInputOutputCoinsPerInput(t *testing.T) {
 	// session-scoped and should pass freely.
 	otherAddr := crypto.AddressFromPreimage([]byte("other"))
 	otherAcc := env.acck.NewAccountWithAddress(ctx, otherAddr)
-	otherAcc.SetCoins(std.NewCoins(std.NewCoin("foo", 500)))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, otherAddr, std.NewCoins(std.NewCoin("foo", 500))))
 	env.acck.SetAccount(ctx, otherAcc)
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
@@ -314,6 +317,33 @@ func TestSessionSendCoinsUnrestrictedBypasses(t *testing.T) {
 	assert.Equal(t, int64(900), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
 }
 
+// TestSendCoinsUnrestrictedCreditsNothingWhenTheDebitFails pins debit-before-credit
+// on the one path that bypasses every other check. sendCoins' equivalent guard is
+// pinned by the suite; this one was not, and it is the path that collects gas, so a
+// debit error swallowed here would credit the collector out of nothing.
+func TestSendCoinsUnrestrictedCreditsNothingWhenTheDebitFails(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	from := crypto.AddressFromPreimage([]byte("unrestricted-payer"))
+	to := crypto.AddressFromPreimage([]byte("unrestricted-collector"))
+	require.NoError(t, env.bankk.AddCoins(ctx, from, std.NewCoins(std.NewCoin("foo", 100))))
+
+	// A send within the balance moves coins, so this cannot pass against a
+	// SendCoinsUnrestricted that refuses everything.
+	require.NoError(t, env.bankk.SendCoinsUnrestricted(ctx, from, to, std.NewCoins(std.NewCoin("foo", 40))))
+	require.Equal(t, int64(60), env.bankk.GetCoin(ctx, from, "foo"))
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, to, "foo"))
+
+	// 61 > 60, so the debit fails; the credit must not happen regardless.
+	err := env.bankk.SendCoinsUnrestricted(ctx, from, to, std.NewCoins(std.NewCoin("foo", 61)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insufficient")
+	require.Equal(t, int64(60), env.bankk.GetCoin(ctx, from, "foo"), "sender must be untouched")
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, to, "foo"), "recipient must not be credited")
+}
+
 // TestNonSessionSendCoinsNoOp verifies the hook no-ops for txs that don't
 // carry a session map in ctx (master-signed, all other non-session txs).
 func TestNonSessionSendCoinsNoOp(t *testing.T) {
@@ -323,9 +353,8 @@ func TestNonSessionSendCoinsNoOp(t *testing.T) {
 	ctx := env.ctx // no SessionAccountsContextKey
 
 	addr := crypto.AddressFromPreimage([]byte("addr"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 1000)))
-	env.acck.SetAccount(ctx, acc)
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	require.NoError(t, env.bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foo", 1000))))
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
 	require.NoError(t, env.bankk.SendCoins(ctx, addr, recipient, std.NewCoins(std.NewCoin("foo", 500))))
@@ -483,9 +512,8 @@ func TestSessionHighWaterMarkAfterRefund(t *testing.T) {
 	// Give the "refund source" a balance so SendCoinsUnrestricted can
 	// credit master without requiring minting.
 	refundSrc := crypto.AddressFromPreimage([]byte("storage-deposit-addr"))
-	acc := env.acck.NewAccountWithAddress(ctx, refundSrc)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 500)))
-	env.acck.SetAccount(ctx, acc)
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, refundSrc))
+	require.NoError(t, env.bankk.SetCoins(ctx, refundSrc, std.NewCoins(std.NewCoin("foo", 500))))
 
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
 
@@ -680,6 +708,13 @@ func TestBankKeeperSendCoinsZero(t *testing.T) {
 
 	// Seed `from` with a restricted denom so we can prove the restriction
 	// check is bypassed for zero-amount sends.
+	//
+	// "rstr" is load-bearing beyond being a placeholder: it is not in the account-tier
+	// allowlist, so it is a split-tier denom, and this is the only test that restricts
+	// one. That makes it the thing standing between a tier-blind restriction check and
+	// a silent bypass — restricting a realm-issued token would stop working, since
+	// canSendCoins matches on the denom name and must not consult either tier.
+	// Replacing it with a gas denom would drop that coverage without failing anything.
 	bankk.SetCoins(ctx, from, std.NewCoins(std.NewCoin("rstr", 100)))
 	env.prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"rstr"})
 	require.Contains(t, bankk.GetParams(ctx).RestrictedDenoms, "rstr")
