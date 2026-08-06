@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # govdao wrapper for topaz.
-# Usage: ./govdao [command] [args...]
+# Usage: ./govdao-exec.sh [command] [args...]
 export GOVDAO_LABEL="topaz"
 export GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
 export CHAIN_ID="${CHAIN_ID:-topaz-1}"
