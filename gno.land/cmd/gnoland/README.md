@@ -14,13 +14,17 @@ and testing contracts you want [gnodev](../../../contribs/gnodev), not this.
 
 ## Install
 
+Building from source requires **Go 1.25+**, `git`, and `make` — see
+[install.md](../../../docs/builders/install.md) for details and troubleshooting.
+
 ```bash
 git clone git@github.com:gnolang/gno.git
 cd gno/gno.land
 make install.gnoland
 ```
 
-Or, with the one-line installer (`--full` adds `gnoland` to the toolchain):
+Or, with the one-line installer, which downloads a prebuilt binary and needs no
+Go toolchain (`--full` adds `gnoland`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full
@@ -43,12 +47,22 @@ To do the same thing step by step — which is what you need for any real
 deployment — generate the pieces yourself:
 
 ```bash
-gnoland config init                      # writes a default config.toml
-gnoland secrets init                     # generates validator + node keys
+gnoland config init                       # writes a default config.toml
+gnoland secrets init                      # generates validator + node keys
 gnoland config set <key> <value>          # edit config.toml
+gnoland config get <key>                  # read a value back
 gnoland secrets get node_id.p2p_address   # your node's dialable p2p address
-gnoland start -chainid <id> -genesis genesis.json
+gnoland start -chainid <id> -genesis genesis.json -log-level info
 ```
+
+To build a genesis file yourself — adding validators, balances, or transactions
+— use [`gnogenesis`](../../../contribs/gnogenesis), a dedicated CLI for
+generating and manipulating `genesis.json`.
+
+> ⚠️ **Set `-log-level info` on any node you leave running.** The default is
+> `debug`, which writes enough to fill a disk: one operator reported 1.3 TB of
+> logs on a testnet node
+> ([#5903](https://github.com/gnolang/gno/issues/5903)). Rotate your logs too.
 
 Flags worth knowing on `gnoland start`:
 
@@ -57,10 +71,10 @@ Flags worth knowing on `gnoland start`:
 | `-lazy` | Generate secrets, config, and genesis if missing (local dev only) |
 | `-genesis` | Path to `genesis.json` (default `genesis.json`) |
 | `-chainid` | Chain ID; must match the network's exactly (default `dev`) |
-| `-data-dir` | Node data directory |
+| `-data-dir` | Node data directory (default `gnoland-data`) |
+| `-log-level` | `debug`, `info`, `warn`, `error` — **default `debug`**, see above |
 | `-skip-genesis-sig-verification` | Don't panic on genesis txs with invalid signatures |
 | `-skip-failing-genesis-txs` | Don't panic when a genesis tx fails to replay |
-| `-log-level` | `debug`, `info`, `warn`, `error` |
 
 `gnoland start -h` lists the rest. `gnoland config init -h` and
 `gnoland secrets init -h` do the same for those subcommands.
@@ -68,6 +82,28 @@ Flags worth knowing on `gnoland start`:
 Released networks generally require `-skip-genesis-sig-verification`: some
 genesis transactions carry placeholder or intentionally-invalidated signatures,
 and the node panics on startup without it.
+
+### Config keys worth setting
+
+`config.toml` is large; these are the ones that matter for a node that joins a
+network. Set them with `gnoland config set <key> <value>`.
+
+| Key | What it does |
+|-----|--------------|
+| `moniker` | Human-readable node name, shown to peers |
+| `p2p.laddr` | P2P listen address (default `tcp://0.0.0.0:26656`) |
+| `p2p.external_address` | Your public `host:26656` — without it, peers cannot dial you back |
+| `p2p.persistent_peers` | Comma-separated `<node-id>@<host>:26656` list to stay connected to |
+| `p2p.pex` | Peer exchange: `true` to discover peers, `false` on a validator behind sentries |
+| `p2p.private_peer_ids` | Peer IDs never gossiped to others — a sentry's validator |
+| `p2p.max_num_outbound_peers` | Outbound peer cap, excluding persistent peers |
+| `rpc.laddr` | RPC listen address (default `tcp://127.0.0.1:26657`) — keep off the public internet |
+| `mempool.size` | Max transactions held in the mempool |
+| `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
+| `consensus.timeout_commit` | Chain-wide; must match the network |
+
+Networks pin several of these; always start from the `config.toml` in the
+network's deployment directory rather than from the defaults.
 
 ## Join an existing network
 
@@ -151,36 +187,55 @@ This is the expected setup for anything with material slashing risk.
 
 ## Hardware
 
-At least **16 GB RAM**. Node startup temporarily exceeds 8 GB while executing
-genesis. Prefer NVMe storage: the node's bottleneck is disk.
+**RAM: 16 GB minimum.** Node startup temporarily exceeds 8 GB while executing
+genesis, so a box sized for steady state alone will OOM on first boot.
+
+**Storage: NVMe, not spinning disk or network storage.** The node's bottleneck
+is disk I/O, and consensus is latency-sensitive — a slow disk shows up as missed
+blocks, not as a slow node. Size it for growth: the data directory grows with
+chain history, and `application.prune_strategy = nothing` (needed for historical
+queries) means it never shrinks. Budget for logs separately, and set
+`-log-level info` — see the warning above.
 
 Per-network requirements, when they differ, are in that network's deployment
 directory.
 
 ## Become a validator
 
-Running the node is the easy half. Joining a validator set is a *process*, not a
-deployment, and it is gated on people rather than on config:
+Running the node is the easy half. Joining a validator set is a *process*, and
+it ends in a governance vote rather than a config change.
 
-1. **Join [Discord](https://discord.gg/YFtMjWwUN7)** and ask for the validator
-   role in `#testnet-general`. This is not only where launches are announced —
-   it's where coordination during upgrades, incidents, and valset changes
-   happens, and operators are expected to be reachable there.
-2. **Complete the onboarding checks** the network requires, including identity
-   verification (KYC) where applicable.
-3. **Run the node properly** — sentries, tmkms, monitoring. See the sections
-   above.
-4. **Sync a full node** on the target network, following its
-   [deployment directory](../../../misc/deployments).
-5. **Register a valoper profile** on-chain, per that network's `VALIDATOR.md`.
+Get the node right **first** — the review team checks that your node is synced
+on the network before approving anything, so starting the paperwork early just
+means waiting twice.
+
+1. **Run the node properly.** Sentries, remote signing, monitoring, log rotation
+   — see the sections above.
+2. **Sync a full node** on the target network, following its
+   [deployment directory](../../../misc/deployments). Wait until
+   `/status` reports `catching_up: false`.
+3. **Start onboarding on [Discord](https://discord.gg/YFtMjWwUN7).** Run
+   `/candidate-testnet` in `#general-chat`. The bot assigns you the *Testnet
+   Validator Candidate* role and opens access to `#testnet-onboarding`.
+4. **Follow the pinned instructions** in `#testnet-onboarding`, which include
+   registering your valoper profile on-chain through the
+   [`r/gnops/valopers`](../../../examples/gno.land/r/gnops/valopers) realm.
+5. **Run `/submit-request`** in `#testnet-onboarding` with your operator
+   address. The team reviews it and either grants the *Testnet Validator* role
+   or tells you what is still missing.
 6. **Get voted in.** Entering the set is a GovDAO decision. Registering does not
    entitle you to a slot, on a testnet or on mainnet.
 
-Skipping steps 1 and 2 is the usual reason a technically-fine node never makes
-it into a set.
+The `#testnet-*` channels are only visible once you hold the candidate or
+validator role, so step 3 is what unlocks the rest. Current instructions are
+announced in `#announcements` and `#general-chat`.
+
+Mainnet onboarding will differ; ask on Discord rather than assuming this flow
+carries over.
 
 ## Getting help
 
-Ask on [Discord](https://discord.gg/YFtMjWwUN7). For node operation, the
-testnet channels are the right place; say which network and paste your
-`config.toml` diff from the network's default.
+Ask on [Discord](https://discord.gg/YFtMjWwUN7) — `#general-chat` if you don't
+hold a testnet role yet, the `#testnet-*` channels once you do. Say which
+network you're on and paste your `config.toml` diff from that network's default;
+that is usually enough to answer in one round-trip.

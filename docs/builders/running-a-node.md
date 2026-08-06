@@ -61,21 +61,25 @@ releases; a node built from `master` will not reach consensus with them.
 
 ## Become a validator
 
-This is not "a full node, but voted in". It's a full node behind
-sentries, signing through a remote signer (tmkms), monitored, run by an
-operator who completed the network's onboarding — identity checks
-included — and who stays reachable on Discord for upgrades and
-incidents. Then GovDAO votes; registering entitles you to nothing.
+This is not "a full node, but voted in". Expect to run that node behind
+sentries, sign through a remote signer such as
+[tmkms](../../gno.land/cmd/gnoland/TMKMS.md), monitor it, and go through
+an onboarding process on Discord that ends in a GovDAO vote. None of
+that is enforced by the software, but the review team checks your node
+is synced before approving you, and registering entitles you to nothing.
 
-Three places, in order:
+Get the node running first, then start onboarding. Two places:
 
-- [Discord](https://discord.gg/YFtMjWwUN7) — ask for the validator role
-  in `#testnet-general`; onboarding and coordination happen there.
-- [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland)
-  — the operator documentation: sentry architecture, remote signing,
-  hardware, and the full checklist.
-- [`misc/deployments/`](../../misc/deployments)
-  — the target network's own genesis, peers, and `VALIDATOR.md`.
+- [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland) — the operator
+  documentation: sentry architecture, remote signing, hardware, and the
+  step-by-step onboarding process, which is kept up to date there rather
+  than duplicated here.
+- [`misc/deployments/`](../../misc/deployments) — the target network's
+  own genesis, peers, and `VALIDATOR.md`.
+
+Onboarding starts in `#general-chat` on
+[Discord](https://discord.gg/YFtMjWwUN7); the `#testnet-*` channels only
+become visible once you hold a candidate or validator role.
 
 ## Run a chain locally
 

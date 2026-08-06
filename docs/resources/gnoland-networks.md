@@ -161,18 +161,26 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](../../misc/loop) folder in the
     monorepo
 
-### Test13
+### Topaz / Test14
 
-The latest Gno.land testnet, released on the 15th of June, 2026.
+The latest Gno.land testnet, and the one to use unless you have a reason not to.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
+  - Pre-deployed packages and realms are at release tag [chain/topaz](https://github.com/gnolang/gno/releases/tag/chain%2Ftopaz)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
+- **Versioning strategy:**
+  - Cut from the [`chain/topaz`](https://github.com/gnolang/gno/tree/chain/topaz)
+    branch; deployment files under
+    [`misc/deployments/topaz.gno.land`](https://github.com/gnolang/gno/tree/chain/topaz/misc/deployments/topaz.gno.land)
+
+### Test13 (archive)
+
+Test13 was released on the 15th of June, 2026, and superseded by Topaz / Test14.
 
 ### TestX
 
