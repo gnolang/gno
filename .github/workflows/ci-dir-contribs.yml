@@ -3,7 +3,7 @@ name: ci / contribs
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     paths:
       - contribs/**

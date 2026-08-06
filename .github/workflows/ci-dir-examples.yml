@@ -3,7 +3,7 @@ name: ci / examples
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     paths:
       - gnovm/**

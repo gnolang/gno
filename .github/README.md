@@ -78,7 +78,10 @@ ordinary-looking message and every batch contributor credited as a co-author:
 ## Notes
 
 - CI runs the inherited gno `ci-*` test workflows on PRs to `develop`, so fixes
-  are tested against real upstream code. The **upstream-only** workflows
+  are tested against real upstream code. Their upstream `push: branches:
+  [master]` triggers were repointed at `develop`, so merging a PR also runs the
+  full suite (the `ci-dir-*` push triggers have no path filter, by design
+  upstream). The **upstream-only** workflows
   (deploys, releases, CodeQL, FOSSA, the Discord/GitHub bots, and PR-hygiene
   automation) were removed from `develop` — they need secrets, deploy targets,
   or GitHub Advanced Security that this private fork doesn't have, and only

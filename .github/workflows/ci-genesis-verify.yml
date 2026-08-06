@@ -3,7 +3,7 @@ name: ci / genesis-verify
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     paths:
       - "misc/deployments/**/genesis.json"

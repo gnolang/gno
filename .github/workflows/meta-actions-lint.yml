@@ -3,7 +3,7 @@ name: meta / actions-lint
 on:
   push:
     branches:
-      - master
+      - develop
     paths:
       - .github/workflows/**
   pull_request:
