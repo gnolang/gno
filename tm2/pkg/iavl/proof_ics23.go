@@ -26,6 +26,13 @@ func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, 
 
 // VerifyMembership returns true iff proof is an ExistenceProof for the given key.
 func (t *ImmutableTree) VerifyMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	// Reject a nil / nil-inner / wrong-type proof before handing it to ics23,
+	// which nil-derefs on a hand-built CommitmentProof{Exist: nil}. Not reachable
+	// from a wire-decoded proof (Unmarshal always allocates the inner); mirrors
+	// the bptree wrapper guard and keeps this independent of ics23 internals.
+	if proof.GetExist() == nil {
+		return false, fmt.Errorf("proof is not an existence proof")
+	}
 	val, err := t.Get(key)
 	if err != nil {
 		return false, err
@@ -90,6 +97,12 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 
 // VerifyNonMembership returns true iff proof is a NonExistenceProof for the given key.
 func (t *ImmutableTree) VerifyNonMembership(proof *ics23.CommitmentProof, key []byte) (bool, error) {
+	// Reject a nil / nil-inner / wrong-type proof before handing it to ics23,
+	// which nil-derefs on a hand-built CommitmentProof{Nonexist: nil}. Not
+	// reachable from a wire-decoded proof; mirrors the bptree wrapper guard.
+	if proof.GetNonexist() == nil {
+		return false, fmt.Errorf("proof is not a non-existence proof")
+	}
 	root := t.Hash()
 
 	return ics23.VerifyNonMembership(ics23.IavlSpec, root, proof, key), nil

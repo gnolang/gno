@@ -1,0 +1,157 @@
+# End-to-end commondao treasury test against the real bank keeper.
+#
+# The realm filetests exercise the same flows against the in-memory
+# TestBanker; this drives them through a real node so the production
+# SDKBanker path is proven: a real bank send funds a DAO's derived
+# sub-realm address, governance passes a spend, and the executor's
+# RealmSend banker genuinely debits the DAO account and credits the
+# destination. A clawback then moves coins DAO-to-DAO the same way.
+
+loadpkg gno.land/r/nt/commondao/v0
+
+# Make test1 the sole genesis council member (the two hardcoded members
+# collapse into a one-address set, so a single YES is a supermajority).
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
+
+gnoland start
+
+# --- Spend: fund the genesis DAO treasury with a real bank send ---
+
+# dao/1 derived address: chain.DerivePkgSubAddr("gno.land/r/nt/commondao/v0", "dao/1")
+gnokey maketx send -send 1000000ugnot -to g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query bank/balances/g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62
+stdout '1000000ugnot'
+
+# Overdrawn spends are rejected at proposal creation.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 1 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 2000000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stderr 'insufficient treasury balance'
+
+# Council passes a 400000ugnot spend to a fresh (unfunded) address, so
+# the balance assertions are exact rather than substrings of a
+# genesis-funded account.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 1 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 400000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The real bank keeper debited the DAO and credited the destination.
+gnokey query bank/balances/g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62
+stdout '600000ugnot'
+
+gnokey query bank/balances/g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2
+stdout '400000ugnot'
+
+# --- Clawback: DAO-to-DAO movement depletes the source treasury ---
+
+# test1 (genesis council) invites itself and creates a root DAO (id 2),
+# then creates a sub-DAO (id 3) through the constitutional proposal flow
+# (proposal 1 on DAO 2: propose, vote, execute).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'Root' -args 'Purpose' -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateSubDAOProposal -args 2 -args 'Child' -args 'Purpose' -args '' -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Fund the child DAO's treasury (dao/3 derived address).
+gnokey maketx send -send 750000ugnot -to g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query bank/balances/g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
+stdout '750000ugnot'
+
+# The parent passes a clawback of the child's treasury (proposal 2 on DAO 2).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasuryClawbackProposal -args 2 -args 3 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 2 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The child's treasury was swept into the parent's: source empty (the
+# account holds nothing), destination credited in full.
+gnokey query bank/balances/g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
+! stdout 'ugnot'
+
+# dao/2 derived address receives the swept 750000ugnot.
+gnokey query bank/balances/g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2
+stdout '750000ugnot'
+
+# --- Freeze, sub-DAO spend, and dissolution sweep on the real node ---
+
+# Re-fund the child and freeze it from the parent (proposal 3 on DAO 2).
+gnokey maketx send -send 100000ugnot -to g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasuryFreezeProposal -args 2 -args 3 -args true -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 3 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 3 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Frozen treasuries reject spend proposals.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 3 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 100000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stderr 'DAO treasury is frozen'
+
+# The parent unfreezes (proposal 4 on DAO 2) and the child spends its own
+# treasury: the first spend executor run on a runtime-created sub-DAO.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasuryFreezeProposal -args 2 -args 3 -args false -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 4 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 4 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 3 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 40000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 3 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 3 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query bank/balances/g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
+stdout '60000ugnot'
+
+gnokey query bank/balances/g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2
+stdout '440000ugnot'
+
+# Dissolving the child sweeps its remaining balance to the parent through
+# the real bank keeper (proposal 5 on DAO 2).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateDissolutionProposal -args 3 -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 5 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 5 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query bank/balances/g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
+! stdout 'ugnot'
+
+gnokey query bank/balances/g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2
+stdout '810000ugnot'

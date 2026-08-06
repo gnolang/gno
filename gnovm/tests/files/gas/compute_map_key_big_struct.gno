@@ -6,11 +6,11 @@ type Boom struct {
 }
 
 type OuterBoom struct {
-	A    [2000]Boom
-	B    [2000]Boom
-	C    [2000]Boom
-	D    [2000]Boom
-	E    [2000]Boom
+	A [2000]Boom
+	B [2000]Boom
+	C [2000]Boom
+	D [2000]Boom
+	E [2000]Boom
 }
 
 func main() {

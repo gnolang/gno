@@ -1,7 +1,6 @@
 package minisocial
 
 import (
-	"github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"strings"
 	"testing"
 

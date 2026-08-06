@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"runtime"
 	"testing"
 
 	tm2merkle "github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -141,6 +142,54 @@ func TestVerifySimpleProofWrongRoot(t *testing.T) {
 	aunts := flattenAunts(proof.Aunts)
 	if X_verifySimpleProof(wrongRoot, []byte("a"), proof.Index, proof.Total, aunts) {
 		t.Fatal("wrong root should not verify")
+	}
+}
+
+// decodeByteSlices must reject a count larger than the payload can possibly
+// contain BEFORE allocating make([][]byte, count), so a tiny input cannot
+// force a huge host allocation (native gas is charged by encoded length only).
+// A 4-byte input claiming count=1<<20 must return (nil,false) and must not
+// allocate megabytes.
+func TestDecodeByteSlicesHugeCountRejected(t *testing.T) {
+	encoded := []byte{0x00, 0x10, 0x00, 0x00} // count = 1<<20, no items
+
+	if items, ok := decodeByteSlices(encoded); ok || items != nil {
+		t.Fatalf("expected (nil,false) for over-large count, got ok=%v len=%d", ok, len(items))
+	}
+
+	// Allocation guard: a 4-byte input must not allocate megabytes.
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	_ = X_hashFromByteSlices(encoded)
+	runtime.ReadMemStats(&after)
+	if d := after.TotalAlloc - before.TotalAlloc; d > 1<<20 {
+		t.Fatalf("allocated %d bytes from a %d-byte input (expected < 1 MiB)", d, len(encoded))
+	}
+}
+
+// Exact-fit boundary: count == len(b)/4 (all zero-length items) is the maximum
+// valid encoding and must be accepted — locks in `>` (not `>=`).
+func TestDecodeByteSlicesExactFitBoundary(t *testing.T) {
+	encoded := encodeItems([][]byte{{}, {}}) // count=2, both zero-length: exact fit
+	if items, ok := decodeByteSlices(encoded); !ok || len(items) != 2 {
+		t.Fatalf("expected ok with 2 empty items, got ok=%v len=%d", ok, len(items))
+	}
+}
+
+// A valid encoding with data still decodes correctly (no regression).
+func TestDecodeByteSlicesValid(t *testing.T) {
+	encoded := encodeItems([][]byte{{0xAA, 0xBB, 0xCC}})
+	items, ok := decodeByteSlices(encoded)
+	if !ok || len(items) != 1 || !bytes.Equal(items[0], []byte{0xAA, 0xBB, 0xCC}) {
+		t.Fatalf("valid decode failed: ok=%v items=%v", ok, items)
+	}
+}
+
+// count == 0 -> empty result, ok == true.
+func TestDecodeByteSlicesZeroCount(t *testing.T) {
+	if items, ok := decodeByteSlices([]byte{0x00, 0x00, 0x00, 0x00}); !ok || len(items) != 0 {
+		t.Fatalf("expected ok with 0 items, got ok=%v len=%d", ok, len(items))
 	}
 }
 

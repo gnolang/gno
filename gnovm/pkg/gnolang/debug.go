@@ -6,6 +6,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -49,13 +50,16 @@ func init() {
 	}
 }
 
-// runtime debugging flag.
+// runtime debugging flag. Toggled by EnableDebug/DisableDebug (e.g. filetests
+// mute it during realm setup) and read only inside `if debug` blocks. It is
+// atomic because the parallel test suites toggle it from multiple goroutines.
+var enabled atomic.Bool
 
-var enabled bool = true
+func init() { enabled.Store(true) }
 
 func (debugging) Println(args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -66,7 +70,7 @@ func (debugging) Println(args ...any) {
 
 func (debugging) Printf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -82,7 +86,7 @@ var derrors []string = nil
 // test, and the file test fails if any unexpected debug errors were found.
 func (debugging) Errorf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			derrors = append(derrors, fmt.Sprintf(format, args...))
 		}
 	}
@@ -197,15 +201,15 @@ func IsDebug() bool {
 }
 
 func IsDebugEnabled() bool {
-	return bool(debug) && enabled
+	return bool(debug) && enabled.Load()
 }
 
 func DisableDebug() {
-	enabled = false
+	enabled.Store(false)
 }
 
 func EnableDebug() {
-	enabled = true
+	enabled.Store(true)
 }
 
 func PrintCaller(start, end int) {

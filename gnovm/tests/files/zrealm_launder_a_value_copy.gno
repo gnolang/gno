@@ -26,4 +26,3 @@ func (ExploiterA) SomethingPtr(g *launderpkg.Object) {}
 func main(cur realm) {
 	laundervictim.Invoke(ExploiterA{})
 }
-

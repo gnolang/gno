@@ -29,10 +29,10 @@ func (tree *Tree) Has(key string) (has bool) {
 }
 
 // Get retrieves the value associated with the given key.
-// It returns the value and a boolean indicating whether the key exists.
-func (tree *Tree) Get(key string) (value any, exists bool) {
-	_, value, exists = tree.node.Get(key)
-	return
+// It returns the value if the key exists, or nil if it doesn't.
+func (tree *Tree) Get(key string) any {
+	_, value, _ := tree.node.Get(key)
+	return value
 }
 
 // GetByIndex retrieves the key-value pair at the specified index in the tree.

@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network           | RPC Endpoint                             |  Chain ID    |
-|-------------------|------------------------------------------|--------------|
-| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
-| Staging           | https://rpc.staging.gno.land:443         | `staging`    |
-| Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
+| Network           | RPC Endpoint                             |  Chain ID    | Deployment files |
+|-------------------|------------------------------------------|--------------|------------------|
+| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1) |
+| Staging           | https://rpc.staging.gno.land:443         | `staging`    | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) |
+| Topaz / Test14    | https://rpc.topaz.testnets.gno.land:443  | `topaz-1`    | [`misc/deployments/topaz.gno.land`](https://github.com/gnolang/gno/tree/chain/topaz/misc/deployments/topaz.gno.land) |
 
 ### WebSocket endpoints
 
@@ -15,6 +15,35 @@ All networks follow the same pattern for websocket connections:
 ```shell
 wss://<rpc-endpoint:port>/websocket
 ```
+
+### Deployment files
+
+If you intend to [run a node](../builders/running-a-node.md) — a full node
+or a validator — the operational details you need are not in this page.
+They live with the network itself, under
+[`misc/deployments/`](https://github.com/gnolang/gno/tree/master/misc/deployments)
+in the monorepo: one directory per network, holding its `config.toml`,
+its genesis (or the script that regenerates it), and a `README.md` /
+`VALIDATOR.md` with the join instructions.
+
+Two conventions to know:
+
+- A network's directory sits on that network's **`chain/<name>` branch**,
+  not on `master` — that's the branch the chain's release is cut from. The
+  `master` copy is where the next network is prepared, plus the archives of
+  past ones.
+- Release artifacts — binaries, container images, `genesis.json` and its
+  checksum — are attached to the matching
+  [release tag](https://github.com/gnolang/gno/releases).
+
+Related infrastructure directories in the monorepo:
+
+| Directory | What it is |
+|-----------|------------|
+| [`misc/deployments`](https://github.com/gnolang/gno/tree/master/misc/deployments) | Per-network genesis, config, and node/validator instructions |
+| [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) | Infrastructure running the Staging chain |
+| [`contribs/tx-archive`](https://github.com/gnolang/gno/tree/master/contribs/tx-archive) | Archiving and replaying transaction history between networks |
+| [`gnolang/tx-exports`](https://github.com/gnolang/tx-exports) | Archived transaction data of past testnets |
 
 ## Staging Environments
 
@@ -132,15 +161,15 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test11
+### Test13
 
-The latest Gno.land testnet, released on the 12th of Februrary, 2025.
+The latest Gno.land testnet, released on the 15th of June, 2026.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test11.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest11.0)
+  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -148,6 +177,14 @@ The latest Gno.land testnet, released on the 12th of Februrary, 2025.
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test12 (archive)
+
+Test12 is the testnet released on the 16th of April, 2026.
+
+### Test11 (archive)
+
+Test11 is the testnet released on the 12th of February, 2025.
 
 ### Test10 (archive)
 

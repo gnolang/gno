@@ -6,6 +6,10 @@ const RealmViewType ViewType = "realm-view"
 type TocItem struct {
 	Title string
 	ID    string
+	// Icon is an optional sprite id suffix (e.g. "kind-func") rendered as a
+	// leading kind glyph. Empty means no glyph — realm/action/source TOCs leave
+	// it unset, so only the package overview surfaces icons.
+	Icon  string
 	Items []*TocItem
 }
 
