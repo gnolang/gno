@@ -144,14 +144,17 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.False(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Unrestricted
-	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
 	acck.SetAccount(ctx, fromAccount)
 	acck.SetAccount(ctx, toAccount)
+	// Fund via the bank: "foocoin" is not an account-tier denom, so writing the
+	// account object directly would put it where the bank does not read.
+	require.NoError(t, bankk.SetCoins(ctx, fromAddress, std.NewCoins(std.NewCoin("foocoin", 10))))
 
 	err := bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
 	require.NoError(t, err)
-	balance := acck.GetAccount(ctx, toAddress).GetCoins()
-	assert.Equal(t, balance.String(), "3foocoin")
+	// Read through the bank: the account object holds only account-tier denoms.
+	balance := bankk.GetCoins(ctx, toAddress)
+	assert.Equal(t, "3foocoin", balance.String())
 
 	// Send Restricted
 	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"})
