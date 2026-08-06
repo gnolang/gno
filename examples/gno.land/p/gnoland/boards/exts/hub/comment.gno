@@ -77,6 +77,9 @@ func (c Comment) UpdatedAt() int64 { return c.updatedAt }
 
 // NewSafeComment creates a safe comment.
 func NewSafeComment(ref *boards.Post) Comment {
+	if ref == nil {
+		panic("post reference is nil")
+	}
 	if boards.IsThread(ref) {
 		panic("post is not a comment or reply")
 	}

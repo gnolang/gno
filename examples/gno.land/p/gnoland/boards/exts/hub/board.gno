@@ -69,6 +69,10 @@ func (b Board) UpdatedAt() int64 { return b.updatedAt }
 
 // NewSafeBoard creates a safe board.
 func NewSafeBoard(ref *boards.Board) Board {
+	if ref == nil {
+		panic("board reference is nil")
+	}
+
 	var usersCount int
 	if ref.Permissions != nil {
 		usersCount = ref.Permissions.UsersCount()
