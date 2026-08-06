@@ -163,7 +163,7 @@ is the `gnoweb` render of the Staging testnet.
 
 ### Sapphire / Test15
 
-The latest Gno.land testnet, released on the 6th of August, 2026.
+The latest Gno.land testnet, released on the 7th of August, 2026.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
