@@ -120,3 +120,93 @@ func TestBankKeeper_VestingUnrestrictedBypass(t *testing.T) {
 	require.Equal(t, int64(900), env.bankk.GetCoins(ctx, fromAddr).AmountOf("ugnot"))
 	require.Equal(t, int64(100), env.bankk.GetCoins(ctx, toAddr).AmountOf("ugnot"))
 }
+
+// A completed vesting schedule is collapsed to a plain account, but only when the
+// operation that noticed actually succeeds. It used to be written the moment it was
+// detected, so a debit that then failed its affordability check still rewrote the
+// account object — a write on an operation that reported failure.
+func TestFailedSubtractDoesNotRewriteAFullyVestedAccount(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("vested"))
+	vesting := std.Coins{{Denom: "ugnot", Amount: 100}}
+
+	cva, err := std.NewContinuousVestingAccount(
+		std.NewBaseAccount(addr, vesting, nil, 0, 0),
+		std.VestingSchedule{OriginalVesting: vesting, StartTime: 100, EndTime: 200},
+	)
+	require.NoError(t, err)
+	env.acck.SetAccount(env.ctx, cva)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, vesting))
+
+	// Past EndTime, so the schedule is complete and the upgrade would trigger.
+	ctx := atTime(env, 500)
+	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr))
+
+	// More than is held: the debit must fail.
+	require.Error(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: "ugnot", Amount: 500}}))
+	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr),
+		"a failed debit must not have rewritten the account object")
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"))
+
+	// A debit that succeeds still collapses it, as before — and this case debits only
+	// a SPLIT-tier denom, so setAccountTierCoins never touches the account object.
+	// That makes the explicit success-path write the only thing that can persist the
+	// collapse; an account-tier debit would have written the account regardless and
+	// so cannot distinguish the two.
+	env.bankk.setSplitBalance(ctx, addr, testRealmDenom, 50)
+	require.NoError(t, env.bankk.SubtractCoins(ctx, addr,
+		std.Coins{{Denom: testRealmDenom, Amount: 10}}))
+	require.IsType(t, &std.BaseAccount{}, env.acck.GetAccount(ctx, addr),
+		"a successful split-only debit must still collapse a completed schedule")
+	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, addr, testRealmDenom))
+	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"), "untouched")
+}
+
+// TestBurnIsBlockedByAVestingLock records that a realm cannot always remove its own
+// coin. BurnCoins debits through SubtractCoins, whose vesting check is deliberately
+// tier-agnostic, so a genesis schedule naming a realm denom locks it against the
+// issuer too. That is reachable: applyBalance builds the account object with the
+// full pre-split amount to satisfy the schedule, then SetCoins moves the non-gas
+// denoms to their own keys, leaving OriginalVesting naming a split-tier denom.
+//
+// Whether an issuer should be able to burn past a lock is a policy question and is
+// left alone; this pins what the code does, and that a refused burn moves nothing.
+func TestBurnIsBlockedByAVestingLock(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-vester-burn"))
+	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
+
+	cva, err := std.NewContinuousVestingAccount(
+		std.NewBaseAccount(addr, locked, nil, 0, 0),
+		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
+	)
+	require.NoError(t, err)
+	env.acck.SetAccount(env.ctx, cva)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
+	// Seeded, so the refusal below cannot come from nextSupply finding no counter.
+	env.bankk.RecomputeSupply(env.ctx)
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(env.ctx, testRealmDenom),
+		"precondition: the supply must be recorded, or the burn is refused for the wrong reason")
+
+	ctx := atTime(env, 100) // nothing vested yet
+	err = env.bankk.BurnCoins(ctx, addr, locked)
+	// Which refusal, not merely that it failed. std.Err* renders its detail only
+	// under %+v, so Error() is the bare type name — which is exactly what
+	// discriminates here: an unaffordable debit would say "insufficient coins error".
+	require.EqualError(t, err, "vesting locked coins error",
+		"a burn of a fully locked denom must be refused as locked, not as unaffordable")
+	require.Equal(t, int64(1000), env.bankk.TotalSupply(ctx, testRealmDenom),
+		"a refused burn must not move the counter")
+	require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, testRealmDenom),
+		"a refused burn must not move the balance")
+
+	// Once vested the same burn succeeds, so this cannot pass against a BurnCoins
+	// that refuses everything.
+	vested := atTime(env, 300)
+	require.NoError(t, env.bankk.BurnCoins(vested, addr, locked))
+	require.Zero(t, env.bankk.TotalSupply(vested, testRealmDenom))
+}
