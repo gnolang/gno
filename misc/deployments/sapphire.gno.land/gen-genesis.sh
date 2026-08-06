@@ -48,7 +48,7 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=sapphire-1
-GENESIS_TIME=1786014000 # Thursday, August 6th 2026 13:00 CEST (11:00 UTC)
+GENESIS_TIME=1786104000 # Friday, August 7th 2026 14:00 CEST (12:00 UTC)
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
@@ -168,7 +168,7 @@ bf1c81ddb7640164ca1a19805c6f24e0252f2495b351b1fbbf657b1f24f6a866  work/valoper-s
 4cf12cc4542281e2c5f9bf968a4de8f8e4f33f88b70c247a7762d7a07913b61b  work/genesis_txs.jsonl
 
 # Final artifact (moved to sapphire.gno.land/ root on success)
-4eba237f4800854833881b0d497b780eca26052a7ca302c6395e3fe76917e55b  genesis.json
+44b9ed99981f0bfac716c1b8f7697e5cbf8cf680f934dcbc7b42b32ed9b30a54  genesis.json
 EOF
 )
 
