@@ -42,7 +42,7 @@ func SetFee(cur realm, newFee int64) {
 
 // Hand the realm over. TransferOwnership itself verifies the caller is owner.
 func TransferOwner(cur realm, to address) error {
-    return owner.TransferOwnership(0, cur, to)
+    return owner.TransferOwnership(to, cur)
 }
 ```
 
@@ -72,14 +72,14 @@ func (o *Ownable) Owner() address             // "" if o is nil or ownership was
 func (o *Ownable) OwnedBy(addr address) bool  // true if addr is the current owner
 func (o *Ownable) AssertOwnedBy(addr address) // panics with ErrUnauthorized if addr is not the owner
 
-// Authority mutation (thread the caller's own cur; pass 0 as the first arg).
-func (o *Ownable) TransferOwnership(_ int, rlm realm, newOwner address) error
+// Authority mutation (thread the caller's own cur as the trailing realm).
+func (o *Ownable) TransferOwnership(newOwner address, rlm realm) error
 func (o *Ownable) DropOwnership(_ int, rlm realm) error // sets owner to "" — irreversible
 ```
 
 ## Notes
 
-- Authority-mutating methods assert `rlm.IsCurrent()` and identify the caller as `rlm.Previous().Address()`, which must equal the current owner. The principal is therefore unforgeable: an attacker cannot supply an arbitrary caller address. Pass `0` as the placeholder first arg and your own `cur` as `rlm`.
+- Authority-mutating methods assert `rlm.IsCurrent()` and identify the caller as `rlm.Previous().Address()`, which must equal the current owner. The principal is therefore unforgeable: an attacker cannot supply an arbitrary caller address. Pass your own `cur` as the trailing `rlm`. `DropOwnership` has no other parameter for the realm to follow, so it keeps a leading `_ int` placeholder: pass `0`.
 - Read helpers (`OwnedBy`, `AssertOwnedBy`) take a bare address; the caller extracts it, guarding with `cur.IsCurrent()` before reading `cur.Previous().Address()`.
 - `TransferOwnership` rejects an invalid `newOwner` with `ErrInvalidAddress`. Both mutators emit `OwnershipTransferEvent` with `from` and `to` fields.
 - `DropOwnership` is permanent: `owner` becomes `""`, so every owner-gated action becomes unreachable.
