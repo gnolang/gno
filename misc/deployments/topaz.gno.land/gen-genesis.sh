@@ -782,8 +782,10 @@ print_substep "7.4" "Total genesis txs: $tx_count"
 # burn through fees, then query remaining balances. The amount actually
 # spent is what we credit each fee payer in the real genesis so their
 # balance lands at zero post-genesis — the final state then holds ONLY the
-# 10 faucet balances. This covers the deployer (addpkgs, bootstrap,
-# valoper Register fees) and the names admin (names.Enable fee).
+# 10 faucet balances. The fee payers are the deployer (addpkgs, bootstrap,
+# valoper Register fees), the names admin (names.Enable fee), and every
+# gnomod.toml [addpkg] creator address in the package set (used as that
+# package's addpkg creator in place of the deployer).
 #
 # Run twice for safety:
 #   run 1: measure actual consumption with over-provisioned balances
@@ -818,6 +820,16 @@ grep -oE '"(creator|caller)":"[^"]*"' "$GENESIS_TXS_JSONL" |
   sort -u >"$BALANCES_TMP_CREATOR_ADDRESSES"
 addr_count=$(wc -l <"$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
 print_substep "8.2" "Found $addr_count unique creator/caller addresses"
+
+# A fee payer must not also be a faucet: the final balance sheet keeps one
+# entry per address (last write wins), so the faucet amount would silently
+# replace the exact-burn entry — and the measurement below would be wrong
+# for that address anyway. Fail fast before spinning up nodes.
+for faucet in "${FAUCET_ADDRESSES[@]}"; do
+  if grep -qxF -- "$faucet" "$BALANCES_TMP_CREATOR_ADDRESSES"; then
+    die "faucet $faucet is also a genesis-tx fee payer — its exact-burn entry would be silently overwritten by the faucet balance"
+  fi
+done
 
 print_substep "8.3" "Generating over-provisioned balances..."
 while IFS= read -r addr; do
@@ -944,9 +956,9 @@ for validator in "${INITIAL_VALSET[@]}"; do
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$GENESIS_FILE"
 done
 
-# Fee payers (exact-burn, land at zero) + the 10 faucets, one sheet.
-# No address can appear in both lists: fee payers are the deployer + the
-# names admin, neither of which is a faucet.
+# Fee payers (exact-burn, land at zero) + the 10 faucets, one sheet. One
+# entry per address (last write wins), so an address on both lists would
+# lose its exact-burn entry — the overlap guard in step 8 rules that out.
 FULL_BALANCES_FILE="$WORK_DIR/balances.txt"
 cp "$DEPLOYER_BALANCES" "$FULL_BALANCES_FILE"
 for addr in "${FAUCET_ADDRESSES[@]}"; do
