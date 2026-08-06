@@ -1,0 +1,50 @@
+{
+  "reason": "noop patch: the original tx targeted r/sys/validators/v2 which test-13 deliberately does not seed (test-13 valset is set via GenesisDoc.Validators + valoper-seed migration). Empty body keeps manfred fee-deduction faithful while letting the tx compile under current master. height=1433116",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1779184938",
+    "block_height": "1433116",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "account_num": "3096261",
+        "sequence": "32"
+      }
+    ]
+  },
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "rm_validator.gno",
+              "body": "// NOOP run tx\npackage main\n\nfunc main(cur realm) {}\n"
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AgBSSj+NLAA6icQ/Rf6vbrjtRbbjo197vms7Sf+eLYPI"
+        },
+        "signature": "dIPJm+lbJiFvLQb3zE1nw+Srp2Hsq3jkrsANvppa5Zh02XaMUVB7bcoPHWKUy10I9lvI+RgCkjO26IIDrhjHwQ=="
+      }
+    ],
+    "memo": ""
+  }
+}
