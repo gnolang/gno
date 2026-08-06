@@ -36,6 +36,9 @@ func newMockBanker() *mockBanker {
 func (b *mockBanker) GetCoins(addr crypto.Bech32Address) std.Coins {
 	return b.coins[addr]
 }
+func (b *mockBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
+	return b.coins[addr].AmountOf(denom)
+}
 func (b *mockBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins)           {}
 func (b *mockBanker) TotalCoin(denom string) int64                                     { return 0 }
 func (b *mockBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64)  {}
@@ -191,6 +194,19 @@ func BenchmarkNative_Banker_GetCoins_1(b *testing.B)    { benchBankerGetCoins(b,
 func BenchmarkNative_Banker_GetCoins_10(b *testing.B)   { benchBankerGetCoins(b, 10) }
 func BenchmarkNative_Banker_GetCoins_100(b *testing.B)  { benchBankerGetCoins(b, 100) }
 func BenchmarkNative_Banker_GetCoins_1000(b *testing.B) { benchBankerGetCoins(b, 1000) }
+
+func BenchmarkNative_Banker_GetCoin(b *testing.B) {
+	m := newDispatchMachine(3)
+	addContextAndFrames(m, "gno.land/r/x")
+	setBlockValueFromGo(m, 0, uint8(0))
+	setBlockValueFromGo(m, 1, "g1getcoin")
+	setBlockValueFromGo(m, 2, "ugnot")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/banker", "bankerGetCoin"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
 
 func BenchmarkNative_Banker_TotalCoin(b *testing.B) {
 	m := newDispatchMachine(2)

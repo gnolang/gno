@@ -41,6 +41,7 @@ import (
 // (without confusion).
 type Banker interface {
 	GetCoins(addr address) (dst chain.Coins)
+	GetCoin(addr address, denom string) int64
 	SendCoins(from, to address, amt chain.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr address, denom string, amount int64)
@@ -141,6 +142,7 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 
 // These are native bindings to the banker's functions.
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
+func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
 func bankerTotalCoin(bt uint8, denom string) int64
 func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
@@ -177,6 +179,17 @@ func (b banker) GetCoins(addr address) (dst chain.Coins) {
 		dst[i] = chain.Coin{denoms[i], amounts[i]}
 	}
 	return dst
+}
+
+// GetCoin returns addr's balance of a single denom.
+//
+// Prefer this to GetCoins when you want one denom: GetCoins returns every denom
+// the address holds and costs accordingly, and an address can be sent denoms it
+// never asked for (see IssueCoin), so its cost is not under your control.
+// GetCoin returns addr's balance of a single denom, reading nothing else. Returns
+// zero for a denom addr does not hold.
+func (b banker) GetCoin(addr address, denom string) int64 {
+	return bankerGetCoin(uint8(b.bt), string(addr), denom)
 }
 
 func (b banker) SendCoins(from, to address, amt chain.Coins) {
