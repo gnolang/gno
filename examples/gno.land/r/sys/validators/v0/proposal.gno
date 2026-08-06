@@ -103,6 +103,14 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 		if c.Power > 0 && !entry.KeepRunning {
 			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (operator must call UpdateKeepRunning(true) first)")
 		}
+		// A frozen operator is held out of the valset by freeze.gno.
+		// An add here would put them back while frozenSet still holds
+		// the entry — two owners of the same slot, and a later unfreeze
+		// would silently overwrite the power this proposal set. Exits
+		// from a freeze go through unfreeze or NewDropFrozenProposalRequest.
+		if frozenSet.Has(c.OperatorAddress.String()) {
+			panic("operator " + c.OperatorAddress.String() + " is frozen; unfreeze or drop the freeze entry before changing its valset membership")
+		}
 	}
 
 	// Render description against creation-time data. Voters see the
@@ -151,6 +159,12 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 				panic("operator vanished from valoperCache between propose and execute: " + c.OperatorAddress.String())
 			}
 			entry := rawCache.(cacheEntry)
+
+			// Re-check: the operator may have been frozen between
+			// propose-create and propose-execute.
+			if frozenSet.Has(c.OperatorAddress.String()) {
+				panic("operator " + c.OperatorAddress.String() + " is frozen at execution; refusing to change its valset membership")
+			}
 
 			if c.Power == 0 {
 				if _, ok := set[entry.SigningAddress]; !ok {
