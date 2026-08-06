@@ -149,8 +149,9 @@ func GetFlags(boardID, threadID, commentID uint64, start, count int) []Flag {
 
 // GetComments returns a list with all thread comments and replies.
 // To reverse iterate use a negative count.
-// Top level comments can be filtered by checking `Comment.ParentID`, replies
-// always have a parent comment or reply, while comments have no parent.
+// Top level comments can be filtered by comparing `Comment.ParentID()` to
+// `Comment.ThreadID()`: a top level comment's parent is its thread, while a
+// reply's parent is the comment or reply it answers.
 func GetComments(boardID, threadID uint64, start, count int) []Comment {
 	t, found := getBoardThread(boardID, threadID)
 	if !found {
