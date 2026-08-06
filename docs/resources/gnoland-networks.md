@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network           | RPC Endpoint                             |  Chain ID    | Deployment files |
-|-------------------|------------------------------------------|--------------|------------------|
-| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1) |
-| Staging           | https://rpc.staging.gno.land:443         | `staging`    | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) |
-| Topaz / Test14    | https://rpc.topaz.testnets.gno.land:443  | `topaz-1`    | [`misc/deployments/topaz.gno.land`](https://github.com/gnolang/gno/tree/chain/topaz/misc/deployments/topaz.gno.land) |
+| Network           | RPC Endpoint                               | Chain ID     | Deployment files                                                                                                              |
+|-------------------|--------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Betanet (current) | https://rpc.gno.land:443                   | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                   |
+| Staging           | https://rpc.staging.gno.land:443           | `staging`    | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                           |
+| Sapphire / Test15 | https://rpc.sapphire.testnets.gno.land:443 | `sapphire-1` | [`misc/deployments/sapphire.gno.land`](https://github.com/gnolang/gno/tree/chain/sapphire/misc/deployments/sapphire.gno.land) |
 
 ### WebSocket endpoints
 
