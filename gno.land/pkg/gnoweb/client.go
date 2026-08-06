@@ -92,6 +92,10 @@ type ClientAdapter interface {
 	// any positive value pins the query to that historical height.
 	Doc(ctx context.Context, path string, height int64) (*doc.JSONDocumentation, error)
 
+	// Eval evaluates a Gno expression via vm/qeval query.
+	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
+	Eval(ctx context.Context, data string) ([]byte, error)
+
 	// StatePkg retrieves the root state tree for a package. `height
 	// = 0` queries the latest block; positive values are forwarded
 	// to ABCI as-is.
@@ -231,6 +235,12 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string, height int64) (*doc
 	}
 
 	return jdoc, nil
+}
+
+// Eval evaluates a Gno expression via the vm/qeval ABCI query.
+func (c *rpcClient) Eval(ctx context.Context, data string) ([]byte, error) {
+	const qpath = "vm/qeval"
+	return c.query(ctx, qpath, []byte(data), 0)
 }
 
 // StatePkg retrieves root state tree for a package via vm/qpkg_json.

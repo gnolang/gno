@@ -243,6 +243,11 @@ func (gnoURL GnoURL) IsDir() bool {
 	return !gnoURL.IsFile() && strings.HasSuffix(gnoURL.Path, "/")
 }
 
+// IsPlayground checks if the URL path represents the integrated playground.
+func (gnoURL GnoURL) IsPlayground() bool {
+	return gnoURL.Path == "/_/play"
+}
+
 // reGnolandPath matches and validates a Gno.land URL path.
 // The minimum path allowed are the Gno.land prefixed ones so listing can be
 // implemented, for example in Gnoweb "/r/" or "/p/" would list the files or

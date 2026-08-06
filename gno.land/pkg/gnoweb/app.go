@@ -203,6 +203,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsHandler := cacheAssetHandler(AssetHandler())
 	mux.Handle(assetsBase, http.StripPrefix(assetsBase, assetsHandler))
 
+	// Handle playground API endpoints
+	mux.Handle("/_/api/eval", httphandler.Playground.EvalHandler())
+	mux.Handle("/_/api/funcs", httphandler.Playground.FuncsHandler())
+
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))
 
