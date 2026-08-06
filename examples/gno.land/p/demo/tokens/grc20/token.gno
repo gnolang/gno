@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/overflow"
 	"strconv"
+	"strings"
 
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -57,6 +58,77 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	}
 	ledger.token = token
 	return token, ledger
+}
+
+// NewTokenWithEmitter creates a Token whose identifier is issued by reg, and
+// whose events reg records on the token's behalf. See emitter.gno for why this
+// is the only arrangement that makes a token's event stream attributable.
+//
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// reg.IssueToken is invoked here rather than by the caller, so the caller never
+// holds a TokenEmitter and cannot reuse one across two tokens.
+//
+// Token.ID() is whatever reg issued, after this function has checked that it
+// falls inside the calling realm's namespace. That check is what preserves the
+// namespace guarantee NewToken gives, no matter what reg is: a counterfeit
+// Emitter cannot mint an identifier under another realm's path.
+//
+// Discoverability is then up to reg. A registry that keeps a record of the
+// identifiers it issued can verify a token's provenance from its own state at
+// registration time, which is strictly better than asking the token to describe
+// its own emitter.
+func NewTokenWithEmitter(name, symbol string, decimals int, reg Emitter, rlm realm) (*Token, *PrivateLedger) {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
+	}
+	if !validName(name) {
+		panic(ErrInvalidName)
+	}
+	if !validSymbol(symbol) {
+		panic(ErrInvalidSymbol)
+	}
+	if decimals < 0 || decimals > MaxDecimals {
+		panic(ErrInvalidDecimals)
+	}
+	if reg == nil {
+		panic(ErrNilEmitter)
+	}
+
+	emitter := reg.IssueToken(cross(rlm), symbol)
+	if emitter == nil {
+		panic(ErrNilTokenEmitter)
+	}
+	id := emitter.TokenID()
+	if !strings.HasPrefix(id, pkgPath+".") {
+		panic(ErrForeignTokenID)
+	}
+
+	ledger := &PrivateLedger{}
+	token := &Token{
+		id:       id,
+		name:     name,
+		symbol:   symbol,
+		decimals: decimals,
+		emitter:  emitter,
+		ledger:   ledger,
+	}
+	ledger.token = token
+	return token, ledger
+}
+
+// emit routes an event through the token's registry when it has one, so the VM
+// stamps the registry's pkg_path on it, and falls back to emitting under grc20's
+// own path otherwise.
+func (tok *Token) emit(kind string, attrs ...string) {
+	if tok.emitter != nil {
+		tok.emitter.Emit(kind, attrs...)
+		return
+	}
+	chain.Emit(kind, attrs...)
 }
 
 // validName reports whether name is a valid display name: non-empty,
@@ -206,7 +278,7 @@ func (led *PrivateLedger) Transfer(from, to address, amount int64) error {
 		led.balances.Set(string(from), newFromBalance)
 	}
 
-	chain.Emit(
+	led.token.emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", from.String(),
@@ -256,7 +328,7 @@ func (led *PrivateLedger) Approve(owner, spender address, amount int64) error {
 
 	led.allowances.Set(allowanceKey(owner, spender), amount)
 
-	chain.Emit(
+	led.token.emit(
 		ApprovalEvent,
 		"token", led.token.ID(),
 		"owner", string(owner),
@@ -287,7 +359,7 @@ func (led *PrivateLedger) Mint(addr address, amount int64) error {
 
 	led.balances.Set(string(addr), newBalance)
 
-	chain.Emit(
+	led.token.emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", "",
@@ -321,7 +393,7 @@ func (led *PrivateLedger) Burn(addr address, amount int64) error {
 		led.balances.Set(string(addr), newBalance)
 	}
 
-	chain.Emit(
+	led.token.emit(
 		TransferEvent,
 		"token", led.token.ID(),
 		"from", string(addr),

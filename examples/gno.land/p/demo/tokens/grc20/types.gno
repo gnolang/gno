@@ -89,6 +89,10 @@ type Token struct {
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
+	// Registry that issued id and records this token's events, or nil when the
+	// token was created through NewToken. Deliberately unexported with no
+	// accessor: Emit is a capability — see emitter.gno.
+	emitter TokenEmitter
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 }
@@ -125,6 +129,9 @@ var (
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
+	ErrNilEmitter            = errors.New("emitter must not be nil")
+	ErrNilTokenEmitter       = errors.New("emitter returned a nil TokenEmitter")
+	ErrForeignTokenID        = errors.New("emitter issued an id outside the calling realm's namespace")
 )
 
 // Construction limits. Symbol is restricted to the same charset as

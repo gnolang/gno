@@ -47,12 +47,26 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 		panic("grc20reg: token already registered")
 	}
 	registry.Set(key, token)
+
+	// Report whether this registry issued the token's identifier, checked
+	// against its own record of what it handed out (see emitter.gno) rather than
+	// against anything the token says about itself. When it did, the token's
+	// events carry this realm's pkg_path and are attributable; when it did not,
+	// they carry grc20's and two ledgers behind one identifier remain possible.
+	// Either way a consumer learns which it is at registration time.
+	emitterPath := ""
+	if to, ok := IssuedTo(token.ID()); ok && to == rlmPath {
+		emitterPath = cur.PkgPath()
+	}
+
 	chain.Emit(
 		registerEvent,
 		"token_path", key,
+		"token_id", token.ID(),
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
+		"emitter", emitterPath,
 	)
 	return key
 }
