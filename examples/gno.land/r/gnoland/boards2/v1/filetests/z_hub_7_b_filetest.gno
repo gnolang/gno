@@ -24,12 +24,10 @@ func init(cur realm) {
 	boards2.CreateReply(cross(cur), boardID, threadID, commentID, "Reply")
 
 	// Get readonly thread
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	thread, _ = boards2.GetThread(uint64(boardID), uint64(threadID))
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	comments := boards2.GetComments(thread.BoardID(), thread.ID(), 0, thread.CommentCount())
 
 	for _, c := range comments {

@@ -25,12 +25,10 @@ func init(cur realm) {
 	boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "Second", "Body")
 
 	// Get readonly thread
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	thread, _ = boards2.GetThread(uint64(boardID), uint64(threadID))
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	reposts := boards2.GetReposts(thread.BoardID(), thread.ID(), 0, thread.RepostCount())
 
 	for _, t := range reposts {

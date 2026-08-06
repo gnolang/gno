@@ -31,7 +31,6 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	board, found := boards2.GetBoard(uint64(boardID))
 	if !found {
 		return

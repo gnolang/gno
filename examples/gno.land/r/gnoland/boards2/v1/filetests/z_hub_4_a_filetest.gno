@@ -20,12 +20,10 @@ func init(cur realm) {
 	boards2.InviteMember(cross(cur), boardID, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "admin")
 
 	// Get readonly board
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	board, _ = boards2.GetBoard(uint64(boardID))
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	members := boards2.GetMembers(board.ID(), 0, board.MemberCount())
 
 	for _, m := range members {

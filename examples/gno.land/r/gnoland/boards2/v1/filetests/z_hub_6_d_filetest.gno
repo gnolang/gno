@@ -39,12 +39,10 @@ func init(cur realm) {
 	boards2.FlagReply(cross(cur), boardID, threadID, commentID, "Reason 2")
 
 	// Get readonly comment
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	comment, _ = boards2.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	flags := boards2.GetFlags(comment.BoardID(), comment.ThreadID(), comment.ID(), 0, comment.FlagCount())
 
 	for _, f := range flags {

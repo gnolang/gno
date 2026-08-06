@@ -25,12 +25,10 @@ func init(cur realm) {
 	boards2.CreateReply(cross(cur), boardID, threadID, subCommentID, "Reply 3")
 
 	// Get readonly comment
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	comment, _ = boards2.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	replies := boards2.GetReplies(comment.BoardID(), comment.ThreadID(), comment.ID(), 0, comment.ReplyCount())
 
 	for _, r := range replies {

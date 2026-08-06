@@ -25,7 +25,6 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 	comment, found := boards2.GetComment(uint64(boardID), uint64(threadID), uint64(commentID))
 	if !found {
 		return
