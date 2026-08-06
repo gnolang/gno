@@ -25,6 +25,7 @@ import (
 func resetFreezeState() {
 	frozenSet = avl.NewTree()
 	freezeAdmins = avl.NewTree()
+	resetAutoFreezeState()
 }
 
 // seedThreeValidators seeds valset:current with A/B/C at power 10 and
