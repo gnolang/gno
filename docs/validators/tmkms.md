@@ -8,6 +8,12 @@ signer that speaks the upstream Tendermint privval protocol, like
 [tmkms]: https://github.com/iqlusioninc/tmkms
 [Horcrux]: https://github.com/strangelove-ventures/horcrux
 
+> **Just want to stand one up?** See
+> [tmkms-quickstart.md](tmkms-quickstart.md) for a copy-paste, single-host
+> walkthrough that takes you from an empty directory to a node producing
+> tmkms-signed blocks. This page is the reference for the architecture,
+> security model, and production checklist behind that flow.
+
 ## When to use this mode
 
 Gnoland supports three privval setups. Pick one — they're mutually
