@@ -1,0 +1,137 @@
+# Challenge cases for function-local type persistence (see restart_local_type.txtar):
+#   zlta/zltb: cross-realm — zltb's local type S stored in zlta's state (foreign owner)
+#   zltm: map with local-type key (lookup after restart re-mints K from the persisted
+#         TypeValue — pins TypeID stability), recursive local type, and a
+#         reload -> mutate -> re-save -> reload loop across a second restart
+#   zltc/zzltp: local type declared in a pure p/ package function, stored in a realm
+loadpkg gno.land/p/test/zzltp $WORK/zzltp
+loadpkg gno.land/r/test/zlta $WORK/zlta
+loadpkg gno.land/r/test/zltb $WORK/zltb
+loadpkg gno.land/r/test/zltm $WORK/zltm
+loadpkg gno.land/r/test/zltc $WORK/zltc
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/zltb -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltm -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltc -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/zlta -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '11 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltm -func Lookup -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'one'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltm -func Sum -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '3 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltm -func Bump -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltc -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '12 int'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/zltm -func Sum -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '4 int'
+
+-- zzltp/zzltp.gno --
+package zzltp
+
+type P struct{ v int }
+
+func (p P) Get() int { return p.v }
+
+func MakeVal() any {
+	type PS struct{ P }
+	return PS{P{12}}
+}
+
+-- zlta/zlta.gno --
+package zlta
+
+type I interface{ Get() int }
+
+var H I
+
+func Set(cur realm, v I) {
+	H = v
+}
+
+func Call(cur realm) int {
+	return H.Get()
+}
+
+-- zltb/zltb.gno --
+package zltb
+
+import "gno.land/r/test/zlta"
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+func Bind(cur realm) {
+	type S struct{ T }
+	zlta.Set(cross(cur), S{T{11}})
+}
+
+-- zltm/zltm.gno --
+package zltm
+
+var (
+	GLookup func() string
+	GSum    func() int
+	GBump   func()
+)
+
+func Bind(cur realm) {
+	type K struct{ k int }
+	m := map[K]string{{1}: "one"}
+	GLookup = func() string { return m[K{1}] }
+
+	type N struct {
+		next *N
+		v    int
+	}
+	head := &N{&N{nil, 2}, 1}
+	GSum = func() int {
+		s := 0
+		for n := head; n != nil; n = n.next {
+			s += n.v
+		}
+		return s
+	}
+	GBump = func() { head.v++ }
+}
+
+func Lookup(cur realm) string { return GLookup() }
+
+func Sum(cur realm) int { return GSum() }
+
+func Bump(cur realm) { GBump() }
+
+-- zltc/zltc.gno --
+package zltc
+
+import "gno.land/p/test/zzltp"
+
+type I interface{ Get() int }
+
+var H I
+
+func Bind(cur realm) {
+	H = zzltp.MakeVal().(I)
+}
+
+func Call(cur realm) int {
+	return H.Get()
+}

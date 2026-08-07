@@ -1478,6 +1478,9 @@ func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredT
 	case *PackageNode, *FileNode:
 		// keep blank.
 	case *FuncDecl, *FuncLitExpr:
+		// Non-zero (setNodeLocations stamps every block node before
+		// preprocessing). IsFuncLocal relies on this: any case added
+		// here for a non-package scope must set a non-zero ploc.
 		ploc = parent.GetLocation()
 	default:
 		panic(fmt.Sprintf("expected type expr but got %T", parent))
@@ -1967,8 +1970,15 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 	}
 }
 
+// IsFuncLocal reports whether dt was declared inside a function body.
+// declareWith sets ParentLoc non-zero iff the parent is a
+// FuncDecl/FuncLitExpr; package/file-scope declarations leave it zero.
+func (dt *DeclaredType) IsFuncLocal() bool {
+	return !dt.ParentLoc.IsZero()
+}
+
 func (dt *DeclaredType) String() string {
-	if dt.ParentLoc.IsZero() {
+	if !dt.IsFuncLocal() {
 		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
 	} else {
 		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)

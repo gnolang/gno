@@ -1,0 +1,95 @@
+# Regression test: values referencing a function-local declared type must
+# survive persist/reload. Function-local types are declared at runtime (not
+# SetType'd at addpkg like package-level types), so the realm save walk must
+# persist them; otherwise the value serializes a dangling RefType and calling
+# it after a restart panics with "unexpected type with id ...".
+#
+# Three escape routes for the local type S, each in its own realm:
+#   lt1: interface-bound method value (G = i.Get) — the lazy-bind dispatch case
+#   lt2: plain interface-typed package var (X = S{...})
+#   lt3: closure capturing an S value
+loadpkg gno.land/r/test/lt1 $WORK/lt1
+loadpkg gno.land/r/test/lt2 $WORK/lt2
+loadpkg gno.land/r/test/lt3 $WORK/lt3
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/lt1 -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/lt2 -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/lt3 -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/lt1 -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '7 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/lt2 -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '7 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/lt3 -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '7 int'
+
+-- lt1/lt1.gno --
+package lt1
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+type I interface{ Get() int }
+
+var G func() int
+
+func Bind(cur realm) {
+	type S struct{ T }
+	var i I = S{T{7}}
+	G = i.Get
+}
+
+func Call(cur realm) int {
+	return G()
+}
+
+-- lt2/lt2.gno --
+package lt2
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+type I interface{ Get() int }
+
+var X I
+
+func Bind(cur realm) {
+	type S struct{ T }
+	X = S{T{7}}
+}
+
+func Call(cur realm) int {
+	return X.Get()
+}
+
+-- lt3/lt3.gno --
+package lt3
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+var G func() int
+
+func Bind(cur realm) {
+	type S struct{ T }
+	s := S{T{7}}
+	G = func() int { return s.Get() }
+}
+
+func Call(cur realm) int {
+	return G()
+}

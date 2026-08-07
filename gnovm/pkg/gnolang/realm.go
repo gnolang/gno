@@ -1577,9 +1577,11 @@ func copyTypeWithRefs(typ Type) Type {
 		// cacheTypes, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
-			Name:    ct.Name,
-			Base:    copyTypeWithRefs(ct.Base),
-			Methods: copyMethods(ct.Methods),
+			// ParentLoc is part of the TypeID for function-local types.
+			ParentLoc: ct.ParentLoc,
+			Name:      ct.Name,
+			Base:      copyTypeWithRefs(ct.Base),
+			Methods:   copyMethods(ct.Methods),
 		}
 		return dt
 	case *PackageType:

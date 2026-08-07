@@ -1,0 +1,126 @@
+# Round-2 challenge cases for function-local type persistence:
+#   B: TypeValue-only escape — closure constructs the local type per call; the
+#      only persisted trace of S2 is the captured type declaration.
+#   C: type declared inside a closure literal (ParentLoc = FuncLitExpr);
+#      post-restart call re-declares it and persists a fresh value.
+#   D: same local type name in two different functions (distinct ParentLoc).
+#   E: Bind called twice (fresh *DeclaredType instance, same TypeID — SetType
+#      idempotency across transactions).
+#   F (negative): local type declared in a maketx run script cannot escape —
+#      an existing guard rejects persisting values of types defined in the
+#      ephemeral run package, so no dangling e/-pkgpath type is possible.
+loadpkg gno.land/r/test/zlth $WORK/zlth
+loadpkg gno.land/r/test/zltsh $WORK/zltsh
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+stderr 'cannot persist object of type defined in the private realm'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func CallB -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '7 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func CallC -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '5 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func CallD -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '3 int'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/zltsh -func CallX -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '5 int'
+
+-- zlth/zlth.gno --
+package zlth
+
+type Getter interface{ Get() int }
+
+var H Getter
+
+func Set(cur realm, v Getter) {
+	H = v
+}
+
+func Call(cur realm) int {
+	return H.Get()
+}
+
+-- zltsh/zltsh.gno --
+package zltsh
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+type Getter interface{ Get() int }
+
+var (
+	G      func() any
+	GG     func() any
+	D1, D2 any
+	X      any
+)
+
+func mk1() any {
+	type S struct{ T }
+	return S{T{1}}
+}
+
+func mk2() any {
+	type S struct{ T }
+	return S{T{2}}
+}
+
+func Bind(cur realm) {
+	type S2 struct{ T }
+	G = func() any { return S2{T{7}} }
+
+	GG = func() any {
+		type C struct{ T }
+		return C{T{5}}
+	}
+
+	D1, D2 = mk1(), mk2()
+}
+
+func CallB(cur realm) int {
+	return G().(Getter).Get()
+}
+
+// CallC re-declares C at runtime inside the closure and persists a fresh
+// value of it in a post-restart transaction.
+func CallC(cur realm) int {
+	X = GG()
+	return X.(Getter).Get()
+}
+
+func CallD(cur realm) int {
+	return D1.(Getter).Get() + D2.(Getter).Get()
+}
+
+func CallX(cur realm) int {
+	return X.(Getter).Get()
+}
+
+-- script/script.gno --
+package main
+
+import "gno.land/r/test/zlth"
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+func main(cur realm) {
+	type S struct{ T }
+	zlth.Set(cross(cur), S{T{21}})
+}
