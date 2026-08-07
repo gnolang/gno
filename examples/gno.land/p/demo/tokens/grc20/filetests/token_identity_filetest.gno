@@ -6,22 +6,41 @@ import (
 	"chain"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/onbloc/identifier"
+	"gno.land/p/nt/seqid/v0"
 )
 
-var tokenIDGen *identifier.Generator
+// This realm issues ids for its own tokens instead of taking them from a
+// registry, so its tokens are not registrable there.
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.Next().String()
+}
+
+func generator(cur realm) *grc20.IDGenerator {
+	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+}
 
 func main(cur realm) {
-	tokenIDGen = identifier.NewGenerator(0, cur)
+	first, firstLedger := newToken(cur, generator(cur))
+	second, secondLedger := newToken(cur, generator(cur))
 
-	first, firstLedger := newToken(cur)
-	second, secondLedger := newToken(cur)
-
-	if first.ID() != "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m" {
+	// Same realm, same symbol, distinct ids: each token drew its own id.
+	if first.ID() != "gno.land/r/demo/grc20identity.DUP.0000001" {
 		panic("unexpected first token ID: " + first.ID())
 	}
-	if second.ID() != "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j" {
+	if second.ID() != "gno.land/r/demo/grc20identity.DUP.0000002" {
 		panic("unexpected second token ID: " + second.ID())
+	}
+
+	// Copying the generator copies nothing: both copies drive the same counter,
+	// so the ids they produce are still distinct.
+	g := generator(cur)
+	a, b := *g, *g
+	third, _ := newToken(cur, &a)
+	fourth, _ := newToken(cur, &b)
+	if third.ID() == fourth.ID() {
+		panic("copied generator produced a duplicate id: " + third.ID())
 	}
 
 	holder := chain.PackageAddress("holder")
@@ -32,8 +51,8 @@ func main(cur realm) {
 	secondLedger.Approve(holder, spender, 2)
 }
 
-func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
-	return grc20.NewToken("Same", "DUP", 6, tokenIDGen, cur)
+func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLedger) {
+	return grc20.NewToken("Same", "DUP", 6, gen, cur)
 }
 
 // Events:
@@ -43,7 +62,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
 //       },
 //       {
 //         "key": "from",
@@ -65,7 +84,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
 //       },
 //       {
 //         "key": "owner",
@@ -87,7 +106,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
 //       },
 //       {
 //         "key": "from",
@@ -109,7 +128,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j"
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
 //       },
 //       {
 //         "key": "owner",

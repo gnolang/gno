@@ -9,9 +9,16 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/treasury/v0"
-	"gno.land/p/onbloc/identifier"
 )
+
+// This realm issues ids for its own tokens; the counter never leaves it.
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.Next().String()
+}
 
 func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 	for _, bankerID := range bankerIDs {
@@ -42,7 +49,9 @@ func main(cur realm) {
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	token, ledger := grc20.NewToken("TestToken", "TEST", 0, identifier.NewGenerator(0, cur), cur)
+	// This token is never registered, so a self-created generator is enough.
+	selfGen := grc20.NewIDGenerator(0, cur, nextIDSeq)
+	token, ledger := grc20.NewToken("TestToken", "TEST", 0, selfGen, cur)
 	ledger.Mint(ownerAddr, amount)
 
 	grc20Lister := func() map[string]*grc20.Token {

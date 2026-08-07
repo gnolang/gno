@@ -7,11 +7,11 @@ import (
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to
@@ -19,6 +19,13 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
+// Ids for these test tokens come from a counter this package owns.
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.Next().String()
+}
 
 func TestCreateEvent(cur realm, t *testing.T) {
 	// Test successful event creation
@@ -98,7 +105,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var token *grc20.Token
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
-		token, ledger = grc20.NewToken("Test Token", "TEST", 6, identifier.NewGenerator(0, cur), cur)
+		token, ledger = grc20.NewToken("Test Token", "TEST", 6, grc20.NewIDGenerator(0, cur, func() string { return "0000001" }), cur)
 	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))

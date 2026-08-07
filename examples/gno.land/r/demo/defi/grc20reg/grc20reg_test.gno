@@ -5,23 +5,24 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/urequire/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
-	token, ledger := grc20.NewToken("TestToken", "TST", 4, IdentifierGenerator(), cur)
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, IdentifierGenerator(cross(cur)), cur)
 	ledger.Mint(cur.Address(), 1234567)
-	// The returned tokenKey is the slug alias, distinct from Token.ID().
+	// The key is the (realm, symbol) pair; Token.ID() additionally carries the
+	// generator id, so the two are distinct values.
 	key := Register(cross(cur), token, "mySlug")
-	urequire.Equal(t, "gno.land/r/demo/foo.mySlug", key)
+	urequire.Equal(t, "gno.land/r/demo/foo.TST", key)
 	urequire.NotEqual(t, token.ID(), key)
 	regToken := Get(key)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))
@@ -34,7 +35,7 @@ func TestRegistry(cur realm, t *testing.T) {
 
 	expected = `# TestToken
 - symbol: **TST**
-- realm: [gno.land/r/demo/foo](/r/demo/foo).mySlug
+- realm: [gno.land/r/demo/foo](/r/demo/foo).TST
 - decimals: 4
 - total supply: 1234567
 `
@@ -42,46 +43,54 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.Equal(t, expected, got)
 }
 
-func TestRegisterAliases(cur realm, t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_alias"))
-	token, _ := grc20.NewToken("Aliased", "ALIAS", 4, IdentifierGenerator(), cur)
-
-	// The same token may be registered under several slugs (aliases).
-	keyA := Register(cross(cur), token, "a")
-	keyB := Register(cross(cur), token, "b")
-	urequire.NotEqual(t, keyA, keyB)
-	urequire.Equal(t, token.ID(), Get(keyA).ID())
-	urequire.Equal(t, token.ID(), Get(keyB).ID())
-}
-
-func TestRegisterRejectsDuplicateSlug(cur realm, t *testing.T) {
+func TestRegisterRejectsDuplicateSymbol(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_dup"))
-	first, _ := grc20.NewToken("First", "FIR", 4, IdentifierGenerator(), cur)
-	second, _ := grc20.NewToken("Second", "SEC", 4, IdentifierGenerator(), cur)
-	Register(cross(cur), first, "dup")
+	first, _ := grc20.NewToken("First", "DUP", 4, IdentifierGenerator(cross(cur)), cur)
+	second, _ := grc20.NewToken("Second", "DUP", 4, IdentifierGenerator(cross(cur)), cur)
 
-	// The same slug (tokenKey) is rejected, even for a different token.
+	// The two tokens have distinct ids — each drew its own id — but they
+	// share a (realm, symbol) key, so only the first can be registered.
+	urequire.NotEqual(t, first.ID(), second.ID())
+	Register(cross(cur), first, "")
 	urequire.AbortsContains(t, cur, "token already registered", func() {
-		Register(cross(cur), second, "dup")
+		Register(cross(cur), second, "")
 	})
 }
 
-func TestRegisterRejectsForeignGenerator(cur realm, t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_foreign_gen"))
-	// A token whose id came from a generator other than the registry's own is
-	// rejected — this is what ties a registered token to the trusted generator.
-	ownGen := identifier.NewGenerator(0, cur)
-	token, _ := grc20.NewToken("Foreign", "FGN", 4, ownGen, cur)
+func TestRegisterRejectsSelfIssuedID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_self_issued"))
+	// A realm can always create its own generator, but PackagePath() is bound
+	// under IsCurrent, so it cannot claim to be the registry's.
+	var ownSeq seqid.ID
+	own := grc20.NewIDGenerator(0, cur, func() string { return ownSeq.Next().String() })
+	token, _ := grc20.NewToken("Foreign", "FGN", 4, own, cur)
 
 	urequire.AbortsContains(t, cur, "not issued by the registry generator", func() {
 		Register(cross(cur), token, "")
 	})
 }
 
+func TestCopyingTheGeneratorCannotReplayAnID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_replay"))
+
+	// The #6026 reproduction: the generator holds only a closure over the
+	// registry's counter, so copies of it advance that same counter.
+	gen := IdentifierGenerator(cross(cur))
+	a, b := *gen, *gen
+
+	canonical, _ := grc20.NewToken("Canonical", "DUP", 6, &a, cur)
+	shadow, _ := grc20.NewToken("Shadow", "DUP", 6, &b, cur)
+	urequire.NotEqual(t, canonical.ID(), shadow.ID())
+
+	// Same for a freshly created one.
+	other, _ := grc20.NewToken("Other", "DUP", 6, IdentifierGenerator(cross(cur)), cur)
+	urequire.NotEqual(t, canonical.ID(), other.ID())
+	urequire.NotEqual(t, shadow.ID(), other.ID())
+}
+
 func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_source"))
-	gen := IdentifierGenerator()
-	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, gen, cur)
+	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, IdentifierGenerator(cross(cur)), cur)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_target"))
 	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {

@@ -79,15 +79,12 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 		keys        = make([]string, 0, len(tokenNames))
 	)
 
-	// One persistent generator so every token minted here gets a distinct ID.
-	gen := grc20reg.IdentifierGenerator()
 	for _, name := range tokenNames {
-		// Create the token.
+		// Create the token. A fresh generator call per token gives each a distinct ID.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0, gen, rlm)
+		token, ledger := grc20.NewToken(name, symbol, 0, grc20reg.IdentifierGenerator(cross(rlm)), rlm)
 
-		// Register the token; the returned key is Token.ID(), which the
-		// registry now keys by.
+		// Register the token; the returned key is the (realm, symbol) pair.
 		key := grc20reg.Register(cross(rlm), token, symbol)
 
 		// Mint tokens to the specified address.

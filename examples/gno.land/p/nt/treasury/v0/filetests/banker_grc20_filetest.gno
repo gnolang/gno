@@ -7,18 +7,23 @@ import (
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/treasury/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 const amount = int64(1000)
 
-var tokenIDGen *identifier.Generator
+// These tokens are never registered, so this realm issues their ids itself.
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.Next().String()
+}
 
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0, tokenIDGen, rlm)
+	token, ledger := grc20.NewToken(name, symbol, 0, grc20.NewIDGenerator(0, rlm, nextIDSeq), rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)
@@ -27,8 +32,6 @@ func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 }
 
 func main(cur realm) {
-	tokenIDGen = identifier.NewGenerator(0, cur)
-
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
