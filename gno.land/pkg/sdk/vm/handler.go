@@ -145,6 +145,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 		return
 	}
 
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -156,6 +157,7 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
+	res.Height = req.Height
 	res.Data = []byte(fsigs.JSON())
 	return
 }
@@ -193,6 +195,7 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 		return sdk.ABCIResponseQueryFromError(err)
 	}
 
+	res.Height = req.Height
 	res.Data = []byte(strings.Join(paths, "\n"))
 	return
 }
@@ -205,6 +208,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -217,6 +221,7 @@ func (vh vmHandler) queryEvalJSON(ctx sdk.Context, req abci.RequestQuery) (res a
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -229,6 +234,7 @@ func (vh vmHandler) queryObjectJSON(ctx sdk.Context, req abci.RequestQuery) (res
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -241,6 +247,7 @@ func (vh vmHandler) queryObjectBinary(ctx sdk.Context, req abci.RequestQuery) (r
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = result
 	return
 }
@@ -278,6 +285,7 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }
@@ -290,6 +298,7 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(jsonDoc.JSON())
 	return
 }
@@ -302,6 +311,7 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+	res.Height = req.Height
 	res.Data = []byte(result)
 	return
 }

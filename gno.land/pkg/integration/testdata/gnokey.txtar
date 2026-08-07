@@ -9,7 +9,7 @@ gnoland start
 
 ## test1 account should be available on default
 gnokey query auth/accounts/$user1_user_addr
-stdout 'height: 0'
+stdout 'height: [1-9][0-9]*'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "'${user1_user_addr}'",'

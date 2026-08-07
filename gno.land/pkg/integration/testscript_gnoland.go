@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -218,6 +219,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"scanf":       loadpkgCmd(gnoRootDir),
 		"genesiscall": genesiscallCmd(defaultPK),
 		"input":       inputCmd(),
+		"querydata":   querydataCmd(),
 	}
 
 	// Initialize cmds map if needed
@@ -910,6 +912,34 @@ func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 		// Join all arguments with spaces and add newline
 		content := strings.Join(args, " ") + "\n"
 		stdinBuf.WriteString(content)
+	}
+}
+
+// querydataCmd writes the payload of the last query's stdout to a file,
+// dropping the leading "height: N" line. Query responses are stamped with the
+// height they were served at, so two snapshots of the same unchanged state do
+// not compare equal once a block has ticked between them. Capturing with
+// querydata instead of `cp stdout` keeps a before/after `cmp` meaningful.
+func querydataCmd() func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if neg {
+			ts.Fatalf("querydata command does not support negation")
+		}
+
+		if len(args) != 1 {
+			ts.Fatalf("usage: querydata <file>")
+		}
+
+		out := ts.ReadFile("stdout")
+		if _, rest, found := strings.Cut(out, "\n"); found {
+			out = rest
+		} else {
+			ts.Fatalf("querydata: stdout has no payload after the height line")
+		}
+
+		if err := os.WriteFile(ts.MkAbs(args[0]), []byte(out), 0o644); err != nil {
+			ts.Fatalf("querydata: %v", err)
+		}
 	}
 }
 
