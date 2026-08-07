@@ -1,5 +1,11 @@
-// Package grc721reg discovers GRC721 collections by fqname (rlmPath.symbol).
+// Package grc721reg discovers GRC721 collections by fqname (rlmPath.slug).
 // Open to any extension via read-only ExtensionView; no concrete extension imports.
+//
+// Unlike grc20reg, which stores a concrete *grc20.Token, this registry stores the
+// caller-supplied ExtensionView interface values and hands them back out, so a
+// consumer must type-assert an ExtensionView to a concrete view rather than trust the
+// interface. That is a deliberate trade: it keeps the registry open to extension kinds
+// it does not import, at the cost of moving the type check to the consumer.
 package grc721reg
 
 import (
