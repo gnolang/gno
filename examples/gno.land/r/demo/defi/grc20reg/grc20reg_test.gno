@@ -66,12 +66,12 @@ func TestRegistryWrappers(cur realm, t *testing.T) {
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	urequire.NoError(t, ledger.Mint(realmAddr, 200))
 	tokenKey := Register(cross(cur), token, "")
-	uassert.Equal(t, "TestToken", GetName(tokenKey))
-	uassert.Equal(t, "TST", GetSymbol(tokenKey))
-	uassert.Equal(t, 4, GetDecimals(tokenKey))
-	uassert.Equal(t, int64(1_200), TotalSupply(tokenKey))
-	uassert.Equal(t, int64(1_000), BalanceOf(tokenKey, alice))
-	uassert.Equal(t, int64(0), Allowance(tokenKey, alice, carol))
+	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
+	uassert.Equal(t, "TST", MustGet(tokenKey).GetSymbol())
+	uassert.Equal(t, 4, MustGet(tokenKey).GetDecimals())
+	uassert.Equal(t, int64(1_200), MustGet(tokenKey).TotalSupply())
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(0), MustGet(tokenKey).Allowance(alice, carol))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	Transfer(cross(cur), tokenKey, bob, 100)
@@ -79,23 +79,23 @@ func TestRegistryWrappers(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(carol))
 	TransferFrom(cross(cur), tokenKey, alice, bob, 200)
-	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
-	uassert.Equal(t, int64(300), BalanceOf(tokenKey, bob))
-	uassert.Equal(t, int64(100), Allowance(tokenKey, alice, carol))
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(300), MustGet(tokenKey).BalanceOf(bob))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).Allowance(alice, carol))
 
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewCodeRealm(realmCaller))
 	Transfer(cross(cur), tokenKey, bob, 50)
-	uassert.Equal(t, int64(150), BalanceOf(tokenKey, realmAddr))
-	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
-	uassert.Equal(t, int64(350), BalanceOf(tokenKey, bob))
+	uassert.Equal(t, int64(150), MustGet(tokenKey).BalanceOf(realmAddr))
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	uassert.AbortsWithMessage(t, cur, "insufficient balance", func() {
 		Transfer(cross(cur), tokenKey, bob, 701)
 	})
-	uassert.Equal(t, int64(700), BalanceOf(tokenKey, alice))
-	uassert.Equal(t, int64(350), BalanceOf(tokenKey, bob))
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
 }
 
 func viaWrapper(cur realm, tokenKey string, to address, amount int64) {

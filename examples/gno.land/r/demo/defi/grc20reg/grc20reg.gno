@@ -73,44 +73,35 @@ func MustGet(key string) *grc20.Token {
 	return token
 }
 
-func GetName(tokenKey string) string {
-	return MustGet(tokenKey).GetName()
-}
-
-func GetSymbol(tokenKey string) string {
-	return MustGet(tokenKey).GetSymbol()
-}
-
-func GetDecimals(tokenKey string) int {
-	return MustGet(tokenKey).GetDecimals()
-}
-
-func TotalSupply(tokenKey string) int64 {
-	return MustGet(tokenKey).TotalSupply()
-}
-
-func BalanceOf(tokenKey string, account address) int64 {
-	return MustGet(tokenKey).BalanceOf(account)
-}
-
-func Allowance(tokenKey string, owner, spender address) int64 {
-	return MustGet(tokenKey).Allowance(owner, spender)
-}
-
 // Transfer moves tokens owned by the immediate caller. A direct user call
-// spends the user's balance; a realm cross-call spends the calling realm's.
+// spends the user's balance. A realm cross-call spends the calling realm's
+// balance.
+//
+// This differs from calling `Get(tokenKey).CallerTeller().Transfer` within that
+// realm, which spends the balance of the realm's previous caller. To act as
+// your own realm explicitly, use `Get(tokenKey).RealmTeller(0, cur)`.
 func Transfer(cur realm, tokenKey string, to address, amount int64) {
 	checkErr(MustGet(tokenKey).CallerTeller().Transfer(0, cur, to, amount))
 }
 
 // Approve sets an allowance owned by the immediate caller. A direct user call
-// uses the user's allowance; a realm cross-call uses the calling realm's.
+// updates the user's allowance. A realm cross-call updates the calling realm's
+// allowance.
+//
+// This differs from calling `Get(tokenKey).CallerTeller().Approve` within that
+// realm, which updates the allowance of the realm's previous caller. To act as
+// your own realm explicitly, use `Get(tokenKey).RealmTeller(0, cur)`.
 func Approve(cur realm, tokenKey string, spender address, amount int64) {
 	checkErr(MustGet(tokenKey).CallerTeller().Approve(0, cur, spender, amount))
 }
 
-// TransferFrom spends an allowance as the immediate caller. A direct user is
-// the spender; for a realm cross-call, the calling realm is the spender.
+// TransferFrom spends an allowance as the immediate caller. A direct user call
+// uses the user as the spender. A realm cross-call uses the calling realm as
+// the spender.
+//
+// This differs from calling `Get(tokenKey).CallerTeller().TransferFrom` within
+// that realm, which uses the realm's previous caller as the spender. To act as
+// your own realm explicitly, use `Get(tokenKey).RealmTeller(0, cur)`.
 func TransferFrom(cur realm, tokenKey string, from, to address, amount int64) {
 	checkErr(MustGet(tokenKey).CallerTeller().TransferFrom(0, cur, from, to, amount))
 }
