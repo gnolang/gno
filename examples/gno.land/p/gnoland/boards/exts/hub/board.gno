@@ -47,7 +47,7 @@ func (b Board) ID() uint64 { return b.id }
 func (b Board) Name() string { return b.name }
 
 // Aliases returns the list of alternative names for the board.
-func (b Board) Aliases() []string { return b.aliases }
+func (b Board) Aliases() []string { return append([]string(nil), b.aliases...) }
 
 // Readonly indicates that the board is readonly.
 func (b Board) Readonly() bool { return b.readonly }
