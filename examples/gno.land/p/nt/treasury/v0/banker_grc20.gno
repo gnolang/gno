@@ -38,7 +38,7 @@ func (GRC20Banker) ID() string {
 // identity against the topmost crossing frame. Combined with the
 // rlm.Address() == gb.owner check, this restricts Send to the owning
 // realm acting in its own frame.
-func (gb *GRC20Banker) Send(_ int, rlm realm, p Payment) error {
+func (gb *GRC20Banker) Send(p Payment, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
@@ -61,7 +61,7 @@ func (gb *GRC20Banker) Send(_ int, rlm realm, p Payment) error {
 	}
 
 	// Send the token from the owner's balance.
-	return token.RealmTeller(0, rlm).Transfer(0, rlm, payment.toAddress, payment.amount)
+	return token.RealmTeller(0, rlm).Transfer(payment.toAddress, payment.amount, rlm)
 }
 
 // Balances implements Banker.

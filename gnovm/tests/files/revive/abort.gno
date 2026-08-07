@@ -5,10 +5,10 @@ func main(cur realm) {
 	f := func(cur realm) {
 		panic("panicked!")
 	}
-	abort(0, cur, f)
+	abort(f, cur)
 }
 
-func abort(_ int, rlm realm, f any) {
+func abort(f any, rlm realm) {
 
 	var didAbort bool
 	var abortValue any

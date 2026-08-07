@@ -9,11 +9,12 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // accept ownership before the transfer completes.
 //
 // Authority-mutating methods (TransferOwnership, AcceptOwnership,
-// DropOwnership) take (_ int, rlm realm). The caller threads its own
-// cur; the method asserts rlm.IsCurrent() and identifies the principal
-// as rlm.Previous().Address() — unforgeable.
+// DropOwnership) take the realm last, or behind `_ int` when nothing can
+// trail it. The caller threads its own cur; the method asserts
+// rlm.IsCurrent() and identifies the principal as
+// rlm.Previous().Address() — unforgeable.
 //
-//	o.TransferOwnership(0, cur, newOwner)
+//	o.TransferOwnership(newOwner, cur)
 //	o.AcceptOwnership(0, cur)
 //	o.DropOwnership(0, cur)
 //
@@ -38,7 +39,7 @@ func NewWithAddress(addr address) *Ownable2Step {
 // TransferOwnership initiates the transfer of ownership to newOwner by
 // setting the PendingOwner. rlm must be the caller's own captured cur;
 // rlm.Previous().Address() must equal the current owner.
-func (o *Ownable2Step) TransferOwnership(_ int, rlm realm, newOwner address) error {
+func (o *Ownable2Step) TransferOwnership(newOwner address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrUnauthorized
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 func main(cur realm) {
-	_, err := blog.NewBlog(0, cur, "My Blog", address("he"))
+	_, err := blog.NewBlog("My Blog", address("he"), cur)
 	if err != nil {
 		println("error:", err.Error())
 	}

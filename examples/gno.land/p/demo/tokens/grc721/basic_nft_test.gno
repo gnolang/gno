@@ -19,7 +19,7 @@ var (
 func newDummyNFT(_ int, rlm realm) *BasicNFT {
 	var nft *BasicNFT
 	func(cur realm) {
-		nft = NewBasicNFT(0, cur, dummyNFTName, dummyNFTSymbol)
+		nft = NewBasicNFT(dummyNFTName, dummyNFTSymbol, cur)
 	}(cross(rlm))
 	return nft
 }
@@ -31,29 +31,29 @@ func TestNewBasicNFTValidation(cur realm, t *testing.T) {
 	)
 
 	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
-		NewBasicNFT(0, cur, "", "OK")
+		NewBasicNFT("", "OK", cur)
 	}, "empty name")
 	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
-		NewBasicNFT(0, cur, "Name", "")
+		NewBasicNFT("Name", "", cur)
 	}, "empty symbol")
 	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
-		NewBasicNFT(0, cur, strings.Repeat("a", MaxNameLen+1), "OK")
+		NewBasicNFT(strings.Repeat("a", MaxNameLen+1), "OK", cur)
 	}, "name too long")
 	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
-		NewBasicNFT(0, cur, "Name", strings.Repeat("A", MaxSymbolLen+1))
+		NewBasicNFT("Name", strings.Repeat("A", MaxSymbolLen+1), cur)
 	}, "symbol too long")
 	uassert.AbortsContains(t, cur, nameErr, func(cur realm) {
-		NewBasicNFT(0, cur, "bad\x01name", "OK")
+		NewBasicNFT("bad\x01name", "OK", cur)
 	}, "name with control char")
 	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
-		NewBasicNFT(0, cur, "Name", "BA.D")
+		NewBasicNFT("Name", "BA.D", cur)
 	}, "symbol with dot")
 	uassert.AbortsContains(t, cur, symbolErr, func(cur realm) {
-		NewBasicNFT(0, cur, "Name", "BA D")
+		NewBasicNFT("Name", "BA D", cur)
 	}, "symbol with space")
 
 	uassert.NotAborts(t, cur, func(cur realm) {
-		NewBasicNFT(0, cur, strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen))
+		NewBasicNFT(strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), cur)
 	}, "boundary name+symbol should succeed")
 }
 

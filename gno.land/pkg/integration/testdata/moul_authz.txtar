@@ -77,7 +77,7 @@ func Edit(cur realm, newValue string) {
 		value = newValue
 		return nil
 	}
-	if err := a.DoByPrevious(0, cur, "Edit", doEdit); err != nil {
+	if err := a.DoByPrevious("Edit", doEdit, cur); err != nil {
 		panic(err)
 	}
 }

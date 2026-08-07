@@ -216,10 +216,10 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 //
-// rlm is the cur of the caller's enclosing crossing function (passed as
-// data via the `_ int, rlm realm` non-crossing form). rlm.Address() is
-// the calling realm against which we authorize.
-func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
+// rlm is the cur of the caller's enclosing crossing function, passed as
+// data in the last parameter, which keeps this non-crossing. rlm.Address()
+// is the calling realm against which we authorize.
+func (u *UserData) UpdateName(newName string, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrInvalidRealm
 	}
@@ -239,7 +239,7 @@ func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
 // whitelist gate, but ErrCanonicalCollision is suppressed. The canonical
 // store is still written; a prior entry with the same canonical key is
 // silently overwritten (decision #14, later-wins).
-func (u *UserData) UpdateNameIgnoreCanonical(_ int, rlm realm, newName string) error {
+func (u *UserData) UpdateNameIgnoreCanonical(newName string, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrInvalidRealm
 	}

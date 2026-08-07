@@ -72,7 +72,7 @@ func init(cur realm) {
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT
-	myNFT := grc721.NewBasicNFT(0, cur, "My NFT Collection", "MNFT")
+	myNFT := grc721.NewBasicNFT("My NFT Collection", "MNFT", cur)
 	myNFT.Mint("g1your_address_here", "1")
 	nftErr := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
 

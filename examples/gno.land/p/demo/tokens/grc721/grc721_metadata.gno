@@ -16,9 +16,9 @@ type metadataNFT struct {
 var _ IGRC721MetadataOnchain = (*metadataNFT)(nil)
 
 // NewNFTWithMetadata creates a new basic NFT with metadata extensions.
-func NewNFTWithMetadata(_ int, rlm realm, name, symbol string) *metadataNFT {
+func NewNFTWithMetadata(name, symbol string, rlm realm) *metadataNFT {
 	return &metadataNFT{
-		BasicNFT:   NewBasicNFT(0, rlm, name, symbol),
+		BasicNFT:   NewBasicNFT(name, symbol, rlm),
 		extensions: avl.NewTree(),
 	}
 }

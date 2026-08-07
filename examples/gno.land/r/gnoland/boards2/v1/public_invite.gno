@@ -22,7 +22,7 @@ type Invite struct {
 //
 // A role can optionally be specified to be assigned to the new member.
 func InviteMember(cur realm, boardID boards.ID, user address, role boards.Role) {
-	inviteMembers(0, cur, boardID, Invite{
+	inviteMembers(boardID, cur, Invite{
 		User: user,
 		Role: role,
 	})
@@ -32,7 +32,7 @@ func InviteMember(cur realm, boardID boards.ID, user address, role boards.Role) 
 //
 // Board ID is only required when inviting a member to a specific board.
 func InviteMembers(cur realm, boardID boards.ID, invites ...Invite) {
-	inviteMembers(0, cur, boardID, invites...)
+	inviteMembers(boardID, cur, invites...)
 }
 
 // RequestInvite request to be invited to a board.
@@ -139,7 +139,7 @@ func RevokeInvite(cur realm, boardID boards.ID, user address) {
 	})
 }
 
-func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
+func inviteMembers(boardID boards.ID, rlm realm, invites ...Invite) {
 	if !rlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}

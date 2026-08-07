@@ -413,10 +413,10 @@ func TestRender(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
 	userTeller := test20.Token.RealmTeller(0, cur)
-	userTeller.Approve(0, cur, rlm, 10_000)
+	userTeller.Approve(rlm, 10_000, cur)
 	bobSwapID, _ := NewCustomGRC20Swap(cross(cur), bob, hashlockHex, timelock, test20.Token)
 
-	userTeller.Approve(0, cur, rlm, 20_000)
+	userTeller.Approve(rlm, 20_000, cur)
 	_, _ = NewCustomGRC20Swap(cross(cur), charly, hashlockHex, timelock, test20.Token)
 
 	testing.SetRealm(testing.NewUserRealm(bob))

@@ -12,7 +12,7 @@ var (
 )
 
 func Authorize(cur realm, addr string) {
-	auth.AddMember(0, cur, address(addr))
+	auth.AddMember(address(addr), cur)
 }
 
 func Address() address {

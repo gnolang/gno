@@ -10,7 +10,7 @@ import (
 func newDummyMetadataNFT(_ int, rlm realm) *metadataNFT {
 	var nft *metadataNFT
 	func(cur realm) {
-		nft = NewNFTWithMetadata(0, cur, dummyNFTName, dummyNFTSymbol)
+		nft = NewNFTWithMetadata(dummyNFTName, dummyNFTSymbol, cur)
 	}(cross(rlm))
 	return nft
 }

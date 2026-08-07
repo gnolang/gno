@@ -83,9 +83,9 @@ func CreateSampleBlog(_ int, rlm realm) *blog.Blog {
 	if err != nil {
 		panic(err)
 	}
-	myBlog.AddPost(0, rlm, post1)
-	myBlog.AddPost(0, rlm, post2)
-	myBlog.AddPost(0, rlm, post3)
+	myBlog.AddPost(post1, rlm)
+	myBlog.AddPost(post2, rlm)
+	myBlog.AddPost(post3, rlm)
 	return myBlog
 }
 

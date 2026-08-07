@@ -104,5 +104,5 @@ func NewExecuteLambdaAction(cb func()) Action {
 // migration: the action-handler callback shape `func(i interface{})`
 // has no rlm in scope, so it cannot drive Propose/Vote/Execute which
 // now all require an IsCurrent-validated rlm. The free function
-// InstantExecute(_ int, rlm realm, d DAO, req) remains for direct
+// InstantExecute(d DAO, req, rlm realm) remains for direct
 // caller use.

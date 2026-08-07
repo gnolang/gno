@@ -31,7 +31,7 @@ func (CoinsBanker) ID() string {
 // identity against the topmost crossing frame. Combined with the
 // rlm.Address() == cb.owner check, this restricts Send to the owning
 // realm acting in its own frame.
-func (cb *CoinsBanker) Send(_ int, rlm realm, p Payment) error {
+func (cb *CoinsBanker) Send(p Payment, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}

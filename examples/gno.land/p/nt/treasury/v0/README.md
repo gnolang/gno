@@ -62,7 +62,7 @@ func init() {
 // SendUgnot transfers ugnot from the realm to `to`.
 func SendUgnot(cur realm, to address, amount int64) {
     p := treasury.NewCoinsPayment(chain.Coins{{Denom: "ugnot", Amount: amount}}, to)
-    if err := tr.Send(0, cur, p); err != nil {
+    if err := tr.Send(p, cur); err != nil {
         panic(err)
     }
 }
@@ -82,7 +82,7 @@ func Render(path string) string {
 // pkgPath is the realm's package path, used as the base for the Render router.
 func New(bankers []Banker, pkgPath string) (*Treasury, error)
 
-func (t *Treasury) Send(_ int, rlm realm, p Payment) error
+func (t *Treasury) Send(p Payment, rlm realm) error
 func (t *Treasury) History(bankerID string, pageNumber, pageSize int) ([]Payment, error)
 func (t *Treasury) Balances(bankerID string) ([]Balance, error)
 func (t *Treasury) Address(bankerID string) (string, error)
@@ -108,7 +108,7 @@ The `history_size` query parameter on `{banker}` controls the preview size (defa
 ```go
 type Banker interface {
     ID() string                     // unique banker ID used for routing
-    Send(int, realm, Payment) error // thread the caller's cur; pass 0 as the first arg
+    Send(Payment, realm) error      // thread the caller's cur as the trailing realm
     Balances() []Balance
     Address() string                // address used to receive payments
 }

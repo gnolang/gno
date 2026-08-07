@@ -69,6 +69,6 @@ func NewProposalRequest(_ int, rlm realm) dao.ProposalRequest {
 		return errors.New("Boom!")
 	}
 
-	e := dao.NewSimpleExecutor(0, rlm, cb, "")
+	e := dao.NewSimpleExecutor(cb, "", rlm)
 	return dao.NewProposalRequest("Test Proposal", "This proposal always fails on execution", e)
 }

@@ -13,7 +13,7 @@ import (
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
 //
-// SECURITY: Transfer/Approve/TransferFrom take (_ int, rlm realm, ...), so
+// SECURITY: Transfer/Approve/TransferFrom take a trailing rlm realm, so
 // handing a Teller value to untrusted code yields a capability token to
 // whatever Transfer/Approve/TransferFrom impl that code dispatches into.
 // Any /p/ or /r/ function that accepts a Teller as a parameter from external
@@ -44,7 +44,7 @@ type Teller interface {
 	// be the caller's own captured cur — verified via rlm.IsCurrent().
 	//
 	// Returns an error if the operation failed.
-	Transfer(_ int, rlm realm, to address, amount int64) error
+	Transfer(to address, amount int64, rlm realm) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
@@ -63,14 +63,14 @@ type Teller interface {
 	// this race condition is to first reduce the spender's allowance to 0
 	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(_ int, rlm realm, spender address, amount int64) error
+	Approve(spender address, amount int64, rlm realm) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
 	// Returns an error if the operation failed.
-	TransferFrom(_ int, rlm realm, from, to address, amount int64) error
+	TransferFrom(from, to address, amount int64, rlm realm) error
 }
 
 // Token represents a fungible token with an ID, name, symbol, and a certain

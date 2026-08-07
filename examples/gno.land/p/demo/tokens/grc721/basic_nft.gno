@@ -20,7 +20,7 @@ type BasicNFT struct {
 	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
 }
 
-func NewBasicNFT(_ int, rlm realm, name, symbol string) *BasicNFT {
+func NewBasicNFT(name, symbol string, rlm realm) *BasicNFT {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}

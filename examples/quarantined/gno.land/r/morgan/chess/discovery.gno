@@ -76,7 +76,7 @@ var (
 )
 
 func GetPlayer(cur realm, player string) string {
-	addr := parsePlayer(0, cur, player)
+	addr := parsePlayer(player, cur)
 	v := playerStore.Get(addr.String())
 	if v == nil {
 		panic("player not found")
@@ -265,7 +265,7 @@ func Leaderboard(category string) string {
 //	<cmp>: '<' or '>'
 //	<player>: either a bech32 address, "@user" (r/demo/users), or "caller"
 func ListGames(cur realm, filters string) string {
-	ft := parseFilters(0, cur, filters)
+	ft := parseFilters(filters, cur)
 	results := make([]*Game, 0, ft.limit)
 	cb := func(g *Game) (stop bool) {
 		if !ft.valid(g) {
@@ -347,7 +347,7 @@ func (l *listGamesFilters) valid(game *Game) bool {
 // callerRlm must be the caller's own live cur; it's threaded into
 // parsePlayer for the "caller" / "@user" / addr resolution sub-cases.
 // IsCurrent guard mirrors parsePlayer's (Class-2 defense).
-func parseFilters(_ int, callerRlm realm, filters string) (r listGamesFilters) {
+func parseFilters(filters string, callerRlm realm) (r listGamesFilters) {
 	if !callerRlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}
@@ -363,19 +363,19 @@ func parseFilters(_ int, callerRlm realm, filters string) (r listGamesFilters) {
 		filt, pred := part[:idx+1], part[idx+1:]
 		switch filt {
 		case "player:":
-			a := parsePlayer(0, callerRlm, pred)
+			a := parsePlayer(pred, callerRlm)
 			r.filters = append(r.filters, func(g *Game) bool { return g.White == a || g.Black == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
 			}
 		case "white:":
-			a := parsePlayer(0, callerRlm, pred)
+			a := parsePlayer(pred, callerRlm)
 			r.filters = append(r.filters, func(g *Game) bool { return g.White == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
 			}
 		case "black:":
-			a := parsePlayer(0, callerRlm, pred)
+			a := parsePlayer(pred, callerRlm)
 			r.filters = append(r.filters, func(g *Game) bool { return g.Black == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
@@ -419,7 +419,7 @@ func parseBool(s string) bool {
 // without it, a hostile caller could pass a stashed realm value whose
 // .Previous().Address() resolves to a victim's address and have
 // parsePlayer return it. See docs/resources/gno-security.md.
-func parsePlayer(_ int, callerRlm realm, s string) address {
+func parsePlayer(s string, callerRlm realm) address {
 	if !callerRlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}

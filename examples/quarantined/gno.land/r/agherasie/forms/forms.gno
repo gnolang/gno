@@ -15,7 +15,7 @@ func init(cur realm) {
 }
 
 func CreateForm(cur realm, title string, description string, openAt string, closeAt string, data string) string {
-	id, err := db.CreateForm(0, cur, title, description, openAt, closeAt, data)
+	id, err := db.CreateForm(title, description, openAt, closeAt, data, cur)
 	if err != nil {
 		panic(err)
 	}
@@ -94,7 +94,7 @@ func SubmitForm(cur realm, formID string, answers string) {
 		panic(err)
 	}
 
-	db.SubmitForm(0, cur, formID, answers)
+	db.SubmitForm(formID, answers, cur)
 }
 
 func Render(_ string) string {

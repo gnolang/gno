@@ -45,7 +45,7 @@ func newSwap(
 // Claim allows the recipient to claim the funds if they provide the correct preimage.
 // rlm is the cur of the surrounding crossing wrapper; rlm.Previous() is
 // the immediate caller of that wrapper, against which we authorize.
-func (s *Swap) Claim(_ int, rlm realm, preimage string) {
+func (s *Swap) Claim(preimage string, rlm realm) {
 	require(rlm.IsCurrent(), "unauthorized: rlm is not the caller's live cur")
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")

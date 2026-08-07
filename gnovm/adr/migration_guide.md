@@ -20,19 +20,29 @@ Two ways to thread `realm` through a function signature:
 | Form | Semantics |
 |---|---|
 | `func F(cur realm, ...)` | **Crossing function.** Called via `F(cross(rlm), ...)`. Each cross-call mints a fresh `cur` in the callee, creates a realm boundary, triggers finalization on return. |
-| `func F(_ int, rlm realm, ...)` | **Non-crossing helper** that *takes a realm value*. Called as `F(0, cur, ...)` (plain value pass). No boundary, no finalization, no shift in `runtime.{Current,Previous}Realm()`. |
+| `func F(..., rlm realm)` | **Non-crossing helper** that *takes a realm value*. Called as `F(..., cur)` (plain value pass). No boundary, no finalization, no shift in `runtime.{Current,Previous}Realm()`. |
 
-The `_ int` discriminator in the second form is required: without it,
-the parser sees `func F(rlm realm, ...)` and reads it as a crossing
+What makes the second form non-crossing is that the realm is not the
+*first* parameter: the parser reads a leading `realm` as a crossing
 function — which is forbidden in `/p/` packages and changes call-site
-semantics.
+semantics. Putting the realm last is therefore enough on its own.
+
+A helper with nothing for the realm to trail — no other parameter at
+all, or only a variadic one, which the realm cannot follow — keeps the
+older `_ int` sentinel, since last and first are the same position
+there:
+
+```go
+func F(_ int, rlm realm)                  // nothing to trail
+func F(_ int, rlm realm, args ...any)     // cannot follow a variadic
+```
 
 **Default rule:**
 
 - **Exposed-to-EOA entry points** (MsgCall targets, the `func Foo(cur
   realm, ...)` in a `/r/` realm that humans invoke) → crossing function.
 - **Internal / unexposed helpers** (private getters, validators,
-  forwarders within the same realm) → `_ int, rlm realm` non-crossing
+  forwarders within the same realm) → trailing `rlm realm` non-crossing
   helper.
 
 Reason: only the outermost call from an EOA into a realm should shift
@@ -121,8 +131,8 @@ Now `SetRealm` walks frames, finds the subtest closure's frame
 fn), and mutates `fr.Cur` in place. The captured `cur` reflects the
 mutation because the closure's `cur` and `fr.Cur` share HIV.
 
-**Methods/funcs inside subtests** that previously took `_ int, rlm
-realm` (non-crossing helper) need to be reconsidered: if they call
+**Methods/funcs inside subtests** that took a trailing `rlm realm`
+(non-crossing helper) need to be reconsidered: if they call
 `SetRealm` internally and rely on the mutation reaching `rlm`, they
 need to be crossing methods too (`Method(cur realm, ...)`) so that
 their frame has its own `fr.Cur`. Bridge non-crossing → crossing at
@@ -310,7 +320,7 @@ A natural-looking pattern in test code:
 t.Run(name, func(cur realm, t *testing.T) {
     run := func() {
         testing.SetRealm(testing.NewUserRealm(voter))
-        tdao.vote(0, cur, ...) // expects rlm.Previous() == voter
+        tdao.vote(..., cur) // expects rlm.Previous() == voter
     }
     uassert.AbortsWithMessage(t, cur, "...", run)
 })
@@ -338,7 +348,7 @@ enclosing crossing scope:
 t.Run(name, func(cur realm, t *testing.T) {
     testing.SetRealm(testing.NewUserRealm(voter))  // mutates THIS frame's cur
     run := func() {
-        tdao.vote(0, cur, ...)  // captured `cur` now points to mutated HIV
+        tdao.vote(..., cur)  // captured `cur` now points to mutated HIV
     }
     uassert.AbortsWithMessage(t, cur, "...", run)
 })
@@ -559,7 +569,7 @@ MsgCall chain roots).
 | Where the bare `cross` lives | Transform |
 |---|---|
 | Inside a crossing function `func Bar(cur realm) { Foo(cross, ...) }` | `Foo(cross(cur), ...)` — thread the enclosing `cur`. |
-| Inside a non-crossing helper that has no realm in scope | Add `(_ int, cur realm, ...)` to the helper signature (no leading `cur` to avoid making it crossing), update callers to pass `(0, cur, ...)`, then `cross` → `cross(cur)`. |
+| Inside a non-crossing helper that has no realm in scope | Add a trailing `rlm realm` to the helper signature (never leading, which would make it crossing), update callers to pass `(..., cur)`, then `cross` → `cross(rlm)`. |
 | Inside a test fn `func TestX(t *testing.T) { ... cross ... }` | Rewrite as `func TestX(cur realm, t *testing.T)` (allowed in `_test.gno` only; see §11), then `cross` → `cross(cur)`. Every `uassert`/`urequire` helper called inside also needs `cur` threaded as its second argument. |
 | Inside a MsgRun script `package main` + `func main() { ... cross ... }` | Rewrite as `func main(cur realm)` (the `/e/` carve-out — see §12), then `cross` → `cross(cur)`. Scripts that contain multiple `package main` heredocs (e.g. one to drive a proposal, one to assert state afterward) should leave the assert-only heredoc as `func main()` — adding an unused `cur realm` parameter is misleading. |
 | Inside an `init()` that mutates realm state | Rewrite as `init(cur realm)` (same allowance as `main`), then `cross` → `cross(cur)`. |
@@ -570,12 +580,12 @@ code from upstream typically lands with *three* additional drifts:
 
 1. **Helper signature drift.** Upstream helpers that build executors
    or wrap dao calls use master's `dao.NewSimpleExecutor(callback,
-   "")` shape; HEAD has migrated to `(_ int, cur realm, callback,
-   "")`. Compile errors surface as
+   "")` shape; HEAD has migrated to `(callback, "", cur)`. Compile
+   errors surface as
    `not enough arguments in call to dao.NewSimpleExecutor — have
-   (func(...), string), want (int, dao.realm, func(...), string)`.
-   Fix by threading `cur realm` through the enclosing helper and
-   passing `(0, cur, callback, "")`.
+   (func(...), string), want (func(...), string, dao.realm)`.
+   Fix by threading `rlm realm` through the enclosing helper and
+   passing `(callback, "", cur)`.
 
 2. **Caller-chain drift.** When (1) adds `cur realm` to a helper, the
    helper's callers (often top-level `New...PropRequest` constructors)

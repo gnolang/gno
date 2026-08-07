@@ -8,7 +8,7 @@ var govdao = impl.NewGovDAO()
 
 func main(cur realm) {
 	// Try to execute a proposal using a nil executor
-	govdao.ExecuteProposal(0, cur, 0, nil)
+	govdao.ExecuteProposal(0, nil, cur)
 }
 
 // Error:

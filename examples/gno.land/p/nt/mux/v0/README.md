@@ -63,7 +63,7 @@ func (r *Router) HandleFuncRlm(pattern string, fn HandlerFuncRlm) // rlm-aware h
 func (r *Router) HandleErrFunc(pattern string, fn ErrHandlerFunc)
 func (r *Router) SetNotFoundHandler(handler NotFoundHandler)
 func (r *Router) Render(reqPath string) string
-func (r *Router) RenderRlm(_ int, rlm realm, reqPath string) string // dispatches rlm-aware routes
+func (r *Router) RenderRlm(reqPath string, rlm realm) string // dispatches rlm-aware routes
 
 type Request struct {
     Path        string     // path without query string
@@ -86,7 +86,7 @@ type Handler struct {
 }
 
 type HandlerFunc     func(*ResponseWriter, *Request)
-type HandlerFuncRlm  func(_ int, rlm realm, res *ResponseWriter, req *Request)
+type HandlerFuncRlm  func(res *ResponseWriter, req *Request, rlm realm)
 type ErrHandlerFunc  func(*ResponseWriter, *Request) error
 type NotFoundHandler func(*ResponseWriter, *Request)
 ```
@@ -105,4 +105,4 @@ Routes are matched in registration order; the first match wins. If no route matc
 - Query strings are parsed off `reqPath` (`?foo=bar`); access via `req.Query` (a `net/url.Values`).
 - `req.RawPath` keeps the original path including the query string; `req.Path` strips it.
 - `req.GetVar(...)` and `req.Query.Get(...)` return attacker-controlled path/query input. Wrap it with `sanitize.InlineText` from [`gno.land/p/nt/markdown/sanitize/v0`](../../markdown/sanitize/v0) before writing it into the response, or user input can inject Markdown structure.
-- Register realm-aware handlers with `HandleFuncRlm` and dispatch them with `RenderRlm(0, cur, path)`. The plain `Render` path only invokes non-rlm `Fn` handlers.
+- Register realm-aware handlers with `HandleFuncRlm` and dispatch them with `RenderRlm(path, cur)`. The plain `Render` path only invokes non-rlm `Fn` handlers.

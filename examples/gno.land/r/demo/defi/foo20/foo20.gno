@@ -39,15 +39,15 @@ func Allowance(owner, spender address) int64 {
 }
 
 func Transfer(cur realm, to address, amount int64) {
-	checkErr(userTeller.Transfer(0, cur, to, amount))
+	checkErr(userTeller.Transfer(to, amount, cur))
 }
 
 func Approve(cur realm, spender address, amount int64) {
-	checkErr(userTeller.Approve(0, cur, spender, amount))
+	checkErr(userTeller.Approve(spender, amount, cur))
 }
 
 func TransferFrom(cur realm, from, to address, amount int64) {
-	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
+	checkErr(userTeller.TransferFrom(from, to, amount, cur))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).

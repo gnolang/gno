@@ -12,7 +12,7 @@ func init() {
 }
 
 func main(cur realm) {
-	store.Set(0, cur, []byte("hello, world"))
+	store.Set([]byte("hello, world"), cur)
 	println(string(store.Get(cur.Previous().Address())))
 }
 

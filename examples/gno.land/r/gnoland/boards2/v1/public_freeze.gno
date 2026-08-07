@@ -9,12 +9,12 @@ import (
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
 func FreezeBoard(cur realm, boardID boards.ID) {
-	setBoardReadonly(0, cur, boardID, true)
+	setBoardReadonly(boardID, true, cur)
 }
 
 // UnfreezeBoard removes frozen status from a board.
 func UnfreezeBoard(cur realm, boardID boards.ID) {
-	setBoardReadonly(0, cur, boardID, false)
+	setBoardReadonly(boardID, false, cur)
 }
 
 // IsBoardFrozen checks if a board has been frozen.
@@ -27,14 +27,14 @@ func IsBoardFrozen(boardID boards.ID) bool {
 //
 // Fails if board is frozen.
 func FreezeThread(cur realm, boardID, threadID boards.ID) {
-	setThreadReadonly(0, cur, boardID, threadID, true)
+	setThreadReadonly(boardID, threadID, true, cur)
 }
 
 // UnfreezeThread removes frozen status from a thread.
 //
 // Fails if board is frozen.
 func UnfreezeThread(cur realm, boardID, threadID boards.ID) {
-	setThreadReadonly(0, cur, boardID, threadID, false)
+	setThreadReadonly(boardID, threadID, false, cur)
 }
 
 // IsThreadFrozen checks if a thread has been frozen.
@@ -46,7 +46,7 @@ func IsThreadFrozen(boardID, threadID boards.ID) bool {
 	return board.Readonly || thread.Readonly
 }
 
-func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
+func setBoardReadonly(boardID boards.ID, readonly bool, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}
@@ -73,7 +73,7 @@ func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
 	})
 }
 
-func setThreadReadonly(_ int, rlm realm, boardID, threadID boards.ID, readonly bool) {
+func setThreadReadonly(boardID, threadID boards.ID, readonly bool, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")
 	}

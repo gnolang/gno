@@ -35,7 +35,7 @@ func TestResolveName(cur realm, t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
+		urequire.NoError(t, data.UpdateName("alice1", cur))
 
 		res, isLatest := ResolveName("alice1")
 		urequire.NotEqual(t, nil, res)
@@ -58,7 +58,7 @@ func TestResolveName(cur realm, t *testing.T) {
 			names = append(names, alias)
 
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(0, cur, alias))
+			urequire.NoError(t, data.UpdateName(alias, cur))
 		}
 
 		for _, alias := range names {
@@ -90,7 +90,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
+		urequire.NoError(t, data.UpdateName("alice1", cur))
 
 		res := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
@@ -112,7 +112,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 			alias := "alice" + strconv.Itoa(i)
 			names = append(names, alias)
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(0, cur, alias))
+			urequire.NoError(t, data.UpdateName(alias, cur))
 		}
 
 		res := ResolveAddress(aliceAddr)

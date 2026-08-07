@@ -8,12 +8,13 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // ownable OR being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object.
 //
-// Authority-mutating methods (TransferOwnership, DropOwnership) take
-// (_ int, rlm realm). The caller threads its own cur; the method
-// asserts rlm.IsCurrent() and identifies the principal as
-// rlm.Previous().Address() — which must equal the current owner.
+// Authority-mutating methods (TransferOwnership, DropOwnership) take the
+// realm last, or behind `_ int` when nothing can trail it. The caller
+// threads its own cur; the method asserts rlm.IsCurrent() and identifies
+// the principal as rlm.Previous().Address() — which must equal the
+// current owner.
 //
-//	o.TransferOwnership(0, cur, newOwner)
+//	o.TransferOwnership(newOwner, cur)
 //	o.DropOwnership(0, cur)
 //
 // Read methods (OwnedBy, AssertOwnedBy) keep the bare-address shape;
@@ -58,7 +59,7 @@ func (o *Ownable) AssertOwnedBy(addr address) {
 // attacker calling TransferOwnership on a foreign Ownable cannot supply
 // an arbitrary caller address; rlm comes from a runtime-validated
 // crossing frame.
-func (o *Ownable) TransferOwnership(_ int, rlm realm, newOwner address) error {
+func (o *Ownable) TransferOwnership(newOwner address, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrUnauthorized
 	}

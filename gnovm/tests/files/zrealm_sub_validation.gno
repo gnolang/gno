@@ -4,9 +4,9 @@ package subrealm
 import "strings"
 
 // Subpath validation grammar: '/'-separated segments of [a-z0-9], with
-// '_.-' allowed only inside a segment. try is non-crossing (the `_ int`
-// discriminator) so main's cur stays the topmost crossing cur.
-func try(_ int, rlm realm, sp string) {
+// '_.-' allowed only inside a segment. try is non-crossing (its realm
+// comes last) so main's cur stays the topmost crossing cur.
+func try(sp string, rlm realm) {
 	defer func() {
 		if r := recover(); r != nil {
 			println(sp, "rejected:", r)
@@ -18,24 +18,24 @@ func try(_ int, rlm realm, sp string) {
 
 func main(cur realm) {
 	// Rejected.
-	try(0, cur, "")                       // empty
-	try(0, cur, "Dao")                    // uppercase
-	try(0, cur, "a b")                    // space
-	try(0, cur, "a:b")                    // colon
-	try(0, cur, "dao/")                   // trailing slash
-	try(0, cur, "/dao")                   // leading slash
-	try(0, cur, "a//b")                   // empty segment
-	try(0, cur, "..")                     // traversal segment
-	try(0, cur, "../x")                   // traversal
-	try(0, cur, "_x")                     // edge punctuation
-	try(0, cur, "x-")                     // edge punctuation
-	try(0, cur, strings.Repeat("a", 256)) // synthesized > 256 (host+':'+256)
+	try("", cur)                       // empty
+	try("Dao", cur)                    // uppercase
+	try("a b", cur)                    // space
+	try("a:b", cur)                    // colon
+	try("dao/", cur)                   // trailing slash
+	try("/dao", cur)                   // leading slash
+	try("a//b", cur)                   // empty segment
+	try("..", cur)                     // traversal segment
+	try("../x", cur)                   // traversal
+	try("_x", cur)                     // edge punctuation
+	try("x-", cur)                     // edge punctuation
+	try(strings.Repeat("a", 256), cur) // synthesized > 256 (host+':'+256)
 
 	// Accepted.
-	try(0, cur, "dao/42")
-	try(0, cur, "v1.2")
-	try(0, cur, "role_admin")
-	try(0, cur, "a")
+	try("dao/42", cur)
+	try("v1.2", cur)
+	try("role_admin", cur)
+	try("a", cur)
 
 	// Subpath() accessor is the canonical "am I a sub" surface.
 	sub := cur.Sub("dao/42")

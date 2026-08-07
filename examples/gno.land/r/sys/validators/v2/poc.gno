@@ -65,7 +65,7 @@ func NewPropRequest(cur realm, changesFn func() []validators.Validator, title, d
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, callback, "")
+	e := dao.NewSimpleExecutor(callback, "", cur)
 
 	return dao.NewProposalRequest(title, desc.String(), e)
 }

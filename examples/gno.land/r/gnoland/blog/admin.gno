@@ -45,14 +45,11 @@ func AdminRemoveModerator(_ realm, addr address) {
 
 func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
 	caller := cur.Previous().Address()
-	e := dao.NewSimpleExecutor(0, cur,
-		func(realm) error {
-			addPost(caller, slug, title, body, publicationDate, authors, tags)
+	e := dao.NewSimpleExecutor(func(realm) error {
+		addPost(caller, slug, title, body, publicationDate, authors, tags)
 
-			return nil
-		},
-		ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", title, publicationDate, authors, tags),
-	)
+		return nil
+	}, ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", title, publicationDate, authors, tags), cur)
 
 	return dao.NewProposalRequest(
 		"Add new post to gnoland blog",

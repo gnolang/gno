@@ -47,10 +47,10 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	// Test successful action with args
 	executed := false
 	args := []any{"test_arg", 123}
-	err := auth.DoByCurrent(0, cur, "test_action", func() error {
+	err := auth.DoByCurrent("test_action", func() error {
 		executed = true
 		return nil
-	}, args...)
+	}, cur, args...)
 
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, executed, "action should have been executed")
@@ -59,10 +59,10 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob")))
 
 	executed = false
-	err = auth.DoByCurrent(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent("test_action", func() error {
 		executed = true
 		return nil
-	}, "unauthorized_arg")
+	}, cur, "unauthorized_arg")
 
 	uassert.True(t, err != nil, "expected error")
 	uassert.False(t, executed, "action should not have been executed")
@@ -71,9 +71,9 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	expectedErr := errors.New("test error")
 
-	err = auth.DoByCurrent(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent("test_action", func() error {
 		return expectedErr
-	})
+	}, cur)
 
 	uassert.True(t, err == expectedErr, "expected specific error")
 }
@@ -89,7 +89,7 @@ func TestAuthorizerTransfer(cur realm, t *testing.T) {
 	newAuth := NewMemberAuthority(bob)
 
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, newAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(newAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, auth.Authority() == newAuth, "expected new authority")
 
@@ -97,7 +97,7 @@ func TestAuthorizerTransfer(cur realm, t *testing.T) {
 	carol := testutils.TestAddress("carol")
 	testing.SetRealm(testing.NewUserRealm(carol))
 
-	func(cur realm) { err = auth.Transfer(0, cur, NewMemberAuthority(alice)) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(NewMemberAuthority(alice), cur) }(cross(cur))
 	uassert.True(t, err != nil, "expected error")
 
 	// Test transfer to contract authority — bob is the current authority.
@@ -106,7 +106,7 @@ func TestAuthorizerTransfer(cur realm, t *testing.T) {
 		return action()
 	})
 
-	func(cur realm) { err = auth.Transfer(0, cur, contractAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(contractAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, auth.Authority() == contractAuth, "expected contract authority")
 }
@@ -123,7 +123,7 @@ func TestAuthorizerTransferChain(cur realm, t *testing.T) {
 	memberAuth := NewMemberAuthority(bob)
 
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, memberAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(memberAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "unexpected error in first transfer")
 
 	// Then transfer to a contract authority — bob is now the authority.
@@ -131,7 +131,7 @@ func TestAuthorizerTransferChain(cur realm, t *testing.T) {
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		return action()
 	})
-	func(cur realm) { err = auth.Transfer(0, cur, contractAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(contractAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "unexpected error in second transfer")
 
 	// Finally transfer to an auto-accept authority — must come from the
@@ -142,7 +142,7 @@ func TestAuthorizerTransferChain(cur realm, t *testing.T) {
 	autoAuth := NewAutoAcceptAuthority()
 	codeRealm := testing.NewCodeRealm("gno.land/r/test")
 	testing.SetRealm(codeRealm)
-	err = auth.Transfer(0, cur, autoAuth)
+	err = auth.Transfer(autoAuth, cur)
 	uassert.True(t, err == nil, "unexpected error in final transfer")
 	uassert.True(t, auth.Authority() == autoAuth, "expected auto-accept authority")
 }
@@ -167,7 +167,7 @@ func TestAuthorizerTransferUnauthorizedRejected(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(attacker))
 	attackerAuth := NewMemberAuthority(attacker)
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, attackerAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(attackerAuth, cur) }(cross(cur))
 
 	uassert.True(t, err != nil, "attacker transfer must be rejected")
 
@@ -187,17 +187,17 @@ func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
 
 	// Transfer to dropped authority
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, NewDroppedAuthority()) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(NewDroppedAuthority(), cur) }(cross(cur))
 	uassert.True(t, err == nil, "expected no error")
 
 	// Try to execute action
-	err = auth.DoByCurrent(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent("test_action", func() error {
 		return nil
-	})
+	}, cur)
 	uassert.True(t, err != nil, "expected error from dropped authority")
 
 	// Try to transfer again
-	func(cur realm) { err = auth.Transfer(0, cur, NewMemberAuthority(alice)) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(NewMemberAuthority(alice), cur) }(cross(cur))
 	uassert.True(t, err != nil, "expected error when transferring from dropped authority")
 }
 
@@ -402,7 +402,7 @@ func TestAuthorizerCurrentNeverNil(cur realm, t *testing.T) {
 
 	// Authority should not be nil after transfer
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, NewAutoAcceptAuthority()) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(NewAutoAcceptAuthority(), cur) }(cross(cur))
 	uassert.True(t, err == nil, "transfer should succeed")
 	uassert.True(t, auth.Authority() != nil, "current authority should not be nil after transfer")
 }
@@ -452,14 +452,14 @@ func TestAuthorizerString(cur realm, t *testing.T) {
 	// Test string after transfer — caller is the current member (cur).
 	autoAuth := NewAutoAcceptAuthority()
 	var err error
-	func(cur realm) { err = auth.Transfer(0, cur, autoAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(autoAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "transfer should succeed")
 	str = auth.String()
 	uassert.Equal(t, str, "auto_accept_authority")
 
 	// Test custom authority — auto-accept lets anyone transfer.
 	customAuth := &mockAuthority{}
-	func(cur realm) { err = auth.Transfer(0, cur, customAuth) }(cross(cur))
+	func(cur realm) { err = auth.Transfer(customAuth, cur) }(cross(cur))
 	uassert.True(t, err == nil, "transfer should succeed")
 	str = auth.String()
 	uassert.Equal(t, str, "custom_authority[mock]")
@@ -530,7 +530,7 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 
 	// 1. Attempt action from unauthorized user
 	testing.SetRealm(testing.NewUserRealm(unauthorizedAddr))
-	err := authorizer.DoByCurrent(0, cur, "test_action_unauthorized", privilegedAction)
+	err := authorizer.DoByCurrent("test_action_unauthorized", privilegedAction, cur)
 
 	// Assertions for unauthorized call
 	uassert.Error(t, err, "DoByCurrent should return an error for unauthorized caller")
@@ -542,7 +542,7 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 	handlerExecutedCorrectly = false // Reset flag
 	actionExecuted = false           // Reset flag
 	testing.SetRealm(testing.NewCodeRealm(contractPath))
-	err = authorizer.DoByCurrent(0, cur, "test_action_authorized", privilegedAction)
+	err = authorizer.DoByCurrent("test_action_authorized", privilegedAction, cur)
 
 	// Assertions for authorized call
 	uassert.NoError(t, err, "DoByCurrent should succeed for authorized contract caller")
@@ -572,19 +572,19 @@ func TestAuthorizerDoByPrevious(cur realm, t *testing.T) {
 	executed := false
 	args := []any{"test_arg", 123}
 	func(cur realm) {
-		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+		err := auth.DoByPrevious("test_action", func() error {
 			executed = true
 			return nil
-		}, args...)
+		}, cur, args...)
 		uassert.NoError(t, err, "expected no error")
 		uassert.True(t, executed, "action should have been executed")
 	}(cross(cur))
 
 	expectedErr := errors.New("test error")
 	func(cur realm) {
-		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+		err := auth.DoByPrevious("test_action", func() error {
 			return expectedErr
-		})
+		}, cur)
 		uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
 	}(cross(cur))
 
@@ -592,10 +592,10 @@ func TestAuthorizerDoByPrevious(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(bob))
 	executed = false
 	func(cur realm) {
-		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+		err := auth.DoByPrevious("test_action", func() error {
 			executed = true
 			return nil
-		}, "unauthorized_arg")
+		}, cur, "unauthorized_arg")
 		uassert.ErrorContains(t, err, "unauthorized", "expected error")
 		uassert.False(t, executed, "action should not have been executed")
 	}(cross(cur))

@@ -9,9 +9,9 @@ Example:
 
 	func init(cur realm) {
 		myBlog, _ = blog.NewBlog(
-			0, cur,
 			"Personal Blog",
 			"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs",
+			cur,
 			blog.WithUserResolver(myResolver),
 		)
 	}
@@ -32,7 +32,7 @@ Example:
 		if err != nil {
 			panic(err)
 		}
-		if err := myBlog.AddPost(0, cur, post); err != nil {
+		if err := myBlog.AddPost(post, cur); err != nil {
 			panic(err)
 		}
 	}

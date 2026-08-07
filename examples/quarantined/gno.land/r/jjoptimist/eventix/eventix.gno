@@ -41,7 +41,7 @@ var (
 )
 
 func init(cur realm) {
-	tickets = grc721.NewBasicNFT(0, cur, "Event Ticket", "EVTIX")
+	tickets = grc721.NewBasicNFT("Event Ticket", "EVTIX", cur)
 }
 
 func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
@@ -108,7 +108,7 @@ func BuyTicket(cur realm, eventId uint64) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(0, cur, cur.Address(), int64(event.price)); err != nil {
+		if err := pt.CallerTeller().Transfer(cur.Address(), int64(event.price), cur); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:

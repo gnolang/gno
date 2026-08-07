@@ -442,13 +442,12 @@ validation), so the synthesized form can never collide with a deployed
 package, and exact-match pkgpath auth is never silently broadened.
 
 The token is a first-class `realm` value. Cross with it (two-step —
-`cross(...)` takes a bare identifier) or hand it to token-style
-(`_ int, rlm realm`) APIs:
+`cross(...)` takes a bare identifier) or hand it to token-style APIs:
 
 ```go
 sub := cur.Sub("dao/42")
 target.Foo(cross(sub), ...)   // callee: cur.Previous() = sub identity
-teller.Transfer(0, sub, to, amount)
+teller.Transfer(to, amount, sub)
 b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 b.SendCoins(sub.Address(), to, coins)  // spend the sub-treasury
 ```

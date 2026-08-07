@@ -20,10 +20,10 @@ var nextGRC20ID seqid.ID
 
 // newTestNFT constructs an NFT through a same-realm cross so NewBasicNFT's
 // IsCurrent + non-empty PkgPath checks pass.
-func newTestNFT(_ int, rlm realm, name, symbol string) *grc721.BasicNFT {
+func newTestNFT(name, symbol string, rlm realm) *grc721.BasicNFT {
 	var nft *grc721.BasicNFT
 	func(cur realm) {
-		nft = grc721.NewBasicNFT(0, cur, name, symbol)
+		nft = grc721.NewBasicNFT(name, symbol, cur)
 	}(cross(rlm))
 	return nft
 }
@@ -49,7 +49,7 @@ func TestNFTRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
+	nft := newTestNFT("Test NFT", "TNFT", cur)
 	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	err := RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
 
@@ -96,7 +96,7 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
+	nft := newTestNFT("Test NFT", "TNFT", cur)
 	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	uassert.NoError(t, RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1"))
 
@@ -119,7 +119,7 @@ func TestErrorCases(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
+	nft := newTestNFT("Test NFT", "TNFT", cur)
 	err := RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
 
 	err = RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
@@ -144,7 +144,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nftToken := newTestNFT(0, cur, "Listing NFT", "LNFT")
+	nftToken := newTestNFT("Listing NFT", "LNFT", cur)
 	nftToken.Mint(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
 	RegisterNFT(cross(cur), nftToken.Getter(), "listing_nft", "1")
 
@@ -187,7 +187,7 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Must NFT", "MNFT")
+	nft := newTestNFT("Must NFT", "MNFT", cur)
 	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	RegisterNFT(cross(cur), nft.Getter(), "must_nft", "1")
 

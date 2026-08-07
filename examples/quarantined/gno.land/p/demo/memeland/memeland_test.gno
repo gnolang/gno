@@ -11,27 +11,27 @@ import (
 )
 
 // postMemeAs / upvoteAs / removePostAs are tiny helpers that thread the
-// migrated (_ int, rlm realm) API: each sets the test realm to the
+// migrated trailing-rlm API: each sets the test realm to the
 // actor's user realm and invokes the call inside a crossing closure so
 // cur.Previous().Address() resolves to actor.
 func postMemeAs(cur realm, actor address, m *Memeland, data string, timestamp int64) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var id string
-	func(cur realm) { id = m.PostMeme(0, cur, data, timestamp) }(cross(cur))
+	func(cur realm) { id = m.PostMeme(data, timestamp, cur) }(cross(cur))
 	return id
 }
 
 func upvoteAs(cur realm, actor address, m *Memeland, id string) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var result string
-	func(cur realm) { result = m.Upvote(0, cur, id) }(cross(cur))
+	func(cur realm) { result = m.Upvote(id, cur) }(cross(cur))
 	return result
 }
 
 func removePostAs(cur realm, actor address, m *Memeland, id string) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var result string
-	func(cur realm) { result = m.RemovePost(0, cur, id) }(cross(cur))
+	func(cur realm) { result = m.RemovePost(id, cur) }(cross(cur))
 	return result
 }
 

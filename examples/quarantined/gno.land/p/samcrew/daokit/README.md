@@ -294,11 +294,11 @@ func init() {
 }
 
 func Vote(cur realm, proposalID uint64, vote daocond.Vote) {
-	DAO.Vote(0, cur, proposalID, vote)
+	DAO.Vote(proposalID, vote, cur)
 }
 
 func Execute(cur realm, proposalID uint64) {
-	DAO.Execute(0, cur, proposalID)
+	DAO.Execute(proposalID, cur)
 }
 
 func Render(path string) string {

@@ -112,6 +112,7 @@ import (
 // consensus-breaking change, even though no behavior changes. Confirmed by
 // reverting that comment alone, which restores the previous hash. No
 // executable code was touched.
+//
 // Hash bumped by adding banker.GetCoin: the chain/banker stdlib gained an
 // interface method, a native declaration and a method body, and stdlib .gno
 // source bytes are committed into genesis state, so the multistore root moves.
@@ -119,7 +120,16 @@ import (
 // stdlib source change and is intended. Note this is the *only* reason this
 // branch moves the pin — the balance split alone does not, because that scenario
 // holds no non-gas denom.
-const expectedCrossrealm38Hash = "914602d9e206bf666cbfdf6e28f9147317e96e2d16b665bda67ffb33b7d0e1a8"
+//
+// Bumped again by the realm-param-last refactor (#6033), from a
+// doc-comment-only edit to a stdlib source: chain/runtime/unsafe's
+// CurrentRealm comment stops recommending `_ int, rlm realm` and recommends a
+// trailing `rlm realm` instead. Same mechanism as the two bumps above: stdlib
+// .gno bytes are committed state, comments included. The value below was
+// re-derived on the merge of master into this branch, so it covers GetCoin and
+// this comment edit together; the branch itself touches no executable code in
+// gnovm or tm2.
+const expectedCrossrealm38Hash = "7657e7bd48edba6e47687313e82756d2fd1e8062b2252c8cc52a05829e30f0a7"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

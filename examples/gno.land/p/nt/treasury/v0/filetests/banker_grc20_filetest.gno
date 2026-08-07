@@ -15,7 +15,7 @@ const amount = int64(1000)
 
 var nextTokenID seqid.ID
 
-func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
+func createToken(name string, toMint address, rlm realm) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
 	token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
@@ -39,9 +39,9 @@ func main(cur realm) {
 
 	// Define a list of token and the associated lister.
 	tokens := []*grc20.Token{
-		createToken(0, cur, "TestToken0", ownerAddr),
-		createToken(0, cur, "TestToken1", ownerAddr),
-		createToken(0, cur, "TestToken2", ownerAddr),
+		createToken("TestToken0", ownerAddr, cur),
+		createToken("TestToken1", ownerAddr, cur),
+		createToken("TestToken2", ownerAddr, cur),
 	}
 
 	grc20Lister := func() map[string]*grc20.Token {
@@ -83,7 +83,7 @@ func main(cur realm) {
 		100,
 		destAddr,
 	)
-	err = gbanker.Send(0, cur, validPayment)
+	err = gbanker.Send(validPayment, cur)
 	println("Valid payment error:", err)
 	if err != nil {
 		panic("failed to send valid payment: " + err.Error())
@@ -98,7 +98,7 @@ func main(cur realm) {
 		100,
 		destAddr,
 	)
-	err = gbanker.Send(0, cur, unknownPayment)
+	err = gbanker.Send(unknownPayment, cur)
 	println("Unknown token payment error:", err)
 	if err == nil {
 		panic("expected error for unknown token, but got none")
@@ -110,7 +110,7 @@ func main(cur realm) {
 		amount+1,
 		destAddr,
 	)
-	err = gbanker.Send(0, cur, unsufficientPayment)
+	err = gbanker.Send(unsufficientPayment, cur)
 	println("Unsufficient funds payment error:", err)
 	if err == nil {
 		panic("expected error for insufficient funds, but got none")
@@ -118,7 +118,7 @@ func main(cur realm) {
 
 	// Send a payment with an invalid type.
 	invalidPaymentType := treasury.NewCoinsPayment(chain.Coins{}, destAddr)
-	err = gbanker.Send(0, cur, invalidPaymentType)
+	err = gbanker.Send(invalidPaymentType, cur)
 	println("Invalid payment type error:", err)
 	if err == nil {
 		panic("expected error for invalid payment type, but got none")

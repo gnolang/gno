@@ -27,7 +27,7 @@ func TestInitiateTransferOwnership(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, bob)
+		err := o.TransferOwnership(bob, cur)
 		urequire.NoError(t, err)
 	}(cross(cur))
 
@@ -42,7 +42,7 @@ func TestTransferOwnership(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, bob)
+		err := o.TransferOwnership(bob, cur)
 		urequire.NoError(t, err)
 	}(cross(cur))
 
@@ -88,7 +88,7 @@ func TestDropOwnershipVulnerability(cur realm, t *testing.T) {
 	o := NewWithAddress(alice)
 	func(cur realm) {
 		// alice initiates ownership transfer to bob
-		err := o.TransferOwnership(0, cur, bob)
+		err := o.TransferOwnership(bob, cur)
 		urequire.NoError(t, err)
 
 		// alice drops ownership while ownership transfer is pending
@@ -116,7 +116,7 @@ func TestErrUnauthorized(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	func(cur realm) {
-		uassert.ErrorContains(t, o.TransferOwnership(0, cur, alice), ErrUnauthorized.Error())
+		uassert.ErrorContains(t, o.TransferOwnership(alice, cur), ErrUnauthorized.Error())
 		uassert.ErrorContains(t, o.DropOwnership(0, cur), ErrUnauthorized.Error())
 	}(cross(cur))
 }
@@ -125,10 +125,10 @@ func TestErrInvalidAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, "")
+		err := o.TransferOwnership("", cur)
 		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-		err = o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000")
+		err = o.TransferOwnership("10000000001000000000100000000010000000001000000000", cur)
 		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 	}(cross(cur))
 }
@@ -146,7 +146,7 @@ func TestErrPendingUnauthorized(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	o := NewWithAddress(alice)
 	func(cur realm) {
-		err := o.TransferOwnership(0, cur, bob)
+		err := o.TransferOwnership(bob, cur)
 		urequire.NoError(t, err)
 
 		// alice (still the owner, NOT the pending) tries to AcceptOwnership.

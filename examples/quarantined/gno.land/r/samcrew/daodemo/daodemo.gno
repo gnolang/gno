@@ -14,7 +14,7 @@ import (
 // NOT the daokit.DAO interface. Holding the concrete wrapper prevents
 // any /r/ from down-casting to the address-typed interface (which would
 // re-introduce a Class-2 designation-forgery surface). All mutating
-// methods on *DAOWrapper take (_ int, rlm realm, ...) and validate
+// methods on *DAOWrapper take a trailing rlm realm and validate
 // IsCurrent before deriving the caller.
 var DAO *basedao.DAOWrapper
 
@@ -54,11 +54,11 @@ func init(cur realm) {
 }
 
 func Vote(cur realm, proposalID uint64, vote daocond.Vote) {
-	DAO.Vote(0, cur, proposalID, vote)
+	DAO.Vote(proposalID, vote, cur)
 }
 
 func Execute(cur realm, proposalID uint64) {
-	DAO.Execute(0, cur, proposalID)
+	DAO.Execute(proposalID, cur)
 }
 
 func Render(path string) string {

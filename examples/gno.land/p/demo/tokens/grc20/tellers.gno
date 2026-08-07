@@ -65,7 +65,7 @@ func (tok *Token) RealmTeller(_ int, rlm realm) Teller {
 //
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
 // The subaccount address is frozen eagerly at construction.
-func (tok *Token) RealmSubTeller(_ int, rlm realm, slug string) Teller {
+func (tok *Token) RealmSubTeller(slug string, rlm realm) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
@@ -112,7 +112,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
+func (ft *fnTeller) Transfer(to address, amount int64, rlm realm) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -123,7 +123,7 @@ func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) error {
+func (ft *fnTeller) Approve(spender address, amount int64, rlm realm) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -134,7 +134,7 @@ func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) err
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int64) error {
+func (ft *fnTeller) TransferFrom(owner, to address, amount int64, rlm realm) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}

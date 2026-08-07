@@ -80,7 +80,7 @@ func Send(cur realm, payment t.Payment) {
 	// Send the payment using the treasury instance. cur is this realm's
 	// captured cur — passes IsCurrent inside Banker.Send and matches the
 	// banker's owner (this realm's address) registered at init.
-	if err := treasury.Send(0, cur, payment); err != nil {
+	if err := treasury.Send(payment, cur); err != nil {
 		panic(err)
 	}
 }

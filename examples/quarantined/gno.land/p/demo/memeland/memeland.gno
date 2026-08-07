@@ -41,7 +41,7 @@ func NewMemeland(owner address) *Memeland {
 // (asserted via rlm.IsCurrent()); the post's Author is set to
 // rlm.Previous().Address(), so an external realm cannot forge a post
 // attributed to a different address.
-func (m *Memeland) PostMeme(_ int, rlm realm, data string, timestamp int64) string {
+func (m *Memeland) PostMeme(data string, timestamp int64, rlm realm) string {
 	if data == "" || timestamp <= 0 {
 		panic("timestamp or data cannot be empty")
 	}
@@ -66,7 +66,7 @@ func (m *Memeland) PostMeme(_ int, rlm realm, data string, timestamp int64) stri
 // Upvote records an upvote on a post. rlm must be the caller's own
 // captured cur; the voter is rlm.Previous().Address(). Closes the
 // vote-stuffing forgery: an external realm cannot upvote-as-victim.
-func (m *Memeland) Upvote(_ int, rlm realm, id string) string {
+func (m *Memeland) Upvote(id string, rlm realm) string {
 	if !rlm.IsCurrent() {
 		panic(ownable.ErrUnauthorized)
 	}
@@ -165,7 +165,7 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 // RemovePost allows the owner to remove a post with a specific ID. rlm
 // must be the caller's own captured cur; rlm.Previous().Address() must
 // equal the owner.
-func (m *Memeland) RemovePost(_ int, rlm realm, id string) string {
+func (m *Memeland) RemovePost(id string, rlm realm) string {
 	if id == "" {
 		panic("id cannot be empty")
 	}

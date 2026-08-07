@@ -14,12 +14,12 @@ var (
 func init(cur realm) {
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
-	executor = dao.NewSimpleExecutor(0, cur, cb, "")
+	executor = dao.NewSimpleExecutor(cb, "", cur)
 }
 
 func main(cur realm) {
 	// Try to execute a proposal that doesn't exist
-	govdao.ExecuteProposal(0, cur, 404, executor)
+	govdao.ExecuteProposal(404, executor, cur)
 }
 
 // Error:

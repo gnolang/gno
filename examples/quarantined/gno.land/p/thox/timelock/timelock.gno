@@ -134,7 +134,7 @@ func (tl *TimeLock) Execute(id seqid.ID) error {
 // UpdateDelay changes the minimum lead time for future operations. rlm
 // must be the caller's own captured cur; rlm.Previous().Address() must
 // be the TimeLock's owner.
-func (tl *TimeLock) UpdateDelay(_ int, rlm realm, newDelay uint64) error {
+func (tl *TimeLock) UpdateDelay(newDelay uint64, rlm realm) error {
 	if !rlm.IsCurrent() {
 		return ErrUpadateDelay
 	}

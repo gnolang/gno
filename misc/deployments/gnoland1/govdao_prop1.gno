@@ -43,7 +43,7 @@ func main(cur realm) {
 	// 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 	// Additional validators can be added post-genesis via govDAO proposals
 	// (see misc/govdao-scripts/add-validator.sh or ./govdao add-validator).
-	govExec(0, cur, valr.NewPropRequest(
+	govExec(valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -85,18 +85,18 @@ func main(cur realm) {
 		},
 		"Add initial validator set",
 		"Bootstrap the gnoland1 initial validator set",
-	))
+	), cur)
 
 	// ---- 3. Set chain parameters via governance proposals ----
 
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
-	govExec(0, cur, params.ProposeAddUnrestrictedAcctsRequest(
+	govExec(params.ProposeAddUnrestrictedAcctsRequest(
 		address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"), // GovDAO T1 multisig
 		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"), // faucet
-	))
+	), cur)
 
 	// Lock ugnot transfers (restricted denom).
-	govExec(0, cur, params.ProposeLockTransferRequest())
+	govExec(params.ProposeLockTransferRequest(), cur)
 
 	// ---- 4. Enable namespace enforcement (r/sys/names) ----
 	// This drops ownership and enables the namespace permission check.
@@ -122,7 +122,7 @@ func main(cur realm) {
 
 // govExec creates a proposal, votes YES, and executes it immediately.
 // Works because the deployer is the sole T1 member (100% supermajority).
-func govExec(_ int, rlm realm, r dao.ProposalRequest) {
+func govExec(r dao.ProposalRequest, rlm realm) {
 	pid := dao.MustCreateProposal(cross(rlm), r)
 	dao.MustVoteOnProposal(cross(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
 	dao.ExecuteProposal(cross(rlm), pid)

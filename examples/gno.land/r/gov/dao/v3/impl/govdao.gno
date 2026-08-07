@@ -37,7 +37,7 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest, rlm realm) (address, error) {
 	if !g.isValidCall(0, rlm) {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
 			rlm, rlm.Previous()))
@@ -53,7 +53,7 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 	return caller, nil
 }
 
-func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid dao.ProposalID) {
+func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID, rlm realm) {
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
@@ -70,7 +70,7 @@ func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
+func (g *GovDAO) VoteOnProposal(r dao.VoteRequest, rlm realm) error {
 	if !g.isValidCall(0, rlm) {
 		return errors.New("proposal voting must be done directly by a user")
 	}
@@ -116,7 +116,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
+func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID, rlm realm) (bool, error) {
 	if !g.isValidCall(0, rlm) {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
@@ -138,7 +138,7 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
-func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
+func (g *GovDAO) ExecuteProposal(pid dao.ProposalID, e dao.Executor, rlm realm) error {
 	if e == nil {
 		panic("an executor is required to execute the proposal")
 	}
@@ -159,7 +159,7 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 
 func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 	// Same-realm dispatch: pass cur through as data (non-crossing).
-	return g.render.Render(0, cur, pkgPath, path)
+	return g.render.Render(pkgPath, path, cur)
 }
 
 // isValidCall verifies that the impl method is being invoked from the
