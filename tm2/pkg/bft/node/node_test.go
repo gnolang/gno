@@ -337,9 +337,12 @@ func TestNodeReady(t *testing.T) {
 	require.NoError(t, err)
 	defer n.Stop()
 
-	// Wait until the node is ready or timeout
+	// Wait until the node is ready or timeout. The budget only has to rule out
+	// a node that never signals, so it is generous: a loaded CI machine takes
+	// well over a second to boot the node and commit a block, and the check is
+	// for liveness, not speed.
 	select {
-	case <-time.After(time.Second):
+	case <-time.After(30 * time.Second):
 		require.FailNow(t, "timeout while waiting for first block signal")
 	case <-n.Ready(): // ready
 	}

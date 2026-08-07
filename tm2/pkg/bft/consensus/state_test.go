@@ -869,7 +869,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	propBlock := rs.ProposalBlock
@@ -1092,7 +1092,7 @@ func TestProposeValidBlock(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, unlockCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	propBlock := rs.ProposalBlock
@@ -1153,7 +1153,7 @@ func TestProposeValidBlock(t *testing.T) {
 
 	t.Log("### ONTO ROUND 4")
 
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs = cs1.GetRoundState()
 	assert.True(t, bytes.Equal(rs.ProposalBlock.Hash(), propBlockHash))
@@ -1556,7 +1556,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	defer ensureDrainedChannels(t, proposalCh, newRoundCh, voteCh, newBlockHeader)
 
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
+	ensureNewProposalDespiteTimeout(proposalCh, timeoutProposeCh, height, round)
 	ensurePrevote(voteCh, height, round)
 	rs := cs1.GetRoundState()
 	theBlockHash := rs.ProposalBlock.Hash()
