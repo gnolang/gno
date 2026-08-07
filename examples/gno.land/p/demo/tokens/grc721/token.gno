@@ -219,8 +219,10 @@ func (led *PrivateLedger) TransferFrom(spender, from, to address, tid TokenID) e
 }
 
 // caller must own tid or be an approved operator of the owner.
+// EIP-721: approving the zero address clears (revokes) any single-token approval.
 func (led *PrivateLedger) Approve(caller, to address, tid TokenID) error {
-	if !to.IsValid() {
+	revoke := to == zeroAddress
+	if !revoke && !to.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -237,13 +239,17 @@ func (led *PrivateLedger) Approve(caller, to address, tid TokenID) error {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
-	led.tokenApprovals.Set(tid.String(), to)
+	if revoke {
+		led.tokenApprovals.Remove(tid.String())
+	} else {
+		led.tokenApprovals.Set(tid.String(), to)
+	}
 
 	chain.Emit(
 		ApprovalEvent,
 		"token", led.token.id,
 		"owner", owner.String(),
-		"to", to.String(),
+		"to", to.String(), // empty for a revoke
 		"tokenId", tid.String(),
 	)
 

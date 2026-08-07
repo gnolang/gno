@@ -314,12 +314,29 @@ func TestApprove(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name: "approve to invalid address returns ErrInvalidAddress",
+			name: "approve to zero address revokes an existing approval (EIP-721)",
+			action: func(led *PrivateLedger) error {
+				urequire.NoError(t, led.Mint(alice, "1"))
+				urequire.NoError(t, led.Approve(alice, bob, "1"))
+				return led.Approve(alice, zeroAddress, "1")
+			},
+			wantErr: nil,
+			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				_, err := tok.GetApproved("1")
+				uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+			},
+		},
+		{
+			name: "revoke with no prior approval is a no-op",
 			action: func(led *PrivateLedger) error {
 				urequire.NoError(t, led.Mint(alice, "1"))
 				return led.Approve(alice, zeroAddress, "1")
 			},
-			wantErr: ErrInvalidAddress,
+			wantErr: nil,
+			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				_, err := tok.GetApproved("1")
+				uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+			},
 		},
 		{
 			name: "approve on missing token returns ErrInvalidTokenId",
