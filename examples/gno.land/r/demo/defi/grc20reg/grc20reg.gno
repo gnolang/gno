@@ -9,74 +9,77 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 var (
-	registry    = avl.NewTree() // tokenKey (fqname rlmPath.slug) -> *Token
-	idGenerator *identifier.Generator
+	registry = avl.NewTree() // fqname rlmPath.symbol -> *Token
+
+	idSeq seqid.ID // id counter; only nextIDSeq, a closure over it, leaves this realm
 )
 
-func init(cur realm) {
-	idGenerator = identifier.NewGenerator(0, cur)
-}
-
-// IdentifierGenerator returns the registry's canonical id generator.
-// Pass it to grc20.NewToken so the resulting id is issued by grc20reg and accepted by Register.
-func IdentifierGenerator() *identifier.Generator {
-	return idGenerator
-}
-
-// Register records token under a tokenKey (fqname rlmPath.slug) and returns
-// that key. The tokenKey is a human-chosen alias for lookup and is a distinct
-// value from Token.ID() — the unforgeable, generator-issued identifier emitted
-// in the token's events. A realm may register one token under several slugs
-// (aliases); re-registering the same slug is rejected. The register event
-// carries both so consumers can map tokenKey <-> tokenID:
+// IdentifierGenerator returns a generator backed by the registry's counter.
+// Tokens built with it carry grc20reg as their IdentifierPath(), which is what
+// Register requires:
 //
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, grc20reg.IdentifierGenerator(), cur)
-//	key := grc20reg.Register(cross(cur), Token, "myslug") // key == rlmPath.myslug
+//	gen := grc20reg.IdentifierGenerator(cross(cur))
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, gen, cur)
+//	key := grc20reg.Register(cross(cur), Token, "")
+//
+// Holding a generator grants no more than calling this again would — it draws
+// from the counter without revealing or forking it.
+func IdentifierGenerator(cur realm) *grc20.IDGenerator {
+	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+}
+
+// nextIDSeq advances the registry's counter. Declared in this realm, so the
+// declaring-realm borrow gives it authority over idSeq wherever it is called.
+func nextIDSeq() string {
+	return idSeq.Next().String()
+}
+
+// Register records token under its rlmPath.symbol key and returns that key.
+// Token.ID() carries a trailing generated id (rlmPath.symbol.<id>) that keeps
+// token identities/events unique, but the registry deliberately keys by
+// rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
+// register two tokens under the same symbol (overwrite/alias guard). slug is
+// recorded in the register event only.
+//
+// The id must have come from IdentifierGenerator; one produced anywhere else is
+// not from this counter and could collide with one that is.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
 	}
-
 	if slug != "" {
 		validateSlug(slug)
 	}
-
 	rlmPath := cur.Previous().PkgPath()
-
-	// Token.ID() == rlmPath + "." + symbol + "." + <GeneratorID>;
-	// verify the token originates from the registering realm.
-	if !strings.HasPrefix(token.ID(), rlmPath+".") {
+	key := fqname.Construct(rlmPath, token.GetSymbol())
+	// Token.ID() == key + "." + <id>; verify the token originates from
+	// the registering realm and symbol.
+	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
 	}
-
-	// verify the token id must have been issued by the registry's own generator.
-	if token.IdentifierPath() != idGenerator.PackagePath() {
+	// PackagePath() is bound under IsCurrent, so no other realm can create a
+	// generator claiming this one.
+	if token.IdentifierPath() != cur.PkgPath() {
 		panic("grc20reg: token id not issued by the registry generator")
 	}
-
-	// construct the token key (fqname rlmPath.slug)
-	tokenKey := fqname.Construct(rlmPath, slug)
-	if registry.Has(tokenKey) {
+	if registry.Has(key) {
 		panic("grc20reg: token already registered")
 	}
-
-	registry.Set(tokenKey, token)
-
+	registry.Set(key, token)
 	chain.Emit(
 		registerEvent,
-		"token_key", tokenKey,
+		"token_path", key,
 		"token_id", token.ID(),
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
 	)
-
-	return tokenKey
+	return key
 }
 
 func Get(key string) *grc20.Token {
