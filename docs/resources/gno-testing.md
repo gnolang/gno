@@ -157,3 +157,32 @@ gno test --update-golden-tests .
 Imports of pure packages are processed separately. If a pure package contains a
 line like `println(1)`, its output cannot be checked by an `// Output:` directive.
 :::
+
+## Integration tests
+
+Unit tests and filetests run in the GnoVM alone. Behaviour that only shows up on
+a real chain — gas and storage fees, emitted events, multi-transaction flows,
+node restarts, `gnokey` output — is covered by
+[testscript](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript)
+`.txtar` archives, which boot a node and drive it through `gnokey`.
+
+Place a `.txtar` that is about a single package **next to that package**, in the
+same directory as its `.gno` files; every `*.txtar` under `examples/` is
+discovered automatically. Scripts that exercise the VM, the node or `gnokey`
+itself rather than one package live in `gno.land/pkg/integration/testdata/`
+instead. Both are run by the same test:
+
+```bash
+# every integration test
+go test ./gno.land/pkg/integration/ -run TestTestdata -v
+# just one, wherever it lives
+go test ./gno.land/pkg/integration/ -run TestTestdata/wugnot -v
+```
+
+Two things to know:
+
+- The subtest name is the file's base name alone, so base names must be unique
+  across both locations — prefix them with the package name
+  (`commondao_council.txtar`). A collision fails the suite.
+- A `.txtar` is not part of the package. It is skipped when the directory is
+  read into a mem-package, so it never ends up on-chain.
