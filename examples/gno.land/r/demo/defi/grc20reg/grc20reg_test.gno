@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -18,7 +19,7 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/defi/grc20reg:gno.land/r/demo/foo.TST)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))
@@ -81,6 +82,26 @@ func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
 		Register(cross(cur), token, "")
 	})
+}
+
+func TestPagination(cur realm, t *testing.T) {
+	// One token per realm+symbol, so span the page size across distinct realms.
+	for i := 0; i < 11; i++ {
+		testing.SetRealm(testing.NewCodeRealm(ufmt.Sprintf("gno.land/r/demo/token%02d", i)))
+		token, _ := grc20.NewToken(ufmt.Sprintf("Token%02d", i), ufmt.Sprintf("TK%02d", i), 6, 0, cur)
+		Register(cross(cur), token, "")
+	}
+
+	// Other tests in this file share the registry, so derive the page count
+	// from its current size instead of hardcoding it.
+	totalPages := (registry.Size() + 9) / 10
+	urequire.True(t, totalPages > 1, "expected more than one page")
+
+	page1 := Render("")
+	urequire.True(t, strings.Contains(page1, ufmt.Sprintf("Page 1 of %d", totalPages)))
+
+	page2 := Render("?page=2")
+	urequire.True(t, strings.Contains(page2, ufmt.Sprintf("Page 2 of %d", totalPages)))
 }
 
 func TestValidateSlug(cur realm, t *testing.T) {

@@ -7,12 +7,17 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath.symbol -> *Token
+var (
+	registry      = avl.NewTree() // rlmPath.symbol -> *Token
+	pagerInstance = pager.NewPager(rotree.Wrap(registry, nil), 10, false)
+)
 
 // Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
@@ -74,36 +79,46 @@ func MustGet(key string) *grc20.Token {
 }
 
 func Render(path string) string {
-	switch {
-	case path == "": // home
-		// TODO: add pagination
-		s := ""
-		count := 0
-		registry.Iterate("", "", func(key string, tokenI any) bool {
-			count++
-			token := tokenI.(*grc20.Token)
-			rlmPath, tokenID := fqname.Parse(key)
-			rlmLink := fqname.RenderLink(rlmPath, tokenID)
-			infoLink := "/r/demo/grc20reg:" + key
-			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
-			return false
-		})
-		if count == 0 {
-			return "No registered token."
-		}
-		return s
-	default: // specific token
-		key := path
-		token := MustGet(key)
-		rlmPath, tokenID := fqname.Parse(key)
-		rlmLink := fqname.RenderLink(rlmPath, tokenID)
-		s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
-		s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
-		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
-		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
-		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
-		return s
+	router := mux.NewRouter()
+	router.HandleFunc("", renderHome)
+	router.HandleFunc("*", renderToken)
+	return router.Render(path)
+}
+
+func renderHome(res *mux.ResponseWriter, req *mux.Request) {
+	page := pagerInstance.MustGetPageByPath(req.RawPath)
+
+	if page.TotalItems == 0 {
+		res.Write("No registered token.")
+		return
 	}
+
+	s := ""
+	for _, item := range page.Items {
+		token := item.Value.(*grc20.Token)
+		rlmPath, tokenID := fqname.Parse(item.Key)
+		rlmLink := fqname.RenderLink(rlmPath, tokenID)
+		infoLink := "/r/demo/defi/grc20reg:" + item.Key
+		s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
+	}
+
+	s += "\n"
+	s += ufmt.Sprintf("**Page %d of %d**\n\n", page.PageNumber, page.TotalPages)
+	s += page.Picker(req.Path)
+	res.Write(s)
+}
+
+func renderToken(res *mux.ResponseWriter, req *mux.Request) {
+	key := req.Path
+	token := MustGet(key)
+	rlmPath, tokenID := fqname.Parse(key)
+	rlmLink := fqname.RenderLink(rlmPath, tokenID)
+	s := ufmt.Sprintf("# %s\n", md.EscapeText(token.GetName()))
+	s += "- symbol: " + md.Bold(md.EscapeText(token.GetSymbol())) + "\n"
+	s += ufmt.Sprintf("- realm: %s\n", rlmLink)
+	s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
+	s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+	res.Write(s)
 }
 
 const (
