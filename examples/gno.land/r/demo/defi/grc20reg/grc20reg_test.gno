@@ -88,6 +88,26 @@ func TestCopyingTheGeneratorCannotReplayAnID(cur realm, t *testing.T) {
 	urequire.NotEqual(t, shadow.ID(), other.ID())
 }
 
+func TestSelfIssuedCannotReplayARegistryID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_replay_self"))
+
+	// The registry's counter is public chain state, so a realm can read the id
+	// off a registered token and have its own generator return that id verbatim.
+	// The issuer path is part of Token.ID(), so the two still differ.
+	canonical, _ := grc20.NewToken("Canonical", "RPL", 6, IdentifierGenerator(cross(cur)), cur)
+	id := canonical.ID()[strings.LastIndex(canonical.ID(), ":")+1:]
+
+	own := grc20.NewIDGenerator(0, cur, func() string { return id })
+	shadow, _ := grc20.NewToken("Shadow", "RPL", 6, own, cur)
+	urequire.NotEqual(t, canonical.ID(), shadow.ID())
+
+	// Nor can it forge the registry's form: ':' is outside the id charset.
+	urequire.PanicsContains(t, cur, "invalid id", func() {
+		forged := grc20.NewIDGenerator(0, cur, func() string { return cur.PkgPath() + ":" + id })
+		grc20.NewToken("Forged", "RPL", 6, forged, cur)
+	})
+}
+
 func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_source"))
 	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, IdentifierGenerator(cross(cur)), cur)

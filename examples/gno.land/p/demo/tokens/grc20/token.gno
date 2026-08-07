@@ -51,10 +51,15 @@ func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*
 	if gen == nil || gen.nextID == nil {
 		panic(ErrNilGenerator)
 	}
-	id := gen.NextID()
+	// The issuer's path is part of the id, not just a side field. Two issuers
+	// can hand out the same code — a realm can read a registry-issued code off
+	// chain state and have its own generator return it verbatim — and events
+	// carry only the id, so without the issuer in it the two tokens would be
+	// indistinguishable to a consumer.
+	id := pkgPath + "." + symbol + "." + gen.packagePath + ":" + gen.NextID()
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:             pkgPath + "." + symbol + "." + id,
+		id:             id,
 		identifierPath: gen.packagePath,
 		name:           name,
 		symbol:         symbol,

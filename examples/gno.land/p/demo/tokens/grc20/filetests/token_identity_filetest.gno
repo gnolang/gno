@@ -26,10 +26,10 @@ func main(cur realm) {
 	second, secondLedger := newToken(cur, generator(cur))
 
 	// Same realm, same symbol, distinct ids: each token drew its own id.
-	if first.ID() != "gno.land/r/demo/grc20identity.DUP.0000001" {
+	if first.ID() != "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000001" {
 		panic("unexpected first token ID: " + first.ID())
 	}
-	if second.ID() != "gno.land/r/demo/grc20identity.DUP.0000002" {
+	if second.ID() != "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000002" {
 		panic("unexpected second token ID: " + second.ID())
 	}
 
@@ -62,7 +62,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000001"
 //       },
 //       {
 //         "key": "from",
@@ -84,7 +84,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000001"
 //       },
 //       {
 //         "key": "owner",
@@ -106,7 +106,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000002"
 //       },
 //       {
 //         "key": "from",
@@ -128,7 +128,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000002"
 //       },
 //       {
 //         "key": "owner",
