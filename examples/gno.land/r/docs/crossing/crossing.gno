@@ -64,9 +64,15 @@ are saved to B's storage. Once it returns, the acting realm goes back to A.
 Gno follows this chain of calls, so at any point the code can ask:
 
 - **Who started the transaction?** → ` + "`unsafe.OriginCaller()`" + `
-- **Who called me?** → ` + "`unsafe.PreviousRealm()`" + `
+- **Who crossed into me?** → ` + "`cur.Previous()`" + `, inside a crossing function
 - **Where am I?** → ` + "`unsafe.CurrentRealm()`" + `
 - **Whose state is being modified?** → Always the current realm's state
+
+There is no general "who called me?" outside a crossing function.
+` + "`unsafe.PreviousRealm()`" + ` reports the realm before the most recent
+*crossing*, whichever function reads it — from a non-crossing helper it can
+name a realm far above the immediate caller. Treat it as a stack inspector, not a
+caller check, and derive caller identity from ` + "`cur.Previous()`" + `.
 
 To let other realms cross into a function, give it a ` + "`cur realm`" + ` parameter.
 ` + "`cur`" + ` is a handle to this realm's own context while the function runs:

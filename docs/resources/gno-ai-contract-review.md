@@ -17,8 +17,21 @@ func AdminAction(caller address) { ... }
 
 // RIGHT: derive identity from the live crossing frame
 func AdminAction(cur realm) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     addr := cur.Previous().Address()
+    ...
+}
+```
+
+The first `cur realm` of a crossing function is guaranteed current by the runtime,
+so an `IsCurrent()` check on it is dead code. The check is load-bearing only on a
+secondary realm parameter of a non-crossing helper, which any caller can fill with
+a stored or forwarded realm value:
+
+```go
+// Non-crossing helper receiving the acting realm as a plain value
+func helper(_ int, rlm realm) {
+    if !rlm.IsCurrent() { panic("rlm is not the current realm") }
+    addr := rlm.Previous().Address()
     ...
 }
 ```
@@ -139,8 +152,9 @@ live mutator handle. Never return the containing struct as a pointer.
 
 ### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
 
-Using `chain/runtime/unsafe.PreviousRealm()` directly bypasses the `cur.IsCurrent()`
-safety check. It should never appear alongside a `cur realm` parameter.
+Using `chain/runtime/unsafe.PreviousRealm()` directly bypasses the frame verification
+that a runtime-current `cur realm` provides. It should never appear alongside a
+`cur realm` parameter.
 
 ```go
 // WRONG: cur is accepted but ignored; no IsCurrent() guard
@@ -152,7 +166,6 @@ func Set(cur realm, key, value string) {
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -235,7 +248,8 @@ Two cases where the swap is **wrong**, both found by making it:
 
 ## Review Checklist
 
-- [ ] Authenticated mutators take `cur realm` and call `cur.IsCurrent()`
+- [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
+- [ ] Non-crossing helpers taking a realm parameter call `rlm.IsCurrent()` before trusting it
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state

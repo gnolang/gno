@@ -99,8 +99,7 @@ func GetBalance(addr address) int64 {
 func GetRealmBalance() int64 {
 	bnk := banker.NewReadonlyBanker()
 	realmAddr := unsafe.CurrentRealm().Address()
-	coins := bnk.GetCoins(realmAddr)
-	return coins.AmountOf("ugnot")
+	return bnk.GetCoin(realmAddr, "ugnot")
 }
 
 func RenderDemo() string {
