@@ -76,14 +76,19 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 }
 
 // GetMembers returns a list with the members of a board.
+// A zero `boardID` refers to the realm, so the realm admin users are returned.
 func GetMembers(boardID uint64, start, count int) []Member {
-	b, found := gBoards.Get(boards.ID(boardID))
-	if !found {
-		return nil
+	perms := gPerms
+	if boardID != 0 {
+		b, found := gBoards.Get(boards.ID(boardID))
+		if !found {
+			return nil
+		}
+		perms = b.Permissions
 	}
 
 	var members []Member
-	b.Permissions.IterateUsers(start, count, func(u boards.User) bool {
+	perms.IterateUsers(start, count, func(u boards.User) bool {
 		var roles []string
 		for _, r := range u.Roles {
 			roles = append(roles, string(r))
