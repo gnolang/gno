@@ -142,15 +142,31 @@ func TestBuildOverviewTOC(t *testing.T) {
 	types := []TypeEntry{{Name: "Config", AnchorID: "type-Config", Methods: []FuncEntry{{Name: "Load", AnchorID: "method-Config-Load"}}}}
 	values := []ValueGroup{{Kind: "const"}, {Kind: "var"}}
 	imports := []ImportLink{{Path: "strings"}}
+	files := []FileLink{{Name: "foo.gno", Link: "/r/demo/foo$source&file=foo.gno"}}
 	subpacks := []SubpackageLink{{Name: "sub", Path: "/r/demo/foo/sub"}}
 	quality := PackageQuality{HasPkgDoc: true, HasReadme: true}
 
-	toc := buildOverviewTOC(quality, funcs, types, values, imports, subpacks)
+	toc := buildOverviewTOC(quality, true, funcs, types, values, imports, files, subpacks)
 	got := make([]string, 0, len(toc))
 	for _, item := range toc {
 		got = append(got, item.Title)
 	}
 	require.Equal(t, []string{"Overview", "README", "Constants", "Variables", "Functions", "Types", "Imports", "Files", "Directories"}, got)
+
+	// Files hang under their section and link straight into the source view.
+	filesTOC := toc[7]
+	require.Len(t, filesTOC.Items, 1)
+	require.Equal(t, "foo.gno", filesTOC.Items[0].Title)
+	require.Equal(t, "/r/demo/foo$source&file=foo.gno", filesTOC.Items[0].Anchor())
+	require.Equal(t, "#files", filesTOC.Anchor(), "the section header still anchors on the page")
+
+	// A README that never rendered must not get a table-of-contents entry.
+	unrendered := buildOverviewTOC(quality, false, funcs, types, values, imports, files, subpacks)
+	titles := make([]string, 0, len(unrendered))
+	for _, item := range unrendered {
+		titles = append(titles, item.Title)
+	}
+	require.NotContains(t, titles, "README")
 
 	// Each symbol leaf carries its kind glyph; section/group lines stay bare.
 	funcsTOC := toc[4]

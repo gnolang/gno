@@ -33,9 +33,17 @@ func classifyImport(p, domain string) string {
 	}
 }
 
+// stdlibSourceBase is where the Gno standard library lives. Stdlibs ship with
+// the node instead of being deployed on chain, so they have no package page to
+// link to and the source has to be reached upstream.
+const stdlibSourceBase = "https://github.com/gnolang/gno/tree/master/gnovm/stdlibs/"
+
 func buildImportLink(p, kind, domain string) string {
-	if kind == "package" || kind == "realm" {
+	switch kind {
+	case "package", "realm":
 		return strings.TrimPrefix(p, domain)
+	case "stdlib":
+		return stdlibSourceBase + p
 	}
 	return ""
 }

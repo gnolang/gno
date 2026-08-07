@@ -1368,16 +1368,20 @@ main.dev-mode .b-toc a {
 }
 
 .b-source-toc {
-	& > .b-source-toc__overview {
-		margin-block-end: var(--g-space-4);
-	}
-
 	& > .b-toc {
 		margin-block-end: var(--g-space-4);
 	}
 
 	& > * + * {
 		margin-block-start: var(--g-space-1-5);
+	}
+
+	/* Always-open file section (Configuration Files): a heading over its list,
+	   matching the accordion's heading type without the collapse toggle. */
+	.b-source-toc__section h3 {
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-medium);
+		margin-block: 0 var(--g-space-1);
 	}
 
 	.accordion {
