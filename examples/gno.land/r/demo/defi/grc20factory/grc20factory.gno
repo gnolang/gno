@@ -35,7 +35,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		panic("token already exists")
 	}
 
-	token, ledger := grc20.NewToken(name, symbol, decimals, grc20reg.IdentifierGenerator(), cur)
+	token, ledger := grc20.NewToken(name, symbol, decimals, grc20reg.IdentifierGenerator(cross(cur)), cur)
 	if initialMint > 0 {
 		ledger.Mint(admin, initialMint)
 	}

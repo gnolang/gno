@@ -66,7 +66,7 @@ import (
 // context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
 	// GRC20 token — the id must come from grc20reg's generator to be registrable.
-	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, grc20reg.IdentifierGenerator(), cur)
+	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT

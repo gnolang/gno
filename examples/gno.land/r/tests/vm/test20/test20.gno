@@ -19,6 +19,6 @@ var (
 )
 
 func init(cur realm) {
-	Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4, grc20reg.IdentifierGenerator(), cur)
+	Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4, grc20reg.IdentifierGenerator(cross(cur)), cur)
 	grc20reg.Register(cross(cur), Token, "")
 }
