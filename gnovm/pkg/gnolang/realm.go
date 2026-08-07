@@ -1884,6 +1884,44 @@ func fillTypesTV(store Store, tv *TypedValue) {
 	tv.V = fillTypesOfValue(store, tv.V)
 }
 
+// fillMapKeyRefs resolves RefValues nested inside a composite map key.
+//
+// ComputeMapKey resolves them incidentally, by calling fillValueTV on every
+// array element and struct field it serializes (values.go:1949, :1973). The
+// eager vmap build that used to live in fillTypesOfValue therefore doubled as
+// a deep-resolve pass over every stored map key, and printing a stored map
+// relies on it — see gnovm/tests/files/map39b.gno. Now that the index is
+// built lazily, the resolve has to be explicit.
+//
+// The traversal mirrors ComputeMapKey's exactly: array elements only when
+// av.Data == nil (a byte array has no List), struct fields except blank
+// identifiers, recursing through both. Pointer keys are deliberately not
+// followed — ComputeMapKey hashes a pointer by address without dereferencing
+// it. See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
+func fillMapKeyRefs(store Store, tv *TypedValue) {
+	switch bt := baseOf(tv.T).(type) {
+	case *ArrayType:
+		av, ok := tv.V.(*ArrayValue)
+		if !ok || av.Data != nil {
+			return
+		}
+		for i := range av.List {
+			fillMapKeyRefs(store, fillValueTV(store, &av.List[i]))
+		}
+	case *StructType:
+		sv, ok := tv.V.(*StructValue)
+		if !ok {
+			return
+		}
+		for i := range sv.Fields {
+			if bt.Fields[i].Name == blankIdentifier {
+				continue
+			}
+			fillMapKeyRefs(store, fillValueTV(store, &sv.Fields[i]))
+		}
+	}
+}
+
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
@@ -1932,19 +1970,16 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
-		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
 			fillValueTV(store, &cur.Key)
-			// nil machine: deserialization from disk has no *Machine in
-			// scope — we're inside the store layer, so no gas is charged.
-			mk, isNaN := cur.Key.ComputeMapKey(nil, store, false)
-			if !isNaN {
-				cv.vmap[mk] = cur
-			}
+			fillMapKeyRefs(store, &cur.Key)
 		}
+		// vmap is built lazily on first keyed access (MapValue.ensureVmap).
+		// The static key type that decides the TypeID prefix is not in scope
+		// here.
 		return cv
 	case TypeValue:
 		cv.Type = fillType(store, cv.Type)

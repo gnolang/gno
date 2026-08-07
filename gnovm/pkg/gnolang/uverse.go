@@ -1234,7 +1234,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			itv := arg1.Deref()
-			switch baseOf(arg0.TV.T).(type) {
+			switch mt := baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				if arg0.TV.V == nil {
 					return // delete on nil map is a no-op, matching Go behavior.
@@ -1245,14 +1245,15 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot delete from readonly tainted map"))
 				}
 
-				val, ok := mv.GetValueForKey(m, m.Store, &itv)
+				omitKeyType := mapKeyOmitType(mt)
+				val, ok := mv.GetValueForKey(m, m.Store, &itv, omitKeyType)
 				if !ok {
 					return
 				}
 				// delete; capture the STORED key that was removed. Detaching
 				// the argument key (itv) instead orphaned the stored key object
 				// in the store — it was never DecRef'd nor marked deleted.
-				delKey := mv.DeleteForKey(m, m.Store, &itv)
+				delKey := mv.DeleteForKey(m, m.Store, &itv, omitKeyType)
 
 				// mark the STORED key object as deleted (not the argument key)
 				if delKey != nil {

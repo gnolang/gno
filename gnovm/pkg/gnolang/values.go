@@ -907,7 +907,13 @@ type MapValue struct {
 	ObjectInfo
 	List *MapList
 
-	vmap map[MapKey]*MapListItem // nil if uninitialized
+	// In-memory key index, rebuilt from List and never persisted. nil means
+	// "not built yet" — the usual case for a MapValue that came from amino
+	// decode. Built on first keyed access by ensureVmap, because the static
+	// key type needed for the TypeID-prefix decision is not in scope at load
+	// time. Maps that are only ranged over, printed or measured walk List and
+	// never pay for an index.
+	vmap map[MapKey]*MapListItem
 }
 
 type MapKey string
@@ -1000,17 +1006,60 @@ func (mv *MapValue) MakeMap() {
 	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
+// ensureVmap builds the key index if it is absent.
+//
+// The build passes a nil *Machine, matching the load-time build in
+// fillTypesOfValue that it replaces, so ComputeMapKey's own VM gas
+// (OpCPUComputeMapKey / OpCPUSlopeComputeMapKeyByte) stays suppressed here
+// exactly as it did there. That is NOT the same as saying the build is
+// unmetered outright: its array/struct branches still call fillValueTV on
+// each child, which can call store.GetObject and charge STORE gas on the
+// store meter, independently of the nil *Machine. In practice this is a
+// no-op in the common case, but only because every key was already
+// deep-resolved at load time by fillMapKeyRefs (realm.go) — which mirrors
+// this same traversal for exactly that reason. Narrowing fillMapKeyRefs's
+// walk in the future (e.g. to stop at the first NaN, matching ComputeMapKey)
+// would silently reintroduce first-touch store gas here. Gas therefore
+// cannot depend on whether a map was already resident in the store cache —
+// store gas is a deterministic function of which objects the key's static
+// shape requires loading, not of cache warmth — the property that would
+// otherwise make lazy construction a consensus hazard.
+//
+// omitKeyType MUST be the value that later lookups pass, or every key misses.
+// Callers derive it from the map's static type via mapKeyOmitType, so one
+// value feeds both build and lookup and they cannot diverge.
+func (mv *MapValue) ensureVmap(store Store, omitKeyType bool) {
+	if mv.vmap != nil {
+		return
+	}
+	mv.vmap = make(map[MapKey]*MapListItem, mv.List.Size)
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		mk, isNaN := cur.Key.ComputeMapKey(nil, store, omitKeyType)
+		if !isNaN {
+			mv.vmap[mk] = cur
+		}
+	}
+}
+
 func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue) PointerValue {
+//
+// oldKeyObject is the first object of the stored key that this assignment
+// displaces, captured before the stored key is overwritten, or nil when the
+// key is new or carries no object. Returning it here lets callers re-parent
+// the map key in the ownership tree without computing the map key a second
+// time. See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
+func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue, omitKeyType bool) (pv PointerValue, oldKeyObject Object) {
+	mv.ensureVmap(store, omitKeyType)
 	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
+			oldKeyObject = mli.Key.GetFirstObject(store)
 			// When assigning to a map item, the key is always equal to that of the
 			// last assignment; this is mostly noticeable in the case of -0 / 0:
 			// https://go.dev/play/p/iNPDR4FQlRv
@@ -1019,7 +1068,7 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 				TV:    &mli.Value,
 				Base:  mv,
 				Index: PointerIndexMap,
-			}
+			}, oldKeyObject
 		}
 	}
 	mli := mv.List.Append(alloc, key)
@@ -1029,14 +1078,15 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 		TV:    &mli.Value,
 		Base:  mv,
 		Index: PointerIndexMap,
-	}
+	}, nil
 }
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue, omitKeyType bool) (val TypedValue, ok bool) {
+	mv.ensureVmap(store, omitKeyType)
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if isNaN {
 		return
 	}
@@ -1051,9 +1101,10 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 // that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
+func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue, omitKeyType bool) (deletedKey *TypedValue) {
+	mv.ensureVmap(store, omitKeyType)
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, omitKeyType)
 	if isNaN {
 		return nil
 	}
@@ -1806,6 +1857,21 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
+// mapKeyOmitType reports whether ComputeMapKey may omit the leading TypeID
+// prefix for keys of mt.
+//
+// Omitting is safe exactly when the static key type is not an interface: every
+// key in such a map necessarily carries the same tv.T, so the prefix is
+// identical for every entry and discriminates nothing. For an interface key
+// type the prefix is load-bearing — it is what keeps int(1) from colliding
+// with int64(1), which serialize to the same eight value bytes.
+//
+// Note mt.Key, not mt.Elem(): (*MapType).Elem() returns the *value* type.
+// See gnovm/adr/pr6020_computemapkey_concrete_key_prefix.md.
+func mapKeyOmitType(mt *MapType) bool {
+	return baseOf(mt.Key).Kind() != InterfaceKind
+}
+
 // ComputeMapKey returns the value of tv, encoded as a string for usage inside
 // of a map.
 //
@@ -1846,7 +1912,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
-		// colors.ColoredBytes().
+		// colors.ColoredBytes() — for interface-keyed maps and interface
+		// fields/elements, which are the cases that still reach here.
+		// Concrete key types omit this entirely (see mapKeyOmitType).
 		bz = append(bz, tv.T.TypeID().Bytes()...)
 		bz = append(bz, ':') // type/value separator
 	}
@@ -2382,22 +2450,24 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 		mv := tv.V.(*MapValue)
 
+		// Resolve the key's lazily-loaded children BEFORE copying. Copy()
+		// shallow-copies an unresolved RefValue child (TypedValue.Copy's
+		// default branch) and the fill inside GetPointerForKey would then
+		// point that copy at the shared store object, so the stored map key
+		// would alias the caller's graph and mutate after insertion.
+		// ComputeMapKey used to provide this fill incidentally by running
+		// before the copy; now that it runs once, inside GetPointerForKey,
+		// the resolve has to be explicit.
+		fillMapKeyRefs(store, iv)
+		ivk := iv.Copy(alloc)
 		// if a key is getting attached, we should update it with the new one,
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
-		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(m, store, false)
-		if !isNaN {
-			k, ok := mv.vmap[key]
-			if ok {
-				oldObject = k.Key.GetFirstObject(store)
-			}
-		}
-
-		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(m, alloc, store, ivk)
+		// GetPointerForKey hands back the displaced stored key's object, so
+		// the map key is computed once per assignment instead of twice.
+		pv, oldObject := mv.GetPointerForKey(m, alloc, store, ivk, mapKeyOmitType(bt))
 		if pv.TV.IsUndefined() {
-			vt := baseOf(tv.T).(*MapType).Value
+			vt := bt.Value
 			if vt.Kind() != InterfaceKind {
 				// this will get assigned over but the zero-init still
 				// walks struct fields; use the caller's alloc.

@@ -1577,7 +1577,7 @@ func benchOpIndex1MapHit(b *testing.B, size int) {
 	mv.MakeMap()
 	for i := range size {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
+		pv, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, kv, mapKeyOmitType(mt))
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 	// Look up a key near the middle.
@@ -1618,7 +1618,7 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
+		pv, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, kv, mapKeyOmitType(mt))
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1652,7 +1652,7 @@ func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
 	for i := range 10 {
 		k := strings.Repeat("x", keyLen-1) + string(rune('A'+i))
 		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
-		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
+		pv, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, kv, mapKeyOmitType(mt))
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
 	lookupKey := m.Alloc.NewString(strings.Repeat("x", keyLen-1) + string(rune('A'+5)))
@@ -1844,7 +1844,7 @@ func BenchmarkOpIndex2_MapHit(b *testing.B) {
 	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
+		pv, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, kv, mapKeyOmitType(mt))
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1881,7 +1881,7 @@ func BenchmarkOpIndex2_MapMiss(b *testing.B) {
 	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m, m.Alloc, m.Store, kv)
+		pv, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, kv, mapKeyOmitType(mt))
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -5143,7 +5143,7 @@ func benchOpRangeIterMap(b *testing.B, n int) {
 	for i := range n {
 		k := TypedValue{T: IntType, N: i2n(int64(i))}
 		v := TypedValue{T: IntType, N: i2n(int64(i * 10))}
-		ptr := mv.GetPointerForKey(m, m.Alloc, m.Store, k)
+		ptr, _ := mv.GetPointerForKey(m, m.Alloc, m.Store, k, mapKeyOmitType(mt))
 		ptr.TV.Assign(m.Alloc, v, false)
 	}
 	mapTV := TypedValue{T: mt, V: mv}
