@@ -124,7 +124,10 @@ func (tok *Token) RenderHome() string {
 	return str
 }
 
-// Issuer-only (holds the PrivateLedger), which is what keeps the hook surface safe.
+// RegisterExtension attaches an issuer-supplied hook set. Issuer-only (holds the
+// PrivateLedger), which keeps the surface from being attacker-attachable — but the
+// attachment is still a privilege: per the Extension doc, an attached hook can veto
+// transfers (a panic reverts the movement) and adds gas to every movement.
 // Same pointer twice is a no-op; a different ext of an already-attached kind panics.
 func (led *PrivateLedger) RegisterExtension(ext Extension) {
 	if ext == nil {
