@@ -9,26 +9,45 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath.symbol -> *Token
+var (
+	registry = avl.NewTree() // fqname rlmPath.symbol -> *Token
 
-// Construction lives in grc20.NewToken — it takes rlm realm last
-// and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// The registry key is the canonical fqname rlmPath.symbol (one token per
-// realm+symbol), independent of Token.ID()'s trailing sequence id, so
-// callers can look a token up from the (realm, symbol) pair they already
-// know:
+	idSeq seqid.ID // id counter; only nextIDSeq, a closure over it, leaves this realm
+)
+
+// IdentifierGenerator returns a generator backed by the registry's counter.
+// Tokens built with it carry grc20reg as their IdentifierPath(), which is what
+// Register requires:
 //
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
+//	gen := grc20reg.IdentifierGenerator(cross(cur))
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, gen, cur)
 //	key := grc20reg.Register(cross(cur), Token, "")
+//
+// Holding a generator grants no more than calling this again would — it draws
+// from the counter without revealing or forking it.
+func IdentifierGenerator(cur realm) *grc20.IDGenerator {
+	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+}
+
+// nextIDSeq advances the registry's counter. Declared in this realm, so the
+// declaring-realm borrow gives it authority over idSeq wherever it is called.
+func nextIDSeq() string {
+	return idSeq.Next().String()
+}
 
 // Register records token under its rlmPath.symbol key and returns that key.
-// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
+// Token.ID() carries a trailing generated id (rlmPath.symbol.<id>) that keeps
 // token identities/events unique, but the registry deliberately keys by
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
-// register two tokens under the same symbol (overwrite/alias guard).
+// register two tokens under the same symbol (overwrite/alias guard). slug is
+// recorded in the register event only.
+//
+// The id must have come from IdentifierGenerator; one produced anywhere else is
+// not from this counter and could collide with one that is.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
@@ -38,10 +57,15 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	}
 	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
-	// Token.ID() == key + "." + <id>; verify the token originates from the
-	// registering realm and symbol.
+	// Token.ID() == key + "." + <id>; verify the token originates from
+	// the registering realm and symbol.
 	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
+	}
+	// PackagePath() is bound under IsCurrent, so no other realm can create a
+	// generator claiming this one.
+	if token.IdentifierPath() != cur.PkgPath() {
+		panic("grc20reg: token id not issued by the registry generator")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
@@ -50,6 +74,7 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	chain.Emit(
 		registerEvent,
 		"token_path", key,
+		"token_id", token.ID(),
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),

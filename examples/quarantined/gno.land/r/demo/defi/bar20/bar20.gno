@@ -24,8 +24,7 @@ var (
 )
 
 func init(cur realm) {
-	// bar20 only ever creates this one token, so id 0 can't collide.
-	Token, adm = grc20.NewToken("Bar", "BAR", 4, 0, cur)
+	Token, adm = grc20.NewToken("Bar", "BAR", 4, grc20reg.IdentifierGenerator(cross(cur)), cur)
 	UserTeller = Token.CallerTeller()
 	grc20reg.Register(cross(cur), Token, "")
 }

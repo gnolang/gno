@@ -6,31 +6,30 @@ import (
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + <generated id>
+// (e.g. "gno.land/r/demo/defi/foo20.FOO.0000001").
 //
-// Because IsCurrent runtime-validates that rlm came from the live
-// crossing frame, origRealm is unforgeable: an external realm cannot
-// fabricate a Token claiming to belong to a different package.
+// Because IsCurrent runtime-validates that rlm came from the live crossing
+// frame, origRealm is unforgeable: an external realm cannot fabricate a Token
+// claiming to belong to a different package.
 //
-// Realms that create multiple tokens should allocate id from one persistent
-// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
+// gen supplies the trailing id segment; see IDGenerator for why copying a generator
+// cannot yield a duplicate. gen.PackagePath() becomes the Token's
+// IdentifierPath(), so a registry accepts only tokens whose ids came from its
+// own counter. Take gen from the registry you intend to register with:
 //
-//	var nextTokenID seqid.ID
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
+//	gen := grc20reg.IdentifierGenerator(cross(cur))
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, gen, cur)
+//	grc20reg.Register(cross(cur), Token, "")
 //
-// A realm that creates only a single token can pass 0 directly, since no
-// other token of that realm can collide with it.
-//
-// If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
-func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+// A realm that will not register its token can create its own generator instead.
+func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -47,13 +46,25 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
+	// A zero-value &IDGenerator{} is constructible from outside this package,
+	// so check the field, not just the pointer.
+	if gen == nil || gen.nextID == nil {
+		panic(ErrNilGenerator)
+	}
+	// The issuer's path is part of the id, not just a side field. Two issuers
+	// can hand out the same code — a realm can read a registry-issued code off
+	// chain state and have its own generator return it verbatim — and events
+	// carry only the id, so without the issuer in it the two tokens would be
+	// indistinguishable to a consumer.
+	id := pkgPath + "." + symbol + "." + gen.packagePath + ":" + gen.NextID()
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:       pkgPath + "." + symbol + "." + id.String(),
-		name:     name,
-		symbol:   symbol,
-		decimals: decimals,
-		ledger:   ledger,
+		id:             id,
+		identifierPath: gen.packagePath,
+		name:           name,
+		symbol:         symbol,
+		decimals:       decimals,
+		ledger:         ledger,
 	}
 	ledger.token = token
 	return token, ledger
@@ -78,7 +89,14 @@ func validName(name string) bool {
 // validSymbol reports whether s is valid slug-compatible metadata: non-empty,
 // within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
 func validSymbol(s string) bool {
-	if s == "" || len(s) > MaxSymbolLen {
+	return validSlugText(s, MaxSymbolLen)
+}
+
+// validSlugText reports whether s is non-empty, at most maxLen bytes, and
+// consists only of [A-Za-z0-9_-]. Shared by validSymbol and validID, which
+// differ only in their length cap.
+func validSlugText(s string, maxLen int) bool {
+	if s == "" || len(s) > maxLen {
 		return false
 	}
 	for _, c := range s {
@@ -112,6 +130,12 @@ func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 // It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
 	return tok.id
+}
+
+// IdentifierPath returns the package path of the realm whose generator produced
+// the trailing segment of the token's id.
+func (tok *Token) IdentifierPath() string {
+	return tok.identifierPath
 }
 
 // HasAddr checks if the specified address is a known account in the bank.

@@ -13,12 +13,17 @@ import (
 
 const amount = int64(1000)
 
-var nextTokenID seqid.ID
+// These tokens are never registered, so this realm issues their ids itself.
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.Next().String()
+}
 
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
+	token, ledger := grc20.NewToken(name, symbol, 0, grc20.NewIDGenerator(0, rlm, nextIDSeq), rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)
