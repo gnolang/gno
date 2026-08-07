@@ -179,12 +179,34 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.setGnoConnectHeaders(w)
 		h.Get(w, r)
 	case http.MethodPost:
 		h.Post(w, r)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// setGnoConnectHeaders declares the chain in response headers, mirroring the
+// gnoconnect:* metas in head.html.
+//
+// The two channels serve different clients. A wallet runs inside the page and
+// reads the metas; a client that only fetches the page — a CLI resolving a
+// TxLink, an agent asking which chain this is — cannot parse HTML cheaply and
+// reads these instead. Emitting both is what makes the second kind possible at
+// all: until now nothing in the tree wrote them, so the header half of the
+// standard had no producer.
+func (h *HTTPHandler) setGnoConnectHeaders(w http.ResponseWriter) {
+	if h.Static.RemoteHelp != "" {
+		w.Header().Set("Gnoconnect-RPC", h.Static.RemoteHelp)
+	}
+	if h.Static.ChainId != "" {
+		w.Header().Set("Gnoconnect-ChainID", h.Static.ChainId)
+	}
+	// "auto" == this origin, matching the meta. gnoweb never treats another
+	// domain as a transaction source.
+	w.Header().Set("Gnoconnect-TXDomains", "auto")
 }
 
 // Get processes a GET HTTP request and renders the appropriate page.
