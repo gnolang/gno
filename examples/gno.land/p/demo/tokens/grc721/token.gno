@@ -11,6 +11,14 @@ import (
 
 // NewToken creates a core token and its ledger.
 // rlm must be the caller's own captured cur (IsCurrent); its PkgPath becomes the unforgeable origRealm.
+//
+// Every successful call emits a NewToken event carrying the resulting Token.ID().
+// Because Token's fields are unexported, NewToken is the only way a Token can come
+// into existence, so this event makes token creation fully observable: an indexer
+// that sees the same Token.ID() announced twice knows the realm built two
+// independent ledgers behind one identifier, and that every later
+// Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm is
+// emitting untrustworthy events and should be flagged or ignored wholesale.
 func NewToken(name, symbol string, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -37,6 +45,13 @@ func NewToken(name, symbol string, id seqid.ID, rlm realm) (*Token, *PrivateLedg
 		ledger: ledger,
 	}
 	ledger.token = token
+
+	chain.Emit(
+		NewTokenEvent,
+		"token", token.id,
+		"name", name,
+		"symbol", symbol,
+	)
 
 	return token, ledger
 }

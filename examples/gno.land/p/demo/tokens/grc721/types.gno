@@ -81,6 +81,9 @@ const (
 )
 
 const (
+	// NewToken announces every token creation; see NewToken for why it is a
+	// complete provenance signal.
+	NewTokenEvent = "NewToken"
 	// Mint emits from empty addr; burn emits to empty addr (EIP-721).
 	TransferEvent       = "Transfer"
 	ApprovalEvent       = "Approval"
