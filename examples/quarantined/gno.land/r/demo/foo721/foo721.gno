@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/tokens/grc721/metadata"
 	"gno.land/p/demo/tokens/grc721/royalty"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/demo/grc721reg"
+	"gno.land/r/demo/defi/grc721reg"
 )
 
 const admin address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig

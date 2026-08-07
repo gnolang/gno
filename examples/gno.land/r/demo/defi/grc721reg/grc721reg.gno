@@ -112,7 +112,7 @@ func Render(path string) string {
 			v := vI.(*collection.Collection)
 			rlmPath, sym := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, sym)
-			infoLink := "/r/demo/grc721reg:" + key
+			infoLink := "/r/demo/defi/grc721reg:" + key
 			s += "- " + md.Bold(md.EscapeText(v.Token().GetName())) + " - " + rlmLink +
 				" - " + extensionBadges(v) + " - " + md.Link("info", infoLink) + "\n"
 
