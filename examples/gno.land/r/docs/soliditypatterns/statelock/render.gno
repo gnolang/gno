@@ -1,0 +1,87 @@
+package statelock
+
+import "strings"
+
+func Render(path string) string {
+	content := `
+# State Lock
+
+This example showcases how a Solidity modifier might be implemented in Gno.
+
+---
+
+## In Solidity
+
+^^^solidity
+contract StateLock {
+    enum State { Active, Locked, Disabled }
+
+    State public state = State.Active;
+
+    modifier inState(State _state) {
+        require(state == _state);
+        _;
+    }
+
+    function lock() public inState(State.Active) {
+        state = State.Locked;
+    }
+
+    function unlock() public inState(State.Locked) {
+        state = State.Active;
+    }
+}
+^^^
+
+* An ^enum State^ is declared with three possible values: ^Active^, ^Locked^, and ^Disabled^.
+* A ^public^ state variable ^state^ is declared to hold the current state. It can be read externally thanks to the ^public^ keyword.
+* A ^modifier inState^ is defined to restrict function execution based on the current ^state^. It checks that ^state == _state^ using ^require^, and then allows the function body to continue.
+* The ^lock^ function can only be called if the contract is in the ^Active^ state. When called, it changes the state to ^Locked^.
+
+
+---
+
+## Gno Version
+
+^^^go
+type State string
+
+const (
+	StateActive   State = "Active"
+	StateLocked   State = "Locked"
+	StateDisabled State = "Disabled" // mirrors Solidity enum; unused in this demo
+)
+
+var state State = StateActive
+
+func assertInState(expected State) {
+	if state != expected {
+		panic("invalid state: expected " + string(expected) + ", got " + string(state))
+	}
+}
+
+func Lock(cur realm) {
+	assertInState(StateActive)
+	state = StateLocked
+}
+
+func Unlock(cur realm) {
+	assertInState(StateLocked)
+	state = StateActive
+}
+^^^
+
+* We define a custom type ^State^ as a ^string^ to simulate enum-like behavior.
+* We declare a ^const^ block listing all valid states: ^StateActive^, ^StateLocked^, and ^StateDisabled^. These mirror the Solidity ^Enum^. ^StateDisabled^ is included for parity; this demo does not use it.
+* A global variable ^state^ of type ^State^ is initialized to ^StateActive^.
+* The helper function ^assertInState^ ensures that the contract is in the expected state. If not, it throws an error using ^panic^, showing both the expected and actual state values. This is equivalent to a Solidity ^modifier^.
+* The ^Lock^ function changes the state from ^Active^ to ^Locked^. It checks the expected state before mutating.
+* The ^Unlock^ function reverses the state from ^Locked^ to ^Active^, applying the same state check.
+
+> **Note on caller gating.** This demo restricts by *contract state*, not by *caller identity* — any authenticated caller may lock or unlock. This maps to a Solidity ^modifier^ used for state-machine control. A Solidity ^modifier^ used for *access control* (e.g. ^onlyOwner^) maps to an additional ^cur.Previous().Address()^ owner check. See the [ownable sibling](/r/docs/soliditypatterns/ownable) for that pattern.
+
+---
+
+`
+	return strings.ReplaceAll(content+RenderDemo(), "^", "`")
+}
