@@ -165,10 +165,10 @@ CHECKSUMS_DATA=$(
 # Build artifacts
 79f2ad8aff39d6f24c276ee7ed244854e7e9c77d39e4c75423d8dcad572d2757  work/packages.gen.txt
 bf1c81ddb7640164ca1a19805c6f24e0252f2495b351b1fbbf657b1f24f6a866  work/valoper-seed.jsonl
-4cf12cc4542281e2c5f9bf968a4de8f8e4f33f88b70c247a7762d7a07913b61b  work/genesis_txs.jsonl
+654a529c848dff0256969c73963194087a331dbd660d83a28a366c79511d3bd9  work/genesis_txs.jsonl
 
 # Final artifact (moved to sapphire.gno.land/ root on success)
-44b9ed99981f0bfac716c1b8f7697e5cbf8cf680f934dcbc7b42b32ed9b30a54  genesis.json
+e97ada8e3051826ac5a96d861f2e4056afa0c3b69a220d525772ba60065c92e1  genesis.json
 EOF
 )
 
