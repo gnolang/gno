@@ -62,9 +62,10 @@ func GetBoards(start, count int) []Board {
 
 // GetThreads returns a list with threads of a board.
 // To reverse iterate use a negative count.
+// A board without thread storage has no threads, so nil is returned.
 func GetThreads(boardID uint64, start, count int) []Thread {
 	b, found := gBoards.Get(boards.ID(boardID))
-	if !found {
+	if !found || b.Threads == nil {
 		return nil
 	}
 
@@ -78,6 +79,7 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 
 // GetMembers returns a list with the members of a board.
 // A zero `boardID` refers to the realm, so the realm admin users are returned.
+// A non permissioned board has no members, so nil is returned.
 func GetMembers(boardID uint64, start, count int) []Member {
 	perms := gPerms
 	if boardID != 0 {
@@ -86,6 +88,10 @@ func GetMembers(boardID uint64, start, count int) []Member {
 			return nil
 		}
 		perms = b.Permissions
+	}
+
+	if perms == nil {
+		return nil
 	}
 
 	var members []Member
