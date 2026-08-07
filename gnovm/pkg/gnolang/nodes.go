@@ -2310,6 +2310,11 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+	if tv.T == nil {
+		panic(fmt.Sprintf(
+			"StaticBlock.Define(%s) requires non-nil tv.T; use Reserve() for placeholder slots",
+			n))
+	}
 	sb.Define2(false, n, tv.T, tv, NameSource{})
 }
 
