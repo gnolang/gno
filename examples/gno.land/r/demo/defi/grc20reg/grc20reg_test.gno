@@ -98,6 +98,41 @@ func TestRegistryWrappers(cur realm, t *testing.T) {
 	uassert.Equal(t, int64(350), BalanceOf(tokenKey, bob))
 }
 
+func viaWrapper(cur realm, tokenKey string, to address, amount int64) {
+	Transfer(cross(cur), tokenKey, to, amount)
+}
+
+func viaCallerTeller(cur realm, token *grc20.Token, to address, amount int64) error {
+	return token.CallerTeller().Transfer(0, cur, to, amount)
+}
+
+func TestRegistryWrapperCallerSemantics(cur realm, t *testing.T) {
+	const tokenPath = "gno.land/r/demo/token_caller_semantics"
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	intermediary := cur.Address()
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("CallerSemantics", "CALL", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(intermediary, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+
+	// ViaWrapper adds another registry frame, so CallerTeller sees the
+	// intermediary realm rather than alice.
+	viaWrapper(cross(cur), tokenKey, bob, 100)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+
+	// ViaCallerTeller has no extra frame, so CallerTeller sees alice.
+	urequire.NoError(t, viaCallerTeller(cross(cur), token, bob, 100))
+	uassert.Equal(t, int64(900), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+	uassert.Equal(t, int64(200), token.BalanceOf(bob))
+}
+
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_overwrite"))
 	token, ledger := grc20.NewToken("Bar", "BAR", 4, 0, cur)
