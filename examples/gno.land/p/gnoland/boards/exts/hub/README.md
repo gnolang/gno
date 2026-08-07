@@ -22,7 +22,11 @@ Keep it that way when adding fields:
   constructor was handed, and never expose a `boards.PostStorage`,
   `boards.FlagStorage` or `boards.Permissions` — those are handles onto
   live realm state.
-- Deep-copy slices and maps, as `NewSafeBoard` does for `Aliases`.
+- Deep-copy slices and maps, as `NewSafeBoard` does for `Aliases` and
+  `NewSafeMember` does for `Roles`. Copy on the way out too: a getter
+  that returns the stored slice lets a caller mutate the snapshot and
+  change what the same value reports on the next call, so `Aliases()`
+  and `Roles()` each return a fresh slice.
 - Convert `boards` types to plain ones where practical, the way `Member`
   flattens `[]boards.Role` to `[]string`.
 

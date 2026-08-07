@@ -96,15 +96,7 @@ func GetMembers(boardID uint64, start, count int) []Member {
 
 	var members []Member
 	perms.IterateUsers(start, count, func(u boards.User) bool {
-		var roles []string
-		for _, r := range u.Roles {
-			roles = append(roles, string(r))
-		}
-
-		members = append(members, Member{
-			Address: u.Address,
-			Roles:   roles,
-		})
+		members = append(members, hubexts.NewSafeMember(u))
 		return false
 	})
 	return members

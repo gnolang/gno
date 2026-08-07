@@ -4,12 +4,6 @@ import (
 	"gno.land/p/gnoland/boards"
 )
 
-// Member defines a type for board members.
-type Member struct {
-	Address address
-	Roles   []string
-}
-
 // Board defines a safe type for boards.
 type Board struct {
 	// id is the unique identifier of the board.

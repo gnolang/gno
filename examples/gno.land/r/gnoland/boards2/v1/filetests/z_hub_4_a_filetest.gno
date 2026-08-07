@@ -27,7 +27,7 @@ func main(cur realm) {
 	members := boards2.GetMembers(board.ID(), 0, board.MemberCount())
 
 	for _, m := range members {
-		println(m.Address, m.Roles)
+		println(m.Address(), m.Roles())
 	}
 }
 
