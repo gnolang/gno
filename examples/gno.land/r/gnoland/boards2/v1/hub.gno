@@ -39,7 +39,8 @@ func GetThread(boardID, threadID uint64) (Thread, bool) {
 	return hubexts.NewSafeThread(t), true
 }
 
-// GetComment returns a safe thread comment.
+// GetComment returns a safe thread comment or reply.
+// `commentID` can be the ID of a top level comment or of a nested reply.
 func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 	c, found := getComment(boardID, threadID, commentID)
 	if !found {
@@ -130,7 +131,8 @@ func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 
 // GetFlags returns a list with thread or comment moderation flags.
 // To reverse iterate use a negative count.
-// Thread flags are returned when `commentID` is zero, or comment flags are returned otherwise.
+// Thread flags are returned when `commentID` is zero, or the flags of the
+// comment or reply with that ID are returned otherwise.
 func GetFlags(boardID, threadID, commentID uint64, start, count int) []Flag {
 	var storage boards.FlagStorage
 	if commentID == 0 {
@@ -176,8 +178,9 @@ func GetComments(boardID, threadID uint64, start, count int) []Comment {
 	return comments
 }
 
-// GetReplies returns a list with top level comment replies.
+// GetReplies returns a list with the direct replies of a comment or reply.
 // To reverse iterate use a negative count.
+// `commentID` can be the ID of a top level comment or of a nested reply.
 func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment {
 	c, found := getComment(boardID, threadID, commentID)
 	if !found {
@@ -201,12 +204,14 @@ func getBoardThread(boardID, threadID uint64) (*boards.Post, bool) {
 	return getThread(b, boards.ID(threadID))
 }
 
-// getComment returns a thread comment from their IDs.
+// getComment returns a thread comment or reply from their IDs.
+// It searches the thread's flat index of all comments and replies, so
+// nested replies are addressable by ID and not only top level comments.
 func getComment(boardID, threadID, commentID uint64) (*boards.Post, bool) {
 	t, found := getBoardThread(boardID, threadID)
 	if !found {
 		return nil, false
 	}
 
-	return t.Replies.Get(boards.ID(commentID))
+	return getReply(t, boards.ID(commentID))
 }
