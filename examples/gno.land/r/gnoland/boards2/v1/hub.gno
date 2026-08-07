@@ -76,7 +76,6 @@ func GetThreads(boardID uint64, start, count int) []Thread {
 }
 
 // GetMembers returns a list with the members of a board.
-// To reverse iterate use a negative count.
 func GetMembers(boardID uint64, start, count int) []Member {
 	b, found := gBoards.Get(boards.ID(boardID))
 	if !found {
