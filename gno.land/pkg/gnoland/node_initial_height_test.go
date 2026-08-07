@@ -16,14 +16,14 @@ import (
 )
 
 // TestNodeBootWithInitialHeight boots a full in-memory node whose genesis doc
-// has InitialHeight = 100.  It verifies that:
+// has InitialHeight = 101.  It verifies that:
 //
 //   - The node starts without panicking (exercises all the InitialHeight paths
 //     through Handshaker → ConsensusState.reconstructLastCommit →
 //     BlockchainReactor.NewBlockchainReactor).
-//   - The first committed block is at height 100, not 1.
+//   - The first committed block is at height 101, not 1.
 func TestNodeBootWithInitialHeight(t *testing.T) {
-	const initialHeight = int64(100)
+	const initialHeight = int64(101)
 
 	td := t.TempDir()
 	tmcfg := NewDefaultTMConfig(td)
