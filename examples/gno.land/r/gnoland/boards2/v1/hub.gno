@@ -105,6 +105,12 @@ func GetMembers(boardID uint64, start, count int) []Member {
 
 // GetReposts returns a list with repost of a board thread.
 // To reverse iterate use a negative count.
+// A repost is not included when its destination thread has been deleted,
+// so the total accessible results can be shorter than the thread's RepostCount(),
+// and a single call can return fewer than count results.
+// (The reason for the discrepancy is that the start index can be large,
+// and this function cannot scan all reposts up to the start index to
+// resolve the discrepancy.)
 func GetReposts(boardID, threadID uint64, start, count int) []Thread {
 	t, found := getBoardThread(boardID, threadID)
 	if !found {
