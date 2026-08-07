@@ -42,7 +42,7 @@ Verify its SHA256 — it must match:
 
 ```shell
 shasum -a 256 genesis.json
-# e97ada8e3051826ac5a96d861f2e4056afa0c3b69a220d525772ba60065c92e1  genesis.json
+# d511e0e5b767d4e53f5c1afeeea1bc61d2c7b2118146c820f1f3e4296f67498e  genesis.json
 ```
 
 To regenerate the genesis yourself instead of downloading it, see [`README.md`](./README.md).
