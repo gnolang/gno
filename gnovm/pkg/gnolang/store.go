@@ -183,6 +183,41 @@ type defaultStore struct {
 	nativeResolver NativeResolver // for injecting natives
 	aminoCache     *ristretto.Cache[[]byte, Type]
 
+	// typePrivacyCache memoizes typeHasPrivateDep(tid) — whether a type,
+	// by TypeID, reaches any private package. Created once on the root
+	// store and shared by reference into every BeginTransaction child
+	// (like stdlibKeyBytes/aminoCache), so a verdict computed in one
+	// transaction is visible to every later one — the memo must outlive
+	// the per-tx Type objects it describes, which cacheTypes recreates
+	// fresh each transaction.
+	//
+	// Only COMMITTED verdicts land here. TypeID identifies a type's
+	// structure but not the privacy of the package that declares it, and
+	// privacy is read from the PackageValue at walk time — so the same
+	// TypeID can yield different verdicts depending on the transaction's
+	// (possibly speculative) view of package privacy. A verdict is
+	// therefore first buffered in the per-tx pendingTypePrivacy below and
+	// promoted here only when the transaction commits
+	// (transactionStore.Write); a query, simulation, or rolled-back tx
+	// never commits, so a verdict it computed against a public build of a
+	// path that is later deployed private is discarded, not cached.
+	// Because committed package privacy never changes (a path deploys
+	// once), a promoted verdict is then stable for the life of the
+	// process, safe to keep, and safe to share across the concurrent-
+	// query read path (races only recompute the same value; the mutex is
+	// for memory-safety, not value-correctness). Reset naturally per root
+	// store, so tests don't cross-contaminate.
+	typePrivacyCache *typePrivacyCache
+
+	// pendingTypePrivacy holds typeHasPrivateDep verdicts computed during
+	// THIS transaction, not yet promoted to the shared typePrivacyCache.
+	// Flushed in transactionStore.Write (commit); discarded otherwise.
+	// nil until the first verdict is buffered. Not shared across
+	// transactions. See typePrivacyCache above for why the commit gate
+	// matters (security: prevents a simulated public build from poisoning
+	// the cache for a path later deployed private).
+	pendingTypePrivacy map[TypeID]bool
+
 	// transient
 	opslog  io.Writer // for logging store operations.
 	current []string  // for detecting import cycles.
@@ -194,6 +229,61 @@ type defaultStore struct {
 
 	// realm storage changes on message level.
 	realmStorageDiffs StorageDiffs // maps realm path to size diff
+}
+
+// typePrivacyCache is a concurrency-safe, permanent (no eviction) map
+// from TypeID to typeHasPrivateDep's verdict. Writes happen at most once
+// per distinct TypeID for the life of the process and only ever store the
+// same value for a given key, so the RWMutex is for memory-safety under
+// the concurrent-query path, not value correctness.
+type typePrivacyCache struct {
+	mu sync.RWMutex
+	m  map[TypeID]bool
+}
+
+func newTypePrivacyCache() *typePrivacyCache {
+	return &typePrivacyCache{m: make(map[TypeID]bool)}
+}
+
+func (c *typePrivacyCache) get(tid TypeID) (verdict, ok bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	verdict, ok = c.m[tid]
+	return verdict, ok
+}
+
+func (c *typePrivacyCache) set(tid TypeID, verdict bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.m[tid] = verdict
+}
+
+// typePrivacyVerdict returns a memoized typeHasPrivateDep verdict for tid,
+// preferring the committed shared cache, then this transaction's own
+// not-yet-committed buffer. ok=false means the caller must compute it.
+func (ds *defaultStore) typePrivacyVerdict(tid TypeID) (verdict, ok bool) {
+	if ds.typePrivacyCache != nil {
+		if v, found := ds.typePrivacyCache.get(tid); found {
+			return v, true
+		}
+	}
+	if v, found := ds.pendingTypePrivacy[tid]; found {
+		return v, true
+	}
+	return false, false
+}
+
+// bufferTypePrivacyVerdict records a freshly computed verdict in this
+// transaction's buffer. It reaches the shared, cross-transaction cache
+// only if the transaction commits (transactionStore.Write) — so a
+// verdict computed by a query, simulation, or a transaction that later
+// rolls back is discarded, never trusted by a future transaction. See
+// the typePrivacyCache/pendingTypePrivacy field docs.
+func (ds *defaultStore) bufferTypePrivacyVerdict(tid TypeID, verdict bool) {
+	if ds.pendingTypePrivacy == nil {
+		ds.pendingTypePrivacy = make(map[TypeID]bool)
+	}
+	ds.pendingTypePrivacy[tid] = verdict
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -227,10 +317,11 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		realmStorageDiffs: make(StorageDiffs),
 
 		// store configuration
-		pkgGetter:      nil,
-		nativeResolver: nil,
-		gasConfig:      DefaultGasConfig(),
-		aminoCache:     globalAminoCache(),
+		pkgGetter:        nil,
+		nativeResolver:   nil,
+		gasConfig:        DefaultGasConfig(),
+		aminoCache:       globalAminoCache(),
+		typePrivacyCache: newTypePrivacyCache(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -275,6 +366,9 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		gasConfig:  ds.gasConfig,
 		aminoCache: ds.aminoCache,
 
+		// cross-transaction type-privacy memo (shared reference)
+		typePrivacyCache: ds.typePrivacyCache,
+
 		// transient
 		current: nil,
 		opslog:  nil,
@@ -292,6 +386,16 @@ type transactionStore struct {
 
 func (t transactionStore) Write() {
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+	// Promote this transaction's type-privacy verdicts to the shared
+	// cache now that it is committing — see bufferTypePrivacyVerdict.
+	// Only reached on a successful, state-committing transaction, so the
+	// promoted verdicts reflect committed package privacy.
+	if len(t.pendingTypePrivacy) > 0 && t.typePrivacyCache != nil {
+		for tid, verdict := range t.pendingTypePrivacy {
+			t.typePrivacyCache.set(tid, verdict)
+		}
+	}
+	t.pendingTypePrivacy = nil
 }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
