@@ -18,7 +18,7 @@ type GRC1155TokenInfo struct {
 
 var (
 	registeredTokens = avl.NewTree() // rlmPath[.slug] -> *grc20.Token
-	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
+	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> *grc721.Token
 	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 )
 
@@ -28,24 +28,20 @@ func init(cur realm) {
 	hor.Register(cross(cur), "Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
-// RegisterToken registers a token in grc20reg.
-// Returns the registry key (rlmPath.symbol) that can be used to retrieve the
-// token; this is grc20reg's canonical key, not the token's full ID (which
-// carries a trailing sequence id).
+// RegisterToken returns grc20reg's canonical key (rlmPath.symbol), not the
+// token's full ID (which carries a trailing sequence id).
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
 	return grc20reg.Register(cross(cur), token, slug)
 }
 
-// RegisterNFT is a function that registers an NFT in an avl.Tree
-func RegisterNFT(cur realm, nftGetter grc721.NFTGetter, collection string, tokenId string) error {
-	nft := nftGetter()
-	_, ok := nft.(grc721.IGRC721CollectionMetadata)
-	if !ok {
-		return ErrNFTNotMetadata
+// RegisterNFT stores the concrete *grc721.Token (not an interface getter), so
+// an entry cannot be a lying reader implementation.
+func RegisterNFT(cur realm, token *grc721.Token, collection string, tokenId string) error {
+	if token == nil {
+		return ErrNFTNotFound
 	}
 
-	nftOwner, err := nft.OwnerOf(grc721.TokenID(tokenId))
-
+	nftOwner, err := token.OwnerOf(grc721.TokenID(tokenId))
 	if err != nil {
 		return err
 	}
@@ -60,12 +56,10 @@ func RegisterNFT(cur realm, nftGetter grc721.NFTGetter, collection string, token
 		return ErrNFTAlreadyRegistered
 	}
 
-	registeredNFTs.Set(key, nftGetter)
+	registeredNFTs.Set(key, token)
 	return nil
 }
 
-// RegisterMultiToken is a function that registers a multi-token in an avl.Tree
-// The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
 func RegisterMultiToken(cur realm, mtGetter grc1155.MultiTokenGetter, tokenID string) error {
 	rlmPath := cur.Previous().PkgPath()
 	key := rlmPath + "." + tokenID

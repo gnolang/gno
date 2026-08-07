@@ -11,68 +11,52 @@ import (
 	"gno.land/r/sys/users"
 )
 
-// GetUserTokenBalances returns a string of all the grc20 tokens the user owns
 func GetUserTokenBalances(userNameOrAddress string) string {
 	return getTokenBalances(userNameOrAddress, false)
 }
 
-// GetUserTokenBalancesNonZero returns a string of all the grc20 tokens the user owns, but only the ones that have a balance greater than 0
 func GetUserTokenBalancesNonZero(userNameOrAddress string) string {
 	return getTokenBalances(userNameOrAddress, true)
 }
 
-// GetUserNFTBalances returns a string of all the NFTs the user owns
 func GetUserNFTBalances(userNameOrAddress string) string {
 	return getNFTBalances(userNameOrAddress)
 }
 
-// GetUserMultiTokenBalances returns a string of all the multi-tokens the user owns
 func GetUserMultiTokenBalances(userNameOrAddress string) string {
 	return getMultiTokenBalances(userNameOrAddress, false)
 }
 
-// GetUserMultiTokenBalancesNonZero returns a string of all the multi-tokens the user owns, but only the ones that have a balance greater than 0
 func GetUserMultiTokenBalancesNonZero(userNameOrAddress string) string {
 	return getMultiTokenBalances(userNameOrAddress, true)
 }
 
-// GetToken returns a token instance for a given key
 func GetToken(key string) *grc20.Token {
 	return grc20reg.Get(key)
 }
 
-// MustGetToken returns a token instance for a given key, panics if the token is not found
 func MustGetToken(key string) *grc20.Token {
 	return grc20reg.MustGet(key)
 }
 
-// GetNFT returns a reader-only view of an NFT for a given key.
-//
-// SECURITY: the returned IGRC721Reader is data-untrusted. A malicious
-// NFTGetter registered via RegisterNFT can return a Reader that lies
-// about OwnerOf / BalanceOf / etc. Treat aggregator results as display
-// data, not authority data — never gate a transfer or mint on these
-// values. Writes are concrete methods on the owning realm's *basicNFT;
-// to mutate an NFT, call the owning realm's wrapper directly.
-func GetNFT(key string) grc721.IGRC721Reader {
-	nftGetter := registeredNFTs.Get(key)
-	if nftGetter == nil {
+// SECURITY: aggregator results are display data, not authority — never gate a
+// transfer or mint on them; to mutate, call the owning realm's own wrapper.
+func GetNFT(key string) *grc721.Token {
+	v := registeredNFTs.Get(key)
+	if v == nil {
 		return nil
 	}
-	return (nftGetter.(grc721.NFTGetter))()
+	return v.(*grc721.Token)
 }
 
-// MustGetNFT returns a reader-only view of an NFT for a given key,
-// panics if the NFT is not found. See GetNFT for data-trust notes.
-func MustGetNFT(key string) grc721.IGRC721Reader {
-	nftGetter := GetNFT(key)
-	if nftGetter == nil {
+func MustGetNFT(key string) *grc721.Token {
+	nft := GetNFT(key)
+	if nft == nil {
 		panic("unknown NFT: " + key)
 	}
-	return nftGetter
+	return nft
 }
 
-// GetMultiToken returns a multi-token instance for a given key
 func GetMultiToken(key string) grc1155.IGRC1155 {
 	info := registeredMTs.Get(key)
 	if info == nil {
@@ -82,7 +66,6 @@ func GetMultiToken(key string) grc1155.IGRC1155 {
 	return mt()
 }
 
-// MustGetMultiToken returns a multi-token instance for a given key, panics if the multi-token is not found
 func MustGetMultiToken(key string) grc1155.IGRC1155 {
 	info := GetMultiToken(key)
 	if info == nil {
@@ -91,7 +74,6 @@ func MustGetMultiToken(key string) grc1155.IGRC1155 {
 	return info
 }
 
-// GetAllNFTs returns a string of all the NFTs registered
 func GetAllNFTs() string {
 	var out string
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
@@ -101,7 +83,6 @@ func GetAllNFTs() string {
 	return out
 }
 
-// GetAllTokens returns a string of all the tokens registered
 func GetAllTokens() string {
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
@@ -111,7 +92,6 @@ func GetAllTokens() string {
 	return out
 }
 
-// GetAllTokenWithDetails returns a string of all the tokens registered with their details
 func GetAllTokenWithDetails() string {
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
@@ -122,7 +102,6 @@ func GetAllTokenWithDetails() string {
 	return out
 }
 
-// GetAllMultiTokens returns a string of all the multi-tokens registered
 func GetAllMultiTokens() string {
 	var out string
 	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
@@ -132,12 +111,10 @@ func GetAllMultiTokens() string {
 	return out
 }
 
-// GetAllRegistered returns a string of all the registered tokens, NFTs and multi-tokens
 func GetAllRegistered() string {
 	return GetAllNFTs() + GetAllTokens() + GetAllMultiTokens()
 }
 
-// getNFTBalances returns a string of all the NFTs the user owns
 func getNFTBalances(input string) string {
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
@@ -146,11 +123,10 @@ func getNFTBalances(input string) string {
 	var out string
 
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		nftGetter := value.(grc721.NFTGetter)
-		nft := nftGetter()
+		nft := value.(*grc721.Token)
 		key_parts := strings.Split(key, ".")
 		owner, err := nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1]))
-		if err == nil && addr == owner { // show only the nfts owner owns
+		if err == nil && addr == owner {
 			out += "NFT:" + key + ","
 		}
 		return false
@@ -159,7 +135,6 @@ func getNFTBalances(input string) string {
 	return out
 }
 
-// getTokenBalances returns a string of all the tokens the user owns
 func getTokenBalances(input string, nonZero bool) string {
 
 	addr := getAddressForUsername(input)
@@ -180,7 +155,6 @@ func getTokenBalances(input string, nonZero bool) string {
 	return out
 }
 
-// getMultiTokenBalances returns a string of all the multi-tokens the user owns
 func getMultiTokenBalances(input string, nonZero bool) string {
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
@@ -203,7 +177,6 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 	return out
 }
 
-// getAddressForUsername returns an address for a given username or address
 func getAddressForUsername(addrOrName string) address {
 	addr := address(addrOrName)
 	if addr.IsValid() {
