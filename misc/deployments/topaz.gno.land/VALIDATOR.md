@@ -1,6 +1,6 @@
-# Joining sapphire as a validator
+# Joining topaz as a validator
 
-How to run a full node on **sapphire** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to sapphire.
+How to run a full node on **topaz** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to topaz.
 
 The flow:
 
@@ -12,37 +12,37 @@ The flow:
 
 ## 1. Binaries
 
-Everything is built from the **`chain/sapphire`** branch (<https://github.com/gnolang/gno/tree/chain/sapphire>).
+Everything is built from the **`chain/topaz`** branch (<https://github.com/gnolang/gno/tree/chain/topaz>).
 
 Build from source:
 
 ```shell
 git clone https://github.com/gnolang/gno.git
-cd gno && git checkout chain/sapphire
+cd gno && git checkout chain/topaz
 make -C gno.land install.gnoland install.gnokey   # installs to $GOPATH/bin
 ```
 
 Or build a Docker image:
 
 ```shell
-docker build --target gnoland -t gnoland:sapphire .
+docker build --target gnoland -t gnoland:topaz .
 ```
 
 Prebuilt `gnoland`/`gnokey` binaries are on the release page (below). Prebuilt container images are on the GitHub Container Registry, at `ghcr.io/gnolang/gno/gnoland`.
 
 ## 2. Genesis
 
-Download `genesis.json` from the [release page](https://github.com/gnolang/gno/releases/tag/chain%2Fsapphire):
+Download `genesis.json` from the [release page](https://github.com/gnolang/gno/releases/tag/chain%2Ftopaz):
 
 ```shell
-wget -O genesis.json https://github.com/gnolang/gno/releases/download/chain/sapphire/genesis.json
+wget -O genesis.json https://github.com/gnolang/gno/releases/download/chain/topaz/genesis.json
 ```
 
 Verify its SHA256 — it must match:
 
 ```shell
 shasum -a 256 genesis.json
-# 44b9ed99981f0bfac716c1b8f7697e5cbf8cf680f934dcbc7b42b32ed9b30a54  genesis.json
+# 2dd049f973b82858727440df9aff5722cb0b322fd00890f40f2b0688276898ff  genesis.json
 ```
 
 To regenerate the genesis yourself instead of downloading it, see [`README.md`](./README.md).
@@ -62,7 +62,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 
 | Key | Value |
 | --- | --- |
-| `p2p.persistent_peers` | `g10xll77gz6yzg43v9mdalj8360ng6sunt2vvvhf@seed-1.sapphire.testnets.gno.land:26656,g1gw2d7qsmrg06p204ty2qs8ygzd32t2c7p46te0@seed-2.sapphire.testnets.gno.land:26656` |
+| `p2p.persistent_peers` | `g19q07ssuafhmg6r7ys7wp7rpc4jxc85cpvdy426@seed-1.topaz.testnets.gno.land:26656,g15k98e65gm8h7fdr3yr4tqn82lvch4a97a3sg3j@seed-2.topaz.testnets.gno.land:26656` |
 | `application.prune_strategy` | `syncable` |
 | `consensus.timeout_commit` | `3s` |
 | `consensus.peer_gossip_sleep_duration` | `10ms` |
@@ -76,7 +76,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 | `p2p.external_address` | your public `host:26656`, so peers can dial you back |
 | `p2p.pex` | `true` for a standalone node |
 
-Running a sentry-node setup instead of a standalone node? See the [Sentry-node architecture](https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnoland/README.md#sentry-node-architecture) section of the `gnoland` README.
+Running a sentry-node setup instead of a standalone node? Follow the sentry architecture guide on the gnops.io blog (<https://gnops.io>).
 
 **Advised:**
 
@@ -89,7 +89,7 @@ Running a sentry-node setup instead of a standalone node? See the [Sentry-node a
 
 ```shell
 gnoland start \
-  --chainid sapphire-1 \
+  --chainid topaz-1 \
   --genesis genesis.json \
   --skip-genesis-sig-verification
 ```
@@ -106,7 +106,7 @@ Get your node's consensus public key:
 gnoland secrets get validator_key   # note the validator public key (gpub1...)
 ```
 
-The registration transaction costs a gas fee, so your operator account needs GNOT. If it's empty, request a drip for your `g1...` address from the sapphire faucet at <https://sapphire.testnets.gno.land/faucet>.
+The registration transaction costs a gas fee, so your operator account needs GNOT. If it's empty, request a drip for your `g1...` address from the topaz faucet at <https://topaz.testnets.gno.land/faucet>.
 
 Register your profile on the valoper realm, **signed by your operator key** (the `gnokey` account whose `g1...` address you pass as the operator address — the realm rejects the call if the signer doesn't control that address):
 
@@ -120,12 +120,12 @@ gnokey maketx call \
   --args "<your operator g1... address>" \
   --args "<your gpub1... consensus pubkey>" \
   --gas-fee 1000000ugnot --gas-wanted 50000000 \
-  --chainid sapphire-1 \
-  --remote https://rpc.sapphire.testnets.gno.land \
+  --chainid topaz-1 \
+  --remote https://rpc.topaz.testnets.gno.land \
   --broadcast \
   <your-key-name>
 ```
 
 Registering only lists you as a **candidate**. A GovDAO member must then create and pass a proposal to add you to the active validator set (via `r/sys/validators/v3`). Once that proposal executes, your node joins the valset.
 
-You can review registered valopers and the current set at <https://sapphire.testnets.gno.land/r/gnops/valopers> and <https://sapphire.testnets.gno.land/r/sys/validators/v3>.
+You can review registered valopers and the current set at <https://topaz.testnets.gno.land/r/gnops/valopers> and <https://topaz.testnets.gno.land/r/sys/validators/v3>.
