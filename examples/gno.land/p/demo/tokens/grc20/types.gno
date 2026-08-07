@@ -89,7 +89,7 @@ type Token struct {
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
-	// Identifier path of the token id generator
+	// Package path of the realm whose generator produced the trailing id segment.
 	identifierPath string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
@@ -128,6 +128,8 @@ var (
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
 	ErrNilGenerator          = errors.New("id generator must not be nil")
+	ErrNilIDFunc             = errors.New("id function must not be nil")
+	ErrInvalidID             = errors.New("invalid id (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 )
 
 // Construction limits. Symbol is restricted to the same charset as
@@ -140,6 +142,7 @@ const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11
 	MaxDecimals  = 18
+	MaxIDLen     = 32
 )
 
 const (
