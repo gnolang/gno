@@ -115,6 +115,29 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 	}
 }
 
+// memoizingGetter caches GetMemPackage results for the lifetime of one type
+// check, so a package fetched by both the pre-type-check expansion guard (see
+// checkTypeExpansionBoundImports) and the go/types importer is read from the
+// underlying store — and charged store gas — only once. Dependency packages are
+// immutable during a type check, so caching is safe.
+type memoizingGetter struct {
+	getter MemPackageGetter
+	cache  map[string]*std.MemPackage
+}
+
+func newMemoizingGetter(getter MemPackageGetter) *memoizingGetter {
+	return &memoizingGetter{getter: getter, cache: make(map[string]*std.MemPackage)}
+}
+
+func (m *memoizingGetter) GetMemPackage(pkgPath string) *std.MemPackage {
+	if mpkg, ok := m.cache[pkgPath]; ok {
+		return mpkg
+	}
+	mpkg := m.getter.GetMemPackage(pkgPath)
+	m.cache[pkgPath] = mpkg
+	return mpkg
+}
+
 // mode for both mpkg to type-check, as well as all imports.
 type TypeCheckMode int
 
@@ -170,10 +193,11 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		pkgPath:   mpkg.Path,
 		tcmode:    opts.Mode,
 		testing:   false, // only true for imports from testing files.
-		getter:    gimpGetterWrapper{nil, opts.Getter},
-		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
+		getter:    newMemoizingGetter(gimpGetterWrapper{nil, opts.Getter}),
+		tgetter:   newMemoizingGetter(gimpGetterWrapper{mpkg, opts.TestGetter}),
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
+		expCache:  newExpansionPkgCache(),
 		fset:      opts.Fset,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
@@ -219,10 +243,14 @@ type gnoImporter struct {
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
 	permCache TypeCheckCache
-	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
-	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	// expCache is shared by the type-expansion guard across this importer's
+	// nested type checks, so each dependency is parsed once for the guard
+	// instead of once per nesting level. See expansionPkgCache.
+	expCache *expansionPkgCache
+	fset     *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
+	cfg      *types.Config
+	errors   []error  // there may be many for a single import
+	stack    []string // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -439,6 +467,34 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// STEP 3: Parse the mem package to Go AST.
 	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, gimp.fset)
 	if errs != nil {
+		return nil, errs
+	}
+
+	// STEP 3: Pre-type-check guards, run before the (unmetered) Go type
+	// checker. All three defend the validType walk, which go/types runs
+	// unmetered at deploy time (VMKeeper.AddPackage / MsgRun) and cannot be
+	// interrupted.
+	//
+	// First reject go1.18 generics syntax (type parameters and interface type
+	// sets). Gno targets go1.17 and does not support them, but go/types would
+	// still walk such types — and their fan-out drives validType exponential.
+	// See checkNoGenerics.
+	if errs = checkNoGenerics(gofset, allgofs); errs != nil {
+		return nil, errs
+	}
+	// Then reject dot imports: unsupported in Gno, and invisible to the bound
+	// below. See checkNoDotImports.
+	if errs = checkNoDotImports(gofset, allgofs); errs != nil {
+		return nil, errs
+	}
+	// Then bound pathological type-expansion fan-out among the remaining
+	// (non-generic) types. go/types' validType walk is exponential on
+	// value-containment fan-out types; left unbounded it is a consensus DoS.
+	// The resolver lets the guard follow value containment across import
+	// boundaries (validType re-expands imported types without memoizing), so a
+	// fan-out split over several packages is still caught. See
+	// checkTypeExpansionBoundImports.
+	if errs = checkTypeExpansionBoundImports(gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache); errs != nil {
 		return nil, errs
 	}
 
