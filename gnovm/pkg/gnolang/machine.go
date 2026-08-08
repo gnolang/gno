@@ -1514,6 +1514,11 @@ const (
 	OpCPURef                 = 210
 	OpCPUTypeAssert1         = 83 // concrete; interface case parameterized in handler
 	OpCPUTypeAssert2         = 96 // max(hit=85, miss=96)
+	// Cost of one findEmbeddedFieldType probe in interface satisfaction:
+	// a fixed base plus OpCPUInterfaceMethodCheck per concrete method scanned.
+	// Fit over BenchmarkOpTypeAssert1_Interface_{1,10,100}: 125 + 2.2*M.
+	OpCPUIfaceProbeBase       = 125
+	OpCPUInterfaceMethodCheck = 4
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
 	OpCPUStaticTypeOf    = 520 // XXX arbitrary
@@ -1586,8 +1591,6 @@ const (
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
 	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeSwitchCase  = 254 // per clause concrete (fit: 253.9)
-	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)

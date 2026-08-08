@@ -1965,7 +1965,7 @@ func sealUverseTypes() {
 			ct.TypeID()
 			if len(ct.Params) > 0 {
 				// Method lookups (findEmbeddedFieldType) return
-				// the bound type and TypeID it at runtime (VerifyImplementedBy),
+				// the bound type and TypeID it at runtime (verifyImplementedBy),
 				// so seal the bound's own typeid too, not just create it.
 				ct.BoundType().TypeID()
 			}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
 
@@ -354,14 +355,11 @@ type FieldType struct {
 	Embedded bool
 	Tag      Tag
 	// PkgPath is the defining package of an unexported interface method,
-	// recorded when flattenInterfaceMethods hoists a method out of an
-	// embedded interface (whose package may differ from the enclosing
-	// interface). Empty for exported methods, struct fields, and same-package
-	// methods (direct or same-package embeds); an empty value falls back to
-	// the enclosing interface's PkgPath. Used to keep unexported-method
-	// identity package-qualified (see ms.TypeIDForPackage) and to gate
-	// unexported selection and interface satisfaction (see
-	// FindEmbeddedFieldType, VerifyImplementedBy).
+	// set when flattenInterfaceMethods hoists it out of an embedded interface
+	// from another package. Empty otherwise, falling back to the enclosing
+	// interface's PkgPath. Keeps unexported-method identity package-qualified
+	// (TypeIDForPackage) and gates selection and interface satisfaction
+	// (FindEmbeddedFieldType, verifyImplementedBy).
 	PkgPath string
 }
 
@@ -988,7 +986,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name) (
 			// Ensure exposed or package match. Gate against the method's
 			// origin package (its stamp when flattened out of another
 			// package), not the enclosing interface's — same rule as
-			// VerifyImplementedBy below. A same-spelled unexported method
+			// verifyImplementedBy below. A same-spelled unexported method
 			// from another package is a distinct method: skip it and keep
 			// scanning for one with a matching identity.
 			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
@@ -1015,12 +1013,26 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 		im.Name, it.String()))
 }
 
-// For run-time type assertion.
+// perInterfaceMethodCheckCost is the gas for one findEmbeddedFieldType probe
+// against ot: a fixed base plus a slope over ot's method count.
+func perInterfaceMethodCheckCost(ot Type) int64 {
+	return overflow.Addp(
+		int64(OpCPUIfaceProbeBase),
+		overflow.Mulp(OpCPUInterfaceMethodCheck, countTypeMethodsForGas(ot, nil)),
+	)
+}
+
+// verifyImplementedBy reports whether ot satisfies it. When m is non-nil it
+// charges perCheck gas per method (one probe each; Methods is flattened).
+// Pass m=nil, perCheck=0 from gas-free paths (compile-time, debug).
 // TODO: optimize somehow.
-func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
+func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type) error {
 	for _, im := range it.Methods {
 		if debugAssert && im.Type.Kind() == InterfaceKind {
 			it.panicUnflattened(im)
+		}
+		if m != nil {
+			m.incrCPU(perCheck)
 		}
 		// find method in field. Gate unexported-method access against the
 		// method's origin package (its stamp when flattened out of another
@@ -1049,12 +1061,60 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	return nil
 }
 
-func (it *InterfaceType) IsImplementedBy(ot Type) bool {
-	return it.VerifyImplementedBy(ot) == nil
-}
-
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 	return NewValuePathInterface(n)
+}
+
+// countTypeMethodsForGas bounds the method set findEmbeddedFieldType walks for
+// t, metering verifyImplementedBy's O(N*M) cost. Returns at least 1; seen
+// guards cyclic types (pass nil to start). Not the effectiveMethods caches:
+// those fill at construction, before methods are declared, so they read 0 for
+// methods promoted from an embedded declared type.
+func countTypeMethodsForGas(t Type, seen map[Type]struct{}) int64 {
+	if t == nil {
+		return 1
+	}
+	if seen == nil {
+		seen = map[Type]struct{}{}
+	}
+	if _, exists := seen[t]; exists {
+		return 1
+	}
+	seen[t] = struct{}{}
+	var n int64
+	switch tt := t.(type) {
+	case *PointerType:
+		return countTypeMethodsForGas(tt.Elt, seen)
+	case *InterfaceType:
+		// Flattened at construction: every entry is a concrete method.
+		n = int64(len(tt.Methods))
+	case *DeclaredType:
+		// Methods holds concrete methods only; a named interface's methods
+		// live in its underlying InterfaceType. Count both.
+		n = int64(len(tt.Methods))
+		switch bt := baseOf(tt).(type) {
+		case *StructType:
+			n += countEmbeddedFieldMethods(bt, seen)
+		case *InterfaceType:
+			n += countTypeMethodsForGas(bt, seen)
+		}
+	case *StructType:
+		n = countEmbeddedFieldMethods(tt, seen)
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+func countEmbeddedFieldMethods(st *StructType, seen map[Type]struct{}) int64 {
+	var n int64
+	for i := range st.Fields {
+		if st.Fields[i].Embedded {
+			n += countTypeMethodsForGas(st.Fields[i].Type, seen)
+		}
+	}
+	return n
 }
 
 // ----------------------------------------
@@ -1648,7 +1708,7 @@ func validateTypeDepth(t Type, x Expr) {
 
 // MaxInterfaceMethods bounds the effective method count of an
 // InterfaceType (counting methods reached through any depth of
-// interface embedding). Caps the per-VerifyImplementedBy iteration;
+// interface embedding). Caps the per-verifyImplementedBy iteration;
 // combined with the methodIndex O(1) per-method lookup on concrete
 // types, K assignments × MaxInterfaceMethods = bytes-linear preprocess
 // work for interface-conversion patterns (DEGEN11 WideIfaceConvK).
@@ -2628,7 +2688,9 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
-		return cbt.IsImplementedBy(ot)
+		// Gas-free check: pass nil machine and 0 perCheck. VM paths instead call
+		// verifyImplementedBy directly with a precomputed perCheck.
+		return cbt.verifyImplementedBy(nil, 0, ot) == nil
 	default:
 		panic("should not happen")
 	}
