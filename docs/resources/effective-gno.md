@@ -897,6 +897,11 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 )
 
+const (
+	fooDecimals = 4
+	fooTokenID  = 0
+)
+
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
@@ -904,7 +909,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", fooDecimals, fooTokenID, cur)
 	UserTeller = Token.CallerTeller()
 }
 
