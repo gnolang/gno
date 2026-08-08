@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCENARIO_CI=false
+# Consensus-only: skip example packages + on-chain PoA valset realm in genesis
+# (validators reach consensus via the genesis validator set).
+SCENARIO_GENESIS_EXAMPLES=false
 
 # Keep the commit timeout fixed so the delay thresholds below stay meaningful.
 TIMEOUT_COMMIT="1s"
