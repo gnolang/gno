@@ -145,6 +145,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Clear remaining string cache entries (dead strings that
+	// were not visited in this GC cycle). Preserves entries
+	// visited this cycle so they can be recounted in the next GC.
+	m.Alloc.CleanupTrackedStrings(m.GCCycle)
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -199,8 +204,24 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
-		// Add object size to alloc.
+		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
+
+		// Special case for StringValue: the backing bytes are raw data,
+		// not a Value, so VisitAssociated (which visits child Values)
+		// can't reach them. Count them inline here.
+		//
+		// CountStringBytes returns the FULL backing length the first time
+		// a containing range is seen this cycle, and (0, false) on
+		// subsequent visits or for untracked pointers. Charging the full
+		// backing (not len(sv)) is what makes slices whose source is
+		// dead account correctly: the slice's pointer resolves to the
+		// source's range via containment.
+		if sv, ok := v.(StringValue); ok {
+			if backingBytes, charge := alloc.CountStringBytes(string(sv), gcCycle); charge {
+				size += allocStringByte * backingBytes
+			}
+		}
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
@@ -426,6 +447,10 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
+// VisitAssociated is a no-op for StringValue.
+// String underlying bytes are raw data, not a Value, so they
+// cannot be visited. Byte accounting is handled as a special
+// case in GCVisitorFn using the allocator's string cache.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
