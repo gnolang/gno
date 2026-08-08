@@ -17,6 +17,7 @@ import (
 
 const (
 	blankIdentifier           = "_"
+	iotaIdentifier            = "iota"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
 	TestingBasePkgPath        = "testing"
@@ -294,6 +295,12 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 						}
 						if strings.HasSuffix(string(ln), ".loopvar") {
 							continue
+						}
+						// iota is a non-shadowable builtin. Reject it here,
+						// before it's renamed to "iota.loopvar" and slips
+						// past the Reserve() guard in initStaticBlocks2.
+						if ln == iotaIdentifier {
+							panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", ln))
 						}
 						nx.Name += ".loopvar"
 						f[ln] = true
@@ -1294,7 +1301,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case blankIdentifier:
 					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
 					return n, TRANS_CONTINUE
-				case "iota":
+				case iotaIdentifier:
 					pd := lastDecl(ns)
 					valueDecl, ok := pd.(*ValueDecl)
 					if !ok || !valueDecl.Const {

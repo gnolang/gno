@@ -2315,6 +2315,13 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	// iota is a non-shadowable builtin; reject binding it as a receiver,
+	// parameter, named result, type-switch guard, short-var-define, or
+	// range key/value name. (uverse's own "iota" registration goes through
+	// Define2 directly, bypassing Reserve, so it is unaffected.)
+	if nx.Name == iotaIdentifier {
+		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", nx.Name))
+	}
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
 		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
