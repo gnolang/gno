@@ -443,7 +443,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 ##### Seed Dial Service
 
 Seed nodes (also called bootnodes) are entry points into the network, specified in the top-level node P2P configuration
-under `p2p.seeds`. They are dialed once when the node starts, so a fresh node has somewhere to begin peer discovery
+under `p2p.seeds`. One of them is dialed when the node starts, so a fresh node has somewhere to begin peer discovery
 from.
 
 Unlike persistent peers, seed connections are not preserved: a seed exists to hand out addresses, and once peer
@@ -474,10 +474,13 @@ func (sw *MultiplexSwitch) dialSeed() {
 }
 ```
 
-Two properties are worth calling out:
+Three properties are worth calling out:
 
 - the loop ticks on a fixed interval, which doubles as the minimum delay between two dial rounds. Without it, an empty
-  dial queue would trigger a seed dial on every pass.
+  dial queue would trigger a seed dial on every pass. The first round runs on start, before the first tick, so the
+  bootstrap dial and the fallback dial share a single path.
+- a single seed is dialed per round. Queuing every seed at once would fill the outbound peer slots with bootstrap
+  connections, which is why the node never dials the whole list, not even on start.
 - seeds exist to fill open outbound slots, so the service does nothing while those slots are full. They go through the
   regular `DialPeers` path, and count against `p2p.max_num_outbound_peers` like any other peer.
 
@@ -661,5 +664,6 @@ Bootnodes usually do not store the full blockchain or participate in consensus; 
 connectivity in the network (act as a peer relay).
 
 In TM2, bootnodes are configured through `p2p.seeds`, and handled by the seed dial service of the `MultiplexSwitch`.
-They are dialed when the node starts, and again whenever the node runs out of peers to dial. Since a seed is only
-useful for requesting peers, the seeds are ignored entirely when peer discovery is disabled (`p2p.pex`).
+They are dialed one at a time: one when the node starts, and another whenever the node runs out of peers to dial.
+Since a seed is only useful for requesting peers, the seeds are ignored entirely when peer discovery is disabled
+(`p2p.pex`).

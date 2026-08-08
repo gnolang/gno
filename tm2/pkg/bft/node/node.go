@@ -193,8 +193,7 @@ type Node struct {
 	sw               *p2p.MultiplexSwitch // p2p connections
 	discoveryReactor *discovery.Reactor   // discovery reactor
 	nodeInfo         p2pTypes.NodeInfo
-	nodeKey          *p2pTypes.NodeKey      // our node privkey
-	seedAddrs        []*p2pTypes.NetAddress // bootstrap peers, dialed on start
+	nodeKey          *p2pTypes.NodeKey // our node privkey
 	isListening      bool
 
 	// services
@@ -383,6 +382,30 @@ type nodeReactor struct {
 	reactor p2p.Reactor
 }
 
+// parseSeedAddrs parses the seed node addresses from the node configuration.
+// Seeds are only meaningful alongside peer discovery: a seed connection exists
+// to ask the seed for peers, which requires the discovery reactor
+func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
+	)
+	for _, err := range errs {
+		logger.Error("invalid seed address", "err", err)
+	}
+
+	if len(seedAddrs) == 0 {
+		return nil
+	}
+
+	if !config.P2P.PeerExchange {
+		logger.Warn("ignoring configured seed nodes, peer exchange is disabled")
+
+		return nil
+	}
+
+	return seedAddrs
+}
+
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
@@ -548,12 +571,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Parse the seed node addresses
-	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
-	)
-	for _, err = range errs {
-		p2pLogger.Error("invalid seed address", "err", err)
-	}
+	seedAddrs := parseSeedAddrs(config, p2pLogger)
 
 	// Parse the private peer IDs
 	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
@@ -566,19 +584,10 @@ func NewNode(config *cfg.Config,
 	// Prepare the misc switch options
 	opts := []p2p.SwitchOption{
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithSeeds(seedAddrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
-	}
-
-	// Seeds are only meaningful alongside peer discovery: a seed connection
-	// exists to ask the seed for peers, which requires the discovery reactor
-	if config.P2P.PeerExchange {
-		opts = append(opts, p2p.WithSeeds(seedAddrs))
-	} else if len(seedAddrs) > 0 {
-		p2pLogger.Warn("ignoring configured seed nodes, peer exchange is disabled")
-
-		seedAddrs = nil
 	}
 
 	// Prepare the reactor switch options
@@ -616,7 +625,6 @@ func NewNode(config *cfg.Config,
 		discoveryReactor: discoveryReactor,
 		nodeInfo:         nodeInfo,
 		nodeKey:          nodeKey,
-		seedAddrs:        seedAddrs,
 
 		evsw:              evsw,
 		stateDB:           stateDB,
@@ -713,12 +721,6 @@ func (n *Node) OnStart() error {
 
 	// Dial the persistent peers
 	n.sw.DialPeers(peerAddrs...)
-
-	// Dial the seed nodes for bootstrapping.
-	// Unlike persistent peers, seeds are not kept alive by the switch
-	// redial loop; they are only dialed again when the node runs out
-	// of peers to dial
-	n.sw.DialPeers(n.seedAddrs...)
 
 	// If early start, wait for genesis time now (RPC+P2P already running).
 	if n.earlyStart {

@@ -510,12 +510,17 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 }
 
 // runSeedDialLoop starts the seed node dial loop.
-// Seeds are bootstrap peers: they are dialed once on node start, and afterwards
+// Seeds are bootstrap peers: they are dialed on node start, and afterwards
 // only when the switch has run out of peers to dial. The loop ticks on a fixed
 // interval, which doubles as the minimum delay between two dial rounds
 func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 	ticker := time.NewTicker(seedDialInterval)
 	defer ticker.Stop()
+
+	// Run the initial seed dial round on start, so a fresh node has an entry
+	// point into the network. Bootstrap and fallback share a single path, and
+	// the same outbound slot accounting
+	sw.dialSeed()
 
 	for {
 		select {

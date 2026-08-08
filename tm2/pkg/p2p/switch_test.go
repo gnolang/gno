@@ -891,6 +891,32 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 func TestMultiplexSwitch_SeedDialLoop(t *testing.T) {
 	t.Parallel()
 
+	t.Run("seed dialed on start", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+		defer cancelFn()
+
+		go sw.runSeedDialLoop(ctx)
+
+		// The bootstrap round runs before the first tick
+		require.Eventually(
+			t,
+			func() bool {
+				return sw.dialQueue.Has(seedAddr)
+			},
+			5*time.Second,
+			10*time.Millisecond,
+		)
+	})
+
 	t.Run("context cancellation", func(t *testing.T) {
 		t.Parallel()
 
