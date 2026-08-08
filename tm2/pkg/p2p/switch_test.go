@@ -121,10 +121,9 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		sw    = NewMultiplexSwitch(mockTransport)
 	)
 
-	require.NoError(t, sw.OnStart())
-	t.Cleanup(sw.OnStop)
-
-	// Create a new peer set
+	// Create a new peer set.
+	// The switch services read the peer set as soon as they are started,
+	// so it has to be in place before OnStart
 	sw.peers = newSet()
 
 	for _, p := range peers {
@@ -142,6 +141,9 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		// Load it up with peers
 		require.NoError(t, sw.peers.Add(p))
 	}
+
+	require.NoError(t, sw.OnStart())
+	t.Cleanup(sw.OnStop)
 
 	// Broadcast the data
 	sw.Broadcast(expectedChID, expectedData)
