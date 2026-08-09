@@ -918,7 +918,9 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 			ds.assertNoDanglingLocalTypeRefTV(&cv.Captures[i])
 		}
 	case *BoundMethodValue:
-		ds.assertNoDanglingLocalTypeRef(cv.Func)
+		if cv.Func != nil { // nil for a lazy interface bind (#5737)
+			ds.assertNoDanglingLocalTypeRef(cv.Func)
+		}
 		ds.assertNoDanglingLocalTypeRefTV(&cv.Receiver)
 	case *Block:
 		for i := range cv.Values {
@@ -952,10 +954,12 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 			// Not in this transaction's cache: the type must already be in
 			// the backend, written at addpkg by saveFuncLocalTypes. Raw key
 			// probe (not GetTypeSafe) so the debug-only assert has no amino
-			// decode cost and no cache side effects.
+			// decode cost and no cache side effects; nil GasContext so it
+			// charges no gas — debugAssert builds must consume exactly the
+			// same gas as release builds.
 			if ds.baseStore != nil {
 				key := backendTypeKey(ct.ID)
-				if ds.baseStore.Get(ds.gctx, []byte(key)) != nil {
+				if ds.baseStore.Get(nil, []byte(key)) != nil {
 					return
 				}
 			}
@@ -990,8 +994,17 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 		for _, field := range ct.Fields {
 			ds.assertNoDanglingLocalTypeRefType(field)
 		}
+	case *ChanType:
+		// Not persistable today (make(chan) panics), but walk Elt so the
+		// assert stays sound if that ever changes.
+		ds.assertNoDanglingLocalTypeRefType(ct.Elt)
+	case nil, PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// Structurally empty: no nested type refs to walk.
 	default:
-		// nil, primitives, TypeType, PackageType, blockType, heapItemType.
+		// A kind this walker doesn't know can hide a local-type ref; fail
+		// loudly rather than silently weakening the debug invariant.
+		panic(fmt.Sprintf(
+			"assertNoDanglingLocalTypeRef: unhandled type kind %T", ct))
 	}
 }
 

@@ -12,13 +12,12 @@ hits `fillTypesOfValue` → `GetType` → miss →
 `panic("unexpected type with id ...")`. The state is permanently unreadable.
 
 Escape routes that reproduce on master: an interface-typed package var
-(`X = S{...}`) and a closure capture (heap-item slot typed `S`). A third
-route — interface-bound method values (`G = i.Get`) — does *not* reproduce on
-master because the eager bind resolves promotion at bind time and persists
-only the embedded package-level receiver; it starts carrying the local type
-once #5737's call-time dispatch lands (which persists the interface-boxed
-operand). That makes this PR a prerequisite for #5737, but the fix is a
-standalone correction of live corruption.
+(`X = S{...}`), a closure capture (heap-item slot typed `S`), and — since
+#5737's call-time dispatch landed (68111d9e6), which persists the
+interface-boxed operand — interface-bound method values (`G = i.Get`).
+Before #5737 the third route was inert (eager bind persisted only the
+embedded package-level receiver); with it on master, all three corruption
+routes are live today.
 
 ## Decision
 
@@ -44,10 +43,12 @@ standalone correction of live corruption.
    route fails loudly inside the (buffered, rolled-back) transaction instead
    of committing unreadable state. The backend probe is a raw key check —
    later transactions see addpkg-persisted types in the backend, not in
-   their per-tx `cacheTypes`. The type walker panics on unknown type kinds
-   for the same reason; known-but-not-currently-persistable kinds
-   (`tupleType`) are walked, structurally-empty kinds (`blockType` etc.) are
-   pruned.
+   their per-tx `cacheTypes` — with a nil `GasContext`, so debugAssert
+   builds consume exactly the same gas as release builds. The type walker
+   panics on unhandled type kinds for the same fail-loud reason;
+   known-but-not-currently-persistable kinds (`tupleType`, `ChanType`) are
+   walked, structurally-empty kinds (`blockType` etc.) are pruned
+   explicitly.
 
 MsgRun scripts never reach `saveNewPackageValuesAndTypes` (the keeper runs
 them with `save=false`), and a pre-existing guard ("cannot persist object of
@@ -85,9 +86,12 @@ escaping into realm state, so no ephemeral-package types are persisted.
   values of those types saved *after* the upgrade still produce dangling
   refs. Deployment must either predate any such package (genesis) or include
   a migration that re-runs local-type enumeration over stored packages.
-- The lt1 txtar case (`BoundMethodValue.Receiver`) is currently vacuous
-  (eager bind flattens the receiver); it becomes live with #5737.
-- Tests: `restart_local_type*.txtar` are the true reproducers (fail on
-  master); `zrealm_localtype0/1/2.gno` filetests pass on master and act as
+  Since #5737 is already on master, any chain state created on post-#5737
+  code before this fix can already contain dangling method-value refs —
+  the "fresh chain" caveat holds only if no network deploys master in the
+  gap.
+- Tests: `restart_local_type.txtar` is the true reproducer (fails on
+  master — since #5737, the lt1 method-value route fails first);
+  `zrealm_localtype0/1/2.gno` filetests pass on master and act as
   save-side guards via `-tags debugAssert` (`make test.debugAssert`, not yet
   in CI) plus a golden pinning the on-the-wire bracketed `RefType`.
