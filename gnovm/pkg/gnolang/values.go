@@ -1022,7 +1022,7 @@ func (mv *MapValue) rebuildVmap(gm types.GasMeter, store Store) {
 // persistence model is supposed to make impossible). A nil vmap would
 // otherwise fail silently — every lookup misses.
 func (mv *MapValue) checkVmap() {
-	if debug {
+	if debugAssert {
 		if mv.vmap == nil && mv.List != nil && mv.List.Size > 0 {
 			panic("should not happen: MapValue.vmap missing; decoded maps are rebuilt in loadObjectSafe")
 		}
