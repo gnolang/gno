@@ -16,8 +16,9 @@
 #
 # Under #5127 the restore path passed a nil *Machine to ComputeMapKey and
 # charged ZERO gas — the asymmetry this follow-up closes. Post-follow-up,
-# ComputeMapKey reaches the meter via store.GetMeter() so write and
-# restore paths pay symmetrically.
+# ComputeMapKey takes an explicit GasMeter: runtime callers pass
+# m.GasMeter and the restore path passes the store's tx-scoped meter
+# (loadObjectSafe), so write and restore paths pay symmetrically.
 #
 # The pinned GAS USED values are calibration goldens. Removing the
 # restore-path charge drops Tx1 by 5*per-entry and Tx2 by 6*per-entry —
@@ -40,9 +41,9 @@ stdout 'GAS USED:\s+2278329'
 # No write.
 #
 # REGRESSION SIGNAL: removing the restore-path charge drops both pins —
-# Tx1 by 5*per-entry, Tx2 by 6*per-entry. A revert of the follow-up's
-# Store.GetMeter() routing inside ComputeMapKey would manifest exactly
-# that way.
+# Tx1 by 5*per-entry, Tx2 by 6*per-entry. Passing a nil meter to
+# ComputeMapKey on the restore path (loadObjectSafe) would manifest
+# exactly that way.
 gnokey maketx call -pkgpath gno.land/r/demo/mapgas -func Lookup -args 7 -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
 stdout 'GAS USED:\s+1614974'
 stdout '"seven" string'

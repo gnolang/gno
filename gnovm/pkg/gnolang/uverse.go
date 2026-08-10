@@ -1245,14 +1245,14 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot delete from readonly tainted map"))
 				}
 
-				val, ok := mv.GetValueForKey(m.Store, &itv)
+				val, ok := mv.GetValueForKey(m.GasMeter, m.Store, &itv)
 				if !ok {
 					return
 				}
 				// delete; capture the STORED key that was removed. Detaching
 				// the argument key (itv) instead orphaned the stored key object
 				// in the store — it was never DecRef'd nor marked deleted.
-				delKey := mv.DeleteForKey(m.Store, &itv)
+				delKey := mv.DeleteForKey(m.GasMeter, m.Store, &itv)
 
 				// mark the STORED key object as deleted (not the argument key)
 				if delKey != nil {

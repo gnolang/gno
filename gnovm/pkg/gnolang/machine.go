@@ -197,12 +197,15 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = opts.Context
 	mm.GasMeter = vmGasMeter
-	// If the Machine has a meter, the store must too — otherwise
-	// store-routed charges (e.g. ComputeMapKey) silently drop.
-	if vmGasMeter != nil && store != nil && store.GetMeter() == nil {
-		if ds, ok := store.(*defaultStore); ok {
-			ds.gasMeter = vmGasMeter
-		}
+	// Store-side metering (the restore path loadObjectSafe →
+	// fillTypesOfValue → ComputeMapKey, and amino gas via ds.consumeGas)
+	// reads ds.gasMeter, not the Machine's meter. Backfill it for bare
+	// *defaultStore machines (tests, tools, benchmarks) so those paths
+	// don't silently go unmetered. Keeper-flow stores never match this
+	// assertion — BeginTransaction returns a transactionStore wrapper —
+	// and already carry the tx meter.
+	if ds, ok := store.(*defaultStore); ok && vmGasMeter != nil && ds.gasMeter == nil {
+		ds.gasMeter = vmGasMeter
 	}
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input

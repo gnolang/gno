@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // ----------------------------------------
@@ -1006,9 +1007,9 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, gm types.GasMeter, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
 			// When assigning to a map item, the key is always equal to that of the
@@ -1034,9 +1035,9 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(gm types.GasMeter, store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return
 	}
@@ -1051,9 +1052,9 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 // that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
-func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) (deletedKey *TypedValue) {
+func (mv *MapValue) DeleteForKey(gm types.GasMeter, store Store, key *TypedValue) (deletedKey *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return nil
 	}
@@ -1812,11 +1813,11 @@ func (tv *TypedValue) Sign() int {
 // isNaN returns whether tv, or any of the values contained within (like in an
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
-	// Gas meter via store: works uniformly for VM-runtime callers and
-	// realm-restore callers, both of which carry the same tx-scoped meter
-	// on their store. nil meter = unmetered path (tests, tools).
-	gm := store.GetMeter()
+//
+// gm is the gas meter to charge for the key computation: VM-runtime callers
+// pass m.GasMeter, the realm-restore path passes the store's tx-scoped meter
+// (see loadObjectSafe). nil = deliberately unmetered (tests, tools).
+func (tv *TypedValue) ComputeMapKey(gm types.GasMeter, store Store, omitType bool) (key MapKey, isNaN bool) {
 	if gm != nil {
 		gm.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
 	}
@@ -1895,7 +1896,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				mk, isNaN := ev.ComputeMapKey(gm, store, omitTypes)
 				if isNaN {
 					return "", true
 				}
@@ -1920,7 +1921,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			mk, isNaN := fv.ComputeMapKey(gm, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
@@ -2390,7 +2391,13 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(store, false)
+		// Meter from m: the nil-m path (GetPointerAtIndexInt) only ever
+		// indexes slices/strings, so no map-key gas is lost there.
+		var gm types.GasMeter
+		if m != nil {
+			gm = m.GasMeter
+		}
+		key, isNaN := iv.ComputeMapKey(gm, store, false)
 		if !isNaN {
 			k, ok := mv.vmap[key]
 			if ok {
@@ -2399,7 +2406,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(alloc, store, ivk)
+		pv := mv.GetPointerForKey(alloc, gm, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {

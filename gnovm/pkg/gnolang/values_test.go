@@ -368,7 +368,7 @@ func TestComputeMapKey(t *testing.T) {
 			x := m.MustParseExpr(tc.valX)
 			vals := m.Eval(x)
 			require.Len(t, vals, 1)
-			mk, isNaN := vals[0].ComputeMapKey(store, false)
+			mk, isNaN := vals[0].ComputeMapKey(nil, store, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
 		})
@@ -390,8 +390,8 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			v2 := m.Eval(m.MustParseExpr(pair[1]))
 			require.Len(t, v1, 1)
 			require.Len(t, v2, 1)
-			mk1, nan1 := v1[0].ComputeMapKey(store, false)
-			mk2, nan2 := v2[0].ComputeMapKey(store, false)
+			mk1, nan1 := v1[0].ComputeMapKey(nil, store, false)
+			mk2, nan2 := v2[0].ComputeMapKey(nil, store, false)
 			require.False(t, nan1)
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)
@@ -399,26 +399,22 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 }
 
-// TestComputeMapKey_GasViaStoreMeter asserts the follow-up's contract:
-// ComputeMapKey reaches its gas meter via store.GetMeter(), so callers
-// that have a Store but no *Machine (e.g. realm.go's fillTypesOfValue
-// rebuilding vmap on cache miss) still charge gas symmetrically with
-// the write path. A regression — e.g. routing the meter back through
-// *Machine — would silently zero the restore-path charge; this test
-// fails fast at unit-test speed instead of waiting for the txtar.
-func TestComputeMapKey_GasViaStoreMeter(t *testing.T) {
-	// Metered store: simulates the restore-path call shape (no Machine
-	// in scope, but the store carries the tx-scoped meter).
-	alloc := NewAllocator(1 << 30)
+// TestComputeMapKey_GasMeter asserts the follow-up's contract:
+// ComputeMapKey takes its gas meter explicitly: VM-runtime callers pass
+// m.GasMeter, and the restore path (loadObjectSafe → fillTypesOfValue,
+// rebuilding vmap on cache miss) passes the store's tx-scoped meter, so
+// both paths charge symmetrically. A regression — e.g. the restore path
+// passing nil — would silently zero the restore-path charge; the txtar
+// (compute_map_key_restore_gas) pins that end-to-end, while this test
+// fails fast at unit-test speed on the charge itself.
+func TestComputeMapKey_GasMeter(t *testing.T) {
 	gm := storetypes.NewGasMeter(1 << 30)
-	ds := NewStore(alloc, nil, nil)
-	ds.gasMeter = gm
-	alloc.SetGasMeter(gm)
+	ds := NewStore(NewAllocator(1<<30), nil, nil)
 
 	tv := typedInt(42)
 
 	before := gm.GasConsumed()
-	_, isNaN := tv.ComputeMapKey(ds, false)
+	_, isNaN := tv.ComputeMapKey(gm, ds, false)
 	require.False(t, isNaN)
 	delta := gm.GasConsumed() - before
 
@@ -426,10 +422,9 @@ func TestComputeMapKey_GasViaStoreMeter(t *testing.T) {
 	// amount on top; lower-bound at the per-call constant is a robust
 	// floor that doesn't pin to exact byte counts.
 	require.GreaterOrEqual(t, delta, int64(OpCPUComputeMapKey),
-		"ComputeMapKey via store.GetMeter() must charge at least OpCPUComputeMapKey")
+		"ComputeMapKey with an explicit meter must charge at least OpCPUComputeMapKey")
 
-	// Unmetered store: charges nothing and must not panic.
-	ds2 := NewStore(NewAllocator(1<<30), nil, nil)
-	_, isNaN2 := tv.ComputeMapKey(ds2, false)
+	// nil meter: charges nothing and must not panic.
+	_, isNaN2 := tv.ComputeMapKey(nil, ds, false)
 	require.False(t, isNaN2)
 }
