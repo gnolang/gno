@@ -397,3 +397,72 @@ func TestComputeMapKey_collisions(t *testing.T) {
 		})
 	}
 }
+
+func TestMapKeyOmitType(t *testing.T) {
+	tt := []struct {
+		expr string
+		want bool
+	}{
+		// Concrete key types: the prefix is identical for every key.
+		{`map[int]int{}`, true},
+		{`map[string]int{}`, true},
+		{`map[[2]int]int{}`, true},
+		{`map[struct{ a int }]int{}`, true},
+		// Interface key types: the prefix is what separates int(1) from int64(1).
+		{`map[any]int{}`, false},
+		{`map[error]int{}`, false},
+		// The VALUE type must not influence the decision. A predicate written
+		// against mt.Elem() instead of mt.Key inverts both of these.
+		{`map[int]any{}`, true},
+		{`map[any]any{}`, false},
+	}
+	for _, tc := range tt {
+		t.Run(tc.expr, func(t *testing.T) {
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
+			vals := m.Eval(m.MustParseExpr(tc.expr))
+			require.Len(t, vals, 1)
+			mt := baseOf(vals[0].T).(*MapType)
+			assert.Equal(t, tc.want, mapKeyOmitType(mt))
+		})
+	}
+}
+
+func TestMapKeyOmitType_declaredKey(t *testing.T) {
+	// The map[address]T shape: a DeclaredType wrapping a concrete base.
+	// baseOf must unwrap it, or the ubiquitous realm case misses the win.
+	declared := &DeclaredType{Name: "Address", Base: StringType}
+	assert.True(t, mapKeyOmitType(&MapType{Key: declared, Value: IntType}))
+
+	// A DeclaredType wrapping an interface must still keep its prefix.
+	declaredIface := &DeclaredType{Name: "Stringer", Base: &InterfaceType{}}
+	assert.False(t, mapKeyOmitType(&MapType{Key: declaredIface, Value: IntType}))
+}
+
+func TestMapValue_vmapBuiltLazily(t *testing.T) {
+	// omitKeyType=false covers the map[any]K shape (interface key, prefix
+	// kept); omitKeyType=true covers the map[string]K / map[address]K shape
+	// production actually uses for a concrete string key like "alpha" — the
+	// build and the lookup must agree on the same flag in both cases, or
+	// the lookup silently misses.
+	for _, omitKeyType := range []bool{false, true} {
+		t.Run(fmt.Sprintf("omitKeyType=%v", omitKeyType), func(t *testing.T) {
+			store := NewStore(nil, nil, nil)
+			m := NewMachine("main", store)
+
+			// A MapValue shaped the way amino decode leaves one: List
+			// populated, vmap nil. fillTypesOfValue no longer builds the
+			// index.
+			mv := &MapValue{List: &MapList{}}
+			key := m.Eval(m.MustParseExpr(`"alpha"`))[0]
+			val := m.Eval(m.MustParseExpr(`int(42)`))[0]
+			mv.List.Append(nil, key).Value = val
+			require.Nil(t, mv.vmap, "index must not exist before first keyed access")
+
+			got, ok := mv.GetValueForKey(nil, store, &key, omitKeyType)
+			require.True(t, ok, "lookup must build the index on demand")
+			assert.Equal(t, int64(42), got.GetInt())
+			assert.NotNil(t, mv.vmap, "index must be memoized after first access")
+		})
+	}
+}
