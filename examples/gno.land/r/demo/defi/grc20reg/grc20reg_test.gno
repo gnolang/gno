@@ -1,10 +1,13 @@
 package grc20reg
 
 import (
+	"chain"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
@@ -47,6 +50,88 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.AbortsContains(t, cur, "token already registered", func() {
 		Register(cross(cur), second, "")
 	})
+}
+
+func TestRegistryWrappers(cur realm, t *testing.T) {
+	const (
+		tokenPath   = "gno.land/r/demo/token"
+		realmCaller = "gno.land/r/demo/vault"
+	)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	carol := testutils.TestAddress("carol")
+	realmAddr := chain.PackageAddress(realmCaller)
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(realmAddr, 200))
+	tokenKey := Register(cross(cur), token, "")
+	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
+	uassert.Equal(t, "TST", MustGet(tokenKey).GetSymbol())
+	uassert.Equal(t, 4, MustGet(tokenKey).GetDecimals())
+	uassert.Equal(t, int64(1_200), MustGet(tokenKey).TotalSupply())
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(0), MustGet(tokenKey).Allowance(alice, carol))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Transfer(cross(cur), tokenKey, bob, 100)
+	Approve(cross(cur), tokenKey, carol, 300)
+
+	testing.SetRealm(testing.NewUserRealm(carol))
+	TransferFrom(cross(cur), tokenKey, alice, bob, 200)
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(300), MustGet(tokenKey).BalanceOf(bob))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).Allowance(alice, carol))
+
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewCodeRealm(realmCaller))
+	Transfer(cross(cur), tokenKey, bob, 50)
+	uassert.Equal(t, int64(150), MustGet(tokenKey).BalanceOf(realmAddr))
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsWithMessage(t, cur, "insufficient balance", func() {
+		Transfer(cross(cur), tokenKey, bob, 701)
+	})
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
+}
+
+func viaWrapper(cur realm, tokenKey string, to address, amount int64) {
+	Transfer(cross(cur), tokenKey, to, amount)
+}
+
+func viaCallerTeller(cur realm, token *grc20.Token, to address, amount int64) error {
+	return token.CallerTeller().Transfer(0, cur, to, amount)
+}
+
+func TestRegistryWrapperCallerSemantics(cur realm, t *testing.T) {
+	const tokenPath = "gno.land/r/demo/token_caller_semantics"
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	intermediary := cur.Address()
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("CallerSemantics", "CALL", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(intermediary, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+
+	// ViaWrapper adds another registry frame, so CallerTeller sees the
+	// intermediary realm rather than alice.
+	viaWrapper(cross(cur), tokenKey, bob, 100)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+
+	// ViaCallerTeller has no extra frame, so CallerTeller sees alice.
+	urequire.NoError(t, viaCallerTeller(cross(cur), token, bob, 100))
+	uassert.Equal(t, int64(900), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+	uassert.Equal(t, int64(200), token.BalanceOf(bob))
 }
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
