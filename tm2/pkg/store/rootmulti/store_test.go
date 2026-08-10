@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -564,7 +565,7 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 
 // TestLastCommitIDConcurrentWithCommit models the production wiring: the query
 // connection runs on its own mutex (proxy.NewReadOnlyABCIClient), so
-// baseapp.LastBlockHeight() — which is cms.LastCommitID().Version — is read
+// baseapp.LastBlockHeight(), which is cms.LastCommitID().Version, is read
 // concurrently with the consensus goroutine's Commit(). Run under -race.
 func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 	t.Parallel()
@@ -577,7 +578,11 @@ func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 	stop := make(chan struct{})
 	var wg sync.WaitGroup
 
-	for range 4 {
+	// Two readers that park between reads. The race detector needs the read to
+	// overlap the write, not to spin: busy-waiting holds every core for the
+	// length of the test, and `go test ./...` schedules the rest of the module
+	// behind it.
+	for range 2 {
 		wg.Go(func() {
 			var last types.CommitID
 			for {
@@ -587,10 +592,15 @@ func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 				default:
 				}
 				id := ms.LastCommitID()
-				// A torn read would pair a fresh version with a stale
-				// hash; versions only ever move forward.
-				require.GreaterOrEqual(t, id.Version, last.Version)
+				// A torn read would pair a fresh version with a stale hash;
+				// versions only ever move forward. t.Errorf and not require,
+				// which calls FailNow off the test goroutine.
+				if id.Version < last.Version {
+					t.Errorf("version went backwards: %d after %d", id.Version, last.Version)
+					return
+				}
 				last = id
+				time.Sleep(time.Microsecond)
 			}
 		})
 	}
