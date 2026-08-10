@@ -221,20 +221,27 @@ type jsonResults struct {
 	Error   *string         `json:"@error,omitempty"`
 }
 
-// stringifyJSONResults converts TypedValues to JSON format using Amino encoding.
-// It first exports values (replacing persisted objects with RefValues and
-// breaking ephemeral cycles), then serializes with amino.MarshalJSON.
-// ft is the function type (if available) used for signature-based error detection.
-func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType) string {
+// stringifyJSONResults converts TypedValues to JSON format using Amino
+// encoding. It first exports values (replacing persisted objects with RefValues
+// and breaking ephemeral cycles), then serializes with amino.MarshalJSON.
+// ft is the function type (if available) used for signature-based error
+// detection. maxExportBytes caps the estimated serialized size of the export
+// walk; an oversized result returns gno.ErrExportSizeExceeded before anything
+// is marshaled. Only pass <= 0 (unbounded) for trusted input — every query
+// path must pass maxQueryExportBytes.
+func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType, maxExportBytes int64) (string, error) {
 	jres := jsonResults{Results: []byte("[]")}
 	if len(tvs) > 0 {
 		// Export values: replace persisted objects with RefValues,
 		// break ephemeral cycles with synthetic ":N" RefValues.
-		exported := gno.ExportValues(tvs)
+		exported, err := gno.ExportValues(tvs, maxExportBytes)
+		if err != nil {
+			return "", err
+		}
 
 		bz, err := amino.MarshalJSON(exported)
 		if err != nil {
-			panic("unable to marshal results: " + err.Error())
+			return "", fmt.Errorf("unable to marshal results: %w", err)
 		}
 		jres.Results = bz
 
@@ -261,10 +268,10 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType
 
 	s, err := json.Marshal(jres)
 	if err != nil {
-		panic("unable to marshal result")
+		return "", fmt.Errorf("unable to marshal result: %w", err)
 	}
 
-	return string(s)
+	return string(s), nil
 }
 
 func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
@@ -292,5 +299,11 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
 	}()
 
 	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-	return res[0].GetString(), true
+	// The realm's Error() output is attacker-controlled and is assembled into
+	// the @error field outside the export size guard (which only bounds
+	// jres.Results). Bound it like every other diagnostic string in this module
+	// (see boundedString): otherwise a realm whose Error() builds a huge string
+	// re-introduces the unmetered response amplification the guard removes for
+	// the results. See TestQueryEvalJSON_AtErrorBounded.
+	return truncate(res[0].GetString()), true
 }

@@ -61,6 +61,9 @@ message InvalidFileError {
 message ObjectNotFoundError {
 }
 
+message ExportSizeExceededError {
+}
+
 message GenesisState {
 	Params params = 1;
 	repeated string realm_params = 2;

@@ -24,6 +24,11 @@ type (
 	InvalidPackageError   struct{ abciError }
 	InvalidFileError      struct{ abciError }
 	ObjectNotFoundError   struct{ abciError }
+	// ExportSizeExceededError is returned when a query result's estimated
+	// serialized size exceeds maxQueryExportBytes. It exists so clients see a
+	// stable ABCI code for "response too large" rather than an untyped
+	// internal error; the VM-level cause is gno.ErrExportSizeExceeded.
+	ExportSizeExceededError struct{ abciError }
 	// TypeCheckError deliberately carries no diagnostic strings: it is
 	// amino-encoded into ABCIResult.Error, which is merkle-hashed into the
 	// block's LastResultsHash, and raw go/types (and go/parser) messages
@@ -45,6 +50,8 @@ func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e ObjectNotFoundError) Error() string   { return "object not found" }
 func (e TypeCheckError) Error() string        { return "invalid gno package; type check failed" }
+
+func (e ExportSizeExceededError) Error() string { return "export size limit exceeded" }
 
 func ErrPkgAlreadyExists(msg string) error {
 	return errors.Wrap(PkgExistError{}, msg)
@@ -76,6 +83,10 @@ func ErrInvalidPackage(msg string) error {
 
 func ErrObjectNotFound(msg string) error {
 	return errors.Wrap(ObjectNotFoundError{}, msg)
+}
+
+func ErrExportSizeExceeded(msg string) error {
+	return errors.Wrap(ExportSizeExceededError{}, msg)
 }
 
 // ErrTypeCheck wraps err's full messages around the empty TypeCheckError

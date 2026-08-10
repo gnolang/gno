@@ -365,6 +365,17 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 			"error", qres.Response.Error,
 		)
 		return nil, ErrClientRenderNotDeclared
+	case errors.Is(qerr, vm.ExportSizeExceededError{}):
+		// The node refused the query because its response would exceed
+		// maxQueryExportBytes. That is the same "response too large" condition
+		// gnoweb's own maxRPCResponseSize cap reports, so route it to the same
+		// sentinel (state.mapClientError renders it as 502, not a generic 500).
+		c.logger.Warn("node refused oversized response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
 	default:
 	}
 

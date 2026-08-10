@@ -1,0 +1,111 @@
+# Regression test for the unmetered export-walk + response-building DoS on the
+# value-returning query endpoints (dora 97180e82). A single free query that
+# returns a large ephemeral value must be rejected by the export size guard,
+# not serviced with a multi-gigabyte unmetered response. Small values still
+# work, on both the JSON and the plain-text eval endpoint.
+#
+# This is the one end-to-end check against the real maxQueryExportBytes (10MB),
+# so the values below sit just over that line rather than at the GB scale the
+# original PoC used; the unit tests in gno.land/pkg/sdk/vm lower the budget and
+# cover the same paths with KB-sized inputs.
+
+loadpkg gno.land/r/test/dos $WORK/realm
+
+gnoland start
+
+# Small value: serviced normally.
+gnokey query vm/qeval_json --data "gno.land/r/test/dos.Small()"
+stdout 'results'
+stdout 'AAAAAAAAAA'
+
+# Large string: the eval is within the alloc/gas ceiling, but the export walk
+# estimates its serialized size over the limit and aborts BEFORE amino marshals
+# it. Pre-fix, a query of this shape returned the whole thing as JSON for free.
+! gnokey query vm/qeval_json --data "gno.land/r/test/dos.Big()"
+stderr 'export size limit exceeded'
+
+# Large slice-of-structs: same guard on the many-nodes shape.
+! gnokey query vm/qeval_json --data "gno.land/r/test/dos.Structs()"
+stderr 'export size limit exceeded'
+
+# Long struct tag on a non-declared type: the tag is re-emitted per element, so
+# the guard must charge its content, not just one node per field. Pre-fix this
+# shape passed the 10MB budget and marshaled to ~20x it.
+! gnokey query vm/qeval_json --data "gno.land/r/test/dos.TaggedSlice()"
+stderr 'export size limit exceeded'
+
+# The plain-text eval endpoint renders the same value with TypedValue.String()
+# instead of amino, also outside the alloc meter and also uncapped, so it is
+# bounded by the same budget.
+! gnokey query vm/qeval --data "gno.land/r/test/dos.Big()"
+stderr 'export size limit exceeded'
+
+# ...and small values still render there unchanged.
+gnokey query vm/qeval --data "gno.land/r/test/dos.Small()"
+stdout 'AAAAAAAAAA'
+
+# qtype_json does not go through the export walk — QueryType hand-rolls JSON from
+# a gno.Type — but it amplifies the same way: it re-expands each DeclaredType.Base
+# per reference with no seal, so a struct DAG expands into a fanout^levels tree.
+# A leaf type still resolves; the wide DAG root must be refused by the same guard.
+gnokey query vm/qtype_json --data "gno.land/r/test/dos.T5"
+stdout 'StructType'
+
+! gnokey query vm/qtype_json --data "gno.land/r/test/dos.T0"
+stderr 'export size limit exceeded'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/test/dos"
+gno = "0.9"
+
+-- realm/realm.gno --
+package dos
+
+import "strings"
+
+func Small() string { return strings.Repeat("A", 10) }
+
+func Big() string { return strings.Repeat("A", 11_000_000) }
+
+type Node struct {
+	A, B, C, D int
+	S          string
+}
+
+func Structs() []Node {
+	s := make([]Node, 100_000)
+	for i := range s {
+		s[i] = Node{A: i, S: "x"}
+	}
+	return s
+}
+
+type Tagged = struct {
+	A int "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
+}
+
+// Tagged's element type carries 1KB of tag text, re-emitted per element: 20_000
+// elements is ~20MB of tag content on a ~3MB metered eval.
+func TaggedSlice() []Tagged { return make([]Tagged, 20_000) }
+
+// T0..T5 form a struct DAG for qtype_json: every field of a level references the
+// next named type, so marshalTypeJSON re-expands it into a fanout^levels tree.
+// < 1KB of source emits tens of MB (T0 measured ~36MB); T5 is an ordinary leaf.
+type T0 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 T1
+}
+type T1 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 T2
+}
+type T2 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 T3
+}
+type T3 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 T4
+}
+type T4 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 T5
+}
+type T5 struct {
+	F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23 int
+}

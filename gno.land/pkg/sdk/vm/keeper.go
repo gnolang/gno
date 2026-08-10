@@ -53,6 +53,43 @@ const (
 	maxGasQuery   = 3_000_000_000 // same as max block gas
 )
 
+// maxQueryExportBytes bounds the estimated serialized size of the value tree
+// returned by the value-returning query endpoints (qeval, qeval_json,
+// qobject_json, qobject_binary, qpkg_json) before it is rendered or
+// amino-marshaled. The eval-time alloc/gas meters only cover VM execution and
+// store I/O; the export walk, the JSON marshal and TypedValue.String() all run
+// outside them, so without this bound a single free query can force a
+// multi-gigabyte allocation and OOM the node. It also caps qtype_json's
+// hand-rolled marshal, which amplifies a type DAG into a tree the same way (see
+// marshalTypeJSONBounded). See gno.ExportValues and
+// gno.land/adr/prxxxx_query_export_size_guard.md.
+//
+// 10MB is deliberately permissive. It is an estimate of the *response*, and a
+// response that size still costs the node much more than that in transient
+// heap: amino allocates roughly 20x the JSON it emits, so the worst shapes
+// measured peak around 250MB (see the ADR's table for the shapes and how the
+// peak was sampled). Legitimate explorer responses are orders of
+// magnitude smaller than the budget, so if a node shows memory thrashing under
+// query load this can safely be cut 10x (to 1MB) without affecting realistic
+// consumers.
+//
+// A var, not a const, only so tests can lower it and exercise the guard with
+// KB-sized inputs instead of allocating the real 10MB+ per case. Tests that
+// mutate it must restore it with t.Cleanup and must NOT call t.Parallel(), and
+// neither may any other test in this package that depends on the value.
+var maxQueryExportBytes int64 = 10_000_000 // ~10MB estimated export size
+
+// abciExportErr maps the VM's export-size sentinel onto this module's ABCI
+// error type, so a client gets a stable error code for "response too large"
+// instead of an untyped internal error. Anything else passes through unchanged.
+func abciExportErr(err error) error {
+	if goerrors.Is(err, gno.ErrExportSizeExceeded) {
+		return ErrExportSizeExceeded(fmt.Sprintf(
+			"estimated response size exceeds %d bytes", maxQueryExportBytes))
+	}
+	return err
+}
+
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
 type VMKeeperI interface {
@@ -1333,13 +1370,29 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
+		// Bound the result before rendering it. TypedValue.String() renders the
+		// whole tree into a Go string outside the eval alloc meter and costs
+		// about 5x the rendered size in transient heap (measured: a 64MB string
+		// result peaks at +319MB), so this endpoint is the same unmetered
+		// amplifier as qeval_json with a smaller factor.
+		//
+		// The export walk is reused purely as a size oracle: the copy it builds
+		// is bounded by the same budget and thrown away, and the rendering
+		// below is unchanged for everything that fits. Persisted children are
+		// charged as a RefValue while String() renders them inline, so this
+		// bounds the ephemeral (free) vector only — a persisted tree that large
+		// had to be paid for in storage deposit and load gas.
+		if _, exErr := gno.ExportValues(rtvs, maxQueryExportBytes); exErr != nil {
+			return abciExportErr(exErr)
+		}
 		for i, rtv := range rtvs {
 			res += rtv.String()
 			if i < len(rtvs)-1 {
 				res += "\n"
 			}
 		}
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -1350,23 +1403,18 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
 // The result is expected to be a single string (not a tuple).
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	var cbErr error
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
 		if len(rtvs) != 1 {
-			cbErr = errors.New("expected 1 string result, got %d", len(rtvs))
-			return
+			return errors.New("expected 1 string result, got %d", len(rtvs))
 		}
 		if rtvs[0].T.Kind() != gno.StringKind {
-			cbErr = errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-			return
+			return errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
 		}
 		res = rtvs[0].GetString()
+		return nil
 	})
 	if err != nil {
 		return "", err
-	}
-	if cbErr != nil {
-		return "", cbErr
 	}
 	return res, nil
 }
@@ -1376,7 +1424,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 // Callers that need to invoke methods on result values (e.g. call .Error() on
 // an error-implementing return) must use this helper so the machine is still
 // alive when fn runs.
-func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue)) (err error) {
+func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue) error) (err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
@@ -1432,8 +1480,7 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	// as init(cur realm) / main(cur realm): realms that don't declare a
 	// crossing form are unaffected.
 	m.MaybeInjectCurForEval(xx)
-	fn(m, m.Eval(xx))
-	return nil
+	return fn(m, m.Eval(xx))
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -1498,8 +1545,10 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 
 // QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
 func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
-		res = stringifyJSONResults(m, rtvs, nil)
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
+		var jsonErr error
+		res, jsonErr = stringifyJSONResults(m, rtvs, nil, maxQueryExportBytes)
+		return abciExportErr(jsonErr)
 	})
 	if err != nil {
 		return "", err
@@ -1522,7 +1571,24 @@ func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, err
 		return nil, ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
 	}
 
-	return gno.ExportObject(obj), nil
+	// Bound the export walk: a persisted object with a large Data field (e.g.
+	// a big byte array) would otherwise be copied and marshaled unmetered.
+	// This is the shared object-export path, so it protects both the JSON
+	// (qobject_json) and binary (qobject_binary) callers.
+	//
+	// Two consequences worth knowing. The *queried* object is expanded inline
+	// (only its children become RefValues), so a single large persisted object
+	// — say an 8MB byte array, charged 10.7MB — is rejected outright, with no
+	// partial or paginated view. And the estimate is JSON-shaped: byte arrays
+	// are charged at the base64 rate (4/3), so qobject_binary, whose output is
+	// raw bytes, is rejected about 25% earlier than its actual response size
+	// warrants. Both are deliberate: one estimate keeps the two endpoints from
+	// drifting apart, and erring small is the safe direction for a DoS bound.
+	exported, err := gno.ExportObject(obj, maxQueryExportBytes)
+	if err != nil {
+		return nil, abciExportErr(err)
+	}
+	return exported, nil
 }
 
 // QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
@@ -1613,8 +1679,13 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 		varValues = append(varValues, tv)
 	}
 
-	// Export values (replace persisted objects with RefValues, etc.)
-	exported := gno.ExportValues(varValues)
+	// Export values (replace persisted objects with RefValues, etc.),
+	// bounding the walk so a package var holding a large ephemeral value
+	// cannot force an unmetered multi-GB export copy + JSON marshal.
+	exported, err := gno.ExportValues(varValues, maxQueryExportBytes)
+	if err != nil {
+		return "", abciExportErr(err)
+	}
 
 	valuesJSON, err := amino.MarshalJSON(exported)
 	if err != nil {
@@ -1657,7 +1728,9 @@ func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err e
 	// Use a custom serializer instead of amino.MarshalJSON to avoid fatal
 	// stack overflow from circular type references (e.g. time.Time).
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, tt, 0)
+	if exErr := marshalTypeJSONBounded(&buf, tt, maxQueryExportBytes); exErr != nil {
+		return "", abciExportErr(exErr)
+	}
 	return buildTypeJSONEnvelope(tidStr, buf.Bytes()), nil
 }
 
@@ -1685,9 +1758,41 @@ func writeJSONString(buf *bytes.Buffer, s string) {
 
 const maxTypeDepth = 8
 
+// marshalTypeJSONBounded runs marshalTypeJSON with a total-output cap and
+// recovers the ErrExportSizeExceeded panic that the cap raises, returning it so
+// QueryType can map it onto the ABCI error type. Any other panic is re-raised
+// for the caller's doRecoverQueryNoMachine to handle unchanged.
+//
+// marshalTypeJSON re-expands each DeclaredType.Base per reference with no seal
+// (unlike realm.go's fillType, which does seal), so a struct DAG whose fields
+// reference the same named types expands into a tree of size fanout^levels.
+// maxTypeDepth caps depth but not that fanout — measured, ~850 B of source
+// emits ~36 MB — and QueryType runs no allocator, so nothing else bounds it.
+// maxBytes caps the buffer instead, refusing the query before the alloc lands.
+func marshalTypeJSONBounded(buf *bytes.Buffer, t gno.Type, maxBytes int64) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok && goerrors.Is(e, gno.ErrExportSizeExceeded) {
+				err = e
+				return
+			}
+			panic(r)
+		}
+	}()
+	marshalTypeJSON(buf, t, 0, maxBytes)
+	return nil
+}
+
 // marshalTypeJSON writes a safe JSON representation of a gno.Type.
-// It limits recursion depth to avoid stack overflow from circular references.
-func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
+// It limits recursion depth to avoid stack overflow from circular references,
+// and panics gno.ErrExportSizeExceeded once buf grows past maxBytes
+// (maxBytes <= 0 disables the bound); see marshalTypeJSONBounded for why the
+// depth cap alone is not enough. The check is at entry to every recursive call,
+// so buf overshoots maxBytes by at most one node's fixed prefix before it aborts.
+func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int, maxBytes int64) {
+	if maxBytes > 0 && int64(buf.Len()) > maxBytes {
+		panic(gno.ErrExportSizeExceeded)
+	}
 	if t == nil || depth > maxTypeDepth {
 		buf.WriteString("null")
 		return
@@ -1697,15 +1802,15 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 		fmt.Fprintf(buf, `{"@type":"/gno.PrimitiveType","value":"%d"}`, int(ct))
 	case *gno.PointerType:
 		buf.WriteString(`{"@type":"/gno.PointerType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.ArrayType:
 		fmt.Fprintf(buf, `{"@type":"/gno.ArrayType","Len":"%d","Elt":`, ct.Len)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.SliceType:
 		buf.WriteString(`{"@type":"/gno.SliceType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.StructType:
 		buf.WriteString(`{"@type":"/gno.StructType","Fields":[`)
@@ -1716,15 +1821,15 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 			buf.WriteString(`{"Name":`)
 			writeJSONString(buf, string(f.Name))
 			buf.WriteString(`,"Type":`)
-			marshalTypeJSON(buf, f.Type, depth+1)
+			marshalTypeJSON(buf, f.Type, depth+1, maxBytes)
 			buf.WriteByte('}')
 		}
 		buf.WriteString("]}")
 	case *gno.MapType:
 		buf.WriteString(`{"@type":"/gno.MapType","Key":`)
-		marshalTypeJSON(buf, ct.Key, depth+1)
+		marshalTypeJSON(buf, ct.Key, depth+1, maxBytes)
 		buf.WriteString(`,"Value":`)
-		marshalTypeJSON(buf, ct.Value, depth+1)
+		marshalTypeJSON(buf, ct.Value, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.FuncType:
 		buf.WriteString(`{"@type":"/gno.FuncType"}`)
@@ -1736,13 +1841,13 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 		buf.WriteString(`,"Name":`)
 		writeJSONString(buf, string(ct.Name))
 		buf.WriteString(`,"Base":`)
-		marshalTypeJSON(buf, ct.Base, depth+1)
+		marshalTypeJSON(buf, ct.Base, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.PackageType:
 		buf.WriteString(`{"@type":"/gno.PackageType"}`)
 	case *gno.ChanType:
 		buf.WriteString(`{"@type":"/gno.ChanType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	default:
 		// RefType or unknown — emit type ID if available
