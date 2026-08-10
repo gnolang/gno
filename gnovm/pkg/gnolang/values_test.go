@@ -399,32 +399,41 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 }
 
-// TestComputeMapKey_GasMeter asserts the follow-up's contract:
-// ComputeMapKey takes its gas meter explicitly: VM-runtime callers pass
-// m.GasMeter, and the restore path (loadObjectSafe → fillTypesOfValue,
-// rebuilding vmap on cache miss) passes the store's tx-scoped meter, so
-// both paths charge symmetrically. A regression — e.g. the restore path
-// passing nil — would silently zero the restore-path charge; the txtar
-// (compute_map_key_restore_gas) pins that end-to-end, while this test
-// fails fast at unit-test speed on the charge itself.
-func TestComputeMapKey_GasMeter(t *testing.T) {
-	gm := storetypes.NewGasMeter(1 << 30)
+// TestFillTypesOfValue_MapRestoreGas asserts the restore-path half of
+// ComputeMapKey's gas contract: rebuilding a loaded map's vmap
+// (loadObjectSafe → fillTypesOfValue) charges the meter it is given,
+// per entry, symmetrically with the VM-runtime write path (which passes
+// m.GasMeter). A regression that stops charging the rebuild would fail
+// here at unit-test speed. The one line this cannot see — loadObjectSafe
+// passing ds.gasMeter rather than nil — is pinned end-to-end by the
+// compute_map_key_restore_gas txtar.
+func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
+	const n = 5
 	ds := NewStore(NewAllocator(1<<30), nil, nil)
 
-	tv := typedInt(42)
+	// A MapValue as it looks right after amino decode: entries present
+	// in List, vmap not yet rebuilt.
+	newDecodedMap := func() *MapValue {
+		mv := &MapValue{List: &MapList{}}
+		for i := range n {
+			item := mv.List.Append(nil, typedInt(i))
+			item.Value = typedString("v")
+		}
+		return mv
+	}
 
-	before := gm.GasConsumed()
-	_, isNaN := tv.ComputeMapKey(gm, ds, false)
-	require.False(t, isNaN)
-	delta := gm.GasConsumed() - before
+	// Metered rebuild: every entry's ComputeMapKey must charge at least
+	// the per-call constant (the byte slope adds a smaller amount on
+	// top; lower-bounding avoids pinning exact byte counts).
+	gm := storetypes.NewGasMeter(1 << 30)
+	mv := newDecodedMap()
+	fillTypesOfValue(gm, ds, mv)
+	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
+	require.GreaterOrEqual(t, gm.GasConsumed(), int64(n*OpCPUComputeMapKey),
+		"map restore must charge ComputeMapKey per rebuilt entry")
 
-	// Per-call constant must fire. The slope contributes a smaller
-	// amount on top; lower-bound at the per-call constant is a robust
-	// floor that doesn't pin to exact byte counts.
-	require.GreaterOrEqual(t, delta, int64(OpCPUComputeMapKey),
-		"ComputeMapKey with an explicit meter must charge at least OpCPUComputeMapKey")
-
-	// nil meter: charges nothing and must not panic.
-	_, isNaN2 := tv.ComputeMapKey(nil, ds, false)
-	require.False(t, isNaN2)
+	// nil meter (genesis, tools): must not panic and must still rebuild.
+	mv2 := newDecodedMap()
+	fillTypesOfValue(nil, ds, mv2)
+	require.Len(t, mv2.vmap, n)
 }
