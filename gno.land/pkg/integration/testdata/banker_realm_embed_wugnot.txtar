@@ -1,0 +1,64 @@
+# Variant targeting a system realm's reserve: the embedding realm overrides
+# Address() to the WUGNOT package address to try to move its ugnot reserve.
+# The package fails to type-check and never deploys, so the reserve is intact
+# and the LP can still withdraw. See gnovm/adr/realm_seal_embedding.md.
+
+loadpkg gno.land/r/gnoland/wugnot
+
+adduser attacker
+adduser lp
+
+gnoland start
+
+## The LP deposits 500000000 ugnot.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 500000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test lp
+stdout OK!
+
+## Verify the reserve and the LP's WUGNOT balance.
+gnokey query bank/balances/g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum
+stdout '500000000ugnot'
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${lp_user_addr}\")"
+stdout '500000000 int64'
+
+## Deploying the embedding realm is rejected at type-check.
+! gnokey maketx addpkg -pkgdir $WORK/realmembed -pkgpath gno.land/r/test/realmembed -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test attacker
+stderr 'fooRealm does not implement .uverse.realm \(missing method \.seal\)'
+
+## The reserve is intact.
+gnokey query bank/balances/g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum
+stdout '500000000ugnot'
+
+## The LP's ledger balance is unchanged.
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${lp_user_addr}\")"
+stdout '500000000 int64'
+
+## Withdrawal succeeds because the reserve was never touched.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 500000000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test lp
+stdout OK!
+
+-- realmembed/gnomod.toml --
+module = "gno.land/r/test/realmembed"
+gno = "0.9"
+
+-- realmembed/realmembed.gno --
+package realmembed
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+type fooRealm struct {
+	realm
+	forged address
+}
+
+func (r fooRealm) Address() address { return r.forged }
+func (r fooRealm) PkgPath() string  { return "gno.land/r/test/realmembed" }
+
+func SendReserve(cur realm, to address, amount int64) {
+	victim := chain.PackageAddress("gno.land/r/gnoland/wugnot")
+	foo := fooRealm{realm: cur, forged: victim}
+	b := banker.NewBanker(banker.BankerTypeRealmSend, foo)
+	b.SendCoins(victim, to, chain.Coins{{"ugnot", amount}})
+}

@@ -1,0 +1,57 @@
+# A realm that embeds a live realm inherits the sealed `.seal` marker through
+# method promotion and can override Address() to another address. Such a type
+# must not satisfy the `realm` interface, so the package fails to type-check
+# and never deploys — no banker can be constructed for an address the caller
+# does not control, and balances stay untouched.
+# See gnovm/adr/realm_seal_embedding.md.
+
+adduser attacker
+adduser victim
+
+gnoland start
+
+## Genesis balances
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+gnokey query bank/balances/${attacker_user_addr}
+stdout '1000000000ugnot'
+
+## Deploying the embedding realm is rejected at type-check.
+! gnokey maketx addpkg -pkgdir $WORK/realmembed -pkgpath gno.land/r/test/realmembed -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test attacker
+stderr 'fooRealm does not implement .uverse.realm \(missing method \.seal\)'
+
+## Balances are untouched.
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+gnokey query bank/balances/${attacker_user_addr}
+stdout '1000000000ugnot'
+
+-- realmembed/gnomod.toml --
+module = "gno.land/r/test/realmembed"
+gno = "0.9"
+
+-- realmembed/realmembed.gno --
+package realmembed
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+// Embedding a realm promotes `.seal`; overriding Address()/PkgPath() would
+// present another realm's identity while borrowing the embedded realm's
+// liveness. Because a promoted `.seal` no longer satisfies the sealed `realm`
+// interface, fooRealm is not a realm and this package fails to type-check.
+type fooRealm struct {
+	realm
+	forged address
+}
+
+func (r fooRealm) Address() address { return r.forged }
+func (r fooRealm) PkgPath() string  { return "gno.land/r/test/realmembed" }
+
+func Send(cur realm, from, to address, amount int64) {
+	foo := fooRealm{realm: cur, forged: from}
+	b := banker.NewBanker(banker.BankerTypeRealmSend, foo)
+	b.SendCoins(from, to, chain.Coins{{"ugnot", amount}})
+}
