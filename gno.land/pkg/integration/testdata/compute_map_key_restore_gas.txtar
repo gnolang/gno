@@ -22,9 +22,12 @@
 #
 # The pinned GAS USED values are calibration goldens. Removing the
 # restore-path charge drops Tx1 by 5*per-entry and Tx2 by 6*per-entry —
-# both pins will fail. Empirically the per-entry restore charge is ~788
-# gas for this bigKey shape; a regression to the pre-follow-up asymmetry
-# would shift Tx1 by ~3940 and Tx2 by ~4728.
+# both pins will fail. The per-entry restore charge is 788 gas for this
+# bigKey shape; a regression to the pre-follow-up asymmetry shifts Tx1
+# by exactly 5*788=3940 and Tx2 by 6*788=4728 (measured by passing a
+# nil meter at loadObjectSafe). Tx2's runtime Lookup charge rides
+# m.GasMeter and survives such a regression, so it does not add to the
+# delta.
 
 loadpkg gno.land/r/demo/mapgas $WORK
 

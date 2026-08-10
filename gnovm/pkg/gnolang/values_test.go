@@ -429,8 +429,22 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 	mv := newDecodedMap()
 	fillTypesOfValue(gm, ds, mv)
 	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
-	require.GreaterOrEqual(t, gm.GasConsumed(), int64(n*OpCPUComputeMapKey),
+	restoreGas := gm.GasConsumed()
+	require.GreaterOrEqual(t, restoreGas, int64(n*OpCPUComputeMapKey),
 		"map restore must charge ComputeMapKey per rebuilt entry")
+
+	// Symmetry: charging the same keys on the write path (ComputeMapKey
+	// with the runtime meter, as GetPointerForKey does on assignment)
+	// must cost exactly what the restore-path rebuild charged. A change
+	// that diverges the two paths fails here.
+	gmWrite := storetypes.NewGasMeter(1 << 30)
+	for i := range n {
+		k := typedInt(i)
+		_, isNaN := k.ComputeMapKey(gmWrite, ds, false)
+		require.False(t, isNaN)
+	}
+	require.Equal(t, gmWrite.GasConsumed(), restoreGas,
+		"write path and restore path must charge the same gas for the same keys")
 
 	// nil meter (genesis, tools): must not panic and must still rebuild.
 	mv2 := newDecodedMap()
