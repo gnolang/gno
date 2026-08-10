@@ -4,7 +4,6 @@ package z_5_a_filetest
 
 import (
 	"testing"
-	"time"
 
 	pdao "gno.land/p/nt/commondao/v0"
 
@@ -16,18 +15,10 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-type propDef struct{}
-
-func (propDef) Title() string                          { return "" }
-func (propDef) Body() string                           { return "" }
-func (propDef) VotingPeriod() time.Duration            { return time.Hour }
-func (propDef) Validate() error                        { return nil }
-func (propDef) Tally(pdao.VotingContext) (bool, error) { return false, nil }
-
 var (
-	daoID    uint64
-	proposal *pdao.Proposal
-	vote     pdao.VoteChoice = pdao.ChoiceYes
+	daoID uint64
+	pID   uint64
+	vote  pdao.VoteChoice = pdao.ChoiceYes
 )
 
 func init(cur realm) {
@@ -35,33 +26,31 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// Create a new DAO which gives ownership to `test`
+	// Create a new DAO whose caller (`test`) becomes a council member
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	daoID = dao.ID()
-
-	// Configure DAO
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 	// Create a new proposal
-	proposal, _ = dao.Propose(user, propDef{})
+	testing.SetRealm(testing.NewUserRealm(user))
+	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 
 func main(cur realm) {
 	// User must be the caller to Vote()
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross(cur), daoID, proposal.ID(), vote, "")
+	commondao.Vote(cross(cur), daoID, pID, vote, "")
 
-	record := proposal.VotingRecord()
+	p, _ := commondao.GetView(daoID).GetProposal(pID)
+	record := p.VotingRecord()
 	if record.Size() != 1 {
 		panic("expected a single vote")
 	}
 
 	println(record.HasVoted(user))
 	record.Iterate(0, record.Size(), false, func(v pdao.Vote) bool {
-		println(v.Choice == vote)
+		println(v.Choice() == vote)
 		return false
 	})
 }

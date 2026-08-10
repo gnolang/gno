@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -287,6 +288,36 @@ func TestIterateAll(t *testing.T) {
 	uassert.Equal(t, 1, visited)
 }
 
+// TestIterateAllWindows pins the pagination contract exhaustively: every
+// (offset, count) window over the deduplicated walk must equal the
+// corresponding slice of the full walk.
+func TestIterateAllWindows(t *testing.T) {
+	g := newTestGroup(t)
+
+	var full []address
+	g.IterateAll(0, 100, func(a address) bool {
+		full = append(full, a)
+		return false
+	})
+	urequire.Equal(t, 6, len(full))
+
+	for offset := 0; offset <= len(full); offset++ {
+		for count := 1; count <= len(full)+1; count++ {
+			var page []address
+			g.IterateAll(offset, count, func(a address) bool {
+				page = append(page, a)
+				return false
+			})
+			end := offset + count
+			if end > len(full) {
+				end = len(full)
+			}
+			label := "offset=" + strconv.Itoa(offset) + " count=" + strconv.Itoa(count)
+			uassert.Equal(t, joinAddrs(full[offset:end]), joinAddrs(page), label)
+		}
+	}
+}
+
 func TestRolesContaining(t *testing.T) {
 	g := newTestGroup(t)
 
@@ -313,6 +344,35 @@ func TestRemoveFromAll(t *testing.T) {
 
 	uassert.Equal(t, 3, g.TotalSize()) // addr1, addr3, addr4 remain
 	uassert.Equal(t, 2, g.RoleCount()) // roles themselves are kept
+}
+
+// TestRemoveRoleStaleHandle pins the aliasing semantics: a *Role handle
+// held across RemoveRole keeps working as a detached object, but its
+// mutations no longer affect the group, and re-adding the name creates a
+// fresh, independent role.
+func TestRemoveRoleStaleHandle(t *testing.T) {
+	g := newTestGroup(t)
+	stale, found := g.GetRole("admins")
+	urequire.True(t, found)
+
+	uassert.True(t, g.RemoveRole("admins"))
+
+	// The detached role still works as an orphan object...
+	uassert.Equal(t, "admins", stale.Name())
+	stale.Members().Add(addr6)
+	uassert.True(t, stale.Members().Has(addr6))
+
+	// ...but no longer affects the group.
+	uassert.False(t, g.HasAny(addr6))
+	uassert.Equal(t, 0, len(g.RolesContaining(addr6)))
+	uassert.False(t, g.HasAny(addr2))  // addr2 was admins-only
+	uassert.Equal(t, 5, g.TotalSize()) // fixture minus admins-only addr2
+
+	// Re-adding the name yields a fresh empty role, not the stale one.
+	fresh, err := g.AddRole("admins")
+	urequire.NoError(t, err)
+	uassert.Equal(t, 0, fresh.Members().Size())
+	uassert.False(t, g.HasAny(addr6))
 }
 
 func TestReadonlyGroup(t *testing.T) {

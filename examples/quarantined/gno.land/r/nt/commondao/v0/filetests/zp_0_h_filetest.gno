@@ -21,20 +21,21 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowMembersUpdate(true)
-
-	daoID = dao.ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross(cur), daoID, user.String(), "")
+	pID := commondao.CreateCouncilUpdateProposal(cross(cur), daoID, user.String(), "")
+
+	// Adding an existing member is an idempotent no-op, not an error
+	p, found := commondao.GetView(daoID).GetProposal(pID)
+	println(found)
+	println(string(p.Status()))
 }
 
-// Error:
-// address is already a DAO member: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Output:
+// true
+// active

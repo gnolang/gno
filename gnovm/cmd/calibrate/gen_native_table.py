@@ -69,6 +69,8 @@ NATIVE_SPECS = [
     # first-declared return so it lands at stack offset 2 (amounts at 1).
     ("chain/banker", "bankerGetCoins", 2, "ReturnLen",
      r"BenchmarkNative_Banker_GetCoins_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "bankerGetCoin", None, "Flat",
+     r"BenchmarkNative_Banker_GetCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/banker", "bankerTotalCoin", None, "Flat",
      r"BenchmarkNative_Banker_TotalCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/banker", "bankerIssueCoin", None, "Flat",
