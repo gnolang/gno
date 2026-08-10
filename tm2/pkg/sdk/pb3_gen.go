@@ -22,12 +22,28 @@ func init() {
 func (goo Result) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.GasUsed != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.GasUsed))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.GasUsed))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.GasWanted != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		before := offset
@@ -67,6 +83,7 @@ func (goo Result) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Result{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -74,7 +91,7 @@ func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

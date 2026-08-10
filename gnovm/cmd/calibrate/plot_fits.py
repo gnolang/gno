@@ -115,6 +115,18 @@ FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
+    ('EnterCrossing (depth)', 'call depth', [
+        ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
+        ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
+    ('CopyDataToList', 'elements', [
+        ('BenchmarkOpCopyDataToList_1k', 1024), ('BenchmarkOpCopyDataToList_10k', 10*1024),
+        ('BenchmarkOpCopyDataToList_100k', 100*1024), ('BenchmarkOpCopyDataToList_1m', 1024*1024)]),
+    ('CopyListToData', 'elements', [
+        ('BenchmarkOpCopyListToData_1k', 1024), ('BenchmarkOpCopyListToData_10k', 10*1024),
+        ('BenchmarkOpCopyListToData_100k', 100*1024), ('BenchmarkOpCopyListToData_1m', 1024*1024)]),
+    ('UnrefCopy (int)', 'elements', [
+        ('BenchmarkOpUnrefCopy_Int_1k', 1024), ('BenchmarkOpUnrefCopy_Int_10k', 10*1024),
+        ('BenchmarkOpUnrefCopy_Int_100k', 100*1024)]),
     ('TypeSwitch (concrete)', 'clauses', [
         ('BenchmarkOpTypeSwitch_1', 1), ('BenchmarkOpTypeSwitch_10', 10),
         ('BenchmarkOpTypeSwitch_100', 100), ('BenchmarkOpTypeSwitch_1000', 1000)]),

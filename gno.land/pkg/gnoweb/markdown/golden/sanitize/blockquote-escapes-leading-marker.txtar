@@ -1,0 +1,18 @@
+// MARKDOWNFUNC: Blockquote
+// CONTEXT: %s
+-- input.md --
+> existing quote
+# evil heading
+- list item
+-- output.md --
+
+> \> existing quote
+> \# evil heading
+> \- list item
+
+-- output.html --
+<blockquote>
+<p>&gt; existing quote
+# evil heading
+- list item</p>
+</blockquote>

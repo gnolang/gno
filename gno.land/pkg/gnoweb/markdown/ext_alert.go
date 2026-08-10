@@ -155,6 +155,13 @@ func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		return nil, parser.NoChildren
 	}
 
+	// Cross-family nesting cap (shared with gno-foreign, gno-columns).
+	// On refusal, return nil so the `>` line falls through to the
+	// blockquote parser.
+	if !Push(pc) {
+		return nil, parser.NoChildren
+	}
+
 	match := regex.FindSubmatch(subline)
 	kind := match[1]
 	closed := match[2]
@@ -184,9 +191,12 @@ func (b *alertParser) Continue(node ast.Node, reader text.Reader, pc parser.Cont
 	return parser.Continue | parser.HasChildren
 }
 
-// Close is called when the alert block ends
+// Close is called when the alert block ends. Pop the cross-family
+// depth counter, matching the Push from Open. Goldmark calls Close
+// exactly once per successfully-opened block (whether terminated
+// normally or at EOF), so this pairs 1:1 with Open's Push.
 func (b *alertParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-	// nothing to do
+	Pop(pc)
 }
 
 // CanInterruptParagraph indicates if this parser can interrupt a paragraph

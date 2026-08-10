@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 func TestKeeper(t *testing.T) {
@@ -136,6 +137,57 @@ type Params struct {
 	p2 string
 }
 
+// TestKeeperGetReturnsFound verifies the (value, found) contract on
+// the typed Get methods: an absent key returns false with the ptr
+// untouched; a key SET to a zero value returns true. Without the
+// found bit, callers couldn't distinguish "never written" from
+// "written as 0/false/empty".
+func TestKeeperGetReturnsFound(t *testing.T) {
+	env := setupTestEnv()
+	ctx, keeper := env.ctx, env.keeper
+
+	// Set each typed key to its zero value.
+	keeper.SetString(ctx, "s", "")
+	keeper.SetBool(ctx, "b", false)
+	keeper.SetInt64(ctx, "i", 0)
+	keeper.SetUint64(ctx, "u", 0)
+	keeper.SetBytes(ctx, "y", []byte{})
+	keeper.SetStrings(ctx, "ss", []string{})
+
+	var (
+		s  string
+		b  bool
+		i  int64
+		u  uint64
+		y  []byte
+		ss []string
+	)
+	require.True(t, keeper.GetString(ctx, "s", &s), "set-to-empty string is found")
+	require.True(t, keeper.GetBool(ctx, "b", &b), "set-to-false bool is found")
+	require.True(t, keeper.GetInt64(ctx, "i", &i), "set-to-zero int64 is found")
+	require.True(t, keeper.GetUint64(ctx, "u", &u), "set-to-zero uint64 is found")
+	require.True(t, keeper.GetBytes(ctx, "y", &y), "set-to-empty bytes is found")
+	require.True(t, keeper.GetStrings(ctx, "ss", &ss), "set-to-empty strings is found")
+
+	// Pre-set ptrs to non-zero so we can detect mutation on absent
+	// keys.
+	s, b, i, u = "preset", true, 7, 7
+	y, ss = []byte("preset"), []string{"preset"}
+	require.False(t, keeper.GetString(ctx, "absent", &s))
+	require.False(t, keeper.GetBool(ctx, "absent", &b))
+	require.False(t, keeper.GetInt64(ctx, "absent", &i))
+	require.False(t, keeper.GetUint64(ctx, "absent", &u))
+	require.False(t, keeper.GetBytes(ctx, "absent", &y))
+	require.False(t, keeper.GetStrings(ctx, "absent", &ss))
+	// Ptrs left untouched on absent.
+	require.Equal(t, "preset", s)
+	require.True(t, b)
+	require.Equal(t, int64(7), i)
+	require.Equal(t, uint64(7), u)
+	require.Equal(t, []byte("preset"), y)
+	require.Equal(t, []string{"preset"}, ss)
+}
+
 func TestGetAndSetStruct(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -148,4 +200,49 @@ func TestGetAndSetStruct(t *testing.T) {
 	a1 := Params{}
 	keeper.GetStruct(ctx, "params_test:p", &a1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
+}
+
+// recordingKeeper captures every WillSetParam invocation. Used by the
+// H1 regression test below.
+type recordingKeeper struct {
+	calls []recordedCall
+}
+
+type recordedCall struct {
+	key   string
+	value any
+}
+
+func (k *recordingKeeper) WillSetParam(_ sdk.Context, key string, value any) {
+	k.calls = append(k.calls, recordedCall{key: key, value: value})
+}
+
+// TestSetBytesTriggersWillSetParam (H1 regression): pre-fix, SetBytes
+// wrote raw bytes directly to the store, bypassing the registered
+// module keeper's WillSetParam hook. This let governance proposals
+// using NewSysParamBytesPropRequest write arbitrary bytes to any key
+// without validation. After H1, SetBytes routes through validate so
+// WillSetParam fires for byte-typed writes too — same as all other
+// Set* paths. Storage stays raw (no JSON encoding), so GetBytes still
+// reads the original bytes.
+func TestSetBytesTriggersWillSetParam(t *testing.T) {
+	env := setupTestEnv()
+	rec := &recordingKeeper{}
+	const moduleName = "h1_test"
+	env.keeper.Register(moduleName, rec)
+
+	// Set bytes through a module-prefixed key.
+	payload := []byte{0xde, 0xad, 0xbe, 0xef}
+	env.keeper.SetBytes(env.ctx, moduleName+":blob", payload)
+
+	require.Len(t, rec.calls, 1, "WillSetParam must fire on SetBytes")
+	require.Equal(t, "blob", rec.calls[0].key, "rawKey should strip module prefix")
+	gotValue, ok := rec.calls[0].value.([]byte)
+	require.True(t, ok, "value passed to WillSetParam must keep []byte type")
+	require.Equal(t, payload, gotValue)
+
+	// Storage stays raw (round-trip via GetBytes returns original bytes).
+	var read []byte
+	env.keeper.GetBytes(env.ctx, moduleName+":blob", &read)
+	require.Equal(t, payload, read, "raw bytes must round-trip via GetBytes")
 }

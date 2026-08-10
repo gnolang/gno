@@ -5,8 +5,9 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-// Verify that copy into a readonly-tainted slice panics,
-// even when the backing array's ObjectID belongs to the current realm.
+// With the readonly taint removed, copy into the slice succeeds: the
+// backing array's ObjectID belongs to the current realm, so the ownership
+// check permits the write. (Pre-removal the sticky taint blocked it.)
 var s []int
 
 func init() {
@@ -14,7 +15,7 @@ func init() {
 }
 
 func main(cur realm) {
-	crossrealm_b.SetObject(cross, s)
+	crossrealm_b.SetObject(cross(cur), s)
 	rs := crossrealm_b.Object.([]int)
 
 	func() {
@@ -33,7 +34,6 @@ func main(cur realm) {
 }
 
 // Output:
-// copy panic: cannot copy to readonly tainted slice
-// s[0]: 1
-// s[1]: 2
-// s[2]: 3
+// s[0]: 99
+// s[1]: 99
+// s[2]: 99

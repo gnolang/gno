@@ -69,6 +69,215 @@ func TestNodeStartStop(t *testing.T) {
 	}
 }
 
+// TestDefaultNewNodeWithGenesisProvider verifies that a custom GenesisDocProvider
+// is used in place of the on-disk loader and that its returned doc reaches the
+// node. This is the seam gnoland uses to inject the streaming genesis loader.
+func TestDefaultNewNodeWithGenesisProvider(t *testing.T) {
+	config, genesisFile := cfg.ResetTestRoot("node_genesis_provider_test")
+	defer os.RemoveAll(config.RootDir)
+
+	const sentinel = "from-custom-provider"
+	calls := 0
+	provider := func() (*types.GenesisDoc, error) {
+		calls++
+		doc, err := types.GenesisDocFromFile(genesisFile)
+		if err != nil {
+			return nil, err
+		}
+		doc.AppState = sentinel
+		return doc, nil
+	}
+
+	n, err := DefaultNewNodeWithGenesisProvider(
+		config,
+		provider,
+		events.NewEventSwitch(),
+		log.NewNoopLogger(),
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, calls, "custom genesis provider must be called exactly once")
+	require.Equal(t, sentinel, n.GenesisDoc().AppState,
+		"node must carry the AppState produced by the custom provider")
+}
+
+// TestSaveGenesisDoc_OmitsAppState verifies that the persisted genesis doc in
+// the state DB drops AppState. AppState is only consumed at appBlockHeight==0
+// (replay.go ReplayBlocks); the source genesis file is the canonical
+// reference, and the DB copy is an audit trail for chainID / validators /
+// genesis_time / app_hash. Persisting AppState would (a) panic for
+// non-amino-registered types, and (b) bloat the state DB by hundreds of MB
+// on real-world genesis files.
+func TestSaveGenesisDoc_OmitsAppState(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	original := &types.GenesisDoc{
+		GenesisTime: tmtime.Now(),
+		ChainID:     "test-chain-omit-appstate",
+		AppHash:     []byte{0xAB, 0xCD},
+		AppState:    types.MockAppState{AccountOwner: "Alice"},
+	}
+
+	saveGenesisDoc(db, original)
+
+	loaded, err := loadGenesisDoc(db)
+	require.NoError(t, err)
+	require.Equal(t, original.ChainID, loaded.ChainID)
+	require.Equal(t, original.AppHash, loaded.AppHash)
+	require.Nil(t, loaded.AppState, "AppState must be omitted from the persisted doc")
+}
+
+// TestLoadStateFromDBOrGenesisDocProvider_ReinvokesProviderForAppState verifies
+// that the provider is called again when the DB-loaded doc has nil AppState,
+// so streaming providers can re-attach a fresh handle (e.g. *GenesisStateRef)
+// on each boot rather than amino-marshaling it into the state DB.
+func TestLoadStateFromDBOrGenesisDocProvider_ReinvokesProviderForAppState(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	calls := 0
+	provider := func() (*types.GenesisDoc, error) {
+		calls++
+		return &types.GenesisDoc{
+			GenesisTime: tmtime.Now(),
+			ChainID:     "test-chain-reinvoke",
+			Validators: []types.GenesisValidator{{
+				PubKey: ed25519.GenPrivKey().PubKey(),
+				Power:  10,
+			}},
+			AppHash:  []byte{},
+			AppState: types.MockAppState{AccountOwner: fmt.Sprintf("call-%d", calls)},
+		}, nil
+	}
+
+	_, doc1, err := LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.NoError(t, err)
+	require.Equal(t, 1, calls)
+	require.Equal(t, types.MockAppState{AccountOwner: "call-1"}, doc1.AppState)
+
+	_, doc2, err := LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.NoError(t, err)
+	require.Equal(t, 2, calls,
+		"provider must be re-invoked when the DB-loaded doc has nil AppState")
+	require.Equal(t, types.MockAppState{AccountOwner: "call-2"}, doc2.AppState)
+	require.Equal(t, doc1.ChainID, doc2.ChainID,
+		"non-AppState fields must come from the persisted doc")
+}
+
+// TestLoadStateFromDBOrGenesisDocProvider_RejectsChainIDMismatchOnReinvoke
+// guards the case where an operator swaps the source genesis.json between
+// boots. The DB-persisted doc has chain A's metadata; the provider re-
+// invocation reads chain B's genesis. Without a freshness check, the
+// streaming AppState (chain B) would be paired with chain A's validators
+// and AppHash — silent data corruption at appBlockHeight==0. The fix
+// must refuse with a clear error.
+func TestLoadStateFromDBOrGenesisDocProvider_RejectsChainIDMismatchOnReinvoke(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	originalChain := &types.GenesisDoc{
+		GenesisTime: tmtime.Now(),
+		ChainID:     "chain-A",
+		Validators: []types.GenesisValidator{{
+			PubKey: ed25519.GenPrivKey().PubKey(),
+			Power:  10,
+		}},
+		AppHash:  []byte{0xaa},
+		AppState: types.MockAppState{AccountOwner: "boot-1"},
+	}
+	swapped := *originalChain
+	swapped.ChainID = "chain-B" // simulates operator pointing the node at a different genesis.json
+
+	calls := 0
+	provider := func() (*types.GenesisDoc, error) {
+		calls++
+		if calls == 1 {
+			return originalChain, nil
+		}
+		clone := swapped
+		return &clone, nil
+	}
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.NoError(t, err)
+
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.Error(t, err, "second boot with mismatched chain id must be rejected")
+	require.Contains(t, err.Error(), "chain id",
+		"error must explain that chain id changed between boots: %v", err)
+}
+
+// TestLoadStateFromDBOrGenesisDocProvider_RejectsAppHashMismatchOnReinvoke
+// guards a subtler operator-error case: same chain id, different app_hash.
+// Could happen if the genesis.json on disk drifts (e.g., a balance row was
+// added). The DB still has the original app_hash; pairing fresh app_state
+// with the persisted app_hash would corrupt InitChain. Refuse with a
+// clear error.
+func TestLoadStateFromDBOrGenesisDocProvider_RejectsAppHashMismatchOnReinvoke(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	original := &types.GenesisDoc{
+		GenesisTime: tmtime.Now(),
+		ChainID:     "stable-chain",
+		Validators: []types.GenesisValidator{{
+			PubKey: ed25519.GenPrivKey().PubKey(),
+			Power:  10,
+		}},
+		AppHash:  []byte{0xaa, 0xbb},
+		AppState: types.MockAppState{AccountOwner: "boot-1"},
+	}
+	tampered := *original
+	tampered.AppHash = []byte{0xcc, 0xdd}
+
+	calls := 0
+	provider := func() (*types.GenesisDoc, error) {
+		calls++
+		if calls == 1 {
+			return original, nil
+		}
+		clone := tampered
+		return &clone, nil
+	}
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.NoError(t, err)
+
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.Error(t, err, "second boot with mismatched app_hash must be rejected")
+	require.Contains(t, err.Error(), "app_hash",
+		"error must explain that app_hash changed between boots: %v", err)
+}
+
+// TestLoadStateFromDBOrGenesisDocProvider_SurfacesReinvokeError verifies
+// that a provider failure during re-invocation surfaces cleanly to the
+// caller rather than being absorbed (which would leave the node booting
+// with a nil AppState — guaranteed to crash at InitChain replay).
+func TestLoadStateFromDBOrGenesisDocProvider_SurfacesReinvokeError(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	calls := 0
+	provider := func() (*types.GenesisDoc, error) {
+		calls++
+		if calls == 1 {
+			return &types.GenesisDoc{
+				GenesisTime: tmtime.Now(),
+				ChainID:     "err-chain",
+				Validators: []types.GenesisValidator{{
+					PubKey: ed25519.GenPrivKey().PubKey(),
+					Power:  10,
+				}},
+				AppHash:  []byte{},
+				AppState: types.MockAppState{AccountOwner: "boot-1"},
+			}, nil
+		}
+		return nil, fmt.Errorf("synthetic provider failure on boot %d", calls)
+	}
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.NoError(t, err)
+
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, provider)
+	require.Error(t, err, "provider failure on re-invoke must surface to caller")
+	require.Contains(t, err.Error(), "synthetic provider failure")
+}
+
 func TestSplitAndTrimEmpty(t *testing.T) {
 	testCases := []struct {
 		s        string

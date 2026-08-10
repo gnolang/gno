@@ -58,7 +58,7 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 }
 
 // Gets list of kvpairs associated with param struct from store.
-func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
+func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}
@@ -70,7 +70,7 @@ func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std
 	fields := tinfo.Fields
 	for _, field := range fields {
 		name := field.JSONName
-		value := store.Get(nil, []byte(string(key)+":"+name))
+		value := store.Get(gctx, []byte(string(key)+":"+name))
 		if value == nil {
 			continue
 		}

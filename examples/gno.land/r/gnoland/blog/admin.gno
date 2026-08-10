@@ -1,11 +1,11 @@
-package gnoblog
+package blog
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 )
@@ -18,8 +18,8 @@ var (
 
 var (
 	adminAddr     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
-	moderatorList = avl.NewTree()
-	commenterList = avl.NewTree()
+	moderatorList = bptree.NewBPTree32()
+	commenterList = bptree.NewBPTree32()
 	inPause       bool
 )
 
@@ -40,12 +40,12 @@ func AdminAddModerator(_ realm, addr address) {
 
 func AdminRemoveModerator(_ realm, addr address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
+	moderatorList.Set(addr.String(), false) // entry kept as a revocation record; isModerator checks the value
 }
 
-func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
-	caller := runtime.PreviousRealm().Address()
-	e := dao.NewSimpleExecutor(
+func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := cur.Previous().Address()
+	e := dao.NewSimpleExecutor(0, cur,
 		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)
 
@@ -63,7 +63,7 @@ func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors
 
 func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
@@ -103,7 +103,7 @@ func ModAddCommenter(_ realm, addr address) {
 
 func ModDelCommenter(_ realm, addr address) {
 	assertIsModerator()
-	commenterList.Set(addr.String(), false) // FIXME: delete instead?
+	commenterList.Set(addr.String(), false) // entry kept as a revocation record; isCommenter checks the value
 }
 
 func ModDelComment(_ realm, slug string, index int) {
@@ -117,24 +117,28 @@ func isAdmin(addr address) bool {
 }
 
 func isModerator(addr address) bool {
-	_, found := moderatorList.Get(addr.String())
-	return found
+	// Removed moderators stay in the list with a false value, so the
+	// stored value must be checked, not just key presence.
+	active, _ := moderatorList.Get(addr.String()).(bool)
+	return active
 }
 
 func isCommenter(addr address) bool {
-	_, found := commenterList.Get(addr.String())
-	return found
+	// Removed commenters stay in the list with a false value, so the
+	// stored value must be checked, not just key presence.
+	active, _ := commenterList.Get(addr.String()).(bool)
+	return active
 }
 
 func assertIsAdmin() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if !isAdmin(caller) {
 		panic(errNotAdmin.Error())
 	}
 }
 
 func assertIsModerator() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
@@ -142,7 +146,7 @@ func assertIsModerator() {
 }
 
 func assertIsCommenter() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

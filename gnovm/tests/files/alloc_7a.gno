@@ -1,5 +1,6 @@
+// PKGPATH: gno.land/r/alloc7a
 // MAXALLOC: 100000000
-package main
+package alloc7a
 
 import (
 	"runtime"
@@ -10,11 +11,11 @@ import (
 var s = "hello world"
 
 // mainly for inspecting the object load/alloc logic.
-func main() {
+func main(cur realm) {
 	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
-	counter.Increment(cross)
+	counter.Increment(cross(cur))
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:8299}
+// MemStats:  Allocator{maxBytes:100000000, bytes:8986}

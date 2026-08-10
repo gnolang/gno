@@ -7,5 +7,6 @@ func main() {
 
 	println(b)
 }
+
 // Output:
 // false

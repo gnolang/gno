@@ -10,6 +10,9 @@ on:
     paths:
       - misc/**
       - .github/workflows/ci-dir-misc.yml
+      # This only runs `go test` on the Go programs under misc/, so every
+      # *.md under it is prose (misc/deployments/, misc/val-scenarios/, ...).
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -32,5 +35,3 @@ jobs:
     with:
       modulepath: misc/${{ matrix.program }}
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}

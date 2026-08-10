@@ -33,7 +33,7 @@ var Package = pkg.NewPackage(
 	EmbeddedSt3{},
 	EmbeddedSt4{},
 	pkg.Type{ // example of overriding type name.
-		Type:             reflect.TypeOf(EmbeddedSt5{}),
+		Type:             reflect.TypeFor[EmbeddedSt5](),
 		Name:             "EmbeddedSt5NameOverride",
 		PointerPreferred: false,
 	},
@@ -90,20 +90,33 @@ var Package = pkg.NewPackage(
 	FuzzFileInfo{},
 	FuzzPtrNest{},
 	FuzzDeepNest{},
-	// Amino tag fuzz types (write_empty, nil_elements).
-	// FuzzUnsafeFloat is excluded: pbbindings generator doesn't support float.
+	// Amino tag fuzz types (write_empty, nil_elements, unsafe).
+	FuzzUnsafeFloat{},
 	FuzzWriteEmpty{},
 	FuzzNilElements{},
 	FuzzFixedInt{},
 	FuzzContainsAminoMarshaler{},
+	// AminoMarshaler with empty-repr-on-zero; covers the "repr zero-check
+	// branch skips emission" gap that production AminoMarshalers never hit.
+	EmptyReprOnZero{},
+	FuzzNilEmptyRepr{},
 	// AminoMarshaler list element types.
 	SimpleAddress{},
 	HostRepr{},
 	CounterRepr(0),
 	ContainerWithAminoLists{},
+	StructWithStringRepr{},
+	StructPtrSliceWithStringRepr{},
+	ByteArraySliceStruct{},
+	FixedStringArrayStruct{},
+	StructUint8ReprSliceStruct{},
 	// Cross-package AminoMarshaler regression types.
 	CrossPkgPointerSlice{},
 	CrossPkgBoxedRepr{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
+	// Reserved-field migration fixtures (see
+	// genproto2/gen_unmarshal_reserved_test.go).
+	FixtureV2Reserved{},
+	FixtureV2Shifted{},
 )

@@ -9,6 +9,8 @@ import (
 // AccountKeeper manages access to accounts.
 type AccountKeeperI interface {
 	NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account
+	NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account
+	GetNextAccountNumber(ctx sdk.Context) uint64
 	GetAccount(ctx sdk.Context, addr crypto.Address) std.Account
 	GetAllAccounts(ctx sdk.Context) []std.Account
 	SetAccount(ctx sdk.Context, acc std.Account)
@@ -21,6 +23,11 @@ var _ AccountKeeperI = AccountKeeper{}
 
 // Limited interface only needed for auth.
 type BankKeeperI interface {
+	// GetCoin reads one denom without touching any other. The fee check needs
+	// it because a balance does not necessarily live in the account object —
+	// realm-issued denoms have their own keys — so it cannot be read from
+	// std.Account.
+	GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 }
