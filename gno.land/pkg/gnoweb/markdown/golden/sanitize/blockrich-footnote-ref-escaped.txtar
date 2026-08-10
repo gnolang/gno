@@ -4,6 +4,8 @@
 note [^realm-fn] here
 -- output.md --
 
+
 note \[^realm-fn\] here
+
 -- output.html --
 <p>note [^realm-fn] here</p>

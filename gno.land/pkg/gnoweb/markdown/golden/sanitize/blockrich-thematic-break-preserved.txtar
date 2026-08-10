@@ -8,11 +8,13 @@ text above
 text below
 -- output.md --
 
+
 text above
 
 ***
 
 text below
+
 -- output.html --
 <p>text above</p>
 <hr>

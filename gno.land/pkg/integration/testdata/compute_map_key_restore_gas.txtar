@@ -32,7 +32,7 @@ gnoland start
 # Tx1: cold-loads `stored` (5 entries from init() → restore path) then
 # writes 1 entry → ComputeMapKey runs on both paths in this tx.
 gnokey maketx call -pkgpath gno.land/r/demo/mapgas -func Insert -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2595329'
+stdout 'GAS USED:\s+2278329'
 
 # Tx2: fresh tx; cacheObjects is empty per-tx (BeginTransaction allocates a
 # new map), so accessing `stored` triggers loadObjectSafe →
@@ -44,7 +44,7 @@ stdout 'GAS USED:\s+2595329'
 # Store.GetMeter() routing inside ComputeMapKey would manifest exactly
 # that way.
 gnokey maketx call -pkgpath gno.land/r/demo/mapgas -func Lookup -args 7 -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-stdout 'GAS USED:\s+1861974'
+stdout 'GAS USED:\s+1614974'
 stdout '"seven" string'
 
 -- gnomod.toml --

@@ -27,14 +27,7 @@ const (
 	MaxReplyLength = 10000
 )
 
-var (
-	reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
-
-	// Minimalistic Markdown line prefix checks that if allowed would
-	// break the current UI when submitting a reply. It denies replies
-	// with headings, blockquotes or horizontal lines.
-	reDeniedReplyLinePrefixes = regexp.MustCompile(`(?m)^\s*(#|---|>)+`)
-)
+var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
 
 // SetHelp sets or updates boards realm help content.
 func SetHelp(cur realm, content string) {
@@ -438,19 +431,22 @@ func DeleteReply(cur realm, boardID, threadID, replyID boards.ID) {
 			reply.Body = "⚠ This comment has been deleted"
 			reply.UpdatedAt = time.Now()
 		} else {
-			// Remove reply from the thread
+			// Remove reply from the flat thread index.
 			meta := thread.Meta.(*ThreadMeta)
 			reply, removed := meta.AllReplies.Remove(replyID)
 			if !removed {
 				panic("reply not found")
 			}
 
-			// Remove reply from reply's parent
-			if reply.ParentID != thread.ID {
-				parent, found := meta.AllReplies.Get(reply.ParentID)
-				if found {
-					parent.Replies.Remove(replyID)
-				}
+			// Remove reply from its parent's direct-children list too. A
+			// direct thread reply's parent is the thread itself; a nested
+			// reply's parent is another reply (resolved via the flat index).
+			// Missing the thread-parent case left a ghost in thread.Replies
+			// (rendered in the threaded view, with a stale reply count).
+			if reply.ParentID == thread.ID {
+				thread.Replies.Remove(replyID)
+			} else if parent, found := meta.AllReplies.Get(reply.ParentID); found {
+				parent.Replies.Remove(replyID)
 			}
 		}
 
@@ -785,13 +781,9 @@ func assertReplyBodyIsValid(body string) {
 		panic("reply is too long, maximum allowed is " + n + " characters")
 	}
 
-	if reDeniedReplyLinePrefixes.MatchString(body) {
-		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
-	}
-
-	if strings.Contains(body, "gno-form") {
-		panic("Gno-Flavored Markdown forms are not allowed in replies")
-	}
+	// No markdown-structure or gno-form blacklist here: reply bodies
+	// render inside a <gno-foreign> sandbox (see indentForeignBody),
+	// which contains block structure and omits forms at render time.
 }
 
 func assertMembersUpdateIsEnabled(boardID boards.ID) {

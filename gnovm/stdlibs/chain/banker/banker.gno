@@ -16,6 +16,22 @@ import (
 // gno.land/pkg/integration/testdata/banker_persistence.txtar for the
 // full cross-realm capability-persistence behavior.
 //
+// SECURITY: because the struct persists and NewBanker authorizes only at
+// construction (SendCoins re-checks nothing but pkgAddr == from), minting
+// a banker is an IRREVOCABLE grant of spending authority over that
+// address. Passing a realm value to code you do not fully trust is
+// therefore equivalent to handing over that authority permanently: the
+// callee can mint a banker, keep it in a package-level var, and spend in
+// later transactions with no further involvement from you. Unlike the
+// realm value itself — which cannot be persisted (refusePersistRealmHIV)
+// and cannot be reused once stale — the banker has no expiry, no
+// revocation, and no liveness re-check. This applies with equal force to
+// sub-realm identities (cur.Sub): the sub token is ephemeral, but a
+// banker minted from it is not, so any access check your realm performs
+// before spending (a frozen flag, an allowlist, a paused switch) is
+// bypassed entirely by a retained banker, which reaches the bank keeper
+// without re-entering your code.
+//
 // Banker panics on errors instead of returning errors.
 // This also helps simplify the interface and prevent
 // hidden bugs (e.g. ignoring errors)
@@ -25,6 +41,7 @@ import (
 // (without confusion).
 type Banker interface {
 	GetCoins(addr address) (dst chain.Coins)
+	GetCoin(addr address, denom string) int64
 	SendCoins(from, to address, amt chain.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr address, denom string, amount int64)
@@ -93,6 +110,26 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
+	// rlm authorizes spending/issuing from rlm.Address(); require it to
+	// be the live cur. Without this, a callee could pass cur.Previous()
+	// (IsCurrent()==false, addr = caller) and the pkgAddr==from gate in
+	// SendCoins would then authorize draining the CALLER's balance. Live
+	// sub-tokens still pass (IsCurrent is parent-anchored for them).
+	if !rlm.IsCurrent() {
+		panic("banker can only be instantiated for the current realm")
+	}
+	// Sub-realm tokens (synthesized "host#subpath" pkgpath) may only
+	// construct RealmSend bankers: RealmIssue would mint denoms whose
+	// pkgpath component carries the "#" separator, and OriginSend's
+	// guard below is meaningless for a sub-address that never holds the
+	// origin-send envelope. Gate on bt first (an int compare) so the
+	// common Readonly/RealmSend paths skip the pkgpath split;
+	// fail-closed for any future banker type.
+	if bt != BankerTypeRealmSend {
+		if _, _, isSub := chain.SplitPkgSubPath(rlm.PkgPath()); isSub {
+			panic(bt.String() + " not supported for sub-realm tokens")
+		}
+	}
 	if bt == BankerTypeOriginSend && !rlm.Previous().IsUserCall() {
 		panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 	}
@@ -105,6 +142,7 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 
 // These are native bindings to the banker's functions.
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
+func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
 func bankerTotalCoin(bt uint8, denom string) int64
 func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
@@ -141,6 +179,17 @@ func (b banker) GetCoins(addr address) (dst chain.Coins) {
 		dst[i] = chain.Coin{denoms[i], amounts[i]}
 	}
 	return dst
+}
+
+// GetCoin returns addr's balance of a single denom.
+//
+// Prefer this to GetCoins when you want one denom: GetCoins returns every denom
+// the address holds and costs accordingly, and an address can be sent denoms it
+// never asked for (see IssueCoin), so its cost is not under your control.
+// GetCoin returns addr's balance of a single denom, reading nothing else. Returns
+// zero for a denom addr does not hold.
+func (b banker) GetCoin(addr address, denom string) int64 {
+	return bankerGetCoin(uint8(b.bt), string(addr), denom)
 }
 
 func (b banker) SendCoins(from, to address, amt chain.Coins) {

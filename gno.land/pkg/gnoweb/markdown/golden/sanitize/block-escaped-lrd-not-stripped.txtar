@@ -3,6 +3,9 @@
 -- input.md --
 [label\]: https://attacker.example.com
 -- output.md --
+
+
 \[label\]: https://attacker.example.com
+
 -- output.html --
 <p>[label]: https://attacker.example.com</p>

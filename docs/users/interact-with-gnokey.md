@@ -214,6 +214,7 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -223,6 +224,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
@@ -417,7 +419,7 @@ Now, we should have the following folder structure:
 ```
 
 In the `script.gno` file, first define the package to be `main`. Then we can import
-the Counter realm and define a `main()` function with no return values that will
+the Counter realm and define a `main(cur realm)` function with no return values that will
 be automatically detected and run. In it, we can call the `Increment()` function.
 
 ```go
@@ -425,8 +427,8 @@ package main
 
 import "gno.land/r/demo/counter"
 
-func main() {
-	println(counter.Increment(cross))
+func main(cur realm) {
+	println(counter.Increment(cross(cur)))
 }
 ```
 
@@ -821,7 +823,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
@@ -1066,6 +1068,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
 - `auth/gasprice` - returns the current minimum gas price required for transactions
 - `bank/balances/{ADDRESS}` - returns balances of an account
+- `bank/supply/{DENOM}` - returns the total supply of a denomination
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
@@ -1073,6 +1076,10 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 - `vm/qpaths` - lists all existing package paths
 - `vm/qstorage` - returns storage usage and deposit locked in a realm
+
+For JSON-structured endpoints designed for programmatic access (`vm/qeval_json`,
+`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`), see
+[Querying On-Chain State (JSON APIs)](../builders/query-state-api.md).
 
 Let's see how we can use them.
 
@@ -1114,10 +1121,32 @@ The `data` field returns a `BaseAccount`, which is the main struct used in Tende
 to hold account data. It contains the following information:
 
 - `address` - the address of the account
-- `coins` - the list of coins the account owns
+- `coins` - the gas-denom coins the account owns. This is **not** the full
+  balance: every other denom — realm-issued coins, IBC vouchers, anything but the
+  gas denom — is stored separately and appears only under `bank/balances`. Use that
+  query for a complete balance.
 - `public_key` - the TM2 public key of the account, from which the address is derived
 - `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
+
+### `bank/supply`
+
+Returns the total supply of a single denomination — how much of it exists across all
+accounts. A denomination nobody holds reports `0`, which is also what an unknown
+denomination reports.
+
+```bash
+gnokey query bank/supply/ugnot
+```
+
+A realm-issued denomination is `/{PKGPATH}:{NAME}` and contains slashes, so it follows
+the route directly rather than being escaped:
+
+```bash
+gnokey query bank/supply//gno.land/r/demo/foo:gold
+```
+
+The amount comes back as a quoted string, which is how `int64` is rendered on the wire.
 
 ### `bank/balances`
 
@@ -1255,7 +1284,7 @@ var (
 )
 
 func init(cur realm) {
-        Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
 }
 
 const (

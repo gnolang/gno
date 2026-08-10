@@ -116,9 +116,9 @@ func (m *Machine) doOpStructType() {
 	// allocate (minimum) space for fields
 	fields := make([]FieldType, 0, len(x.Fields))
 	// populate fields
-	for _, ftv := range ftvs {
+	for i, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(&ft, x.Fields[i].Type)
 		fields = append(fields, ft)
 	}
 	// push struct type
@@ -142,9 +142,11 @@ func (m *Machine) doOpInterfaceType() {
 	// pop methods
 	for i := len(x.Methods) - 1; 0 <= i; i-- {
 		ft := m.PopValue().V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
 		methods[i] = ft
 	}
+	// flatten embedded interfaces so identity is the method set, not the
+	// embedded-interface (alias) spelling; see flattenInterfaceMethods.
+	methods = flattenInterfaceMethods(methods, m.Package.PkgPath)
 	// push interface type
 	it := &InterfaceType{
 		PkgPath: m.Package.PkgPath,
@@ -159,6 +161,21 @@ func (m *Machine) doOpInterfaceType() {
 	})
 }
 
+// cachedStaticTypeOf returns the static type cached on x via ATTR_TYPEOF_VALUE,
+// unwrapping a single-result CallExpr's 1-element tuple. It returns nil when no
+// type has been cached yet; it never evaluates. Use Machine.staticTypeOfX for
+// the resolving variant.
+func cachedStaticTypeOf(x Expr) Type {
+	t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+	if !ok {
+		return nil
+	}
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
+	}
+	return t
+}
+
 // staticTypeOfX returns the static type of x. Short-circuits via
 // ATTR_TYPEOF_VALUE / *ConstExpr / *constTypeExpr when possible; otherwise
 // runs a Machine sub-evaluation (Push OpHalt, OpStaticTypeOf, Run, Reap).
@@ -166,10 +183,7 @@ func (m *Machine) doOpInterfaceType() {
 // (IndexExpr, SliceExpr, StarExpr, ...) that would otherwise re-evaluate
 // inner subexpression types whose ATTR_TYPEOF_VALUE is already cached.
 func (m *Machine) staticTypeOfX(x Expr) Type {
-	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
-		if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
-			return tt.Elts[0]
-		}
+	if t := cachedStaticTypeOf(x); t != nil {
 		return t
 	}
 	if cx, ok := x.(*ConstExpr); ok {
@@ -386,7 +400,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
+			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name)
 			m.PushValue(asValue(ft))
 		default:
 			panic(fmt.Sprintf(

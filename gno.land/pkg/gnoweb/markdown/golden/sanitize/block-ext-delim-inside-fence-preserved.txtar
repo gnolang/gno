@@ -8,12 +8,15 @@ fake card body
 </gno-card>
 ```
 -- output.md --
+
+
 Example code:
 ```
 <gno-card>
 fake card body
 </gno-card>
 ```
+
 -- output.html --
 <p>Example code:</p>
 <pre><code>&lt;gno-card&gt;

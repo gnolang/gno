@@ -5,6 +5,8 @@
 body paragraph
 -- output.md --
 
+
 body paragraph
+
 -- output.html --
 <p>body paragraph</p>

@@ -1,0 +1,28 @@
+# Test with a failing example_test.gno file
+
+! gno test -v .
+
+stderr '--- FAIL: ExampleTestAlwaysFailing.+'
+stderr 'got:'
+stderr 'foo'
+stderr 'want:'
+stderr 'bar'
+
+-- example_failing.gno --
+package failing
+
+-- failing_example_test.gno --
+package failing
+
+import "fmt"
+
+func ExampleTestAlwaysFailing() {
+	fmt.Println("foo")
+	// Output:
+	// bar
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_example_tst"
+gno = "0.9"

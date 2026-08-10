@@ -140,6 +140,19 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ordered-list", "1. item\n", "1\\. item\n"},
 		{"fence-open-autoclose", "```\nuser code\n", "```\nuser code\n```\n"},
 		{"fence-roundtrip", "```\nuser code\n```\n", "```\nuser code\n```\n"},
+		// CM §4.5: backtick fences with a backtick in the info string
+		// do NOT open. Without this check, the sanitizer thinks a fence
+		// opened and skips defenses on subsequent lines while goldmark
+		// keeps parsing block markers. Line 2 must therefore get the
+		// usual line-leader escape.
+		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
+		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
+		// Bracket walker MUST also reject the backtick-info-string
+		// "fence" — otherwise it treats lines below as opaque fence
+		// interior and skips LRD strip + bracket escape, letting an
+		// attacker smuggle realm-targeted ref-link definitions past
+		// the walker.
+		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
@@ -152,11 +165,47 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},        // case-insensitive
+		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"}, // case-insensitive
+		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
+		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
+		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
+		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
+		{"html-type1-style", "<style>x</style>\n", "\\<style>x</style>\n"},
+		{"html-type1-textarea", "<textarea>x</textarea>\n", "\\<textarea>x</textarea>\n"},
+		{"html-type1-case-insensitive", "<SCRIPT>x</SCRIPT>\n", "\\<SCRIPT>x</SCRIPT>\n"},
+		{"html-type1-self-closing", "<script/>x\n", "\\<script/>x\n"},
+		{"html-type1-bare-eol", "<script\n", "\\<script\n"},
+		{"html-type1-not-name-prefix", "<scripta>x\n", "<scripta>x\n"}, // no boundary after name
+		{"html-type2-comment", "<!-- comment -->\n", "\\<!-- comment -->\n"},
+		{"html-type2-degenerate", "<!---->\n", "\\<!---->\n"},
+		{"html-type3-pi", "<?php x ?>\n", "\\<?php x ?>\n"},
+		{"html-type4-doctype", "<!DOCTYPE html>\n", "\\<!DOCTYPE html>\n"},
+		{"html-type4-lowercase-not-matched", "<!doctype html>\n", "<!doctype html>\n"},
+		{"html-type4-bang-eol", "<!\n", "<!\n"}, // bounds-safe, no follow char
+		// Type 5 CDATA: the bracket walker (escapeBracketsOutsideLinks)
+		// runs BEFORE the per-line HTML detector, so it mangles the
+		// `[` / `]` in `<![CDATA[…]]>` to `\[` / `\]`. Goldmark's
+		// Type 5 regex (`<\!\[CDATA\[`) no longer matches the mangled
+		// form, so no Type 5 block opens — defense-in-depth via the
+		// walker, even without the new detector firing.
+		{"html-type5-cdata", "<![CDATA[x]]>\n", "<!\\[CDATA\\[x\\]\\]>\n"},
+		{"html-3-space-indent", "   <!-- x -->\n", "\\   <!-- x -->\n"},             // \ at byte 0; spaces preserved after
+		{"html-4-space-indent-not-matched", "    <!-- x -->\n", "    <!-- x -->\n"}, // 4+ = indented code
+		{"html-inline-not-matched", "paragraph <!-- inline -->\n", "paragraph <!-- inline -->\n"},
+		{"html-crlf", "<!-- x -->\r\n", "\\<!-- x -->\r\n"},        // CRLF passes through at native level (NormalizeBreaks runs in sanitize wrappers)
+		{"html-already-escaped", "\\<script>x\n", "\\<script>x\n"}, // backslash at byte 0 → no re-escape
 	}
 	for _, c := range cases {
 		if got := EscapeBlockHazards(c.in); got != c.want {
 			t.Errorf("%s: EscapeBlockHazards(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+		// Idempotency: applying EscapeBlockHazards twice must be
+		// byte-identical to applying it once.
+		if twice := EscapeBlockHazards(c.want); twice != c.want {
+			t.Errorf("%s: not idempotent: EscapeBlockHazards(want) = %q, want %q", c.name, twice, c.want)
 		}
 	}
 }
@@ -180,9 +229,14 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"thematic-break-underscore", "___\n", "___\n"},
 		{"setext-h1", "title\n===\n", "title\n===\n"},
 		{"setext-h2", "title\n---\n", "title\n---\n"},
+		// GFM tables PRESERVED in Rich mode (line-leading `|` not escaped).
+		{"gfm-table-row", "| a | b |\n", "| a | b |\n"},
+		{"gfm-table-full", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n"},
 		// Realm-binding defenses STILL ON.
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
-		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
+		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
+		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
@@ -191,12 +245,36 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"inline-link-preserved", "[t](url)\n", "[t](url)\n"},
 		{"inline-image-preserved", "![alt](src)\n", "![alt](src)\n"},
 		{"fence-open-autoclose", "```\nuser\n", "```\nuser\n```\n"},
+		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
+		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
+		// Bracket walker MUST also reject the backtick-info-string
+		// "fence" — see strict variant above for explanation.
+		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
+		// CM §4.6 HTML block types 1-5 — escaped in Rich mode too
+		// (defense is mode-independent — see escapeBlockHazardsImpl).
+		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
+		{"html-type1-case-insensitive", "<SCRIPT>x</SCRIPT>\n", "\\<SCRIPT>x</SCRIPT>\n"},
+		{"html-type1-bare-eol", "<script\n", "\\<script\n"},
+		{"html-type1-not-name-prefix", "<scripta>x\n", "<scripta>x\n"},
+		{"html-type2-comment", "<!-- comment -->\n", "\\<!-- comment -->\n"},
+		{"html-type3-pi", "<?php x ?>\n", "\\<?php x ?>\n"},
+		{"html-type4-doctype", "<!DOCTYPE html>\n", "\\<!DOCTYPE html>\n"},
+		{"html-type4-lowercase-not-matched", "<!doctype html>\n", "<!doctype html>\n"},
+		{"html-type5-cdata", "<![CDATA[x]]>\n", "<!\\[CDATA\\[x\\]\\]>\n"},
+		{"html-3-space-indent", "   <!-- x -->\n", "\\   <!-- x -->\n"},
+		{"html-4-space-indent-not-matched", "    <!-- x -->\n", "    <!-- x -->\n"},
+		{"html-inline-not-matched", "paragraph <!-- inline -->\n", "paragraph <!-- inline -->\n"},
+		{"html-already-escaped", "\\<script>x\n", "\\<script>x\n"},
 	}
 	for _, c := range cases {
 		if got := EscapeBlockHazardsRich(c.in); got != c.want {
 			t.Errorf("%s: EscapeBlockHazardsRich(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+		// Idempotency.
+		if twice := EscapeBlockHazardsRich(c.want); twice != c.want {
+			t.Errorf("%s: not idempotent: EscapeBlockHazardsRich(want) = %q, want %q", c.name, twice, c.want)
 		}
 	}
 }

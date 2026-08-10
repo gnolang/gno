@@ -44,7 +44,7 @@ gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 60
 stdout OK!
 
 # (a) test2 NOT on auth list yet: rotation must reject.
-! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test test2
 stderr 'caller is not in authorized list'
 
 # member grants test2 the authority to rotate.
@@ -52,7 +52,7 @@ gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func AddToAuthList -gas-f
 stdout OK!
 
 # (b) test2 NOW on auth list: rotation must succeed.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 20_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test test2
 stdout OK!
 
 # member revokes test2's authority.
@@ -60,7 +60,7 @@ gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -
 stdout OK!
 
 # (c) test2 again attempts a rotation; must reject post-revoke.
-! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqv78qzekzh8ysj26zgda53kngk6x9329la0vjhwp75t4ytkymfhzz46a2dz -broadcast -chainid=tendermint_test test2
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqqpjjc4fkcmrkvvkgp56xfeee0t8cmy783qwkadnjsdvp0gsdgqal0uugj -broadcast -chainid=tendermint_test test2
 stderr 'caller is not in authorized list'
 
 -- run/disable_throttle.gno --
@@ -77,7 +77,7 @@ func main(cur realm) {
 }
 
 -- loader/load_govdao.gno --
-package load_govdao
+package loader
 
 import (
 	"gno.land/r/gov/dao"

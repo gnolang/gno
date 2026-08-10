@@ -36,7 +36,7 @@ var columnTagNames = map[GnoColumnTag]string{
 	GnoColumnTagOpen:  "ColumnTagOpen",
 	GnoColumnTagClose: "ColumnTagClose",
 
-	GnoColumnTagSep: "ColumnTagSepClose",
+	GnoColumnTagSep: "ColumnTagSep",
 }
 
 // GnoColumnNode represents a semantic tree for a "column".
@@ -120,7 +120,22 @@ func parseLineTag(line []byte) GnoColumnTag {
 			return GnoColumnTagClose
 		}
 	case "gno-columns-sep":
-		if tok.Type == html.SelfClosingTagToken {
+		// Both the bare and the self-closing spelling, as documented
+		// above. The separator has no content and no end tag, so a bare
+		// `<gno-columns-sep>` is a start token — and it is the spelling
+		// every emitter in the tree actually produces (p/moul/md's
+		// Columns/ColumnsN, p/demo/blog, and hand-written pages such as
+		// r/gnoland/home).
+		//
+		// Rejecting it left the line to be parsed as a CommonMark type-7
+		// HTML block, which runs to the next blank line — so it swallowed
+		// everything up to that blank line, silently dropped whenever raw
+		// HTML is disabled, as it is by default. Usually that was the
+		// following column's first line, but when a separator is followed
+		// immediately by `</gno-columns>` (the padded-flush shape
+		// p/demo/blog emits) it ate the close tag, leaving the block open
+		// and pulling the rest of the document inside the column.
+		if tok.Type == html.SelfClosingTagToken || tok.Type == html.StartTagToken {
 			return GnoColumnTagSep
 		}
 	}
@@ -169,6 +184,11 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
+		// Cross-family nesting cap (shared with gno-foreign, gno-alert).
+		// On refusal, fall through to raw HTML so safe-mode strips it.
+		if !Push(pc) {
+			return nil, parser.NoChildren
+		}
 
 		cctx.IsOpen = true
 		cctx.OpenTag = node
@@ -180,6 +200,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		}
 
 		cctx.IsOpen = false
+		Pop(pc)
 
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
@@ -225,10 +246,13 @@ func (a *columnsASTTransformer) Transform(doc *ast.Document, reader text.Reader,
 		return
 	}
 
-	// Check for unclosed tags.
+	// Check for unclosed tags. Pop matches the Push from the
+	// orphaned GnoColumnTagOpen, keeping the cross-family depth
+	// counter balanced.
 	if cctx.IsOpen {
 		nodeCol := NewColumn(cctx, GnoColumnTagClose)
 		doc.InsertAfter(doc, doc.LastChild(), nodeCol)
+		Pop(pc)
 	}
 }
 

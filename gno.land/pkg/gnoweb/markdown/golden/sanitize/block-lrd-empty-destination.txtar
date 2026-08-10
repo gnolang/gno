@@ -5,9 +5,12 @@
 
 body
 -- output.md --
+
+
 \[label\]:
 
 body
+
 -- output.html --
 <p>[label]:</p>
 <p>body</p>

@@ -3,6 +3,9 @@
 -- input.md --
 ![alt](src.png)
 -- output.md --
+
+
 ![alt](src.png)
+
 -- output.html --
 <p><img src="src.png" alt="alt"></p>

@@ -3,6 +3,9 @@
 -- input.md --
 user wrote [click here][realm-api-ref] in their post
 -- output.md --
+
+
 user wrote \[click here\]\[realm-api-ref\] in their post
+
 -- output.html --
 <p>user wrote [click here][realm-api-ref] in their post</p>

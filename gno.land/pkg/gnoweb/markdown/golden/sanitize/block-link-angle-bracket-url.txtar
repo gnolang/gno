@@ -3,6 +3,9 @@
 -- input.md --
 [text](</url with spaces>)
 -- output.md --
+
+
 [text](</url with spaces>)
+
 -- output.html --
 <p><a href="/url%20with%20spaces">text</a></p>

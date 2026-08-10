@@ -103,6 +103,25 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			errContains("cannot use 11"),
 		},
 		{
+			"BlankFuncsAllChecked",
+			&std.MemPackage{
+				Type: MPUserProd,
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							func _() { var x int = "a"; _ = x }
+							func _() { var y string = 1; _ = y }`,
+					},
+				},
+			},
+			nil,
+			errContains(`cannot use "a"`, "cannot use 1"),
+		},
+		{
 			"ParseError",
 			&std.MemPackage{
 				Type: MPUserProd,
@@ -375,7 +394,6 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	})
 
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -439,4 +457,39 @@ func TestTypeCheckMemPackage_format(t *testing.T) {
 		assert.NotEqual(t, input, pkg.Files[0].Body)
 		assert.Equal(t, expected, pkg.Files[0].Body)
 	*/
+}
+
+// TestTypeCheckMemPackage_GoVersionPinned locks in the pinned Config.GoVersion
+// (gotypecheck.go). Without the pin, the accept/reject verdict for a
+// version-gated construct depends on the validator binary's go/types version —
+// a consensus fork. A go1.22 feature (range-over-int) must be rejected
+// regardless of the toolchain gno is built with. A loop whose body closes over
+// the loop variable is valid syntax at every Go version and must stay accepted:
+// its go1.22 per-iteration semantics live in the interpreter, not in this gate.
+func TestTypeCheckMemPackage_GoVersionPinned(t *testing.T) {
+	t.Parallel()
+
+	rangeOverInt := &std.MemPackage{
+		Type:  MPUserProd,
+		Name:  "rint",
+		Path:  "gno.land/p/demo/rint",
+		Files: []*std.MemFile{{Name: "rint.gno", Body: "package rint\nfunc F() { for range 10 {} }\n"}},
+	}
+	_, err := TypeCheckMemPackage(rangeOverInt, TypeCheckOptions{Mode: TCLatestRelaxed})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "go1.22",
+		"range-over-int must be rejected by the pinned GoVersion, not silently accepted")
+
+	loopClosure := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "lc",
+		Path: "gno.land/p/demo/lc",
+		Files: []*std.MemFile{{Name: "lc.gno", Body: "package lc\n" +
+			"func F() (fns []func() int) {\n" +
+			"\tfor _, v := range []int{1, 2} {\n" +
+			"\t\tfns = append(fns, func() int { return v })\n" +
+			"\t}\n\treturn\n}\n"}},
+	}
+	_, err = TypeCheckMemPackage(loopClosure, TypeCheckOptions{Mode: TCLatestRelaxed})
+	assert.NoError(t, err, "loop-closure syntax must remain accepted under the pin")
 }
