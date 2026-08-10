@@ -382,13 +382,17 @@ per crossing frame, refuses to persist it, and validates each use.
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` is the authentication primitive. Any public entry
-point that uses `cur` to derive caller identity (e.g.
-`cur.Previous().Address()`) **must** check `cur.IsCurrent()` first.
-Without that check, a stale or attacker-supplied realm value's
-`Address()` and `PkgPath()` still resolve numerically — they just
-no longer refer to the live caller. This is class **2
-(designation-forgery)** in `gno-security.md`.
+`IsCurrent()` is the authentication primitive for realm values a
+function is *handed*: a secondary `rlm realm` parameter (`func H(_
+int, rlm realm)`, or a crossing function's extra realm argument)
+must be checked with `rlm.IsCurrent()` before `Previous()` /
+`Address()` / `PkgPath()` is trusted. Without that check, a stale or
+attacker-supplied realm value's `Address()` and `PkgPath()` still
+resolve numerically — they just no longer refer to the live caller.
+This is class **2 (designation-forgery)** in `gno-security.md`. The
+first `cur` of a crossing function is minted per-frame by the
+runtime and is always current — checking it is redundant (see
+`gnovm/tests/files/zrealm_iscurrent.gno`).
 
 ### 5.3 Realm values are ephemeral
 
@@ -676,8 +680,10 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take `cur realm`? If yes, does it check `cur.IsCurrent()`
-  before using `cur.Previous()`, `cur.Address()`, or `cur.PkgPath()`?
+- Does it take a realm parameter beyond the first `cur`? The first
+  `cur realm` is guaranteed current by the runtime; any secondary
+  `rlm realm` must be checked with `rlm.IsCurrent()` before
+  `rlm.Previous()`, `rlm.Address()`, or `rlm.PkgPath()` is used.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.

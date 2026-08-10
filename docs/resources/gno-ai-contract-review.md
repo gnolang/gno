@@ -23,12 +23,17 @@ func AdminAction(cur realm) {
 ```
 
 The first `cur realm` of a crossing function is guaranteed current by the runtime,
-so an `IsCurrent()` check on it is dead code. The check is load-bearing only on a
-secondary realm parameter of a non-crossing helper, which any caller can fill with
-a stored or forwarded realm value:
+so an `IsCurrent()` check on it is dead code (see `gnovm/adr/interrealm_v2.md` and
+the filetest `gnovm/tests/files/zrealm_iscurrent.gno`). The check is load-bearing
+on every realm value a function is handed other than that first `cur`: a secondary
+`rlm realm` parameter — on a non-crossing helper, or alongside a crossing
+function's own `cur` — can be filled with a forwarded or derived realm value,
+typically `cur.Previous()`:
 
 ```go
-// Non-crossing helper receiving the acting realm as a plain value
+// Non-crossing helper receiving the acting realm as a plain value.
+// `_ int` keeps `rlm` out of first position — a realm-typed first
+// parameter would make this a crossing function.
 func helper(_ int, rlm realm) {
     if !rlm.IsCurrent() { panic("rlm is not the current realm") }
     addr := rlm.Previous().Address()
@@ -36,11 +41,17 @@ func helper(_ int, rlm realm) {
 }
 ```
 
+Passing a realm value is also a capability transfer, not just an identity claim:
+the callee can mint `banker.NewBanker(banker.BankerTypeRealmSend, rlm)` and retain
+it across transactions (see the SECURITY note in
+`gnovm/stdlibs/chain/banker/banker.gno`). Only hand a realm value to code you
+would trust with permanent spend authority over your realm's address.
+
 ### 2. Payment guards — `IsUserCall()`, not `IsUser()`
 
 ```go
 // WRONG: MsgRun ephemeral realms pass IsUser()
-if !IsUser() { panic("not a user") }
+if !cur.Previous().IsUser() { panic("not a user") }
 
 // RIGHT
 if !cur.Previous().IsUserCall() { panic("not a direct user call") }
@@ -59,8 +70,8 @@ func GetBalance() int { return gAccount.balance }
 ### 4. No caller-supplied callbacks invoked with realm authority
 
 ```go
-// WRONG: if fn is a top-level /p/-declared function, it inherits
-// the caller's m.Realm and can write to your state
+// WRONG: a top-level /p/-declared fn triggers no borrow rule, so your
+// realm's m.Realm stays in effect for its body and it can write your state
 func ApplyHook(fn func()) { fn() }
 
 // RIGHT: type the callback with your own /r/-declared type so
@@ -72,12 +83,14 @@ func ApplyHook(fn func(*MyState)) { fn(gState) }
 
 ```go
 // WRONG: Evil{Teller} embedding bypasses interface checks
-func DoBanking(t grc20.Teller) { t.Transfer(...) }
+func DoBanking(cur realm, t grc20.Teller, to address, amount int64) {
+    t.Transfer(0, cur, to, amount)   // who is t? could be Evil{Teller}
+}
 
 // RIGHT: assert the concrete type before dispatch
-func DoBanking(t grc20.Teller) {
+func DoBanking(cur realm, t grc20.Teller, to address, amount int64) {
     if !grc20.IsCanonicalTeller(t) { panic("not a canonical Teller") }
-    t.Transfer(...)
+    t.Transfer(0, cur, to, amount)
 }
 ```
 
@@ -86,8 +99,9 @@ func DoBanking(t grc20.Teller) {
 `realm` values are ephemeral — store `Address()` or `PkgPath()` strings instead.
 
 ```go
-// WRONG: panics at attach time
+// WRONG: panics when the value is attached, or at finalize
 var savedRealm realm
+func Save(cur realm) { savedRealm = cur }
 
 // RIGHT
 var savedAddr address
@@ -117,7 +131,8 @@ var store = avl.NewTree()
 func GetStore() *avl.Tree { return store }
 
 // RIGHT: never return the tree pointer. Expose only what you control.
-func GetValue(key string) (any, bool) { return store.Get(key) }
+func GetValue(key string) any  { return store.Get(key) }
+func HasValue(key string) bool { return store.Has(key) }
 ```
 
 The rule: **any exported method on a `/p/` type that writes to its receiver is a
@@ -157,7 +172,7 @@ that a runtime-current `cur realm` provides. It should never appear alongside a
 `cur realm` parameter.
 
 ```go
-// WRONG: cur is accepted but ignored; no IsCurrent() guard
+// WRONG: cur is accepted but ignored; identity comes from a stack walk
 import "chain/runtime/unsafe"
 func Set(cur realm, key, value string) {
     caller := unsafe.PreviousRealm().Address()
@@ -171,7 +186,16 @@ func Set(cur realm, key, value string) {
 }
 ```
 
-Flag any import of `chain/runtime/unsafe` in a realm that also has `cur realm` parameters.
+Inside a crossing function the two calls return the same realm, so this shape is
+a greppability defect rather than an exploit. The exploitable shape is a
+non-crossing helper: there `unsafe.PreviousRealm()` returns whichever realm was
+outermost-crossing in the chain, not the immediate caller, so
+`unsafe.PreviousRealm().PkgPath() == "gno.land/r/admin"` is an authentication
+bypass. Accept `_ int, rlm realm` and check `rlm.IsCurrent()` instead (case 1).
+
+Flag any import of `chain/runtime/unsafe` in a realm that also has `cur realm`
+parameters, and any `unsafe.PreviousRealm()`-based authentication in a
+non-crossing function.
 
 ### 10. Unsanitized user input in `Render`
 
@@ -188,16 +212,19 @@ func Render(path string) string {
 // ALSO WRONG: table cell content not escaped
 b.WriteString("| " + key + " | " + val + " |\n")  // | in key breaks table
 
-// RIGHT: escape pipe characters at minimum; use sanitize.InlineText for
-// full inline markdown escaping
+// RIGHT: TableCell for table cells — it adds `|` escaping on top of
+// InlineText, which leaves `|` literal by design. InlineText is for
+// headings and other inline text.
 import "gno.land/p/nt/markdown/sanitize/v0"
-b.WriteString("| " + sanitize.InlineText(key) + " | " + sanitize.InlineText(val) + " |\n")
+return "# Vault: " + sanitize.InlineText(path) + "\n"
+b.WriteString("| " + sanitize.TableCell(key) + " | " + sanitize.TableCell(val) + " |\n")
 ```
 
 ### 11. `GetCoins` to read one balance — attacker-influenced cost
 
-Any realm can mint an arbitrary denom to any address without the holder's consent, and
-nothing bounds how many distinct denoms an address accumulates. `banker.GetCoins(addr)`
+Any realm can mint denoms in its own namespace (`/<pkgpath>:<base>`) to any address
+without the holder's consent, and since anyone can deploy a realm, nothing bounds
+how many distinct denoms an address accumulates. `banker.GetCoins(addr)`
 reads every one of them, so its cost is set by whoever last sent that address a coin —
 not by the realm. When `addr` comes from the caller, a third party can make the function
 run out of gas, permanently.
@@ -249,17 +276,18 @@ Two cases where the swap is **wrong**, both found by making it:
 ## Review Checklist
 
 - [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
-- [ ] Non-crossing helpers taking a realm parameter call `rlm.IsCurrent()` before trusting it
+- [ ] Every realm value other than the frame's own first `cur` — any secondary `rlm realm` parameter, in a helper or in a crossing function — is checked with `rlm.IsCurrent()` before `Previous()`/`Address()`/`PkgPath()` is trusted
+- [ ] No realm value is passed to code outside this realm's trust boundary (the callee can mint and retain a `banker.NewBanker(BankerTypeRealmSend, rlm)` — permanent spend authority)
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state
 - [ ] No exported function returns a `/p/`-type pointer whose type has mutation methods
 - [ ] No exported `/p/`-struct field is itself a pointer to a type with mutation methods
-- [ ] No method accepts a `func(...)` callback with a `/p/`-typed parameter and invokes it
+- [ ] No exported function or method invokes a caller-supplied function or interface value (including a bare `func()`) while holding its own realm authority
 - [ ] Interface parameters from external callers are guarded with canonical-type asserts
 - [ ] No `realm`-typed value in package-level vars, struct fields, or closure captures
 - [ ] `/p/`-type fields with callback iterators are unexported
-- [ ] Data types holding sensitive state are declared in this realm (`/r/`), not in shared `/p/`
+- [ ] Data types holding sensitive state are declared in this realm (`/r/`), not in shared `/p/` (see [`gno-security-guide.md`](./gno-security-guide.md), author checklist)
 - [ ] `Render` sanitizes path segments, keys, and user-supplied values before writing to output
 - [ ] Single-denom balance checks use `GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)` — unless the denom is unvalidated caller input or the full set is already read (case 11)
 
@@ -271,8 +299,9 @@ Two cases where the swap is **wrong**, both found by making it:
 |----------|---------|
 | [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, borrow rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
-| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
+| [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) | Current cross-realm call mechanics (`cur realm`, `IsCurrent()`, sub-realms) |
+| [`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md) | The v2 spec and the three borrow rules |
 | [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |
-| `misc/audit-pattern-harness/` | Automated pattern detection tooling with sanitized fixtures |
+| `gnovm/tests/files/zrealm_launder_*.gno` | Exploit-attempt filetest corpus, each annotated with the attack mechanism and outcome |
 
 This guide distills the above into the shortest checklist that catches the most critical issues.
