@@ -664,6 +664,7 @@ available queries:
 - `auth/accounts/{ADDRESS}/sessions` - the [session](#session) accounts of an address
 - `auth/gasprice` - the current minimum gas price for transactions
 - `bank/balances/{ADDRESS}` - account balances
+- `bank/supply/{DENOM}` - the total supply of a denomination
 - `params/{MODULE}:{SUBMODULE}:{NAME}` - a module parameter, e.g.
   `params/vm:gno.land/r/myrealm:foo`
 - `vm/qfuncs` - the exported functions of a realm
@@ -709,7 +710,9 @@ In `data`, the `BaseAccount` object is the TM2 struct for account data, and
 gno.land adds an `attributes` field next to it:
 
 - `address` - the account's address
-- `coins` - the coins the account owns
+- `coins` - the gas-denom coins the account owns, not the full balance:
+  every other denom lives in its own keys and shows up only under
+  [`bank/balances`](#bankbalances)
 - `public_key` - the TM2 public key the address derives from
 - `account_number` - a unique identifier for the account on chain
 - `sequence` - a nonce, used to protect against replay attacks
@@ -728,6 +731,29 @@ gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote http
 height: 0
 data: "227984898927ugnot"
 ```
+
+### `bank/supply`
+
+Returns how much of a denomination exists across all accounts. A denomination
+nobody holds reads `0`, and so does an unknown one:
+
+```bash
+gnokey query bank/supply/ugnot -remote https://rpc.gno.land:443
+```
+
+A realm-issued denomination is `/{PKGPATH}:{NAME}` and carries its own slashes,
+so it goes straight into the path:
+
+```bash
+gnokey query bank/supply//gno.land/r/demo/foo:gold -remote https://rpc.gno.land:443
+```
+
+```console
+height: 0
+data: "1000000"
+```
+
+The amount comes back quoted, which is how `int64` renders on the wire.
 
 ### `auth/gasprice`
 

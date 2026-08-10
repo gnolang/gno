@@ -268,15 +268,13 @@ Pick a target network now and use it consistently. The faucet's
 network dropdown and every `gnokey` command's `-remote` and
 `-chainid` flags must match:
 
-| Network    | `-chainid` | `-remote`                                              |
-|------------|------------|--------------------------------------------------------|
-| Local      | `dev`      | `http://localhost:26657`                               |
-| Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
-| Testnet    | `testN`    | `https://`​`rpc.<testN>.testnets.gno.land:443`            |
+| Network    | `-chainid`   | `-remote`                                     |
+|------------|--------------|-----------------------------------------------|
+| Local      | `dev`        | `http://localhost:26657`                      |
+| Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
+| Testnet    | `sapphire-1` | `https://rpc.sapphire.testnets.gno.land:443`  |
 
-Replace `testN` with the current testnet chainid. See
-[Networks](../resources/gnoland-networks.md) for the live list,
-including mainnet status.
+Sapphire is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list, including mainnet status.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
@@ -358,7 +356,7 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://<testN>.testnets.gno.land/r/...` instead.
+testnet the URL is `https://sapphire.testnets.gno.land/r/...` instead.
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
