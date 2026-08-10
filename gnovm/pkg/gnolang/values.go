@@ -1019,13 +1019,12 @@ func (mv *MapValue) rebuildVmap(gm types.GasMeter, store Store) {
 // checkVmap guards the loadObjectSafe/rebuildVmap invariant: a nil vmap
 // on a non-empty map means a decoded MapValue reached runtime without
 // rebuildVmap (e.g. it appeared nested in a loaded object, which the
-// persistence model is supposed to make impossible). A nil vmap would
-// otherwise fail silently — every lookup misses.
+// persistence model is supposed to make impossible). A nil vmap fails
+// silently otherwise — every lookup misses — so this stays unconditional
+// (O(1), unlike the debugAssert-gated checks, which do real work).
 func (mv *MapValue) checkVmap() {
-	if debugAssert {
-		if mv.vmap == nil && mv.List != nil && mv.List.Size > 0 {
-			panic("should not happen: MapValue.vmap missing; decoded maps are rebuilt in loadObjectSafe")
-		}
+	if mv.vmap == nil && mv.List != nil && mv.List.Size > 0 {
+		panic("should not happen: MapValue.vmap missing; decoded maps are rebuilt in loadObjectSafe")
 	}
 }
 
