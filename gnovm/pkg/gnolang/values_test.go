@@ -399,15 +399,15 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 }
 
-// TestFillTypesOfValue_MapRestoreGas asserts the restore-path half of
-// ComputeMapKey's gas contract: rebuilding a loaded map's vmap
-// (loadObjectSafe → fillTypesOfValue) charges the meter it is given,
-// per entry, symmetrically with the VM-runtime write path (which passes
+// TestMapValue_RebuildVmapGas asserts the restore-path half of
+// ComputeMapKey's gas contract: rebuilding a decoded map's vmap
+// (loadObjectSafe → rebuildVmap) charges the meter it is given, per
+// entry, symmetrically with the VM-runtime write path (which passes
 // m.GasMeter). A regression that stops charging the rebuild would fail
 // here at unit-test speed. The one line this cannot see — loadObjectSafe
 // passing ds.gasMeter rather than nil — is pinned end-to-end by the
 // compute_map_key_restore_gas txtar.
-func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
+func TestMapValue_RebuildVmapGas(t *testing.T) {
 	const n = 5
 	ds := NewStore(NewAllocator(1<<30), nil, nil)
 
@@ -427,7 +427,7 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 	// top; lower-bounding avoids pinning exact byte counts).
 	gm := storetypes.NewGasMeter(1 << 30)
 	mv := newDecodedMap()
-	fillTypesOfValue(gm, ds, mv)
+	mv.rebuildVmap(gm, ds)
 	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
 	restoreGas := gm.GasConsumed()
 	require.GreaterOrEqual(t, restoreGas, int64(n*OpCPUComputeMapKey),
@@ -448,6 +448,6 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 
 	// nil meter (genesis, tools): must not panic and must still rebuild.
 	mv2 := newDecodedMap()
-	fillTypesOfValue(nil, ds, mv2)
+	mv2.rebuildVmap(nil, ds)
 	require.Len(t, mv2.vmap, n)
 }

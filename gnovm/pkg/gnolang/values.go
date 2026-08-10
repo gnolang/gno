@@ -1001,6 +1001,34 @@ func (mv *MapValue) MakeMap() {
 	mv.vmap = make(map[MapKey]*MapListItem)
 }
 
+// rebuildVmap reconstructs mv.vmap from mv.List after amino decode,
+// charging gm per key for ComputeMapKey (the restore-path half of the
+// map-key gas contract; the write path charges via m.GasMeter). Called
+// from loadObjectSafe, the only place decoded maps materialize.
+func (mv *MapValue) rebuildVmap(gm types.GasMeter, store Store) {
+	mv.vmap = make(map[MapKey]*MapListItem, mv.List.Size)
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		fillValueTV(store, &cur.Key)
+		mk, isNaN := cur.Key.ComputeMapKey(gm, store, false)
+		if !isNaN {
+			mv.vmap[mk] = cur
+		}
+	}
+}
+
+// checkVmap guards the loadObjectSafe/rebuildVmap invariant: a nil vmap
+// on a non-empty map means a decoded MapValue reached runtime without
+// rebuildVmap (e.g. it appeared nested in a loaded object, which the
+// persistence model is supposed to make impossible). A nil vmap would
+// otherwise fail silently — every lookup misses.
+func (mv *MapValue) checkVmap() {
+	if debug {
+		if mv.vmap == nil && mv.List != nil && mv.List.Size > 0 {
+			panic("should not happen: MapValue.vmap missing; decoded maps are rebuilt in loadObjectSafe")
+		}
+	}
+}
+
 func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
@@ -1008,6 +1036,7 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, gm types.GasMeter, store Store, key TypedValue) PointerValue {
+	mv.checkVmap()
 	// If NaN, instead of computing map key, just append to List.
 	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if !isNaN {
@@ -1036,6 +1065,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, gm types.GasMeter, store 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(gm types.GasMeter, store Store, key *TypedValue) (val TypedValue, ok bool) {
+	mv.checkVmap()
 	// If key is NaN, return default
 	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
@@ -1053,6 +1083,7 @@ func (mv *MapValue) GetValueForKey(gm types.GasMeter, store Store, key *TypedVal
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
 func (mv *MapValue) DeleteForKey(gm types.GasMeter, store Store, key *TypedValue) (deletedKey *TypedValue) {
+	mv.checkVmap()
 	// if key is NaN, do nothing.
 	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {

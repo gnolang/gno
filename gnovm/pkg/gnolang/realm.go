@@ -15,7 +15,6 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 /*
@@ -1880,14 +1879,14 @@ func fillType(store Store, typ Type) Type {
 	}
 }
 
-func fillTypesTV(gm types.GasMeter, store Store, tv *TypedValue) {
+func fillTypesTV(store Store, tv *TypedValue) {
 	tv.T = fillType(store, tv.T)
-	tv.V = fillTypesOfValue(gm, store, tv.V)
+	tv.V = fillTypesOfValue(store, tv.V)
 }
 
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
-func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
+func fillTypesOfValue(store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1902,25 +1901,25 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	case PointerValue:
 		if cv.Base != nil {
 			// cv.Base is object.
-			// fillTypesOfValue(gm, store, cv.Base) (wrong)
+			// fillTypesOfValue(store, cv.Base) (wrong)
 			return cv
 		} else {
-			fillTypesTV(gm, store, cv.TV)
+			fillTypesTV(store, cv.TV)
 			return cv
 		}
 	case *ArrayValue:
 		for i := range cv.List {
 			ctv := &cv.List[i]
-			fillTypesTV(gm, store, ctv)
+			fillTypesTV(store, ctv)
 		}
 		return cv
 	case *SliceValue:
-		fillTypesOfValue(gm, store, cv.Base)
+		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
 		for i := range cv.Fields {
 			ctv := &cv.Fields[i]
-			fillTypesTV(gm, store, ctv)
+			fillTypesTV(store, ctv)
 		}
 		return cv
 	case *FuncValue:
@@ -1928,39 +1927,37 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 		return cv
 	case *BoundMethodValue:
 		if cv.Func != nil { // nil for a lazy interface bind
-			fillTypesOfValue(gm, store, cv.Func)
+			fillTypesOfValue(store, cv.Func)
 		}
-		fillTypesTV(gm, store, &cv.Receiver)
+		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
-		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
+		// vmap is NOT rebuilt here: a decoded *MapValue only ever
+		// appears as the loaded object itself, never nested (nested
+		// maps persist as separate objects behind RefValues), so
+		// loadObjectSafe rebuilds it — with restore-path gas — via
+		// MapValue.rebuildVmap right after this walk.
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			fillTypesTV(gm, store, &cur.Key)
-			fillTypesTV(gm, store, &cur.Value)
-
-			fillValueTV(store, &cur.Key)
-			mk, isNaN := cur.Key.ComputeMapKey(gm, store, false)
-			if !isNaN {
-				cv.vmap[mk] = cur
-			}
+			fillTypesTV(store, &cur.Key)
+			fillTypesTV(store, &cur.Value)
 		}
 		return cv
 	case TypeValue:
 		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *PackageValue:
-		fillTypesOfValue(gm, store, cv.Block)
+		fillTypesOfValue(store, cv.Block)
 		return cv
 	case *Block:
 		for i := range cv.Values {
 			ctv := &cv.Values[i]
-			fillTypesTV(gm, store, ctv)
+			fillTypesTV(store, ctv)
 		}
 		return cv
 	case RefValue: // do nothing
 		return cv
 	case *HeapItemValue:
-		fillTypesTV(gm, store, &cv.Value)
+		fillTypesTV(store, &cv.Value)
 		return cv
 	default:
 		panic(fmt.Sprintf(
