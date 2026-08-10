@@ -3,15 +3,14 @@ package launderrh_conv_val_pun
 
 // CONVERSION VECTOR (struct value, not pointer):
 // Convert a foreign /p/-typed VALUE (not pointer) to a parallel
-// /p/-type. Even if Case 1 allows the conversion when source IS a
-// pure local copy (no taint), this attack relies on aliasing — which
-// a value copy breaks anyway. But what if the value retains taint
-// (which we saw in conv_val_then_addr)? Then Case 1 fires.
+// /p/-type.
 //
-// This test exercises the Tamper-conversion on a VALUE retrieved
-// from victim's slice (no pointer aliasing). Even if conversion is
-// allowed, the local Tamper value's Set would only mutate the local
-// copy. We test both outcomes.
+// Post-#5747: the value-copy out of victim's slice produces a fresh
+// realm-local struct. The conversion to Tamper succeeds (no aliasing
+// to victim), and the local Set mutates only the local copy —
+// victim's slice is unchanged. The defense against actual hijacks
+// (aliased pointer conversion) lives in the doOpConvert path and is
+// exercised by conv_val_then_addr.
 
 import (
 	"gno.land/p/demo/tests/launderattack"
@@ -27,5 +26,6 @@ func main(cur realm) {
 	println("victim slice[0]:", launderrvictim.ReadBareSlice0())
 }
 
-// Error:
-// illegal conversion of readonly or externally stored value
+// Output:
+// local tv.Field: local-pwnd
+// victim slice[0]: slice0

@@ -124,7 +124,9 @@ print(f"  inflated {n_lines} lines across {n_files} files")
 PYEOF
 
 echo "Step 2: Running integration tests with inflated values..."
-INMEMORY_TS=true go test -v -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1 > "$OUTPUT" 2>&1 || true
+# SEQ_TS: the Step 4 parser attributes GAS lines to the last '=== RUN' seen,
+# so the -v output must not be interleaved by parallel subtests.
+SEQ_TS=true go test -v -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1 > "$OUTPUT" 2>&1 || true
 
 echo "Step 3: Restoring testdata from snapshot..."
 rsync -a --delete "$SNAPSHOT_DIR/" "$TESTDATA/"
@@ -318,9 +320,9 @@ if unmatched:
 PYEOF
 
 echo "Step 5: Running UPDATE_SCRIPTS=true to refresh cmp golden files..."
-INMEMORY_TS=true UPDATE_SCRIPTS=true go test -v -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1 > /dev/null 2>&1 || true
+SEQ_TS=true UPDATE_SCRIPTS=true go test -v -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1 > /dev/null 2>&1 || true
 
 echo "Step 6: Verifying all tests pass..."
-INMEMORY_TS=true go test -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1
+go test -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1
 
 echo "Done!"

@@ -3,9 +3,22 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
+
+// maxForeignBlocksPerConvert caps the number of <gno-foreign> blocks a
+// single markdown render admits (the gnoweb renderer drops openers
+// beyond it). Single source of truth: the gnoweb foreign renderer reads
+// it via MaxForeignBlocksPerConvert, and realms read the same value
+// from gno via the native of the same name.
+const maxForeignBlocksPerConvert = 256
+
+// MaxForeignBlocksPerConvert returns maxForeignBlocksPerConvert. It
+// backs the gno native of the same name (callable from realms) and is
+// also the Go accessor the gnoweb foreign renderer uses.
+func MaxForeignBlocksPerConvert() int { return maxForeignBlocksPerConvert }
 
 // ---------- StripBidiAndZeroWidth ----------
 
@@ -210,10 +223,7 @@ func CodeFence(content string, minCount int) string {
 			cur = 0
 		}
 	}
-	n := longest + 1
-	if n < minCount {
-		n = minCount
-	}
+	n := max(longest+1, minCount)
 	out := make([]byte, n)
 	for i := range out {
 		out[i] = '`'
@@ -737,10 +747,8 @@ func isCloseFence(line string, fenceChar byte, fenceLen int) bool {
 // Byte-level (not rune-level) — required for UTF-8 lead-byte fast paths.
 func containsAnyByte(s string, bs ...byte) bool {
 	for i := 0; i < len(s); i++ {
-		for _, b := range bs {
-			if s[i] == b {
-				return true
-			}
+		if slices.Contains(bs, s[i]) {
+			return true
 		}
 	}
 	return false

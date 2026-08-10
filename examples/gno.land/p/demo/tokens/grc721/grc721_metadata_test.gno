@@ -37,14 +37,11 @@ func TestSetMetadata(cur realm, t *testing.T) {
 	animationURL := "test"
 	youtubeURL := "test"
 
-	// Set the original caller to addr1
-	testing.SetOriginCaller(addr1) // addr1
-
 	// Mint a new token for addr1
 	dummy.mint(addr1, TokenID("1"))
 
-	// Set metadata for token 1
-	derr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+	// Set metadata for token 1 as its owner (addr1)
+	derr := dummy.SetTokenMetadata(addr1, TokenID("1"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
@@ -59,8 +56,8 @@ func TestSetMetadata(cur realm, t *testing.T) {
 	// Check if there was an error setting metadata
 	uassert.NoError(t, derr, "Should not result in error")
 
-	// Test case: Invalid token ID
-	err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
+	// Test case: invalid token ID. Setting metadata for a non-existent token fails.
+	err := dummy.SetTokenMetadata(addr1, TokenID("3"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
@@ -72,14 +69,10 @@ func TestSetMetadata(cur realm, t *testing.T) {
 		YoutubeURL:      youtubeURL,
 	})
 
-	// Check if the error returned matches the expected error
 	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
-	// Set the original caller to addr2
-	testing.SetOriginCaller(addr2) // addr2
-
-	// Try to set metadata for token 1 from addr2 (should fail)
-	cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+	// Test case: caller is not the owner. Setting metadata from a non-owner (addr2) fails.
+	cerr := dummy.SetTokenMetadata(addr2, TokenID("1"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
@@ -91,11 +84,7 @@ func TestSetMetadata(cur realm, t *testing.T) {
 		YoutubeURL:      youtubeURL,
 	})
 
-	// Check if the error returned matches the expected error
 	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
-
-	// Set the original caller back to addr1
-	testing.SetOriginCaller(addr1) // addr1
 
 	// Retrieve metadata for token 1
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))

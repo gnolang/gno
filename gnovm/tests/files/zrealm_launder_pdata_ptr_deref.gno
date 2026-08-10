@@ -3,15 +3,12 @@ package launderpdata_p
 
 // /p/-source coverage: pointer-deref of a /p/-global from a /r/-realm.
 //
-// Companion to zrealm_launder_pdata_value_copy.gno but exercising the
-// "deferred copy via pointer indirection" path: take address of a
-// /p/-global, dereference in the /r/-frame to obtain a local copy,
-// and try to mutate.
-//
-// Empirically the readonly check fires here too — same outcome as
-// the value-read variant. The /p/-source bytes are not adoptable
-// into /r/-authority via direct deref. The protection layer sits
-// below the Copy gate.
+// Post-#5747: dereferencing the pointer produces a fresh local
+// struct copy owned by the executing realm. The local mutation
+// succeeds and has no effect on the /p/-global. Direct writes
+// *through* a /p/-stamped pointer (e.g. `p.Field = x` instead of
+// `(*p).Field = x` on a deref-copy) remain blocked by the
+// /p/-immutability gate.
 
 import (
 	"gno.land/p/demo/tests/launderpkg"
@@ -24,5 +21,5 @@ func main(cur realm) {
 	println(stolen.Field)
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): stolen<VPBlock(1,2)>.Field
+// Output:
+// pwnd-via-pdata-ptr-launder

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"path/filepath"
 	"time"
 )
 
@@ -11,6 +12,9 @@ var (
 	ErrInvalidSendRate             = errors.New("invalid packet send rate")
 	ErrInvalidReceiveRate          = errors.New("invalid packet receive rate")
 )
+
+// defaultAddrBookPath is the default relative path for the persisted peer address book
+var defaultAddrBookPath = "config/addrbook.json"
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {
@@ -51,6 +55,10 @@ type P2PConfig struct {
 
 	// Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 	PrivatePeerIDs string `json:"private_peer_ids" toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
+
+	// Path to the address book file used to persist discovered peers across restarts.
+	// When empty, a default path relative to the root directory is used.
+	AddrBook string `json:"addr_book_file" toml:"addr_book_file" comment:"Path to the address book file used to persist discovered peers across restarts"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -65,6 +73,7 @@ func DefaultP2PConfig() *P2PConfig {
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
 		PeerExchange:            true,
+		AddrBook:                defaultAddrBookPath,
 	}
 }
 
@@ -88,4 +97,20 @@ func (cfg *P2PConfig) ValidateBasic() error {
 	}
 
 	return nil
+}
+
+// AddrBookFile returns the absolute path to the address book file.
+// When AddrBook is a relative path, it is resolved against RootDir.
+// When AddrBook is empty, the default path is used.
+func (cfg *P2PConfig) AddrBookFile() string {
+	path := cfg.AddrBook
+	if path == "" {
+		path = defaultAddrBookPath
+	}
+
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(cfg.RootDir, path)
 }

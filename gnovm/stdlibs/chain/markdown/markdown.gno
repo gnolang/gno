@@ -119,3 +119,12 @@ func EscapeBlockHazards(s string) string // injected
 //
 // INTERNAL. Used by p/nt/md/sanitize.BlockRich.
 func EscapeBlockHazardsRich(s string) string // injected
+
+// MaxForeignBlocksPerConvert is gnoweb's per-render cap on the number
+// of <gno-foreign> sandbox blocks a single markdown render will admit.
+// Beyond it, later openers fall through to raw HTML and are dropped by
+// safe mode. A realm that emits many foreign blocks (e.g. one per
+// comment) should keep its rendered total under this so content is not
+// silently dropped. This is the single source of truth: the gnoweb
+// foreign renderer enforces the same value.
+func MaxForeignBlocksPerConvert() int // injected

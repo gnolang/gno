@@ -2,6 +2,7 @@
 .DS_Store
 .vscode
 .idea
+CLAUDE.local.md
 
 # Default node data
 gnoland-data
@@ -53,3 +54,8 @@ node_modules/
 
 # Local docs preview (docs/Makefile `preview`)
 /docs/.preview/
+
+# Node runtime artifacts the integration test harness writes at the repo
+# root (e.g. config/addrbook.json). Root-anchored so nested config/
+# package directories are never hidden.
+/config/

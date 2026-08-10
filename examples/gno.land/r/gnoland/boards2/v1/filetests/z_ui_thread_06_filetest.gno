@@ -45,7 +45,13 @@ func main() {
 // ## Bar
 //
 // **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Body2
+// </gno-foreign>
+//
+//
 //
 // > ⚠ Source post has been flagged as inappropriate
 //

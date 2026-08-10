@@ -49,11 +49,13 @@ To add your validator node to the registry, use the [**Register**](` + txlink.Ca
     - **on-prem**: For validators running on on-premises infrastructure
     - **data-center**: For validators running in dedicated data centers
 
-- **Validator Address**
-  - Your validator node's address
+- **Operator Address**
+  - The ` + "`g1...`" + ` address of your operator account (from your ` + "`gnokey`" + ` keyring)
+  - **Must be controlled by the signer** of this transaction — the realm rejects the call if the signer doesn't control that address
 
-- **Validator Public Key**
-  - Your validator node's public key
+- **Validator Consensus Public Key**
+  - Your validator node's consensus public key, in the ` + "`gpub1...`" + ` format
+  - Retrieve it by running: ` + "`gnoland secrets get validator_key`" + `
 
 ### ✍️ Required Information for the Description
 
@@ -86,7 +88,7 @@ This will initiate a governance process where **GovDAO** members will vote on yo
 
 🚀 **Register now and become a part of gno.land’s validator ecosystem!**
 
-Read more: [How to become a testnet validator](https://gnops.io/articles/guides/become-testnet-validator/) <!-- XXX: replace with a r/gnops/blog:xxx link -->
+Read more: [How to become a validator](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland#become-a-validator)
 
 Disclaimer: Please note, registering your validator profile and/or validating on testnets does not guarantee a validator slot on the gno.land beta mainnet. However, active participation and contributions to testnets will help establish credibility and may improve your chances for future validator acceptance. The initial validator amount and valset will ultimately be selected through GovDAO governance proposals and acceptance.
 

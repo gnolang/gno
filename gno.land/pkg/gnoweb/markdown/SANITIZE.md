@@ -108,7 +108,7 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | `LinkTitle` | 4 | quote/apostrophe/paren delimiters, newline fold |
 | `TableCell` | 2 | pipe escape, tab→space |
 | `HTMLEscape` | 5 | attribute injection, element body, ampersand, comment context, `-->` terminator bypass |
-| `URL` | 10 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` `?body=`/`cc=`/`bcc=`, embedded CRLF, relative + fragment accept |
+| `URL` | 13 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` any query (`?body=`/`subject=`/`cc=`/`bcc=`, case-insensitive, percent-encoded, HTML char-ref `&#x3f;`), embedded CRLF, relative + fragment accept |
 | `ImageURL` | 5 | `data:text/html` reject, `data:image/svg+xml` accept, `mailto:` / protocol-relative as image src |
 | `UserName` | 4 | digit-first / uppercase reject, `_`/`-` accept, RLO-stripped-then-validated |
 | `BechString` | 4 | `"g"` prefix, `""` any-prefix (`bc1...`), `"gpub"` prefix, wrong-prefix reject |
