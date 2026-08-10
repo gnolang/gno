@@ -1,5 +1,5 @@
-# Restore-path gas asymmetry regression test for
-# https://github.com/gnolang/gno/pull/5127 follow-up.
+# Restore-path gas regression test for map key computation
+# (see https://github.com/gnolang/gno/pull/5127 for background).
 #
 # Setup: init() persists 5 map entries during genesis, so by the time the
 # first user tx runs, the realm's `stored` map already exists on disk and
@@ -14,8 +14,6 @@
 # again — ComputeMapKey runs for all 6 entries (5 + Tx1's add) on the
 # restore path. No write.
 #
-# Under #5127 the restore path passed a nil *Machine to ComputeMapKey and
-# charged ZERO gas — the asymmetry this follow-up closes. Post-follow-up,
 # ComputeMapKey takes an explicit GasMeter: runtime callers pass
 # m.GasMeter and the restore path passes the store's tx-scoped meter
 # (loadObjectSafe), so write and restore paths pay symmetrically.
@@ -23,9 +21,9 @@
 # The pinned GAS USED values are calibration goldens. Removing the
 # restore-path charge drops Tx1 by 5*per-entry and Tx2 by 6*per-entry —
 # both pins will fail. The per-entry restore charge is 788 gas for this
-# bigKey shape; a regression to the pre-follow-up asymmetry shifts Tx1
-# by exactly 5*788=3940 and Tx2 by 6*788=4728 (measured by passing a
-# nil meter at loadObjectSafe). Tx2's runtime Lookup charge rides
+# bigKey shape; an unmetered restore path shifts Tx1 by exactly
+# 5*788=3940 and Tx2 by 6*788=4728 (measured by passing a nil meter
+# at loadObjectSafe). Tx2's runtime Lookup charge rides
 # m.GasMeter and survives such a regression, so it does not add to the
 # delta.
 
@@ -84,8 +82,8 @@ func Insert(cur realm) {
 }
 
 // Lookup reads a value by key. In a fresh tx, the first access forces
-// rehydration of `stored` from disk, which (post-follow-up) charges
-// ComputeMapKey on the restore path.
+// rehydration of `stored` from disk, which charges ComputeMapKey on
+// the restore path.
 func Lookup(cur realm, k int64) string {
 	return stored[bigKey{A: k}]
 }
