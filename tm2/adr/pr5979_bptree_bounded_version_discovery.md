@@ -48,11 +48,10 @@ instead of O(retained versions).
 
 ## Out of scope
 
-The same immutable query-height open can also write live state: when the fast
-index stamp is behind the loaded version, `Load` runs `ensureFastIndex`, which
+The same immutable query-height open could also write live state: when the fast
+index stamp was behind the loaded version, `Load` ran `ensureFastIndex`, which
 rebuilds and writes through the raw DB even though the open is nominally
-read-only. It is latent (a current stamp makes the rebuild a no-op) and does not
-affect the app hash (the fast index is outside the Merkle commitment), but a
-correct fix must gate the immutable view's fast-read on the stamp so skipping
-the rebuild cannot serve a stale value. That is a change to the fast-index
-read-trust contract and is left as a separate follow-up.
+read-only. [#6018](https://github.com/gnolang/gno/pull/6018) fixed it with
+`MutableTree.LoadReadonly`, which skips `ensureFastIndex` and gates the
+snapshot's fast reads on the stamp. This branch keeps that path and only makes
+the discovery it still runs bounded.
