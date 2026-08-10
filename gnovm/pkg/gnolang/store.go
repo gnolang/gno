@@ -590,14 +590,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
-		_ = fillTypesOfValue(ds, oo)
-		// Decoded maps need their vmap index rebuilt; that work is
-		// restore-path gas, metered against this store's tx meter.
-		// Only the loaded object itself can be a map — nested maps
-		// persist as separate objects behind RefValues.
-		if mv, ok := oo.(*MapValue); ok {
-			mv.rebuildVmap(ds.gasMeter, ds)
-		}
+		// Restore-path gas (e.g. ComputeMapKey rebuilding a map's vmap):
+		// metered against this store's tx meter. See ComputeMapKey's doc.
+		_ = fillTypesOfValue(ds.gasMeter, ds, oo)
 		return oo
 	}
 	return nil
