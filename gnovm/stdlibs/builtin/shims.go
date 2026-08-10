@@ -10,6 +10,8 @@ type Realm interface {
 	IsUserRun() bool
 	IsEphemeral() bool
 	IsCurrent() bool
+	Sub(subpath string) Realm
+	Subpath() string
 	String() string
 }
 

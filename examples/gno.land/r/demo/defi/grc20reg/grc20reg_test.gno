@@ -1,25 +1,27 @@
 package grc20reg
 
 import (
+	"chain"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
-	realmAddr := cur.PkgPath()
-	token, ledger := grc20.NewToken(0, cur, "TestToken", "TST", 4)
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
 	ledger.Mint(cur.Address(), 1234567)
 	// register
-	Register(cross(cur), token, "")
-	regToken := Get(realmAddr)
+	key := Register(cross(cur), token, "mySlug")
+	regToken := Get(key)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))
@@ -27,30 +29,143 @@ func TestRegistry(cur realm, t *testing.T) {
 	invalidToken := Get("0xdeadbeef")
 	urequire.True(t, invalidToken == nil)
 
-	// register with a slug
-	Register(cross(cur), token, "mySlug")
-	regToken = Get(realmAddr + ".mySlug")
-	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
-	urequire.Equal(t, regToken.GetSymbol(), "TST")
-
-	// override
-	Register(cross(cur), token, "")
-	regToken = Get(realmAddr + "")
-	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
-	urequire.Equal(t, regToken.GetSymbol(), "TST")
-
 	got = Render("")
-	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)`))
-	urequire.True(t, strings.Contains(got, `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)`))
+	urequire.True(t, strings.Contains(got, expected))
 
 	expected = `# TestToken
 - symbol: **TST**
-- realm: [gno.land/r/demo/foo](/r/demo/foo).mySlug
+- realm: [gno.land/r/demo/foo](/r/demo/foo).TST
 - decimals: 4
 - total supply: 1234567
 `
-	got = Render("gno.land/r/demo/foo.mySlug")
+	got = Render(key)
 	urequire.Equal(t, expected, got)
+
+	// The registry keys by rlmPath.symbol, so a second token with the same
+	// symbol in the same realm is rejected even though its Token.ID() differs
+	// (distinct trailing sequence id). See TestRegisterRejectsOverwrite.
+	second, _ := grc20.NewToken("Second", "TST", 4, 1, cur)
+	urequire.NotEqual(t, token.ID(), second.ID()) // ids are decoupled from symbol
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		Register(cross(cur), second, "")
+	})
+}
+
+func TestRegistryWrappers(cur realm, t *testing.T) {
+	const (
+		tokenPath   = "gno.land/r/demo/token"
+		realmCaller = "gno.land/r/demo/vault"
+	)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	carol := testutils.TestAddress("carol")
+	realmAddr := chain.PackageAddress(realmCaller)
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(realmAddr, 200))
+	tokenKey := Register(cross(cur), token, "")
+	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
+	uassert.Equal(t, "TST", MustGet(tokenKey).GetSymbol())
+	uassert.Equal(t, 4, MustGet(tokenKey).GetDecimals())
+	uassert.Equal(t, int64(1_200), MustGet(tokenKey).TotalSupply())
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(0), MustGet(tokenKey).Allowance(alice, carol))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	Transfer(cross(cur), tokenKey, bob, 100)
+	Approve(cross(cur), tokenKey, carol, 300)
+
+	testing.SetRealm(testing.NewUserRealm(carol))
+	TransferFrom(cross(cur), tokenKey, alice, bob, 200)
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(300), MustGet(tokenKey).BalanceOf(bob))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).Allowance(alice, carol))
+
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewCodeRealm(realmCaller))
+	Transfer(cross(cur), tokenKey, bob, 50)
+	uassert.Equal(t, int64(150), MustGet(tokenKey).BalanceOf(realmAddr))
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsWithMessage(t, cur, "insufficient balance", func() {
+		Transfer(cross(cur), tokenKey, bob, 701)
+	})
+	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
+}
+
+func viaWrapper(cur realm, tokenKey string, to address, amount int64) {
+	Transfer(cross(cur), tokenKey, to, amount)
+}
+
+func viaCallerTeller(cur realm, token *grc20.Token, to address, amount int64) error {
+	return token.CallerTeller().Transfer(0, cur, to, amount)
+}
+
+func TestRegistryWrapperCallerSemantics(cur realm, t *testing.T) {
+	const tokenPath = "gno.land/r/demo/token_caller_semantics"
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	intermediary := cur.Address()
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("CallerSemantics", "CALL", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(intermediary, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+
+	// ViaWrapper adds another registry frame, so CallerTeller sees the
+	// intermediary realm rather than alice.
+	viaWrapper(cross(cur), tokenKey, bob, 100)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+
+	// ViaCallerTeller has no extra frame, so CallerTeller sees alice.
+	urequire.NoError(t, viaCallerTeller(cross(cur), token, bob, 100))
+	uassert.Equal(t, int64(900), token.BalanceOf(alice))
+	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
+	uassert.Equal(t, int64(200), token.BalanceOf(bob))
+}
+
+func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_overwrite"))
+	token, ledger := grc20.NewToken("Bar", "BAR", 4, 0, cur)
+	ledger.Mint(cur.Address(), 11)
+	key := Register(cross(cur), token, "")
+
+	urequire.Equal(t, "BAR", Get(key).GetSymbol())
+	urequire.Equal(t, int64(11), Get(key).BalanceOf(cur.Address()))
+
+	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, 0, cur)
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		Register(cross(cur), replacement, "")
+	})
+}
+
+func TestRegisterRejectsAliasedTokenPaths(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_alias"))
+	token, _ := grc20.NewToken("Aliased Token", "ALIAS", 4, 0, cur)
+	Register(cross(cur), token, "first")
+
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		Register(cross(cur), token, "second")
+	})
+}
+
+func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_source"))
+	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, 0, cur)
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_target"))
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
+		Register(cross(cur), token, "")
+	})
 }
 
 func TestValidateSlug(cur realm, t *testing.T) {
@@ -101,4 +216,11 @@ func TestValidateSlugPanicsOnInjection(cur realm, t *testing.T) {
 	defer func() { recover() }()
 	validateSlug(`) [Claim](https://evil.com`)
 	t.Errorf("should have panicked")
+}
+
+func TestRegisterRejectsNilToken(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_nil"))
+	urequire.AbortsContains(t, cur, "nil token", func() {
+		Register(cross(cur), nil, "")
+	})
 }

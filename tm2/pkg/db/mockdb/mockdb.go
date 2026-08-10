@@ -149,6 +149,21 @@ func (mr *MockDBMockRecorder) NewBatchWithSize(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewBatchWithSize", reflect.TypeOf((*MockDB)(nil).NewBatchWithSize), arg0)
 }
 
+// NewSnapshot mocks base method.
+func (m *MockDB) NewSnapshot() (db.Snapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewSnapshot")
+	ret0, _ := ret[0].(db.Snapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewSnapshot indicates an expected call of NewSnapshot.
+func (mr *MockDBMockRecorder) NewSnapshot() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSnapshot", reflect.TypeOf((*MockDB)(nil).NewSnapshot))
+}
+
 // Print mocks base method.
 func (m *MockDB) Print() error {
 	m.ctrl.T.Helper()
@@ -446,4 +461,101 @@ func (m *MockIterator) Value() []byte {
 func (mr *MockIteratorMockRecorder) Value() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Value", reflect.TypeOf((*MockIterator)(nil).Value))
+}
+
+// MockSnapshot is a mock of Snapshot interface.
+type MockSnapshot struct {
+	ctrl     *gomock.Controller
+	recorder *MockSnapshotMockRecorder
+}
+
+// MockSnapshotMockRecorder is the mock recorder for MockSnapshot.
+type MockSnapshotMockRecorder struct {
+	mock *MockSnapshot
+}
+
+// NewMockSnapshot creates a new mock instance.
+func NewMockSnapshot(ctrl *gomock.Controller) *MockSnapshot {
+	mock := &MockSnapshot{ctrl: ctrl}
+	mock.recorder = &MockSnapshotMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSnapshot) EXPECT() *MockSnapshotMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockSnapshot) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockSnapshotMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSnapshot)(nil).Close))
+}
+
+// Get mocks base method.
+func (m *MockSnapshot) Get(arg0 []byte) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", arg0)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockSnapshotMockRecorder) Get(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSnapshot)(nil).Get), arg0)
+}
+
+// Has mocks base method.
+func (m *MockSnapshot) Has(key []byte) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Has", key)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Has indicates an expected call of Has.
+func (mr *MockSnapshotMockRecorder) Has(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Has", reflect.TypeOf((*MockSnapshot)(nil).Has), key)
+}
+
+// Iterator mocks base method.
+func (m *MockSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Iterator", start, end)
+	ret0, _ := ret[0].(db.Iterator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Iterator indicates an expected call of Iterator.
+func (mr *MockSnapshotMockRecorder) Iterator(start, end interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Iterator", reflect.TypeOf((*MockSnapshot)(nil).Iterator), start, end)
+}
+
+// ReverseIterator mocks base method.
+func (m *MockSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReverseIterator", start, end)
+	ret0, _ := ret[0].(db.Iterator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReverseIterator indicates an expected call of ReverseIterator.
+func (mr *MockSnapshotMockRecorder) ReverseIterator(start, end interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReverseIterator", reflect.TypeOf((*MockSnapshot)(nil).ReverseIterator), start, end)
 }

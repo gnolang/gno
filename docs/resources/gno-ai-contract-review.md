@@ -186,6 +186,56 @@ import "gno.land/p/nt/markdown/sanitize/v0"
 b.WriteString("| " + sanitize.InlineText(key) + " | " + sanitize.InlineText(val) + " |\n")
 ```
 
+### 11. `GetCoins` to read one balance — attacker-influenced cost
+
+Any realm can mint an arbitrary denom to any address without the holder's consent, and
+nothing bounds how many distinct denoms an address accumulates. `banker.GetCoins(addr)`
+reads every one of them, so its cost is set by whoever last sent that address a coin —
+not by the realm. When `addr` comes from the caller, a third party can make the function
+run out of gas, permanently.
+
+```go
+// WRONG: cost grows with denoms the address happens to hold
+if banker.NewReadonlyBanker().GetCoins(addr).AmountOf("ugnot") < price {
+    panic("insufficient balance")
+}
+
+// WRONG AND QUADRATIC: a full read per iteration
+for _, coin := range coins {
+    if bnk.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount { ... }
+}
+
+// RIGHT: one denom, one store read
+if banker.NewReadonlyBanker().GetCoin(addr, "ugnot") < price {
+    panic("insufficient balance")
+}
+```
+
+Reserve `GetCoins` for cases that genuinely need every balance, and treat it as
+unbounded when the address is caller-supplied. Hoisting the call out of a
+loop helps but is not enough: a second `GetCoins` on the same address is much cheaper —
+its per-key reads are cache hits, and a cache hit costs no gas — but the iterator walk
+over the address's balance keys is charged again, so the part that scales with the denom
+count survives. Measured on an address holding 64 unsolicited denoms, a second
+`GetCoins` cost about a quarter of the first, while a second single-denom `GetCoin` cost
+nothing at all.
+
+Two cases where the swap is **wrong**, both found by making it:
+
+- **The denom is caller-supplied.** `GetCoin` panics on a malformed denom where
+  `AmountOf` returns zero. In `Render`, the denom is often a path segment or query
+  parameter, so the swap hands any visitor a way to break the page.
+
+  ```go
+  // WRONG in Render: denom comes from the URL, and a malformed one now panics
+  denom := req.Query.Get("coin")
+  amount := bnk.GetCoin(addr, denom)
+  ```
+
+- **You already hold the full set.** If `GetCoins` was already called for another
+  reason, `AmountOf` on the result is free and `GetCoin` is a second store read. Read
+  the surrounding function before swapping a call in it.
+
 ---
 
 ## Review Checklist
@@ -202,6 +252,7 @@ b.WriteString("| " + sanitize.InlineText(key) + " | " + sanitize.InlineText(val)
 - [ ] `/p/`-type fields with callback iterators are unexported and not reachable via a returned or promoted method
 - [ ] Sensitive state in a `/p/`-declared type (e.g. `grc20.Token`) is stored in unexported vars with no leaked pointers
 - [ ] `Render` sanitizes path segments, keys, and user-supplied values before writing to output
+- [ ] Single-denom balance checks use `GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)` — unless the denom is unvalidated caller input or the full set is already read (case 11)
 
 ---
 

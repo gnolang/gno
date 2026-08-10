@@ -852,6 +852,46 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 	return pkg
 }
 
+// WriteMemPackageTo writes all files of mpkg into dir, the inverse of
+// [ReadMemPackage]. MemPackage file names are flat, so a *_filetest.gno
+// file whose on-disk home is the filetests subdirectory (see
+// [ReadMemPackage]) is written back there rather than into dir; all other
+// files are written into dir directly. It does not remove on-disk files
+// absent from mpkg. Prefer this over the generic std.MemPackage.WriteTo
+// for directories following the gno package layout.
+func WriteMemPackageTo(mpkg *std.MemPackage, dir string) error {
+	// Like MemPackage.WriteTo, validate all names before writing anything.
+	// Names must also be flat (as ReadMemPackage produces): a separator
+	// would silently break the filetests routing below.
+	for _, mfile := range mpkg.Files {
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
+		}
+		if mfile.Name != filepath.Base(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must not contain path separators", mfile.Name)
+		}
+	}
+	for _, mfile := range mpkg.Files {
+		fpath := filepath.Join(dir, mfile.Name)
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			subpath := filepath.Join(dir, "filetests", mfile.Name)
+			if osFileExists(subpath) {
+				fpath = subpath
+			}
+		}
+		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func osFileExists(fpath string) bool {
+	fi, err := os.Stat(fpath)
+	return err == nil && !fi.IsDir()
+}
+
 // ReadMemPackageFromList creates a new [std.MemPackage] with the specified
 // pkgPath, containing the contents of all the files provided in the list
 // slice.
@@ -1132,6 +1172,13 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
+	// real package path may contain it. The path checks below already
+	// exclude it implicitly — this check makes the reservation an
+	// explicit contract with a clear diagnostic.
+	if strings.Contains(mpkg.Path, subRealmSep) {
+		return fmt.Errorf("invalid package/realm path %q: %q is reserved for sub-realm derivation", mpkg.Path, subRealmSep)
+	}
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {

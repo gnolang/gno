@@ -6,25 +6,39 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol.
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
 // fabricate a Token claiming to belong to a different package.
 //
-// Typical call from a realm's init(cur realm) or other crossing function:
+// Realms that create multiple tokens should allocate id from one persistent
+// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
 //
-//	Token, ledger := grc20.NewToken(0, cur, "Foo", "FOO", 4)
+//	var nextTokenID seqid.ID
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
+//
+// A realm that creates only a single token can pass 0 directly, since no
+// other token of that realm can collide with it.
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross, Token, slug).
-func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
+//
+// Every successful call emits a NewToken event carrying the resulting
+// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
+// Token can come into existence, so this event makes token creation fully
+// observable: an indexer that sees the same Token.ID() announced twice knows the
+// realm built two independent ledgers behind one identifier, and that every
+// later Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm
+// is emitting untrustworthy events and should be flagged or ignored wholesale.
+func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -43,13 +57,22 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	}
 	ledger := &PrivateLedger{}
 	token := &Token{
-		name:      name,
-		symbol:    symbol,
-		decimals:  decimals,
-		origRealm: pkgPath,
-		ledger:    ledger,
+		id:       pkgPath + "." + symbol + "." + id.String(),
+		name:     name,
+		symbol:   symbol,
+		decimals: decimals,
+		ledger:   ledger,
 	}
 	ledger.token = token
+
+	chain.Emit(
+		NewTokenEvent,
+		"token", token.id,
+		"name", name,
+		"symbol", symbol,
+		"decimals", strconv.Itoa(decimals),
+	)
+
 	return token, ledger
 }
 
@@ -69,15 +92,13 @@ func validName(name string) bool {
 	return true
 }
 
-// validSymbol reports whether symbol is a valid token symbol: non-empty,
-// within MaxSymbolLen, and consists only of [A-Za-z0-9_-]. Matches
-// grc20reg.validateSlug so the symbol round-trips cleanly through
-// Token.ID() and any registry binding.
-func validSymbol(symbol string) bool {
-	if symbol == "" || len(symbol) > MaxSymbolLen {
+// validSymbol reports whether s is valid slug-compatible metadata: non-empty,
+// within MaxSymbolLen, and consists only of [A-Za-z0-9_-].
+func validSymbol(s string) bool {
+	if s == "" || len(s) > MaxSymbolLen {
 		return false
 	}
-	for _, c := range symbol {
+	for _, c := range s {
 		if !isAlnum(c) && c != '_' && c != '-' {
 			return false
 		}
@@ -105,9 +126,9 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // ID returns the Identifier of the token.
-// It is composed of the original realm and the provided symbol.
+// It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
-	return tok.origRealm + "." + tok.symbol
+	return tok.id
 }
 
 // HasAddr checks if the specified address is a known account in the bank.

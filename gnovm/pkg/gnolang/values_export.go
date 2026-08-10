@@ -244,12 +244,17 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 		// changes, this branch would re-expand a shared FuncValue inline
 		// instead of emitting an ExportRefValue — the exported output
 		// would still be correct, just potentially larger.
-		fnc := exportCopyValue(cv.Func, seen).(*FuncValue)
+		var fnc *FuncValue // nil for a lazy interface bind (resolved at call)
+		if cv.Func != nil {
+			fnc = exportCopyValue(cv.Func, seen).(*FuncValue)
+		}
 		rtv := exportValue(cv.Receiver, seen)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
+			Method:     cv.Method,
+			MethodPkg:  cv.MethodPkg,
 		}
 	case *MapValue:
 		list := &MapList{}
