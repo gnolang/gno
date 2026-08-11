@@ -2391,9 +2391,19 @@ func (m *Machine) releaseBlock(b *Block) {
 		// reaches release with the flag missing (a forgotten
 		// setNotRecyclable, a new long-lived block reference, etc.).
 		//
-		// This scan only covers the known Defer.Parent route; the broader
-		// invariant is enforced empirically by poisoning the block below,
-		// which turns a followed stale pointer into a panic in
+		// This scan only covers the known Defer.Parent route, and only the
+		// DIRECT parent: doOpDefer marks m.LastBlock(), so an enclosing
+		// block (e.g. the for-block around a `{ defer f() }`) is still
+		// recyclable while the defer is pending, and the collector can
+		// reach it through Defer.Parent.Parent. That is harmless today
+		// because Defer.Parent has exactly one consumer — Frame.Visit's GC
+		// walk — and released blocks are zeroed, so the walk terminates.
+		// Anything that starts reading Defer.Parent for real (resolving a
+		// name, rebuilding a scope) must first extend setNotRecyclable to
+		// the whole parent chain, and this scan with it.
+		//
+		// The broader invariant is enforced empirically by poisoning the
+		// block below, which turns a followed stale pointer into a panic in
 		// PointerValue.Deref/Assign2 rather than silent corruption.
 		for fi := range m.Frames {
 			for di := range m.Frames[fi].Defers {
