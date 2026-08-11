@@ -2841,23 +2841,45 @@ type Block struct {
 	poisoned bool
 }
 
-// growBlockValues returns values resized to numNames, growing the backing
-// array by doubling when it does not fit. Contents up to len(values) are
-// preserved and new slots are zero.
+// Growth policy for Block.Values, in slots (not bytes). Doubling keeps
+// repeated small expansions amortized; past the threshold it tapers to fixed
+// steps so a large block does not overshoot by its own size again.
 //
-// This exists instead of plain append because cap(Block.Values) is
-// consensus-visible: it is the real retained footprint of the block, and so
-// what (*Block).GetShallowSize charges. Go's append grows through growslice,
-// whose policy is an unspecified runtime detail that has changed across
-// releases — routing block growth through it would make allocation gas depend
-// on the toolchain. The doubling below is ours and therefore deterministic.
+// This mirrors the shape of Go's growslice — double while small, taper once
+// large — without inheriting its numbers, which are an unspecified runtime
+// detail we must not depend on. For reference, go1.25's runtime/slice.go
+// tapers at oldCap >= 256 elements and then grows by
+// `newcap += (newcap + 3*256) >> 2`, i.e. ~1.25x plus 192, before rounding up
+// to a malloc size class. Ours tapers later and grows more slowly, which wastes
+// less of the capacity we now charge for.
+const (
+	blockValuesGrowThreshold = 512
+	blockValuesGrowIncrement = 256
+)
+
+// growBlockValues returns values resized to numNames, growing the backing
+// array per the policy above when it does not fit. Contents up to len(values)
+// are preserved and new slots are zero.
+//
+// This exists instead of plain append (or slices.Grow, which is append
+// underneath) because cap(Block.Values) is consensus-visible: it is the real
+// retained footprint of the block, and so what (*Block).GetShallowSize
+// charges. append picks its capacity in growslice, an unspecified runtime
+// detail that has changed across releases and overshoots what was asked for
+// (request 14 slots, get 28) — routing block growth through it would both make
+// allocation gas depend on the toolchain and roughly double the charge. The
+// policy below is ours, so cap is a pure function of the program.
 func growBlockValues(values []TypedValue, numNames int) []TypedValue {
 	if cap(values) >= numNames {
 		return values[:numNames]
 	}
 	newCap := max(cap(values), 1)
-	for newCap < numNames {
+	for newCap < numNames && newCap < blockValuesGrowThreshold {
 		newCap *= 2
+	}
+	if short := numNames - newCap; short > 0 {
+		steps := (short + blockValuesGrowIncrement - 1) / blockValuesGrowIncrement
+		newCap += steps * blockValuesGrowIncrement
 	}
 	grown := make([]TypedValue, numNames, newCap)
 	copy(grown, values)
