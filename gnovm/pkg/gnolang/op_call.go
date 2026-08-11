@@ -67,7 +67,8 @@ func (m *Machine) doOpPrecall() {
 		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
 			"unexpected function value type %s %v",
-			reflect.TypeOf(v).String(), v))
+			reflect.TypeOf(v).String(), v,
+		))
 	}
 }
 
@@ -280,7 +281,7 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fs, pb)
+	b := m.acquireBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -620,7 +621,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	// Create new block scope for defer.
 	pb := fv.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	b := m.acquireBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
@@ -710,6 +711,10 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
+	// lb is captured as Defer.Parent below, which the garbage collector
+	// visits for as long as the defer is pending — possibly well after
+	// this block is popped. Exclude it from block recycling.
+	lb.setNotRecyclable()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
@@ -722,7 +727,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			TypedValue{})
+			TypedValue{},
+		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
@@ -733,7 +739,8 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			cv.Receiver)
+			cv.Receiver,
+		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
