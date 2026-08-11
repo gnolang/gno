@@ -386,8 +386,8 @@ The TM2 `p2p` module has a concept of something called *persistent peers*.
 Persistent peers are specific peers whose connections must be preserved, at all costs. They are specified in the
 top-level node P2P configuration, under `p2p.persistent_peers`.
 
-These peer connections are special, as they don’t adhere to high-level configuration limits like the maximum peer cap,
-instead, they are monitored and handled actively.
+These peer connections are special, as they are monitored and handled actively: when one is lost, the redial service
+brings it back with exponential backoff.
 
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
