@@ -5261,6 +5261,10 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
 			method := &cx.Methods[i]
+			// An embedded interface (a bare name) is a direct
+			// reference: its method set must be resolved to build
+			// this interface. A method signature is not; it only
+			// refers to its parameter and result types.
 			direct2 := false
 			if _, ok := method.Type.(*NameExpr); ok {
 				direct2 = true
@@ -5271,14 +5275,18 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			}
 		}
 	case *FuncTypeExpr:
+		// A function type refers to its parameter and result types
+		// without needing their sizes, so like a pointer it is an
+		// indirection that always breaks a cycle, even in an alias
+		// (see golang/go#25838).
 		for i := range cx.Params {
-			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, false)
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, false)
 			if un != "" {
 				return
 			}
