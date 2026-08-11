@@ -1,0 +1,83 @@
+# AddPackage gas for a package carrying a _test.gno must not depend on node
+# process history.
+#
+# This is the property whose violation forked topaz-1 at block 301381: a
+# process-lifetime cache sat in front of a gas-metered store read, so the first
+# such deploy in a process paid ~4.9M gas more than later ones, and a restart
+# re-armed it. Nodes that had restarted at different points priced the same
+# transaction differently.
+#
+# bar (first deploy of the restarted process) and baz (second) are identical
+# apart from the package name and must report identical GAS USED. foo is
+# deployed pre-restart only so bar/baz are not the first package in the store.
+#
+# This guards the property, not the mechanism — any future cache placed in
+# front of a metered read on the AddPackage path trips it.
+#
+# -simulate skip matters: gnokey's default (-simulate test) simulates before
+# broadcasting, which would warm any such cache and mask the regression.
+
+env EXACT_GAS=2862220
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+
+gnoland restart
+
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stdout 'GAS USED:\s+'${EXACT_GAS}
+gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+-- foo/gnomod.toml --
+module = "foo"
+gno = "0.9"
+-- foo/foo.gno --
+package foo
+
+func Hi() string { return "hi" }
+-- foo/foo_test.gno --
+package foo
+
+import "testing"
+
+func TestHi(t *testing.T) {
+	if Hi() == "" {
+		t.Fatal("empty")
+	}
+}
+-- bar/gnomod.toml --
+module = "bar"
+gno = "0.9"
+-- bar/bar.gno --
+package bar
+
+func Hi() string { return "hi" }
+-- bar/bar_test.gno --
+package bar
+
+import "testing"
+
+func TestHi(t *testing.T) {
+	if Hi() == "" {
+		t.Fatal("empty")
+	}
+}
+-- baz/gnomod.toml --
+module = "baz"
+gno = "0.9"
+-- baz/baz.gno --
+package baz
+
+func Hi() string { return "hi" }
+-- baz/baz_test.gno --
+package baz
+
+import "testing"
+
+func TestHi(t *testing.T) {
+	if Hi() == "" {
+		t.Fatal("empty")
+	}
+}
