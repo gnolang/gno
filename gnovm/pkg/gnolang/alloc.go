@@ -740,7 +740,12 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefNode
 	}
 
-	ss += allocBlock + allocBlockItem*int64(len(b.Values))
+	// Charge by capacity, not length: the block retains its whole backing
+	// array, and the pool deliberately over-sizes it to blockPoolValueCap.
+	// Every path that sets this capacity is deterministic — make() with an
+	// explicit cap in newBlockWithValueCap, our own doubling in
+	// growBlockValues, and the exact re-slice in Machine.releaseBlock.
+	ss += allocBlock + allocBlockItem*int64(cap(b.Values))
 
 	return ss
 }

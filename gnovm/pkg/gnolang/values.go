@@ -2841,6 +2841,42 @@ type Block struct {
 	poisoned bool
 }
 
+// growBlockValues returns values resized to numNames, growing the backing
+// array by doubling when it does not fit. Contents up to len(values) are
+// preserved and new slots are zero.
+//
+// This exists instead of plain append because cap(Block.Values) is
+// consensus-visible: it is the real retained footprint of the block, and so
+// what (*Block).GetShallowSize charges. Go's append grows through growslice,
+// whose policy is an unspecified runtime detail that has changed across
+// releases — routing block growth through it would make allocation gas depend
+// on the toolchain. The doubling below is ours and therefore deterministic.
+func growBlockValues(values []TypedValue, numNames int) []TypedValue {
+	if cap(values) >= numNames {
+		return values[:numNames]
+	}
+	newCap := max(cap(values), 1)
+	for newCap < numNames {
+		newCap *= 2
+	}
+	grown := make([]TypedValue, numNames, newCap)
+	copy(grown, values)
+	return grown
+}
+
+// normalizeDecodedCap trims a store-decoded block's Values capacity to its
+// length. Amino builds slices with reflect.Append, so the capacity it leaves
+// behind is whatever Go's growslice chose; since cap(Block.Values) is what
+// GetShallowSize charges, that capacity must not leak into allocation gas.
+// The other paths that size Values are already deterministic: the explicit
+// make() in newBlockWithValueCap, our doubling in growBlockValues, and the
+// exact three-index re-slice in Machine.releaseBlock.
+func normalizeDecodedCap(oo Object) {
+	if b, ok := oo.(*Block); ok {
+		b.Values = b.Values[:len(b.Values):len(b.Values)]
+	}
+}
+
 // setNotRecyclable marks the block as ineligible for Machine.releaseBlock's
 // pool, because a reference to it may outlive its time on the machine's
 // block stack (currently only Defer.Parent, which the garbage collector
@@ -3081,19 +3117,19 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	newNames := numNames - oldNames
 	alloc.AllocateBlockItems(int64(newNames))
 	heapItems := source.GetHeapItems()
-	bvalues := b.Values
-	for i := len(b.Values); i < numNames; i++ {
+	bvalues := growBlockValues(b.Values, numNames)
+	for i := oldNames; i < numNames; i++ {
 		tv := sb.Values[i]
 		if heapItems[i] {
 			// Heap-slot wrapper is anonymous; nil t skips the
 			// construction-time check (the contained value's
 			// type may be cross-realm but the slot itself isn't).
-			bvalues = append(bvalues, TypedValue{
+			bvalues[i] = TypedValue{
 				T: heapItemType{},
 				V: alloc.NewHeapItem(nil, tv),
-			})
+			}
 		} else {
-			bvalues = append(bvalues, tv)
+			bvalues[i] = tv
 		}
 	}
 	b.Values = bvalues
