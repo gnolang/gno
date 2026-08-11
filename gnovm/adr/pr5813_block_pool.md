@@ -47,10 +47,14 @@ via `releaseBlocksFrom`). Released blocks are zeroed (`*b = Block{...}`) so
 they retain no references. Scope blocks (op_exec.go) and call blocks
 (op_call.go `doOpCall`/`doOpReturnCallDefers`) acquire from it.
 
-Gas and VM-GC accounting are independent of pooling: `acquireBlock` charges
-`Allocator.AllocateBlock(numNames)` on both the hit and miss paths exactly as
-`Allocator.NewBlock` does, and the VM-GC counts `len(b.Values)` — neither
-depends on whether the `*Block` was recycled or on its slice capacity.
+Gas and VM-GC accounting are **not** independent of pooling — deliberately so,
+because a recycle does less work than an allocation. `acquireBlock` charges
+`OpCPUAcquireBlock` on both paths but allocation gas (`AllocateBlock`) only on a
+miss, and the VM-GC counts `cap(b.Values)` rather than `len`, because a block
+retains its whole backing array. Counting capacity makes `cap(Block.Values)`
+consensus-visible, which in turn constrains every path that sizes it. See
+[Gas](#gas-recycling-is-cheaper-than-allocating) for the charging model and
+[Deterministic capacity](#deterministic-capacity) for the constraint.
 
 ### Exclusions — what `releaseBlock` must never pool
 
@@ -147,11 +151,51 @@ p99 = 13, max = 35`, with a distinct 8M-block cluster at exactly 13. That
 cluster forces the 576 class regardless, so cap 14 is the largest capacity
 "free" within it and covers ≈ 99.3% of blocks.
 
-A full pool pins ≤ `32 × 576 B ≈ 18 KB` of Go heap. `GarbageCollect` counts
-that against the alloc budget (each pooled block by its retained capacity),
-so parking a block in the pool does not appear to free its memory — the
-allocation *gas* of (re)creating it is also charged on the miss path; see
-below.
+A full pool pins at most 32 blocks. `GarbageCollect` counts them against the
+alloc budget as `32 × (allocBlock + 14 × allocBlockItem)` =
+`32 × (568 + 560)` ≈ **36 KB** — the 576 B backing array plus the `Block`
+header itself, which the tally includes. So parking a block in the pool does
+not appear to free its memory; the allocation *gas* of (re)creating it is
+charged on the miss path, see below.
+
+### Deterministic capacity
+
+`newPooledBlock` over-allocates `Values` to `blockPoolValueCap` and charges
+`AllocateBlock` for that capacity, but `(*Block).GetShallowSize` used to recount
+by `len(b.Values)`. Since `GarbageCollect` resets the allocator and re-walks the
+live set, every GC silently refunded the over-allocated tail of every *live*
+runtime block — memory the machine is still holding. Measured on a deep
+recursion (`MemStats` around `runtime.GC()`, depth 20 vs 200): 360 B per live
+frame, i.e. `(blockPoolValueCap − numNames) × 40`. `GarbageCollect`'s own
+pooled-block recount already used capacity for exactly this reason, so the two
+halves of that function disagreed.
+
+`GetShallowSize` now counts capacity. That makes `cap(Block.Values)`
+consensus-visible, so **every** path that sets it has to be deterministic. Two
+were not:
+
+- `ExpandWith` and two static-block paths (`PrepareNewValues`,
+  `StaticBlock.Define2`) grew `Values` with plain `append`, taking capacity from
+  Go's `growslice`. For 40-byte `TypedValue`s that leaves `cap != len` in most
+  growth shapes (7 → 8 names lands on cap 14), which would have made allocation
+  gas depend on the toolchain. They now grow through `growBlockValues`, whose
+  doubling — and its taper to fixed 256-slot steps past
+  `blockValuesGrowThreshold = 512` — is ours, not the runtime's.
+- Amino builds slices with `reflect.Append`, so store-decoded blocks carried a
+  `growslice`-chosen capacity into `GetShallowSize` — which `loadObjectSafe`
+  charges directly. `normalizeDecodedCap` trims it to `len` at both decode
+  sites.
+
+`newBlockWithValueCap`'s explicit `make` and `releaseBlock`'s three-index
+re-slice were already deterministic.
+
+Note the two conventions this leaves: a freshly built package block gets
+`growBlockValues`' rounded-up capacity (5 names → cap 8), while the same block
+reloaded from the store is trimmed to `cap == len`. That is safe only because
+the object cache is per-transaction, so the rounded-up block never outlives the
+`AddPackage` transaction that built it and every node sees the same capacity for
+the same transaction. Nothing asserts that invariant; a cross-transaction object
+cache would turn it into a restart-dependent divergence.
 
 ## Gas: recycling is cheaper than allocating
 
@@ -186,20 +230,44 @@ malloc.
 
 ## Consensus-visible change
 
-Two changes shift gas: the `_allocBlock` 528 → 536 bump (the `notRecyclable`
-field, +8 B/block) and the recycle/allocate gas split above. The `_allocBlock`
-bump also reaches `addpkg` (package/file blocks allocated during package init
-are charged memory gas), so addpkg `GAS USED` values move by a few units too.
-Goldens regenerated under `-test.short`:
+Three changes shift gas: the `_allocBlock` 528 → 536 bump (the `notRecyclable`
+field, +8 B/block), the recycle/allocate gas split above, and counting
+`Block.Values` by capacity. The `_allocBlock` bump also reaches `addpkg`
+(package/file blocks allocated during package init are charged memory gas), so
+addpkg `GAS USED` values move by a few units too. Goldens regenerated under
+`-test.short`:
 
 - `gas/*` and `alloc_*` filetests (e.g. `gas/const` 2343 → 2284; `alloc_*`
-  `MemStats` shift as recycled blocks stop charging phantom malloc);
-- seven integration txtar files: `gc`, `gnokey_gasfee`, `simulate_gas`,
+  `MemStats` shift as recycled blocks stop charging phantom malloc).
+  `gas/slice_alloc` is calibrated to sit exactly at the allocation limit, so its
+  threshold moves 12499872 → 12499843 (re-derived by bisection); no integration
+  `GAS USED` value moves with it, since allocation gas is charged at
+  `Allocate()` on the requested size and only the post-GC live tally differs;
+- eight integration txtar files: `gc`, `gnokey_gasfee`, `simulate_gas`,
   `stdlib_ibc_crypto_determinism`, `stdlib_restart_compare` (runtime
-  `maketx call` gas), plus `restart_gas` and `addpkg_import_testdep_gas`
-  (addpkg gas, from the `_allocBlock` bump).
+  `maketx call` gas), plus `restart_gas`, `addpkg_import_testdep_gas` and
+  `addpkg_testfile_restart_gas` (addpkg gas, from the `_allocBlock` bump).
 
 No other goldens change.
+
+### The alloc budget per call frame roughly doubles
+
+Worth calling out separately, because it changes behaviour rather than just gas
+numbers. A call or scope block now costs the alloc budget
+`allocBlock + blockPoolValueCap × allocBlockItem` = `568 + 560` = **1128 B**
+regardless of how few names it declares — `newPooledBlock` charges
+`AllocateBlock(max(numNames, 14))` on a miss, and `GetShallowSize` recounts by
+capacity at every GC. Before this change the same frame cost
+`allocBlock + numNames × 40`, i.e. 608 B for a one-parameter function.
+
+Measured on `rec(n int)` recursion (`MemStats` after `runtime.GC()`, depth 20 vs
+220): **1126.8 B per live frame**, ~1.85× the previous 608 B. The accounting is
+*correct* — the 14 slots really are allocated — but the consequence is that a
+deeply recursive path fits roughly **54%** of its former depth before
+`allocation limit exceeded`: at `MaxAllocBytes = 100 MB`, ~164k frames before
+vs ~89k after. Any existing realm or stdlib path that recursed near the ceiling
+(list walks, parsers, JSON decoders) can now abort where it previously
+completed. This is the main non-gas behavioural risk in this PR.
 
 ## Benchmark proof
 
