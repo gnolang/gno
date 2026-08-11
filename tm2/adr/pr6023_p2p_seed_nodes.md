@@ -53,13 +53,17 @@ func (sw *MultiplexSwitch) hasDialableItem() bool {
 
 ### 3. A dedicated loop throttles the seed dial rounds
 
-`Peek` describes a state rather than an event, so on a node with nothing dialable it stays
-true on every pass of the dial loop and the seeds would be redialed continuously. A dedicated
-loop ticks every 30 seconds, and that interval doubles as the minimum delay between two
-rounds.
+The gate describes a state rather than an event: it stays true for as long as the node has
+nothing to dial. The cadence therefore has to come from somewhere, so a dedicated loop ticks
+every 30 seconds, and that interval doubles as the minimum delay between two rounds.
 
-The loop runs its first round before the ticker, the same way `runRedialLoop` calls
-`redialFn()`, and `node.OnStart` does not dial seeds itself. Bootstrap and fallback therefore
+`runDialLoop` is not that somewhere. On an empty queue it parks in `waitForPeersToDial` until an
+address is pushed, which is precisely the state a seed is meant to break, so a seed dial hosted
+there would never fire when it is needed. This holds independently of the busy-spin on backed off
+items reported in #6052.
+
+The loop `runSeedDialLoop` runs its first round before the ticker, the same way `runRedialLoop`
+calls `redialFn()`, and `node.OnStart` does not dial seeds itself. Bootstrap and fallback therefore
 share a single path and the same slot accounting.
 
 ### 4. Seeds count against `MaxNumOutboundPeers`, and the node never disconnects
@@ -112,11 +116,10 @@ source of addresses.
   (fewer than 1000 *not bad* addresses in the book): rejected because TM2 has no good/bad
   qualification for address book entries, so implementing the same gate goes beyond the scope
   of this change.
-- **Exempt seeds from `MaxNumOutboundPeers`**, by analogy with the exemption the README
-  claims for persistent peers: rejected as useless. If the node has filled its peer list up
-  to the cap, there is no reason to dial a seed, since it already has all the peers it needs.
-  Note that the exemption the original issue described never existed in the code: `DialPeers`
-  already enforced the limit for every address, seeds included.
+- **Exempt seeds from `MaxNumOutboundPeers`**: rejected as useless. If the node has filled its
+  peer list up to the cap, there is no reason to dial a seed, since it already has all the peers
+  it needs. The exemption the original issue assumed for seeds did not exist in the code either:
+  `DialPeers` already enforced the limit for every address.
 - **Keep the bootstrap dial in `node.OnStart`**: rejected. `DialPeers` checks the outbound cap
   at enqueue time only, and the counter is still zero at `OnStart`, so every configured seed
   was queued regardless of the cap. Reproduced with 6 seeds and
