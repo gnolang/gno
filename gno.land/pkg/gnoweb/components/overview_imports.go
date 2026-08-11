@@ -11,11 +11,8 @@ func buildImports(paths []string, domain string) []ImportLink {
 	out := make([]ImportLink, 0, len(paths))
 	for _, p := range paths {
 		kind := classifyImport(p, domain)
-		out = append(out, ImportLink{
-			Path: p,
-			Kind: kind,
-			Link: buildImportLink(p, kind, domain),
-		})
+		link, external := buildImportLink(p, kind, domain)
+		out = append(out, ImportLink{Path: p, Kind: kind, Link: link, External: external})
 	}
 	return out
 }
@@ -38,12 +35,14 @@ func classifyImport(p, domain string) string {
 // link to and the source has to be reached upstream.
 const stdlibSourceBase = "https://github.com/gnolang/gno/tree/master/gnovm/stdlibs/"
 
-func buildImportLink(p, kind, domain string) string {
+// buildImportLink returns where an import points, and whether that is off
+// gno.land.
+func buildImportLink(p, kind, domain string) (link string, external bool) {
 	switch kind {
 	case "package", "realm":
-		return strings.TrimPrefix(p, domain)
+		return strings.TrimPrefix(p, domain), false
 	case "stdlib":
-		return stdlibSourceBase + p
+		return stdlibSourceBase + p, true
 	}
-	return ""
+	return "", false
 }

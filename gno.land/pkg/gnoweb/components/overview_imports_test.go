@@ -19,18 +19,18 @@ func TestBuildImports_ClassifyAndLink(t *testing.T) {
 		{Path: "github.com/external/dep", Kind: "external", Link: ""},
 		{Path: "gno.land/p/demo/avl", Kind: "package", Link: "/p/demo/avl"},
 		{Path: "gno.land/r/gnoland/users/v1", Kind: "realm", Link: "/r/gnoland/users/v1"},
-		{Path: "strings", Kind: "stdlib", Link: stdlibSourceBase + "strings"},
+		{Path: "strings", Kind: "stdlib", Link: stdlibSourceBase + "strings", External: true},
 	}, got)
 }
 
 func TestBuildImports_StdlibLinksUpstream(t *testing.T) {
 	t.Parallel()
-	// Stdlibs ship with the node rather than being deployed, so they have no
-	// package page and link to their upstream source instead.
+	// Stdlibs ship with the node, so they have no package page and link
+	// upstream instead, which is what External marks.
 	got := buildImports([]string{"chain/banker", "errors"}, "gno.land")
 	require.Equal(t, []ImportLink{
-		{Path: "chain/banker", Kind: "stdlib", Link: stdlibSourceBase + "chain/banker"},
-		{Path: "errors", Kind: "stdlib", Link: stdlibSourceBase + "errors"},
+		{Path: "chain/banker", Kind: "stdlib", Link: stdlibSourceBase + "chain/banker", External: true},
+		{Path: "errors", Kind: "stdlib", Link: stdlibSourceBase + "errors", External: true},
 	}, got)
 }
 

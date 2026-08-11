@@ -3121,6 +3121,16 @@ main.dev-mode > section:has(.c-overview-view) {
 		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-normal);
 	}
+
+	/* The one section label that navigates. The reset strips link styling. */
+	.b-pkg-section__link {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
 }
 
 .b-pkg-section__body {
@@ -3299,6 +3309,12 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-secondary);
 }
 
+/* Smaller than the section icons: it marks a link, it does not label a row. */
+.b-pkg-list__outbound {
+	inline-size: 0.75em;
+	block-size: 0.75em;
+}
+
 .b-pkg-list__tags {
 	display: inline-flex;
 	gap: var(--g-space-1-5);
@@ -3316,18 +3332,34 @@ main.dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-brand-weak);
 }
 
-/* Status pair: draft (caution) vs published (success); visibility uses the
-   neutral b-tag--secondary for public/private. */
+/* Status pair on caution/success, visibility pair on warning/info. Two axes
+   render side by side, and yellow against blue survives the red-green
+   deficiency the status pair does not. */
+.b-tag--draft,
+.b-tag--published,
+.b-tag--private,
+.b-tag--public {
+	border-color: transparent;
+}
+
 .b-tag--draft {
 	color: var(--s-color-text-caution);
 	background: var(--s-color-bg-caution-weak);
-	border-color: transparent;
 }
 
 .b-tag--published {
 	color: var(--s-color-text-success);
 	background: var(--s-color-bg-success-weak);
-	border-color: transparent;
+}
+
+.b-tag--private {
+	color: var(--s-color-text-warning);
+	background: var(--s-color-bg-warning-weak);
+}
+
+.b-tag--public {
+	color: var(--s-color-text-info);
+	background: var(--s-color-bg-info-weak);
 }
 
 /* Truncation notice (shown when symbol lists were capped). */

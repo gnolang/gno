@@ -67,8 +67,8 @@ UI - Package quality (sidebar card)
   <h3 class="b-pkg-meta-heading">Metadata</h3>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
-    {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: the author considers it not production-ready, and other packages cannot import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
-    {{ if .Info.Private }}<li class="b-tag--tertiary" title="Marked private in gnomod.toml: other realms cannot import it or retain references to the objects it owns. Unlike a public package it can be re-uploaded to the same path, and the replacement must stay private.">private</li>{{ else }}<li class="b-tag--tertiary" title="Not marked private in gnomod.toml: other realms may import it, and once deployed it cannot be re-uploaded to the same path.">public</li>{{ end }}
+    {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: the author considers it not production-ready. Only genesis can deploy it, and no package added later may import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
+    {{ if .Info.Private }}<li class="b-tag b-tag--private" title="Marked private in gnomod.toml: no other package can import it, hold a reference to the objects it owns, or retain data of a type it declares. Unlike a public package it can be re-uploaded to the same path, and the replacement must stay private.">private</li>{{ else }}<li class="b-tag b-tag--public" title="Not marked private in gnomod.toml: any package may import it, and once deployed it cannot be re-uploaded to the same path.">public</li>{{ end }}
     {{/* Completeness signals — present-only, uniform tags (no check/cross icon) */}}
     {{ with .Quality }}
     {{ if .HasPkgDoc }}<li class="b-tag--tertiary" title="The package has a doc comment above its package clause.">Documented</li>{{ end }}
@@ -216,8 +216,8 @@ UI - Overview body
     {{ range . }}
     <li class="b-pkg-list__item">
       {{ if .Link }}
-      <a href="{{ .Link }}" class="b-pkg-list__link">
-        <span class="u-font-mono">{{ .Path }}</span>
+      <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
+        <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
         <span class="b-tag b-tag--kind">{{ .Kind }}</span>
       </a>
       {{ else }}
@@ -235,7 +235,7 @@ UI - Overview body
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
   <h2 class="b-pkg-section__header">
-    <a href="{{ .PkgPath }}/" class="c-with-icon" title="Open the file directory"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></a>
+    <a href="{{ .PkgPath }}/" class="c-with-icon b-pkg-section__link" title="Open the file directory"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></a>
     <span class="count">{{ len .Files }}</span>
   </h2>
   <ul class="b-pkg-list b-pkg-section__body">

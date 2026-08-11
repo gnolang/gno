@@ -27,10 +27,49 @@ func TestDeriveLicense(t *testing.T) {
 			want:    License{Kind: "MIT", FileName: "LICENSE"},
 		},
 		{
-			name:    "SPDX identifier takes precedence over signature",
+			// Shape of examples/gno.land/p/onbloc/json/LICENSE.
+			name:    "MIT under a markdown heading",
+			files:   []string{"LICENSE"},
+			content: map[string][]byte{"LICENSE": []byte("# MIT License\n\nCopyright (c) 2019 The Authors\n")},
+			want:    License{Kind: "MIT", FileName: "LICENSE"},
+		},
+		{
+			name:    "SPDX in the title block takes precedence over signature",
 			files:   []string{"LICENSE.md"},
 			content: map[string][]byte{"LICENSE.md": []byte("SPDX-License-Identifier: Apache-2.0\n\nThe MIT License text ...")},
 			want:    License{Kind: "Apache-2.0", FileName: "LICENSE.md"},
+		},
+		{
+			// The one input that separates title-SPDX-first from signatures-first:
+			// both lines sit in the title block and disagree.
+			name:    "SPDX in the title block outranks a signature in it",
+			files:   []string{"LICENSE"},
+			content: map[string][]byte{"LICENSE": []byte("The MIT License\nSPDX-License-Identifier: Apache-2.0\n")},
+			want:    License{Kind: "Apache-2.0", FileName: "LICENSE"},
+		},
+		{
+			name:  "SPDX quoted below the title block loses to the title",
+			files: []string{"LICENSE"},
+			content: map[string][]byte{"LICENSE": []byte(
+				"The MIT License\n" +
+					"Copyright (c) 2024 Example\n" +
+					"Permission is hereby granted, free of charge, to any person obtaining\n" +
+					"a copy of this software and associated documentation files, to deal in\n" +
+					"the Software without restriction. Portions are also available under\n" +
+					"SPDX-License-Identifier: GPL-3.0\n")},
+			want: License{Kind: "MIT", FileName: "LICENSE"},
+		},
+		{
+			// ristretto's z/LICENSE: a file name for a title.
+			name:  "SPDX below the title block wins when no signature matched",
+			files: []string{"LICENSE"},
+			content: map[string][]byte{"LICENSE": []byte(
+				"bbloom.go\n" +
+					"Copyright 2014 The Authors\n" +
+					"All rights reserved.\n" +
+					"Licensed under the terms below.\n" +
+					"\n * SPDX-License-Identifier: Apache-2.0\n")},
+			want: License{Kind: "Apache-2.0", FileName: "LICENSE"},
 		},
 		{
 			name:    "unknown license type still surfaces file name",
@@ -97,9 +136,8 @@ func TestDeriveLicense_LineWrappedFiles(t *testing.T) {
 			"                           Version 2.0, January 2004\n"
 	)
 
-	// An LGPL body quotes "GNU General Public License" and, further down, another
-	// "version 3". That pair is exactly what the GPL-3.0 signature looks for, so
-	// LGPL has to be recognised before detection reaches it.
+	// The body quotes "GNU General Public License" and another "version 3", the
+	// pair GPL-3.0 looks for. Title scoping cuts it before "License".
 	const lgpl3 = "                   GNU LESSER GENERAL PUBLIC LICENSE\n" +
 		"                       Version 3, 29 June 2007\n\n" +
 		"  This version of the GNU Lesser General Public License incorporates\n" +
@@ -110,8 +148,7 @@ func TestDeriveLicense_LineWrappedFiles(t *testing.T) {
 		"General Public License, and the \"GNU GPL\" refers to version 3 of the GNU\n" +
 		"General Public License.\n"
 
-	// The MPL body enumerates the whole GNU family under "Secondary License".
-	// Detection keys off the title, so none of those names may win here.
+	// Clause 1.12 lists the GNU family, which title scoping keeps out of reach.
 	const mpl2 = "Mozilla Public License Version 2.0\n" +
 		"==================================\n\n" +
 		"1.12. \"Secondary License\"\n" +
@@ -119,6 +156,13 @@ func TestDeriveLicense_LineWrappedFiles(t *testing.T) {
 		"    Lesser General Public License, Version 2.1, the GNU Affero General\n" +
 		"    Public License, Version 3.0, or any later versions of those\n" +
 		"    licenses.\n"
+
+	// btcsuite's header. ISC is title-scoped, so its own title must resolve.
+	const isc = "ISC License\n\n" +
+		"Copyright (c) 2013-2023 The Authors\n" +
+		"All rights reserved.\n\n" +
+		"Permission to use, copy, modify, and distribute this software for any\n" +
+		"purpose with or without fee is hereby granted.\n"
 
 	// Real BSD-3 files bullet their third clause instead of numbering it.
 	const bsd3Bullet = "Copyright (c) 2017 The Libc Authors. All rights reserved.\n\n" +
@@ -141,6 +185,7 @@ func TestDeriveLicense_LineWrappedFiles(t *testing.T) {
 		{"BSD-3-Clause bulleted third clause", bsd3Bullet, "BSD-3-Clause"},
 		{"BSD-2-Clause", bsd2, "BSD-2-Clause"},
 		{"Apache-2.0", apache2, "Apache-2.0"},
+		{"ISC", isc, "ISC"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

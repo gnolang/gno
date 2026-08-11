@@ -98,6 +98,8 @@ type ImportLink struct {
 	Path string
 	Kind string // "stdlib" | "package" | "realm" | "external"
 	Link string
+	// External marks a Link that leaves gno.land.
+	External bool
 }
 
 // FileLink is a file entry rendered in the Files section.
