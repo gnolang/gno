@@ -2859,7 +2859,14 @@ const (
 
 // growBlockValues returns values resized to numNames, growing the backing
 // array per the policy above when it does not fit. Contents up to len(values)
-// are preserved and new slots are zero.
+// are preserved.
+//
+// It does NOT guarantee that the newly exposed slots are zero: when the backing
+// array already has room it simply re-slices, so slots in [len(values):numNames]
+// hold whatever that array last held. (A pooled block's tail is zeroed by
+// Machine.releaseBlock, and a freshly make()'d one starts zero, so in practice
+// they are — but do not rely on it.) Every caller must write each slot it
+// exposes; ExpandWith, PrepareNewValues and StaticBlock.Define2 all do.
 //
 // This exists instead of plain append (or slices.Grow, which is append
 // underneath) because cap(Block.Values) is consensus-visible: it is the real
