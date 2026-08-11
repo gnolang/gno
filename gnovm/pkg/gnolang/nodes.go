@@ -1876,13 +1876,10 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 		bn = bn.GetParentNode(store)
 	}
 
-	// If bn is a faux child block node, check also its faux parent.
-	switch bn := bn.(type) {
-	case *IfCaseStmt, *SwitchClauseStmt:
-		pn := bn.GetParentNode(store)
-		if path.Index < pn.GetNumNames() {
-			return pn
-		}
+	// A path into the names bn copied from its faux parent belongs to that
+	// parent, not to bn. numFauxCopiedNames is zero for every other node.
+	if path.Index < bn.GetStaticBlock().numFauxCopiedNames() {
+		return bn.GetParentNode(store)
 	}
 
 	return bn
@@ -1986,8 +1983,8 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 		}
 		return i, ok
 	}
-	for i, name := range sb.Names {
-		if name == n {
+	for i := len(sb.Names) - 1; i >= 0; i-- {
+		if sb.Names[i] == n {
 			if debug {
 				sb.debugLogGetLocalIndex(n, i, true)
 			}
@@ -2000,16 +1997,14 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	return 0, false
 }
 
-// buildNameIndex populates nameIndex from Names. Uses first-wins semantics
-// on duplicates to match the linear-scan path's "first match" contract.
-// (Names should be unique through Define2; the first-wins guard exists for
-// directly-constructed test fixtures and corrupted-on-disk blocks.)
+// buildNameIndex populates nameIndex from Names. Uses last-wins semantics on
+// duplicates to match the linear-scan path's "last match" contract. A block
+// holds a name twice only when a case body shadows a name copied in from its
+// faux parent (see numFauxCopiedNames); the later slot is the live one.
 func (sb *StaticBlock) buildNameIndex() {
 	sb.nameIndex = make(map[Name]uint16, len(sb.Names))
 	for i, name := range sb.Names {
-		if _, ok := sb.nameIndex[name]; !ok {
-			sb.nameIndex[name] = uint16(i)
-		}
+		sb.nameIndex[name] = uint16(i)
 	}
 }
 
@@ -2315,10 +2310,60 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
-	_, exists := sb.GetLocalIndex(nx.Name)
-	if !exists {
-		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
+	if idx, exists := sb.GetLocalIndex(nx.Name); exists {
+		if idx >= sb.numFauxCopiedNames() {
+			// The name is the case's own, so nothing left to shadow.
+			return
+		}
+		// The slot is one copied in from the faux parent. Reserving it
+		// again is the copy loop re-running over an already initialized
+		// block node, which must stay idempotent; only a declaration in
+		// the case itself shadows the copy. Compare by declaration, not
+		// by *NameExpr: the type switch variable's caller builds a fresh
+		// NameExpr on every pass.
+		if src := sb.NameSources[idx]; src.Origin == origin &&
+			src.Type == nstype && src.Index == index {
+			return
+		}
+		// Go declares a type switch's variable in each clause's own
+		// block, so a clause body redeclaring it is an error, not a
+		// shadow; leave it to Define2 to reject.
+		if sb.NameSources[idx].Type == NSTypeSwitch {
+			return
+		}
 	}
+	sb.defineNew(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
+}
+
+// numFauxCopiedNames returns how many leading names of this block were copied
+// in from its faux parent rather than declared in it: an IfStmt's or
+// SwitchStmt's init names, copied into every case so that the case and its
+// parent can share one runtime block with a flat index space. Names at or past
+// this index are the case's own, and may shadow a copy. See copyFromFauxBlock.
+//
+// This boundary is also what keeps the name-keyed per-block state coherent
+// while a name occupies two slots: a path into the copied region resolves to
+// the parent node (GetBlockNodeForPath), so a copy and the shadow of it never
+// share a block node for ATTR_HEAP_USES or SetIsHeapItem to collide in.
+func (sb *StaticBlock) numFauxCopiedNames() uint16 {
+	if fauxChildBlockNode(sb.Source) {
+		return sb.Parent.GetNumNames()
+	}
+	return 0
+}
+
+// defineFauxCopy writes tv to the slot n occupies among this block's
+// faux-copied names. Unlike Define it never retargets a shadowing slot the
+// case body declared for the same name.
+func (sb *StaticBlock) defineFauxCopy(idx uint16, n Name, tv TypedValue) {
+	if debugAssert {
+		if sb.Names[idx] != n {
+			panic(fmt.Sprintf(
+				"faux copy slot %d holds %s, not %s", idx, sb.Names[idx], n))
+		}
+	}
+	sb.Block.Values[idx] = tv
+	sb.Types[idx] = tv.T
 }
 
 // The declared type st may not be the same as the static tv;
@@ -2416,22 +2461,41 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 		*/
 	} else {
 		// The general case without re-definition.
-		sb.Names = append(sb.Names, n)
-		sb.HeapItems = append(sb.HeapItems, false)
-		if isConst {
-			sb.Consts = append(sb.Consts, n)
+		sb.defineNew(isConst, n, st, tv, nsrc)
+	}
+}
+
+// defineNew appends a new slot for n, whether or not n is already defined in
+// this block. Only Define2 (for a name that is genuinely new) and Reserve (for
+// a declaration shadowing a faux-copied name) may append a slot.
+//
+// A name may therefore occupy two slots, but only in a faux case block and
+// only with the second past numFauxCopiedNames. GetLocalIndex resolving to the
+// last slot depends on that; the assertion below keeps it honest.
+func (sb *StaticBlock) defineNew(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
+	if debugAssert {
+		if idx, exists := sb.GetLocalIndex(n); exists &&
+			idx >= sb.numFauxCopiedNames() {
+			panic(fmt.Sprintf(
+				"StaticBlock.defineNew(%s) would duplicate slot %d of %T",
+				n, idx, sb.Source))
 		}
-		sb.NumNames++
-		sb.Block.Values = append(sb.Block.Values, tv)
-		sb.Types = append(sb.Types, st)
-		sb.NameSources = append(sb.NameSources, nsrc)
-		// Maintain nameIndex consistent with Names: build at threshold-cross,
-		// otherwise insert incrementally if the map already exists.
-		if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
-			sb.buildNameIndex()
-		} else if sb.nameIndex != nil {
-			sb.nameIndex[n] = sb.NumNames - 1
-		}
+	}
+	sb.Names = append(sb.Names, n)
+	sb.HeapItems = append(sb.HeapItems, false)
+	if isConst {
+		sb.Consts = append(sb.Consts, n)
+	}
+	sb.NumNames++
+	sb.Block.Values = append(sb.Block.Values, tv)
+	sb.Types = append(sb.Types, st)
+	sb.NameSources = append(sb.NameSources, nsrc)
+	// Maintain nameIndex consistent with Names: build at threshold-cross,
+	// otherwise insert incrementally if the map already exists.
+	if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+		sb.buildNameIndex()
+	} else if sb.nameIndex != nil {
+		sb.nameIndex[n] = sb.NumNames - 1
 	}
 }
 
