@@ -35,8 +35,6 @@ func classifyImport(p, domain string) string {
 // link to and the source has to be reached upstream.
 const stdlibSourceBase = "https://github.com/gnolang/gno/tree/master/gnovm/stdlibs/"
 
-// buildImportLink returns where an import points, and whether that is off
-// gno.land.
 func buildImportLink(p, kind, domain string) (link string, external bool) {
 	switch kind {
 	case "package", "realm":

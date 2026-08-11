@@ -95,10 +95,9 @@ type ValueGroup struct {
 
 // ImportLink is a dependency edge rendered in the Imports section.
 type ImportLink struct {
-	Path string
-	Kind string // "stdlib" | "package" | "realm" | "external"
-	Link string
-	// External marks a Link that leaves gno.land.
+	Path     string
+	Kind     string // "stdlib" | "package" | "realm" | "external"
+	Link     string
 	External bool
 }
 

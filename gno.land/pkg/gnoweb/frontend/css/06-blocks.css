@@ -3122,7 +3122,7 @@ main.dev-mode > section:has(.c-overview-view) {
 		font-weight: var(--g-font-normal);
 	}
 
-	/* The one section label that navigates. The reset strips link styling. */
+	/* The reset strips link styling from the one label that navigates. */
 	.b-pkg-section__link {
 		color: var(--s-color-text-link);
 		text-decoration: none;
@@ -3309,7 +3309,6 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-secondary);
 }
 
-/* Smaller than the section icons: it marks a link, it does not label a row. */
 .b-pkg-list__outbound {
 	inline-size: 0.75em;
 	block-size: 0.75em;
@@ -3332,9 +3331,8 @@ main.dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-brand-weak);
 }
 
-/* Status pair on caution/success, visibility pair on warning/info. Two axes
-   render side by side, and yellow against blue survives the red-green
-   deficiency the status pair does not. */
+/* Two axes side by side: status on caution/success, visibility on warning/info.
+   Yellow against blue survives red-green deficiency. */
 .b-tag--draft,
 .b-tag--published,
 .b-tag--private,

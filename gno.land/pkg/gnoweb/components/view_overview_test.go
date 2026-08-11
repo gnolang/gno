@@ -60,8 +60,7 @@ func TestOverviewView_TypeCardFoldsMethodNamesIntoDataName(t *testing.T) {
 		"type card data-name must fold in method names so the filter can find methods")
 }
 
-// The stdlib row wears the rel guard and the external icon; the on-site row
-// next to it wears neither.
+// Only the stdlib row leaves the site.
 func TestOverviewView_StdlibImportLeavesTheSite(t *testing.T) {
 	t.Parallel()
 	u, err := weburl.Parse("/r/demo/foo")

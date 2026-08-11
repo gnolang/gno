@@ -25,8 +25,7 @@ func TestBuildImports_ClassifyAndLink(t *testing.T) {
 
 func TestBuildImports_StdlibLinksUpstream(t *testing.T) {
 	t.Parallel()
-	// Stdlibs ship with the node, so they have no package page and link
-	// upstream instead, which is what External marks.
+	// Stdlibs have no package page, so they link upstream.
 	got := buildImports([]string{"chain/banker", "errors"}, "gno.land")
 	require.Equal(t, []ImportLink{
 		{Path: "chain/banker", Kind: "stdlib", Link: stdlibSourceBase + "chain/banker", External: true},

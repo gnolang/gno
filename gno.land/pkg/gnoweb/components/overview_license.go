@@ -5,13 +5,11 @@ import (
 	"regexp"
 )
 
-// licenseSignatures matches Title rows against the title block only, a name in
-// the body being as likely a citation as a declaration. MPL-2.0 precedes the
-// GNU family it cites. Real files hard-wrap, hence `\s+` and the "s" flag.
+// A name in the body is as likely a citation as a declaration, so Title rows
+// match the title block only. Patterns use `\s+` because real files hard-wrap.
 var licenseSignatures = []struct {
-	Kind string
-	RE   *regexp.Regexp
-	// Title restricts the match to the title block rather than the whole sample.
+	Kind  string
+	RE    *regexp.Regexp
 	Title bool
 }{
 	{Kind: "MIT", RE: regexp.MustCompile(`(?i)^\s*(the )?mit license`), Title: true},
@@ -30,13 +28,10 @@ var licenseSignatures = []struct {
 
 var spdxRE = regexp.MustCompile(`(?i)SPDX-License-Identifier:\s*([^\s]+)`)
 
-// titleLines bounds the title block. Four covers a wrapped name, its version
-// and its copyright, stopping short of the prose where one license cites
-// another.
+// titleLines stops before the prose where one license cites another.
 const titleLines = 4
 
-// mdHeading opens an ATX heading, which is how a LICENSE copied off GitHub
-// writes its name.
+// mdHeading is stripped so "# MIT License" reads as its name.
 const mdHeading = "#"
 
 // licenseTitle joins the title block into one phrase, so a wrapped name still
@@ -61,11 +56,8 @@ func licenseTitle(sample []byte) []byte {
 	return out
 }
 
-// deriveLicense returns the first recognized license file.
-// Content is read up to 4 KB to bound regex work: the patterns are linear, Go's
-// regexp having no backtracking, but they run at about 26 MB/s, so an uncapped
-// megabyte-sized license would cost over a tenth of a second per render.
-// If the file exists but content lookup fails, FileName is set and Kind is empty.
+// deriveLicense returns the first recognized license file. The 4 KB cap bounds
+// regex work, which runs at about 26 MB/s. A failed lookup sets FileName only.
 func deriveLicense(files []string, fileContent func(string) ([]byte, bool)) License {
 	var licenseFile string
 	for _, f := range files {
@@ -87,8 +79,7 @@ func deriveLicense(files []string, fileContent func(string) ([]byte, bool)) Lice
 		sample = sample[:4096]
 	}
 
-	// Title first, so a cited identifier loses to the file's own name. A body
-	// SPDX line only wins when nothing above it matched.
+	// Title first, so a cited identifier loses to the file's own name.
 	title := licenseTitle(sample)
 	if m := spdxRE.FindSubmatch(title); len(m) == 2 {
 		return License{Kind: string(m[1]), FileName: licenseFile}
