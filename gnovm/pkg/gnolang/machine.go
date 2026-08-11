@@ -3063,6 +3063,18 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 			}
 			panic("should not happen, not pointer nor nil")
 		}
+		if debugAssert {
+			// The only branch whose Base does not come from the live block
+			// chain (NameExpr) or from a non-Block value (Index/Selector/
+			// CompositeLit): it is whatever the dereferenced pointer holds, so
+			// it can name a block that has already left the block stack.
+			// Assign2 and Deref carry the same check, but the compound
+			// assignments and inc/dec write through pv.TV directly (see
+			// op_assign.go, op_inc_dec.go), so `*p op= v` and `(*p)++` reach a
+			// recycled block without passing through either. Compiled out
+			// unless the debugAssert build tag is set.
+			pv.assertBaseNotPoisoned()
+		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := lhsOperands[0]
