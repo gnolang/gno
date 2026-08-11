@@ -122,6 +122,17 @@ since the bytes are immutable in state. The parse is load-bearing.
   false). The practical gap is that `gnokey maketx addpkg` performs no
   client-side type-check, so the chain was the only thing telling a deployer
   their tests compiled. Worth wiring `gno lint` into the deploy flow separately.
+- **Import gating over test files is lost too**, which is a governance rule
+  rather than a compile-time nicety and so is worth stating separately from the
+  bullet above. Resolving a test file's imports is what produced
+  `ImportNotFoundError`, `ImportDraftError` and `ImportPrivateError`; with those
+  passes skipped, a `_test.gno` may now name an import path that does not exist,
+  or a draft or private package, and the deploy succeeds. Reproduced
+  post-genesis: a package whose `_test.gno` imports `gno.land/r/demo/draftrealm`
+  deploys where it previously failed with `ImportDraftError`. The import is inert
+  — the file can never run, and `doc.pkgData.imports()` reads production files
+  only, so `vm/qdoc` is unaffected (verified across a restart) — but the deploy
+  gate no longer enforces it.
 - **Genesis is included**: `ProdOnly` applies at height 0, so a broken test file
   in `examples/` would ship without the chain objecting. That belongs in CI
   (`gno test` / `gno lint` over `examples/`); confirm CI covers it.
@@ -164,6 +175,16 @@ Test files are a genuine transparency feature.
 - `issue_2763.txtar` — rewritten. A `_test.gno` redeclaring a production symbol
   now deploys, and `vm/qeval` proves the production symbol is what the chain
   resolves, while `vm/qfile` proves the test file is still stored.
+- `TestTypeCheckMemPackage_prodOnlyPassGating` — pins which passes `ProdOnly`
+  gates, by putting a type error in one bucket at a time: a same-package
+  `_test.gno` (`gofs`), a `package xxx_test` file (`_gofs`) and a `_filetest.gno`
+  (`tgofs`). Each must be reported with `ProdOnly` false and skipped with it
+  true. This guards the three-state `wtests` mapping: collapsing it to
+  `wtests := !opts.ProdOnly` sends the default to `&true`, which stops after the
+  with-tests pass and silently drops the `xxx_test` and `_filetest` passes for
+  `gno test` and `gno lint`. That collapse was applied and reverted during this
+  PR's review, and no existing test caught it — the two `_gofs`/`tgofs` cases
+  fail under it.
 
 Verification set from AGENTS.md, all passing:
 
