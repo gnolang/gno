@@ -903,8 +903,7 @@ func TestMultiplexSwitch_SeedDialLoop(t *testing.T) {
 			WithSeeds([]*types.NetAddress{seedAddr}),
 		)
 
-		ctx, cancelFn := context.WithCancel(context.Background())
-		defer cancelFn()
+		ctx := t.Context()
 
 		go sw.runSeedDialLoop(ctx)
 
