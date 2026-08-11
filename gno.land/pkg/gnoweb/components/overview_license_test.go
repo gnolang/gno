@@ -58,7 +58,9 @@ func TestDeriveLicense(t *testing.T) {
 			want: License{Kind: "MIT", FileName: "LICENSE"},
 		},
 		{
-			name:  "SPDX below the title block wins when no signature matched",
+			// A stacked multi-license file: naming one of the two would be wrong,
+			// so an identifier below the title block is left unread.
+			name:  "SPDX below the title block is not the file's own",
 			files: []string{"LICENSE"},
 			content: map[string][]byte{"LICENSE": []byte(
 				"bbloom.go\n" +
@@ -66,7 +68,7 @@ func TestDeriveLicense(t *testing.T) {
 					"All rights reserved.\n" +
 					"Licensed under the terms below.\n" +
 					"\n * SPDX-License-Identifier: Apache-2.0\n")},
-			want: License{Kind: "Apache-2.0", FileName: "LICENSE"},
+			want: License{FileName: "LICENSE"},
 		},
 		{
 			name:    "unknown license type still surfaces file name",

@@ -45,10 +45,9 @@ dropped from the title block: a LICENSE copied off GitHub opens with a markdown
 `# MIT License` heading, and a setext underline would otherwise spend one of the
 four lines.
 
-Detection runs title SPDX, then signatures, then body SPDX. A cited identifier
-therefore loses to a title that names its own license, while a file whose title
-block is a preamble or a file name keeps the identifier it declares further
-down.
+The SPDX line is scoped the same way. A body cites other licenses and their
+identifiers with them, so an identifier below the title block is not read as the
+file's own.
 
 **Safelist chroma's render-time classes** with `greedy: [/chroma-/]` in
 `postcss.config.cjs`, since no extractor can find a class name that exists only
@@ -86,11 +85,14 @@ outbound auto-event.
   ordering can only ever protect the citations already seen. Any license whose
   body quotes another is a new false positive, and title scoping removes the
   class rather than one instance of it.
-- **Scope the SPDX line to the title block too**, which is what the review of
-  this PR asked for. Rejected on measurement: over 2034 LICENSE files in a
-  module cache it cost two correct verdicts and gained none, because a file
-  whose title block is a preamble declares its identifier below it. Precedence
-  keeps the review's intent without the loss.
+- **Read a below-the-title SPDX line as a fallback**, once no signature matched.
+  Rejected: it leaves the defect open for every file that cites another license
+  and names itself in no way a signature recognises, which is a class rather
+  than a list. The two files in a 2034-file module cache that it resolves are
+  both multi-license: `dgraph-io/ristretto/v2/z/LICENSE` stacks an MIT header
+  over an Apache identifier, and `multiformats/go-base36` declares
+  `Apache-2.0 OR MIT`, which the capture truncates to `Apache-2.0`. Naming one
+  of two licenses is a worse answer than naming none.
 - **Add every chroma class to the PurgeCSS `safelist.standard` list.**
   Rejected: the set is chroma's to change, so a greedy pattern on its prefix is
   the only form that does not rot.
@@ -100,17 +102,17 @@ outbound auto-event.
 
 ## Consequences
 
-- License detection changes 664 verdicts over 2034 LICENSE files in a module
-  cache. 640 were blank on master and now resolve, most of them because master's
+- License detection changes 684 verdicts over 2056 LICENSE files in a module
+  cache. 658 were blank on master and now resolve, most of them because master's
   patterns could not cross the line break a real file wraps at. 13 move from
   BSD-2-Clause to BSD-3-Clause, master having required a literal `3.` label
   where real files bullet the clause, and 3 move from Apache-2.0 to
   BSD-3-Clause, those files opening with the Go Authors' BSD text and carrying
-  Apache further down. 8 stop resolving, every one a file covering itself with
+  Apache further down. 10 stop resolving, every one a file covering itself with
   two licenses at once, `gopkg.in/yaml.v3` and `pelletier/go-toml` among them,
-  where master named whichever the table reached first. Reporting no license on
-  a dual-licensed file is the intended trade: naming one of two is worse than
-  naming none.
+  where master named whichever the table reached first. All ten were reported as
+  Apache-2.0. Reporting no license on a dual-licensed file is the intended
+  trade: naming one of two is worse than naming none.
 - The four license files in `examples/` go from three resolved to four, the
   fourth being `p/onbloc/json/LICENSE` and its `# MIT License` heading.
 - The chroma safelist adds 559 bytes to `public/main.css`. That file is a

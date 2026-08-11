@@ -79,7 +79,8 @@ func deriveLicense(files []string, fileContent func(string) ([]byte, bool)) Lice
 		sample = sample[:4096]
 	}
 
-	// Title first, so a cited identifier loses to the file's own name.
+	// Title-scoped, like the named signatures: a body cites other licenses, and
+	// their identifiers with them.
 	title := licenseTitle(sample)
 	if m := spdxRE.FindSubmatch(title); len(m) == 2 {
 		return License{Kind: string(m[1]), FileName: licenseFile}
@@ -92,9 +93,6 @@ func deriveLicense(files []string, fileContent func(string) ([]byte, bool)) Lice
 		if sig.RE.Match(target) {
 			return License{Kind: sig.Kind, FileName: licenseFile}
 		}
-	}
-	if m := spdxRE.FindSubmatch(sample); len(m) == 2 {
-		return License{Kind: string(m[1]), FileName: licenseFile}
 	}
 	return License{FileName: licenseFile}
 }
