@@ -121,6 +121,12 @@ at different points in the same case.
   lowers `oldNames`, every slot it exposed is overwritten before use, and no
   recycled value survives into the next clause.
 
+  `ExpandWith` also reassigns `b.Source` *before* its equal-size early return:
+  falling through into a clause that declares no names of its own would
+  otherwise leave `b.Source` on the fallen-from clause, making the debugger's
+  `print` resolve that clause's (dropped) names against the truncated block —
+  an index-out-of-range error instead of "could not find symbol".
+
 - `GetLocalIndex` is a hot path and changed iteration direction. Duplicates
   remain impossible outside faux case blocks, so results are unchanged
   everywhere else. Cost was measured rather than assumed: `nameIndexThreshold`
@@ -148,10 +154,16 @@ at different points in the same case.
 
 - `getLocalIsConst` remains name-based (`slices.Contains(sb.Consts, n)`), which
   is not index-parallel, so a `const v` in a case marks the name const for both
-  slots. This is safe by construction rather than by luck: an if/switch init is
-  a `SimpleStmt` and can never declare a const, so the copied slot is never the
-  one whose const-ness is being asked about. Noted as an invariant rather than
-  fixed.
+  slots. For a use of the outer `v` textually *before* the `const v`, the
+  name-keyed `GetIsConst` therefore reports true and the use is const-folded
+  against the copy's static (value-less) slot, printing its zero value instead
+  of the outer value; an assignment there is rejected with "cannot assign to
+  const". This divergence is **not introduced here**: an ordinary nested block
+  (`v := 1; { println(v); const v = "c" }`) misbehaves identically on master,
+  because the shadow's `Consts` entry exists from `initStaticBlocks` on while
+  `GetIsConst` has no notion of statement position. The faux-block fix brings
+  case bodies to parity with that pre-existing behavior; fixing it for both
+  block kinds is left to a follow-up.
 
 - One behavior change outside the compiler: the debugger's `print v`, stopped
   in a case body *before* the shadowing declaration, now reports the shadow's

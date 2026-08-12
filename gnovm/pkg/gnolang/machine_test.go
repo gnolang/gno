@@ -73,6 +73,28 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.Equal(t, StringValue("1"), v.V)
 }
 
+func TestRunMemPackageBlankTypeDeclNoSlot(t *testing.T) {
+	// A blank type decl must not reserve a block slot: persisted package
+	// blocks are keyed by name index, so a `type _ ...` slot would shift
+	// every later name in the block. Reserve must ignore the blank
+	// identifier just like Define2 does.
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+	m := NewMachine("std", store)
+	m.RunMemPackageWithOverrides(&std.MemPackage{
+		Type: MPStdlibProd,
+		Name: "std",
+		Path: "std",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package std\n\ntype _ struct{}\n\nvar a = 1\n"},
+		},
+	}, true)
+	pn := store.GetBlockNode(PackageNodeLocation("std")).(*PackageNode)
+	assert.NotContains(t, pn.GetBlockNames(), Name(blankIdentifier))
+}
+
 func TestMachineString(t *testing.T) {
 	cases := []struct {
 		name string

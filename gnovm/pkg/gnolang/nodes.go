@@ -2313,6 +2313,9 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	if nx.Name == blankIdentifier {
+		return // ignore, as in Define2; the blank identifier never gets a slot.
+	}
 	if idx, exists := sb.GetLocalIndex(nx.Name); exists {
 		if idx >= sb.numFauxCopiedNames() {
 			// The name is the case's own, so nothing left to shadow.
@@ -2483,6 +2486,9 @@ func (sb *StaticBlock) defineNew(isConst bool, n Name, st Type, tv TypedValue, n
 				"StaticBlock.defineNew(%s) would duplicate slot %d of %T",
 				n, idx, sb.Source))
 		}
+	}
+	if sb.NumNames == math.MaxUint16 {
+		panic("too many variables in block")
 	}
 	sb.Names = append(sb.Names, n)
 	sb.HeapItems = append(sb.HeapItems, false)
