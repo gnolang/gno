@@ -554,6 +554,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
 		amino.MustUnmarshal(bz, &oo)
+		// Must precede GetShallowSize below: it charges by capacity.
+		normalizeDecodedCap(oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -744,6 +746,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
+	normalizeDecodedCap(oo)
 	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
