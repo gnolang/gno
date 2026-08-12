@@ -1,7 +1,10 @@
 package client
 
 import (
+	"encoding/base64"
+
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -13,10 +16,10 @@ type BaseOptions struct {
 	Config                string
 	// OnTxSuccess is called when the transaction tx succeeds. It can, for example,
 	// print info in the result. If OnTxSuccess is nil, print basic info.
-	OnTxSuccess func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
+	OnTxSuccess func(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
 	// OnTxFailure is called when the transaction tx fails. If nil, failure output
 	// is minimal.
-	OnTxFailure func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
+	OnTxFailure func(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit)
 }
 
 var DefaultBaseOptions = BaseOptions{
@@ -25,4 +28,28 @@ var DefaultBaseOptions = BaseOptions{
 	Quiet:                 false,
 	InsecurePasswordStdin: false,
 	Config:                "",
+}
+
+// DefaultOnTxSuccess returns a default OnTxSuccess callback that prints
+// basic transaction metrics to io.
+func DefaultOnTxSuccess(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+	io.Println(string(res.DeliverTx.Data))
+	io.Println("OK!")
+	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+	io.Println("HEIGHT:    ", res.Height)
+	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+	io.Println("INFO:      ", res.DeliverTx.Info)
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+}
+
+// DefaultOnTxFailure returns a default OnTxFailure callback that prints
+// basic transaction metrics to io.
+func DefaultOnTxFailure(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+	io.Println("HEIGHT:    ", res.Height)
+	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+	io.Println("INFO:      ", res.DeliverTx.Info)
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 }

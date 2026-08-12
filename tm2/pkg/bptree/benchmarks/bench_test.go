@@ -61,8 +61,11 @@ type TreeBench interface {
 	// CommittedReader opens a read-only snapshot at version and returns a
 	// point-read function over it (the ABCI-query read path) plus a closer.
 	// bptree routes through ImmutableTree.Get (so the fast index engages); iavl
-	// through its ImmutableTree (fast nodes engage). The working-tree Get does
-	// NOT use the bptree fast index, so this is the path that exercises it.
+	// through its ImmutableTree (fast nodes engage). Note the bptree
+	// working-tree Get now ALSO serves from the fast index while the session
+	// is clean (which it always is in these benchmarks — they read between
+	// saves), so for index-on factories the default working-tree mode and
+	// this committed-read mode measure the same 1-read fast path.
 	CommittedReader(version int64) (get func([]byte) ([]byte, error), closeFn func() error, err error)
 }
 
@@ -188,7 +191,7 @@ func pregenVals(n int, dLen int) [][]byte {
 func prepareTree(b *testing.B, tree TreeBench, size, kLen, dLen int) [][]byte {
 	b.Helper()
 	keys := make([][]byte, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		k := randBytes(kLen)
 		_, err := tree.Set(k, randBytes(dLen))
 		require.NoError(b, err)
@@ -516,10 +519,7 @@ func BenchmarkIterationRange(b *testing.B) {
 			sort.Slice(sorted, func(i, j int) bool {
 				return bytes.Compare(sorted[i], sorted[j]) < 0
 			})
-			rangeSize := sz / 100
-			if rangeSize < 1 {
-				rangeSize = 1
-			}
+			rangeSize := max(sz/100, 1)
 			startIdx := sz / 2
 			endIdx := startIdx + rangeSize
 			if endIdx >= sz {
@@ -566,7 +566,7 @@ func BenchmarkBlock(b *testing.B) {
 				b.ReportAllocs()
 				b.StartTimer()
 				for i := 0; i < b.N; i++ {
-					for j := 0; j < bs; j++ {
+					for j := range bs {
 						if j%2 == 0 {
 							tree.Set(randBytes(keyLen), randBytes(dataLen))
 						} else {
@@ -601,7 +601,7 @@ func BenchmarkSaveVersion(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
 					b.StopTimer()
-					for j := 0; j < 100; j++ {
+					for range 100 {
 						tree.Set(randBytes(keyLen), randBytes(dataLen))
 					}
 					b.StartTimer()
@@ -657,8 +657,8 @@ func BenchmarkMultiVersionCreate(b *testing.B) {
 					tree := f.newTree(di.db, cacheForSize(baseSz))
 					_ = prepareTree(b, tree, baseSz, keyLen, dataLen)
 					b.StartTimer()
-					for v := 0; v < nv; v++ {
-						for j := 0; j < 50; j++ {
+					for range nv {
+						for range 50 {
 							tree.Set(randBytes(keyLen), randBytes(dataLen))
 						}
 						tree.SaveVersion()
@@ -687,8 +687,8 @@ func BenchmarkPrune(b *testing.B) {
 				di := makeDB(b, *benchBackend)
 				tree := f.newTree(di.db, cacheForSize(baseSz))
 				_ = prepareTree(b, tree, baseSz, keyLen, dataLen)
-				for v := 0; v < 100; v++ {
-					for j := 0; j < 100; j++ {
+				for range 100 {
+					for range 100 {
 						tree.Set(randBytes(keyLen), randBytes(dataLen))
 					}
 					tree.SaveVersion()
@@ -773,7 +773,7 @@ func BenchmarkWorkingHash(b *testing.B) {
 				b.ReportAllocs()
 				b.StartTimer()
 				for i := 0; i < b.N; i++ {
-					for j := 0; j < 10; j++ {
+					for range 10 {
 						tree.Set(randBytes(keyLen), randBytes(dataLen))
 					}
 					tree.WorkingHash()
@@ -823,8 +823,8 @@ func BenchmarkDiskSpaceMultiVersion(b *testing.B) {
 					di := makeDB(b, "goleveldb")
 					tree := f.newTree(di.db, cacheForSize(baseSz))
 					_ = prepareTree(b, tree, baseSz, keyLen, dataLen)
-					for v := 0; v < nv; v++ {
-						for j := 0; j < 50; j++ {
+					for range nv {
+						for range 50 {
 							tree.Set(randBytes(keyLen), randBytes(dataLen))
 						}
 						tree.SaveVersion()
@@ -933,7 +933,7 @@ func BenchmarkScalingSaveVersion(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
 					b.StopTimer()
-					for j := 0; j < 100; j++ {
+					for range 100 {
 						tree.Set(randBytes(keyLen), randBytes(dataLen))
 					}
 					b.StartTimer()

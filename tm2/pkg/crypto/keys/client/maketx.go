@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 
@@ -333,16 +332,9 @@ func ExecSignAndBroadcast(
 	}
 
 	if cfg.RootCfg.OnTxSuccess != nil {
-		cfg.RootCfg.OnTxSuccess(tx, bres)
+		cfg.RootCfg.OnTxSuccess(io, tx, bres)
 	} else {
-		io.Println(string(bres.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", bres.Height)
-		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		DefaultOnTxSuccess(io, tx, bres)
 	}
 
 	return nil
@@ -351,14 +343,9 @@ func ExecSignAndBroadcast(
 // handleDeliverResult handles a failed DeliverTx by invoking OnTxFailure or printing defaults.
 func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxCommit, io commands.IO) error {
 	if cfg.OnTxFailure != nil {
-		cfg.OnTxFailure(tx, bres)
+		cfg.OnTxFailure(io, tx, bres)
 	} else {
-		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", bres.Height)
-		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		DefaultOnTxFailure(io, tx, bres)
 	}
 	return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 }
@@ -374,7 +361,7 @@ func resolveMaxGas(ch chan consensusMaxGasResult, io commands.IO) int64 {
 	}
 	res := <-ch
 	if res.err != nil {
-		io.ErrPrintfln("warning: could not fetch consensus max gas, simulated gas limit will be unbounded: %v", res.err)
+		io.ErrPrintfln("warning: could not fetch consensus max gas, simulation will use the provided gas-wanted: %v", res.err)
 		return 0
 	}
 	return res.maxGas

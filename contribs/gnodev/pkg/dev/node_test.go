@@ -69,8 +69,7 @@ func resolvePaths(l *packages.Loader, paths []string) []*packages.Package {
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := log.NewTestingLogger(t)
 
@@ -89,8 +88,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_WithLoader(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pkg := std.MemPackage{
 		Name: "foobar",
@@ -584,7 +582,7 @@ func Render(_ string) string {
 
 	// Times list should be identical from the original list
 	require.Len(t, timesList2, len(timesList1))
-	for i := 0; i < len(timesList1); i++ {
+	for i := range timesList1 {
 		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
 		assert.Equal(t, t1nsec, t2nsec,
 			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)
@@ -824,6 +822,34 @@ func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder 
 	})
 
 	return node, emitter
+}
+
+// Reset must invoke NodeConfig.ResetState so every reset entry point (Ctrl+R
+// and the /reset endpoint) drops session-only state through the same hook;
+// gnodev wires it to loader.ResetTracked.
+func TestNode_Reset_InvokesResetState(t *testing.T) {
+	t.Parallel()
+
+	pkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{Name: "foo.gno", Body: "package foo\nfunc Render(_ string) string { return \"foo\" }\n"},
+		},
+	}
+
+	cfg, holder := newTestingNodeConfig(t, pkg)
+	var resets int
+	cfg.ResetState = func() { resets++ }
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, pkg.Path)
+
+	// The boot reset inside NewDevNode already fired the hook once.
+	require.Positive(t, resets)
+
+	before := resets
+	require.NoError(t, node.Reset(context.Background()))
+	assert.Equal(t, before+1, resets, "Reset must invoke ResetState exactly once")
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {

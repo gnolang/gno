@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"math"
@@ -89,19 +88,12 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
-		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
+		return handleDeliverResult(cfg.RootCfg, tx, res, io)
 	} else {
 		if cfg.RootCfg.OnTxSuccess != nil {
-			cfg.RootCfg.OnTxSuccess(tx, res)
+			cfg.RootCfg.OnTxSuccess(io, tx, res)
 		} else {
-			io.Println(string(res.DeliverTx.Data))
-			io.Println("OK!")
-			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-			io.Println("HEIGHT:    ", res.Height)
-			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+			DefaultOnTxSuccess(io, tx, res)
 		}
 	}
 	return nil
@@ -140,26 +132,28 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 
 		originalGasWanted := cfg.tx.Fee.GasWanted
 		res, err := SimulateTx(cli, simBz)
-		if rewritten && res != nil {
+		if err != nil {
+			return nil, err
+		}
+
+		// Revert to the old GasWanted. If the GasUsed exceeds GasWanted, and
+		// there's no other error to report), create synthetic OOG error.
+		if rewritten {
 			res.DeliverTx.GasWanted = originalGasWanted
-			if originalGasWanted > 0 && res.DeliverTx.Error == nil && res.DeliverTx.GasUsed > originalGasWanted {
+			if res.DeliverTx.Error == nil && res.DeliverTx.GasUsed > originalGasWanted {
 				log := store.OutOfGasLog(res.DeliverTx.GasUsed, originalGasWanted, cfg.simulateMaxGas, "simulation", false)
 				res.DeliverTx.Error = abci.ABCIErrorOrStringError(std.ErrOutOfGas(log))
 				res.DeliverTx.Log = log
 			}
 		}
-		if res != nil {
-			hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
-			if cfg.DryRun && !hasError {
-				err = estimateGasFee(cli, res, cfg.GasFeeMargin)
-				return res, err
-			}
+		hasError := res.CheckTx.IsErr() || res.DeliverTx.IsErr()
+		if cfg.DryRun && !hasError {
+			err = estimateGasFee(cli, res, cfg.GasFeeMargin)
+			return res, err
+		}
+		if hasError {
 			appendSuggestedGasWanted(res)
-			if hasError {
-				return res, err
-			}
-		} else if err != nil {
-			return nil, err
+			return res, err
 		}
 	}
 
@@ -177,13 +171,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 // original bytes are returned unchanged. It also returns whether tx bytes were
 // rewritten.
 func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
-	switch maxGas {
-	case 0:
-		return txBytes, false, nil
-	case -1:
+	if maxGas < 0 {
 		maxGas = simulationMaxGasFallback
 	}
-	if tx.Fee.GasWanted >= maxGas {
+	if maxGas == 0 || tx.Fee.GasWanted >= maxGas {
 		return txBytes, false, nil
 	}
 

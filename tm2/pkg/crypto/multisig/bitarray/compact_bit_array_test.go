@@ -16,7 +16,7 @@ func randCompactBitArray(bits int) (*CompactBitArray, []byte) {
 	bA := NewCompactBitArray(bits)
 
 	for i := range numBytes - 1 {
-		for j := uint8(0); j < 8; j++ {
+		for j := range uint8(8) {
 			bA.SetIndex(i*8+int(j), src[i]&(uint8(1)<<(8-j)) > 0)
 		}
 	}
@@ -75,7 +75,6 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -139,7 +138,6 @@ func TestCompactMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -178,8 +176,6 @@ func TestCompactBitArrayNumOfTrueBitsBefore(t *testing.T) {
 		{`"______________xx"`, []int{14, 15}, []int{0, 1}},
 	}
 	for tcIndex, tc := range testCases {
-		tc := tc
-		tcIndex := tcIndex
 		t.Run(tc.marshalledBA, func(t *testing.T) {
 			t.Parallel()
 

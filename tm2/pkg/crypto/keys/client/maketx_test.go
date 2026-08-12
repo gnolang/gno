@@ -17,7 +17,7 @@ import (
 
 func TestHandleDeliverResultCallsOnFailure(t *testing.T) {
 	called := false
-	cfg := &BaseCfg{BaseOptions: BaseOptions{OnTxFailure: func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+	cfg := &BaseCfg{BaseOptions: BaseOptions{OnTxFailure: func(commands.IO, std.Tx, *ctypes.ResultBroadcastTxCommit) {
 		called = true
 	}}}
 

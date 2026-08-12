@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// runtime error: slice type cannot be used as map key
+// runtime error: hash of unhashable type []int

@@ -40,6 +40,9 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 }
 
 // QueryAccount retrieves account information for a given address.
+//
+// The returned account's Coins field holds only the chain's gas denom. Every
+// other denom lives in its own store key; query bank/balances for the full set.
 func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
@@ -65,8 +68,68 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 	return &qret.BaseAccount, qres, nil
 }
 
+// QueryBalance retrieves every coin balance held by an address.
+//
+// Prefer this over QueryAccount when you want a balance: an account's Coins field
+// holds only the chain's gas denom, and every other denom lives in its own store key.
+// Reading the account instead is a mistake that has already been made in this repo.
+//
+// Costs grow with the number of denoms the address holds, and anyone can send an
+// address a new denom without its consent, so treat the cost as caller-influenced.
+func (c *Client) QueryBalance(addr crypto.Address) (std.Coins, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, nil, err
+	}
+
+	path := fmt.Sprintf("bank/balances/%s", crypto.AddressToBech32(addr))
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, []byte{})
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "query balance")
+	}
+	if qres.Response.Error != nil {
+		return nil, nil, errors.Wrap(qres.Response.Error, "query balance")
+	}
+
+	var coins std.Coins
+	if err := amino.UnmarshalJSON(qres.Response.Data, &coins); err != nil {
+		return nil, nil, err
+	}
+	return coins, qres, nil
+}
+
+// QuerySupply retrieves the total supply of a single denomination.
+//
+// A denomination nobody holds reports zero, which is also what an unknown
+// denomination reports; the two are indistinguishable.
+func (c *Client) QuerySupply(denom string) (int64, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return 0, nil, err
+	}
+	if err := std.ValidateDenom(denom); err != nil {
+		return 0, nil, errors.Wrap(err, "query supply")
+	}
+
+	// The denom is appended whole rather than escaped: a realm-issued denom is
+	// "/pkgPath:base" and the route takes the path remainder, so its slashes are
+	// part of the denom rather than path separators.
+	path := "bank/supply/" + denom
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, []byte{})
+	if err != nil {
+		return 0, nil, errors.Wrap(err, "query supply")
+	}
+	if qres.Response.Error != nil {
+		return 0, nil, errors.Wrap(qres.Response.Error, "query supply")
+	}
+
+	var supply int64
+	if err := amino.UnmarshalJSON(qres.Response.Data, &supply); err != nil {
+		return 0, nil, err
+	}
+	return supply, qres, nil
+}
+
 // QuerySessionAccount retrieves session account information for a given masterAddr and sessionAddr.
-func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*gnoland.GnoSessionAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
 	}
@@ -83,13 +146,13 @@ func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*s
 			" or session address: " + crypto.AddressToBech32(sessionAddr))
 	}
 
-	var qret gnoland.GnoSessionAccount
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+	qret := &gnoland.GnoSessionAccount{}
+	err = amino.UnmarshalJSON(qres.Response.Data, qret)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return &qret.BaseSessionAccount.BaseAccount, qres, nil
+	return qret, qres, nil
 }
 
 // QueryAppVersion retrieves information about the app version

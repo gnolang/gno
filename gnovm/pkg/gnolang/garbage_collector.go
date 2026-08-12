@@ -97,6 +97,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Account for blocks parked in the per-machine pool. They are dead from
+	// the program's perspective, but the machine pins each one for reuse — a
+	// Block plus its capacity-retained Values backing array — so the alloc
+	// tally must include them; otherwise recycling a block would appear to
+	// free memory that is in fact still held. Pooled blocks are zeroed and
+	// reference nothing else, so count them directly (by capacity, the real
+	// retained footprint) rather than walking them.
+	for _, b := range m.blockPool {
+		m.Alloc.Recount(allocBlock + allocBlockItem*int64(cap(b.Values)))
+	}
+
 	// Visit frames
 	for _, frame := range m.Frames {
 		stop := frame.Visit(m.Alloc, vis)
@@ -477,9 +488,9 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
-		// visit dfr.Func
-		if dfr.Func != nil {
-			stop = vis(dfr.Func)
+		// visit dfr.Callable (the deferred func / bound method)
+		if dfr.Callable != nil {
+			stop = vis(dfr.Callable)
 		}
 		if stop {
 			return

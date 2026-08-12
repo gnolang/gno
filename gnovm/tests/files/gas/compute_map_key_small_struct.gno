@@ -8,7 +8,6 @@ type Boom struct {
 	D int
 }
 
-
 func main() {
 	keyMap := Boom{}
 	m := map[any]int{}
@@ -16,4 +15,4 @@ func main() {
 }
 
 // Gas:
-// 6109
+// 6035

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"testing"
 
@@ -104,7 +105,7 @@ func assertNoGarbage(tb testing.TB, tree *MutableTree, checkValues bool) {
 // shared, leaking it.
 func TestTwinFix_NetZeroTwin_RootLeaf(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "tz%03d", i), []byte("v"))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil { // v1
@@ -133,7 +134,7 @@ func TestTwinFix_NetZeroTwin_RootLeaf(t *testing.T) {
 // MinKeys after the remove, so no redistribute destroys the twin).
 func TestTwinFix_NetZeroTwin_UnderInner(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "tw%03d", i), []byte("v"))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil { // v1: inner root, 2 leaves
@@ -162,7 +163,7 @@ func TestTwinFix_NetZeroTwin_UnderInner(t *testing.T) {
 // content at the record level.
 func TestTwinFix_SameValueRewriteTwin(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "sv%03d", i), []byte("v"))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil { // v1
@@ -218,7 +219,7 @@ func exportInto(tb testing.TB, tree *MutableTree, imm *ImmutableTree, version in
 // the oracle here is nodes-only.
 func TestTwinFix_ImportThenPrune(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "ip%04d", i), fmt.Appendf(nil, "v%04d", i))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil { // v1
@@ -310,7 +311,7 @@ func TestFix2_DivergentReplay_Nodes(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 	// Shuffled inserts → balanced multi-leaf tree; first/last keys live in
 	// different leaves.
-	for i := 0; i < 40; i++ {
+	for i := range 40 {
 		k := (i * 7) % 40
 		tree.Set(fmt.Appendf(nil, "dr%03d", k), fmt.Appendf(nil, "val%03d", k))
 	}
@@ -486,7 +487,7 @@ func TestTwinFix_ChurnOracle(t *testing.T) {
 	model := map[string]string{}
 
 	for cycle := 1; cycle <= 60; cycle++ {
-		for i := 0; i < 40; i++ {
+		for i := range 40 {
 			k := fmt.Sprintf("ch%04d", rng.Intn(800))
 			switch {
 			case rng.Intn(100) < 25 && len(model) > 0:
@@ -514,9 +515,7 @@ func TestTwinFix_ChurnOracle(t *testing.T) {
 			t.Fatal(err)
 		}
 		snap := make(map[string]string, len(model))
-		for k, val := range model {
-			snap[k] = val
-		}
+		maps.Copy(snap, model)
 		models[v], hashes[v] = snap, append([]byte(nil), h...)
 
 		if v > 3 {
@@ -576,7 +575,7 @@ func TestTwinFix_ChurnOracle(t *testing.T) {
 func TestM20_PruneCoveringLoadedVersion(t *testing.T) {
 	tree := newPruneTree(t)
 	for v := 1; v <= 3; v++ {
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			tree.Set(fmt.Appendf(nil, "lv%03d", i), fmt.Appendf(nil, "v%d", v))
 		}
 		if _, _, err := tree.SaveVersion(); err != nil {

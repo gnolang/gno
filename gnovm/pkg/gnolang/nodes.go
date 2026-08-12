@@ -436,7 +436,7 @@ func (x *CallExpr) isLikeWithCross() bool {
 	}
 	switch first := x.Args[0].(type) {
 	case *NameExpr:
-		return first.Name == Name("cur") || first.Name == Name(".origin") || first.Name == Name("cross1")
+		return first.Name == Name("cur") || first.Name == Name(".origin")
 	case *CallExpr:
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&
@@ -993,14 +993,6 @@ type bodyStmt struct {
 	StrLen        int          // for RangeStmt w/ strings only
 	StrIndex      int          // for RangeStmt w/ strings only
 	NextRune      rune         // for RangeStmt w/ strings only
-
-	// noRecycle is Block-level state (see Block.setNoRecycle), stored here
-	// to fill bodyStmt's trailing padding after NextRune so that
-	// unsafe.Sizeof(Block{}) — and with it the _allocBlock gas constant —
-	// stays unchanged. Safe here because a block's bodyStmt is only
-	// (re)assigned wholesale when entering the block or one of its case
-	// bodies, before any user statement (such as a defer) can run in it.
-	noRecycle bool
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {
@@ -1475,7 +1467,10 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			}
 		}
 		alloc.AllocateBlockItems(int64(len(nvs)))
-		block.Values = append(block.Values, nvs...)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		block.Values = growBlockValues(block.Values, pvl+len(nvs))
+		copy(block.Values[pvl:], nvs)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
@@ -2430,7 +2425,10 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 			sb.Consts = append(sb.Consts, n)
 		}
 		sb.NumNames++
-		sb.Block.Values = append(sb.Block.Values, tv)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		sb.Block.Values = growBlockValues(sb.Block.Values, len(sb.Block.Values)+1)
+		sb.Block.Values[len(sb.Block.Values)-1] = tv
 		sb.Types = append(sb.Types, st)
 		sb.NameSources = append(sb.NameSources, nsrc)
 		// Maintain nameIndex consistent with Names: build at threshold-cross,
