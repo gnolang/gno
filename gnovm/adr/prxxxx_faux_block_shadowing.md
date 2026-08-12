@@ -110,9 +110,16 @@ at different points in the same case.
 ## Consequences
 
 - Case blocks now differ in name count more often, so this **depends on the
-  `fallthrough` block-shrinkage fix** (`b.Values` truncation in `doOpExec`).
-  Without it, `case 1: v := 99; fallthrough` panics with `unexpected block size
-  shrinkage`. `tests/files/switch53.gno` covers the combination.
+  `fallthrough` block-shrinkage fix** (`b.Values` truncation in `doOpExec`),
+  which is included in the same PR. Without it, `case 1: v := 99; fallthrough`
+  panics with `unexpected block size shrinkage`. `tests/files/switch53.gno`
+  covers the combination.
+
+  That truncation composes with the block pool added in #5813: `ExpandWith`
+  now grows through `growBlockValues`, which reslices within capacity, and
+  then writes every index in `[oldNames, numNames)`. Since the truncation only
+  lowers `oldNames`, every slot it exposed is overwritten before use, and no
+  recycled value survives into the next clause.
 
 - `GetLocalIndex` is a hot path and changed iteration direction. Duplicates
   remain impossible outside faux case blocks, so results are unchanged
