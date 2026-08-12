@@ -1970,6 +1970,12 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 	}
 }
 
+// IsFuncLocal reports whether tid names a function-local declared type:
+// per the encoding above, only such IDs carry a bracketed location.
+func (tid TypeID) IsFuncLocal() bool {
+	return strings.Contains(string(tid), "[")
+}
+
 // IsFuncLocal reports whether dt was declared inside a function body.
 // declareWith sets ParentLoc non-zero iff the parent is a
 // FuncDecl/FuncLitExpr; package/file-scope declarations leave it zero.

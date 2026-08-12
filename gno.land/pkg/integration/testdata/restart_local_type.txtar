@@ -39,7 +39,6 @@ loadpkg gno.land/r/test/zlta $WORK/zlta
 loadpkg gno.land/r/test/zltb $WORK/zltb
 loadpkg gno.land/r/test/zltm $WORK/zltm
 loadpkg gno.land/r/test/zltc $WORK/zltc
-loadpkg gno.land/r/test/zlth $WORK/zlth
 loadpkg gno.land/r/test/zltsh $WORK/zltsh
 
 gnoland start
@@ -274,21 +273,6 @@ func Call(cur realm) int {
 	return H.Get()
 }
 
--- zlth/zlth.gno --
-package zlth
-
-type Getter interface{ Get() int }
-
-var H Getter
-
-func Set(cur realm, v Getter) {
-	H = v
-}
-
-func Call(cur realm) int {
-	return H.Get()
-}
-
 -- zltsh/zltsh.gno --
 package zltsh
 
@@ -349,7 +333,7 @@ func CallX(cur realm) int {
 -- script/script.gno --
 package main
 
-import "gno.land/r/test/zlth"
+import "gno.land/r/test/zlta"
 
 type T struct{ x int }
 
@@ -357,5 +341,5 @@ func (t T) Get() int { return t.x }
 
 func main(cur realm) {
 	type S struct{ T }
-	zlth.Set(cross(cur), S{T{21}})
+	zlta.Set(cross(cur), S{T{21}})
 }

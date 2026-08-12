@@ -935,25 +935,29 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	if !ok || pn.FileSet == nil {
 		return
 	}
-	for _, fn := range pn.FileSet.Files {
-		Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-			if stage != TRANS_ENTER {
-				return n, TRANS_CONTINUE
-			}
-			td, ok := n.(*TypeDecl)
-			if !ok || td.IsAlias {
-				return n, TRANS_CONTINUE
-			}
-			// After preprocessing td.Type is a *constTypeExpr holding the
-			// declared type (blank decls are skipped by the assertions).
-			if cte, ok := td.Type.(*constTypeExpr); ok {
-				if dt, ok := cte.Type.(*DeclaredType); ok &&
-					dt.IsFuncLocal() && dt.PkgPath == pv.PkgPath {
-					m.Store.SetType(dt)
-				}
-			}
+	save := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
-		})
+		}
+		td, ok := n.(*TypeDecl)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		// A type expression contains no further declarations, so the
+		// subtree is pruned on every path below. After preprocessing a
+		// non-alias td.Type is a *constTypeExpr holding the declared type
+		// (blank decls are skipped by the assertions).
+		cte, ok := td.Type.(*constTypeExpr)
+		if td.IsAlias || !ok {
+			return n, TRANS_SKIP
+		}
+		if dt, ok := cte.Type.(*DeclaredType); ok && dt.IsFuncLocal() {
+			m.Store.SetType(dt)
+		}
+		return n, TRANS_SKIP
+	}
+	for _, fn := range pn.FileSet.Files {
+		Transcribe(fn, save)
 	}
 }
 

@@ -897,8 +897,23 @@ func (ds *defaultStore) SetType(tt Type) {
 // produced by copyValueWithRefs and panics if it references a function-local
 // declared type (RefType whose TypeID carries a location) that is not in
 // cacheTypes. See the SetObject call site for the invariant.
+//
+// Shape mirrors fillTypesOfValue (the load-side walk over the same graph);
+// it cannot reuse fillTypesOfValue/assertTypeIsPublic because those resolve
+// types via GetType (amino decode, gas, cache fills) or run in release
+// builds — this walk must be side-effect-free.
 func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 	switch cv := val.(type) {
+	case nil, StringValue, BigintValue, BigdecValue, RefValue:
+		// Scalars and refs carry no type refs.
+	case PointerValue:
+		// In a persist-copy Base is always a RefValue (copyValueWithRefs
+		// elides the inline TV); the pointee is asserted by its own
+		// SetObject.
+	case *SliceValue:
+		ds.assertNoDanglingLocalTypeRef(cv.Base)
+	case *PackageValue:
+		ds.assertNoDanglingLocalTypeRef(cv.Block)
 	case *ArrayValue:
 		for i := range cv.List {
 			ds.assertNoDanglingLocalTypeRefTV(&cv.List[i])
@@ -932,8 +947,10 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 	case TypeValue:
 		ds.assertNoDanglingLocalTypeRefType(cv.Type)
 	default:
-		// Scalars carry no type refs; PointerValue/SliceValue bases and
-		// RefValue children are separate objects with their own SetObject.
+		// A kind this walker doesn't know can hide a local-type ref; fail
+		// loudly rather than silently weakening the debug invariant.
+		panic(fmt.Sprintf(
+			"assertNoDanglingLocalTypeRef: unhandled value kind %T", cv))
 	}
 }
 
@@ -945,27 +962,26 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefTV(tv *TypedValue) {
 func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 	switch ct := t.(type) {
 	case RefType:
-		// RefTypes only wrap declared types ("path.Name" or "path[loc].Name",
-		// see refOrCopyType), so a bracket identifies a function-local type.
-		if strings.Contains(ct.ID.String(), "[") {
-			if _, exists := ds.cacheTypes[ct.ID]; exists {
+		if !ct.ID.IsFuncLocal() {
+			return
+		}
+		if _, exists := ds.cacheTypes[ct.ID]; exists {
+			return
+		}
+		// Not in this transaction's cache: the type must already be in
+		// the backend, written at addpkg by saveFuncLocalTypes. Raw key
+		// probe (not GetTypeSafe) so the debug-only assert has no amino
+		// decode cost and no cache side effects; nil GasContext so it
+		// charges no gas — debugAssert builds must consume exactly the
+		// same gas as release builds.
+		if ds.baseStore != nil {
+			key := backendTypeKey(ct.ID)
+			if ds.baseStore.Get(nil, []byte(key)) != nil {
 				return
 			}
-			// Not in this transaction's cache: the type must already be in
-			// the backend, written at addpkg by saveFuncLocalTypes. Raw key
-			// probe (not GetTypeSafe) so the debug-only assert has no amino
-			// decode cost and no cache side effects; nil GasContext so it
-			// charges no gas — debugAssert builds must consume exactly the
-			// same gas as release builds.
-			if ds.baseStore != nil {
-				key := backendTypeKey(ct.ID)
-				if ds.baseStore.Get(nil, []byte(key)) != nil {
-					return
-				}
-			}
-			panic(fmt.Sprintf(
-				"dangling function-local type ref %s in persisted value", ct.ID))
 		}
+		panic(fmt.Sprintf(
+			"dangling function-local type ref %s in persisted value", ct.ID))
 	case *DeclaredType:
 		ds.assertNoDanglingLocalTypeRefType(ct.Base)
 	case FieldType:
@@ -994,10 +1010,6 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 		for _, field := range ct.Fields {
 			ds.assertNoDanglingLocalTypeRefType(field)
 		}
-	case *ChanType:
-		// Not persistable today (make(chan) panics), but walk Elt so the
-		// assert stays sound if that ever changes.
-		ds.assertNoDanglingLocalTypeRefType(ct.Elt)
 	case nil, PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// Structurally empty: no nested type refs to walk.
 	default:
