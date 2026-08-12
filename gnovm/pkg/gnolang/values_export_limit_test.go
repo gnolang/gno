@@ -234,3 +234,135 @@ func TestExportValuesLimit_Bigdec(t *testing.T) {
 	_, err = ExportValues([]TypedValue{tv}, charged+1_000)
 	require.NoError(t, err)
 }
+
+// buildDeepList evaluates a package that builds a `depth`-deep ephemeral linked
+// list (a struct with one self-pointer field per level) and returns the result
+// TypedValues. This is the thin, deeply nested shape that stays cheap per node,
+// so tens of thousands of levels fit under the byte budget — the shape the depth
+// guard exists to bound.
+func buildDeepList(t *testing.T, depth int) []TypedValue {
+	t.Helper()
+	m := NewMachine("testdata", nil)
+	t.Cleanup(m.Release)
+	nn := m.MustParseFile("deep.gno", `package testdata
+type Node struct {
+	Next *Node
+}
+func Build(depth int) *Node {
+	var head *Node
+	for i := 0; i < depth; i++ {
+		head = &Node{Next: head}
+	}
+	return head
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+	return m.Eval(Call(Sel(Nx("testdata"), "Build"), X(depth)))
+}
+
+// TestExportValuesLimit_DepthGuard is the regression test for the deep-recursion
+// DoS: a thin, deeply nested value tree stays under the byte budget (its per-node
+// charge is tiny), so the size guard never fires — but exporting and then
+// amino-marshaling it recurses on the goroutine stack (fatal, unrecoverable
+// overflow) and the marshal is ~O(depth^2). The depth guard must reject it with
+// ErrExportDepthExceeded, and must do so during the walk (before amino runs).
+func TestExportValuesLimit_DepthGuard(t *testing.T) {
+	// Deep enough to clear maxExportDepth by a wide margin, yet with a byte
+	// budget so generous the size guard cannot be what fires: this isolates the
+	// depth guard. The per-node charge (~tens of bytes) keeps the whole tree far
+	// under 100MB, so ErrExportSizeExceeded is not reachable here.
+	deep := buildDeepList(t, maxExportDepth*3)
+	_, err := ExportValues(deep, 100_000_000)
+	require.ErrorIs(t, err, ErrExportDepthExceeded)
+}
+
+// TestExportValuesLimit_DepthDisabled confirms the depth bound, like the size
+// bound, is only enforced under a limiter: a trusted caller (maxBytes <= 0)
+// exports a tree nested past maxExportDepth without error. Kept just above the
+// cap (not at the attack scale) so the unbounded walk itself is cheap.
+func TestExportValuesLimit_DepthDisabled(t *testing.T) {
+	deep := buildDeepList(t, maxExportDepth+500)
+	_, err := ExportValues(deep, 0)
+	require.NoError(t, err)
+}
+
+// TestExportObjectLimit_DepthGuard covers the other bounded entry point, the one
+// vm/qobject_json and vm/qobject_binary share. It is tested here rather than
+// through the keeper because those endpoints resolve a *persisted* ObjectID, and
+// persisted children collapse to RefValue one level in — so a deep graph is only
+// reachable through ExportObject directly, with an ephemeral object.
+func TestExportObjectLimit_DepthGuard(t *testing.T) {
+	deep := buildDeepList(t, maxExportDepth*3)
+	obj, ok := deep[0].V.(PointerValue).Base.(Object)
+	require.True(t, ok, "expected the list head's pointer base to be an Object")
+
+	_, err := ExportObject(obj, 100_000_000)
+	require.ErrorIs(t, err, ErrExportDepthExceeded)
+
+	shallow := buildDeepList(t, 100)
+	obj, ok = shallow[0].V.(PointerValue).Base.(Object)
+	require.True(t, ok)
+	_, err = ExportObject(obj, 100_000_000)
+	require.NoError(t, err)
+}
+
+// buildDeepSlices evaluates a package that nests a []interface{} `depth` levels
+// deep. Unlike buildDeepList this costs only ONE internal level per user level
+// (the element TypedValue; the slice's base array is a peer hop, not counted),
+// so it is the shape that buys the most user depth per byte charged — the one
+// that sets the worst case in the ADR's residual arithmetic.
+func buildDeepSlices(t *testing.T, depth int) []TypedValue {
+	t.Helper()
+	m := NewMachine("testdata", nil)
+	t.Cleanup(m.Release)
+	nn := m.MustParseFile("deep.gno", `package testdata
+func Build(depth int) []interface{} {
+	v := []interface{}{}
+	for i := 0; i < depth; i++ {
+		v = []interface{}{v}
+	}
+	return v
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+	return m.Eval(Call(Sel(Nx("testdata"), "Build"), X(depth)))
+}
+
+// TestExportValuesLimit_EffectiveUserDepth pins the boundary, and with it the
+// ratio between maxExportDepth and the nesting a user actually writes — which is
+// what the constant's doc comment and the ADR quote. The ratio is not 1:1 and
+// not even fixed: it depends on the shape, so both ends are pinned here.
+//
+//   - pointer-linked: two internal levels per user level (the struct field, then
+//     the heap item behind the pointer), so 500 nodes.
+//   - slice-nested: one internal level per user level, so 1000 levels — twice
+//     the depth for a comparable byte charge, which is why this end is the one
+//     the residual arithmetic must use.
+//
+// If either ratio moves, the constant's doc comment and the ADR are wrong and
+// must be updated with it. The accepted cases also marshal, since exporting a
+// legitimate result is only useful if amino can then serialize it.
+func TestExportValuesLimit_EffectiveUserDepth(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		build   func(*testing.T, int) []TypedValue
+		wantMax int
+	}{
+		{"pointer-linked", buildDeepList, maxExportDepth / 2},
+		{"slice-nested", buildDeepSlices, maxExportDepth},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			exported, err := ExportValues(tc.build(t, tc.wantMax), 100_000_000)
+			require.NoError(t, err, "%d levels should still export", tc.wantMax)
+			bz, err := amino.MarshalJSON(exported)
+			require.NoError(t, err)
+			require.NotEmpty(t, bz)
+
+			_, err = ExportValues(tc.build(t, tc.wantMax+1), 100_000_000)
+			require.ErrorIs(t, err, ErrExportDepthExceeded,
+				"%d levels should be rejected", tc.wantMax+1)
+		})
+	}
+}

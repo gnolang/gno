@@ -376,6 +376,24 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 			"error", qres.Response.Error,
 		)
 		return nil, fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
+	case errors.Is(qerr, vm.ExportDepthExceededError{}):
+		// Sibling of the size guard above: the node refused a response nested
+		// past maxExportDepth. Route it to the same sentinel so it renders as a
+		// 502 rather than a generic 500 — from the client's side it is the same
+		// "the node would not serialize this" condition.
+		//
+		// Defensive, not expected: the value-returning endpoints gnoweb calls
+		// (qpkg_json / qobject_json) resolve persisted data, whose children
+		// collapse to RefValue one level in, so they do not reach the depth cap
+		// (measured: a 600-node persisted list exports to 899 bytes). Mapped
+		// anyway so a future endpoint — or a shape that does not collapse —
+		// cannot regress this into a generic 500.
+		c.logger.Warn("node refused deeply nested response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
 	default:
 	}
 

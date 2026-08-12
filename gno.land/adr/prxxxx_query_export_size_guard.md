@@ -299,3 +299,184 @@ by a constant instead of by the size of whatever the expression produced.
   to OOM a small runner.
 - Existing `qeval_json` / `qobject_json` / `qobject_binary` txtars, the
   `gno.land/pkg/sdk/vm` package, and the gnoweb state suite still pass.
+
+## Addendum: depth guard (dora finding `da2da886-45d8-4205-a776-8e6bf4ce40cd`)
+
+The size guard above bounds the total serialized **bytes** of the export. It does
+not bound **nesting depth**, and depth is a second, independent amplifier that a
+thin value tree exploits while staying under the byte budget.
+
+A linked list — one struct with a single self-pointer field per node — costs only
+a few tens of bytes per level, so ~50K levels fit under the 10 MB budget and sail
+past the size guard. Two costs scale with that depth and the size guard misses
+both:
+
+- **Stack.** `exportValue → exportToRefOrCopy → exportCopyValue` recurse one frame
+  group per level, and `amino.MarshalJSON` recurses again over the exported tree.
+  Measured on this checkout, exporting a ~55K-deep list grows the goroutine stack
+  to ~540 MB before the size guard trips. A Go stack overflow is a `fatal error`,
+  **not** a recoverable panic, so `doRecoverQuery` cannot catch it — the node
+  dies, exactly the failure the size guard's `recover` was meant to prevent.
+- **CPU.** `amino.MarshalJSON` is superlinear — measured ~O(depth²): ~0.5 s at
+  depth 1000, ~20 s at 5000, ~66 s at 10000. A ~10 MB tree that is tens of
+  thousands of levels deep (which the size guard admits) marshals for tens of
+  minutes of unmetered CPU on a single free query.
+
+The reported `Build(80000)` now trips the size guard and errors fast, but that is
+incidental — `Build(50000)` slips under the byte budget and is *worse* (a ~27 min
+marshal). The root cause is unbounded recursion depth, not size.
+
+### Decision (depth)
+
+Add a **depth bound** to the same export walk, enforced through the same limiter:
+
+6. **`maxExportDepth = 1000`, `ErrExportDepthExceeded`** (`values_export.go`) —
+   the depth counter lives on `exportLimiter` alongside the size accumulator, so
+   it needs no plumbing of its own: `exportValue` brackets itself with
+   `lim.enter()` / `defer lim.leave()`, and `enter` panics
+   `ErrExportDepthExceeded` once the walk nests past the cap. Every nested value
+   passes through `exportValue`, so counting and checking are the same act — a
+   value kind added later cannot forget to count itself, which a threaded `depth`
+   parameter would have allowed. Because the panic fires *during* the walk, the
+   export aborts before recursing to overflow and before `amino.MarshalJSON` is
+   ever called — bounding both the stack and the superlinear marshal.
+   `withExportLimit` recovers it into a clean error, exactly as it already handles
+   `ErrExportSizeExceeded`.
+
+   Only *value* nesting counts (struct field, array/slice element, map key/value,
+   block value, heap-item value). Peer-level object references — a pointer or
+   slice base, a func or block parent — do not, matching where the size charge
+   treats a hop as "the same node". Those chains are bounded by the source: a
+   callee block's parent is its closure, not its caller, so runtime recursion
+   cannot extend them.
+
+   The cap is deliberately small. The stack could survive far more (~50K levels),
+   but the marshal's depth² cost is the binding constraint: 1000 keeps a single
+   chain to a sub-second marshal on every shape measured (173 ms pointer-linked at
+   500 nodes, 308 ms slice-nested and 186 ms map-nested at 1000 levels). It is
+   still far above any legitimate query result — persisted objects collapse to `RefValue` at depth 1 during export, so
+   only ephemeral structures built within a single query nest here, and those are
+   shallow (an AVL tree of millions of entries is ~depth 40).
+
+   `depth` counts *internal* levels, which are not 1:1 with source-level nesting,
+   and the ratio depends on the shape rather than being a constant:
+
+   - a pointer-linked structure costs **two** internal levels per user level (the
+     struct field, then the heap item behind the pointer), so 1000 admits a linked
+     list of 500 nodes;
+   - a slice- or map-nested structure (`[]interface{}{[]interface{}{...}}`,
+     `map[string]interface{}`) costs **one** — a slice's base array is a peer hop,
+     not a counted level — so 1000 admits 1000 levels.
+
+   `TestExportValuesLimit_EffectiveUserDepth` pins both ends so neither number
+   quoted here can drift silently. The 1000-level end is the one cost arithmetic
+   must use: it buys twice the depth for a comparable byte charge, so it sets the
+   worst case in "Residual" below.
+
+   Like the size budget, the depth bound is gated on the limiter: `maxBytes <= 0`
+   (trusted callers, tests) installs a nil limiter and enforces neither. That
+   couples "I trust this input's size" to "I trust its nesting", which is worth
+   revisiting — nesting is the bound that fails fatally rather than merely slowly
+   — but no production caller passes `<= 0`, so it is not live exposure. No
+   signature, exported or internal, changed.
+
+7. **`ExportDepthExceededError`** (`gno.land/pkg/sdk/vm`) — `abciExportErr` maps
+   `gno.ErrExportDepthExceeded` onto a typed ABCI error, mirroring
+   `ExportSizeExceededError`, so clients get a stable code rather than an untyped
+   internal error. Registered in `package.go`; `vm.proto` / `pb3_gen.go`
+   regenerated via `misc/genproto2` (one empty message plus its
+   Marshal/Size/Unmarshal trio; no other generated file changed).
+
+### Consequences (depth)
+
+- A query returning a value nested past the cap now returns `export depth limit
+  exceeded` instead of crashing the node or pinning a core. Legitimate ephemeral
+  nesting does not approach this; the constant is a single named tunable.
+- This is complementary to, not a replacement for, the size guard: size bounds
+  wide/large trees, depth bounds thin/deep ones. Both are needed; a value can
+  evade either one alone.
+- **`vm/qeval` is bounded too, not just the JSON endpoints.** `QueryEval` renders
+  with `TypedValue.String()`, which is already truncated at `nestedLimit`, but it
+  runs the export walk first as a size oracle — so the walk's own recursion is the
+  unbounded cost there as well, and it needed the bound. The visible change is
+  that `qeval` now rejects a deep value whose *rendered* output would have been
+  tiny: measured, a 400-node list renders to 296 bytes and is served, a 600-node
+  list is refused. That is a real behavior change for `qeval` consumers, accepted
+  because the alternative is an unbounded walk on a free query.
+- `vm/qobject_json`, `vm/qobject_binary` and `vm/qpkg_json` are guarded by the
+  same walk but cannot reach the depth bound in practice: they resolve *persisted*
+  data, whose children collapse to `RefValue` one level in (measured: a 40-node
+  persisted list exports to 307 bytes, and a 600-node one — past the 500-node
+  effective cap — to 899 bytes, served, for a `p/` package var as well as an `r/`
+  one). The bound is defensive on those paths, and is covered at the
+  `ExportObject` entry point instead of through the keeper. gnoweb's mapping of
+  `ExportDepthExceededError` onto its 502 sentinel is defensive for the same
+  reason, and says so.
+
+### Residual (depth)
+
+The depth cap bounds one chain, not total marshal cost, which is ~`depth ×
+output size`. Sibling chains that each stay under the cap still add up, and the
+byte budget is what admits them. Measured at the real `maxQueryExportBytes` with
+both guards active — pointer-linked chains, which the cap holds to 440 levels
+well inside its 500-node allowance:
+
+| chains × depth | export | `amino.MarshalJSON` | JSON out |
+|---|---|---|---|
+| 1 × 440 | 0.01 s | 0.12 s | 227 KB |
+| 20 × 440 | 0.01 s | 1.71 s | 4.5 MB |
+| 50 × 440 | 0.04 s | 3.61 s | 11.3 MB |
+| 100 × 440 | 0.07 s | **6.48 s** | 22.7 MB |
+| 200 × 440 | — | rejected by the size guard | — |
+
+That shape is **not** the worst case, because it is the one that pays two
+internal levels per user level. Repeating the measurement with slice-nested
+chains, which pay one and so run to 995 levels under the same cap:
+
+| chains × depth | export | `amino.MarshalJSON` | JSON out |
+|---|---|---|---|
+| 1 × 995 | 0.01 s | 0.33 s | 0.4 MB |
+| 20 × 995 | 0.02 s | 4.33 s | 7.4 MB |
+| 50 × 995 | 0.03 s | 9.08 s | 18.5 MB |
+| 66 × 995 | 0.07 s | **11.7 s** | 24.4 MB |
+| 80 × 995 | — | rejected by the size guard | — |
+
+Confirmed end-to-end through `VMKeeper.QueryEvalJSON` rather than the walk alone:
+that query is **served in 12.9 s** with a 24.8 MB response, inside the real
+`maxGasQuery` / `maxAllocQuery` ceilings (peak goroutine stack 7.3 MB, so the
+stack side of the fix has enormous margin — the pre-fix figure was ~540 MB).
+
+So a single free query can still cost ~13 s of unmetered CPU, and queries share
+one mutex (`tm2/pkg/bft/proxy/client.go`), so that stalls the query path for its
+duration: ~0.1 req/s keeps the query path saturated. That is a ~125× improvement
+on the pre-fix 27-minute case but not zero. Cutting it further is the byte
+budget's job, not the depth cap's: `maxQueryExportBytes` is the term that admits
+the fan-out, and the doc comment already notes it can be cut 10× without
+affecting realistic consumers. Cutting it is the recommended follow-up, and this
+number — not the 6.5 s the pointer-linked shape suggests — is the one to weigh
+when deciding whether to do it before or after this lands.
+
+Two related observations from the same measurement: the 10 MB *estimate* admitted
+22.7 MB (pointer-linked) and 24.4 MB (slice-nested) of actual JSON, so the
+estimator under-counts ~2.3–2.4× on both shapes, and the amino cost is
+superlinear in depth for a fixed output size, which is why bounding depth at all
+is what turns minutes into seconds.
+
+### Verification (depth)
+
+- `values_export_limit_test.go` — `TestExportValuesLimit_DepthGuard` (a tree
+  nested `3×` the cap is rejected with `ErrExportDepthExceeded` under a byte
+  budget generous enough that the size guard cannot be what fires, isolating the
+  depth guard), `TestExportValuesLimit_DepthDisabled` (`maxBytes <= 0` enforces no
+  depth bound), `TestExportObjectLimit_DepthGuard` (the other bounded entry point,
+  the one `qobject_json` / `qobject_binary` share), and
+  `TestExportValuesLimit_EffectiveUserDepth` (pins the exact boundary at both ends
+  of the shape-dependent ratio the docs quote — 500 pointer-linked nodes and 1000
+  slice-nested levels; the accepted cases also marshal).
+- `keeper_dos_test.go` — `TestQueryEval_DepthGuard`: a `Deep(5000)` query on
+  **both** `qeval` and `qeval_json` is rejected with `ExportDepthExceededError` at
+  the real budget, and a follow-up query succeeds on each, proving the node stayed
+  alive.
+- `gno.land/pkg/integration/testdata/query_export_depth_guard.txtar` — end-to-end
+  through `gnokey`: small query OK, `Deep(5000)` rejected on `qeval_json` and on
+  `qeval`, node still answers the next query.

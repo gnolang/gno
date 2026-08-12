@@ -14,6 +14,14 @@ import (
 // gno.land/adr/prxxxx_query_export_size_guard.md.
 var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 
+// ErrExportDepthExceeded is returned by ExportValues / ExportObject when the
+// value tree nests deeper than maxExportDepth. It complements the size guard: a
+// thin, deeply nested graph stays cheap per node, so tens of thousands of levels
+// fit under the byte budget while the walk recurses toward a fatal stack
+// overflow and amino.MarshalJSON runs superlinearly. See maxExportDepth and
+// gno.land/adr/prxxxx_query_export_size_guard.md.
+var ErrExportDepthExceeded = errors.New("export depth limit exceeded")
+
 // exportNodeEst is charged once per exported value/type node to account for
 // amino's per-node JSON overhead (braces, field names, commas, the T/V/N
 // envelope of a TypedValue). It is a deliberately rough estimate: the guard's
@@ -31,6 +39,41 @@ var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 // 198MB. See TestExportValuesLimit_FieldNamesAndTagsCharged.
 const exportNodeEst = 32
 
+// maxExportDepth bounds the nesting depth of an export walk: the levels of
+// *value* nesting it descends into (struct field, array/slice element, map
+// key/value, block value, heap-item value). Peer-level object references do not
+// count; see exportValue for which those are and why they are safe.
+//
+// This counts internal levels, not source-level ones, and the ratio between the
+// two is shape-dependent, so the effective user-visible depth is a range, not a
+// single number:
+//
+//   - a pointer-linked structure costs two internal levels per user level (the
+//     struct field, then the heap item behind the pointer), so 1000 admits a
+//     linked list of 500 nodes;
+//   - a slice- or map-nested structure ([]interface{}{[]interface{}{...}},
+//     map[string]interface{}) costs one, so 1000 admits 1000 levels.
+//
+// TestExportValuesLimit_EffectiveUserDepth pins both ends. Quote the 1000-level
+// end when reasoning about cost: it is the shape that buys the most depth per
+// byte charged, and therefore the one that sets the worst case (see the ADR's
+// "Residual" section).
+//
+// The cap is set by the marshal cost, not the stack (which survives ~50k levels
+// before the byte guard trips, at ~500MB of goroutine stack): amino.MarshalJSON
+// is superlinear in depth, ~0.5s for a single chain at depth 1000 and ~66s at
+// 10000. 1000 keeps a single chain sub-second on every shape measured (173ms
+// pointer-linked at 500 nodes, 308ms slice-nested and 186ms map-nested at 1000
+// levels) while staying far above any legitimate query result — persisted
+// objects collapse to RefValue at depth 1, so only ephemeral structures built
+// within one query nest here, and those are shallow (an AVL tree of millions of
+// entries is ~depth 40).
+//
+// Depth alone does not bound total marshal cost, which is ~depth × output size;
+// bounding that further is the byte budget's job. See the ADR's "Residual"
+// section for the measurements.
+const maxExportDepth = 1000
+
 // exportLimiter bounds the estimated serialized size of an export walk. It is
 // threaded through the walk and charged at every visited node; when the running
 // estimate exceeds max it panics with ErrExportSizeExceeded, aborting the walk
@@ -40,8 +83,10 @@ const exportNodeEst = 32
 //
 // A nil *exportLimiter imposes no bound, which is what maxBytes <= 0 selects.
 type exportLimiter struct {
-	size int64
-	max  int64
+	size     int64
+	max      int64
+	depth    int
+	maxDepth int
 }
 
 // add charges n estimated bytes and panics with ErrExportSizeExceeded once the
@@ -53,6 +98,29 @@ func (l *exportLimiter) add(n int64) {
 	l.size += n
 	if l.size > l.max {
 		panic(ErrExportSizeExceeded)
+	}
+}
+
+// enter descends one level of value nesting, panicking with
+// ErrExportDepthExceeded once the walk nests past maxDepth. Every nested value
+// is entered through exportValue, so keeping the counter here makes the check
+// and the increment the same act — a new value kind cannot forget to count
+// itself. Must be paired with leave. Nil-safe: a nil limiter (unbounded,
+// trusted input) imposes no depth bound, matching add().
+func (l *exportLimiter) enter() {
+	if l == nil {
+		return
+	}
+	if l.depth > l.maxDepth {
+		panic(ErrExportDepthExceeded)
+	}
+	l.depth++
+}
+
+// leave undoes one enter. Nil-safe, like enter.
+func (l *exportLimiter) leave() {
+	if l != nil {
+		l.depth--
 	}
 }
 
@@ -126,18 +194,20 @@ func ExportObject(obj Object, maxBytes int64) (Value, error) {
 
 // withExportLimit runs an export walk under a size budget: it builds the
 // limiter (nil when maxBytes <= 0, i.e. unbounded), and recovers the
-// ErrExportSizeExceeded panic that add() raises when the walk overshoots,
-// returning it as a clean error. Any other panic is re-raised unchanged.
+// ErrExportSizeExceeded / ErrExportDepthExceeded panic that the walk raises when
+// it overshoots the size budget or nests past maxExportDepth, returning it as a
+// clean error. Any other panic is re-raised unchanged.
 func withExportLimit[T any](maxBytes int64, walk func(*exportLimiter) T) (result T, err error) {
 	var lim *exportLimiter
 	if maxBytes > 0 {
-		lim = &exportLimiter{max: maxBytes}
+		lim = &exportLimiter{max: maxBytes, maxDepth: maxExportDepth}
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(error); ok && errors.Is(e, ErrExportSizeExceeded) {
+			if e, ok := r.(error); ok &&
+				(errors.Is(e, ErrExportSizeExceeded) || errors.Is(e, ErrExportDepthExceeded)) {
 				var zero T
-				result, err = zero, ErrExportSizeExceeded
+				result, err = zero, e
 				return
 			}
 			// Not the size guard: re-raise. The stack restarts at this
@@ -150,8 +220,18 @@ func withExportLimit[T any](maxBytes int64, walk func(*exportLimiter) T) (result
 	return walk(lim), nil
 }
 
-// exportValue exports a TypedValue, replacing objects with refs.
+// exportValue exports a TypedValue, replacing objects with refs. Every nested
+// value is entered through here, so this is the single choke point where the
+// depth bound is counted and enforced; resolving this value's own V stays at
+// the same level, since that is the same node.
+//
+// The peer-level hops it does not count — a pointer or slice base, a func or
+// block parent — are structurally bounded by the source: a callee block's
+// parent is its closure, not its caller, so runtime recursion does not extend
+// those chains. Only value nesting can be driven arbitrarily deep by a query.
 func exportValue(tv TypedValue, seen map[Object]int, lim *exportLimiter) TypedValue {
+	lim.enter()
+	defer lim.leave()
 	lim.add(exportNodeEst)
 	result := TypedValue{N: tv.N}
 	if tv.T != nil {

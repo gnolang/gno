@@ -79,13 +79,17 @@ const (
 // neither may any other test in this package that depends on the value.
 var maxQueryExportBytes int64 = 10_000_000 // ~10MB estimated export size
 
-// abciExportErr maps the VM's export-size sentinel onto this module's ABCI
-// error type, so a client gets a stable error code for "response too large"
-// instead of an untyped internal error. Anything else passes through unchanged.
+// abciExportErr maps the VM's export sentinels onto this module's ABCI error
+// types, so a client gets a stable error code for "response too large" or
+// "response too deeply nested" instead of an untyped internal error. Anything
+// else passes through unchanged.
 func abciExportErr(err error) error {
-	if goerrors.Is(err, gno.ErrExportSizeExceeded) {
+	switch {
+	case goerrors.Is(err, gno.ErrExportSizeExceeded):
 		return ErrExportSizeExceeded(fmt.Sprintf(
 			"estimated response size exceeds %d bytes", maxQueryExportBytes))
+	case goerrors.Is(err, gno.ErrExportDepthExceeded):
+		return ErrExportDepthExceeded("response nests deeper than the export limit")
 	}
 	return err
 }

@@ -64,6 +64,9 @@ message ObjectNotFoundError {
 message ExportSizeExceededError {
 }
 
+message ExportDepthExceededError {
+}
+
 message GenesisState {
 	Params params = 1;
 	repeated string realm_params = 2;

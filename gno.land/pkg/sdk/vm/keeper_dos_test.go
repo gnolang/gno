@@ -40,6 +40,23 @@ func Structs(n int) []Node {
 	}
 	return s
 }
+
+type Link struct {
+	Next *Link
+}
+
+// Deep builds an n-deep ephemeral linked list. It is thin (one pointer per
+// node), so it stays under the export byte budget even at tens of thousands of
+// levels — but exporting and amino-marshaling it recurses n deep on the
+// goroutine stack (a fatal, unrecoverable overflow) and the marshal is
+// ~O(n^2). This is the vector the export depth guard bounds.
+func Deep(n int) *Link {
+	var head *Link
+	for i := 0; i < n; i++ {
+		head = &Link{Next: head}
+	}
+	return head
+}
 `
 
 // lowerExportBudget temporarily shrinks maxQueryExportBytes so the guard can be
@@ -53,6 +70,21 @@ func lowerExportBudget(t *testing.T, n int64) {
 	prev := maxQueryExportBytes
 	maxQueryExportBytes = n
 	t.Cleanup(func() { maxQueryExportBytes = prev })
+}
+
+type evalEndpoint struct {
+	name  string
+	query func(ctx sdk.Context, pkgPath, expr string) (string, error)
+}
+
+// evalEndpoints returns the two expression-evaluating query endpoints, which
+// share the bounded export walk and so must be guarded identically. Kept in one
+// place so a third endpoint is added to every guard test at once.
+func evalEndpoints(env testEnv) []evalEndpoint {
+	return []evalEndpoint{
+		{"qeval", env.vmk.QueryEval},
+		{"qeval_json", env.vmk.QueryEvalJSON},
+	}
 }
 
 // setupSizeGuardRealm deploys a single-file realm and commits it. MaxDeposit is
@@ -89,13 +121,7 @@ func TestQueryEval_SizeGuard(t *testing.T) {
 	lowerExportBudget(t, 50_000)
 	env := setupSizeGuardRealm(t, "dosaddr", pkgPath, dosRealmSource)
 
-	for _, ep := range []struct {
-		name  string
-		query func(ctx sdk.Context, pkgPath, expr string) (string, error)
-	}{
-		{"qeval", env.vmk.QueryEval},
-		{"qeval_json", env.vmk.QueryEvalJSON},
-	} {
+	for _, ep := range evalEndpoints(env) {
 		t.Run(ep.name, func(t *testing.T) {
 			// Both exprs are comfortably under the eval alloc/gas ceiling, so
 			// pre-fix they were serviced and serialized unmetered.
@@ -160,6 +186,42 @@ func GetBlob() []byte { return Blob }
 	_, err = env.vmk.QueryObjectBinary(env.ctx, oid)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ExportSizeExceededError{})
+}
+
+// TestQueryEval_DepthGuard is the regression test for the deep-recursion DoS,
+// across both eval endpoints: a free query returning a thin, deeply nested value
+// stays under the export byte budget, so the size guard never fires — but the
+// export walk + amino marshal recurse on the goroutine stack (a fatal overflow
+// recover() cannot catch) and the marshal is superlinear in depth. Both
+// endpoints must reject it with ExportDepthExceededError and stay serviceable.
+//
+// qeval is covered here, not just qeval_json: it renders with TypedValue.String()
+// (already truncated at nestedLimit), but it runs the same export walk first as a
+// size oracle, so the walk's own recursion is the unbounded cost there too.
+//
+// Uses the real (unlowered) maxQueryExportBytes: the depth guard is a fixed cap,
+// independent of the byte budget, and the point is that this shape slips under
+// the byte budget.
+func TestQueryEval_DepthGuard(t *testing.T) {
+	const pkgPath = "gno.land/r/dos" // must match dosRealmSource's `package dos`
+	env := setupSizeGuardRealm(t, "dosdepthaddr", pkgPath, dosRealmSource)
+
+	for _, ep := range evalEndpoints(env) {
+		t.Run(ep.name, func(t *testing.T) {
+			// Well past maxExportDepth yet only a few hundred KB of estimated
+			// export size, so it is the depth guard — not the size guard — that
+			// fires.
+			_, err := ep.query(env.ctx, pkgPath, "Deep(5000)")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ExportDepthExceededError{})
+
+			// The guard returns a clean error rather than crashing: the node
+			// still services queries.
+			res, err := ep.query(env.ctx, pkgPath, "Deep(5)")
+			require.NoError(t, err)
+			require.NotEmpty(t, res)
+		})
+	}
 }
 
 // TestQueryPkgJSON_SizeGuard verifies the qpkg_json path is bounded too: a

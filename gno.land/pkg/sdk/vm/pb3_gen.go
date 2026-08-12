@@ -32,6 +32,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidFileError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ObjectNotFoundError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ExportSizeExceededError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ExportDepthExceededError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GenesisState)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Params)(nil)).Elem())
 }
@@ -1020,6 +1021,38 @@ func (goo *ExportSizeExceededError) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		switch fnum {
 		default:
 			return fmt.Errorf("unknown field number %d for ExportSizeExceededError", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo ExportDepthExceededError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo ExportDepthExceededError) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	return s, nil
+}
+
+func (goo *ExportDepthExceededError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ExportDepthExceededError{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			return fmt.Errorf("unknown field number %d for ExportDepthExceededError", fnum)
 		}
 	}
 	return nil
