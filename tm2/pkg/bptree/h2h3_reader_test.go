@@ -13,7 +13,7 @@ import (
 func h2h3Tree(t *testing.T) *MutableTree {
 	t.Helper()
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -130,9 +130,7 @@ func TestH2_ConcurrentPruneVsReader_NoRace(t *testing.T) {
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 
-	wg.Add(1)
-	go func() { // writer: commit + prune old versions
-		defer wg.Done()
+	wg.Go(func() { // writer: commit + prune old versions
 		rng := rand.New(rand.NewSource(1))
 		for {
 			select {
@@ -157,13 +155,11 @@ func TestH2_ConcurrentPruneVsReader_NoRace(t *testing.T) {
 				}
 			}
 		}
-	}()
+	})
 
-	wg.Add(1)
-	go func() { // reader: snapshot a fixed version, read, close
-		defer wg.Done()
+	wg.Go(func() { // reader: snapshot a fixed version, read, close
 		defer close(stop)
-		for i := 0; i < 3000; i++ {
+		for range 3000 {
 			imm, err := tree.GetImmutable(2)
 			if err != nil {
 				continue // v2 may have already been pruned
@@ -171,7 +167,7 @@ func TestH2_ConcurrentPruneVsReader_NoRace(t *testing.T) {
 			_, _ = imm.Has(i2b(0))
 			imm.Close()
 		}
-	}()
+	})
 
 	wg.Wait()
 }

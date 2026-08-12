@@ -41,6 +41,11 @@ type NodeConfig struct {
 	// (called once from Reset before any watcher event).
 	Reload func() ([]*packages.Package, error)
 
+	// ResetState, if set, is invoked at the start of Reset before Reload,
+	// so every reset entry point (Ctrl+R, /reset) returns the package set
+	// to its initial state. gnodev wires it to loader.ResetTracked.
+	ResetState func()
+
 	// DefaultCreator specifies the default address used for creating packages and transactions.
 	DefaultCreator crypto.Address
 
@@ -86,6 +91,10 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
 	tmc.Consensus.CreateEmptyBlocks = false
+	// The dev node is in-memory and single-validator, so it never peers. Disable
+	// peer exchange to avoid persisting an address book under rootdir, which fails
+	// when rootdir is read-only (e.g. `go tool gnodev` against the module cache).
+	tmc.P2P.PeerExchange = false
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
@@ -311,6 +320,12 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Reset starting time
 	startTime := time.Now()
+
+	// Drop any session-only state (e.g. lazily loaded packages) so the reload
+	// below rebuilds genesis from the initial package set.
+	if n.config.ResetState != nil {
+		n.config.ResetState()
+	}
 
 	// Generate a new genesis state based on the current packages
 	pkgs, err := n.config.Reload()

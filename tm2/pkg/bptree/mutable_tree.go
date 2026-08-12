@@ -32,11 +32,14 @@ import (
 // VersionExists, and AvailableVersions are likewise safe to call concurrently
 // with the writer.
 //
-// The gno ABCI path satisfies this contract by serializing all store access
-// through the connection mutex.
+// The gno ABCI path satisfies this contract by serializing all MUTATOR and
+// working-tree access through the shared consensus/mempool connection mutex.
+// The query connection runs on its OWN mutex, concurrently — query paths must
+// only use the committed-snapshot surfaces above (the store layer routes them
+// through read-only snapshot views; see rootmulti's query snapshot).
 type MutableTree struct {
 	root      Node  // nil for empty tree
-	lastSaved Node  // snapshot for rollback (set by SaveVersion)
+	lastSaved Node  // committed root: rollback target, and the clean-session witness gating fast-index reads (see fastReadable)
 	size      int64 // total key count in working tree
 	version   int64 // last saved version
 
@@ -178,10 +181,33 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	return updated, nil
 }
 
+// fastReadable reports whether Get may serve from the committed fast index:
+// the feature is on and the working root IS the committed root, i.e. the
+// session has no staged mutations. Pointer identity is exact because every
+// published mutation COW-clones the root (treeInsert/treeRemove clone at
+// entry); this is the pointer-identity component of PruneVersionsTo's
+// clean-session check (prune.go). No staged-batch/pendingVals checks are
+// needed: fastGet reads committed DB state only, and a clean root means no
+// staged write can affect a read's answer.
+func (t *MutableTree) fastReadable() bool {
+	return t.ndb.opts.FastIndex && t.root == t.lastSaved
+}
+
 // Get retrieves the value for a key.
 func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
+	}
+	// Advisory fast path — trust rule in fast_index.go (a clean working tree
+	// IS the committed snapshot at t.version). Keep this after the nil-root
+	// return: it avoids probing on an empty tree, and a committed-empty tree
+	// with a staged Set+Remove round-trip has root == lastSaved == nil
+	// (defense in depth — in-contract, a clean committed-empty tree has an
+	// empty index anyway).
+	if t.fastReadable() {
+		if val, ok := t.ndb.fastGet(key, t.version); ok {
+			return val, nil
+		}
 	}
 	_, _, vk, found, err := treeLookup(t.root, key)
 	if err != nil {
@@ -460,8 +486,37 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 	return t.ndb.SaveNode(node)
 }
 
-// Load loads the latest version from the DB.
+// Load loads the latest version from the DB and performs fast-index
+// maintenance. For the LIVE store only (single-threaded startup); read-only
+// consumers use LoadReadonly.
 func (t *MutableTree) Load() (int64, error) {
+	v, err := t.LoadReadonly()
+	if err != nil || v == 0 {
+		return v, err
+	}
+	// Build the fast index from the loaded latest root if it is absent/stale
+	// (e.g. enabling the feature on an existing DB, or post-import). No-op when
+	// disabled or already current. Errors are returned with the loaded tree
+	// itself unaffected: a rebuild failure (index-write or value-read) is
+	// transient — a retry Load re-attempts it — while a stamp-ahead error
+	// (externally rewound DB) deterministically recurs until the operator
+	// deletes the stamp or resyncs (see ensureFastIndex).
+	if err := t.ensureFastIndex(); err != nil {
+		return v, err
+	}
+	return v, nil
+}
+
+// LoadReadonly loads the latest version WITHOUT fast-index maintenance
+// (Load's ensureFastIndex can rebuild the index, i.e. WRITE). For read-only
+// consumers — the store layer's immutable/query views, which may sit on a
+// snapshot or read-only DB and may run concurrently with the live writer —
+// loading must never mutate shared persistent state. Fast-index READS remain
+// available for snapshots taken via getImmutable, which gates them on the
+// stamp covering the snapshot version and on fastGet's per-entry version guard;
+// a bare working-tree read after LoadReadonly is outside the trust contract
+// (see fast_index.go).
+func (t *MutableTree) LoadReadonly() (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
@@ -469,20 +524,7 @@ func (t *MutableTree) Load() (int64, error) {
 	if latest == 0 {
 		return 0, nil
 	}
-	v, err := t.LoadVersion(latest)
-	if err != nil {
-		return v, err
-	}
-	// Build the fast index from the loaded latest root if it is absent/stale
-	// (e.g. enabling the feature on an existing DB, or post-import). No-op when
-	// disabled or already current. A rebuild error is returned (surfacing an
-	// index-write failure, or a value-read failure since the rebuild re-reads
-	// every live value, at startup); the loaded tree itself is unaffected and a
-	// retry Load re-attempts the rebuild.
-	if err := t.ensureFastIndex(); err != nil {
-		return v, err
-	}
-	return v, nil
+	return t.loadVersionDiscovered(latest)
 }
 
 // LoadVersion loads a specific version from the DB.
@@ -504,6 +546,16 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
+	return t.loadVersionDiscovered(version)
+}
+
+// loadVersionDiscovered is LoadVersion's body after version discovery: it
+// loads version using the already-refreshed first/latest counters. Split out
+// so LoadReadonly — which has just discovered versions to FIND the latest —
+// doesn't pay a second full PrefixRoot scan. The scan is O(retained versions)
+// (~700k at gno.land's default syncable retention) and sits on the per-query
+// store-construction path, so the duplication was the dominant per-query cost.
+func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 
 	nkBytes, _, err := t.ndb.GetRoot(version)
@@ -576,8 +628,8 @@ func (t *MutableTree) newImmutable(root Node, version int64, committed bool) *Im
 	imm.ndb = t.ndb
 	if committed {
 		imm.valueResolver = t.ndb.getCommittedValue
-		// Only committed snapshots may use the fast index: it reflects committed
-		// state, so a read-your-writes (Snapshot) tree must not consult it.
+		// The fast index reflects committed state, so only committed snapshots
+		// may consult it here; a read-your-writes (Snapshot) tree must not.
 		imm.fast = t.ndb.opts.FastIndex
 	} else {
 		imm.valueResolver = t.ndb.GetValue
@@ -596,8 +648,11 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 // registering as a version reader. For long-lived snapshots that have no Close
 // hook (e.g. the store's immutable LoadVersion view) — registering them would
 // pin the version against pruning forever. Such a snapshot is not protected
-// against a concurrent prune of its version (acceptable: prune and queries are
-// serialized by the ABCI mutex today).
+// against a concurrent prune of its version by REGISTRATION; the store layer's
+// query views are protected by the frozen DB snapshot they read through
+// (rootmulti's query snapshot). On backends without snapshot support the
+// fallback reads the live DB, so a held view racing a prune of its version
+// fails loudly on the missing records.
 func (t *MutableTree) GetImmutableUnregistered(version int64) (*ImmutableTree, error) {
 	return t.getImmutable(version, false)
 }
@@ -633,6 +688,19 @@ func (t *MutableTree) getImmutable(version int64, register bool) (*ImmutableTree
 		return nil, err
 	}
 	imm := t.newImmutable(root, version, true)
+	// Gate the fast-index read path on stamp coverage: only trust the index if
+	// it is complete THROUGH this snapshot's version. A stamp behind `version`
+	// (e.g. versions committed with the feature off, or a rebuild not yet
+	// durable) can hold entries that are stale for keys updated in
+	// (stamp, version]; those entries pass fastGet's per-entry guard
+	// (vkVersion ≤ version) yet differ from the tree. The load paths avoid
+	// maintenance (LoadReadonly) so they can't refresh the stamp; this read-only
+	// re-verification is what keeps them safe. One point read per snapshot view;
+	// a read/checksum error degrades to the authoritative walk (fast off).
+	if imm.fast {
+		stamp, ok, err := t.ndb.getFastIndexVersion()
+		imm.fast = err == nil && ok && stamp >= version
+	}
 	imm.registered = reg
 	return imm, nil
 }
@@ -894,7 +962,7 @@ func treeGetWithIndex(node Node, key []byte) (int64, Hash, []byte, bool, error) 
 	case *InnerNode:
 		childIdx := searchInner(n, key)
 		offset := int64(0)
-		for i := 0; i < childIdx; i++ {
+		for i := range childIdx {
 			offset += n.childSizes[i]
 		}
 		child, err := n.getChild(childIdx)

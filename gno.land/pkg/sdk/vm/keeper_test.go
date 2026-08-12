@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
@@ -123,6 +125,96 @@ func Echo(cur realm) string {
 	store := env.vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.Nil(t, memFile)
+}
+
+// A package with no production .gno files (only _test.gno / _filetest.gno)
+// must be rejected: the storage split writes no prod blob for it, so a
+// restarted node would rebuild no PackageNode while a non-restarted node
+// still holds the deploy-time node in RAM (divergent call gas).
+func TestVMKeeperAddPackage_NoProdFiles(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/testonly"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "testonly_test.gno",
+			Body: `package testonly
+import "testing"
+func TestNothing(t *testing.T) {}`,
+		},
+	}
+
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+
+	require.Error(t, err)
+	assert.Equal(t, InvalidPackageError{}, tmerrors.Cause(err))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackageAll(pkgPath))
+}
+
+// Structural companion to addpkg_import_testdep_gas.txtar: importing a
+// dependency that carries a _test.gno file must cost exactly the same gas as
+// importing one without, because the storage split keeps a dep's test bytes
+// in the #allbutprod sibling, which import-time type-checking never decodes.
+// The txtar pins two equal literals (which a bulk gas re-pin could silently
+// de-equalize); this asserts the equality itself.
+func TestVMKeeperAddPackage_ImportTestDepGasEqual(t *testing.T) {
+	env := setupTestEnv()
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	{
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+		env.vmk.CommitGnoTransactionStore(ctx)
+	}
+
+	// deploy runs msg in its own tx store with a fresh gas meter and
+	// returns the gas the deploy consumed.
+	deploy := func(pkgPath, libName, libBody string, extra ...*std.MemFile) int64 {
+		t.Helper()
+		files := append([]*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: libName, Body: libBody},
+		}, extra...)
+		gm := types.NewInfiniteGasMeter()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		env.vmk.CommitGnoTransactionStore(ctx)
+		return gm.GasConsumed()
+	}
+
+	// depa and depb have byte-identical production code (a<->b only); depb
+	// additionally carries a _test.gno.
+	deploy("gno.land/p/demo/depa", "lib.gno",
+		"package depa\n\nfunc Hi() string { return \"hi\" }\n")
+	deploy("gno.land/p/demo/depb", "lib.gno",
+		"package depb\n\nfunc Hi() string { return \"hi\" }\n",
+		&std.MemFile{Name: "lib_test.gno", Body: `package depb
+
+// Test-only bytes: under the prod/test storage split these live in the
+// pkg:<path>#allbutprod sibling and must not affect importer gas.
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789
+// pad: 0123456789 0123456789 0123456789 0123456789 0123456789 0123456789
+func testPad() string { return Hi() }
+`})
+
+	// usea and useb are byte-identical apart from a<->b.
+	useaGas := deploy("gno.land/p/demo/usea", "lib.gno",
+		"package usea\n\nimport \"gno.land/p/demo/depa\"\n\nfunc Use() string { return depa.Hi() }\n")
+	usebGas := deploy("gno.land/p/demo/useb", "lib.gno",
+		"package useb\n\nimport \"gno.land/p/demo/depb\"\n\nfunc Use() string { return depb.Hi() }\n")
+
+	assert.Equal(t, useaGas, usebGas,
+		"importing a dep with test files must cost the same as importing one without")
 }
 
 func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {
@@ -781,7 +873,7 @@ func TestVMKeeperParams(t *testing.T) {
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
-package params
+package myrealm
 
 import "chain/params"
 
@@ -904,6 +996,35 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello world!\n", res)
+}
+
+// Ephemeral (/e/) run realms cannot mint sub-realm identities.
+func TestVMKeeperRunSubEphemeral(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "script.gno", Body: `
+package main
+
+func main(cur realm) {
+	cur.Sub("vault")
+}
+`},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgRun(addr, coins, files)
+	_, err := env.vmk.Run(ctx, msg2)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Sub: ephemeral realms cannot mint sub-identities")
 }
 
 // Call Run with stdlibs.
@@ -1426,12 +1547,12 @@ func UpdateStorage(cur realm, n int) {
 		masterPath := "gno.land/r/test/master"
 
 		// Build imports and calls dynamically
-		imports := ""
-		calls := ""
+		var imports strings.Builder
+		var calls strings.Builder
 		for _, realmPath := range realms {
 			alias := path.Base(realmPath)
-			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
-			calls += fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias)
+			imports.WriteString(fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath))
+			calls.WriteString(fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias))
 		}
 
 		masterCode := fmt.Sprintf(`package master
@@ -1440,7 +1561,7 @@ import (
 %s)
 
 func UpdateAll(cur realm) {
-%s}`, imports, calls)
+%s}`, imports.String(), calls.String())
 
 		masterFiles := []*std.MemFile{
 			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(masterPath)},
@@ -3180,4 +3301,188 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 	}
 
 	return searchFrom[start : start+end]
+}
+func TestQueryPkg(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qpkg-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qpkg"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "pkg.gno",
+			Body: `package qpkg
+
+type MyStruct struct {
+	Name string
+	Age  int
+}
+
+var (
+	myInt    int    = 42
+	myStr    string = "hello"
+	myStruct MyStruct
+)
+
+func init() {
+	myStruct = MyStruct{Name: "Alice", Age: 30}
+}
+
+func Render(path string) string { return "qpkg test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query via qpkg
+	res, err := env.vmk.QueryPkg(env.ctx, pkgPath)
+	require.NoError(t, err)
+	t.Logf("QueryPkg result:\n%s\n", res)
+
+	// Verify it's valid JSON with names and values
+	assert.Contains(t, res, `"names"`)
+	assert.Contains(t, res, `"values"`)
+	assert.Contains(t, res, `"myInt"`)
+	assert.Contains(t, res, `"myStr"`)
+	assert.Contains(t, res, `"myStruct"`)
+
+	// Parse and verify structure
+	var parsed struct {
+		Names  []string          `json:"names"`
+		Values []json.RawMessage `json:"values"`
+	}
+	err = json.Unmarshal([]byte(res), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, len(parsed.Names), len(parsed.Values))
+	assert.Contains(t, parsed.Names, "myInt")
+	assert.Contains(t, parsed.Names, "myStr")
+	assert.Contains(t, parsed.Names, "myStruct")
+
+	// Heap-allocated top-level vars must come through the unwrap as their
+	// inner inline shape, not as the heap wrapper. Regression guard: PR
+	// #5415 switched block.Values to store HeapItem cells via RefValue,
+	// which silently broke our unwrap (it only handled *HeapItemValue
+	// direct). Pin the inline contract so any future store-layout shift
+	// fails here instead of silently rendering as Unknown.
+	for i, name := range parsed.Names {
+		v := string(parsed.Values[i])
+		switch name {
+		case "myInt":
+			assert.Contains(t, v, `"@type":"/gno.PrimitiveType"`,
+				"top-level int must serialize as inline PrimitiveType, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level int must not leak the heap wrapper, got %s", v)
+		case "myStr":
+			assert.Contains(t, v, `"@type":"/gno.StringValue"`,
+				"top-level string must serialize as inline StringValue, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level string must not leak the heap wrapper, got %s", v)
+		}
+	}
+}
+
+func TestQueryPkgNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryPkg(env.ctx, "gno.land/r/nonexistent/pkg")
+	assert.Error(t, err)
+}
+
+func TestQueryType(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("qtype-test"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10_000_000)))
+
+	const pkgPath = "gno.land/r/test/qtype"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "types.gno",
+			Body: `package qtype
+
+type Board struct {
+	Name    string
+	Creator string
+	Posts   int
+}
+
+var board Board
+
+func init() {
+	board = Board{Name: "general", Creator: "alice", Posts: 5}
+}
+
+func Render(path string) string { return "qtype test" }
+`,
+		},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Query type by TypeID
+	tidStr := pkgPath + ".Board"
+	res, err := env.vmk.QueryType(env.ctx, tidStr)
+	require.NoError(t, err)
+	t.Logf("QueryType result:\n%s\n", res)
+
+	// Verify it contains the type definition with field names
+	assert.Contains(t, res, `"typeid"`)
+	assert.Contains(t, res, tidStr)
+	assert.Contains(t, res, `"Name"`)
+	assert.Contains(t, res, `"Creator"`)
+	assert.Contains(t, res, `"Posts"`)
+}
+
+func TestQueryTypeNotFound(t *testing.T) {
+	env := setupTestEnv()
+
+	_, err := env.vmk.QueryType(env.ctx, "gno.land/r/nonexistent.FakeType")
+	assert.Error(t, err)
+}
+
+// TestMarshalTypeJSON_ProducesValidJSONForControlCharNames — regression
+// guard: Go's `%q` quoting emits Go-only escapes like \v that are invalid
+// JSON. Jae's original PR fixed this for QueryObjectJSON by switching to
+// json.Marshal (see keeper.go ~line 1454); the QueryType/marshalTypeJSON
+// path must obey the same invariant.
+func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
+	st := &gnolang.StructType{
+		Fields: []gnolang.FieldType{
+			{Name: gnolang.Name("foo\v"), Type: gnolang.IntType},
+		},
+	}
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, st, 0)
+	var v any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
+		"output must be valid JSON; got %q", buf.String())
+}
+
+// TestQueryType_EnvelopeValidJSON — TypeID with a control byte must
+// still produce valid JSON at the envelope level. %q would emit `\v`
+// (Go-only escape, invalid in JSON); json.Marshal emits ``.
+func TestQueryType_EnvelopeValidJSON(t *testing.T) {
+	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
+	var v any
+	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
+		"envelope must be valid JSON; got %q", envelope)
 }

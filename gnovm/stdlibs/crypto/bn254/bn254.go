@@ -60,7 +60,7 @@ func X_pairingCheck(input []byte) []byte {
 	}
 	g1s := make([]bn254.G1Affine, n)
 	g2s := make([]bn254.G2Affine, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		off := i * 192
 		g1, ok := parseG1(input[off : off+64])
 		if !ok {

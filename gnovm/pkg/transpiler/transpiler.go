@@ -11,7 +11,6 @@ import (
 	goscanner "go/scanner"
 	"go/token"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -135,10 +134,10 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 	if err != nil {
 		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
 	}
-	if strings.HasPrefix(absFilename, stdlibPrefix) {
+	if after, ok := strings.CutPrefix(absFilename, stdlibPrefix); ok {
 		// this is a standard library. Mark it in the options so the native
 		// bindings resolve correctly.
-		path := strings.TrimPrefix(absFilename, stdlibPrefix)
+		path := after
 		path = filepath.ToSlash(filepath.Dir(path))
 		path = strings.TrimLeft(path, "/")
 
@@ -213,7 +212,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 					ctx.stdlibImports[importSpec.Name.Name] = importPath
 				} else {
 					// XXX: imperfect, see comment on transformCallExpr
-					ctx.stdlibImports[path.Base(importPath)] = importPath
+					ctx.stdlibImports[gno.LastPathElement(importPath)] = importPath
 				}
 			}
 
@@ -247,18 +246,6 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 							}},
 						}))
 					}
-				}
-			case *ast.Ident:
-				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
-					// Could be an expression like `hello.cross1`, so ignore.
-					return true
-				}
-				switch node.Name {
-				case "cross1":
-					// legacy sentinel; at runtime this stack slot must be
-					// undefined so installCrossingCur takes the
-					// callingCurOrOrigin path.
-					node.Name = "nil"
 				}
 			case *ast.CallExpr:
 				// is function call to a native function?
