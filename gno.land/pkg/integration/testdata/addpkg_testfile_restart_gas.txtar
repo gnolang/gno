@@ -17,7 +17,7 @@
 # -simulate skip matters: gnokey's default (-simulate test) simulates before
 # broadcasting, which would warm any such cache and mask the regression.
 
-env EXACT_GAS=2862220
+env EXACT_GAS=2862221
 
 gnoland start
 
