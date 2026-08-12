@@ -1,0 +1,85 @@
+# MsgCall rejects a send-envelope that no executing code ever observed.
+#
+# "The code read the envelope" is the operational definition of payable.
+# It cannot be decided statically (interface dispatch + function values),
+# so it is reconstructed at runtime: the two natives that read
+# ctx.OriginSend mark a per-message flag, and MsgCall fails the message if
+# a non-empty envelope was attached and the flag was never set.
+#
+# There are TWO observation points, not one: the direct accessor
+# (unsafe.OriginSend) and the BankerTypeOriginSend limit check. A realm
+# that forwards its envelope through an OriginSend banker never calls the
+# former, and must still count as payable.
+
+loadpkg gno.land/r/test/payable $WORK/payable
+
+adduser alice
+
+gnoland start
+
+## 1. Reads the envelope, keeps it (the "bond" shape) -> OK.
+gnokey maketx call -pkgpath gno.land/r/test/payable -func HoldBond -send 500ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout OK!
+stdout 'held=500'
+
+## 2. Forwards via an OriginSend banker, never calls unsafe.OriginSend()
+##    -> still payable, must NOT be rejected.
+gnokey maketx call -pkgpath gno.land/r/test/payable -func Forward -args 300 -send 300ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout OK!
+
+## 3. Never looks at the envelope -> coins would be stranded -> REJECTED.
+! gnokey maketx call -pkgpath gno.land/r/test/payable -func Ignores -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stderr 'never read the send-envelope'
+
+## 4. Same non-payable function with no envelope -> fine.
+gnokey maketx call -pkgpath gno.land/r/test/payable -func Ignores -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout OK!
+
+## 5. The rejection in (3) rolled back: the realm holds only what
+##    txs 1 and 2 delivered, and tx 2 forwarded its 300 straight out.
+##    500 (held) + 300 (in) - 300 (out) = 500.
+gnokey maketx call -pkgpath gno.land/r/test/payable -func Report -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout 'balance=500'
+
+-- payable/gnomod.toml --
+module = "gno.land/r/test/payable"
+gno = "0.9"
+
+-- payable/payable.gno --
+package payable
+
+import (
+	"strconv"
+
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+// HoldBond verifies the envelope and keeps it. It never spends, so
+// keying on OriginSendSpent would wrongly judge it non-payable.
+func HoldBond(cur realm) string {
+	amt := unsafe.OriginSend().AmountOf("ugnot")
+	if amt <= 0 {
+		panic("expected a bond")
+	}
+	return "held=" + strconv.FormatInt(amt, 10)
+}
+
+// Forward moves the envelope back out through an OriginSend banker.
+// Note it never calls unsafe.OriginSend() — the banker limit check is
+// the only thing that reads ctx.OriginSend on this path.
+func Forward(cur realm, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	b.SendCoins(unsafe.CurrentRealm().Address(), unsafe.OriginCaller(),
+		chain.Coins{{"ugnot", amount}})
+}
+
+// Ignores has no notion of payment.
+func Ignores(cur realm) {}
+
+func Report(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	return "balance=" + strconv.FormatInt(
+		banker.NewReadonlyBanker().GetCoins(me).AmountOf("ugnot"), 10)
+}

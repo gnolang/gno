@@ -88,6 +88,19 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 			)
 			return
 		}
+		// Past the gate above, `from` is the address the envelope was
+		// credited to, so this banker belongs to the realm that was paid.
+		// Forwarding the envelope through a banker counts as noticing the
+		// payment just as much as reading it does — the limit check below
+		// consults ctx.OriginSend. Mark here rather than after the limit
+		// check: a realm that gets this far is payable even if the send is
+		// then rejected for being too large, and failing it twice over
+		// would be wrong.
+		//
+		// Unconditional by design: the owner may have handed this banker to
+		// another realm to spend within this message, so the realm running
+		// right now is not necessarily the one that was paid.
+		ctx.MarkOriginSendObserved()
 		// indirection allows us to "commit" in a second phase
 		spent := (*ctx.OriginSendSpent).Add(amt)
 		if !ctx.OriginSend.IsAllGTE(spent) {

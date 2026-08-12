@@ -144,8 +144,15 @@ func X_setContext(
 	// testing.SetOriginSend passes an empty currRealmAddr (GetContext
 	// does not round-trip CurrentRealm), so it leaves the recipient
 	// alone either way.
+	//
+	// Move both spellings together. OriginSendRecipient (address) and
+	// OriginSendRecipientPath (package path) name the same realm and must
+	// never disagree: the banker gate reads the address, the payable check
+	// reads the path. Setting one without the other leaves the harness
+	// describing two different realms.
 	if currRealmAddr != "" && currRealmPkgPath != "" {
 		ctx.OriginSendRecipient = crypto.Bech32Address(currRealmAddr)
+		ctx.OriginSendRecipientPath = currRealmPkgPath
 	}
 
 	m.Context = ctx

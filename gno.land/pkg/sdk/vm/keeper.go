@@ -847,21 +847,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    caller.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
+		ChainID:            ctx.ChainID(),
+		ChainDomain:        chainDomain,
+		Height:             ctx.BlockHeight(),
+		Timestamp:          ctx.BlockTime().Unix(),
+		OriginCaller:       caller.Bech32(),
+		OriginSend:         send,
+		OriginSendSpent:    new(std.Coins),
+		OriginSendObserved: new(bool),
 		// send is credited to pkgAddr (the entry realm) below; that is
 		// the only address a BankerTypeOriginSend banker may spend from
 		// in this message.
-		OriginSendRecipient: pkgAddr.Bech32(),
-		Banker:              NewSDKBanker(vm, ctx),
-		Params:              NewSDKParams(vm.prmk, ctx),
-		EventLogger:         ctx.EventLogger(),
-		SessionAccount:      getSessionAccount(ctx, caller),
+		OriginSendRecipient:     pkgAddr.Bech32(),
+		OriginSendRecipientPath: pkgPath,
+		Banker:                  NewSDKBanker(vm, ctx),
+		Params:                  NewSDKParams(vm.prmk, ctx),
+		EventLogger:             ctx.EventLogger(),
+		SessionAccount:          getSessionAccount(ctx, caller),
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -936,6 +938,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
+	}
+
+	// Reject a send-envelope that nothing observed. The coins were credited
+	// to pkgAddr above; if no executing code ever read them, the callee has
+	// no notion of being paid and they would be stranded there. Returning an
+	// error discards the whole message including that credit (msg execution
+	// is cache-wrapped, tm2/pkg/sdk/baseapp.go:901).
+	//
+	// MsgCall only. MsgAddPackage is exempt because its envelope lands in
+	// the new package's own address, recoverable later by the realm itself
+	// — except for a pure `p/` package, whose address nothing can ever
+	// spend from. MsgRun is exempt because pkgAddr == caller makes its
+	// send a self-transfer no-op.
+	if !send.IsZero() && !*msgCtx.OriginSendObserved {
+		return "", ErrUnobservedSend(fmt.Sprintf(
+			"%s sent to %s.%s, which never read the send-envelope",
+			send.String(), pkgPath, fnc))
 	}
 
 	// Use parameters before executing the message, as they may change during execution.

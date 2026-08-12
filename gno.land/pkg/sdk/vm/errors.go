@@ -33,6 +33,11 @@ type (
 	// msg trace instead, which reaches the user via the unhashed
 	// Result.Log.
 	TypeCheckError struct{ abciError }
+	// UnobservedSendError is returned by MsgCall when a non-empty
+	// send-envelope was attached but no executing code ever observed it.
+	// Such a call would otherwise strand the coins in the callee's
+	// address. See ExecContext.OriginSendObserved.
+	UnobservedSendError struct{ abciError }
 	// UnspendableSendError is returned by MsgAddPackage when coins are
 	// attached to the deployment of a pure `p/` package. Such a package has
 	// no realm identity, so it can never obtain a banker and can never
@@ -50,6 +55,9 @@ func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e ObjectNotFoundError) Error() string   { return "object not found" }
 func (e TypeCheckError) Error() string        { return "invalid gno package; type check failed" }
+func (e UnobservedSendError) Error() string {
+	return "coins were sent but the called function never read them"
+}
 
 func (e UnspendableSendError) Error() string {
 	return "coins cannot be sent to a pure package; nothing could ever spend them"
@@ -85,6 +93,10 @@ func ErrInvalidPackage(msg string) error {
 
 func ErrObjectNotFound(msg string) error {
 	return errors.Wrap(ObjectNotFoundError{}, msg)
+}
+
+func ErrUnobservedSend(msg string) error {
+	return errors.Wrap(UnobservedSendError{}, msg)
 }
 
 func ErrUnspendableSend(msg string) error {

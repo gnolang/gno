@@ -29,6 +29,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	InvalidPackageError{}, "InvalidPackageError",
 	InvalidFileError{}, "InvalidFileError",
 	ObjectNotFoundError{}, "ObjectNotFoundError",
+	UnobservedSendError{}, "UnobservedSendError",
 	UnspendableSendError{}, "UnspendableSendError",
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
