@@ -333,10 +333,18 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	}
 
 	// NOTE: go1.18 generics syntax (TypeSpec/FuncType.TypeParams, interface
-	// type-set terms) is not handled below — this switch would silently drop
-	// TypeParams. It never arrives here because checkNoGenerics
-	// (typecheck_bound.go) rejects it before go/types runs. If go/types is
-	// ever removed, that rejection must move into this traversal.
+	// type-set terms) is not handled below — this switch silently drops
+	// TypeParams and turns a bare type-set term into a nameless method.
+	//
+	// checkNoGenerics (typecheck_bound.go) rejects type parameters and the
+	// `|`/`~` type-set terms, but only on the type-check path and only as a
+	// cost guard: it runs before go/types to stop the validType fan-out. It is
+	// NOT a general gate here. Paths that never invoke go/types (gno run, the
+	// REPL, direct ParseFile consumers) reach this traversal with generics
+	// intact, and bare type-set terms reach it even on the type-check path,
+	// because the expansion bound counts them rather than rejecting them.
+	// Rejecting these in this traversal — the one funnel every consumer shares
+	// — is tracked in #6059.
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
