@@ -61,6 +61,9 @@ message InvalidFileError {
 message ObjectNotFoundError {
 }
 
+message UnspendableSendError {
+}
+
 message GenesisState {
 	Params params = 1;
 	repeated string realm_params = 2;

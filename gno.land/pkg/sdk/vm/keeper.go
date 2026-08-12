@@ -630,6 +630,27 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
+	// Refuse coins that could never be spent again.
+	//
+	// A realm can spend from its own address later, via a banker, so coins
+	// attached to a realm deploy are recoverable and are allowed. A pure
+	// `p/` package cannot: it has no realm identity, so it can never obtain
+	// a banker, and nothing else can move coins out of its address either.
+	// Crediting it would destroy the coins with no error and no way back.
+	//
+	// The principle is that we refuse a payment the receiver could not act
+	// on, rather than accepting it and losing it silently.
+	//
+	// Placed after the path checks above so a bad path reports the path
+	// problem rather than this one, and before the type check below so the
+	// caller is not charged for compiling a package we are going to reject.
+	// The checks above have already established the path is a realm or a
+	// pure package, so "not a realm" here means "pure package".
+	if !send.IsZero() && !gno.IsRealmPath(pkgPath) {
+		return ErrUnspendableSend(fmt.Sprintf(
+			"%s sent to %s, which is a pure package and can never spend it",
+			send.String(), pkgPath))
+	}
 	opts := gno.TypeCheckOptions{
 		Getter: gnostore,
 		Mode:   gno.TCLatestStrict,
