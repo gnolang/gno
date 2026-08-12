@@ -46,10 +46,25 @@ type ExecContext struct {
 	OriginCaller    crypto.Bech32Address
 	OriginSend      std.Coins
 	OriginSendSpent *std.Coins // mutable
-	Banker          BankerInterface
-	Params          ParamsInterface
-	EventLogger     *sdk.EventLogger
-	SessionAccount  std.DelegatedAccount // nil for master-key txs
+	// OriginSendRecipient is the single address that OriginSend was
+	// actually credited to for this message — the entry realm's address
+	// (for MsgRun, the caller's, since /e/<addr>/run derives to it).
+	// BankerTypeOriginSend spending is gated on it: a banker is a plain
+	// persistable value, so its construction-time authority check
+	// (rlm.Previous().IsUserCall(), see chain/banker/banker.gno) can be
+	// separated arbitrarily in time from its use. Without this field the
+	// use-time limit would re-arm against the ambient envelope of any
+	// later message, one the banker's realm never received.
+	//
+	// The zero value means "no envelope was delivered in this message",
+	// which is fail-closed: no BankerTypeOriginSend send can succeed.
+	// That is the correct value for envelope-less contexts (queries,
+	// internal realm callouts).
+	OriginSendRecipient crypto.Bech32Address
+	Banker              BankerInterface
+	Params              ParamsInterface
+	EventLogger         *sdk.EventLogger
+	SessionAccount      std.DelegatedAccount // nil for master-key txs
 }
 
 // GetContext returns the execution context.

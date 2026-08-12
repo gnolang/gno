@@ -739,10 +739,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, creator),
+		// send was credited to pkgAddr just above; that is the only
+		// address a BankerTypeOriginSend banker may spend from in this
+		// message.
+		OriginSendRecipient: pkgAddr.Bech32(),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -850,10 +854,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		// send is credited to pkgAddr (the entry realm) below; that is
+		// the only address a BankerTypeOriginSend banker may spend from
+		// in this message.
+		OriginSendRecipient: pkgAddr.Bech32(),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, caller),
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -1083,10 +1091,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		// No OriginSendRecipient here, deliberately. pkgAddr == caller for
+		// MsgRun, so the coins move from the caller to the caller and the
+		// envelope never lands anywhere. A run script cannot construct a
+		// BankerTypeOriginSend banker either — its cur.Previous() is the
+		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
+		// the recipient empty is fail-closed: nothing can spend against an
+		// envelope that never moved.
+		Banker:         NewSDKBanker(vm, ctx),
+		Params:         NewSDKParams(vm.prmk, ctx),
+		EventLogger:    ctx.EventLogger(),
+		SessionAccount: getSessionAccount(ctx, caller),
 	}
 
 	buf := new(bytes.Buffer)

@@ -126,6 +126,27 @@ func X_setContext(
 	ctx.OriginSend = banker.CompactCoins(origSendDenoms, origSendAmounts)
 	coins := banker.CompactCoins(origSpendDenoms, origSpendAmounts)
 	ctx.OriginSendSpent = &coins
+	// Keep OriginSendRecipient consistent with the envelope being set.
+	//
+	// On chain the -send envelope always lands on the entry realm, so a
+	// test that re-points the current realm to a *code* realm is
+	// modelling a different entry realm and must move the recipient with
+	// it. Otherwise BankerTypeOriginSend sends fail against a stale
+	// recipient.
+	//
+	// A *user* realm override (testing.SetRealm(testing.NewUserRealm))
+	// means "an EOA is calling", not "this EOA received the envelope".
+	// A user address can never equal any realm's address, so moving the
+	// recipient there would point it at something no realm can match and
+	// break every payment test. Leave it on the package under test, which
+	// gnovm/pkg/test.Context already seeded.
+	//
+	// testing.SetOriginSend passes an empty currRealmAddr (GetContext
+	// does not round-trip CurrentRealm), so it leaves the recipient
+	// alone either way.
+	if currRealmAddr != "" && currRealmPkgPath != "" {
+		ctx.OriginSendRecipient = crypto.Bech32Address(currRealmAddr)
+	}
 
 	m.Context = ctx
 }

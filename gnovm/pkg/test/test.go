@@ -63,9 +63,14 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 		OriginCaller:    caller,
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          banker,
-		Params:          newTestParams(),
-		EventLogger:     sdk.NewEventLogger(),
+		// Mirrors the CoinTable above: pkgAddr is the only address
+		// credited with `send`, so it is the only one a
+		// BankerTypeOriginSend banker may spend from. On chain this is
+		// the entry realm's address (keeper.go).
+		OriginSendRecipient: pkgAddr,
+		Banker:              banker,
+		Params:              newTestParams(),
+		EventLogger:         sdk.NewEventLogger(),
 	}
 	return &runtime.TestExecContext{
 		ExecContext: ctx,
