@@ -1900,7 +1900,6 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 //
 // Returns an aggregated error if any realm processing fails due to insufficient deposit,
 // transfer errors.
-
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
 	if ctx.IsCheckTx() {
 		// Defense-in-depth: baseapp already skips handler.Process in
@@ -1911,7 +1910,8 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	realmDiffs := gnostore.RealmStorageDiffs()
 	// Merge per-realm chain/params byte deltas accumulated on ctx.
 	// See gno.land/pkg/sdk/vm/params_deposit.go.
-	for path, diff := range ParamsRealmDiffs(ctx) {
+	paramsDiffs := ParamsRealmDiffs(ctx)
+	for path, diff := range paramsDiffs {
 		realmDiffs[path] += diff
 	}
 	depositAmt := deposit.AmountOf(ugnot.Denom)
@@ -1930,17 +1930,29 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	var allErrs error
 	for _, rlmPath := range sortedRealm {
 		diff := realmDiffs[rlmPath]
+		paramsDiff := paramsDiffs[rlmPath]
 		if diff == 0 {
+			// The components cancel: no funds move and rlm.Storage is
+			// unchanged, so there is nothing to look the realm up for.
+			// A dirty params component still needs its baseline
+			// persisted, or a later delete of those bytes floors to
+			// zero in recordParamsDelta and its refund is suppressed.
+			if paramsDiff != 0 {
+				FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
+			}
 			continue
 		}
 		rlm := gnostore.GetPackageRealm(rlmPath)
 		if rlm == nil {
-			// Should not happen: any executing realm is preprocessed
-			// and materialized before it can call chain/params. Defend
-			// against the rlm.Path nil-deref in lockStorageDeposit.
+			// Reachable: MsgRun's ephemeral gno.land/e/<addr>/run package
+			// executes but is never saved (RunMemPackage(memPkg, false)),
+			// so a run script calling chain/params lands here and aborts
+			// the tx. Erroring is deliberate — lockStorageDeposit would
+			// nil-deref on rlm.Path, and skipping would commit the params
+			// write with no deposit backing it and no baseline.
 			allErrs = goerrors.Join(allErrs, fmt.Errorf(
-				"params storage diff for unknown realm %q (size=%d) — deposit skipped",
-				rlmPath, diff))
+				"storage diff for unknown realm %q (vm=%d, params=%d) — deposit skipped",
+				rlmPath, diff-paramsDiff, paramsDiff))
 			continue
 		}
 		if diff > 0 {
