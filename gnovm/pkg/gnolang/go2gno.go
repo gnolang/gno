@@ -336,7 +336,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// type-set terms) is not handled below — this switch silently drops
 	// TypeParams and turns a bare type-set term into a nameless method.
 	//
-	// checkNoGenerics (typecheck_bound.go) rejects type parameters and the
+	// checkNoUncountableGenerics (typecheck_bound.go) rejects type parameters and
 	// `|`/`~` type-set terms, but only on the type-check path and only as a
 	// cost guard: it runs before go/types to stop the validType fan-out. It is
 	// NOT a general gate here. Paths that never invoke go/types (gno run, the

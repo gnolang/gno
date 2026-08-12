@@ -177,7 +177,7 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 		},
 		{
 			// Interface type-set fan-out via multiple (`;`-separated) type elements
-			// rather than a union `|`: checkNoGenerics does not reject this shape
+			// rather than a union `|`: the generics guard does not reject this shape
 			// (no `|`/`~`), so the bound must count both elements and catch it.
 			"multi-element interface value fan-out rejected",
 			func() string {
@@ -207,7 +207,7 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 	}
 }
 
-func TestCheckNoGenerics(t *testing.T) {
+func TestCheckNoUncountableGenerics(t *testing.T) {
 	t.Parallel()
 
 	// wantMsg pins the exact rejection phrasing (empty => must be accepted). The
@@ -257,7 +257,7 @@ func TestCheckNoGenerics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fset, gofs := parseBoundSrc(t, tc.src)
-			err := checkNoGenerics(fset, gofs)
+			err := checkNoUncountableGenerics(fset, gofs)
 			if tc.wantMsg != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantMsg)
@@ -271,7 +271,7 @@ func TestCheckNoGenerics(t *testing.T) {
 func TestCheckNoDotImports(t *testing.T) {
 	t.Parallel()
 
-	// As with checkNoGenerics, the rejection message reaches the
+	// As with checkNoUncountableGenerics, the rejection message reaches the
 	// consensus-hashed tx result, so pin its exact wording.
 	tt := []struct {
 		name    string

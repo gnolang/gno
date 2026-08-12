@@ -58,7 +58,7 @@ indistinguishable to callers:
   harness deliberately runs both and pins both (`// TypeCheckError:` for
   `go/types`, `// Error:` for preprocess) to cross-check them.
 - **fatal rejections** — the package uses an unsupported construct or trips a
-  DoS guard (generics/type-sets via `checkNoGenerics`, type-expansion fan-out
+  DoS guard (generics/type-sets via `checkNoUncountableGenerics`, type-expansion fan-out
   via `checkTypeExpansionBound`). Proceeding is meaningless: preprocess then
   emits an unrelated secondary error (e.g. `name P not defined` for a type
   parameter), so such filetests must pin two directives for no real benefit.
@@ -264,7 +264,7 @@ churning inside `validType` for tens of seconds.
 Gno never accepted dot imports — the preprocessor panics on them — but on the
 deploy path preprocess runs *after* the type checker, so that rejection lands
 only once the unmetered CPU has already been spent. `checkNoDotImports` therefore
-rejects them in the same pre-type-check step as `checkNoGenerics`, for the same
+rejects them in the same pre-type-check step as `checkNoUncountableGenerics`, for the same
 reason and with the same placement argument.
 
 Why reject rather than teach the cost model to count them:

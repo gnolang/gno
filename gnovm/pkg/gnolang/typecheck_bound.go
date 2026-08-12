@@ -68,7 +68,7 @@ import (
 //
 //   - go1.18 generic instantiation (type-argument substitution) and interface
 //     type-set terms (unions, ~T). validType walks both, but cost() does not
-//     follow them; checkNoGenerics rejects them.
+//     follow them; checkNoUncountableGenerics rejects them.
 //   - dot imports. cost() cannot see a dot-imported type's expansion (namedCost
 //     resolves in the declaring package only); checkNoDotImports rejects them.
 //
@@ -437,24 +437,35 @@ func satMul(a, b uint64) uint64 {
 	return math.MaxUint64
 }
 
-// checkNoGenerics rejects go1.18 generics syntax before the package reaches
-// go/types. Gno targets go1.17 and does not support generics (Go2Gno would
-// silently drop TypeParams — see the NOTE there; if go/types is ever removed,
-// this rejection moves into that traversal), but go/types runs first and would
-// still form and validate generic types. That matters for the DoS defense: a
-// generic instantiation fans out via type-argument substitution and interface
-// type sets fan out via their union terms, both of which drive go/types'
-// unmetered validType walk exponential. Pinning types.Config.GoVersion does NOT
-// help — go/types reports the version error but does not halt, so it still runs
-// the walk — hence this must reject syntactically, before go/types is invoked.
+// checkNoUncountableGenerics rejects exactly the go1.18 constructs that cost()
+// cannot model, before the package reaches go/types. It is a COST guard, not a
+// generics gate: its job is to keep every construct that survives into go/types
+// countable by the expansion bound above.
 //
-// "Generics" here means the two go1.18 constructs that carry a fan-out:
-//   - type parameters, on a type or func declaration (`type W[P any] ...`); and
-//   - interface type sets: unions (`A | B`) and approximation terms (`~T`).
+//   - type parameters, on a type or func declaration (`type W[P any] ...`):
+//     cost() scores an instantiation by its base type and drops the type
+//     arguments, so the doubling can hide there.
+//   - interface type-set unions (`A | B`) and approximation terms (`~T`):
+//     cost() falls through to a leaf for both, while validType walks every term.
+//
+// Bare and `;`-separated type-set elements are deliberately NOT rejected: they
+// are ordinary containment edges the bound counts correctly, so they cannot hide
+// a fan-out. Rejecting them would be a language-subset decision, not a cost one.
+//
+// Completeness with respect to generics is therefore NOT a goal here, and this
+// guard must not be widened into one. Gno rejects unsupported syntax in Go2Gno,
+// the single traversal every consumer shares — including the deploy path, and
+// including gno run / the REPL / ParseFile, where go/types never runs at all.
+// Tracked in #6059. Keep this function derivable from one rule: reject what
+// cost() cannot count, nothing more.
+//
+// This must reject syntactically, before go/types is invoked: pinning
+// types.Config.GoVersion does not help, because go/types reports the version
+// error but does not halt, so it still runs the unmetered validType walk.
 //
 // It reports the earliest-positioned offending construct, so the error is
 // deterministic (the message can reach consensus-visible tx results).
-func checkNoGenerics(fset *token.FileSet, gofs []*ast.File) error {
+func checkNoUncountableGenerics(fset *token.FileSet, gofs []*ast.File) error {
 	var (
 		off  token.Pos
 		what string

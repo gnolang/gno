@@ -478,8 +478,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// First reject go1.18 generics syntax (type parameters and interface type
 	// sets). Gno targets go1.17 and does not support them, but go/types would
 	// still walk such types — and their fan-out drives validType exponential.
-	// See checkNoGenerics.
-	if errs = checkNoGenerics(gofset, allgofs); errs != nil {
+	// See checkNoUncountableGenerics.
+	if errs = checkNoUncountableGenerics(gofset, allgofs); errs != nil {
 		return nil, errs
 	}
 	// Then reject dot imports: unsupported in Gno, and invisible to the bound
