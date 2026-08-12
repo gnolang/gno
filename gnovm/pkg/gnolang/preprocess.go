@@ -1282,7 +1282,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
-						if last.GetIsConst(store, n.Name) {
+						// Path-based rather than name-based: a use
+						// before a shadowing const/type declaration
+						// in the same block refers to the outer
+						// name, which may not be const.
+						if last.GetIsConstAt(store, n.Path) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
@@ -1358,7 +1362,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					// Is const decl or type decl. Not (import) packages.
-					if last.GetIsConst(store, n.Name) {
+					// Path-based rather than name-based: a use before a
+					// shadowing const/type declaration in the same block
+					// refers to the outer name, which may not be const.
+					if last.GetIsConstAt(store, n.Path) {
 						// n.Name may refer to either
 						// a value OR a type. But don't change
 						// this behavior, it's reasonable for

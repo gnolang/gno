@@ -1476,11 +1476,14 @@ func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredT
 	ploc := Location{}
 	switch parent.(type) {
 	case *PackageNode, *FileNode:
-		// keep blank.
-	case *FuncDecl, *FuncLitExpr:
-		ploc = parent.GetLocation()
+		// keep blank: package-level types get the canonical
+		// pkgPath.name TypeID.
 	default:
-		panic(fmt.Sprintf("expected type expr but got %T", parent))
+		// A local type: the declaring block's own location
+		// disambiguates same-named types declared in different
+		// functions, and in different blocks of the same function
+		// (e.g. two sibling blocks each declaring `type t ...`).
+		ploc = parent.GetLocation()
 	}
 	dt := &DeclaredType{
 		PkgPath:   pkgPath,
