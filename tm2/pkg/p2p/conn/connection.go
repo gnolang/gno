@@ -55,11 +55,12 @@ const (
 
 	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
 	// connection's channels' recving buffers at any instant. Without it the
-	// exposure is the sum of every channel's RecvMessageCapacity (~130MB on a
-	// full node), letting a peer pin that much per connection. Legitimate
-	// in-flight assembly is at most a few MB (one large message on one channel),
-	// so 64MB is ample while cutting the per-connection ceiling by half.
-	defaultMaxRecvBufferBytes = 64 << 20 // 64MB
+	// exposure is the sum of every channel's RecvMessageCapacity (~46MB on a
+	// full node), letting a peer pin that much per connection. It is set below
+	// that sum so it binds regardless of individual channel caps, while staying
+	// well above any legitimate concurrent in-flight assembly (at most a few MB
+	// today; ~23MB even if MaxDataBytes were raised to its 8MB ceiling).
+	defaultMaxRecvBufferBytes = 32 << 20 // 32MB
 )
 
 type (
