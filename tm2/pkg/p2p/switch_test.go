@@ -952,8 +952,7 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 	t.Run("a due item is dialed while an earlier one backs off", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, cancelFn := context.WithCancel(context.Background())
-		defer cancelFn()
+		ctx := t.Context()
 
 		var (
 			dialed = make(chan types.NetAddress, 1)
@@ -1031,8 +1030,7 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 // parallel: it reads the goroutine dump, and parallel tests running their own
 // dial loop would be indistinguishable
 func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	sw := NewMultiplexSwitch(&mockTransport{})
 	sw.peers = &mockSet{
@@ -1053,7 +1051,7 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	buf := make([]byte, 64<<10)
 	buf = buf[:runtime.Stack(buf, true)]
 
-	for _, g := range strings.Split(string(buf), "\n\n") {
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
 		if !strings.Contains(g, "runDialLoop") {
 			continue
 		}
