@@ -48,6 +48,28 @@ func TestConsensusParamsValidation(t *testing.T) {
 	}
 }
 
+func TestConsensusParamsValidationMaxDataBytes(t *testing.T) {
+	t.Parallel()
+
+	newParams := func(maxDataBytes int64) abci.ConsensusParams {
+		return abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1024,
+				MaxDataBytes: maxDataBytes,
+				MaxGas:       10,
+				TimeIotaMS:   10,
+			},
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: valEd25519},
+		}
+	}
+
+	// At or below the limit is accepted; above it is rejected so the chain can
+	// never produce blocks larger than the fast-sync message envelope.
+	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytes)))
+	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit)))
+	assert.Error(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit+1)))
+}
+
 func makeParams(
 	dataBytes, blockBytes, blockGas int64,
 	blockTimeIotaMS int64,

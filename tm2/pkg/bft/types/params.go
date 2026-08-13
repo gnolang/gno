@@ -23,6 +23,15 @@ const (
 	// MaxBlockDataBytes is the max size of the block data
 	MaxBlockDataBytes int64 = 2000000 // 2MB
 
+	// MaxBlockDataBytesLimit is the hard upper bound on the configurable
+	// Block.MaxDataBytes consensus parameter. Together with a fixed allowance
+	// for the block header and commit it bounds the total serialized size of a
+	// block, which in turn bounds the fast-sync block-response message (see
+	// maxMsgSize in the blockchain reactor). Raising MaxDataBytes above this
+	// would let the chain produce blocks that fast-syncing peers reject,
+	// stalling sync, so it is rejected at consensus-param validation.
+	MaxBlockDataBytesLimit int64 = 8 << 20 // 8MB
+
 	// MaxBlockMaxGas is the max gas limit for the block
 	MaxBlockMaxGas int64 = 3000000000 // 3B gas
 
@@ -64,6 +73,11 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	if params.Block.MaxTxBytes > MaxBlockSizeBytes {
 		return errors.New("Block.MaxTxBytes is too big. %d > %d",
 			params.Block.MaxTxBytes, MaxBlockSizeBytes)
+	}
+
+	if params.Block.MaxDataBytes > MaxBlockDataBytesLimit {
+		return errors.New("Block.MaxDataBytes is too big. %d > %d",
+			params.Block.MaxDataBytes, MaxBlockDataBytesLimit)
 	}
 
 	if params.Block.MaxGas < -1 {
