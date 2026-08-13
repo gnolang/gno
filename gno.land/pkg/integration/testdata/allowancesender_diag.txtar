@@ -81,6 +81,9 @@ import (
 
 // Variant A: close BEFORE store. Sanity check; should succeed.
 func InlineCloseBeforeStore(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
@@ -93,6 +96,9 @@ func InlineCloseBeforeStore(cur realm) {
 // the taint is value-based (struct now owned by callee), this should
 // panic with "cannot directly modify readonly tainted".
 func InlineCloseAfterStore(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
@@ -106,6 +112,9 @@ func InlineCloseAfterStore(cur realm) {
 // specifically in how method dispatch handles the taint state at
 // invocation vs dispatch time.
 func ClosureCallAfterStore(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
