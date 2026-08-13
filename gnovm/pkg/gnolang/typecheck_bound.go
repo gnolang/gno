@@ -55,7 +55,7 @@ import (
 // single tx can buy is ~2 * (packages checked) * budget, and the dependency count
 // is bounded only by what was deployed earlier — bytes the importing tx does not
 // pay for. Bounding the per-transaction sum is the next step up and wants its own
-// calibration; see adr/pr4264_lint_transpile.md, which also records the
+// calibration; see adr/pr5826_typecheck_dos_guards.md, which also records the
 // alternatives weighed (gas-metering the walk, a governance Param).
 //
 // The budget is a deterministic node count, not a wall-clock limit, so the check
@@ -404,7 +404,7 @@ func (gimp *gnoImporter) expansionPkgResolver() pkgResolver {
 		// fetching here would add store gas the deploy otherwise never pays.
 		// (Counting stdlibs exactly is possible via a table precomputed at stdlib
 		// load — no per-deploy gas — but the cross-module plumbing isn't worth it
-		// for a leaf that is already bounded-safe. See adr/pr4264_lint_transpile.md.)
+		// for a leaf that is already bounded-safe. See adr/pr5826_typecheck_dos_guards.md.)
 		if IsStdlib(pkgPath) {
 			return nil
 		}
@@ -532,7 +532,7 @@ const errDotImports = "dot imports are not allowed in Gno"
 // bare identifier, which namedCost scores as a leaf while validType expands it
 // in full across the import boundary. Rejecting is preferred to counting because
 // dot-import visibility is per file while namedCost memoizes per (package,
-// name); see adr/pr4264_lint_transpile.md for the full argument.
+// name); see adr/pr5826_typecheck_dos_guards.md for the full argument.
 //
 // Like the guards above it reports the earliest-positioned offender, so the
 // error does not depend on file order (it can reach consensus-visible results).
