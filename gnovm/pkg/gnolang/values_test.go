@@ -433,15 +433,15 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 	require.GreaterOrEqual(t, restoreGas, int64(n*OpCPUComputeMapKey),
 		"map restore must charge ComputeMapKey per rebuilt entry")
 
-	// Symmetry: charging the same keys on the write path (ComputeMapKey
-	// with the runtime meter, as GetPointerForKey does on assignment)
-	// must cost exactly what the restore-path rebuild charged. A change
-	// that diverges the two paths fails here.
+	// Symmetry: charging the same keys on the write path (GetPointerForKey,
+	// as map assignment does) must cost exactly what the restore-path
+	// rebuild charged. A change that diverges the two paths fails here.
 	gmWrite := storetypes.NewGasMeter(1 << 30)
+	mvWrite := &MapValue{}
+	mvWrite.MakeMap()
 	for i := range n {
-		k := typedInt(i)
-		_, isNaN := k.ComputeMapKey(gmWrite, ds, false)
-		require.False(t, isNaN)
+		ptr := mvWrite.GetPointerForKey(nil, gmWrite, ds, typedInt(i))
+		*ptr.TV = typedString("v")
 	}
 	require.Equal(t, gmWrite.GasConsumed(), restoreGas,
 		"write path and restore path must charge the same gas for the same keys")
