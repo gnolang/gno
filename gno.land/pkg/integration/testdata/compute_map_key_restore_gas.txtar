@@ -18,7 +18,7 @@
 # restore charge is 788 gas for this bigKey shape; an unmetered restore
 # path drops the pin by exactly 5*788=3940 (measured by passing a nil
 # meter at loadObjectSafe). Per-entry write/restore symmetry is asserted
-# at unit speed by TestFillTypesOfValue_MapRestoreGas.
+# at unit speed by TestMapKeyGasContract.
 
 loadpkg gno.land/r/demo/mapgas $WORK
 

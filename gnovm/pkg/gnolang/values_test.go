@@ -399,15 +399,32 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 }
 
-// TestFillTypesOfValue_MapRestoreGas asserts the restore-path half of
-// ComputeMapKey's gas contract: rebuilding a loaded map's vmap
-// (loadObjectSafe → fillTypesOfValue) charges the meter it is given,
-// per entry, symmetrically with the VM-runtime write path (which passes
-// m.GasMeter). A regression that stops charging the rebuild would fail
-// here at unit-test speed. The one line this cannot see — loadObjectSafe
-// passing ds.gasMeter rather than nil — is pinned end-to-end by the
-// compute_map_key_restore_gas txtar.
-func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
+// TestMapKeyGasContract pins the two-sided ComputeMapKey gas contract
+// around map keys, against an explicit reference cost:
+//
+//	reference = Σ ComputeMapKey(key_i)  — the pure key-hash cost of the
+//	            keys, by definition (measured once, directly).
+//
+//	1. Restore: rebuilding a decoded map's vmap (loadObjectSafe →
+//	   fillTypesOfValue) must charge exactly the reference — one
+//	   ComputeMapKey per entry, and nothing else. A stray charge
+//	   creeping into the fill walk fails here.
+//	2. Write: inserting the same keys via GetPointerForKey (nil alloc,
+//	   so allocation gas is deliberately out of scope) must also charge
+//	   exactly the reference. An extra charge on the write path fails
+//	   here.
+//
+// If a future (deliberate, symmetric) charge is added to these paths,
+// update the reference computation; the final write==restore assertion
+// is the durable invariant and must never need touching.
+//
+// Scope notes: keys are in-memory primitives, so neither side touches
+// the store (no amino gas can leak in). The VM-level write path above
+// GetPointerForKey (GetPointerAtIndex, i.e. `m[k] = v` in gno code) is
+// pinned end-to-end by the compute_map_key_restore_gas txtar; the
+// nil-meter case (genesis, tools) must not panic and must still
+// rebuild.
+func TestMapKeyGasContract(t *testing.T) {
 	const n = 5
 	ds := NewStore(NewAllocator(1<<30), nil, nil)
 
@@ -422,20 +439,32 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 		return mv
 	}
 
-	// Metered rebuild: every entry's ComputeMapKey must charge at least
-	// the per-call constant (the byte slope adds a smaller amount on
-	// top; lower-bounding avoids pinning exact byte counts).
-	gm := storetypes.NewGasMeter(1 << 30)
-	mv := newDecodedMap()
-	fillTypesOfValue(gm, ds, mv)
-	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
-	restoreGas := gm.GasConsumed()
-	require.GreaterOrEqual(t, restoreGas, int64(n*OpCPUComputeMapKey),
-		"map restore must charge ComputeMapKey per rebuilt entry")
+	// Reference: the pure key-hash cost of the n keys.
+	//
+	// If you deliberately added a new charge to the restore or write
+	// path and the reference assertions below went red: extend THIS
+	// block so the reference includes the new charge. Leave the final
+	// write==restore symmetry assertion untouched — if that one is red,
+	// the two paths diverged, which is a bug.
+	gmRef := storetypes.NewGasMeter(1 << 30)
+	for i := range n {
+		k := typedInt(i)
+		_, isNaN := k.ComputeMapKey(gmRef, ds, false)
+		require.False(t, isNaN)
+	}
+	reference := gmRef.GasConsumed()
+	require.GreaterOrEqual(t, reference, int64(n*OpCPUComputeMapKey),
+		"sanity: the per-call constant must fire for each key")
 
-	// Symmetry: charging the same keys on the write path (GetPointerForKey,
-	// as map assignment does) must cost exactly what the restore-path
-	// rebuild charged. A change that diverges the two paths fails here.
+	// Contract 1: the restore rebuild charges exactly the reference.
+	gmRestore := storetypes.NewGasMeter(1 << 30)
+	mv := newDecodedMap()
+	fillTypesOfValue(gmRestore, ds, mv)
+	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
+	require.Equal(t, reference, gmRestore.GasConsumed(),
+		"restore must charge one ComputeMapKey per entry and nothing else")
+
+	// Contract 2: the write path charges exactly the reference.
 	gmWrite := storetypes.NewGasMeter(1 << 30)
 	mvWrite := &MapValue{}
 	mvWrite.MakeMap()
@@ -443,10 +472,17 @@ func TestFillTypesOfValue_MapRestoreGas(t *testing.T) {
 		ptr := mvWrite.GetPointerForKey(nil, gmWrite, ds, typedInt(i))
 		*ptr.TV = typedString("v")
 	}
-	require.Equal(t, gmWrite.GasConsumed(), restoreGas,
-		"write path and restore path must charge the same gas for the same keys")
+	require.Equal(t, reference, gmWrite.GasConsumed(),
+		"write must charge one ComputeMapKey per key and nothing else")
 
-	// nil meter (genesis, tools): must not panic and must still rebuild.
+	// The durable invariant: write and restore charge the same, whatever
+	// the composition. Redundant while both equal the reference above;
+	// load-bearing if a future (deliberate, symmetric) charge is added
+	// and the reference pins are updated.
+	require.Equal(t, gmRestore.GasConsumed(), gmWrite.GasConsumed(),
+		"write/restore symmetry must hold regardless of charge composition")
+
+	// nil meter: must not panic and must still rebuild.
 	mv2 := newDecodedMap()
 	fillTypesOfValue(nil, ds, mv2)
 	require.Len(t, mv2.vmap, n)
