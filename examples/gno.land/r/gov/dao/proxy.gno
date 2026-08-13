@@ -4,6 +4,7 @@ import (
 	"chain"
 	"errors"
 	"strconv"
+	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -140,9 +141,19 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // This method will update the current govDAO implementation
 // to a new one. AllowedDAOs are a list of realms that can
 // call this method, in case the new DAO implementation had
-// a breaking bug. Any value set as nil will be ignored.
+// a breaking bug. A nil DAO is ignored.
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
+//
+// An empty AllowedDAOs is ignored rather than stored. An empty list makes
+// InAllowedDAOs() return true for every caller — the bootstrap-only state that
+// lets the genesis MsgRun seed the member set. Since this is the only site that
+// assigns allowedDAOs, ignoring empty here makes the transition
+// empty -> non-empty one-way: once locked down the DAO cannot be reopened,
+// whether the empty value arrives as a literal []string{} or from
+// NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice.
+// Individual entries must be non-blank realm paths; an empty entry would match
+// a user realm's empty PkgPath() and is rejected.
 func UpdateImpl(cur realm, r UpdateRequest) {
 	gRealm := cur.Previous().PkgPath()
 
@@ -150,7 +161,52 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 		panic("permission denied for prev realm: " + gRealm)
 	}
 
-	if r.AllowedDAOs != nil {
+	if len(r.AllowedDAOs) != 0 {
+		// Every entry must be a real realm path. len() != 0 alone is the wrong
+		// invariant: InAllowedDAOs compares by exact string, and a user realm's
+		// PkgPath() is "", so a single "" entry admits any caller whose previous
+		// frame is a user realm -- the same fail-open outcome this guard exists
+		// to prevent, just spelled differently. An empty entry can only be a
+		// drafting mistake, so reject the whole request rather than silently
+		// dropping it and storing a list the proposal did not describe.
+		for i, d := range r.AllowedDAOs {
+			trimmed := strings.TrimSpace(d)
+			if trimmed == "" {
+				panic("AllowedDAOs entries must be realm paths; got an empty one")
+			}
+			// Entries are stored exactly as given, and InAllowedDAOs compares
+			// whole strings, so an entry with surrounding spaces matches no
+			// caller at all. A non-empty list also closes the bootstrap
+			// window, so a list of only padded entries is locked shut against
+			// everyone, the DAO included, with no way to reopen it.
+			//
+			// This does not make the list typo-proof, and is not meant to be:
+			// any wrong path locks the DAO out exactly the same way, and no
+			// check here can tell a typo from a realm that does not exist yet.
+			// Whitespace is worth rejecting because it is the one spelling a
+			// human reviewing the proposal cannot see. Rejected rather than
+			// trimmed, so what gets stored is what the proposal said.
+			// Reported by position, not by value. A panic message becomes the
+			// proposal's DeniedReason, which is stored, and the entry is
+			// caller-supplied and unbounded — echoing it would put an
+			// arbitrary amount of someone else's text into this realm's
+			// storage. The index is enough to find it in a list the proposal
+			// author wrote.
+			if d != trimmed {
+				panic("AllowedDAOs entries must not have leading or trailing spaces; entry " + strconv.Itoa(i))
+			}
+		}
+		// Stored as given. A defensive copy here looks prudent but would
+		// guard a write no outside realm can perform, which was checked from
+		// a separate realm rather than assumed:
+		//
+		//   - Building this request as a literal fails outright, with
+		//     "cannot allocate gno.land/r/gov/dao.UpdateRequest in realm ...".
+		//   - Writing through a request obtained from NewUpdateRequest fails
+		//     with "cannot directly modify readonly tainted object".
+		//
+		// So the only way in is NewUpdateRequest, which copies already. Both
+		// checks are language guarantees, not conventions.
 		allowedDAOs = r.AllowedDAOs
 	}
 

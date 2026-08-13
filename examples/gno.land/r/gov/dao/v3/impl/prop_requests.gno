@@ -31,6 +31,20 @@ func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	// Rejected here as well as in UpdateImpl so the mistake surfaces when the
+	// proposal is written, not when it executes. An empty realmPkg would be
+	// stored as an allowlist entry matching every user realm's empty
+	// PkgPath().
+	if strings.TrimSpace(realmPkg) == "" {
+		panic("realmPkg must be the realm path being granted govDAO authority")
+	}
+	// Padding is rejected for the same reason UpdateImpl rejects it: the entry
+	// is stored as given and matched whole, so a padded path grants nobody
+	// anything. Caught here so the author sees it, not the voters.
+	if realmPkg != strings.TrimSpace(realmPkg) {
+		panic("realmPkg must not have leading or trailing spaces")
+	}
+
 	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
