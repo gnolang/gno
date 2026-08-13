@@ -421,6 +421,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 		}
 		return tx
 	case *ast.UnaryExpr:
+		if gon.Op == token.TILDE {
+			panicWithPos("tilde operator is not permitted")
+		}
 		if gon.Op == token.AND {
 			rx := &RefExpr{
 				X: toExpr(fs, gon.X),
