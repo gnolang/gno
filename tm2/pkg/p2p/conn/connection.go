@@ -42,6 +42,24 @@ const (
 	defaultSendTimeout         = 10 * time.Second
 	defaultPingInterval        = 60 * time.Second
 	defaultPongTimeout         = 45 * time.Second
+
+	// defaultRecvAssemblyTimeout bounds how long a single incomplete message
+	// may be assembled from partial PacketMsgs (EOF=0) in a channel's recving
+	// buffer. The deadline is anchored to the first partial packet of a message
+	// and is not extended by subsequent packets, so a peer cannot pin memory in
+	// the recving buffer indefinitely by dribbling partial packets while
+	// answering pings. At the default 5MB/s recv rate any legitimate message
+	// (blocks are bounded by MaxBlockDataBytes, ~2MB) completes in well under a
+	// second, so this is orders of magnitude of headroom.
+	defaultRecvAssemblyTimeout = 30 * time.Second
+
+	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
+	// connection's channels' recving buffers at any instant. Without it the
+	// exposure is the sum of every channel's RecvMessageCapacity (~130MB on a
+	// full node), letting a peer pin that much per connection. Legitimate
+	// in-flight assembly is at most a few MB (one large message on one channel),
+	// so 64MB is ample while cutting the per-connection ceiling by half.
+	defaultMaxRecvBufferBytes = 64 << 20 // 64MB
 )
 
 type (
@@ -114,6 +132,11 @@ type MConnection struct {
 
 	created time.Time // time of creation
 
+	// recvBufferBytes is the total number of bytes currently buffered across all
+	// channels' recving buffers (incomplete, partially-assembled messages). It
+	// is only ever read or written from recvRoutine, so it needs no locking.
+	recvBufferBytes int
+
 	_maxPacketMsgSize int
 }
 
@@ -133,6 +156,17 @@ type MConnConfig struct {
 
 	// Maximum wait time for pongs
 	PongTimeout time.Duration `toml:"pong_timeout"`
+
+	// RecvAssemblyTimeout bounds how long a single incomplete message may be
+	// assembled from partial PacketMsgs in a channel's recving buffer. The
+	// deadline is anchored to the first partial packet of a message and is not
+	// extended by later packets. When <= 0 no assembly deadline is enforced.
+	RecvAssemblyTimeout time.Duration `toml:"recv_assembly_timeout"`
+
+	// MaxRecvBufferBytes caps the total bytes buffered across all of the
+	// connection's channels' recving buffers at any instant. When <= 0 no total
+	// budget is enforced (only the per-channel RecvMessageCapacity applies).
+	MaxRecvBufferBytes int `toml:"max_recv_buffer_bytes"`
 }
 
 // DefaultMConnConfig returns the default config.
@@ -144,6 +178,8 @@ func DefaultMConnConfig() MConnConfig {
 		FlushThrottle:           defaultFlushThrottle,
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
+		RecvAssemblyTimeout:     defaultRecvAssemblyTimeout,
+		MaxRecvBufferBytes:      defaultMaxRecvBufferBytes,
 	}
 }
 
@@ -643,6 +679,11 @@ FOR_LOOP:
 	}
 
 	// Cleanup
+	// Stop any per-channel assembly timers still pending. recvRoutine owns the
+	// channels' recving state, so this is the safe place to release them.
+	for _, channel := range c.channels {
+		channel.stopRecvAssemblyTimer()
+	}
 	close(c.pong)
 	for range c.pong {
 		// Drain
@@ -735,6 +776,12 @@ type Channel struct {
 	recving       []byte
 	sending       []byte
 	recentlySent  int64 // exponential moving average
+
+	// recvAssemblyTimer enforces RecvAssemblyTimeout for the message currently
+	// being assembled in recving. It is started on the first partial packet of a
+	// message and stopped on completion; it is deliberately never reset by
+	// subsequent partial packets. Only touched from recvRoutine.
+	recvAssemblyTimer *time.Timer
 
 	maxPacketMsgPayloadSize int
 
@@ -844,18 +891,69 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	if recvCap < recvReceived {
 		return nil, fmt.Errorf("received message exceeds available capacity: %v < %v", recvCap, recvReceived)
 	}
+
+	// Enforce the total per-connection recving budget across all channels. The
+	// per-channel RecvMessageCapacity check above only bounds a single channel;
+	// without this, a peer can fill every channel's buffer at once (the sum of
+	// all RecvMessageCapacity values, ~130MB on a full node).
+	if budget := ch.conn.config.MaxRecvBufferBytes; budget > 0 {
+		if total := ch.conn.recvBufferBytes + len(packet.Bytes); total > budget {
+			return nil, fmt.Errorf("total recving buffer budget exceeded: %v > %v", total, budget)
+		}
+	}
+
 	ch.recving = append(ch.recving, packet.Bytes...)
+	ch.conn.recvBufferBytes += len(packet.Bytes)
+
 	if packet.EOF == byte(0x01) {
 		msgBytes := ch.recving
 
-		// clear the slice without re-allocating.
-		// http://stackoverflow.com/questions/16971741/how-do-you-clear-a-slice-in-go
-		//   suggests this could be a memory leak, but we might as well keep the memory for the channel until it closes,
-		//	at which point the recving slice stops being used and should be garbage collected
-		ch.recving = ch.recving[:0] // make([]byte, 0, ch.desc.RecvBufferCapacity)
+		// The message is complete: stop its assembly deadline and release the
+		// buffered bytes from the total budget.
+		ch.stopRecvAssemblyTimer()
+		ch.conn.recvBufferBytes -= len(msgBytes)
+
+		// Re-allocate a fresh buffer instead of reslicing to length 0. Reslicing
+		// (recving[:0]) retains the grown backing array for the lifetime of the
+		// connection, so a single large message would pin that memory
+		// indefinitely; a fresh allocation lets the old array be collected.
+		ch.recving = make([]byte, 0, ch.desc.RecvBufferCapacity)
 		return msgBytes, nil
 	}
+
+	// Partial packet: this message is still being assembled. Start the assembly
+	// deadline on the first partial packet so a peer cannot pin the buffer
+	// indefinitely by never sending EOF (interleaving pongs to stay alive).
+	ch.startRecvAssemblyTimer()
 	return nil, nil
+}
+
+// startRecvAssemblyTimer starts the assembly deadline for the message currently
+// being assembled in recving, if it is not already running. The deadline is
+// anchored to the first partial packet and is intentionally NOT reset by later
+// partial packets, so a peer cannot keep an incomplete message buffered forever
+// by dribbling packets. On expiry the whole connection is torn down.
+// Not goroutine-safe; only called from recvRoutine.
+func (ch *Channel) startRecvAssemblyTimer() {
+	timeout := ch.conn.config.RecvAssemblyTimeout
+	if timeout <= 0 || ch.recvAssemblyTimer != nil {
+		return
+	}
+	ch.recvAssemblyTimer = time.AfterFunc(timeout, func() {
+		ch.conn.stopForError(fmt.Errorf(
+			"recv assembly timeout: channel %X did not complete message within %v",
+			ch.desc.ID, timeout,
+		))
+	})
+}
+
+// stopRecvAssemblyTimer stops and clears the assembly deadline if running.
+// Not goroutine-safe; only called from recvRoutine.
+func (ch *Channel) stopRecvAssemblyTimer() {
+	if ch.recvAssemblyTimer != nil {
+		ch.recvAssemblyTimer.Stop()
+		ch.recvAssemblyTimer = nil
+	}
 }
 
 // Call this periodically to update stats for throttling purposes.
