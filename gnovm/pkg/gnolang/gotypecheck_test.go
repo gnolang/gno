@@ -523,7 +523,7 @@ func _() {}
 		},
 	}
 
-	_, _, gofs, _, _, err := GoParseMemPackage(pkg, nil)
+	_, _, gofs, _, _, err := GoParseMemPackage(pkg, nil) //nolint:dogsled // only the non-test .gno files matter here.
 	require.NoError(t, err)
 	require.Len(t, gofs, 2)
 
