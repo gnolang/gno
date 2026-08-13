@@ -292,8 +292,10 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			// Check if the dial time is right
 			// for the item
-			if time.Now().Before(item.Time) {
-				// Nothing to dial
+			if wait := time.Until(item.Time); wait > 0 {
+				// Nothing to dial yet, wait until the item is due
+				sw.waitForDialTime(ctx, wait)
+
 				continue
 			}
 
@@ -313,48 +315,57 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				"address", item.Address.String(),
 			)
 
-			// Create a dial context
-			dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
-			defer cancelFn()
-
-			p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
-			if err != nil {
-				sw.Logger.Error(
-					"unable to dial peer",
-					"peer", peerAddr,
-					"err", err,
-				)
-
-				continue
-			}
-
-			// Register the peer with the switch
-			if err = sw.addPeer(p); err != nil {
-				sw.Logger.Error(
-					"unable to add peer",
-					"peer", p,
-					"err", err,
-				)
-
-				sw.transport.Remove(p)
-
-				if !p.IsRunning() {
-					continue
-				}
-
-				if stopErr := p.Stop(); stopErr != nil {
-					sw.Logger.Error(
-						"unable to gracefully stop peer",
-						"peer", p,
-						"err", stopErr,
-					)
-				}
-			}
-
-			// Log the telemetry
-			sw.logTelemetry()
+			sw.dialPeer(ctx, peerAddr)
 		}
 	}
+}
+
+// dialPeer dials the given peer address, and registers the resulting
+// connection with the switch.
+// It is a separate method so the dial context is released when the dial
+// completes. Deferring it inside the dial loop instead would pile every
+// dial's cancel onto the loop, to be released only at shutdown
+func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddress) {
+	// Create a dial context
+	dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
+	defer cancelFn()
+
+	p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
+	if err != nil {
+		sw.Logger.Error(
+			"unable to dial peer",
+			"peer", peerAddr,
+			"err", err,
+		)
+
+		return
+	}
+
+	// Register the peer with the switch
+	if err = sw.addPeer(p); err != nil {
+		sw.Logger.Error(
+			"unable to add peer",
+			"peer", p,
+			"err", err,
+		)
+
+		sw.transport.Remove(p)
+
+		if !p.IsRunning() {
+			return
+		}
+
+		if stopErr := p.Stop(); stopErr != nil {
+			sw.Logger.Error(
+				"unable to gracefully stop peer",
+				"peer", p,
+				"err", stopErr,
+			)
+		}
+	}
+
+	// Log the telemetry
+	sw.logTelemetry()
 }
 
 // runRedialLoop starts the persistent peer redial loop
@@ -846,6 +857,21 @@ func (sw *MultiplexSwitch) notifyAddPeerToDial() {
 	select {
 	case sw.dialNotify <- struct{}{}:
 	default:
+	}
+}
+
+// waitForDialTime waits for the given duration to elapse, for a new item to be
+// queued for dialing, or for the context to be canceled, whichever comes first.
+// The dial notification cannot be ignored, since a newly queued item can be due
+// before the one currently at the head of the queue
+func (sw *MultiplexSwitch) waitForDialTime(ctx context.Context, wait time.Duration) {
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	case <-sw.dialNotify:
 	}
 }
 

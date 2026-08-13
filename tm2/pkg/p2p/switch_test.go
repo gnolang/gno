@@ -3,6 +3,8 @@ package p2p
 import (
 	"context"
 	"net"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -942,6 +944,130 @@ func TestMultiplexSwitch_SeedDialLoop(t *testing.T) {
 			t.Fatal("seed dial loop did not exit")
 		}
 	})
+}
+
+func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a due item is dialed while an earlier one backs off", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := t.Context()
+
+		var (
+			dialed = make(chan types.NetAddress, 1)
+			addrs  = generateNetAddr(t, 2)
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					addr types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialed <- addr
+
+					return nil, errors.New("unable to dial")
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		sw.peers = &mockSet{
+			hasFn: func(types.ID) bool { return false },
+		}
+
+		// Park the loop on an item that is not due for a long time
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now().Add(time.Hour),
+			Address: addrs[0],
+		})
+
+		go sw.runDialLoop(ctx)
+
+		time.Sleep(50 * time.Millisecond)
+
+		// The loop is parked, so it only picks this up if the wait is
+		// interruptible by a newly queued item
+		sw.DialPeers(addrs[1])
+
+		select {
+		case addr := <-dialed:
+			assert.Equal(t, *addrs[1], addr)
+		case <-time.After(5 * time.Second):
+			t.Fatal("a due item was not dialed while an earlier one was backing off")
+		}
+	})
+
+	t.Run("the wait ends on context cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+
+		var (
+			sw   = NewMultiplexSwitch(&mockTransport{})
+			done = make(chan struct{})
+		)
+
+		go func() {
+			defer close(done)
+
+			sw.waitForDialTime(ctx, time.Hour)
+		}()
+
+		cancelFn()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the wait outlived the context")
+		}
+	})
+}
+
+// TestMultiplexSwitch_DialLoop_DoesNotSpin guards against the dial loop busy
+// waiting while every queued item is backing off. It is deliberately not
+// parallel: it reads the goroutine dump, and parallel tests running their own
+// dial loop would be indistinguishable
+func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
+	ctx := t.Context()
+
+	sw := NewMultiplexSwitch(&mockTransport{})
+	sw.peers = &mockSet{
+		hasFn: func(types.ID) bool { return false },
+	}
+
+	// The redial loop queues exactly this for a persistent peer in backoff
+	sw.dialQueue.Push(dial.Item{
+		Time:    time.Now().Add(time.Hour),
+		Address: generateNetAddr(t, 1)[0],
+	})
+
+	go sw.runDialLoop(ctx)
+
+	// Give the loop time to settle on the backed off item
+	time.Sleep(100 * time.Millisecond)
+
+	buf := make([]byte, 64<<10)
+	buf = buf[:runtime.Stack(buf, true)]
+
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
+		if !strings.Contains(g, "runDialLoop") {
+			continue
+		}
+
+		// A parked loop sits in a select, a spinning one is running
+		assert.Contains(
+			t,
+			g,
+			"[select]",
+			"the dial loop must park while every queued item is backing off",
+		)
+
+		return
+	}
+
+	t.Fatal("no goroutine running runDialLoop found")
 }
 
 func TestMultiplexSwitch_DialPeers(t *testing.T) {
