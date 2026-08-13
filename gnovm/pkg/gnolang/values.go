@@ -1883,7 +1883,10 @@ func (tv *TypedValue) Sign() int {
 //
 // gm is the gas meter to charge for the key computation: VM-runtime callers
 // pass m.GasMeter, the realm-restore path passes the store's tx-scoped meter
-// (see loadObjectSafe). nil = deliberately unmetered (tests, tools).
+// (see loadObjectSafe). nil means unmetered: tests and tools, plus
+// GetPointerAtIndex's nil-Machine path, which only ever reaches the
+// slice/string branches (see GetPointerAtIndexInt) and so computes no
+// map key.
 func (tv *TypedValue) ComputeMapKey(gm types.GasMeter, store Store, omitType bool) (key MapKey, isNaN bool) {
 	if gm != nil {
 		gm.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
