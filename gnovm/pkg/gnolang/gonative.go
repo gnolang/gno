@@ -335,10 +335,15 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		sv := tv.V.(*SliceValue)
 		svo := sv.Offset
 		svl := sv.Length
-		svc := sv.Maxcap
 		svb := sv.GetBase(nil)
+		// Size by Length, not Maxcap: a native only ever reads the first
+		// Length elements, and the Go slice it receives is a copy, so capacity
+		// beyond Length is unobservable from Gno. Sizing by Maxcap let a
+		// zero-length, large-Maxcap slice buy an unmetered Go allocation and
+		// memcpy for the flat native base cost. Natives must not rely on a
+		// parameter slice's capacity; see adr/prxxxx_gno2go_slice_gas.md.
 		if svb.Data == nil {
-			rv.Set(reflect.MakeSlice(st, svl, svc))
+			rv.Set(reflect.MakeSlice(st, svl, svl))
 			for i := range svl {
 				etv := &(svb.List[svo+i])
 				if etv.IsUndefined() {
@@ -347,8 +352,8 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				Gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			data := make([]byte, svl, svc)
-			copy(data[:svc], svb.Data[svo:svo+svc])
+			data := make([]byte, svl)
+			copy(data, svb.Data[svo:svo+svl])
 			rv.Set(reflect.ValueOf(data))
 		}
 	default:
