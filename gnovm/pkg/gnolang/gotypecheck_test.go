@@ -414,6 +414,87 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	}
 }
 
+// TestTypeCheckMemPackage_prodOnlyPassGating pins which type-check passes
+// ProdOnly gates. The wtests argument of typeCheckMemPackage is three-state
+// (nil / &false / &true), so ProdOnly must map false to nil and not to &true:
+// &true stops after the with-tests pass, silently dropping the xxx_test and
+// _filetest passes for `gno test`, `gno lint` and the gnovm test harness.
+// Each case puts a type error in exactly one bucket, so collapsing the mapping
+// fails here instead of only in review.
+func TestTypeCheckMemPackage_prodOnlyPassGating(t *testing.T) {
+	t.Parallel()
+
+	const prod = `package hello
+
+func Hello() string { return "hi" }
+`
+
+	tt := []struct {
+		name string
+		file string
+		body string
+	}{
+		{
+			// Same-package _test.gno: GoParseMemPackage puts it in gofs,
+			// filterTests strips it from the production pass, so only the
+			// with-tests pass sees it.
+			"same_package_test",
+			"hello_test.gno",
+			"package hello\n\nvar _ int = \"nope\"\n",
+		},
+		{
+			// xxx_test package: goes to _gofs, seen only by the xxx_test pass.
+			"xxx_test_package",
+			"hello_test.gno",
+			"package hello_test\n\nvar _ int = \"nope\"\n",
+		},
+		{
+			// _filetest.gno: goes to tgofs, seen only by the _filetest pass.
+			"filetest",
+			"hello_filetest.gno",
+			"package main\n\nvar _ int = \"nope\"\n\nfunc main() {}\n",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// A fresh mempackage per pass: type-checking mutates the AST.
+			mpkg := func() *std.MemPackage {
+				return &std.MemPackage{
+					Type: MPUserAll,
+					Name: "hello",
+					Path: "gno.land/p/demo/hello",
+					Files: []*std.MemFile{
+						{Name: "hello.gno", Body: prod},
+						{Name: tc.file, Body: tc.body},
+					},
+				}
+			}
+			mpkgGetter := mockPackageGetter{}
+
+			// ProdOnly false (gno test, gno lint): the error must be reported.
+			_, err := TypeCheckMemPackage(mpkg(), TypeCheckOptions{
+				Getter:     mpkgGetter,
+				TestGetter: mpkgGetter,
+				Mode:       TCLatestRelaxed,
+			})
+			require.Error(t, err, "a type error in %s must be caught without ProdOnly", tc.file)
+			assert.ErrorContains(t, err, "cannot use")
+
+			// ProdOnly true (the chain): test files are not type-checked.
+			_, err = TypeCheckMemPackage(mpkg(), TypeCheckOptions{
+				Getter:     mpkgGetter,
+				TestGetter: mpkgGetter,
+				Mode:       TCLatestRelaxed,
+				ProdOnly:   true,
+			})
+			assert.NoError(t, err, "ProdOnly must skip %s", tc.file)
+		})
+	}
+}
+
 func TestTypeCheckMemPackage_format(t *testing.T) {
 	t.Parallel()
 

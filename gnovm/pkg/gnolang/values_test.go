@@ -397,3 +397,58 @@ func TestComputeMapKey_collisions(t *testing.T) {
 		})
 	}
 }
+
+// cap(Block.Values) is charged by (*Block).GetShallowSize, so the growth
+// policy is consensus-visible: it must stay a pure function of the requested
+// size, never Go's growslice. Pin the exact capacities.
+func TestGrowBlockValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		oldCap   int
+		numNames int
+		wantCap  int
+	}{
+		{"empty to zero", 0, 0, 0},
+		{"empty to one", 0, 1, 1},
+		{"doubling from nil", 0, 3, 4},
+		{"doubling to pool cap", 0, 14, 16},
+		{"grow within capacity", 32, 20, 32},
+		{"exact fit is not grown", 8, 8, 8},
+		{"doubling stops at threshold", 0, 512, 512},
+		// Past the threshold: fixed increments, not another doubling.
+		{"first step past threshold", 0, 513, 768},
+		{"one step covers 600", 0, 600, 768},
+		{"two steps cover 800", 0, 800, 1024},
+		{"stepping from a large cap", 1024, 1100, 1280},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			old := make([]TypedValue, tt.oldCap)
+			got := growBlockValues(old, tt.numNames)
+			assert.Len(t, got, tt.numNames, "length")
+			assert.Equal(t, tt.wantCap, cap(got), "capacity")
+		})
+	}
+}
+
+// Growing must preserve existing slots and zero the new ones.
+func TestGrowBlockValuesPreservesContents(t *testing.T) {
+	t.Parallel()
+
+	old := make([]TypedValue, 3)
+	for i := range old {
+		old[i] = TypedValue{T: IntType}
+		old[i].SetInt(int64(i + 1))
+	}
+	got := growBlockValues(old, 10)
+	require.Len(t, got, 10)
+	for i := range 3 {
+		assert.Equal(t, int64(i+1), got[i].GetInt(), "slot %d preserved", i)
+	}
+	for i := 3; i < 10; i++ {
+		assert.Zero(t, got[i], "slot %d zeroed", i)
+	}
+}
