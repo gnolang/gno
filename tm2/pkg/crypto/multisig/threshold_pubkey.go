@@ -1,6 +1,8 @@
 package multisig
 
 import (
+	"errors"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -21,15 +23,40 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 	if k <= 0 {
 		panic("threshold k of n multisignature: k <= 0")
 	}
-	if len(pubkeys) < k {
-		panic("threshold k of n multisignature: len(pubkeys) < k")
+	pk := PubKeyMultisigThreshold{uint(k), pubkeys}
+	if err := pk.validate(); err != nil {
+		panic(err.Error())
 	}
-	for _, pubkey := range pubkeys {
+	return pk
+}
+
+// validate returns an error if pk does not satisfy the invariants of a
+// threshold multisig key.
+//
+// NewPubKeyMultisigThreshold is not the only way a PubKeyMultisigThreshold
+// comes into existence: amino decodes one straight from the bytes of an
+// untrusted, attacker-chosen transaction signature, populating K and PubKeys
+// without going through the constructor. Anything using those fields to make
+// an authorization decision must check them first.
+func (pk PubKeyMultisigThreshold) validate() error {
+	if pk.K == 0 {
+		return errors.New("threshold k of n multisignature: k <= 0")
+	}
+	if uint(len(pk.PubKeys)) < pk.K {
+		return errors.New("threshold k of n multisignature: len(pubkeys) < k")
+	}
+	for i, pubkey := range pk.PubKeys {
 		if pubkey == nil {
-			panic("nil pubkey")
+			return errors.New("nil pubkey")
+		}
+		// A key listed twice occupies two positions of the threshold but only
+		// ever needs the one private key behind it, so K distinct signers is
+		// not what such a key actually requires.
+		if slices.ContainsFunc(pk.PubKeys[:i], pubkey.Equals) {
+			return errors.New("threshold k of n multisignature: duplicate pubkey")
 		}
 	}
-	return PubKeyMultisigThreshold{uint(k), pubkeys}
+	return nil
 }
 
 func (pk PubKeyMultisigThreshold) String() string {
@@ -48,6 +75,12 @@ func (pk PubKeyMultisigThreshold) String() string {
 // The multisig uses a bitarray, so multiple signatures for the same key is not
 // a concern.
 func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) bool {
+	// pk is decoded from the signature of an untrusted transaction, so it has
+	// not necessarily been through NewPubKeyMultisigThreshold. Without this,
+	// a K of 0 verifies against no signatures at all.
+	if pk.validate() != nil {
+		return false
+	}
 	var sig Multisignature
 	err := amino.Unmarshal(marshalledSig, &sig)
 	if err != nil {

@@ -168,6 +168,93 @@ func TestPubKeyMultisigThresholdAminoToIface(t *testing.T) {
 	require.Equal(t, multisigKey, pubKey)
 }
 
+// A PubKeyMultisigThreshold decoded from a transaction signature never went
+// through NewPubKeyMultisigThreshold, so VerifyBytes cannot assume K and
+// PubKeys hold sane values.
+func TestVerifyBytesRejectsMalformedPubKey(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte{1, 2, 3, 4}
+	pubkeys, sigs := generatePubKeysAndSignatures(2, msg)
+
+	t.Run("zero threshold", func(t *testing.T) {
+		t.Parallel()
+
+		// K is omitted from the encoding when it is zero, so this key costs an
+		// attacker nothing to produce and its address is fixed and public.
+		var pk crypto.PubKey
+		amino.MustUnmarshalAny(amino.MustMarshalAny(PubKeyMultisigThreshold{}), &pk)
+		require.Equal(t, uint(0), pk.(PubKeyMultisigThreshold).K)
+
+		require.False(t, pk.VerifyBytes(msg, nil))
+		require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(NewMultisig(0))))
+	})
+
+	t.Run("zero threshold with pubkeys", func(t *testing.T) {
+		t.Parallel()
+
+		pk := PubKeyMultisigThreshold{K: 0, PubKeys: pubkeys}
+		multisignature := NewMultisig(len(pubkeys))
+		require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+
+		require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[0], pubkeys[0], pubkeys))
+		require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+	})
+
+	t.Run("threshold above key count", func(t *testing.T) {
+		t.Parallel()
+
+		pk := PubKeyMultisigThreshold{K: uint(len(pubkeys)) + 1, PubKeys: pubkeys}
+		multisignature := NewMultisig(len(pubkeys))
+		for i := range pubkeys {
+			require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[i], pubkeys[i], pubkeys))
+		}
+		require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+	})
+
+	t.Run("duplicate constituent keys", func(t *testing.T) {
+		t.Parallel()
+
+		// Repeating a key lets its single holder fill two threshold positions.
+		duplicated := []crypto.PubKey{pubkeys[0], pubkeys[0], pubkeys[1]}
+		pk := PubKeyMultisigThreshold{K: 2, PubKeys: duplicated}
+
+		multisignature := NewMultisig(len(duplicated))
+		multisignature.AddSignature(sigs[0], 0)
+		multisignature.AddSignature(sigs[0], 1)
+		require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+	})
+
+	t.Run("nil constituent key", func(t *testing.T) {
+		t.Parallel()
+
+		// Reachable over the wire: amino JSON decodes a null element into a nil
+		// interface, which used to be dereferenced by the verification loop.
+		var pk crypto.PubKey
+		require.NoError(t, amino.UnmarshalJSON(
+			[]byte(`{"@type":"/tm.PubKeyMultisig","threshold":"1","pubkeys":[null]}`), &pk))
+		require.Equal(t, []crypto.PubKey{nil}, pk.(PubKeyMultisigThreshold).PubKeys)
+
+		multisignature := NewMultisig(1)
+		multisignature.AddSignature(sigs[0], 0)
+		require.NotPanics(t, func() {
+			require.False(t, pk.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+		})
+	})
+}
+
+func TestNewPubKeyMultisigThresholdInvalid(t *testing.T) {
+	t.Parallel()
+
+	pubkeys, _ := generatePubKeysAndSignatures(2, []byte("dummy"))
+
+	require.Panics(t, func() { NewPubKeyMultisigThreshold(0, pubkeys) })
+	require.Panics(t, func() { NewPubKeyMultisigThreshold(-1, pubkeys) })
+	require.Panics(t, func() { NewPubKeyMultisigThreshold(3, pubkeys) })
+	require.Panics(t, func() { NewPubKeyMultisigThreshold(2, []crypto.PubKey{pubkeys[0], nil}) })
+	require.Panics(t, func() { NewPubKeyMultisigThreshold(2, []crypto.PubKey{pubkeys[0], pubkeys[0]}) })
+}
+
 func generatePubKeysAndSignatures(n int, msg []byte) (pubkeys []crypto.PubKey, signatures [][]byte) {
 	pubkeys = make([]crypto.PubKey, n)
 	signatures = make([][]byte, n)
