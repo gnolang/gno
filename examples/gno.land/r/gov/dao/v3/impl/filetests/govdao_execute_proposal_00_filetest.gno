@@ -60,6 +60,9 @@ func main(cur realm) {
 //
 // This proposal always fails on execution
 //
+// Executor created in: `gno.land/r/test/govdao`
+//
+//
 //
 //
 // ---

@@ -8,6 +8,7 @@ import (
 	"gno.land/p/moul/helplink"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/bptree/v0/pager"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -119,11 +120,27 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 
 %s
 
-Executor created in: %s
-`, p.ExecutorString(), p.ExecutorCreationRealm())
-		out += "\n\n"
+`, p.ExecutorString())
 	}
 
+	// Disclosed independently of the description: this names the realm whose
+	// code runs if the proposal passes. Sharing the gate above hid it for every
+	// proposal built with an empty executor description — 16 call sites across
+	// 7 production realms, nearly all r/sys/* governance actions.
+	//
+	// Escaped, not trusted: CreationRealm() is dispatched through the public
+	// dao.Executor interface, so only SimpleExecutor's value is VM-captured;
+	// a third-party executor returns any string it likes.
+	// Guarded on the sanitized value, not the raw one: InlineCode returns ""
+	// for input that strips to nothing (bidi/zero-width only), and TrimSpace
+	// catches plain whitespace, so neither prints a label with nothing after
+	// it. This is tidiness, not a boundary: a zero-width/space mixture still
+	// renders an empty-looking span, and a hostile executor can always return
+	// a plausible-looking lie. The security property is the escaping below.
+	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
+		out += ufmt.Sprintf("Executor created in: %s\n", cr)
+		out += "\n\n"
+	}
 
 	out += "\n\n---\n\n"
 	out += ps.String(0, rlm)

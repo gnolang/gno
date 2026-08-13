@@ -229,9 +229,13 @@ func StringifyProposal(p *dao.Proposal) string {
 This proposal contains the following metadata:
 
 %s
+`, p.ExecutorString())
+	}
 
-Executor created in: %s
-`, p.ExecutorString(), p.ExecutorCreationRealm())
+	// Disclosed independently of the metadata string, and escaped, for the
+	// same reasons as render.renderProposalPage.
+	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
+		out += ufmt.Sprintf("\nExecutor created in: %s\n", cr)
 	}
 
 	return out

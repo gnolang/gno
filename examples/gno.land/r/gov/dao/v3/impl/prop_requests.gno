@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -34,7 +35,7 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 	// Rejected here as well as in UpdateImpl so the mistake surfaces when the
 	// proposal is written, not when it executes. An empty realmPkg would be
 	// stored as an allowlist entry matching every user realm's empty
-	// PkgPath().
+	// PkgPath(), and would render as a blank name in the grant sentence below.
 	if strings.TrimSpace(realmPkg) == "" {
 		panic("realmPkg must be the realm path being granted govDAO authority")
 	}
@@ -59,7 +60,19 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	// State the grant: this executor rewrites AllowedDAOs, and previously
+	// rendered nothing at all. realmPkg is caller-supplied and lands in a code
+	// span, so it is wrapped with sanitize.InlineCode — which emits its own
+	// fence, so do not add backticks around it. (md.EscapeText is wrong here:
+	// CommonMark 6.1 does not process backslash escapes inside code spans.)
+	// Nothing ties realmPkg to newDao, which is why the text says so.
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf(
+		"Replaces the govDAO implementation with the DAO carried by this proposal.\n\n"+
+			"After execution, only `gno.land/r/gov/dao/v3/impl` and %s may replace the "+
+			"implementation, mutate the member store, or move treasury funds.\n\n"+
+			"This grant is stated by the proposer: the incoming implementation is passed "+
+			"as a value and is not verified to belong to the realm named above.",
+		sanitize.InlineCode(realmPkg)))
 
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
