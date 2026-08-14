@@ -1027,8 +1027,7 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 	t.Run("an item is dialed once its wait elapses", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, cancelFn := context.WithCancel(context.Background())
-		defer cancelFn()
+		ctx := t.Context()
 
 		var (
 			dialed = make(chan types.NetAddress, 1)
