@@ -195,6 +195,15 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 // non-crossing and take rlm as a regular argument, so a direct user
 // MsgCall to them cannot supply a valid rlm: the IsCurrent() check
 // rejects any forged or stashed realm value.
+//
+// This is also what makes the unsafe.OriginCaller()-based membership
+// checks safe. Those key on the transaction origin (an EOA), which is
+// correct only if the origin is the immediate caller. isValidCall
+// guarantees exactly that: it admits prev only when prev.IsUser() (a
+// direct EOA call or the origin's own ephemeral run realm) or when
+// prev's package address equals the origin — never a third-party realm
+// in the middle. Relaxing this to allow realm intermediaries would let
+// one member's vote be cast under another origin: keep the two in sync.
 func (g *GovDAO) isValidCall(_ int, rlm realm) bool {
 	if !rlm.IsCurrent() {
 		return false

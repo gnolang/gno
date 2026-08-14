@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-// allowedDAOs is the sole authorization for UpdateImpl, SafeExecutor.Execute,
+// allowedDAOs is the sole authorization for UpdateImpl, memberstore.Get,
 // treasury.Send and treasury.SetTokenKeys, and InAllowedDAOs() fails OPEN when
 // it is empty — the bootstrap window that lets the genesis MsgRun seed the
 // member set before lockdown.
