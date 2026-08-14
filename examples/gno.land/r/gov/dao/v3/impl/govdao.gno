@@ -121,6 +121,17 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
 	status := g.pss.GetStatus(pid)
+	if status == nil {
+		// Unknown to this implementation: either an unknown id, or a
+		// proposal created before a DAO upgrade replaced this GovDAO
+		// (statuses live on the instance, so a fresh instance has none).
+		// Mirrors VoteOnProposal above, which returns this same error for
+		// the same lookup. Without it the nil deref panics with an opaque
+		// "runtime error: nil pointer dereference" that reads like a VM
+		// fault. It reports the condition only — see the ADR for why the
+		// proposal still cannot be resolved.
+		return false, errors.New("proposal not found")
+	}
 	if status.Denied || status.Accepted {
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
@@ -152,7 +163,14 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 	if err != nil {
 		status.Accepted = false
 		status.Denied = true
-		status.DeniedReason = "execution failed: " + err.Error()
+		// Clamped on the way in, not just on the way out. The error comes from
+		// the proposal's executor — third-party code — and this assignment is a
+		// write to realm storage, paid for by whoever executes the proposal
+		// rather than by whoever wrote the executor. Bounding it here means the
+		// realm never stores a reason larger than it can display. The clamp at
+		// the render site stays, because reasons stored before this change are
+		// still unbounded.
+		status.DeniedReason = "execution failed: " + clampField(err.Error(), maxRenderedReason)
 	}
 	return err
 }

@@ -66,7 +66,7 @@ func main(cur realm) {
 //
 // ### Stats
 // - **PROPOSAL HAS BEEN DENIED**
-// REASON: execution failed: Boom!
+// REASON: execution failed: Boom\!
 // - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%

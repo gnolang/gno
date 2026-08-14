@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -150,7 +151,13 @@ func (ps *proposalStatus) String(_ int, rlm realm) string {
 		sb.WriteString("- **PROPOSAL HAS BEEN DENIED**\n")
 		if ps.DeniedReason != "" {
 			sb.WriteString("REASON: ")
-			sb.WriteString(ps.DeniedReason)
+			// DeniedReason is "execution failed: " + err.Error() from the
+			// proposal's executor callback, which any third-party realm can
+			// supply. Raw, it wrote attacker-controlled markdown directly beneath
+			// the "PROPOSAL HAS BEEN DENIED" line. InlineText folds newlines, so
+			// the reason cannot leave the REASON: line, and escapes emphasis and
+			// raw HTML.
+			sb.WriteString(sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason)))
 			sb.WriteString("\n")
 		}
 	} else {

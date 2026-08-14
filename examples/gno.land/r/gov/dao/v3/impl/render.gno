@@ -96,8 +96,18 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
 	}
 
+	// pid is user-supplied and the proposal itself lives on the proxy, so
+	// GetProposal can succeed for a proposal this implementation has no status
+	// for — the same post-upgrade case PreExecuteProposal guards (statuses live
+	// on the instance, so a fresh instance has none). Without this the page
+	// panics at ps.String below. renderProposalListItem needs no such guard:
+	// its pids are iterated out of pss itself, so a status always exists.
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(p.Title()))
+	if ps == nil {
+		return ufmt.Sprintf("# Proposal #%v not available\n\nThis proposal was not created by the current govDAO implementation, so it has no voting status here.", pid)
+	}
+
+	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
 	out += p.Description()
@@ -113,6 +123,7 @@ Executor created in: %s
 `, p.ExecutorString(), p.ExecutorCreationRealm())
 		out += "\n\n"
 	}
+
 
 	out += "\n\n---\n\n"
 	out += ps.String(0, rlm)
@@ -137,7 +148,7 @@ func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovD
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, md.EscapeText(p.Title()), ren.relativeRealmPath, pid)
+	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)), ren.relativeRealmPath, pid)
 	out += ufmt.Sprintf("Author: %s\n\n", tryResolveAddr(p.Author()))
 
 	out += "Status: " + getPropStatus(ps)
