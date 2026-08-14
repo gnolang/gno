@@ -126,7 +126,17 @@ import (
 // stdlib .gno source bytes are genesis state, so any edit to them moves the
 // root. This one does change behavior, and is intentionally
 // consensus-breaking.
-const expectedCrossrealm38Hash = "b43e5fd5ab1a255ee177aef54e35a584b657b823718cc822d11c6139a2b65a8a"
+//
+// Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
+// their length checks moved into the .gno wrapper (ahead of the native call, so
+// an oversized input is not copied into Go memory for a flat fee), plus a test
+// for that. Both bn254.gno and bn254_test.gno are stdlib source bytes committed
+// into genesis state, so the root moves. Attributed by bisection against the
+// OriginSend value above: base .gno files give b43e5fd5, bn254_test.gno alone
+// gives a25dc7a4, both give the value below; the innerHash gas-table change moves
+// nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
+// filetest passes and the bn254 EIP-196/197 vectors are untouched.
+const expectedCrossrealm38Hash = "3b2164b3392f93f0115159933095b486d8263a9a392f02e19c9a85f8dfc289da"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
