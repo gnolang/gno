@@ -29,42 +29,27 @@ gno = "0.9"
 -- deferp/deferp.gno --
 package deferp
 
+import "strconv"
+
 var data []int
 
+// The defer sits in an inner scope so its origin block is popped — and
+// released to the machine's block pool — before the defer runs at return.
+// A top-level defer would not exercise this: doOpReturnCallDefers drains
+// defers before PopFrameAndReturn releases the call block.
 func Append(cur realm, n int) {
-	defer func() { data = append(data, n) }()
+	{
+		defer func() { data = append(data, n) }()
+	}
 }
 
 func Dump(cur realm) string {
-	return sprint(data)
-}
-
-func sprint(xs []int) string {
 	s := "["
-	for i, x := range xs {
+	for i, x := range data {
 		if i > 0 {
 			s += " "
 		}
-		s += itoa(x)
+		s += strconv.Itoa(x)
 	}
 	return s + "]"
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	b := []byte{}
-	for n > 0 {
-		b = append([]byte{byte('0' + n%10)}, b...)
-		n /= 10
-	}
-	if neg {
-		return "-" + string(b)
-	}
-	return string(b)
 }

@@ -16,8 +16,13 @@ func namedRet() (r int) {
 	return 5
 }
 
-// Per-iteration defers in inner block scopes that pop early, then heavy
-// allocation churn to force pool reuse before the defers run at return.
+// Per-iteration defers in inner block scopes that pop early: each pop
+// releases the defer-origin block to the pool while its defer is still
+// pending. The pool pressure comes from those three popped inner-scope
+// blocks and the three defer-exec blocks acquired at return — the trailing
+// loop only re-acquires one for-block (a `for` gets a single block, not one
+// per iteration, and make() allocates off-pool); it just keeps the machine
+// running between the pops and the deferred reads.
 func recycleChurn() {
 	for i := 0; i < 3; i++ {
 		{
@@ -34,8 +39,11 @@ func recycleChurn() {
 	println("churn sum:", s)
 }
 
-// continue releases the loop-body blocks (releaseBlocksFrom) while a defer
-// registered in that body is still pending.
+// Defers registered in a flat loop body: w lives in the single for-block
+// itself (a flat body adds no nested scope, so `continue` releases no
+// blocks here — PeekFrameAndContinueFor releases from fr.NumBlocks+1). The
+// for-block is released once, at loop exit, while all three defers are
+// still pending.
 func continueDefer() {
 	for i := 0; i < 3; i++ {
 		w := i + 1
