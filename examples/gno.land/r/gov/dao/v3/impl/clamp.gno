@@ -23,8 +23,10 @@ package impl
 // ExecutorString() and ExecutorCreationRealm() through the public interface —
 // and bounding it needs a gas budget around executor dispatch, not a clamp.
 const (
-	// A realm path. The longest one in examples/ is 46 bytes, so this leaves
-	// about five times the room anything real needs. It is headroom, not a
+	// A realm path. The longest deployable realm path in examples/ is 35 bytes
+	// (gno.land/r/gov/dao/v3/treasury/test), so this leaves about seven times
+	// the room anything real needs. A hostile executor returns any length it
+	// likes, which is the reason to clamp at all. It is headroom, not a
 	// guarantee: the package-path grammar puts no ceiling on how many segments
 	// a path may have, so a deeply nested realm could still be cut. That costs
 	// a truncation marker on the page and nothing else.

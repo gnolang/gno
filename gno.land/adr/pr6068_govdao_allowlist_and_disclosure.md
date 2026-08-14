@@ -375,9 +375,24 @@ value now shows a truncation marker instead of nothing, because the marker
 survives the trim — which is also what makes the ordering testable.
 
 Not addressed here: `ExecutorString()` is equally attacker-computed and is still
-emitted raw. It is ~31 gas/byte rather than ~11,310, so reaching the cap needs
-orders of magnitude more data, and bounding it would truncate legitimate
-executor descriptions across `examples/`. Worth its own change.
+emitted raw. It matters on two axes, and is left raw on both.
+
+On gas: it is ~31 gas/byte rather than ~11,310, so reaching the cap needs orders
+of magnitude more data, and bounding it would truncate legitimate executor
+descriptions across `examples/`.
+
+On injection: a hostile executor's `String()` can forge page structure — a
+review filetest produced a `**PROPOSAL HAS BEEN ACCEPTED**` banner on a
+genuinely-open proposal. That is the same class this change escapes for
+`DeniedReason` and the creation realm, on the same `dao.Executor` interface, so
+the asymmetry deserves naming rather than silence. It is left raw anyway because
+the proposal `Description` is already raw member-supplied markdown by design
+(realms build `####` headings in it — see Alternatives), and proposal creation
+is member-gated, so the same member who could hide a payload in `String()` can
+put it in the description right above it. Escaping `String()` while `Description`
+stays raw closes a window next to an open door; escaping both is its own change.
+Note the new `executor_disclosure_filetest` does not exercise this — its hostile
+executor returns an empty `String()`.
 
 ### 6. Clamp the proposal title, and the stored denial reason
 
@@ -451,7 +466,7 @@ text, `[title](path)`, so an unescaped `]` would let a title hijack the link.
 `EscapeInline`'s set includes `[`, `]`, `(` and `)`, so `](evil)` renders as
 literal text. That held before this change; the clamp does not weaken it.
 
-## 6. Sanitize `DeniedReason`
+### 7. Sanitize `DeniedReason`
 
 `DeniedReason` is `"execution failed: " + err.Error()`, and that error comes
 from the proposal's executor callback — third-party code. Rendered raw it wrote
@@ -648,7 +663,7 @@ stronger than it is.
 - `examples/gno.land/r/gov/dao/v3/impl/filetests/executor_disclosure_filetest.gno`
   (new) covers the disclosure changes in an isolated realm — the `impl` package's
   unit tests share proposal ids across files and swap the DAO implementation
-  partway through, so they are the wrong home for these. 16 assertions, all goldened `true`.
+  partway through, so they are the wrong home for these. 19 assertions, all goldened `true`.
 - `examples/gno.land/r/gov/dao/v3/treasury/test/treasury_test.gno` gains
   `TestTreasuryLockdownCannotBeReopened` — the only test that proves the fix
   protects *funds* rather than a boolean. With the fix reverted, the
