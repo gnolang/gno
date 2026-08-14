@@ -4909,7 +4909,6 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 				Callable: fv,
 				Args:     []TypedValue{},
 				Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-				Parent:   &Block{},
 			})
 		}
 		m.PushOp(OpReturnCallDefers) // will be consumed by the op
