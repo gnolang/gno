@@ -33,6 +33,37 @@ func New(o *ownable.Ownable) *Authorizable {
 	return a
 }
 
+// TransferOwnership overrides the embedded Ownable.TransferOwnership to keep
+// the auth list in sync with ownership: the deposed owner is removed from the
+// auth list and the new owner is added. The superuser guard is enforced by the
+// embedded Ownable (rlm.IsCurrent() + rlm.Previous().Address() must equal the
+// current owner).
+func (a *Authorizable) TransferOwnership(_ int, rlm realm, newOwner address) error {
+	oldOwner := a.Owner()
+	if err := a.Ownable.TransferOwnership(0, rlm, newOwner); err != nil {
+		return err
+	}
+	if oldOwner.IsValid() {
+		a.authorized.Remove(oldOwner.String())
+	}
+	a.authorized.Set(newOwner.String(), struct{}{})
+	return nil
+}
+
+// DropOwnership overrides the embedded Ownable.DropOwnership to remove the
+// deposed owner from the auth list when ownership is renounced. The superuser
+// guard is enforced by the embedded Ownable.
+func (a *Authorizable) DropOwnership(_ int, rlm realm) error {
+	oldOwner := a.Owner()
+	if err := a.Ownable.DropOwnership(0, rlm); err != nil {
+		return err
+	}
+	if oldOwner.IsValid() {
+		a.authorized.Remove(oldOwner.String())
+	}
+	return nil
+}
+
 // AddToAuthList adds addr to the auth list. rlm must be the caller's
 // own captured cur; rlm.Previous().Address() must equal the superuser
 // (the underlying Ownable's owner).
