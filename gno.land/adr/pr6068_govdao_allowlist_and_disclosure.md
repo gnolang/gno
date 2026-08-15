@@ -491,6 +491,45 @@ at all, and it escapes emphasis and raw HTML. The objection that it renders
 `Boom!` as `Boom\!` was an artifact of reading the raw markdown — a
 backslash-escaped punctuation mark displays as the bare character.
 
+### 8. Harden the unauthenticated render error paths
+
+A follow-up render-security audit found two pre-existing defects on paths
+`Render` reaches with attacker-controlled input, and both are fixed here because
+they are the same class this change already addresses — and one is in the very
+file this change hardens.
+
+**The "invalid proposal id" error echoed the raw pid segment.** When
+`strconv.ParseInt` fails on a non-numeric pid, `render.gno` printed
+`err.Error()` raw. `strconv`'s `NumError` quotes the segment (so no newline, no
+block-level forgery) but leaves markdown/HTML metachars intact, so a crafted
+pid like `[click](evil)` rendered a live inline link on a govDAO-branded error
+page — reachable by anyone via `vm/qrender`. The three sites now escape and
+clamp it the same way every other untrusted slot on the page does:
+`md.EscapeText(clampField(err.Error(), maxRenderedError))`. (An earlier draft of
+this ADR called this "a path this patch does not otherwise touch" — wrong;
+`renderProposalPage` is exactly a path this patch touches.)
+
+**A control byte in the query string panicked the render.** The landing page
+fed the raw query to the pager's `MustGetPageByPath`, which panics when
+`url.Parse` rejects a control byte (`Render("?\x01")`). The member-store list
+had the same shape plus an ignored `url.Parse` error that then nil-dereffed.
+Both are caller-local (a read-only query; only the crafted request fails, never
+the default page), but "Render never panics" is the bar. The proposals list now
+uses `GetPageByPath` with a page-1 fallback; the member store degrades a
+malformed path to the unfiltered first page.
+
+**The treasury reflected an unknown banker id raw.** The `{banker}` route in
+`p/nt/treasury/v0` printed `"Banker not found: " + bankerID` unescaped —
+another unauthenticated reflection. That package has no consumer outside
+govDAO, so it is escaped at the four reflection sites here rather than deferred.
+
+Left for follow-up (documented below, not launch-blocking): `ExecutorString`
+raw (member-gated, same trust model as the deliberately-raw Description); the
+member-address table cell (governance-gated to inject); the missing upper bound
+on `?size`/`?history_size` (caller-local, and the pager already clamps the slice
+to the item count); and the dead `"No one voted yet"` votes-page branch
+(cosmetic).
+
 ## Alternatives considered
 
 **Make `NewUpdateRequest` return a nil slice for nil input.** Fixes the
@@ -618,16 +657,6 @@ stronger than it is.
 
 ## Found but deliberately not fixed here
 
-- **`Render` echoes the attacker-supplied path into the page.**
-  All three of `renderProposalPage`, `renderProposalListItem` and
-  `renderVotesForProposal` in `render.gno` emit `strconv.ParseInt`'s error raw, so
-  `/r/gov/dao:v3/impl` with a crafted path renders attacker inline markdown —
-  including live links — inside a govDAO-branded error page. Go quotes the
-  string, so no block structure can be forged and raw HTML is dropped by
-  gnoweb; the residue is inline emphasis and `<a href>`. Pre-existing, on a path
-  this patch does not otherwise touch, but `AGENTS.md`'s `Render(path)` rule
-  covers it and it should be fixed.
-
 - **A retired implementation keeps its authority.** `NewUpgradeDaoImplRequest`
   always retains `gno.land/r/gov/dao/v3/impl` in the list, so after a handoff to
   v4 the replaced realm can still mutate the member store and move treasury
@@ -737,6 +766,10 @@ that it checks it.
 | remove the clamp on `DeniedReason` | `r/gov/dao/v3/impl` |
 | clamp ignoring the rune boundary | `r/gov/dao/v3/impl` |
 | accept a blank `realmPkg` | `r/gov/dao/v3/impl` |
+| emit the ParseInt error echo raw | `r/gov/dao/v3/impl` |
+| restore `MustGetPageByPath` on the proposals list | `r/gov/dao/v3/impl` |
+| drop the memberstore malformed-path guard | `r/gov/dao/v3/memberstore` |
+| un-escape the treasury banker-id reflection | `r/gov/dao/v3/treasury/test` |
 
 Every row above was re-run against the final tree, after the work was split into
 its three commits, and every one was killed. Each reported `0 build errors`, so

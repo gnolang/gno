@@ -66,7 +66,14 @@ func (ren *render) renderActiveProposals(_ int, rlm realm, url string, d *GovDAO
 	out += "## Members\n"
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
-	page := ren.pssPager.MustGetPageByPath(url)
+	page, perr := ren.pssPager.GetPageByPath(url)
+	if perr != nil {
+		// A query url.Parse rejects (e.g. a control byte) is the caller's own
+		// malformed input; render the default first page instead of aborting
+		// this read-only render. ParseQuery already tolerates bad page/size
+		// values, so every currently-working input is unaffected.
+		page = ren.pssPager.GetPage(1)
+	}
 	if len(page.Items) == 0 {
 		out += "\nNo proposals yet.\n\n"
 		return out
@@ -89,7 +96,10 @@ func (ren *render) renderActiveProposals(_ int, rlm realm, url string, d *GovDAO
 func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
+		// err echoes the caller's raw pid segment (strconv quotes it but leaves
+		// markdown/HTML metachars); escape+clamp it like every other untrusted
+		// slot on this page, since Render is reachable unauthenticated.
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", md.EscapeText(clampField(err.Error(), maxRenderedError)))
 	}
 
 	p, err := dao.GetProposal(dao.ProposalID(pid))
@@ -156,7 +166,10 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
+		// err echoes the caller's raw pid segment (strconv quotes it but leaves
+		// markdown/HTML metachars); escape+clamp it like every other untrusted
+		// slot on this page, since Render is reachable unauthenticated.
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", md.EscapeText(clampField(err.Error(), maxRenderedError)))
 	}
 
 	p, err := dao.GetProposal(dao.ProposalID(pid))
@@ -181,7 +194,10 @@ func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovD
 func (ren *render) renderVotesForProposal(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
+		// err echoes the caller's raw pid segment (strconv quotes it but leaves
+		// markdown/HTML metachars); escape+clamp it like every other untrusted
+		// slot on this page, since Render is reachable unauthenticated.
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", md.EscapeText(clampField(err.Error(), maxRenderedError)))
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
@@ -225,6 +241,11 @@ func renderActionBar(sPid string) string {
 	return out
 }
 
+// tryResolveAddr renders the author/voter as a username link. RenderLink
+// interpolates the username raw into "[@name](/u/name)" (r/sys/users), so this
+// is markdown-safe ONLY because r/sys/users validateName restricts names to
+// ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ (max 64) — no markdown/HTML metachar. If that
+// charset ever loosens, this line and writeVotes in types.gno need escaping.
 func tryResolveAddr(addr address) string {
 	userData := users.ResolveAddress(addr)
 	if userData == nil {

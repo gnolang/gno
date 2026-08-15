@@ -34,6 +34,9 @@ const (
 	// "execution failed: " plus an executor's error message. Also bounds what
 	// govdao.gno stores, so the realm never holds a reason it cannot show.
 	maxRenderedReason = 1024
+	// A strconv error that echoes the caller's own path segment. Everything in
+	// it is fixed text except the quoted segment, whose length the caller picks.
+	maxRenderedError = 256
 	// A proposal title. The longest in examples/ is about 40 bytes, so this is
 	// roughly nine times anything real, and long for a heading. Titles are
 	// escaped on both the proposal page and the list page, and the list page

@@ -394,3 +394,11 @@ func TestTreasuryLockdownCannotBeReopened(cur realm, t *testing.T) {
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, savedDAOs))
 	uassert.True(t, dao.InAllowedDAOs(allowedRealm.PkgPath()), "allowlist restored")
 }
+
+func TestRenderEscapesUnknownBankerID(t *testing.T) {
+	// The {banker} route reflects an unknown banker id into the page; a crafted
+	// id must be escaped so it cannot inject markdown/HTML.
+	out := treasury.Render("evil[x](y)")
+	uassert.True(t, strings.Contains(out, `\[x\]`), "reflected banker id must be escaped")
+	uassert.False(t, strings.Contains(out, "[x](y)"), "must not render a live link")
+}
