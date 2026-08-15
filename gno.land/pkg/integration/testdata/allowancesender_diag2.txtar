@@ -71,6 +71,10 @@ import (
 )
 
 func newAllowance(cur realm) *allowancesender.AllowanceSender {
+	// The -send envelope on these calls provisions this realm's address so
+	// the allowance has something to draw on. Acknowledge it: MsgCall
+	// rejects an envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	return allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
