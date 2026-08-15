@@ -78,6 +78,11 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 }
 
 func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+	// Reject a non-bech32 address at proposal-build time (see AddMember): keeps
+	// an unauthenticable / injection-bearing key out of the member store.
+	if !addr.IsValid() {
+		panic("invalid member address: " + addr.String())
+	}
 	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")

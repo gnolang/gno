@@ -7,17 +7,16 @@ Proposed.
 ## Context
 
 `r/gov/dao` keeps a package-level `allowedDAOs []string`. It is the *sole*
-authorization for five privileged operations:
+authorization for four privileged operations:
 
 | Operation | Site |
 |---|---|
 | Replace the govDAO implementation | `proxy.gno` `UpdateImpl` |
-| Run a proposal's executor with DAO authority | `r/gov/dao/types.gno:221` `SafeExecutor.Execute` |
 | Obtain the mutable member store | `v3/memberstore/memberstore.gno:187` `Get` |
 | Move treasury funds | `v3/treasury/treasury.gno:76` `Send` |
 | Rewrite the treasury's GRC20 token registry keys | `v3/treasury/treasury.gno:64` `SetTokenKeys` |
 
-All five gate on `dao.InAllowedDAOs(caller)`, and that helper **fails open**:
+All four gate on `dao.InAllowedDAOs(caller)`, and that helper **fails open**:
 
 ```go
 // proxy.gno, InAllowedDAOs
@@ -171,25 +170,24 @@ passes its `realmPkg` argument straight into the list, so an empty one reaches
 `UpdateImpl`. Blank entries are therefore rejected outright rather than dropped
 silently, and `NewUpgradeDaoImplRequest` rejects a blank `realmPkg` at
 construction so the mistake surfaces to the proposal author rather than at
-execution. (This is latent rather than live today: none of the five gated
+execution. (This is latent rather than live today: none of the four gated
 functions are `MsgCall`-encodable, so an `""` entry currently grants nothing.
 It is one signature change from mattering.)
 
 That last point was checked against the keeper rather than assumed, because it
 is what makes the blank-entry case latent instead of live. Two rules block it,
-and each of the five is blocked by one of them:
+and each of the four is blocked by one of them:
 
 - `keeper.go:818` requires a callable function's first parameter to be
   `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int` first, so
-  it is rejected outright. `SafeExecutor.Execute` is a method, and the lookup
-  resolves package-level names only.
+  it is rejected outright.
 - `convert.go` turns string arguments into Gno values and handles primitives,
   arrays, and `[]byte` alone. Everything else panics with "unexpected type in
   contract arg". That stops `UpdateImpl` (a struct), `treasury.Send` (an
   interface), and `treasury.SetTokenKeys`, whose `[]string` fails the explicit
   `Elt == Uint8Type` test with "unexpected slice type in contract arg".
 
-So a `""` entry grants nothing today. What would change that is any of the five
+So a `""` entry grants nothing today. What would change that is any of the four
 gaining a signature MsgCall can encode — not a change to this realm at all,
 which is the reason the guard is worth having now.
 
@@ -525,10 +523,23 @@ govDAO, so it is escaped at the four reflection sites here rather than deferred.
 
 Left for follow-up (documented below, not launch-blocking): `ExecutorString`
 raw (member-gated, same trust model as the deliberately-raw Description); the
-member-address table cell (governance-gated to inject); the missing upper bound
-on `?size`/`?history_size` (caller-local, and the pager already clamps the slice
-to the item count); and the dead `"No one voted yet"` votes-page branch
-(cosmetic).
+missing upper bound on `?size`/`?history_size` (caller-local, and the pager
+already clamps the slice to the item count); and the dead `"No one voted yet"`
+votes-page branch (cosmetic).
+
+### 9. Validate member addresses at admission
+
+An `address` argument is not validated by the VM — the raw MsgCall string is
+stored — so `AddMember` and `NewAddMemberRequest` accepted any string as a
+member key, including one carrying `|`/backtick/HTML metachars that then injected
+into the members render table (an unescaped `tablesort` cell). This was
+reachable directly by any T1/T2 member (`AddMember` needs no proposal), not only
+through governance. Both admission points now reject a non-bech32 address with
+`addr.IsValid()`, matching the check `InitWithUsers` already applied — closing
+the injection at the source (the store now holds only valid addresses, which are
+metachar-free, so every render sink is safe). The follow-up render-cell escaping
+in `rendermembers.gno` remains deferred as defense-in-depth for the trusted
+genesis-seed path, which admission does not cover.
 
 ## Alternatives considered
 
@@ -627,16 +638,19 @@ description sanitization needs its own change with golden updates across
   first alone suggests `MsgRun` cannot reach these functions at all, and it can.
   What neither branch checks is membership, which is why any account can execute
   a proposal that has already passed.
-- `UpdateImpl` and `SafeExecutor.Execute` read `cur.Previous()` without calling
-  `cur.IsCurrent()` first, and that is correct here even though `AGENTS.md`
-  states the check as mandatory. Both take `realm` as their **first** parameter,
-  which makes them crossing functions, and the VM refuses any first argument
-  other than `cur` or `cross(rlm)` — a stashed realm value fails with "only
-  `cur` or `cross(rlm)` are allowed as the first argument to a crossing
-  function", confirmed by probe. `NewSimpleExecutor` is the contrast: its realm
-  sits in the second position, so it is not a crossing function, nothing is
-  enforced for it, and it carries the `IsCurrent()` check it needs. Noted
-  because applying the rule mechanically flags the first two as bugs.
+- Every crossing function that derives caller identity checks `cur.IsCurrent()`
+  before `cur.Previous()`, per AGENTS.md's mandatory rule: `UpdateImpl`,
+  `AddMember`, `treasury.Send`, `treasury.SetTokenKeys`. The check is redundant
+  under the crossing-frame guarantee — the VM refuses any first argument other
+  than `cur`/`cross(rlm)` (a stashed value fails with "only `cur` or
+  `cross(rlm)` are allowed as the first argument to a crossing function",
+  confirmed by probe) — but the rule mandates it as defense-in-depth against a
+  future refactor to a non-crossing caller. (An earlier draft of this bullet
+  claimed the omission on `UpdateImpl` was correct; that contradicted AGENTS.md,
+  so the guard was added there and on `AddMember`.) The token-style accessors
+  `memberstore.Get`, `GetInstance`, and `NewSimpleExecutor` take `realm` in the
+  second position — not crossing functions — so their `IsCurrent()` check is
+  load-bearing, not redundant.
 - Proposal descriptions as markdown — deliberate, see Alternatives.
 - The per-proposal allowlist snapshot. `CreateProposal` stores `allowedDAOs[:]`
   in each proposal, which shares a backing array with the
@@ -656,6 +670,46 @@ untested production path — recorded so the mutation table above is not read as
 stronger than it is.
 
 ## Found but deliberately not fixed here
+
+A fresh adversarial audit (vote/tally, lifecycle, member escalation, spec
+re-pass) confirmed the governance *mechanics* are sound — no single-member
+escalation, no re-entrancy, no execute-twice, no ID forge, no minority capture —
+and found four governance-*design* issues, all pre-existing and each needing an
+owner decision rather than a surgical fix:
+
+- **Tally-timing veto/grief.** The electorate is tallied live at execute time
+  (no snapshot — deliberate, per the `impl/types.gno` comment citing PR #5271),
+  so adding members between voting and execution shifts the denominator. Proven:
+  a proposal passing at 68.42% drops to 65% when one T1/T2 member adds one T3
+  member (no new vote), a low-privilege unilateral veto of a close proposal;
+  it also enables T3 sybil YES-stuffing. Bounded by invitation points and the
+  T3 power cap. The fix (snapshot the electorate) is an owner decision and is
+  explicitly out of scope for this change.
+- **Tier-eligibility gerrymander.** `NewProposalRequestWithFilter` +
+  `FilterByTier` are constructible by any caller and `PostCreateProposal`
+  applies the filter to *any* proposal, so a proposer can restrict the
+  electorate to T1 only on an arbitrary executor (proven: 75% accepted with 37%
+  of power excluded). Not surgically fixable: `r/sys/names.ProposeSetPaused`
+  deliberately uses a T1 filter on a non-member proposal, and `PostCreateProposal`
+  cannot distinguish proposal types (`Executor.CreationRealm()` is display-only
+  and forgeable). Needs a filter-authorization design.
+- **Tier `MinSize`/`MaxSize` defined but never enforced.** The caps in
+  `memberstore.gno` have no caller, so member add/removal is uncapped (a
+  withdrawal can remove the last T1 and brick governance). The values are
+  placeholders (`T1.MinSize=70` vs a handful seeded; `MaxSize=0`), so enforcing
+  them as written self-bricks; a real fix needs sentinel semantics and a genesis
+  audit.
+- **`impl.ExecuteProposal`/`PostCreateProposal`/`NewGovDAO` are ungated.**
+  Proven non-exploitable (the real singleton is unreachable via loader-gated
+  `GetInstance`; an attacker's throwaway instance runs the executor under its
+  own realm). The candidate `isValidCall`/`Accepted` guards break five filetests
+  that drive these directly on throwaway instances and `NewGovDAO` breaks init,
+  so a defense-in-depth gate is deferred.
+- **Reject path misses panics.** `ExecuteOrRejectProposal`'s `execErrorRejects`
+  catches a returned error, not a panic; a passed proposal with a panicking
+  executor is stuck open. A blanket `panictoerr` wrap is unsafe (recover after a
+  partial mutation — e.g. promote does `RemoveMember` then panics — commits half
+  the change). Correct fix is per-executor validate-before-mutate.
 
 - **A retired implementation keeps its authority.** `NewUpgradeDaoImplRequest`
   always retains `gno.land/r/gov/dao/v3/impl` in the list, so after a handoff to
