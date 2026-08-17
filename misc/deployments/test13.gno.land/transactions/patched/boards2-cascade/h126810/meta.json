@@ -1,0 +1,47 @@
+{
+  "reason": "boards2 cascade: rewrite MsgCall.Caller from g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq to the GovDAO T1 multisig (the only address still listed as boards2/v1 admin after PR #5280 removed g16jpf0… from initRealmPermissions). The realm role check WithPermission(caller, ...) then succeeds; everything else (Args, Func, fee, gas, SignerInfo) is preserved. Sig is invalidated by the caller swap but skipped via SkipSigVerificationKey for metadata.Source=patched. height=126810 func=CreateBoard",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774087037",
+    "block_height": "126810",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+        "account_num": "3262718",
+        "sequence": "0"
+      }
+    ]
+  },
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_call",
+        "caller": "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh",
+        "send": "",
+        "max_deposit": "",
+        "pkg_path": "gno.land/r/gnoland/boards2/v1",
+        "func": "CreateBoard",
+        "args": [
+          "OpenDiscussions",
+          "true",
+          "true"
+        ]
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "A8h05m7T1PeedzXEgFNpFOIbgm13kpU76KcHY34KxruH"
+        },
+        "signature": "2PUW2nk7qXBC1IQkU/voM+7J+FizybUaeGcTJCNNdQt9Dz5eHLSn8CE/TjmrGyH3cGiwWvUOT3znFqv8+ooj4A=="
+      }
+    ],
+    "memo": ""
+  }
+}
