@@ -76,7 +76,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 65 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 66 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -96,7 +96,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
 	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
 	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
-	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 88.6ns
+	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 129, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 129.2ns
+	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 87, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 87.0ns
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 140.6ns
 	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 195.9ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000

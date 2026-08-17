@@ -1,0 +1,55 @@
+# Regression: a defer mutating persisted realm state, across a restart. The
+# defer-origin block is recycled during realm execution (excluded from the
+# pool only if realm-attached via IsFinalized/IsNewReal); the deferred write
+# must still land in storage and survive reload.
+
+loadpkg gno.land/r/deferp $WORK/deferp
+
+gnoland start
+
+# Append uses a defer to push onto a persisted slice; deferred mutation must
+# land in realm storage (the defer-origin block recycling must not corrupt it).
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 10 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 20 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/deferp -func Dump -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout '\[10 20\]'
+
+gnoland restart
+
+# After restart: persisted state must still hold both deferred appends.
+gnokey maketx call -pkgpath gno.land/r/deferp -func Append -args 30 -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/deferp -func Dump -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout '\[10 20 30\]'
+
+-- deferp/gnomod.toml --
+module = "gno.land/r/deferp"
+gno = "0.9"
+
+-- deferp/deferp.gno --
+package deferp
+
+import "strconv"
+
+var data []int
+
+// The defer sits in an inner scope so its origin block is popped — and
+// released to the machine's block pool — before the defer runs at return.
+// A top-level defer would not exercise this: doOpReturnCallDefers drains
+// defers before PopFrameAndReturn releases the call block.
+func Append(cur realm, n int) {
+	{
+		defer func() { data = append(data, n) }()
+	}
+}
+
+func Dump(cur realm) string {
+	s := "["
+	for i, x := range data {
+		if i > 0 {
+			s += " "
+		}
+		s += strconv.Itoa(x)
+	}
+	return s + "]"
+}

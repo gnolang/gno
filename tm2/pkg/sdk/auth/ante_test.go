@@ -1013,3 +1013,60 @@ func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
 	// inert — the invalid signature is verified and rejected.
 	checkInvalidTx(t, verifyHandler, ctx, tx, false, std.UnauthorizedError{})
 }
+
+// splitTierBank reports a balance the account object does not carry, which is what
+// a fee denom looks like once non-gas balances live in their own store keys.
+//
+// This package's DummyBankKeeper keeps every balance in the account object, so
+// with it DeductFees reading through the bank cannot be told apart from reading
+// acc.GetCoins() directly: reverting the fee check to the account object passes
+// this whole package and fails only in gno.land, where fixtures happen to pay
+// fees in atom. That is what this stub exists to close.
+type splitTierBank struct {
+	BankKeeperI
+	denom  string
+	amount int64
+	sent   std.Coins
+}
+
+func (b *splitTierBank) GetCoin(_ sdk.Context, _ crypto.Address, denom string) int64 {
+	if denom == b.denom {
+		return b.amount
+	}
+	return 0
+}
+
+func (b *splitTierBank) SendCoinsUnrestricted(_ sdk.Context, _, _ crypto.Address, amt std.Coins) error {
+	b.sent = amt
+	return nil
+}
+
+// TestDeductFeesReadsTheBankNotTheAccountObject pins the reason BankKeeperI needs
+// GetCoin at all: the fee denom is whatever the transaction names, and a balance
+// for it need not be in the account object.
+func TestDeductFeesReadsTheBankNotTheAccountObject(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("fee-payer"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	collector := crypto.AddressFromPreimage([]byte("fee-collector"))
+	fees := std.Coins{{Denom: "atom", Amount: 150}}
+
+	require.Zero(t, acc.GetCoins().AmountOf("atom"),
+		"precondition: the account object must carry none of the fee denom")
+
+	funded := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 150}
+	res := DeductFees(funded, ctx, acc, collector, fees)
+	require.False(t, res.IsErr(), "a fee covered by a split-tier balance must be accepted: %s", res.Log)
+	require.Equal(t, fees, funded.sent)
+
+	// One short, so this cannot pass against a DeductFees that checks nothing.
+	short := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 149}
+	res = DeductFees(short, ctx, acc, collector, fees)
+	require.True(t, res.IsErr())
+	require.Contains(t, res.Log, "insufficient funds to pay for fees; 149atom < 150atom")
+	require.Empty(t, short.sent, "a refused fee must not be sent")
+}
