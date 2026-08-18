@@ -77,8 +77,47 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	block, parts := state.MakeBlock(height, txs, commit, proposerAddr)
 
-	return state.MakeBlock(height, txs, commit, proposerAddr)
+	// MaxDataBytes bounds the reap above by raw tx bytes, but peers apply it to
+	// the *whole* serialized block when they decode a proposal (see
+	// ConsensusState.addProposalBlockPart), so the header, the LastCommit and
+	// amino's framing have to fit in the same budget. A block that fills the tx
+	// budget would otherwise be undecodable by every peer, failing the round
+	// and, since the next proposer reaps the same mempool, stalling the chain
+	// for as long as it holds that much data.
+	//
+	// Drop txs from the tail until the serialized block fits. Removing n bytes
+	// of tx data removes at least n bytes from the block, so trimming by the
+	// excess is enough; the loop only re-checks.
+	for len(txs) > 0 && int64(parts.ByteSize()) > maxDataBytes {
+		txs = trimTxsTail(txs, int64(parts.ByteSize())-maxDataBytes)
+		block, parts = state.MakeBlock(height, txs, commit, proposerAddr)
+	}
+
+	if size := int64(parts.ByteSize()); size > maxDataBytes {
+		// Nothing left to drop: the header and commit alone exceed the budget.
+		// Propose it anyway (there is no smaller block to make) and say so,
+		// because peers will reject it.
+		blockExec.logger.Error(
+			"Block.MaxDataBytes is too small to hold an empty block; peers will reject the proposal",
+			"height", height,
+			"max_data_bytes", maxDataBytes,
+			"block_bytes", size,
+		)
+	}
+
+	return block, parts
+}
+
+// trimTxsTail drops txs from the end of the slice until at least excess bytes of
+// tx data have been removed, or nothing is left.
+func trimTxsTail(txs types.Txs, excess int64) types.Txs {
+	for removed := int64(0); len(txs) > 0 && removed < excess; txs = txs[:len(txs)-1] {
+		removed += int64(len(txs[len(txs)-1]))
+	}
+
+	return txs
 }
 
 // ApplyBlock validates the block against the state, executes it against the app,
