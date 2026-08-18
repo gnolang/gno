@@ -276,3 +276,54 @@ func TestRecvingBackingArrayFreedOnCompletion(t *testing.T) {
 		"backing array should be reallocated to RecvBufferCapacity, not the grown capacity")
 	assert.Equal(t, 0, mconn.recvBufferBytes, "total recv buffer accounting should return to zero")
 }
+
+// TestRecvingBufferReusedWhenNotGrown is the counterpart to the test above: a
+// message that fits within RecvBufferCapacity must reuse the existing backing
+// array rather than allocating a fresh one. Every gossip message takes this
+// path, so re-allocating here would put a RecvBufferCapacity-sized allocation on
+// the p2p hot path.
+func TestRecvingBufferReusedWhenNotGrown(t *testing.T) {
+	t.Parallel()
+
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	receivedCh := make(chan []byte, 1)
+	mconn := NewMConnectionWithConfig(client, []*ChannelDescriptor{
+		{ID: 0x01, Priority: 1, SendQueueCapacity: 1, RecvBufferCapacity: 4096, RecvMessageCapacity: 1 << 16},
+	}, func(_ byte, b []byte) { receivedCh <- b }, func(error) {}, quietPingConfig())
+	mconn.SetLogger(log.NewTestingLogger(t))
+	require.NoError(t, mconn.Start())
+	defer mconn.Stop()
+
+	ch := mconn.channelsIdx[0x01]
+
+	// Send two messages that each fit comfortably inside RecvBufferCapacity, and
+	// check the backing array is the same one across both.
+	var firstArray *byte
+	for i := range 2 {
+		writePacketMsg(t, server, 0x01, 0x00, make([]byte, 512))
+		writePacketMsg(t, server, 0x01, 0x01, make([]byte, 512))
+
+		select {
+		case b := <-receivedCh:
+			require.Len(t, b, 1024)
+		case <-time.After(2 * time.Second):
+			t.Fatal("message was not received")
+		}
+
+		require.Equal(t, 0, len(ch.recving))
+		require.Equal(t, ch.desc.RecvBufferCapacity, cap(ch.recving))
+
+		array := &ch.recving[:1][0]
+		if i == 0 {
+			firstArray = array
+			continue
+		}
+		assert.Same(t, firstArray, array,
+			"a message that fits in RecvBufferCapacity must reuse the backing array")
+	}
+
+	assert.Equal(t, 0, mconn.recvBufferBytes, "total recv buffer accounting should return to zero")
+}

@@ -914,11 +914,20 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 		ch.stopRecvAssemblyTimer()
 		ch.conn.recvBufferBytes -= len(msgBytes)
 
-		// Re-allocate a fresh buffer instead of reslicing to length 0. Reslicing
-		// (recving[:0]) retains the grown backing array for the lifetime of the
-		// connection, so a single large message would pin that memory
-		// indefinitely; a fresh allocation lets the old array be collected.
-		ch.recving = make([]byte, 0, ch.desc.RecvBufferCapacity)
+		// Release the buffer, but only re-allocate when it actually grew past its
+		// configured capacity. Reslicing (recving[:0]) alone would retain a grown
+		// backing array for the lifetime of the connection, so a single large
+		// message would pin that memory indefinitely; re-allocating
+		// unconditionally would instead put a RecvBufferCapacity-sized allocation
+		// on the path of *every* message (200KB apiece on the consensus data and
+		// blockchain channels). Doing it only when the array grew keeps the common
+		// case allocation-free. Reuse is safe: amino copies byte slices out while
+		// decoding, so nothing downstream aliases recving.
+		if cap(ch.recving) > ch.desc.RecvBufferCapacity {
+			ch.recving = make([]byte, 0, ch.desc.RecvBufferCapacity)
+		} else {
+			ch.recving = ch.recving[:0]
+		}
 		return msgBytes, nil
 	}
 
