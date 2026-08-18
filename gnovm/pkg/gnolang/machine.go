@@ -2334,8 +2334,6 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 //   - node-owned static blocks and long-lived file/package blocks, which
 //     also travel on the block stack (RunStatement/Eval flows push static
 //     blocks; file blocks are referenced by FuncValue.Parent);
-//   - blocks captured as a pending Defer.Parent, which the garbage
-//     collector visits until the defer runs (see Block.setNotRecyclable);
 //   - blocks with a finalized ObjectID (already persisted to realm
 //     state) or marked new-real (reachable from the realm graph and
 //     pending an ObjectID at finalize), as insurance against aliasing
@@ -2353,16 +2351,20 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // Runtime scope/call blocks never enter that state — they are not
 // reachable from realm storage (closures capture heap items, not blocks)
 // — so this is belt-and-suspenders, not a hot exclusion.
+//
+// Deferred calls do not pin their origin block: a Defer records only its
+// callable, args and source (it resolves its scope from FuncValue.GetParent
+// plus copied Captures at execution), so a popped block referenced by a
+// pending defer is provably dead like any other.
 func (m *Machine) releaseBlock(b *Block) {
 	// exclusion conditions:
-	// pool over capacity, explicitly not recyclable, panicking, or cap(values)
-	// not exactly the uniform pooled capacity. Oversized blocks (numNames >
-	// blockPoolValueCap) are dropped whole to the Go GC rather than pooled:
-	// pooling them would pin their oversized backing array (and any values in
-	// its tail slots, beyond the re-sliced cap) for the machine's lifetime
-	// while serving at most blockPoolValueCap slots.
+	// pool over capacity, panicking, or cap(values) not exactly the uniform
+	// pooled capacity. Oversized blocks (numNames > blockPoolValueCap) are
+	// dropped whole to the Go GC rather than pooled: pooling them would pin
+	// their oversized backing array (and any values in its tail slots, beyond
+	// the re-sliced cap) for the machine's lifetime while serving at most
+	// blockPoolValueCap slots.
 	if len(m.blockPool) >= blockPoolLimit ||
-		b.notRecyclable ||
 		m.Exception != nil ||
 		cap(b.Values) != blockPoolValueCap {
 		return
@@ -2378,6 +2380,9 @@ func (m *Machine) releaseBlock(b *Block) {
 	if oi := b.GetObjectInfo(); oi.ID.IsFinalized() || oi.GetIsNewReal() {
 		return
 	}
+	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
+	clear(values)
+	*b = Block{Values: values[:0]}
 	if debugAssert {
 		// Core invariant: a recycled block is provably dead — nothing that
 		// outlives its pop from the block stack still points into it. This
@@ -2385,41 +2390,13 @@ func (m *Machine) releaseBlock(b *Block) {
 		// outlive the scope (a captured local or an &-taken local) is routed
 		// through a *HeapItemValue, a separate allocation that is never
 		// pooled (see codaHeapDefinesByUse and GetPointerToMaybeHeapDefine),
-		// so no live pointer ever has Base == b. The one non-heap reference
-		// that can travel past a pop is Defer.Parent, which setNotRecyclable
-		// excludes above. Scan for that here to catch any future path that
-		// reaches release with the flag missing (a forgotten
-		// setNotRecyclable, a new long-lived block reference, etc.).
+		// so no live pointer ever has Base == b.
 		//
-		// This scan only covers the known Defer.Parent route, and only the
-		// DIRECT parent: doOpDefer marks m.LastBlock(), so an enclosing
-		// block (e.g. the for-block around a `{ defer f() }`) is still
-		// recyclable while the defer is pending, and the collector can
-		// reach it through Defer.Parent.Parent. That is harmless today
-		// because Defer.Parent has exactly one consumer — Frame.Visit's GC
-		// walk — and released blocks are zeroed, so the walk terminates.
-		// Anything that starts reading Defer.Parent for real (resolving a
-		// name, rebuilding a scope) must first extend setNotRecyclable to
-		// the whole parent chain, and this scan with it.
-		//
-		// The broader invariant is enforced empirically by poisoning the
-		// block below, which turns a followed stale pointer into a panic in
-		// PointerValue.Deref/Assign2 rather than silent corruption.
-		for fi := range m.Frames {
-			for di := range m.Frames[fi].Defers {
-				if m.Frames[fi].Defers[di].Parent == b {
-					panic("releaseBlock: recycling a block still referenced as a pending Defer.Parent")
-				}
-			}
-		}
-	}
-	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
-	clear(values)
-	*b = Block{Values: values[:0]}
-	if debugAssert {
-		// Mark the pooled block so that following any pointer whose Base is
-		// this block panics until it is re-acquired (and un-poisoned). See
-		// PointerValue.assertBaseNotPoisoned.
+		// Enforced empirically from both ends: poisoning the block here turns
+		// a followed stale pointer into a panic in PointerValue.Deref/Assign2
+		// rather than silent corruption, and GarbageCollect asserts that its
+		// recount never reaches a pooled block (a reference-path-agnostic
+		// check for anything that re-pins a dead block).
 		b.poisoned = true
 	}
 	m.blockPool = append(m.blockPool, b)
