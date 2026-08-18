@@ -55,12 +55,25 @@ const (
 
 	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
 	// connection's channels' recving buffers at any instant. Without it the
-	// exposure is the sum of every channel's RecvMessageCapacity (~46MB on a
-	// full node), letting a peer pin that much per connection. It is set below
-	// that sum so it binds regardless of individual channel caps, while staying
-	// well above any legitimate concurrent in-flight assembly (at most a few MB
-	// today; ~23MB even if MaxDataBytes were raised to its 8MB ceiling).
-	defaultMaxRecvBufferBytes = 32 << 20 // 32MB
+	// exposure is the sum of every channel's RecvMessageCapacity (~38MB on a
+	// full node), letting a peer pin that much per connection.
+	//
+	// Because it is the only bound on that exposure, it is what determines a
+	// node's aggregate worst case (this budget times the number of peer slots),
+	// so it is sized against real traffic rather than against the channel caps.
+	// A connection assembles at most one incomplete message per channel, and the
+	// largest legitimate ones are:
+	//
+	//	blockchain      8MB   a committed block, bounded by MaxDataBytes,
+	//	                      which is capped at MaxBlockDataBytesLimit
+	//	consensus       4MB   4 channels x 1MB (the consensus maxMsgSize)
+	//	mempool         1MB   a single tx, bounded by MaxTxBytes
+	//	discovery      ~KBs   at most maxPeersShared (30) addresses
+	//
+	// That is ~13MB with MaxDataBytes at its ceiling, and ~7MB at the 2MB
+	// default, so 20MB leaves comfortable headroom while cutting the aggregate
+	// exposure by a third relative to the channel-cap sum.
+	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
 )
 
 type (
