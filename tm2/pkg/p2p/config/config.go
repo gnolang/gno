@@ -56,6 +56,9 @@ type P2PConfig struct {
 	// Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 	PrivatePeerIDs string `json:"private_peer_ids" toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
 
+	// Toggle to disable guard against peers connecting from the same ip
+	AllowDuplicateIP bool `json:"allow_duplicate_ip" toml:"allow_duplicate_ip" comment:"Toggle to disable guard against peers connecting from the same ip"`
+
 	// Path to the address book file used to persist discovered peers across restarts.
 	// When empty, a default path relative to the root directory is used.
 	AddrBook string `json:"addr_book_file" toml:"addr_book_file" comment:"Path to the address book file used to persist discovered peers across restarts"`
@@ -73,6 +76,7 @@ func DefaultP2PConfig() *P2PConfig {
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
 		PeerExchange:            true,
+		AllowDuplicateIP:        false,
 		AddrBook:                defaultAddrBookPath,
 	}
 }

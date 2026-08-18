@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"sync"
 	"time"
 
@@ -65,6 +66,10 @@ type MultiplexSwitch struct {
 
 	maxInboundPeers  uint64
 	maxOutboundPeers uint64
+
+	// allowDuplicateIP disables the guard that stops a single remote IP from
+	// occupying more than one inbound peer slot
+	allowDuplicateIP bool
 
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
@@ -621,6 +626,22 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 	return persistent
 }
 
+// hasPeerFromIP returns a flag indicating if the active peer set already
+// contains a peer connected from the given IP
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+
+	for _, p := range sw.peers.List() {
+		if ip.Equal(p.RemoteIP()) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // runAcceptLoop is the main powerhouse method
 // for accepting incoming peer connections, filtering them,
 // and persisting them
@@ -661,6 +682,20 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		if sw.peers.Has(p.ID()) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+			)
+
+			sw.transport.Remove(p)
+			continue
+		}
+
+		// Reject a second connection from an IP that already holds a peer slot.
+		// Peer IDs are self-generated node keys, so without this a single host
+		// can mint fresh identities and occupy every inbound slot.
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+			sw.Logger.Info(
+				"Ignoring inbound connection: peer from this IP already connected",
 				"address", p.SocketAddr(),
 				"id", p.ID(),
 			)
