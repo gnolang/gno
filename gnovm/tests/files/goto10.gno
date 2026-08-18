@@ -3,9 +3,9 @@ package main
 // Regression test: a backward goto that jumps out of deeply nested for loops
 // used to panic in Machine.GotoJump with "slice bounds out of range [:-1]".
 // The stmt-stack truncation subtracted the crossed frame count twice, which
-// underflowed once the number of crossed loop frames exceeded the number of
-// enclosing bodyStmts (here, three nested loops jumping back to a label in the
-// function body).
+// underflowed once the crossed loop frames outnumbered the stmt-stack height
+// recorded by the outermost crossed frame (fr.NumStmts == 2 here — hence
+// three nested loops jumping back to a label in the function body).
 
 func main() {
 	i := 0

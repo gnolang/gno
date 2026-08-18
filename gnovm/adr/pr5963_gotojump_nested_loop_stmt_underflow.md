@@ -64,11 +64,14 @@ time. Two consequences:
   handler in `op_exec.go` immediately re-truncates `m.Stmts` to the target
   block's `bodyStmt.NumStmts` and re-extends the slice via its retained
   capacity, masking the bug.
-- When `fr.NumStmts < depthFrames` — which happens once the number of crossed
-  loop frames exceeds the number of enclosing sticky `bodyStmt`s (e.g. three
-  nested loops directly under the function body, where `fr.NumStmts == 2` but
-  `depthFrames == 3`) — the index goes negative and the slice expression
-  panics.
+- When `fr.NumStmts < depthFrames` — once the goto crosses more loop frames
+  than the stmt-stack height recorded by the outermost crossed frame. In the
+  repro `fr.NumStmts == 2` (the function body's `bodyStmt` plus the implicit
+  pending return stmt `doOpCall` pushes for void functions) while
+  `depthFrames == 3`, so the index goes negative and the slice expression
+  panics. That height varies with the surrounding shape (extra enclosing
+  scopes raise it), so the three-loop threshold is specific to this repro,
+  not universal.
 
 The `m.Blocks` handling is *not* symmetric: after resetting to `fr.NumBlocks`
 (which likewise excludes all popped loop blocks) it pops an additional
