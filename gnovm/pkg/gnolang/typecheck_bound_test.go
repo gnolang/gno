@@ -419,7 +419,7 @@ func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
 	src := func(n int) string {
 		var b strings.Builder
 		b.WriteString(fanOutSrc(10))
-		for i := 0; i < n; i++ {
+		for i := range n {
 			fmt.Fprintf(&b, "type A%d struct{ x [0]T10 }\n", i)
 		}
 		return b.String()
