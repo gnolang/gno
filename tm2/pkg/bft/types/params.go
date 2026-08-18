@@ -75,6 +75,15 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 			params.Block.MaxTxBytes, MaxBlockSizeBytes)
 	}
 
+	// A non-positive MaxDataBytes is not a benign "unlimited": 0 panics the
+	// proposer in mempool.ReapMaxBytesMaxGas, and a negative value both disables
+	// the reaping limit (so nothing bounds a block's data size, defeating the
+	// MaxBlockDataBytesLimit ceiling below) and panics amino when the consensus
+	// state decodes a proposal block with it as the max size.
+	if params.Block.MaxDataBytes <= 0 {
+		return errors.New("Block.MaxDataBytes must be greater than 0. Got %d",
+			params.Block.MaxDataBytes)
+	}
 	if params.Block.MaxDataBytes > MaxBlockDataBytesLimit {
 		return errors.New("Block.MaxDataBytes is too big. %d > %d",
 			params.Block.MaxDataBytes, MaxBlockDataBytesLimit)

@@ -68,16 +68,26 @@ func TestConsensusParamsValidationMaxDataBytes(t *testing.T) {
 	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytes)))
 	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit)))
 	assert.Error(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit+1)))
+
+	// Non-positive values must be rejected too. 0 panics the proposer in
+	// ReapMaxBytesMaxGas, and a negative value disables the reaping limit
+	// altogether (bypassing the ceiling above) while panicking amino when the
+	// consensus state decodes a proposal block with it as the max size.
+	assert.Error(t, ValidateConsensusParams(newParams(0)))
+	assert.Error(t, ValidateConsensusParams(newParams(-1)))
 }
 
 func makeParams(
-	dataBytes, blockBytes, blockGas int64,
+	txBytes, blockBytes, blockGas int64,
 	blockTimeIotaMS int64,
 	pubkeyTypeURLs []string,
 ) abci.ConsensusParams {
 	return abci.ConsensusParams{
 		Block: &abci.BlockParams{
-			MaxTxBytes:    dataBytes,
+			MaxTxBytes: txBytes,
+			// MaxDataBytes is not varied by this helper, but it must be positive
+			// for the params to validate at all.
+			MaxDataBytes:  MaxBlockDataBytes,
 			MaxBlockBytes: blockBytes,
 			MaxGas:        blockGas,
 			TimeIotaMS:    blockTimeIotaMS,
@@ -137,6 +147,7 @@ func TestConsensusParamsUpdate(t *testing.T) {
 			abci.ConsensusParams{
 				Block: &abci.BlockParams{
 					MaxTxBytes:    100,
+					MaxDataBytes:  MaxBlockDataBytes,
 					MaxBlockBytes: 1024,
 					MaxGas:        200,
 					TimeIotaMS:    10,
