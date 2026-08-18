@@ -2,7 +2,7 @@
 
 ## Context
 
-A backward `goto` that jumps out of two or more nested `for`/`range` loops
+A backward `goto` that jumps out of three or more nested `for`/`range` loops
 crashed the interpreter with:
 
 ```

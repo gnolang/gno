@@ -2653,15 +2653,13 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
 		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
-		// reset. fr.NumStmts already excludes the bodyStmts pushed by all
-		// popped loop frames, so truncating to it drops every crossed loop's
-		// bodyStmt at once. (Subtracting depthFrames again here would remove
-		// legitimate outer-scope stmts and underflow to a negative index when
-		// depthFrames exceeds fr.NumStmts, e.g. a backward goto out of deeply
-		// nested loops.)
+		// reset
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
+		// NOTE: fr.NumStmts was captured before the outermost popped frame
+		// pushed its bodyStmt, so truncating to it already drops every
+		// popped loop's bodyStmt; no further truncation is required.
 		m.Stmts = m.Stmts[:fr.NumStmts]
 		m.releaseBlocksFrom(fr.NumBlocks)
 	}
