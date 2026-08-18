@@ -23,17 +23,30 @@ func TestMaxMsgSizeFitsLargestBlockResponse(t *testing.T) {
 	t.Parallel()
 
 	// Build a block whose serialized size sits just under the ceiling, which is
-	// the largest one that could have passed a proposal decode.
+	// the largest one that could have passed a proposal decode. The tx count is
+	// derived from a single measurement rather than probed, so this stays to a
+	// couple of multi-MB marshals -- it runs alongside timing-sensitive suites.
 	const txSize = 1 << 16
-	txs := make([]types.Tx, 0, types.MaxBlockDataBytesLimit/txSize)
-	for {
-		candidate := append(txs, make(types.Tx, txSize)) //nolint:gocritic // intentional: probing size
-		sized, err := amino.MarshalSized(types.MakeBlock(1, candidate, &types.Commit{}))
+
+	blockSize := func(txs []types.Tx) int64 {
+		sized, err := amino.MarshalSized(types.MakeBlock(1, txs, &types.Commit{}))
 		require.NoError(t, err)
-		if int64(len(sized)) > types.MaxBlockDataBytesLimit {
-			break
-		}
-		txs = candidate
+
+		return int64(len(sized))
+	}
+
+	// Allow 8 bytes per tx for amino's field key and length prefix, which
+	// over-estimates slightly so the estimate lands under the ceiling.
+	count := (types.MaxBlockDataBytesLimit - blockSize(nil)) / (txSize + 8)
+	txs := make([]types.Tx, count)
+
+	for i := range txs {
+		txs[i] = make(types.Tx, txSize)
+	}
+
+	// Safety net in case the estimate ever overshoots.
+	for len(txs) > 0 && blockSize(txs) > types.MaxBlockDataBytesLimit {
+		txs = txs[:len(txs)-1]
 	}
 
 	block := types.MakeBlock(1, txs, &types.Commit{})
