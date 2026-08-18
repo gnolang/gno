@@ -630,6 +630,27 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
+	// Refuse coins that could never be spent again.
+	//
+	// A realm can spend from its own address later, via a banker, so coins
+	// attached to a realm deploy are recoverable and are allowed. A pure
+	// `p/` package cannot: it has no realm identity, so it can never obtain
+	// a banker, and nothing else can move coins out of its address either.
+	// Crediting it would destroy the coins with no error and no way back.
+	//
+	// The principle is that we refuse a payment the receiver could not act
+	// on, rather than accepting it and losing it silently.
+	//
+	// Placed after the path checks above so a bad path reports the path
+	// problem rather than this one, and before the type check below so the
+	// caller is not charged for compiling a package we are going to reject.
+	// The checks above have already established the path is a realm or a
+	// pure package, so "not a realm" here means "pure package".
+	if !send.IsZero() && !gno.IsRealmPath(pkgPath) {
+		return ErrUnspendableSend(fmt.Sprintf(
+			"%s sent to %s, which is a pure package and can never spend it",
+			send.String(), pkgPath))
+	}
 	opts := gno.TypeCheckOptions{
 		Getter: gnostore,
 		Mode:   gno.TCLatestStrict,
@@ -718,10 +739,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, creator),
+		// send was credited to pkgAddr just above; that is the only
+		// address a BankerTypeOriginSend banker may spend from in this
+		// message.
+		OriginSendRecipient: pkgAddr.Bech32(),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -822,17 +847,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    caller.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		ChainID:            ctx.ChainID(),
+		ChainDomain:        chainDomain,
+		Height:             ctx.BlockHeight(),
+		Timestamp:          ctx.BlockTime().Unix(),
+		OriginCaller:       caller.Bech32(),
+		OriginSend:         send,
+		OriginSendSpent:    new(std.Coins),
+		OriginSendObserved: new(bool),
+		// send is credited to pkgAddr (the entry realm) below; that is
+		// the only address a BankerTypeOriginSend banker may spend from
+		// in this message.
+		OriginSendRecipient:     pkgAddr.Bech32(),
+		OriginSendRecipientPath: pkgPath,
+		Banker:                  NewSDKBanker(vm, ctx),
+		Params:                  NewSDKParams(vm.prmk, ctx),
+		EventLogger:             ctx.EventLogger(),
+		SessionAccount:          getSessionAccount(ctx, caller),
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -907,6 +938,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
+	}
+
+	// Reject a send-envelope that nothing observed. The coins were credited
+	// to pkgAddr above; if no executing code ever read them, the callee has
+	// no notion of being paid and they would be stranded there. Returning an
+	// error discards the whole message including that credit (msg execution
+	// is cache-wrapped, tm2/pkg/sdk/baseapp.go:901).
+	//
+	// MsgCall only. MsgAddPackage is exempt because its envelope lands in
+	// the new package's own address, recoverable later by the realm itself
+	// — except for a pure `p/` package, whose address nothing can ever
+	// spend from. MsgRun is exempt because pkgAddr == caller makes its
+	// send a self-transfer no-op.
+	if !send.IsZero() && !*msgCtx.OriginSendObserved {
+		return "", ErrUnobservedSend(fmt.Sprintf(
+			"%s sent to %s.%s, which never read the send-envelope",
+			send.String(), pkgPath, fnc))
 	}
 
 	// Use parameters before executing the message, as they may change during execution.
@@ -1062,10 +1110,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		// No OriginSendRecipient here, deliberately. pkgAddr == caller for
+		// MsgRun, so the coins move from the caller to the caller and the
+		// envelope never lands anywhere. A run script cannot construct a
+		// BankerTypeOriginSend banker either — its cur.Previous() is the
+		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
+		// the recipient empty is fail-closed: nothing can spend against an
+		// envelope that never moved.
+		Banker:         NewSDKBanker(vm, ctx),
+		Params:         NewSDKParams(vm.prmk, ctx),
+		EventLogger:    ctx.EventLogger(),
+		SessionAccount: getSessionAccount(ctx, caller),
 	}
 
 	buf := new(bytes.Buffer)
