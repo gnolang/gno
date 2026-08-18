@@ -48,9 +48,13 @@ func setupSessionGnoEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey,
 	// Create and fund master account.
 	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
 	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(tu.NewTestCoins())
 	masterAcc.SetPubKey(masterPub)
 	env.acck.SetAccount(env.ctx, masterAcc)
+	// Fund through the bank, which routes each denom to whichever tier owns it.
+	// Writing acc.SetCoins directly would strand any split-tier denom.
+	if err := env.bankk.SetCoins(env.ctx, masterAddr, tu.NewTestCoins()); err != nil {
+		t.Fatalf("fund master: %v", err)
+	}
 
 	// Set block time.
 	now := time.Now()
