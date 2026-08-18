@@ -106,11 +106,13 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		sw    = NewMultiplexSwitch(mockTransport)
 	)
 
+	// Create a new peer set. This must happen before the switch is started:
+	// the dial and redial loops read sw.peers concurrently, so assigning it
+	// afterwards is a data race.
+	sw.peers = newSet()
+
 	require.NoError(t, sw.OnStart())
 	t.Cleanup(sw.OnStop)
-
-	// Create a new peer set
-	sw.peers = newSet()
 
 	for _, p := range peers {
 		wg.Add(1)
@@ -438,8 +440,6 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			ch         = make(chan struct{}, 1)
 			maxInbound = uint64(10)
 
-			peerRemoved bool
-
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
@@ -447,11 +447,14 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 					return p, nil
 				},
 				removeFn: func(removedPeer PeerConn) {
-					require.Equal(t, p.ID(), removedPeer.ID())
+					assert.Equal(t, p.ID(), removedPeer.ID())
 
-					peerRemoved = true
-
-					ch <- struct{}{}
+					// The accept loop keeps accepting the same peer, so the
+					// signal is best-effort; never block it.
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 				},
 			}
 
@@ -474,11 +477,10 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 		go sw.runAcceptLoop(ctx)
 
 		select {
-		case <-ch:
+		case <-ch: // the peer was removed
 		case <-time.After(5 * time.Second):
+			t.Fatal("the peer was not removed")
 		}
-
-		assert.True(t, peerRemoved)
 	})
 
 	t.Run("peer accepted", func(t *testing.T) {
@@ -494,8 +496,6 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			ch         = make(chan struct{}, 1)
 			maxInbound = uint64(10)
 
-			peerAdded bool
-
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
@@ -509,11 +509,14 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 					return maxInbound - 1 // available slot
 				},
 				addFn: func(peer PeerConn) error {
-					require.Equal(t, p.ID(), peer.ID())
+					assert.Equal(t, p.ID(), peer.ID())
 
-					peerAdded = true
-
-					ch <- struct{}{}
+					// The accept loop keeps accepting the same peer, so the
+					// signal is best-effort; never block it.
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 
 					return nil
 				},
@@ -532,11 +535,10 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 		go sw.runAcceptLoop(ctx)
 
 		select {
-		case <-ch:
+		case <-ch: // the peer was added
 		case <-time.After(5 * time.Second):
+			t.Fatal("the peer was not added")
 		}
-
-		assert.True(t, peerAdded)
 	})
 }
 
