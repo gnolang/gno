@@ -2,7 +2,7 @@
 package access
 
 import (
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func main(cur realm) {
@@ -11,4 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/access/access2.gno:9:2-20: cannot directly mutate gno.land/p/nt/testutils.TestVar1 from gno.land/r/access
+// gno.land/r/access/access2.gno:9:2-20: cannot directly mutate gno.land/p/nt/testutils/v0.TestVar1 from gno.land/r/access

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/seqid/v0"
 )
 
 const paddedStringLen = 10

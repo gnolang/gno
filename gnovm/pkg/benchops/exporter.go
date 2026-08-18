@@ -8,10 +8,15 @@ import (
 	"time"
 )
 
-// the byte size of a exported record
-const RecordSize int = 10
+// the byte size of an exported record
+const RecordSize int = 14
 
 var fileWriter *exporter
+
+// Recording controls whether measurements are exported.
+// Set to false during package loading to avoid contaminating
+// benchmark data with init-phase store operations.
+var Recording bool
 
 func initExporter(fileName string) {
 	file, err := os.Create(fileName)
@@ -28,24 +33,31 @@ type exporter struct {
 	file *os.File
 }
 
-// export code, duration, size in a 10 bytes record
-// byte 1: Type (0=OpCode, 1=StoreCode, 2=NativeCode)
-// byte 2: OpCode, StoreCode, or NativeCode
-// byte 3-6: Duration
-// byte 7-10: Size
-func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
+// export code, duration, size, count in a 14 byte record
+// byte 1:    Type (0x01=OpCode, 0x02=StoreCode, 0x03=NativeCode)
+// byte 2:    OpCode, StoreCode, or NativeCode
+// bytes 3-6: Total duration (uint32, nanoseconds)
+// bytes 7-10: Total size (uint32, bytes; 0 for opcodes/native)
+// bytes 11-14: Count (uint32)
+func (e *exporter) export(code Code, totalTime time.Duration, totalSize int64, count int64) {
 	// the MaxUint32 is 4294967295. It represents 4.29 seconds in duration or 4G bytes.
 	// It panics not only for overflow protection, but also for abnormal measurements.
-	if elapsedTime > math.MaxUint32 {
-		log.Fatalf("elapsedTime %d out of uint32 range", elapsedTime)
+	if totalTime > math.MaxUint32 {
+		log.Fatalf("totalTime %d out of uint32 range", totalTime)
 	}
-	if size > math.MaxUint32 {
-		log.Fatalf("size %d out of uint32 range", size)
+	if totalSize > math.MaxUint32 {
+		log.Fatalf("totalSize %d out of uint32 range", totalSize)
+	}
+	if count > math.MaxUint32 {
+		log.Fatalf("count %d out of uint32 range", count)
 	}
 
-	buf := []byte{code[0], code[1], 0, 0, 0, 0, 0, 0, 0, 0}
-	binary.LittleEndian.PutUint32(buf[2:], uint32(elapsedTime))
-	binary.LittleEndian.PutUint32(buf[6:], uint32(size))
+	buf := make([]byte, RecordSize)
+	buf[0] = code[0]
+	buf[1] = code[1]
+	binary.LittleEndian.PutUint32(buf[2:], uint32(totalTime))
+	binary.LittleEndian.PutUint32(buf[6:], uint32(totalSize))
+	binary.LittleEndian.PutUint32(buf[10:], uint32(count))
 	_, err := e.file.Write(buf)
 	if err != nil {
 		panic("could not write to benchmark file: " + err.Error())
@@ -58,72 +70,72 @@ func (e *exporter) close() {
 }
 
 func FinishStore() {
+	if !Recording {
+		return
+	}
 	for i := range 256 {
 		count := measure.storeCounts[i]
-
 		if count == 0 {
 			continue
 		}
-		// check unstopped timer
-		if measure.storeStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
-		}
 
-		code := [2]byte{byte(TypeNative), byte(i)}
-
+		code := [2]byte{byte(TypeStore), byte(i)}
 		fileWriter.export(
 			code,
-			measure.storeAccumDur[i]/time.Duration(count),
-			measure.storeAccumSize[i]/count,
+			measure.storeAccumDur[i],
+			measure.storeAccumSize[i],
+			count,
 		)
 	}
 }
 
 func FinishRun() {
+	if !Recording {
+		return
+	}
+	// Ensure the timeline is stopped.
+	if measure.curOpCode != invalidCode {
+		StopOpCode()
+	}
+
 	for i := range 256 {
-		if measure.opCounts[i] == 0 {
+		count := measure.opCounts[i]
+		if count == 0 {
 			continue
-		}
-		// check unstopped timer
-		if measure.opStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
 		}
 
 		code := [2]byte{byte(TypeOpCode), byte(i)}
-		fileWriter.export(code, measure.opAccumDur[i]/time.Duration(measure.opCounts[i]), 0)
+		fileWriter.export(code, measure.opAccumDur[i], 0, count)
 	}
 	ResetRun()
 }
 
 func FinishNative() {
+	if !Recording {
+		return
+	}
 	for i := range 256 {
 		count := measure.nativeCounts[i]
-
 		if count == 0 {
 			continue
 		}
-		// check unstopped timer
-		if measure.nativeStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
-		}
 
 		code := [2]byte{byte(TypeNative), byte(i)}
-
 		fileWriter.export(
 			code,
-			measure.nativeAccumDur[i]/time.Duration(count),
+			measure.nativeAccumDur[i],
 			0,
+			count,
 		)
 	}
 }
 
-// It reset each machine Runs
+// ResetRun resets opcode measurements between machine runs.
 func ResetRun() {
 	measure.opCounts = [256]int64{}
 	measure.opAccumDur = [256]time.Duration{}
-	measure.opStartTime = [256]time.Time{}
 	measure.curOpCode = invalidCode
-	measure.isOpCodeStarted = false
+	measure.curStart = measure.timeZero
 }
 
 func Finish() {

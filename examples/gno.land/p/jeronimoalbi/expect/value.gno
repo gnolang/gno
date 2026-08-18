@@ -3,7 +3,7 @@ package expect
 import (
 	"strings"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Value creates a new checker values of different types.

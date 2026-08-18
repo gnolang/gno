@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 //----------------------------------------
@@ -83,8 +83,8 @@ func (post *Post) Update(title string, body string) {
 
 func (thread *Post) GetReply(pid PostID) *Post {
 	pidkey := postIDKey(pid)
-	replyI, ok := thread.repliesAll.Get(pidkey)
-	if !ok {
+	replyI := thread.repliesAll.Get(pidkey)
+	if replyI == nil {
 		return nil
 	} else {
 		return replyI.(*Post)

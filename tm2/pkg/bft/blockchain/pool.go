@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -243,7 +244,7 @@ func (pool *BlockPool) AddBlock(peerID p2pTypes.ID, block *types.Block, blockSiz
 
 	requester := pool.requesters[block.Height]
 	if requester == nil {
-		pool.Logger.Info("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
+		pool.Logger.Warn("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
 		diff := pool.height - block.Height
 		if diff < 0 {
 			diff *= -1
@@ -261,7 +262,7 @@ func (pool *BlockPool) AddBlock(peerID p2pTypes.ID, block *types.Block, blockSiz
 			peer.decrPending(blockSize)
 		}
 	} else {
-		pool.Logger.Info("invalid peer", "peer", peerID, "blockHeight", block.Height)
+		pool.Logger.Warn("invalid peer", "peer", peerID, "blockHeight", block.Height)
 		pool.sendError(errors.New("invalid peer"), peerID)
 	}
 }
@@ -289,6 +290,9 @@ func (pool *BlockPool) SetPeerHeight(peerID p2pTypes.ID, height int64) {
 
 	if height > pool.maxPeerHeight {
 		pool.maxPeerHeight = height
+	} else if height < pool.maxPeerHeight {
+		// A peer lowered its height; recalculate in case it held the current maximum.
+		pool.updateMaxPeerHeight()
 	}
 }
 
@@ -403,17 +407,17 @@ func (pool *BlockPool) debug() string {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	str := ""
+	var str strings.Builder
 	nextHeight := pool.height + pool.requestersLen()
 	for h := pool.height; h < nextHeight; h++ {
 		if pool.requesters[h] == nil {
-			str += fmt.Sprintf("H(%v):X ", h)
+			str.WriteString(fmt.Sprintf("H(%v):X ", h))
 		} else {
-			str += fmt.Sprintf("H(%v):", h)
-			str += fmt.Sprintf("B?(%v) ", pool.requesters[h].block != nil)
+			str.WriteString(fmt.Sprintf("H(%v):", h))
+			str.WriteString(fmt.Sprintf("B?(%v) ", pool.requesters[h].block != nil))
 		}
 	}
-	return str
+	return str.String()
 }
 
 // -------------------------------------

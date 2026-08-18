@@ -117,10 +117,6 @@ type ResponseWriter interface {
 	WriteHeader(statusCode int)
 }
 
-type CloseNotifier interface {
-	CloseNotify() <-chan bool
-}
-
 // XXX dummy
 type Server struct {
 	// Addr optionally specifies the TCP address for the server to listen on,

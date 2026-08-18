@@ -58,7 +58,6 @@ func TestRFC6962Hasher(t *testing.T) {
 			got:  innerHash([]byte("N123"), []byte("N456")),
 		},
 	} {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 

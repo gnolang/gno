@@ -1,14 +1,14 @@
 package ghverify
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func TestVerificationLifecycle(cur realm, t *testing.T) {
-	defaultAddress := runtime.OriginCaller()
+	defaultAddress := unsafe.OriginCaller()
 	user1Address := address(testutils.TestAddress("user 1"))
 	user2Address := address(testutils.TestAddress("user 2"))
 
@@ -76,7 +76,7 @@ func TestVerificationLifecycle(cur realm, t *testing.T) {
 
 	// Set the caller back to the whitelisted user and transfer contract ownership.
 	testing.SetOriginCaller(defaultAddress)
-	SetOwner(cross, defaultAddress)
+	SetOwner(cross(cur), defaultAddress)
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
 	GnorkleEntrypoint(cur, "ingest,"+string(user1Address)+",OK")

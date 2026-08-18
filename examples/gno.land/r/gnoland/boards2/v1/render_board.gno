@@ -7,8 +7,8 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mdalert"
-	"gno.land/p/nt/mux"
+	"gno.land/p/nt/mdalert/v0"
+	"gno.land/p/nt/mux/v0"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -43,33 +43,20 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, board.Threads.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
+	p := newClampedPager(req.RawPath, board.Threads.Size(), pageSizeDefault)
 
 	render := func(thread *boards.Post) bool {
-		// TODO: Hidden threads should be stored separately to be able to properly page visible ones
-		if !thread.Hidden {
-			res.Write(renderThreadSummary(thread) + "\n")
-		}
+		res.Write(renderThreadSummary(thread) + "\n")
 		return false
 	}
 
 	res.Write("Sort by: ")
 
-	r := parseRealmPath(req.RawPath)
-	sortOrder := r.Query.Get("order")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
-	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
-	}
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 

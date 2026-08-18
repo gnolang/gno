@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/archive/boards/filetests/z_9_filetest
+
+package z_9_filetest
 
 // SEND: 1000000ugnot
 
@@ -7,7 +9,7 @@ import (
 	"testing"
 
 	"gno.land/r/archive/boards"
-	users "gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
 var (
@@ -16,15 +18,17 @@ var (
 	pid         boards.PostID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register(cross, "gnouser123")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
 
-	firstBoard = boards.CreateBoard(cross, "first_board")
-	secondBoard = boards.CreateBoard(cross, "second_board")
-	pid = boards.CreateThread(cross, firstBoard, "First Post in (title)", "Body of the first post. (body)")
+	firstBoard = boards.CreateBoard(cross(cur), "first_board")
+	secondBoard = boards.CreateBoard(cross(cur), "second_board")
+	pid = boards.CreateThread(cross(cur), firstBoard, "First Post in (title)", "Body of the first post. (body)")
 
-	boards.CreateRepost(cross, firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
+	boards.CreateRepost(cross(cur), firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
 }
 
 func main() {

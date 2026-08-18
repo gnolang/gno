@@ -1,9 +1,8 @@
 package boards
 
-type (
-	// Permission defines the type for permissions.
-	Permission string
+import "strconv"
 
+type (
 	// Role defines the type for user roles.
 	Role string
 
@@ -59,3 +58,11 @@ type (
 		IterateUsers(start, count int, fn UsersIterFn) bool
 	}
 )
+
+// Permission defines the type for permissions.
+type Permission uint16
+
+// String returns the string representation of a permission value.
+func (p Permission) String() string {
+	return strconv.FormatUint(uint64(p), 10)
+}

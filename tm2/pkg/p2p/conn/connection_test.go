@@ -202,10 +202,11 @@ func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
 
 	serverGotPing := make(chan struct{})
 	go func() {
-		// read ping
-		var pkt PacketPing
+		// read ping (Any-wrapped on the wire, decode as interface)
+		var pkt Packet
 		_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
 		assert.Nil(t, err)
+		assert.IsType(t, PacketPing{}, pkt)
 		serverGotPing <- struct{}{}
 	}()
 	<-serverGotPing
@@ -298,19 +299,14 @@ func TestMConnectionMultiplePings(t *testing.T) {
 
 	// sending 3 pings in a row (abuse)
 	// see https://github.com/tendermint/tendermint/issues/1190
-	_, err = server.Write(amino.MustMarshalAnySized(PacketPing{}))
-	require.Nil(t, err)
-	var pkt PacketPong
-	_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
-	require.Nil(t, err)
-	_, err = server.Write(amino.MustMarshalAnySized(PacketPing{}))
-	require.Nil(t, err)
-	_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
-	require.Nil(t, err)
-	_, err = server.Write(amino.MustMarshalAnySized(PacketPing{}))
-	require.Nil(t, err)
-	_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
-	require.Nil(t, err)
+	for range 3 {
+		var pkt Packet
+		_, err = server.Write(amino.MustMarshalAnySized(PacketPing{}))
+		require.Nil(t, err)
+		_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
+		require.Nil(t, err)
+		require.IsType(t, PacketPong{}, pkt)
+	}
 
 	assert.True(t, mconn.IsRunning())
 }
@@ -341,10 +337,11 @@ func TestMConnectionPingPongs(t *testing.T) {
 
 	serverGotPing := make(chan struct{})
 	go func() {
-		// read ping
-		var pkt PacketPing
+		// read ping (Any-wrapped on the wire, decode as interface)
+		var pkt Packet
 		_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
 		require.Nil(t, err)
+		require.IsType(t, PacketPing{}, pkt)
 		serverGotPing <- struct{}{}
 		// respond with pong
 		_, err = server.Write(amino.MustMarshalAnySized(PacketPong{}))
@@ -352,9 +349,11 @@ func TestMConnectionPingPongs(t *testing.T) {
 
 		time.Sleep(mconn.config.PingInterval)
 
-		// read ping
-		_, err = amino.UnmarshalSizedReader(server, &pkt, maxPingPongPacketSize)
+		// read ping (fresh variable — interface must be nil for amino)
+		var pkt2 Packet
+		_, err = amino.UnmarshalSizedReader(server, &pkt2, maxPingPongPacketSize)
 		require.Nil(t, err)
+		require.IsType(t, PacketPing{}, pkt2)
 		// respond with pong
 		_, err = server.Write(amino.MustMarshalAnySized(PacketPong{}))
 		require.Nil(t, err)

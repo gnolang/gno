@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func main() {

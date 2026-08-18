@@ -10,8 +10,8 @@ import (
 	"gno.land/p/demo/gnorkle/ingester"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 type mockIngester struct {

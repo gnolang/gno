@@ -1,13 +1,16 @@
 package subtests
 
-import "chain/runtime"
+import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
+)
 
 func GetCurrentRealm() runtime.Realm {
-	return runtime.CurrentRealm()
+	return unsafe.CurrentRealm()
 }
 
 func GetPreviousRealm() runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func Exec(fn func()) {

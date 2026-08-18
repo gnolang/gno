@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Canvas struct {

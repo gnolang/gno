@@ -6,21 +6,27 @@ LAYOUT - Header component
   <nav class="c-center c-view-grid" aria-label="Package navigation">
     <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
       <a href="/" class="user-picture">
-        <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
+        {{ template "ui/gnome" }}
       </a>
 
-      <div class="b-main-navigation">
-        <div class="inner c-reel u-no-scrollbar" data-controller="searchbar">
+      <div class="b-main-navigation" data-controller="searchbar">
+        <div class="inner c-reel u-no-scrollbar">
           <form class="searchbar" data-action="submit->searchbar#searchUrl">
             <label for="header-input-search" class="u-sr-only">
               gno.land Search
             </label>
-            <input id="header-input-search" data-searchbar-target="input" type="text" value="{{ .RealmPath }}" />
+            <input id="header-input-search" data-searchbar-target="input"
+              type="text" value="{{ .RealmPath }}" role="combobox"
+              aria-expanded="false" aria-controls="omnisearch-results"
+              aria-autocomplete="list" autocomplete="off"
+              data-action="input->searchbar#search" />
             <button type="submit" class="u-sr-only">Search</button>
           </form>
 
           {{ template "ui/breadcrumb" .Breadcrumb }}
         </div>
+
+        <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" hidden></div>
 
         <!-- Network Info Popup -->
         <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
@@ -97,7 +103,7 @@ LAYOUT - Header component
 UI - Header link component
 ================================================================================== */}}
 {{ define "ui/header_link" }}
-<a href="{{ .URL }}" class="b-menu-link" role="menuitem">
+<a href="{{ .URL }}" class="b-menu-link" role="menuitem"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>
   <div class="link {{ if .Icon }} link--icon{{ end }}{{ if .IsActive }} link--is-active u-text-stroke{{ end }}">
     {{ if .Icon }}
     <svg>

@@ -15,6 +15,7 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
+	ErrPartSetTooBig          = errors.New("Error part set too big")
 )
 
 type Part struct {
@@ -75,6 +76,9 @@ func (psh PartSetHeader) Equals(other PartSetHeader) bool {
 func (psh PartSetHeader) ValidateBasic() error {
 	if psh.Total < 0 {
 		return errors.New("Negative Total")
+	}
+	if psh.Total > MaxBlockPartsCount {
+		return fmt.Errorf("PartSetHeader total is too big: %d, max: %d: %w", psh.Total, MaxBlockPartsCount, ErrPartSetTooBig)
 	}
 	// Hash can be empty in case of POLBlockID.PartsHeader in Proposal.
 	if err := ValidateHash(psh.Hash); err != nil {
@@ -203,6 +207,17 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	// If part already exists, return false.
 	if ps.parts[part.Index] != nil {
 		return false, nil
+	}
+
+	// Verify proof metadata matches what we expect.
+	// Proof.Verify uses Proof.Index internally, so a Byzantine peer could send
+	// a Part with part.Index != part.Proof.Index and pass the merkle check
+	// while storing bytes at the wrong position.
+	if part.Proof.Index != part.Index {
+		return false, ErrPartSetInvalidProof
+	}
+	if part.Proof.Total != ps.total {
+		return false, ErrPartSetInvalidProof
 	}
 
 	// Check hash proof

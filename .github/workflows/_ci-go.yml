@@ -1,0 +1,129 @@
+# Reusable workflow for Go modules: lint + build + test with coverage.
+on:
+  workflow_call:
+    inputs:
+      modulepath:
+        required: true
+        type: string
+      tests-extra-args:
+        required: false
+        type: string
+      tests-ts-seq:
+        required: false
+        type: boolean
+      go-version:
+        description: "Go version to use; defaults to the version in go.mod"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          working-directory: ${{ inputs.modulepath }}
+          args: --config=${{ github.workspace }}/.github/golangci.yml
+          version: v2.11.4 # sync with misc/devdeps
+      - name: Verify 'go fix' has been applied
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          # The modernizer-based `go fix` requires the Go 1.26+ toolchain. Only
+          # this check is pinned to it; build/test/lint keep the go.mod version.
+          # Fixes are still gated by each module's go.mod `go` directive.
+          GOTOOLCHAIN: go1.26.1
+          # Cover `//go:build cgo` files (e.g. tm2/pkg/db/lmdbdb, mdbxdb) so they
+          # are checked here and by `make fix` alike, not silently skipped.
+          CGO_ENABLED: "1"
+        run: |
+          # -omitzero=false: the omitzero modernizer strips `json:",omitempty"`
+          # from struct-typed fields, assuming encoding/json semantics where it
+          # is a no-op. Amino (used pervasively here) DOES honor omitempty on
+          # struct fields, so removing it changes JSON output. Keep it disabled,
+          # mirroring the modernizer's own carve-out for kubebuilder types.
+          changes="$(go fix -omitzero=false -diff ./...)"
+          if [ -n "$changes" ]; then
+            echo "::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result."
+            printf '%s\n' "$changes"
+            exit 1
+          fi
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - name: Check generated files are up to date
+        working-directory: ${{ inputs.modulepath }}
+        run: |
+          if make -qp | grep -q '^generate:'; then
+            make generate
+            if [ "$(git status -s)" != "" ]; then
+              echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+              git status -s
+              git diff
+              exit 1
+            fi
+          else
+            echo "'make generate' rule not found, skipping."
+          fi
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - name: Go test
+        working-directory: ${{ inputs.modulepath }}
+        env:
+          SEQ_TS: ${{ inputs.tests-ts-seq }}
+          TXTARCOVERDIR: /tmp/txtarcoverdir
+          GOCOVERDIR: /tmp/gocoverdir
+          COVERDIR: /tmp/coverdir
+          INPUTS_MODULEPATH: ${{ inputs.modulepath }}
+          INPUTS_TESTS_EXTRA_ARGS: ${{ inputs.tests-extra-args }}
+        run: |
+          set -x
+
+          mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
+
+          export filter="-pkg=github.com/gnolang/gno/${INPUTS_MODULEPATH}/..."
+
+          # INPUTS_TESTS_EXTRA_ARGS must word-split into flags
+          # shellcheck disable=SC2086
+          go test -covermode=set -timeout 30m ${INPUTS_TESTS_EXTRA_ARGS} ./... -test.gocoverdir="$GOCOVERDIR"
+
+          (set +x; echo 'go coverage results:')
+          go tool covdata percent "$filter" -i="$GOCOVERDIR"
+          (set +x; echo 'txtar coverage results:')
+          go tool covdata percent "$filter" -i="$TXTARCOVERDIR"

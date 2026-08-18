@@ -11,9 +11,10 @@ services:
       - --with-analytics
       - --faucet-url=https://faucet-api.gno.land
       - --help-remote=https://rpc.gno.land:443
-      - --aliases=/=static:/tmp/home/home.md
+      - --aliases=/=static:/tmp/home/home.md,/about=static:/tmp/pages/about.md,/gnolang=static:/tmp/pages/gnolang.md,/ecosystem=static:/tmp/pages/ecosystem.md,/start=static:/tmp/pages/start.md,/license=static:/tmp/pages/license.md,/contribute=static:/tmp/pages/contribute.md,/links=static:/tmp/pages/links.md,/partners=static:/tmp/pages/partners.md,/events=static:/tmp/pages/events.md
     volumes:
       - ./home/:/tmp/home
+      - ./pages/:/tmp/pages
     ports:
       - "88:8888"
     profiles:

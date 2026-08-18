@@ -1,23 +1,25 @@
-package main
+// PKGPATH: gno.land/r/tests/vm/filetests/z2_filetest
+
+package z2_filetest
 
 import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	tests "gno.land/r/tests/vm"
 )
 
 // When a single realm in the frames, PreviousRealm returns the user
 // When 2 or more realms in the frames, PreviousRealm returns the second to last
-func main() {
+func main(cur realm) {
 	var (
 		eoa = testutils.TestAddress("someone")
 		_   = chain.PackageAddress("gno.land/r/tests/vm")
 	)
 	testing.SetOriginCaller(eoa)
-	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross).Address())
-	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm(cross).Address())
+	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross(cur)).Address())
+	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm(cross(cur)).Address())
 }
 
 // Output:

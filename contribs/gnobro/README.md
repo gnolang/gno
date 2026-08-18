@@ -8,7 +8,7 @@ working in the terminal.
 
 ### Minimum Go Version
 
-The minimum Go version required to build `gnobro` is **1.23**.
+The minimum Go version required to build `gnobro` is **1.24**.
 
 ### Installation instructions
 
