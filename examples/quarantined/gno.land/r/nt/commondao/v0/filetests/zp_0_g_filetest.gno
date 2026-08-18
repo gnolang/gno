@@ -21,20 +21,15 @@ func init(cur realm) {
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowMembersUpdate(true)
-
-	daoID = dao.ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross(cur), daoID, "", "")
+	commondao.CreateCouncilUpdateProposal(cross(cur), daoID, "", "")
 }
 
 // Error:
-// no members were specified to be added or removed
+// no council members were specified to be added or removed
