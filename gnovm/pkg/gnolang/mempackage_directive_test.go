@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,37 @@ func TestFindDirectiveComment(t *testing.T) {
 			t.Parallel()
 			_, got := FindDirectiveComment(tt.body)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// The scan walks to EOF on every .gno file of every submitted package, so a
+// scanner that failed to advance would be an unbounded loop on the AddPackage
+// path rather than a cosmetic bug. Malformed input reaches it: validation runs
+// on attacker-supplied bytes.
+func TestFindDirectiveComment_Terminates(t *testing.T) {
+	t.Parallel()
+
+	bodies := map[string]string{
+		"unterminated block comment": "/* never closed\n//go:noinline\npackage zz\n",
+		"unterminated string":        "package zz\nvar s = \"unclosed\n",
+		"illegal bytes":              "package zz\n\x00\x01\xff\xfe\n",
+		"lone slash":                 "/",
+		"lone slash star":            "/*",
+		"empty":                      "",
+		"invalid utf8 in comment":    "package zz\n// \xff\xfe\xfd\n",
+		"many comments":              strings.Repeat("//c\n", 50000) + "package zz\n",
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			done := make(chan struct{})
+			go func() { defer close(done); FindDirectiveComment(body) }()
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+				t.Fatal("FindDirectiveComment did not terminate")
+			}
 		})
 	}
 }
