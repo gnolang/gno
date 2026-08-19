@@ -62,7 +62,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000001"
 //       },
 //       {
 //         "key": "name",
@@ -84,7 +84,51 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000002"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000003"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000004"
 //       },
 //       {
 //         "key": "name",

@@ -14,11 +14,20 @@ package grc20dupsignal
 
 import (
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 )
 
+var tokenIDSeq seqid.ID
+
+func nextIDSeq() string {
+	return tokenIDSeq.String()
+}
+
 func main(cur realm) {
-	first, firstLedger := grc20.NewToken("Same", "DUP", 6, 0, cur)
-	second, secondLedger := grc20.NewToken("Same", "DUP", 6, 0, cur)
+	gen := grc20.NewIDGenerator(0, cur, nextIDSeq)
+
+	first, firstLedger := grc20.NewToken("Same", "DUP", 6, gen, cur)
+	second, secondLedger := grc20.NewToken("Same", "DUP", 6, gen, cur)
 
 	println("same id:", first.ID() == second.ID())
 
@@ -38,7 +47,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20dupsignal.DUP.0000000"
+//         "value": "gno.land/r/demo/grc20dupsignal.DUP.gno.land/r/demo/grc20dupsignal:0000000"
 //       },
 //       {
 //         "key": "name",
@@ -60,7 +69,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20dupsignal.DUP.0000000"
+//         "value": "gno.land/r/demo/grc20dupsignal.DUP.gno.land/r/demo/grc20dupsignal:0000000"
 //       },
 //       {
 //         "key": "name",
@@ -82,7 +91,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20dupsignal.DUP.0000000"
+//         "value": "gno.land/r/demo/grc20dupsignal.DUP.gno.land/r/demo/grc20dupsignal:0000000"
 //       },
 //       {
 //         "key": "from",
@@ -104,7 +113,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20dupsignal.DUP.0000000"
+//         "value": "gno.land/r/demo/grc20dupsignal.DUP.gno.land/r/demo/grc20dupsignal:0000000"
 //       },
 //       {
 //         "key": "from",
