@@ -63,9 +63,10 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm, opts ..
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	balances, allowances := cfg.newLedgerStores()
 	ledger := &PrivateLedger{
-		balances:   cfg.newKV(),
-		allowances: cfg.newKV(),
+		balances:   balances,
+		allowances: allowances,
 	}
 	token := &Token{
 		id:       pkgPath + "." + symbol + "." + id.String(),

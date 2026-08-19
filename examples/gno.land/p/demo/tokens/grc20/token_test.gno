@@ -17,9 +17,9 @@ import (
 // promotes the test's EOA-origin cur into a fresh /p/grc20
 // CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
 // checks pass.
-func newTestToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (tok *Token, adm *PrivateLedger) {
+func newTestToken(name, symbol string, decimals int, id seqid.ID, rlm realm, opts ...Option) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
-		tok, adm = NewToken(name, symbol, decimals, id, cur)
+		tok, adm = NewToken(name, symbol, decimals, id, cur, opts...)
 	}(cross(rlm))
 	return
 }

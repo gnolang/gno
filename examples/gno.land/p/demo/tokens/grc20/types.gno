@@ -124,9 +124,32 @@ type ledgerConfig struct {
 //	grc20.NewToken("Foo", "FOO", 6, nextTokenID.Next(), cur,
 //		grc20.WithStorage(func() grc20.KV { return hashmap.New() }))
 //
-// newKV is called once per map and must return a fresh, empty store.
+// newKV is called once per map and must return a fresh, empty store each
+// time. NewToken enforces that: handing back one shared store would make
+// KnownAccounts count allowance rows as holders, and handing back a
+// pre-populated store would produce balances that the token's totalSupply
+// never accounted for. Both are rejected at construction.
 func WithStorage(newKV func() KV) Option {
+	if newKV == nil {
+		panic(ErrNilStorage)
+	}
 	return func(cfg *ledgerConfig) { cfg.newKV = newKV }
+}
+
+// newLedgerStores builds the two backing stores and rejects a constructor
+// that breaks the "fresh and distinct per call" contract.
+func (cfg ledgerConfig) newLedgerStores() (balances, allowances KV) {
+	balances, allowances = cfg.newKV(), cfg.newKV()
+	if balances == nil || allowances == nil {
+		panic(ErrNilStorage)
+	}
+	if balances == allowances {
+		panic(ErrSharedStorage)
+	}
+	if balances.Size() != 0 || allowances.Size() != 0 {
+		panic(ErrNonEmptyStorage)
+	}
+	return balances, allowances
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the
@@ -161,6 +184,9 @@ var (
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
+	ErrNilStorage            = errors.New("storage constructor must not be nil or return nil")
+	ErrSharedStorage         = errors.New("storage constructor must return a distinct store per call")
+	ErrNonEmptyStorage       = errors.New("storage constructor must return an empty store")
 )
 
 // Construction limits. Symbol is restricted to the same charset as

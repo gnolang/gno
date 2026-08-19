@@ -340,6 +340,28 @@ Findings:
   `KV` interface; `NewToken` gains variadic options. Both are source-compatible
   for all existing callers (fields are unexported; the only construction site
   is `NewToken`).
+- The `WithStorage` constructor contract ("a fresh, empty store per call") is
+  enforced, not just documented, because both ways of breaking it fail
+  silently rather than loudly:
+  - one *shared* store for both maps still resolves balances and allowances
+    correctly (the key spaces do not collide), but `KnownAccounts()` — and so
+    `RenderHome()` — counts allowance rows as holders;
+  - a *pre-populated* store yields balances that `totalSupply` never accounted
+    for, i.e. a token reporting a holder balance with zero supply, straight
+    out of the constructor.
+
+  `WithStorage` rejects a nil constructor, and `NewToken` rejects a
+  constructor that returns nil, returns the same instance twice, or returns a
+  non-empty store (`ErrNilStorage` / `ErrSharedStorage` /
+  `ErrNonEmptyStorage`). The cost is two `Size()` calls on empty stores, once
+  per token creation — nothing on the per-call path.
+- Persistence is covered end to end by
+  `gno.land/pkg/integration/testdata/grc20_kv_backend_restart.txtar`: a
+  hashmap-backed ledger is read *and written* across a `gnoland restart` by a
+  realm whose package closure never includes hashmap (it resolves the token
+  through `grc20reg`). This is the seam's sharpest exposure — a caller-supplied
+  concrete type behind an interface field in realm state, reloaded cold and
+  reached from a package that cannot name it.
 - `KV` is deliberately defined in grc20 rather than a shared package: a shared
   `p/nt/kv` import would enter every token's package closure (a per-call gas
   cost for all tokens, including default avl ones), and Gno interfaces are
