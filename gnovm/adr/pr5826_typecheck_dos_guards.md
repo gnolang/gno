@@ -28,72 +28,68 @@ source bytes each, so a per-type cap `B` permits ~`B/28` nodes per byte with no
 ceiling. Measured ~130µs/byte against the ~1.25µs/byte `PreprocessGasPerByte`
 charges — ~100x under-priced, so a 1MB `MsgAddPackage` bought minutes of CPU.
 
-Budget is therefore the per-package total, **1_000_000**:
+Budget is therefore the per-package total, **20_000**, chosen so the worst
+*accepted* package costs about what it pays for — which is what makes the bound
+hold per **transaction**, not merely per package.
 
-- Honest code is ~4 orders below it. Over all stdlibs and examples including test
-  files (209 packages, 702 named types) the largest per-package total is 181
-  (`regexp`); the largest single type anywhere is 28.
-  `TestHonestTypeExpansionUnderBudget` pins this at a 100x margin so the
-  false-rejection argument cannot rot as real code grows.
-- The per-package walk is bounded at ~21ms (~21ns/node, Apple Silicon go1.25).
+Gas is charged per source byte (`PreprocessGasPerByte = 1250`, and 1 gas ≈ 1ns on
+the reference machine → ~1.25µs of CPU per byte). Bytes are a poor proxy here:
+each extra `type tN struct{ a, b [0]tN-1 }` line is ~31 bytes and *doubles* the
+total, so the shape reaching a budget `B` in the fewest bytes is a doubling chain,
+worst case `B / (33 + 31·log2(B/14))` nodes per byte at ~25ns/node.
 
-Because it bounds a total it also caps containment **depth** near 1000 (a linear
-chain of depth `d` totals ~`d²` nodes, each of the `d` types costing `O(d)`).
-That is honest arithmetic, not a special case — `validType` really visits ~`d²`
-nodes — so `deep linear chain passes` moved from depth 2000 to 900, with a new
-case pinning that 2000 is rejected. No third metric keeps depth free while
-bounding cost: a per-declaration cap leaves the sum unbounded, and capping both
-adds nothing since the aggregate dominates. Depth becomes free only if
-`validType` memoizes (golang/go#65711), already this file's revisit trigger.
+| budget | worst accepted | µs/byte | vs priced 1.25 |
+|---|---|---|---|
+| 1_000_000 | 511 bytes, ~24ms | 47.6 (measured) | **38x** |
+| 20_000 | 325 bytes, ~263µs | 0.81 (measured) | **0.6x** |
+
+At 1_000_000 the 38x multiplied across messages (see below). At 20_000 per-message
+cost is bounded by per-message gas, so any number of messages is bounded by the
+per-tx `GasWanted` and the block gas limit — mechanisms that already exist.
+
+Honest code is unaffected: the largest per-package total in real code is 181, over
+all stdlibs and examples including test files, pinned by
+`TestHonestTypeExpansionUnderBudget` — ~110x headroom.
 
 ### Known limit: per package, not per transaction
 
-The gap is reachable two ways, and the cheaper one needs no prior chain state:
+**Multiple messages — closed by the budget above.** `Tx.Msgs` is unbounded
+(`ValidateBasic` caps gas, not the message count) and baseapp dispatches every
+message to the handler, so N `MsgAddPackage`/`MsgRun` messages each pay the budget
+in full. At the old 1_000_000 that meant ~1400 near-budget packages in a 1MB tx ≈
+tens of seconds of walk. Gas parity per message removes the amplification: the CPU
+a message can buy is now under the gas it pays, so `GasWanted` and the block gas
+limit bound the total.
 
-- **Multiple messages in one tx.** `Tx.Msgs` is unbounded — `ValidateBasic` caps
-  gas, not the message count — and baseapp dispatches every message to the
-  handler, so N `MsgAddPackage` messages each pay the budget in full. Measured:
-  **511 source bytes** buy a package that passes the guard and costs **~30ms**
-  (depth 17, at 542 bytes, is rejected). A 1MB tx (`MaxBlockTxBytes`) fits ~1400
-  such messages ≈ **~40s of walk**, at ~8.9e8 gas — under the 3e9 block ceiling,
-  and the same per-byte gas any 1MB deploy already pays.
-- **Transitive dependencies.** One `MsgAddPackage` re-guards every transitive user
-  dependency, because `VMKeeper.typeCheckCache` holds only stdlibs and is cloned
-  per tx; the dependency count is bounded only by what was deployed *earlier*,
-  i.e. bytes the importing tx never paid for.
-
-So one tx can buy `~(packages checked across all messages) x budget`. Not fixed
-here: a per-tx bound needs its own constant and headroom (honest graphs also sum:
-181 x 200 deps ≈ 36k) plus a compatibility argument that no existing import graph
-becomes un-importable. Natural home is a running total threaded across the
-`TypeCheckMemPackage` calls of one tx. The per-package bound is a strict
-improvement meanwhile — it turns an unbounded hang into a linear multiple of a
-21ms unit — but it is not the end state.
-
-Since #6025 the chain sets `TypeCheckOptions.ProdOnly`, so on-chain go/types runs
-exactly one `Check` per package and never type-checks test files. This guard still
-scores every parsed file, so on-chain it over-counts relative to what `validType`
-walks. Deliberate: over-counting can only reject, never admit, and those files are
-still type-checked off-chain by `gno test` / `gno lint`, where the same fan-out
-would hang a developer.
+**Transitive dependencies — still open.** One `MsgAddPackage` re-guards every
+transitive user dependency, because `VMKeeper.typeCheckCache` holds only stdlibs
+and is cloned per tx. Those dependencies' bytes were paid for by *earlier*
+transactions, so per-message gas parity does not price them. The clean fix is to
+charge gas for the computed expansion count rather than only capping it — the
+guard already computes it exactly, outside `go/types`, so this needs no fork (see
+*Alternatives weighed*, which rejected metering **inside** `go/types`, a different
+proposal). That wants its own rate parameter and gas-fixture re-pinning, so it is
+left as follow-up; the cap keeps the residual bounded meanwhile.
 
 ### Alternatives weighed
 
-**Gas-metering the walk instead of capping it.** Rejected: this is a validity
-rule, not a price. Honest code peaks at 181 against a 1e6 budget, so a 2^40
-expansion is not "legal Gno that costs a lot", and pricing it would make it
-purchasable. `PreprocessGasPerByte` is `bytes x constant`, a linear proxy that
-cannot meter a superlinear function — the cap bounds the proxy's error, so they
-are complements. Metering also needs an `sdk.Context`/gas meter threaded into
-`TypeCheckMemPackage`, for a guard whose removal condition is already written down.
+**Metering inside `go/types` instead of capping.** Rejected: `go/types` is stdlib
+here, not a fork, so metering `validType` means forking a large, fast-moving
+package and re-syncing it every toolchain bump, and the work spans several
+internal passes with no single hook point. Note this is *not* the same as charging
+gas for the count this guard already computes — that happens outside `go/types`,
+needs no fork, and is the recommended fix for the transitive-dependency residual
+above.
 
-**A governance `Params` value rather than a constant.** Rejected: the
-accept/reject boundary sits 4 orders above honest code, so nothing needs to move
-it, while a param adds two bricking modes a constant cannot have (set to 1, all
-deploys fail; set huge, the DoS reopens). Changing the constant is a consensus
-change requiring a binary upgrade — the right ceremony for a safety rule. Note
-the coupling to `PreprocessGasPerByte` is one-directional: governance may raise
-that param up to 80x and this constant cannot follow.
+**A governance `Params` value rather than a constant.** Rejected: a param adds two
+bricking modes a constant cannot have (set to 1, all deploys fail; set huge, the
+DoS reopens), and changing the constant is a consensus change requiring a binary
+upgrade — the right ceremony for a safety rule. But note the budget is now
+*calibrated against* `PreprocessGasPerByte`, and that coupling is one-directional
+and unenforced: raising the param only makes the guard more conservative (more gas
+per byte for the same CPU), whereas **lowering** it breaks parity, and `Validate`
+only requires it to be positive. If that param ever drops, this budget must drop
+with it.
 
 ## Decision: stdlib types are a bounded leaf
 

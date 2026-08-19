@@ -38,33 +38,41 @@ import (
 // is the sum, not the largest single type. Bounding only the largest leaves the
 // sum unbounded, which is how this guard was first written and what it cost.
 //
-// 1_000_000 is set from measurement, not guessed: the largest per-package total
-// in real code is 181, measured over all stdlibs and examples including their
-// test files, and pinned by TestHonestTypeExpansionUnderBudget so it cannot rot.
-// At the budget the walk costs ~21ms (~21ns/node on Apple Silicon go1.25; more on
-// slower hardware). Because the bound is a total it also caps value-containment
-// DEPTH near 1000, since a linear chain of depth d totals ~d^2 nodes; that is
-// honest arithmetic, not a fan-out special case, and it is orders of magnitude
-// past any real type.
+// 20_000 is set so the worst ACCEPTED package costs about what it pays for, which
+// is what makes the bound hold per transaction and not merely per package.
 //
-// Note the budget is PER PACKAGE, which is not the same as per transaction, and
-// the gap is reachable two ways:
+// Gas is charged per source byte (Params.PreprocessGasPerByte = 1250, and 1 gas
+// ~= 1ns on the reference machine, so ~1.25us of CPU per byte). Bytes are a poor
+// proxy for this walk: each extra `type tN struct{ a, b [0]tN-1 }` line is ~31
+// bytes and DOUBLES the total, so the shape that reaches a budget B in the fewest
+// bytes is a doubling chain, giving a worst case of
 //
-//   - MULTIPLE MESSAGES. Tx.Msgs is unbounded (ValidateBasic caps gas, not the
-//     message count) and baseapp runs every message through the handler, so N
-//     MsgAddPackage messages each pay the budget. Measured: 511 source bytes buy
-//     a package that passes this guard and costs ~30ms, so a 1MB tx
-//     (MaxBlockTxBytes) fits ~1400 of them — tens of seconds of walk, for the
-//     same per-byte gas any 1MB deploy already pays. Needs no prior state.
-//   - TRANSITIVE DEPENDENCIES. One MsgAddPackage re-guards every transitive user
-//     dependency, because the keeper's type-check cache holds only stdlibs and is
-//     cloned per tx; the dependency count is bounded only by what was deployed
-//     earlier, i.e. bytes the importing tx never paid for.
+//	B / (33 + 31*log2(B/14)) nodes per byte
 //
-// So the walk one tx can buy is ~(packages checked across all messages) * budget.
-// Bounding that sum is the next step up and wants its own calibration; see
-// adr/pr5826_typecheck_dos_guards.md, which also records the alternatives
-// weighed (gas-metering the walk, a governance Param).
+// at ~25ns/node. At B = 1_000_000 that is ~47us/byte — measured 47.6us/byte, so
+// the model holds — i.e. ~38x more CPU than the bytes paid for. Since Tx.Msgs is
+// unbounded (ValidateBasic caps gas, not the message count) and baseapp runs
+// every message through the handler, that 38x multiplies: a 1MB tx would fit
+// ~1400 near-budget packages, buying tens of seconds of walk. At B = 20_000 the
+// worst package the guard still accepts measures 0.81us/byte (325 bytes, depth
+// 10; depth 11 is rejected) — 0.6x the priced rate. So per-message cost is
+// bounded by per-message gas, and any number of messages is then bounded by the
+// per-tx GasWanted and the block gas limit, which already exist.
+//
+// Honest code is unaffected: the largest per-package total in real code is 181,
+// measured over all stdlibs and examples including their test files and pinned by
+// TestHonestTypeExpansionUnderBudget, so 20_000 still leaves ~110x headroom.
+//
+// Because the bound is a total it also caps value-containment DEPTH near 135
+// (a linear chain of depth d totals ~d^2 nodes). That is honest arithmetic, not a
+// fan-out special case, and far past any real type — measured max depth in
+// stdlibs and examples is single digits.
+//
+// Residual, recorded in adr/pr5826_typecheck_dos_guards.md: one MsgAddPackage
+// re-guards every transitive user dependency (the keeper's type-check cache holds
+// only stdlibs and is cloned per tx), and those dependencies' bytes were paid for
+// by earlier transactions, not this one. Gas parity per message does not price
+// that; charging gas for the computed count would.
 //
 // The chain sets TypeCheckOptions.ProdOnly, so on-chain go/types runs exactly
 // one Check per package and never type-checks test files. This guard still
@@ -97,7 +105,7 @@ import (
 // validType is finally memoized (golang/go#65711), or if Gno ever accepts
 // generics/type-sets/dot imports (they would then have to be counted here, not
 // rejected) — under-counting a live edge would silently reopen the DoS.
-const typeExpansionBudget = 1_000_000
+const typeExpansionBudget = 20_000
 
 // pkgResolver returns the parsed Go source files of an already-deployed
 // dependency package, or nil when the package should be treated as a leaf:
