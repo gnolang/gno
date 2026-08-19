@@ -146,6 +146,7 @@ const (
 )
 
 const (
+	NewTokenEvent = "NewToken"
 	MintEvent     = "Mint"
 	BurnEvent     = "Burn"
 	TransferEvent = "Transfer"

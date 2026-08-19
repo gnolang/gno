@@ -12,8 +12,8 @@ import (
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + <generated id>
-// (e.g. "gno.land/r/demo/defi/foo20.FOO.0000001").
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + issuerPath + ":" + id
+// (e.g. "gno.land/r/demo/defi/foo20.FOO.gno.land/r/demo/defi/grc20reg:0000001").
 //
 // Because IsCurrent runtime-validates that rlm came from the live crossing
 // frame, origRealm is unforgeable: an external realm cannot fabricate a Token
@@ -29,6 +29,15 @@ import (
 //	grc20reg.Register(cross(cur), Token, "")
 //
 // A realm that will not register its token can create its own generator instead.
+//
+// Every successful call emits a NewToken event carrying the resulting
+// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
+// Token can come into existence, so this event makes token creation fully
+// observable. A well-behaved generator never repeats an id, so an indexer that
+// sees the same Token.ID() announced twice knows the realm's nextID is
+// degenerate: two independent ledgers share one identifier, and every later
+// Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm is
+// emitting untrustworthy events and should be flagged or ignored wholesale.
 func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -67,6 +76,15 @@ func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*
 		ledger:         ledger,
 	}
 	ledger.token = token
+
+	chain.Emit(
+		NewTokenEvent,
+		"token", token.id,
+		"name", name,
+		"symbol", symbol,
+		"decimals", strconv.Itoa(decimals),
+	)
+
 	return token, ledger
 }
 
