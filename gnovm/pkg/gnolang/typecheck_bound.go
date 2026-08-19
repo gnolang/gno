@@ -47,13 +47,22 @@ import (
 // honest arithmetic, not a fan-out special case, and it is orders of magnitude
 // past any real type.
 //
-// Note the budget is PER PACKAGE, which is not the same as per transaction: one
-// MsgAddPackage re-type-checks (and so re-guards) every transitive user
-// dependency, because the keeper's type-check cache holds only stdlibs and is
-// cloned per tx. So the walk a single tx can buy is ~(packages checked) * budget,
-// and the dependency count is bounded only by what was deployed earlier — bytes
-// the importing tx does not pay for. Bounding the per-transaction sum is the next
-// step up and wants its own calibration; see
+// Note the budget is PER PACKAGE, which is not the same as per transaction, and
+// the gap is reachable two ways:
+//
+//   - MULTIPLE MESSAGES. Tx.Msgs is unbounded (ValidateBasic caps gas, not the
+//     message count) and baseapp runs every message through the handler, so N
+//     MsgAddPackage messages each pay the budget. Measured: 511 source bytes buy
+//     a package that passes this guard and costs ~30ms, so a 1MB tx
+//     (MaxBlockTxBytes) fits ~1400 of them — tens of seconds of walk, for the
+//     same per-byte gas any 1MB deploy already pays. Needs no prior state.
+//   - TRANSITIVE DEPENDENCIES. One MsgAddPackage re-guards every transitive user
+//     dependency, because the keeper's type-check cache holds only stdlibs and is
+//     cloned per tx; the dependency count is bounded only by what was deployed
+//     earlier, i.e. bytes the importing tx never paid for.
+//
+// So the walk one tx can buy is ~(packages checked across all messages) * budget.
+// Bounding that sum is the next step up and wants its own calibration; see
 // adr/pr5826_typecheck_dos_guards.md, which also records the alternatives
 // weighed (gas-metering the walk, a governance Param).
 //

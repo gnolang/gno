@@ -48,14 +48,27 @@ adds nothing since the aggregate dominates. Depth becomes free only if
 
 ### Known limit: per package, not per transaction
 
-`MsgAddPackage` re-guards every transitive user dependency, because
-`VMKeeper.typeCheckCache` holds only stdlibs and is cloned per tx. So one tx can
-buy `~(packages checked) x budget`, with the dependency count bounded only by
-what was deployed *earlier* — bytes the importing tx never paid for. Not fixed
+The gap is reachable two ways, and the cheaper one needs no prior chain state:
+
+- **Multiple messages in one tx.** `Tx.Msgs` is unbounded — `ValidateBasic` caps
+  gas, not the message count — and baseapp dispatches every message to the
+  handler, so N `MsgAddPackage` messages each pay the budget in full. Measured:
+  **511 source bytes** buy a package that passes the guard and costs **~30ms**
+  (depth 17, at 542 bytes, is rejected). A 1MB tx (`MaxBlockTxBytes`) fits ~1400
+  such messages ≈ **~40s of walk**, at ~8.9e8 gas — under the 3e9 block ceiling,
+  and the same per-byte gas any 1MB deploy already pays.
+- **Transitive dependencies.** One `MsgAddPackage` re-guards every transitive user
+  dependency, because `VMKeeper.typeCheckCache` holds only stdlibs and is cloned
+  per tx; the dependency count is bounded only by what was deployed *earlier*,
+  i.e. bytes the importing tx never paid for.
+
+So one tx can buy `~(packages checked across all messages) x budget`. Not fixed
 here: a per-tx bound needs its own constant and headroom (honest graphs also sum:
 181 x 200 deps ≈ 36k) plus a compatibility argument that no existing import graph
-becomes un-importable. Natural home is a running total on `gnoImporter`. The
-per-package bound is a strict improvement meanwhile.
+becomes un-importable. Natural home is a running total threaded across the
+`TypeCheckMemPackage` calls of one tx. The per-package bound is a strict
+improvement meanwhile — it turns an unbounded hang into a linear multiple of a
+21ms unit — but it is not the end state.
 
 Since #6025 the chain sets `TypeCheckOptions.ProdOnly`, so on-chain go/types runs
 exactly one `Check` per package and never type-checks test files. This guard still
