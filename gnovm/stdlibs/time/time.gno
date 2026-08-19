@@ -993,7 +993,7 @@ const (
 )
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (t Time) MarshalBinary() ([]byte, error) {
+func (t Time) AppendBinary(b []byte) ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 	var offsetSec int8
 	version := timeBinaryVersionV1
@@ -1037,7 +1037,12 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		enc = append(enc, byte(offsetSec))
 	}
 
-	return enc, nil
+	return append(b, enc...), nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (t Time) MarshalBinary() ([]byte, error) {
+	return t.AppendBinary(nil)
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
@@ -1161,12 +1166,24 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 // MarshalText implements the encoding.TextMarshaler interface.
 // The time is formatted in RFC 3339 format, with sub-second precision added if present.
 func (t Time) MarshalText() ([]byte, error) {
+	return t.AppendText(nil)
+}
+
+// AppendText implements the [encoding.TextAppender] interface.
+// The output matches that of calling the [Time.MarshalText] method.
+func (t Time) AppendText(b []byte) ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
-		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
+		return nil, errors.New("Time.AppendText: year outside of range [0,9999]")
 	}
 
-	b := make([]byte, 0, len(RFC3339Nano))
-	return t.AppendFormat(b, RFC3339Nano), nil
+	n := len(b)
+	b = t.AppendFormat(b, RFC3339Nano)
+	// A zone offset outside [-23:59, +23:59] is not representable in RFC 3339;
+	// see the note on checkRFC3339Zone.
+	if err := checkRFC3339Zone(b[n:]); err != nil {
+		return nil, errors.New("Time.AppendText: " + err.Error())
+	}
+	return b, nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

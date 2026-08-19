@@ -969,7 +969,18 @@ func ParseQuery(query string) (Values, error) {
 	return m, err
 }
 
+// defaultMaxParams bounds the number of query parameters ParseQuery will
+// accept, so that a caller-supplied query string cannot force an unbounded
+// number of map entries and slice appends.
+//
+// Custom code: Go makes this adjustable through the urlmaxqueryparams GODEBUG.
+// Gno has no GODEBUG, so the limit is fixed.
+const defaultMaxParams = 10000
+
 func parseQuery(m Values, query string) (err error) {
+	if strings.Count(query, "&")+1 > defaultMaxParams {
+		return errors.New("number of URL query parameters exceeded limit")
+	}
 	for query != "" {
 		var key string
 		key, query, _ = strings.Cut(query, "&")
@@ -1215,7 +1226,12 @@ func splitHostPort(hostPort string) (host, port string) {
 // Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
 
 func (u *URL) MarshalBinary() (text []byte, err error) {
-	return []byte(u.String()), nil
+	return u.AppendBinary(nil)
+}
+
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+func (u *URL) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, u.String()...), nil
 }
 
 func (u *URL) UnmarshalBinary(text []byte) error {
@@ -1231,6 +1247,11 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
 func (u *URL) JoinPath(elem ...string) *URL {
+	url, _ := u.joinPath(elem...)
+	return url
+}
+
+func (u *URL) joinPath(elem ...string) (*URL, error) {
 	elem = append([]string{u.EscapedPath()}, elem...)
 	var p string
 	if !strings.HasPrefix(elem[0], "/") {
@@ -1247,8 +1268,8 @@ func (u *URL) JoinPath(elem ...string) *URL {
 		p += "/"
 	}
 	url := *u
-	url.setPath(p)
-	return &url
+	err := url.setPath(p)
+	return &url, err
 }
 
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
