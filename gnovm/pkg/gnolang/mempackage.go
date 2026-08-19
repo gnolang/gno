@@ -1357,6 +1357,9 @@ func directiveName(lit string) (string, bool) {
 	if !strings.HasPrefix(lit, "//") || !isDirectiveText(lit[2:]) {
 		return "", false
 	}
+	if isAllowedDirective(lit[2:]) {
+		return "", false
+	}
 	name := lit[2:]
 	if i := strings.IndexAny(name, " \t"); i >= 0 {
 		name = name[:i]
@@ -1365,6 +1368,30 @@ func directiveName(lit string) (string, bool) {
 		name = name[:32]
 	}
 	return "//" + name, true
+}
+
+// isAllowedDirective reports whether a directive is permitted despite the rule,
+// taking the text of a "//" comment with the slashes removed.
+//
+// The list is policy and deliberately sits above isDirectiveText, which stays a
+// faithful mirror of go/ast: whether something *is* a directive is Go's
+// question, whether Gno accepts it is ours.
+//
+// Only "//nolint" is allowed. golangci-lint never reads .gno, so it suppresses
+// nothing and is as meaningless here as the rest — but it is the most common
+// directive in Go code after //go:build, Gno authors arrive carrying the habit,
+// and unlike the others no consumer of the stored source honours it. Rejecting
+// it would cost more in friction than it buys in safety.
+//
+// Adding to this list is backward-compatible; removing from it is a consensus
+// break. See adr/pr6078_forbid_directives.md.
+func isAllowedDirective(c string) bool {
+	rest, ok := strings.CutPrefix(c, "nolint")
+	if !ok {
+		return false
+	}
+	// "//nolint", "//nolint:a,b", "//nolint:a // why" — but not "//nolintfoo:x".
+	return rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t'
 }
 
 // isDirectiveText reports whether the text of a "//" comment (with the slashes

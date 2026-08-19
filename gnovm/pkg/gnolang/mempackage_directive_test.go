@@ -53,6 +53,16 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"cgo export", "package zz\n\n//export F\nfunc F() {}\n", true},
 		{"trailing directive", "package zz\n\nvar x = 1 //go:generate rm -rf /\n", true},
 
+		// //nolint is the one allowed directive: golangci-lint never reads
+		// .gno, so it is as meaningless as the rest, but no consumer of the
+		// stored source honours it either, and Go authors arrive with the
+		// habit. See isAllowedDirective.
+		{"nolint bare", "package zz\n\n//nolint\nfunc F() {}\n", false},
+		{"nolint with linters", "package zz\n\n//nolint:gosec,errcheck\nfunc F() {}\n", false},
+		{"nolint with reason", "package zz\n\n//nolint:gosec // why\nfunc F() {}\n", false},
+		{"nolint trailing", "package zz\n\nvar x = 1 //nolint:all\n", false},
+		{"nolint lookalike is not allowed", "package zz\n\n//nolintfoo:bar\nfunc F() {}\n", true},
+
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
 		// let a submitter keep a live tag in a stored file.
@@ -259,6 +269,13 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		assert.ErrorContains(t, err, "directives are not supported")
 		assert.ErrorContains(t, err, `"b.gno"`, "the error must name the tagged file")
 		assert.NotContains(t, fmt.Sprint(err), "a.gno", "the clean file must not be blamed")
+	})
+
+	t.Run("nolint is allowed", func(t *testing.T) {
+		t.Parallel()
+
+		assert.NoError(t, validateBody(t, MPUserProd, userPath,
+			"package zz\n\n//nolint:gosec\nfunc F() {}\n"))
 	})
 
 	t.Run("stdlibs are not affected", func(t *testing.T) {

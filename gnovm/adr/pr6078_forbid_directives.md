@@ -87,10 +87,16 @@ Scope is deliberate:
 - **Stdlibs and filetests are untouched.** The VM suite deliberately pins that
   constraints are inert (`gnovm/tests/files/build0.gno`, `extern/ct`); those
   fixtures test real VM semantics and keep working unchanged.
-- **The whitelist is empty**, not absent. Scanning all 1479 `.gno` files in
-  `examples/` with this predicate yields **zero** hits. The only hits anywhere
-  are 6 stdlib files carrying Go's own inherited directives (`//go:generate`,
-  `//go:noinline`), which the user-package gate excludes.
+- **The whitelist holds exactly one entry: `//nolint`.** Everything else is
+  refused. Scanning all 1479 `.gno` files in `examples/` yields zero directives
+  of any kind; the only hits anywhere are 6 stdlib files carrying Go's own
+  inherited ones (`//go:generate`, `//go:noinline`), which the user-package gate
+  excludes. The entry is therefore for code not yet written — see Consequences.
+
+  It sits in `isAllowedDirective`, deliberately *above* `isDirectiveText`:
+  whether something is a directive is Go's question and is answered by the
+  faithful copy, whether Gno accepts it is ours and is answered by policy. A
+  test pins the two apart, so relaxing policy cannot quietly corrupt the mirror.
 
 ## Alternatives considered
 
@@ -132,21 +138,22 @@ Scope is deliberate:
   second fork.
 - No corpus change: `examples/` passes unmodified, and the VM filetests carrying
   constraint lines are out of scope by type.
-- **`//nolint:...` is rejected too, and that is the likeliest source of
-  friction.** Surveying every `.go` and `.gno` file in the repo (6453 files, 143
-  carrying a directive) the histogram is `//go:build` 55, then the `//nolint:`
-  family at ~65 across its variants — more than `//go:generate` and `//go:embed`
-  combined. Nothing breaks today: no `.gno` file uses the colon form, and the
-  one that writes a bare `//nolint`
-  (`misc/multiarch-determinism/corpus.gno`) is not a directive by Go's rule and
-  is not flagged. But Gno authors come from Go, so the habit will arrive.
+- **`//nolint` is allowed**, and it is the only exception. Surveying every `.go`
+  and `.gno` file in the repo (6453 files, 143 carrying a directive) puts the
+  `//nolint:` family at ~65 occurrences across its variants — second only to
+  `//go:build` at 55, and more than `//go:generate` and `//go:embed` combined.
+  No `.gno` file uses it today, so nothing changes hands either way; the point is
+  that Gno authors come from Go carrying the habit.
 
-  Rejecting it is deliberate. `golangci-lint` does not read `.gno`, so the
-  comment suppresses nothing; keeping the whitelist empty is what makes the rule
-  one sentence instead of a list, and the error names the directive so the fix is
-  to delete a line that never did anything. If this proves noisy in practice,
-  `//nolint` is the obvious first whitelist candidate — and by the ordering
-  argument above, adding it later is backward-compatible.
+  It is allowed on a narrower ground than "it is common". Every other directive
+  is honoured by *some* consumer of the stored source — `go/types` read
+  `//go:build`, `go/parser` reads `//line`, `go generate` runs
+  `//go:generate`, the Go compiler reads the pragmas. `//nolint` is read by
+  golangci-lint, which never sees `.gno` at all. It is inert not just to the VM
+  but to everything downstream, so refusing it would buy no safety and cost real
+  friction. Note the asymmetry deliberately: allowing more later is
+  backward-compatible, so this entry can be revisited, while removing it would
+  be a consensus break.
 - That survey also bounds the false-positive risk: across those 6453
   human-written files, every hit was a real directive. No ordinary `//word:word`
   prose comment was caught, because a directive requires no space after `//`.

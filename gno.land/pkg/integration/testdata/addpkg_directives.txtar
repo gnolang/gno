@@ -33,6 +33,11 @@ stdout 'OK!'
 
 stderr 'directives are not supported'
 
+## addpkg: //nolint is the one allowed directive, so this must be accepted.
+gnokey maketx addpkg -pkgdir $WORK/nolint -pkgpath gno.land/r/$test1_user_addr/nolint -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stdout 'OK!'
+
 ## maketx run: the same rule at the other entry point.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1 $WORK/script/script.gno
 
@@ -82,6 +87,16 @@ gno = "0.9"
 package pragma
 
 //go:noinline
+func F() int { return 1 }
+
+-- nolint/gnomod.toml --
+module = "nolint"
+gno = "0.9"
+
+-- nolint/nolint.gno --
+package nolint
+
+//nolint:gosec
 func F() int { return 1 }
 
 -- clean/gnomod.toml --
