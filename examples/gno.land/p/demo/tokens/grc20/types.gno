@@ -92,10 +92,12 @@ type Token struct {
 }
 
 // KV is the key-value storage backend used by a PrivateLedger for its
-// balances and allowances maps. Both *avl.Tree (the default; key-ordered,
-// O(log n) persisted-object loads per op) and *hashmap.Map (p/nt/hashmap;
-// unordered, O(1) persisted-object loads per op — cheaper gas for large
-// ledgers) satisfy it.
+// balances and allowances maps. Three in-tree types satisfy it:
+// *avl.Tree (p/nt/avl/v0 — the default; key-ordered, O(log n)
+// persisted-object loads per op), *hashmap.Map (p/nt/hashmap/v0 —
+// unordered, O(1) persisted-object loads per op, cheapest gas for large
+// ledgers), and *bptree.BPTree (p/nt/bptree/v0 — key-ordered, fewer
+// object loads than avl at high fanout).
 type KV interface {
 	// Get returns the value stored under key, or nil if the key is absent.
 	// (Matches avl.Tree/bptree.BPTree: absence is nil, so ledger values must
@@ -119,7 +121,7 @@ type ledgerConfig struct {
 // backend with a different gas/ordering trade-off, e.g. hashmap for
 // large ledgers:
 //
-//	grc20.NewToken(0, cur, "Foo", "FOO", 6,
+//	grc20.NewToken("Foo", "FOO", 6, nextTokenID.Next(), cur,
 //		grc20.WithStorage(func() grc20.KV { return hashmap.New() }))
 //
 // newKV is called once per map and must return a fresh, empty store.
