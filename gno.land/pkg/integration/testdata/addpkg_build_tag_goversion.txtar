@@ -1,0 +1,58 @@
+# A //go:build go1.N line in a submitted package must not raise the pinned
+# type-check GoVersion (go1.18), on any user-facing entry point. See
+# gnovm/adr/pr5978_typecheck_strip_file_goversion.md.
+
+## start a new node
+gnoland start
+
+## addpkg: a build tag must not unlock go1.22 syntax (range-over-int).
+! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+
+stderr 'go1\.22'
+
+## addpkg: a tag above any real toolchain must be inert, not toolchain-dependent.
+## Without the fix this errors with "file requires newer Go version go1.99
+## (application built with goX)".
+gnokey maketx addpkg -pkgdir $WORK/future -pkgpath gno.land/r/$test1_user_addr/future -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+
+stdout 'OK!'
+
+## maketx run: same vector, different entry point (TCLatestRelaxed mode).
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1 $WORK/script/script.gno
+
+stderr 'go1\.22'
+
+-- tagged/gnomod.toml --
+module = "tagged"
+gno = "0.9"
+
+-- tagged/tagged.gno --
+//go:build go1.22
+
+package tagged
+
+func F() {
+	for range 10 {
+	}
+}
+
+-- future/gnomod.toml --
+module = "future"
+gno = "0.9"
+
+-- future/future.gno --
+//go:build go1.99
+
+package future
+
+func F() int { return 1 }
+
+-- script/script.gno --
+//go:build go1.22
+
+package main
+
+func main() {
+	for range 10 {
+	}
+}
