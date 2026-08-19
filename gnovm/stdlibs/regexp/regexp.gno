@@ -278,7 +278,11 @@ func minInputLen(re *syntax.Regexp) int {
 	case syntax.OpLiteral:
 		l := 0
 		for _, r := range re.Rune {
-			l += utf8.RuneLen(r)
+			if r == utf8.RuneError {
+				l++
+			} else {
+				l += utf8.RuneLen(r)
+			}
 		}
 		return l
 	case syntax.OpCapture, syntax.OpPlus:
