@@ -46,12 +46,6 @@ func NewEncoding(encoder string) *Encoding {
 	if len(encoder) != 64 {
 		panic("encoding alphabet is not 64-bytes long")
 	}
-	for i := 0; i < len(encoder); i++ {
-		if encoder[i] == '\n' || encoder[i] == '\r' {
-			panic("encoding alphabet contains newline character")
-		}
-	}
-
 	e := new(Encoding)
 	e.padChar = StdPadding
 	copy(e.encode[:], encoder)
@@ -60,6 +54,15 @@ func NewEncoding(encoder string) *Encoding {
 		e.decodeMap[i] = 0xFF
 	}
 	for i := 0; i < len(encoder); i++ {
+		// Note: While we document that the alphabet cannot contain
+		// the padding character, we do not enforce it since we do not know
+		// if the caller intends to switch the padding from StdPadding later.
+		switch {
+		case encoder[i] == '\n' || encoder[i] == '\r':
+			panic("encoding alphabet contains newline character")
+		case e.decodeMap[encoder[i]] != 0xFF:
+			panic("encoding alphabet includes duplicate symbols")
+		}
 		e.decodeMap[encoder[i]] = byte(i)
 	}
 	return e
@@ -630,4 +633,42 @@ func (enc *Encoding) DecodedLen(n int) int {
 	}
 	// Padded base64 should always be a multiple of 4 characters in length.
 	return n / 4 * 3
+}
+
+// growBytes returns dst with capacity for at least n more bytes.
+//
+// Custom code: Go uses the generic slices.Grow, which Gno cannot express.
+func growBytes(dst []byte, n int) []byte {
+	if cap(dst)-len(dst) < n {
+		nd := make([]byte, len(dst), len(dst)+n)
+		copy(nd, dst)
+		dst = nd
+	}
+	return dst
+}
+
+// AppendEncode appends the base64 encoded src to dst
+// and returns the extended buffer.
+func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	dst = growBytes(dst, n)
+	enc.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
+}
+
+// AppendDecode appends the base64 decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+	// Compute the output size without padding to avoid over allocating.
+	n := len(src)
+	for n > 0 && rune(src[n-1]) == enc.padChar {
+		n--
+	}
+	// Unpadded data may end with partial block of 2-3 characters.
+	n = n * 6 / 8
+
+	dst = growBytes(dst, n)
+	n, err := enc.Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }

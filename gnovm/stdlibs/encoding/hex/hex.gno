@@ -326,3 +326,34 @@ func (h *dumper) Close() (err error) {
 	_, err = h.w.Write(h.rightChars[:nBytes+2])
 	return
 }
+
+// growBytes returns dst with capacity for at least n more bytes.
+//
+// Custom code: Go uses the generic slices.Grow, which Gno cannot express.
+func growBytes(dst []byte, n int) []byte {
+	if cap(dst)-len(dst) < n {
+		nd := make([]byte, len(dst), len(dst)+n)
+		copy(nd, dst)
+		dst = nd
+	}
+	return dst
+}
+
+// AppendEncode appends the hexadecimally encoded src to dst
+// and returns the extended buffer.
+func AppendEncode(dst, src []byte) []byte {
+	n := EncodedLen(len(src))
+	dst = growBytes(dst, n)
+	Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
+}
+
+// AppendDecode appends the hexadecimally decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func AppendDecode(dst, src []byte) ([]byte, error) {
+	n := DecodedLen(len(src))
+	dst = growBytes(dst, n)
+	n, err := Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
+}
