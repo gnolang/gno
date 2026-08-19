@@ -16,6 +16,11 @@ loadpkg gno.land/r/demo/kvtok $WORK/kvtok
 loadpkg gno.land/r/demo/kvcons $WORK/kvcons
 gnoland start
 
+# the ledger really is hashmap-backed, one store per map — without this the
+# rest of the test would still pass if WithStorage silently fell back to avl
+gnokey query vm/qeval --data "gno.land/r/demo/kvtok.Backend()"
+stdout 'hashmap x2'
+
 # the hashmap-unaware consumer resolves the token through the registry
 gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
 stdout 'KVT accounts=2 owner=1000 self=1000'
@@ -46,6 +51,7 @@ package kvtok
 
 import (
 	"chain"
+	"strconv"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/hashmap/v0"
@@ -55,16 +61,30 @@ import (
 var (
 	Token  *grc20.Token
 	ledger *grc20.PrivateLedger
+
+	// Counts factory invocations, so the test can prove WithStorage actually
+	// built the ledger from hashmap rather than silently falling back to the
+	// avl default. Nothing else can observe a token's backend from outside.
+	backendCalls int
 )
 
 const owner = address("g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp")
 
 func init(cur realm) {
 	Token, ledger = grc20.NewToken("KVToken", "KVT", 4, 0, cur,
-		grc20.WithStorage(func() grc20.KV { return hashmap.New() }))
+		grc20.WithStorage(func() grc20.KV {
+			backendCalls++
+			return hashmap.New()
+		}))
 	ledger.Mint(owner, 1000)
 	ledger.Mint(chain.PackageAddress("gno.land/r/demo/kvcons"), 1000)
 	grc20reg.Register(cross(cur), Token, "")
+}
+
+// Backend reports how many hashmap stores the ledger was built from: 2, one
+// for balances and one for allowances.
+func Backend() string {
+	return "hashmap x" + strconv.Itoa(backendCalls)
 }
 
 func MintTo(cur realm, to address, amount int64) {
