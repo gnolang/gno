@@ -206,22 +206,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Build constraints are rejected for user packages in
-		// ValidateMemPackageAny; report them here too, so the rule surfaces at
-		// lint time instead of at the AddPackage that comes much later. Not a
-		// `continue`: a constraint line does not break type-checking, so the
-		// remaining steps still produce useful output.
+		// Directives are rejected for user packages in ValidateMemPackageAny;
+		// report them here too, so the rule surfaces at lint time instead of at
+		// the AddPackage that comes much later. Not a `continue`: a directive
+		// does not break type-checking, so the remaining steps still produce
+		// useful output.
 		if gno.IsUserlib(mpkg.Path) {
 			for _, mfile := range mpkg.Files {
-				if !strings.HasSuffix(mfile.Name, ".gno") ||
-					!gno.HasBuildConstraint(mfile.Body) {
+				if !strings.HasSuffix(mfile.Name, ".gno") {
+					continue
+				}
+				directive, ok := gno.FindDirectiveComment(mfile.Body)
+				if !ok {
 					continue
 				}
 				issue := gnoIssue{
-					Code:       gnoBuildConstraintError,
+					Code:       gnoDirectiveError,
 					Confidence: 1,
 					Location:   filepath.Join(dir, mfile.Name),
-					Msg:        "build constraints are not supported",
+					Msg:        "directives are not supported: " + directive,
 				}
 				io.ErrPrintln(issue)
 				hasError = true

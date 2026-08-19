@@ -1,5 +1,5 @@
-# A build constraint in a submitted package is rejected at every user-facing
-# entry point. See gnovm/adr/pr6078_forbid_build_constraints.md.
+# A compiler or tooling directive in a submitted package is rejected at every
+# user-facing entry point. See gnovm/adr/pr6078_forbid_directives.md.
 # -simulate skip so the assertions bind CheckTx/DeliverTx, not the simulate query.
 
 ## start a new node
@@ -8,19 +8,19 @@ gnoland start
 ## addpkg: a //go:build line is rejected.
 ! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
-stderr 'build constraints are not supported'
+stderr 'directives are not supported'
 
 ## addpkg: the legacy // +build form is rejected too.
 ! gnokey maketx addpkg -pkgdir $WORK/legacy -pkgpath gno.land/r/$test1_user_addr/legacy -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
-stderr 'build constraints are not supported'
+stderr 'directives are not supported'
 
 ## addpkg: a constraint hidden behind a block comment that itself contains a
 ## "package" line is still rejected. go/parser honours this one, so a header
 ## scan that stopped at the first "package" line would let it through.
 ! gnokey maketx addpkg -pkgdir $WORK/sneaky -pkgpath gno.land/r/$test1_user_addr/sneaky -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
-stderr 'build constraints are not supported'
+stderr 'directives are not supported'
 
 ## addpkg: the same package without the line is accepted, so the rejection
 ## above is the constraint and not something else about the package.
@@ -28,10 +28,15 @@ gnokey maketx addpkg -pkgdir $WORK/clean -pkgpath gno.land/r/$test1_user_addr/cl
 
 stdout 'OK!'
 
+## addpkg: a pragma mid-file is rejected too, not just header constraints.
+! gnokey maketx addpkg -pkgdir $WORK/pragma -pkgpath gno.land/r/$test1_user_addr/pragma -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
 ## maketx run: the same rule at the other entry point.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1 $WORK/script/script.gno
 
-stderr 'build constraints are not supported'
+stderr 'directives are not supported'
 
 -- tagged/gnomod.toml --
 module = "tagged"
@@ -67,6 +72,16 @@ package sneaky
 
 package sneaky
 
+func F() int { return 1 }
+
+-- pragma/gnomod.toml --
+module = "pragma"
+gno = "0.9"
+
+-- pragma/pragma.gno --
+package pragma
+
+//go:noinline
 func F() int { return 1 }
 
 -- clean/gnomod.toml --

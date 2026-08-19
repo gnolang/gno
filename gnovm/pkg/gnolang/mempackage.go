@@ -1249,17 +1249,20 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 				errs = multierr.Append(errs, err)
 				continue
 			}
-			// Build constraints select nothing in Gno, but they are not inert
-			// to every consumer and they misread as conditional to whoever
-			// audits the stored source. Submitted packages only: stdlibs ship
-			// with the node, and the VM suite pins that constraints are inert
+			// Directives mean nothing in Gno, yet several are honoured by
+			// consumers of the stored source and all of them misread as
+			// significant to whoever audits it. Submitted packages only:
+			// stdlibs ship with the node and inherit Go's own directives, and
+			// the VM suite pins that constraints are inert
 			// (gnovm/tests/files/build0.gno). See
-			// adr/pr6078_forbid_build_constraints.md.
+			// adr/pr6078_forbid_directives.md.
 			// Deliberately not a `continue`: the package-name checks below
-			// still run, so a tagged file reports one error rather than two.
-			if mptype.IsUserlib() && HasBuildConstraint(mfile.Body) {
-				errs = multierr.Append(errs, fmt.Errorf(
-					"invalid file %q: build constraints are not supported", fname))
+			// still run, so one file reports one error rather than two.
+			if mptype.IsUserlib() {
+				if d, ok := FindDirectiveComment(mfile.Body); ok {
+					errs = multierr.Append(errs, fmt.Errorf(
+						"invalid file %q: directives are not supported: %s", fname, d))
+				}
 			}
 			if pkgName != Name(mpkg.Name) { // Check validity but skip if mpkg.Name (already checked).
 				if err := validatePkgName(pkgName); err != nil {
@@ -1305,36 +1308,93 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	return errs
 }
 
-// HasBuildConstraint reports whether the file body declares a build constraint,
-// either the current "//go:build" form or the legacy "// +build" one.
+// FindDirectiveComment returns the first compiler or tooling directive in the
+// file body, if any: a build constraint ("//go:build", legacy "// +build"), a
+// line directive, or a pragma such as "//go:noinline".
+//
+// None of them means anything in Gno — there is a single target, no conditional
+// compilation, and gnomod.toml carries the language version — but several are
+// honoured by consumers of the stored source, and all of them misread as
+// significant to whoever audits it. See adr/pr6078_forbid_directives.md.
+//
+// The whole file is scanned, not just the header: build constraints must
+// precede the package clause, but pragmas attach to declarations anywhere.
+//
+// Scanning tokens rather than raw lines keeps that exact. It is the mechanism
+// go/parser itself uses, so this agrees with it on a leading BOM and on a
+// "package" line inside a block comment, both of which slip past a line scan;
+// and a string literal that merely spells a directive is never a comment token,
+// so it is not rejected.
 //
 // Exported so `gno lint` flags the same files ValidateMemPackageAny rejects.
-//
-// Only the header is scanned — the comments before the first non-comment token,
-// the sole position where Go gives a constraint meaning — so a file that merely
-// mentions the syntax in a string or a function body is not rejected.
-//
-// Scanning tokens rather than raw lines is what makes that exact: it is the
-// mechanism go/parser itself uses to fill ast.File.GoVersion, so the two agree
-// on a leading BOM, and on a "package" line sitting inside a block comment
-// ahead of the real clause. Both are honoured by go/parser and both slip past a
-// line scan. The scan is a pure function of the file bytes, as a consensus
-// check must be.
-func HasBuildConstraint(body string) bool {
+func FindDirectiveComment(body string) (string, bool) {
 	var sc goscanner.Scanner
 	fset := token.NewFileSet()
 	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, goscanner.ScanComments)
 	for {
 		_, tok, lit := sc.Scan()
-		if tok != token.COMMENT {
-			// First non-comment token (or EOF): the header is over, and no
-			// later line is a constraint position.
-			return false
-		}
-		if constraint.IsGoBuild(lit) || constraint.IsPlusBuild(lit) {
-			return true
+		switch tok {
+		case token.EOF:
+			return "", false
+		case token.COMMENT:
+			if name, ok := directiveName(lit); ok {
+				return name, true
+			}
 		}
 	}
+}
+
+// directiveName reports whether a comment token is a directive, and names it
+// for the error message. The name is the directive itself, without arguments
+// and length-capped, so an error stays short and quotes back only a fixed
+// vocabulary of the submitted bytes.
+func directiveName(lit string) (string, bool) {
+	// The legacy "// +build" form carries a space, so Go does not count it as a
+	// directive comment even though it is still honoured as a constraint.
+	if constraint.IsPlusBuild(lit) {
+		return "// +build", true
+	}
+	if !strings.HasPrefix(lit, "//") || !isDirectiveText(lit[2:]) {
+		return "", false
+	}
+	name := lit[2:]
+	if i := strings.IndexAny(name, " \t"); i >= 0 {
+		name = name[:i]
+	}
+	if len(name) > 32 {
+		name = name[:32]
+	}
+	return "//" + name, true
+}
+
+// isDirectiveText reports whether the text of a "//" comment (with the slashes
+// removed) is a directive: "line ", "extern ", "export ", or the "//tool:name"
+// form. A leading space disqualifies it, which is what keeps an ordinary
+// "// see: below" comment from counting.
+//
+// This mirrors the unexported go/ast.isDirective. It is copied rather than
+// called because the rule decides whether a package is accepted on chain, and
+// must therefore not shift when the toolchain's own copy evolves.
+func isDirectiveText(c string) bool {
+	if strings.HasPrefix(c, "line ") ||
+		strings.HasPrefix(c, "extern ") ||
+		strings.HasPrefix(c, "export ") {
+		return true
+	}
+	// "//[a-z0-9]+:[a-z0-9]"
+	colon := strings.Index(c, ":")
+	if colon <= 0 || colon+1 >= len(c) {
+		return false
+	}
+	for i := 0; i <= colon+1; i++ {
+		if i == colon {
+			continue
+		}
+		if b := c[i]; !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.

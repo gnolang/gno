@@ -99,9 +99,9 @@ func TestLintApp(t *testing.T) {
 			// must say so first, rather than letting the developer find out
 			// from a failed transaction.
 			args:                 []string{"lint", "."},
-			testDir:              "../../tests/integ/build_constraint",
+			testDir:              "../../tests/integ/directives",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "build constraints are not supported (code=gnoBuildConstraintError)",
+			stderrShouldContain:  "directives are not supported: //go:build (code=gnoDirectiveError)",
 			errShouldBe:          "exit code: 1",
 		},
 		{

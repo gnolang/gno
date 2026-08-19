@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Build constraints carry no meaning in Gno, so a submitted package may not
-// declare one: an honoring consumer turns the tag into behaviour the submitter
+// Directives carry no meaning in Gno, so a submitted package may not declare
+// one: an honoring consumer turns the tag into behaviour the submitter
 // controls (see adr/pr5978_typecheck_strip_file_goversion.md), and an inert tag
 // misleads whoever audits the stored source.
-func TestHasBuildConstraint(t *testing.T) {
+func TestFindDirectiveComment(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -35,9 +35,18 @@ func TestHasBuildConstraint(t *testing.T) {
 		// a package that merely mentions the syntax stays valid. A linter or
 		// formatter realm written in Gno is exactly such a package.
 		{"inside string literal", "package zz\n\nconst s = \"//go:build ignore\"\n", false},
-		{"comment after clause", "package zz\n\n//go:build ignore\nfunc F() {}\n", false},
+		{"ordinary comment with colon", "package zz\n\n// see: the docs\nfunc F() {}\n", false},
+		{"uppercase pseudo-directive", "package zz\n\n//TODO:fix\nfunc F() {}\n", false},
 		{"not a constraint comment", "// go:build ignore\n\npackage zz\n", false},
-		{"go:embed directive", "//go:embed x.txt\n\npackage zz\n", false},
+		{"go:embed directive", "//go:embed x.txt\n\npackage zz\n", true},
+
+		// Directives outside the header: pragmas attach to declarations, and a
+		// line directive may sit anywhere. All are meaningless to the VM, and
+		// //line additionally forges the position reported in a failed tx.
+		{"pragma mid-file", "package zz\n\n//go:noinline\nfunc F() {}\n", true},
+		{"line directive", "package zz\n\n//line /etc/passwd:99:1\nfunc F() {}\n", true},
+		{"cgo export", "package zz\n\n//export F\nfunc F() {}\n", true},
+		{"trailing directive", "package zz\n\nvar x = 1 //go:generate rm -rf /\n", true},
 
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
@@ -50,7 +59,8 @@ func TestHasBuildConstraint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, HasBuildConstraint(tt.body))
+			_, got := FindDirectiveComment(tt.body)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -85,7 +95,7 @@ func TestValidateMemPackage_BuildConstraint(t *testing.T) {
 			"// +build linux\n\npackage zz\nfunc F() {}\n",
 		} {
 			err := validateBody(t, MPUserProd, userPath, body)
-			assert.ErrorContains(t, err, "build constraints are not supported",
+			assert.ErrorContains(t, err, "directives are not supported",
 				"a submitted package must not carry a build constraint: %q", body)
 		}
 	})
@@ -98,7 +108,7 @@ func TestValidateMemPackage_BuildConstraint(t *testing.T) {
 		const body = "//go:build ignore\n\npackage zz\nfunc F() {}\n"
 		for _, mptype := range []MemPackageType{MPUserAll, MPUserProd, MPUserTest} {
 			err := validateBody(t, mptype, userPath, body)
-			assert.ErrorContains(t, err, "build constraints are not supported",
+			assert.ErrorContains(t, err, "directives are not supported",
 				"type %v must reject build constraints", mptype)
 		}
 
@@ -106,7 +116,7 @@ func TestValidateMemPackage_BuildConstraint(t *testing.T) {
 		// the "_test" suffix (see MemPackageType.Validate).
 		err := validateBody(t, MPUserIntegration, userPath+"_test",
 			"//go:build ignore\n\npackage zz_test\nfunc F() {}\n")
-		assert.ErrorContains(t, err, "build constraints are not supported",
+		assert.ErrorContains(t, err, "directives are not supported",
 			"type %v must reject build constraints", MPUserIntegration)
 	})
 
@@ -124,7 +134,7 @@ func TestValidateMemPackage_BuildConstraint(t *testing.T) {
 				{Name: "b.gno", Body: "//go:build ignore\n\npackage zz\nfunc B() {}\n"},
 			},
 		})
-		assert.ErrorContains(t, err, "build constraints are not supported")
+		assert.ErrorContains(t, err, "directives are not supported")
 		assert.ErrorContains(t, err, `"b.gno"`, "the error must name the tagged file")
 		assert.NotContains(t, fmt.Sprint(err), "a.gno", "the clean file must not be blamed")
 	})
