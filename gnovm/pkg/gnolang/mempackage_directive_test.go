@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"math/rand"
 	"strings"
 	"testing"
@@ -65,6 +67,45 @@ func TestFindDirectiveComment(t *testing.T) {
 			_, got := FindDirectiveComment(tt.body)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// The security property, stated executably: if go/parser honours a build
+// constraint in a body, FindDirectiveComment must find it. A gap would leave a
+// live tag in stored source, which is the whole failure this rule prevents.
+//
+// Built by combining the fragments that make the predicate hard — a BOM, block
+// comments, a "package" line inside one, empty comments — because the bypasses
+// found while writing this rule all came from that shape rather than from an
+// exotic directive spelling.
+func TestNoHonouredConstraintEscapes(t *testing.T) {
+	t.Parallel()
+
+	frag := []string{
+		"//go:build go1.9", "// +build x", "//line a:1:1", "//go:noinline",
+		"\ufeff", "/*", "*/", "package zz", "func F(){}", "\n", " ", "//", "/**/", "\t", "//x",
+	}
+	r := rand.New(rand.NewSource(7))
+	for range 100000 {
+		var sb strings.Builder
+		for range r.Intn(7) {
+			sb.WriteString(frag[r.Intn(len(frag))])
+			sb.WriteString("\n")
+		}
+		body := sb.String()
+		fset := token.NewFileSet()
+		gof, err := parser.ParseFile(fset, "x.gno", body,
+			parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			continue // unparseable files are rejected before the directive check
+		}
+		if gof.GoVersion == "" {
+			continue
+		}
+		if _, found := FindDirectiveComment(body); !found {
+			t.Fatalf("go/parser honours GoVersion=%q but the predicate missed it in %q",
+				gof.GoVersion, body)
+		}
 	}
 }
 
