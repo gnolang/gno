@@ -116,8 +116,19 @@ func RunSignerServer(ctx context.Context, commonFlags *ServerFlags, signer types
 		return fmt.Errorf("unable to print genesis validator info: %w", err)
 	}
 
-	// Initialize the remote signer server with the gnokms signer.
-	server, err := NewSignerServer(commonFlags, signer, logger)
+	// Wrap the inner signer with the HRS gate. This is the signer-side
+	// double-sign protection: refuses any request that does not strictly
+	// advance (height, round, step) versus persisted state. Without this,
+	// gnokms would be a soft signer that delegates slashing-prevention
+	// entirely to the validator host's priv_validator_state.json.
+	guardedSigner, err := NewHRSGuardedSigner(signer, commonFlags.StateFile, logger.With("module", "hrs_guard"))
+	if err != nil {
+		return fmt.Errorf("hrs-guard initialization failed: %w", err)
+	}
+	logger.Info("hrs-guard active", "state_file", commonFlags.StateFile, "last", guardedSigner.state.String())
+
+	// Initialize the remote signer server with the guarded signer.
+	server, err := NewSignerServer(commonFlags, guardedSigner, logger)
 	if err != nil {
 		return fmt.Errorf("signer server initialization failed: %w", err)
 	}
@@ -140,8 +151,9 @@ func RunSignerServer(ctx context.Context, commonFlags *ServerFlags, signer types
 	<-serverCtx.Done()
 
 	// Close the server and the signer gracefully.
+	// guardedSigner.Close delegates to the inner signer.
 	return multierr.Combine(
 		server.Stop(),
-		signer.Close(),
+		guardedSigner.Close(),
 	)
 }
