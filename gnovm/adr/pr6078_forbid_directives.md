@@ -93,7 +93,8 @@ Scope is deliberate:
   inherited ones (`//go:generate`, `//go:noinline`), which the user-package gate
   excludes. The entry is therefore for code not yet written — see Consequences.
 
-  It sits in `isAllowedDirective`, deliberately *above* `isDirectiveText`:
+  Entries live in the `allowedDirectives` list, deliberately *above*
+  `isDirectiveText`:
   whether something is a directive is Go's question and is answered by the
   faithful copy, whether Gno accepts it is ours and is answered by policy. A
   test pins the two apart, so relaxing policy cannot quietly corrupt the mirror.

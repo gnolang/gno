@@ -1370,28 +1370,38 @@ func directiveName(lit string) (string, bool) {
 	return "//" + name, true
 }
 
-// isAllowedDirective reports whether a directive is permitted despite the rule,
-// taking the text of a "//" comment with the slashes removed.
+// allowedDirectives names the directives a submitted package may carry despite
+// the rule. Adding an entry is backward-compatible, removing one is a consensus
+// break, so the list is short by construction. See
+// adr/pr6078_forbid_directives.md.
 //
-// The list is policy and deliberately sits above isDirectiveText, which stays a
+// It is policy and deliberately sits above isDirectiveText, which stays a
 // faithful mirror of go/ast: whether something *is* a directive is Go's
 // question, whether Gno accepts it is ours.
-//
-// Only "//nolint" is allowed. golangci-lint never reads .gno, so it suppresses
-// nothing and is as meaningless here as the rest — but it is the most common
-// directive in Go code after //go:build, Gno authors arrive carrying the habit,
-// and unlike the others no consumer of the stored source honours it. Rejecting
-// it would cost more in friction than it buys in safety.
-//
-// Adding to this list is backward-compatible; removing from it is a consensus
-// break. See adr/pr6078_forbid_directives.md.
+var allowedDirectives = []string{
+	// Every other directive is honoured by some consumer of the stored source
+	// -- go/types read //go:build, go/parser reads //line, go generate runs
+	// //go:generate, the compiler reads the pragmas. golangci-lint never reads
+	// .gno, so //nolint is inert downstream as well as to the VM: refusing it
+	// would buy no safety, and Gno authors arrive from Go carrying the habit.
+	"nolint",
+}
+
+// isAllowedDirective reports whether a directive is permitted, taking the text
+// of a "//" comment with the slashes removed.
 func isAllowedDirective(c string) bool {
-	rest, ok := strings.CutPrefix(c, "nolint")
-	if !ok {
-		return false
+	for _, name := range allowedDirectives {
+		rest, ok := strings.CutPrefix(c, name)
+		if !ok {
+			continue
+		}
+		// The name must end at a boundary, so "//nolint", "//nolint:a,b" and
+		// "//nolint:a // why" are allowed but "//nolintfoo:x" is not.
+		if rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t' {
+			return true
+		}
 	}
-	// "//nolint", "//nolint:a,b", "//nolint:a // why" — but not "//nolintfoo:x".
-	return rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t'
+	return false
 }
 
 // isDirectiveText reports whether the text of a "//" comment (with the slashes
