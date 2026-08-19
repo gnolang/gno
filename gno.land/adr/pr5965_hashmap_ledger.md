@@ -23,24 +23,25 @@ token's ledger**:
 
 Measured with a two-keeper cold-cache harness (build state, commit, then
 measure one `Transfer` from a fresh keeper — the state a validator is in after
-cache GC), on the `chain/test13` tag and on master (identical results):
+cache GC), on the `chain/test13` tag and on master (identical results). The
+count of cold object reads is what grows with the ledger:
 
-| ledger size (holders) | objects read (cold) | est. production gas |
-|---|---|---|
-| 1 | 82 | ~5.9M |
-| 2,000 | 166 | ~13.5M |
-| 20,000 | 182 | ~14.8M |
-| real `test_atone` on test13 (observed on-chain) | ~310 | 18.3M |
+| ledger size (holders) | objects read (cold) |
+|---|---|
+| 1 | 82 |
+| 2,000 | 166 |
+| 20,000 | 182 |
+| real `test_atone` on test13 (observed on-chain) | ~310 |
 
-At ~72M gas per swap and 15-18M per transfer, the 3B block fits ~10 swaps/sec —
-the ceiling the issue is about. The per-operation cost is a property of the
-storage data structure, not of the contract code: the same transfer over the
-same grc20 code is ~5.9M when the ledger is small.
+The per-operation cost is a property of the storage data structure, not of the
+contract code: the same transfer over the same grc20 code loads 82 objects when
+the ledger is small and ~310 on the ledger that produced the on-chain 18.3M
+figure. Gas figures are in "Measured results" below — this intro deliberately
+reports only read *counts*, because the gas model is subtler than a per-read
+constant (see the note there).
 
-(Object counts in this intro table are from the initial investigation harness;
-the refined validation tables below report slightly different absolute counts —
-e.g. avl@20k is 191 reads there, not 182 — but the same growth trend, and both
-are anchored by the on-chain `test_atone` figure of 18.3M.)
+(Absolute counts differ slightly between harnesses — e.g. avl@20k is 191 reads
+in the refined validation runs, not 182 — but the growth trend is the same.)
 
 ## Decision
 
@@ -86,15 +87,16 @@ are anchored by the on-chain `test_atone` figure of 18.3M.)
 
 ## Measured results (validation)
 
-> **⚠️ Numbers corrected (real gas metering).** An earlier version of this ADR
-> reported gas from a harness that *simulated* production cost as
-> `VM_gas + reads×59k + writes×24k` — only 2 of the store's **7** gas dimensions,
-> and **no depth-gas multiplier**. That undercounts real gas by **~2×**. An
-> independent maintainer gnodev reproduction and a real cache-store-metered
-> harness both confirmed the higher numbers. The table below is re-measured by
-> running the cold transfer through the **real cache-wrapped, gas-metered store**
-> (`DefaultGasConfig` + `DefaultParams` depth params — exactly what a gno.land
-> node charges, `app.go` `WithGasConfig`) and reading `GasConsumed()`.
+**How these were measured.** The cold transfer is run through the *real*
+cache-wrapped, gas-metered store — `DefaultGasConfig` plus `DefaultParams`
+depth params, exactly what a gno.land node charges (`app.go` `WithGasConfig`) —
+and the number is `GasConsumed()`. This matters: an earlier draft of this ADR
+*simulated* production cost as `VM_gas + reads×59k + writes×24k`, which is only
+2 of the store's **7** gas dimensions and omits the depth multiplier entirely,
+undercounting by **~2×**. A maintainer's independent gnodev reproduction caught
+it. Every figure in this section is real metering; the superseded simulated
+runs are quarantined in the appendix and none of their absolutes are quoted
+here.
 
 Cold transfer, real metering (fresh keeper = validator after cache GC / under
 congestion — a *warm* transfer is far cheaper; see "Cold vs warm"):
@@ -107,15 +109,18 @@ congestion — a *warm* transfer is far cheaper; see "Cold vs warm"):
 
 `*` avl 1M extrapolated from 27.9 / 29.8 / 32.0M at 20k / 100k / 200k.
 
+**−42% to −46% is the headline result of this PR**, and the figure to quote.
+The appendix reports a larger −69% for the same backend; that run isolates the
+data structure with no grc20 package graph, so it excludes the ~10.7M package
+floor that a real transfer always pays. It is reconciled where it appears.
+
 - **A fixed ~10.7M package-code "depth floor" dominates every cold transfer —
   identical across all backends.** It is the cold, depth-multiplied load of the
   grc20/realm package graph; the backend only moves the *ledger* reads on top of
-  it. That's why even hashmap can't drop below ~16M cold and the win (−42 to
-  −46%) is smaller than a data-structure-only view suggests. Shrinking that floor
-  (packing immutable package code / realm-native KV) is now the biggest lever.
+  it. That's why even hashmap can't drop below ~16M cold and the win is smaller
+  than a data-structure-only view suggests. Shrinking that floor (packing
+  immutable package code / realm-native KV) is now the biggest lever.
 - hashmap stays ~flat (16.2 → 18.8M over 20k → 1M); avl climbs (27.9 → ~35M).
-- The earlier "**−65% / hashmap ≈ 6.6M @ 1M**" figures were the ~2× undercount —
-  disregard them in favour of this table.
 
 ### Cold vs warm
 
@@ -127,59 +132,48 @@ costs **~7M**; a **cold** one (validator after GC, or congestion churning the
 cache) pays it in full (~16–28M). #5906's congestion is the **cold** case, which
 is why the issue is real there even though casual/warm testing looks cheap. The
 on-chain test13 `test_atone` = 18.3M is a cold-config number at a **modest**
-ledger — NOT 1M (a fully-cold 1M avl transfer is ~35M; the "18M @ 1M" the first
-draft claimed was an artifact of the ~2× undercount).
-
-The two increments behind the shipped number — native SHA-256 hashing, then the
-two-level directory — are decomposed below (those sub-tables predate this
-correction, so treat their **relative deltas** as indicative and their
-**absolutes** as ~2× low unless re-measured; the SHA-256 step was re-measured —
-see below).
+ledger, not a 1M one: a fully-cold 1M avl transfer is ~35M. (Under the
+simulated harness those two numbers happened to coincide, which made an
+earlier draft read `test_atone` as confirmation of a 1M-holder ledger. It was
+a coincidence of the ~2× undercount, and that claim has been withdrawn.)
 
 ### Bucket hashing: native SHA-256, not interpreted FNV-1a
 
-> **Re-measured under real gas metering:** two-level SHA-256 (16.18M) vs an
-> otherwise-identical two-level FNV-1a build (16.92M) at 20k holders = **−0.74M**,
-> with *identical* store gas (depth/flat/per-byte all equal) — the whole
-> difference is the interpreted FNV-1a CPU loop. The "+4 reads / +0.24M package
-> penalty" described below does **not** apply: `crypto/sha256` is stdlib, served
-> from the in-memory byte cache (no depth/flat charge). So SHA-256 is a clean
-> −0.74M win, slightly better than the pre-correction −0.5M below.
-
-
 Bucket placement (`locate`/`hash64`) uses `crypto/sha256.Sum256` (low 64 bits)
-rather than an FNV-1a loop written in Gno. FNV-1a is interpreted — a per-byte loop metered several VM
-ops per byte, run ~4× per transfer over ~40-byte address keys. `Sum256` is a
-calibrated **native** binding (a flat native charge), so it moves the hash off
-the interpreter.
+rather than an FNV-1a loop written in Gno. FNV-1a is interpreted — a per-byte
+loop metered several VM ops per byte, run ~4× per transfer over ~40-byte
+address keys. `Sum256` is a calibrated **native** binding (a flat native
+charge), so it moves the hash off the interpreter.
 
-Measured end-to-end (cold grc20 transfer, production gas, this ADR's harness):
+Measured under real gas metering: two-level SHA-256 (16.18M) vs an
+otherwise-identical two-level FNV-1a build (16.92M) at 20k holders =
+**−0.74M**, with *identical* store gas — depth, flat and per-byte all equal, so
+the whole difference is the interpreted FNV-1a CPU loop.
 
-| holders | FNV-1a (reads/writes · gas) | SHA-256 (reads/writes · gas) | Δ |
-|---|---|---|---|
-| 20k | 78 / 8 · 7.40M | 82 / 8 · 6.89M | −0.51M |
-| 100k | 78 / 8 · 7.53M | 82 / 8 · 7.06M | −0.48M |
-| 1,000,000 | 78 / 8 · 9.13M | 82 / 8 · **8.58M** | **−0.55M** |
-
-The saving is real but **smaller than a compute-only measurement suggests**.
-Decomposed: the interpreted hash removed saves **−0.75M in the VM term**, but
-calling native `crypto/sha256` pulls its package objects into the store cold on
-first use — a fixed **+4 reads (+0.24M)** that FNV-1a (pure in-package Gno, zero
-imports) never paid. Net is **−0.5M**, flat across scale (the −0.75M VM term less the +0.24M package
-cold-load). A "−0.9M" figure is a higher, compute-only estimate of the hash
-alone that omits the +4-read package cold-load — a warm-vs-cold trap.
+There is no offsetting package penalty. An earlier draft assumed calling
+`crypto/sha256` would pull its package objects into the store cold on first use
+(+4 reads / +0.24M) and netted the win down to −0.5M; that is wrong, because
+`crypto/sha256` is stdlib and served from the in-memory byte cache, which pays
+no depth or flat charge. **−0.74M, flat across scale, is the figure.**
 
 Two consequences worth recording:
 
 - **This must ship before any hashmap is persisted.** Placement is a function of
   the digest; changing the hash after state exists relocates every key. Hence it
   is in this PR, not a follow-up.
-- The +4-read package tax is itself a data point: **fixed package/stdlib
-  cold-loads are a measurable slice of the O(1) read floor** (now ~82 objects).
-  Shrinking that floor — packing immutable package code, or realm-native KV — is
-  a larger lever than bucket tuning, and the next thing to profile.
+- Fixed package cold-loads dominate what is left: the ~10.7M package-code depth
+  floor is far larger than any bucket-tuning win. Shrinking it — packing
+  immutable package code, or realm-native KV — is the next thing to profile.
 
-### Scaling to 1,000,000 entries (KV backends isolated)
+### Design rationale: comparisons on the superseded harness
+
+> The two subsections below predate the metering correction, and their absolute
+> gas figures are the simulated ones — **~2× low, and not comparable to the
+> corrected table above.** They are kept because the comparisons *within* each
+> table are like-for-like (one harness, one op shape) and are what drove the
+> design decisions. Read the deltas, ignore the absolutes.
+
+#### Scaling to 1,000,000 entries (KV backends isolated)
 
 To confirm the O(1) claim at realistic scale and compare against the in-tree
 B+ tree, the same cold-cache harness was run on the KV backends directly
@@ -188,22 +182,24 @@ full token transfer adds ~0.5–1M of fixed grc20/package overhead on top; the
 *slope* is the data structure's).
 Op is transfer-shaped (2 Get + 2 Set):
 
-| backend | 20k | 100k | 1,000,000 | vs avl @1M | ordered? |
+| backend | 20k | 100k | 1,000,000 | ledger-only Δ @1M | ordered? |
 |---|---|---|---|---|---|
-| avl | 13.8M | 15.5M | **18.6M** | — | yes |
-| **hashmap (1024 buckets)** | 4.3M | 4.5M | **5.7M** | **−69%** | no |
+| avl | 13.8M | 15.5M | 18.6M | — | yes |
+| **hashmap (1024 buckets)** | 4.3M | 4.5M | 5.7M | **−69%** | no |
 | hashmap (4096 buckets) | 7.8M | 7.9M | 8.2M | −56% | no |
 | bptree (fanout 128) | 7.8M | 10.7M | 11.7M | −37% | yes |
 
+**Why −69% here and −46% in the headline table.** These runs isolate the KV
+backends: no grc20 package graph, so the ~10.7M package-code depth floor that
+every real transfer pays is absent. Removing a fixed cost from both sides of a
+ratio inflates it. −69% is the *data structure's* reduction; **−46% is what a
+real cold grc20 transfer sees**, and −46% is the number that should be quoted.
+
 Findings:
 
-- **End-to-end validation:** avl at 1M entries costs **18.6M**, matching the
-  real on-chain `test_atone` transfer (18.3M) — independent confirmation that
-  avl depth on a ~1M-entry ledger is what produces the number this ADR set out
-  to explain.
-- **hashmap stays flat to 1M:** 4.3M → 5.7M across a 50× state increase
-  (−69% vs avl). The bucket-bloat concern (≈977 entries/bucket at 1M with 1024
-  buckets) is real but mild (~+1.4M).
+- **hashmap stays flat to 1M:** 4.3M → 5.7M across a 50× state increase. The
+  bucket-bloat concern (≈977 entries/bucket at 1M with 1024 buckets) is real
+  but mild (~+1.4M).
 - **With a *flat* array, do NOT over-size buckets:** 4096-flat was *worse* than
   1024-flat at every size, because every op decodes the whole bucket-pointer
   array once — a 4× larger array is a fixed tax that outweighs the smaller
@@ -211,12 +207,13 @@ Findings:
   (see below): by splitting the array, more buckets no longer means a larger
   array to decode, so 4096 becomes the better default. This finding is what
   motivated the two-level design.
-- **bptree keeps ordering but costs ~2× hashmap at scale** (−37% vs avl at 1M);
-  the gap widens with N as a transfer's 4 traversals plus node-split writes add
-  up. It is the right avl replacement where sorted access is required, not
-  where flat cost is the goal.
+- **bptree keeps ordering but costs ~2× hashmap at scale**; the gap widens with
+  N as a transfer's 4 traversals plus node-split writes add up. It is the right
+  avl replacement where sorted access is required, not where flat cost is the
+  goal. (End to end under real metering it lands at 22.2M / 26.3M vs avl's
+  27.9M / 29.8M — see the headline table.)
 
-### Two-level directory: the shipped design
+#### Two-level directory: the shipped design
 
 The findings above (flat array tax + bucket bloat) were resolved by making v0's
 buckets two-level. Profiling one cold 1M-holder grc20 transfer by object type
@@ -234,18 +231,20 @@ two-level split (dir + one page, √-sized) cuts that, and the higher usable buc
 count (4096) shrinks each leaf from ~977 to ~244 entries. Full grc20 transfer
 cost (cold, production gas, incl. the flat 59k/read and sha256 hashing):
 
-| holders | flat hashmap 1024 | **two-level v0 (4096)** | vs flat | vs avl |
-|---|---|---|---|---|
-| 20,000 | 6.89M | **6.17M** | −0.72M | — |
-| 100,000 | 7.53M | **6.22M** | −1.31M | — |
-| 1,000,000 | 8.58M | **6.59M** | **−1.99M** | **≈−65%** |
+| holders | flat hashmap 1024 | **two-level v0 (4096)** | vs flat |
+|---|---|---|---|
+| 20,000 | 6.89M | **6.17M** | −0.72M |
+| 100,000 | 7.53M | **6.22M** | −1.31M |
+| 1,000,000 | 8.58M | **6.59M** | **−1.99M** |
 
 The −1.99M is ~−1.09M decode (above) plus ~−0.9M alloc gas on the same shrunken
 objects, for +3 cold reads (the extra directory/page loads). Cost is nearly flat
-in N (6.17M → 6.59M across 50×), versus flat-hashmap's 6.89M → 8.58M. Beyond the
-ledger, a fixed *package/code floor* remains — most of those ~85 reads (stdlib +
-`/p/` blocks, identical across backends and N) — the next lever, but VM-level
-(package packing / realm-native KV), out of scope here.
+in N (6.17M → 6.59M across 50×), versus flat-hashmap's 6.89M → 8.58M. The
+flat-vs-two-level delta is like-for-like — both columns are the same harness,
+so the choice it justifies stands even though the absolutes are ~2× low.
+Beyond the ledger, the fixed package/code floor remains, and it is the larger
+lever — but a VM-level one (package packing / realm-native KV), out of scope
+here.
 
 ### Storage footprint (persisted bytes / deposit)
 
@@ -294,11 +293,13 @@ Findings:
 
 - **Higher-fanout B-tree** — the in-tree `p/nt/bptree/v0` already satisfies the
   `KV` interface (`NewBPTreeN(fanout)`), so it drops into the same
-  `WithStorage` seam. Measured (table above): at fanout 128 it is −37% vs avl
-  at 1M and, crucially, **preserves ordered iteration** — making it the
-  recommended avl replacement for state that needs sorted access (registries,
-  DAOs, gnoswap ticks/positions), while hashmap is reserved for pure-lookup
-  ledgers. Still O(log N) objects, so ~2× hashmap's cost at scale.
+  `WithStorage` seam. Under real metering it is **−20% vs avl at 20k and −12%
+  at 100k** (22.2M / 26.3M against 27.9M / 29.8M — headline table) and,
+  crucially, **preserves ordered iteration** — making it the recommended avl
+  replacement for state that needs sorted access (registries, DAOs, gnoswap
+  ticks/positions), while hashmap is reserved for pure-lookup ledgers. Still
+  O(log N) objects, so its advantage narrows as N grows, where hashmap's stays
+  flat.
 - **Combined get+set traversal in avl.Tree** — halves the constant factor,
   worth doing independently, but does not remove the growth with N.
 - **One giant native map** — a single object, but every op decodes and every
@@ -320,8 +321,28 @@ Findings:
   `*avl.Tree`, `*hashmap.Map`, and `*bptree.BPTree` unchanged. The recommended
   choice is by access pattern — hashmap for pure-lookup ledgers, high-fanout
   bptree where ordered iteration is needed, avl for small/bounded collections.
+- **The seam is not free for tokens that never opt in.** `balances`/
+  `allowances` were inlined `avl.Tree` values in `PrivateLedger`; behind an
+  interface they become separately persisted objects, so every grc20 call pays
+  two extra cold object loads. Measured on `wugnot.txtar` against master:
+
+  | tx | master | with the seam | Δ |
+  |---|---|---|---|
+  | wugnot Deposit | 6,981,080 | 7,294,429 | +313,349 (+4.5%) |
+  | wugnot Transfer | 5,382,444 | 5,696,081 | +313,637 (+5.8%) |
+  | wugnot Withdraw | 8,000,902 | 8,314,309 | +313,407 (+3.9%) |
+  | addpkg importing grc20 | 7,914,971 | 7,950,671 | +35,700 (+0.45%) |
+
+  A control build with concrete `*avl.Tree` fields and no interface costs the
+  same, so this is the pointer indirection, not interface dispatch — it is the
+  price of pluggability and cannot be tuned away while keeping the seam. It is
+  ~0.5% of what a cold transfer at scale saves, but it is charged to every
+  default-avl token, so it is recorded here rather than left implicit.
 - Hashmap-backed state loses key-ordered iteration; consumers that render
-  sorted listings must keep avl or maintain a separate index.
+  sorted listings must keep avl or maintain a separate index. `Iterate` has no
+  cursor either, so a hashmap-backed collection cannot be paginated: a consumer
+  can stop early but not resume, making a full paged listing O(n²). Realms that
+  need paging should stay on avl or bptree.
 - Bucket count is fixed at construction; the default is **4096**, split across
   the two-level directory. Because the array-decode tax is now paid on small
   √-sized levels rather than one flat array, a higher bucket count is cheap and
