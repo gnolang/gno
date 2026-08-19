@@ -115,12 +115,21 @@ func TestNewTokenAcceptsUncomparableStores(cur realm, t *testing.T) {
 	uassert.Equal(t, 1, tok.KnownAccounts())
 }
 
-// The same type, genuinely shared, must still be rejected — the check has to
-// stay useful for uncomparable types, not just fail open.
-func TestNewTokenRejectsSharedUncomparableStore(cur realm, t *testing.T) {
+// Characterization test for the documented gap: a shared store of an
+// uncomparable type is NOT detected, because detecting it would require the
+// constructor to mutate a caller-supplied store. If detection is ever added,
+// this test should start failing — change it to expect ErrSharedStorage.
+func TestSharedUncomparableStoreIsNotDetected(cur realm, t *testing.T) {
 	shared := mapKV{m: map[string]any{}}
-	mustPanicWith(t, ErrSharedStorage, "shared uncomparable store", func() {
-		newTestToken("SharedU", "SHU", 4, 0, cur,
-			WithStorage(func() KV { return shared }))
-	})
+	tok, led := newTestToken("SharedU", "SHU", 4, 0, cur,
+		WithStorage(func() KV { return shared }))
+	urequire.True(t, tok != nil, "shared uncomparable store is currently accepted")
+
+	// The consequence the guard exists to prevent, visible here: one holder,
+	// one allowance, and KnownAccounts counts both.
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	urequire.NoError(t, led.Mint(alice, 1000))
+	urequire.NoError(t, led.Approve(alice, bob, 250))
+	uassert.Equal(t, 2, tok.KnownAccounts(), "miscount is the documented gap")
 }

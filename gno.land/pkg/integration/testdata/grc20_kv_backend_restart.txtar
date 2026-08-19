@@ -35,6 +35,11 @@ stdout 'KVT accounts=3 owner=1000 self=1000'
 # full node restart: store reload, cold object cache, type registry rebuilt
 gnoland restart
 
+# still 2, not 4: the counter is realm state, so this also shows init did not
+# re-run on restart
+gnokey query vm/qeval --data "gno.land/r/demo/kvtok.Backend()"
+stdout 'hashmap x2'
+
 # reads still resolve the *hashmap.Map behind the KV interface
 gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
 stdout 'KVT accounts=3 owner=1000 self=1000'

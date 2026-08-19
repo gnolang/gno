@@ -379,6 +379,18 @@ Findings:
   non-empty store (`ErrNilStorage` / `ErrSharedStorage` /
   `ErrNonEmptyStorage`). The cost is two `Size()` calls on empty stores, once
   per token creation — nothing on the per-call path.
+
+  One gap is deliberate. The shared-store check is an identity comparison, and
+  `KV` is public, so a `KV` whose dynamic type is a struct value holding a map
+  or slice is not comparable — comparing two of them is a runtime panic, which
+  would reject a valid constructor. Such a pair is treated as distinct, so a
+  shared store of an uncomparable type goes undetected. Closing that would mean
+  writing a probe key into a caller-supplied store and trusting `Remove` to
+  undo it: a constructor mutating state it does not own, which also misreports
+  a store whose `Remove` is a no-op and leaves the probe key behind in it. All
+  three in-tree backends are pointers and so are compared exactly; the gap is
+  left open rather than closed by a check with side effects, and
+  `TestSharedUncomparableStoreIsNotDetected` pins the boundary.
 - Persistence is covered end to end by
   `gno.land/pkg/integration/testdata/grc20_kv_backend_restart.txtar`: a
   hashmap-backed ledger is read *and written* across a `gnoland restart` by a

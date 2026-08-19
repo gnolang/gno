@@ -152,39 +152,27 @@ func (cfg ledgerConfig) newLedgerStores() (balances, allowances KV) {
 	return balances, allowances
 }
 
-// storeProbeKey is written and immediately removed to tell two stores apart
-// when identity comparison cannot. It is not a possible ledger key: balance
-// keys are bech32 addresses and allowance keys are "owner:spender".
-const storeProbeKey = "\x00grc20:store-probe"
-
-// sameStore reports whether a and b are the same underlying store.
+// sameStore reports whether a and b are certainly the same underlying store.
 //
 // KV is a public interface, so its dynamic type need not be comparable: a KV
 // implemented as a struct value holding a map or slice makes `a == b` a
-// runtime panic. Identity is tried first — it is exact, free, and covers every
-// in-tree backend, all of which are pointers — and only when it cannot answer
-// does this fall back to writing a probe key into one store and looking for it
-// in the other. The fallback touches the stores, so it is deliberately not on
-// the common path.
-func sameStore(a, b KV) bool {
-	if same, conclusive := sameByIdentity(a, b); conclusive {
-		return same
-	}
-	a.Set(storeProbeKey, true)
-	shared := b.Has(storeProbeKey)
-	a.Remove(storeProbeKey)
-	return shared
-}
-
-// sameByIdentity compares a and b, reporting conclusive=false when their
-// dynamic type is not comparable (the comparison panics).
-func sameByIdentity(a, b KV) (same, conclusive bool) {
+// runtime panic, which would fail construction that is otherwise valid. Such a
+// pair is reported as distinct.
+//
+// That leaves one gap: a constructor that returns one shared store of an
+// uncomparable type is not detected, and the ledger it builds will count
+// allowance rows as holders. Detecting it would mean writing a probe key into
+// a caller-supplied store and relying on Remove to undo it — a constructor
+// that mutates state it does not own, and that misreports a store whose Remove
+// is a no-op. Every in-tree backend is a pointer and so is compared exactly;
+// the gap is left open rather than closed by a check with side effects.
+func sameStore(a, b KV) (same bool) {
 	defer func() {
-		if recover() != nil {
-			same, conclusive = false, false
+		if recover() != nil { // uncomparable dynamic type
+			same = false
 		}
 	}()
-	return a == b, true
+	return a == b
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the
