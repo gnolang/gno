@@ -20,8 +20,7 @@ runs, by a deterministic node count.
 The count `checkTypeExpansionBound` computes is also reported to the keeper, which
 charges gas for it — the cap bounds one package, the charge bounds a transaction.
 
-Division of labour with `Go2Gno` (which owns completeness, not cost): #6059.
-
+Division of labour with `Go2Gno` (completeness, not cost): #6059.
 ## Decision: the budget bounds the per-package TOTAL, not the largest type
 
 `validType` runs once per declared named type, so a transaction pays the **sum**.
@@ -50,50 +49,53 @@ Honest code is unaffected: the largest per-package total in real code is 181, ov
 all stdlibs and examples including test files, pinned by
 `TestHonestTypeExpansionUnderBudget` — ~110x headroom.
 
-### Making the bound hold per transaction
+### Making the bound hold per transaction, not just per package
 
 A per-package cap does not bound a transaction, in two ways.
+**Multiple messages.** `Tx.Msgs` is unbounded (`ValidateBasic` caps gas, not the
+message count) and baseapp dispatches each to the handler, so N messages each pay
+the budget in full — at the old 1_000_000, ~1400 near-budget packages in a 1MB tx.
+Closed by the budget above: per-message CPU is now under per-message gas.
 
-**Multiple messages.** `Tx.Msgs` is unbounded — `ValidateBasic` caps gas, not the
-message count — and baseapp dispatches every message to the handler, so N
-`MsgAddPackage`/`MsgRun` messages each pay the budget in full. At the old
-1_000_000 that was ~1400 near-budget packages in a 1MB tx ≈ tens of seconds of
-walk. Closed by the budget above: per-message CPU is now under per-message gas.
-
-**Transitive dependencies.** One message re-type-checks its whole closure, and
-those dependencies' bytes were paid for by *earlier* transactions. Measured: a
-55-byte package importing the tip of a 30-deep chain of near-budget packages pulls
-in 321,070 closure nodes against 68,750 gas of byte charges — 117x unpriced. Byte
-parity cannot fix this.
+**Transitive dependencies.** One message re-type-checks its whole closure, whose
+bytes were paid for by *earlier* transactions. Measured: a 55-byte package
+importing the tip of a 30-deep chain pulls in 321,070 closure nodes against 68,750
+gas of byte charges — 117x unpriced. Byte parity cannot fix this.
 
 Closed by charging for the count the guard already computes — exactly, linearly,
-and outside `go/types`, so no fork is involved. It is reported via
-`TypeCheckOptions.ExpansionNodes`; the keeper charges `nodes x 25` gas (1 gas ≈
-1ns, walk ~25ns/node). Closure cost is then tied to this transaction's gas, which
-`GasWanted` and `MaxBlockMaxGas` already bound — no new per-tx or per-block
-counter, and no cap needing its own compatibility argument.
+and outside `go/types`, so no fork is involved. It goes to
+`TypeCheckOptions.ChargeExpansion` once per package and **before** that package is
+walked; the keeper's callback consumes `nodes x 25` gas (1 gas ≈ 1ns, walk
+~25ns/node). Closure cost is then tied to this tx's `GasWanted`, and the ante
+handler rejects any `GasWanted` above `Block.MaxGas`, so one tx cannot exceed the
+block ceiling.
 
-Two details that matter:
+- **Per package, not once at the end.** The gas meter panics on out-of-gas and
+  `go/types` re-panics anything that is not its own `bailout`, so the abort
+  propagates out of `cfg.Check` *before* the remaining dependencies are walked.
+  Charging once at the end would bill for CPU already spent, preventing nothing.
+  `TestExpansionChargedPerPackage` pins one charge per package plus the
+  mid-closure abort.
+- **A callback, not a gas meter**, so gnovm keeps no tm2 dependency —
+  `gnovm/pkg/parser`'s `ParseFile2` does the same for per-token gas.
+- **Rejected packages are not charged** — their total is the cost *avoided*.
+  Charging it prices prevented work and turns the informative rejection into an
+  out-of-gas, which the first implementation did: `addpkg_typecheck_fanout.txtar`
+  reported 3.8e14 gas instead of the expected message.
+  `TestExpansionNotChargedWhenRejected` pins the fix.
+- **The cap stays**: the rate is calibrated in ns/node on one machine and can be
+  wrong on another, whereas the cap cannot, so a mis-estimated rate leaves the
+  worst package under-charged but still *bounded*.
 
-- **Only accepted packages are counted.** Rejecting stops `go/types`, so a
-  rejected total is the cost *avoided*; charging it prices prevented work and
-  turns the informative rejection into an out-of-gas. The first implementation did
-  exactly that — `addpkg_typecheck_fanout.txtar` reported 3.8e14 gas instead of
-  the expected message. `TestExpansionNodesZeroWhenRejected` pins the fix.
-- **The cap stays.** The rate is calibrated in ns/node on one machine and can be
-  wrong on another; the cap cannot. Both together mean a mis-estimated rate leaves
-  the worst package under-charged but still *bounded*.
-
-No gas fixture needed re-pinning (honest totals are small — largest 181, ~4.5k
-gas — and `TestTestdata` passes unchanged). The guard scores test files that
-`ProdOnly` excludes from `go/types`, so the charge is mildly conservative: it can
-over-charge, never under. The rate is a constant rather than a `Params` field only
-because `Params` is amino-generated and adding a field needs `go generate`, which
-AGENTS.md keeps out of ordinary PRs; it is a price and belongs there eventually.
+No gas fixture needed re-pinning (honest totals are small — largest 181, ~4.5k gas
+— and `TestTestdata` passes unchanged). The guard scores test files `ProdOnly`
+excludes, so the charge can over-charge, never under. The rate is a constant, not a
+`Params` field, only because `Params` is amino-generated and adding a field needs
+`go generate`, which AGENTS.md keeps out of ordinary PRs.
 
 ### Alternatives weighed
 
-**Metering inside `go/types` instead of capping.** Rejected: `go/types` is stdlib
+**Metering inside `go/types`.** Rejected: `go/types` is stdlib
 here, not a fork, so metering `validType` means forking a large, fast-moving
 package and re-syncing it every toolchain bump, and the work spans several
 internal passes with no single hook point. Note this is *not* the same as charging
@@ -101,15 +103,13 @@ gas for the count this guard already computes — that happens outside `go/types
 needs no fork, and is the recommended fix for the transitive-dependency residual
 above.
 
-**A governance `Params` value rather than a constant.** Rejected: a param adds two
-bricking modes a constant cannot have (set to 1, all deploys fail; set huge, the
-DoS reopens), and changing the constant is a consensus change requiring a binary
-upgrade — the right ceremony for a safety rule. But note the budget is now
-*calibrated against* `PreprocessGasPerByte`, and that coupling is one-directional
-and unenforced: raising the param only makes the guard more conservative (more gas
-per byte for the same CPU), whereas **lowering** it breaks parity, and `Validate`
-only requires it to be positive. If that param ever drops, this budget must drop
-with it.
+**A governance `Params` value for the budget.** Rejected: a param adds two bricking
+modes a constant cannot (set to 1, all deploys fail; set huge, the DoS reopens),
+and changing a constant is a consensus change needing a binary upgrade — the right
+ceremony for a safety rule. Note the budget is *calibrated against*
+`PreprocessGasPerByte`, one-directionally and unenforced: raising that param only
+makes the guard more conservative, whereas **lowering** it breaks parity and
+`Validate` only requires it positive. If it drops, this budget must drop too.
 
 ## Decision: stdlib types are a bounded leaf
 
@@ -196,5 +196,5 @@ counted in `cost()` first.
 `go/types` diagnostics, so a filetest tripping a guard must pin two directives
 (`// TypeCheckError:` and `// Error:`) even though preprocess only adds an
 unrelated secondary error. Deploy stops on any type-check error, so this is
-filetest-harness-only. Splitting them off needs a deliberate definition of the
-unsupported-Gno subset, against ~500 filetests that pin both — not a bolt-on.
+filetest-harness-only, and splitting them off needs a deliberate definition of the
+unsupported-Gno subset against ~500 filetests that pin both.

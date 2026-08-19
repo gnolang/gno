@@ -552,8 +552,12 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 // gnovm/adr/pr5826_typecheck_dos_guards.md.
 const typeExpansionGasPerNode = 25
 
-// chargeTypeExpansionGas charges for the type-expansion work a type check did,
-// across the entry package AND its whole transitive closure.
+// typeExpansionCharger returns the per-package charge callback handed to gnovm.
+// It is called once per package, with the node count go/types is about to walk,
+// BEFORE that walk runs — so an out-of-gas aborts the type check instead of
+// billing for CPU already spent, and the rest of the dependency closure is never
+// walked. The gas meter panics on out-of-gas and go/types re-panics anything that
+// is not its own bailout, so the abort propagates.
 //
 // chargePreprocessGas prices source bytes, which is the wrong dimension for this
 // walk: one extra `type tN struct{ a, b [0]tN-1 }` line is ~31 bytes and doubles
@@ -563,12 +567,14 @@ const typeExpansionGasPerNode = 25
 // would otherwise trigger arbitrarily much unmetered CPU. Charging the computed
 // count ties that work to this tx's gas, which GasWanted and the block gas limit
 // already bound.
-func chargeTypeExpansionGas(ctx sdk.Context, nodes uint64, descriptor string) {
-	if nodes == 0 {
-		return
+func typeExpansionCharger(ctx sdk.Context, descriptor string) func(uint64) {
+	return func(nodes uint64) {
+		if nodes == 0 {
+			return
+		}
+		ctx.GasMeter().ConsumeGas(
+			overflow.Mulp(typeExpansionGasPerNode, int64(nodes)), descriptor)
 	}
-	ctx.GasMeter().ConsumeGas(
-		overflow.Mulp(typeExpansionGasPerNode, int64(nodes)), descriptor)
 }
 
 // hasProdGnoFile reports whether mpkg contains at least one production
@@ -701,13 +707,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	params := vm.GetParams(ctx)
 	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
-	var expNodes uint64
-	opts.ExpansionNodes = &expNodes
+	opts.ChargeExpansion = typeExpansionCharger(ctx, "AddPackageTypeExpansion")
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
-	// Charged unconditionally: gnovm only reports nodes for packages it ACCEPTED,
-	// i.e. work go/types actually performed. A rejected package reports zero, so
-	// its informative error survives instead of becoming an out-of-gas.
-	chargeTypeExpansionGas(ctx, expNodes, "AddPackageTypeExpansion")
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -1115,7 +1116,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
-	var expNodes uint64
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter: gnostore,
 		Mode:   gno.TCLatestRelaxed,
@@ -1123,11 +1123,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
 		// test files, so there is nothing for the test passes to check; being
 		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly:       true,
-		ExpansionNodes: &expNodes,
+		ProdOnly:        true,
+		ChargeExpansion: typeExpansionCharger(ctx, "RunTypeExpansion"),
 	})
-	// See AddPackage for why this is unconditional.
-	chargeTypeExpansionGas(ctx, expNodes, "RunTypeExpansion")
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

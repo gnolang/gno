@@ -178,17 +178,23 @@ type TypeCheckOptions struct {
 	// again.
 	Cache TypeCheckCache
 
-	// ExpansionNodes, if non-nil, receives the total type-expansion node count
-	// of every package this call type-checked — the entry package plus its whole
-	// transitive closure. It is the number go/types' validType walk would visit,
-	// computed linearly by the pre-type-check guard (see typeExpansionBudget).
+	// ChargeExpansion, if non-nil, is called with a package's type-expansion node
+	// count — the number go/types' validType walk is about to visit — once per
+	// package type-checked, BEFORE that walk runs. Rejected packages are not
+	// reported: rejecting stops the walk, so their count is cost avoided.
 	//
-	// The chain charges gas for it. The per-package budget bounds each package,
-	// but a transaction re-checks every transitive dependency, and those bytes
-	// were paid for by earlier transactions — so without pricing the closure a
-	// tiny tx can trigger arbitrarily much work. Set even when an error is
-	// returned, so a rejected package still pays for the counting.
-	ExpansionNodes *uint64
+	// The chain passes a callback that consumes gas, which is what bounds the
+	// whole transitive closure. A per-package cap cannot: one MsgAddPackage
+	// re-type-checks its entire closure, and those dependencies' source bytes were
+	// paid for by EARLIER transactions. Charging per package rather than once at
+	// the end matters, because the gas meter panics on out-of-gas and that abort
+	// must land BEFORE the remaining dependencies are walked, not after.
+	//
+	// A callback is used rather than passing a gas meter so gnovm keeps no
+	// dependency on tm2; gnovm/pkg/parser's ParseFile2 uses the same pattern.
+	// It may panic to abort the type check — go/types re-panics anything that is
+	// not its own bailout, so the abort propagates out of cfg.Check.
+	ChargeExpansion func(nodes uint64)
 
 	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
 	// After TypeCheckMemPackage returns, it contains the file position
@@ -238,6 +244,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
 		expCache:  newExpansionPkgCache(),
+		chargeExp: opts.ChargeExpansion,
 		fset:      opts.Fset,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
@@ -271,9 +278,6 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		wtests = new(bool)
 	}
 	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
-	if opts.ExpansionNodes != nil {
-		*opts.ExpansionNodes = gimp.expCache.nodes
-	}
 	return
 }
 
@@ -300,10 +304,12 @@ type gnoImporter struct {
 	// nested type checks, so each dependency is parsed once for the guard
 	// instead of once per nesting level. See expansionPkgCache.
 	expCache *expansionPkgCache
-	fset     *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
-	cfg      *types.Config
-	errors   []error  // there may be many for a single import
-	stack    []string // stack of pkgpaths for cyclic import detection
+	// chargeExp, if set, prices each package's expansion before it is walked.
+	chargeExp func(nodes uint64)
+	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
+	cfg       *types.Config
+	errors    []error  // there may be many for a single import
+	stack     []string // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -548,8 +554,15 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// boundaries (validType re-expands imported types without memoizing), so a
 	// fan-out split over several packages is still caught. See
 	// checkTypeExpansionBoundImports.
-	if errs = checkTypeExpansionBoundImports(gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache); errs != nil {
+	expNodes, errs := checkTypeExpansionBoundImports(
+		gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache)
+	if errs != nil {
 		return nil, errs
+	}
+	// Charge before the walk, so an out-of-gas aborts here rather than after the
+	// CPU is already spent — and so the rest of the closure is never walked.
+	if gimp.chargeExp != nil {
+		gimp.chargeExp(expNodes)
 	}
 
 	// STEP 3: Prepare for Go type-checking.

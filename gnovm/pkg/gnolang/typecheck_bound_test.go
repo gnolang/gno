@@ -393,7 +393,7 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 
 	// Deploying p5 must be rejected: the imported chain doubles across packages.
 	resolve := makeBoundResolver(t, fset, pkgs)
-	err := checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/p5",
+	_, err := checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/p5",
 		resolve("gno.land/r/foobar/p5"), resolve, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "denial-of-service")
@@ -403,7 +403,7 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 		"gno.land/r/foobar/dep": "package dep\ntype T struct{ a, b int }\n",
 		"gno.land/r/foobar/u":   "package u\nimport \"gno.land/r/foobar/dep\"\ntype U struct{ a, b, c, d [0]dep.T }\n",
 	})
-	err = checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/u",
+	_, err = checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/u",
 		okResolve("gno.land/r/foobar/u"), okResolve, nil)
 	assert.NoError(t, err)
 }
@@ -486,7 +486,8 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 	fset := token.NewFileSet()
 	resolve := makeBoundResolver(t, fset, pkgs)
 	rejects := func(pkgPath string, cache *expansionPkgCache) bool {
-		return checkTypeExpansionBoundImports(fset, pkgPath, resolve(pkgPath), resolve, cache) != nil
+		_, err := checkTypeExpansionBoundImports(fset, pkgPath, resolve(pkgPath), resolve, cache)
+		return err != nil
 	}
 
 	paths := []string{
@@ -559,16 +560,17 @@ func nearBudgetPkgSrc(name, imp string) string {
 	return b.String()
 }
 
-// TestExpansionNodesCoversClosure pins what the chain charges gas for. The
+// TestExpansionChargedPerPackage pins what the chain charges gas for. The
 // per-package budget bounds each package, but one transaction re-type-checks
 // every transitive dependency, and those dependencies' source bytes were paid for
 // by EARLIER transactions — so a tiny package importing a large pre-deployed
-// closure would otherwise trigger arbitrarily much unmetered work. The reported
-// count must therefore cover the whole closure, not just the entry package.
-func TestExpansionNodesCoversClosure(t *testing.T) {
+// closure would otherwise trigger arbitrarily much unmetered work. Every package
+// in the closure must therefore be charged, individually, before it is walked.
+func TestExpansionChargedPerPackage(t *testing.T) {
 	t.Parallel()
 
-	nodesFor := func(chainLen int) uint64 {
+	// charge records one call per package type-checked.
+	run := func(chainLen int, abortAfter int) (calls []uint64, aborted bool) {
 		var pkgs []*std.MemPackage
 		for k := range chainLen {
 			imp := ""
@@ -581,7 +583,6 @@ func TestExpansionNodesCoversClosure(t *testing.T) {
 				Files: []*std.MemFile{{Name: "p.gno", Body: nearBudgetPkgSrc(name, imp)}},
 			})
 		}
-		// A deliberately tiny package importing only the tip of the chain.
 		tip := fmt.Sprintf("gno.land/p/demo/p%d", chainLen-1)
 		tiny := &std.MemPackage{
 			Type: MPUserProd, Name: "tiny", Path: "gno.land/p/demo/tiny",
@@ -589,30 +590,53 @@ func TestExpansionNodesCoversClosure(t *testing.T) {
 				"package tiny\nimport %q\ntype X %s.T\n", tip, path.Base(tip))}},
 		}
 		getter := mockPackageGetter(pkgs)
-		var nodes uint64
+
+		defer func() {
+			if r := recover(); r != nil {
+				aborted = true
+			}
+		}()
 		_, err := TypeCheckMemPackage(tiny, TypeCheckOptions{
-			Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
-			ProdOnly: true, ExpansionNodes: &nodes,
+			Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed, ProdOnly: true,
+			ChargeExpansion: func(n uint64) {
+				calls = append(calls, n)
+				if abortAfter > 0 && len(calls) >= abortAfter {
+					// Stand in for the gas meter's out-of-gas panic.
+					panic("out of gas")
+				}
+			},
 		})
 		require.NoError(t, err)
-		return nodes
+		return calls, false
 	}
 
-	short, long := nodesFor(4), nodesFor(12)
-	t.Logf("closure nodes: 4-deep=%d  12-deep=%d", short, long)
+	// Every package in the closure is charged, not just the entry.
+	calls, _ := run(6, 0)
+	t.Logf("closure of 6 deps + entry -> %d charges, total %d nodes", len(calls), func() (s uint64) {
+		for _, c := range calls {
+			s += c
+		}
+		return
+	}())
+	// entry + 6 dependencies + the injected .gnobuiltins shim, which is a real
+	// package go/types type-checks and so is legitimately part of the closure.
+	assert.Len(t, calls, 8, "one charge per package type-checked, dependencies included")
+	for i, n := range calls {
+		assert.NotZero(t, n, "charge %d must be non-zero", i)
+	}
 
-	// The entry package is a few lines, so anything proportional to the closure
-	// can only come from the dependencies.
-	assert.Greater(t, long, short*2,
-		"reported nodes must grow with the dependency closure, else a tiny package "+
-			"importing a large pre-deployed chain goes unpriced")
+	// An out-of-gas mid-closure must abort, leaving the rest unwalked.
+	calls, aborted := run(20, 3)
+	assert.True(t, aborted, "a panicking charge must propagate out of go/types")
+	assert.Len(t, calls, 3,
+		"the abort must stop the walk mid-closure, not after all 22 packages")
 }
 
-// TestExpansionNodesZeroWhenRejected pins that a REJECTED package reports no
-// chargeable nodes. Rejecting stops go/types from running, so the count is the
-// cost avoided rather than incurred; charging it would price work the guard just
-// prevented and would replace the informative rejection with an out-of-gas error.
-func TestExpansionNodesZeroWhenRejected(t *testing.T) {
+// TestExpansionNotChargedWhenRejected pins that a REJECTED package is not
+// charged. Rejecting stops go/types, so its count is the cost avoided; charging
+// it would price work the guard just prevented, and would replace the informative
+// rejection with an out-of-gas error.
+func TestExpansionNotChargedWhenRejected(t *testing.T) {
 	t.Parallel()
 
 	mpkg := &std.MemPackage{
@@ -620,12 +644,12 @@ func TestExpansionNodesZeroWhenRejected(t *testing.T) {
 		Files: []*std.MemFile{{Name: "x.gno", Body: fanOutSrc(40)}},
 	}
 	getter := mockPackageGetter{}
-	var nodes uint64
+	var charged []uint64
 	_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
-		Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
-		ProdOnly: true, ExpansionNodes: &nodes,
+		Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed, ProdOnly: true,
+		ChargeExpansion: func(n uint64) { charged = append(charged, n) },
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "denial-of-service")
-	assert.Zero(t, nodes, "a rejected package must not be charged for a walk that never ran")
+	assert.Empty(t, charged, "a rejected package must not be charged for a walk that never ran")
 }
