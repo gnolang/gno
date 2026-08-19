@@ -363,26 +363,45 @@ func DefaultSigVerificationGasConsumer(
 		var multisignature multisig.Multisignature
 		amino.MustUnmarshal(sig, &multisignature)
 
-		consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
-		return sdk.Result{}
+		return consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
 
 	default:
 		return abciResult(std.ErrInvalidPubKey(fmt.Sprintf("unrecognized public key type: %T", pubkey)))
 	}
 }
 
+// consumeMultisignatureVerificationGas consumes gas for each signed subkey of
+// pubkey.
+//
+// The returned result MUST be checked by the caller: it is what rejects subkeys
+// whose type is not recognized as a signing key type. Dropping it would let a
+// key type that VerifyBytes handles but this function does not (e.g. a mock key
+// with trivially forgeable signatures) reach PubKeyMultisigThreshold.VerifyBytes
+// as a constituent key, forging the multisig signature as a whole.
 func consumeMultisignatureVerificationGas(meter store.GasMeter,
 	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
 	params Params,
-) {
+) sdk.Result {
 	size := sig.BitArray.Size()
+	if size != len(pubkey.PubKeys) {
+		return abciResult(std.ErrInvalidPubKey(fmt.Sprintf(
+			"multisignature bit array size %d does not match the %d constituent keys", size, len(pubkey.PubKeys))))
+	}
+	if nSigs := sig.BitArray.NumTrueBitsBefore(size); nSigs > len(sig.Sigs) {
+		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+			"multisignature has %d set bits but only %d signatures", nSigs, len(sig.Sigs))))
+	}
+
 	sigIndex := 0
 	for i := range size {
 		if sig.BitArray.GetIndex(i) {
-			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
+			if res := DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params); !res.IsOK() {
+				return res
+			}
 			sigIndex++
 		}
 	}
+	return sdk.Result{}
 }
 
 // DeductFees deducts fees from the given account.

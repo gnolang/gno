@@ -6,8 +6,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 
+	// Register the key types which may appear in a std.Signature with the global
+	// amino codec.
+	//
+	// Do NOT add tm2/pkg/crypto/mock here: its signatures are trivially
+	// forgeable, and registering it makes it decodable as a constituent key of a
+	// multisig.PubKeyMultisigThreshold anywhere this package is linked in.
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	_ "github.com/gnolang/gno/tm2/pkg/crypto/mock"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
