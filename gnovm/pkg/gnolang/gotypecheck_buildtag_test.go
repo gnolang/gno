@@ -46,17 +46,17 @@ func TestTypeCheckMemPackage_BuildTagCannotRaisePin(t *testing.T) {
 
 		// Identical package, plus one comment line. Must stay rejected.
 		err := tcBuildTagBody(t, "//go:build go1.22\n\npackage z\nfunc F() { for range 10 {} }\n")
-		assert.Error(t, err,
+		assert.ErrorContains(t, err, "go1.22",
 			"a //go:build line must not raise the pinned GoVersion: the verdict "+
 				"for a submitted package must not be settable by the submitter")
 
 		err = tcBuildTagBody(t, "//go:build go1.21\n\npackage z\nfunc F() int { return min(1, 2) }\n")
-		assert.Error(t, err,
+		assert.ErrorContains(t, err, "go1.21",
 			"a //go:build line must not unlock go1.21 builtins the VM cannot run")
 
 		err = tcBuildTagBody(t, "//go:build go1.23\n\npackage z\n"+
 			"func F(p func(func(int) bool)) { for range p {} }\n")
-		assert.Error(t, err,
+		assert.ErrorContains(t, err, "go1.23",
 			"a //go:build line must not unlock range-over-func")
 	})
 
@@ -112,7 +112,7 @@ func TestTypeCheckMemPackage_BuildTagOnImport(t *testing.T) {
 		TestGetter: getter,
 		Mode:       TCLatestRelaxed,
 	})
-	assert.Error(t, err,
+	assert.ErrorContains(t, err, "go1.22",
 		"a //go:build line in an imported package must not raise the pinned "+
 			"GoVersion for that import")
 }
