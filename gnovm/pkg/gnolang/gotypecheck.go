@@ -513,10 +513,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// unmetered at deploy time (VMKeeper.AddPackage / MsgRun) and cannot be
 	// interrupted.
 	//
-	// First reject go1.18 generics syntax (type parameters and interface type
-	// sets). Gno targets go1.17 and does not support them, but go/types would
-	// still walk such types — and their fan-out drives validType exponential.
-	// See checkNoUncountableGenerics.
+	// First reject the go1.18 constructs cost() cannot model (type parameters,
+	// `|`, `~`): go/types would otherwise form and walk such types, and their
+	// fan-out is what drives validType exponential. This is a cost guard, not a
+	// generics gate — see checkNoUncountableGenerics.
 	if errs = checkNoUncountableGenerics(gofset, allgofs); errs != nil {
 		return nil, errs
 	}

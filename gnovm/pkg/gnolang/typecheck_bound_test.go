@@ -240,17 +240,17 @@ func TestCheckNoUncountableGenerics(t *testing.T) {
 
 		// go1.18 generics syntax that must be rejected.
 		{"generic type declaration rejected", "package x\ntype W[P any] struct{ a P }\n",
-			"generic type declarations are not supported (Gno targets go1.17)"},
+			"generic type declarations are not supported"},
 		{"generic function rejected", "package x\nfunc F[T any](x T) T { return x }\n",
-			"generic functions are not supported (Gno targets go1.17)"},
+			"generic functions are not supported"},
 		{"generic fan-out (hole #1) rejected", genericFanOutSrc(40),
-			"generic type declarations are not supported (Gno targets go1.17)"},
+			"generic type declarations are not supported"},
 		{"interface type union rejected", "package x\ntype N interface{ int | string }\n",
-			"interface type unions are not supported (Gno targets go1.17)"},
+			"interface type unions are not supported"},
 		{"interface approximation rejected", "package x\ntype N interface{ ~int }\n",
-			"interface approximation (~) terms are not supported (Gno targets go1.17)"},
+			"interface approximation (~) terms are not supported"},
 		{"union fan-out (hole #2) rejected", unionFanOutSrc(40),
-			"interface type unions are not supported (Gno targets go1.17)"},
+			"interface type unions are not supported"},
 	}
 
 	for _, tc := range tt {

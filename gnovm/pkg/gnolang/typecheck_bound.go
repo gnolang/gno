@@ -515,7 +515,7 @@ func checkNoUncountableGenerics(fset *token.FileSet, gofs []*ast.File) error {
 		})
 	}
 	if off.IsValid() {
-		return fmt.Errorf("%s: %s are not supported (Gno targets go1.17)",
+		return fmt.Errorf("%s: %s are not supported",
 			fset.Position(off), what)
 	}
 	return nil

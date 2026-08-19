@@ -15,4 +15,4 @@ func main() {}
 // parse_tilde_iface.gno:4:2: tilde operator is not permitted
 
 // TypeCheckError:
-// main/parse_tilde_iface.gno:4:2: interface approximation (~) terms are not supported (Gno targets go1.17)
+// main/parse_tilde_iface.gno:4:2: interface approximation (~) terms are not supported
