@@ -6,7 +6,7 @@
 gnoland start
 
 ## addpkg: a build tag must not unlock go1.22 syntax (range-over-int).
-! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
 stderr 'go1\.22'
 
@@ -18,7 +18,7 @@ gnokey maketx addpkg -pkgdir $WORK/future -pkgpath gno.land/r/$test1_user_addr/f
 stdout 'OK!'
 
 ## maketx run: same vector, different entry point (TCLatestRelaxed mode).
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1 $WORK/script/script.gno
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1 $WORK/script/script.gno
 
 stderr 'go1\.22'
 
