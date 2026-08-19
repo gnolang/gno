@@ -326,18 +326,21 @@ Findings:
   interface they become separately persisted objects, so every grc20 call pays
   two extra cold object loads. Measured on `wugnot.txtar` against master:
 
-  | tx | master | with the seam | Δ |
+  | tx | master | this branch | Δ |
   |---|---|---|---|
-  | wugnot Deposit | 6,981,080 | 7,294,429 | +313,349 (+4.5%) |
-  | wugnot Transfer | 5,382,444 | 5,696,081 | +313,637 (+5.8%) |
-  | wugnot Withdraw | 8,000,902 | 8,314,309 | +313,407 (+3.9%) |
-  | addpkg importing grc20 | 7,914,971 | 7,950,671 | +35,700 (+0.45%) |
+  | wugnot Deposit | 6,981,080 | 7,331,636 | +350,556 (+5.0%) |
+  | wugnot Transfer | 5,382,444 | 5,732,382 | +349,938 (+6.5%) |
+  | wugnot Withdraw | 8,000,902 | 8,347,817 | +346,915 (+4.3%) |
+  | addpkg importing grc20 | 7,914,971 | 8,000,571 | +85,600 (+1.1%) |
 
-  A control build with concrete `*avl.Tree` fields and no interface costs the
-  same, so this is the pointer indirection, not interface dispatch — it is the
-  price of pluggability and cannot be tuned away while keeping the seam. It is
-  ~0.5% of what a cold transfer at scale saves, but it is charged to every
-  default-avl token, so it is recorded here rather than left implicit.
+  Of the per-call delta, ~313k is the indirection itself: a control build with
+  concrete `*avl.Tree` fields and no interface measured the same, so it is the
+  extra objects rather than interface dispatch, and it cannot be tuned away
+  while keeping the seam. The remaining ~37k is the constructor guards and the
+  package source they add, which is charged per call because the package block
+  is read cold. The whole thing is ~3% of what a cold transfer at scale saves,
+  but it is charged to every default-avl token, so it is recorded here rather
+  than left implicit.
 - Hashmap-backed state loses key-ordered iteration; consumers that render
   sorted listings must keep avl or maintain a separate index. `Iterate` has no
   cursor either, so a hashmap-backed collection cannot be paginated: a consumer

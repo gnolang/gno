@@ -143,13 +143,48 @@ func (cfg ledgerConfig) newLedgerStores() (balances, allowances KV) {
 	if balances == nil || allowances == nil {
 		panic(ErrNilStorage)
 	}
-	if balances == allowances {
+	if sameStore(balances, allowances) {
 		panic(ErrSharedStorage)
 	}
 	if balances.Size() != 0 || allowances.Size() != 0 {
 		panic(ErrNonEmptyStorage)
 	}
 	return balances, allowances
+}
+
+// storeProbeKey is written and immediately removed to tell two stores apart
+// when identity comparison cannot. It is not a possible ledger key: balance
+// keys are bech32 addresses and allowance keys are "owner:spender".
+const storeProbeKey = "\x00grc20:store-probe"
+
+// sameStore reports whether a and b are the same underlying store.
+//
+// KV is a public interface, so its dynamic type need not be comparable: a KV
+// implemented as a struct value holding a map or slice makes `a == b` a
+// runtime panic. Identity is tried first — it is exact, free, and covers every
+// in-tree backend, all of which are pointers — and only when it cannot answer
+// does this fall back to writing a probe key into one store and looking for it
+// in the other. The fallback touches the stores, so it is deliberately not on
+// the common path.
+func sameStore(a, b KV) bool {
+	if same, conclusive := sameByIdentity(a, b); conclusive {
+		return same
+	}
+	a.Set(storeProbeKey, true)
+	shared := b.Has(storeProbeKey)
+	a.Remove(storeProbeKey)
+	return shared
+}
+
+// sameByIdentity compares a and b, reporting conclusive=false when their
+// dynamic type is not comparable (the comparison panics).
+func sameByIdentity(a, b KV) (same, conclusive bool) {
+	defer func() {
+		if recover() != nil {
+			same, conclusive = false, false
+		}
+	}()
+	return a == b, true
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the

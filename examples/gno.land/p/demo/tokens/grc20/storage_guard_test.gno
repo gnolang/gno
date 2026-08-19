@@ -92,3 +92,35 @@ func TestNewTokenAcceptsFreshStores(cur realm, t *testing.T) {
 	uassert.Equal(t, int64(250), tok.Allowance(alice, bob))
 	uassert.Equal(t, int64(1000), tok.TotalSupply())
 }
+
+// mapKV is a KV whose dynamic type is a struct value holding a map, so two
+// such interface values are uncomparable. The shared-store check must not turn
+// that into a runtime panic — an uncomparable pair is distinct by definition.
+type mapKV struct{ m map[string]any }
+
+func (k mapKV) Get(key string) any            { return k.m[key] }
+func (k mapKV) Has(key string) bool           { _, ok := k.m[key]; return ok }
+func (k mapKV) Size() int                     { return len(k.m) }
+func (k mapKV) Set(key string, v any) bool    { _, u := k.m[key]; k.m[key] = v; return u }
+func (k mapKV) Remove(key string) (any, bool) { v, ok := k.m[key]; delete(k.m, key); return v, ok }
+
+func TestNewTokenAcceptsUncomparableStores(cur realm, t *testing.T) {
+	tok, led := newTestToken("Uncmp", "UNCMP", 4, 0, cur,
+		WithStorage(func() KV { return mapKV{m: map[string]any{}} }))
+	urequire.True(t, tok != nil, "uncomparable KV should be accepted")
+
+	alice := testutils.TestAddress("alice")
+	urequire.NoError(t, led.Mint(alice, 500))
+	uassert.Equal(t, int64(500), tok.BalanceOf(alice))
+	uassert.Equal(t, 1, tok.KnownAccounts())
+}
+
+// The same type, genuinely shared, must still be rejected — the check has to
+// stay useful for uncomparable types, not just fail open.
+func TestNewTokenRejectsSharedUncomparableStore(cur realm, t *testing.T) {
+	shared := mapKV{m: map[string]any{}}
+	mustPanicWith(t, ErrSharedStorage, "shared uncomparable store", func() {
+		newTestToken("SharedU", "SHU", 4, 0, cur,
+			WithStorage(func() KV { return shared }))
+	})
+}
