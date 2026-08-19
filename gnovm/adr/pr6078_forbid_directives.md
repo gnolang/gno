@@ -69,7 +69,10 @@ written in Gno stays valid.
 
 The directive rule mirrors the unexported `go/ast.isDirective`, **copied rather
 than called**: this decides whether a package is accepted on chain, so it must
-not shift when the toolchain's own copy evolves. Requiring no space after `//`
+not shift when the toolchain's own copy evolves. A test pins the copy against
+Go's own behaviour (observable through `CommentGroup.Text()`, which drops
+directives), so a future toolchain change surfaces as a failure to be decided on
+rather than as silent drift. Requiring no space after `//`
 is what keeps an ordinary `// see: below` comment from counting. The predicate
 is a pure function of the file bytes, as a consensus check must be.
 

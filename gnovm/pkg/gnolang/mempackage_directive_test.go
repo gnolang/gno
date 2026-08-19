@@ -198,7 +198,7 @@ func validateBody(t *testing.T, mptype MemPackageType, pkgPath, body string) err
 	})
 }
 
-func TestValidateMemPackage_BuildConstraint(t *testing.T) {
+func TestValidateMemPackage_Directives(t *testing.T) {
 	t.Parallel()
 
 	const userPath = "gno.land/p/demo/zz"
