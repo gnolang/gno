@@ -72,6 +72,18 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"ordinary block comment", "package zz\n\n/* hello */\nfunc F() {}\n", false},
 		{"block without trailing space", "package zz\n\n/*linefoo*/\nfunc F() {}\n", false},
 
+		// `go generate` never parses: it scans raw lines for "//go:generate"
+		// at column 1 followed by a space or tab (cmd/go isGoGenerate). A
+		// command hidden from the token scan inside a raw string or a block
+		// comment survives transpilation and still runs, so those must be
+		// caught -- and the column and separator rules must match cmd/go, or
+		// this over-rejects text `go generate` would ignore.
+		{"go:generate in raw string", "package zz\n\nconst s = `\n//go:generate echo x\n`\n", true},
+		{"go:generate in block comment", "package zz\n\n/*\n//go:generate echo x\n*/\n", true},
+		{"go:generate with tab", "package zz\n\nconst s = `\n//go:generate\techo x\n`\n", true},
+		{"indented go:generate in raw string", "package zz\n\nconst s = `\n\t//go:generate echo x\n`\n", false},
+		{"go:generate without separator", "package zz\n\nconst s = `\n//go:generateecho x\n`\n", false},
+
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
 		// let a submitter keep a live tag in a stored file.
@@ -320,6 +332,17 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		require.Error(t, err)
 		assert.NotContains(t, fmt.Sprint(err), "\x1b", "escape byte must not be echoed raw")
 		assert.NotContains(t, fmt.Sprint(err), "\x07", "bell byte must not be echoed raw")
+	})
+
+	t.Run("a go:generate hidden in a raw string is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// Verified end to end before this was closed: the package validated,
+		// `gno tool transpile` kept the line at column 1 of the generated .go,
+		// and `go generate -tags gno -n` printed its command.
+		err := validateBody(t, MPUserProd, userPath,
+			"package zz\n\nconst doc = `\n//go:generate echo PWNED\n`\n")
+		assert.ErrorContains(t, err, "directives are not supported")
 	})
 
 	t.Run("stdlibs are not affected", func(t *testing.T) {

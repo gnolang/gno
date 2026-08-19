@@ -70,7 +70,17 @@ name is quoted in that error for the same reason: it is submitted text and may
 carry terminal control bytes, and the error reaches both a terminal (`gno lint`)
 and a transaction result.
 
-It scans **tokens**, via `go/scanner`, not raw lines. That is the mechanism
+`//go:generate` is matched on **raw lines** as well, because `go generate` is
+the one consumer that never parses: it scans lines for the prefix at column 1
+followed by a space or tab (`cmd/go` `isGoGenerate`). A command hidden from the
+token scan inside a raw string or a block comment therefore survives
+transpilation and still runs — checked end to end before this was closed: the
+package validated, `gno tool transpile` kept the line at column 1 of the
+generated `.go`, and `go generate -tags gno -n` printed its command. The column
+and separator rules mirror `cmd/go` so this does not reject text `go generate`
+would ignore. No file in `examples/` contains such a line.
+
+Everything else scans **tokens**, via `go/scanner`, not raw lines. That is the mechanism
 `go/parser` itself uses, so the two agree on inputs where a line scan does not:
 a leading BOM, and a `package` line sitting inside a block comment ahead of the
 real clause — `go/parser` honours a constraint in both (verified against

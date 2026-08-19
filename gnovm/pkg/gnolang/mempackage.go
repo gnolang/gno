@@ -1334,6 +1334,26 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	return errs
 }
 
+// hasRawGoGenerate reports whether any line begins with a go:generate
+// directive, matching cmd/go's isGoGenerate: the prefix must start the line and
+// be followed by a space or a tab. Line-based on purpose -- this mirrors a
+// consumer that never parses the file, so the token scan cannot stand in for it.
+func hasRawGoGenerate(body string) bool {
+	for off := 0; off < len(body); {
+		rest := body[off:]
+		if strings.HasPrefix(rest, "//go:generate ") ||
+			strings.HasPrefix(rest, "//go:generate\t") {
+			return true
+		}
+		nl := strings.IndexByte(rest, '\n')
+		if nl < 0 {
+			break
+		}
+		off += nl + 1
+	}
+	return false
+}
+
 // FindDirectiveComment returns the first compiler or tooling directive in the
 // file body, if any: a build constraint ("//go:build", legacy "// +build"), a
 // line directive, or a pragma such as "//go:noinline".
@@ -1354,6 +1374,15 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 //
 // Exported so `gno lint` flags the same files ValidateMemPackageAny rejects.
 func FindDirectiveComment(body string) (string, bool) {
+	// `go generate` does not parse: it scans raw lines for a "//go:generate"
+	// prefix at column 1 followed by a space or tab (cmd/go isGoGenerate). A
+	// command can therefore hide from the token scan below inside a raw string
+	// or a block comment, survive transpilation verbatim, and still run. Checked
+	// end to end: such a package validated, `gno tool transpile` kept the line
+	// at column 1, and `go generate -tags gno -n` printed its command.
+	if hasRawGoGenerate(body) {
+		return "//go:generate", true
+	}
 	var sc goscanner.Scanner
 	fset := token.NewFileSet()
 	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, goscanner.ScanComments)
