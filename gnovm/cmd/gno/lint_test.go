@@ -101,7 +101,7 @@ func TestLintApp(t *testing.T) {
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/directives",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "directives are not supported: //go:build (code=gnoDirectiveError)",
+			stderrShouldContain:  `directives are not supported: "//go:build" (code=gnoDirectiveError)`,
 			errShouldBe:          "exit code: 1",
 		},
 		{

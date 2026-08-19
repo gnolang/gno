@@ -55,9 +55,20 @@ already runs: `MsgAddPackage`, `MsgRun`, genesis, and `AddMemPackage`.
 `//line`, `//extern`, `//export`, and the `//tool:name` form that covers
 `//go:generate`, `//go:embed`, and the pragmas.
 
-The **whole file** is scanned. Build constraints must precede the package
-clause, but pragmas attach to declarations anywhere, so a header-only scan would
-miss most of the set.
+The **whole file** is scanned, and both comment forms are matched. Build
+constraints must precede the package clause, but pragmas attach to declarations
+anywhere, and Go honours the *block* form of a line directive anywhere too:
+go/scanner accepts a comment as a directive when `lit[1] == '*' || offs ==
+s.lineOffset` and the text after the opener begins with `"line "`. A rule
+matching only `//` comments leaves `/*line forged.gno:999:1*/` live, which was
+caught in review.
+
+The check also runs **before the file is parsed**. A line directive rewrites the
+positions `go/parser` reports, so parsing first lets a file that is about to be
+rejected choose the filename and line printed in its own error. The directive
+name is quoted in that error for the same reason: it is submitted text and may
+carry terminal control bytes, and the error reaches both a terminal (`gno lint`)
+and a transaction result.
 
 It scans **tokens**, via `go/scanner`, not raw lines. That is the mechanism
 `go/parser` itself uses, so the two agree on inputs where a line scan does not:

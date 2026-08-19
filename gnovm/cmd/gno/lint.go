@@ -224,7 +224,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					Code:       gnoDirectiveError,
 					Confidence: 1,
 					Location:   filepath.Join(dir, mfile.Name),
-					Msg:        "directives are not supported: " + directive,
+					// Quoted: submitted text, may hold control bytes.
+					Msg: fmt.Sprintf("directives are not supported: %q", directive),
 				}
 				io.ErrPrintln(issue)
 				hasError = true

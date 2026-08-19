@@ -63,6 +63,15 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"nolint trailing", "package zz\n\nvar x = 1 //nolint:all\n", false},
 		{"nolint lookalike is not allowed", "package zz\n\n//nolintfoo:bar\nfunc F() {}\n", true},
 
+		// Go honours the BLOCK form of a line directive anywhere in a file,
+		// not only at the start of a line (go/scanner accepts a comment when
+		// lit[1] == '*' || offs == lineOffset). A "//"-only guard misses it.
+		{"block line directive", "package zz\n\n/*line forged.gno:999:1*/\nfunc F() {}\n", true},
+		{"block line mid-line", "package zz\n\nvar x = 1 /*line f.gno:9:1*/\n", true},
+		{"block line in header", "/*line f.gno:9:1*/\npackage zz\n", true},
+		{"ordinary block comment", "package zz\n\n/* hello */\nfunc F() {}\n", false},
+		{"block without trailing space", "package zz\n\n/*linefoo*/\nfunc F() {}\n", false},
+
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
 		// let a submitter keep a live tag in a stored file.
@@ -94,6 +103,7 @@ func TestNoHonouredConstraintEscapes(t *testing.T) {
 	frag := []string{
 		"//go:build go1.9", "// +build x", "//line a:1:1", "//go:noinline",
 		"\ufeff", "/*", "*/", "package zz", "func F(){}", "\n", " ", "//", "/**/", "\t", "//x",
+		"/*line f.gno:9:1*/", "/*line ", "var x = 1",
 	}
 	r := rand.New(rand.NewSource(7))
 	for range 100000 {
@@ -109,12 +119,22 @@ func TestNoHonouredConstraintEscapes(t *testing.T) {
 		if err != nil {
 			continue // unparseable files are rejected before the directive check
 		}
-		if gof.GoVersion == "" {
-			continue
-		}
-		if _, found := FindDirectiveComment(body); !found {
+		_, found := FindDirectiveComment(body)
+		if gof.GoVersion != "" && !found {
 			t.Fatalf("go/parser honours GoVersion=%q but the predicate missed it in %q",
 				gof.GoVersion, body)
+		}
+		// Same property for line directives, observed through their effect:
+		// if any position in the file resolves to a filename other than the
+		// one handed to the parser, a line directive was honoured. This is
+		// what catches the block form, which carries no GoVersion.
+		if !found {
+			for _, d := range gof.Decls {
+				if got := fset.Position(d.Pos()).Filename; got != "x.gno" {
+					t.Fatalf("a line directive remapped positions to %q but the predicate missed it in %q",
+						got, body)
+				}
+			}
 		}
 	}
 }
@@ -276,6 +296,30 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 
 		assert.NoError(t, validateBody(t, MPUserProd, userPath,
 			"package zz\n\n//nolint:gosec\nfunc F() {}\n"))
+	})
+
+	t.Run("a directive cannot rewrite its own error", func(t *testing.T) {
+		t.Parallel()
+
+		// The check runs before the file is parsed: a line directive rewrites
+		// the positions go/parser reports, so parsing first would let a
+		// rejected file choose the filename and line printed in its own error.
+		err := validateBody(t, MPUserProd, userPath, "//line /etc/passwd:999:1\npackag zz\n")
+		assert.ErrorContains(t, err, "directives are not supported")
+		assert.NotContains(t, fmt.Sprint(err), "/etc/passwd",
+			"the error must not carry the forged path")
+	})
+
+	t.Run("control bytes in a directive are escaped", func(t *testing.T) {
+		t.Parallel()
+
+		// The directive name is submitted text, and the error reaches a
+		// terminal (gno lint) and a transaction result.
+		err := validateBody(t, MPUserProd, userPath,
+			"package zz\n\n//a:b\x1b[2J\x07evil\nfunc F() {}\n")
+		require.Error(t, err)
+		assert.NotContains(t, fmt.Sprint(err), "\x1b", "escape byte must not be echoed raw")
+		assert.NotContains(t, fmt.Sprint(err), "\x07", "bell byte must not be echoed raw")
 	})
 
 	t.Run("stdlibs are not affected", func(t *testing.T) {

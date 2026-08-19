@@ -33,6 +33,12 @@ stdout 'OK!'
 
 stderr 'directives are not supported'
 
+## addpkg: the block form of a line directive is rejected too. Go honours
+## /*line*/ anywhere in a file, so a "//"-only rule would leave it open.
+! gnokey maketx addpkg -pkgdir $WORK/blockline -pkgpath gno.land/r/$test1_user_addr/blockline -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
 ## addpkg: //nolint is the one allowed directive, so this must be accepted.
 gnokey maketx addpkg -pkgdir $WORK/nolint -pkgpath gno.land/r/$test1_user_addr/nolint -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
@@ -87,6 +93,16 @@ gno = "0.9"
 package pragma
 
 //go:noinline
+func F() int { return 1 }
+
+-- blockline/gnomod.toml --
+module = "blockline"
+gno = "0.9"
+
+-- blockline/blockline.gno --
+package blockline
+
+/*line forged.gno:999:1*/
 func F() int { return 1 }
 
 -- nolint/gnomod.toml --

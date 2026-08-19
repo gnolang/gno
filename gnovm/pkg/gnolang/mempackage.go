@@ -1244,11 +1244,6 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		// Validate .gno package names.
 		if strings.HasSuffix(fname, ".gno") {
 			numGnoFiles += 1
-			pkgName, err := PackageNameFromFileBody(path.Join(mpkg.Path, fname), mfile.Body)
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
 			// Directives mean nothing in Gno, yet several are honoured by
 			// consumers of the stored source and all of them misread as
 			// significant to whoever audits it. Submitted packages only:
@@ -1256,13 +1251,23 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			// the VM suite pins that constraints are inert
 			// (gnovm/tests/files/build0.gno). See
 			// adr/pr6078_forbid_directives.md.
-			// Deliberately not a `continue`: the package-name checks below
-			// still run, so one file reports one error rather than two.
+			//
+			// Checked before the file is parsed, and `continue` on a hit: a
+			// line directive rewrites the positions go/parser reports, so
+			// parsing first would let a rejected file choose the filename and
+			// line printed in its own error. The directive name is quoted
+			// because it is submitted text and may hold control bytes.
 			if mptype.IsUserlib() {
 				if d, ok := FindDirectiveComment(mfile.Body); ok {
 					errs = multierr.Append(errs, fmt.Errorf(
-						"invalid file %q: directives are not supported: %s", fname, d))
+						"invalid file %q: directives are not supported: %q", fname, d))
+					continue
 				}
+			}
+			pkgName, err := PackageNameFromFileBody(path.Join(mpkg.Path, fname), mfile.Body)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				continue
 			}
 			if pkgName != Name(mpkg.Name) { // Check validity but skip if mpkg.Name (already checked).
 				if err := validatePkgName(pkgName); err != nil {
@@ -1353,6 +1358,18 @@ func directiveName(lit string) (string, bool) {
 	// directive comment even though it is still honoured as a constraint.
 	if constraint.IsPlusBuild(lit) {
 		return "// +build", true
+	}
+	// Go recognises the block form of a line directive anywhere in a file, not
+	// only at the start of a line: go/scanner accepts a comment when
+	// `lit[1] == '*' || offs == s.lineOffset` and the text after the opener
+	// begins with "line ". Missing this form leaves the position-forging
+	// vector open, so match it explicitly. Only "line" has a block form; the
+	// //tool:name directives are line comments to Go.
+	if strings.HasPrefix(lit, "/*") {
+		if strings.HasPrefix(lit[2:], "line ") {
+			return "/*line", true
+		}
+		return "", false
 	}
 	if !strings.HasPrefix(lit, "//") || !isDirectiveText(lit[2:]) {
 		return "", false
