@@ -145,24 +145,33 @@ Scope is deliberate:
   break rather than a relaxable annoyance. No `.gno` file in the tree contains
   `/*line `.
 
-### Metering
+### Cost of the scan
 
-Validation reads every `.gno` file end to end — `FindDirectiveComment` must,
-since a pragma can sit on any declaration — where the pre-existing checks stopped
-at the package clause. On a 1 MB source that is 9.8 ms against 0.09 ms for
-`PackageNameFromFileBody`, so this rule, not the older checks, now sets the cost
-of validating a package.
+Validation now reads every `.gno` file end to end — `FindDirectiveComment` must,
+since a pragma can sit on any declaration — where the checks before it stopped at
+the package clause. Measured on a 1 MB source: **9.8 ms** for the scan against
+**0.09 ms** for `PackageNameFromFileBody`. This rule, not the older checks, sets
+the cost of validating a package.
 
-Both entry points therefore take the preprocess charge *before* validating
-(`gno.land/pkg/sdk/vm/keeper.go`). Without that, the only price of the scan is
-the generic per-tx-size fee, and a package that fails validation becomes the
-cheapest way to buy validator CPU — including over repeated CheckTx, which
-never reaches the later charge at all.
+Those bytes are already priced. The ante handler charges
+`TxSizeCostPerByte` (10 gas/byte) on every transaction, in `CheckTx` as well as
+`DeliverTx`, and `PreprocessGasPerByte`'s calibration note records that 1 gas is
+1 ns on the reference machine. The existing charge therefore budgets ~10 ns/byte
+and the scan spends ~9.4 ns/byte, so it fits inside a charge that already
+applies — it is not unmetered work.
 
-The reordering also meters the validation that already existed, so a rejected
-package now consumes preprocess gas where before it consumed none. That is a
-consensus-visible change to gas for failing transactions; it rides along with
-the accept/reject change this ADR already requires a coordinated upgrade for.
+Moving the preprocess charge (1250 gas/byte) ahead of validation was considered
+and rejected. It would price the scan 125× over the ante rate and, because it
+lands before the reason for rejection is known, would turn a clean
+`invalid package path` on a large package into an out-of-gas panic for any
+submitter whose budget assumed early rejection.
+
+What remains is headroom, not exposure: the scan consumes most of a per-byte
+budget that validation previously barely touched, and the 9.8 ms figure comes
+from an Apple-silicon machine, so a slower validator has less margin. If that
+margin ever needs buying back, the cheap move is a prefilter — a directive
+requires `//` or `/*` followed immediately by `[a-z0-9]`, and ordinary comments
+start `// ` with a space, so honest files would skip tokenizing entirely.
 
 ## Consequences
 
