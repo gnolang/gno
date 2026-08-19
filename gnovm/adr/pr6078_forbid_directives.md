@@ -129,3 +129,21 @@ Scope is deliberate:
   second fork.
 - No corpus change: `examples/` passes unmodified, and the VM filetests carrying
   constraint lines are out of scope by type.
+- **`//nolint:...` is rejected too, and that is the likeliest source of
+  friction.** Surveying every `.go` and `.gno` file in the repo (6453 files, 143
+  carrying a directive) the histogram is `//go:build` 55, then the `//nolint:`
+  family at ~65 across its variants — more than `//go:generate` and `//go:embed`
+  combined. Nothing breaks today: no `.gno` file uses the colon form, and the
+  one that writes a bare `//nolint`
+  (`misc/multiarch-determinism/corpus.gno`) is not a directive by Go's rule and
+  is not flagged. But Gno authors come from Go, so the habit will arrive.
+
+  Rejecting it is deliberate. `golangci-lint` does not read `.gno`, so the
+  comment suppresses nothing; keeping the whitelist empty is what makes the rule
+  one sentence instead of a list, and the error names the directive so the fix is
+  to delete a line that never did anything. If this proves noisy in practice,
+  `//nolint` is the obvious first whitelist candidate — and by the ordering
+  argument above, adding it later is backward-compatible.
+- That survey also bounds the false-positive risk: across those 6453
+  human-written files, every hit was a real directive. No ordinary `//word:word`
+  prose comment was caught, because a directive requires no space after `//`.
