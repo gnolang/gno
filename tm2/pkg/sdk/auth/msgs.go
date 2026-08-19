@@ -17,7 +17,7 @@ type MsgCreateSession struct {
 	Creator     crypto.Address `json:"creator" yaml:"creator"`
 	SessionKey  crypto.PubKey  `json:"session_key" yaml:"session_key"`
 	ExpiresAt   int64          `json:"expires_at" yaml:"expires_at"`               // unix timestamp; 0 = no expiry
-	AllowPaths  []string       `json:"allow_paths,omitempty" yaml:"allow_paths"`   // realm path prefixes; empty = unrestricted
+	AllowPaths  []string       `json:"allow_paths,omitempty" yaml:"allow_paths"`   // typed entries: "*" or <route>/<type>[:<path>]; required (gno.land-specific grammar)
 	SpendLimit  std.Coins      `json:"spend_limit,omitempty" yaml:"spend_limit"`   // max spend per period; empty = no spending
 	SpendPeriod int64          `json:"spend_period,omitempty" yaml:"spend_period"` // seconds; 0 = lifetime cap
 }

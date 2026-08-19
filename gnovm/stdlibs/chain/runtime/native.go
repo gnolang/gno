@@ -39,18 +39,10 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
-func X_originCaller(m *gno.Machine) string {
-	return string(execctx.GetContext(m).OriginCaller)
-}
-
-func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
-	return execctx.GetRealm(m, height)
-}
-
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
-// If the session account type doesn't implement this, allowPaths will be nil
-// (meaning "unrestricted"), which is the correct semantic — the session has
-// no path restrictions configured at the protocol level.
+// Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
+// gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;
+// only session account types that don't implement this interface can return nil.
 type pathRestricted interface{ GetAllowPaths() []string }
 
 func X_getSessionInfo(m *gno.Machine) (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool) {

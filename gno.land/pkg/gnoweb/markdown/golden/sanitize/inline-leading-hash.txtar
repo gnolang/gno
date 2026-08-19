@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: %s
+-- input.md --
+#nothashtag
+-- output.md --
+\#nothashtag
+-- output.html --
+<p>#nothashtag</p>

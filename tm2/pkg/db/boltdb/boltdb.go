@@ -143,6 +143,10 @@ func (bdb *BoltDB) Stats() map[string]string {
 	return m
 }
 
+func (*BoltDB) NewSnapshot() (db.Snapshot, error) {
+	return nil, errors.New("snapshots not supported")
+}
+
 // boltDBBatch stores key values in sync.Map and dumps them to the underlying
 // DB upon Write call.
 type boltDBBatch struct {

@@ -78,14 +78,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
 				case store.OutOfGasError:
-					log := fmt.Sprintf(
-						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
-						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
-					)
+					gasUsed := newCtx.GasMeter().GasConsumed()
+					maxGas := int64(-1)
+					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
+						maxGas = cp.Block.MaxGas
+					}
+					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
-					res.GasUsed = newCtx.GasMeter().GasConsumed()
+					res.GasUsed = gasUsed
 					abort = true
 				default:
 					panic(r)
@@ -189,6 +191,19 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
+			}
+			// Hardfork genesis replay: historical and patched txs carry a
+			// BlockHeight > 0 overridden for faithful re-execution, so the
+			// isGenesis check above misses them. When the operator opted
+			// into --skip-genesis-sig-verification, skip their signature
+			// check too — the whole replayed genesis is vouched for by its
+			// agreed sha256, and a rewritten (patched) body can no longer
+			// verify by design. isGenesis is left untouched so the
+			// accNum/accSeq sign-bytes logic below still uses source values.
+			if !opts.VerifyGenesisSignatures {
+				if replay, _ := ctx.Value(GenesisReplayKey{}).(bool); replay {
+					continue
+				}
 			}
 
 			da, isSession := sessionAccounts[signerAddrs[i]]
@@ -375,22 +390,27 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
 func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
-	coins := acc.GetCoins()
-
 	if !fees.IsValid() {
 		return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", fees)))
 	}
 
-	// verify the account has enough funds to pay for fees
-	diff := coins.SubUnsafe(fees)
-	if !diff.IsValid() {
-		return abciResult(std.ErrInsufficientFunds(
-			fmt.Sprintf("insufficient funds to pay for fees; %s < %s", coins, fees),
-		))
+	// Verify the account has enough funds to pay for fees, one fee denom at a
+	// time. Read through the bank rather than acc.GetCoins(): a balance does not
+	// necessarily live in the account object, since realm-issued denoms have
+	// their own keys, and the fee denom is whatever the transaction names.
+	// Reading only the fee denoms also keeps this independent of how many other
+	// denoms the payer happens to hold.
+	addr := acc.GetAddress()
+	for _, fee := range fees {
+		if balance := bk.GetCoin(ctx, addr, fee.Denom); balance < fee.Amount {
+			return abciResult(std.ErrInsufficientFunds(
+				fmt.Sprintf("insufficient funds to pay for fees; %d%s < %s", balance, fee.Denom, fee),
+			))
+		}
 	}
 
 	// Sending coins is unrestricted to pay for gas fees
-	err := bk.SendCoinsUnrestricted(ctx, acc.GetAddress(), collector, fees)
+	err := bk.SendCoinsUnrestricted(ctx, addr, collector, fees)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -473,11 +493,38 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	))
 }
 
+// SkipGasMeteringKey is a context key used to bypass gas metering for
+// historical tx replay during chain upgrades. When set on the context,
+// SetGasMeter installs an infinite gas meter even for non-genesis blocks.
+// Used by gnoland's GasReplayMode="source" during genesis replay to
+// preserve source-chain outcomes when gas requirements have changed.
+type SkipGasMeteringKey struct{}
+
+// GenesisReplayKey is a context key marking a tx delivery as part of an
+// InitChain genesis replay. During a hardfork replay, historical and
+// patched txs carry a BlockHeight > 0 (overridden for faithful
+// re-execution), so the ctx.BlockHeight()==0 genesis check under-reports
+// them; this key covers those txs.
+//
+// It never bypasses signature verification on its own: the ante skips
+// verification for a replay tx only when the node was also started with
+// --skip-genesis-sig-verification (VerifyGenesisSignatures=false). In a
+// normally-configured node that flag is unset, so this key has no effect
+// on signature verification. Set only by gnoland's InitChainer per-tx
+// delivery wrapper.
+type GenesisReplayKey struct{}
+
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
 	if ctx.BlockHeight() == 0 {
+		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
+	}
+
+	// Historical tx replay in source-gas mode: bypass the new VM's gas meter
+	// so source-chain outcomes are preserved regardless of gas-metering changes.
+	if skip, _ := ctx.Value(SkipGasMeteringKey{}).(bool); skip {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
 

@@ -137,7 +137,15 @@ func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
-type mockBankKeeper struct{}
+type mockBankKeeper struct {
+	recomputeSupplyCalls int
+	setCoinsCalls        int
+	// setCoinsAtRecompute is how many balances had been written when the supply was
+	// recomputed. SetCoins does not maintain the counter, so a recompute that runs
+	// before the balance loop leaves a fresh chain with balances and no supply
+	// record — a call count alone cannot tell the two orders apart.
+	setCoinsAtRecompute int
+}
 
 func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
 	return nil
@@ -151,18 +159,19 @@ func (m *mockBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.
 	return nil
 }
 
-func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
-func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
 func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
 func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
 func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
 func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.setCoinsCalls++
 	return nil
 }
 
@@ -170,11 +179,42 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
+func (m *mockBankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {
+	m.recomputeSupplyCalls++
+	m.setCoinsAtRecompute = m.setCoinsCalls
+}
+
+func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
+	return 0
+}
+
+func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	return 0
+}
+
 type mockAuthKeeper struct{}
 
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	return nil
 }
+
+// NewAccountWithUncheckedNumber returns nil. This mock is only safe in tests
+// where no TxWithMetadata carries SignerInfo. If SignerInfo is present and
+// an account doesn't exist, the replay loop calls this and then calls
+// acc.SetSequence which will panic on a nil return. Use a real
+// AccountKeeper for those tests.
+func (m *mockAuthKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
+	return nil
+}
+func (m *mockAuthKeeper) GetNextAccountNumber(ctx sdk.Context) uint64                     { return 0 }
 func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
 func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
@@ -184,19 +224,19 @@ func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                 
 
 type mockParamsKeeper struct{}
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
-func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool    { return false }
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool      { return false }
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool    { return false }
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool        { return false }
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool     { return false }
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool { return false }
 
-func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
-func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
-func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64)    {}
-func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)        {}
-func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)     {}
-func (m *mockParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {}
+func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string) int    { return 0 }
+func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) int      { return 0 }
+func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) int    { return 0 }
+func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) int        { return 0 }
+func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) int     { return 0 }
+func (m *mockParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) int { return 0 }
 
 func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool                { return false }
 func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}
@@ -251,27 +291,49 @@ type mockConfigurableParamsKeeper struct {
 	strings map[string]string
 }
 
-func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	if v, ok := m.int64s[key]; ok {
-		*ptr = v
+func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	v, ok := m.int64s[key]
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
-func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	if v, ok := m.strings[key]; ok {
-		*ptr = v
+func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	v, ok := m.strings[key]
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
-func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
-func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
-func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
-func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return false
 }
-func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value string)        {}
-func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
-func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {}
-func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)     {}
-func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)  {}
-func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value string) int { return 0 }
+func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) int {
+	return 0
+}
+func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) int {
+	return 0
+}
+func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) int {
+	return 0
+}
+func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) int {
+	return 0
+}
+func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) int {
+	return 0
 }
 func (m *mockConfigurableParamsKeeper) Has(ctx sdk.Context, key string) bool                { return false }
 func (m *mockConfigurableParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}

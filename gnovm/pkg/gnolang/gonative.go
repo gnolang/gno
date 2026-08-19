@@ -62,7 +62,7 @@ func go2GnoType(rt reflect.Type) Type {
 			Elt: go2GnoType(rt.Elem()),
 			Vrd: false,
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return &PointerType{
 			Elt: go2GnoType(rt.Elem()), // recursive
 		}
@@ -117,12 +117,12 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			av := alloc.NewDataArray(rvl)
+			av := alloc.NewDataArray(nil, rvl)
 			data := av.Data
 			reflect.Copy(reflect.ValueOf(data), rv)
 			tv.V = av
 		} else {
-			av := alloc.NewListArray(rvl)
+			av := alloc.NewListArray(nil, rvl)
 			list := av.List
 			for i := range rvl {
 				list[i] = Go2GnoValue(alloc, store, rv.Index(i))
@@ -133,13 +133,13 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		rvl := rv.Len()
 		rvc := rv.Cap()
 
-		baseArray := alloc.NewListArray2(rvl, rvc)
+		baseArray := alloc.NewListArray2(nil, rvl, rvc)
 		list := baseArray.List
 		for i := range rvl {
 			list[i] = Go2GnoValue(alloc, store, rv.Index(i))
 		}
 		tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		val := Go2GnoValue(alloc, store, rv.Elem())
 		tv.V = PointerValue{TV: &val} // heap alloc
 	default:
@@ -159,33 +159,33 @@ func gno2GoType(t Type) reflect.Type {
 	case PrimitiveType:
 		switch ct {
 		case BoolType, UntypedBoolType:
-			return reflect.TypeOf(false)
+			return reflect.TypeFor[bool]()
 		case StringType, UntypedStringType:
-			return reflect.TypeOf("")
+			return reflect.TypeFor[string]()
 		case IntType:
-			return reflect.TypeOf(int(0))
+			return reflect.TypeFor[int]()
 		case Int8Type:
-			return reflect.TypeOf(int8(0))
+			return reflect.TypeFor[int8]()
 		case Int16Type:
-			return reflect.TypeOf(int16(0))
+			return reflect.TypeFor[int16]()
 		case Int32Type, UntypedRuneType:
-			return reflect.TypeOf(int32(0))
+			return reflect.TypeFor[int32]()
 		case Int64Type:
-			return reflect.TypeOf(int64(0))
+			return reflect.TypeFor[int64]()
 		case UintType:
-			return reflect.TypeOf(uint(0))
+			return reflect.TypeFor[uint]()
 		case Uint8Type:
-			return reflect.TypeOf(uint8(0))
+			return reflect.TypeFor[uint8]()
 		case Uint16Type:
-			return reflect.TypeOf(uint16(0))
+			return reflect.TypeFor[uint16]()
 		case Uint32Type:
-			return reflect.TypeOf(uint32(0))
+			return reflect.TypeFor[uint32]()
 		case Uint64Type:
-			return reflect.TypeOf(uint64(0))
+			return reflect.TypeFor[uint64]()
 		case Float32Type:
-			return reflect.TypeOf(float32(0))
+			return reflect.TypeFor[float32]()
 		case Float64Type:
-			return reflect.TypeOf(float64(0))
+			return reflect.TypeFor[float64]()
 		case UntypedBigintType:
 			panic("not yet implemented")
 		case UntypedBigdecType:

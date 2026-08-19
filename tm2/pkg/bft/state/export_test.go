@@ -53,3 +53,10 @@ func SaveConsensusParamsInfo(db dbm.DB, nextHeight, changeHeight int64, params a
 func SaveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *types.ValidatorSet) {
 	saveValidatorsInfo(db, height, lastHeightChanged, valSet)
 }
+
+// GetBeginBlockLastCommitInfo is an alias for the private
+// getBeginBlockLastCommitInfo function in execution.go, exported exclusively
+// and explicitly for testing.
+func GetBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB) abci.LastCommitInfo {
+	return getBeginBlockLastCommitInfo(block, state, stateDB)
+}

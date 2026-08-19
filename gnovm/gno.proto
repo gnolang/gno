@@ -103,7 +103,7 @@ message Block {
 
 message RefValue {
 	string ObjectID = 1;
-	reserved 2; // was Escaped
+	bool Escaped = 2;
 	string PkgPath = 3;
 	string Hash = 4;
 }

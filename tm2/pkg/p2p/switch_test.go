@@ -3,6 +3,8 @@ package p2p
 import (
 	"context"
 	"net"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,6 +46,21 @@ func TestMultiplexSwitch_Options(t *testing.T) {
 
 		for _, p := range peers {
 			assert.True(t, sw.isPersistentPeer(p.ID))
+		}
+	})
+
+	t.Run("seeds", func(t *testing.T) {
+		t.Parallel()
+
+		seeds := generateNetAddr(t, 10)
+
+		sw := NewMultiplexSwitch(nil, WithSeeds(seeds))
+
+		for _, s := range seeds {
+			addr, ok := sw.seeds.Load(s.ID)
+
+			require.True(t, ok)
+			assert.Equal(t, s, addr)
 		}
 	})
 
@@ -106,10 +123,9 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		sw    = NewMultiplexSwitch(mockTransport)
 	)
 
-	require.NoError(t, sw.OnStart())
-	t.Cleanup(sw.OnStop)
-
-	// Create a new peer set
+	// Create a new peer set.
+	// The switch services read the peer set as soon as they are started,
+	// so it has to be in place before OnStart
 	sw.peers = newSet()
 
 	for _, p := range peers {
@@ -125,8 +141,11 @@ func TestMultiplexSwitch_Broadcast(t *testing.T) {
 		}
 
 		// Load it up with peers
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 	}
+
+	require.NoError(t, sw.OnStart())
+	t.Cleanup(sw.OnStop)
 
 	// Broadcast the data
 	sw.Broadcast(expectedChID, expectedData)
@@ -147,7 +166,7 @@ func TestMultiplexSwitch_Peers(t *testing.T) {
 
 	for _, p := range peers {
 		// Load it up with peers
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 	}
 
 	// Broadcast the data
@@ -185,7 +204,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		sw.peers = newSet()
 
 		// Save the single peer
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 
 		// Stop and remove the peer
 		sw.StopPeerForError(p, nil)
@@ -224,7 +243,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		sw.peers = newSet()
 
 		// Save the single peer
-		sw.peers.Add(p)
+		require.NoError(t, sw.peers.Add(p))
 
 		// Stop and remove the peer
 		sw.StopPeerForError(p, nil)
@@ -508,12 +527,14 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 				numInboundFn: func() uint64 {
 					return maxInbound - 1 // available slot
 				},
-				addFn: func(peer PeerConn) {
+				addFn: func(peer PeerConn) error {
 					require.Equal(t, p.ID(), peer.ID())
 
 					peerAdded = true
 
 					ch <- struct{}{}
+
+					return nil
 				},
 			}
 
@@ -700,6 +721,353 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		require.True(t, sw.dialQueue.Has(missingAddr))
 		assert.Equal(t, missingAddr, sw.dialQueue.Peek().Address)
 	})
+}
+
+func TestMultiplexSwitch_DialSeed(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no seeds configured", func(t *testing.T) {
+		t.Parallel()
+
+		sw := NewMultiplexSwitch(&mockTransport{})
+
+		sw.dialSeed()
+
+		assert.Nil(t, sw.dialQueue.Peek())
+	})
+
+	t.Run("dialable item in the queue", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs    = generateNetAddr(t, 2)
+			seedAddr = addrs[0]
+			peerAddr = addrs[1]
+		)
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// The switch still has something to dial right now
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now(),
+			Address: peerAddr,
+		})
+
+		sw.dialSeed()
+
+		// The seed should not have been queued
+		assert.False(t, sw.dialQueue.Has(seedAddr))
+	})
+
+	t.Run("queued items fully backed off", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs    = generateNetAddr(t, 2)
+			seedAddr = addrs[0]
+			peerAddr = addrs[1]
+		)
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// Nothing in the queue can be dialed before this point in time
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now().Add(10 * time.Minute),
+			Address: peerAddr,
+		})
+
+		sw.dialSeed()
+
+		assert.True(t, sw.dialQueue.Has(seedAddr))
+	})
+
+	t.Run("empty queue", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		sw.dialSeed()
+
+		require.NotNil(t, sw.dialQueue.Peek())
+		assert.Equal(t, seedAddr, sw.dialQueue.Peek().Address)
+	})
+
+	t.Run("outbound peer limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+			WithMaxOutboundPeers(1),
+		)
+
+		// Every outbound slot is taken
+		sw.peers = &mockSet{
+			numOutboundFn: func() uint64 {
+				return 1
+			},
+		}
+
+		sw.dialSeed()
+
+		assert.Nil(t, sw.dialQueue.Peek())
+	})
+
+	t.Run("connected seed skipped", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// The seed is already an active peer
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool {
+				return id == seedAddr.ID
+			},
+		}
+
+		sw.dialSeed()
+
+		assert.Nil(t, sw.dialQueue.Peek())
+	})
+
+	t.Run("queued seed not duplicated", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// The seed is already waiting in the dial queue
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now().Add(10 * time.Minute),
+			Address: seedAddr,
+		})
+
+		sw.dialSeed()
+
+		// A single entry should remain
+		require.NotNil(t, sw.dialQueue.Pop())
+		assert.Nil(t, sw.dialQueue.Pop())
+	})
+
+	t.Run("single seed dialed per round", func(t *testing.T) {
+		t.Parallel()
+
+		seeds := generateNetAddr(t, 10)
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds(seeds),
+		)
+
+		sw.dialSeed()
+
+		// Exactly one of the seeds should have been queued
+		item := sw.dialQueue.Pop()
+
+		require.NotNil(t, item)
+		assert.Contains(t, seeds, item.Address)
+		assert.Nil(t, sw.dialQueue.Pop())
+	})
+}
+
+func TestMultiplexSwitch_SeedDialLoop(t *testing.T) {
+	t.Parallel()
+
+	t.Run("seed dialed on start", func(t *testing.T) {
+		t.Parallel()
+
+		seedAddr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		ctx := t.Context()
+
+		go sw.runSeedDialLoop(ctx)
+
+		// The bootstrap round runs before the first tick
+		require.Eventually(
+			t,
+			func() bool {
+				return sw.dialQueue.Has(seedAddr)
+			},
+			5*time.Second,
+			10*time.Millisecond,
+		)
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw   = NewMultiplexSwitch(&mockTransport{})
+			done = make(chan struct{})
+		)
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+
+		go func() {
+			defer close(done)
+
+			sw.runSeedDialLoop(ctx)
+		}()
+
+		cancelFn()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("seed dial loop did not exit")
+		}
+	})
+}
+
+func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a due item is dialed while an earlier one backs off", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := t.Context()
+
+		var (
+			dialed = make(chan types.NetAddress, 1)
+			addrs  = generateNetAddr(t, 2)
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					addr types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialed <- addr
+
+					return nil, errors.New("unable to dial")
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		sw.peers = &mockSet{
+			hasFn: func(types.ID) bool { return false },
+		}
+
+		// Park the loop on an item that is not due for a long time
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now().Add(time.Hour),
+			Address: addrs[0],
+		})
+
+		go sw.runDialLoop(ctx)
+
+		time.Sleep(50 * time.Millisecond)
+
+		// The loop is parked, so it only picks this up if the wait is
+		// interruptible by a newly queued item
+		sw.DialPeers(addrs[1])
+
+		select {
+		case addr := <-dialed:
+			assert.Equal(t, *addrs[1], addr)
+		case <-time.After(5 * time.Second):
+			t.Fatal("a due item was not dialed while an earlier one was backing off")
+		}
+	})
+
+	t.Run("the wait ends on context cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+
+		var (
+			sw   = NewMultiplexSwitch(&mockTransport{})
+			done = make(chan struct{})
+		)
+
+		go func() {
+			defer close(done)
+
+			sw.waitForDialTime(ctx, time.Hour)
+		}()
+
+		cancelFn()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the wait outlived the context")
+		}
+	})
+}
+
+// TestMultiplexSwitch_DialLoop_DoesNotSpin guards against the dial loop busy
+// waiting while every queued item is backing off. It is deliberately not
+// parallel: it reads the goroutine dump, and parallel tests running their own
+// dial loop would be indistinguishable
+func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
+	ctx := t.Context()
+
+	sw := NewMultiplexSwitch(&mockTransport{})
+	sw.peers = &mockSet{
+		hasFn: func(types.ID) bool { return false },
+	}
+
+	// The redial loop queues exactly this for a persistent peer in backoff
+	sw.dialQueue.Push(dial.Item{
+		Time:    time.Now().Add(time.Hour),
+		Address: generateNetAddr(t, 1)[0],
+	})
+
+	go sw.runDialLoop(ctx)
+
+	// Give the loop time to settle on the backed off item
+	time.Sleep(100 * time.Millisecond)
+
+	buf := make([]byte, 64<<10)
+	buf = buf[:runtime.Stack(buf, true)]
+
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
+		if !strings.Contains(g, "runDialLoop") {
+			continue
+		}
+
+		// A parked loop sits in a select, a spinning one is running
+		assert.Contains(
+			t,
+			g,
+			"[select]",
+			"the dial loop must park while every queued item is backing off",
+		)
+
+		return
+	}
+
+	t.Fatal("no goroutine running runDialLoop found")
 }
 
 func TestMultiplexSwitch_DialPeers(t *testing.T) {
@@ -894,8 +1262,7 @@ func TestCalculateBackoff(t *testing.T) {
 func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var transportClosed bool
 	mockTransport := &mockTransport{

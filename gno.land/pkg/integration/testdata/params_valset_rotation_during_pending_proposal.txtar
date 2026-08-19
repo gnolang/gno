@@ -1,0 +1,133 @@
+# Test that v3's executor reads valoperCache at EXECUTION time, not at
+# proposal creation time. A rotation that lands between propose-create
+# and propose-execute must be reflected in the final published valset.
+#
+# Pipeline being verified:
+#
+#   Register A with P                 -> valoperCache[A] = (P, addr_P)
+#   Propose: add A with power=1       -> proposal X frozen with operator-key
+#   Rotate A: P -> P'                 -> valoperCache[A] = (P', addr_P')
+#                                        signingRegistry: P entry retired,
+#                                        P' entry active
+#                                        v3.RotateValoperSigningKey: A not
+#                                        yet in valset, so its branch emits
+#                                        applied=false (no-op at sysparams)
+#   Vote, Execute X                   -> executor reads valoperCache[A] LIVE
+#                                        sees P', publishes valset = {genesis, P'}
+#
+# Why this matters: if the executor captured signing pubkey at create
+# time, the chain would publish a STALE/RETIRED key. Validators would
+# either fail to sign (chain stalls) or, worse, the operator could
+# weaponize the rotation to publish two operational keys for an interim.
+# This test pins the live-resolve property.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Disable rotation throttle so we can rotate inside the txtar window.
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_throttle.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Step 1: register operator A (= member) with pubKey P.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A profile' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Step 2: create proposal X to add A as a validator. (Proposal id 1;
+# id 0 was the throttle-disable proposal.)
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+
+# Step 3: rotate A from P to P'. This happens BEFORE the proposal X
+# is voted+executed. Throttle is 0 so this is unblocked.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Step 4: vote and execute proposal X. The v3 executor reads
+# valoperCache[A] at execute time -> sees P' (post-rotation).
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Post-execution invariant: valset:current must contain P' (NEW key).
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr'
+
+# Critical: P (OLD/retired key) must NOT appear in valset:current. A
+# regression where the executor captured the create-time signing key
+# would publish P and this assertion would fail.
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+
+# Genesis validator must still be present (the "," between entries
+# proves multi-validator state).
+stdout '","gpub1'
+
+# Liveness check: produce another block past H+2 to confirm the chain
+# is still live after the validator-set change.
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+-- run/disable_throttle.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	sysparams "gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := sysparams.NewSysParamInt64PropRequest(cross(cur), "node", "valoper", "rotation_period_blocks", 0)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/add_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		cross(cur),
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
+		"Add operator A as validator",
+		"propose-create captures operator addr; signing key resolved at execute",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

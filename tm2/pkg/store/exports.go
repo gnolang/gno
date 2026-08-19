@@ -19,6 +19,7 @@ type (
 	StoreKey               = types.StoreKey
 	StoreOptions           = types.StoreOptions
 	Queryable              = types.Queryable
+	ImmutableQueryer       = types.ImmutableQueryer
 	Gas                    = types.Gas
 	GasMeter               = types.GasMeter
 	GasConfig              = types.GasConfig
@@ -27,6 +28,7 @@ type (
 	GasContext             = types.GasContext
 	DepthEstimator         = types.DepthEstimator
 	Checkpointable         = types.Checkpointable
+	InitialVersionSetter   = types.InitialVersionSetter
 )
 
 var (
@@ -36,6 +38,7 @@ var (
 	NewGasMeter            = types.NewGasMeter
 	NewInfiniteGasMeter    = types.NewInfiniteGasMeter
 	NewPassthroughGasMeter = types.NewPassthroughGasMeter
+	OutOfGasLog            = types.OutOfGasLog
 	DefaultGasConfig       = types.DefaultGasConfig
 	PrefixIterator         = types.PrefixIterator
 	ReversePrefixIterator  = types.ReversePrefixIterator

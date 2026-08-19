@@ -1,0 +1,23 @@
+// MARKDOWNFUNC: CodeBlock
+// CONTEXT: %s
+-- input.md --
+```
+fake close attempt
+```
+
+still inside code block
+-- output.md --
+````
+```
+fake close attempt
+```
+
+still inside code block
+````
+-- output.html --
+<pre><code>```
+fake close attempt
+```
+
+still inside code block
+</code></pre>

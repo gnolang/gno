@@ -11,24 +11,24 @@ import (
 
 // Tx allows you to query the transaction results. `nil` could mean the
 // transaction is in the mempool, invalidated, or was not sent in the first
-// place
-func Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
+// place.
+func (env *Environment) Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	_, span := traces.Tracer().Start(ctx.Context(), "Tx")
 	defer span.End()
 	// Get the result index from storage, if any
-	resultIndex, err := sm.LoadTxResultIndex(stateDB, hash)
+	resultIndex, err := sm.LoadTxResultIndex(env.StateDB, hash)
 	if err != nil {
 		return nil, err
 	}
 
 	// Sanity check the block height
-	height, err := getHeight(blockStore.Height(), &resultIndex.BlockNum)
+	height, err := getHeight(env.BlockStore.Height(), &resultIndex.BlockNum)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load the block
-	block := blockStore.LoadBlock(height)
+	block := env.BlockStore.LoadBlock(height)
 	if block == nil {
 		return nil, fmt.Errorf("block not found for height %d", height)
 	}
@@ -45,7 +45,7 @@ func Tx(ctx *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	rawTx := block.Txs[resultIndex.TxIndex]
 
 	// Fetch the block results
-	blockResults, err := sm.LoadABCIResponses(stateDB, resultIndex.BlockNum)
+	blockResults, err := sm.LoadABCIResponses(env.StateDB, resultIndex.BlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load block results, %w", err)
 	}

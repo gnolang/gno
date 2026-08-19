@@ -2,10 +2,12 @@ package sdk
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -60,6 +62,11 @@ type BaseApp struct {
 	// The minimum gas prices a validator is willing to accept for processing a
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices []GasPrice
+
+	// Thread-safe snapshot of the last block header.
+	// Updated atomically in setCheckState().
+	// Used by Simulate and query handlers that run outside the consensus mutex.
+	lastBlockHeader atomic.Pointer[headerSnapshot]
 
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
@@ -204,6 +211,7 @@ func (app *BaseApp) initFromMainStore() error {
 		}
 		app.setCheckState(lastHeader)
 	}
+
 	// Done.
 	app.Seal()
 
@@ -245,6 +253,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	app.lastBlockHeader.Store(&headerSnapshot{header: header})
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -257,6 +266,17 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
+}
+
+// getLastBlockHeader returns the last block header, safe for concurrent access.
+// It reads from an atomic.Value updated in setCheckState() and BeginBlock().
+// Returns nil if no header has been set yet.
+func (app *BaseApp) getLastBlockHeader() abci.Header {
+	snap := app.lastBlockHeader.Load()
+	if snap != nil {
+		return snap.header
+	}
+	return nil
 }
 
 // setConsensusParams memoizes the consensus params.
@@ -302,7 +322,6 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 	lastCommitID := app.cms.LastCommitID()
 
-	// return res
 	res.Data = []byte(app.Name())
 	res.LastBlockHeight = lastCommitID.Version
 	res.LastBlockAppHash = lastCommitID.Hash
@@ -324,6 +343,16 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 		app.storeConsensusParams(req.ConsensusParams)
 	}
 
+	// Align multistore version with chain height for hardfork chains.
+	// After this, the next Commit() lands at version=req.InitialHeight, so
+	// app.LastBlockHeight() (cms.LastCommitID().Version) tracks real chain
+	// height with no offset bookkeeping.
+	if req.InitialHeight > 1 {
+		if setter, ok := app.cms.(store.InitialVersionSetter); ok {
+			setter.SetInitialVersion(req.InitialHeight)
+		}
+	}
+
 	initHeader := &bft.Header{ChainID: req.ChainID, Time: req.Time}
 
 	// initialize the deliver state and check state with a correct header
@@ -340,6 +369,15 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
+
+	// If the initChainer returned an error response, return it as-is and
+	// skip the post-init bookkeeping below. The validators-count sanity
+	// check would otherwise panic with a misleading "count mismatch" when
+	// res.Validators is empty (the natural shape of an error response),
+	// masking the real cause from the operator.
+	if res.ResponseBase.Error != nil {
+		return
+	}
 
 	// sanity check
 	if len(req.Validators) > 0 {
@@ -359,9 +397,18 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	// In app.initChainer(), we set the initial parameter values in the params keeper.
 	// The params keeper store needs to be accessible in the CheckTx state so that
 	// the first CheckTx can verify the gas price set right after the chain is initialized
-	// with the genesis state.
-	app.checkState.ctx.ms = app.deliverState.ctx.ms
-	app.checkState.ms = app.deliverState.ms
+	// with the genesis state. Wrap the deliver state rather than aliasing it:
+	// CheckTx must READ genesis state, but its writes must never leak into
+	// the block-1 deliver state. Under the old aliasing, a pre-block-1
+	// CheckTx flushed its ante writes (fee deduction, sequence bumps — and
+	// at genesis height gno.land's ante even auto-creates funded accounts
+	// for unknown signers) into the shared store: the same tx then failed
+	// signature verification when delivered in block 1, and, worse, whether
+	// a CheckTx ran is per-node mempool state, so block-1 deliver state
+	// could diverge across nodes.
+	checkMS := app.deliverState.ms.MultiCacheWrap()
+	app.checkState.ctx.ms = checkMS
+	app.checkState.ms = checkMS
 
 	// NOTE: We don't commit, but BeginBlock for block 1 starts from this
 	// deliverState.
@@ -437,13 +484,6 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 
 func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	// "/store" prefix for store queries
-	queryable, ok := app.cms.(store.Queryable)
-	if !ok {
-		msg := "multistore doesn't support queries"
-		res.Error = ABCIError(std.ErrUnknownRequest(msg))
-		return
-	}
-
 	req.Path = "/" + strings.Join(path[1:], "/")
 
 	// when a client did not provide a query height, manually inject the latest
@@ -453,6 +493,31 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 
 	if req.Height <= 1 && req.Prove {
 		res.Error = ABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
+		return
+	}
+
+	// Prefer the snapshot-isolated path: store queries run on the query ABCI
+	// connection, CONCURRENTLY with consensus commits, so they must not read
+	// live mutable store state when a snapshot view is available. On error
+	// (no committed state yet, pruned height, backend without a view at that
+	// height) fall through to the legacy live-query path, preserving its
+	// response surface for those corners — safe there because either nothing
+	// has been committed or the live path answers with its own
+	// version-existence handling, as today.
+	if iq, ok := app.cms.(store.ImmutableQueryer); ok {
+		resp, err := iq.QueryImmutable(req)
+		if err == nil {
+			resp.Height = req.Height
+			return resp
+		}
+		app.logger.Debug("store query snapshot path unavailable; using live path",
+			"height", req.Height, "err", err)
+	}
+
+	queryable, ok := app.cms.(store.Queryable)
+	if !ok {
+		msg := "multistore doesn't support queries"
+		res.Error = ABCIError(std.ErrUnknownRequest(msg))
 		return
 	}
 
@@ -483,7 +548,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		return
 	}
 
-	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
 	if err != nil {
 		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
@@ -493,35 +558,32 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		))
 		return
 	}
+	defer release()
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
-	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	ctx := NewContext(RunTxModeCheck, cacheMS, app.getLastBlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
 	return
 }
 
-func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
-	if req.Header.GetHeight() < 1 {
-		return fmt.Errorf("invalid height: %d", req.Header.GetHeight())
-	}
-
-	prevHeight := app.LastBlockHeight()
-	if req.Header.GetHeight() != prevHeight+1 {
-		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.GetHeight(), prevHeight+1)
-	}
-
-	return nil
-}
-
 // BeginBlock implements the ABCI application interface.
+//
+// Block-height contiguity is the consensus engine's responsibility, not
+// BaseApp's. tm2/pkg/bft/state/validation.go (ValidateBlock) and the
+// BlockStore's SaveBlock contiguity check together guarantee that any
+// header reaching this method is height = lastBlockHeight + 1. BaseApp
+// intentionally does NOT re-check that invariant: duplicating it here
+// would mask consensus bugs as SDK panics, and after the InitialHeight
+// refactor (multistore version == chain height) every site that used to
+// translate offsets is gone, so a stateless check would either be wrong
+// or trivially redundant. Embedders driving BaseApp without a real
+// consensus engine (fuzzers, custom test harnesses) must enforce the
+// invariant themselves; see TestBeginBlock_NoStatelessContiguityGuard
+// in baseapp_test.go for the pinned behavior.
 func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeginBlock) {
-	if err := app.validateHeight(req); err != nil {
-		panic(err)
-	}
-
 	// Check if we should halt before processing this block.
 	// We halt at the beginning of the block *after* haltHeight,
 	// so the block at haltHeight is fully committed.
@@ -761,22 +823,25 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
-				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
-					gasWanted,
-					ctx.GasMeter().GasConsumed(),
-					ex.Descriptor,
-				)
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				if trace.StoreGasEnabled {
 					trace.TxEnd(result.GasUsed)
 				}
 				return
 			default:
-				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
+				// Defense in depth: clip in case `r` carries
+				// adversarial content from a code path that bypassed
+				// keeper-level bounding.
+				log := clipLog(fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack())))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted
@@ -933,21 +998,26 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	header := app.deliverState.ctx.BlockHeader()
 
-	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
-	// The write to the DeliverTx state writes all state transitions to the root
-	// MultiStore (app.cms) so when Commit() is called is persists those values.
-	app.deliverState.ms.MultiWrite()
-	commitID := app.cms.Commit()
-	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
-
-	// Save this header.
-	baseStore := app.cms.GetStore(app.baseKey)
+	// Write block header into the deliver cache before flush,
+	// so it lands in the same batch as all other block state.
+	baseStore := app.deliverState.ms.GetStore(app.baseKey)
 	if baseStore == nil {
 		res.Error = ABCIError(errors.New("baseapp expects MultiStore with 'base' Store"))
 		return
 	}
 	headerBz := amino.MustMarshal(header)
 	baseStore.Set(nil, mainLastHeaderKey, headerBz)
+
+	// Write the DeliverTx state which is cache-wrapped and commit the MultiStore.
+	// The write to the DeliverTx state writes all state transitions to the root
+	// MultiStore (app.cms) so when Commit() is called it persists those values.
+	//
+	// Order matters: MultiWrite MUST precede Commit — reversing it makes IAVL
+	// SaveVersion run against a stale tree (wrong app hash) and shifts dbadapter
+	// writes into the next block's batch.
+	app.deliverState.ms.MultiWrite()
+	commitID := app.cms.Commit()
+	app.logger.Debug("Commit synced", "commit", fmt.Sprintf("%X", commitID))
 
 	// Reset the Check state to the latest committed.
 	//
@@ -974,6 +1044,15 @@ func (app *BaseApp) Close() error {
 		return nil
 	}
 
+	// Release any open query snapshot before closing the DB.
+	// The multiStore holds a snapshot with refs=1 that is normally released by
+	// the next Commit(). On shutdown that swap never happens, so we must drain
+	// it explicitly; otherwise PebbleDB reports "leaked snapshots" at Close time.
+	// any inflight query ongoing during shutdown will fail as the snapshot is released.
+	if closer, ok := app.cms.(io.Closer); ok {
+		closer.Close() //nolint:errcheck // multiStore.Close() always returns nil
+	}
+
 	app.logger.Info("Closing application.db")
 
 	if err := app.db.Close(); err != nil {
@@ -989,6 +1068,12 @@ func (app *BaseApp) Close() error {
 type state struct {
 	ms  store.MultiStore
 	ctx Context
+}
+
+// headerSnapshot wraps an abci.Header for safe use with atomic.Value,
+// which requires a consistent concrete type on every Store call.
+type headerSnapshot struct {
+	header abci.Header
 }
 
 func (st *state) MultiCacheWrap() store.MultiStore {
