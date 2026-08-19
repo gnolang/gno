@@ -75,6 +75,15 @@ are anchored by the on-chain `test_atone` figure of 18.3M.)
    existing consumers. grc20 does **not** import hashmap (the constructor is
    caller-supplied), so the default token's package closure is unchanged.
 
+   This holds only if no *test* file in the grc20 package imports a backend
+   either: `MsgAddPackage` type-checks a package as `MPUserAll`, test files
+   included, so a `_test.gno` importing hashmap/bptree would pull both into
+   the on-chain closure of every realm that imports grc20 (measured: +52k gas
+   on each such deploy). The multi-backend coverage therefore lives in
+   `grc20/filetests/storage_option_filetest.gno` — `filetests/` has no
+   `gnomod.toml`, so it is never deployed and its imports stay out of the
+   closure. Do not move it back into the package.
+
 ## Measured results (validation)
 
 > **⚠️ Numbers corrected (real gas metering).** An earlier version of this ADR
