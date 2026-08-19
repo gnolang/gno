@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -541,4 +542,90 @@ func BenchmarkCheckTypeExpansionBound(b *testing.B) {
 			}
 		})
 	}
+}
+
+// nearBudgetPkgSrc builds a package whose expansion sits just under the budget:
+// a doubling chain topped by an exported T, optionally importing another package
+// so a closure can be chained together.
+func nearBudgetPkgSrc(name, imp string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "package %s\n", name)
+	if imp != "" {
+		fmt.Fprintf(&b, "import %q\ntype prev %s.T\n", imp, path.Base(imp))
+	}
+	b.WriteString("type t0 struct{ v int }\n")
+	b.WriteString(doublingChain("t", 1, 8))
+	b.WriteString("type T struct{ a, b [0]t8 }\n")
+	return b.String()
+}
+
+// TestExpansionNodesCoversClosure pins what the chain charges gas for. The
+// per-package budget bounds each package, but one transaction re-type-checks
+// every transitive dependency, and those dependencies' source bytes were paid for
+// by EARLIER transactions — so a tiny package importing a large pre-deployed
+// closure would otherwise trigger arbitrarily much unmetered work. The reported
+// count must therefore cover the whole closure, not just the entry package.
+func TestExpansionNodesCoversClosure(t *testing.T) {
+	t.Parallel()
+
+	nodesFor := func(chainLen int) uint64 {
+		var pkgs []*std.MemPackage
+		for k := range chainLen {
+			imp := ""
+			if k > 0 {
+				imp = fmt.Sprintf("gno.land/p/demo/p%d", k-1)
+			}
+			name := fmt.Sprintf("p%d", k)
+			pkgs = append(pkgs, &std.MemPackage{
+				Type: MPUserProd, Name: name, Path: "gno.land/p/demo/" + name,
+				Files: []*std.MemFile{{Name: "p.gno", Body: nearBudgetPkgSrc(name, imp)}},
+			})
+		}
+		// A deliberately tiny package importing only the tip of the chain.
+		tip := fmt.Sprintf("gno.land/p/demo/p%d", chainLen-1)
+		tiny := &std.MemPackage{
+			Type: MPUserProd, Name: "tiny", Path: "gno.land/p/demo/tiny",
+			Files: []*std.MemFile{{Name: "t.gno", Body: fmt.Sprintf(
+				"package tiny\nimport %q\ntype X %s.T\n", tip, path.Base(tip))}},
+		}
+		getter := mockPackageGetter(pkgs)
+		var nodes uint64
+		_, err := TypeCheckMemPackage(tiny, TypeCheckOptions{
+			Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+			ProdOnly: true, ExpansionNodes: &nodes,
+		})
+		require.NoError(t, err)
+		return nodes
+	}
+
+	short, long := nodesFor(4), nodesFor(12)
+	t.Logf("closure nodes: 4-deep=%d  12-deep=%d", short, long)
+
+	// The entry package is a few lines, so anything proportional to the closure
+	// can only come from the dependencies.
+	assert.Greater(t, long, short*2,
+		"reported nodes must grow with the dependency closure, else a tiny package "+
+			"importing a large pre-deployed chain goes unpriced")
+}
+
+// TestExpansionNodesZeroWhenRejected pins that a REJECTED package reports no
+// chargeable nodes. Rejecting stops go/types from running, so the count is the
+// cost avoided rather than incurred; charging it would price work the guard just
+// prevented and would replace the informative rejection with an out-of-gas error.
+func TestExpansionNodesZeroWhenRejected(t *testing.T) {
+	t.Parallel()
+
+	mpkg := &std.MemPackage{
+		Type: MPUserProd, Name: "x", Path: "gno.land/p/demo/x",
+		Files: []*std.MemFile{{Name: "x.gno", Body: fanOutSrc(40)}},
+	}
+	getter := mockPackageGetter{}
+	var nodes uint64
+	_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+		Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+		ProdOnly: true, ExpansionNodes: &nodes,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "denial-of-service")
+	assert.Zero(t, nodes, "a rejected package must not be charged for a walk that never ran")
 }

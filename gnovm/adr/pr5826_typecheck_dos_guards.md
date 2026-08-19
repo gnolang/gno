@@ -17,6 +17,9 @@ runs, by a deterministic node count.
 | `checkNoDotImports` | dot imports | hide a type's expansion from `cost()` |
 | `checkTypeExpansionBound` | over-budget expansion totals | the DoS itself |
 
+The count `checkTypeExpansionBound` computes is also reported to the keeper, which
+charges gas for it — the cap bounds one package, the charge bounds a transaction.
+
 Division of labour with `Go2Gno` (which owns completeness, not cost): #6059.
 
 ## Decision: the budget bounds the per-package TOTAL, not the largest type
@@ -35,41 +38,58 @@ hold per **transaction**, not merely per package.
 Gas is charged per source byte (`PreprocessGasPerByte = 1250`, and 1 gas ≈ 1ns on
 the reference machine → ~1.25µs of CPU per byte). Bytes are a poor proxy here:
 each extra `type tN struct{ a, b [0]tN-1 }` line is ~31 bytes and *doubles* the
-total, so the shape reaching a budget `B` in the fewest bytes is a doubling chain,
-worst case `B / (33 + 31·log2(B/14))` nodes per byte at ~25ns/node.
+total, so the worst shape is a doubling chain: `B / (33 + 31·log2(B/14))` nodes
+per byte at ~25ns/node.
 
 | budget | worst accepted | µs/byte | vs priced 1.25 |
 |---|---|---|---|
 | 1_000_000 | 511 bytes, ~24ms | 47.6 (measured) | **38x** |
 | 20_000 | 325 bytes, ~263µs | 0.81 (measured) | **0.6x** |
 
-At 1_000_000 the 38x multiplied across messages (see below). At 20_000 per-message
-cost is bounded by per-message gas, so any number of messages is bounded by the
-per-tx `GasWanted` and the block gas limit — mechanisms that already exist.
-
 Honest code is unaffected: the largest per-package total in real code is 181, over
 all stdlibs and examples including test files, pinned by
 `TestHonestTypeExpansionUnderBudget` — ~110x headroom.
 
-### Known limit: per package, not per transaction
+### Making the bound hold per transaction
 
-**Multiple messages — closed by the budget above.** `Tx.Msgs` is unbounded
-(`ValidateBasic` caps gas, not the message count) and baseapp dispatches every
-message to the handler, so N `MsgAddPackage`/`MsgRun` messages each pay the budget
-in full. At the old 1_000_000 that meant ~1400 near-budget packages in a 1MB tx ≈
-tens of seconds of walk. Gas parity per message removes the amplification: the CPU
-a message can buy is now under the gas it pays, so `GasWanted` and the block gas
-limit bound the total.
+A per-package cap does not bound a transaction, in two ways.
 
-**Transitive dependencies — still open.** One `MsgAddPackage` re-guards every
-transitive user dependency, because `VMKeeper.typeCheckCache` holds only stdlibs
-and is cloned per tx. Those dependencies' bytes were paid for by *earlier*
-transactions, so per-message gas parity does not price them. The clean fix is to
-charge gas for the computed expansion count rather than only capping it — the
-guard already computes it exactly, outside `go/types`, so this needs no fork (see
-*Alternatives weighed*, which rejected metering **inside** `go/types`, a different
-proposal). That wants its own rate parameter and gas-fixture re-pinning, so it is
-left as follow-up; the cap keeps the residual bounded meanwhile.
+**Multiple messages.** `Tx.Msgs` is unbounded — `ValidateBasic` caps gas, not the
+message count — and baseapp dispatches every message to the handler, so N
+`MsgAddPackage`/`MsgRun` messages each pay the budget in full. At the old
+1_000_000 that was ~1400 near-budget packages in a 1MB tx ≈ tens of seconds of
+walk. Closed by the budget above: per-message CPU is now under per-message gas.
+
+**Transitive dependencies.** One message re-type-checks its whole closure, and
+those dependencies' bytes were paid for by *earlier* transactions. Measured: a
+55-byte package importing the tip of a 30-deep chain of near-budget packages pulls
+in 321,070 closure nodes against 68,750 gas of byte charges — 117x unpriced. Byte
+parity cannot fix this.
+
+Closed by charging for the count the guard already computes — exactly, linearly,
+and outside `go/types`, so no fork is involved. It is reported via
+`TypeCheckOptions.ExpansionNodes`; the keeper charges `nodes x 25` gas (1 gas ≈
+1ns, walk ~25ns/node). Closure cost is then tied to this transaction's gas, which
+`GasWanted` and `MaxBlockMaxGas` already bound — no new per-tx or per-block
+counter, and no cap needing its own compatibility argument.
+
+Two details that matter:
+
+- **Only accepted packages are counted.** Rejecting stops `go/types`, so a
+  rejected total is the cost *avoided*; charging it prices prevented work and
+  turns the informative rejection into an out-of-gas. The first implementation did
+  exactly that — `addpkg_typecheck_fanout.txtar` reported 3.8e14 gas instead of
+  the expected message. `TestExpansionNodesZeroWhenRejected` pins the fix.
+- **The cap stays.** The rate is calibrated in ns/node on one machine and can be
+  wrong on another; the cap cannot. Both together mean a mis-estimated rate leaves
+  the worst package under-charged but still *bounded*.
+
+No gas fixture needed re-pinning (honest totals are small — largest 181, ~4.5k
+gas — and `TestTestdata` passes unchanged). The guard scores test files that
+`ProdOnly` excludes from `go/types`, so the charge is mildly conservative: it can
+over-charge, never under. The rate is a constant rather than a `Params` field only
+because `Params` is amino-generated and adding a field needs `go generate`, which
+AGENTS.md keeps out of ordinary PRs; it is a price and belongs there eventually.
 
 ### Alternatives weighed
 
@@ -176,6 +196,5 @@ counted in `cost()` first.
 `go/types` diagnostics, so a filetest tripping a guard must pin two directives
 (`// TypeCheckError:` and `// Error:`) even though preprocess only adds an
 unrelated secondary error. Deploy stops on any type-check error, so this is
-filetest-harness-only. Tagging fatal rejections and having `runFiletest` stop
-before preprocess would need a deliberate definition of the unsupported-Gno
-subset, against ~500 filetests that pin both — not a bolt-on.
+filetest-harness-only. Splitting them off needs a deliberate definition of the
+unsupported-Gno subset, against ~500 filetests that pin both — not a bolt-on.

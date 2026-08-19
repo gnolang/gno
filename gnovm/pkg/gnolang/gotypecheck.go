@@ -178,6 +178,18 @@ type TypeCheckOptions struct {
 	// again.
 	Cache TypeCheckCache
 
+	// ExpansionNodes, if non-nil, receives the total type-expansion node count
+	// of every package this call type-checked — the entry package plus its whole
+	// transitive closure. It is the number go/types' validType walk would visit,
+	// computed linearly by the pre-type-check guard (see typeExpansionBudget).
+	//
+	// The chain charges gas for it. The per-package budget bounds each package,
+	// but a transaction re-checks every transitive dependency, and those bytes
+	// were paid for by earlier transactions — so without pricing the closure a
+	// tiny tx can trigger arbitrarily much work. Set even when an error is
+	// returned, so a rejected package still pays for the counting.
+	ExpansionNodes *uint64
+
 	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
 	// After TypeCheckMemPackage returns, it contains the file position
 	// information from the parsed package.
@@ -259,6 +271,9 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		wtests = new(bool)
 	}
 	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
+	if opts.ExpansionNodes != nil {
+		*opts.ExpansionNodes = gimp.expCache.nodes
+	}
 	return
 }
 

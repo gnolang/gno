@@ -68,11 +68,17 @@ import (
 // fan-out special case, and far past any real type — measured max depth in
 // stdlibs and examples is single digits.
 //
-// Residual, recorded in adr/pr5826_typecheck_dos_guards.md: one MsgAddPackage
-// re-guards every transitive user dependency (the keeper's type-check cache holds
-// only stdlibs and is cloned per tx), and those dependencies' bytes were paid for
-// by earlier transactions, not this one. Gas parity per message does not price
-// that; charging gas for the computed count would.
+// The transitive-dependency case needs more than a per-package cap: one
+// MsgAddPackage re-type-checks every dependency in its closure, and those
+// dependencies' source bytes were paid for by EARLIER transactions. So the count
+// computed here is also reported out (TypeCheckOptions.ExpansionNodes) and the
+// chain charges gas for it, which ties the closure's cost to this transaction's
+// gas — bounded by GasWanted and the block gas limit. The cap stays as a
+// machine-independent ceiling: the gas rate is calibrated in ns/node on one
+// machine and can be wrong on another, whereas the cap cannot.
+//
+// Only ACCEPTED packages are counted. Rejecting stops go/types from running, so a
+// rejected package's total is the cost avoided, not incurred.
 //
 // The chain sets TypeCheckOptions.ProdOnly, so on-chain go/types runs exactly
 // one Check per package and never type-checks test files. This guard still
@@ -154,6 +160,13 @@ type pkgDecls struct {
 type expansionPkgCache struct {
 	files map[string][]*ast.File
 	decls map[string]*pkgDecls
+
+	// nodes accumulates the expansion total of every package checked through
+	// this cache, i.e. the whole transitive closure of one type check. The
+	// per-package budget bounds each package; this is what lets the caller price
+	// the closure, whose dependency bytes were paid for by earlier transactions.
+	// See TypeCheckOptions.ExpansionNodes.
+	nodes uint64
 }
 
 func newExpansionPkgCache() *expansionPkgCache {
@@ -397,6 +410,11 @@ func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs 
 		}
 	}
 	if total > typeExpansionBudget {
+		// Deliberately NOT accumulated: rejecting stops go/types from running, so
+		// this walk never happens. The count is the cost AVOIDED, not incurred —
+		// charging it would price work the guard just prevented, and would replace
+		// the informative rejection below with an out-of-gas error. The guard's own
+		// (linear) work is already covered by the per-source-byte charge.
 		return fmt.Errorf(
 			"%s: this package's named types expand to %d nodes during type "+
 				"validation, exceeding the limit of %d (largest: type %s at %d) "+
@@ -404,6 +422,8 @@ func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs 
 			fset.Position(worst.Name.Pos()), total, typeExpansionBudget,
 			worst.Name.Name, worstCost)
 	}
+	// Under budget: go/types will walk these nodes, so they are chargeable.
+	c.shared.nodes = satAdd(c.shared.nodes, total)
 	return nil
 }
 
