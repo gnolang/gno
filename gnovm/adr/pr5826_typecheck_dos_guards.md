@@ -19,8 +19,8 @@ runs, by a deterministic node count.
 
 The count `checkTypeExpansionBound` computes is also reported to the keeper, which
 charges gas for it — the cap bounds one package, the charge bounds a transaction.
-
 Division of labour with `Go2Gno` (completeness, not cost): #6059.
+
 ## Decision: the budget bounds the per-package TOTAL, not the largest type
 
 `validType` runs once per declared named type, so a transaction pays the **sum**.
@@ -58,50 +58,51 @@ the budget in full — at the old 1_000_000, ~1400 near-budget packages in a 1MB
 Closed by the budget above: per-message CPU is now under per-message gas.
 
 **Transitive dependencies.** One message re-type-checks its whole closure, whose
-bytes were paid for by *earlier* transactions. Measured: a 55-byte package
-importing the tip of a 30-deep chain pulls in 321,070 closure nodes against 68,750
-gas of byte charges — 117x unpriced. Byte parity cannot fix this.
+bytes earlier transactions paid for. Measured: a 55-byte package importing the tip
+of a 30-deep chain pulls in 321,070 closure nodes against 68,750 gas of byte
+charges — 117x unpriced, which byte parity cannot fix.
 
 Closed by charging for the count the guard already computes — exactly, linearly,
-and outside `go/types`, so no fork is involved. It goes to
-`TypeCheckOptions.ChargeExpansion` once per package and **before** that package is
-walked; the keeper's callback consumes `nodes x 25` gas (1 gas ≈ 1ns, walk
-~25ns/node). Closure cost is then tied to this tx's `GasWanted`, and the ante
-handler rejects any `GasWanted` above `Block.MaxGas`, so one tx cannot exceed the
-block ceiling.
+and outside `go/types`. It is charged to `TypeCheckOptions.GasMeter` once per
+package and **before** that package is walked, at `typeExpansionGasPerNode = 25`
+(1 gas ≈ 1ns, walk ~25ns/node). Closure cost is then tied to this tx's
+`GasWanted`, which the ante handler caps at `Block.MaxGas`.
 
-- **Per package, not once at the end.** The gas meter panics on out-of-gas and
-  `go/types` re-panics anything that is not its own `bailout`, so the abort
-  propagates out of `cfg.Check` *before* the remaining dependencies are walked.
-  Charging once at the end would bill for CPU already spent, preventing nothing.
-  `TestExpansionChargedPerPackage` pins one charge per package plus the
-  mid-closure abort.
-- **A callback, not a gas meter**, so gnovm keeps no tm2 dependency —
-  `gnovm/pkg/parser`'s `ParseFile2` does the same for per-token gas.
+- **Per package, before the walk.** `ConsumeGas` panics on out-of-gas and
+  `go/types` re-panics non-`bailout` values, so the abort lands *before* the
+  remaining dependencies are walked. Charging once at the end bills for CPU already
+  spent, preventing nothing — the first cut did that, and
+  `addpkg_typecheck_fanout.txtar` reported 3.8e14 gas instead of the rejection.
+  Returning an error would be *worse*: `go/types` records importer errors and keeps
+  resolving the rest, leaking the CPU it meant to save.
+- **A `GasMeter`, not a bespoke callback**, since `gnolang` already imports tm2's
+  store and carries one (`MachineOptions.GasMeter`). `newParserCallback` is no
+  counter-example: `pkg/parser` is a tm2-free fork, so *it* needs the callback.
 - **Rejected packages are not charged** — their total is the cost *avoided*.
-  Charging it prices prevented work and turns the informative rejection into an
-  out-of-gas, which the first implementation did: `addpkg_typecheck_fanout.txtar`
-  reported 3.8e14 gas instead of the expected message.
-  `TestExpansionNotChargedWhenRejected` pins the fix.
-- **The cap stays**: the rate is calibrated in ns/node on one machine and can be
-  wrong on another, whereas the cap cannot, so a mis-estimated rate leaves the
-  worst package under-charged but still *bounded*.
+  `TestExpansionNotChargedWhenRejected` pins it.
+- **The cap stays**: the charge prices work at a machine-calibrated rate, while the
+  cap bounds nodes per package unconditionally, so a wrong rate can under-charge
+  but never unbound. It also floors the worst charge at 500k gas per package.
 
-No gas fixture needed re-pinning (honest totals are small — largest 181, ~4.5k gas
-— and `TestTestdata` passes unchanged). The guard scores test files `ProdOnly`
-excludes, so the charge can over-charge, never under. The rate is a constant, not a
-`Params` field, only because `Params` is amino-generated and adding a field needs
-`go generate`, which AGENTS.md keeps out of ordinary PRs.
+No gas fixture needed re-pinning: honest totals are small (largest 181, ~4.5k gas)
+and `TestTestdata` passes unchanged. The guard scores test files `ProdOnly`
+excludes, so the charge can over-charge, never under. The rate is a gnovm constant beside the
+budget rather than a vm `Params` field: it is a measured ns/node rate for work
+gnovm performs, which is where `tokenCostFactor` and `OpCPU*` live, not a
+governance knob. Promoting it is reasonable later — the cap is what makes a
+governable rate safe.
+
+Toolchain-upgrade check: this relies on `go/types` re-panicking non-`bailout`
+values and on `check.posStack` being empty during import resolution (so the abort
+prints no stderr trace). Re-verify on a Go bump.
 
 ### Alternatives weighed
 
-**Metering inside `go/types`.** Rejected: `go/types` is stdlib
-here, not a fork, so metering `validType` means forking a large, fast-moving
-package and re-syncing it every toolchain bump, and the work spans several
-internal passes with no single hook point. Note this is *not* the same as charging
-gas for the count this guard already computes — that happens outside `go/types`,
-needs no fork, and is the recommended fix for the transitive-dependency residual
-above.
+**Metering inside `go/types`.** Rejected: it is stdlib here, not a fork, so
+metering `validType` means forking a large, fast-moving package and re-syncing it
+every toolchain bump, across several internal passes with no single hook point.
+Charging the count this guard already computes is a different thing entirely — it
+happens outside `go/types` and needs no fork.
 
 **A governance `Params` value for the budget.** Rejected: a param adds two bricking
 modes a constant cannot (set to 1, all deploys fail; set huge, the DoS reopens),
@@ -192,9 +193,8 @@ counted in `cost()` first.
 
 ## Open question: fatal vs. normal type-check errors
 
-`TypeCheckMemPackage` returns guard rejections indistinguishably from ordinary
-`go/types` diagnostics, so a filetest tripping a guard must pin two directives
-(`// TypeCheckError:` and `// Error:`) even though preprocess only adds an
-unrelated secondary error. Deploy stops on any type-check error, so this is
-filetest-harness-only, and splitting them off needs a deliberate definition of the
-unsupported-Gno subset against ~500 filetests that pin both.
+Guard rejections are indistinguishable from ordinary `go/types` diagnostics, so a
+filetest tripping a guard must pin two directives even though preprocess only adds
+an unrelated secondary error. Deploy stops on any type-check error, so this is
+harness-only; splitting them needs a deliberate definition of the unsupported-Gno
+subset against ~500 filetests that pin both.

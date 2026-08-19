@@ -542,41 +542,6 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
 }
 
-// typeExpansionGasPerNode prices one node of go/types' validType walk. 1 gas ~=
-// 1ns on the reference machine and the walk measures ~25ns/node (Apple Silicon
-// go1.25), so 25 gas/node charges roughly what it costs.
-//
-// This is a constant rather than a Params field only because Params is
-// amino-generated and adding a field needs `go generate`, which AGENTS.md keeps
-// out of ordinary PRs. It is a price, so it belongs in Params eventually; see
-// gnovm/adr/pr5826_typecheck_dos_guards.md.
-const typeExpansionGasPerNode = 25
-
-// typeExpansionCharger returns the per-package charge callback handed to gnovm.
-// It is called once per package, with the node count go/types is about to walk,
-// BEFORE that walk runs — so an out-of-gas aborts the type check instead of
-// billing for CPU already spent, and the rest of the dependency closure is never
-// walked. The gas meter panics on out-of-gas and go/types re-panics anything that
-// is not its own bailout, so the abort propagates.
-//
-// chargePreprocessGas prices source bytes, which is the wrong dimension for this
-// walk: one extra `type tN struct{ a, b [0]tN-1 }` line is ~31 bytes and doubles
-// the cost. gnovm's per-package budget bounds each package, but a transaction
-// re-type-checks every transitive dependency and those bytes were paid for by
-// EARLIER transactions — so a tiny package importing a large pre-deployed closure
-// would otherwise trigger arbitrarily much unmetered CPU. Charging the computed
-// count ties that work to this tx's gas, which GasWanted and the block gas limit
-// already bound.
-func typeExpansionCharger(ctx sdk.Context, descriptor string) func(uint64) {
-	return func(nodes uint64) {
-		if nodes == 0 {
-			return
-		}
-		ctx.GasMeter().ConsumeGas(
-			overflow.Mulp(typeExpansionGasPerNode, int64(nodes)), descriptor)
-	}
-}
-
 // hasProdGnoFile reports whether mpkg contains at least one production
 // (non-test) .gno file. It applies MPFProd's own per-file predicate so it
 // cannot drift from what the storage split (store.go splitProdAllButProd)
@@ -690,6 +655,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Getter: gnostore,
 		Mode:   gno.TCLatestStrict,
 		Cache:  vm.getTypeCheckCache(ctx),
+		// Prices the type-expansion walk over this package and its closure.
+		GasMeter: ctx.GasMeter(),
 		// Type-check production files only. Test files are still stored and
 		// still parsed (a syntax error anywhere rejects the deploy), but the
 		// chain can never run them, so their type-check verdict has no
@@ -707,7 +674,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	params := vm.GetParams(ctx)
 	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
-	opts.ChargeExpansion = typeExpansionCharger(ctx, "AddPackageTypeExpansion")
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
@@ -1123,8 +1089,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
 		// test files, so there is nothing for the test passes to check; being
 		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly:        true,
-		ChargeExpansion: typeExpansionCharger(ctx, "RunTypeExpansion"),
+		ProdOnly: true,
+		GasMeter: ctx.GasMeter(),
 	})
 	if err != nil {
 		return "", ErrTypeCheck(err)

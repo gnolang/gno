@@ -3493,3 +3493,68 @@ func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
 		"envelope must be valid JSON; got %q", envelope)
 }
+
+// TestVMKeeperAddPackage_TypeExpansionGasCharged pins that the type-expansion
+// walk is actually priced on the deploy path. gnovm computes the node count and
+// charges TypeCheckOptions.GasMeter for it; if AddPackage forgets to pass the
+// meter the charge silently vanishes, and nothing else notices because the
+// expansion cap still rejects the extreme cases.
+//
+// The two packages here have the SAME number of declarations and near-identical
+// source, differing only in `[0]tN` (value containment, whose expansion doubles
+// per level) versus `*tN` (a pointer, which validType does not follow). Store,
+// parse and preprocess costs are therefore held roughly equal and the gas
+// difference is dominated by the expansion charge. A depth-vs-depth comparison
+// would NOT isolate it, since that also changes the declaration count.
+func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
+	env := setupTestEnv()
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	{
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+		env.vmk.CommitGnoTransactionStore(ctx)
+	}
+
+	deploy := func(pkgPath, body string) int64 {
+		t.Helper()
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "lib.gno", Body: body},
+		}
+		gm := types.NewInfiniteGasMeter()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		env.vmk.CommitGnoTransactionStore(ctx)
+		return gm.GasConsumed()
+	}
+
+	// chain builds 9 levels, each referencing the previous one twice via elem.
+	chain := func(pkgName, elem string) string {
+		var b strings.Builder
+		fmt.Fprintf(&b, "package %s\n\ntype t0 struct{ v int }\n", pkgName)
+		for i := 1; i <= 9; i++ {
+			fmt.Fprintf(&b, "type t%d struct{ a, b %st%d }\n", i, elem, i-1)
+		}
+		return b.String()
+	}
+
+	ptrSrc, valSrc := chain("ptrchain", "*"), chain("valchain", "[0]")
+	ptrGas := deploy("gno.land/p/demo/ptrchain", ptrSrc)
+	valGas := deploy("gno.land/p/demo/valchain", valSrc)
+
+	// The value chain's expansion total is sum(7*2^i - 4) over i in 0..9 = 7121
+	// nodes; the pointer chain's is ~30. At 25 gas/node that is ~177k gas apart,
+	// against a source difference of only ~18 bytes.
+	const wantAtLeast = 100_000
+	t.Logf("pointer chain: %d bytes, %d gas", len(ptrSrc), ptrGas)
+	t.Logf("value chain:   %d bytes, %d gas", len(valSrc), valGas)
+	t.Logf("delta %d gas (want >= %d)", valGas-ptrGas, wantAtLeast)
+
+	require.Greater(t, valGas-ptrGas, int64(wantAtLeast),
+		"value containment must cost far more gas than pointer containment at the "+
+			"same declaration count; if not, the expansion charge is unwired (is "+
+			"AddPackage passing TypeCheckOptions.GasMeter?)")
+}

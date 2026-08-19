@@ -68,21 +68,18 @@ import (
 // fan-out special case, and far past any real type — measured max depth in
 // stdlibs and examples is single digits.
 //
-// The transitive-dependency case needs more than a per-package cap: one
-// MsgAddPackage re-type-checks every dependency in its closure, and those
-// dependencies' source bytes were paid for by EARLIER transactions. So this count
-// is handed to TypeCheckOptions.ChargeExpansion, once per package and BEFORE
-// go/types walks it, and the chain charges gas there. Charging per package rather
-// than once at the end is what lets an out-of-gas abort land before the remaining
-// dependencies are walked, instead of billing for CPU already spent.
+// A per-package cap cannot bound a transaction, though: one MsgAddPackage
+// re-type-checks its whole dependency closure, whose source bytes were paid for by
+// EARLIER transactions. So the count is also charged to TypeCheckOptions.GasMeter,
+// per package and before that package's walk. See the ADR for why per package and
+// why gas rather than a second cap.
 //
-// Rejected packages are not charged: rejecting stops go/types, so their total is
-// the cost avoided, not incurred.
-//
-// The cap stays alongside the charge, because the gas rate is calibrated in
-// ns/node on one machine and can be wrong on another, whereas the cap cannot: a
-// mis-estimated rate then leaves the worst package under-charged but still
-// bounded.
+// Both are kept because they bound different things. The charge prices the work,
+// at a rate measured in ns/node that can be wrong on other hardware. The cap
+// bounds a machine-independent quantity — nodes per package — unconditionally, so
+// a mis-estimated rate can leave a package under-charged but never unbounded. It
+// also floors the maximum charge at budget*rate = 500k gas per package, keeping
+// one package from eating a block and the int64 multiply trivially safe.
 //
 // The chain sets TypeCheckOptions.ProdOnly, so on-chain go/types runs exactly
 // one Check per package and never type-checks test files. This guard still
@@ -116,6 +113,15 @@ import (
 // generics/type-sets/dot imports (they would then have to be counted here, not
 // rejected) — under-counting a live edge would silently reopen the DoS.
 const typeExpansionBudget = 20_000
+
+// typeExpansionGasPerNode prices one node of the validType walk. 1 gas ~= 1ns on
+// the reference machine and the walk measures ~25ns/node (Apple Silicon go1.25).
+// It sits here, next to the budget it prices and the cost model that produces the
+// count, for the same reason tokenCostFactor and the OpCPU* tables do: it is a
+// measured ns rate for work gnovm performs, not a governance knob. Promoting it to
+// a vm Params field is a reasonable future step — the budget staying a constant is
+// what makes a governable rate safe, since it floors the worst case regardless.
+const typeExpansionGasPerNode = 25
 
 // pkgResolver returns the parsed Go source files of an already-deployed
 // dependency package, or nil when the package should be treated as a leaf:
@@ -385,10 +391,9 @@ func checkTypeExpansionBound(fset *token.FileSet, gofs []*ast.File) error {
 // parsed source of its (already-deployed) dependencies. cache, if non-nil, is
 // shared with the other type checks of the same importer so each dependency is
 // parsed once rather than once per nesting level.
-// It returns the package's expansion total, which the caller charges gas for
-// before go/types walks it (see TypeCheckOptions.ChargeExpansion). A rejected
-// package returns 0: rejecting stops go/types, so its total is the cost AVOIDED,
-// and charging it would price work this guard just prevented.
+// It returns the package's expansion total. A rejected package returns 0:
+// rejecting stops go/types, so its total is the cost AVOIDED, and charging it
+// would price work this guard just prevented.
 func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs []*ast.File, resolve pkgResolver, cache *expansionPkgCache) (uint64, error) {
 	c := newExpansionChecker(entryPath, gofs, resolve, cache)
 

@@ -14,7 +14,9 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
 
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 /*
@@ -178,23 +180,19 @@ type TypeCheckOptions struct {
 	// again.
 	Cache TypeCheckCache
 
-	// ChargeExpansion, if non-nil, is called with a package's type-expansion node
+	// GasMeter, if non-nil, is charged for each package's type-expansion node
 	// count — the number go/types' validType walk is about to visit — once per
-	// package type-checked, BEFORE that walk runs. Rejected packages are not
-	// reported: rejecting stops the walk, so their count is cost avoided.
+	// package and BEFORE that walk runs. Rejected packages are not charged:
+	// rejecting stops the walk, so their count is cost avoided.
 	//
-	// The chain passes a callback that consumes gas, which is what bounds the
-	// whole transitive closure. A per-package cap cannot: one MsgAddPackage
-	// re-type-checks its entire closure, and those dependencies' source bytes were
-	// paid for by EARLIER transactions. Charging per package rather than once at
-	// the end matters, because the gas meter panics on out-of-gas and that abort
-	// must land BEFORE the remaining dependencies are walked, not after.
+	// Charging per package rather than once at the end is what makes this a
+	// defence rather than a bill: ConsumeGas panics on out-of-gas, go/types
+	// re-panics anything that is not its own bailout, so the abort lands before
+	// the remaining dependencies are walked. Returning an error instead would NOT
+	// abort — go/types records importer errors and keeps resolving the rest.
 	//
-	// A callback is used rather than passing a gas meter so gnovm keeps no
-	// dependency on tm2; gnovm/pkg/parser's ParseFile2 uses the same pattern.
-	// It may panic to abort the type check — go/types re-panics anything that is
-	// not its own bailout, so the abort propagates out of cfg.Check.
-	ChargeExpansion func(nodes uint64)
+	// See typeExpansionBudget for why the closure must be priced at all.
+	GasMeter store.GasMeter
 
 	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
 	// After TypeCheckMemPackage returns, it contains the file position
@@ -244,7 +242,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
 		expCache:  newExpansionPkgCache(),
-		chargeExp: opts.ChargeExpansion,
+		gasMeter:  opts.GasMeter,
 		fset:      opts.Fset,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
@@ -304,12 +302,13 @@ type gnoImporter struct {
 	// nested type checks, so each dependency is parsed once for the guard
 	// instead of once per nesting level. See expansionPkgCache.
 	expCache *expansionPkgCache
-	// chargeExp, if set, prices each package's expansion before it is walked.
-	chargeExp func(nodes uint64)
-	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
-	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	// gasMeter, if set, is charged for each package's expansion before it is
+	// walked. See TypeCheckOptions.GasMeter.
+	gasMeter store.GasMeter
+	fset     *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
+	cfg      *types.Config
+	errors   []error  // there may be many for a single import
+	stack    []string // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -559,10 +558,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	if errs != nil {
 		return nil, errs
 	}
-	// Charge before the walk, so an out-of-gas aborts here rather than after the
-	// CPU is already spent — and so the rest of the closure is never walked.
-	if gimp.chargeExp != nil {
-		gimp.chargeExp(expNodes)
+	// Charge before the walk; see TypeCheckOptions.GasMeter.
+	if gimp.gasMeter != nil {
+		gimp.gasMeter.ConsumeGas(
+			overflow.Mulp(int64(expNodes), typeExpansionGasPerNode), "TypeExpansion")
 	}
 
 	// STEP 3: Prepare for Go type-checking.

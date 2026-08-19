@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,11 +47,18 @@ func fanOutSrc(depth int) string {
 // doublingPkgSrc builds an importable package whose exported T tops a doubling
 // chain of the given depth. Callers pick a depth whose total stays under
 // typeExpansionBudget, so the package is accepted on its own and only a further
-// cross-package multiplication pushes a dependent over.
-func doublingPkgSrc(pkgName string, depth int) string {
-	return fmt.Sprintf("package %s\ntype t0 struct{ v int }\n", pkgName) +
-		doublingChain("t", 1, depth) +
-		fmt.Sprintf("type T struct{ a, b [0]t%d }\n", depth)
+// cross-package multiplication pushes a dependent over. imp, when non-empty, is
+// imported and referenced, so a chain of these forms a dependency closure.
+func doublingPkgSrc(pkgName string, depth int, imp string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "package %s\n", pkgName)
+	if imp != "" {
+		fmt.Fprintf(&b, "import %q\ntype prev %s.T\n", imp, path.Base(imp))
+	}
+	b.WriteString("type t0 struct{ v int }\n")
+	b.WriteString(doublingChain("t", 1, depth))
+	fmt.Fprintf(&b, "type T struct{ a, b [0]t%d }\n", depth)
+	return b.String()
 }
 
 // makeBoundResolver returns a pkgResolver that parses source from a fixed map,
@@ -327,7 +335,7 @@ func TestDotImportFanOutRejected(t *testing.T) {
 	// local chain also stays under budget.
 	dep := &std.MemPackage{
 		Type: MPUserProd, Name: "dep", Path: "gno.land/p/demo/dep",
-		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 8)}},
+		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 8, "")}},
 	}
 	getter := mockPackageGetter{dep}
 
@@ -377,7 +385,7 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 	// p0: a doubling chain whose count (~57k) is legitimately under budget on its
 	// own; p1 embeds p0.T four times, pushing the cross-package count over.
 	pkgs := map[string]string{
-		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8),
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8, ""),
 	}
 
 	// p1..p5: each embeds the previous package's T four times.
@@ -473,7 +481,7 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 	t.Parallel()
 
 	pkgs := map[string]string{
-		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8),
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8, ""),
 	}
 	for i, prev := 1, "p0"; i <= 4; i++ {
 		name := fmt.Sprintf("p%d", i)
@@ -545,32 +553,32 @@ func BenchmarkCheckTypeExpansionBound(b *testing.B) {
 	}
 }
 
-// nearBudgetPkgSrc builds a package whose expansion sits just under the budget:
-// a doubling chain topped by an exported T, optionally importing another package
-// so a closure can be chained together.
-func nearBudgetPkgSrc(name, imp string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "package %s\n", name)
-	if imp != "" {
-		fmt.Fprintf(&b, "import %q\ntype prev %s.T\n", imp, path.Base(imp))
-	}
-	b.WriteString("type t0 struct{ v int }\n")
-	b.WriteString(doublingChain("t", 1, 8))
-	b.WriteString("type T struct{ a, b [0]t8 }\n")
-	return b.String()
+// recordingGasMeter wraps a real gas meter so a test can see each individual
+// charge, not just the total. Charges past the limit panic exactly as the chain's
+// meter does, which is what aborts a type check mid-closure.
+type recordingGasMeter struct {
+	store.GasMeter
+	charges []int64
 }
 
-// TestExpansionChargedPerPackage pins what the chain charges gas for. The
-// per-package budget bounds each package, but one transaction re-type-checks
-// every transitive dependency, and those dependencies' source bytes were paid for
-// by EARLIER transactions — so a tiny package importing a large pre-deployed
-// closure would otherwise trigger arbitrarily much unmetered work. Every package
-// in the closure must therefore be charged, individually, before it is walked.
+func newRecordingGasMeter(limit int64) *recordingGasMeter {
+	return &recordingGasMeter{GasMeter: store.NewGasMeter(limit)}
+}
+
+func (m *recordingGasMeter) ConsumeGas(amount store.Gas, descriptor string) {
+	m.charges = append(m.charges, int64(amount))
+	m.GasMeter.ConsumeGas(amount, descriptor)
+}
+
+// TestExpansionChargedPerPackage pins that every package in a dependency closure
+// is charged individually, and that an out-of-gas aborts the walk mid-closure
+// rather than after every package has been walked. See typeExpansionBudget.
 func TestExpansionChargedPerPackage(t *testing.T) {
 	t.Parallel()
 
-	// charge records one call per package type-checked.
-	run := func(chainLen int, abortAfter int) (calls []uint64, aborted bool) {
+	// run type-checks a tiny package importing a chainLen-deep closure. limit
+	// bounds the gas available, so a low limit aborts partway through.
+	run := func(chainLen int, limit int64) (charges []int64, aborted bool) {
 		var pkgs []*std.MemPackage
 		for k := range chainLen {
 			imp := ""
@@ -580,7 +588,7 @@ func TestExpansionChargedPerPackage(t *testing.T) {
 			name := fmt.Sprintf("p%d", k)
 			pkgs = append(pkgs, &std.MemPackage{
 				Type: MPUserProd, Name: name, Path: "gno.land/p/demo/" + name,
-				Files: []*std.MemFile{{Name: "p.gno", Body: nearBudgetPkgSrc(name, imp)}},
+				Files: []*std.MemFile{{Name: "p.gno", Body: doublingPkgSrc(name, 8, imp)}},
 			})
 		}
 		tip := fmt.Sprintf("gno.land/p/demo/p%d", chainLen-1)
@@ -590,45 +598,31 @@ func TestExpansionChargedPerPackage(t *testing.T) {
 				"package tiny\nimport %q\ntype X %s.T\n", tip, path.Base(tip))}},
 		}
 		getter := mockPackageGetter(pkgs)
+		meter := newRecordingGasMeter(limit)
 
 		defer func() {
-			if r := recover(); r != nil {
-				aborted = true
-			}
+			charges, aborted = meter.charges, recover() != nil
 		}()
 		_, err := TypeCheckMemPackage(tiny, TypeCheckOptions{
 			Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed, ProdOnly: true,
-			ChargeExpansion: func(n uint64) {
-				calls = append(calls, n)
-				if abortAfter > 0 && len(calls) >= abortAfter {
-					// Stand in for the gas meter's out-of-gas panic.
-					panic("out of gas")
-				}
-			},
+			GasMeter: meter,
 		})
 		require.NoError(t, err)
-		return calls, false
+		return meter.charges, false
 	}
 
-	// Every package in the closure is charged, not just the entry.
-	calls, _ := run(6, 0)
-	t.Logf("closure of 6 deps + entry -> %d charges, total %d nodes", len(calls), func() (s uint64) {
-		for _, c := range calls {
-			s += c
-		}
-		return
-	}())
-	// entry + 6 dependencies + the injected .gnobuiltins shim, which is a real
-	// package go/types type-checks and so is legitimately part of the closure.
-	assert.Len(t, calls, 8, "one charge per package type-checked, dependencies included")
-	for i, n := range calls {
+	// Ample gas: every package in the closure is charged, not just the entry.
+	charges, _ := run(6, 1e9)
+	assert.Len(t, charges, 8, "one charge per package type-checked, dependencies included")
+	for i, n := range charges {
 		assert.NotZero(t, n, "charge %d must be non-zero", i)
 	}
 
-	// An out-of-gas mid-closure must abort, leaving the rest unwalked.
-	calls, aborted := run(20, 3)
-	assert.True(t, aborted, "a panicking charge must propagate out of go/types")
-	assert.Len(t, calls, 3,
+	// Gas for roughly three packages: the out-of-gas must abort mid-closure,
+	// leaving most of the 22 packages unwalked.
+	charges, aborted := run(20, 3*charges[1])
+	assert.True(t, aborted, "out-of-gas must propagate out of go/types")
+	assert.Less(t, len(charges), 6,
 		"the abort must stop the walk mid-closure, not after all 22 packages")
 }
 
@@ -644,12 +638,13 @@ func TestExpansionNotChargedWhenRejected(t *testing.T) {
 		Files: []*std.MemFile{{Name: "x.gno", Body: fanOutSrc(40)}},
 	}
 	getter := mockPackageGetter{}
-	var charged []uint64
+	meter := newRecordingGasMeter(1e9)
 	_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
 		Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed, ProdOnly: true,
-		ChargeExpansion: func(n uint64) { charged = append(charged, n) },
+		GasMeter: meter,
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "denial-of-service")
-	assert.Empty(t, charged, "a rejected package must not be charged for a walk that never ran")
+	assert.Empty(t, meter.charges,
+		"a rejected package must not be charged for a walk that never ran")
 }
