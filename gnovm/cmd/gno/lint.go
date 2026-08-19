@@ -86,35 +86,6 @@ func isStdlibDir(rootDir, dir string) bool {
 	return false
 }
 
-// lintGnoFiles lists the .gno files ReadMemPackage would put in the package:
-// those in dir, plus those in a "filetests" subdirectory, which ReadMemPackage
-// flattens into the same package.
-//
-// The set is enumerated here rather than taken from the mempackage because the
-// directive check must run before anything parses the files; keeping it in step
-// with ReadMemPackage is pinned by TestLintGnoFilesMatchesReadMemPackage.
-func lintGnoFiles(dir string) []string {
-	var out []string
-	add := func(d, suffix string) {
-		entries, err := os.ReadDir(d)
-		if err != nil {
-			return // ReadMemPackage reports the read error.
-		}
-		for _, e := range entries {
-			if e.IsDir() || strings.HasPrefix(e.Name(), ".") ||
-				!strings.HasSuffix(e.Name(), suffix) {
-				continue
-			}
-			out = append(out, filepath.Join(d, e.Name()))
-		}
-	}
-	add(dir, ".gno")
-	// ReadMemPackage takes only _filetest.gno files from the subdirectory, so
-	// a plain .gno file there is never submitted and must not be reported.
-	add(filepath.Join(dir, "filetests"), "_filetest.gno")
-	return out
-}
-
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	// Show a help message by default.
 	if len(args) == 0 {
@@ -255,7 +226,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// package the chain rejects.
 		if !isStdlibDir(cmd.rootDir, dir) {
 			tagged := false
-			for _, gnofile := range lintGnoFiles(dir) {
+			// The same list ReadMemPackage will read, from the same function,
+			// so lint cannot disagree with the package about which files are
+			// in it. An error here is left to ReadMemPackage to report.
+			gnofiles, _ := gno.MemPackageFilePaths(dir, pkgPath, gno.MPAnyAll)
+			for _, gnofile := range gnofiles {
+				if !strings.HasSuffix(gnofile, ".gno") {
+					continue
+				}
 				body, rerr := os.ReadFile(gnofile)
 				if rerr != nil {
 					continue // ReadMemPackage below reports the read error.

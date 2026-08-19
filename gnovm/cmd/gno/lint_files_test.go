@@ -11,11 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The directive check runs before anything parses the package, so it cannot
-// take its file list from the mempackage and enumerates the directory itself.
-// That duplication is only safe while the two agree: when they drifted, a
-// directive in filetests/ passed lint and was then rejected at AddPackage.
-func TestLintGnoFilesMatchesReadMemPackage(t *testing.T) {
+// lint must act on a package before it is read, so it takes its file list from
+// MemPackageFilePaths -- the same function ReadMemPackage uses. This pins the
+// extraction: the list and the package it produces must not disagree. While
+// lint re-derived the list instead, it drifted twice, missing filetests/ and
+// then over-including plain .gno files there.
+func TestMemPackageFilePathsMatchesReadMemPackage(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -45,12 +46,16 @@ func TestLintGnoFilesMatchesReadMemPackage(t *testing.T) {
 			fromMemPkg = append(fromMemPkg, filepath.Base(f.Name))
 		}
 	}
+	paths, err := gno.MemPackageFilePaths(dir, "gno.land/p/demo/zz", gno.MPAnyAll)
+	require.NoError(t, err)
 	var fromLint []string
-	for _, p := range lintGnoFiles(dir) {
-		fromLint = append(fromLint, filepath.Base(p))
+	for _, p := range paths {
+		if strings.HasSuffix(p, ".gno") {
+			fromLint = append(fromLint, filepath.Base(p))
+		}
 	}
 	sort.Strings(fromMemPkg)
 	sort.Strings(fromLint)
 	require.Equal(t, fromMemPkg, fromLint,
-		"lintGnoFiles must cover exactly the .gno files ReadMemPackage puts in the package")
+		"MemPackageFilePaths must list exactly the .gno files ReadMemPackage puts in the package")
 }

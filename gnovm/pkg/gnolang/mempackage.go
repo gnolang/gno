@@ -777,7 +777,18 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // file must be consistent with others, or nil and an error is returned.
 //
 // Filtering, parsing, and validation is performed separately.
-func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+// MemPackageFilePaths lists the files ReadMemPackage would read from dir, in
+// the order it would read them: the eligible files in dir itself, followed by
+// the _filetest.gno files in a "filetests" subdirectory, which the package
+// flattens into itself.
+//
+// Exported so a caller that must act on a package before it is read -- `gno
+// lint` refuses directives before anything parses the source -- works from the
+// same list rather than re-deriving it. Re-derivation drifted twice: once
+// missing filetests/ entirely, once including plain .gno files there that are
+// never part of the package.
+func MemPackageFilePaths(dir string, pkgPath string, mptype MemPackageType) ([]string, error) {
+
 	mptype = mptype.Decide(pkgPath)
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -835,6 +846,16 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 				list = append(list, filepath.Join(filetestsDir, file.Name()))
 			}
 		}
+	}
+	return list, nil
+}
+
+// ReadMemPackage reads the file contents in the given directory.
+func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	mptype = mptype.Decide(pkgPath)
+	list, err := MemPackageFilePaths(dir, pkgPath, mptype)
+	if err != nil {
+		return nil, err
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
