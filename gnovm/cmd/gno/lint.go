@@ -206,6 +206,28 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
+		// Build constraints are rejected for user packages in
+		// ValidateMemPackageAny; report them here too, so the rule surfaces at
+		// lint time instead of at the AddPackage that comes much later. Not a
+		// `continue`: a constraint line does not break type-checking, so the
+		// remaining steps still produce useful output.
+		if gno.IsUserlib(mpkg.Path) {
+			for _, mfile := range mpkg.Files {
+				if !strings.HasSuffix(mfile.Name, ".gno") ||
+					!gno.HasBuildConstraint(mfile.Body) {
+					continue
+				}
+				issue := gnoIssue{
+					Code:       gnoBuildConstraintError,
+					Confidence: 1,
+					Location:   filepath.Join(dir, mfile.Name),
+					Msg:        "build constraints are not supported",
+				}
+				io.ErrPrintln(issue)
+				hasError = true
+			}
+		}
+
 		// Perform imports using the parent store.
 		abortOnError := true
 		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {

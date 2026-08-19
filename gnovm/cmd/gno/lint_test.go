@@ -95,6 +95,16 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:          "exit code: 1",
 		},
 		{
+			// ValidateMemPackageAny rejects this package at AddPackage; lint
+			// must say so first, rather than letting the developer find out
+			// from a failed transaction.
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/build_constraint",
+			simulateExternalRepo: true,
+			stderrShouldContain:  "build constraints are not supported (code=gnoBuildConstraintError)",
+			errShouldBe:          "exit code: 1",
+		},
+		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/package_name_mismatch_ignore",
 			simulateExternalRepo: true,

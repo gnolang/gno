@@ -28,6 +28,7 @@ const (
 	gnoTypeCheckError           gnoCode = "gnoTypeCheckError"
 	gnoLintError                gnoCode = "gnoLintError"
 	gnoPackageNameMismatchError gnoCode = "gnoPackageNameMismatchError"
+	gnoBuildConstraintError     gnoCode = "gnoBuildConstraintError"
 
 	// TODO: add new gno codes here.
 )
