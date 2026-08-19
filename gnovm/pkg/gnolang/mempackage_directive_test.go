@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+	"go/ast"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +65,53 @@ func TestFindDirectiveComment(t *testing.T) {
 			_, got := FindDirectiveComment(tt.body)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// isDirectiveText is a copy of the unexported go/ast.isDirective, so it owes a
+// fidelity check: too narrow and a directive Go honours slips through into
+// stored source, too broad and legitimate packages stop deploying.
+//
+// go/ast.isDirective is unexported but observable — CommentGroup.Text() drops
+// directives — so compare against that. If a future Go release changes the
+// rule, this test fails, which is the intent: the copy is pinned deliberately
+// (a consensus rule must not shift under a toolchain upgrade), and following a
+// change should be a decision rather than a silent drift.
+func TestIsDirectiveTextMirrorsGo(t *testing.T) {
+	t.Parallel()
+
+	goSaysDirective := func(text string) bool {
+		cg := &ast.CommentGroup{List: []*ast.Comment{
+			{Text: "//" + text}, {Text: "//sentinel"},
+		}}
+		return cg.Text() == "sentinel\n" // the candidate line was dropped
+	}
+
+	cases := []string{
+		"go:build x", "go:generate ls", "go:noinline", "go:embed f", "line f:1:1",
+		"line ", "extern x", "export F", "go:", ":", "a:b", "1:2", "A:b", "a:B",
+		" a:b", "a :b", "a: b", "see: docs", "TODO:fix", "nolint:all", "go:build",
+		"lineX f", "exportF", "extern", "export", "line", "go1:x", "go_:x", "ab0:9",
+		"x", "://", "a::b",
+	}
+	alphabet := []rune("ab:9 -_/\tAZ.")
+	r := rand.New(rand.NewSource(1))
+	for range 20000 {
+		var sb strings.Builder
+		for range r.Intn(8) {
+			sb.WriteRune(alphabet[r.Intn(len(alphabet))])
+		}
+		cases = append(cases, sb.String())
+	}
+
+	for _, c := range cases {
+		// An empty or whitespace-only comment is indistinguishable from a
+		// dropped one via Text(), so it cannot be compared this way.
+		if strings.TrimSpace(c) == "" {
+			continue
+		}
+		assert.Equal(t, goSaysDirective(c), isDirectiveText(c),
+			"disagrees with go/ast.isDirective on %q", c)
 	}
 }
 
