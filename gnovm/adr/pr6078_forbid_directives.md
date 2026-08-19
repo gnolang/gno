@@ -145,6 +145,25 @@ Scope is deliberate:
   break rather than a relaxable annoyance. No `.gno` file in the tree contains
   `/*line `.
 
+### Metering
+
+Validation reads every `.gno` file end to end — `FindDirectiveComment` must,
+since a pragma can sit on any declaration — where the pre-existing checks stopped
+at the package clause. On a 1 MB source that is 9.8 ms against 0.09 ms for
+`PackageNameFromFileBody`, so this rule, not the older checks, now sets the cost
+of validating a package.
+
+Both entry points therefore take the preprocess charge *before* validating
+(`gno.land/pkg/sdk/vm/keeper.go`). Without that, the only price of the scan is
+the generic per-tx-size fee, and a package that fails validation becomes the
+cheapest way to buy validator CPU — including over repeated CheckTx, which
+never reaches the later charge at all.
+
+The reordering also meters the validation that already existed, so a rejected
+package now consumes preprocess gas where before it consumed none. That is a
+consensus-visible change to gas for failing transactions; it rides along with
+the accept/reject change this ADR already requires a coordinated upgrade for.
+
 ## Consequences
 
 - A package carrying a directive is now rejected at `AddPackage`/`Run` with

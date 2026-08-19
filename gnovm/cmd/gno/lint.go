@@ -61,6 +61,33 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 }
 
+// lintGnoFiles lists the .gno files ReadMemPackage would put in the package:
+// those in dir, plus those in a "filetests" subdirectory, which ReadMemPackage
+// flattens into the same package.
+//
+// The set is enumerated here rather than taken from the mempackage because the
+// directive check must run before anything parses the files; keeping it in step
+// with ReadMemPackage is pinned by TestLintGnoFilesMatchesReadMemPackage.
+func lintGnoFiles(dir string) []string {
+	var out []string
+	add := func(d string) {
+		entries, err := os.ReadDir(d)
+		if err != nil {
+			return // ReadMemPackage reports the read error.
+		}
+		for _, e := range entries {
+			if e.IsDir() || strings.HasPrefix(e.Name(), ".") ||
+				!strings.HasSuffix(e.Name(), ".gno") {
+				continue
+			}
+			out = append(out, filepath.Join(d, e.Name()))
+		}
+	}
+	add(dir)
+	add(filepath.Join(dir, "filetests"))
+	return out
+}
+
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	// Show a help message by default.
 	if len(args) == 0 {
@@ -194,9 +221,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// The directive is quoted because it is user text and reaches a
 		// terminal.
 		if gno.IsUserlib(pkgPath) {
-			gnofiles, _ := filepath.Glob(filepath.Join(dir, "*.gno"))
 			tagged := false
-			for _, gnofile := range gnofiles {
+			for _, gnofile := range lintGnoFiles(dir) {
 				body, rerr := os.ReadFile(gnofile)
 				if rerr != nil {
 					continue // ReadMemPackage below reports the read error.

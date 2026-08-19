@@ -591,6 +591,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
+	// Charge for the source bytes before validating them. Validation reads
+	// every .gno file end to end (mempackage.go FindDirectiveComment must, since
+	// a pragma can sit on any declaration), and until this charge lands the only
+	// cost of that read is the generic per-tx-size fee. Charging first makes a
+	// rejected package pay for the bytes it made the validator scan.
+	//
+	// Read the params here rather than at the type-check below: they may change
+	// during execution, and the message must not fail because of a change made
+	// in its own transaction.
+	params := vm.GetParams(ctx)
+	chargePreprocessGas(ctx, params, msg.Package, "AddPackagePreprocess")
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
@@ -667,11 +678,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
-	// use the parameters before executing the message, as they may change during execution.
-	// The message should not fail due to parameter changes in the same transaction.
-	params := vm.GetParams(ctx)
-	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
-	// Validate Gno syntax and type check.
+	// Validate Gno syntax and type check. The preprocess gas for these bytes
+	// was charged before validation above.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
@@ -1074,11 +1082,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
+	// Charged before validation for the same reason as AddPackage: validation
+	// reads every .gno file end to end, and a rejected package should pay for
+	// the bytes it made the validator scan.
+	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	if err := gno.ValidateMemPackage(memPkg); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
-
-	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter: gnostore,
