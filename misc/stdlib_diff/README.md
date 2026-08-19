@@ -45,6 +45,23 @@ CI exactly, point it at a matching toolchain:
 GOROOT_SAVE=$(go1.26.1 env GOROOT) make gen
 ```
 
+### Package aliasing
+
+Some gno packages port a Go package that lives at a different path, or files Go
+has since relocated. Comparing them against the identically-named Go directory
+reports divergence where there is none, so `aliases.go` remaps them:
+
+| gno package | compared against | why |
+| ----------- | ---------------- | --- |
+| `math/rand` | `math/rand/v2` | gno ports v2; the Source interface, constructors and `*N` names all differ from v1 |
+| `strconv` | `strconv` + `internal/strconv` | Go 1.26 moved the number internals out of the public package |
+
+A Go directory that is the target of an alias is omitted from the index, since
+the aliasing gno package already covers it.
+
+Add to those tables rather than accepting a large phantom diff — a report that
+cries wolf on whole packages hides the drift that matters.
+
 ### Known intentional divergences
 
 Some packages are deliberately *not* sourced from the baseline and will always
@@ -55,7 +72,7 @@ appear as large diffs. These are expected, not regressions:
 | `unicode/{tables,letter,graphic,casetables,digit}.gno` | go1.27rc2 | Unicode 17.0.0; the baseline still ships Unicode 15.0.0 |
 | `strconv/isprint.gno` | go1.27rc2 | generated from the same tables, must match `unicode` |
 | `math/rand/**` | `math/rand/v2` | gno ports v2, not v1 |
-| `strconv/{atof,atoi,ftoa,decimal,...}.gno` | `internal/strconv` | Go 1.26 moved these out of the public package |
+| `strconv/eisel_lemire.gno`, `ftoaryu.gno` | (no counterpart) | Go 1.26 renamed the former to `atofeisel.go` and replaced Ryu with Dragonbox (`ftoadbox.go`); gno has not adopted that restructure yet |
 
 ## Tips
 

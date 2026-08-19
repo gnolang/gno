@@ -160,6 +160,28 @@ divergent, since those come from go1.27rc2. That is the report correctly
 describing a deliberate divergence; it is documented in
 `misc/stdlib_diff/README.md` rather than suppressed.
 
+### Measured and rejected
+
+Two remaining upstream changes were investigated with a stopwatch rather than
+assumed, on the principle established by the `URL.String` pre-sizing finding in
+the audit: an upstream optimisation can invert under a tree-walking interpreter.
+
+**`strings`/`bytes` Trim specialization** (`trimLeftByte`, `trimLeftASCII`,
+`trimLeftUnicode` and their right-hand twins) replaces the closure gno builds per
+call. A/B under the GnoVM over 2000 iterations of `Trim("xxxxxhello worldxxxxx",
+"x")`: 234,605,191 gas for the current closure form against 219,459,919 for a
+fused single-byte loop — **6.5%**. That measurement flatters the change, because
+the specialized arm was hand-fused and excludes the three-way dispatch the real
+implementation needs. Not worth the code or the divergence surface.
+
+**`sort` pdqsort** (Go 1.19). gno's `quickSort` already carries the introsort
+depth limit — `maxDepth == 0` falls back to `heapSort` — so adversarial input is
+already bounded at O(n log n) and there is no correctness or DoS gap to close.
+That makes pdqsort a pure constant-factor question, and its pattern detection,
+`xorshift` and partial insertion sort are all *additional* interpreted work per
+element. It would need to be measured to justify ~400 lines of divergence, so it
+is left out here rather than ported on faith.
+
 ### Not done, deliberately
 
 - **`crypto/subtle` constant-time primitives.** Everything a chain executes is
