@@ -520,8 +520,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	if errs = checkNoUncountableGenerics(gofset, allgofs); errs != nil {
 		return nil, errs
 	}
-	// Then reject dot imports: unsupported in Gno, and invisible to the bound
-	// below. See checkNoDotImports.
+	// Then reject dot imports: the preprocessor rejects them too, but only after
+	// go/types on this path, and they are invisible to the bound below. See
+	// checkNoDotImports.
 	if errs = checkNoDotImports(gofset, allgofs); errs != nil {
 		return nil, errs
 	}

@@ -523,6 +523,11 @@ func checkNoUncountableGenerics(fset *token.FileSet, gofs []*ast.File) error {
 
 // errDotImports is the one wording for Gno's dot-import ban, shared with the
 // preprocessor's own rejection so the two enforcement sites cannot drift.
+//
+// The ban is enforced (preprocess panics at two sites, reachable — `gno run` on
+// a dot import fails there) but not documented, has no recorded rationale, and
+// gnovm/tests/backup/import2.gno still asserts the opposite; see #6076. This
+// guard does not depend on why Gno bans them — see checkNoDotImports.
 const errDotImports = "dot imports are not allowed in Gno"
 
 // checkNoDotImports rejects dot imports before the package reaches go/types.
