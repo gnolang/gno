@@ -61,6 +61,31 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 }
 
+// isStdlibDir reports whether dir holds standard library source, which carries
+// Go's own directives and is not submitted to a chain.
+//
+// Decided by location: the package path cannot be trusted for this, because a
+// locally developed package may use a short module path that IsStdlib matches.
+func isStdlibDir(rootDir, dir string) bool {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	for _, parts := range [][]string{
+		{"gnovm", "stdlibs"},
+		{"gnovm", "tests", "stdlibs"},
+	} {
+		root, err := filepath.Abs(filepath.Join(rootDir, filepath.Join(parts...)))
+		if err != nil {
+			continue
+		}
+		if abs == root || strings.HasPrefix(abs, root+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 // lintGnoFiles lists the .gno files ReadMemPackage would put in the package:
 // those in dir, plus those in a "filetests" subdirectory, which ReadMemPackage
 // flattens into the same package.
@@ -70,21 +95,23 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 // with ReadMemPackage is pinned by TestLintGnoFilesMatchesReadMemPackage.
 func lintGnoFiles(dir string) []string {
 	var out []string
-	add := func(d string) {
+	add := func(d, suffix string) {
 		entries, err := os.ReadDir(d)
 		if err != nil {
 			return // ReadMemPackage reports the read error.
 		}
 		for _, e := range entries {
 			if e.IsDir() || strings.HasPrefix(e.Name(), ".") ||
-				!strings.HasSuffix(e.Name(), ".gno") {
+				!strings.HasSuffix(e.Name(), suffix) {
 				continue
 			}
 			out = append(out, filepath.Join(d, e.Name()))
 		}
 	}
-	add(dir)
-	add(filepath.Join(dir, "filetests"))
+	add(dir, ".gno")
+	// ReadMemPackage takes only _filetest.gno files from the subdirectory, so
+	// a plain .gno file there is never submitted and must not be reported.
+	add(filepath.Join(dir, "filetests"), "_filetest.gno")
 	return out
 }
 
@@ -220,7 +247,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// is about to be rejected choose the path printed in its own error.
 		// The directive is quoted because it is user text and reaches a
 		// terminal.
-		if gno.IsUserlib(pkgPath) {
+		//
+		// Stdlibs are exempt by location rather than by path shape. A package
+		// developed locally may carry a short module path (module = "tagged")
+		// and be deployed with -pkgpath gno.land/r/.../tagged; IsStdlib reads
+		// that short path as a stdlib, so gating on it would let lint pass a
+		// package the chain rejects.
+		if !isStdlibDir(cmd.rootDir, dir) {
 			tagged := false
 			for _, gnofile := range lintGnoFiles(dir) {
 				body, rerr := os.ReadFile(gnofile)

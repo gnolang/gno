@@ -30,6 +30,11 @@ func TestLintGnoFilesMatchesReadMemPackage(t *testing.T) {
 	write("README.md", "not gno\n")
 	write(".hidden.gno", "package zz\n")
 	write(filepath.Join("filetests", "a_filetest.gno"), "package main\n\nfunc main() {}\n")
+	// ReadMemPackage takes only _filetest.gno from this subdirectory, so a plain
+	// .gno file here is never part of the package. Reporting it would fail lint
+	// for a file the chain never sees; the first version of this test omitted
+	// the case and let exactly that through.
+	write(filepath.Join("filetests", "helper.gno"), "package helper\n")
 
 	mpkg, err := gno.ReadMemPackage(dir, "gno.land/p/demo/zz", gno.MPAnyAll)
 	require.NoError(t, err)

@@ -105,6 +105,17 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:          "exit code: 1",
 		},
 		{
+			// A short module path is deployed with an explicit -pkgpath, so it
+			// is a user package even though IsStdlib() matches the bare name.
+			// Gating on the path shape would let lint pass a package the chain
+			// rejects.
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/directives_shortpath",
+			simulateExternalRepo: true,
+			stderrShouldContain:  `directives are not supported: "//go:build" (code=gnoDirectiveError)`,
+			errShouldBe:          "exit code: 1",
+		},
+		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/package_name_mismatch_ignore",
 			simulateExternalRepo: true,
