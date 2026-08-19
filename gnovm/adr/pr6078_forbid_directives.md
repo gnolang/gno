@@ -88,7 +88,10 @@ is what keeps an ordinary `// see: below` comment from counting. The predicate
 is a pure function of the file bytes, as a consensus check must be.
 
 `gno lint` reports the same files through the same predicate, so the rule
-surfaces at lint time instead of at a failed transaction.
+surfaces at lint time instead of at a failed transaction. It scans the files from
+disk *before* `ReadMemPackage` and skips a tagged package, mirroring the
+validator's ordering: reading first would let a line directive rewrite the
+positions in the package's own parse errors.
 
 Scope is deliberate:
 
@@ -129,6 +132,18 @@ Scope is deliberate:
 - **Reject for stdlibs too.** Would require editing VM fixtures that exist
   precisely to pin constraint inertness, for no security gain — stdlibs are not
   submitted.
+- **Validate a line directive's payload before rejecting it.** Go only *remaps*
+  positions when the text after `line ` parses as `filename:line[:col]`, so
+  `/*line items are processed below*/` is inert and this rule rejects it anyway.
+  Declined on three grounds. It matches Go's own classification: `ast.isDirective`
+  is prefix-only and strips `//line items are processed below` from doc text
+  without validating a payload either, and the differential test holds the copy
+  to exactly that. Validating only the block form would then split the two
+  spellings — `//line prose` rejected, `/*line prose*/` allowed — which is less
+  coherent than treating both alike. And payload validation moves the rule toward
+  accepting *more*, which is the direction where a mistake becomes a consensus
+  break rather than a relaxable annoyance. No `.gno` file in the tree contains
+  `/*line `.
 
 ## Consequences
 

@@ -9,6 +9,7 @@ import (
 	"go/types"
 	goio "io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -181,6 +182,43 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
+
+		// Directives are rejected for user packages in ValidateMemPackageAny;
+		// report them here too, so the rule surfaces at lint time instead of at
+		// the AddPackage that comes much later.
+		//
+		// Scanned from disk before ReadMemPackage, and the package is skipped
+		// on a hit, mirroring the validator: a line directive rewrites the
+		// positions the parser reports, so reading first would let a file that
+		// is about to be rejected choose the path printed in its own error.
+		// The directive is quoted because it is user text and reaches a
+		// terminal.
+		if gno.IsUserlib(pkgPath) {
+			gnofiles, _ := filepath.Glob(filepath.Join(dir, "*.gno"))
+			tagged := false
+			for _, gnofile := range gnofiles {
+				body, rerr := os.ReadFile(gnofile)
+				if rerr != nil {
+					continue // ReadMemPackage below reports the read error.
+				}
+				directive, ok := gno.FindDirectiveComment(string(body))
+				if !ok {
+					continue
+				}
+				io.ErrPrintln(gnoIssue{
+					Code:       gnoDirectiveError,
+					Confidence: 1,
+					Location:   gnofile,
+					Msg:        fmt.Sprintf("directives are not supported: %q", directive),
+				})
+				hasError = true
+				tagged = true
+			}
+			if tagged {
+				continue
+			}
+		}
+
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAnyAll)
 		if err != nil {
 			printError(io.Err(), dir, pkgPath, err)
@@ -204,32 +242,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			// Skip the remaining lint steps: type-checking would only
 			// cascade-fail on the same mismatched package name.
 			continue
-		}
-
-		// Directives are rejected for user packages in ValidateMemPackageAny;
-		// report them here too, so the rule surfaces at lint time instead of at
-		// the AddPackage that comes much later. Not a `continue`: a directive
-		// does not break type-checking, so the remaining steps still produce
-		// useful output.
-		if gno.IsUserlib(mpkg.Path) {
-			for _, mfile := range mpkg.Files {
-				if !strings.HasSuffix(mfile.Name, ".gno") {
-					continue
-				}
-				directive, ok := gno.FindDirectiveComment(mfile.Body)
-				if !ok {
-					continue
-				}
-				issue := gnoIssue{
-					Code:       gnoDirectiveError,
-					Confidence: 1,
-					Location:   filepath.Join(dir, mfile.Name),
-					// Quoted: submitted text, may hold control bytes.
-					Msg: fmt.Sprintf("directives are not supported: %q", directive),
-				}
-				io.ErrPrintln(issue)
-				hasError = true
-			}
 		}
 
 		// Perform imports using the parent store.
