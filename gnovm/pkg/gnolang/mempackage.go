@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	gofmt "go/format"
 	"go/parser"
+	goscanner "go/scanner"
 	"go/token"
 	"os"
 	"path"
@@ -1247,6 +1249,18 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 				errs = multierr.Append(errs, err)
 				continue
 			}
+			// Build constraints select nothing in Gno, but they are not inert
+			// to every consumer and they misread as conditional to whoever
+			// audits the stored source. Submitted packages only: stdlibs ship
+			// with the node, and the VM suite pins that constraints are inert
+			// (gnovm/tests/files/build0.gno). See
+			// adr/prxxxx_forbid_build_constraints.md.
+			// Deliberately not a `continue`: the package-name checks below
+			// still run, so a tagged file reports one error rather than two.
+			if mptype.IsUserlib() && HasBuildConstraint(mfile.Body) {
+				errs = multierr.Append(errs, fmt.Errorf(
+					"invalid file %q: build constraints are not supported", fname))
+			}
 			if pkgName != Name(mpkg.Name) { // Check validity but skip if mpkg.Name (already checked).
 				if err := validatePkgName(pkgName); err != nil {
 					errs = multierr.Append(errs, fmt.Errorf("invalid file %q: invalid package name", pkgName))
@@ -1289,6 +1303,38 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		errs = multierr.Append(errs, fmt.Errorf("package name %q not found in files", mpkg.Name))
 	}
 	return errs
+}
+
+// HasBuildConstraint reports whether the file body declares a build constraint,
+// either the current "//go:build" form or the legacy "// +build" one.
+//
+// Exported so `gno lint` flags the same files ValidateMemPackageAny rejects.
+//
+// Only the header is scanned — the comments before the first non-comment token,
+// the sole position where Go gives a constraint meaning — so a file that merely
+// mentions the syntax in a string or a function body is not rejected.
+//
+// Scanning tokens rather than raw lines is what makes that exact: it is the
+// mechanism go/parser itself uses to fill ast.File.GoVersion, so the two agree
+// on a leading BOM, and on a "package" line sitting inside a block comment
+// ahead of the real clause. Both are honoured by go/parser and both slip past a
+// line scan. The scan is a pure function of the file bytes, as a consensus
+// check must be.
+func HasBuildConstraint(body string) bool {
+	var sc goscanner.Scanner
+	fset := token.NewFileSet()
+	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, goscanner.ScanComments)
+	for {
+		_, tok, lit := sc.Scan()
+		if tok != token.COMMENT {
+			// First non-comment token (or EOF): the header is over, and no
+			// later line is a constraint position.
+			return false
+		}
+		if constraint.IsGoBuild(lit) || constraint.IsPlusBuild(lit) {
+			return true
+		}
+	}
 }
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
