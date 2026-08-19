@@ -74,7 +74,9 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 		t.Fatal("timeout waiting for node to produce first block")
 	}
 
-	height := n.BlockStore().Height()
-	require.Equal(t, initialHeight, height,
-		"first committed block should be at InitialHeight (%d), got %d", initialHeight, height)
+	bs := n.BlockStore()
+	require.NotNil(t, bs.LoadBlockMeta(initialHeight),
+		"no block committed at InitialHeight (%d); block store height is %d", initialHeight, bs.Height())
+	require.Nil(t, bs.LoadBlockMeta(initialHeight-1),
+		"a block was committed below InitialHeight (%d); the node did not start from it", initialHeight)
 }
