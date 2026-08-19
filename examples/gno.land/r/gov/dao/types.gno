@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"errors"
+
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
@@ -200,6 +202,35 @@ func (e *SimpleExecutor) String() string {
 
 func (e *SimpleExecutor) CreationRealm() string {
 	return e.creationRealm
+}
+
+func NewSafeExecutor(e Executor) *SafeExecutor {
+	return &SafeExecutor{
+		e: e,
+	}
+}
+
+// SafeExecutor wraps an Executor to only allow its execution
+// by allowed govDAOs.
+type SafeExecutor struct {
+	e Executor
+}
+
+func (e *SafeExecutor) Execute(cur realm) error {
+	// Verify the caller is an adequate Realm
+	if !InAllowedDAOs(cur.Previous().PkgPath()) {
+		return errors.New("execution only allowed by validated govDAOs")
+	}
+
+	return e.e.Execute(cross(cur))
+}
+
+func (e *SafeExecutor) String() string {
+	return e.e.String()
+}
+
+func (e *SafeExecutor) CreationRealm() string {
+	return e.e.CreationRealm()
 }
 
 // DAO is the govDAO implementation interface. All mutating/auth-gated

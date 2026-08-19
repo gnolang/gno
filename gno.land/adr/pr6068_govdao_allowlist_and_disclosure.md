@@ -7,16 +7,17 @@ Proposed.
 ## Context
 
 `r/gov/dao` keeps a package-level `allowedDAOs []string`. It is the *sole*
-authorization for four privileged operations:
+authorization for five privileged operations:
 
 | Operation | Site |
 |---|---|
 | Replace the govDAO implementation | `proxy.gno` `UpdateImpl` |
+| Run a proposal's executor with DAO authority | `r/gov/dao/types.gno:219` `SafeExecutor.Execute` (unused today — see note) |
 | Obtain the mutable member store | `v3/memberstore/memberstore.gno:187` `Get` |
 | Move treasury funds | `v3/treasury/treasury.gno:76` `Send` |
 | Rewrite the treasury's GRC20 token registry keys | `v3/treasury/treasury.gno:64` `SetTokenKeys` |
 
-All four gate on `dao.InAllowedDAOs(caller)`, and that helper **fails open**:
+All five gate on `dao.InAllowedDAOs(caller)`, and that helper **fails open**:
 
 ```go
 // proxy.gno, InAllowedDAOs
@@ -170,24 +171,25 @@ passes its `realmPkg` argument straight into the list, so an empty one reaches
 `UpdateImpl`. Blank entries are therefore rejected outright rather than dropped
 silently, and `NewUpgradeDaoImplRequest` rejects a blank `realmPkg` at
 construction so the mistake surfaces to the proposal author rather than at
-execution. (This is latent rather than live today: none of the four gated
+execution. (This is latent rather than live today: none of the five gated
 functions are `MsgCall`-encodable, so an `""` entry currently grants nothing.
 It is one signature change from mattering.)
 
 That last point was checked against the keeper rather than assumed, because it
 is what makes the blank-entry case latent instead of live. Two rules block it,
-and each of the four is blocked by one of them:
+and each of the five is blocked by one of them:
 
 - `keeper.go:818` requires a callable function's first parameter to be
   `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int` first, so
-  it is rejected outright.
+  it is rejected outright. `SafeExecutor.Execute` is a method, and the lookup
+  resolves package-level names only.
 - `convert.go` turns string arguments into Gno values and handles primitives,
   arrays, and `[]byte` alone. Everything else panics with "unexpected type in
   contract arg". That stops `UpdateImpl` (a struct), `treasury.Send` (an
   interface), and `treasury.SetTokenKeys`, whose `[]string` fails the explicit
   `Elt == Uint8Type` test with "unexpected slice type in contract arg".
 
-So a `""` entry grants nothing today. What would change that is any of the four
+So a `""` entry grants nothing today. What would change that is any of the five
 gaining a signature MsgCall can encode — not a change to this realm at all,
 which is the reason the guard is worth having now.
 
@@ -519,7 +521,9 @@ malformed path to the unfiltered first page.
 **The treasury reflected an unknown banker id raw.** The `{banker}` route in
 `p/nt/treasury/v0` printed `"Banker not found: " + bankerID` unescaped —
 another unauthenticated reflection. That package has no consumer outside
-govDAO, so it is escaped at the four reflection sites here rather than deferred.
+govDAO, so the banker id is escaped at all four sites that reflect it, and the
+adjacent page-lookup error in `RenderBankerHistory` is escaped the same way,
+rather than deferred.
 
 Left for follow-up (documented below, not launch-blocking): `ExecutorString`
 raw (member-gated, same trust model as the deliberately-raw Description); the
@@ -647,7 +651,11 @@ description sanitization needs its own change with golden updates across
   confirmed by probe) — but the rule mandates it as defense-in-depth against a
   future refactor to a non-crossing caller. (An earlier draft of this bullet
   claimed the omission on `UpdateImpl` was correct; that contradicted AGENTS.md,
-  so the guard was added there and on `AddMember`.) The token-style accessors
+  so the guard was added there and on `AddMember`.) The one crossing function that
+  does *not* check is `SafeExecutor.Execute`, which reads `cur.Previous()` raw.
+  It is dead code — nothing in the tree constructs a `SafeExecutor` — so the gap
+  is unreachable, and this change leaves it untouched rather than modifying code
+  it has no other reason to touch. The token-style accessors
   `memberstore.Get`, `GetInstance`, and `NewSimpleExecutor` take `realm` in the
   second position — not crossing functions — so their `IsCurrent()` check is
   load-bearing, not redundant.
