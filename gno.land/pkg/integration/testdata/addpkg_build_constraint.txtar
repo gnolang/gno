@@ -1,5 +1,5 @@
 # A build constraint in a submitted package is rejected at every user-facing
-# entry point. See gnovm/adr/prxxxx_forbid_build_constraints.md.
+# entry point. See gnovm/adr/pr6078_forbid_build_constraints.md.
 # -simulate skip so the assertions bind CheckTx/DeliverTx, not the simulate query.
 
 ## start a new node

@@ -1254,7 +1254,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			// audits the stored source. Submitted packages only: stdlibs ship
 			// with the node, and the VM suite pins that constraints are inert
 			// (gnovm/tests/files/build0.gno). See
-			// adr/prxxxx_forbid_build_constraints.md.
+			// adr/pr6078_forbid_build_constraints.md.
 			// Deliberately not a `continue`: the package-name checks below
 			// still run, so a tagged file reports one error rather than two.
 			if mptype.IsUserlib() && HasBuildConstraint(mfile.Body) {
