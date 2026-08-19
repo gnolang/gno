@@ -49,14 +49,20 @@ adds nothing since the aggregate dominates. Depth becomes free only if
 ### Known limit: per package, not per transaction
 
 `MsgAddPackage` re-guards every transitive user dependency, because
-`VMKeeper.typeCheckCache` holds only stdlibs and is cloned per tx; and prod
-declarations are walked twice (once for `cfg.Check`, once with in-package tests).
-So one tx can buy `~2 x (packages checked) x budget`, with the dependency count
-bounded only by what was deployed *earlier* — bytes the importing tx never paid
-for. Not fixed here: a per-tx bound needs its own constant and headroom (honest
-graphs also sum: 181 x 200 deps ≈ 36k) plus a compatibility argument that no
-existing import graph becomes un-importable. Natural home is a running total on
-`gnoImporter`. The per-package bound is a strict improvement meanwhile.
+`VMKeeper.typeCheckCache` holds only stdlibs and is cloned per tx. So one tx can
+buy `~(packages checked) x budget`, with the dependency count bounded only by
+what was deployed *earlier* — bytes the importing tx never paid for. Not fixed
+here: a per-tx bound needs its own constant and headroom (honest graphs also sum:
+181 x 200 deps ≈ 36k) plus a compatibility argument that no existing import graph
+becomes un-importable. Natural home is a running total on `gnoImporter`. The
+per-package bound is a strict improvement meanwhile.
+
+Since #6025 the chain sets `TypeCheckOptions.ProdOnly`, so on-chain go/types runs
+exactly one `Check` per package and never type-checks test files. This guard still
+scores every parsed file, so on-chain it over-counts relative to what `validType`
+walks. Deliberate: over-counting can only reject, never admit, and those files are
+still type-checked off-chain by `gno test` / `gno lint`, where the same fan-out
+would hang a developer.
 
 ### Alternatives weighed
 

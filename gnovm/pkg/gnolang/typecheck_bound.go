@@ -50,13 +50,19 @@ import (
 // Note the budget is PER PACKAGE, which is not the same as per transaction: one
 // MsgAddPackage re-type-checks (and so re-guards) every transitive user
 // dependency, because the keeper's type-check cache holds only stdlibs and is
-// cloned per tx; and a deploying package's prod declarations are walked twice,
-// once for the prod Check and once with its in-package tests. So the walk a
-// single tx can buy is ~2 * (packages checked) * budget, and the dependency count
-// is bounded only by what was deployed earlier — bytes the importing tx does not
-// pay for. Bounding the per-transaction sum is the next step up and wants its own
-// calibration; see adr/pr5826_typecheck_dos_guards.md, which also records the
-// alternatives weighed (gas-metering the walk, a governance Param).
+// cloned per tx. So the walk a single tx can buy is ~(packages checked) * budget,
+// and the dependency count is bounded only by what was deployed earlier — bytes
+// the importing tx does not pay for. Bounding the per-transaction sum is the next
+// step up and wants its own calibration; see
+// adr/pr5826_typecheck_dos_guards.md, which also records the alternatives
+// weighed (gas-metering the walk, a governance Param).
+//
+// The chain sets TypeCheckOptions.ProdOnly, so on-chain go/types runs exactly
+// one Check per package and never type-checks test files. This guard still
+// scores every parsed file, test files included, so on-chain it over-counts
+// relative to what validType actually walks. That is deliberate: over-counting
+// can only reject, never admit, and those files are still type-checked off-chain
+// by gno test / gno lint, where the same fan-out would hang a developer.
 //
 // The budget is a deterministic node count, not a wall-clock limit, so the check
 // is consensus-safe.
