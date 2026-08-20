@@ -701,6 +701,14 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			)
 
 			sw.transport.Remove(p)
+
+			// transport.Remove only forgets the connection; the socket the
+			// handshake just established has to be closed explicitly, or it
+			// lingers until the netFD finalizer runs. This branch is reachable
+			// from a peer's second connection, so leaving that to the GC lets a
+			// single host accumulate sockets faster than they are reclaimed.
+			_ = p.CloseConn()
+
 			continue
 		}
 

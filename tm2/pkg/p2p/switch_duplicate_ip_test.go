@@ -133,3 +133,65 @@ func TestSwitchAllowsDuplicateIPWhenEnabled(t *testing.T) {
 	assert.EqualValues(t, 8, dialInbound(t, serverTr, sw, 8),
 		"all inbound connections should be accepted when duplicate IPs are allowed")
 }
+
+// TestSwitchClosesRejectedDuplicateIPConn verifies that a connection the guard
+// turns away is actually closed. transport.Remove only forgets the connection;
+// without an explicit close the socket the handshake established lingers until
+// the netFD finalizer runs, so a single host could accumulate handshaked
+// sockets on the victim faster than the GC reclaims them.
+//
+// Observed from the dialer's side: once the switch has rejected us, our own
+// connection must see the far end go away.
+func TestSwitchClosesRejectedDuplicateIPConn(t *testing.T) {
+	t.Parallel()
+
+	serverTr := newLoopbackTransport(t, "dev", "server")
+
+	sw := NewMultiplexSwitch(serverTr, WithMaxInboundPeers(40))
+	sw.SetLogger(log.NewNoopLogger())
+	require.NoError(t, sw.Start())
+
+	t.Cleanup(func() { _ = sw.Stop() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dial := func(moniker string, errCh chan<- error) PeerConn {
+		t.Helper()
+
+		clientTr := newLoopbackTransport(t, "dev", moniker)
+
+		p, err := clientTr.Dial(ctx, serverTr.netAddr, &reactorPeerBehavior{
+			chDescs:      make([]*conn.ChannelDescriptor, 0),
+			reactorsByCh: make(map[byte]Reactor),
+			handlePeerErrFn: func(_ PeerConn, err error) {
+				select {
+				case errCh <- err:
+				default:
+				}
+			},
+			isPersistentPeerFn: func(types.ID) bool { return false },
+			isPrivatePeerFn:    func(types.ID) bool { return false },
+		})
+		require.NoError(t, err)
+		require.NoError(t, p.Start())
+
+		t.Cleanup(func() { _ = p.Stop() })
+
+		return p
+	}
+
+	// The first connection takes the only slot this IP gets.
+	dial("first", make(chan error, 1))
+
+	// The second is rejected. Our end must notice.
+	rejected := make(chan error, 1)
+	dial("second", rejected)
+
+	select {
+	case err := <-rejected:
+		require.Error(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("the rejected connection was left open by the switch")
+	}
+}
