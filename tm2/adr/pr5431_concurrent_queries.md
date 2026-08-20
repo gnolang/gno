@@ -231,7 +231,7 @@ application layer, not the transport layer.
 
 > Superseded as a *follow-up*: with the snapshot work in this PR the
 > `checkState` race is fixed independently, so the transport-layer lock can go
-> after all. See [PRXXXX](./prxxxx_lock_free_query_connection.md), which drops
+> after all. See [PR6082](./pr6082_lock_free_query_connection.md), which drops
 > the query connection's lock entirely (an RWMutex would not help — that
 > connection has no writer).
 
