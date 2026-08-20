@@ -3559,3 +3559,132 @@ func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
 			"same declaration count; if not, the expansion charge is unwired (is "+
 			"AddPackage passing TypeCheckOptions.GasMeter?)")
 }
+
+// TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx pins the property that
+// justified removing the per-package ceiling: the bound is per TRANSACTION, not
+// per message. Tx.Msgs is unbounded and ValidateBasic caps gas rather than the
+// message count, so N individually-modest deploys in one tx must be able to
+// exhaust that tx's budget.
+//
+// Both halves are asserted, because only the pair says anything:
+//
+//   - each package, given the whole budget to itself, deploys with room to spare;
+//   - the same packages sharing one budget run out partway through.
+//
+// baseapp gives a transaction one basicGasMeter(GasWanted) and then loops over
+// msgs (see runTx / SetGasMeter), so driving several AddPackage calls through one
+// ctx and one finite meter is what a multi-message tx actually does. A per-package
+// ceiling could not have caught this: every message here is under any ceiling that
+// lets honest code through.
+func TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx(t *testing.T) {
+	env := setupTestEnv()
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	{
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+		env.vmk.CommitGnoTransactionStore(ctx)
+	}
+
+	const msgs = 4
+
+	// Two chains with the SAME declaration count and near-identical source, one
+	// through value containment ([0]tN, which validType expands) and one through a
+	// pointer (*tN, which it does not). Holding bytes, parses and store writes
+	// roughly equal makes the expansion charge the only thing separating them, so
+	// this test fails if that charge is unwired rather than passing on byte gas.
+	//
+	// The two sources are padded to the SAME byte length. Without that, "[0]" vs
+	// "*" makes the value chain 20 bytes longer, and PreprocessGasPerByte alone
+	// separates them — the test would then pass with the expansion charge
+	// unwired, which is exactly the regression it exists to catch (verified by
+	// removing the meter: with padding the fixture assertion fails, without it
+	// the test still passed).
+	src := func(pkgName, elem string) string {
+		var b strings.Builder
+		fmt.Fprintf(&b, "package %s\n\ntype t0 struct{ v int }\n", pkgName)
+		for i := 1; i <= 10; i++ {
+			fmt.Fprintf(&b, "type t%d struct{ a, b %st%d }\n", i, elem, i-1)
+		}
+		return b.String()
+	}
+	// pad appends a comment so both shapes weigh the same in source bytes.
+	pad := func(body string, to int) string {
+		if d := to - len(body); d > 0 {
+			return body + "\n//" + strings.Repeat("x", d-3)
+		}
+		return body
+	}
+	// Each half needs its own package paths: an AddPackage that succeeds is
+	// visible to later calls, so reusing a path would fail as "package already
+	// exists" instead of on gas.
+	msgFor := func(ns, elem string, n int) MsgAddPackage {
+		name := fmt.Sprintf("%s%d", ns, n)
+		pkgPath := "gno.land/p/demo/" + name
+		body := src(name, elem)
+		// Both shapes weigh the same, so byte gas cannot separate them.
+		width := len(src(name, "[0]"))
+		return NewMsgAddPackage(addr, pkgPath, []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "lib.gno", Body: pad(body, width)},
+		})
+	}
+	costOf := func(ns, elem string) int64 {
+		gm := types.NewInfiniteGasMeter()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.AddPackage(ctx, msgFor(ns, elem, 0)))
+		return gm.GasConsumed()
+	}
+	// deliver runs msgs messages through ONE ctx and ONE finite meter, which is
+	// what baseapp does for a multi-message tx. Returns how many landed, and the
+	// out-of-gas panic if the budget ran out.
+	deliver := func(ns, elem string, limit int64) (delivered int, err error) {
+		gm := types.NewGasMeter(limit)
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("%v", r)
+			}
+		}()
+		for n := 1; n <= msgs; n++ {
+			if e := env.vmk.AddPackage(ctx, msgFor(ns, elem, n)); e != nil {
+				return delivered, e
+			}
+			delivered++
+		}
+		return delivered, nil
+	}
+
+	ptrOne, valOne := costOf("probeptr", "*"), costOf("probeval", "[0]")
+	// With bytes held equal this gap IS the expansion charge, so this assertion is
+	// what fails first if the meter is ever unwired again.
+	require.Greater(t, valOne, ptrOne+ptrOne/4,
+		"value containment (%d gas) must cost materially more than the same source "+
+			"through pointers (%d gas); bytes are equal, so if these match the "+
+			"expansion charge is not reaching AddPackage", valOne, ptrOne)
+
+	// A budget that covers every pointer message, and covers a single value
+	// message with room to spare, but not all of them: the gap is expansion gas.
+	budget := int64(msgs)*ptrOne + (int64(msgs)*(valOne-ptrOne))/2
+	t.Logf("pointer %d gas, value %d gas each; budget %d for %d messages",
+		ptrOne, valOne, budget, msgs)
+	require.Greater(t, budget, valOne, "each single message must fit the budget")
+
+	// Half one: the cheap shape fits the whole transaction.
+	got, err := deliver("txptr", "*", budget)
+	require.NoError(t, err)
+	assert.Equal(t, msgs, got, "pointer chains must all fit a %d budget", budget)
+
+	// Half two: the same count of the expensive shape exhausts it partway. Only
+	// the expansion charge differs, so a per-package ceiling could never catch
+	// this — every message here is modest on its own.
+	got, err = deliver("txval", "[0]", budget)
+	require.Error(t, err,
+		"%d value-containment messages shared a %d budget and all succeeded; the "+
+			"expansion charge is not accumulating across messages", msgs, budget)
+	assert.Contains(t, err.Error(), "out of gas")
+	assert.Less(t, got, msgs, "the tx must abort partway, not after every message")
+	t.Logf("value chains: %d/%d messages delivered before out of gas", got, msgs)
+}
