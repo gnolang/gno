@@ -170,11 +170,18 @@ the narrowest rule that closes the executable case.
 - Generated files carry only the directives the transpiler writes, so
   `go build`, `go generate` and golangci-lint see what it intends and nothing
   inherited.
-- Positions are unchanged from before this ADR: the generated file keeps one
-  line per source line, so the `//line` header maps as it always did. Measured
-  over the whole of `gnovm/stdlibs`: all 160 transpiled files have byte-identical
-  line counts to a build with the neutralization disabled, differing only in the
-  five `//go:generate` lines themselves.
+- Positions are unchanged from before this ADR. Measured over the whole of
+  `gnovm/stdlibs`: all 160 transpiled files have byte-identical line counts to a
+  build with the neutralization disabled, differing only in the five
+  `//go:generate` lines themselves.
+
+  Note the standard that sets. `go/printer` already moves lines for reasons that
+  have nothing to do with directives — a doc comment mixing a list and an
+  indented code block gains two lines today, before this change — so the
+  `//line` mapping is approximate on master already. What this ADR claims is the
+  narrower and checkable thing: neutralizing a directive does not make it worse.
+  Every measurement here compares against a build with the neutralization
+  disabled, not against the source.
 - A neutralized directive leaves `//gno:removed-directive` where it stood. That
   is visible in generated output, and deliberate: it says what happened, and the
   alternatives either move every line after it or vanish in doc position.
