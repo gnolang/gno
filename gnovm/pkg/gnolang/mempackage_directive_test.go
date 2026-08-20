@@ -53,10 +53,11 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"cgo export", "package zz\n\n//export F\nfunc F() {}\n", true},
 		{"trailing directive", "package zz\n\nvar x = 1 //go:generate rm -rf /\n", true},
 
-		// //nolint is the one allowed directive: golangci-lint never reads
-		// .gno, so it is as meaningless as the rest, but no consumer of the
-		// stored source honours it either, and Go authors arrive with the
-		// habit. See isAllowedDirective.
+		// //nolint is the one allowed directive. Note the pair below: a
+		// directive needs a colon, so the bare form is not one and is accepted
+		// regardless of the whitelist. Dropping the entry would ban only the
+		// targeted form and keep the blanket form, which is the wrong way
+		// round. See allowedDirectives.
 		{"nolint bare", "package zz\n\n//nolint\nfunc F() {}\n", false},
 		{"nolint with linters", "package zz\n\n//nolint:gosec,errcheck\nfunc F() {}\n", false},
 		{"nolint with reason", "package zz\n\n//nolint:gosec // why\nfunc F() {}\n", false},

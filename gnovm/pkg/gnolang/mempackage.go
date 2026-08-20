@@ -1445,11 +1445,17 @@ func directiveName(lit string) (string, bool) {
 // faithful mirror of go/ast: whether something *is* a directive is Go's
 // question, whether Gno accepts it is ours.
 var allowedDirectives = []string{
-	// Every other directive is honoured by some consumer of the stored source
-	// -- go/types read //go:build, go/parser reads //line, go generate runs
-	// //go:generate, the compiler reads the pragmas. golangci-lint never reads
-	// .gno, so //nolint is inert downstream as well as to the VM: refusing it
-	// would buy no safety, and Gno authors arrive from Go carrying the habit.
+	// Not inert downstream, despite meaning nothing to the VM: transpile
+	// preserves "//nolint:gosec", and where the transpiled package is valid Go
+	// (a pure /p/ helper, not anything importing a gno stdlib) golangci-lint
+	// honours it. The entry is kept anyway, for a reason that survives that.
+	//
+	// A directive needs a colon (see isDirectiveText), so bare "//nolint" is
+	// not one and is accepted whatever this list says. Removing the entry would
+	// therefore ban only the *targeted* form and keep the *blanket* form, while
+	// the error pushed authors from "//nolint:gosec" to "//nolint" -- trading a
+	// narrow suppression for a wider one. Banning both would mean diverging
+	// from go/ast, which this rule deliberately does not do.
 	"nolint",
 }
 
