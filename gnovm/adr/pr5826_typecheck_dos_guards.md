@@ -18,17 +18,26 @@ runs, from a deterministic node count. Everything here happens between steps 3 a
 `typeExpansionCost` computes the exact node count `validType` will visit, with the
 memoization `validType` lacks, which makes computing it linear. The deploy path
 charges that count to `TypeCheckOptions.GasMeter` at
-`typeExpansionGasPerNode = 25` (1 gas ≈ 1ns, walk ~25ns/node) before the package
-reaches `go/types`.
+`typeExpansionGasPerNode = 100` before the package reaches `go/types`.
+
+The rate is derived in two steps and an earlier revision got the second wrong:
+`BenchmarkValidTypeWalk` measures 30–40 ns/node on an Apple M5 (climbing with depth
+as the working set outgrows cache, and a DoS is the deep end), then
+`gnovm/cmd/calibrate`'s paired output calibrates that to the Xeon reference the
+`1 gas == 1ns` convention means — 2.96x slower, median over 37 shared
+`BenchmarkAlloc` cases. 40 × ~2.5 = 100. The revision that shipped 25 skipped the
+calibration step, a ~4x under-charge that with no ceiling behind it would have let
+one block buy ~12s of walk instead of ~3s. Full derivation sits on the constant.
 
 There is **no hard ceiling** on the count. Earlier revisions of this change had
 one — first per-type at 100_000, then per-package at 1_000_000 — and it was
 removed, because no setting of it earns its place:
 
 - **Stricter than gas** and it refuses packages the sender paid for. At 1_000_000
-  the charge is 2.5e7 gas, under half the 5e7 `GasWanted` routine across this
-  repo's own fixtures, so it bound only on senders funded enough to reach it and
-  was invisible to everyone below — exactly inverted for a DoS guard.
+  the charge was 2.5e7 gas at the then-rate of 25, under half the 5e7 `GasWanted`
+  routine across this repo's own fixtures, so it bound only on senders funded
+  enough to reach it and was invisible to everyone below — exactly inverted for a
+  DoS guard.
 - **More permissive than gas** and nothing above it is payable anyway
   (`GasWanted <= Block.MaxGas = 3e9`, enforced in the ante handler), so it only
   relabels an out-of-gas as something else.
@@ -42,7 +51,7 @@ removed, because no setting of it earns its place:
 What removal costs is off-chain: unmetered callers (`gno test`, `gno lint`,
 gnodev) will churn on a pathological *local* package for as long as `go build`
 does on the same input. Anything reached from the chain is bounded by what its
-deploy could pay (≤1.2e8 nodes, ~3s). CI jobs that type-check `.gno` carry
+deploy could pay (≤3e7 nodes, ~3s). CI jobs that type-check `.gno` carry
 `timeout-minutes: 30`, and the source has to be committed to get there, so it
 fails on its author's own PR.
 
@@ -68,7 +77,7 @@ Consequences of having only a price:
   new legacy fingerprint.
 
 `TestVMKeeperAddPackage_TypeExpansionGasCharged` compares pointer-vs-value chains
-at equal declaration count (204,905 gas apart over 18 source bytes). It is the
+at equal declaration count (736,055 gas apart over 18 source bytes). It is the
 only thing observing the charge: an `AddPackage` wiring slip during development
 left it at zero and every other suite still passed.
 
@@ -98,7 +107,7 @@ hard: it alone moved the measured honest maximum from 431 to 8175 nodes.
 `TestGnoBuiltinShimExpansion` fails if the shim grows a containment edge.
 
 Honest code pays almost nothing: the largest per-package total over all stdlibs
-and examples including test files is **431** (~11k gas), pinned by
+and examples including test files is **431** (~43k gas), pinned by
 `TestHonestTypeExpansionUnderBudget`. No gas fixture needed re-pinning and
 `TestTestdata` passes unchanged. The guard scores test files that `ProdOnly`
 excludes, so it can over-charge, never under.
@@ -182,8 +191,8 @@ every toolchain bump, across several internal passes with no single hook point.
 Charging a count computed outside `go/types` needs no fork.
 
 **A governance `Params` rate.** Deferred, see above. Note that without a ceiling
-a rate set too low under-charges the walk outright, so this is now a heavier
-decision than it was.
+a rate set too low under-charges the walk outright — as the 25 this change started
+with did — so handing it to governance is a heavier decision than it was.
 
 ## Open question: fatal vs. normal type-check errors
 

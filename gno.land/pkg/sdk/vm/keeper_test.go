@@ -3547,8 +3547,8 @@ func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
 	valGas := deploy("gno.land/p/demo/valchain", valSrc)
 
 	// The value chain's expansion total is sum(7*2^i - 4) over i in 0..9 = 7121
-	// nodes; the pointer chain's is ~30. At 25 gas/node that is ~177k gas apart,
-	// against a source difference of only ~18 bytes.
+	// nodes; the pointer chain's is ~30. At typeExpansionGasPerNode = 100 that is
+	// ~710k gas apart, against a source difference of only ~18 bytes.
 	const wantAtLeast = 100_000
 	t.Logf("pointer chain: %d bytes, %d gas", len(ptrSrc), ptrGas)
 	t.Logf("value chain:   %d bytes, %d gas", len(valSrc), valGas)

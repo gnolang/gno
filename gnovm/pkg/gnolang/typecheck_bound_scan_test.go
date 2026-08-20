@@ -31,7 +31,7 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 		// ~2x today's max (431, gno.land/p/nt/commondao/v0): loose enough that
 		// ordinary growth does not churn the test, tight enough to catch a cost()
 		// change that inflates real code. At typeExpansionGasPerNode this whole
-		// budget is ~25k gas, against the ~5e7 GasWanted a real deploy uses, so
+		// budget is ~100k gas, against the ~5e7 GasWanted a real deploy uses, so
 		// pricing the walk is not a meaningful tax on honest packages.
 		maxHonestTotal = 1_000
 		// Guard against the scan silently finding nothing (a moved directory would

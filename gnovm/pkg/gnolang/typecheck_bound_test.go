@@ -3,8 +3,10 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"math"
 	"path"
 	"slices"
@@ -585,6 +587,42 @@ func TestExpansionGas(t *testing.T) {
 	exact := uint64(math.MaxInt64) / typeExpansionGasPerNode
 	assert.Equal(t, int64(exact)*typeExpansionGasPerNode, expansionGas(exact))
 	assert.Equal(t, int64(math.MaxInt64), expansionGas(exact+1))
+}
+
+// BenchmarkValidTypeWalk measures the thing typeExpansionGasPerNode prices: the
+// wall time go/types spends per node of the validType walk. It reports ns/node,
+// which is the rate the constant is derived from — see typeExpansionGasPerNode for
+// the derivation and the host-calibration step, which this benchmark does NOT do.
+//
+// Each iteration type-checks a whole doubling chain, so an op is ~0.5s at depth 20
+// and doubles per level. Run it as
+//
+//	go test ./gnovm/pkg/gnolang -run '^$' -bench ValidTypeWalk -benchtime 1x
+//
+// The rate climbs with depth (the working set outgrows cache), and the DoS case is
+// the large-working-set end, so read the deepest figure, not the shallowest.
+func BenchmarkValidTypeWalk(b *testing.B) {
+	for _, depth := range []int{18, 20, 22} {
+		src := fanOutSrc(depth)
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "x.go", src, 0)
+		if err != nil {
+			b.Fatal(err)
+		}
+		gofs := []*ast.File{f}
+		nodes := typeExpansionCost("", gofs, nil, nil)
+
+		b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
+			for range b.N {
+				conf := types.Config{Importer: importer.Default(), Error: func(error) {}}
+				_, _ = conf.Check("x", fset, gofs, nil)
+			}
+			b.ReportMetric(
+				float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(nodes),
+				"ns/node")
+			b.ReportMetric(float64(nodes), "nodes")
+		})
+	}
 }
 
 func BenchmarkTypeExpansionCost(b *testing.B) {

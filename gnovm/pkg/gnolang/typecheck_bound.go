@@ -34,13 +34,37 @@ import (
 // validType lacks, which makes computing it linear, and the deploy path charges
 // the count to TypeCheckOptions.GasMeter before handing the package to go/types.
 // The count is a deterministic node count, not a wall-clock measurement, so the
-// charge is consensus-safe. 1 gas ~= 1ns on the reference machine and the walk
-// measures ~25ns/node (Apple Silicon go1.25).
+// charge is consensus-safe.
 //
 // The rate sits here, beside the cost model that produces the count, for the same
 // reason tokenCostFactor and the OpCPU* tables do: it is a measured ns rate for
 // work gnovm performs, not a governance knob. Promoting it to a vm Params field is
 // a reasonable future step.
+//
+// DERIVATION. 1 gas == 1ns of wall time on reference hardware, which for this repo
+// is an Intel Xeon Platinum 8168 @ 2.70GHz (see the OpCPU* table in machine.go and
+// gnovm/cmd/calibrate/README.md). Two steps, and the second is easy to forget:
+//
+//  1. Measure the walk. BenchmarkValidTypeWalk reports ns/node over a doubling
+//     chain: 30.1 / 30.4 / 34.9 at depth 18 / 20 / 22 on an Apple M5. The marginal
+//     rate between successive depths keeps climbing — 34.3 / 35.8 / 37.3 / 38.6 /
+//     40.3 from depth 22 to 26 — because the working set outgrows cache. A DoS is
+//     the large-working-set end, so ~40 is the figure to price, not ~30.
+//  2. Calibrate to reference hardware. gnovm/cmd/calibrate ships paired benchmark
+//     output for the Xeon (bench_output_do_dedicated.txt) and Apple silicon; over
+//     the 37 shared BenchmarkAlloc cases the Xeon is 2.96x slower (median), and
+//     2.2-3.2x on the small allocations that most resemble validType's pointer
+//     chasing. So 40 * ~2.5 = 100.
+//
+// At 100, a whole block of gas (tm2's MaxBlockMaxGas = 3e9) buys 3e7 nodes, about
+// 3s of validType on reference hardware — which is what "1 gas == 1ns" is meant to
+// mean for a full block.
+//
+// An earlier revision of this change used 25: the same walk measured on the
+// development machine with step 2 omitted. That under-charged by ~4x, and with no
+// ceiling behind the charge one block would have bought ~12s of walk. Re-measuring
+// directly on reference hardware is how to tighten this — the calibration factor is
+// the dominant uncertainty here, exactly as it is for PreprocessGasPerByte.
 //
 // PRICED, NOT CAPPED. There is deliberately no ceiling on the count. Any ceiling
 // sits either below what a sender can pay, in which case it refuses packages that
@@ -75,7 +99,7 @@ import (
 // Revisit this file if a toolchain upgrade adds a containment edge, if validType is
 // finally memoized (golang/go#65711), or if Gno ever accepts generics, type sets or
 // dot imports: they would then have to be counted here, not rejected.
-const typeExpansionGasPerNode = 25
+const typeExpansionGasPerNode = 100
 
 // gnoBuiltinShimExpansion is the exact expansion of the type names
 // .gnobuiltins.gno injects into every package. That file is added AFTER these

@@ -1,5 +1,5 @@
 # The type-expansion charge prices a package's whole dependency graph, not just its
-# own source. p0 is a doubling chain costing ~11.5M gas of type-expansion, which it
+# own source. p0 is a doubling chain costing ~23M gas of type-expansion, which it
 # pays for and deploys. `user` is three lines long, but importing p0 makes the
 # deploy re-type-check it, so `user` is charged for p0's expansion too and runs out
 # of gas at a budget its own bytes would easily have covered.
@@ -45,8 +45,7 @@ type t10 struct{ a, b [0]t9 }
 type t11 struct{ a, b [0]t10 }
 type t12 struct{ a, b [0]t11 }
 type t13 struct{ a, b [0]t12 }
-type t14 struct{ a, b [0]t13 }
-type T struct{ a, b [0]t14 }
+type T struct{ a, b [0]t13 }
 
 -- user/gnomod.toml --
 module = "gno.land/r/foobar/user"
