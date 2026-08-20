@@ -135,6 +135,47 @@ func Sponsor(cur realm, payer string) string {
 }
 `
 
+// grc20Realm is the REAL use case: an actual GRC20 token from
+// p/demo/tokens/grc20. The user has approved the paymaster; the paymaster does
+// a TransferFrom to collect payment, then sponsors the gas. This is the
+// approve/transferFrom paymaster pattern, not an approximation of it.
+const grc20Realm = `package paymaster
+
+import (
+	"chain/runtime"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
+)
+
+var (
+	tok *grc20.Token
+	led *grc20.PrivateLedger
+
+	payer    address
+	treasury address
+)
+
+// Setup runs once before measurement so the token, balance and approval already
+// exist; the measured call is the steady-state paymaster path.
+func Setup(cur realm, payerAddr string) {
+	payer = address(payerAddr)
+	treasury = cur.Address()
+	tok, led = grc20.NewToken("Test", "TST", 6, seqid.ID(1), cur)
+	led.Mint(payer, 1000000)
+	// the user approves the paymaster realm to pull payment
+	led.Approve(payer, treasury, 1000000)
+}
+
+// Sponsor pulls the fee in TST, then commits to paying the user's gas.
+func Sponsor(cur realm, _ string) string {
+	if err := led.TransferFrom(payer, treasury, treasury, 1000); err != nil {
+		panic(err)
+	}
+	runtime.PayGas(5000000)
+	return "sponsored"
+}
+`
+
 // TestSponsorshipUseCaseFitsWindow reports the gas the paymaster pattern costs
 // and the smallest credit window under which it succeeds.
 func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
@@ -144,10 +185,12 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 		name    string
 		src     string
 		withAVL bool
+		withGRC bool
 	}{
-		{"paygas-only (floor)", paygasOnlyRealm, false},
-		{"map ledger + paygas", mapLedgerRealm, false},
-		{"avl ledger + paygas", paymasterRealm, true},
+		{"paygas-only (floor)", paygasOnlyRealm, false, false},
+		{"map ledger + paygas", mapLedgerRealm, false, false},
+		{"avl ledger + paygas", paymasterRealm, true, false},
+		{"REAL grc20 transferFrom + paygas", grc20Realm, true, true},
 	}
 
 	for _, tc := range cases {
@@ -178,8 +221,25 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "avl", "v0"), "gno.land/p/nt/avl/v0")},
 				)
 			}
+			if tc.withGRC {
+				demo := filepath.Join(gnoenv.RootDir(), "examples", "gno.land", "p", "demo")
+				st.Txs = append(st.Txs,
+					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "cford32", "v0"), "gno.land/p/nt/cford32/v0")},
+					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "seqid", "v0"), "gno.land/p/nt/seqid/v0")},
+					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(demo, "tokens", "grc20"), "gno.land/p/demo/tokens/grc20")},
+				)
+			}
 			st.Txs = append(st.Txs,
 				TxWithMetadata{Tx: mustDeployTx(deployer, "gno.land/r/uc/paymaster", "paymaster.gno", tc.src)})
+			if tc.withGRC {
+				// Genesis call so the token, balance and approval exist before we
+				// measure the steady-state paymaster path.
+				st.Txs = append(st.Txs, TxWithMetadata{Tx: std.Tx{
+					Msgs:       []std.Msg{vm.NewMsgCall(deployer, nil, "gno.land/r/uc/paymaster", "Setup", []string{addr.String()})},
+					Fee:        std.Fee{GasWanted: 5e8, GasFee: std.Coin{Denom: "ugnot", Amount: 1e6}},
+					Signatures: []std.Signature{{}},
+				}})
+			}
 
 			bp := defaultBlockParams()
 			bp.MaxGasCreditPerTx = window
