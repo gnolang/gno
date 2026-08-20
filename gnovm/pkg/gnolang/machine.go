@@ -2657,16 +2657,20 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
+		// NOTE: fr.NumStmts was captured before the outermost popped frame
+		// pushed its bodyStmt, so truncating to it already drops every
+		// popped loop's bodyStmt — no extra depthFrames pop is needed.
+		// The GOTO handler (op_exec.go) then sets the final length from
+		// the target block's bodyStmt.
 		m.Stmts = m.Stmts[:fr.NumStmts]
 		m.releaseBlocksFrom(fr.NumBlocks)
-		// pop stmts
-		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
 	}
 
 	if depthBlocks >= len(m.Blocks) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
-	// pop blocks
+	// pop blocks: unlike stmts above, blocks do need this second pop —
+	// depthBlocks counts scopes within the target frame (see findGotoLabel).
 	m.releaseBlocksFrom(len(m.Blocks) - depthBlocks)
 }
 
