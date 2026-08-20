@@ -98,6 +98,36 @@ subparam, so a genesis that sets the other block fields but omits
 `max_data_bytes` decodes to 0 — validated clean, then halts at the first
 proposal with `CONSENSUS FAILURE`.
 
+Finally, it requires `MaxTxBytes` to leave `MaxBlockOverheadBytes` (128KB) free
+inside `MaxDataBytes`. `MaxTxBytes` was bounded only by `MaxBlockSizeBytes`
+(100MB), so `MaxTxBytes >= MaxDataBytes` was a legal configuration — and a fatal
+one, because `MaxDataBytes` bounds the *whole serialized block*. A tx whose raw
+size fits `MaxTxBytes` but whose framed size does not fit `MaxDataBytes` is
+admitted by `CheckTx`, reaped on its own (`ReapMaxBytesMaxGas` stops at the first
+tx that does not fit rather than skipping it), and then trimmed straight back out
+by the loop in decision 4. Measured with `MaxTxBytes = MaxDataBytes = 64KB` and
+one 64KB tx followed by a 512-byte one: before this bound, every proposal came
+out empty (193 bytes) with both txs still in the mempool, at every height,
+forever, and nothing logged it — the chain accepts no txs at all and looks
+healthy. Prior to decision 4 the same configuration produced a 65776-byte block
+that every peer rejected, i.e. a loud stall rather than silent starvation; the
+trim loop would otherwise have converted one into the other.
+
+128KB is sized from measurement: a serialized block costs 428 bytes empty plus
+~167 bytes per validator in its `LastCommit`, plus 44 bytes of framing per tx, so
+it covers a commit for roughly 780 validators. It also happens to be what makes
+the 20MB recv budget sound: the worst *legal* concurrent assembly is
+`8MB (blockchain) + 4MB (consensus) + (8MB - 128KB) (mempool) + discovery`, which
+`TestDefaultBudgetCoversWorstLegalConfig` measures at 20,908,032 bytes against
+the 20,971,520 budget. That is only 63KB of headroom, and it exists only because
+`MaxTxBytes` cannot reach `MaxDataBytes`; the test fails if either side drifts.
+
+One consequence to note: with `MaxTxBytes + 128KB <= MaxDataBytes <= 8MB`, the
+effective ceiling on `MaxTxBytes` is 8MB − 128KB, so the pre-existing
+`MaxTxBytes > MaxBlockSizeBytes` (100MB) check is now unreachable. It is left in
+place rather than removed — it is cheap, and removing a consensus-validation
+rule is a larger change than this ADR wants to make.
+
 ### 4. Keep proposal blocks within the decode limit (`bft/state/execution.go`)
 
 `CreateProposalBlock` reaped up to `MaxDataBytes` of *raw tx bytes* while
@@ -135,6 +165,25 @@ loop and reads `PeerConn.RemoteIP()`. Inbound only: no DNS resolution is needed
 for a socket peer, and our own dials are explicitly configured. Local clusters
 share the loopback address, so it is lifted in the bft test config and the
 internal p2p test-cluster helper.
+
+A rejected connection is closed explicitly (`p.CloseConn()`) rather than only
+dropped from the transport. `transport.Remove` deletes an `activeConns` entry and
+nothing more, and the peer was never started, so no `Stop()` path runs either —
+the socket the STS handshake just established would be closed only when the
+`netFD` finalizer ran. Measured with the GC disabled, 20 connections from one
+host left 20 sockets `ESTABLISHED` on the victim instead of 1. That matters more
+here than for the max-inbound and duplicate-ID branches that share the shape,
+because this branch is reachable from a peer's *second* connection, so an
+attacker can open sockets faster than the GC reclaims them.
+`TestSwitchClosesRejectedDuplicateIPConn` observes the close from the dialer's
+side and fails (by timeout) without it.
+
+`recv_assembly_timeout` and `max_recv_buffer_bytes` are exposed on `P2PConfig`
+and copied through `MConfigFromP2P`. They carried toml tags from the start but
+had no `P2PConfig` counterpart, so they were not actually reachable from
+`config.toml`; an operator whose peers are being dropped mid-transfer needs to be
+able to raise the deadline without a recompile. Both accept 0 to disable, which
+is what the `MConnConfig` fields already meant.
 
 ## Alternatives considered
 
