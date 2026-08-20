@@ -37,6 +37,17 @@ func WithPersistentPeers(peerAddrs []*types.NetAddress) SwitchOption {
 	}
 }
 
+// WithSeeds sets the p2p switch's seed peer set.
+// Seeds are dialed for bootstrapping purposes only, and unlike
+// persistent peers, they are not kept alive through the redial loop
+func WithSeeds(peerAddrs []*types.NetAddress) SwitchOption {
+	return func(sw *MultiplexSwitch) {
+		for _, addr := range peerAddrs {
+			sw.seeds.Store(addr.ID, addr)
+		}
+	}
+}
+
 // WithPrivatePeers sets the p2p switch's private peer set
 func WithPrivatePeers(peerIDs []types.ID) SwitchOption {
 	return func(sw *MultiplexSwitch) {
