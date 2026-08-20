@@ -100,6 +100,57 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	return TranspileWithResolver(source, tags, filename, nil)
 }
 
+// stripInheritedDirectives removes directive comments carried over from the Gno
+// source, so the generated file only carries the directives this function
+// writes itself.
+//
+// A directive means nothing to the VM, but the output of this function is Go,
+// where the toolchain acts on it. Left in place:
+//
+//   - a "//go:build" line collides with the one written below, and `go build`
+//     rejects the file outright: "multiple //go:build comments";
+//   - "//go:generate" makes `go generate` run a command out of contract source;
+//   - "//nolint" suppresses golangci-lint findings for whoever lints the
+//     generated file, which is a poor thing to inherit from an audited
+//     contract;
+//   - "//line" rewrites the positions the compiler reports, competing with the
+//     "//line" written below for the same purpose.
+//
+// The header this function writes is emitted as text after the AST is printed
+// from, so it is unaffected.
+//
+// This cannot reach a directive that is not a comment: "//go:generate" at
+// column 1 inside a raw string is string data here, and `go generate` -- which
+// scans lines rather than parsing -- would still act on it. Rewriting string
+// literals is not something a transpiler may do, so that case belongs to
+// whoever validates the source.
+func stripInheritedDirectives(f *ast.File) {
+	keep := f.Comments[:0]
+	for _, cg := range f.Comments {
+		list := cg.List[:0]
+		for _, c := range cg.List {
+			if gno.IsDirectiveComment(c.Text) || isNolintComment(c.Text) {
+				continue
+			}
+			list = append(list, c)
+		}
+		cg.List = list
+		if len(cg.List) > 0 {
+			keep = append(keep, cg)
+		}
+	}
+	f.Comments = keep
+}
+
+// isNolintComment reports whether a comment suppresses golangci-lint findings.
+// Not a directive by Go's rule -- bare "//nolint" carries no colon -- but it
+// steers a Go tool reading the generated file, which is the reason the
+// directives above are stripped.
+func isNolintComment(text string) bool {
+	rest, ok := strings.CutPrefix(text, "//nolint")
+	return ok && (rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t')
+}
+
 // TranspileWithResolver is like [Transpile] but uses the supplied resolver
 // for import lookups. A nil resolver falls back to [DefaultResolver].
 func TranspileWithResolver(source, tags, filename string, resolver ImportResolver) (*Result, error) {
@@ -148,6 +199,7 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 	if err != nil {
 		return nil, fmt.Errorf("transpileAST: %w", err)
 	}
+	stripInheritedDirectives(transformed)
 
 	var out bytes.Buffer
 	// Write file header
