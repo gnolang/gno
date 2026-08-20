@@ -14,7 +14,6 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
 
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -127,7 +126,7 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 
 // memoizingGetter caches GetMemPackage results for the lifetime of one type
 // check, so a package fetched by both the pre-type-check expansion guard (see
-// checkTypeExpansionBoundImports) and the go/types importer is read from the
+// typeExpansionCost) and the go/types importer is read from the
 // underlying store — and charged store gas — only once. Dependency packages are
 // immutable during a type check, so caching is safe.
 type memoizingGetter struct {
@@ -182,8 +181,8 @@ type TypeCheckOptions struct {
 
 	// GasMeter, if non-nil, is charged for each package's type-expansion node
 	// count — the number go/types' validType walk is about to visit — once per
-	// package and BEFORE that walk runs. Rejected packages are not charged:
-	// rejecting stops the walk, so their count is cost avoided.
+	// package and BEFORE that walk runs. When nil the count is not even computed:
+	// it exists only to be charged.
 	//
 	// Charging per package rather than once at the end is what makes this a
 	// defence rather than a bill: ConsumeGas panics on out-of-gas, go/types
@@ -191,7 +190,8 @@ type TypeCheckOptions struct {
 	// the remaining dependencies are walked. Returning an error instead would NOT
 	// abort — go/types records importer errors and keeps resolving the rest.
 	//
-	// See typeExpansionCeiling for why the dependency graph must be priced at all.
+	// This charge is the whole defence against the validType walk; there is no
+	// hard ceiling behind it. See typeExpansionGasPerNode.
 	GasMeter store.GasMeter
 
 	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
@@ -528,10 +528,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return nil, errs
 	}
 
-	// STEP 3: Pre-type-check guards, run before the (unmetered) Go type
-	// checker. All three defend the validType walk, which go/types runs
-	// unmetered at deploy time (VMKeeper.AddPackage / MsgRun) and cannot be
-	// interrupted.
+	// STEP 3: Pre-type-check guards, run before the (unmetered) Go type checker.
+	// All three defend the validType walk, which go/types runs unmetered at deploy
+	// time (VMKeeper.AddPackage / MsgRun) and cannot be interrupted. The walk is
+	// paid for rather than capped, so the first two exist to keep the price
+	// honest: they reject exactly what the cost model cannot count.
 	//
 	// First reject the go1.18 constructs cost() cannot model (type parameters,
 	// `|`, `~`): go/types would otherwise form and walk such types, and their
@@ -541,27 +542,22 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return nil, errs
 	}
 	// Then reject dot imports: the preprocessor rejects them too, but only after
-	// go/types on this path, and they are invisible to the bound below. See
+	// go/types on this path, and they are invisible to the cost model below. See
 	// checkNoDotImports.
 	if errs = checkNoDotImports(gofset, allgofs); errs != nil {
 		return nil, errs
 	}
-	// Then bound pathological type-expansion fan-out among the remaining
-	// (non-generic) types. go/types' validType walk is exponential on
-	// value-containment fan-out types; left unbounded it is a consensus DoS.
-	// The resolver lets the guard follow value containment across import
-	// boundaries (validType re-expands imported types without memoizing), so a
-	// fan-out split over several packages is still caught. See
-	// checkTypeExpansionBoundImports.
-	expNodes, errs := checkTypeExpansionBoundImports(
-		gofset, mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache)
-	if errs != nil {
-		return nil, errs
-	}
-	// Charge before the walk; see TypeCheckOptions.GasMeter.
+	// Finally price the validType walk itself and charge for it BEFORE go/types
+	// runs, which is what keeps a value-containment fan-out from spending
+	// unmetered CPU. The resolver lets the cost model follow value containment
+	// across import boundaries (validType re-expands imported types without
+	// memoizing), so a fan-out split over several packages is priced in full.
+	// Only computed when there is a meter to charge: off-chain callers pay
+	// nothing, and resolving the dependency graph is the expensive part.
 	if gimp.gasMeter != nil {
-		gimp.gasMeter.ConsumeGas(
-			overflow.Mulp(int64(expNodes), typeExpansionGasPerNode), "TypeExpansion")
+		nodes := typeExpansionCost(
+			mpkg.Path, allgofs, gimp.expansionPkgResolver(), gimp.expCache)
+		gimp.gasMeter.ConsumeGas(expansionGas(nodes), "TypeExpansion")
 	}
 
 	// STEP 3: Prepare for Go type-checking.

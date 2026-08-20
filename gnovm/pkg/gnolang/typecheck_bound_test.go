@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
 	"path"
 	"slices"
 	"strings"
@@ -17,7 +18,7 @@ import (
 )
 
 // parseBoundSrc parses Go source into the (fset, []*ast.File) shape that
-// checkTypeExpansionBound consumes.
+// typeExpansionCost consumes.
 func parseBoundSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -45,10 +46,10 @@ func fanOutSrc(depth int) string {
 }
 
 // doublingPkgSrc builds an importable package whose exported T tops a doubling
-// chain of the given depth. Callers pick a depth whose total stays under
-// typeExpansionCeiling, so the package is accepted on its own and only a further
-// cross-package multiplication pushes a dependent over. imp, when non-empty, is
-// imported and referenced, so a chain of these forms an import chain.
+// chain of the given depth. Callers pick a depth whose own cost is modest, so that
+// what a dependent pays is dominated by the cross-package multiplication rather
+// than by this package. imp, when non-empty, is imported and referenced, so a
+// chain of these forms an import chain.
 func doublingPkgSrc(pkgName string, depth int, imp string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "package %s\n", pkgName)
@@ -112,13 +113,23 @@ func linearChainSrc(depth int) string {
 	return b.String()
 }
 
-func TestCheckTypeExpansionBound(t *testing.T) {
+// costlyThreshold separates shapes whose validType walk is astronomically
+// expensive from ordinary ones. It is not a limit — nothing rejects a package for
+// exceeding it — just a value no benign type graph comes near (the largest real
+// package measures 181 nodes, see TestHonestTypeExpansionUnderBudget) and every
+// fan-out shape blows past.
+const costlyThreshold = 1_000_000
+
+// TestTypeExpansionCost pins which containment edges the cost model follows.
+// Everything downstream is pricing, so an edge missed here is CPU the walk spends
+// for free, and an edge invented here is gas honest code pays for nothing.
+func TestTypeExpansionCost(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
-		name    string
-		src     string
-		wantErr bool
+		name     string
+		src      string
+		wantHuge bool
 	}{
 		{
 			"simple",
@@ -128,25 +139,24 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 		{
 			// Depth alone must not read as fan-out: each level contains the
 			// previous one once, so the walk is linear per type.
-			"deep linear chain passes",
+			"deep linear chain is cheap",
 			linearChainSrc(900),
 			false,
 		},
 		{
-			// ... but the budget bounds the AGGREGATE walk, and a linear chain of
-			// depth d costs ~d^2 in total (each of the d types costs O(d)), so an
-			// extreme depth is rejected on honest arithmetic rather than as a
-			// special case: validType really does visit ~4M nodes here. The cap
-			// lands near depth 1000, orders of magnitude past any real type (measured
-			// max depth in stdlibs/examples is single digits).
-			"extreme linear depth rejected on aggregate cost",
+			// ... but the charge is the AGGREGATE walk, and a linear chain of depth d
+			// costs ~d^2 in total (each of the d types costs O(d)), so extreme depth
+			// gets expensive on honest arithmetic rather than as a special case:
+			// validType really does visit ~4M nodes here. Real types are single-digit
+			// deep, so this is orders of magnitude past anything honest.
+			"extreme linear depth is expensive on aggregate cost",
 			linearChainSrc(2000),
 			true,
 		},
 		{
-			// Pointers break value containment exactly as validType does, so a
-			// deep "doubling" chain through pointers must NOT be rejected.
-			"pointer fan-out passes",
+			// Pointers break value containment exactly as validType does, so a deep
+			// "doubling" chain through pointers costs nothing to walk.
+			"pointer fan-out is cheap",
 			func() string {
 				var b strings.Builder
 				b.WriteString("package x\ntype T0 struct{ v int }\n")
@@ -159,7 +169,7 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 		},
 		{
 			// Slices, maps, chans likewise break the chain.
-			"slice fan-out passes",
+			"slice fan-out is cheap",
 			func() string {
 				var b strings.Builder
 				b.WriteString("package x\ntype T0 struct{ v int }\n")
@@ -171,25 +181,25 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 			false,
 		},
 		{
-			"self-referential via pointer passes",
+			"self-referential via pointer is cheap",
 			"package x\ntype List struct{ v int; next *List }\n",
 			false,
 		},
 		{
-			"value fan-out rejected",
+			"value fan-out is astronomically expensive",
 			fanOutSrc(30),
 			true,
 		},
 		{
-			"array-element value fan-out rejected at function scope",
+			"array-element value fan-out counted at function scope",
 			"package x\nfunc f() {\n" + strings.TrimPrefix(fanOutSrc(30), "package x\n") + "}\n",
 			true,
 		},
 		{
 			// Interface type-set fan-out via multiple (`;`-separated) type elements
 			// rather than a union `|`: the generics guard does not reject this shape
-			// (no `|`/`~`), so the bound must count both elements and catch it.
-			"multi-element interface value fan-out rejected",
+			// (no `|`/`~`), so the cost model must count both elements itself.
+			"multi-element interface value fan-out counted",
 			func() string {
 				var b strings.Builder
 				b.WriteString("package x\ntype I0 interface{ m() }\n")
@@ -205,13 +215,14 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			fset, gofs := parseBoundSrc(t, tc.src)
-			err := checkTypeExpansionBound(fset, gofs)
-			if tc.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "denial-of-service")
+			_, gofs := parseBoundSrc(t, tc.src)
+			cost := typeExpansionCost("", gofs, nil, nil)
+			if tc.wantHuge {
+				assert.Greater(t, cost, uint64(costlyThreshold),
+					"this shape drives validType exponential; the cost model must see it")
 			} else {
-				assert.NoError(t, err)
+				assert.LessOrEqual(t, cost, uint64(costlyThreshold),
+					"this shape is cheap for validType; charging for it would overprice honest code")
 			}
 		})
 	}
@@ -330,9 +341,8 @@ func TestCheckNoDotImports(t *testing.T) {
 func TestDotImportFanOutRejected(t *testing.T) {
 	t.Parallel()
 
-	// The dependency is under budget on its own, so it is legitimately
-	// deployable; the entry package continues the chain over its T, and its own
-	// local chain also stays under budget.
+	// The dependency is cheap enough to be legitimately deployable on its own; the
+	// entry package continues the chain over its T.
 	dep := &std.MemPackage{
 		Type: MPUserProd, Name: "dep", Path: "gno.land/p/demo/dep",
 		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 12, "")}},
@@ -345,11 +355,16 @@ func TestDotImportFanOutRejected(t *testing.T) {
 		wantMsg string
 	}{
 		{
+			// The control: identical containment, but reached through dep.T, so the
+			// cost model crosses the import and the deploy is billed for the whole
+			// cross-package walk — more than this budget covers.
 			"qualified",
 			"package fan\nimport \"gno.land/p/demo/dep\"\ntype u0 struct{ a, b [0]dep.T }\n",
-			"denial-of-service",
+			"out of gas",
 		},
 		{
+			// Written as a bare T the same walk is invisible to the cost model, so it
+			// would be walked for free. It must not reach go/types at all.
 			"dot",
 			"package fan\nimport . \"gno.land/p/demo/dep\"\ntype u0 struct{ a, b [0]T }\n",
 			errDotImports,
@@ -366,24 +381,36 @@ func TestDotImportFanOutRejected(t *testing.T) {
 					Body: tc.head + doublingChain("u", 1, 9),
 				}},
 			}
-			_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
-				Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
-			})
+			err := func() (err error) {
+				// The chain's meter panics on out-of-gas; that panic is the abort.
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("%v", r)
+					}
+				}()
+				_, e := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+					Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+					GasMeter: newRecordingGasMeter(1e7),
+				})
+				return e
+			}()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.wantMsg)
 		})
 	}
 }
 
-// TestCheckTypeExpansionBoundImports covers hole #3: a value-containment fan-out
-// split across an import chain. Each package is under the per-package budget, but
-// validType re-expands imported types without memoizing, so the cumulative walk
-// doubles per package. The guard must follow the imports and reject the deploy.
-func TestCheckTypeExpansionBoundImports(t *testing.T) {
+// TestTypeExpansionCostImports covers hole #3: a value-containment fan-out split
+// across an import chain. Each package's own source is trivial, but validType
+// re-expands imported types without memoizing, so the real walk multiplies at
+// every link. The cost model has to follow the imports, or every link past the
+// first is walked for free.
+func TestTypeExpansionCostImports(t *testing.T) {
 	t.Parallel()
 
-	// p0: a doubling chain whose count (~57k) is legitimately under budget on its
-	// own; p1 embeds p0.T four times, pushing the cross-package count over.
+	// p0: a doubling chain costing ~57k on its own. Each pN after it declares one
+	// three-line type, so its own bytes are trivial while its walk is 4x the
+	// previous package's.
 	pkgs := map[string]string{
 		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 12, ""),
 	}
@@ -398,30 +425,48 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 	}
 
 	fset := token.NewFileSet()
-
-	// Deploying p5 must be rejected: the imported chain doubles across packages.
 	resolve := makeBoundResolver(t, fset, pkgs)
-	_, err := checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/p5",
-		resolve("gno.land/r/foobar/p5"), resolve, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "denial-of-service")
+	costOf := func(pkgPath string) uint64 {
+		return typeExpansionCost(pkgPath, resolve(pkgPath), resolve, nil)
+	}
 
-	// A package that imports only a small dependency must NOT be rejected.
+	// Every link at least doubles the one before it, so the price tracks the walk
+	// down the whole chain rather than stopping at the first import.
+	prev := costOf("gno.land/r/foobar/p0")
+	for i := 1; i <= 5; i++ {
+		pp := fmt.Sprintf("gno.land/r/foobar/p%d", i)
+		cost := costOf(pp)
+		assert.GreaterOrEqual(t, cost, 2*prev,
+			"p%d costs %d against p%d's %d: the import edge is not being followed",
+			i, cost, i-1, prev)
+		prev = cost
+	}
+	assert.Greater(t, prev, uint64(costlyThreshold),
+		"five links of cross-package doubling must end up astronomically expensive")
+
+	// And the counterfactual: with imports scored as leaves — what an entry-package
+	// guard alone would see — p5 is three lines of source and costs almost nothing.
+	// That gap is the whole reason the resolver exists.
+	p5 := "gno.land/r/foobar/p5"
+	asLeaf := typeExpansionCost(p5, resolve(p5), nil, nil)
+	assert.Less(t, asLeaf, uint64(1_000))
+	assert.Greater(t, prev, 1_000*asLeaf,
+		"not following imports under-prices p5 by %dx", prev/asLeaf)
+
+	// Following imports must not make an ordinary small dependency expensive.
 	okResolve := makeBoundResolver(t, fset, map[string]string{
 		"gno.land/r/foobar/dep": "package dep\ntype T struct{ a, b int }\n",
 		"gno.land/r/foobar/u":   "package u\nimport \"gno.land/r/foobar/dep\"\ntype U struct{ a, b, c, d [0]dep.T }\n",
 	})
-	_, err = checkTypeExpansionBoundImports(fset, "gno.land/r/foobar/u",
-		okResolve("gno.land/r/foobar/u"), okResolve, nil)
-	assert.NoError(t, err)
+	assert.Less(t, typeExpansionCost("gno.land/r/foobar/u",
+		okResolve("gno.land/r/foobar/u"), okResolve, nil), uint64(100))
 }
 
-// TestCheckTypeExpansionBoundAggregate pins that the budget bounds the TOTAL
-// walk, not the largest single type. go/types runs validType once per declared
-// type, so many individually-cheap types sharing one chain sum to a walk no
-// per-type cap would catch: each type here costs ~7k nodes, comfortably under the
-// ceiling, but enough of them push the package total past it.
-func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
+// TestTypeExpansionCostAggregate pins that the price is the TOTAL walk, not the
+// largest single type. go/types runs validType once per declared type, so many
+// individually-cheap types sharing one chain sum to a walk that pricing the
+// largest type alone would hand over almost for free.
+func TestTypeExpansionCostAggregate(t *testing.T) {
 	t.Parallel()
 
 	// A depth-10 chain plus n types that each hang one array off its tip, so each
@@ -435,48 +480,39 @@ func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
 		return b.String()
 	}
 
-	for _, tc := range []struct {
-		name    string
-		n       int
-		wantErr bool
-	}{
-		{"under the aggregate budget passes", 100, false},
-		{"over the aggregate budget rejected", 140, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			fset, gofs := parseBoundSrc(t, src(tc.n))
-			err := checkTypeExpansionBound(fset, gofs)
-			if !tc.wantErr {
-				assert.NoError(t, err)
-				return
-			}
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "denial-of-service")
+	// The total must scale with the number of declarations, and each declaration
+	// must stay unremarkable on its own — otherwise this fixture would not
+	// distinguish summing from taking the max.
+	_, gofs100 := parseBoundSrc(t, src(100))
+	_, gofs200 := parseBoundSrc(t, src(200))
+	cost100 := typeExpansionCost("", gofs100, nil, nil)
+	cost200 := typeExpansionCost("", gofs200, nil, nil)
+	assert.Greater(t, cost200, cost100+90*(cost100/100),
+		"100 more declarations of the same shape must add ~100x one declaration; "+
+			"the charge is the sum over declarations, not the costliest one")
 
-			// The rejection must be entirely due to the aggregate: no single
-			// declaration reaches the budget, so no per-type cap would catch it.
-			c := newExpansionChecker("", gofs, nil, nil)
-			var worst uint64
-			var worstName string
-			for _, specs := range c.declsFor("").byName {
-				for _, d := range specs {
-					if v := satAdd(1, c.cost(d.spec.Type, "", d.imports)); v > worst {
-						worst, worstName = v, d.spec.Name.Name
-					}
-				}
+	c := newExpansionChecker("", gofs200, nil, nil)
+	var worst uint64
+	var worstName string
+	for _, specs := range c.declsFor("").byName {
+		for _, d := range specs {
+			if v := satAdd(1, c.cost(d.spec.Type, "", d.imports)); v > worst {
+				worst, worstName = v, d.spec.Name.Name
 			}
-			assert.Less(t, worst, uint64(typeExpansionCeiling),
-				"costliest single type (%s) must stay under the budget", worstName)
-		})
+		}
 	}
+	assert.Less(t, worst*10, cost200,
+		"costliest single type (%s, %d) must be a small fraction of the total (%d)",
+		worstName, worst, cost200)
 }
 
 // TestExpansionPkgCacheSharing pins that sharing one cache across the nested
 // type checks of an importer — which is what makes dependency parsing linear
-// rather than quadratic in the import graph — does not change any verdict. In
+// rather than quadratic in the import graph — does not change any price. In
 // particular a package's own (entry) file set must never be served from, or
-// leak into, the cache of resolved dependency sources.
+// leak into, the cache of resolved dependency sources: it is seeded with
+// whichever file set its caller is checking, so standing in for a dependency
+// would mis-price that dependency.
 func TestExpansionPkgCacheSharing(t *testing.T) {
 	t.Parallel()
 
@@ -493,25 +529,22 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 
 	fset := token.NewFileSet()
 	resolve := makeBoundResolver(t, fset, pkgs)
-	rejects := func(pkgPath string, cache *expansionPkgCache) bool {
-		_, err := checkTypeExpansionBoundImports(fset, pkgPath, resolve(pkgPath), resolve, cache)
-		return err != nil
+	costOf := func(pkgPath string, cache *expansionPkgCache) uint64 {
+		return typeExpansionCost(pkgPath, resolve(pkgPath), resolve, cache)
 	}
 
 	paths := []string{
 		"gno.land/r/foobar/p0", "gno.land/r/foobar/p1", "gno.land/r/foobar/p2",
 		"gno.land/r/foobar/p3", "gno.land/r/foobar/p4",
 	}
-	// Baseline: every package checked with its own private cache. The fixture is
-	// only meaningful if it produces both verdicts.
-	private := map[string]bool{}
-	var verdicts []bool
+	// Baseline: every package priced with its own private cache. The fixture is
+	// only meaningful if the packages price differently from one another.
+	private := map[string]uint64{}
 	for _, pp := range paths {
-		private[pp] = rejects(pp, nil)
-		verdicts = append(verdicts, private[pp])
+		private[pp] = costOf(pp, nil)
 	}
-	require.Contains(t, verdicts, false, "fixture must accept some packages")
-	require.Contains(t, verdicts, true, "fixture must reject some packages")
+	require.NotEqual(t, private[paths[0]], private[paths[len(paths)-1]],
+		"fixture must produce distinct prices, or cache poisoning would be invisible")
 
 	// Now all of them through one shared cache, in both directions — a poisoned
 	// entry would surface whichever order the importer happens to visit them in.
@@ -520,23 +553,41 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 	for _, order := range [][]string{paths, reversed} {
 		shared := newExpansionPkgCache()
 		for _, pp := range order {
-			assert.Equal(t, private[pp], rejects(pp, shared),
-				"package %s: shared cache (order %v) changed the verdict", pp, order)
+			assert.Equal(t, private[pp], costOf(pp, shared),
+				"package %s: shared cache (order %v) changed the price", pp, order)
 		}
 	}
 }
 
-// TestCheckTypeExpansionBoundLinearTime asserts the guard itself is linear: a
-// depth-1000 fan-out package (which would make validType visit ~2^1000 nodes)
-// is rejected near-instantly because the guard memoizes.
-func TestCheckTypeExpansionBoundLinearTime(t *testing.T) {
+// TestTypeExpansionCostLinearTime asserts the cost model itself is linear: a
+// depth-1000 fan-out package, which would make validType visit ~2^1000 nodes, is
+// priced near-instantly because the model memoizes what validType does not. The
+// count saturates rather than wrapping, and expansionGas turns that into a charge
+// nobody can afford instead of a negative one.
+func TestTypeExpansionCostLinearTime(t *testing.T) {
 	t.Parallel()
-	fset, gofs := parseBoundSrc(t, fanOutSrc(1000))
-	err := checkTypeExpansionBound(fset, gofs)
-	require.Error(t, err)
+	_, gofs := parseBoundSrc(t, fanOutSrc(1000))
+	cost := typeExpansionCost("", gofs, nil, nil)
+	assert.Equal(t, uint64(math.MaxUint64), cost)
+	assert.Equal(t, int64(math.MaxInt64), expansionGas(cost))
 }
 
-func BenchmarkCheckTypeExpansionBound(b *testing.B) {
+// TestExpansionGas pins the clamp: converting a saturated count straight to int64
+// yields -1, and a negative charge would refund gas for the worst package a
+// sender could submit.
+func TestExpansionGas(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, int64(0), expansionGas(0))
+	assert.Equal(t, int64(typeExpansionGasPerNode), expansionGas(1))
+	assert.Equal(t, int64(math.MaxInt64), expansionGas(math.MaxUint64))
+	assert.Equal(t, int64(math.MaxInt64), expansionGas(math.MaxUint64/2))
+	// The largest count that still converts exactly.
+	exact := uint64(math.MaxInt64) / typeExpansionGasPerNode
+	assert.Equal(t, int64(exact)*typeExpansionGasPerNode, expansionGas(exact))
+	assert.Equal(t, int64(math.MaxInt64), expansionGas(exact+1))
+}
+
+func BenchmarkTypeExpansionCost(b *testing.B) {
 	for _, depth := range []int{100, 1000, 5000} {
 		src := fanOutSrc(depth)
 		fset := token.NewFileSet()
@@ -547,7 +598,7 @@ func BenchmarkCheckTypeExpansionBound(b *testing.B) {
 		gofs := []*ast.File{f}
 		b.Run(fmt.Sprintf("fanout-depth-%d", depth), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = checkTypeExpansionBound(fset, gofs)
+				_ = typeExpansionCost("", gofs, nil, nil)
 			}
 		})
 	}
@@ -572,7 +623,8 @@ func (m *recordingGasMeter) ConsumeGas(amount store.Gas, descriptor string) {
 
 // TestExpansionChargedPerPackage pins that every transitive dependency is
 // charged individually, and that an out-of-gas aborts the walk part-way down the
-// import chain, not after every package has been walked. See typeExpansionCeiling.
+// import chain, not after every package has been walked. See
+// typeExpansionGasPerNode.
 func TestExpansionChargedPerPackage(t *testing.T) {
 	t.Parallel()
 
@@ -626,25 +678,43 @@ func TestExpansionChargedPerPackage(t *testing.T) {
 		"the abort must stop the walk part-way through the dependencies, not after all 22 packages")
 }
 
-// TestExpansionNotChargedWhenRejected pins that a REJECTED package is not
-// charged. Rejecting stops go/types, so its count is the cost avoided; charging
-// it would price work the guard just prevented, and would replace the informative
-// rejection with an out-of-gas error.
+// TestExpansionNotChargedWhenRejected pins the ordering of the three guards: the
+// two that reject on syntax run BEFORE the count is computed, so a package they
+// turn away is not billed for a walk that never ran — and, more to the point, the
+// cost model is never asked to price a package whose shapes it cannot model.
 func TestExpansionNotChargedWhenRejected(t *testing.T) {
 	t.Parallel()
 
-	mpkg := &std.MemPackage{
-		Type: MPUserProd, Name: "x", Path: "gno.land/p/demo/x",
-		Files: []*std.MemFile{{Name: "x.gno", Body: fanOutSrc(40)}},
+	for _, tc := range []struct {
+		name, body, wantMsg string
+	}{
+		{
+			"dot import",
+			"package x\nimport . \"std\"\ntype T struct{ v int }\n",
+			errDotImports,
+		},
+		{
+			"type parameter",
+			"package x\ntype T[A any] struct{ v A }\n",
+			"generic type declarations are not supported",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			mpkg := &std.MemPackage{
+				Type: MPUserProd, Name: "x", Path: "gno.land/p/demo/x",
+				Files: []*std.MemFile{{Name: "x.gno", Body: tc.body}},
+			}
+			getter := mockPackageGetter{}
+			meter := newRecordingGasMeter(1e9)
+			_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+				Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+				ProdOnly: true, GasMeter: meter,
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantMsg)
+			assert.Empty(t, meter.charges,
+				"a package rejected before the count is computed must not be charged")
+		})
 	}
-	getter := mockPackageGetter{}
-	meter := newRecordingGasMeter(1e9)
-	_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
-		Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed, ProdOnly: true,
-		GasMeter: meter,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "denial-of-service")
-	assert.Empty(t, meter.charges,
-		"a rejected package must not be charged for a walk that never ran")
 }

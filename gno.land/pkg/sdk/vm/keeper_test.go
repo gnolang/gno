@@ -3497,8 +3497,9 @@ func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 // TestVMKeeperAddPackage_TypeExpansionGasCharged pins that the type-expansion
 // walk is actually priced on the deploy path. gnovm computes the node count and
 // charges TypeCheckOptions.GasMeter for it; if AddPackage forgets to pass the
-// meter the charge silently vanishes, and nothing else notices because the
-// expansion cap still rejects the extreme cases.
+// meter the charge silently vanishes — which happened once during this change's
+// development, and every other suite still passed. Nothing else in the tree
+// observes the charge, so this test is the only thing holding the wiring.
 //
 // The two packages here have the SAME number of declarations and near-identical
 // source, differing only in `[0]tN` (value containment, whose expansion doubles

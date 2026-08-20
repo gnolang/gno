@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"math"
 	"path"
 	"strconv"
@@ -11,8 +12,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-// typeExpansionCeiling caps the total number of nodes that go/types' validType
-// walk may visit for one package's named types.
+// typeExpansionGasPerNode prices one node of the go/types validType walk, which
+// the deploy path charges for BEFORE that walk runs.
 //
 // go/types validates that named types do not "expand" indefinitely
 // (src/go/types/validtype.go). Its walk follows value-containment edges only —
@@ -27,46 +28,38 @@ import (
 //	// ... depth ~40 => 2^40 node visits
 //
 // hangs the type checker, and TypeCheckMemPackage runs unmetered at deploy time
-// (VMKeeper.AddPackage / MsgRun), so a ~40-line package is a consensus DoS.
+// (VMKeeper.AddPackage / MsgRun), so a ~40-line package was a consensus DoS.
 //
-// checkTypeExpansionBound computes that same node-visit count WITH the memoization
-// validType lacks, making the computation linear, and rejects the package before
-// go/types runs if the count exceeds this ceiling. The count is a deterministic
-// node count, not a wall-clock limit, so the check is consensus-safe.
+// typeExpansionCost below computes that same node-visit count WITH the memoization
+// validType lacks, which makes computing it linear, and the deploy path charges
+// the count to TypeCheckOptions.GasMeter before handing the package to go/types.
+// The count is a deterministic node count, not a wall-clock measurement, so the
+// charge is consensus-safe. 1 gas ~= 1ns on the reference machine and the walk
+// measures ~25ns/node (Apple Silicon go1.25).
 //
-// This ceiling is NOT the primary defence. On-chain that is the per-node gas
-// charge (see TypeCheckOptions.GasMeter), which prices the walk over this package
-// AND all of its transitive dependencies. A ceiling per package cannot bound a
-// transaction: Tx.Msgs is unbounded, and one message re-checks every dependency
-// it imports, whose source bytes earlier transactions paid for. At 1_000_000 the
-// charge for one package (2.5e7 gas) already exceeds a typical GasWanted, so
-// gas binds first: an expensive package deploys if the sender pays for it.
+// The rate sits here, beside the cost model that produces the count, for the same
+// reason tokenCostFactor and the OpCPU* tables do: it is a measured ns rate for
+// work gnovm performs, not a governance knob. Promoting it to a vm Params field is
+// a reasonable future step.
 //
-// The ceiling exists for the two cases gas cannot cover:
+// PRICED, NOT CAPPED. There is deliberately no ceiling on the count. Any ceiling
+// sits either below what a sender can pay, in which case it refuses packages that
+// were paid for, or above it, where nothing is payable anyway and it merely
+// relabels an out-of-gas as something else. It would also have to be per-package,
+// a scope no budget has: Tx.Msgs is unbounded and one message re-checks every
+// dependency it imports, whose source bytes earlier transactions paid for. An
+// earlier revision of this change carried a 1_000_000 ceiling; it was removed for
+// exactly those reasons. What that costs is off-chain: unmetered callers (gno test,
+// gno lint, gnodev) churn on a pathological local package for as long as `go build`
+// does on the same input, so the walk is bounded there only by the developer
+// interrupting it.
 //
-//   - Unmetered callers. gno test, gno lint and gnodev pass no GasMeter, so
-//     nothing else there stops a 2^40 walk from hanging a developer's machine.
-//   - A broken charge. This has happened: an AddPackage wiring slip once left the
-//     charge at zero and every suite still passed, because this ceiling kept the
-//     blast radius finite. TestVMKeeperAddPackage_TypeExpansionGasCharged now
-//     guards the wiring, but the ceiling is what makes such a slip survivable.
-//
-// It is deliberately global rather than applied only when no GasMeter is set:
-// unmetered and metered callers then reach the same verdict on the same package,
-// and the ceiling still stands if the charge is ever mis-wired.
-//
-// 1_000_000 is far above honest code — the largest per-package total measured over
-// all stdlibs and examples including test files is 181, pinned by
-// TestHonestTypeExpansionUnderBudget, so ~5500x headroom — and bounds an unmetered
-// walk at ~25ms per package (~25ns/node, Apple Silicon go1.25). Because it caps a
-// total it also caps value-containment DEPTH near 1000, since a linear chain of
-// depth d totals ~d^2 nodes; that is honest arithmetic, not a fan-out special
-// case, and orders of magnitude past any real type.
-//
-// MAINTENANCE: cost() below mirrors validType's containment edges for the go1.17
-// subset Gno accepts. Two classes of construct are NOT modelled here because they
-// are rejected before this runs; each rejection is therefore a precondition of
-// this guard's soundness, not an independent nicety:
+// SOUNDNESS. The count is now the only thing between a deploy and an unmetered
+// exponential walk, so it must never UNDER-count a live containment edge:
+// under-counting is under-charging, which is the same denial of service at a
+// discount. cost() mirrors validType's edges for the Go subset Gno accepts, and
+// the two construct classes it cannot model are rejected outright rather than
+// approximated — each rejection is a precondition of this pricing, not a nicety:
 //
 //   - go1.18 generic instantiation (type-argument substitution) and interface
 //     type-set terms (unions, ~T). validType walks both, but cost() does not
@@ -74,31 +67,70 @@ import (
 //   - dot imports. cost() cannot see a dot-imported type's expansion (namedCost
 //     resolves in the declaring package only); checkNoDotImports rejects them.
 //
-// Two further edges are under-counted rather than rejected, and stay safe only
-// because their source is fixed and cannot grow with input: imported stdlib types
-// (see expansionPkgResolver) and the `realm`/`address` names from the
-// .gnobuiltins.gno shim, which is injected AFTER these guards run and so is scored
-// as a leaf. Both are bounded by construction; see the ADR.
+// A named type the guard cannot resolve — an imported stdlib type, or the
+// `realm`/`address` names from the .gnobuiltins.gno shim, which is injected after
+// these guards run — is scored at leafExpansionBound rather than 1, so those edges
+// over-count instead of under-counting.
 //
-// Revisit this file if a toolchain upgrade adds a go1.17-reachable edge, if
-// validType is finally memoized (golang/go#65711), or if Gno ever accepts
-// generics/type-sets/dot imports (they would then have to be counted here, not
-// rejected) — under-counting a live edge would silently reopen the DoS.
-const typeExpansionCeiling = 1_000_000
-
-// typeExpansionGasPerNode prices one node of the validType walk. 1 gas ~= 1ns on
-// the reference machine and the walk measures ~25ns/node (Apple Silicon go1.25).
-// It sits here, next to the budget it prices and the cost model that produces the
-// count, for the same reason tokenCostFactor and the OpCPU* tables do: it is a
-// measured ns rate for work gnovm performs, not a governance knob. Promoting it to
-// a vm Params field is a reasonable future step — the budget staying a constant is
-// what makes a governable rate safe, since it floors the worst case regardless.
+// Revisit this file if a toolchain upgrade adds a containment edge, if validType is
+// finally memoized (golang/go#65711), or if Gno ever accepts generics, type sets or
+// dot imports: they would then have to be counted here, not rejected.
 const typeExpansionGasPerNode = 25
+
+// gnoBuiltinShimExpansion is the exact expansion of the type names
+// .gnobuiltins.gno injects into every package. That file is added AFTER these
+// guards run, so cost() never sees the declarations and would otherwise score both
+// as unresolved. It cannot: `address` is the type of most of the stdlib's public
+// API surface, so charging it leafExpansionBound would tax honest deploys hundreds
+// of times over for a two-node type. TestGnoBuiltinShimExpansion pins these
+// against the real shim source, in case a future shim grows an edge.
+var gnoBuiltinShimExpansion = map[string]uint64{
+	// Both are one node for the named type plus one for its underlying type: an
+	// interface declaring only methods (validType walks no method signature), and
+	// a named string.
+	"realm":   2,
+	"address": 2,
+}
+
+// leafExpansionBound is the expansion charged for an imported stdlib type, which
+// this guard scores as a leaf because expansionPkgResolver deliberately does not
+// resolve stdlib: go/types serves those imports from its own result cache without
+// a store read, so resolving them here would add store gas the deploy otherwise
+// never pays. Predeclared names and the shim above are excluded — those are scored
+// exactly.
+//
+// Scoring such a leaf as 1 would UNDER-count, and an under-count multiplies: a
+// leaf at the base of a doubling chain of depth d is walked 2^d times, so an
+// under-count of k there is a k-fold discount on the whole package. Charging the
+// largest expansion any leaf can actually have makes the edge an over-count
+// instead, which is the direction pricing has to err.
+//
+// It is safe as a constant because the set of stdlib types is fixed by the binary,
+// not by transaction input: stdlib source ships with the node, and a stdlib type
+// cannot reference a user package. TestLeafExpansionBound measures the real
+// maximum over every exported stdlib type and fails if this no longer covers it.
+// 32: the measured maximum over every exported stdlib type is 19 (regexp.Regexp),
+// and the margin is small on purpose — every reference to a stdlib type in honest
+// code pays this, so headroom here is a tax on ordinary deploys.
+const leafExpansionBound = 32
+
+// expansionGas converts a node count into gas, clamping at math.MaxInt64 instead
+// of converting a saturated count straight to int64: math.MaxUint64 as an int64 is
+// -1, and -1 * typeExpansionGasPerNode is a NEGATIVE charge, which would refund
+// gas for the most expensive package a sender could submit. Clamped, an
+// unrepresentable count is simply unaffordable and the deploy runs out of gas.
+func expansionGas(nodes uint64) int64 {
+	const max = uint64(math.MaxInt64) / typeExpansionGasPerNode
+	if nodes > max {
+		return math.MaxInt64
+	}
+	return int64(nodes) * typeExpansionGasPerNode
+}
 
 // pkgResolver returns the parsed Go source files of an already-deployed
 // dependency package, or nil when the package should be treated as a leaf:
 // stdlib (fixed, bounded source that no user chain can amplify), missing, or
-// unparseable. It lets checkTypeExpansionBound follow value-containment edges
+// unparseable. It lets typeExpansionCost follow value-containment edges
 // across import boundaries, which is required because go/types' validType walk
 // re-expands imported named types WITHOUT memoizing across packages
 // (golang/go#65711) — so a doubling chain split over several packages stays
@@ -273,8 +305,18 @@ func (c *expansionChecker) namedCost(k typeKey) uint64 {
 	}
 	specs := c.declsFor(k.pkg).byName[k.name]
 	if len(specs) == 0 {
-		// Builtin, type parameter, or otherwise unresolved: validType leaf.
-		return 1
+		if types.Universe.Lookup(k.name) != nil {
+			// Predeclared (int, string, error, any, ...). validType stops at these,
+			// so 1 is exact, not an approximation.
+			return 1
+		}
+		if v, ok := gnoBuiltinShimExpansion[k.name]; ok {
+			return v
+		}
+		// An imported stdlib type: expansionPkgResolver does not resolve those, so
+		// score the largest expansion any of them can have. Over-counting here is
+		// the safe direction; see leafExpansionBound.
+		return leafExpansionBound
 	}
 	if c.visiting[k] {
 		// A value-containment cycle: an invalid recursive type that go/types
@@ -349,77 +391,53 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 	}
 }
 
-// checkTypeExpansionBound rejects packages whose named types would cause
-// go/types' validType walk to run super-linearly. Imports are treated as leaves;
-// use checkTypeExpansionBoundImports to follow value-containment across packages.
-// See typeExpansionCeiling.
-func checkTypeExpansionBound(fset *token.FileSet, gofs []*ast.File) error {
-	_, err := checkTypeExpansionBoundImports(fset, "", gofs, nil, nil)
-	return err
-}
-
-// checkTypeExpansionBoundImports is checkTypeExpansionBound with cross-package
-// resolution: entryPath is the deploying package's path, and resolve fetches the
-// parsed source of its (already-deployed) dependencies. cache, if non-nil, is
-// shared with the other type checks of the same importer so each dependency is
-// parsed once rather than once per nesting level.
-// It returns the package's expansion total. A rejected package returns 0:
-// rejecting stops go/types, so its total is the cost AVOIDED, and charging it
-// would price work this guard just prevented.
-func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs []*ast.File, resolve pkgResolver, cache *expansionPkgCache) (uint64, error) {
+// typeExpansionCost returns the number of nodes go/types' validType walk will
+// visit for one package's named types, for the deploy path to charge before that
+// walk runs. See typeExpansionGasPerNode.
+//
+// entryPath is the package being checked and resolve fetches the parsed source of
+// its (already-deployed) dependencies, so value containment is followed across
+// import boundaries — validType re-expands imported named types without
+// memoizing, so a doubling chain split over several packages still doubles at
+// every link. cache, if non-nil, is shared with the other type checks of the same
+// importer so each dependency is parsed once rather than once per nesting level.
+//
+// The count saturates at math.MaxUint64 rather than wrapping; callers converting
+// it to gas must clamp (see the charge site in gotypecheck.go).
+func typeExpansionCost(entryPath string, gofs []*ast.File, resolve pkgResolver, cache *expansionPkgCache) uint64 {
 	c := newExpansionChecker(entryPath, gofs, resolve, cache)
 
 	// go/types runs validType once per declared named type, so the walk this
-	// transaction pays for is the SUM over declarations — that is what the budget
-	// bounds. Cost every declaration (not every name: a name declared more than
-	// once is validated once per declaration). The total is order-independent, and
-	// so is the verdict; for the message we name the costliest declaration, ties
-	// broken by position, which is both deterministic (positions are unique) and
-	// more useful than whichever declaration happened to cross the running total.
-	var total, worstCost uint64
-	var worst *ast.TypeSpec
+	// transaction pays for is the SUM over declarations. Cost every declaration,
+	// not every name: a name declared more than once is validated once per
+	// declaration. The total is order-independent.
+	var total uint64
 	for _, specs := range c.declsFor(entryPath).byName {
 		for _, d := range specs {
-			cost := satAdd(1, c.cost(d.spec.Type, entryPath, d.imports))
-			total = satAdd(total, cost)
-			if worst == nil || cost > worstCost ||
-				(cost == worstCost && d.spec.Name.Pos() < worst.Name.Pos()) {
-				worst, worstCost = d.spec, cost
-			}
+			total = satAdd(total, satAdd(1, c.cost(d.spec.Type, entryPath, d.imports)))
 		}
 	}
-	if total > typeExpansionCeiling {
-		return 0, fmt.Errorf(
-			"%s: this package's named types expand to %d nodes during type "+
-				"validation, exceeding the limit of %d (largest: type %s at %d) "+
-				"(possible denial-of-service vector)",
-			fset.Position(worst.Name.Pos()), total, typeExpansionCeiling,
-			worst.Name.Name, worstCost)
-	}
-	return total, nil
+	return total
 }
 
 // expansionPkgResolver returns a pkgResolver backed by the importer's getter,
 // used to follow value-containment edges into already-deployed dependencies.
 func (gimp *gnoImporter) expansionPkgResolver() pkgResolver {
 	return func(pkgPath string) []*ast.File {
-		// Treat stdlib types as leaves (count 1) instead of fetching+parsing them.
-		// This is safe: the exponential vector is value-containment FAN-OUT, which
-		// lives in user types and is fully counted — a user chain doubling over a
-		// stdlib type still explodes the user-side count and trips the budget. A
-		// stdlib type cannot import user packages, so its own expansion is fixed
-		// and small, independent of input: measured max 28 over all stdlib types,
-		// and only 19 (regexp.Regexp) over the EXPORTED ones, which are the only
-		// ones a user package can name.
+		// Do not fetch stdlib source: go/types serves stdlib imports from its own
+		// result cache without a store read, so fetching here would add store gas
+		// the deploy otherwise never pays. namedCost scores what it cannot resolve
+		// at leafExpansionBound, which is the measured maximum over every exported
+		// stdlib type (19, regexp.Regexp) — so a stdlib reference OVER-counts rather
+		// than under-charging, and a user chain doubling over a stdlib type is
+		// priced at least as high as the walk it causes.
 		//
-		// So this only under-counts by a bounded per-reference constant, never
-		// hides a fan-out, and does not compound with the aggregate budget (see
-		// the ADR). We deliberately do NOT fetch stdlib source: go/types
-		// serves stdlib imports from its result cache without a store read, so
-		// fetching here would add store gas the deploy otherwise never pays.
-		// (Counting stdlibs exactly is possible via a table precomputed at stdlib
-		// load — no per-deploy gas — but the cross-module plumbing isn't worth it
-		// for a leaf that is already bounded-safe. See adr/pr5826_typecheck_dos_guards.md.)
+		// This holds only because a stdlib type's own expansion is fixed by the
+		// binary: stdlib source ships with the node and cannot import user packages,
+		// so no transaction can grow it. TestLeafExpansionBound pins the measurement.
+		// Counting stdlib exactly is still possible via a table precomputed at
+		// stdlib load — no per-deploy gas — but buys exactness for an edge that is
+		// already priced above its cost. See adr/pr5826_typecheck_dos_guards.md.
 		if IsStdlib(pkgPath) {
 			return nil
 		}
@@ -455,7 +473,7 @@ func satMul(a, b uint64) uint64 {
 // checkNoUncountableGenerics rejects exactly the go1.18 constructs that cost()
 // cannot model, before the package reaches go/types. It is a COST guard, not a
 // generics gate: its job is to keep every construct that survives into go/types
-// countable by the expansion bound above.
+// countable by the cost model above.
 //
 //   - type parameters, on a type or func declaration (`type W[P any] ...`):
 //     cost() scores an instantiation by its base type and drops the type
@@ -502,7 +520,7 @@ func checkNoUncountableGenerics(fset *token.FileSet, gofs []*ast.File) error {
 					note(t.Pos(), "generic functions")
 				}
 			case *ast.InterfaceType:
-				// Reject only the type-set terms the expansion bound cannot count:
+				// Reject only the type-set terms the cost model cannot count:
 				// a union (`|`) and an approximation (`~`), which cost() treats as
 				// leaves. `|` is only a type union in this position (elsewhere it is
 				// bitwise-or) and `~` is exclusively type-approximation, so both are

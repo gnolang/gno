@@ -1,11 +1,11 @@
 # Value-containment fan-out routed across an import boundary via a DOT import.
-# The expansion bound resolves an unqualified type name in the declaring package
-# only, so a dot-imported type scores as a leaf (1 node) and its expansion goes
-# uncounted — the same containment shape that addpkg_typecheck_fanout_imported
-# rejects as `p0.T` slips past the budget when written as a bare `T`. Gno does
-# not support dot imports, but the preprocessor's rejection runs AFTER the type
-# checker on this path, so go/types would already have spent the unmetered
-# validType CPU. checkNoDotImports must reject the deploy before that.
+# The cost model resolves an unqualified type name in the declaring package only,
+# so a dot-imported type scores as a leaf and its expansion goes unpriced — the
+# same containment shape that addpkg_typecheck_fanout_imported charges for as
+# `p0.T` is walked for free when written as a bare `T`. Gno does not support dot
+# imports, but the preprocessor's rejection runs AFTER the type checker on this
+# path, so go/types would already have spent the unmetered validType CPU.
+# checkNoDotImports must reject the deploy before that.
 #
 # The rejection is purely syntactic, so it does not depend on p0 being deployed.
 # p0 is here so the fixture reproduces the real vector: without the guard this
@@ -14,11 +14,11 @@
 # start a new node
 gnoland start
 
-# p0: a doubling chain, under budget, deploys successfully
+# p0: a doubling chain that pays for its own expansion and deploys
 gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
 
 # fan: continues the chain over p0's T, reached through a dot import, so its true
-# cross-package expansion is uncounted. It must be rejected before go/types.
+# cross-package expansion goes unpriced. It must be rejected before go/types.
 ! gnokey maketx addpkg -pkgdir $WORK/fan -pkgpath gno.land/r/foobar/fan -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
 stderr 'dot imports are not allowed in Gno'
 

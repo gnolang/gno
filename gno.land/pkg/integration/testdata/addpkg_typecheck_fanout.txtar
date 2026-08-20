@@ -1,13 +1,19 @@
-# Adding a package whose types form an exponential value-containment fan-out
-# must be rejected cleanly at type-check time, NOT hang the node. go/types'
-# validType walk is exponential on such types and runs unmetered at addpkg.
+# Adding a package whose types form an exponential value-containment fan-out must
+# fail cleanly at type-check time, NOT hang the node. go/types' validType walk is
+# exponential on such types and runs unmetered at addpkg, so the deploy path prices
+# the walk and charges for it BEFORE handing the package to go/types.
+#
+# This chain's walk is ~2^41 nodes, which no legal gas budget covers (a whole block
+# is 3e9 gas), so the charge aborts the deploy on gas. Nothing rejects it for being
+# "too complex" — it is refused for being unaffordable, and the same shape would
+# deploy if it were small enough for the sender to pay for.
 
 # start a new node
 gnoland start
 
-# adding the fan-out package fails with a type-check denial-of-service rejection
+# the fan-out package cannot pay for the walk it would cause
 ! gnokey maketx addpkg -pkgdir $WORK/fanout -pkgpath gno.land/r/foobar/fanout -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
-stderr 'denial-of-service'
+stderr 'out of gas'
 
 -- fanout/gnomod.toml --
 module = "gno.land/r/foobar/fanout"

@@ -1,25 +1,23 @@
-# The type-expansion charge prices a package's whole dependency CLOSURE, not just
-# its own source. p0 is a doubling chain that sits under the ceiling, so it
-# deploys — and costs ~11.5M gas of type-expansion on its own. `user` is three
-# lines long, but importing p0 makes the deploy re-type-check it, so `user` is
-# charged for p0's expansion too and runs out of gas at a budget its own bytes
-# would easily have covered.
+# The type-expansion charge prices a package's whole dependency graph, not just its
+# own source. p0 is a doubling chain costing ~11.5M gas of type-expansion, which it
+# pays for and deploys. `user` is three lines long, but importing p0 makes the
+# deploy re-type-check it, so `user` is charged for p0's expansion too and runs out
+# of gas at a budget its own bytes would easily have covered.
 #
-# This is the other half of the defence: the ceiling rejects a single pathological
-# package with a denial-of-service error (see addpkg_typecheck_fanout.txtar),
-# while accumulation across a dependency graph is bounded by gas instead. Those
-# dependencies' source bytes were paid for by an EARLIER transaction, so the
-# per-source-byte charge alone cannot price them.
+# This is why a per-package limit could never have been the defence: those
+# dependencies' source bytes were paid for by an EARLIER transaction, so no
+# per-source-byte charge prices them, and the accumulation is per-transaction —
+# unbounded Tx.Msgs, and one message re-checking every dependency it imports.
 
 # start a new node
 gnoland start
 
-# p0: under the ceiling, so it deploys — with enough gas to cover its expansion
+# p0: deploys, with enough gas to cover its own expansion
 gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
 
 # user: three lines of source, but importing p0 pulls p0's expansion into this
-# deploy's gas. 5M is far more than its own bytes need and far less than the
-# the cost of those dependenciess, so this must fail on gas — not on the ceiling.
+# deploy's gas. 5M is far more than its own bytes need and far less than what those
+# dependencies cost.
 ! gnokey maketx addpkg -pkgdir $WORK/user -pkgpath gno.land/r/foobar/user -gas-fee 350001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test $test1_user_addr
 stderr 'out of gas'
 

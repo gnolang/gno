@@ -1,21 +1,26 @@
-# Value-containment fan-out split across an import boundary. p0 is a doubling
-# chain whose expansion (~459k nodes) is under budget on its own and deploys
-# fine. p1 declares a single type, but embeds p0.T five times by value — and
-# go/types' validType walk re-expands imported types WITHOUT memoizing
-# (golang/go#65711), so p1's true expansion is ~5x p0.T's and exceeds the budget.
-# The guard must follow the import and reject p1, rather than score the imported
-# type as a leaf and let the walk double unchecked across a longer chain until
-# the node hangs.
+# Value-containment fan-out split across an import boundary. p0 is a doubling chain
+# whose expansion (~459k nodes, ~11.5M gas) it pays for and deploys. p1 declares a
+# single type, but embeds p0.T five times by value — and go/types' validType walk
+# re-expands imported types WITHOUT memoizing (golang/go#65711), so p1's real walk
+# is ~5x p0.T's.
+#
+# The cost model must follow the import to see that. Scoring the imported type as a
+# leaf would price p1 at its own three lines, and the multiplication would be walked
+# for free — across a longer chain, until the node hangs.
+#
+# The 20M budget is the discriminator: it comfortably covers p0's whole expansion
+# once, which is what an importer pays anyway (see addpkg_typecheck_fanout_deps_gas),
+# but not the five-fold multiplication p1 adds on top.
 
 # start a new node
 gnoland start
 
-# p0: a doubling chain, under budget, deploys successfully
+# p0: a doubling chain that pays for its own expansion and deploys
 gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
 
-# p1: tiny, but its cross-package expansion exceeds the budget, so it is rejected
+# p1: tiny source, but priced for a walk five times p0's, which 20M does not cover
 ! gnokey maketx addpkg -pkgdir $WORK/p1 -pkgpath gno.land/r/foobar/p1 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
-stderr 'denial-of-service'
+stderr 'out of gas'
 
 -- p0/gnomod.toml --
 module = "gno.land/r/foobar/p0"

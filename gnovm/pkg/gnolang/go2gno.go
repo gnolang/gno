@@ -341,7 +341,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// only on the type-check path, and only as a cost guard for the shapes cost()
 	// cannot count. Paths that never invoke go/types (gno run, the REPL, direct
 	// ParseFile consumers) arrive here with generics intact, and bare type-set
-	// terms arrive here even on the type-check path, because the expansion bound
+	// terms arrive here even on the type-check path, because the expansion cost model
 	// counts them rather than rejecting them. This traversal is the one funnel
 	// every consumer shares, so the rejection belongs here.
 	switch gon := gon.(type) {
