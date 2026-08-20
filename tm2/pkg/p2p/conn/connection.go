@@ -67,12 +67,17 @@ const (
 	//	blockchain      8MB   a committed block, bounded by MaxDataBytes,
 	//	                      which is capped at MaxBlockDataBytesLimit
 	//	consensus       4MB   4 channels x 1MB (the consensus maxMsgSize)
-	//	mempool         1MB   a single tx, bounded by MaxTxBytes
+	//	mempool      8MB-128K a single tx, bounded by MaxTxBytes, which
+	//	                      consensus-param validation requires to leave
+	//	                      MaxBlockOverheadBytes inside MaxDataBytes
 	//	discovery      ~KBs   at most maxPeersShared (30) addresses
 	//
-	// That is ~13MB with MaxDataBytes at its ceiling, and ~7MB at the 2MB
-	// default, so 20MB leaves comfortable headroom while cutting the aggregate
-	// exposure by a third relative to the channel-cap sum.
+	// The worst case a *legal* chain configuration can reach is therefore
+	// 8MB + 4MB + (8MB - 128KB) ~= 19.9MB, so 20MB covers it -- but only just,
+	// and only because MaxTxBytes cannot reach MaxDataBytes. A chain at the 2MB
+	// default sits at ~7MB. Anything that raises MaxBlockDataBytesLimit, adds a
+	// channel, or loosens the MaxTxBytes bound has to raise this budget too.
+	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
 	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
 )
 
@@ -205,6 +210,8 @@ func MConfigFromP2P(cfg *config.P2PConfig) MConnConfig {
 	mConfig.SendRate = cfg.SendRate
 	mConfig.RecvRate = cfg.RecvRate
 	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
+	mConfig.RecvAssemblyTimeout = cfg.RecvAssemblyTimeout
+	mConfig.MaxRecvBufferBytes = cfg.MaxRecvBufferBytes
 
 	return mConfig
 }
@@ -909,7 +916,8 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	// Enforce the total per-connection recving budget across all channels. The
 	// per-channel RecvMessageCapacity check above only bounds a single channel;
 	// without this, a peer can fill every channel's buffer at once (the sum of
-	// all RecvMessageCapacity values, ~130MB on a full node).
+	// all RecvMessageCapacity values, ~38MB on a full node -- it was ~130MB
+	// before the blockchain reactor's envelope was right-sized).
 	if budget := ch.conn.config.MaxRecvBufferBytes; budget > 0 {
 		if total := ch.conn.recvBufferBytes + len(packet.Bytes); total > budget {
 			return nil, fmt.Errorf("total recving buffer budget exceeded: %v > %v", total, budget)
