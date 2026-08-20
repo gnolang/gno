@@ -160,21 +160,17 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 	_, err = cons.CommitSync()
 	require.NoError(t, err)
 
-	queryAccountNumber := func(addr crypto.Address) (uint64, error) {
-		res, err := query.QuerySync(abci.RequestQuery{
-			Path: "auth/accounts/" + crypto.AddressToBech32(addr),
-		})
-		if err != nil {
-			return 0, err
-		}
-		if res.IsErr() || len(res.Data) == 0 || string(res.Data) == "null" {
-			return 0, fmt.Errorf("account query failed: %w (log: %q)", res.Error, res.Log)
-		}
+	// Only ever called from the test goroutine, before the queriers start, so it
+	// may fail the test directly rather than plumb an error back.
+	queryAccountNumber := func(addr crypto.Address) uint64 {
+		bech32 := crypto.AddressToBech32(addr)
+		res, err := query.QuerySync(abci.RequestQuery{Path: "auth/accounts/" + bech32})
+		require.NoError(t, err, "query account %s", bech32)
+		require.Falsef(t, res.IsErr() || len(res.Data) == 0 || string(res.Data) == "null",
+			"account %s query failed: %v (log: %q)", bech32, res.Error, res.Log)
 		var acct GnoAccount
-		if err := amino.UnmarshalJSON(res.Data, &acct); err != nil {
-			return 0, err
-		}
-		return acct.GetAccountNumber(), nil
+		require.NoError(t, amino.UnmarshalJSON(res.Data, &acct), "decode account %s", bech32)
+		return acct.GetAccountNumber()
 	}
 
 	sendAmount := std.Coins{std.NewCoin("ugnot", 1_000_000)}
@@ -198,16 +194,12 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 	// the test goroutine (commitBlock runs on the block-loop goroutine, where
 	// require -> t.FailNow would be illegal).
 	simTxs := make([][]byte, queriers)
-	for i := range simKeys {
-		accNum, err := queryAccountNumber(simKeys[i].PubKey().Address())
-		require.NoError(t, err, "prefetch sim account %d", i)
-		simTxs[i] = signedSend(simKeys[i], accNum, 0)
+	for i, key := range simKeys {
+		simTxs[i] = signedSend(key, queryAccountNumber(key.PubKey().Address()), 0)
 	}
 	blockTxs := make([][]byte, blocks)
-	for i := range senders {
-		accNum, err := queryAccountNumber(senders[i].PubKey().Address())
-		require.NoError(t, err, "prefetch sender account %d", i)
-		blockTxs[i] = signedSend(senders[i], accNum, 0)
+	for i, key := range senders {
+		blockTxs[i] = signedSend(key, queryAccountNumber(key.PubKey().Address()), 0)
 	}
 
 	// Commit one real block BEFORE any querier starts. BaseApp.Simulate only
@@ -217,7 +209,12 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 	// and races on its gas meter and live stores. That fallback is out of scope
 	// here — this test covers the production snapshot path.
 	base := app.(*sdk.BaseApp)
-	commitBlock := func(h int64, i int) error {
+	startHeight := base.LastBlockHeight() + 1
+	// commitBlock commits block i of the run (its height follows from i) with the
+	// i-th pre-signed tx. It returns errors instead of using require because the
+	// block loop runs off the test goroutine in phase 1.
+	commitBlock := func(i int) error {
+		h := startHeight + int64(i)
 		if _, err := cons.BeginBlockSync(abci.RequestBeginBlock{
 			Header: &bft.Header{ChainID: chainID, Height: h, Time: time.Now()},
 		}); err != nil {
@@ -236,8 +233,7 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 		_, err = cons.CommitSync()
 		return err
 	}
-	startHeight := base.LastBlockHeight() + 1
-	require.NoError(t, commitBlock(startHeight, 0))
+	require.NoError(t, commitBlock(0))
 	require.GreaterOrEqual(t, base.LastBlockHeight(), int64(1),
 		"need a committed block so Simulate takes the snapshot path")
 
@@ -251,8 +247,8 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 			start sync.WaitGroup
 			wg    sync.WaitGroup
 		)
-		probe.inFlight.Store(0)
-		probe.peak.Store(0)
+		probe.peak.Store(0) // inFlight is self-balancing; only the high-water mark carries over
+
 		start.Add(1)
 		gas = make([][]int64, queriers)
 		errs := make([]error, queriers)
@@ -312,7 +308,7 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 	var blockErr error
 	_, peak := runQueriers(rounds, func() {
 		for i := 1; i < blocks; i++ {
-			if err := commitBlock(startHeight+int64(i), i); err != nil {
+			if err := commitBlock(i); err != nil {
 				blockErr = err
 				return
 			}
