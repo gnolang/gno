@@ -16,12 +16,19 @@ var _ Client = (*localClient)(nil)
 type localClient struct {
 	service.BaseService
 
-	mtx *sync.Mutex
+	// mtx serialises every call into Application. A caller that has established
+	// the application is goroutine-safe for the methods it will reach may
+	// supply a no-op Locker to let those calls run concurrently.
+	mtx sync.Locker
 	abci.Application
 	Callback
 }
 
-func NewLocalClient(mtx *sync.Mutex, app abci.Application) *localClient {
+// NewLocalClient returns a client that calls app in-process, serialising calls
+// on mtx. Passing an untyped nil gives the client its own mutex. Note that a
+// typed nil Locker (a nil *sync.Mutex, say) is not nil as an interface, so it
+// slips past this guard and panics on first use — pass a usable Locker or nil.
+func NewLocalClient(mtx sync.Locker, app abci.Application) *localClient {
 	if mtx == nil {
 		mtx = new(sync.Mutex)
 	}

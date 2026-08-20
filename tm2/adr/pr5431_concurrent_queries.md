@@ -229,6 +229,12 @@ and take an RLock for queries. Fixes contention but does not fix the
 `checkState` data race or cross-store inconsistency — those live at the
 application layer, not the transport layer.
 
+> Superseded as a *follow-up*: with the snapshot work in this PR the
+> `checkState` race is fixed independently, so the transport-layer lock can go
+> after all. See [PRXXXX](./prxxxx_lock_free_query_connection.md), which drops
+> the query connection's lock entirely (an RWMutex would not help — that
+> connection has no writer).
+
 **Path-sniffing in `QuerySync`.** Skip the mutex specifically for
 `.app/simulate` paths. Leaks application semantics into the transport layer
 and still races on `checkState`.
