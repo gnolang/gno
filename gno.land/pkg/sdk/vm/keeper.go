@@ -1146,8 +1146,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	alloc := gnostore.GetAllocator()
 	// Per-tx preprocess allocator (see AddPackage for full rationale).
-	// Covers both the dependency graph-local Machine that calls RunMemPackage and
-	// any subsequent Machine that re-Preprocesses; defer outlives both.
+	// Covers both the closure-local Machine that calls RunMemPackage and any
+	// subsequent Machine that re-Preprocesses; defer outlives both.
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)

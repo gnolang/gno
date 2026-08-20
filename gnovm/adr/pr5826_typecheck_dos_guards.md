@@ -198,6 +198,11 @@ resolution follows only edges reachable from the entry's own declarations. Packa
 deployed before this change were also never priced. (`permCache` hits *are*
 skipped, but a cached `*types.Package` is proof `validType` already completed.)
 
+**Also unnecessary work:** `declsFor` runs over `allgofs`, so an unaliased import
+appearing only in a `_test.gno` is fetched and parsed by `pkgName` even though
+`ProdOnly` means `go/types` never imports it. Deterministic, and it only
+over-charges, but it is a store read the deploy would not otherwise make.
+
 **Follow-up:** dependencies are still parsed twice per type check, once by the
 resolver and once by `typeCheckMemPackage`. Sharing that is blocked on unifying the
 FileSet (`go/types` needs positions in `gimp.fset` for consensus-visible error

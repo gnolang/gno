@@ -5,8 +5,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"maps"
 	"math"
 	"path"
+	"slices"
 	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -329,10 +331,24 @@ func typeExpansionCost(entryPath string, gofs []*ast.File, resolve pkgResolver, 
 	c := newExpansionChecker(entryPath, gofs, resolve, cache)
 
 	// validType runs once per DECLARATION, so the charge is the sum over them, not
-	// over names (a name declared twice is validated twice). Order-independent.
+	// over names (a name declared twice is validated twice).
+	//
+	// SORTED, never map order. namedCost truncates a value-containment cycle at
+	// whichever member it is already visiting, and correctly does not memoize that
+	// 1 — but every ANCESTOR on the cycle memoizes a value DERIVED from the
+	// truncation, and which member gets truncated depends on which root is walked
+	// first. Ranging the map therefore priced the same source at 3076 or 6136 nodes,
+	// 306k gas apart, at random. This count is charged as gas, so a node that
+	// disagrees forks: ABCIResult.Error is hashed into LastResultsHash, and runTx
+	// charges GasConsumedToLimit() to the BlockGasMeter.
+	//
+	// Only invalid recursive types are affected, and go/types rejects those a moment
+	// later — but the charge lands BEFORE it does, so one cheap malformed package
+	// was enough. TestTypeExpansionCostCyclicIsDeterministic pins this.
 	var total uint64
-	for _, specs := range c.declsFor(entryPath) {
-		for _, d := range specs {
+	decls := c.declsFor(entryPath)
+	for _, name := range slices.Sorted(maps.Keys(decls)) {
+		for _, d := range decls[name] {
 			total = satAdd(total, satAdd(1, c.cost(d.spec.Type, entryPath, d.imports)))
 		}
 	}

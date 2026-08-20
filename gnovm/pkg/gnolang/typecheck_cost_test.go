@@ -839,3 +839,47 @@ func TestValidTypeWalkIsExponential(t *testing.T) {
 	assert.Contains(t, oog, "out of gas",
 		"the charge must abort the deploy before go/types walks the chain")
 }
+
+// TestTypeExpansionCostCyclicIsDeterministic pins that a value-containment cycle
+// prices identically every run. It did not: namedCost truncates the cycle at
+// whichever member it is already visiting, every ancestor memoizes a value derived
+// from that truncation, and which member truncates followed Go map order — so this
+// source came out 3076 or 6136 nodes at random, 306k gas apart.
+//
+// The count is charged as gas, so disagreement between nodes is a fork:
+// ABCIResult.Error is hashed into LastResultsHash, and runTx charges
+// GasConsumedToLimit() to the BlockGasMeter. Only invalid recursive types are
+// affected and go/types rejects those a moment later, but the charge lands first,
+// so one cheap malformed package was enough.
+//
+// The loop is the test: a single call cannot observe map order. Asserting one
+// distinct value matters more than which value it is — the walk over an invalid
+// recursive type is bounded and cheap in reality, so any fixed number over-charges
+// safely, while a varying one forks.
+func TestTypeExpansionCostCyclicIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	// Asymmetric on purpose: A and B alone truncate to the same total either way,
+	// so the divergence needs a chain hanging off one member of the cycle.
+	var b strings.Builder
+	b.WriteString("package x\ntype A struct{ x, y B }\ntype B struct{ x, y A }\n")
+	for i := 1; i <= 8; i++ {
+		prev := "A"
+		if i > 1 {
+			prev = fmt.Sprintf("Z%d", i-1)
+		}
+		fmt.Fprintf(&b, "type Z%d struct{ p, q %s }\n", i, prev)
+	}
+	src := b.String()
+
+	seen := map[uint64]int{}
+	for range 300 {
+		// A fresh parse and checker each time, so nothing is carried between runs
+		// except the source itself.
+		_, gofs := parseCostSrc(t, src)
+		seen[typeExpansionCost("", gofs, nil, nil)]++
+	}
+	assert.Len(t, seen, 1,
+		"cyclic package priced %d different ways across 300 runs (%v); the charge "+
+			"must not depend on map iteration order", len(seen), seen)
+}
