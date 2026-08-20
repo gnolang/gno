@@ -140,6 +140,19 @@ func stripInheritedDirectives(f *ast.File) {
 	}
 }
 
+// neutralizedMarker replaces a neutralized line comment. It is deliberately
+// directive-shaped -- "[a-z0-9]+:[a-z0-9]", which go/ast counts as a directive
+// -- and deliberately not a directive any tool acts on: "gno" is nobody's tool
+// name, and it is neither //line, //extern, //export nor //nolint.
+//
+// The shape is load-bearing. An empty "//" in doc position is erased entirely:
+// go/printer.formatDocComment renders it to nothing and intersperseComments
+// then drops the line, which loses a line and moves every position after it --
+// exactly what blanking exists to prevent. formatDocComment passes a directive
+// through verbatim, so the line survives. Reproduced with an import block
+// present, which is what makes format.Node re-parse and take that path.
+const neutralizedMarker = "//gno:removed-directive"
+
 // neutralizeDirective returns the comment with any directive in it rendered
 // inert, preserving its line count so positions do not move.
 func neutralizeDirective(text string) string {
@@ -151,7 +164,7 @@ func neutralizeDirective(text string) string {
 		// file: "multiple //go:build comments".
 		if gno.IsDirectiveComment(text) || isNolintComment(text) ||
 			constraint.IsPlusBuild(text) {
-			return "//"
+			return neutralizedMarker
 		}
 		return text
 	}

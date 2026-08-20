@@ -74,14 +74,25 @@ func TestIsNolintComment(t *testing.T) {
 func TestTranspilePreservesLineCount(t *testing.T) {
 	t.Parallel()
 
+	// The import block matters: format.Node re-parses when a file has one
+	// (hasUnsortedImports), which is the path where an emptied doc comment is
+	// dropped outright rather than left as a blank line. Without it this test
+	// passed while a directive in doc position still cost a line.
 	const source = `package tr
 
+import (
+	"errors"
+)
+
 //go:noinline
+func F() error {
+	return errors.New("x")
+}
 
 //nolint:gosec
 /*line forged.gno:99:1*/
 // doc
-func F() int {
+func G() int {
 	return 1
 }
 `

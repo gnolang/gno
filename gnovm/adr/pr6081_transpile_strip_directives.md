@@ -46,6 +46,21 @@ preserves the mapping, and as a side effect keeps every `ast.CommentGroup`
 non-empty — an emptied group is invalid (`Pos()` indexes `List[0]`) and
 `Result.File` hands the tree, `Doc` fields included, to callers.
 
+The replacement is `//gno:removed-directive`, and its **shape is
+load-bearing**. An empty `//` does not survive doc position:
+`go/printer.formatDocComment` renders it to nothing and `intersperseComments`
+then drops the line, so blanking lost a line exactly where it was meant to keep
+one. `formatDocComment` passes a *directive* through verbatim, so a
+directive-shaped marker survives. It is shaped like a directive
+(`[a-z0-9]+:[a-z0-9]`, what `go/ast` counts as one) while being a directive no
+tool acts on: `gno` is nobody's tool name, and it is neither `//line`,
+`//extern`, `//export` nor `//nolint` — checked against `go build`, `go vet`
+and `go generate`.
+
+That failure only appears when the file has a parenthesized import block, which
+is what makes `format.Node` re-parse and take that path; the first version of
+the line-count test had none and passed while the bug was live.
+
 A `//go:generate` line **inside a block comment** is neutralized too. Go treats
 it as commentary, but `go generate` scans physical lines and never parses, so it
 runs anyway. The line is matched *as it will be printed*, not as it was written:
@@ -97,10 +112,13 @@ generated file, which is the reason the rest are stripped.
   `go build`, `go generate` and golangci-lint see what it intends and nothing
   inherited.
 - Positions are unchanged from before this ADR: the generated file keeps one
-  line per source line, so the `//line` header maps as it always did. A pinned
-  test compares the line counts.
-- A neutralized directive leaves a bare `//` where it stood. That is visible in
-  generated output, and deliberate: the alternative moves every line after it.
+  line per source line, so the `//line` header maps as it always did. Measured
+  over the whole of `gnovm/stdlibs`: all 160 transpiled files have byte-identical
+  line counts to a build with the neutralization disabled, differing only in the
+  five `//go:generate` lines themselves.
+- A neutralized directive leaves `//gno:removed-directive` where it stood. That
+  is visible in generated output, and deliberate: it says what happened, and the
+  alternatives either move every line after it or vanish in doc position.
 - A directive that is not a comment is out of reach: `//go:generate` at column 1
   inside a raw string is string data to the parser, and `go generate` — which
   scans lines rather than parsing — would still act on it. Rewriting string
