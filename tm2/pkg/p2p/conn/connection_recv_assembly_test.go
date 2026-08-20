@@ -234,11 +234,39 @@ func TestMaxRecvBufferBudget(t *testing.T) {
 	}
 }
 
-// TestRecvingBackingArrayFreedOnCompletion verifies that a completed message
-// does not pin its grown backing array on the channel: after receiving a
-// message larger than RecvBufferCapacity, the recving slice is reallocated back
-// to RecvBufferCapacity rather than retaining the large array.
-func TestRecvingBackingArrayFreedOnCompletion(t *testing.T) {
+// writeMessage sends a single message of total bytes to the given channel,
+// split into 1KB partial packets, and waits for it to be assembled.
+func writeMessage(t *testing.T, w net.Conn, received <-chan []byte, chID byte, total int) {
+	t.Helper()
+
+	for sent := 0; sent < total; sent += 1024 {
+		size := min(1024, total-sent)
+
+		eof := byte(0x00)
+		if sent+size >= total {
+			eof = 0x01
+		}
+
+		writePacketMsg(t, w, chID, eof, make([]byte, size))
+	}
+
+	select {
+	case b := <-received:
+		require.Len(t, b, total)
+	case <-time.After(2 * time.Second):
+		t.Fatal("message was not received")
+	}
+}
+
+// TestRecvingBackingArrayFreedWhenNoLongerNeeded verifies that a grown backing
+// array is not pinned on the channel for the life of the connection: a channel
+// that saw a single outsized message hands the memory back on the next message
+// that does not need it.
+//
+// The release is deliberately deferred to that next message rather than done
+// immediately on completion -- see TestRecvingBufferReusedForRepeatedLargeMessages
+// for why.
+func TestRecvingBackingArrayFreedWhenNoLongerNeeded(t *testing.T) {
 	t.Parallel()
 
 	server, client := net.Pipe()
@@ -253,27 +281,70 @@ func TestRecvingBackingArrayFreedOnCompletion(t *testing.T) {
 	require.NoError(t, mconn.Start())
 	defer mconn.Stop()
 
-	// A 8KB message in 1KB chunks grows the 4KB backing array past its initial cap.
-	const total = 8192
-	for sent := 0; sent < total; sent += 1024 {
-		eof := byte(0x00)
-		if sent+1024 >= total {
-			eof = 0x01
-		}
-		writePacketMsg(t, server, 0x01, eof, make([]byte, 1024))
-	}
-
-	select {
-	case b := <-receivedCh:
-		require.Len(t, b, total)
-	case <-time.After(2 * time.Second):
-		t.Fatal("message was not received")
-	}
-
 	ch := mconn.channelsIdx[0x01]
+
+	// An 8KB message grows the 4KB backing array past its configured capacity.
+	// It is kept, because the message that just completed was using it.
+	writeMessage(t, server, receivedCh, 0x01, 8192)
+
+	assert.Equal(t, 0, len(ch.recving), "recving should be empty after completion")
+	assert.Greater(t, cap(ch.recving), ch.desc.RecvBufferCapacity,
+		"the array a large message is still using must be kept, not reallocated")
+
+	// An ordinary message no longer needs that array, so it is handed back.
+	writeMessage(t, server, receivedCh, 0x01, 512)
+
 	assert.Equal(t, 0, len(ch.recving), "recving should be empty after completion")
 	assert.Equal(t, ch.desc.RecvBufferCapacity, cap(ch.recving),
-		"backing array should be reallocated to RecvBufferCapacity, not the grown capacity")
+		"the grown array must be released once a message no longer needs it")
+	assert.Equal(t, 0, mconn.recvBufferBytes, "total recv buffer accounting should return to zero")
+}
+
+// TestRecvingBufferReusedForRepeatedLargeMessages is a regression test for the
+// cost of releasing the backing array too eagerly. Releasing it on every message
+// that merely grew past RecvBufferCapacity puts a realloc-and-regrow on the path
+// of every such message -- and that is the steady state on the channels carrying
+// the largest messages: blockchain and consensus data configure 200KB against
+// multi-MB blocks, the mempool channel leaves it at the 4KB default against
+// MaxTxBytes-sized txs. Measured on a 2MB message with a 200KB capacity, that
+// costs 2.50ms, 9.07MB and 10 allocs, against 47.6us and no allocations here.
+func TestRecvingBufferReusedForRepeatedLargeMessages(t *testing.T) {
+	t.Parallel()
+
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	receivedCh := make(chan []byte, 1)
+	mconn := NewMConnectionWithConfig(client, []*ChannelDescriptor{
+		{ID: 0x01, Priority: 1, SendQueueCapacity: 1, RecvBufferCapacity: 4096, RecvMessageCapacity: 1 << 16},
+	}, func(_ byte, b []byte) { receivedCh <- b }, func(error) {}, quietPingConfig())
+	mconn.SetLogger(log.NewTestingLogger(t))
+	require.NoError(t, mconn.Start())
+	defer mconn.Stop()
+
+	ch := mconn.channelsIdx[0x01]
+
+	// Every message is larger than RecvBufferCapacity, so each one would pay a
+	// realloc and a regrow if the array were released on completion.
+	var firstArray *byte
+
+	for i := range 3 {
+		writeMessage(t, server, receivedCh, 0x01, 8192)
+
+		require.Equal(t, 0, len(ch.recving))
+
+		array := &ch.recving[:1][0]
+		if i == 0 {
+			firstArray = array
+
+			continue
+		}
+
+		assert.Same(t, firstArray, array,
+			"a channel steadily carrying large messages must reuse its backing array")
+	}
+
 	assert.Equal(t, 0, mconn.recvBufferBytes, "total recv buffer accounting should return to zero")
 }
 

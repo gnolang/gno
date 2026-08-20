@@ -50,8 +50,12 @@ Three defenses in `recvPacketMsg`:
 - **`MaxRecvBufferBytes`** (default 20MB): a total per-connection budget across
   all channels, on top of the per-channel cap. Tracked in `recvRoutine` only,
   so it needs no locking.
-- **Free the backing array** on completion, but only when it actually grew past
-  `RecvBufferCapacity`.
+- **Free the backing array** once it has grown past `RecvBufferCapacity` *and*
+  the message that just completed no longer needed it. A channel steadily
+  carrying large messages keeps its array and stays allocation-free; one that
+  saw a single outsized message hands the memory back on its next ordinary
+  message. See alternative E for why neither an unconditional free nor a free
+  keyed only on the grown capacity works.
 
 Both limits have live defaults in `DefaultMConnConfig`, which `MConfigFromP2P`
 starts from and only partially overrides, so they are active in production.
@@ -156,19 +160,53 @@ the same tail txs (`ReapMaxBytesMaxGas` walks in order and stops) but adds a
 second mempool read that a concurrent `CheckTx` could change under the
 measurement.
 
-**E. Free the recving array unconditionally** — rejected on cost. Every
-completed message would allocate `RecvBufferCapacity`, which is 200KB on the
-consensus data and blockchain channels: 20931 ns/op and 204936 B/op versus 1070
-ns/op and 136 B/op when the realloc is conditional. Reuse is safe because
-amino's `DecodeByteSlice` copies byte slices while decoding, so no decoded
-message aliases `recving`.
+**E. Free the recving array on every completed message** — rejected on cost, in
+two rounds.
+
+Freeing it *unconditionally* allocates `RecvBufferCapacity` per message, which is
+200KB on the consensus data and blockchain channels: 20931 ns/op and 204936 B/op
+against 1070 ns/op and 136 B/op when the free is conditional.
+
+Making it conditional on `cap(recving) > RecvBufferCapacity` alone is not enough,
+which the first version of this change got wrong. That condition holds for
+*every* message larger than `RecvBufferCapacity`, so it puts a
+realloc-and-regrow on the path of exactly the messages that matter most:
+blockchain and consensus data configure 200KB against multi-MB blocks, and the
+mempool channel leaves it at the 4KB default against `MaxTxBytes`-sized txs.
+Measured on a 2MB message with a 200KB capacity, and on a 100KB tx with the 4KB
+default:
+
+| | ns/op | B/op | allocs/op |
+|---|---|---|---|
+| 2MB message, free when grown | 2500106 | 9068605 | 10 |
+| 2MB message, array reused | 47649 | 0 | 0 |
+| 100KB tx, free when grown | 17692 | 176129 | 3 |
+| 100KB tx, array reused | 1792 | 0 | 0 |
+
+The benchmark that originally justified the conditional free used a 64KB message
+on a 200KB channel — under the capacity, so it took the reuse path either way and
+could not see the regression (1135 ns/op and no allocations in both).
+
+Hence the extra `len(msgBytes)*2 < cap(ch.recving)` term: release the array only
+when the completed message was not really using it. The residual is that a peer
+which sends one max-size message per channel and then goes quiet keeps those
+arrays until its next message, so retained-but-empty capacity is bounded by the
+channel-cap sum (~38MB) rather than by the 20MB budget — but getting there costs
+it ~38MB of *complete, reactor-accepted* messages, where the attack this ADR is
+about needs no valid message at all. The 20MB budget still bounds everything
+in flight.
+
+Reuse is safe because amino's `DecodeByteSlice` copies byte slices while
+decoding, so no decoded message aliases `recving`.
 
 ## Consequences
 
-- Per-connection exposure drops from ~130MB to 20MB, and the slots one host can
-  hold from 40 to 1, so a single-host worst case goes from ~5.2GB to 20MB. A
-  distributed attacker still reaches 40 × 20MB = 800MB; the same-IP guard is
-  single-host protection, not DDoS protection.
+- Per-connection exposure for in-flight assembly drops from ~130MB to 20MB, and
+  the slots one host can hold from 40 to 1, so a single-host worst case goes
+  from ~5.2GB to 20MB. A distributed attacker still reaches 40 × 20MB = 800MB;
+  the same-IP guard is single-host protection, not DDoS protection. Empty
+  backing arrays retained across messages are bounded separately, by the
+  channel-cap sum (~38MB) — see alternative E.
 - An incomplete message can no longer be held indefinitely; the deadline is a
   throughput floor of roughly `messageSize/30s` (~68KB/s for a 2MB block), so
   very slow peers will be dropped mid-transfer during fast sync.
