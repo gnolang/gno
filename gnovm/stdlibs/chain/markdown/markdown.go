@@ -155,6 +155,8 @@ func needsPercentEncode(s string, i int) bool {
 	switch c {
 	case '"', '\'', '(', ')', '<', '>', '\\', '`', '{', '|', '}', '^':
 		return true
+	case '&':
+		return startsEntityReference(s, i)
 	case '%':
 		// Bare % (not followed by two hex digits) gets encoded.
 		if i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2]) {
@@ -162,6 +164,88 @@ func needsPercentEncode(s string, i int) bool {
 		}
 	}
 	return false
+}
+
+// skipEscapeBefore returns i advanced past a `\` that escapes want.
+// UnescapePunctuations runs BEFORE the reference resolvers, so `&\#x6a;`
+// and `&#x6a\;` both reach a resolver as `&#x6a;`; matching the reference
+// shape literally would let the escape hide it from us and reveal it to
+// the renderer. Only ASCII punctuation is escapable, which is why the
+// byte is checked: in `&\name;` the `\n` survives unescaping, so no
+// reference forms and the `&` stays bare.
+func skipEscapeBefore(s string, i int, want byte) int {
+	if i+1 < len(s) && s[i] == '\\' && s[i+1] == want {
+		return i + 1
+	}
+	return i
+}
+
+// endsReference reports whether the `;` closing a reference sits at i,
+// allowing for the `\;` form.
+func endsReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i, ';')
+	return i < len(s) && s[i] == ';'
+}
+
+func startsEntityReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i+1, '#')
+	if i >= len(s) {
+		return false
+	}
+	if s[i] == '#' {
+		i++
+		if i < len(s) && (s[i] == 'x' || s[i] == 'X') {
+			i++
+			start := i
+			for i < len(s) && isHex(s[i]) {
+				i++
+			}
+			return i > start && endsReference(s, i)
+		}
+		start := i
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		return i > start && endsReference(s, i)
+	}
+	if !isASCIIAlpha(s[i]) {
+		return false
+	}
+	for i++; i < len(s) && isASCIIAlphaNumeric(s[i]); i++ {
+	}
+	return endsReference(s, i)
+}
+
+func percentEncodeEntityReferences(s string) string {
+	first := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteString(s[:first])
+	for i := first; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			b.WriteString("%26")
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
+func isASCIIAlpha(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+func isASCIIAlphaNumeric(c byte) bool {
+	return isASCIIAlpha(c) || c >= '0' && c <= '9'
 }
 
 func isHex(c byte) bool {
@@ -760,9 +844,9 @@ func containsAnyByte(s string, bs ...byte) bool {
 //   Pass 1: find spans for inline links [text](url), images ![alt](src),
 //     LRD definitions [label]: url [title], and fenced code regions. Multi-
 //     line and backslash-aware.
-//   Pass 2: rewrite bytes — preserve link/image/fence spans verbatim, delete
-//     LRD spans, escape any unescaped `[` / `]` outside spans (with
-//     backslash-parity tracking).
+//   Pass 2: rewrite bytes — encode entity references in link/image URLs,
+//     preserve fence spans, delete LRD spans, and escape any unescaped `[` / `]`
+//     outside spans (with backslash-parity tracking).
 //
 // Closes three previously-documented residuals:
 //   1. Shortcut-ref `[label]` collision with realm-emitted LRDs (both
@@ -773,14 +857,15 @@ func containsAnyByte(s string, bs ...byte) bool {
 type spanKind byte
 
 const (
-	spanLink  spanKind = iota // [text](url) or ![alt](src) — preserve
+	spanLink  spanKind = iota // [text](url) or ![alt](src) — encode entity refs in destination
 	spanLRD                   // [label]: url ["title"] — delete entirely
 	spanFence                 // fenced code block — preserve (opaque)
 )
 
 type bracketSpan struct {
-	start, end int // [start, end) half-open byte indices
-	kind       spanKind
+	start, end       int // [start, end) half-open byte indices
+	urlStart, urlEnd int // destination bounds for spanLink
+	kind             spanKind
 }
 
 // findBracketSpans is pass 1 of the bracket walker. Returns sorted,
@@ -891,9 +976,9 @@ func findBracketSpans(s string) []bracketSpan {
 			// textEnd points at the closing `]`. Next byte determines what kind.
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
-				end, ok := scanLinkURL(s, textEnd+2, &scanBudget)
+				end, urlStart, urlEnd, ok := scanLinkURL(s, textEnd+2, &scanBudget)
 				if ok {
-					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLink})
+					spans = append(spans, bracketSpan{start: start, end: end, urlStart: urlStart, urlEnd: urlEnd, kind: spanLink})
 					i = end
 					atLineStart = false
 					continue
@@ -1031,11 +1116,11 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 }
 
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
-// Returns the byte index AFTER the closing `)` and true on success.
+// Returns the span end and destination bounds on success.
 // Shares the pass-1 scan budget with scanLinkText so an attacker can't
 // chain `[a]([a]([a](…` (which would otherwise let scanLinkURL walk to
 // EOF on every `[`, O(n²)).
-func scanLinkURL(s string, i int, budget *int) (int, bool) {
+func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
 	// Consume optional leading whitespace
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
 		i++
@@ -1049,9 +1134,10 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 	// URL body — angle-bracket form or plain
 	if i < len(s) && s[i] == '<' {
 		i++
+		urlStart = i
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1060,23 +1146,25 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				continue
 			}
 			if c == '>' {
+				urlEnd = i
 				i++
 				break
 			}
 			if c == '<' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
 	} else {
 		// Plain URL with balanced parens
+		urlStart = i
 		urlDepth := 1
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1089,7 +1177,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			} else if c == ')' {
 				urlDepth--
 				if urlDepth == 0 {
-					return i + 1, true
+					return i + 1, urlStart, i, true
 				}
 			} else if c == ' ' || c == '\t' || c == '\n' {
 				// Whitespace after URL — title or close may follow
@@ -1097,11 +1185,12 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			}
 			i++
 		}
+		urlEnd = i
 	}
 	// Skip whitespace before title or close
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
 		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-			return 0, false
+			return 0, 0, 0, false
 		}
 		i++
 	}
@@ -1114,7 +1203,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 		i++
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1127,7 +1216,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				break
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
@@ -1137,9 +1226,9 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 		}
 	}
 	if i < len(s) && s[i] == ')' {
-		return i + 1, true
+		return i + 1, urlStart, urlEnd, true
 	}
-	return 0, false
+	return 0, 0, 0, false
 }
 
 // scanLRDTail scans the `: url [title]` portion of an LRD definition.
@@ -1370,9 +1459,9 @@ func isBlockInterrupt(s string, lineStart int) bool {
 	return false
 }
 
-// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, leaves
-// link/image/fence spans verbatim, deletes LRD spans, and prepends `\` to
-// any unescaped `[` / `]` outside any span.
+// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, encodes
+// entity references in link/image destinations, leaves fence spans verbatim,
+// deletes LRD spans, and prepends `\` to unescaped `[` / `]` outside spans.
 func rewriteWithSpans(s string, spans []bracketSpan) string {
 	if len(spans) == 0 && !strings.ContainsAny(s, "[]") {
 		return s
@@ -1393,8 +1482,13 @@ func rewriteWithSpans(s string, spans []bracketSpan) string {
 				trailingBackslashes = 0
 				continue
 			}
-			// Preserve verbatim
-			b.WriteString(s[sp.start:sp.end])
+			if sp.kind == spanLink {
+				b.WriteString(s[sp.start:sp.urlStart])
+				b.WriteString(percentEncodeEntityReferences(s[sp.urlStart:sp.urlEnd]))
+				b.WriteString(s[sp.urlEnd:sp.end])
+			} else {
+				b.WriteString(s[sp.start:sp.end])
+			}
 			i = sp.end
 			trailingBackslashes = 0
 			continue

@@ -136,7 +136,20 @@ import (
 // gives a25dc7a4, both give the value below; the innerHash gas-table change moves
 // nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
 // filetest passes and the bn254 EIP-196/197 vectors are untouched.
-const expectedCrossrealm38Hash = "3b2164b3392f93f0115159933095b486d8263a9a392f02e19c9a85f8dfc289da"
+//
+// Bumped again by the entity-reference hardening of PercentEncodeURL. The
+// change to chain/markdown is comment-only on the .gno side — the encoding
+// rule itself lives in the injected Go implementation — but stdlib .gno
+// source bytes are genesis state, so documenting the new rule moves the
+// root just as the GetCoin bump above did. Re-derived after merging develop,
+// so the value below covers the bn254 wrapper bounds above and this change
+// together.
+//
+// Bumped once more within this branch by extending that same PercentEncodeURL
+// doc comment (the `&amp;` round-trip note from review). Still comment-only,
+// still consensus-breaking for the reason above; the merge commit pins
+// 0e8e8714 without it.
+const expectedCrossrealm38Hash = "d476a03d49d13121a900baa4a86cc5709183cd49b8798806875d348191dba137"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
