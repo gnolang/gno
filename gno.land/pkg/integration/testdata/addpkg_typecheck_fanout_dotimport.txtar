@@ -8,8 +8,15 @@
 # checkNoDotImports must reject the deploy before that.
 #
 # The rejection is purely syntactic, so it does not depend on p0 being deployed.
-# p0 is here so the fixture reproduces the real vector: without the guard this
-# archive hangs the node rather than failing some other way. Do not drop it.
+# p0 is here so the shape is the real vector rather than a bare syntax check.
+#
+# What this fixture does NOT show: measured against master, it does not hang — the
+# preprocessor rejects it in about a second, after go/types has walked ~6M nodes
+# (~200ms). So the difference this guard makes here is WHEN the rejection happens
+# and how much unmetered CPU is spent first, not hang versus no-hang. Sizing it to
+# actually wedge a node would need a chain deep enough that the archive took
+# minutes on master and told us nothing extra. For a verified wedge see
+# addpkg_typecheck_fanout.txtar.
 
 # start a new node
 gnoland start

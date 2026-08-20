@@ -7,6 +7,15 @@
 # is 3e9 gas), so the charge aborts the deploy on gas. Nothing rejects it for being
 # "too complex" — it is refused for being unaffordable, and the same shape would
 # deploy if it were small enough for the sender to pay for.
+#
+# Measured against master, this archive wedges the node rather than failing: the
+# node never answers, and after 60s gnokey gives up with
+#
+#   unable to call RPC method abci_query ... context deadline exceeded
+#   broadcast.go:245 - simulate tx
+#
+# Note where that lands — abci_query during SIMULATE, a read-only path with no fee
+# and no tx inclusion. Here the same input returns out of gas in ~2s.
 
 # start a new node
 gnoland start

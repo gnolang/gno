@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -8,10 +9,13 @@ import (
 	"go/token"
 	"go/types"
 	"math"
+	"os"
+	"os/exec"
 	"path"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -755,4 +759,89 @@ func TestExpansionNotChargedWhenRejected(t *testing.T) {
 				"a package rejected before the count is computed must not be charged")
 		})
 	}
+}
+
+// hangChildEnv makes the subprocess below run the doomed walk instead of the test.
+const hangChildEnv = "GNO_TEST_VALIDTYPE_HANG_CHILD"
+
+// TestValidTypeWalkIsExponential asserts the premise of this whole guard: that
+// go/types, left to itself, does NOT finish a 30-level doubling chain. Every other
+// test here checks that the charge prices such a package; none of them show that
+// the package is dangerous in the first place, so without this one a reader cannot
+// tell the vulnerability is real rather than theoretical.
+//
+// Two halves, same input:
+//
+//   - Unguarded, in a SUBPROCESS: go/types is handed the chain directly and must
+//     still be running when the deadline fires. A subprocess because the walk
+//     cannot be cancelled — ~2^31 node visits is minutes of CPU — so it has to be
+//     killed rather than left burning a core for the rest of the test binary's life.
+//   - Guarded, in-process: the same source through TypeCheckMemPackage with a gas
+//     meter returns an out-of-gas error. That this half returns AT ALL is the
+//     assertion; if the charge did not land before go/types, this test would hang.
+//
+// If the first half ever fails — the child finishing on its own — validType has
+// probably been memoized upstream (golang/go#65711). That would not make the charge
+// wrong, but it would invalidate the reasoning on typeExpansionGasPerNode, so
+// re-derive it rather than deleting this test.
+func TestValidTypeWalkIsExponential(t *testing.T) {
+	const depth = 30
+
+	if os.Getenv(hangChildEnv) == "1" {
+		// Child: the unguarded walk. Expected to be killed, never to return.
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "x.go", fanOutSrc(depth), 0)
+		require.NoError(t, err)
+		conf := types.Config{Importer: importer.Default(), Error: func(error) {}}
+		_, _ = conf.Check("x", fset, []*ast.File{f}, nil)
+		return
+	}
+	if testing.Short() {
+		t.Skip("spawns a subprocess and waits out a deadline")
+	}
+	t.Parallel()
+
+	// The count is deterministic, so state it exactly: ~2.1e9 nodes for 31 lines of
+	// source. At the ~30ns/node BenchmarkValidTypeWalk measures, that is minutes.
+	_, gofs := parseBoundSrc(t, fanOutSrc(depth))
+	nodes := typeExpansionCost("", gofs, nil, nil)
+	require.Greater(t, nodes, uint64(1e9), "fixture no longer produces a huge walk")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0],
+		"-test.run=^TestValidTypeWalkIsExponential$", "-test.timeout=0")
+	cmd.Env = append(os.Environ(), hangChildEnv+"=1")
+	err := cmd.Run()
+
+	require.Error(t, err,
+		"go/types finished a depth-%d doubling chain (%d nodes) inside the deadline; "+
+			"validType may have been memoized upstream (golang/go#65711), which "+
+			"invalidates the rate derivation on typeExpansionGasPerNode", depth, nodes)
+	require.ErrorIs(t, ctx.Err(), context.DeadlineExceeded,
+		"child failed for some reason other than being killed: %v", err)
+
+	// Same source, now charged for. Returning at all is the point.
+	mpkg := &std.MemPackage{
+		Type: MPUserProd, Name: "x", Path: "gno.land/p/demo/x",
+		Files: []*std.MemFile{{Name: "x.gno", Body: fanOutSrc(depth)}},
+	}
+	getter := mockPackageGetter{}
+	oog := func() (msg string) {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = fmt.Sprintf("%v", r)
+			}
+		}()
+		_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+			Getter: getter, TestGetter: getter, Mode: TCLatestRelaxed,
+			ProdOnly: true, GasMeter: newRecordingGasMeter(1e7),
+		})
+		if err != nil {
+			return err.Error()
+		}
+		return ""
+	}()
+	assert.Contains(t, oog, "out of gas",
+		"the charge must abort the deploy before go/types walks the chain")
 }
