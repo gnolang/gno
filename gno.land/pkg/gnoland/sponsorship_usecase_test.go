@@ -176,6 +176,48 @@ func Sponsor(cur realm, _ string) string {
 }
 `
 
+// grc20ApproveInTxRealm is the FIRST-INTERACTION case: a user with zero gnot
+// cannot send a separate approve tx, because that would itself need gas. So the
+// approval has to happen inside the sponsored tx, before the transfer. This is
+// the true cost of onboarding a user who holds no gnot at all.
+const grc20ApproveInTxRealm = `package paymaster
+
+import (
+	"chain/runtime"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
+)
+
+var (
+	tok *grc20.Token
+	led *grc20.PrivateLedger
+
+	payer    address
+	treasury address
+)
+
+// Setup only creates the token and funds the user. No approval: that is the
+// point of this variant.
+func Setup(cur realm, payerAddr string) {
+	payer = address(payerAddr)
+	treasury = cur.Address()
+	tok, led = grc20.NewToken("Test", "TST", 6, seqid.ID(1), cur)
+	led.Mint(payer, 1000000)
+}
+
+// Sponsor does the whole first interaction in one tx: approve, collect, sponsor.
+func Sponsor(cur realm, _ string) string {
+	if err := led.Approve(payer, treasury, 1000); err != nil {
+		panic(err)
+	}
+	if err := led.TransferFrom(payer, treasury, treasury, 1000); err != nil {
+		panic(err)
+	}
+	runtime.PayGas(5000000)
+	return "sponsored"
+}
+`
+
 // TestSponsorshipUseCaseFitsWindow reports the gas the paymaster pattern costs
 // and the smallest credit window under which it succeeds.
 func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
@@ -190,7 +232,8 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 		{"paygas-only (floor)", paygasOnlyRealm, false, false},
 		{"map ledger + paygas", mapLedgerRealm, false, false},
 		{"avl ledger + paygas", paymasterRealm, true, false},
-		{"REAL grc20 transferFrom + paygas", grc20Realm, true, true},
+		{"REAL grc20 transferFrom + paygas (approval pre-existing)", grc20Realm, true, true},
+		{"REAL grc20 approve + transferFrom + paygas (first interaction)", grc20ApproveInTxRealm, true, true},
 	}
 
 	for _, tc := range cases {
