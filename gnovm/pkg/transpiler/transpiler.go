@@ -162,11 +162,24 @@ func neutralizeDirective(text string) string {
 	}
 	changed := false
 	for i, line := range lines {
-		if strings.HasPrefix(line, "//go:generate ") ||
-			strings.HasPrefix(line, "//go:generate\t") {
-			lines[i] = ""
-			changed = true
+		// Indentation is not protection: go/printer.stripCommonPrefix drops the
+		// common leading whitespace of a block comment's interior when printing,
+		// so " //go:generate ..." in the source lands at column 1 in the output,
+		// which is where `go generate` looks. Match the line as it will be
+		// printed, not as it was written. The "*" is for the /* * ... */ style.
+		trimmed := strings.TrimLeft(line, " \t*")
+		if !strings.HasPrefix(trimmed, "//go:generate ") &&
+			!strings.HasPrefix(trimmed, "//go:generate\t") {
+			continue
 		}
+		// Keep a "*/" that shares the line: dropping it would leave the comment
+		// unterminated, and Result.File hands the tree to callers.
+		if end := strings.Index(line, "*/"); end >= 0 {
+			lines[i] = line[end:]
+		} else {
+			lines[i] = ""
+		}
+		changed = true
 	}
 	if !changed {
 		return text
@@ -178,8 +191,12 @@ func neutralizeDirective(text string) string {
 // Not a directive by Go's rule -- bare "//nolint" carries no colon -- but it
 // steers a Go tool reading the generated file, which is the reason the
 // directives above are neutralized.
+//
+// Leading slashes and spaces are trimmed first because golangci-lint trims them
+// too: "// nolint:gosec" suppresses exactly as "//nolint:gosec" does, so
+// matching only the tight form would leave the spaced one working.
 func isNolintComment(text string) bool {
-	rest, ok := strings.CutPrefix(text, "//nolint")
+	rest, ok := strings.CutPrefix(strings.TrimLeft(text, "/ \t"), "nolint")
 	return ok && (rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t')
 }
 

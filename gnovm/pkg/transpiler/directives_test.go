@@ -59,7 +59,8 @@ func TestIsNolintComment(t *testing.T) {
 		"//nolint:gosec // why": true,
 		"//nolint // why":       true,
 		"//nolintfoo:bar":       false,
-		"// nolint:gosec":       false, // a space makes it prose to the linter
+		"// nolint:gosec":       true, // golangci-lint trims "/ " first, so this suppresses too
+		"//  nolint:gosec":      true,
 		"//nolinting is fun":    false,
 	} {
 		assert.Equal(t, want, isNolintComment(text), "%q", text)
@@ -142,5 +143,48 @@ func F() int { return 1 }
 		}
 		require.NotEmpty(t, fd.Doc.List, "a Doc group must not be left empty")
 		assert.NotPanics(t, func() { _, _ = fd.Doc.Pos(), fd.Doc.End() })
+	}
+}
+
+// go/printer.stripCommonPrefix drops the common leading whitespace of a block
+// comment's interior when printing, so an indented directive in the source
+// arrives at column 1 in the output -- which is exactly where `go generate`
+// looks. Matching the source line rather than the printed one let these
+// through: of 2688 block shapes probed in review, 76 leaked.
+func TestTranspileNeutralizesIndentedGenerateInBlock(t *testing.T) {
+	t.Parallel()
+
+	for name, source := range map[string]string{
+		"one space":  "package tr\n\n/*\n //go:generate echo X\n*/\nfunc F() {}\n",
+		"two spaces": "package tr\n\n/*\n  //go:generate echo X\n*/\nfunc F() {}\n",
+		"tab":        "package tr\n\n/*\n\t//go:generate echo X\n*/\nfunc F() {}\n",
+		"star style": "package tr\n\n/*\n * //go:generate echo X\n */\nfunc F() {}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			res, err := Transpile(source, "gno", "tr.gno")
+			require.NoError(t, err)
+			for _, line := range strings.Split(res.Translated, "\n") {
+				assert.False(t, strings.HasPrefix(line, "//go:generate"),
+					"a directive must not reach column 1 of the output: %q", line)
+			}
+		})
+	}
+}
+
+// Blanking a line that carries the terminator must keep it, or Result.File
+// holds a comment that never closes.
+func TestTranspileKeepsBlockCommentTerminated(t *testing.T) {
+	t.Parallel()
+
+	res, err := Transpile("package tr\n\n/*\n//go:generate echo X*/\nfunc F() {}\n", "gno", "tr.gno")
+	require.NoError(t, err)
+	for _, cg := range res.File.Comments {
+		for _, c := range cg.List {
+			if strings.HasPrefix(c.Text, "/*") {
+				assert.True(t, strings.HasSuffix(c.Text, "*/"),
+					"block comment must stay terminated, got %q", c.Text)
+			}
+		}
 	}
 }
