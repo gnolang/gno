@@ -13,6 +13,105 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// gnoSrcRoots maps an import-path prefix to the directory holding those packages.
+// Shared by the scans below so "which directory is a package, and which of its
+// files count" has one definition rather than one per test.
+type gnoSrcRoots map[string]string
+
+var (
+	stdlibRoots = gnoSrcRoots{"": "../../stdlibs"}
+	allGnoRoots = gnoSrcRoots{
+		"":          "../../stdlibs",               // stdlib import paths are bare
+		"gno.land/": "../../../examples/gno.land/", // examples live under gno.land/
+	}
+)
+
+// resolver returns a pkgResolver reading source from disk, mirroring what the
+// deploy-path resolver hands the guard but reaching the working tree instead of
+// the store. Unreadable and unparseable files are skipped, as the guard also
+// treats unparseable dependencies as leaves.
+//
+// prodOnly mirrors MPFProd, which is what the deploy path filters DEPENDENCIES
+// through. Pass true when measuring what a user package can name: a _test.gno file
+// may declare an exported type in an xxx_test package that nothing can import.
+func (roots gnoSrcRoots) resolver(fset *token.FileSet, prodOnly bool) pkgResolver {
+	return func(pkgPath string) []*ast.File {
+		for prefix, root := range roots {
+			if prefix != "" && !strings.HasPrefix(pkgPath, prefix) {
+				continue
+			}
+			dir := filepath.Join(root, strings.TrimPrefix(pkgPath, prefix))
+			ents, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			var out []*ast.File
+			for _, e := range ents {
+				if e.IsDir() || !strings.HasSuffix(e.Name(), ".gno") {
+					continue
+				}
+				if prodOnly && (strings.HasSuffix(e.Name(), "_test.gno") ||
+					strings.HasSuffix(e.Name(), "_filetest.gno")) {
+					continue
+				}
+				src, err := os.ReadFile(filepath.Join(dir, e.Name()))
+				if err != nil {
+					continue
+				}
+				f, err := parser.ParseFile(fset, filepath.Join(pkgPath, e.Name()), src,
+					parser.SkipObjectResolution)
+				if err != nil {
+					continue
+				}
+				out = append(out, f)
+			}
+			if len(out) > 0 {
+				return out
+			}
+		}
+		return nil
+	}
+}
+
+// pkgPaths enumerates every directory holding .gno files, as an import path.
+func (roots gnoSrcRoots) pkgPaths(t *testing.T) []string {
+	t.Helper()
+	var out []string
+	for prefix, root := range roots {
+		require.NoError(t, filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+			if err != nil || !d.IsDir() {
+				return nil //nolint:nilerr // unreadable dirs are simply not packages
+			}
+			ents, err := os.ReadDir(p)
+			if err != nil {
+				return nil //nolint:nilerr
+			}
+			for _, e := range ents {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".gno") {
+					rel, err := filepath.Rel(root, p)
+					require.NoError(t, err)
+					out = append(out, prefix+filepath.ToSlash(rel))
+					return nil
+				}
+			}
+			return nil
+		}))
+	}
+	return out
+}
+
+// shimPath/shimFiles expose the .gnobuiltins shim package to the scans, parsed by
+// the same function the production guard is fed by.
+const shimPath = "gnobuiltins/gno0p9"
+
+func shimFiles(t *testing.T, fset *token.FileSet) []*ast.File {
+	t.Helper()
+	//nolint:dogsled // only allgofs is needed; the shim is a single prod file.
+	_, gofs, _, _, _, err := GoParseMemPackage(gnoBuiltinsMemPackage(shimPath), fset)
+	require.NoError(t, err)
+	return gofs
+}
+
 // TestHonestTypeExpansionUnderBudget pins what real code actually costs: the
 // largest expansion total of any stdlib or example package. That number is the
 // whole argument that pricing the validType walk does not tax honest deploys, so
@@ -40,70 +139,8 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 	)
 
 	fset := token.NewFileSet()
-	roots := map[string]string{
-		"":          "../../stdlibs",               // stdlib import paths are bare
-		"gno.land/": "../../../examples/gno.land/", // examples live under gno.land/
-	}
-
-	// resolve parses a package's .gno files, mirroring what the deploy-path
-	// resolver hands the guard, but reaching source on disk instead of the store.
-	resolve := func(pkgPath string) []*ast.File {
-		for prefix, root := range roots {
-			if prefix != "" && !strings.HasPrefix(pkgPath, prefix) {
-				continue
-			}
-			dir := filepath.Join(root, strings.TrimPrefix(pkgPath, prefix))
-			ents, err := os.ReadDir(dir)
-			if err != nil {
-				continue
-			}
-			var out []*ast.File
-			for _, e := range ents {
-				if e.IsDir() || !strings.HasSuffix(e.Name(), ".gno") {
-					continue
-				}
-				src, err := os.ReadFile(filepath.Join(dir, e.Name()))
-				if err != nil {
-					continue
-				}
-				// Skip anything that does not parse as Go (e.g. not-yet-transpiled
-				// sources); the guard treats unparseable dependencies as leaves too.
-				f, err := parser.ParseFile(fset, filepath.Join(pkgPath, e.Name()), src,
-					parser.SkipObjectResolution)
-				if err != nil {
-					continue
-				}
-				out = append(out, f)
-			}
-			if len(out) > 0 {
-				return out
-			}
-		}
-		return nil
-	}
-
-	// Enumerate every directory holding .gno files, as an import path.
-	var pkgPaths []string
-	for prefix, root := range roots {
-		require.NoError(t, filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-			if err != nil || !d.IsDir() {
-				return nil //nolint:nilerr // unreadable dirs are simply not packages
-			}
-			ents, err := os.ReadDir(p)
-			if err != nil {
-				return nil //nolint:nilerr
-			}
-			for _, e := range ents {
-				if !e.IsDir() && strings.HasSuffix(e.Name(), ".gno") {
-					rel, err := filepath.Rel(root, p)
-					require.NoError(t, err)
-					pkgPaths = append(pkgPaths, prefix+filepath.ToSlash(rel))
-					return nil
-				}
-			}
-			return nil
-		}))
-	}
+	resolve := allGnoRoots.resolver(fset, false)
+	pkgPaths := allGnoRoots.pkgPaths(t)
 	require.GreaterOrEqual(t, len(pkgPaths), minPackages,
 		"scan found too few packages (%d) — did the source layout move?", len(pkgPaths))
 
@@ -125,13 +162,12 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 		if len(gofs) == 0 {
 			continue
 		}
-		c := newExpansionChecker(pp, gofs, userResolve, shared)
-		var total uint64
-		for _, specs := range c.declsFor(pp).byName {
-			for _, d := range specs {
-				nTypes++
-				total = satAdd(total, satAdd(1, c.cost(d.spec.Type, pp, d.imports)))
-			}
+		// Call the production function rather than re-summing here: a test that
+		// reimplements the formula it is measuring stops measuring it the moment
+		// the formula changes.
+		total := typeExpansionCost(pp, gofs, userResolve, shared)
+		for _, specs := range newExpansionChecker(pp, gofs, userResolve, shared).declsFor(pp) {
+			nTypes += len(specs)
 		}
 		if total > worstTotal {
 			worstTotal, worstPkg = total, pp
@@ -164,77 +200,23 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 func TestLeafExpansionBound(t *testing.T) {
 	t.Parallel()
 
-	const stdlibRoot = "../../stdlibs"
-
 	fset := token.NewFileSet()
 	// Unlike the deploy path, resolve stdlib in full: that is the number being
 	// measured. Anything still unresolved inside stdlib falls back to
 	// leafExpansionBound, so a measured max below the constant also proves no such
 	// fallback contributed to it.
-	resolve := func(pkgPath string) []*ast.File {
-		dir := filepath.Join(stdlibRoot, pkgPath)
-		ents, err := os.ReadDir(dir)
-		if err != nil {
-			return nil
-		}
-		var out []*ast.File
-		for _, e := range ents {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".gno") {
-				continue
-			}
-			src, err := os.ReadFile(filepath.Join(dir, e.Name()))
-			if err != nil {
-				continue
-			}
-			f, err := parser.ParseFile(fset, filepath.Join(pkgPath, e.Name()), src,
-				parser.SkipObjectResolution)
-			if err != nil {
-				continue
-			}
-			out = append(out, f)
-		}
-		return out
-	}
-
-	var pkgPaths []string
-	require.NoError(t, filepath.WalkDir(stdlibRoot, func(p string, d os.DirEntry, err error) error {
-		if err != nil || !d.IsDir() {
-			return nil //nolint:nilerr // unreadable dirs are simply not packages
-		}
-		ents, err := os.ReadDir(p)
-		if err != nil {
-			return nil //nolint:nilerr
-		}
-		for _, e := range ents {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".gno") {
-				rel, err := filepath.Rel(stdlibRoot, p)
-				require.NoError(t, err)
-				pkgPaths = append(pkgPaths, filepath.ToSlash(rel))
-				return nil
-			}
-		}
-		return nil
-	}))
+	resolve := stdlibRoots.resolver(fset, true)
+	pkgPaths := stdlibRoots.pkgPaths(t)
 	require.GreaterOrEqual(t, len(pkgPaths), 20,
 		"scan found too few stdlib packages (%d) — did the source layout move?", len(pkgPaths))
 
 	// The shim types are named by every package, so they belong in the same bound.
-	shimPath := "gnobuiltins/gno0p9"
-	shim := gnoBuiltinsMemPackage(shimPath)
-	shimFiles := func() []*ast.File {
-		var out []*ast.File
-		for _, mf := range shim.Files {
-			f, err := parser.ParseFile(fset, mf.Name, mf.Body, parser.SkipObjectResolution)
-			require.NoError(t, err)
-			out = append(out, f)
-		}
-		return out
-	}()
+	shim := shimFiles(t, fset)
 
 	shared := newExpansionPkgCache()
 	full := func(pkgPath string) []*ast.File {
 		if pkgPath == shimPath {
-			return shimFiles
+			return shim
 		}
 		return resolve(pkgPath)
 	}
@@ -248,7 +230,7 @@ func TestLeafExpansionBound(t *testing.T) {
 			continue
 		}
 		c := newExpansionChecker(pp, gofs, full, shared)
-		for name, specs := range c.declsFor(pp).byName {
+		for name, specs := range c.declsFor(pp) {
 			// Only exported names: an unexported stdlib type cannot be named from a
 			// user package, so it can never be the leaf that gets scored.
 			if !token.IsExported(name) {
@@ -283,18 +265,11 @@ func TestGnoBuiltinShimExpansion(t *testing.T) {
 	t.Parallel()
 
 	fset := token.NewFileSet()
-	const shimPath = "gnobuiltins/gno0p9"
-	var gofs []*ast.File
-	for _, mf := range gnoBuiltinsMemPackage(shimPath).Files {
-		f, err := parser.ParseFile(fset, mf.Name, mf.Body, parser.SkipObjectResolution)
-		require.NoError(t, err)
-		gofs = append(gofs, f)
-	}
-	c := newExpansionChecker(shimPath, gofs, nil, nil)
+	c := newExpansionChecker(shimPath, shimFiles(t, fset), nil, nil)
 
 	require.Len(t, gnoBuiltinShimExpansion, 2)
 	for name, want := range gnoBuiltinShimExpansion {
-		specs := c.declsFor(shimPath).byName[name]
+		specs := c.declsFor(shimPath)[name]
 		require.Len(t, specs, 1, "shim no longer declares %q", name)
 		got := satAdd(1, c.cost(specs[0].spec.Type, shimPath, specs[0].imports))
 		assert.LessOrEqual(t, got, want,

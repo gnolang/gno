@@ -371,6 +371,13 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 // Initialize static blocks, and also reserves all names.
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
+// errDotImports is the one wording for Gno's dot-import ban. It lives here, with
+// the language rule, rather than in the cost guard that also enforces it: the
+// guard exists only while go/types does, so the permanent site should not depend
+// on the disposable one. The ban itself is enforced but undocumented and has no
+// recorded rationale; see #6076.
+const errDotImports = "dot imports are not allowed in Gno"
+
 func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 	// iterate over all nodes recursively.
 	_ = TranscribeB(ctx, nn, func(

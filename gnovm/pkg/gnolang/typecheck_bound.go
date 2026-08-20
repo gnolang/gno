@@ -24,6 +24,12 @@ const typeExpansionGasPerNode = 100
 // injects into every package. cost() never sees their declarations (the shim is
 // added after these guards run), and `address` is too common in the stdlib API to
 // approximate. Pinned by TestGnoBuiltinShimExpansion.
+//
+// NOT keyed by gno version, while makeGnoBuiltins is (it panics on anything but
+// GnoVerLatest). A future 0.10 shim would silently keep 0.9's numbers, and the
+// pinning test only checks 0.9 — so key this by (version, name) when a second
+// shim version appears. Failure mode is over- or under-charge, not unsoundness
+// today, because 0.9 is the only shim that exists.
 var gnoBuiltinShimExpansion = map[string]uint64{
 	// One node for the named type plus one for its underlying type: an interface
 	// declaring only methods (validType walks no method signature), and a string.
@@ -41,11 +47,10 @@ const leafExpansionBound = 32
 // expansionGas converts a node count to gas, clamping instead of wrapping:
 // int64(math.MaxUint64) is -1, so a saturated count would charge NEGATIVE gas.
 func expansionGas(nodes uint64) int64 {
-	const maxNodes = uint64(math.MaxInt64) / typeExpansionGasPerNode
-	if nodes > maxNodes {
-		return math.MaxInt64
+	if g := satMul(nodes, typeExpansionGasPerNode); g <= math.MaxInt64 {
+		return int64(g)
 	}
-	return int64(nodes) * typeExpansionGasPerNode
+	return math.MaxInt64
 }
 
 // pkgResolver returns the parsed Go source of an already-deployed dependency, or
@@ -69,10 +74,9 @@ type declWithImports struct {
 	imports map[string]string // selector name -> import path
 }
 
-// pkgDecls indexes a package's type declarations by name.
-type pkgDecls struct {
-	byName map[string][]declWithImports
-}
+// pkgDecls indexes a package's type declarations by name. A name can appear more
+// than once: validType runs per declaration, so all of them are kept.
+type pkgDecls map[string][]declWithImports
 
 // expansionPkgCache caches resolved DEPENDENCY sources and declarations, shared by
 // every expansionChecker of one type check — without it, dependency parsing is
@@ -82,13 +86,13 @@ type pkgDecls struct {
 // Not safe for concurrent use; one cache per gnoImporter, whose checks are serial.
 type expansionPkgCache struct {
 	files map[string][]*ast.File
-	decls map[string]*pkgDecls
+	decls map[string]pkgDecls
 }
 
 func newExpansionPkgCache() *expansionPkgCache {
 	return &expansionPkgCache{
 		files: make(map[string][]*ast.File),
-		decls: make(map[string]*pkgDecls),
+		decls: make(map[string]pkgDecls),
 	}
 }
 
@@ -186,20 +190,23 @@ func (c *expansionChecker) fileImports(gof *ast.File) map[string]string {
 // function-local; local types are validated too, so they are also a vector).
 // On name collision we keep all candidates and take the highest cost — a safe
 // over-approximation that never under-counts.
-func (c *expansionChecker) declsFor(pkgPath string) *pkgDecls {
+func (c *expansionChecker) declsFor(pkgPath string) pkgDecls {
 	cache := c.cacheFor(pkgPath)
 	if pd, ok := cache.decls[pkgPath]; ok {
 		return pd
 	}
-	pd := &pkgDecls{byName: make(map[string][]declWithImports)}
+	pd := make(pkgDecls)
 	for _, gof := range c.filesFor(pkgPath) {
 		imports := c.fileImports(gof)
 		ast.Inspect(gof, func(n ast.Node) bool {
-			if ts, ok := n.(*ast.TypeSpec); ok {
-				pd.byName[ts.Name.Name] = append(pd.byName[ts.Name.Name],
-					declWithImports{spec: ts, imports: imports})
+			ts, ok := n.(*ast.TypeSpec)
+			if !ok {
+				return true
 			}
-			return true
+			pd[ts.Name.Name] = append(pd[ts.Name.Name],
+				declWithImports{spec: ts, imports: imports})
+			// A type expression holds no further declarations, so stop here.
+			return false
 		})
 	}
 	cache.decls[pkgPath] = pd
@@ -212,25 +219,17 @@ func (c *expansionChecker) namedCost(k typeKey) uint64 {
 	if v, ok := c.memo[k]; ok {
 		return v
 	}
-	specs := c.declsFor(k.pkg).byName[k.name]
+	specs := c.declsFor(k.pkg)[k.name]
 	if len(specs) == 0 {
-		if types.Universe.Lookup(k.name) != nil {
-			// Predeclared (int, string, error, any, ...). validType stops at these,
-			// so 1 is exact, not an approximation.
-			return 1
-		}
-		if v, ok := gnoBuiltinShimExpansion[k.name]; ok {
-			return v
-		}
-		// An imported stdlib type: expansionPkgResolver does not resolve those, so
-		// score the largest expansion any of them can have. Over-counting here is
-		// the safe direction; see leafExpansionBound.
-		return leafExpansionBound
+		v := unresolvedCost(k.name)
+		c.memo[k] = v // depends only on the key, so it is safe to remember
+		return v
 	}
 	if c.visiting[k] {
 		// A value-containment cycle: an invalid recursive type that go/types
 		// detects and reports itself. Return a finite count so we neither loop
-		// nor pre-empt go/types' diagnostic.
+		// nor pre-empt go/types' diagnostic. Deliberately not memoized — the
+		// truncated value is only valid inside this walk.
 		return 1
 	}
 	c.visiting[k] = true
@@ -240,9 +239,27 @@ func (c *expansionChecker) namedCost(k typeKey) uint64 {
 			best = v
 		}
 	}
-	c.visiting[k] = false
+	delete(c.visiting, k)
 	c.memo[k] = best
 	return best
+}
+
+// unresolvedCost prices a named type the guard cannot resolve to a declaration.
+// Every such case routes through here, so the file has one answer to "what does an
+// unknown name cost" rather than one per call site.
+func unresolvedCost(name string) uint64 {
+	if types.Universe.Lookup(name) != nil {
+		// Predeclared (int, string, error, any, ...). validType stops at these, so
+		// 1 is exact, not an approximation.
+		return 1
+	}
+	if v, ok := gnoBuiltinShimExpansion[name]; ok {
+		return v
+	}
+	// An imported stdlib type: expansionPkgResolver does not resolve those, so
+	// score the largest expansion any of them can have. Over-counting here is the
+	// safe direction; see leafExpansionBound.
+	return leafExpansionBound
 }
 
 // cost returns the number of validType nodes visited for a type expression,
@@ -290,7 +307,10 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 				return c.namedCost(typeKey{pkg: path, name: t.Sel.Name})
 			}
 		}
-		return 1 // unresolvable qualifier: treat as leaf
+		// Unresolvable qualifier. Priced like any other unresolvable name rather
+		// than as a 1-node leaf: same situation, so the same (over-counting)
+		// answer, or this becomes the one edge that under-charges.
+		return unresolvedCost(t.Sel.Name)
 	case *ast.IndexExpr:
 		return c.cost(t.X, pkgPath, imports) // generic instantiation (rejected earlier)
 	case *ast.IndexListExpr:
@@ -311,7 +331,7 @@ func typeExpansionCost(entryPath string, gofs []*ast.File, resolve pkgResolver, 
 	// validType runs once per DECLARATION, so the charge is the sum over them, not
 	// over names (a name declared twice is validated twice). Order-independent.
 	var total uint64
-	for _, specs := range c.declsFor(entryPath).byName {
+	for _, specs := range c.declsFor(entryPath) {
 		for _, d := range specs {
 			total = satAdd(total, satAdd(1, c.cost(d.spec.Type, entryPath, d.imports)))
 		}
@@ -414,11 +434,6 @@ func checkNoUncountableGenerics(fset *token.FileSet, gofs []*ast.File) error {
 	}
 	return nil
 }
-
-// errDotImports is the one wording for Gno's dot-import ban, shared with the
-// preprocessor's own rejection so the two sites cannot drift. The ban itself is
-// enforced but undocumented and has no recorded rationale; see #6076.
-const errDotImports = "dot imports are not allowed in Gno"
 
 // checkNoDotImports rejects dot imports before go/types. The preprocessor rejects
 // them too, but on the deploy path it runs AFTER the type checker — and a

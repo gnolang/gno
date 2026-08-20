@@ -37,19 +37,29 @@ func parseBoundSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
 // types named <prefix>N: each level embeds the previous one twice by value, the
 // classic exponential vector for go/types' validType walk. The caller declares
 // the base level <prefix>0, which is what the chain bottoms out in.
-func doublingChain(prefix string, lo, hi int) string {
+func doublingChain(prefix string, depth int) string {
 	var b strings.Builder
-	for i := lo; i <= hi; i++ {
+	for i := 1; i <= depth; i++ {
 		fmt.Fprintf(&b, "type %s%d struct{ a, b [0]%s%d }\n", prefix, i, prefix, i-1)
 	}
 	return b.String()
 }
 
-// fanOutSrc builds a standalone package holding a doubling chain of the given
-// depth.
-func fanOutSrc(depth int) string {
-	return "package x\ntype T0 struct{ v int }\n" + doublingChain("T", 1, depth)
+// chainSrc builds a standalone package whose levels each reference the previous
+// one twice through elem — "[0]" for value containment (the exponential vector),
+// "*" or "[]" for the forms validType does not follow.
+func chainSrc(elem string, depth int) string {
+	var b strings.Builder
+	b.WriteString("package x\ntype T0 struct{ v int }\n")
+	for i := 1; i <= depth; i++ {
+		fmt.Fprintf(&b, "type T%d struct{ a, b %sT%d }\n", i, elem, i-1)
+	}
+	return b.String()
 }
+
+// fanOutSrc is the value-containment chain: the shape that makes validType
+// exponential.
+func fanOutSrc(depth int) string { return chainSrc("[0]", depth) }
 
 // doublingPkgSrc builds an importable package whose exported T tops a doubling
 // chain of the given depth. Callers pick a depth whose own cost is modest, so that
@@ -63,7 +73,7 @@ func doublingPkgSrc(pkgName string, depth int, imp string) string {
 		fmt.Fprintf(&b, "import %q\ntype prev %s.T\n", imp, path.Base(imp))
 	}
 	b.WriteString("type t0 struct{ v int }\n")
-	b.WriteString(doublingChain("t", 1, depth))
+	b.WriteString(doublingChain("t", depth))
 	fmt.Fprintf(&b, "type T struct{ a, b [0]t%d }\n", depth)
 	return b.String()
 }
@@ -99,11 +109,16 @@ func genericFanOutSrc(depth int) string {
 // unionFanOutSrc routes the doubling through interface type-set unions: each I_n
 // unions two array types over I_{n-1}, so validType still doubles per level. Type
 // sets are a go1.18 generics feature, so this must be rejected before go/types.
-func unionFanOutSrc(depth int) string {
+func unionFanOutSrc(depth int) string { return ifaceChainSrc("|", depth) }
+
+// ifaceChainSrc builds an interface type-set chain whose terms are separated by
+// sep: "|" is a union (a generics construct cost() cannot count, so rejected),
+// ";" is ordinary containment the cost model must count itself.
+func ifaceChainSrc(sep string, depth int) string {
 	var b strings.Builder
 	b.WriteString("package x\ntype I0 interface{ m() }\n")
 	for i := 1; i <= depth; i++ {
-		fmt.Fprintf(&b, "type I%d interface{ [0]I%d | [1]I%d }\n", i, i-1, i-1)
+		fmt.Fprintf(&b, "type I%d interface{ [0]I%d %s [1]I%d }\n", i, i-1, sep, i-1)
 	}
 	return b.String()
 }
@@ -163,27 +178,13 @@ func TestTypeExpansionCost(t *testing.T) {
 			// Pointers break value containment exactly as validType does, so a deep
 			// "doubling" chain through pointers costs nothing to walk.
 			"pointer fan-out is cheap",
-			func() string {
-				var b strings.Builder
-				b.WriteString("package x\ntype T0 struct{ v int }\n")
-				for i := 1; i <= 60; i++ {
-					fmt.Fprintf(&b, "type T%d struct{ a, b *T%d }\n", i, i-1)
-				}
-				return b.String()
-			}(),
+			chainSrc("*", 60),
 			false,
 		},
 		{
 			// Slices, maps, chans likewise break the chain.
 			"slice fan-out is cheap",
-			func() string {
-				var b strings.Builder
-				b.WriteString("package x\ntype T0 struct{ v int }\n")
-				for i := 1; i <= 60; i++ {
-					fmt.Fprintf(&b, "type T%d struct{ a, b []T%d }\n", i, i-1)
-				}
-				return b.String()
-			}(),
+			chainSrc("[]", 60),
 			false,
 		},
 		{
@@ -206,14 +207,7 @@ func TestTypeExpansionCost(t *testing.T) {
 			// rather than a union `|`: the generics guard does not reject this shape
 			// (no `|`/`~`), so the cost model must count both elements itself.
 			"multi-element interface value fan-out counted",
-			func() string {
-				var b strings.Builder
-				b.WriteString("package x\ntype I0 interface{ m() }\n")
-				for i := 1; i <= 30; i++ {
-					fmt.Fprintf(&b, "type I%d interface{ [0]I%d; [1]I%d }\n", i, i-1, i-1)
-				}
-				return b.String()
-			}(),
+			ifaceChainSrc(";", 30),
 			true,
 		},
 	}
@@ -384,7 +378,7 @@ func TestDotImportFanOutRejected(t *testing.T) {
 				Type: MPUserProd, Name: "fan", Path: "gno.land/p/demo/fan",
 				Files: []*std.MemFile{{
 					Name: "fan.gno",
-					Body: tc.head + doublingChain("u", 1, 9),
+					Body: tc.head + doublingChain("u", 9),
 				}},
 			}
 			err := func() (err error) {
@@ -500,7 +494,7 @@ func TestTypeExpansionCostAggregate(t *testing.T) {
 	c := newExpansionChecker("", gofs200, nil, nil)
 	var worst uint64
 	var worstName string
-	for _, specs := range c.declsFor("").byName {
+	for _, specs := range c.declsFor("") {
 		for _, d := range specs {
 			if v := satAdd(1, c.cost(d.spec.Type, "", d.imports)); v > worst {
 				worst, worstName = v, d.spec.Name.Name

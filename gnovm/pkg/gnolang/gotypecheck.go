@@ -124,6 +124,11 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 	}
 }
 
+// TODO: this belongs in the transaction store, beside the object cache — the rule
+// it creates ("the second read of a package within one transaction is free") is a
+// gas decision currently invisible from the store's gas config. Deferred because
+// moving it would move existing gas numbers.
+//
 // memoizingGetter caches GetMemPackage results for the lifetime of one type
 // check, so a package fetched by both the pre-type-check expansion guard (see
 // typeExpansionCost) and the go/types importer is read from the
@@ -534,6 +539,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// time (VMKeeper.AddPackage / MsgRun) and cannot be interrupted. The walk is
 	// paid for rather than capped, so the first two exist to keep the price
 	// honest: they reject exactly what the cost model cannot count.
+	//
+	// All three run over allgofs, including test files that ProdOnly keeps out of
+	// cfg.Check. For the count that only over-charges; for the two rejections it
+	// means a type parameter in a _test.gno file fails the deploy even though the
+	// chain never type-checks that file — consistent with "a syntax error anywhere
+	// rejects the deploy", and the conservative direction either way.
 	//
 	// First reject the go1.18 constructs cost() cannot model (type parameters,
 	// `|`, `~`): go/types would otherwise form and walk such types, and their
