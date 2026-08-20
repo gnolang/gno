@@ -48,7 +48,7 @@ func fanOutSrc(depth int) string {
 // chain of the given depth. Callers pick a depth whose total stays under
 // typeExpansionCeiling, so the package is accepted on its own and only a further
 // cross-package multiplication pushes a dependent over. imp, when non-empty, is
-// imported and referenced, so a chain of these forms a dependency closure.
+// imported and referenced, so a chain of these forms an import chain.
 func doublingPkgSrc(pkgName string, depth int, imp string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "package %s\n", pkgName)
@@ -555,7 +555,7 @@ func BenchmarkCheckTypeExpansionBound(b *testing.B) {
 
 // recordingGasMeter wraps a real gas meter so a test can see each individual
 // charge, not just the total. Charges past the limit panic exactly as the chain's
-// meter does, which is what aborts a type check mid-closure.
+// meter does, which is what aborts a type check part-way down an import chain.
 type recordingGasMeter struct {
 	store.GasMeter
 	charges []int64
@@ -570,13 +570,13 @@ func (m *recordingGasMeter) ConsumeGas(amount store.Gas, descriptor string) {
 	m.GasMeter.ConsumeGas(amount, descriptor)
 }
 
-// TestExpansionChargedPerPackage pins that every package in a dependency closure
-// is charged individually, and that an out-of-gas aborts the walk mid-closure
-// rather than after every package has been walked. See typeExpansionCeiling.
+// TestExpansionChargedPerPackage pins that every transitive dependency is
+// charged individually, and that an out-of-gas aborts the walk part-way down the
+// import chain, not after every package has been walked. See typeExpansionCeiling.
 func TestExpansionChargedPerPackage(t *testing.T) {
 	t.Parallel()
 
-	// run type-checks a tiny package importing a chainLen-deep closure. limit
+	// run type-checks a tiny package importing a chainLen-deep dependency chain. limit
 	// bounds the gas available, so a low limit aborts partway through.
 	run := func(chainLen int, limit int64) (charges []int64, aborted bool) {
 		var pkgs []*std.MemPackage
@@ -611,19 +611,19 @@ func TestExpansionChargedPerPackage(t *testing.T) {
 		return meter.charges, false
 	}
 
-	// Ample gas: every package in the closure is charged, not just the entry.
+	// Ample gas: every package among the dependencies is charged, not just the entry.
 	charges, _ := run(6, 1e9)
 	assert.Len(t, charges, 8, "one charge per package type-checked, dependencies included")
 	for i, n := range charges {
 		assert.NotZero(t, n, "charge %d must be non-zero", i)
 	}
 
-	// Gas for roughly three packages: the out-of-gas must abort mid-closure,
+	// Gas for roughly three packages: the out-of-gas must abort part-way through the dependencies,
 	// leaving most of the 22 packages unwalked.
 	charges, aborted := run(20, 3*charges[1])
 	assert.True(t, aborted, "out-of-gas must propagate out of go/types")
 	assert.Less(t, len(charges), 6,
-		"the abort must stop the walk mid-closure, not after all 22 packages")
+		"the abort must stop the walk part-way through the dependencies, not after all 22 packages")
 }
 
 // TestExpansionNotChargedWhenRejected pins that a REJECTED package is not

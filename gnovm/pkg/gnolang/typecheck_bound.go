@@ -36,11 +36,11 @@ import (
 //
 // This ceiling is NOT the primary defence. On-chain that is the per-node gas
 // charge (see TypeCheckOptions.GasMeter), which prices the walk over this package
-// AND its whole transitive dependency closure — a ceiling per package cannot bound
-// a transaction, since Tx.Msgs is unbounded and one message re-checks a closure
-// whose source bytes earlier transactions paid for. At 1_000_000 the charge for a
-// single package (2.5e7 gas) already exceeds a typical GasWanted, so gas binds
-// first: an expensive package deploys if the sender pays for it.
+// AND all of its transitive dependencies. A ceiling per package cannot bound a
+// transaction: Tx.Msgs is unbounded, and one message re-checks every dependency
+// it imports, whose source bytes earlier transactions paid for. At 1_000_000 the
+// charge for one package (2.5e7 gas) already exceeds a typical GasWanted, so
+// gas binds first: an expensive package deploys if the sender pays for it.
 //
 // The ceiling exists for the two cases gas cannot cover:
 //

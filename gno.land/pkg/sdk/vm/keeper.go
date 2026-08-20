@@ -655,7 +655,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Getter: gnostore,
 		Mode:   gno.TCLatestStrict,
 		Cache:  vm.getTypeCheckCache(ctx),
-		// Prices the type-expansion walk over this package and its closure.
+		// Prices the type-expansion walk over this package and its dependencies.
 		GasMeter: ctx.GasMeter(),
 		// Type-check production files only. Test files are still stored and
 		// still parsed (a syntax error anywhere rejects the deploy), but the
@@ -1138,7 +1138,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	alloc := gnostore.GetAllocator()
 	// Per-tx preprocess allocator (see AddPackage for full rationale).
-	// Covers both the closure-local Machine that calls RunMemPackage and
+	// Covers both the dependency graph-local Machine that calls RunMemPackage and
 	// any subsequent Machine that re-Preprocesses; defer outlives both.
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())

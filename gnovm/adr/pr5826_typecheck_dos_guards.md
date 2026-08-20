@@ -66,15 +66,15 @@ total also caps containment depth near 1000 (a linear chain of depth `d` totals
 A per-package ceiling says nothing about a transaction, two ways over. `Tx.Msgs` is
 unbounded (`ValidateBasic` caps gas, not the message count) and baseapp dispatches
 each message to the handler, so N messages each pay the ceiling in full. And one
-message re-type-checks its whole closure, whose bytes *earlier* transactions paid
+message re-type-checks all of its transitive dependencies, whose bytes *earlier* transactions paid
 for: measured, a 55-byte package importing the tip of a 30-deep chain pulls in
-321,070 closure nodes against 68,750 gas of byte charges — 117x unpriced, which no
+321,070 nodes across its transitive dependencies against 68,750 gas of byte charges — 117x unpriced, which no
 per-byte charge can fix.
 
 Closed by charging for the count the guard already computes — exactly, linearly,
 and outside `go/types`. It is charged to `TypeCheckOptions.GasMeter` once per
 package and **before** that package is walked, at `typeExpansionGasPerNode = 25`
-(1 gas ≈ 1ns, walk ~25ns/node). Closure cost is then tied to this tx's
+(1 gas ≈ 1ns, walk ~25ns/node). The cost of those dependencies is then tied to this tx's
 `GasWanted`, which the ante handler caps at `Block.MaxGas`.
 
 - **Per package, before the walk.** `ConsumeGas` panics on out-of-gas and
@@ -92,9 +92,9 @@ package and **before** that package is walked, at `typeExpansionGasPerNode = 25`
 
 The two outcomes are distinct and both covered end-to-end: over the ceiling gives
 a denial-of-service rejection naming the offending type
-(`addpkg_typecheck_fanout.txtar`), while an unaffordable closure gives out-of-gas
-(`addpkg_typecheck_fanout_closure_gas.txtar`, where a three-line package needs
-20.8M gas for the closure it imports and then deploys once its budget covers it).
+(`addpkg_typecheck_fanout.txtar`), while unaffordable transitive dependencies gives out-of-gas
+(`addpkg_typecheck_fanout_deps_gas.txtar`, where a three-line package needs
+20.8M gas for the dependencies it pulls in and then deploys once its budget covers it).
 gnokey reports the required gas-wanted, so the OOG case is actionable too.
 
 No gas fixture needed re-pinning: honest totals are small (largest 181, ~4.5k gas)

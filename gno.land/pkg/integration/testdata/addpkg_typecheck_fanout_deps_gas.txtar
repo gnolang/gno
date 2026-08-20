@@ -7,7 +7,7 @@
 #
 # This is the other half of the defence: the ceiling rejects a single pathological
 # package with a denial-of-service error (see addpkg_typecheck_fanout.txtar),
-# while accumulation across a closure is bounded by gas instead. Those
+# while accumulation across a dependency graph is bounded by gas instead. Those
 # dependencies' source bytes were paid for by an EARLIER transaction, so the
 # per-source-byte charge alone cannot price them.
 
@@ -19,11 +19,11 @@ gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350
 
 # user: three lines of source, but importing p0 pulls p0's expansion into this
 # deploy's gas. 5M is far more than its own bytes need and far less than the
-# closure costs, so this must fail on gas — not on the ceiling.
+# the cost of those dependenciess, so this must fail on gas — not on the ceiling.
 ! gnokey maketx addpkg -pkgdir $WORK/user -pkgpath gno.land/r/foobar/user -gas-fee 350001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test $test1_user_addr
 stderr 'out of gas'
 
-# the same package deploys once its gas covers the closure it pulls in
+# the same package deploys once its gas covers the dependency graph it pulls in
 gnokey maketx addpkg -pkgdir $WORK/user -pkgpath gno.land/r/foobar/user -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
 
 -- p0/gnomod.toml --
