@@ -1,6 +1,7 @@
 package transpiler
 
 import (
+	"go/ast"
 	"strings"
 	"testing"
 
@@ -62,5 +63,84 @@ func TestIsNolintComment(t *testing.T) {
 		"//nolinting is fun":    false,
 	} {
 		assert.Equal(t, want, isNolintComment(text), "%q", text)
+	}
+}
+
+// Blanking rather than deleting is what keeps the "//line" header honest: the
+// generated file must have one line per source line, or every position after a
+// removed comment points somewhere earlier. Deleting them reported an error
+// truly on line 7 as line 5.
+func TestTranspilePreservesLineCount(t *testing.T) {
+	t.Parallel()
+
+	const source = `package tr
+
+//go:noinline
+
+//nolint:gosec
+/*line forged.gno:99:1*/
+// doc
+func F() int {
+	return 1
+}
+`
+	res, err := Transpile(source, "gno", "tr.gno")
+	require.NoError(t, err)
+
+	// Drop the header the transpiler writes, then compare what is left with the
+	// source line for line.
+	_, body, ok := strings.Cut(res.Translated, "//line tr.gno:1:1\n")
+	require.True(t, ok, "expected the //line header")
+	assert.Equal(t, strings.Count(source, "\n"), strings.Count(body, "\n"),
+		"generated body must keep one line per source line")
+}
+
+// `go generate` scans physical lines and never parses, so a "//go:generate"
+// line inside a block comment runs even though Go treats it as commentary.
+func TestTranspileNeutralizesGenerateInBlockComment(t *testing.T) {
+	t.Parallel()
+
+	const source = `package tr
+
+/*
+//go:generate echo PWNED
+*/
+func F() int { return 1 }
+`
+	res, err := Transpile(source, "gno", "tr.gno")
+	require.NoError(t, err)
+	assert.NotContains(t, res.Translated, "//go:generate",
+		"a directive line inside a block comment must not survive")
+	_, body, ok := strings.Cut(res.Translated, "//line tr.gno:1:1\n")
+	require.True(t, ok)
+	assert.Equal(t, strings.Count(source, "\n"), strings.Count(body, "\n"),
+		"neutralizing inside a block must keep the block's line count")
+}
+
+// Blanking keeps every CommentGroup non-empty. An emptied group is invalid --
+// ast.CommentGroup.Pos() indexes List[0] -- and Result.File hands the tree to
+// callers, Doc fields included.
+func TestTranspileLeavesNoEmptyCommentGroup(t *testing.T) {
+	t.Parallel()
+
+	const source = `package tr
+
+//go:noinline
+func F() int { return 1 }
+`
+	res, err := Transpile(source, "gno", "tr.gno")
+	require.NoError(t, err)
+
+	for _, cg := range res.File.Comments {
+		require.NotEmpty(t, cg.List, "an empty CommentGroup is invalid")
+		assert.NotPanics(t, func() { _, _ = cg.Pos(), cg.End() })
+	}
+	for _, d := range res.File.Decls {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Doc == nil {
+			continue
+		}
+		require.NotEmpty(t, fd.Doc.List, "a Doc group must not be left empty")
+		assert.NotPanics(t, func() { _, _ = fd.Doc.Pos(), fd.Doc.End() })
 	}
 }

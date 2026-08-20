@@ -100,12 +100,12 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	return TranspileWithResolver(source, tags, filename, nil)
 }
 
-// stripInheritedDirectives removes directive comments carried over from the Gno
-// source, so the generated file only carries the directives this function
-// writes itself.
+// stripInheritedDirectives neutralizes directive comments carried over from
+// the Gno source, so the generated file only carries the directives this
+// function writes itself.
 //
-// A directive means nothing to the VM, but the output of this function is Go,
-// where the toolchain acts on it. Left in place:
+// A directive means nothing to the VM, but the output is Go, where the
+// toolchain acts on it. Left in place:
 //
 //   - a "//go:build" line collides with the one written below, and `go build`
 //     rejects the file outright: "multiple //go:build comments";
@@ -116,8 +116,15 @@ func Transpile(source, tags, filename string) (*Result, error) {
 //   - "//line" rewrites the positions the compiler reports, competing with the
 //     "//line" written below for the same purpose.
 //
-// The header this function writes is emitted as text after the AST is printed
-// from, so it is unaffected.
+// The comments are blanked rather than removed, keeping one line per line.
+// Deleting them moved every position after them, which defeats the "//line"
+// header: an error truly on line 7 of the source was reported on line 5.
+// Blanking also keeps each CommentGroup non-empty, so a Doc field still
+// pointing at one cannot become the empty group that ast.CommentGroup.Pos()
+// panics on.
+//
+// The header this function writes is emitted as text around the printed AST,
+// so it is untouched.
 //
 // This cannot reach a directive that is not a comment: "//go:generate" at
 // column 1 inside a raw string is string data here, and `go generate` -- which
@@ -125,27 +132,52 @@ func Transpile(source, tags, filename string) (*Result, error) {
 // literals is not something a transpiler may do, so that case belongs to
 // whoever validates the source.
 func stripInheritedDirectives(f *ast.File) {
-	keep := f.Comments[:0]
 	for _, cg := range f.Comments {
-		list := cg.List[:0]
 		for _, c := range cg.List {
-			if gno.IsDirectiveComment(c.Text) || isNolintComment(c.Text) {
-				continue
-			}
-			list = append(list, c)
-		}
-		cg.List = list
-		if len(cg.List) > 0 {
-			keep = append(keep, cg)
+			c.Text = neutralizeDirective(c.Text)
 		}
 	}
-	f.Comments = keep
+}
+
+// neutralizeDirective returns the comment with any directive in it rendered
+// inert, preserving its line count so positions do not move.
+func neutralizeDirective(text string) string {
+	if strings.HasPrefix(text, "//") {
+		if gno.IsDirectiveComment(text) || isNolintComment(text) {
+			return "//"
+		}
+		return text
+	}
+	if !strings.HasPrefix(text, "/*") {
+		return text
+	}
+	// A block comment. Two ways it can carry a directive: the block itself is
+	// a "/*line ...*/" directive, or -- because `go generate` scans physical
+	// lines and never parses -- one of its inner lines begins with
+	// "//go:generate", which runs even though it sits inside a comment.
+	lines := strings.Split(text, "\n")
+	if gno.IsDirectiveComment(text) {
+		// Keep the delimiters and the line count, drop the content.
+		return "/*" + strings.Repeat("\n", len(lines)-1) + "*/"
+	}
+	changed := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "//go:generate ") ||
+			strings.HasPrefix(line, "//go:generate\t") {
+			lines[i] = ""
+			changed = true
+		}
+	}
+	if !changed {
+		return text
+	}
+	return strings.Join(lines, "\n")
 }
 
 // isNolintComment reports whether a comment suppresses golangci-lint findings.
 // Not a directive by Go's rule -- bare "//nolint" carries no colon -- but it
 // steers a Go tool reading the generated file, which is the reason the
-// directives above are stripped.
+// directives above are neutralized.
 func isNolintComment(text string) bool {
 	rest, ok := strings.CutPrefix(text, "//nolint")
 	return ok && (rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t')

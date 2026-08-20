@@ -25,9 +25,22 @@ what it finds there:
 
 ## Decision
 
-Drop directive comments from the AST before printing, in
-`TranspileWithResolver`. The header the transpiler writes is emitted as text
-around the printed AST, so it is unaffected.
+Blank directive comments in the AST before printing, in
+`TranspileWithResolver`: the comment stays, its content goes. The header the
+transpiler writes is emitted as text around the printed AST, so it is
+unaffected.
+
+**Blanking rather than deleting**, because the file also carries a
+`//line <file>:1:1` header so the compiler reports positions in the `.gno`
+source. Deleting a comment removes a line, and every position after it moves:
+an error truly on line 7 was reported as line 5. Keeping one line per line
+preserves the mapping, and as a side effect keeps every `ast.CommentGroup`
+non-empty — an emptied group is invalid (`Pos()` indexes `List[0]`) and
+`Result.File` hands the tree, `Doc` fields included, to callers.
+
+A `//go:generate` line **inside a block comment** is neutralized too. Go treats
+it as commentary, but `go generate` scans physical lines and never parses, so it
+runs anyway.
 
 `IsDirectiveComment` in `gnovm/pkg/gnolang` decides what counts: `//line`,
 `//extern`, `//export`, the `//tool:name` form, and the block `/*line ...*/`
@@ -49,15 +62,25 @@ generated file, which is the reason the rest are stripped.
 - **Strip only `//go:build`.** Fixes the build breakage and leaves the command
   execution and the suppression, which are the parts that act on someone else's
   machine.
-- **Neutralize rather than remove** (e.g. rewrite as `// go:build`). Keeps the
-  text visible but makes the output diverge from the source in a way a reader
-  must decode; removal is simpler and the source remains the record.
+- **Remove the comments outright.** This was the first implementation, and it
+  was wrong: removing a line moves every position after it, which defeats the
+  `//line` header the same file relies on (measured: an error on source line 7
+  reported as line 5). Blanking costs a bare `//` in the output and keeps the
+  mapping exact.
+- **Rewrite the text visibly** (e.g. `// go:build ignore`, space inserted).
+  Inert and self-explaining, but it injects prose into doc comments and invites
+  a reader to wonder whether the source said that. A bare `//` states nothing.
 
 ## Consequences
 
 - Generated files carry only the directives the transpiler writes, so
   `go build`, `go generate` and golangci-lint see what it intends and nothing
   inherited.
+- Positions are unchanged from before this ADR: the generated file keeps one
+  line per source line, so the `//line` header maps as it always did. A pinned
+  test compares the line counts.
+- A neutralized directive leaves a bare `//` where it stood. That is visible in
+  generated output, and deliberate: the alternative moves every line after it.
 - A directive that is not a comment is out of reach: `//go:generate` at column 1
   inside a raw string is string data to the parser, and `go generate` — which
   scans lines rather than parsing — would still act on it. Rewriting string
