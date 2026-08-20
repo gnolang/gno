@@ -63,6 +63,15 @@ func TestMaxMsgSizeFitsLargestBlockResponse(t *testing.T) {
 		"the largest committable block must fit in the fast-sync envelope; "+
 			"maxBlockMsgOverhead is too small")
 
+	// maxMsgSize doubles as the blockchain channel's RecvMessageCapacity, so it
+	// is also the per-connection recv exposure of this reactor. A lower bound
+	// alone would be satisfied by the old MaxBlockSizeBytes (100MB), so assert
+	// it stays tight: no more than the envelope allowance above the largest
+	// block the chain can commit.
+	assert.LessOrEqual(t, int64(maxMsgSize), types.MaxBlockDataBytesLimit+maxBlockMsgOverhead,
+		"maxMsgSize doubles as RecvMessageCapacity; keeping it tight is what "+
+			"bounds the blockchain channel's share of the recv buffer budget")
+
 	// And the same message must survive the receive-side decode limit.
 	_, err = decodeMsg(msgBytes)
 	assert.NoError(t, err)
