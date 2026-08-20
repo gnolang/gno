@@ -3576,11 +3576,12 @@ func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
 // msgs (see runTx / SetGasMeter), so driving several AddPackage calls through one
 // ctx and one finite meter is what a multi-message tx actually does.
 //
-// This cannot be an integration txtar: every keyscli command hardcodes
-// Msgs: []std.Msg{msg} (addpkg.go:135, call.go:133, run.go:144), so gnokey — which
-// is all a txtar can drive — is unable to build a multi-message transaction at all.
-// The txtars cover the other accumulation, across a dependency graph within one
-// message (addpkg_typecheck_fanout_deps_gas.txtar).
+// addpkg_typecheck_fanout_multi_msg.txtar covers the same property end-to-end, over
+// the real ante handler and GasWanted — `maketx addpkg` only builds single-msg txs,
+// but `gnokey sign` + `gnokey broadcast` on a hand-written tx does not have that
+// limit. This test earns its place beside it by holding source bytes EXACTLY equal
+// between the two shapes, which a txtar cannot conveniently do, making the
+// expansion charge provably the only difference rather than merely the likely one.
 func TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx(t *testing.T) {
 	env := setupTestEnv()
 
