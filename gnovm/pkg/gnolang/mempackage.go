@@ -788,7 +788,6 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // missing filetests/ entirely, once including plain .gno files there that are
 // never part of the package.
 func MemPackageFilePaths(dir string, pkgPath string, mptype MemPackageType) ([]string, error) {
-
 	mptype = mptype.Decide(pkgPath)
 	files, err := os.ReadDir(dir)
 	if err != nil {
