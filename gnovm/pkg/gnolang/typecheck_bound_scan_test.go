@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestHonestTypeExpansionUnderBudget pins the measurement that typeExpansionBudget
+// TestHonestTypeExpansionUnderBudget pins the measurement that typeExpansionCeiling
 // is sized against: the largest expansion total of any real package. That number
 // is the entire false-rejection argument for the budget, so without this test it
 // would rot silently — a future stdlib or example package with a genuinely large
@@ -29,7 +29,7 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 	const (
 		// The margin the budget's rationale claims. Well below the budget, but far
 		// above today's max (181), so this fails long before a real deploy would.
-		maxHonestTotal = typeExpansionBudget / 100
+		maxHonestTotal = typeExpansionCeiling / 100
 		// Guard against the scan silently finding nothing (a moved directory would
 		// otherwise make this test vacuously pass).
 		minPackages = 100
@@ -135,10 +135,10 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 	}
 
 	t.Logf("scanned %d packages, %d named types; largest per-package expansion total "+
-		"is %d (%s), budget is %d", len(pkgPaths), nTypes, worstTotal, worstPkg, typeExpansionBudget)
+		"is %d (%s), budget is %d", len(pkgPaths), nTypes, worstTotal, worstPkg, typeExpansionCeiling)
 	assert.LessOrEqual(t, worstTotal, uint64(maxHonestTotal),
-		"package %s expands to %d nodes, within %dx of typeExpansionBudget (%d). "+
+		"package %s expands to %d nodes, within %dx of typeExpansionCeiling (%d). "+
 			"Real code is approaching the DoS budget: re-derive the budget (see its doc "+
 			"comment) rather than just relaxing this test",
-		worstPkg, worstTotal, typeExpansionBudget/maxHonestTotal, typeExpansionBudget)
+		worstPkg, worstTotal, typeExpansionCeiling/maxHonestTotal, typeExpansionCeiling)
 }

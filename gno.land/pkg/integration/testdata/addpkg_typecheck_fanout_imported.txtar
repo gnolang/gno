@@ -1,5 +1,5 @@
 # Value-containment fan-out split across an import boundary. p0 is a doubling
-# chain whose expansion (~14k nodes) is under budget on its own and deploys
+# chain whose expansion (~459k nodes) is under budget on its own and deploys
 # fine. p1 declares a single type, but embeds p0.T five times by value — and
 # go/types' validType walk re-expands imported types WITHOUT memoizing
 # (golang/go#65711), so p1's true expansion is ~5x p0.T's and exceeds the budget.
@@ -34,7 +34,12 @@ type t6 struct{ a, b [0]t5 }
 type t7 struct{ a, b [0]t6 }
 type t8 struct{ a, b [0]t7 }
 type t9 struct{ a, b [0]t8 }
-type T struct{ a, b [0]t9 }
+type t10 struct{ a, b [0]t9 }
+type t11 struct{ a, b [0]t10 }
+type t12 struct{ a, b [0]t11 }
+type t13 struct{ a, b [0]t12 }
+type t14 struct{ a, b [0]t13 }
+type T struct{ a, b [0]t14 }
 
 -- p1/gnomod.toml --
 module = "gno.land/r/foobar/p1"

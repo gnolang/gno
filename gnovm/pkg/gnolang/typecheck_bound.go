@@ -11,90 +11,62 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-// typeExpansionBudget bounds the total number of nodes that go/types' validType
-// walk would visit for a package's named types.
+// typeExpansionCeiling caps the total number of nodes that go/types' validType
+// walk may visit for one package's named types.
 //
 // go/types validates that named types do not "expand" indefinitely
 // (src/go/types/validtype.go). Its walk follows value-containment edges only —
 // struct fields, array elements, interface embeddeds and type-set terms, and a
-// named type's underlying RHS — and crucially it does NOT memoize visited types (the
-// optimization is commented out as a workaround for golang/go#65711). As a
-// result the walk is exponential in the worst case: a "doubling" chain such as
+// named type's underlying RHS — and crucially it does NOT memoize visited types
+// (the optimization is commented out as a workaround for golang/go#65711). So the
+// walk is exponential in the worst case: a "doubling" chain such as
 //
 //	type T0 struct{ x int }
 //	type T1 struct{ a, b [0]T0 } // references the previous level TWICE by value
 //	type T2 struct{ a, b [0]T1 }
 //	// ... depth ~40 => 2^40 node visits
 //
-// hangs the type checker. Because TypeCheckMemPackage runs unmetered at deploy
-// time (VMKeeper.AddPackage / MsgRun), a ~40-line package is a consensus DoS.
+// hangs the type checker, and TypeCheckMemPackage runs unmetered at deploy time
+// (VMKeeper.AddPackage / MsgRun), so a ~40-line package is a consensus DoS.
 //
-// checkTypeExpansionBound computes that same node-visit count, but WITH the
-// memoization validType lacks, making it linear, and rejects the package before
-// go/types runs if the count exceeds the budget.
+// checkTypeExpansionBound computes that same node-visit count WITH the memoization
+// validType lacks, making the computation linear, and rejects the package before
+// go/types runs if the count exceeds this ceiling. The count is a deterministic
+// node count, not a wall-clock limit, so the check is consensus-safe.
 //
-// The budget is the TOTAL over the package's declared named types, because
-// go/types calls validType once per declaration: the walk a transaction pays for
-// is the sum, not the largest single type. Bounding only the largest leaves the
-// sum unbounded, which is how this guard was first written and what it cost.
+// This ceiling is NOT the primary defence. On-chain that is the per-node gas
+// charge (see TypeCheckOptions.GasMeter), which prices the walk over this package
+// AND its whole transitive dependency closure — a ceiling per package cannot bound
+// a transaction, since Tx.Msgs is unbounded and one message re-checks a closure
+// whose source bytes earlier transactions paid for. At 1_000_000 the charge for a
+// single package (2.5e7 gas) already exceeds a typical GasWanted, so gas binds
+// first: an expensive package deploys if the sender pays for it.
 //
-// 20_000 is set so the worst ACCEPTED package costs about what it pays for, which
-// is what makes the bound hold per transaction and not merely per package.
+// The ceiling exists for the two cases gas cannot cover:
 //
-// Gas is charged per source byte (Params.PreprocessGasPerByte = 1250, and 1 gas
-// ~= 1ns on the reference machine, so ~1.25us of CPU per byte). Bytes are a poor
-// proxy for this walk: each extra `type tN struct{ a, b [0]tN-1 }` line is ~31
-// bytes and DOUBLES the total, so the shape that reaches a budget B in the fewest
-// bytes is a doubling chain, giving a worst case of
+//   - Unmetered callers. gno test, gno lint and gnodev pass no GasMeter, so
+//     nothing else there stops a 2^40 walk from hanging a developer's machine.
+//   - A broken charge. This has happened: an AddPackage wiring slip once left the
+//     charge at zero and every suite still passed, because this ceiling kept the
+//     blast radius finite. TestVMKeeperAddPackage_TypeExpansionGasCharged now
+//     guards the wiring, but the ceiling is what makes such a slip survivable.
 //
-//	B / (33 + 31*log2(B/14)) nodes per byte
+// It is deliberately global rather than applied only when no GasMeter is set:
+// unmetered and metered callers then reach the same verdict on the same package,
+// and the ceiling still stands if the charge is ever mis-wired.
 //
-// at ~25ns/node. At B = 1_000_000 that is ~47us/byte — measured 47.6us/byte, so
-// the model holds — i.e. ~38x more CPU than the bytes paid for. Since Tx.Msgs is
-// unbounded (ValidateBasic caps gas, not the message count) and baseapp runs
-// every message through the handler, that 38x multiplies: a 1MB tx would fit
-// ~1400 near-budget packages, buying tens of seconds of walk. At B = 20_000 the
-// worst package the guard still accepts measures 0.81us/byte (325 bytes, depth
-// 10; depth 11 is rejected) — 0.6x the priced rate. So per-message cost is
-// bounded by per-message gas, and any number of messages is then bounded by the
-// per-tx GasWanted and the block gas limit, which already exist.
-//
-// Honest code is unaffected: the largest per-package total in real code is 181,
-// measured over all stdlibs and examples including their test files and pinned by
-// TestHonestTypeExpansionUnderBudget, so 20_000 still leaves ~110x headroom.
-//
-// Because the bound is a total it also caps value-containment DEPTH near 135
-// (a linear chain of depth d totals ~d^2 nodes). That is honest arithmetic, not a
-// fan-out special case, and far past any real type — measured max depth in
-// stdlibs and examples is single digits.
-//
-// A per-package cap cannot bound a transaction, though: one MsgAddPackage
-// re-type-checks its whole dependency closure, whose source bytes were paid for by
-// EARLIER transactions. So the count is also charged to TypeCheckOptions.GasMeter,
-// per package and before that package's walk. See the ADR for why per package and
-// why gas rather than a second cap.
-//
-// Both are kept because they bound different things. The charge prices the work,
-// at a rate measured in ns/node that can be wrong on other hardware. The cap
-// bounds a machine-independent quantity — nodes per package — unconditionally, so
-// a mis-estimated rate can leave a package under-charged but never unbounded. It
-// also floors the maximum charge at budget*rate = 500k gas per package, keeping
-// one package from eating a block and the int64 multiply trivially safe.
-//
-// The chain sets TypeCheckOptions.ProdOnly, so on-chain go/types runs exactly
-// one Check per package and never type-checks test files. This guard still
-// scores every parsed file, test files included, so on-chain it over-counts
-// relative to what validType actually walks. That is deliberate: over-counting
-// can only reject, never admit, and those files are still type-checked off-chain
-// by gno test / gno lint, where the same fan-out would hang a developer.
-//
-// The budget is a deterministic node count, not a wall-clock limit, so the check
-// is consensus-safe.
+// 1_000_000 is far above honest code — the largest per-package total measured over
+// all stdlibs and examples including test files is 181, pinned by
+// TestHonestTypeExpansionUnderBudget, so ~5500x headroom — and bounds an unmetered
+// walk at ~25ms per package (~25ns/node, Apple Silicon go1.25). Because it caps a
+// total it also caps value-containment DEPTH near 1000, since a linear chain of
+// depth d totals ~d^2 nodes; that is honest arithmetic, not a fan-out special
+// case, and orders of magnitude past any real type.
 //
 // MAINTENANCE: cost() below mirrors validType's containment edges for the go1.17
-// subset Gno accepts. Two classes of construct are NOT modelled here because
-// they are rejected before this runs; each rejection is therefore a precondition
-// of this guard's soundness, not an independent nicety:
+// subset Gno accepts. Two classes of construct are NOT modelled here because they
+// are rejected before this runs; each rejection is therefore a precondition of
+// this guard's soundness, not an independent nicety:
 //
 //   - go1.18 generic instantiation (type-argument substitution) and interface
 //     type-set terms (unions, ~T). validType walks both, but cost() does not
@@ -103,16 +75,16 @@ import (
 //     resolves in the declaring package only); checkNoDotImports rejects them.
 //
 // Two further edges are under-counted rather than rejected, and stay safe only
-// because their source is fixed and cannot grow with input: imported stdlib
-// types (see expansionPkgResolver) and the `realm`/`address` names from the
-// .gnobuiltins.gno shim, which is injected AFTER these guards run and so is
-// scored as a leaf. Both are bounded by construction; see the ADR.
+// because their source is fixed and cannot grow with input: imported stdlib types
+// (see expansionPkgResolver) and the `realm`/`address` names from the
+// .gnobuiltins.gno shim, which is injected AFTER these guards run and so is scored
+// as a leaf. Both are bounded by construction; see the ADR.
 //
 // Revisit this file if a toolchain upgrade adds a go1.17-reachable edge, if
 // validType is finally memoized (golang/go#65711), or if Gno ever accepts
 // generics/type-sets/dot imports (they would then have to be counted here, not
 // rejected) — under-counting a live edge would silently reopen the DoS.
-const typeExpansionBudget = 20_000
+const typeExpansionCeiling = 1_000_000
 
 // typeExpansionGasPerNode prices one node of the validType walk. 1 gas ~= 1ns on
 // the reference machine and the walk measures ~25ns/node (Apple Silicon go1.25).
@@ -380,7 +352,7 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 // checkTypeExpansionBound rejects packages whose named types would cause
 // go/types' validType walk to run super-linearly. Imports are treated as leaves;
 // use checkTypeExpansionBoundImports to follow value-containment across packages.
-// See typeExpansionBudget.
+// See typeExpansionCeiling.
 func checkTypeExpansionBound(fset *token.FileSet, gofs []*ast.File) error {
 	_, err := checkTypeExpansionBoundImports(fset, "", gofs, nil, nil)
 	return err
@@ -416,12 +388,12 @@ func checkTypeExpansionBoundImports(fset *token.FileSet, entryPath string, gofs 
 			}
 		}
 	}
-	if total > typeExpansionBudget {
+	if total > typeExpansionCeiling {
 		return 0, fmt.Errorf(
 			"%s: this package's named types expand to %d nodes during type "+
 				"validation, exceeding the limit of %d (largest: type %s at %d) "+
 				"(possible denial-of-service vector)",
-			fset.Position(worst.Name.Pos()), total, typeExpansionBudget,
+			fset.Position(worst.Name.Pos()), total, typeExpansionCeiling,
 			worst.Name.Name, worstCost)
 	}
 	return total, nil

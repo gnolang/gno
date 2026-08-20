@@ -191,7 +191,7 @@ type TypeCheckOptions struct {
 	// the remaining dependencies are walked. Returning an error instead would NOT
 	// abort — go/types records importer errors and keeps resolving the rest.
 	//
-	// See typeExpansionBudget for why the closure must be priced at all.
+	// See typeExpansionCeiling for why the closure must be priced at all.
 	GasMeter store.GasMeter
 
 	// Fset, if non-nil, is used for Go parsing instead of creating a new one.

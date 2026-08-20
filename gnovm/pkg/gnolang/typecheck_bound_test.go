@@ -46,7 +46,7 @@ func fanOutSrc(depth int) string {
 
 // doublingPkgSrc builds an importable package whose exported T tops a doubling
 // chain of the given depth. Callers pick a depth whose total stays under
-// typeExpansionBudget, so the package is accepted on its own and only a further
+// typeExpansionCeiling, so the package is accepted on its own and only a further
 // cross-package multiplication pushes a dependent over. imp, when non-empty, is
 // imported and referenced, so a chain of these forms a dependency closure.
 func doublingPkgSrc(pkgName string, depth int, imp string) string {
@@ -129,7 +129,7 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 			// Depth alone must not read as fan-out: each level contains the
 			// previous one once, so the walk is linear per type.
 			"deep linear chain passes",
-			linearChainSrc(120),
+			linearChainSrc(900),
 			false,
 		},
 		{
@@ -137,10 +137,10 @@ func TestCheckTypeExpansionBound(t *testing.T) {
 			// depth d costs ~d^2 in total (each of the d types costs O(d)), so an
 			// extreme depth is rejected on honest arithmetic rather than as a
 			// special case: validType really does visit ~4M nodes here. The cap
-			// lands near depth 135, orders of magnitude past any real type (measured
+			// lands near depth 1000, orders of magnitude past any real type (measured
 			// max depth in stdlibs/examples is single digits).
 			"extreme linear depth rejected on aggregate cost",
-			linearChainSrc(300),
+			linearChainSrc(2000),
 			true,
 		},
 		{
@@ -335,7 +335,7 @@ func TestDotImportFanOutRejected(t *testing.T) {
 	// local chain also stays under budget.
 	dep := &std.MemPackage{
 		Type: MPUserProd, Name: "dep", Path: "gno.land/p/demo/dep",
-		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 8, "")}},
+		Files: []*std.MemFile{{Name: "dep.gno", Body: doublingPkgSrc("dep", 12, "")}},
 	}
 	getter := mockPackageGetter{dep}
 
@@ -363,7 +363,7 @@ func TestDotImportFanOutRejected(t *testing.T) {
 				Type: MPUserProd, Name: "fan", Path: "gno.land/p/demo/fan",
 				Files: []*std.MemFile{{
 					Name: "fan.gno",
-					Body: tc.head + doublingChain("u", 1, 2),
+					Body: tc.head + doublingChain("u", 1, 9),
 				}},
 			}
 			_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
@@ -385,7 +385,7 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 	// p0: a doubling chain whose count (~57k) is legitimately under budget on its
 	// own; p1 embeds p0.T four times, pushing the cross-package count over.
 	pkgs := map[string]string{
-		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8, ""),
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 12, ""),
 	}
 
 	// p1..p5: each embeds the previous package's T four times.
@@ -419,18 +419,18 @@ func TestCheckTypeExpansionBoundImports(t *testing.T) {
 // TestCheckTypeExpansionBoundAggregate pins that the budget bounds the TOTAL
 // walk, not the largest single type. go/types runs validType once per declared
 // type, so many individually-cheap types sharing one chain sum to a walk no
-// per-type cap would catch: each type here costs ~450 nodes, comfortably under
-// the budget, but enough of them push the package total past it.
+// per-type cap would catch: each type here costs ~7k nodes, comfortably under the
+// ceiling, but enough of them push the package total past it.
 func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
 	t.Parallel()
 
-	// A depth-6 chain plus n types that each hang one array off its tip, so each
-	// costs ~450 and none is individually remarkable.
+	// A depth-10 chain plus n types that each hang one array off its tip, so each
+	// costs ~7166 and none is individually remarkable.
 	src := func(n int) string {
 		var b strings.Builder
-		b.WriteString(fanOutSrc(6))
+		b.WriteString(fanOutSrc(10))
 		for i := range n {
-			fmt.Fprintf(&b, "type A%d struct{ x [0]T6 }\n", i)
+			fmt.Fprintf(&b, "type A%d struct{ x [0]T10 }\n", i)
 		}
 		return b.String()
 	}
@@ -440,8 +440,8 @@ func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
 		n       int
 		wantErr bool
 	}{
-		{"under the aggregate budget passes", 20, false},
-		{"over the aggregate budget rejected", 60, true},
+		{"under the aggregate budget passes", 100, false},
+		{"over the aggregate budget rejected", 140, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -466,7 +466,7 @@ func TestCheckTypeExpansionBoundAggregate(t *testing.T) {
 					}
 				}
 			}
-			assert.Less(t, worst, uint64(typeExpansionBudget),
+			assert.Less(t, worst, uint64(typeExpansionCeiling),
 				"costliest single type (%s) must stay under the budget", worstName)
 		})
 	}
@@ -481,7 +481,7 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 	t.Parallel()
 
 	pkgs := map[string]string{
-		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 8, ""),
+		"gno.land/r/foobar/p0": doublingPkgSrc("p0", 13, ""),
 	}
 	for i, prev := 1, "p0"; i <= 4; i++ {
 		name := fmt.Sprintf("p%d", i)
@@ -572,7 +572,7 @@ func (m *recordingGasMeter) ConsumeGas(amount store.Gas, descriptor string) {
 
 // TestExpansionChargedPerPackage pins that every package in a dependency closure
 // is charged individually, and that an out-of-gas aborts the walk mid-closure
-// rather than after every package has been walked. See typeExpansionBudget.
+// rather than after every package has been walked. See typeExpansionCeiling.
 func TestExpansionChargedPerPackage(t *testing.T) {
 	t.Parallel()
 

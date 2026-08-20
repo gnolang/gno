@@ -15,13 +15,13 @@ runs, by a deterministic node count.
 |---|---|---|
 | `checkNoUncountableGenerics` | type parameters, `\|`, `~` | the shapes `cost()` cannot model |
 | `checkNoDotImports` | dot imports | hide a type's expansion from `cost()` |
-| `checkTypeExpansionBound` | over-budget expansion totals | the DoS itself |
+| `checkTypeExpansionBound` | over-ceiling expansion totals | the DoS itself |
 
 The count `checkTypeExpansionBound` computes is also reported to the keeper, which
 charges gas for it — the cap bounds one package, the charge bounds a transaction.
 Division of labour with `Go2Gno` (completeness, not cost): #6059.
 
-## Decision: the budget bounds the per-package TOTAL, not the largest type
+## Decision: the ceiling bounds the per-package TOTAL, not the largest type
 
 `validType` runs once per declared named type, so a transaction pays the **sum**.
 An earlier revision capped the largest single type at 100_000 and left the sum
@@ -30,37 +30,46 @@ source bytes each, so a per-type cap `B` permits ~`B/28` nodes per byte with no
 ceiling. Measured ~130µs/byte against the ~1.25µs/byte `PreprocessGasPerByte`
 charges — ~100x under-priced, so a 1MB `MsgAddPackage` bought minutes of CPU.
 
-Budget is therefore the per-package total, **20_000**, chosen so the worst
-*accepted* package costs about what it pays for — which is what makes the bound
-hold per **transaction**, not merely per package.
+The ceiling is therefore the per-package total, **1_000_000**, and deliberately
+*not* the primary defence — that is the per-node gas charge below. A per-package
+ceiling cannot bound a transaction at all, and once the charge prices the walk
+accurately there is no reason for it to also second-guess what a sender can
+afford: at 1_000_000 one package's charge (2.5e7 gas) already exceeds a typical
+`GasWanted`, so **gas binds first — an expensive package deploys if paid for**.
 
-Gas is charged per source byte (`PreprocessGasPerByte = 1250`, and 1 gas ≈ 1ns on
-the reference machine → ~1.25µs of CPU per byte). Bytes are a poor proxy here:
-each extra `type tN struct{ a, b [0]tN-1 }` line is ~31 bytes and *doubles* the
-total, so the worst shape is a doubling chain: `B / (33 + 31·log2(B/14))` nodes
-per byte at ~25ns/node.
+An intermediate revision set it to 20_000, so the worst accepted package's CPU
+stayed under what its *bytes* paid for — the right fix while byte-gas was the only
+charge, superseded by per-node charging. Reverted: it only rejected packages a
+sender could afford.
 
-| budget | worst accepted | µs/byte | vs priced 1.25 |
-|---|---|---|---|
-| 1_000_000 | 511 bytes, ~24ms | 47.6 (measured) | **38x** |
-| 20_000 | 325 bytes, ~263µs | 0.81 (measured) | **0.6x** |
+It covers the two cases gas cannot:
 
-Honest code is unaffected: the largest per-package total in real code is 181, over
-all stdlibs and examples including test files, pinned by
-`TestHonestTypeExpansionUnderBudget` — ~110x headroom.
+- **Unmetered callers.** `gno test`, `gno lint` and gnodev pass no `GasMeter`, so
+  nothing else stops a 2^40 walk hanging a developer's machine.
+- **A broken charge.** This happened: an `AddPackage` wiring slip left the charge
+  at zero and every suite still passed, because the ceiling kept the blast radius
+  finite. `TestVMKeeperAddPackage_TypeExpansionGasCharged` now guards the wiring;
+  the ceiling is what makes such a slip survivable.
+
+It stays global rather than applying only when no meter is set, so both callers
+reach the same verdict — a local `gno test` must never be stricter than the chain —
+and so it survives a mis-wired charge.
+
+Honest code is far below: largest per-package total over all stdlibs and examples
+including test files is 181 (pinned by `TestHonestTypeExpansionUnderBudget`),
+~5500x headroom, and an unmetered walk is bounded at ~25ms per package. Capping a
+total also caps containment depth near 1000 (a linear chain of depth `d` totals
+~`d²` nodes) — honest arithmetic, not a fan-out special case.
 
 ### Making the bound hold per transaction, not just per package
 
-A per-package cap does not bound a transaction, in two ways.
-**Multiple messages.** `Tx.Msgs` is unbounded (`ValidateBasic` caps gas, not the
-message count) and baseapp dispatches each to the handler, so N messages each pay
-the budget in full — at the old 1_000_000, ~1400 near-budget packages in a 1MB tx.
-Closed by the budget above: per-message CPU is now under per-message gas.
-
-**Transitive dependencies.** One message re-type-checks its whole closure, whose
-bytes earlier transactions paid for. Measured: a 55-byte package importing the tip
-of a 30-deep chain pulls in 321,070 closure nodes against 68,750 gas of byte
-charges — 117x unpriced, which byte parity cannot fix.
+A per-package ceiling says nothing about a transaction, two ways over. `Tx.Msgs` is
+unbounded (`ValidateBasic` caps gas, not the message count) and baseapp dispatches
+each message to the handler, so N messages each pay the ceiling in full. And one
+message re-type-checks its whole closure, whose bytes *earlier* transactions paid
+for: measured, a 55-byte package importing the tip of a 30-deep chain pulls in
+321,070 closure nodes against 68,750 gas of byte charges — 117x unpriced, which no
+per-byte charge can fix.
 
 Closed by charging for the count the guard already computes — exactly, linearly,
 and outside `go/types`. It is charged to `TypeCheckOptions.GasMeter` once per
@@ -80,16 +89,13 @@ package and **before** that package is walked, at `typeExpansionGasPerNode = 25`
   counter-example: `pkg/parser` is a tm2-free fork, so *it* needs the callback.
 - **Rejected packages are not charged** — their total is the cost *avoided*.
   `TestExpansionNotChargedWhenRejected` pins it.
-- **The cap stays**: the charge prices work at a machine-calibrated rate, while the
-  cap bounds nodes per package unconditionally, so a wrong rate can under-charge
-  but never unbound. It also floors the worst charge at 500k gas per package.
 
 No gas fixture needed re-pinning: honest totals are small (largest 181, ~4.5k gas)
 and `TestTestdata` passes unchanged. The guard scores test files `ProdOnly`
-excludes, so the charge can over-charge, never under. The rate is a gnovm constant beside the
-budget rather than a vm `Params` field: it is a measured ns/node rate for work
-gnovm performs, which is where `tokenCostFactor` and `OpCPU*` live, not a
-governance knob. Promoting it is reasonable later — the cap is what makes a
+excludes, so the charge can over-charge, never under. The rate is a gnovm constant
+beside the ceiling rather than a vm `Params` field: it is a measured ns/node rate
+for work gnovm performs, which is where `tokenCostFactor` and `OpCPU*` live, not a
+governance knob. Promoting it is reasonable later — the ceiling is what makes a
 governable rate safe.
 
 Toolchain-upgrade check: this relies on `go/types` re-panicking non-`bailout`
@@ -104,13 +110,14 @@ every toolchain bump, across several internal passes with no single hook point.
 Charging the count this guard already computes is a different thing entirely — it
 happens outside `go/types` and needs no fork.
 
-**A governance `Params` value for the budget.** Rejected: a param adds two bricking
-modes a constant cannot (set to 1, all deploys fail; set huge, the DoS reopens),
-and changing a constant is a consensus change needing a binary upgrade — the right
-ceremony for a safety rule. Note the budget is *calibrated against*
-`PreprocessGasPerByte`, one-directionally and unenforced: raising that param only
-makes the guard more conservative, whereas **lowering** it breaks parity and
-`Validate` only requires it positive. If it drops, this budget must drop too.
+**A governance `Params` value.** Two candidates, both deferred. The *ceiling* is a
+safety rule, and a param there adds two bricking modes a constant cannot (set to 1,
+all deploys fail; set huge, the DoS reopens), so a binary upgrade is the right
+ceremony. The *rate* is a price and genuinely belongs in `Params` — the ceiling is
+what makes handing it to governance safe, since a rate set too low then
+under-charges but cannot unbound the walk. Not done here only because `Params` is
+amino-generated: adding a field needs `go generate`, which AGENTS.md keeps out of
+ordinary PRs, plus a new legacy fingerprint for the repricing.
 
 ## Decision: stdlib types are a bounded leaf
 
@@ -173,7 +180,7 @@ scores anything unresolved as a leaf. A dot-imported type is named by a bare
 identifier, so it lands in that leaf case while `validType` expands it in full
 across the import boundary — the cross-package hole again: written as `pkg.T` a
 chain is rejected in microseconds, written as `T` under `import . "pkg"` it passed
-the budget and left `go/types` churning for tens of seconds. Gno never accepted
+the ceiling and left `go/types` churning for tens of seconds. Gno never accepted
 dot imports, but the preprocessor's rejection runs *after* the type checker on the
 deploy path, too late.
 
@@ -188,7 +195,7 @@ import.
 
 Consequence: the guard's soundness rests on two syntactic preconditions — no
 generics/type-sets, no dot imports — both recorded in the `MAINTENANCE:` note on
-`typeExpansionBudget`. If either is relaxed, the corresponding edge must be
+`typeExpansionCeiling`. If either is relaxed, the corresponding edge must be
 counted in `cost()` first.
 
 ## Open question: fatal vs. normal type-check errors
