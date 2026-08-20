@@ -2,8 +2,13 @@ package transpiler
 
 import (
 	"go/ast"
+	"go/build/constraint"
+	"go/scanner"
+	"go/token"
 	"strings"
 	"testing"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -332,5 +337,112 @@ func TestMixedDocGroupMatchesInertEquivalent(t *testing.T) {
 			assert.Equal(t, want.Translated, got.Translated,
 				"neutralizing must be a plain substitution, changing nothing else")
 		})
+	}
+}
+
+// The invariant stated where it actually holds: in the bytes that get written.
+//
+// Everything else in this file asserts the AST-side behaviour, which is only
+// correct insofar as it predicts go/printer -- and seven defects in review were
+// exactly that prediction going wrong. This test does not predict: it transpiles,
+// re-scans the produced text with go/scanner, and fails if a directive survived
+// in a comment or reached column 1.
+//
+// It is a check rather than a repair on purpose. The neutralization has to stay
+// on the AST side, because go/printer's line-creating behaviour is driven by
+// directive classification, which is an input: a legacy "// +build" makes it
+// synthesize a "//go:build" line, and a multi-line "/*line ...*/" in doc
+// position makes formatDocComment expand two lines into four. Acting before the
+// print prevents both; acting after could only undo them by deleting lines,
+// which would move every position after them.
+func TestOutputCarriesNoLiveDirective(t *testing.T) {
+	t.Parallel()
+
+	indents := []string{"", " ", "\t", " * ", "\v", "\f"}
+	bodies := []string{
+		"//go:generate echo X", "//go:build ignore", "//line f.gno:9:1",
+		"//go:noinline", "//nolint:gosec", "// +build ignore",
+	}
+	positions := []string{"doc", "floating", "inline"}
+
+	for _, imp := range []string{"", "import (\n\t\"errors\"\n)\n\n"} {
+		for _, pos := range positions {
+			for _, ind := range indents {
+				for _, b := range bodies {
+					for _, wrap := range []string{"line", "block", "opener"} {
+						var comment string
+						switch wrap {
+						case "line":
+							comment = ind + b + "\n"
+						case "block":
+							comment = "/*\n" + ind + b + "\n*/\n"
+						case "opener":
+							// The directive shares the line with "/*", which
+							// formatDocComment then moves onto its own line.
+							comment = "/*" + ind + b + "\nprose\n*/\n"
+						}
+						var src string
+						switch pos {
+						case "doc":
+							src = "package tr\n\n" + imp + comment + "func F() {}\n"
+						case "floating":
+							src = "package tr\n\n" + imp + comment + "\nfunc F() {}\n"
+						case "inline":
+							src = "package tr\n\n" + imp + "func F() {\n" + comment + "}\n"
+						}
+						res, err := Transpile(src, "gno", "tr.gno")
+						if err != nil {
+							continue // not every shape is valid Gno
+						}
+						assertNoLiveDirective(t, res.Translated, src)
+					}
+				}
+			}
+		}
+	}
+}
+
+// assertNoLiveDirective re-reads generated text the way the toolchain does.
+func assertNoLiveDirective(t *testing.T, out, src string) {
+	t.Helper()
+
+	// The transpiler writes its own //go:build and //line; everything the
+	// toolchain should act on ends with that header.
+	header, body, ok := strings.Cut(out, "//line tr.gno:1:1\n")
+	if !ok {
+		t.Fatalf("expected the transpiler's //line header in:\n%s", out)
+	}
+	require.Equal(t, 1, strings.Count(header, "//go:build"),
+		"header must carry exactly one build constraint")
+
+	// `go generate` never parses: it scans raw lines for the prefix at column 1.
+	for _, line := range strings.Split(body, "\n") {
+		require.False(t, strings.HasPrefix(line, "//go:generate"),
+			"a directive reached column 1 of the output.\nsource:\n%s\noutput:\n%s", src, out)
+	}
+
+	// Everything else is read from comments, so ask go/scanner which spans are
+	// comments rather than guessing.
+	fset := token.NewFileSet()
+	var sc scanner.Scanner
+	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, scanner.ScanComments)
+	for {
+		_, tok, lit := sc.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok != token.COMMENT {
+			continue
+		}
+		if lit == neutralizedMarker {
+			// Directive-shaped on purpose -- that is what makes
+			// formatDocComment keep the line -- and inert to every tool:
+			// "gno" is nobody's tool name. Checked against go build, go vet
+			// and go generate.
+			continue
+		}
+		require.False(t, gno.IsDirectiveComment(lit) || isNolintComment(lit) ||
+			constraint.IsPlusBuild(lit),
+			"a live directive %q survived in the output.\nsource:\n%s", lit, src)
 	}
 }
