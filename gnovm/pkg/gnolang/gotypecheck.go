@@ -523,6 +523,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
+	// Returns: fileset, all files, then those split — package, xxx_test, filetests.
 	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, gimp.fset)
 	if errs != nil {
 		return nil, errs
