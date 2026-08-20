@@ -57,9 +57,19 @@ tool acts on: `gno` is nobody's tool name, and it is neither `//line`,
 `//extern`, `//export` nor `//nolint` — checked against `go build`, `go vet`
 and `go generate`.
 
-That failure only appears when the file has a parenthesized import block, which
-is what makes `format.Node` re-parse and take that path; the first version of
-the line-count test had none and passed while the bug was live.
+The same applies inside a block comment, for the same reason: an emptied
+interior renders to nothing and the block collapses. There the marker replaces
+only the directive, and the line's **leading prefix is preserved byte for
+byte** — `go/printer.stripCommonPrefix` derives the block's indentation from
+what its interior lines share, so substituting the whole line re-indents the
+block's other lines and moves more than it fixes.
+
+Both failures only appear when the file has a parenthesized import block, which
+is what makes `format.Node` re-parse and route the comment through
+`formatDocComment`; the first version of the line-count test had none and passed
+while the bug was live. It is now asserted over shapes — doc, floating and
+inline positions × eight indentations × four comment bodies × with and without
+an import block — rather than over examples.
 
 A `//go:generate` line **inside a block comment** is neutralized too. Go treats
 it as commentary, but `go generate` scans physical lines and never parses, so it

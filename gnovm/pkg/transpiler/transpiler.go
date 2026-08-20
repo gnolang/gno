@@ -192,13 +192,25 @@ func neutralizeDirective(text string) string {
 			!strings.HasPrefix(trimmed, "//go:generate\t") {
 			continue
 		}
-		// Keep a "*/" that shares the line: dropping it would leave the comment
-		// unterminated, and Result.File hands the tree to callers.
+		// Replace the directive, keep the line. Emptying it costs a line when
+		// the block sits in doc position: formatDocComment re-renders the
+		// comment and a blank interior renders to nothing, which is the drift
+		// this whole approach exists to avoid.
+		//
+		// The leading prefix is preserved byte for byte, because
+		// go/printer.stripCommonPrefix derives the block's indentation from
+		// what its interior lines share. Substituting the whole line instead --
+		// marker included -- changes that shared prefix and re-indents the
+		// block's other lines, which moves more than it fixes.
+		//
+		// A "*/" sharing the line is kept, or the comment would not terminate
+		// and Result.File hands the tree to callers.
+		prefix := line[:len(line)-len(trimmed)]
+		tail := ""
 		if end := strings.Index(line, "*/"); end >= 0 {
-			lines[i] = line[end:]
-		} else {
-			lines[i] = ""
+			tail = line[end:]
 		}
+		lines[i] = prefix + neutralizedMarker + tail
 		changed = true
 	}
 	if !changed {

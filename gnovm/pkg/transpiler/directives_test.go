@@ -243,3 +243,47 @@ func TestTranspileNeutralizesLegacyBuildConstraint(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(res.Translated, "//go:build"),
 		"a synthesized //go:build would collide with the header and break `go build`")
 }
+
+// The line-count invariant, asserted over shapes rather than examples. Two
+// separate bugs lived here: an emptied line comment vanished in doc position,
+// and an emptied block-comment interior collapsed the block. Both only appear
+// with a parenthesized import block, which is what makes format.Node re-parse
+// and route the comment through formatDocComment.
+func TestLineParityAcrossShapes(t *testing.T) {
+	t.Parallel()
+
+	indents := []string{"", " ", "  ", "\t", " * ", "*", "\v", "\f"}
+	bodies := []string{"//go:generate echo X", "//go:build ignore", "//line f.gno:9:1", "ordinary text"}
+	positions := []string{"doc", "floating", "inline"}
+	// The import block is load-bearing: without one the bugs are invisible.
+	imports := []string{"", "import (\n\t\"errors\"\n)\n\n"}
+
+	for _, imp := range imports {
+		for _, pos := range positions {
+			for _, ind := range indents {
+				for _, b := range bodies {
+					block := "/*\n" + ind + b + "\n*/\n"
+					var src string
+					switch pos {
+					case "doc":
+						src = "package tr\n\n" + imp + block + "func F() {}\n"
+					case "floating":
+						src = "package tr\n\n" + imp + block + "\nfunc F() {}\n"
+					case "inline":
+						src = "package tr\n\n" + imp + "func F() {\n" + block + "}\n"
+					}
+					res, err := Transpile(src, "gno", "tr.gno")
+					if err != nil {
+						continue
+					}
+					_, out, ok := strings.Cut(res.Translated, "//line tr.gno:1:1\n")
+					if !ok {
+						continue
+					}
+					require.Equal(t, strings.Count(src, "\n"), strings.Count(out, "\n"),
+						"line drift: position=%s indent=%q body=%q", pos, ind, b)
+				}
+			}
+		}
+	}
+}
