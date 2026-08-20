@@ -2850,13 +2850,6 @@ type Block struct {
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 
-	// notRecyclable marks the block as ineligible for Machine.releaseBlock's
-	// pool because a reference to it may outlive its time on the machine's
-	// block stack (currently only Defer.Parent; see setNotRecyclable). It is
-	// transient runtime state — not persisted, and zeroed when a block is
-	// recycled or freshly allocated.
-	notRecyclable bool
-
 	// poisoned marks a block that has been returned to the machine's block
 	// pool (see Machine.releaseBlock). It only carries meaning under the
 	// debugAssert build tag, where PointerValue.Deref/Assign2 panic on a
@@ -2930,12 +2923,6 @@ func normalizeDecodedCap(oo Object) {
 		b.Values = b.Values[:len(b.Values):len(b.Values)]
 	}
 }
-
-// setNotRecyclable marks the block as ineligible for Machine.releaseBlock's
-// pool, because a reference to it may outlive its time on the machine's
-// block stack (currently only Defer.Parent, which the garbage collector
-// visits until the defer runs).
-func (b *Block) setNotRecyclable() { b.notRecyclable = true }
 
 // initHeapItems prepopulates the heap-item slots of a block's values per
 // source.GetHeapItems(); these slots must always hold heap items. Used by
