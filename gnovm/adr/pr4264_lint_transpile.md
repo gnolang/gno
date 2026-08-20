@@ -47,7 +47,3 @@ In `pkg/gnolang/gotypecheck.go`, `TypeCheck*()` diverges at step 4 and terminate
 In `pkg/test/imports.go`, `_processMemPackage()` after loading when .PreprocessOnly:
   3. `GoParseMemPackage()`
   4. `PrepareGno0p9()`
-
-See also: [PR #5826 — pre-type-check guards](./pr5826_typecheck_dos_guards.md),
-which documents the guards that run between steps 3 and 4 above (type-expansion
-bound, generics and dot-import rejections).

@@ -9,7 +9,9 @@ memoize visited types — the optimization is commented out as a workaround for
 exponential on value-containment fan-out: a ~40-line "doubling" chain costs ~2^40
 node visits, and ~1KB of source hangs every validator. It cannot be metered
 mid-flight (stdlib, non-interruptible), so it must be priced *before* `go/types`
-runs, from a deterministic node count.
+runs, from a deterministic node count. Everything here happens between steps 3 and
+4 of the type-check pipeline described in
+[PR #4264 — lint/transpile](./pr4264_lint_transpile.md).
 
 ## Decision: price the walk, do not cap it
 
