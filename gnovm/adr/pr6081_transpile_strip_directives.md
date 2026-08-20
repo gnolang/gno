@@ -49,9 +49,18 @@ non-empty — an emptied group is invalid (`Pos()` indexes `List[0]`) and
 A `//go:generate` line **inside a block comment** is neutralized too. Go treats
 it as commentary, but `go generate` scans physical lines and never parses, so it
 runs anyway. The line is matched *as it will be printed*, not as it was written:
-`go/printer.stripCommonPrefix` drops the common leading whitespace of a block
+`go/printer.stripCommonPrefix` drops the common leading prefix of a block
 comment's interior, so an indented directive in the source arrives at column 1
-in the output, which is where `go generate` looks.
+in the output, which is where `go generate` looks. The prefix rule is copied
+from go/printer (`a[i] <= ' ' || a[i] == '*'`) rather than approximated —
+approximating it was wrong twice, first missing tabs and then a vertical tab,
+each time leaving a directive live. A test asserts the property over every byte
+the printer could strip instead of over the spellings already known to fail.
+
+The legacy `// +build` form is neutralized too. Go's directive classifier
+excludes it, but `go/printer` synthesizes a matching `//go:build` line for it,
+which then collides with the header and makes `go build` fail with the very
+error this ADR opens on.
 
 `IsDirectiveComment` in `gnovm/pkg/gnolang` decides what counts: `//line`,
 `//extern`, `//export`, the `//tool:name` form, and the block `/*line ...*/`

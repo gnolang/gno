@@ -188,3 +188,47 @@ func TestTranspileKeepsBlockCommentTerminated(t *testing.T) {
 		}
 	}
 }
+
+// The whitespace rule was approximated wrong twice -- first missing tabs, then a
+// vertical tab -- each time letting an indented directive reach column 1 of the
+// output, because go/printer strips any prefix byte <= \' \' (or \'*\') from a
+// block comment's interior. So assert the property over every byte the printer
+// could strip, rather than the few spellings already known to fail.
+func TestNoDirectiveReachesColumnOne(t *testing.T) {
+	t.Parallel()
+
+	for b := 1; b <= 0x20; b++ {
+		if b == '\n' || b == '\r' {
+			continue // ends the line rather than indenting it
+		}
+		for _, prefix := range []string{
+			string(rune(b)),
+			string(rune(b)) + string(rune(b)),
+			"*" + string(rune(b)),
+			string(rune(b)) + "*" + string(rune(b)),
+		} {
+			source := "package tr\n\n/*\n" + prefix + "//go:generate echo X\n*/\nfunc F() {}\n"
+			res, err := Transpile(source, "gno", "tr.gno")
+			if err != nil {
+				continue // not every byte makes a parseable file
+			}
+			for _, line := range strings.Split(res.Translated, "\n") {
+				require.False(t, strings.HasPrefix(line, "//go:generate"),
+					"byte %#x with prefix %q let a directive reach column 1", b, prefix)
+			}
+		}
+	}
+}
+
+// Go's directive classifier excludes the legacy "// +build" form, but
+// go/printer synthesizes a matching "//go:build" for it, which then collides
+// with the header the transpiler writes.
+func TestTranspileNeutralizesLegacyBuildConstraint(t *testing.T) {
+	t.Parallel()
+
+	res, err := Transpile("// +build ignore\n\npackage tr\n\nfunc F() {}\n", "gno", "tr.gno")
+	require.NoError(t, err)
+	assert.NotContains(t, res.Translated, "+build ignore")
+	assert.Equal(t, 1, strings.Count(res.Translated, "//go:build"),
+		"a synthesized //go:build would collide with the header and break `go build`")
+}

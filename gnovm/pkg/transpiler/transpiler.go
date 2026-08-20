@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/format"
 	"go/parser"
 	goscanner "go/scanner"
@@ -143,7 +144,13 @@ func stripInheritedDirectives(f *ast.File) {
 // inert, preserving its line count so positions do not move.
 func neutralizeDirective(text string) string {
 	if strings.HasPrefix(text, "//") {
-		if gno.IsDirectiveComment(text) || isNolintComment(text) {
+		// constraint.IsPlusBuild covers the legacy "// +build" form, which Go's
+		// directive classifier excludes (it carries a space). Left alone,
+		// go/printer synthesizes a matching "//go:build" line, which then
+		// collides with the header written below and `go build` rejects the
+		// file: "multiple //go:build comments".
+		if gno.IsDirectiveComment(text) || isNolintComment(text) ||
+			constraint.IsPlusBuild(text) {
 			return "//"
 		}
 		return text
@@ -163,11 +170,11 @@ func neutralizeDirective(text string) string {
 	changed := false
 	for i, line := range lines {
 		// Indentation is not protection: go/printer.stripCommonPrefix drops the
-		// common leading whitespace of a block comment's interior when printing,
-		// so " //go:generate ..." in the source lands at column 1 in the output,
-		// which is where `go generate` looks. Match the line as it will be
-		// printed, not as it was written. The "*" is for the /* * ... */ style.
-		trimmed := strings.TrimLeft(line, " \t*")
+		// common leading prefix of a block comment's interior when printing, so
+		// an indented "//go:generate ..." in the source lands at column 1 in the
+		// output, which is where `go generate` looks. Match the line as it will
+		// be printed, not as it was written.
+		trimmed := trimPrintedCommentPrefix(line)
 		if !strings.HasPrefix(trimmed, "//go:generate ") &&
 			!strings.HasPrefix(trimmed, "//go:generate\t") {
 			continue
@@ -185,6 +192,22 @@ func neutralizeDirective(text string) string {
 		return text
 	}
 	return strings.Join(lines, "\n")
+}
+
+// trimPrintedCommentPrefix drops the leading bytes go/printer may strip from a
+// line inside a block comment, so a directive can be recognised as it will
+// appear in the output rather than as it was written.
+//
+// The predicate is go/printer's own (printer.go, stripCommonPrefix):
+// `a[i] <= ' ' || a[i] == '*'`. Approximating it with a fixed cutset was wrong
+// twice -- once missing tabs, once missing a vertical tab -- so it is copied
+// rather than guessed at.
+func trimPrintedCommentPrefix(line string) string {
+	i := 0
+	for i < len(line) && (line[i] <= ' ' || line[i] == '*') {
+		i++
+	}
+	return line[i:]
 }
 
 // isNolintComment reports whether a comment suppresses golangci-lint findings.
