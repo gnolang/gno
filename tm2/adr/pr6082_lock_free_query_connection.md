@@ -1,4 +1,4 @@
-# PRXXXX: Lock-Free Query Connection (Parallel Queries)
+# PR6082: Lock-Free Query Connection (Parallel Queries)
 
 Follow-up to [PR5431](./pr5431_concurrent_queries.md).
 
