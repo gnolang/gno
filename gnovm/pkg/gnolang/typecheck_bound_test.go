@@ -655,7 +655,7 @@ func newRecordingGasMeter(limit int64) *recordingGasMeter {
 }
 
 func (m *recordingGasMeter) ConsumeGas(amount store.Gas, descriptor string) {
-	m.charges = append(m.charges, int64(amount))
+	m.charges = append(m.charges, amount)
 	m.GasMeter.ConsumeGas(amount, descriptor)
 }
 

@@ -41,8 +41,8 @@ const leafExpansionBound = 32
 // expansionGas converts a node count to gas, clamping instead of wrapping:
 // int64(math.MaxUint64) is -1, so a saturated count would charge NEGATIVE gas.
 func expansionGas(nodes uint64) int64 {
-	const max = uint64(math.MaxInt64) / typeExpansionGasPerNode
-	if nodes > max {
+	const maxNodes = uint64(math.MaxInt64) / typeExpansionGasPerNode
+	if nodes > maxNodes {
 		return math.MaxInt64
 	}
 	return int64(nodes) * typeExpansionGasPerNode
