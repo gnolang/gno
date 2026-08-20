@@ -57,6 +57,16 @@ tool acts on: `gno` is nobody's tool name, and it is neither `//line`,
 `//extern`, `//export` nor `//nolint` — checked against `go build`, `go vet`
 and `go generate`.
 
+There are two markers, because keeping the classification is what makes the
+substitution invisible elsewhere — and not every neutralized comment starts as a
+directive. `//nolint` without a colon, `// nolint:...` and legacy `// +build` are
+ordinary comments to `go/ast` even though tools act on them; giving those the
+directive-shaped marker *changed* their class, and `formatDocComment` then
+extracted them from their doc group and inserted a separator, adding a line.
+They get a prose marker instead. Block comments are the exception in the other
+direction: dropping the class there is what restores parity, since the printer
+expands a directive block in doc position.
+
 Keeping the classification is what makes the substitution invisible elsewhere.
 In a doc group mixed with prose, `go/printer` moves directives after the text
 and inserts a separator — and it did that to the original directive too, so the

@@ -329,7 +329,7 @@ func TestMixedDocGroupMatchesInertEquivalent(t *testing.T) {
 			// transpiler must produce byte-identical output.
 			inert := doc
 			for _, d := range []string{"//go:noinline", "//go:nosplit", "//nolint:gosec"} {
-				inert = strings.ReplaceAll(inert, d, neutralizedMarker)
+				inert = strings.ReplaceAll(inert, d, directiveMarker)
 			}
 			want, err := Transpile(build(inert), "gno", "tr.gno")
 			require.NoError(t, err)
@@ -434,7 +434,7 @@ func assertNoLiveDirective(t *testing.T, out, src string) {
 		if tok != token.COMMENT {
 			continue
 		}
-		if lit == neutralizedMarker {
+		if lit == directiveMarker || lit == proseMarker {
 			// Directive-shaped on purpose -- that is what makes
 			// formatDocComment keep the line -- and inert to every tool:
 			// "gno" is nobody's tool name. Checked against go build, go vet
@@ -444,5 +444,57 @@ func assertNoLiveDirective(t *testing.T, out, src string) {
 		require.False(t, gno.IsDirectiveComment(lit) || isNolintComment(lit) ||
 			constraint.IsPlusBuild(lit),
 			"a live directive %q survived in the output.\nsource:\n%s", lit, src)
+	}
+}
+
+// Neutralizing a LINE comment must not change how go/ast classifies it.
+//
+// go/printer treats the two classes differently -- formatDocComment extracts
+// directives out of a doc group and inserts a separator -- so turning a
+// non-directive into a directive adds a line and moves every position after it.
+// "//nolint" without a colon, "// nolint:...", and legacy "// +build" are all
+// ordinary comments to go/ast even though tools act on them, which is why they
+// get a prose marker rather than the directive one.
+//
+// Block comments are deliberately excluded: there, dropping the classification
+// is what *restores* parity, because go/printer expands a directive block in
+// doc position (measured: 9 source lines printed as 11, and 9 again once
+// neutralized). The line-count tests cover that case directly.
+func TestNeutralizingPreservesClassification(t *testing.T) {
+	t.Parallel()
+
+	for _, text := range []string{
+		"//go:generate echo x", "//go:noinline", "//go:build ignore",
+		"//line f.gno:9:1", "//export F", "//go:x",
+		"//nolint", "//nolint:gosec", "// nolint:gosec", "//nolint // why",
+		"// +build ignore", "// +build",
+		"// ordinary comment", "// see: the docs",
+	} {
+		got := neutralizeDirective(text)
+		assert.Equal(t, gno.IsDirectiveComment(text), gno.IsDirectiveComment(got),
+			"classification changed for %q -> %q", text, got)
+	}
+}
+
+// End to end: a neutralized comment sharing a doc group with prose must not
+// change the file's line count, which is what the classification property buys.
+func TestDocGroupLineCountUnchanged(t *testing.T) {
+	t.Parallel()
+
+	for name, doc := range map[string]string{
+		"bare nolint":   "//nolint\n// prose doc",
+		"spaced nolint": "// nolint:gosec\n// prose doc",
+		"legacy build":  "// +build ignore\n// prose doc",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			src := "package tr\n\nimport (\n\t\"errors\"\n)\n\n" + doc +
+				"\nfunc F() error { return errors.New(\"x\") }\n"
+			res, err := Transpile(src, "gno", "tr.gno")
+			require.NoError(t, err)
+			_, out, ok := strings.Cut(res.Translated, "//line tr.gno:1:1\n")
+			require.True(t, ok)
+			assert.Equal(t, strings.Count(src, "\n"), strings.Count(out, "\n"))
+		})
 	}
 }

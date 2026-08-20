@@ -151,7 +151,12 @@ func stripInheritedDirectives(f *ast.File) {
 // exactly what blanking exists to prevent. formatDocComment passes a directive
 // through verbatim, so the line survives. Reproduced with an import block
 // present, which is what makes format.Node re-parse and take that path.
-const neutralizedMarker = "//gno:removed-directive"
+const (
+	directiveMarker = "//gno:removed-directive"
+	// Prose, deliberately: it replaces comments go/ast does not classify as
+	// directives, and the substitution has to leave that classification alone.
+	proseMarker = "// removed directive"
+)
 
 // neutralizeDirective returns the comment with any directive in it rendered
 // inert, preserving its line count so positions do not move.
@@ -162,9 +167,17 @@ func neutralizeDirective(text string) string {
 		// go/printer synthesizes a matching "//go:build" line, which then
 		// collides with the header written below and `go build` rejects the
 		// file: "multiple //go:build comments".
-		if gno.IsDirectiveComment(text) || isNolintComment(text) ||
-			constraint.IsPlusBuild(text) {
-			return neutralizedMarker
+		if gno.IsDirectiveComment(text) {
+			return directiveMarker
+		}
+		// "//nolint" without a colon, "// nolint:...", and legacy "// +build"
+		// are ordinary comments to go/ast even though tools act on them.
+		// Replacing those with a directive-shaped marker would *change* their
+		// classification, and formatDocComment extracts directives out of a doc
+		// group and inserts a separator -- which adds a line and moves every
+		// position after it. Keep each one in the class it started in.
+		if isNolintComment(text) || constraint.IsPlusBuild(text) {
+			return proseMarker
 		}
 		return text
 	}
@@ -218,7 +231,7 @@ func neutralizeDirective(text string) string {
 		if end := strings.Index(work, "*/"); end >= 0 {
 			tail = work[end:]
 		}
-		lines[i] = opener + prefix + neutralizedMarker + tail
+		lines[i] = opener + prefix + directiveMarker + tail
 		changed = true
 	}
 	if !changed {
