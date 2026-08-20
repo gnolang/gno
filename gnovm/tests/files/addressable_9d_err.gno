@@ -9,4 +9,4 @@ func main() {
 // main/addressable_9d_err.gno:5:6-15: invalid operation: m<VPBlock(1,0)>[(const ("k" string))] (slice of unaddressable value)
 
 // TypeCheckError:
-// main/addressable_9d_err.gno:5:6: invalid operation: cannot slice m["k"] (map index expression of type [1]int) (value not addressable)
+// main/addressable_9d_err.gno:5:6: cannot slice unaddressable value m["k"] (map index expression of type [1]int)
