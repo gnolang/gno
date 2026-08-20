@@ -90,6 +90,13 @@ package and **before** that package is walked, at `typeExpansionGasPerNode = 25`
 - **Rejected packages are not charged** — their total is the cost *avoided*.
   `TestExpansionNotChargedWhenRejected` pins it.
 
+The two outcomes are distinct and both covered end-to-end: over the ceiling gives
+a denial-of-service rejection naming the offending type
+(`addpkg_typecheck_fanout.txtar`), while an unaffordable closure gives out-of-gas
+(`addpkg_typecheck_fanout_closure_gas.txtar`, where a three-line package needs
+20.8M gas for the closure it imports and then deploys once its budget covers it).
+gnokey reports the required gas-wanted, so the OOG case is actionable too.
+
 No gas fixture needed re-pinning: honest totals are small (largest 181, ~4.5k gas)
 and `TestTestdata` passes unchanged. The guard scores test files `ProdOnly`
 excludes, so the charge can over-charge, never under. The rate is a gnovm constant
