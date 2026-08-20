@@ -221,7 +221,12 @@ decoding, so no decoded message aliases `recving`.
   loop (a data race, and an over-broad match that would have turned any tm2
   error from `Accept` into a permanent exit from the loop), and two switch tests
   raced on state the accept and redial loops read. Over 30 `-race` runs of
-  `tm2/pkg/p2p` the race count goes from 6 to 0.
+  `tm2/pkg/p2p` the race count goes from 6 to 0. The accept-loop tests also had
+  to learn to stop: their `Accept` mock ignored the context and `runAcceptLoop`
+  only leaves the loop on an error, so cancelling did nothing and the loop spun
+  at ~555k iterations/second for the rest of the test binary — burning two cores
+  through a package full of timing-sensitive tests. The mock now returns
+  `ctx.Err()`.
 - Known unrelated flakiness in `tm2/pkg/bft/consensus` was hit while verifying
   and is *not* addressed here: a `FireEvent`-under-`cs.mtx` deadlock in
   `TestStateFullRound1`, a `TestHandshakeReplayNone` WAL replay failure, and a
