@@ -57,6 +57,18 @@ tool acts on: `gno` is nobody's tool name, and it is neither `//line`,
 `//extern`, `//export` nor `//nolint` — checked against `go build`, `go vet`
 and `go generate`.
 
+Keeping the classification is what makes the substitution invisible elsewhere.
+In a doc group mixed with prose, `go/printer` moves directives after the text
+and inserts a separator — and it did that to the original directive too, so the
+result is identical either way. That is asserted as an equivalence: transpiling
+a file with a directive must produce byte-identical output to transpiling the
+same file with the marker already in its place.
+
+The opening `/*` shelters nothing either: `formatDocComment` moves it onto a
+line of its own, so a directive written as `/*//go:generate ...` lands at column
+1 in the output and runs. The opener is set aside before matching and put back
+when substituting.
+
 The same applies inside a block comment, for the same reason: an emptied
 interior renders to nothing and the block collapses. There the marker replaces
 only the directive, and the line's **leading prefix is preserved byte for

@@ -187,7 +187,15 @@ func neutralizeDirective(text string) string {
 		// an indented "//go:generate ..." in the source lands at column 1 in the
 		// output, which is where `go generate` looks. Match the line as it will
 		// be printed, not as it was written.
-		trimmed := trimPrintedCommentPrefix(line)
+		// The opening "/*" does not shelter a directive that follows it on the
+		// same line: formatDocComment moves the opener onto a line of its own,
+		// leaving the directive at column 1. Set it aside before matching, and
+		// put it back when substituting.
+		opener, work := "", line
+		if i == 0 && strings.HasPrefix(work, "/*") {
+			opener, work = "/*", work[2:]
+		}
+		trimmed := trimPrintedCommentPrefix(work)
 		if !strings.HasPrefix(trimmed, "//go:generate ") &&
 			!strings.HasPrefix(trimmed, "//go:generate\t") {
 			continue
@@ -205,12 +213,12 @@ func neutralizeDirective(text string) string {
 		//
 		// A "*/" sharing the line is kept, or the comment would not terminate
 		// and Result.File hands the tree to callers.
-		prefix := line[:len(line)-len(trimmed)]
+		prefix := work[:len(work)-len(trimmed)]
 		tail := ""
-		if end := strings.Index(line, "*/"); end >= 0 {
-			tail = line[end:]
+		if end := strings.Index(work, "*/"); end >= 0 {
+			tail = work[end:]
 		}
-		lines[i] = prefix + neutralizedMarker + tail
+		lines[i] = opener + prefix + neutralizedMarker + tail
 		changed = true
 	}
 	if !changed {

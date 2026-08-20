@@ -170,6 +170,11 @@ func TestTranspileNeutralizesIndentedGenerateInBlock(t *testing.T) {
 		"two spaces": "package tr\n\n/*\n  //go:generate echo X\n*/\nfunc F() {}\n",
 		"tab":        "package tr\n\n/*\n\t//go:generate echo X\n*/\nfunc F() {}\n",
 		"star style": "package tr\n\n/*\n * //go:generate echo X\n */\nfunc F() {}\n",
+		// The opener does not shelter a directive on its own line:
+		// formatDocComment moves "/*" onto a line of its own, leaving the
+		// directive at column 1.
+		"on the opener line": "package tr\n\n/*//go:generate echo X\nprose\n*/\nfunc F() {}\n",
+		"opener, indented":   "package tr\n\n/*  //go:generate echo X\nprose\n*/\nfunc F() {}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -285,5 +290,47 @@ func TestLineParityAcrossShapes(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A directive sharing a doc group with prose must come out exactly as an
+// already-inert directive would. go/printer moves directives after the prose
+// and inserts a separator -- but it does that to the original too, which is why
+// the marker is directive-shaped: the line keeps its classification, so the
+// printer treats it exactly as it treated what it replaced.
+//
+// Asserted as equivalence rather than against the source line count, because
+// transpiling legitimately changes that on its own (import rewriting).
+func TestMixedDocGroupMatchesInertEquivalent(t *testing.T) {
+	t.Parallel()
+
+	for name, doc := range map[string]string{
+		"directive then prose":    "//go:noinline\n// prose doc",
+		"prose then directive":    "// prose doc\n//go:noinline",
+		"prose, directive, prose": "// one\n//go:noinline\n// two",
+		"two directives":          "//go:noinline\n//go:nosplit\n// prose",
+		"nolint then prose":       "//nolint:gosec\n// prose doc",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			build := func(d string) string {
+				return "package tr\n\nimport (\n\t\"errors\"\n)\n\n" + d +
+					"\nfunc F() error { return errors.New(\"x\") }\n"
+			}
+			got, err := Transpile(build(doc), "gno", "tr.gno")
+			require.NoError(t, err)
+
+			// The same source with every directive already neutralized: the
+			// transpiler must produce byte-identical output.
+			inert := doc
+			for _, d := range []string{"//go:noinline", "//go:nosplit", "//nolint:gosec"} {
+				inert = strings.ReplaceAll(inert, d, neutralizedMarker)
+			}
+			want, err := Transpile(build(inert), "gno", "tr.gno")
+			require.NoError(t, err)
+
+			assert.Equal(t, want.Translated, got.Translated,
+				"neutralizing must be a plain substitution, changing nothing else")
+		})
 	}
 }
