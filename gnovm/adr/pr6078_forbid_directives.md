@@ -210,15 +210,20 @@ start `// ` with a space, so honest files would skip tokenizing entirely.
   No `.gno` file uses it today, so nothing changes hands either way; the point is
   that Gno authors come from Go carrying the habit.
 
-  It is allowed on a narrower ground than "it is common". Every other directive
-  is honoured by *some* consumer of the stored source — `go/types` read
-  `//go:build`, `go/parser` reads `//line`, `go generate` runs
-  `//go:generate`, the Go compiler reads the pragmas. `//nolint` is read by
-  golangci-lint, which never sees `.gno` at all. It is inert not just to the VM
-  but to everything downstream, so refusing it would buy no safety and cost real
-  friction. Note the asymmetry deliberately: allowing more later is
-  backward-compatible, so this entry can be revisited, while removing it would
-  be a consensus break.
+  It is **not** inert downstream, and an earlier draft of this ADR wrongly said
+  so. `gno tool transpile` preserves `//nolint:gosec` verbatim, and where the
+  transpiled package happens to be valid Go — true for a pure `/p/` helper,
+  false for anything importing a gno stdlib, since `std` is not an importable
+  Go package — golangci-lint honours it and the suppression is real. So the
+  exception rests on cost, not on inertness: `//nolint` is the second most
+  common directive in Go code, Gno authors arrive with the habit, and the
+  workflow it could mislead (transpiling on-chain source and linting it) is not
+  one anyone runs today, whereas the deploy failure is immediate and confusing.
+
+  That is a weaker footing than the rest of this rule, and it points the wrong
+  way on the ordering argument above: dropping the entry now would be
+  backward-compatible to restore, while removing it later is a consensus break.
+  It is kept deliberately rather than by oversight.
 - That survey also bounds the false-positive risk: across those 6453
   human-written files, every hit was a real directive. No ordinary `//word:word`
   prose comment was caught, because a directive requires no space after `//`.
