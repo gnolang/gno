@@ -20,14 +20,30 @@ memoization `validType` lacks, which makes computing it linear. The deploy path
 charges that count to `TypeCheckOptions.GasMeter` at
 `typeExpansionGasPerNode = 100` before the package reaches `go/types`.
 
-The rate is derived in two steps and an earlier revision got the second wrong:
-`BenchmarkValidTypeWalk` measures 30–40 ns/node on an Apple M5 (climbing with depth
-as the working set outgrows cache, and a DoS is the deep end), then
-`gnovm/cmd/calibrate`'s paired output calibrates that to the Xeon reference the
-`1 gas == 1ns` convention means — 2.96x slower, median over 37 shared
-`BenchmarkAlloc` cases. 40 × ~2.5 = 100. The revision that shipped 25 skipped the
-calibration step, a ~4x under-charge that with no ceiling behind it would have let
-one block buy ~12s of walk instead of ~3s. Full derivation sits on the constant.
+### Deriving the rate
+
+`1 gas == 1ns` here means *reference* hardware — Intel Xeon Platinum 8168 @ 2.70GHz,
+per `machine.go`'s `OpCPU*` table and `gnovm/cmd/calibrate/README.md` — so the rate
+is nanoseconds per node **on that machine**, which takes two steps:
+
+| step | source | result |
+|---|---|---|
+| measure the walk | `BenchmarkValidTypeWalk`, Apple M5 | 30.1 / 30.4 / 34.9 ns/node at depth 18 / 20 / 22; *marginal* rate climbs 34.3 → 40.3 from depth 22 → 26 as the working set outgrows cache |
+| calibrate to the Xeon | rerun `cmd/calibrate`'s `BenchmarkAlloc` locally, compare to the shipped `bench_output_do_dedicated.txt` | Xeon 2.96x slower over 37 shared cases (median), 2.2–3.2x on small allocations — the regime resembling `validType`'s pointer chasing |
+
+A denial of service is the large-working-set end, so price ~40, not ~30:
+`40 × ~2.5 = 100`, with the spread putting the defensible range at 88–128. (The
+shipped `bench_output_m2_arm64.txt` gives 2.54x for an M2 if rerunning is not an
+option.) The check that ties it to something real: at 100 a whole block of gas buys
+3e7 nodes, about **3s** of `validType` on reference hardware — which is what
+`1 gas == 1ns` should mean for a full block.
+
+The revision that shipped **25** measured step 1 on the development machine and
+skipped step 2, under-charging ~4x — one block would have bought ~12s of walk.
+With the ceiling gone this charge is the only thing pricing the walk, so that was
+the whole defence off by 4x. The calibration factor stays the dominant uncertainty,
+as `PreprocessGasPerByte` notes for itself; measuring on reference hardware removes
+it.
 
 There is **no hard ceiling** on the count. Earlier revisions of this change had
 one — first per-type at 100_000, then per-package at 1_000_000 — and it was
@@ -71,6 +87,12 @@ Consequences of having only a price:
 - **Not computed at all when the meter is nil.** The count exists only to be
   charged, and resolving the dependency graph is the expensive part, so off-chain
   callers now skip it entirely.
+- **The count→gas conversion clamps.** `cost()` saturates at `math.MaxUint64`, and
+  `int64(math.MaxUint64)` is `-1`, so converting straight through would charge
+  `-100` gas — a *refund* for the worst package a sender could submit. The ceiling
+  had been hiding that, since a saturated count was far above it. `expansionGas`
+  clamps at `math.MaxInt64` instead, making an unrepresentable count simply
+  unaffordable; `TestExpansionGas` pins the boundary.
 - The rate is a gnovm constant, not a vm `Params` field: it is a measured ns/node
   rate for work gnovm performs, which is where `tokenCostFactor` and `OpCPU*`
   live. `Params` is amino-generated, so adding a field needs `go generate` plus a
@@ -120,50 +142,70 @@ prints no stderr trace). Re-verify on a Go bump.
 
 `expansionPkgResolver` returns nil for stdlib paths, because `go/types` serves
 stdlib imports from its result cache without a store read — resolving them here
-would add store gas the deploy otherwise never pays. `namedCost` therefore prices
-them at `leafExpansionBound = 32`, the measured max over every **exported** stdlib
-type (19, `regexp.Regexp`; those are the only ones a user package can name),
-pinned by `TestLeafExpansionBound`.
+would add store gas the deploy otherwise never pays. `namedCost` prices them at
+`leafExpansionBound = 32`, the measured max over every **exported** stdlib type
+(19, `regexp.Regexp`; those are the only ones a user package can name), pinned by
+`TestLeafExpansionBound`. The margin is thin on purpose: every stdlib reference in
+honest code pays it, so headroom is a tax on ordinary deploys. Safe as a constant
+only because stdlib source ships with the binary and cannot import user packages,
+so no transaction can grow it.
 
-The margin is deliberately thin: every stdlib reference in honest code pays it, so
-headroom here is a tax on ordinary deploys. It is safe as a constant only because
-the set of stdlib types is fixed by the binary — stdlib source ships with the node
-and cannot import user packages, so no transaction can grow it. A table
-precomputed during `LoadStdlib` would price them exactly at no gas cost; not done,
-since the edge is already priced above its cost.
+Resolving stdlib for an exact count is what the estimate replaces, and it is not
+free the way resolving a user dependency is. For a user dependency `go/types` will
+call `GetMemPackage` itself, so `memoizingGetter` deduplicates the guard's fetch to
+nothing. For stdlib it never does: `ImportFrom` returns from `permCache` before
+reaching the getter, so a fetch here would be a store read — and a re-parse — that
+no deploy otherwise pays, on every deploy, since every package imports stdlib. The
+exactness would buy no safety either, only a slightly smaller over-charge: 32
+against a real 19, worth ~25k gas on the largest honest package.
+
+Two ways to get exactness for free, both deferred:
+
+- **A table precomputed during `LoadStdlib`.** That path already parses and
+  type-checks every stdlib package (`keeper.go`, `TypeCheckMemPackage` per
+  `stdlibs.InitOrder()`), discarding the ASTs afterwards; scoring them there and
+  keeping a `map[pkgPath]uint64` rides on a parse that already happens. Retaining
+  the ASTs instead is the wrong trade — `LoadStdlibCached`'s own comment gives
+  memory and cold start as why normal nodes avoid holding that.
+- **Score from the cached `*types.Package`.** `permCache` already holds it, and its
+  `Scope()` exposes the `*types.Named` whose `Underlying()` carries exactly the
+  containment edges `validType` walks — no source, no parse, no store read, and
+  `gimp.permCache` is already in hand where the resolver runs. The catch is that
+  the *price* would then depend on a cache's contents. On chain that cache is
+  always warm, so it is deterministic in practice, but making a consensus-visible
+  charge a function of cache state is the classic shape of a consensus bug. A
+  compile-time constant has no such coupling, which is why it wins for now.
 
 ## Decision: one shared parse cache across nested type checks
 
 The cost model runs once per imported package, and each run re-resolved and
-re-parsed its own dependencies — quadratic in the import graph. On a complete-DAG
-graph, type-checking the final package: **24.9 / 63.2 / 262.8 / 633.6 ms** at
-N = 20 / 40 / 80 / 120, growing 25x over a 6x rise in N where master is linear.
-`gnoImporter` now owns one `expansionPkgCache` shared by every
-`expansionChecker`: **6.0 / 10.3 / 22.5 / 35.4 ms** — linear, 18x faster at
-N=120. Store gas is unchanged either way (`memoizingGetter` already deduplicated
-`GetMemPackage`); what repeated was `GoParseMemPackage`. This is a hot-path fix,
-not cold-start: dependencies are re-priced on *every* `MsgAddPackage`.
+re-parsed its own dependencies — quadratic in the import graph. Type-checking the
+final package of a complete-DAG graph took **24.9 / 63.2 / 262.8 / 633.6 ms** at
+N = 20 / 40 / 80 / 120 (25x growth over a 6x rise in N, where master is linear);
+with one `expansionPkgCache` shared by every `expansionChecker`, **6.0 / 10.3 /
+22.5 / 35.4 ms** — linear, 18x faster at N=120. Store gas is unchanged
+(`memoizingGetter` already deduplicated `GetMemPackage`); `GoParseMemPackage` was
+what repeated. A hot path, not cold start: dependencies are re-priced on *every*
+`MsgAddPackage`.
 
 A checker's own **entry** package stays outside the cache: it is seeded with
-whichever file set its caller is type-checking (test files at top level,
-`MPFTest` for an `xxx_test` self-import) and must never stand in for a
-dependency's prod-only sources. `TestExpansionPkgCacheSharing` pins that sharing
-changes no price, in both visit orders.
+whichever file set its caller is checking (test files at top level, `MPFTest` for
+an `xxx_test` self-import), so it must never stand in for a dependency's prod-only
+sources. `TestExpansionPkgCacheSharing` pins that sharing changes no price, in both
+visit orders.
 
 **Why not skip pricing imported packages instead?** Unsound: `validType` runs on
-**every** declaration of a package it checks, not only referenced ones, so a
-pathological type in a dependency costs the node even if the entry package never
-names it — and entry-only resolution follows only edges reachable from the entry's
-own declarations. Packages deployed before this change were also never priced by
-it. (Packages served from `permCache` *are* skipped, but a cached
-`*types.Package` is proof `validType` already completed — not precedent.)
+**every** declaration of a package it checks, so a pathological type in a
+dependency costs the node even if the entry package never names it — and entry-only
+resolution follows only edges reachable from the entry's own declarations. Packages
+deployed before this change were also never priced. (`permCache` hits *are*
+skipped, but a cached `*types.Package` is proof `validType` already completed.)
 
 **Follow-up:** dependencies are still parsed twice per type check, once by the
-resolver into a throwaway `token.FileSet` and once by `typeCheckMemPackage`.
-Sharing that is blocked on unifying the FileSet (`go/types` needs positions in
-`gimp.fset` for consensus-visible error text) and on the in-place AST mutations
-`uniqueDecls`/`prepareGoGno0p9` perform, safe today only because the parses are
-independent. A bounded 2x win against real hazard.
+resolver and once by `typeCheckMemPackage`. Sharing that is blocked on unifying the
+FileSet (`go/types` needs positions in `gimp.fset` for consensus-visible error
+text) and on the in-place AST mutations `uniqueDecls`/`prepareGoGno0p9` perform,
+safe today only because the parses are independent. A bounded 2x win.
 
 ## Decision: dot imports are rejected, not counted
 
