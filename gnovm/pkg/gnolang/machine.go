@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"path"
 	"reflect"
 	"runtime"
@@ -45,6 +46,12 @@ type Machine struct {
 
 	Debugger Debugger
 
+	// blockPool holds dead runtime blocks recycled by acquireBlock /
+	// releaseBlock to relieve Go GC pressure; see releaseBlock for the
+	// conditions under which a block may be pooled. Allocator (gas)
+	// accounting is unaffected by pooling.
+	blockPool []*Block
+
 	// Configuration
 	Output   io.Writer
 	Store    Store
@@ -70,7 +77,8 @@ func NewMachine(pkgPath string, store Store) *Machine {
 		MachineOptions{
 			PkgPath: pkgPath,
 			Store:   store,
-		})
+		},
+	)
 }
 
 // MachineOptions is used to pass options to [NewMachineWithOptions].
@@ -268,6 +276,9 @@ func (m *Machine) Release() {
 		Stmts:  stmts,
 		Blocks: blocks,
 		Frames: frames,
+		// NOTE: ONLY copy values which are explicitly OK to copy and wouldn't
+		// change gas values on a "warm" run. blockPool, for instance, should
+		// not be copied.
 	}
 	machinePool.Put(m)
 }
@@ -327,6 +338,17 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		if mpkg == nil {
+			// An indexed package with no production files (e.g. an
+			// xxx_test-only package) has no prod blob, so GetMemPackage
+			// returns nil. There are no production block nodes to build;
+			// its test files live under the #allbutprod sibling. On-chain
+			// this is unreachable — the vm keeper rejects prod-less packages
+			// at AddPackage (block-node state would otherwise depend on
+			// restart history) — so this skip is defensive, for non-chain
+			// stores.
+			continue
+		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
@@ -826,7 +848,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		if unsatisfied[i] > 0 {
 			panic(fmt.Sprintf(
 				"incomplete initialization: %v still has %d unsatisfied deps",
-				decl.GetDeclNames(), unsatisfied[i]))
+				decl.GetDeclNames(), unsatisfied[i],
+			))
 		}
 	}
 
@@ -1011,7 +1034,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
 			"Machine.Eval(x) expression already preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Preprocess input using last block context.
 	last := m.LastBlock().GetSource(m.Store)
@@ -1049,7 +1073,8 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -1080,7 +1105,8 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 		x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(),
+		))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -1338,11 +1364,37 @@ func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	}
 }
 
+// ratDigits estimates the decimal digit count of a *big.Rat from its bit-length.
+// 1 decimal digit ≈ 3.32 bits; we use /3 conservatively.
+func ratDigits(r *big.Rat) int64 {
+	if r == nil {
+		return 1
+	}
+	bits := r.Num().BitLen() + r.Denom().BitLen()
+	d := max(int64(bits)/3, 1)
+	return d
+}
+
+// bigdecDigits estimates the decimal digit count of a BigdecValue, working
+// for both the rat and float representations.
+func bigdecDigits(bdv BigdecValue) int64 {
+	if bdv.F != nil {
+		// big.Float has a bounded mantissa (BigdecFloatPrec bits) plus an
+		// exponent; the exponent contributes at most log10(2) per bit.
+		bits := int64(bdv.F.Prec()) + int64(bdv.F.MantExp(nil))
+		if bits < 0 {
+			bits = -bits
+		}
+		return max(bits/3, 1)
+	}
+	return ratDigits(bdv.V)
+}
+
 // incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
 func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits()
-		rb := rv.GetBigDec().NumDigits()
+		lb := bigdecDigits(lv.GetBigDec())
+		rb := bigdecDigits(rv.GetBigDec())
 		m.incrCPU(max(lb, rb) * slopePer100 / 100)
 	}
 }
@@ -1352,8 +1404,8 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 // safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
-		lb := lv.GetBigDec().NumDigits() / 10
-		rb := rv.GetBigDec().NumDigits() / 10
+		lb := bigdecDigits(lv.GetBigDec()) / 10
+		rb := bigdecDigits(rv.GetBigDec()) / 10
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
@@ -1369,7 +1421,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	if xv.T == UntypedBigdecType {
-		digits := xv.GetBigDec().NumDigits()
+		digits := bigdecDigits(xv.GetBigDec())
 		m.incrCPU(digits * slopePer100 / 100)
 	}
 }
@@ -1390,16 +1442,30 @@ const (
 	// See gnovm/cmd/calibrate/op_bench_analysis.txt for full derivation.
 
 	/* Control operators */
-	OpCPUInvalid             = 1
-	OpCPUHalt                = 1
-	OpCPUNoop                = 1
-	OpCPUExec                = 130
-	OpCPUPrecallTypeConv     = 72   // type conversion
-	OpCPUPrecallFunc         = 178  // function call
-	OpCPUPrecallBoundMethod  = 199  // bound method call
-	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
-	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
-	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
+	OpCPUInvalid            = 1
+	OpCPUHalt               = 1
+	OpCPUNoop               = 1
+	OpCPUExec               = 130
+	OpCPUPrecallTypeConv    = 72  // type conversion
+	OpCPUPrecallFunc        = 178 // function call
+	OpCPUPrecallBoundMethod = 199 // bound method call
+	// OpCPULazyBoundResolve is the extra CPU on top of OpCPUPrecallBoundMethod
+	// charged per hop of the resolveLazyBound walk (once per stripped interface
+	// layer), so deep/nested embedded-interface dispatch is metered by depth like
+	// the eager concrete path. Single-hop resolution (the common case) charges it
+	// once — gas-neutral with the prior per-call charge.
+	// 529 is ratio-scaled: the lazy-vs-concrete bench delta on a dev machine,
+	// anchored to OpCPUPrecallBoundMethod's known reference value, so the
+	// machine-speed factor cancels; reused as the per-hop cost.
+	// TODO(calibration): measure directly on the gas-table reference HW when
+	// its numbers are next refreshed.
+	OpCPULazyBoundResolve    = 529
+	OpCPUEnterCrossing       = 520   // XXX arbitrary, not yet benchmarked
+	OpCPUCall                = 40    // 0 params/0 captures, sans block creation (now in acquireBlock); ~36-44 measured
+	OpCPUAcquireBlock        = 100   // block setup/recover in acquireBlock; ~91-102 measured (anchor Add_Int=81)
+	OpCPUCallNativeBody      = 2205  // XXX arbitrary, not properly benchmarked
+	OpCPUSubRealmBase        = 552   // realm.Sub: mirrors chain.packageAddress calibration (base)
+	OpCPUSubRealmSlope       = 15201 // realm.Sub: per 1024 bytes of synthesized pkgpath (slope)
 	OpCPUDefer               = 71
 	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
 	OpCPUGo                  = 1   // XXX not yet implemented
@@ -1457,7 +1523,7 @@ const (
 	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
-	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
+	OpCPUSelectorInterface   = 276 // base; VPInterface, per-method added in handler. Was 751 (eager dispatch walked the trail here); the walk moved to call time (OpCPULazyBoundResolve), so the bind only does the method lookup + lazy-bind alloc now. TODO(calibration): ratio-scaled re-fit (~140ns pure); measure with OpCPULazyBoundResolve when the reference-HW numbers are next refreshed.
 	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
 	OpCPUStar                = 102
 	OpCPURef                 = 210
@@ -1518,7 +1584,7 @@ const (
 	OpCPURangeIterString   = 78  // flat (called once per rune)
 	OpCPURangeIterMap      = 73  // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 239
-	OpCPUReturnCallDefers  = 724 // base from fit; per-defer charging happens via sticky-op re-dispatch
+	OpCPUReturnCallDefers  = 215 // per-defer, sans block creation (now in acquireBlock); ~205-225 measured (was 724)
 
 	// Per-N slope constants for parameterized ops.
 	// Each value is the CPU gas cost per unit of the parameter N.
@@ -1746,7 +1812,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.PopResults()
 		case OpPopBlock:
 			m.incrCPU(OpCPUPopBlock)
-			m.PopBlock()
+			m.releaseBlock(m.PopBlock())
 		case OpPopFrameAndReset:
 			m.incrCPU(OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
@@ -2157,7 +2223,7 @@ func (m *Machine) PopValues(n int) []TypedValue {
 func (m *Machine) PopCopyValues(res []TypedValue) {
 	n := len(res)
 	ptvs := m.PopValues(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		res[i] = ptvs[i].Copy(m.Alloc)
 	}
 }
@@ -2198,6 +2264,152 @@ func (m *Machine) PopBlock() (b *Block) {
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
 	return b
+}
+
+// blockPoolLimit bounds Machine.blockPool. Deep enough to cover a burst of
+// nested scope pops; small enough that an idle machine pins little memory.
+const blockPoolLimit = 32
+
+// blockPoolValueCap is the uniform Values capacity newPooledBlock gives the
+// blocks it allocates, so a recycled block can serve most later acquires
+// without a too-small miss. It is sized to max out Go 1.26's 576-byte size
+// class: a scannable []TypedValue (40B/elem) over 512B gets an 8B malloc
+// header, so the 576 class yields 576-8=568 usable bytes = 14 slots.
+const blockPoolValueCap = 14
+
+// acquireBlock returns a block recycled from the machine's pool when one with
+// sufficient capacity is available, and otherwise falls back to
+// Allocator.newPooledBlock. Used by the runtime ops creating scope and call
+// blocks; package, file and preprocess blocks do not go through here.
+//
+// Gas reflects the work actually done and differs by path — deterministically,
+// since the per-machine pool starts empty each run (Machine.Release):
+//   - both paths charge OpCPUAcquireBlock for block setup/recover, plus any
+//     heap items via initHeapItems;
+//   - only the miss path charges allocation gas (newPooledBlock → AllocateBlock),
+//     because a recycle reuses memory and performs no malloc.
+//
+// Misses over-size Values to blockPoolValueCap so the block can serve most
+// later acquires without a too-small miss — the pool is a LIFO stack and
+// acquireBlock only inspects the top block, so a too-small top would force a
+// miss even when a larger block sits deeper.
+func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
+	numNames := int(source.GetNumNames())
+	// Block setup/recover CPU, charged on both paths. Formerly folded into
+	// the enclosing op (OpCPUCall); scope blocks never charged it at all.
+	m.incrCPU(OpCPUAcquireBlock)
+	n := len(m.blockPool)
+	if n == 0 {
+		return m.Alloc.newPooledBlock(source, parent)
+	}
+	b := m.blockPool[n-1]
+	if cap(b.Values) < numNames {
+		return m.Alloc.newPooledBlock(source, parent)
+	}
+	m.blockPool[n-1] = nil
+	m.blockPool = m.blockPool[:n-1]
+	// Recycled: no allocation gas — the block's memory is reused, so the
+	// malloc the allocator models never happens. Only the setup CPU above
+	// is charged (heap items, if any, are charged by initHeapItems).
+	values := b.Values[:numNames]
+	initHeapItems(m.Alloc, values, source)
+	b.Source = source
+	b.Values = values
+	b.Parent = parent
+	m.Alloc.stampPkgID(&b.ObjectInfo, nil)
+	if debugAssert {
+		// The block is live again; clear the release-time poison so its
+		// pointers dereference normally (see PointerValue.assertBaseNotPoisoned).
+		b.poisoned = false
+	}
+	return b
+}
+
+// releaseBlock returns a dead runtime scope or call block to the machine's
+// pool, zeroed so that it retains no references. Callers must only pass
+// blocks being discarded from the machine's block stack; with closures
+// capturing heap items rather than blocks (see doOpFuncLit), such blocks
+// cannot be referenced anymore, except for the cases skipped here:
+//
+//   - node-owned static blocks and long-lived file/package blocks, which
+//     also travel on the block stack (RunStatement/Eval flows push static
+//     blocks; file blocks are referenced by FuncValue.Parent);
+//   - blocks with a finalized ObjectID (already persisted to realm
+//     state) or marked new-real (reachable from the realm graph and
+//     pending an ObjectID at finalize), as insurance against aliasing
+//     with live realm state;
+//   - anything discarded while a panic is unwinding (cheap conservatism;
+//     the exception path is cold).
+//
+// The finalized check (rather than !IsZero) is what lets the pool fire
+// during realm execution: stampPkgID sets PkgID at allocation, so every
+// realm-allocated block has a non-zero ObjectID, but only finalized
+// blocks (NewTime != 0) are actually persisted. The IsNewReal check
+// covers the mid-transaction window where a block has been marked
+// reachable from the realm graph but assignNewObjectID has not yet run
+// (GetIsReal is just IsFinalized, so it would not catch that window).
+// Runtime scope/call blocks never enter that state — they are not
+// reachable from realm storage (closures capture heap items, not blocks)
+// — so this is belt-and-suspenders, not a hot exclusion.
+//
+// Deferred calls do not pin their origin block: a Defer records only its
+// callable, args and source (it resolves its scope from FuncValue.GetParent
+// plus copied Captures at execution), so a popped block referenced by a
+// pending defer is provably dead like any other.
+func (m *Machine) releaseBlock(b *Block) {
+	// exclusion conditions:
+	// pool over capacity, panicking, or cap(values) not exactly the uniform
+	// pooled capacity. Oversized blocks (numNames > blockPoolValueCap) are
+	// dropped whole to the Go GC rather than pooled: pooling them would pin
+	// their oversized backing array (and any values in its tail slots, beyond
+	// the re-sliced cap) for the machine's lifetime while serving at most
+	// blockPoolValueCap slots.
+	if len(m.blockPool) >= blockPoolLimit ||
+		m.Exception != nil ||
+		cap(b.Values) != blockPoolValueCap {
+		return
+	}
+	// exclude if we detect that block is stored
+	switch b.Source.(type) {
+	case nil, RefNode, *FileNode, *PackageNode:
+		return
+	}
+	if b.Source.GetStaticBlock().GetBlock() == b {
+		return
+	}
+	if oi := b.GetObjectInfo(); oi.ID.IsFinalized() || oi.GetIsNewReal() {
+		return
+	}
+	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
+	clear(values)
+	*b = Block{Values: values[:0]}
+	if debugAssert {
+		// Core invariant: a recycled block is provably dead — nothing that
+		// outlives its pop from the block stack still points into it. This
+		// holds by construction of escape analysis: every reference that can
+		// outlive the scope (a captured local or an &-taken local) is routed
+		// through a *HeapItemValue, a separate allocation that is never
+		// pooled (see codaHeapDefinesByUse and GetPointerToMaybeHeapDefine),
+		// so no live pointer ever has Base == b.
+		//
+		// Enforced empirically from both ends: poisoning the block here turns
+		// a followed stale pointer into a panic in PointerValue.Deref/Assign2
+		// rather than silent corruption, and GarbageCollect asserts that its
+		// recount never reaches a pooled block (a reference-path-agnostic
+		// check for anything that re-pins a dead block).
+		b.poisoned = true
+	}
+	m.blockPool = append(m.blockPool, b)
+}
+
+// releaseBlocksFrom releases all blocks at stack index n and above into the
+// pool and truncates the block stack to n. It replaces direct
+// `m.Blocks = m.Blocks[:n]` truncations.
+func (m *Machine) releaseBlocksFrom(n int) {
+	for _, b := range m.Blocks[n:] {
+		m.releaseBlock(b)
+	}
+	m.Blocks = m.Blocks[:n]
 }
 
 // The result is a volatile reference in the machine's type stack.
@@ -2445,17 +2657,21 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
+		// NOTE: fr.NumStmts was captured before the outermost popped frame
+		// pushed its bodyStmt, so truncating to it already drops every
+		// popped loop's bodyStmt — no extra depthFrames pop is needed.
+		// The GOTO handler (op_exec.go) then sets the final length from
+		// the target block's bodyStmt.
 		m.Stmts = m.Stmts[:fr.NumStmts]
-		m.Blocks = m.Blocks[:fr.NumBlocks]
-		// pop stmts
-		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
+		m.releaseBlocksFrom(fr.NumBlocks)
 	}
 
 	if depthBlocks >= len(m.Blocks) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
-	// pop blocks
-	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
+	// pop blocks: unlike stmts above, blocks do need this second pop —
+	// depthBlocks counts scopes within the target frame (see findGotoLabel).
+	m.releaseBlocksFrom(len(m.Blocks) - depthBlocks)
 }
 
 func (m *Machine) PopFrameAndReset() {
@@ -2464,7 +2680,7 @@ func (m *Machine) PopFrameAndReset() {
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
-	m.Blocks = m.Blocks[:fr.NumBlocks]
+	m.releaseBlocksFrom(fr.NumBlocks)
 	m.PopStmt() // may be sticky
 }
 
@@ -2482,7 +2698,7 @@ func (m *Machine) PopFrameAndReturn() {
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
-	m.Blocks = m.Blocks[:fr.NumBlocks]
+	m.releaseBlocksFrom(fr.NumBlocks)
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := len(m.Values) - numRes
@@ -2512,7 +2728,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
-	m.Blocks = m.Blocks[:fr.NumBlocks+1]
+	m.releaseBlocksFrom(fr.NumBlocks + 1)
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }
@@ -2523,7 +2739,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Values = m.Values[:fr.NumValues+1]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
-	m.Blocks = m.Blocks[:fr.NumBlocks+1]
+	m.releaseBlocksFrom(fr.NumBlocks + 1)
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }
@@ -2619,6 +2835,8 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	return nil
 }
 
+// Per-shape operand counts are mirrored in numStackValuesForPointer (below)
+// and consumed by resolvePointer — keep all three in sync.
 func (m *Machine) PushForPointer(lx Expr) {
 	switch lx := lx.(type) {
 	case *NameExpr:
@@ -2643,10 +2861,32 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
-		panic(fmt.Sprintf(
-			"illegal assignment X expression type %v",
-			reflect.TypeOf(lx)))
+		panicIllegalPointerLHS(lx)
 	}
+}
+
+// numStackValuesForPointer reports how many value-stack entries PushForPointer
+// pushes for lx (and resolvePointer consumes). MUST stay in sync with both.
+func numStackValuesForPointer(lx Expr) int {
+	switch lx.(type) {
+	case *NameExpr:
+		return 0
+	case *IndexExpr:
+		return 2
+	case *SelectorExpr, *StarExpr, *CompositeLitExpr:
+		return 1
+	default:
+		panicIllegalPointerLHS(lx)
+		return 0 // unreachable
+	}
+}
+
+// Outlined so the switches above stay within the inlining budget.
+func panicIllegalPointerLHS(lx Expr) {
+	panic(fmt.Sprintf(
+		"illegal assignment X expression type %v",
+		reflect.TypeOf(lx),
+	))
 }
 
 // Pop a pointer (for writing only).
@@ -2752,10 +2992,13 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	return oid.PkgID != m.Realm.ID
 }
 
-// Returns ro = true if the base is readonly,
-// or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a composite lit expr.
-func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+// resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
+// PushForPointer evaluated for lx) rather than popping them off the value stack
+// itself — the caller supplies them, so this resolver has no stack side effects.
+// lhsOperands are in stack order, oldest first: for an IndexExpr lhsOperands[0]
+// is X and lhsOperands[1] is Index. ro reports a readonly/cross-realm violation.
+// Shared by PopAsPointer2 (the stack wrapper) and doOpAssign (reads in place).
+func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2770,11 +3013,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			panic("unexpected NameExpr in PopAsPointer")
+			panic("unexpected NameExpr in resolvePointer")
 		}
 	case *IndexExpr:
-		iv := m.PopValue()
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
+		iv := &lhsOperands[1]
 		if xv.T.Kind() == MapKind {
 			// For maps, GetPointerAtIndex unconditionally creates a new entry for
 			// missing keys. Check readonly before this mutation.
@@ -2789,21 +3032,33 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:
-		xv := m.PopValue()
-		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		xv := &lhsOperands[0]
+		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		xv := m.PopValue()
+		xv := &lhsOperands[0]
 		var ok bool
 		if pv, ok = xv.V.(PointerValue); !ok {
 			if xv.V == nil {
-				m.Panic(typedString("runtime error: nil pointer dereference"))
+				m.Panic(typedRuntimeError("runtime error: nil pointer dereference"))
 			}
 			panic("should not happen, not pointer nor nil")
 		}
+		if debugAssert {
+			// The only branch whose Base does not come from the live block
+			// chain (NameExpr) or from a non-Block value (Index/Selector/
+			// CompositeLit): it is whatever the dereferenced pointer holds, so
+			// it can name a block that has already left the block stack.
+			// Assign2 and Deref carry the same check, but the compound
+			// assignments and inc/dec write through pv.TV directly (see
+			// op_assign.go, op_inc_dec.go), so `*p op= v` and `(*p)++` reach a
+			// recycled block without passing through either. Compiled out
+			// unless the debugAssert build tag is set.
+			pv.assertBaseNotPoisoned()
+		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
-		tv := *m.PopValue()
+		tv := lhsOperands[0]
 		// Heap-slot wrapper is anonymous; nil t skips the
 		// construction-time check. The contained composite literal
 		// was already construction-time-checked at its own allocation.
@@ -2818,6 +3073,12 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		panic("should not happen")
 	}
 	return
+}
+
+// Thin stack wrapper around resolvePointer: pops lx's operands off m.Values
+// and resolves from them.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	return m.resolvePointer(lx, m.PopValues(numStackValuesForPointer(lx)))
 }
 
 // for testing.
@@ -2941,7 +3202,7 @@ func (m *Machine) Recover() *Exception {
 
 func (m *Machine) Println(args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -2953,7 +3214,7 @@ func (m *Machine) Println(args ...any) {
 
 func (m *Machine) Printf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -3038,7 +3299,9 @@ func (m *Machine) String() string {
 	}
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
-		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
+		builder.WriteString("      ")
+		m.Exception.Fprint(builder, m)
+		builder.WriteByte('\n')
 	}
 	return builder.String()
 }

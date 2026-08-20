@@ -46,7 +46,7 @@ CONTRACT: rv is valid.
 func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Value,
 	fopts FieldOptions, bare bool, options uint64,
 ) (err error) {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		// Whether to encode nil pointers as 0x00 or not at all depend on the
 		// context, so pointers should be handled first by the caller.
 		panic("not allowed to be called with a reflect.Ptr")
@@ -386,7 +386,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		for i := range rv.Len() {
 			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				if erv.IsNil() {
 					erv = reflect.New(ert.Elem()).Elem()
 				} else {
@@ -401,7 +401,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		}
 	} else { // typ3 == Typ3ByteLength
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		ertIsStruct := einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
