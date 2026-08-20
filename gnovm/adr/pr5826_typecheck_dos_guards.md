@@ -227,10 +227,35 @@ tracked in #6076 — but this guard does not depend on why.
 
 ## Alternatives weighed
 
-**Metering inside `go/types`.** Rejected: it is stdlib here, not a fork, so
-metering `validType` means forking a large, fast-moving package and re-syncing it
-every toolchain bump, across several internal passes with no single hook point.
-Charging a count computed outside `go/types` needs no fork.
+**Fork `go/types` and meter `validType` from inside.** This is the strongest
+alternative and deserves more than the one line an earlier revision gave it, since
+this repo already does exactly that one layer up: `gnovm/pkg/parser` is a fork of
+`go/parser` (5,460 lines) whose reason to exist is a metering hook,
+`ParserCallback func(tok token.Token, nestedLevel int)`, driven by
+`newParserCallback` in `go2gno.go`. Fork-and-hook is the established answer here to
+an unmetered stdlib pass, not a novelty.
+
+And metering **measures** where this change **predicts**, which would delete the
+entire soundness apparatus below: `cost()` mirroring validType's edges, both
+syntactic rejections *in their cost-guard role*, `leafExpansionBound`,
+`gnoBuiltinShimExpansion`, and — since nothing would need pre-parsing — the shared
+parse cache and its quadratic-parsing fix too. The invariant a future maintainer can
+silently break, "`cost()` must never under-count", would simply not exist.
+
+Rejected anyway, on size and on shipping risk. `go/types` is **34,545 lines across
+107 files**, 6.3x the parser fork, and it is a whole type system rather than a token
+stream, so re-syncing it on each Go bump is qualitatively harder. That inverts the
+"don't add a layer" argument: the fork *is* the larger layer, only made of code we
+did not write. This guard is ~450 lines whose lifetime is bounded by `go/types`' own
+— when the type checker goes, one file is deleted — so neither option accretes and
+disposal is symmetric; the only question is which is cheaper to hold in the interim.
+Separately, a forked type checker makes consensus-visible error text ours to keep
+byte-stable, which is a large review surface for a security fix that should land
+quickly.
+
+If `go/types` removal lands sooner than expected this stays the right call, because
+the guard is deleted rather than migrated. If it slips, the fork would have been the
+expensive thing to be holding — `pkg/parser` shows how long these live.
 
 **A governance `Params` rate.** Deferred, see above. Note that without a ceiling
 a rate set too low under-charges the walk outright — as the 25 this change started
