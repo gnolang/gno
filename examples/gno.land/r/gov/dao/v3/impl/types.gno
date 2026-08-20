@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -150,7 +151,13 @@ func (ps *proposalStatus) String(_ int, rlm realm) string {
 		sb.WriteString("- **PROPOSAL HAS BEEN DENIED**\n")
 		if ps.DeniedReason != "" {
 			sb.WriteString("REASON: ")
-			sb.WriteString(ps.DeniedReason)
+			// DeniedReason is "execution failed: " + err.Error() from the
+			// proposal's executor callback, which any third-party realm can
+			// supply. Raw, it wrote attacker-controlled markdown directly beneath
+			// the "PROPOSAL HAS BEEN DENIED" line. InlineText folds newlines, so
+			// the reason cannot leave the REASON: line, and escapes emphasis and
+			// raw HTML.
+			sb.WriteString(sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason)))
 			sb.WriteString("\n")
 		}
 	} else {
@@ -222,9 +229,13 @@ func StringifyProposal(p *dao.Proposal) string {
 This proposal contains the following metadata:
 
 %s
+`, p.ExecutorString())
+	}
 
-Executor created in: %s
-`, p.ExecutorString(), p.ExecutorCreationRealm())
+	// Disclosed independently of the metadata string, and escaped, for the
+	// same reasons as render.renderProposalPage.
+	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
+		out += ufmt.Sprintf("\nExecutor created in: %s\n", cr)
 	}
 
 	return out
