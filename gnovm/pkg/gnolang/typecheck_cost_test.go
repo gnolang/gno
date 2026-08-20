@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// parseBoundSrc parses Go source into the (fset, []*ast.File) shape that
+// parseCostSrc parses Go source into the (fset, []*ast.File) shape that
 // typeExpansionCost consumes.
-func parseBoundSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
+func parseCostSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "bound.go", src, parser.SkipObjectResolution)
@@ -78,9 +78,9 @@ func doublingPkgSrc(pkgName string, depth int, imp string) string {
 	return b.String()
 }
 
-// makeBoundResolver returns a pkgResolver that parses source from a fixed map,
+// makeCostResolver returns a pkgResolver that parses source from a fixed map,
 // treating any other path (unknown/stdlib) as a leaf.
-func makeBoundResolver(t *testing.T, fset *token.FileSet, srcs map[string]string) pkgResolver {
+func makeCostResolver(t *testing.T, fset *token.FileSet, srcs map[string]string) pkgResolver {
 	t.Helper()
 	return func(pkgPath string) []*ast.File {
 		src, ok := srcs[pkgPath]
@@ -215,7 +215,7 @@ func TestTypeExpansionCost(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, gofs := parseBoundSrc(t, tc.src)
+			_, gofs := parseCostSrc(t, tc.src)
 			cost := typeExpansionCost("", gofs, nil, nil)
 			if tc.wantHuge {
 				assert.Greater(t, cost, uint64(costlyThreshold),
@@ -277,7 +277,7 @@ func TestCheckNoUncountableGenerics(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			fset, gofs := parseBoundSrc(t, tc.src)
+			fset, gofs := parseCostSrc(t, tc.src)
 			err := checkNoUncountableGenerics(fset, gofs)
 			if tc.wantMsg != "" {
 				require.Error(t, err)
@@ -320,7 +320,7 @@ func TestCheckNoDotImports(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			fset, gofs := parseBoundSrc(t, tc.src)
+			fset, gofs := parseCostSrc(t, tc.src)
 			err := checkNoDotImports(fset, gofs)
 			if tc.wantMsg != "" {
 				require.Error(t, err)
@@ -425,7 +425,7 @@ func TestTypeExpansionCostImports(t *testing.T) {
 	}
 
 	fset := token.NewFileSet()
-	resolve := makeBoundResolver(t, fset, pkgs)
+	resolve := makeCostResolver(t, fset, pkgs)
 	costOf := func(pkgPath string) uint64 {
 		return typeExpansionCost(pkgPath, resolve(pkgPath), resolve, nil)
 	}
@@ -454,7 +454,7 @@ func TestTypeExpansionCostImports(t *testing.T) {
 		"not following imports under-prices p5 by %dx", prev/asLeaf)
 
 	// Following imports must not make an ordinary small dependency expensive.
-	okResolve := makeBoundResolver(t, fset, map[string]string{
+	okResolve := makeCostResolver(t, fset, map[string]string{
 		"gno.land/r/foobar/dep": "package dep\ntype T struct{ a, b int }\n",
 		"gno.land/r/foobar/u":   "package u\nimport \"gno.land/r/foobar/dep\"\ntype U struct{ a, b, c, d [0]dep.T }\n",
 	})
@@ -483,8 +483,8 @@ func TestTypeExpansionCostAggregate(t *testing.T) {
 	// The total must scale with the number of declarations, and each declaration
 	// must stay unremarkable on its own — otherwise this fixture would not
 	// distinguish summing from taking the max.
-	_, gofs100 := parseBoundSrc(t, src(100))
-	_, gofs200 := parseBoundSrc(t, src(200))
+	_, gofs100 := parseCostSrc(t, src(100))
+	_, gofs200 := parseCostSrc(t, src(200))
 	cost100 := typeExpansionCost("", gofs100, nil, nil)
 	cost200 := typeExpansionCost("", gofs200, nil, nil)
 	assert.Greater(t, cost200, cost100+90*(cost100/100),
@@ -528,7 +528,7 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 	}
 
 	fset := token.NewFileSet()
-	resolve := makeBoundResolver(t, fset, pkgs)
+	resolve := makeCostResolver(t, fset, pkgs)
 	costOf := func(pkgPath string, cache *expansionPkgCache) uint64 {
 		return typeExpansionCost(pkgPath, resolve(pkgPath), resolve, cache)
 	}
@@ -566,7 +566,7 @@ func TestExpansionPkgCacheSharing(t *testing.T) {
 // nobody can afford instead of a negative one.
 func TestTypeExpansionCostLinearTime(t *testing.T) {
 	t.Parallel()
-	_, gofs := parseBoundSrc(t, fanOutSrc(1000))
+	_, gofs := parseCostSrc(t, fanOutSrc(1000))
 	cost := typeExpansionCost("", gofs, nil, nil)
 	assert.Equal(t, uint64(math.MaxUint64), cost)
 	assert.Equal(t, int64(math.MaxInt64), expansionGas(cost))
@@ -797,7 +797,7 @@ func TestValidTypeWalkIsExponential(t *testing.T) {
 
 	// The count is deterministic, so state it exactly: ~2.1e9 nodes for 31 lines of
 	// source. At the ~30ns/node BenchmarkValidTypeWalk measures, that is minutes.
-	_, gofs := parseBoundSrc(t, fanOutSrc(depth))
+	_, gofs := parseCostSrc(t, fanOutSrc(depth))
 	nodes := typeExpansionCost("", gofs, nil, nil)
 	require.Greater(t, nodes, uint64(1e9), "fixture no longer produces a huge walk")
 

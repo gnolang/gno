@@ -3560,11 +3560,12 @@ func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
 			"AddPackage passing TypeCheckOptions.GasMeter?)")
 }
 
-// TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx pins the property that
-// justified removing the per-package ceiling: the bound is per TRANSACTION, not
-// per message. Tx.Msgs is unbounded and ValidateBasic caps gas rather than the
-// message count, so N individually-modest deploys in one tx must be able to
-// exhaust that tx's budget.
+// TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx pins the property the
+// whole design rests on: the bound is per TRANSACTION, not per package. Tx.Msgs is
+// unbounded and ValidateBasic caps gas rather than the message count, so N
+// individually-modest deploys in one tx must be able to exhaust that tx's budget —
+// which is why the charge goes to ctx.GasMeter() and no per-package limit could
+// substitute for it.
 //
 // Both halves are asserted, because only the pair says anything:
 //
@@ -3573,9 +3574,13 @@ func TestVMKeeperAddPackage_TypeExpansionGasCharged(t *testing.T) {
 //
 // baseapp gives a transaction one basicGasMeter(GasWanted) and then loops over
 // msgs (see runTx / SetGasMeter), so driving several AddPackage calls through one
-// ctx and one finite meter is what a multi-message tx actually does. A per-package
-// ceiling could not have caught this: every message here is under any ceiling that
-// lets honest code through.
+// ctx and one finite meter is what a multi-message tx actually does.
+//
+// This cannot be an integration txtar: every keyscli command hardcodes
+// Msgs: []std.Msg{msg} (addpkg.go:135, call.go:133, run.go:144), so gnokey — which
+// is all a txtar can drive — is unable to build a multi-message transaction at all.
+// The txtars cover the other accumulation, across a dependency graph within one
+// message (addpkg_typecheck_fanout_deps_gas.txtar).
 func TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx(t *testing.T) {
 	env := setupTestEnv()
 
@@ -3678,8 +3683,8 @@ func TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx(t *testing.T) {
 	assert.Equal(t, msgs, got, "pointer chains must all fit a %d budget", budget)
 
 	// Half two: the same count of the expensive shape exhausts it partway. Only
-	// the expansion charge differs, so a per-package ceiling could never catch
-	// this — every message here is modest on its own.
+	// the expansion charge differs, and every message here is modest on its own —
+	// so nothing scoped to a single package could catch it.
 	got, err = deliver("txval", "[0]", budget)
 	require.Error(t, err,
 		"%d value-containment messages shared a %d budget and all succeeded; the "+

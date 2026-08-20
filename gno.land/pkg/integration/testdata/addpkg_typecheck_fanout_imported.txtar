@@ -14,7 +14,7 @@
 #
 # This is a PRICING fixture, not a hang: measured against master, p1 deploys fine in
 # about a second, because ~287k nodes is milliseconds of walk. It cannot be both —
-# a cross-package fixture needs p0 legitimately deployed, and once the charge is in
+# a cross-package fixture needs p0 legitimately deployed, and with the charge in
 # place nothing deployable is dangerous (a whole block buys 3e7 nodes, ~3s). So the
 # hang only shows up when the ENTRY package is pathological and refused outright:
 # addpkg_typecheck_fanout.txtar, which is verified to wedge master.

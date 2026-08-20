@@ -38,22 +38,20 @@ option.) The check that ties it to something real: at 100 a whole block of gas b
 3e7 nodes, about **3s** of `validType` on reference hardware — which is what
 `1 gas == 1ns` should mean for a full block.
 
-The revision that shipped **25** measured step 1 on the development machine and
-skipped step 2, under-charging ~4x — one block would have bought ~12s of walk.
-With the ceiling gone this charge is the only thing pricing the walk, so that was
-the whole defence off by 4x. The calibration factor stays the dominant uncertainty,
-as `PreprocessGasPerByte` notes for itself; measuring on reference hardware removes
+Step 2 is the one to get wrong: skipping it and taking the development-machine
+figure directly gives ~25, a ~4x under-charge, and one block would then buy ~12s of
+walk. Since this charge is the only thing pricing the walk, that is the whole
+defence off by 4x. The calibration factor stays the dominant uncertainty, as
+`PreprocessGasPerByte` notes for itself; measuring on reference hardware removes
 it.
 
-There is **no hard ceiling** on the count. Earlier revisions of this change had
-one — first per-type at 100_000, then per-package at 1_000_000 — and it was
-removed, because no setting of it earns its place:
+There is **no hard ceiling** on the count, because no setting of one earns its
+place:
 
-- **Stricter than gas** and it refuses packages the sender paid for. At 1_000_000
-  the charge was 2.5e7 gas at the then-rate of 25, under half the 5e7 `GasWanted`
-  routine across this repo's own fixtures, so it bound only on senders funded
-  enough to reach it and was invisible to everyone below — exactly inverted for a
-  DoS guard.
+- **Stricter than gas** and it refuses packages the sender paid for. A cap low
+  enough to bite lands inside a normal budget — the 5e7 `GasWanted` routine across
+  this repo's own fixtures — so it would bind only on senders funded enough to
+  reach it and stay invisible to everyone below. Exactly inverted for a DoS guard.
 - **More permissive than gas** and nothing above it is payable anyway
   (`GasWanted <= Block.MaxGas = 3e9`, enforced in the ante handler), so it only
   relabels an out-of-gas as something else.
@@ -64,7 +62,7 @@ removed, because no setting of it earns its place:
   321,070 nodes against 68,750 gas of byte charges. Only a per-transaction meter
   bounds that.
 
-What removal costs is off-chain: unmetered callers (`gno test`, `gno lint`,
+What having no ceiling costs is off-chain: unmetered callers (`gno test`, `gno lint`,
 gnodev) will churn on a pathological *local* package for as long as `go build`
 does on the same input. Anything reached from the chain is bounded by what its
 deploy could pay (≤3e7 nodes, ~3s). CI jobs that type-check `.gno` carry
@@ -89,10 +87,9 @@ Consequences of having only a price:
   callers now skip it entirely.
 - **The count→gas conversion clamps.** `cost()` saturates at `math.MaxUint64`, and
   `int64(math.MaxUint64)` is `-1`, so converting straight through would charge
-  `-100` gas — a *refund* for the worst package a sender could submit. The ceiling
-  had been hiding that, since a saturated count was far above it. `expansionGas`
-  clamps at `math.MaxInt64` instead, making an unrepresentable count simply
-  unaffordable; `TestExpansionGas` pins the boundary.
+  `-100` gas — a *refund* for the worst package a sender could submit.
+  `expansionGas` clamps at `math.MaxInt64` instead, making an unrepresentable count
+  simply unaffordable; `TestExpansionGas` pins the boundary.
 - The rate is a gnovm constant, not a vm `Params` field: it is a measured ns/node
   rate for work gnovm performs, which is where `tokenCostFactor` and `OpCPU*`
   live. `Params` is amino-generated, so adding a field needs `go generate` plus a
@@ -228,8 +225,7 @@ tracked in #6076 — but this guard does not depend on why.
 ## Alternatives weighed
 
 **Fork `go/types` and meter `validType` from inside.** This is the strongest
-alternative and deserves more than the one line an earlier revision gave it, since
-this repo already does exactly that one layer up: `gnovm/pkg/parser` is a fork of
+alternative, since this repo already does exactly that one layer up: `gnovm/pkg/parser` is a fork of
 `go/parser` (5,460 lines) whose reason to exist is a metering hook,
 `ParserCallback func(tok token.Token, nestedLevel int)`, driven by
 `newParserCallback` in `go2gno.go`. Fork-and-hook is the established answer here to
@@ -257,9 +253,43 @@ If `go/types` removal lands sooner than expected this stays the right call, beca
 the guard is deleted rather than migrated. If it slips, the fork would have been the
 expensive thing to be holding — `pkg/parser` shows how long these live.
 
-**A governance `Params` rate.** Deferred, see above. Note that without a ceiling
-a rate set too low under-charges the walk outright — as the 25 this change started
-with did — so handing it to governance is a heavier decision than it was.
+**A governance `Params` rate.** Deferred. With no ceiling behind it, a rate set
+too low under-charges the walk outright, so handing it to governance is a heavier
+decision than it looks: the calibration below is the only thing keeping the price
+honest.
+
+## Open question: this prices one pass, and assumes the rest are near-linear
+
+`validType` is now priced by structure. Everything else in type-check and
+preprocess is priced by `PreprocessGasPerByte` (1250 gas/byte, charged at
+`MsgAddPackage` and `MsgRun`), and that is only correct for work whose cost is
+roughly proportional to source size. **Nobody has audited the other passes against
+that assumption.** This change fixes the hole that was found and demonstrated; it
+does not establish that there are no others.
+
+The criterion for needing structural pricing is not "is this pass expensive" but
+"can its cost be approximated from bytes". Note the threshold is lower than it
+looks:
+
+| pass complexity in source size | is byte gas enough? |
+|---|---|
+| linear | yes |
+| **quadratic** | **no** — `MaxTxBytes` bounds source, but 1MB of O(n²) work is ~1e12 operations against the ~1.25e9 gas its bytes buy |
+| exponential | catastrophic; this was that case |
+
+So a merely quadratic pass would already be badly under-priced. Two things reduce
+the exposure today: the generics rejection also removes instantiation-driven
+blowup, which is the other known super-linear behaviour in `go/types`; and
+`PreprocessGasPerByte`'s own comment already flags host calibration as its
+dominant uncertainty, so it is not claimed to be tight.
+
+Unverified candidates, listed so the next person starts somewhere rather than from
+scratch: untyped constant arithmetic (shift-driven `big.Int` growth, which
+`go/types` bounds but by an unchecked-here margin); method-set and interface
+satisfaction checks, plausibly quadratic in method count; and `Identical` on deeply
+nested structural types. What this change contributes beyond the one fix is a
+reusable shape for any of them — compute a deterministic quantity, charge it before
+the pass runs.
 
 ## Open question: fatal vs. normal type-check errors
 

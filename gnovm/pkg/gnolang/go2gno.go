@@ -337,7 +337,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// silently dropped, and a bare interface type-set term becomes a nameless
 	// method — both change semantics rather than erroring.
 	//
-	// checkNoUncountableGenerics (typecheck_bound.go) is not the gate: it runs
+	// checkNoUncountableGenerics (typecheck_cost.go) is not the gate: it runs
 	// only on the type-check path, and only as a cost guard for the shapes cost()
 	// cannot count. Paths that never invoke go/types (gno run, the REPL, direct
 	// ParseFile consumers) arrive here with generics intact, and bare type-set
