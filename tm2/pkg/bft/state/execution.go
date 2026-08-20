@@ -90,9 +90,24 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Drop txs from the tail until the serialized block fits. Removing n bytes
 	// of tx data removes at least n bytes from the block, so trimming by the
 	// excess is enough; the loop only re-checks.
+	reaped := len(txs)
 	for len(txs) > 0 && int64(parts.ByteSize()) > maxDataBytes {
 		txs = trimTxsTail(txs, int64(parts.ByteSize())-maxDataBytes)
 		block, parts = state.MakeBlock(height, txs, commit, proposerAddr)
+	}
+
+	if dropped := reaped - len(txs); dropped > 0 {
+		// Ordinary when a block fills the budget -- the txs stay in the mempool
+		// and go into the next one -- but it is the only signal that the reap
+		// budget and the decode budget disagree, so say it out loud.
+		blockExec.logger.Info(
+			"Trimmed txs from the proposal to fit Block.MaxDataBytes",
+			"height", height,
+			"dropped", dropped,
+			"kept", len(txs),
+			"block_bytes", parts.ByteSize(),
+			"max_data_bytes", maxDataBytes,
+		)
 	}
 
 	if size := int64(parts.ByteSize()); size > maxDataBytes {
