@@ -185,7 +185,7 @@ func TestTranspileNeutralizesIndentedGenerateInBlock(t *testing.T) {
 			t.Parallel()
 			res, err := Transpile(source, "gno", "tr.gno")
 			require.NoError(t, err)
-			for _, line := range strings.Split(res.Translated, "\n") {
+			for line := range strings.SplitSeq(res.Translated, "\n") {
 				assert.False(t, strings.HasPrefix(line, "//go:generate"),
 					"a directive must not reach column 1 of the output: %q", line)
 			}
@@ -233,7 +233,7 @@ func TestNoDirectiveReachesColumnOne(t *testing.T) {
 			if err != nil {
 				continue // not every byte makes a parseable file
 			}
-			for _, line := range strings.Split(res.Translated, "\n") {
+			for line := range strings.SplitSeq(res.Translated, "\n") {
 				require.False(t, strings.HasPrefix(line, "//go:generate"),
 					"byte %#x with prefix %q let a directive reach column 1", b, prefix)
 			}
@@ -416,7 +416,7 @@ func assertNoLiveDirective(t *testing.T, out, src string) {
 		"header must carry exactly one build constraint")
 
 	// `go generate` never parses: it scans raw lines for the prefix at column 1.
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		require.False(t, strings.HasPrefix(line, "//go:generate"),
 			"a directive reached column 1 of the output.\nsource:\n%s\noutput:\n%s", src, out)
 	}
