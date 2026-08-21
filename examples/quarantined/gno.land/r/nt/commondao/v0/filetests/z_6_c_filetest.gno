@@ -13,22 +13,29 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var daoID uint64
+var (
+	daoID uint64
+	pID   uint64
+)
 
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// Create a new DAO which gives ownership to `test`
+	// Create a new DAO whose caller (`test`) becomes a council member
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New(cross(cur), "Foo").ID()
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
+
+	testing.SetRealm(testing.NewUserRealm(user))
+	pID = commondao.CreateTextProposal(cross(cur), daoID, "Title", "Body", 0)
 }
 
 func main(cur realm) {
-	commondao.Execute(cross(cur), daoID, 1)
+	// Executing before the voting deadline requires council membership
+	commondao.Execute(cross(cur), daoID, pID)
 }
 
 // Error:
-// caller is not a DAO member
+// caller is not a council member

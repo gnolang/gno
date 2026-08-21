@@ -185,14 +185,13 @@ building AI and robotics systems seemingly in order to bring about armageddon.
 An [anonymous whistleblower leaked in 2023](./images/manifesto/project_lazarus_leak.jpg) that Meta is building
 an AI that can take over a deceased person's social media account and continue
 posting convincing posts including age progression. On 5 February 2025,
-Alphabet, which owns Google, [reneged on its pledge to not use AI for
-weapons](https://www.stopkillerrobots.org/news/alphabet-rollback-on-policy-to-not-use-ai-for-weapons/).
-Eric Schmidt former CEO of Google now runs an AI drone company and is a
-licensed arms dealer. Boston Dynamics develops the Atlas humanoid robot that
-can be even [more agile](https://www.youtube.com/watch?v=tjFHRVr7aNE) than
-humans, and the US military works with many robotics companies such as with
-Foundation Future Industries Inc. which develops the Phantom MK1 designed for
-military applications including carrying firearms.
+Alphabet, which owns Google, reneged on its pledge to not use AI for
+weapons.  Eric Schmidt former CEO of Google now runs an AI drone company and is
+a licensed arms dealer. Boston Dynamics develops the Atlas humanoid robot that
+can be even [more agile](https://www.youtube.com/watch?v=tjFHRVr7aNE) than humans, and the US military
+works with many robotics companies such as with Foundation Future Industries
+Inc. which develops the Phantom MK1 designed for military applications including
+carrying firearms.
 
 Here are some of the things to look forward to in the coming AI armageddon.
 
@@ -364,7 +363,7 @@ example Library Genesis:
 Some of these projects have or are working toward IPFS integration on top of
 BitTorrent; but for the value that global archiving provides not just today but
 also for all possible potential future timelines the number of seeders for many
-of the archival files [still hover in the single digits](https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
+of the archival files [still hover in the single digits](https://web.archive.org/web/20260228085850/https://zrthstr.github.io/libgen_torrent_cardiography/index.html). 
 
 More recently the US Department of Justice released millions of files of the
 "Epstein Files" many of which have also been made available for sharing (such

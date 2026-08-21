@@ -34,10 +34,10 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		commands.HelpExec,
 	)
 
-	// OnTxSuccess is only used by NewBroadcastCmd
-	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-		PrintTxInfo(tx, res, io)
-	}
+	// OnTxSuccess is used whenever we broadcast a transaction
+	cfg.OnTxSuccess = PrintTxSuccess
+	// OnTxFailure prints metrics (gas, storage, etc.) when a tx fails.
+	cfg.OnTxFailure = PrintTxMetrics
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
@@ -60,11 +60,18 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	return cmd
 }
 
-// PrintTxInfo prints the transaction result to io. If the events has storage deposit
+// PrintTxSuccess prints the transaction result to io. If the events has storage deposit
 // info then also print it with the total transaction cost.
-func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO) {
+func PrintTxSuccess(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println(string(res.DeliverTx.Data))
 	io.Println("OK!")
+	PrintTxMetrics(io, tx, res)
+}
+
+// PrintTxMetrics prints common tx metrics (gas, storage, events, info, hash).
+// This is used for both success and failure cases so users always see the
+// relevant numbers.
+func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)

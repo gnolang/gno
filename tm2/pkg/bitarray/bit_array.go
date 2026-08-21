@@ -384,16 +384,17 @@ func (bA *BitArray) MarshalJSON() ([]byte, error) {
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
 
-	bits := `"`
+	var bits strings.Builder
+	bits.WriteString(`"`)
 	for i := range bA.Bits {
 		if bA.getIndex(i) {
-			bits += `x`
+			bits.WriteString(`x`)
 		} else {
-			bits += `_`
+			bits.WriteString(`_`)
 		}
 	}
-	bits += `"`
-	return []byte(bits), nil
+	bits.WriteString(`"`)
+	return []byte(bits.String()), nil
 }
 
 var bitArrayJSONRegexp = regexp.MustCompile(`\A"([_x]*)"\z`)

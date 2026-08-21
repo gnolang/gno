@@ -32,8 +32,8 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 
 	NotifyValoperChanged(cross(cur), op, pubKeyA, signingAddr, true)
 
-	rawEntry, ok := valoperCache.Get(op.String())
-	urequire.True(t, ok, "cache entry must exist")
+	rawEntry := valoperCache.Get(op.String())
+	urequire.NotNil(t, rawEntry, "cache entry must exist")
 	entry := rawEntry.(cacheEntry)
 	uassert.Equal(t, pubKeyA, entry.SigningPubKey)
 	uassert.Equal(t, signingAddr, entry.SigningAddress)
@@ -43,8 +43,8 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 	signingAddrB := mustAddr(t, pubKeyB)
 	NotifyValoperChanged(cross(cur), op, pubKeyB, signingAddrB, false)
 
-	rawEntry, ok = valoperCache.Get(op.String())
-	urequire.True(t, ok)
+	rawEntry = valoperCache.Get(op.String())
+	urequire.NotNil(t, rawEntry)
 	entry = rawEntry.(cacheEntry)
 	uassert.Equal(t, pubKeyB, entry.SigningPubKey)
 	uassert.Equal(t, signingAddrB, entry.SigningAddress)

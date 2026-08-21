@@ -153,7 +153,7 @@ func TestParamsDepositMixedPreFeatureCreateThenDeleteLeaks(t *testing.T) {
 	// DelPreX (delete the pre-injected pre-feature key).
 	files := []*std.MemFile{
 		{Name: "dep.gno", Body: `
-package dep
+package mixedpre
 import params_ "chain/params"
 func SetK(cur realm, val string)  { params_.SetBytes("k", []byte(val)) }
 func DelPreX(cur realm)           { params_.SetBytes("preX", nil) }
@@ -262,17 +262,22 @@ func TestParamsDepositMultiRealmIndependent(t *testing.T) {
 
 	pkg1 := "gno.land/r/test/multi1"
 	pkg2 := "gno.land/r/test/multi2"
-	for _, p := range []string{pkg1, pkg2} {
-		files := []*std.MemFile{
-			{Name: "dep.gno", Body: `
-package dep
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkg1, []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package multi1
 import params_ "chain/params"
 func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
 `},
-			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(p)},
-		}
-		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, p, files)))
-	}
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkg1)},
+	})))
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkg2, []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package multi2
+import params_ "chain/params"
+func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkg2)},
+	})))
 
 	dep1 := gnolang.DeriveStorageDepositCryptoAddr(pkg1)
 	dep2 := gnolang.DeriveStorageDepositCryptoAddr(pkg2)
@@ -314,7 +319,7 @@ func TestParamsDepositEmptyValueIsCreate(t *testing.T) {
 	const pkgPath = "gno.land/r/test/empty"
 	files := []*std.MemFile{
 		{Name: "dep.gno", Body: `
-package dep
+package empty
 import params_ "chain/params"
 func SetEmpty(cur realm) { params_.SetBytes("k", []byte{}) }
 func SetNil(cur realm)   { params_.SetBytes("k", nil) }

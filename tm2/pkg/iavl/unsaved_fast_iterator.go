@@ -72,7 +72,7 @@ func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsa
 	// We need to ensure that we iterate over saved and unsaved state in order.
 	// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
 	// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in order efficiently.
-	unsavedFastNodeAdditions.Range(func(k, v interface{}) bool {
+	unsavedFastNodeAdditions.Range(func(k, v any) bool {
 		fastNode := v.(*fastnode.Node)
 
 		if start != nil && bytes.Compare(fastNode.GetKey(), start) < 0 {

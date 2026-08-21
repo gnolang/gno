@@ -1,0 +1,13 @@
+-- input.md --
+para
+
+<gno-columns-sep>
+next line
+
+tail
+
+-- output.html --
+<p>para</p>
+<!-- unexpected/invalid columns tag omitted -->
+<p>next line</p>
+<p>tail</p>

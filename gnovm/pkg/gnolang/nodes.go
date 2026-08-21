@@ -139,8 +139,10 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
-	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
-	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"     // if name expr refers to package.
+	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
+	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
+	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -434,7 +436,7 @@ func (x *CallExpr) isLikeWithCross() bool {
 	}
 	switch first := x.Args[0].(type) {
 	case *NameExpr:
-		return first.Name == Name("cur") || first.Name == Name(".origin") || first.Name == Name("cross1")
+		return first.Name == Name("cur") || first.Name == Name(".origin")
 	case *CallExpr:
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&
@@ -1465,7 +1467,10 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			}
 		}
 		alloc.AllocateBlockItems(int64(len(nvs)))
-		block.Values = append(block.Values, nvs...)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		block.Values = growBlockValues(block.Values, pvl+len(nvs))
+		copy(block.Values[pvl:], nvs)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
@@ -2425,7 +2430,10 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 			sb.Consts = append(sb.Consts, n)
 		}
 		sb.NumNames++
-		sb.Block.Values = append(sb.Block.Values, tv)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		sb.Block.Values = growBlockValues(sb.Block.Values, len(sb.Block.Values)+1)
+		sb.Block.Values[len(sb.Block.Values)-1] = tv
 		sb.Types = append(sb.Types, st)
 		sb.NameSources = append(sb.NameSources, nsrc)
 		// Maintain nameIndex consistent with Names: build at threshold-cross,
