@@ -21,18 +21,23 @@ routes are live today.
 
 ## Decision
 
-1. **Eager persistence at addpkg (`saveFuncLocalTypes`, machine.go)**:
-   `saveNewPackageValuesAndTypes` walks the package's fileset AST for
-   `*TypeDecl` nodes (function bodies, closures, nested blocks included) and
-   `SetType`s every non-alias `DeclaredType` with `IsFuncLocal()`. Local
-   `DeclaredType`s are materialized at preprocess time (`declareWith`), so
-   the AST enumerates them completely and no `Base` recursion is needed: any
-   local type reachable from another's `Base` is itself a `*TypeDecl`. This
-   mirrors how package-level types are persisted — the entire type-storage
-   cost lands at addpkg with the deployer, and transaction saves stay free
-   of type writes and of any per-save traversal. The walk runs *before*
-   `FinalizeRealmTransaction` because file-level var initializers may
-   already hold local-typed values at addpkg-save time.
+1. **Eager persistence at addpkg, enumerated at predefine time**: local
+   `DeclaredType`s are minted in exactly one place (`tryPredefine` ->
+   `declareWith`; the TRANS_LEAVE `*TypeDecl` case copies *into* that
+   instance), so `tryPredefine` appends every non-blank function-local
+   type to `pn.funcLocalTypes` (an unexported, non-serialized field on
+   `PackageNode`, like `pkgID`). `saveFuncLocalTypes` then just iterates
+   the list and `SetType`s — fully symmetric with the package-level loop,
+   which likewise iterates state (block slots) that predefine populated;
+   no save-time AST traversal at all. The entire type-storage cost lands
+   at addpkg with the deployer, and transaction saves stay free of type
+   writes. The save runs *before* `FinalizeRealmTransaction` because
+   file-level var initializers may already hold local-typed values at
+   addpkg-save time. Completeness invariant (documented on the field):
+   every code path that mints a function-local DeclaredType must append;
+   the debugAssert below is the tripwire for a missed one, and preprocess
+   contexts that never save (MsgRun, queries, boot re-preprocess) rebuild
+   the list harmlessly without reading it.
 2. **`copyTypeWithRefs` preserves `ParentLoc`**: `ParentLoc` is part of the
    TypeID for local types (`pkg[loc].Name`); dropping it in the persist copy
    (as before) would store the type record under a different ID than the one
@@ -69,6 +74,14 @@ escaping into realm state, so no ephemeral-package types are persisted.
   is moot if this lands before packages with escaping local types exist
   on-chain; otherwise a one-shot state migration (or temporarily keeping the
   saver as backstop) is required.
+- **Save-time AST walk (`Transcribe` over the fileset in
+  `saveFuncLocalTypes`)** — the shape #5935 ships: enumerate local types at
+  addpkg by walking every file for `*TypeDecl` nodes. Equivalent output and
+  cost class (once per addpkg); its completeness rests on a language fact
+  ("every local type is a TypeDecl in the fileset") rather than on the
+  predefine bookkeeping invariant above, at the price of the only
+  `Transcribe` call outside the preprocess layer and an extra full AST
+  pass. This PR exists as the side-by-side comparison of the two shapes.
 - **`SetType` at declaration time (`OpTypeDecl`)**: runtime re-execution
   pays gas on every call of the declaring function and would fire inside
   MsgRun scripts; the static enumeration at addpkg has neither problem.

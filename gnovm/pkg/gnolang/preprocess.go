@@ -5620,6 +5620,13 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				// create new declared type.
 				pn := packageOf(last)
 				dt := declareWith(pn.PkgPath, last, d.Name, t)
+				// Record function-local types for persistence at addpkg
+				// (saveFuncLocalTypes). This is the single site that mints
+				// canonical local DeclaredTypes: the TRANS_LEAVE TypeDecl
+				// case copies *into* this instance and discards its own.
+				if dt.IsFuncLocal() && d.Name != blankIdentifier {
+					pn.funcLocalTypes = append(pn.funcLocalTypes, dt)
+				}
 				t = dt
 			}
 			// fill in later.

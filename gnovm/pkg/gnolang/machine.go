@@ -922,42 +922,23 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // entire cost at addpkg with the deployer and keeps transaction saves free
 // of type writes.
 //
-// Local DeclaredTypes are materialized at preprocess time (declareWith),
-// so walking the fileset AST enumerates them completely; no recursion
-// through Base is needed because any local type reachable from another's
-// Base is itself declared by a *TypeDecl in the same package.
+// Local DeclaredTypes are materialized at predefine time and collected on
+// the PackageNode (pn.funcLocalTypes, see tryPredefine), so the save is a
+// direct iteration — symmetric with the package-level loop above, which
+// iterates the block slots that predefine populated. No recursion through
+// Base is needed because any local type reachable from another's Base is
+// itself declared by a *TypeDecl in the same package and thus collected.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	bv, ok := pv.Block.(*Block)
 	if !ok {
 		return
 	}
 	pn, ok := bv.GetSource(m.Store).(*PackageNode)
-	if !ok || pn.FileSet == nil {
+	if !ok {
 		return
 	}
-	save := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		if stage != TRANS_ENTER {
-			return n, TRANS_CONTINUE
-		}
-		td, ok := n.(*TypeDecl)
-		if !ok {
-			return n, TRANS_CONTINUE
-		}
-		// A type expression contains no further declarations, so the
-		// subtree is pruned on every path below. After preprocessing a
-		// non-alias td.Type is a *constTypeExpr holding the declared type
-		// (blank decls are skipped by the assertions).
-		cte, ok := td.Type.(*constTypeExpr)
-		if td.IsAlias || !ok {
-			return n, TRANS_SKIP
-		}
-		if dt, ok := cte.Type.(*DeclaredType); ok && dt.IsFuncLocal() {
-			m.Store.SetType(dt)
-		}
-		return n, TRANS_SKIP
-	}
-	for _, fn := range pn.FileSet.Files {
-		Transcribe(fn, save)
+	for _, dt := range pn.funcLocalTypes {
+		m.Store.SetType(dt)
 	}
 }
 

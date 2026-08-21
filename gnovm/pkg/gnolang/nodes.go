@@ -1319,6 +1319,14 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+
+	// funcLocalTypes collects every function-local *DeclaredType of this
+	// package as it is minted at predefine time (tryPredefine); addpkg
+	// persists them via saveFuncLocalTypes. Completeness invariant: every
+	// code path that creates a non-blank function-local DeclaredType must
+	// append here. Not serialized; rebuilt (and left unread) whenever the
+	// package is re-preprocessed.
+	funcLocalTypes []*DeclaredType
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing
