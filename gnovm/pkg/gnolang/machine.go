@@ -903,6 +903,10 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
 	// be redundant (cross-pkg: the owning pkg already SetType'd them;
 	// uverse: lives in the in-memory VM registry, not in chain state).
+	// Must stay after the finalization above: these records embed method
+	// FuncValue hashes, assigned when finalization saves the objects
+	// (moving this loop earlier panics with "non-escaped object should
+	// not have zero hash").
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
@@ -928,6 +932,14 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // iteration. No recursion through Base is needed: any local type reachable
 // from another's Base is itself declared by a *TypeDecl in the same package
 // and thus collected.
+//
+// Running before FinalizeRealmTransaction is safe only for this class of
+// types: methods attach exclusively to package-level named types, so local
+// DeclaredTypes carry none and their persisted records embed no object
+// refs. Package-level type records DO embed their method FuncValues'
+// hashes (copyTypeWithRefs -> copyMethods -> toRefValue), which exist only
+// after finalization saves the objects — hence the package-level SetType
+// loop in the caller runs after it.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	// At addpkg-save time the package was just constructed by this machine:
 	// its block is a live *Block sourced from a *PackageNode. Anything else

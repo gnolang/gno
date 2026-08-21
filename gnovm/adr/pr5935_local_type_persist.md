@@ -67,6 +67,24 @@ routes are live today.
    explicitly, and anything else — including `ChanType`, which
    `copyTypeWithRefs` never emits — hits the panic default.
 
+**Why local types save before finalization but package-level types after —
+and why the assert is scoped to function-local refs.** A declared type's
+persisted record embeds its methods' FuncValue hashes (`copyTypeWithRefs` →
+`copyMethods` → `toRefValue`), and those hashes exist only once
+`FinalizeRealmTransaction` has saved the objects; objects in turn embed type
+refs. The codebase breaks this object↔type cycle by writing objects first,
+package-level type records second — so within the addpkg tx, refs to the
+new package's own package-level types are legitimately unresolvable at
+`SetObject` time, and a broad "every RefType must resolve" assert there is
+impossible (verified empirically: moving the package-level `SetType` loop
+before finalization panics with "non-escaped object should not have zero
+hash"). Function-local types are the one class exempt from the cycle —
+methods attach exclusively to package-level named types, so local type
+records embed no object refs — which is what makes both the pre-finalize
+`saveFuncLocalTypes` ordering and the func-local-scoped `SetObject` assert
+sound. The full invariant would only be assertable at tx-commit time, a
+heavier mechanism deliberately not built here.
+
 MsgRun scripts never reach `saveNewPackageValuesAndTypes` (the keeper runs
 them with `save=false`), and a pre-existing guard ("cannot persist object of
 type defined in the private realm") independently rejects their values

@@ -903,6 +903,12 @@ func (ds *defaultStore) SetType(tt Type) {
 // declared type (RefType whose TypeID carries a location) that is not in
 // cacheTypes. See the SetObject call site for the invariant.
 //
+// Scoped to function-local refs because they are the only class checkable
+// at SetObject time: within the addpkg tx, objects are saved before the
+// package-level type records (whose bytes embed method FuncValue hashes,
+// see saveNewPackageValuesAndTypes), so refs to the new package's own
+// package-level types are legitimately unresolvable-yet here.
+//
 // Shape mirrors fillTypesOfValue (the load-side walk over the same graph);
 // it cannot reuse fillTypesOfValue/assertTypeIsPublic because those resolve
 // types via GetType (amino decode, gas, cache fills) or run in release
@@ -964,7 +970,7 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefTV(tv *TypedValue) {
 func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 	switch ct := t.(type) {
 	case RefType:
-		if !ct.ID.IsFuncLocal() {
+		if !ct.IsFuncLocal() {
 			return
 		}
 		if _, exists := ds.cacheTypes[ct.ID]; exists {
