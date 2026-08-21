@@ -24,20 +24,30 @@ routes are live today.
 1. **Eager persistence at addpkg, enumerated at predefine time**: local
    `DeclaredType`s are minted in exactly one place (`tryPredefine` ->
    `declareWith`; the TRANS_LEAVE `*TypeDecl` case copies *into* that
-   instance), so `tryPredefine` appends every non-blank function-local
-   type to `pn.funcLocalTypes` (an unexported, non-serialized field on
-   `PackageNode`, like `pkgID`). `saveFuncLocalTypes` then just iterates
-   the list and `SetType`s — fully symmetric with the package-level loop,
-   which likewise iterates state (block slots) that predefine populated;
-   no save-time AST traversal at all. The entire type-storage cost lands
-   at addpkg with the deployer, and transaction saves stay free of type
+   instance), so `tryPredefine` records every non-blank function-local
+   type on the `PackageNode` as `ATTR_FUNC_LOCAL_TYPES` — the attribute
+   bag is the established home for derived, non-serialized preprocess
+   products (same machinery as `ATTR_REF_ELEM_TYPE`); the typed accessor
+   pair `FuncLocalTypes`/`AddFuncLocalType` keeps call sites cast-free.
+   `saveFuncLocalTypes` then just iterates the list and `SetType`s —
+   fully symmetric with the package-level loop, which likewise iterates
+   state (block slots) that predefine populated; no save-time AST
+   traversal on the main path. The entire type-storage cost lands at
+   addpkg with the deployer, and transaction saves stay free of type
    writes. The save runs *before* `FinalizeRealmTransaction` because
    file-level var initializers may already hold local-typed values at
-   addpkg-save time. Completeness invariant (documented on the field):
-   every code path that mints a function-local DeclaredType must append;
-   the debugAssert below is the tripwire for a missed one, and preprocess
-   contexts that never save (MsgRun, queries, boot re-preprocess) rebuild
-   the list harmlessly without reading it.
+   addpkg-save time (pinned by `zrealm_localtype3.gno` under debugAssert);
+   its preconditions (live `*Block`, `*PackageNode` source) are invariants
+   and panic if broken. Completeness invariant (documented on
+   `AddFuncLocalType`): every code path that mints a function-local
+   DeclaredType must append. It is machine-checked, not trusted:
+   `assertFuncLocalTypesComplete` (debugAssert) re-runs the fileset AST
+   walk at addpkg and panics on any disagreement with the collection,
+   including duplicates (unit-tested by
+   `TestAssertFuncLocalTypesCompleteFires`); the `SetObject` assert below
+   is the second, independent tripwire. Preprocess contexts that never
+   save (MsgRun, queries, boot re-preprocess) rebuild the attribute
+   harmlessly without reading it.
 2. **`copyTypeWithRefs` preserves `ParentLoc`**: `ParentLoc` is part of the
    TypeID for local types (`pkg[loc].Name`); dropping it in the persist copy
    (as before) would store the type record under a different ID than the one
@@ -49,11 +59,12 @@ routes are live today.
    of committing unreadable state. The backend probe is a raw key check —
    later transactions see addpkg-persisted types in the backend, not in
    their per-tx `cacheTypes` — with a nil `GasContext`, so debugAssert
-   builds consume exactly the same gas as release builds. The type walker
-   panics on unhandled type kinds for the same fail-loud reason;
-   known-but-not-currently-persistable kinds (`tupleType`, `ChanType`) are
+   builds consume exactly the same gas as release builds. Both the value
+   and type walkers panic on unhandled kinds for the same fail-loud
+   reason; known-but-not-currently-persistable kinds (`tupleType`) are
    walked, structurally-empty kinds (`blockType` etc.) are pruned
-   explicitly.
+   explicitly, and anything else — including `ChanType`, which
+   `copyTypeWithRefs` never emits — hits the panic default.
 
 MsgRun scripts never reach `saveNewPackageValuesAndTypes` (the keeper runs
 them with `save=false`), and a pre-existing guard ("cannot persist object of
@@ -104,7 +115,11 @@ escaping into realm state, so no ephemeral-package types are persisted.
   the "fresh chain" caveat holds only if no network deploys master in the
   gap.
 - Tests: `restart_local_type.txtar` is the true reproducer (fails on
-  master — since #5737, the lt1 method-value route fails first);
-  `zrealm_localtype0/1/2.gno` filetests pass on master and act as
-  save-side guards via `-tags debugAssert` (`make test.debugAssert`, not yet
-  in CI) plus a golden pinning the on-the-wire bracketed `RefType`.
+  master — since #5737, the lt1 method-value route fails first); its
+  `zlti` realm covers the addpkg-time escape (file-level var initializer)
+  across a restart. `zrealm_localtype0/1/2/3.gno` filetests pass on master
+  and act as save-side guards via `-tags debugAssert`
+  (`make test.debugAssert`, not yet in CI) plus a golden pinning the
+  on-the-wire bracketed `RefType`; `zrealm_localtype3.gno` additionally
+  pins the save-before-finalization ordering, and
+  `TestAssertFuncLocalTypesCompleteFires` pins the bookkeeping audit.

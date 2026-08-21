@@ -17,6 +17,9 @@
 #          second restart
 #   zltc/zzltp: local type declared in a pure p/ package function, stored in
 #          a realm
+#   zlti:  addpkg-time escape — a file-level var initializer persists the
+#          local-typed value in the same tx that persists the type record;
+#          no later call involved
 #   zltsh CallB: TypeValue-only escape — closure constructs the local type
 #          per call; the only persisted trace of S2 is the captured type
 #   zltsh CallC: type declared inside a closure literal (ParentLoc =
@@ -39,6 +42,7 @@ loadpkg gno.land/r/test/zlta $WORK/zlta
 loadpkg gno.land/r/test/zltb $WORK/zltb
 loadpkg gno.land/r/test/zltm $WORK/zltm
 loadpkg gno.land/r/test/zltc $WORK/zltc
+loadpkg gno.land/r/test/zlti $WORK/zlti
 loadpkg gno.land/r/test/zltsh $WORK/zltsh
 
 gnoland start
@@ -99,6 +103,9 @@ stdout 'OK!'
 
 gnokey maketx call -pkgpath gno.land/r/test/zltc -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 stdout '12 int'
+
+gnokey maketx call -pkgpath gno.land/r/test/zlti -func Call -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout '13 int'
 
 gnokey maketx call -pkgpath gno.land/r/test/zltsh -func CallB -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 stdout '7 int'
@@ -271,6 +278,26 @@ func Bind(cur realm) {
 
 func Call(cur realm) int {
 	return H.Get()
+}
+
+-- zlti/zlti.gno --
+package zlti
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+type Getter interface{ Get() int }
+
+func mk() any {
+	type S struct{ T }
+	return S{T{13}}
+}
+
+var X any = mk()
+
+func Call(cur realm) int {
+	return X.(Getter).Get()
 }
 
 -- zltsh/zltsh.gno --
