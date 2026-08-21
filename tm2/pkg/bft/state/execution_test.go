@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -88,6 +89,39 @@ func TestApplyBlockFlushesABCIResponsesBeforeAppCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, loaded.DeliverTxs, len(block.Txs))
 	assert.Equal(t, []byte(block.Txs[0]), loaded.DeliverTxs[0].Data)
+}
+
+// TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError pins that a failed
+// write of the crash-recovery record stops the block before the application
+// commits it: committing anyway would leave the app ahead of a record that was
+// never stored, the exact skew the record exists to cover.
+func TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError(t *testing.T) {
+	t.Parallel()
+
+	state, _, _ := makeState(1, 1)
+	writeErr := errors.New("injected responses write failure")
+	stateDB := &failingWriteDB{
+		DB:         newUnsyncedWriteDB(),
+		failPrefix: sm.CalcABCIResponsesKey(1),
+		failErr:    writeErr,
+	}
+	sm.SaveState(stateDB, state)
+
+	committed := false
+	app := &commitHookApp{onCommit: func() { committed = true }}
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec.SetEventSwitch(events.NewEventSwitch())
+
+	block := makeBlock(state, 1)
+	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
+	_, err := blockExec.ApplyBlock(state, blockID, block)
+
+	require.ErrorIs(t, err, writeErr)
+	assert.False(t, committed, "the application committed a height whose recovery record was never stored")
 }
 
 // TestBeginBlockValidators ensures we send absent validators list.

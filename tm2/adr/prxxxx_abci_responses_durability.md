@@ -63,11 +63,40 @@ was restored from a snapshot.
 
 ## Decision
 
-Write the record with `db.SetSync`.
+Write the record with `db.SetSync`, and propagate its write error so
+`ApplyBlock` stops the block before the application commit.
 
-That restores the invariant the ordering assumes: the responses for H are on
-disk before the application commits H, so every position a crash can land in
+The flush restores the invariant the ordering assumes: the responses for H are
+on disk before the application commits H, so every position a crash can land in
 maps onto a handshake case that recovers.
+
+The error propagation closes the sibling gap: a *failed* write (disk full, I/O
+error) has nothing to flush, so durability alone cannot help — the previous
+code discarded the error and let `ApplyBlock` proceed to the application
+commit, reaching the same unrecoverable skew through a different door. With the
+error returned, `ApplyBlock` fails while `app = state = H-1, store = H` still
+holds — the handshake's healthy replay-against-the-real-application case — and
+the node recovers by itself once the fault clears. The tx result index write
+stays fire-and-forget: it is a lookup index rebuilt on replay, not a recovery
+record. Both defects are tracked in gnolang/gno#6055.
+
+Propagating the error changes behaviour at every `ApplyBlock` caller, all of
+which already have an exercised error path for ApplyBlock failures — the new
+cause feeds existing handling, and each site stops in the recoverable
+`app = state = H-1, store = H` shape:
+
+| Caller | On error (pre-existing handling) | Recovery |
+|---|---|---|
+| consensus `finalizeCommit` | logs + `osm.Kill()` | restart replays H against the real application (the WAL meta fsync one call earlier already treats a failed flush as fatal — same philosophy) |
+| fast sync `poolRoutine` | panics ("Failed to process committed block") | same replay on restart |
+| handshake `replayBlock` | returns the error, node start fails | retry once the fault clears |
+| handshake InitChain save | returns the error, like its sibling error paths | retry once the fault clears |
+
+The trade is explicit: a transient I/O failure now stops the process loudly
+where it previously survived with a silently missing recovery record. On a
+store that refuses writes, `SaveState` (whose own error is still discarded)
+would not have persisted anything either — the old code was not surviving,
+only deferring the failure to a worse position.
 
 | Crash position | Resulting heights | Handshake path |
 |---|---|---|
@@ -205,6 +234,18 @@ only if a later synced write flushes the log — rather than faking fsync
 semantics. Both save a non-empty payload and assert on its contents, so they
 cannot pass on the present-but-empty case. Both fail before the change with the
 production error, `Could not find results for height #1`.
+
+For the error-propagation half:
+
+`TestSaveABCIResponsesReturnsWriteError` (`store_test.go`) pins that a failed
+write surfaces to the caller instead of being dropped.
+
+`TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError`
+(`execution_test.go`) pins the behaviour that matters: with a store that
+refuses the responses key (`failingWriteDB`, `helpers_test.go` — models an
+I/O failure on one record while the rest of the database keeps working),
+`ApplyBlock` returns the write error and the application's `Commit` is never
+invoked. Before the change it returned nil and committed.
 
 ## AI assistance
 

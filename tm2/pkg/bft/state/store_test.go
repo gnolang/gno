@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -148,11 +149,32 @@ func TestSaveABCIResponsesIsDurable(t *testing.T) {
 	require.NotEmpty(t, responses.Bytes(), "payload must be non-empty for the assertion below to mean anything")
 
 	stateDB := newUnsyncedWriteDB()
-	sm.SaveABCIResponses(stateDB, 1, responses)
+	require.NoError(t, sm.SaveABCIResponses(stateDB, 1, responses))
 
 	loaded, err := sm.LoadABCIResponses(stateDB.Durable(), 1)
 	require.NoError(t, err)
 	assert.Equal(t, responses.DeliverTxs, loaded.DeliverTxs)
+}
+
+// TestSaveABCIResponsesReturnsWriteError pins that a failed write surfaces to
+// the caller instead of being dropped: the caller must get the chance to stop
+// the block before the application commits a height with no recovery record.
+func TestSaveABCIResponsesReturnsWriteError(t *testing.T) {
+	t.Parallel()
+
+	writeErr := errors.New("injected responses write failure")
+	stateDB := &failingWriteDB{
+		DB:         newUnsyncedWriteDB(),
+		failPrefix: sm.CalcABCIResponsesKey(1),
+		failErr:    writeErr,
+	}
+
+	err := sm.SaveABCIResponses(stateDB, 1, &sm.ABCIResponses{
+		DeliverTxs: []abci.ResponseDeliverTx{
+			{ResponseBase: abci.ResponseBase{Data: []byte("delivered")}},
+		},
+	})
+	require.ErrorIs(t, err, writeErr)
 }
 
 func BenchmarkLoadValidators(b *testing.B) {

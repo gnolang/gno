@@ -317,3 +317,30 @@ func (app *commitHookApp) Commit() abci.ResponseCommit {
 func (app *commitHookApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{Data: req.Tx}}
 }
+
+// failingWriteDB refuses writes whose key carries the given prefix, modeling a
+// store that hits an I/O error (disk full, failed fsync) on one specific
+// record while the rest of the database keeps working. Every other operation
+// passes through to the embedded DB.
+type failingWriteDB struct {
+	dbm.DB
+
+	failPrefix []byte
+	failErr    error
+}
+
+func (db *failingWriteDB) Set(key, value []byte) error {
+	if bytes.HasPrefix(key, db.failPrefix) {
+		return db.failErr
+	}
+
+	return db.DB.Set(key, value)
+}
+
+func (db *failingWriteDB) SetSync(key, value []byte) error {
+	if bytes.HasPrefix(key, db.failPrefix) {
+		return db.failErr
+	}
+
+	return db.DB.SetSync(key, value)
+}

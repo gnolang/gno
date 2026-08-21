@@ -206,9 +206,17 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // stateBlockHeight+1, appBlockHeight == storeBlockHeight case, which replays the
 // height against a mock application and has no other source for its state.
 //
+// A write failure is returned rather than swallowed for the same reason: the
+// caller must stop the block before the application commits a height whose
+// recovery record was never stored.
+//
 // NOTE: this should only be used internally by the bft package and subpackages.
-func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	db.SetSync(CalcABCIResponsesKey(height), abciResponses.Bytes())
+func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) error {
+	if err := db.SetSync(CalcABCIResponsesKey(height), abciResponses.Bytes()); err != nil {
+		return fmt.Errorf("save ABCI responses for height %d: %w", height, err)
+	}
+
+	return nil
 }
 
 // TxResultIndex keeps the result index information for a transaction
