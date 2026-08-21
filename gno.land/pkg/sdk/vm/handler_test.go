@@ -101,6 +101,20 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 
 		// errors
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^:0:0: name doesnotexist not declared:`}, // multiline error
+		// Oversized expressions are refused before they are parsed. Parsing a
+		// numeric literal is quadratic in its digit count, and a qeval query
+		// is free and untimed, so the input has to be bounded rather than
+		// merely priced: maxGasQuery is ~3s of CPU at GasFactorCPU=1, which a
+		// correctly priced quadratic parse stays under. Both literal kinds are
+		// covered because the int and float parsers are separate paths.
+		{
+			input:              []byte(`gno.land/r/hello.` + strings.Repeat("1", maxQueryExprLen+1)),
+			expectedErrorMatch: `^invalid expression$`,
+		},
+		{
+			input:              []byte(`gno.land/r/hello.1.` + strings.Repeat("0", maxQueryExprLen) + `e1`),
+			expectedErrorMatch: `^invalid expression$`,
+		},
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^runtime error: slice index out of bounds: 6 \(len=5\)$`},

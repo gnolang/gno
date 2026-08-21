@@ -50,6 +50,15 @@ const (
 	maxAllocTx    = 500_000_000
 	maxAllocQuery = 1_500_000_000 // higher limit for queries
 	maxGasQuery   = 3_000_000_000 // same as max block gas
+	// maxQueryExprLen bounds the expression an ABCI qeval query may carry.
+	// Queries are free, untimed, and served with maxGasQuery worth of gas --
+	// which at GasFactorCPU=1 is roughly three seconds of CPU, so a correctly
+	// priced quadratic parser (see OpCPUSlopeParseBigInt) still permits a
+	// ~900ms query. Bounding the input is what actually bounds the work: any
+	// superlinear cost in the parser or preprocessor is quadratic in this
+	// number, not in the gas budget. 64 KiB is far more than any real
+	// expression needs and holds the worst known parse to single-digit ms.
+	maxQueryExprLen = 64 * 1024
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -1387,6 +1396,12 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 // an error-implementing return) must use this helper so the machine is still
 // alive when fn runs.
 func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue)) (err error) {
+	// Refuse oversized expressions before parsing or preprocessing them; see
+	// maxQueryExprLen. This is the choke point for every qeval variant.
+	if len(expr) > maxQueryExprLen {
+		return ErrInvalidExpr(fmt.Sprintf(
+			"expression too long: %d bytes, limit %d", len(expr), maxQueryExprLen))
+	}
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)

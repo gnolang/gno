@@ -1417,6 +1417,13 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 	}
 }
 
+// incrCPUParseQuad charges quadratic CPU gas for parsing a numeric literal of
+// digits length, before the parse runs. Same shape as incrCPUBigIntQuad.
+func (m *Machine) incrCPUParseQuad(digits int, slope int64) {
+	d := int64(digits) / 32
+	m.incrCPU(overflow.Mulp(overflow.Mulp(d, d), slope) / 32)
+}
+
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
@@ -1639,9 +1646,19 @@ const (
 	// pulling the fit coefficient below the same-width-only value (~4).
 	// NOTE: small operands (<128 bits) are undercharged because the quadratic
 	// term rounds to 0 in integer math. A minimum BigInt overhead would fix this.
-	OpCPUSlopeBigIntMulQ = 4 // per lb*rb/32 (fit: 3.83, R²=0.99, same+cross width)
-	OpCPUSlopeBigIntQuoQ = 4 // per lb*rb/32 (fit: 3.59, R²=0.54, same+cross width)
-	OpCPUSlopeBigIntRemQ = 3 // per lb*rb/32 (fit: 3.40, R²=0.52, same+cross width)
+	// Numeric literal parsing in doOpEval is quadratic in the digit count.
+	// big.Int.SetString uses mulAddWW per digit group for every base that
+	// does not pack into words (8, 10, 32, ... and also 2/4/16 before Go
+	// 1.25 gained the bit-packing fast path), and parseBigdecLiteral runs
+	// big.ParseFloat plus big.Rat.SetString. Charged with the same shape as
+	// the other quadratic slopes: gas = (digits/32)^2 * slope / 32.
+	// Deliberately base-independent: keying the charge on the base would
+	// make gas depend on which Go release built the node.
+	OpCPUSlopeParseBigInt = 60  // fit: 700K digits -> 924 ms reference (897 ms modeled)
+	OpCPUSlopeParseBigdec = 120 // measured 2.0x the bigint path at equal digits
+	OpCPUSlopeBigIntMulQ  = 4   // per lb*rb/32 (fit: 3.83, R²=0.99, same+cross width)
+	OpCPUSlopeBigIntQuoQ  = 4   // per lb*rb/32 (fit: 3.59, R²=0.54, same+cross width)
+	OpCPUSlopeBigIntRemQ  = 3   // per lb*rb/32 (fit: 3.40, R²=0.52, same+cross width)
 	// Shift ops: Shl charges per-kilobit of shift amount (output growth).
 	// Shr charges per-kilobit of input bit width.
 	OpCPUSlopeBigIntShl = 39 // fit: 0.038 ns/bit * 1024 = 38.9

@@ -49,6 +49,10 @@ func (m *Machine) doOpEval() {
 		switch x.Kind {
 		case INT:
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			// Charged before the parse, not after: SetString below is
+			// quadratic in the digit count, so the gas has to be taken
+			// while the input is still just a string.
+			m.incrCPUParseQuad(len(x.Value), OpCPUSlopeParseBigInt)
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
@@ -86,6 +90,9 @@ func (m *Machine) doOpEval() {
 			})
 		case FLOAT:
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			// See the INT case: parseBigdecLiteral runs big.ParseFloat and
+			// big.Rat.SetString, both quadratic in the digit count.
+			m.incrCPUParseQuad(len(x.Value), OpCPUSlopeParseBigdec)
 
 			if reFloat.MatchString(x.Value) {
 				m.PushValue(TypedValue{
