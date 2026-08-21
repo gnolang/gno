@@ -927,13 +927,16 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // through Base is needed because any local type reachable from another's
 // Base is itself declared by a *TypeDecl in the same package.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
-	bv, ok := pv.Block.(*Block)
-	if !ok {
-		return
-	}
-	pn, ok := bv.GetSource(m.Store).(*PackageNode)
-	if !ok || pn.FileSet == nil {
-		return
+	// At addpkg-save time the package was just constructed by this machine:
+	// its block is a live *Block sourced from a *PackageNode with its
+	// fileset attached. Anything else would silently skip type persistence
+	// — the dangling-ref corruption this fix exists to prevent — so the
+	// assertions fail loudly (the tx aborts and rolls back) rather than
+	// return.
+	bv := pv.Block.(*Block)
+	pn := bv.GetSource(m.Store).(*PackageNode)
+	if pn.FileSet == nil {
+		panic("saveFuncLocalTypes: package node has no fileset at addpkg save")
 	}
 	save := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
