@@ -840,46 +840,136 @@ func TestValidTypeWalkIsExponential(t *testing.T) {
 		"the charge must abort the deploy before go/types walks the chain")
 }
 
-// TestTypeExpansionCostCyclicIsDeterministic pins that a value-containment cycle
-// prices identically every run. It did not: namedCost truncates the cycle at
-// whichever member it is already visiting, every ancestor memoizes a value derived
-// from that truncation, and which member truncates followed Go map order — so this
-// source came out 3076 or 6136 nodes at random, 306k gas apart.
-//
-// The count is charged as gas, so disagreement between nodes is a fork:
-// ABCIResult.Error is hashed into LastResultsHash, and runTx charges
-// GasConsumedToLimit() to the BlockGasMeter. Only invalid recursive types are
-// affected and go/types rejects those a moment later, but the charge lands first,
-// so one cheap malformed package was enough.
-//
-// The loop is the test: a single call cannot observe map order. Asserting one
-// distinct value matters more than which value it is — the walk over an invalid
-// recursive type is bounded and cheap in reality, so any fixed number over-charges
-// safely, while a varying one forks.
-func TestTypeExpansionCostCyclicIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	// Asymmetric on purpose: A and B alone truncate to the same total either way,
-	// so the divergence needs a chain hanging off one member of the cycle.
+// chainOn appends a doubling chain of the given depth rooted at base, so a small
+// difference in base's score is amplified 2^depth times.
+func chainOn(base string, depth int) string {
 	var b strings.Builder
-	b.WriteString("package x\ntype A struct{ x, y B }\ntype B struct{ x, y A }\n")
-	for i := 1; i <= 8; i++ {
-		prev := "A"
+	for i := 1; i <= depth; i++ {
+		prev := base
 		if i > 1 {
 			prev = fmt.Sprintf("Z%d", i-1)
 		}
 		fmt.Fprintf(&b, "type Z%d struct{ p, q %s }\n", i, prev)
 	}
-	src := b.String()
+	return b.String()
+}
 
-	seen := map[uint64]int{}
-	for range 300 {
-		// A fresh parse and checker each time, so nothing is carried between runs
-		// except the source itself.
-		_, gofs := parseCostSrc(t, src)
-		seen[typeExpansionCost("", gofs, nil, nil)]++
+// TestTypeExpansionCostIsDeterministic pins that the charge is identical on every
+// run for every shape that makes cost() take its one order-sensitive branch.
+//
+// That branch is the containment-cycle truncation in namedCost: it returns 1 for a
+// member it is already visiting and correctly does not memoize that, but every
+// ancestor on the cycle memoizes a value DERIVED from the truncation. Which member
+// truncates depends on which root is walked first, so an unsorted walk priced the
+// same source differently per run — 3076 or 6136 nodes, 306k gas apart. The count
+// is charged as gas, so nodes that disagree fork: ABCIResult.Error is hashed into
+// LastResultsHash and runTx charges GasConsumedToLimit() to the BlockGasMeter.
+//
+// Cycles are the whole risk surface here. Every other branch of cost() is a pure
+// function of its key, and satAdd/satMul saturate to a fixed point, so neither can
+// depend on walk order.
+//
+// Two things this table is shaped to say out loud:
+//
+//   - The cases only reachable through INVALID input are the ones that diverged.
+//     go/types rejects every one of them a moment later, but the charge lands
+//     first, so a determinism suite built only from valid fixtures — the whole
+//     examples corpus, say — is silent on this entire class.
+//   - "symmetric 2-cycle" is a control: it is stable even unsorted, because both
+//     orders truncate an equal-weight member. It is why a first attempt at this
+//     test can pass while the bug is live.
+//
+// The loop is the test: a single call cannot observe map order.
+//
+// Verified by reverting the sort in declsFor and re-running. Four cases catch it,
+// three are controls that cannot:
+//
+//	2-cycle, chain on one member       3076 / 6136        detects
+//	2-cycle, chains on both members     844 / 1564        detects
+//	cycle across an import boundary     766 / 1510        detects
+//	3-cycle with a chain           822 / 1578 / 3090      detects (three-way)
+//	symmetric 2-cycle                        32           control, stable
+//	self-reference by value                 751           control, stable
+//	acyclic control                        2537           control, stable
+//
+// If you add a case, check it against a reverted sort. A case that cannot fail is
+// documentation, not a test — keep it only if it is labelled a control here.
+func TestTypeExpansionCostIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	const cyc = "type A struct{ x, y B }\ntype B struct{ x, y A }\n"
+
+	tt := []struct {
+		name  string
+		pkgs  map[string]string // entry is "p"; extra packages are resolved
+		entry string
+	}{
+		{
+			// Control: equal weight either side, so both orders agree. Stable even
+			// with the bug present.
+			name: "symmetric 2-cycle",
+			pkgs: map[string]string{"p": "package p\n" + cyc},
+		},
+		{
+			// The reported diverger: 8 doubling levels on one member only.
+			name: "2-cycle, chain on one member",
+			pkgs: map[string]string{"p": "package p\n" + cyc + chainOn("A", 8)},
+		},
+		{
+			// Both members carry weight, at different depths.
+			name: "2-cycle, chains on both members",
+			pkgs: map[string]string{"p": "package p\n" + cyc +
+				chainOn("A", 6) + "type Y1 struct{ p, q B }\ntype Y2 struct{ p, q Y1 }\n"},
+		},
+		{
+			name: "3-cycle with a chain",
+			pkgs: map[string]string{"p": "package p\n" +
+				"type A struct{ x, y B }\ntype B struct{ x, y C }\ntype C struct{ x, y A }\n" +
+				chainOn("B", 6)},
+		},
+		{
+			name: "self-reference by value",
+			pkgs: map[string]string{"p": "package p\ntype S struct{ v int; next S }\n" +
+				chainOn("S", 6)},
+		},
+		{
+			// Cross-package cycle. visiting is keyed by (package, name), so the
+			// truncation can land in either package — a path nothing else covers.
+			name:  "cycle across an import boundary",
+			entry: "p",
+			pkgs: map[string]string{
+				"p": "package p\nimport \"q\"\ntype A struct{ x, y q.B }\n" + chainOn("A", 6),
+				"q": "package q\nimport \"p\"\ntype B struct{ x, y p.A }\n",
+			},
+		},
+		{
+			// A valid graph, for contrast: no cycle, so no order-sensitive branch.
+			name: "acyclic control",
+			pkgs: map[string]string{"p": "package p\ntype T0 struct{ v int }\n" + chainOn("T0", 8)},
+		},
 	}
-	assert.Len(t, seen, 1,
-		"cyclic package priced %d different ways across 300 runs (%v); the charge "+
-			"must not depend on map iteration order", len(seen), seen)
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			entry := tc.entry
+			if entry == "" {
+				entry = "p"
+			}
+			seen := map[uint64]int{}
+			for range 200 {
+				// Fresh fileset, resolver and checker each run, so nothing carries
+				// over except the source.
+				fset := token.NewFileSet()
+				resolve := makeCostResolver(t, fset, tc.pkgs)
+				seen[typeExpansionCost(entry, resolve(entry), resolve, nil)]++
+			}
+			assert.Len(t, seen, 1,
+				"priced %d different ways across 200 runs (%v); the charge must not "+
+					"depend on map iteration order", len(seen), seen)
+			for v := range seen {
+				t.Logf("%s: %d nodes", tc.name, v)
+			}
+		})
+	}
 }
