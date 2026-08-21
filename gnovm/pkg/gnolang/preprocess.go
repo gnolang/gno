@@ -5625,7 +5625,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				// canonical local DeclaredTypes: the TRANS_LEAVE TypeDecl
 				// case copies *into* this instance and discards its own.
 				if dt.IsFuncLocal() && d.Name != blankIdentifier {
-					pn.funcLocalTypes = append(pn.funcLocalTypes, dt)
+					pn.AddFuncLocalType(dt)
 				}
 				t = dt
 			}
