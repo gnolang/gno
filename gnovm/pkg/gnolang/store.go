@@ -291,7 +291,18 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+	committer := t.cacheNodes.(txlog.MapCommitter[Location, BlockNode])
+	// Seal before publishing, not after. These nodes are private to this
+	// transaction right up until Commit copies them into the parent map;
+	// from that instant every store forked from the parent — including
+	// every concurrent query — can reach them, and the first two readers to
+	// touch an unfilled lazy cache would race on it. Sealing here is the
+	// last moment a single goroutine owns them.
+	s := newSealer()
+	for _, bn := range committer.Dirty() {
+		s.sealBlockNode(bn)
+	}
+	committer.Commit()
 }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
@@ -926,7 +937,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 						loc, bn.GetLocation()))
 				}
 			}
-			ds.cacheNodes.Set(loc, bn)
+			ds.SetBlockNode(bn)
 			return bn
 		}
 	}
@@ -945,6 +956,13 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	// ds.backend.Set([]byte(key), bz)
 	// }
 	// save node to cache.
+	if _, forked := ds.cacheNodes.(txlog.MapCommitter[Location, BlockNode]); !forked {
+		// Not a transaction fork, so this Set publishes straight into the
+		// process-wide map (genesis load, and the mem-package re-run on node
+		// start). Seal before it becomes reachable by concurrent queries. A
+		// fork's writes stay private until Write(), which seals them there.
+		newSealer().sealBlockNode(bn)
+	}
 	ds.cacheNodes.Set(loc, bn)
 	// XXX duplicate?
 	// XXX

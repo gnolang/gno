@@ -13,25 +13,26 @@ var _ Client = (*localClient)(nil)
 // case of malicious tx or query). It only makes sense for publicly exposed
 // methods like CheckTx (/broadcast_tx_* RPC endpoint) or Query (/abci_query
 // RPC endpoint), but defers are used everywhere for the sake of consistency.
+// The defers are also what makes a non-mutex Locker safe here: a limiter that
+// hands out slots gets every slot back even when Application panics.
 type localClient struct {
 	service.BaseService
 
-	// mtx serialises every call into Application. A caller that has established
-	// the application is goroutine-safe for the methods it will reach may
-	// supply a no-op Locker to let those calls run concurrently.
+	// mtx is held for the duration of every call into Application, so it is
+	// what sets this connection's concurrency. A sync.Mutex admits one caller
+	// at a time; any other Locker admits whatever it chooses to admit, and the
+	// caller supplying it is asserting that everything reachable from the
+	// methods this client will serve is safe at that concurrency. See
+	// proxy.NewReadOnlyABCIClient for the one connection that supplies
+	// something else.
 	mtx sync.Locker
 	abci.Application
 	Callback
 }
 
-// NewLocalClient returns a client that calls app in-process, serialising calls
-// on mtx. Passing an untyped nil gives the client its own mutex. Note that a
-// typed nil Locker (a nil *sync.Mutex, say) is not nil as an interface, so it
-// slips past this guard and panics on first use — pass a usable Locker or nil.
+// NewLocalClient returns a client that calls app in-process, holding mtx for
+// the duration of every call. mtx must not be nil.
 func NewLocalClient(mtx sync.Locker, app abci.Application) *localClient {
-	if mtx == nil {
-		mtx = new(sync.Mutex)
-	}
 	cli := &localClient{
 		mtx:         mtx,
 		Application: app,

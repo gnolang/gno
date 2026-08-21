@@ -9,8 +9,8 @@ package gnoland
 // fast index, pebble, production store wiring and options) wrapped in the real
 // ABCI proxy client creator — block execution with signed bank sends driven
 // through the CONSENSUS connection while goroutines hammer account and .store
-// queries through the READ-ONLY QUERY connection, which has its own mutex and
-// genuinely races the commit drain (tm2/pkg/bft/proxy). The txtar integration
+// queries through the READ-ONLY QUERY connection, which takes no lock against
+// consensus and genuinely races the commit drain (tm2/pkg/bft/proxy). The txtar integration
 // framework cannot express this (it is sequential); this is the flow that
 // poisoned topaz-1.
 //
@@ -131,8 +131,8 @@ func TestQueryRace_FastIndexParity(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// The real production connection topology: consensus and query connections
-	// with independent mutexes.
+	// The real production connection topology: a serialised consensus
+	// connection and a read-only query connection that does not lock against it.
 	creator := proxy.NewLocalClientCreator(app)
 	cons, err := creator.NewABCIClient()
 	require.NoError(t, err)
@@ -176,9 +176,12 @@ func TestQueryRace_FastIndexParity(t *testing.T) {
 		return &acct, nil
 	}
 
-	// Prefetch account numbers BEFORE arming the hook: the block loop must
-	// never touch the query mutex once the hook can pause a query (the hooked
-	// query holds the query mutex while waiting for the loop to commit).
+	// Prefetch account numbers BEFORE arming the hook. This used to be about the
+	// query mutex — a paused query held it, so any query the block loop issued
+	// would deadlock behind it. The query connection no longer takes that lock,
+	// so the prefetch is now about determinism rather than deadlock: it keeps
+	// the block loop from issuing queries that would run alongside the frozen
+	// one and perturb what the hook is trying to observe.
 	accNums := make([]uint64, blocks)
 	for i := range senders {
 		acct, err := queryAccount(senders[i].PubKey().Address())

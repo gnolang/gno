@@ -40,6 +40,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -325,17 +326,185 @@ func TestParallelQueries_NWaySimulate(t *testing.T) {
 			"so this test is not exercising parallel queries", peak)
 
 	// Phase 2: no committer, so every simulate snapshots the same committed
-	// height. Each querier's own readings must be bit-identical across rounds —
-	// concurrency must not perturb a pure read. (Readings differ BETWEEN
-	// queriers by design: each signs from a different account, so the address
-	// and account encodings it reads differ in length and depth, and so does
-	// the per-byte read gas. Only the per-querier series is a fixed quantity.)
+	// height. (Readings differ BETWEEN queriers by design: each signs from a
+	// different account, so the address and account encodings it reads differ in
+	// length and depth, and so does the per-byte read gas. Only the per-querier
+	// series is a fixed quantity.)
 	gas, peak := runQueriers(rounds, nil)
 	require.Greater(t, peak, int64(1), "phase 2: queries never overlapped")
+
+	// Compare against a SERIAL baseline, not against round 0 of the concurrent
+	// run. Round 0 is itself a parallel round, so a systematic shift caused by
+	// concurrency would move every round together and a self-comparison would
+	// pass. Only a reading taken with nothing else in flight can distinguish
+	// "stable under concurrency" from "equal to serial execution".
+	//
+	// The baseline is taken AFTER the concurrent phase, deliberately. Anything
+	// filled on first touch — a lazily memoised type field, a cache — would be
+	// warmed by a serial pass placed first, which would hide from -race exactly
+	// the kind of first-touch race this test exists to catch.
+	serial := make([]int64, queriers)
+	for g := range queriers {
+		res, err := query.QuerySync(abci.RequestQuery{
+			Path: ".app/simulate",
+			Data: simTxs[g],
+		})
+		require.NoError(t, err, "serial baseline for querier %d", g)
+		require.Falsef(t, res.IsErr(), "serial baseline for querier %d: %v (log %q)", g, res.Error, res.Log)
+		var result sdk.Result
+		require.NoError(t, amino.Unmarshal(res.Value, &result))
+		require.Falsef(t, result.IsErr(), "serial baseline result for querier %d: %v", g, result.Error)
+		serial[g] = result.GasUsed
+	}
+
 	for g := range queriers {
 		for r, got := range gas[g] {
+			require.Equal(t, serial[g], got,
+				"querier %d round %d: simulate under concurrency charged %d gas, serial execution charges %d",
+				g, r, got, serial[g])
+		}
+	}
+}
+
+// TestParallelQueries_PreFirstBlockSimulate covers the window between the
+// genesis commit and the first BeginBlock.
+//
+// In that window the last block header still reads height 0 — Commit
+// republishes the header it was handed, and after InitChain that is initHeader,
+// which carries no Height — while the store already holds a committed version.
+// BaseApp.Simulate used to serve it from app.checkState, whose gas meter is a
+// single pointer shared by every caller: harmless while the query connection
+// held a mutex, a data race the moment it stopped.
+//
+// The window is reachable rather than theoretical. The node starts its RPC
+// listeners before the P2P switch and the consensus reactor, `gnoland start
+// -x-early-start` widens it on purpose, and a node with CreateEmptyBlocks=false
+// (gnodev, and the integration harness) idles in it until a transaction shows
+// up. So this test commits genesis and stops there, which is exactly the state
+// such a node serves queries from.
+//
+// Run with -race; that is the assertion.
+func TestParallelQueries_PreFirstBlockSimulate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("concurrent pre-first-block simulate")
+	}
+
+	const (
+		chainID  = "dev"
+		queriers = 8
+		rounds   = 5
+	)
+
+	simKeys := make([]ed25519.PrivKeyEd25519, queriers)
+	balances := make([]Balance, 0, queriers+1)
+	funded := std.Coins{std.NewCoin("ugnot", 100_000_000)}
+	for i := range simKeys {
+		simKeys[i] = ed25519.GenPrivKey()
+		balances = append(balances, Balance{Address: simKeys[i].PubKey().Address(), Amount: funded})
+	}
+	sink := ed25519.GenPrivKey().PubKey().Address()
+	balances = append(balances, Balance{Address: sink, Amount: std.Coins{std.NewCoin("ugnot", 1)}})
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	creator := proxy.NewLocalClientCreator(bapp)
+	cons, err := creator.NewABCIClient()
+	require.NoError(t, err)
+	require.NoError(t, cons.Start())
+	defer cons.Stop()
+	query, err := creator.NewReadOnlyABCIClient()
+	require.NoError(t, err)
+	require.NoError(t, query.Start())
+	defer query.Stop()
+
+	genState := DefaultGenState()
+	genState.Balances = append(genState.Balances, balances...)
+	_, err = cons.InitChainSync(abci.RequestInitChain{
+		ChainID:         chainID,
+		Time:            time.Now(),
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 100_000_000}},
+		AppState:        genState,
+	})
+	require.NoError(t, err)
+	_, err = cons.CommitSync()
+	require.NoError(t, err)
+
+	// Genesis is committed and no block has been begun: this is the window.
+	// The header reads height 0 while the store is at version 1, which is
+	// precisely the mismatch that used to select the checkState fallback.
+
+	fee := std.NewFee(2_000_000, std.NewCoin("ugnot", 10_000_000))
+	simTxs := make([][]byte, queriers)
+	for i, key := range simKeys {
+		addr := key.PubKey().Address()
+		bech32 := crypto.AddressToBech32(addr)
+		res, err := query.QuerySync(abci.RequestQuery{Path: "auth/accounts/" + bech32})
+		require.NoError(t, err)
+		require.Falsef(t, res.IsErr(), "account %s: %v", bech32, res.Error)
+		var acct GnoAccount
+		require.NoError(t, amino.UnmarshalJSON(res.Data, &acct))
+
+		tx := std.Tx{
+			Msgs: []std.Msg{bank.NewMsgSend(addr, sink, std.Coins{std.NewCoin("ugnot", 1_000_000)})},
+			Fee:  fee,
+		}
+		signBytes, err := tx.GetSignBytes(chainID, acct.GetAccountNumber(), 0)
+		require.NoError(t, err)
+		sig, err := key.Sign(signBytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: key.PubKey(), Signature: sig}}
+		simTxs[i] = amino.MustMarshal(tx)
+	}
+
+	var (
+		start sync.WaitGroup
+		wg    sync.WaitGroup
+	)
+	start.Add(1)
+	errs := make([]error, queriers)
+	gas := make([][]int64, queriers)
+
+	for g := range queriers {
+		gas[g] = make([]int64, 0, rounds)
+		wg.Go(func() {
+			start.Wait()
+			for range rounds {
+				res, err := query.QuerySync(abci.RequestQuery{
+					Path: ".app/simulate",
+					Data: simTxs[g],
+				})
+				if err != nil {
+					errs[g] = err
+					return
+				}
+				if res.IsErr() {
+					errs[g] = fmt.Errorf("simulate query: %w (log %q)", res.Error, res.Log)
+					return
+				}
+				var result sdk.Result
+				if err := amino.Unmarshal(res.Value, &result); err != nil {
+					errs[g] = err
+					return
+				}
+				if result.IsErr() {
+					errs[g] = fmt.Errorf("simulate result: %w (log %q)", result.Error, result.Log)
+					return
+				}
+				gas[g] = append(gas[g], result.GasUsed)
+			}
+		})
+	}
+	start.Done()
+	wg.Wait()
+
+	for g := range queriers {
+		require.NoError(t, errs[g], "querier %d", g)
+		require.Len(t, gas[g], rounds, "querier %d: missing rounds", g)
+		for r, got := range gas[g] {
 			require.Equal(t, gas[g][0], got,
-				"querier %d round %d: simulate gas is not deterministic under concurrency (%d != %d)",
+				"querier %d round %d: pre-first-block simulate charged %d gas, first round charged %d",
 				g, r, got, gas[g][0])
 		}
 	}

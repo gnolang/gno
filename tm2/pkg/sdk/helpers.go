@@ -56,14 +56,49 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 	// Read header from the atomic snapshot — safe for concurrent access.
 	header := app.getLastBlockHeader()
-	if header == nil || header.GetHeight() < 1 {
-		// Before first commit (e.g., during InitChain or tests),
-		// fall back to checkState which is safe in single-threaded context.
+	if header == nil {
+		return ABCIResultFromError(
+			std.ErrInternal("cannot simulate: no block header available yet"),
+		)
+	}
+
+	// Pick the committed version to simulate against.
+	//
+	// Once a real block has been committed the header height is that version,
+	// which is what this has always used. Between the genesis commit and the
+	// first BeginBlock it is not: Commit republishes the header it was handed,
+	// and after InitChain that is initHeader, which carries no Height — so the
+	// header reads 0 while the store already holds a committed version.
+	//
+	// That window is reachable. The node starts its RPC listeners before the
+	// P2P switch and the consensus reactor, so the query endpoint is live
+	// before block 1 can exist, `gnoland start -x-early-start` widens the gap
+	// deliberately, and a node with CreateEmptyBlocks=false — gnodev and the
+	// integration harness both set it — sits in the window until a transaction
+	// arrives. It used to be served from app.checkState, whose gas meter is one
+	// pointer shared by every caller and whose cache stores are mutable: fine
+	// while the query connection serialised, a data race the moment it stopped.
+	// Falling through to the same immutable snapshot the committed path uses
+	// removes the shared state rather than locking around it.
+	height := header.GetHeight()
+	if height < 1 {
+		height = app.LastBlockHeight()
+	}
+	if height < 1 {
+		// Nothing has been committed at all, so there is no snapshot to take:
+		// the genesis state still lives only in the uncommitted checkState.
+		// Reached between InitChain and the genesis commit, which the consensus
+		// handshake performs before the node starts its RPC listeners — so no
+		// external caller is here, and the in-process callers that are (tests,
+		// tooling driving BaseApp directly) get a lock rather than a claim that
+		// the window is unreachable. Serialising is correct and costs nothing
+		// measurable: it is a handful of calls, once, at startup.
+		app.preCommitSimulateMu.Lock()
+		defer app.preCommitSimulateMu.Unlock()
+
 		ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
 		return app.runTx(ctx, txBytes)
 	}
-
-	height := header.GetHeight()
 
 	// Load an immutable snapshot of committed state at the given height.
 	// The snapshot is pinned until release() is called, preventing concurrent
