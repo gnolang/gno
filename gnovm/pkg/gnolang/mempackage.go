@@ -1278,7 +1278,13 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			// line printed in its own error. The directive name is quoted
 			// because it is submitted text and may hold control bytes.
 			if mptype.IsUserlib() {
-				if d, ok := FindDirectiveComment(mfile.Body); ok {
+				d, ok, serr := FindDirectiveComment(mfile.Body)
+				if serr != nil {
+					errs = multierr.Append(errs, fmt.Errorf(
+						"invalid file %q: %w", fname, serr))
+					continue
+				}
+				if ok {
 					errs = multierr.Append(errs, fmt.Errorf(
 						"invalid file %q: directives are not supported: %q", fname, d))
 					continue
@@ -1353,6 +1359,10 @@ func hasRawGoGenerate(body string) bool {
 	return false
 }
 
+// errCannotScan reports a file go/scanner cannot lex. Positionless on purpose;
+// see FindDirectiveComment.
+var errCannotScan = errors.New("file cannot be scanned")
+
 // FindDirectiveComment returns the first compiler or tooling directive in the
 // file body, if any: a build constraint ("//go:build", legacy "// +build"), a
 // line directive, or a pragma such as "//go:noinline".
@@ -1372,7 +1382,7 @@ func hasRawGoGenerate(body string) bool {
 // so it is not rejected.
 //
 // Exported so `gno lint` flags the same files ValidateMemPackageAny rejects.
-func FindDirectiveComment(body string) (string, bool) {
+func FindDirectiveComment(body string) (string, bool, error) {
 	// `go generate` does not parse: it scans raw lines for a "//go:generate"
 	// prefix at column 1 followed by a space or tab (cmd/go isGoGenerate). A
 	// command can therefore hide from the token scan below inside a raw string
@@ -1380,20 +1390,44 @@ func FindDirectiveComment(body string) (string, bool) {
 	// end to end: such a package validated, `gno tool transpile` kept the line
 	// at column 1, and `go generate -tags gno -n` printed its command.
 	if hasRawGoGenerate(body) {
-		return "//go:generate", true
+		return "//go:generate", true, nil
 	}
 	var sc goscanner.Scanner
 	fset := token.NewFileSet()
 	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, goscanner.ScanComments)
 	for {
 		_, tok, lit := sc.Scan()
+		// The token is examined before the error check below, so a directive
+		// in a comment that also holds a bad byte is still found, as is any
+		// directive earlier in the file.
 		switch tok {
 		case token.EOF:
-			return "", false
+			return "", false, nil
 		case token.COMMENT:
 			if name, ok := directiveName(lit); ok {
-				return name, true
+				return name, true, nil
 			}
+		}
+		if sc.ErrorCount > 0 {
+			// A byte go/scanner cannot lex. Stopping is sound: the same bytes
+			// fail PackageNameFromFileBody a few lines below, so the file is
+			// refused either way -- for being unparseable rather than for a
+			// directive. It cannot be stored, so nothing hides behind this.
+			//
+			// Worth stopping for. go/scanner formats a message per bad byte:
+			// scanner.errorf calls fmt.Sprintf before consulting the handler,
+			// so a nil handler does not avoid the cost. A megabyte of them
+			// takes ~220ms and three million allocations, against ~13ms for
+			// ordinary source of the same size -- and this scan runs before
+			// chargePreprocessGas, so that time is unmetered.
+			//
+			// Reported rather than swallowed. Such a file cannot compile, so
+			// refusing it here costs nothing real, and it keeps this rule from
+			// depending on a later gate catching what the scan gave up on. The
+			// error carries no position: the file may hold a line directive
+			// before the bad bytes, and a rejected file does not get to choose
+			// the location printed in its own rejection.
+			return "", false, errCannotScan
 		}
 	}
 }

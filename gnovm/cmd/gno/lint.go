@@ -238,8 +238,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if rerr != nil {
 					continue // ReadMemPackage below reports the read error.
 				}
-				directive, ok := gno.FindDirectiveComment(string(body))
-				if !ok {
+				directive, ok, serr := gno.FindDirectiveComment(string(body))
+				if serr != nil || !ok {
+					// An unscannable file is reported by the parse below.
 					continue
 				}
 				io.ErrPrintln(gnoIssue{

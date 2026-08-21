@@ -96,7 +96,7 @@ func TestFindDirectiveComment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, got := FindDirectiveComment(tt.body)
+			_, got, _ := FindDirectiveComment(tt.body)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -132,7 +132,7 @@ func TestNoHonouredConstraintEscapes(t *testing.T) {
 		if err != nil {
 			continue // unparseable files are rejected before the directive check
 		}
-		_, found := FindDirectiveComment(body)
+		_, found, _ := FindDirectiveComment(body)
 		if gof.GoVersion != "" && !found {
 			t.Fatalf("go/parser honours GoVersion=%q but the predicate missed it in %q",
 				gof.GoVersion, body)
@@ -354,5 +354,48 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		// (gnovm/tests/files/build0.gno, extern/ct).
 		err := validateBody(t, MPStdlibProd, "strings", "//go:build ignore\n\npackage strings\nfunc F() {}\n")
 		assert.NoError(t, err)
+	})
+}
+
+// A file go/scanner cannot lex stops the scan early. That is sound because the
+// same bytes fail PackageNameFromFileBody, so the package is refused either
+// way -- and it matters because this scan runs before chargePreprocessGas, so
+// what it spends is unmetered: go/scanner formats a message per bad byte, which
+// turned a megabyte of them into ~220ms and three million allocations.
+func TestScannerErrorStopsTheScan(t *testing.T) {
+	t.Parallel()
+
+	junk := strings.Repeat("\x80", 64)
+
+	t.Run("a directive before the bad bytes is still found", func(t *testing.T) {
+		t.Parallel()
+		d, ok, _ := FindDirectiveComment("//go:build ignore\npackage zz\n" + junk)
+		assert.True(t, ok)
+		assert.Equal(t, "//go:build", d)
+	})
+
+	t.Run("a directive in a comment holding a bad byte is still found", func(t *testing.T) {
+		t.Parallel()
+		_, ok, _ := FindDirectiveComment("//go:build ignore\x80\npackage zz\n")
+		assert.True(t, ok, "the token is examined before the error check")
+	})
+
+	t.Run("an unparseable file is still refused", func(t *testing.T) {
+		t.Parallel()
+		// The scan gives up, so this package is refused for being unparseable
+		// rather than for the directive it hides -- but refused either way,
+		// which is what makes stopping sound.
+		body := "package zz\n" + strings.Repeat("var _ = 1\n", 50) + junk +
+			"\n//go:noinline\nfunc F() {}\n"
+		_, ok, serr := FindDirectiveComment(body)
+		assert.False(t, ok, "the scan stops at the bad bytes")
+		require.Error(t, serr, "and reports that it could not scan")
+
+		err := ValidateMemPackageAny(&std.MemPackage{
+			Type: MPUserProd, Name: "zz", Path: "gno.land/p/demo/zz",
+			Files: []*std.MemFile{{Name: "zz.gno", Body: body}},
+		})
+		require.Error(t, err, "an unscannable package must not validate")
+		assert.Contains(t, fmt.Sprint(err), "cannot be scanned")
 	})
 }

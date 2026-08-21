@@ -176,6 +176,24 @@ lands before the reason for rejection is known, would turn a clean
 `invalid package path` on a large package into an out-of-gas panic for any
 submitter whose budget assumed early rejection.
 
+One input needed handling: bytes `go/scanner` cannot lex. It formats a message
+per bad byte — `scanner.errorf` calls `fmt.Sprintf` before consulting the error
+handler, so a nil handler does not avoid the cost — which turned a megabyte of
+them into ~330 ms and three million allocations, against ~13 ms for ordinary
+source of the same size. Since this scan runs *before* `chargePreprocessGas`,
+that time was unmetered: measured end to end, a rejected 1 MB package of illegal
+bytes bought roughly 240× more validator CPU per gas than a valid one. The scan
+now stops at the first scanner error and reports it, which costs ~0.3 ms
+instead.
+
+Reporting it, rather than treating it as "no directive found", keeps the rule
+self-contained. A file that cannot be lexed cannot compile, so refusing it here
+costs nothing real — and the alternative leans on a later gate: `go/types` and
+the VM's own parser both reject such a file, but `ValidateMemPackageAny` alone
+would not, because `PackageNameFromFileBody` parses with `PackageClauseOnly` and
+never reaches bytes deep in the file. The error carries no position, since the
+file may hold a line directive ahead of the bad bytes.
+
 What remains is headroom, not exposure: the scan consumes most of a per-byte
 budget that validation previously barely touched, and the 9.8 ms figure comes
 from an Apple-silicon machine, so a slower validator has less margin. If that
