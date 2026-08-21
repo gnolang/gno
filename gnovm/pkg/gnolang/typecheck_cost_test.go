@@ -494,7 +494,7 @@ func TestTypeExpansionCostAggregate(t *testing.T) {
 	c := newExpansionChecker("", gofs200, nil, nil)
 	var worst uint64
 	var worstName string
-	for _, specs := range c.declsFor("") {
+	for _, specs := range c.declsFor("").byName {
 		for _, d := range specs {
 			if v := satAdd(1, c.cost(d.spec.Type, "", d.imports)); v > worst {
 				worst, worstName = v, d.spec.Name.Name

@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"maps"
 	"math"
 	"path"
 	"slices"
@@ -78,7 +77,20 @@ type declWithImports struct {
 
 // pkgDecls indexes a package's type declarations by name. A name can appear more
 // than once: validType runs per declaration, so all of them are kept.
-type pkgDecls map[string][]declWithImports
+//
+// names carries the same keys, SORTED, and is what callers must iterate. Two
+// reasons it is not a map range and not declaration order:
+//   - a map range is not reproducible, and the total is not order-independent
+//     (see typeExpansionCost), so the charge would vary per run;
+//   - declaration order is reproducible but layout-sensitive — writing the two
+//     members of a containment cycle in the other order changes the price 2x
+//     (measured: 3076 vs 6136 nodes). Sorting depends only on the set of names,
+//     so moving a declaration between files or reordering for readability does
+//     not move anyone's gas.
+type pkgDecls struct {
+	byName map[string][]declWithImports
+	names  []string
+}
 
 // expansionPkgCache caches resolved DEPENDENCY sources and declarations, shared by
 // every expansionChecker of one type check — without it, dependency parsing is
@@ -197,7 +209,7 @@ func (c *expansionChecker) declsFor(pkgPath string) pkgDecls {
 	if pd, ok := cache.decls[pkgPath]; ok {
 		return pd
 	}
-	pd := make(pkgDecls)
+	pd := pkgDecls{byName: make(map[string][]declWithImports)}
 	for _, gof := range c.filesFor(pkgPath) {
 		imports := c.fileImports(gof)
 		ast.Inspect(gof, func(n ast.Node) bool {
@@ -205,12 +217,17 @@ func (c *expansionChecker) declsFor(pkgPath string) pkgDecls {
 			if !ok {
 				return true
 			}
-			pd[ts.Name.Name] = append(pd[ts.Name.Name],
+			name := ts.Name.Name
+			if _, seen := pd.byName[name]; !seen {
+				pd.names = append(pd.names, name)
+			}
+			pd.byName[name] = append(pd.byName[name],
 				declWithImports{spec: ts, imports: imports})
 			// A type expression holds no further declarations, so stop here.
 			return false
 		})
 	}
+	slices.Sort(pd.names)
 	cache.decls[pkgPath] = pd
 	return pd
 }
@@ -221,7 +238,7 @@ func (c *expansionChecker) namedCost(k typeKey) uint64 {
 	if v, ok := c.memo[k]; ok {
 		return v
 	}
-	specs := c.declsFor(k.pkg)[k.name]
+	specs := c.declsFor(k.pkg).byName[k.name]
 	if len(specs) == 0 {
 		v := unresolvedCost(k.name)
 		c.memo[k] = v // depends only on the key, so it is safe to remember
@@ -347,8 +364,8 @@ func typeExpansionCost(entryPath string, gofs []*ast.File, resolve pkgResolver, 
 	// was enough. TestTypeExpansionCostCyclicIsDeterministic pins this.
 	var total uint64
 	decls := c.declsFor(entryPath)
-	for _, name := range slices.Sorted(maps.Keys(decls)) {
-		for _, d := range decls[name] {
+	for _, name := range decls.names {
+		for _, d := range decls.byName[name] {
 			total = satAdd(total, satAdd(1, c.cost(d.spec.Type, entryPath, d.imports)))
 		}
 	}

@@ -166,7 +166,7 @@ func TestHonestTypeExpansionUnderBudget(t *testing.T) {
 		// reimplements the formula it is measuring stops measuring it the moment
 		// the formula changes.
 		total := typeExpansionCost(pp, gofs, userResolve, shared)
-		for _, specs := range newExpansionChecker(pp, gofs, userResolve, shared).declsFor(pp) {
+		for _, specs := range newExpansionChecker(pp, gofs, userResolve, shared).declsFor(pp).byName {
 			nTypes += len(specs)
 		}
 		if total > worstTotal {
@@ -230,7 +230,7 @@ func TestLeafExpansionBound(t *testing.T) {
 			continue
 		}
 		c := newExpansionChecker(pp, gofs, full, shared)
-		for name, specs := range c.declsFor(pp) {
+		for name, specs := range c.declsFor(pp).byName {
 			// Only exported names: an unexported stdlib type cannot be named from a
 			// user package, so it can never be the leaf that gets scored.
 			if !token.IsExported(name) {
@@ -269,7 +269,7 @@ func TestGnoBuiltinShimExpansion(t *testing.T) {
 
 	require.Len(t, gnoBuiltinShimExpansion, 2)
 	for name, want := range gnoBuiltinShimExpansion {
-		specs := c.declsFor(shimPath)[name]
+		specs := c.declsFor(shimPath).byName[name]
 		require.Len(t, specs, 1, "shim no longer declares %q", name)
 		got := satAdd(1, c.cost(specs[0].spec.Type, shimPath, specs[0].imports))
 		assert.LessOrEqual(t, got, want,
