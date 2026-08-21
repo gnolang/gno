@@ -32,7 +32,11 @@ routes are live today.
    cost lands at addpkg with the deployer, and transaction saves stay free
    of type writes and of any per-save traversal. The walk runs *before*
    `FinalizeRealmTransaction` because file-level var initializers may
-   already hold local-typed values at addpkg-save time.
+   already hold local-typed values at addpkg-save time (pinned by
+   `zrealm_localtype3.gno` under debugAssert). Its preconditions — live
+   `*Block`, `*PackageNode` source, attached fileset — are invariants,
+   not fallbacks: they panic if broken, because a silent skip would
+   recreate the dangling-ref corruption.
 2. **`copyTypeWithRefs` preserves `ParentLoc`**: `ParentLoc` is part of the
    TypeID for local types (`pkg[loc].Name`); dropping it in the persist copy
    (as before) would store the type record under a different ID than the one
@@ -44,11 +48,12 @@ routes are live today.
    of committing unreadable state. The backend probe is a raw key check —
    later transactions see addpkg-persisted types in the backend, not in
    their per-tx `cacheTypes` — with a nil `GasContext`, so debugAssert
-   builds consume exactly the same gas as release builds. The type walker
-   panics on unhandled type kinds for the same fail-loud reason;
-   known-but-not-currently-persistable kinds (`tupleType`, `ChanType`) are
+   builds consume exactly the same gas as release builds. Both the value
+   and type walkers panic on unhandled kinds for the same fail-loud
+   reason; known-but-not-currently-persistable kinds (`tupleType`) are
    walked, structurally-empty kinds (`blockType` etc.) are pruned
-   explicitly.
+   explicitly, and anything else — including `ChanType`, which
+   `copyTypeWithRefs` never emits — hits the panic default.
 
 MsgRun scripts never reach `saveNewPackageValuesAndTypes` (the keeper runs
 them with `save=false`), and a pre-existing guard ("cannot persist object of
@@ -69,6 +74,14 @@ escaping into realm state, so no ephemeral-package types are persisted.
   is moot if this lands before packages with escaping local types exist
   on-chain; otherwise a one-shot state migration (or temporarily keeping the
   saver as backstop) is required.
+- **Predefine-time collection** (#6084, maintained as a side-by-side
+  alternative): `tryPredefine` records each minted local type on the
+  PackageNode (`ATTR_FUNC_LOCAL_TYPES`) and the save iterates the list —
+  no save-time traversal, symmetric with the package-level loop, at the
+  cost of a preprocess bookkeeping invariant (audited under debugAssert
+  there). This PR keeps the walk: completeness rests on a language fact —
+  every local type is a `*TypeDecl` in the fileset — rather than on
+  bookkeeping.
 - **`SetType` at declaration time (`OpTypeDecl`)**: runtime re-execution
   pays gas on every call of the declaring function and would fire inside
   MsgRun scripts; the static enumeration at addpkg has neither problem.
@@ -91,7 +104,11 @@ escaping into realm state, so no ephemeral-package types are persisted.
   the "fresh chain" caveat holds only if no network deploys master in the
   gap.
 - Tests: `restart_local_type.txtar` is the true reproducer (fails on
-  master — since #5737, the lt1 method-value route fails first);
-  `zrealm_localtype0/1/2.gno` filetests pass on master and act as
-  save-side guards via `-tags debugAssert` (`make test.debugAssert`, not yet
-  in CI) plus a golden pinning the on-the-wire bracketed `RefType`.
+  master — since #5737, the lt1 method-value route fails first); its
+  `zlti` realm covers the addpkg-time escape (file-level var initializer)
+  across a restart. `zrealm_localtype0/1/2/3.gno` filetests pass on master
+  and act as save-side guards via `-tags debugAssert`
+  (`make test.debugAssert`, not yet in CI) plus a golden pinning the
+  on-the-wire bracketed `RefType`; `zrealm_localtype3.gno` additionally
+  pins the save-before-finalization ordering (reordering fails under
+  debugAssert).
