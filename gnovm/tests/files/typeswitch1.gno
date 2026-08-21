@@ -22,7 +22,7 @@ func f(x int, len *byte) {
 	*len = byte(x)
 }
 
-func whatis(x interface{}) string {
+func whatis(x any) string {
 	switch xx := x.(type) {
 	default:
 		return fmt.Sprint("default ", xx)
