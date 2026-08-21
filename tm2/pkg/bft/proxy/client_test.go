@@ -70,11 +70,9 @@ func fire(t *testing.T, client interface {
 	t.Helper()
 	var wg sync.WaitGroup
 	for range n {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, _ = client.QuerySync(abci.RequestQuery{Path: "test"})
-		}()
+		})
 	}
 	return wg.Wait
 }
