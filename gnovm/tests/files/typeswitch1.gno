@@ -40,7 +40,7 @@ func whatis(x interface{}) string {
 	panic("not reached")
 }
 
-func whatis1(x interface{}) string {
+func whatis1(x any) string {
 	xx := x
 	switch xx.(type) {
 	default:
