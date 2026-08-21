@@ -937,8 +937,66 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	if !ok {
 		return
 	}
+	if debugAssert {
+		assertFuncLocalTypesComplete(pn)
+	}
 	for _, dt := range pn.funcLocalTypes {
 		m.Store.SetType(dt)
+	}
+}
+
+// assertFuncLocalTypesComplete (debugAssert only) audits the predefine-time
+// bookkeeping against the language-fact enumeration: every function-local
+// type is a *TypeDecl in the fileset, so an AST walk cannot miss one. A
+// walk hit absent from pn.funcLocalTypes means a code path minted a local
+// DeclaredType without the tryPredefine append — the invariant documented
+// on the field — and would otherwise persist as a dangling RefType.
+func assertFuncLocalTypesComplete(pn *PackageNode) {
+	collected := make(map[TypeID]struct{}, len(pn.funcLocalTypes))
+	for _, dt := range pn.funcLocalTypes {
+		collected[dt.TypeID()] = struct{}{}
+	}
+	if len(collected) != len(pn.funcLocalTypes) {
+		panic(fmt.Sprintf("duplicate entries in funcLocalTypes of %s", pn.PkgPath))
+	}
+	walked := make(map[TypeID]struct{})
+	audit := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		td, ok := n.(*TypeDecl)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		// A type expression contains no further declarations; prune. After
+		// preprocessing a non-alias td.Type is a *constTypeExpr holding the
+		// declared type (blank decls keep their raw type expr).
+		cte, ok := td.Type.(*constTypeExpr)
+		if td.IsAlias || !ok {
+			return n, TRANS_SKIP
+		}
+		if dt, ok := cte.Type.(*DeclaredType); ok && dt.IsFuncLocal() {
+			walked[dt.TypeID()] = struct{}{}
+		}
+		return n, TRANS_SKIP
+	}
+	if pn.FileSet != nil {
+		for _, fn := range pn.FileSet.Files {
+			Transcribe(fn, audit)
+		}
+	}
+	for tid := range walked {
+		if _, ok := collected[tid]; !ok {
+			panic(fmt.Sprintf(
+				"function-local type %s is in the AST but was not collected at predefine; "+
+					"a declareWith call path is missing the funcLocalTypes append", tid))
+		}
+	}
+	for tid := range collected {
+		if _, ok := walked[tid]; !ok {
+			panic(fmt.Sprintf(
+				"function-local type %s was collected at predefine but has no TypeDecl in the fileset", tid))
+		}
 	}
 }
 
