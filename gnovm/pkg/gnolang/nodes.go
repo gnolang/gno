@@ -143,6 +143,7 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_FUNC_LOCAL_TYPES      GnoAttribute = "ATTR_FUNC_LOCAL_TYPES" // []*DeclaredType on the PackageNode: function-local types minted at predefine (tryPredefine), persisted at addpkg (saveFuncLocalTypes), audited under -tags debugAssert. Every path minting a non-blank function-local DeclaredType must append here.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -1319,14 +1320,19 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+}
 
-	// funcLocalTypes collects every function-local *DeclaredType of this
-	// package as it is minted at predefine time (tryPredefine); addpkg
-	// persists them via saveFuncLocalTypes. Completeness invariant: every
-	// code path that creates a non-blank function-local DeclaredType must
-	// append here. Not serialized; rebuilt (and left unread) whenever the
-	// package is re-preprocessed.
-	funcLocalTypes []*DeclaredType
+// FuncLocalTypes returns the function-local declared types collected at
+// predefine time (see ATTR_FUNC_LOCAL_TYPES).
+func (pn *PackageNode) FuncLocalTypes() []*DeclaredType {
+	fts, _ := pn.GetAttribute(ATTR_FUNC_LOCAL_TYPES).([]*DeclaredType)
+	return fts
+}
+
+// AddFuncLocalType records a function-local declared type minted at
+// predefine time (see ATTR_FUNC_LOCAL_TYPES).
+func (pn *PackageNode) AddFuncLocalType(dt *DeclaredType) {
+	pn.SetAttribute(ATTR_FUNC_LOCAL_TYPES, append(pn.FuncLocalTypes(), dt))
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing

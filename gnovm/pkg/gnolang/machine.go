@@ -923,8 +923,8 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // of type writes.
 //
 // Local DeclaredTypes are materialized at predefine time and collected on
-// the PackageNode (pn.funcLocalTypes, see tryPredefine), so the save is a
-// direct iteration — symmetric with the package-level loop above, which
+// the PackageNode (ATTR_FUNC_LOCAL_TYPES, see tryPredefine), so the save is
+// a direct iteration — symmetric with the package-level loop above, which
 // iterates the block slots that predefine populated. No recursion through
 // Base is needed because any local type reachable from another's Base is
 // itself declared by a *TypeDecl in the same package and thus collected.
@@ -940,7 +940,7 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	if debugAssert {
 		assertFuncLocalTypesComplete(pn)
 	}
-	for _, dt := range pn.funcLocalTypes {
+	for _, dt := range pn.FuncLocalTypes() {
 		m.Store.SetType(dt)
 	}
 }
@@ -948,16 +948,18 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 // assertFuncLocalTypesComplete (debugAssert only) audits the predefine-time
 // bookkeeping against the language-fact enumeration: every function-local
 // type is a *TypeDecl in the fileset, so an AST walk cannot miss one. A
-// walk hit absent from pn.funcLocalTypes means a code path minted a local
-// DeclaredType without the tryPredefine append — the invariant documented
-// on the field — and would otherwise persist as a dangling RefType.
+// walk hit absent from ATTR_FUNC_LOCAL_TYPES means a code path minted a
+// local DeclaredType without the tryPredefine append — the invariant
+// documented on the attribute — and would otherwise persist as a dangling
+// RefType.
 func assertFuncLocalTypesComplete(pn *PackageNode) {
-	collected := make(map[TypeID]struct{}, len(pn.funcLocalTypes))
-	for _, dt := range pn.funcLocalTypes {
+	fts := pn.FuncLocalTypes()
+	collected := make(map[TypeID]struct{}, len(fts))
+	for _, dt := range fts {
 		collected[dt.TypeID()] = struct{}{}
 	}
-	if len(collected) != len(pn.funcLocalTypes) {
-		panic(fmt.Sprintf("duplicate entries in funcLocalTypes of %s", pn.PkgPath))
+	if len(collected) != len(fts) {
+		panic(fmt.Sprintf("duplicate entries in ATTR_FUNC_LOCAL_TYPES of %s", pn.PkgPath))
 	}
 	walked := make(map[TypeID]struct{})
 	audit := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -989,7 +991,7 @@ func assertFuncLocalTypesComplete(pn *PackageNode) {
 		if _, ok := collected[tid]; !ok {
 			panic(fmt.Sprintf(
 				"function-local type %s is in the AST but was not collected at predefine; "+
-					"a declareWith call path is missing the funcLocalTypes append", tid))
+					"a declareWith call path is missing the AddFuncLocalType append", tid))
 		}
 	}
 	for tid := range collected {
