@@ -59,7 +59,7 @@ func whatis1(x interface{}) string {
 	panic("not reached")
 }
 
-func check(x interface{}, s string) {
+func check(x any, s string) {
 	w := whatis(x)
 	if w != s {
 		fmt.Println("whatis", x, "=>", w, "!=", s)
