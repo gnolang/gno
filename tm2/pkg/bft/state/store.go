@@ -198,9 +198,17 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // SaveABCIResponses persists the ABCIResponses to the database.
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
+//
+// The write is flushed (SetSync) because ApplyBlock writes this before the
+// application commit and flushes the state store only afterwards, in SaveState,
+// so an unsynced write is lost in exactly the window the record exists for. The
+// only reader for that window is ReplayBlocks' storeBlockHeight ==
+// stateBlockHeight+1, appBlockHeight == storeBlockHeight case, which replays the
+// height against a mock application and has no other source for its state.
+//
 // NOTE: this should only be used internally by the bft package and subpackages.
 func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	db.Set(CalcABCIResponsesKey(height), abciResponses.Bytes())
+	db.SetSync(CalcABCIResponsesKey(height), abciResponses.Bytes())
 }
 
 // TxResultIndex keeps the result index information for a transaction

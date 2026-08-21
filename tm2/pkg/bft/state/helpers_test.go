@@ -3,6 +3,8 @@ package state_test
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"sync"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
@@ -229,4 +231,89 @@ func (app *testApp) Commit() abci.ResponseCommit {
 
 func (app *testApp) Query(reqQuery abci.RequestQuery) (resQuery abci.ResponseQuery) {
 	return
+}
+
+// ----------------------------------------------------------------------------
+
+// unsyncedWriteDB models the durability behaviour of the WAL-based backends
+// (pebbledb, the production default, and goleveldb): Set buffers the record
+// in-process and it reaches the disk only when a later SetSync on the same store
+// flushes the log, whereas SetSync is on disk by the time it returns. Reads see
+// every write, synced or not, like the real backends; Durable answers the
+// separate question of what a process starting up after an abrupt death would
+// find.
+//
+// Only Set and SetSync are modelled. Delete, DeleteSync and the batch methods
+// pass through to the embedded DB untouched, so a batch written with WriteSync
+// would wrongly look non-durable here — do not use this for a store whose
+// writes go through those paths.
+type unsyncedWriteDB struct {
+	dbm.DB
+
+	mu       sync.Mutex
+	unsynced map[string][]byte
+	durable  map[string][]byte
+}
+
+func newUnsyncedWriteDB() *unsyncedWriteDB {
+	return &unsyncedWriteDB{
+		DB:       memdb.NewMemDB(),
+		unsynced: map[string][]byte{},
+		durable:  map[string][]byte{},
+	}
+}
+
+func (db *unsyncedWriteDB) Set(key, value []byte) error {
+	db.mu.Lock()
+	db.unsynced[string(key)] = value
+	db.mu.Unlock()
+
+	return db.DB.Set(key, value)
+}
+
+func (db *unsyncedWriteDB) SetSync(key, value []byte) error {
+	db.mu.Lock()
+	// Syncing one record flushes the log, so every write buffered before it
+	// becomes durable too.
+	maps.Copy(db.durable, db.unsynced)
+	clear(db.unsynced)
+	db.durable[string(key)] = value
+	db.mu.Unlock()
+
+	return db.DB.SetSync(key, value)
+}
+
+// Durable returns the store as a process restarting after an abrupt death at
+// this instant would read it: everything flushed to disk, nothing still
+// buffered.
+func (db *unsyncedWriteDB) Durable() dbm.DB {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	survived := memdb.NewMemDB()
+	for k, v := range db.durable {
+		survived.Set([]byte(k), v)
+	}
+
+	return survived
+}
+
+// commitHookApp calls onCommit while handling the commit request, so a test can
+// observe the store as it stands when the application commits.
+type commitHookApp struct {
+	abci.BaseApplication
+
+	onCommit func()
+}
+
+var _ abci.Application = (*commitHookApp)(nil)
+
+func (app *commitHookApp) Commit() abci.ResponseCommit {
+	app.onCommit()
+	return abci.ResponseCommit{}
+}
+
+// Echo the tx back so the saved responses carry a payload worth asserting on.
+func (app *commitHookApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	return abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{Data: req.Tx}}
 }

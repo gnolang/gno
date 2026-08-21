@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,6 +133,26 @@ func TestLoadConsensusParamsAtInitialHeight(t *testing.T) {
 		require.NoError(t, err, "should load consensus params at InitialHeight")
 		assert.NotEmpty(t, params.Block)
 	}, "LoadConsensusParams should not panic at InitialHeight")
+}
+
+// TestSaveABCIResponsesIsDurable pins that the responses reach the disk when
+// they are written, not when the state that supersedes them is written.
+func TestSaveABCIResponsesIsDurable(t *testing.T) {
+	t.Parallel()
+
+	responses := &sm.ABCIResponses{
+		DeliverTxs: []abci.ResponseDeliverTx{
+			{ResponseBase: abci.ResponseBase{Data: []byte("delivered")}},
+		},
+	}
+	require.NotEmpty(t, responses.Bytes(), "payload must be non-empty for the assertion below to mean anything")
+
+	stateDB := newUnsyncedWriteDB()
+	sm.SaveABCIResponses(stateDB, 1, responses)
+
+	loaded, err := sm.LoadABCIResponses(stateDB.Durable(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, responses.DeliverTxs, loaded.DeliverTxs)
 }
 
 func BenchmarkLoadValidators(b *testing.B) {
