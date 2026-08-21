@@ -1,4 +1,4 @@
-# PRXXXX: Make the ABCI responses crash-recovery record durable
+# PR6085: Make the ABCI responses crash-recovery record durable
 
 ## Status
 
