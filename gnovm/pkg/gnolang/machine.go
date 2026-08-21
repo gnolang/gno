@@ -929,14 +929,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Base is needed because any local type reachable from another's Base is
 // itself declared by a *TypeDecl in the same package and thus collected.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
-	bv, ok := pv.Block.(*Block)
-	if !ok {
-		return
-	}
-	pn, ok := bv.GetSource(m.Store).(*PackageNode)
-	if !ok {
-		return
-	}
+	// At addpkg-save time the package was just constructed by this machine:
+	// its block is a live *Block sourced from a *PackageNode. Anything else
+	// would silently skip type persistence — the dangling-ref corruption
+	// this fix exists to prevent — so the assertions fail loudly (the tx
+	// aborts and rolls back) rather than return.
+	bv := pv.Block.(*Block)
+	pn := bv.GetSource(m.Store).(*PackageNode)
 	if debugAssert {
 		assertFuncLocalTypesComplete(pn)
 	}
