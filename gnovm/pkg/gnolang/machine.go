@@ -918,16 +918,14 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // with ParentLoc set). A value of such a type can be persisted by any
 // later transaction — assigned to an interface-typed package var, captured
 // by a closure — and its serialized RefType ("pkg[loc].Name") must resolve
-// on reload. Persisting the types here, like package-level types, puts the
-// entire cost at addpkg with the deployer and keeps transaction saves free
-// of type writes.
+// on reload. Persisting here, like package-level types, puts the cost at
+// addpkg with the deployer (rationale: gnovm/adr/pr5935_local_type_persist.md).
 //
-// Local DeclaredTypes are materialized at predefine time and collected on
-// the PackageNode (ATTR_FUNC_LOCAL_TYPES, see tryPredefine), so the save is
-// a direct iteration — symmetric with the package-level loop above, which
-// iterates the block slots that predefine populated. No recursion through
-// Base is needed because any local type reachable from another's Base is
-// itself declared by a *TypeDecl in the same package and thus collected.
+// The types were collected on the PackageNode at predefine time
+// (ATTR_FUNC_LOCAL_TYPES, see AddFuncLocalType), so the save is a direct
+// iteration. No recursion through Base is needed: any local type reachable
+// from another's Base is itself declared by a *TypeDecl in the same package
+// and thus collected.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	// At addpkg-save time the package was just constructed by this machine:
 	// its block is a live *Block sourced from a *PackageNode. Anything else

@@ -24,8 +24,9 @@ routes are live today.
 1. **Eager persistence at addpkg, enumerated at predefine time**: local
    `DeclaredType`s are minted in exactly one place (`tryPredefine` ->
    `declareWith`; the TRANS_LEAVE `*TypeDecl` case copies *into* that
-   instance), so `tryPredefine` records every non-blank function-local
-   type on the `PackageNode` as `ATTR_FUNC_LOCAL_TYPES` — the attribute
+   instance), so `tryPredefine` records every function-local type (blank
+   decls never mint one — the early return precedes `declareWith`) on the
+   `PackageNode` as `ATTR_FUNC_LOCAL_TYPES` — the attribute
    bag is the established home for derived, non-serialized preprocess
    products (same machinery as `ATTR_REF_ELEM_TYPE`); the typed accessor
    pair `FuncLocalTypes`/`AddFuncLocalType` keeps call sites cast-free.

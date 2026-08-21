@@ -42,7 +42,7 @@ var X any = mk()
 		},
 	}, true)
 	pv := m.Package
-	pn := pv.Block.(*Block).GetSource(store).(*PackageNode)
+	pn := pv.GetPackageNode(store)
 	// Simulate a mint path that forgot AddFuncLocalType.
 	pn.DelAttribute(ATTR_FUNC_LOCAL_TYPES)
 	defer func() {

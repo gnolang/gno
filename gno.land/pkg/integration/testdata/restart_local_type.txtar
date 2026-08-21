@@ -301,6 +301,8 @@ func Call(cur realm) int {
 }
 
 -- zltsh/zltsh.gno --
+// Mirror of gnovm/tests/files/zrealm_localtype2.gno plus restart coverage
+// (X/CallX); keep the scenario sets in sync.
 package zltsh
 
 type T struct{ x int }

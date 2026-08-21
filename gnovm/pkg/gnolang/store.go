@@ -906,14 +906,11 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 	switch cv := val.(type) {
 	case nil, StringValue, BigintValue, BigdecValue, RefValue:
 		// Scalars and refs carry no type refs.
-	case PointerValue:
-		// In a persist-copy Base is always a RefValue (copyValueWithRefs
-		// elides the inline TV); the pointee is asserted by its own
-		// SetObject.
-	case *SliceValue:
-		ds.assertNoDanglingLocalTypeRef(cv.Base)
-	case *PackageValue:
-		ds.assertNoDanglingLocalTypeRef(cv.Block)
+	case PointerValue, *SliceValue, *PackageValue:
+		// In a persist-copy these carry only refs (copyValueWithRefs turns
+		// Pointer.Base/Slice.Base/Package.Block+FBlocks into RefValues and
+		// elides the pointer's inline TV); referents are asserted by their
+		// own SetObject.
 	case *ArrayValue:
 		for i := range cv.List {
 			ds.assertNoDanglingLocalTypeRefTV(&cv.List[i])
@@ -938,10 +935,10 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 		}
 		ds.assertNoDanglingLocalTypeRefTV(&cv.Receiver)
 	case *Block:
+		// Blank is always empty in a persist-copy; Parent is a RefValue.
 		for i := range cv.Values {
 			ds.assertNoDanglingLocalTypeRefTV(&cv.Values[i])
 		}
-		ds.assertNoDanglingLocalTypeRefTV(&cv.Blank)
 	case *HeapItemValue:
 		ds.assertNoDanglingLocalTypeRefTV(&cv.Value)
 	case TypeValue:
@@ -1013,8 +1010,7 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 	case nil, PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// Structurally empty: no nested type refs to walk.
 	default:
-		// A kind this walker doesn't know can hide a local-type ref; fail
-		// loudly rather than silently weakening the debug invariant.
+		// See the value walker's default: unknown kinds fail loudly.
 		panic(fmt.Sprintf(
 			"assertNoDanglingLocalTypeRef: unhandled type kind %T", ct))
 	}

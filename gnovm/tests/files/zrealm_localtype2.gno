@@ -1,4 +1,6 @@
 // PKGPATH: gno.land/r/test
+// Mirrored (with restart coverage) by restart_local_type.txtar's zltsh realm;
+// keep the scenario sets in sync.
 package test
 
 type T struct{ x int }
