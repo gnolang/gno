@@ -245,7 +245,7 @@ func (app *testApp) Query(reqQuery abci.RequestQuery) (resQuery abci.ResponseQue
 //
 // Only Set and SetSync are modelled. Delete, DeleteSync and the batch methods
 // pass through to the embedded DB untouched, so a batch written with WriteSync
-// would wrongly look non-durable here — do not use this for a store whose
+// would wrongly look non-durable here; do not use this for a store whose
 // writes go through those paths.
 type unsyncedWriteDB struct {
 	dbm.DB
@@ -318,19 +318,20 @@ func (app *commitHookApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeli
 	return abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{Data: req.Tx}}
 }
 
-// failingWriteDB refuses writes whose key carries the given prefix, modeling a
-// store that hits an I/O error (disk full, failed fsync) on one specific
-// record while the rest of the database keeps working. Every other operation
-// passes through to the embedded DB.
+// failingWriteDB refuses writes to one exact key, modeling a store that hits
+// an I/O error (disk full, failed fsync) on one specific record while the rest
+// of the database keeps working. Every other operation passes through to the
+// embedded DB. The match is exact rather than a prefix: CalcABCIResponsesKey
+// renders heights in %x, so height 1's key is a prefix of heights 16 and 26.
 type failingWriteDB struct {
 	dbm.DB
 
-	failPrefix []byte
-	failErr    error
+	failKey []byte
+	failErr error
 }
 
 func (db *failingWriteDB) Set(key, value []byte) error {
-	if bytes.HasPrefix(key, db.failPrefix) {
+	if bytes.Equal(key, db.failKey) {
 		return db.failErr
 	}
 
@@ -338,7 +339,7 @@ func (db *failingWriteDB) Set(key, value []byte) error {
 }
 
 func (db *failingWriteDB) SetSync(key, value []byte) error {
-	if bytes.HasPrefix(key, db.failPrefix) {
+	if bytes.Equal(key, db.failKey) {
 		return db.failErr
 	}
 

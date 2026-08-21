@@ -21,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
@@ -101,9 +102,9 @@ func TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError(t *testing.T) {
 	state, _, _ := makeState(1, 1)
 	writeErr := errors.New("injected responses write failure")
 	stateDB := &failingWriteDB{
-		DB:         newUnsyncedWriteDB(),
-		failPrefix: sm.CalcABCIResponsesKey(1),
-		failErr:    writeErr,
+		DB:      memdb.NewMemDB(),
+		failKey: sm.CalcABCIResponsesKey(1),
+		failErr: writeErr,
 	}
 	sm.SaveState(stateDB, state)
 

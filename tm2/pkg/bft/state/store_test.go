@@ -164,9 +164,9 @@ func TestSaveABCIResponsesReturnsWriteError(t *testing.T) {
 
 	writeErr := errors.New("injected responses write failure")
 	stateDB := &failingWriteDB{
-		DB:         newUnsyncedWriteDB(),
-		failPrefix: sm.CalcABCIResponsesKey(1),
-		failErr:    writeErr,
+		DB:      memdb.NewMemDB(),
+		failKey: sm.CalcABCIResponsesKey(1),
+		failErr: writeErr,
 	}
 
 	err := sm.SaveABCIResponses(stateDB, 1, &sm.ABCIResponses{
@@ -175,6 +175,7 @@ func TestSaveABCIResponsesReturnsWriteError(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, writeErr)
+	require.ErrorContains(t, err, "height 1")
 }
 
 func BenchmarkLoadValidators(b *testing.B) {
