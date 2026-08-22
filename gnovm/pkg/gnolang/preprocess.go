@@ -6365,12 +6365,15 @@ func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
 func SaveBlockNodes(store Store, fn *FileNode) {
 	// First, get the package and file names.
 	pn := packageOf(fn)
-	store.SetBlockNode(pn)
 	pkgPath := pn.PkgPath
 	fileName := fn.FileName
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
+	// Collect first and publish as one batch: the store seals a batch under a
+	// single sealer, and sealing node by node would re-walk the package's type
+	// graph once per node.
+	bns := []BlockNode{pn}
 	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
@@ -6395,8 +6398,9 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 				panic("wrong column in block node location")
 			}
 			// save blocknode.
-			store.SetBlockNode(bn)
+			bns = append(bns, bn)
 		}
 		return n, TRANS_CONTINUE
 	})
+	store.SetBlockNodes(bns)
 }

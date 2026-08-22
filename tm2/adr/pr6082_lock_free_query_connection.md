@@ -134,6 +134,14 @@ It runs at the two points where a block node stops being private:
   `cacheNodes` itself, so publication into the shared map has one door and the
   seal sits on it.
 
+Both are batched, because `sealBlockNode` follows a node's parent chain up to
+its file and package nodes: seal one node at a time and the package's whole type
+graph is re-walked once per node. `Write()` seals the txlog's pending entries
+under a single sealer, and `SaveBlockNodes` — which publishes a package node
+plus every block node in one file — now collects them and hands them to a new
+`Store.SetBlockNodes`, sealed as one batch. The per-node `SetBlockNode` remains
+for the callers that genuinely publish one node.
+
 Sealing is pure cache warming: every value it writes is the value the lazy path
 would have computed on first touch. It charges no gas, touches no allocator, and
 changes no struct layout or amino encoding, so it cannot move consensus. The
@@ -201,6 +209,16 @@ can only lower it by lowering `GOMAXPROCS` for the whole process.
 **Sealing adds work to the transaction commit path.** Proportional to the types
 each transaction publishes, and unmetered. A package with a large type graph
 pays a walk over it once, at deploy, having already paid gas to preprocess it.
+
+**Sealing adds work to node start.** Genesis publishes the stdlibs and examples
+directly into the root store, so it is the largest single batch the sealer sees.
+One `InitChain` over `DefaultGenState`, median of four interleaved runs on the
+same machine: 567 ms without sealing (5c2227c96), 810 ms sealing node by node
+(+43%), 570 ms sealing per batch (+0.7%). Unbatched, the 12,100 direct
+`SetBlockNode` calls built 12,100 sealers and made 9.26M `sealType` calls, 71%
+of them seen-set hits;
+batching is what keeps the cost proportional to the graph rather than to the
+graph times the nodes in it.
 
 **Not addressed here.** Two items the review raised are deliberately left:
 
