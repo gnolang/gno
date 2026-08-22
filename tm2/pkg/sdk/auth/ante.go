@@ -360,8 +360,26 @@ func DefaultSigVerificationGasConsumer(
 		return sdk.Result{}
 
 	case multisig.PubKeyMultisigThreshold:
+		// Bound the depth and the total size of the recursion below before
+		// decoding anything: the key alone decides both, and each level costs a
+		// decode of whatever signature bytes remain. ValidateSigCount bounds
+		// neither, because std.CountSubKeys counts leaves: a chain of 1-of-1
+		// keys has exactly one however deep it runs, and a constituent holding
+		// no keys at all has none however many of them are listed.
+		if err := pubkey.ValidateStructure(); err != nil {
+			return abciResult(std.ErrInvalidPubKey(err.Error()))
+		}
+
 		var multisignature multisig.Multisignature
-		amino.MustUnmarshal(sig, &multisignature)
+		// sig is the signature field of an untrusted transaction, so this must
+		// not be MustUnmarshal: arbitrary bytes there would panic out of the
+		// ante handler, whose own recover only handles OutOfGasError, and be
+		// caught by runTx's blanket recover as an ErrInternal with a stack
+		// trace. The amino error is not reported back because it renders the
+		// offending buffer as hex, and the buffer is attacker-sized.
+		if err := amino.Unmarshal(sig, &multisignature); err != nil {
+			return abciResult(std.ErrUnauthorized("signature is not a valid multisignature"))
+		}
 
 		return consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
 
@@ -382,16 +400,17 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
 	params Params,
 ) sdk.Result {
-	size := sig.BitArray.Size()
-	if size != len(pubkey.PubKeys) {
-		return abciResult(std.ErrInvalidPubKey(fmt.Sprintf(
-			"multisignature bit array size %d does not match the %d constituent keys", size, len(pubkey.PubKeys))))
-	}
-	if nSigs := sig.BitArray.NumTrueBitsBefore(size); nSigs > len(sig.Sigs) {
-		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
-			"multisignature has %d set bits but only %d signatures", nSigs, len(sig.Sigs))))
+	// Establish the shape of the signature against the key before walking it: a
+	// bit array whose ExtraBitsStored runs past the end of its Elems decodes
+	// perfectly well, so the amino error above does not catch it, and then makes
+	// Size() report more bits than are stored — which the walk below indexes.
+	// One implementation, shared with PubKeyMultisigThreshold.VerifyBytes, so
+	// that the two cannot come to disagree about which shapes are walkable.
+	if err := sig.ValidateBasic(len(pubkey.PubKeys)); err != nil {
+		return abciResult(std.ErrUnauthorized(err.Error()))
 	}
 
+	size := sig.BitArray.Size()
 	sigIndex := 0
 	for i := range size {
 		if sig.BitArray.GetIndex(i) {
