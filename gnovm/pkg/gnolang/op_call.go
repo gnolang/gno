@@ -710,11 +710,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 }
 
 func (m *Machine) doOpDefer() {
-	lb := m.LastBlock()
-	// lb is captured as Defer.Parent below, which the garbage collector
-	// visits for as long as the defer is pending — possibly well after
-	// this block is popped. Exclude it from block recycling.
-	lb.setNotRecyclable()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
@@ -729,7 +724,7 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			TypedValue{},
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
 		// statement. For a lazy interface bind, dispatch is resolved at the
@@ -741,10 +736,10 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			cv.Receiver,
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
-		cfr.PushDefer(Defer{Source: ds, Parent: lb})
+		cfr.PushDefer(Defer{Source: ds})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return

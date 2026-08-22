@@ -352,8 +352,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 					return n, TRANS_CONTINUE
 				}
 				switch ftype {
-				case TRANS_COMPOSITE_KEY,
-					TRANS_VAR_NAME,
+				case TRANS_VAR_NAME,
 					TRANS_RANGE_KEY,
 					TRANS_RANGE_VALUE:
 					return n, TRANS_CONTINUE
@@ -1272,12 +1271,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
+						// Struct keys are field names, not variable
+						// references, so undo any ".loopvar" rename applied
+						// by the earlier loop-var pass (which cannot yet
+						// distinguish struct keys from map/array/slice keys
+						// referencing an enclosing loop variable).
+						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
+						n.Name = Name(fname)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
-						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
+						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
 								"cannot refer to unexported field %s in struct literal of type %s",
-								n.Name, clt.String()))
+								fname, clt.String()))
 						}
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:

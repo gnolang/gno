@@ -233,11 +233,12 @@ limitations, such as not having synchronous dials, or synchronous broadcasts.
 
 #### Services
 
-There are 3 services that run on top of the `MultiplexSwitch`, upon startup:
+There are 4 services that run on top of the `MultiplexSwitch`, upon startup:
 
 - **the accept service**
 - **the dial service**
 - **the redial service**
+- **the seed dial service**
 
 ```go
 package p2p
@@ -266,6 +267,11 @@ func (sw *MultiplexSwitch) OnStart() error {
 	// peer disconnects, and attempts to reconnect
 	// to them
 	go sw.runRedialLoop(sw.ctx)
+
+	// Run the seed dial routine.
+	// The seed dial routine falls back to the seed nodes
+	// whenever the switch has run out of peers to dial
+	go sw.runSeedDialLoop(sw.ctx)
 
 	return nil
 }
@@ -434,6 +440,67 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 }
 ```
 
+##### Seed Dial Service
+
+Seed nodes (also called bootnodes) are entry points into the network, specified in the top-level node P2P configuration
+under `p2p.seeds`. One of them is dialed when the node starts, so a fresh node has somewhere to begin peer discovery
+from.
+
+Unlike persistent peers, seed connections are not preserved: a seed exists to hand out addresses, and once peer
+discovery has filled the dial queue, the connection has served its purpose. The node never actively drops it. Closing
+the connection is left to the seed itself.
+
+A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the whole dial
+queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds.
+
+```go
+package p2p
+
+func (sw *MultiplexSwitch) dialSeed() {
+	peers := sw.Peers()
+
+	// Seeds exist to fill open outbound slots. With none available,
+	// there is nothing a seed could contribute
+	if peers.NumOutbound() >= sw.maxOutboundPeers {
+		return
+	}
+
+	// Check if there is anything left to dial.
+	// As long as the switch has dialable peers, the seeds are not needed
+	if sw.hasDialableItem() {
+		return
+	}
+
+	// ...
+
+	// Dial a single seed. Queuing every seed at once would fill the outbound
+	// peer slots with bootstrap connections; if this one turns out to be
+	// unreachable, the next round picks another candidate
+	addr := candidates[randomIndex(len(candidates))]
+
+	sw.DialPeers(addr)
+}
+```
+
+Four properties are worth calling out:
+
+- the loop ticks on a fixed interval, which doubles as the minimum delay between two dial rounds. The gate above
+  describes a state rather than an event, since it stays true for as long as the node has nothing to dial, so the
+  cadence has to come from somewhere. The first round runs on start, before the first tick, so the bootstrap dial and
+  the fallback dial share a single path.
+- the service is separate from the dial loop on purpose. On an empty queue that loop parks in `waitForPeersToDial`
+  until an address is pushed, which is precisely the state a seed is meant to break, so a seed dial hosted there would
+  never fire when it is needed.
+- a single seed is dialed per round. Queuing every seed at once would fill the outbound peer slots with bootstrap
+  connections, which is why the node never dials the whole list, not even on start.
+- seeds exist to fill open outbound slots, so the service does nothing while those slots are full. They go through the
+  regular `DialPeers` path, and count against `p2p.max_num_outbound_peers` like any other peer.
+
+Seeds are only wired into the `Switch` when peer discovery is enabled (`p2p.pex`). Without the discovery reactor, a
+seed connection cannot be used to request peers, which makes it pointless. A freshly dialed seed is asked for peers as
+soon as the connection is established, through `Reactor.AddPeer`, rather than waiting for the random discovery tick to
+select it.
+
 #### Events
 
 The `Switch` is meant to be asynchronous.
@@ -587,6 +654,11 @@ This background service works in the following (albeit primitive) way:
 This process repeats at specific intervals. It is worth nothing that if the limit of outbound peers is reached, the peer
 dials have no effect.
 
+In addition to the interval, a discovery request is sent as soon as an outbound connection is established, through
+`Reactor.AddPeer`. Without it, a freshly dialed peer would have to wait to be picked by the random tick, which takes
+`interval x N` on average, where `N` is the size of the peer set. Inbound peers are not solicited this way: we did not
+choose them, and they are their own source of addresses.
+
 #### Bootnodes (Seeds)
 
 Bootnodes are specialized network nodes that play a critical role in the initial peer discovery process for new nodes
@@ -602,3 +674,8 @@ protocols (consensus, mempool…).
 
 Bootnodes usually do not store the full blockchain or participate in consensus; their primary role is to facilitate
 connectivity in the network (act as a peer relay).
+
+In TM2, bootnodes are configured through `p2p.seeds`, and handled by the seed dial service of the `MultiplexSwitch`.
+They are dialed one at a time: one when the node starts, and another whenever the node runs out of peers to dial.
+Since a seed is only useful for requesting peers, the seeds are ignored entirely when peer discovery is disabled
+(`p2p.pex`).

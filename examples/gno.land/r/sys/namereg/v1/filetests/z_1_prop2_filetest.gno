@@ -87,6 +87,9 @@ func main(cur realm) {
 //
 // delete user test
 //
+// Executor created in: `gno.land/r/sys/namereg/v1`
+//
+//
 //
 //
 // ---
@@ -113,6 +116,9 @@ func main(cur realm) {
 //
 // delete user test
 //
+// Executor created in: `gno.land/r/sys/namereg/v1`
+//
+//
 //
 //
 // ---
@@ -138,6 +144,9 @@ func main(cur realm) {
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
+//
+// Executor created in: `gno.land/r/sys/namereg/v1`
+//
 //
 //
 //

@@ -165,7 +165,10 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 
 	// Check that it's displayed in the individual proposal render output
 	individualRendered := dao.Render(cross(cur), pid.String())
-	urequire.Equal(t, true, contains(individualRendered, "Executor created in: gno.land/r/template/contract"))
+	// Rendered as a code span: CreationRealm() is interface-dispatched and so
+	// third-party controlled, and InlineCode neutralizes it while reading
+	// naturally for a realm path.
+	urequire.Equal(t, true, contains(individualRendered, "Executor created in: `gno.land/r/template/contract`"))
 	urequire.Equal(t, true, contains(individualRendered, "Test executor from template"))
 
 	// Also verify the main content is there

@@ -592,7 +592,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
-		_ = fillTypesOfValue(ds, oo)
+		// Restore-path gas (e.g. ComputeMapKey rebuilding a map's vmap):
+		// metered against this store's tx meter. See ComputeMapKey's doc.
+		_ = fillTypesOfValue(ds.gasMeter, ds, oo)
 		return oo
 	}
 	return nil

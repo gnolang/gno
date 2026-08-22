@@ -18,17 +18,8 @@ import (
 // fit gives the per-byte slope in ns/byte. See bench_ops_test.go.
 // ---------------------------------------------------------------------------
 
-func newBenchStoreWithGas() (Store, storetypes.GasMeter) {
-	alloc := NewAllocator(1 << 62)
-	gm := storetypes.NewGasMeter(1 << 62)
-	ds := NewStore(alloc, nil, nil)
-	tx := ds.BeginTransaction(nil, nil, nil, gm)
-	tx.GetAllocator().SetGasMeter(gm)
-	return tx, gm
-}
-
-// benchMachineWithGas wires a gas meter into a benchMachine so
-// ComputeMapKey's m.GasMeter.ConsumeGas path is exercised.
+// benchMachineWithGas wires a gas meter into a benchMachine. The meter is
+// returned so benchmarks can pass it explicitly (e.g. to ComputeMapKey).
 func benchMachineWithGas() (*Machine, storetypes.GasMeter) {
 	m := benchMachine()
 	gm := storetypes.NewGasMeter(1 << 62)
@@ -45,7 +36,7 @@ func benchComputeMapKey(b *testing.B, tv TypedValue) {
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		bm.SwitchOpCode(bmTarget)
-		_, _ = tv.ComputeMapKey(m, m.Store, false)
+		_, _ = tv.ComputeMapKey(gm, m.Store, false)
 		bm.SwitchOpCode(bmSetup)
 	}
 	reportBenchops(b)

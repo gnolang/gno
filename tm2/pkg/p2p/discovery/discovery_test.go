@@ -92,6 +92,82 @@ func TestReactor_DiscoveryRequest(t *testing.T) {
 	require.True(t, ok)
 }
 
+func TestReactor_AddPeer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("outbound peer is asked for peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			notifCh = make(chan []byte, 1)
+
+			mockPeer = &mock.Peer{
+				IsOutboundFn: func() bool {
+					return true
+				},
+				SendFn: func(chID byte, data []byte) bool {
+					require.Equal(t, Channel, chID)
+
+					notifCh <- data
+
+					return true
+				},
+			}
+		)
+
+		r := NewReactor(newTestStore(t))
+
+		r.AddPeer(mockPeer)
+
+		var captured []byte
+
+		select {
+		case captured = <-notifCh:
+		case <-time.After(5 * time.Second):
+			t.Fatal("outbound peer was not asked for peers")
+		}
+
+		// Parse the message
+		var msg Message
+
+		require.NoError(t, amino.Unmarshal(captured, &msg))
+		require.NoError(t, msg.ValidateBasic())
+
+		_, ok := msg.(*Request)
+
+		require.True(t, ok)
+	})
+
+	t.Run("inbound peer is not asked for peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			notifCh = make(chan struct{}, 1)
+
+			mockPeer = &mock.Peer{
+				IsOutboundFn: func() bool {
+					return false
+				},
+				SendFn: func(_ byte, _ []byte) bool {
+					notifCh <- struct{}{}
+
+					return true
+				},
+			}
+		)
+
+		r := NewReactor(newTestStore(t))
+
+		r.AddPeer(mockPeer)
+
+		select {
+		case <-notifCh:
+			t.Fatal("inbound peer was asked for peers")
+		case <-time.After(100 * time.Millisecond):
+		}
+	})
+}
+
 func TestReactor_DiscoveryResponse(t *testing.T) {
 	t.Parallel()
 
