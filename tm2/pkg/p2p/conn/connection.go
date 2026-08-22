@@ -50,7 +50,12 @@ const (
 	// the recving buffer indefinitely by dribbling partial packets while
 	// answering pings. At the default 5MB/s recv rate any legitimate message
 	// (blocks are bounded by MaxBlockDataBytes, ~2MB) completes in well under a
-	// second, so this is orders of magnitude of headroom.
+	// second -- measured, 0.4s for 2MB and ~1.6s at the 8MB MaxDataBytes ceiling
+	// -- so this is orders of magnitude of headroom.
+	//
+	// It only measures time the *peer* had to make progress: time recvRoutine
+	// spends inside a reactor callback is credited back, since nothing on the
+	// connection is being read then and the delay is not the peer's doing.
 	defaultRecvAssemblyTimeout = 30 * time.Second
 
 	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
@@ -79,6 +84,13 @@ const (
 	// channel, or loosens the MaxTxBytes bound has to raise this budget too.
 	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
 	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
+
+	// recvAssemblyStallGrace is how long recvRoutine may spend in a reactor
+	// callback before that time is credited back to the assembly deadlines. It
+	// only exists to keep the per-message path free of the channel walk; any
+	// stall long enough to matter against a 30s deadline is orders of magnitude
+	// above it.
+	recvAssemblyStallGrace = 50 * time.Millisecond
 )
 
 type (
@@ -156,6 +168,12 @@ type MConnection struct {
 	// is only ever read or written from recvRoutine, so it needs no locking.
 	recvBufferBytes int
 
+	// recvStallSince is the unix-nano time at which recvRoutine entered a
+	// reactor callback, or 0 when it is reading. Written by recvRoutine, read by
+	// the channels' assembly-timer goroutines, which must not charge a peer for
+	// time this end spent not reading.
+	recvStallSince atomic.Int64
+
 	_maxPacketMsgSize int
 }
 
@@ -179,7 +197,8 @@ type MConnConfig struct {
 	// RecvAssemblyTimeout bounds how long a single incomplete message may be
 	// assembled from partial PacketMsgs in a channel's recving buffer. The
 	// deadline is anchored to the first partial packet of a message and is not
-	// extended by later packets. When <= 0 no assembly deadline is enforced.
+	// extended by later packets, but time spent inside a reactor callback is
+	// credited back. When <= 0 no assembly deadline is enforced.
 	RecvAssemblyTimeout time.Duration `toml:"recv_assembly_timeout"`
 
 	// MaxRecvBufferBytes caps the total bytes buffered across all of the
@@ -689,7 +708,27 @@ FOR_LOOP:
 			}
 			if msgBytes != nil {
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
+				//
+				// Some of those reactors block for a long time -- the mempool's
+				// Receive waits on the mutex ApplyBlock holds across commit and
+				// recheck, and the consensus reactor's does a blocking send into
+				// peerMsgQueue. Nothing on this connection is read meanwhile, so
+				// any channel mid-assembly would have our stall counted against
+				// its deadline and an innocent peer dropped for it. Mark the
+				// stall for timers that fire during it, and credit it to the
+				// deadlines afterwards.
+				stallStart := time.Now()
+				c.recvStallSince.Store(stallStart.UnixNano())
+
 				c.onReceive(pkt.ChannelID, msgBytes)
+
+				c.recvStallSince.Store(0)
+
+				if stalled := time.Since(stallStart); stalled >= recvAssemblyStallGrace {
+					for _, channel := range c.channels {
+						channel.extendRecvAssemblyDeadline(stalled)
+					}
+				}
 			}
 		default:
 			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
@@ -798,11 +837,21 @@ type Channel struct {
 	sending       []byte
 	recentlySent  int64 // exponential moving average
 
+	// recvAssemblyMtx guards the assembly deadline for the message currently
+	// being built in recving. Unlike the rest of the recv state this cannot be
+	// recvRoutine-only: the timer callback runs on its own goroutine and re-arms
+	// itself when the deadline has moved.
+	recvAssemblyMtx sync.Mutex
 	// recvAssemblyTimer enforces RecvAssemblyTimeout for the message currently
 	// being assembled in recving. It is started on the first partial packet of a
 	// message and stopped on completion; it is deliberately never reset by
-	// subsequent partial packets. Only touched from recvRoutine.
+	// subsequent partial packets.
 	recvAssemblyTimer *time.Timer
+	// recvAssemblyDeadline is when that message stops getting the benefit of the
+	// doubt. It is anchored to the first partial packet and only ever moves
+	// forward by time this end spent not reading -- never by anything the peer
+	// does. See extendRecvAssemblyDeadline.
+	recvAssemblyDeadline time.Time
 
 	maxPacketMsgPayloadSize int
 
@@ -973,23 +1022,84 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 // anchored to the first partial packet and is intentionally NOT reset by later
 // partial packets, so a peer cannot keep an incomplete message buffered forever
 // by dribbling packets. On expiry the whole connection is torn down.
-// Not goroutine-safe; only called from recvRoutine.
 func (ch *Channel) startRecvAssemblyTimer() {
 	timeout := ch.conn.config.RecvAssemblyTimeout
-	if timeout <= 0 || ch.recvAssemblyTimer != nil {
+	if timeout <= 0 {
 		return
 	}
-	ch.recvAssemblyTimer = time.AfterFunc(timeout, func() {
-		ch.conn.stopForError(fmt.Errorf(
-			"recv assembly timeout: channel %X did not complete message within %v",
-			ch.desc.ID, timeout,
-		))
-	})
+
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
+	if ch.recvAssemblyTimer != nil {
+		return
+	}
+
+	ch.recvAssemblyDeadline = time.Now().Add(timeout)
+	ch.recvAssemblyTimer = time.AfterFunc(timeout, ch.onRecvAssemblyTimeout)
+}
+
+// onRecvAssemblyTimeout runs on the timer goroutine when the assembly timer
+// fires. The timer is scheduled against the deadline as it stood when it was
+// armed, so it can fire early: extendRecvAssemblyDeadline moves the deadline
+// without rescheduling, and a stall still in progress has not been credited at
+// all yet. Either way the answer is to re-arm for what is left rather than tear
+// the connection down.
+func (ch *Channel) onRecvAssemblyTimeout() {
+	ch.recvAssemblyMtx.Lock()
+
+	if ch.recvAssemblyTimer == nil {
+		// The message completed between the timer firing and this lock.
+		ch.recvAssemblyMtx.Unlock()
+
+		return
+	}
+
+	deadline := ch.recvAssemblyDeadline
+	if stalledSince := ch.conn.recvStallSince.Load(); stalledSince != 0 {
+		// recvRoutine is parked in a reactor callback right now. Nothing has
+		// been read since -- from this peer or any other -- so that time is not
+		// the peer's to answer for.
+		deadline = deadline.Add(time.Since(time.Unix(0, stalledSince)))
+	}
+
+	if remaining := time.Until(deadline); remaining > 0 {
+		ch.recvAssemblyTimer.Reset(remaining)
+		ch.recvAssemblyMtx.Unlock()
+
+		return
+	}
+
+	ch.recvAssemblyMtx.Unlock()
+
+	// Outside the lock: stopForError tears the whole connection down, which ends
+	// up back in recvRoutine's cleanup calling stopRecvAssemblyTimer.
+	ch.conn.stopForError(fmt.Errorf(
+		"recv assembly timeout: channel %X did not complete message within %v",
+		ch.desc.ID, ch.conn.config.RecvAssemblyTimeout,
+	))
+}
+
+// extendRecvAssemblyDeadline pushes an in-progress assembly deadline back by
+// time recvRoutine spent inside a reactor callback. The timer is left scheduled
+// where it is; when it fires it notices the deadline moved and re-arms, which
+// costs one spurious wakeup and avoids racing Reset against the callback.
+func (ch *Channel) extendRecvAssemblyDeadline(by time.Duration) {
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
+	if ch.recvAssemblyTimer == nil {
+		return
+	}
+
+	ch.recvAssemblyDeadline = ch.recvAssemblyDeadline.Add(by)
 }
 
 // stopRecvAssemblyTimer stops and clears the assembly deadline if running.
-// Not goroutine-safe; only called from recvRoutine.
 func (ch *Channel) stopRecvAssemblyTimer() {
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
 	if ch.recvAssemblyTimer != nil {
 		ch.recvAssemblyTimer.Stop()
 		ch.recvAssemblyTimer = nil

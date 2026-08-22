@@ -47,6 +47,35 @@ Three defenses in `recvPacketMsg`:
   an incomplete message cannot be held past the deadline by dribbling. On
   expiry the connection is torn down via `stopForError`, which closes the
   connection and unblocks the read — no dependency on `sendRoutine`.
+
+  The deadline measures time the *peer* had to make progress, not wall clock.
+  `recvRoutine` calls `onReceive` inline — the code says so — and real reactors
+  block there for unbounded time: `mempool.Reactor.Receive` waits on the mutex
+  `BlockExecutor.Commit` holds across `CommitSync` and a recheck of the whole
+  mempool, and the consensus reactor does a blocking send into a `peerMsgQueue`
+  that `receiveRoutine` may not be draining. Nothing on the connection is read
+  meanwhile, so charging that time to a peer half way through a message on
+  another channel drops an innocent peer for our own stall — and it drops it
+  exactly when the node is already behind and needs its peers. Reproduced: with
+  a 300ms deadline and a reactor that blocks for 1.2s, an honest peer's
+  multi-packet message was torn down with `recv assembly timeout: channel 2 did
+  not complete message within 300ms`.
+
+  So `recvRoutine` publishes when it enters a callback (`recvStallSince`) and
+  credits the elapsed time to every armed deadline when it leaves. A timer that
+  fires mid-stall sees the stall in progress and re-arms; a timer that fires
+  after one sees the moved deadline and re-arms. Credit only ever flows from
+  *our* stalls, so the anti-dribble property is untouched —
+  `TestRecvAssemblyTimeoutNotResetByDribble` still passes, and
+  `TestRecvAssemblyDeadlineNotChargedForReactorStall` additionally asserts the
+  deadline still fires for the peer's own next unfinished message.
+
+  This is the one piece of recv state that is not `recvRoutine`-only, since the
+  timer goroutine now re-arms rather than only tearing down, so the deadline sits
+  behind a per-channel mutex. Re-arming on the timer's own schedule (rather than
+  `Reset`ting from `recvRoutine`) costs at most one spurious wakeup per credited
+  stall and avoids racing `Reset` against the firing callback; `tm2/pkg/p2p/...`
+  is clean under `-race -count=3`.
 - **`MaxRecvBufferBytes`** (default 20MB): a total per-connection budget across
   all channels, on top of the per-channel cap. Tracked in `recvRoutine` only,
   so it needs no locking.
@@ -257,8 +286,17 @@ decoding, so no decoded message aliases `recving`.
   backing arrays retained across messages are bounded separately, by the
   channel-cap sum (~38MB) — see alternative E.
 - An incomplete message can no longer be held indefinitely; the deadline is a
-  throughput floor of roughly `messageSize/30s` (~68KB/s for a 2MB block), so
-  very slow peers will be dropped mid-transfer during fast sync.
+  throughput floor of roughly `messageSize/30s` (~68KB/s for a 2MB block, and
+  ~273KB/s at the 8MB `MaxDataBytes` ceiling), so very slow peers will be
+  dropped mid-transfer during fast sync. Measured against the 5MB/s default
+  `recv_rate`, a 2MB message assembles in 0.4s, so the floor only binds on peers
+  two orders of magnitude slower than the rate limiter allows.
+- A reactor that blocks `recvRoutine` no longer costs the peer its deadline, but
+  it still stops the connection being read, so the pong timeout can still fire
+  during a long stall. That path is pre-existing and out of scope here.
+- `recv_assembly_timeout` and `max_recv_buffer_bytes` are reachable from
+  `config.toml`. Configs written before they existed keep the defaults, since
+  `LoadConfigFile` decodes onto `DefaultConfig()` and absent keys are left alone.
 - `Block.MaxDataBytes` is now bounded at both ends; genesis files with a partial
   `block` params object are rejected instead of halting the node later.
 - Full blocks are decodable by peers; a block filling the tx budget loses the
