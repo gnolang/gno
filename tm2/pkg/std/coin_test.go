@@ -102,6 +102,26 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func manyCoins(n int) string {
+	parts := make([]string, n)
+	for i := range parts {
+		parts[i] = fmt.Sprintf("1a%05x", i)
+	}
+	return strings.Join(parts, ",")
+}
+
+func TestParseCoinsCountLimit(t *testing.T) {
+	t.Parallel()
+
+	coins, err := ParseCoins(manyCoins(MaxCoinsCount))
+	require.NoError(t, err)
+	require.Len(t, coins, MaxCoinsCount)
+
+	_, err = ParseCoins(manyCoins(MaxCoinsCount + 1))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the limit")
+}
+
 // TestValidateDenomLength checks MaxDenomLength against the limits it is
 // derived from rather than against a copy of the number, so that if
 // pkgPathLimit ever moves the test moves with it.
