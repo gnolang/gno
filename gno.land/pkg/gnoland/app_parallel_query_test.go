@@ -502,10 +502,65 @@ func TestParallelQueries_PreFirstBlockSimulate(t *testing.T) {
 	for g := range queriers {
 		require.NoError(t, errs[g], "querier %d", g)
 		require.Len(t, gas[g], rounds, "querier %d: missing rounds", g)
+	}
+
+	// simulate reads querier g's tx once and returns the gas charged.
+	simulate := func(g int, why string) int64 {
+		t.Helper()
+		res, err := query.QuerySync(abci.RequestQuery{
+			Path: ".app/simulate",
+			Data: simTxs[g],
+		})
+		require.NoErrorf(t, err, "%s for querier %d", why, g)
+		require.Falsef(t, res.IsErr(), "%s for querier %d: %v (log %q)", why, g, res.Error, res.Log)
+		var result sdk.Result
+		require.NoError(t, amino.Unmarshal(res.Value, &result))
+		require.Falsef(t, result.IsErr(), "%s result for querier %d: %v", why, g, result.Error)
+		return result.GasUsed
+	}
+
+	// Compare against a serial baseline rather than against round 0 of the
+	// concurrent run: round 0 is itself a parallel round, so a systematic shift
+	// caused by concurrency would move every round together and a
+	// self-comparison would pass. Taken after the concurrent phase, so that a
+	// serial pass does not warm the first-touch caches this test exists to race.
+	//
+	// Per querier, not across queriers: each signs from its own account, and
+	// account numbers and addresses do not all encode to the same number of
+	// bytes, so two queriers legitimately differ by a few gas.
+	serial := make([]int64, queriers)
+	for g := range queriers {
+		serial[g] = simulate(g, "serial baseline")
 		for r, got := range gas[g] {
-			require.Equal(t, gas[g][0], got,
-				"querier %d round %d: pre-first-block simulate charged %d gas, first round charged %d",
-				g, r, got, gas[g][0])
+			require.Equal(t, serial[g], got,
+				"querier %d round %d: window simulate charged %d gas under concurrency, "+
+					"serial execution charges %d", g, r, got, serial[g])
 		}
 	}
+
+	// Stability only says the window is self-consistent; a path reading the
+	// wrong state consistently would pass it. What the hunk under test changed
+	// is WHICH state the window reads — app.checkState, or the committed
+	// snapshot the post-first-block path uses — so pin that by making the two
+	// disagree and checking which one the answer follows.
+	//
+	// CheckTx flushes its ante writes into checkState (baseapp.runTx, the
+	// RunTxModeCheck branch), so checking querier 0's own tx advances that
+	// account's sequence and deducts its fee THERE and nowhere else. The
+	// committed state is untouched, so a simulate served from the snapshot must
+	// charge exactly what it charged before. Served from checkState it cannot:
+	// the sequence it just bumped no longer matches the signature.
+	//
+	// The comparison is against the window's own baseline, deliberately. A
+	// reading taken after a real block is not an oracle for this: the first
+	// block's commit writes block metadata that later reads walk over, which
+	// moves the gas by ~5% on its own and stays there for every block after.
+	res, err := cons.CheckTxSync(abci.RequestCheckTx{Tx: simTxs[0]})
+	require.NoError(t, err)
+	require.Falsef(t, res.IsErr(), "CheckTx: %v (log %q)", res.Error, res.Log)
+
+	require.Equal(t, serial[0], simulate(0, "simulate after CheckTx"),
+		"querier 0's window simulate moved after a CheckTx that only touched "+
+			"checkState, so the window is being served from checkState rather "+
+			"than from the committed snapshot")
 }

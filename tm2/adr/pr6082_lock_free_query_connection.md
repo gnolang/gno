@@ -206,6 +206,16 @@ explaining its asymmetry are both gone, and any nil now fails the same way.
 the bound is not currently adjustable: a validator that also serves heavy RPC
 can only lower it by lowering `GOMAXPROCS` for the whole process.
 
+**The in-flight memory ceiling is the bound times a query's own.** Each query
+installs `maxAllocQuery` twice — once for the machine allocator, once for the
+preprocess allocator — so `GOMAXPROCS` callers can hold `GOMAXPROCS × 3 GB`
+where the mutex held 3 GB. The allocator cap is a ceiling rather than a
+reservation, so this is a worst case and not a steady-state footprint, but it is
+the number to size a node against. Deriving the bound from a memory figure was
+considered and deferred: the quantity is not observable yet (see below), and
+`GOMEMLIMIT`, the only memory ceiling the process declares today, is unset on a
+default node. Accepted rather than fixed here.
+
 **Sealing adds work to the transaction commit path.** Proportional to the types
 each transaction publishes, and unmetered. A package with a large type graph
 pays a walk over it once, at deploy, having already paid gas to preprocess it.
@@ -224,7 +234,8 @@ graph times the nodes in it.
 
 - There is no in-flight query counter and no query-latency histogram, so the
   quantity this PR bounds is not yet observable, which is also why the bound is
-  fixed at `GOMAXPROCS` rather than exposed as a setting.
+  fixed at `GOMAXPROCS` rather than exposed as a setting, and why the memory
+  ceiling above is accepted rather than sized against.
 - Every custom query and simulate still builds a fresh immutable multistore per
   call (`MultiImmutableCacheWrapWithVersion` → `immutableAtVersion` →
   `LoadVersion`). The PR 6018 review measured that cost and signed it off on the
@@ -250,7 +261,14 @@ graph times the nodes in it.
   baseline.
 - `TestParallelQueries_PreFirstBlockSimulate` commits genesis and stops there,
   which is the state a `CreateEmptyBlocks=false` node serves from, then fires
-  concurrent simulates into that window.
+  concurrent simulates into that window. Stability alone would pass for a path
+  that read the wrong state consistently, so it also pins *which* state the
+  window reads: a `CheckTx` flushes its ante writes into `checkState` and
+  nowhere else, and the simulate afterwards must charge exactly what it charged
+  before. A reading taken after a real block is not the oracle here — the first
+  block's commit writes metadata that later reads walk over, moving the gas
+  ~5% and holding it there for every block after, so the comparison would be
+  measuring the block rather than the path.
 
 `gno.land/pkg/gnoland/app_parallel_vmquery_test.go`
 (`TestParallelVMQueries`) covers what the simulate tests cannot: `.app/simulate`
@@ -261,6 +279,30 @@ realm is shaped to reach every lazily-memoized cache in one query: a
 concrete-to-interface conversion preprocessed fresh per call, a type with more
 than `methodIndexThreshold` methods, more than `nameIndexThreshold` top-level
 names, a struct used as a map key, and an anonymous struct built inside a body.
+
+`gnovm/pkg/gnolang/seal_test.go` covers the sealer itself, which the query
+tests only reach through a node. `TestSealSkipsBuiltMethodIndex` pins the
+`methodIndex == nil` guard: without it, sealing a type whose index is already
+built publishes a fresh empty map into the field and fills it afterwards.
+`TestSaveBlockNodesPublishesOneBatch` pins the call shape that keeps sealing
+proportional to the graph rather than to the graph times the nodes in it — a
+loop over the single-node method is the refactor that puts the 43% back, and it
+is the kind of change that looks like a simplification. `TestPublicationSeals`
+pins the property everything else rests on, at both doors: a package published
+straight into the store, and one published through a transaction's `Write`,
+must both come out with the memo caches on their shared graph filled. It
+asserts on the caches that preprocessing provably leaves cold — a method's own
+`TypeID`, its bound form, and `DeclaredType.pkgID` — because `nameIndex` and
+`methodIndex` are already built by `Define2` and `TryDefineMethod` on that path
+and would pass with sealing removed.
+
+`gno.land/pkg/gnoland/app_concurrent_initchain_test.go`
+(`TestConcurrentInitChain`) boots 24 nodes in one process from a single barrier,
+which is what `gno.land/pkg/integration` does. `CopyFromCachedStore` hands every
+node the same `BlockNode` and `Type` pointers, so this is the only test in the
+tree with more than one goroutine publishing at once — the case sealing is *not*
+written for, and which stays correct only because every filler the sealer calls
+is check-then-set.
 
 `tm2/pkg/bft/proxy/client_test.go` pins the connection contract structurally, in
 a package that previously had no tests at all, with no database, no VM and no
@@ -283,9 +325,14 @@ workflow passed the flag. `.github/workflows/ci-race.yml` runs the concurrency
 packages under `-race -covermode=atomic`. It is deliberately narrow rather than
 `./...`, which would cost far more than the signal is worth.
 
-Negative controls, all confirmed: restoring a real mutex on the query connection
-fails the overlap assertion with `peak in-flight = 1`; reverting the seal makes
+Negative controls, all confirmed. Restoring a real mutex on the query connection
+fails the overlap assertion with `peak in-flight = 1`. Reverting the seal makes
 `TestParallelVMQueries` fail under `-race` on `FuncType.BoundType`,
-`FuncType.TypeID` and `DeclaredType.GetPkgID`; reverting the `Simulate` change
-makes `TestParallelQueries_PreFirstBlockSimulate` fail on a single shared
-`infiniteGasMeter`.
+`FuncType.TypeID` and `DeclaredType.GetPkgID`, and each door's removal fails its
+own half of `TestPublicationSeals`. Dropping `ct.methodIndex == nil` fails
+`TestSealSkipsBuiltMethodIndex` and takes `TestConcurrentInitChain` down with
+`fatal error: concurrent map read and map write`. Looping `SetBlockNode` in
+`SaveBlockNodes` fails `TestSaveBlockNodesPublishesOneBatch`. Reverting the
+`Simulate` change makes `TestParallelQueries_PreFirstBlockSimulate` fail on the
+`CheckTx` assertion, and — before that assertion existed — on a single shared
+`infiniteGasMeter` under `-race`.
