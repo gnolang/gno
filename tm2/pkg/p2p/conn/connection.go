@@ -170,9 +170,25 @@ type MConnection struct {
 
 	// recvStallSince is the unix-nano time at which recvRoutine entered a
 	// reactor callback, or 0 when it is reading. Written by recvRoutine, read by
-	// the channels' assembly-timer goroutines, which must not charge a peer for
-	// time this end spent not reading.
+	// the channels' assembly-timer goroutines and by sendRoutine, neither of
+	// which may charge a peer for time this end spent not reading.
 	recvStallSince atomic.Int64
+
+	// recvStalledTotal is the cumulative nanoseconds recvRoutine has spent in
+	// reactor callbacks over the life of the connection. sendRoutine diffs it
+	// across a ping/pong window to find how much of that window this end was
+	// not reading for. Written by recvRoutine.
+	recvStalledTotal atomic.Int64
+
+	// lastPongAt is the unix-nano time the most recent pong was read. Written by
+	// recvRoutine, read by sendRoutine to tell a genuinely unanswered ping from
+	// one whose pong lost the race for pongTimeoutCh.
+	lastPongAt atomic.Int64
+
+	// pingSentAt and stalledAtPing snapshot the start of the current pong
+	// window. Only touched from sendRoutine.
+	pingSentAt    time.Time
+	stalledAtPing int64
 
 	_maxPacketMsgSize int
 }
@@ -513,19 +529,29 @@ FOR_LOOP:
 			}
 			c.sendMonitor.Update(int(_n))
 			c.Logger.Debug("Starting pong timer", "dur", c.config.PongTimeout)
-			c.pongTimer = time.AfterFunc(c.config.PongTimeout, func() {
-				select {
-				case c.pongTimeoutCh <- true:
-				default:
-				}
-			})
+			c.pingSentAt = time.Now()
+			c.stalledAtPing = c.recvStalledTotal.Load()
+			c.pongTimer = time.AfterFunc(c.config.PongTimeout, c.signalPongTimeout)
 			c.flush()
 		case timeout := <-c.pongTimeoutCh:
-			if timeout {
+			switch {
+			case !timeout:
+				c.stopPongTimer()
+			case c.lastPongAt.Load() > c.pingSentAt.UnixNano():
+				// The peer did answer this ping; its signal just lost the race
+				// for the single slot in pongTimeoutCh.
+				c.Logger.Debug("Pong timer fired for an answered ping")
+				c.stopPongTimer()
+			case c.pongRemaining() > 0:
+				// The pong may well be sitting in the socket unread: recvRoutine
+				// was parked in a reactor callback for part of this window, and
+				// that is our doing, not the peer's. Wait out the remainder.
+				c.Logger.Debug("Pong window extended past a local recv stall")
+				c.stopPongTimer()
+				c.pongTimer = time.AfterFunc(c.pongRemaining(), c.signalPongTimeout)
+			default:
 				c.Logger.Debug("Pong timeout")
 				err = errors.New("pong timeout")
-			} else {
-				c.stopPongTimer()
 			}
 		case <-c.pong:
 			c.Logger.Debug("Send Pong")
@@ -684,6 +710,11 @@ FOR_LOOP:
 			}
 		case PacketPong:
 			c.Logger.Debug("Receive Pong")
+			// Record the arrival as well as signalling it. pongTimeoutCh holds
+			// one value and both sends are non-blocking, so a timer firing first
+			// masks the pong that answered it; sendRoutine cross-checks this.
+			c.lastPongAt.Store(time.Now().UnixNano())
+
 			select {
 			case c.pongTimeoutCh <- false:
 			default:
@@ -714,17 +745,23 @@ FOR_LOOP:
 				// recheck, and the consensus reactor's does a blocking send into
 				// peerMsgQueue. Nothing on this connection is read meanwhile, so
 				// any channel mid-assembly would have our stall counted against
-				// its deadline and an innocent peer dropped for it. Mark the
-				// stall for timers that fire during it, and credit it to the
-				// deadlines afterwards.
+				// its deadline, and the peer's pong would sit unread in the
+				// socket past its own deadline -- dropping an innocent peer
+				// either way. Mark the stall for deadlines that expire during
+				// it, and credit it to them afterwards.
 				stallStart := time.Now()
 				c.recvStallSince.Store(stallStart.UnixNano())
 
 				c.onReceive(pkt.ChannelID, msgBytes)
 
+				// Accumulate before clearing: a reader in between over-credits
+				// this stall, which errs towards keeping the peer. The other
+				// order would under-credit and drop it.
+				stalled := time.Since(stallStart)
+				c.recvStalledTotal.Add(int64(stalled))
 				c.recvStallSince.Store(0)
 
-				if stalled := time.Since(stallStart); stalled >= recvAssemblyStallGrace {
+				if stalled >= recvAssemblyStallGrace {
 					for _, channel := range c.channels {
 						channel.extendRecvAssemblyDeadline(stalled)
 					}
@@ -748,6 +785,32 @@ FOR_LOOP:
 	for range c.pong {
 		// Drain
 	}
+}
+
+// signalPongTimeout tells sendRoutine the pong window elapsed. sendRoutine
+// decides what that means; see pongRemaining.
+func (c *MConnection) signalPongTimeout() {
+	select {
+	case c.pongTimeoutCh <- true:
+	default:
+	}
+}
+
+// pongRemaining reports how much of the current pong window is left once time
+// recvRoutine spent inside reactor callbacks is discounted. A pong cannot be
+// read while recvRoutine is parked in one, so charging that time to the peer
+// drops a healthy connection for a stall on our side -- the same reasoning as
+// the recv assembly deadline, on the other end of the same read loop.
+// Only called from sendRoutine.
+func (c *MConnection) pongRemaining() time.Duration {
+	stalled := time.Duration(c.recvStalledTotal.Load() - c.stalledAtPing)
+
+	if since := c.recvStallSince.Load(); since != 0 {
+		// A stall in progress is not in recvStalledTotal yet.
+		stalled += time.Since(time.Unix(0, since))
+	}
+
+	return c.config.PongTimeout - (time.Since(c.pingSentAt) - stalled)
 }
 
 // not goroutine-safe

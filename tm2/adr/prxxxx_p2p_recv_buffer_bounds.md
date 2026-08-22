@@ -76,6 +76,21 @@ Three defenses in `recvPacketMsg`:
   `Reset`ting from `recvRoutine`) costs at most one spurious wakeup per credited
   stall and avoids racing `Reset` against the firing callback; `tm2/pkg/p2p/...`
   is clean under `-race -count=3`.
+
+  The **pong timeout** is the same defect at the other end of the same read
+  loop, and gets the same treatment: a pong is only observed by `recvRoutine`,
+  so while a reactor blocks it sits unread in the socket and its window expires.
+  `sendRoutine` snapshots the cumulative stall counter when it sends a ping and
+  diffs it when the timer fires, discounting any stall still in progress, so a
+  responsive peer is not dropped for our stall. Reproduced with a 150ms pong
+  window and a reactor blocking for 750ms.
+
+  Fixing that surfaced an adjacent pre-existing race: `pongTimeoutCh` holds one
+  value and both sends are non-blocking, so a timer firing first *masks* the
+  pong that answered it and the connection dies anyway. `recvRoutine` now also
+  records the arrival time, and `sendRoutine` treats "a pong arrived after this
+  ping" as answered regardless of which signal won. `TestMConnectionPongTimeout-
+  ResultsInError` still passes, so a genuinely silent peer is still dropped.
 - **`MaxRecvBufferBytes`** (default 20MB): a total per-connection budget across
   all channels, on top of the per-channel cap. Tracked in `recvRoutine` only,
   so it needs no locking.
@@ -200,10 +215,11 @@ dropped from the transport. `transport.Remove` deletes an `activeConns` entry an
 nothing more, and the peer was never started, so no `Stop()` path runs either —
 the socket the STS handshake just established would be closed only when the
 `netFD` finalizer ran. Measured with the GC disabled, 20 connections from one
-host left 20 sockets `ESTABLISHED` on the victim instead of 1. That matters more
-here than for the max-inbound and duplicate-ID branches that share the shape,
-because this branch is reachable from a peer's *second* connection, so an
-attacker can open sockets faster than the GC reclaims them.
+host left 20 sockets `ESTABLISHED` on the victim instead of 1. The new same-IP
+guard makes this reachable from a peer's *second* connection, so an attacker can
+open sockets faster than the GC reclaims them — but the max-inbound and
+duplicate-ID branches always had the same shape, so all three (plus the
+`addPeer`-failure path) now go through one `rejectInbound` helper.
 `TestSwitchClosesRejectedDuplicateIPConn` observes the close from the dialer's
 side and fails (by timeout) without it.
 
@@ -291,9 +307,11 @@ decoding, so no decoded message aliases `recving`.
   dropped mid-transfer during fast sync. Measured against the 5MB/s default
   `recv_rate`, a 2MB message assembles in 0.4s, so the floor only binds on peers
   two orders of magnitude slower than the rate limiter allows.
-- A reactor that blocks `recvRoutine` no longer costs the peer its deadline, but
-  it still stops the connection being read, so the pong timeout can still fire
-  during a long stall. That path is pre-existing and out of scope here.
+- A reactor that blocks `recvRoutine` costs the peer neither its assembly
+  deadline nor its pong deadline. It does still stop the connection being read,
+  so a permanently wedged reactor now holds connections open instead of shedding
+  them — which is the right way round, since the peers are healthy and we are
+  not.
 - `recv_assembly_timeout` and `max_recv_buffer_bytes` are reachable from
   `config.toml`. Configs written before they existed keep the defaults, since
   `LoadConfigFile` decodes onto `DefaultConfig()` and absent keys are left alone.

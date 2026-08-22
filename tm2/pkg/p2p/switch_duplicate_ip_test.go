@@ -153,43 +153,87 @@ func TestSwitchClosesRejectedDuplicateIPConn(t *testing.T) {
 
 	t.Cleanup(func() { _ = sw.Stop() })
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	dial := func(moniker string, errCh chan<- error) PeerConn {
-		t.Helper()
-
-		clientTr := newLoopbackTransport(t, "dev", moniker)
-
-		p, err := clientTr.Dial(ctx, serverTr.netAddr, &reactorPeerBehavior{
-			chDescs:      make([]*conn.ChannelDescriptor, 0),
-			reactorsByCh: make(map[byte]Reactor),
-			handlePeerErrFn: func(_ PeerConn, err error) {
-				select {
-				case errCh <- err:
-				default:
-				}
-			},
-			isPersistentPeerFn: func(types.ID) bool { return false },
-			isPrivatePeerFn:    func(types.ID) bool { return false },
-		})
-		require.NoError(t, err)
-		require.NoError(t, p.Start())
-
-		t.Cleanup(func() { _ = p.Stop() })
-
-		return p
-	}
-
 	// The first connection takes the only slot this IP gets.
-	dial("first", make(chan error, 1))
+	dialAndStart(t, serverTr, "first", make(chan error, 1))
 
 	// The second is rejected. Our end must notice.
 	rejected := make(chan error, 1)
-	dial("second", rejected)
+	dialAndStart(t, serverTr, "second", rejected)
+
+	requireConnClosed(t, rejected)
+}
+
+// TestSwitchClosesRejectedOverCapacityConn is the same property on the
+// inbound-limit branch, which shares rejectInbound with the same-IP guard.
+func TestSwitchClosesRejectedOverCapacityConn(t *testing.T) {
+	t.Parallel()
+
+	serverTr := newLoopbackTransport(t, "dev", "server")
+
+	// One slot, and duplicate IPs allowed so the same-IP guard does not take
+	// the decision first.
+	sw := NewMultiplexSwitch(
+		serverTr,
+		WithMaxInboundPeers(1),
+		WithAllowDuplicateIP(true),
+	)
+	sw.SetLogger(log.NewNoopLogger())
+	require.NoError(t, sw.Start())
+
+	t.Cleanup(func() { _ = sw.Stop() })
+
+	dialAndStart(t, serverTr, "first", make(chan error, 1))
+
+	// Wait for the first to occupy the slot, or the second may beat it there.
+	require.Eventually(t, func() bool {
+		return sw.Peers().NumInbound() == 1
+	}, 10*time.Second, 20*time.Millisecond)
+
+	rejected := make(chan error, 1)
+	dialAndStart(t, serverTr, "second", rejected)
+
+	requireConnClosed(t, rejected)
+}
+
+// dialAndStart opens and starts an inbound connection to target from a fresh
+// node key on the loopback address, reporting that connection's own errors on
+// errCh.
+func dialAndStart(t *testing.T, target *MultiplexTransport, moniker string, errCh chan<- error) PeerConn {
+	t.Helper()
+
+	clientTr := newLoopbackTransport(t, "dev", moniker)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	p, err := clientTr.Dial(ctx, target.netAddr, &reactorPeerBehavior{
+		chDescs:      make([]*conn.ChannelDescriptor, 0),
+		reactorsByCh: make(map[byte]Reactor),
+		handlePeerErrFn: func(_ PeerConn, err error) {
+			select {
+			case errCh <- err:
+			default:
+			}
+		},
+		isPersistentPeerFn: func(types.ID) bool { return false },
+		isPrivatePeerFn:    func(types.ID) bool { return false },
+	})
+	require.NoError(t, err)
+	require.NoError(t, p.Start())
+
+	t.Cleanup(func() { _ = p.Stop() })
+
+	return p
+}
+
+// requireConnClosed waits for the dialer's side of a rejected connection to see
+// the far end go away. Without an explicit close in the reject path this only
+// happens when the netFD finalizer runs, so the wait times out.
+func requireConnClosed(t *testing.T, errCh <-chan error) {
+	t.Helper()
 
 	select {
-	case err := <-rejected:
+	case err := <-errCh:
 		require.Error(t, err)
 	case <-time.After(10 * time.Second):
 		t.Fatal("the rejected connection was left open by the switch")
