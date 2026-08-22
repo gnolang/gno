@@ -1,13 +1,84 @@
 package gnolang
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/stretchr/testify/require"
 )
+
+func TestConvertStringToRunes(t *testing.T) {
+	t.Parallel()
+
+	runeSliceType := &SliceType{Elt: Int32Type}
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"ASCII", "hello"},
+		{"multibyte", "héllo, 世界"},
+		{"malformed UTF-8", "\xffa\xc0"},
+		{"empty", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			alloc := NewAllocator(math.MaxInt64)
+			tv := TypedValue{T: StringType, V: StringValue(tc.input)}
+			ConvertTo(alloc, nil, &tv, runeSliceType, false)
+
+			slice := tv.V.(*SliceValue)
+			base := slice.Base.(*ArrayValue)
+			n := utf8.RuneCountInString(tc.input)
+			require.Equal(t, n, slice.Length)
+			require.Equal(t, n, slice.Maxcap)
+			require.Len(t, base.List, n)
+			require.Equal(t, n, cap(base.List))
+			require.NotNil(t, base.List)
+			require.Nil(t, base.Data)
+
+			got := make([]rune, n)
+			for i := range base.List {
+				got[i] = base.List[i].GetInt32()
+			}
+			require.Equal(t, []rune(tc.input), got)
+
+			_, bytes := alloc.Status()
+			require.Equal(t, int64(allocArray+allocArrayItem*n+allocSlice), bytes)
+		})
+	}
+
+	t.Run("nil allocator", func(t *testing.T) {
+		tv := TypedValue{T: StringType, V: StringValue("é")}
+		require.NotPanics(t, func() {
+			ConvertTo(nil, nil, &tv, runeSliceType, false)
+		})
+		require.Equal(t, int32('é'), tv.V.(*SliceValue).Base.(*ArrayValue).List[0].GetInt32())
+	})
+
+	t.Run("allocation limit", func(t *testing.T) {
+		const input = "ab"
+		arrayCost := int64(allocArray + allocArrayItem*utf8.RuneCountInString(input))
+		alloc := NewAllocator(arrayCost - 1)
+		tv := TypedValue{T: StringType, V: StringValue(input)}
+
+		var recovered any
+		func() {
+			defer func() { recovered = recover() }()
+			ConvertTo(alloc, nil, &tv, runeSliceType, false)
+		}()
+		require.Contains(t, fmt.Sprint(recovered), "allocation limit exceeded")
+
+		// The array budget check must happen before any allocation.
+		_, bytes := alloc.Status()
+		require.Zero(t, bytes, "budget must be checked before the backing allocation")
+	})
+}
 
 func TestConvertUntypedBigdecToFloat(t *testing.T) {
 	t.Parallel()
