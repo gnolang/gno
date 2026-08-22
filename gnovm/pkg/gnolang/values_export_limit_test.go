@@ -65,6 +65,24 @@ func F(n int) []func() int {
 		"marshaled output (%d B) should stay within 2x the %d B budget", len(bz), budget)
 }
 
+func TestExportValuesLimit_BoundMethodReceiverDepthGuard(t *testing.T) {
+	build := func(depth int) []TypedValue {
+		receiver := TypedValue{T: IntType}
+		for range depth {
+			receiver = TypedValue{
+				T: &FuncType{},
+				V: &BoundMethodValue{Receiver: receiver, Method: "M"},
+			}
+		}
+		return []TypedValue{receiver}
+	}
+
+	_, err := ExportValues(build(10), 100_000_000)
+	require.NoError(t, err)
+	_, err = ExportValues(build(maxExportDepth*2), 100_000_000)
+	require.ErrorIs(t, err, ErrExportDepthExceeded)
+}
+
 // TestExportValuesLimit_String verifies that a large ephemeral string is
 // rejected by the size bound before the export walk completes, while a small
 // one passes.
