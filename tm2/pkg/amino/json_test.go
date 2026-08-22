@@ -500,6 +500,8 @@ func TestMarshalJSONAnyObjectGolden(t *testing.T) {
 		{"multiple fields", Plane{Name: "glider", MaxAltitude: 42}, `{"@type":"/amino_object_golden_test.Plane","Name":"glider","MaxAltitude":"42"}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := cdc.MarshalJSONAny(test.in)
 			require.NoError(t, err)
 			require.Equal(t, test.want, string(got))

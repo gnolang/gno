@@ -17,7 +17,10 @@
 # -simulate skip matters: gnokey's default (-simulate test) simulates before
 # broadcasting, which would warm any such cache and mask the regression.
 
-env EXACT_GAS=2862221
+# The value includes the PreprocessGasPerByte charge over gnomod.toml as well as
+# the .gno files; bar's is 27 bytes, so 33,750 of it. Only the equality between
+# the two assertions is the guard — the absolute value is an ordinary pin.
+env EXACT_GAS=2895971
 
 gnoland start
 

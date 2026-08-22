@@ -91,6 +91,9 @@ linters:
       - builtin$
       - examples$
       - gnovm/pkg/parser/
+      # Vendored fork of pelletier/go-toml; see tm2/pkg/toml/README.md. Kept
+      # close to upstream so gno.patch stays reviewable.
+      - tm2/pkg/toml/
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -111,3 +114,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - tm2/pkg/toml/

@@ -282,6 +282,8 @@ func TestNewSignerServerAuthorizedKeys(t *testing.T) {
 	t.Parallel()
 
 	t.Run("TCP without auth keys file", func(t *testing.T) {
+		t.Parallel()
+
 		authKeysPath := filepath.Join(t.TempDir(), "missing.json")
 		server, err := NewSignerServer(
 			&ServerFlags{
@@ -301,6 +303,8 @@ func TestNewSignerServerAuthorizedKeys(t *testing.T) {
 	})
 
 	t.Run("TCP with empty authorized keys", func(t *testing.T) {
+		t.Parallel()
+
 		authKeysPath := filepath.Join(t.TempDir(), "auth_keys.json")
 		_, err := GeneratePersistedAuthKeysFile(authKeysPath)
 		require.NoError(t, err)
@@ -324,6 +328,8 @@ func TestNewSignerServerAuthorizedKeys(t *testing.T) {
 	})
 
 	t.Run("UDS without auth keys file", func(t *testing.T) {
+		t.Parallel()
+
 		server, err := NewSignerServer(
 			&ServerFlags{Listener: testUnixListener(t)},
 			types.NewMockSigner(),

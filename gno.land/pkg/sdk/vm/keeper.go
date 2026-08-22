@@ -573,10 +573,22 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 // rejects a non-positive PreprocessGasPerByte, and GetParams defaults the field
 // when reading a legacy params blob that predates it, so the charge is always
 // active.
+//
+// The mod file is charged at the same rate: it is decoded on the same path
+// (twice at AddPackage — TypeCheckMemPackage's ParseCheckGnoMod, then the
+// keeper's own gnomod.ParseMemPackage; once at Run, whose generated gnomod.toml
+// replaces the caller's before RunMemPackage sees it) and was the one
+// attacker-controlled body reaching a parser for nothing but the ante handler's
+// 10 gas/byte. gnomod.maxFileSize bounds how many bytes are decoded and
+// tm2/pkg/toml bounds the shape (maxNestingDepth, maxKeyDepth), which together
+// hold the worst admitted body to ~586ns/byte across the two decodes, so 1250 is
+// conservative for it.
 func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
 	var srcBytes int64
 	for _, f := range mpkg.Files {
-		if strings.HasSuffix(f.Name, ".gno") {
+		// gnomod.toml and gno.mod are the two names gnomod.ParseMemPackage
+		// decodes; a third would have to be charged here too.
+		if strings.HasSuffix(f.Name, ".gno") || f.Name == "gnomod.toml" || f.Name == "gno.mod" {
 			srcBytes += int64(len(f.Body))
 		}
 	}

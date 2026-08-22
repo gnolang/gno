@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -407,4 +409,219 @@ func Bad() error { return bigErr{n: 300_000} }
 	require.Less(t, len(res), 20_000,
 		"unbounded @error must not dominate the response: got %d bytes", len(res))
 	require.Contains(t, res, "@error")
+}
+
+// gnomodDoSCases are the gnomod.toml bodies that an unbounded TOML decoder turns
+// into a validator-wide DoS. All are attacker supplied: they ride in the
+// MemPackage of a MsgAddPackage or MsgRun, and both the type-check pass and the
+// keeper's own checks decode them.
+//
+// Two layers reject these. gnomod.maxFileSize caps length (the first case);
+// tm2/pkg/toml caps nesting depth and key-path depth against the parser's own
+// recursion counter and its own parsed key paths (every other case, all of which
+// are under the size bound so they exercise the decoder). Unit-level equivalents
+// live in gnovm/pkg/gnomod and tm2/pkg/toml; what this table adds is that the
+// bounds are actually reached from both consensus entry points.
+var gnomodDoSCases = []struct {
+	name    string
+	body    func(pkgPath string) string
+	wantErr string
+}{
+	{
+		// dora-cf80016b: parseGroup rescans seenTableKeys per table, so decoding
+		// is O(n²) in the table count — a 1MB body took ~9s per decode, twice per
+		// message, against 10 gas/byte of tx-size gas and nothing else.
+		name: "table count",
+		body: func(pkgPath string) string {
+			var b strings.Builder
+			fmt.Fprintf(&b, "module = %q\ngno = \"0.9\"\n", pkgPath)
+			for i := 0; b.Len() < 700_000; i++ {
+				fmt.Fprintf(&b, "[t%06d]\nk=1\n", i)
+			}
+			return b.String()
+		},
+		wantErr: "exceeds limit 4096",
+	},
+	{
+		// dora-1b774a7a: parseRvalue/parseArray recurse per nesting level with no
+		// depth limit, so under 400KB of '[' exhausts Go's 1GB goroutine stack. A stack
+		// overflow is fatal — no recover() catches it — so every node processing
+		// the message dies and the chain halts. Kept under maxFileSize here so it
+		// is the delimiter bound, not the size bound, that rejects it.
+		name: "nesting depth",
+		body: func(pkgPath string) string {
+			return fmt.Sprintf("module = %q\ngno = \"0.9\"\na = %s\n",
+				pkgPath, strings.Repeat("[", 600)+strings.Repeat("]", 600))
+		},
+		wantErr: "nesting depth exceeds limit 256",
+	},
+	{
+		// The same nesting, with the closers moved into comments where the decoder
+		// ignores them. A guard counting brackets in the raw bytes reads +1 per line
+		// here while the decoder still recurses +10 — one of the reasons this bound
+		// belongs in the parser, counting actual recursion rather than approximating
+		// it from text.
+		name: "nesting behind comments",
+		body: func(pkgPath string) string {
+			return fmt.Sprintf("module = %q\ngno = \"0.9\"\na = %s",
+				pkgPath, strings.Repeat(strings.Repeat("[", 10)+"#"+strings.Repeat("]", 9)+"\n", 60))
+		},
+		wantErr: "nesting depth exceeds limit 256",
+	},
+	{
+		// The axis no delimiter reveals: parseAssign re-walks the whole current
+		// table key path for every assignment, so a deep dotted table header with
+		// many assignments under it is O(n·d) — quadratic in the body — while
+		// spending one single '['. Under maxFileSize (so the delimiter and size
+		// bounds both pass) this decoded in 2.8ms, 11x the worst those two admit.
+		name: "dotted key-path depth",
+		body: func(pkgPath string) string {
+			var b strings.Builder
+			fmt.Fprintf(&b, "module = %q\ngno = \"0.9\"\n", pkgPath)
+			fmt.Fprintf(&b, "[%sz]\n", strings.Repeat("a.", 1015))
+			for i := 0; ; i++ {
+				line := fmt.Sprintf("%c%c%c = 1\n", 'a'+i/676%26, 'a'+i/26%26, 'a'+i%26)
+				if b.Len()+len(line) > 4096 {
+					break
+				}
+				b.WriteString(line)
+			}
+			return b.String()
+		},
+		wantErr: "key path depth",
+	},
+	{
+		// The same O(n·d) axis bought with no dot at all: parseKey appends a key
+		// group on every quoted run and does not require a '.' between segments
+		// (keysparsing.go), so ["a""b""c"] is the path a.b.c and a quoted header
+		// buys one level of depth per 2 bytes. A dot count cannot see this at all
+		// — measured, 4KB of it reached ~2000 levels at 2 dots in the whole body,
+		// decoding in 2.8ms against the 609µs the dotted shape was believed to
+		// cap, on the same ~4x-per-doubling curve (988ms at 64KB) and ~1391 gas of
+		// work per byte across the two decodes against the 1250 charged. A dot count
+		// admitted this outright; bounding parseKey's own parsed path is what
+		// rejects it, since that path is a.b.c however it was spelled.
+		name: "quoted key-path depth, zero dots",
+		body: func(pkgPath string) string {
+			var b strings.Builder
+			fmt.Fprintf(&b, "module = %q\ngno = \"0.9\"\n", pkgPath)
+			fmt.Fprintf(&b, "[%s]\n", strings.Repeat(`""`, 1000))
+			for i := 0; ; i++ {
+				line := fmt.Sprintf("%c%c%c = 1\n", 'a'+i/676%26, 'a'+i/26%26, 'a'+i%26)
+				if b.Len()+len(line) > 4096 {
+					break
+				}
+				b.WriteString(line)
+			}
+			return b.String()
+		},
+		wantErr: "key path depth",
+	},
+	{
+		// The same O(n·d) axis, reached without ever putting many dots on one
+		// line: go-toml's lexInsideTableKey copies bytes through to parseKey
+		// until ']', and parseKey's quoted-key branch consumes runes to the
+		// closing quote without checking for a newline, so a table header can
+		// span lines inside a quoted segment. That buys one level of depth per 4
+		// bytes at a single dot per line, which a per-line byte count cannot see —
+		// and requiring balanced quotes per line does not save it either, since a
+		// '"' inside a single-quoted segment or a trailing comment pads the parity
+		// without delimiting anything. Measured unbounded: 4093 bytes reached 1333 levels
+		// and cost 11ms and 40MB per message against the ~5.2M gas charged over
+		// them — a full block of them was ~5.3s of CPU and ~19GB allocated,
+		// since the gas ceiling does not bind before the 2MB block-data one. The
+		// amplifier is go-toml rendering the whole *Tree into its error text
+		// (marshal.go:1031), which is O(depth²): 2.7MB from a 4KB body.
+		name: "key path spanning lines",
+		body: func(pkgPath string) string {
+			var b strings.Builder
+			fmt.Fprintf(&b, "module = %q\ngno = \"0.9\"\n", pkgPath)
+			b.WriteString("[\"\"")
+			for range 1000 {
+				b.WriteString(".\"\n\"")
+			}
+			b.WriteString("]\n")
+			return b.String()
+		},
+		wantErr: "key path depth",
+	},
+}
+
+// TestAddPackage_GnoModDoS covers every gnomod.toml DoS body through
+// MsgAddPackage: gnomod's bounds must reject them at the decode, well before
+// any of the costs is paid.
+func TestAddPackage_GnoModDoS(t *testing.T) {
+	const pkgPath = "gno.land/r/gnomoddos"
+	for _, tc := range gnomodDoSCases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+			addr := crypto.AddressFromPreimage([]byte("gnomoddosaddr"))
+			env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+
+			files := []*std.MemFile{
+				{Name: "a.gno", Body: "package gnomoddos\n\nfunc Echo() string { return \"ok\" }\n"},
+				{Name: "gnomod.toml", Body: tc.body(pkgPath)},
+			}
+			err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+			require.Error(t, err)
+			// ErrTypeCheck keeps only the sentinel on the hashed path; the
+			// message rides the msg trace (see TestErrTypeCheckCoarseHashedError).
+			assert.Contains(t, fmt.Sprintf("%#v", err), tc.wantErr)
+		})
+	}
+}
+
+// TestRun_GnoModDoS is the MsgRun half: Run type-checks the caller's package —
+// decoding their gnomod.toml — before overwriting it with a generated one, so it
+// reaches the same decoder as MsgAddPackage.
+func TestRun_GnoModDoS(t *testing.T) {
+	for _, tc := range gnomodDoSCases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+			addr := crypto.AddressFromPreimage([]byte("gnomoddosaddr"))
+			env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+
+			pkgPath := "gno.land/e/" + addr.String() + "/run"
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: tc.body(pkgPath)},
+				{Name: "script.gno", Body: "package main\n\nfunc main() {}\n"},
+			}
+			_, err := env.vmk.Run(ctx, NewMsgRun(addr, std.MustParseCoins(""), files))
+			require.Error(t, err)
+			assert.Contains(t, fmt.Sprintf("%#v", err), tc.wantErr)
+		})
+	}
+}
+
+// TestChargePreprocessGas_GnoModCharged pins that the mod file is metered like
+// .gno source. Its body is decoded twice per message and was previously skipped
+// here entirely, leaving the ante handler's 10 gas/byte as the only charge
+// against an unbounded decoder — a ~125x discount on attacker-controlled bytes.
+func TestChargePreprocessGas_GnoModCharged(t *testing.T) {
+	env := setupTestEnv()
+	params := env.vmk.GetParams(env.ctx)
+
+	charge := func(files ...*std.MemFile) int64 {
+		ctx, _ := env.ctx.WithGasMeter(store.NewGasMeter(maxGasQuery)).CacheContext()
+		chargePreprocessGas(ctx, params, &std.MemPackage{Files: files}, "test")
+		return ctx.GasMeter().GasConsumed()
+	}
+
+	src := &std.MemFile{Name: "a.gno", Body: "package a\n"}
+	mod := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/a")}
+	dotMod := &std.MemFile{Name: "gno.mod", Body: "module gno.land/r/a\n"}
+	readme := &std.MemFile{Name: "README.md", Body: strings.Repeat("x", 4096)}
+
+	perByte := params.PreprocessGasPerByte
+	assert.Equal(t, perByte*int64(len(src.Body)), charge(src))
+	assert.Equal(t, perByte*int64(len(src.Body)+len(mod.Body)), charge(src, mod))
+	assert.Equal(t, perByte*int64(len(src.Body)+len(dotMod.Body)), charge(src, dotMod))
+	// Files no decoder reads stay free; the tx-size gas already covers them.
+	assert.Equal(t, perByte*int64(len(src.Body)), charge(readme, src))
 }
