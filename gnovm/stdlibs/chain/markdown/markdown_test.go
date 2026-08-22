@@ -69,11 +69,80 @@ func TestPercentEncodeURL(t *testing.T) {
 		{"a<b", "a%3Cb"},
 		{"a%20b", "a%20b"},   // already encoded, preserved
 		{"a%zzb", "a%25zzb"}, // bare %
+		{"&#x6a;avascript:alert", "%26#x6a;avascript:alert"},
+		{"&#106;avascript:alert", "%26#106;avascript:alert"},
+		// Leading zeros make goldmark parse the reference as octal
+		// (strconv.ParseUint with base 0), so 0000152 is also 'j'.
+		{"&#0000152;avascript:alert", "%26#0000152;avascript:alert"},
+		{"javascript&colon;alert", "javascript%26colon;alert"},
+		{"&bogus;", "%26bogus;"},
+		{"&#12345678;", "%26#12345678;"},
+		{"&name", "&name"},
+		{"&#;", "&#;"},
+		{"?x=1&y=2", "?x=1&y=2"},
+		{"/r/boards$help&func=DeleteThread&boardID=2", "/r/boards$help&func=DeleteThread&boardID=2"},
+		// UnescapePunctuations runs before the reference resolvers, so a
+		// `\` on the `#` or the `;` must not hide the shape from us.
+		{`&\#x6a;avascript:alert`, `%26%5C#x6a;avascript:alert`},
+		{`&#x6a\;avascript:alert`, `%26#x6a%5C;avascript:alert`},
+		{`&\#x6a\;avascript:alert`, `%26%5C#x6a%5C;avascript:alert`},
+		{`&\#106;avascript:alert`, `%26%5C#106;avascript:alert`},
+		{`javascript&colon\;alert`, `javascript%26colon%5C;alert`},
+		{`&\name;`, `&%5Cname;`}, // `\n` is not punctuation — no reference to hide
+		// A renderer runs its resolvers over each other's OUTPUT, so a
+		// numeric reference can manufacture the `&` its entity-name pass
+		// then consumes: `&#38;colon;` becomes `&colon;` becomes `:`.
+		// Encoding the `&` of the numeric reference is what stops the
+		// chain — there is no second `&` to encode.
+		{"javascript&#38;colon;alert", "javascript%26#38;colon;alert"},
+		{"javascript&#x26;colon;alert", "javascript%26#x26;colon;alert"},
 	}
 	for _, c := range cases {
 		if got := PercentEncodeURL(c.in); got != c.want {
 			t.Errorf("PercentEncodeURL(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+func TestBlockEncodesEntityReferencesInInlineLinkURLs(t *testing.T) {
+	for _, sanitize := range []struct {
+		name string
+		fn   func(string) string
+	}{
+		{"Block", EscapeBlockHazards},
+		{"BlockRich", EscapeBlockHazardsRich},
+	} {
+		t.Run(sanitize.name, func(t *testing.T) {
+			for _, c := range []struct{ in, want string }{
+				{"[x](&#x6a;avascript:alert)\n", "[x](%26#x6a;avascript:alert)\n"},
+				{"[x](&#106;avascript:alert)\n", "[x](%26#106;avascript:alert)\n"},
+				{"[x](&#0000152;avascript:alert)\n", "[x](%26#0000152;avascript:alert)\n"}, // octal
+
+				{"[x](javascript&colon;alert)\n", "[x](javascript%26colon;alert)\n"},
+				{"[x](?x=1&y=2)\n", "[x](?x=1&y=2)\n"},
+
+				// A `\` on the `#` or the `;` survives the sanitizer but
+				// not the renderer: UnescapePunctuations runs before the
+				// reference resolvers, so these reach a resolver as
+				// `&#x6a;` / `&colon;` unless the `&` is encoded here.
+				// The backslash itself is left alone — the span keeps its
+				// escapes so `\)` still holds the destination together.
+				{"[x](&\\#x6a;avascript:alert)\n", "[x](%26\\#x6a;avascript:alert)\n"},
+				{"[x](&#x6a\\;avascript:alert)\n", "[x](%26#x6a\\;avascript:alert)\n"},
+				{"[x](&\\#x6a\\;avascript:alert)\n", "[x](%26\\#x6a\\;avascript:alert)\n"},
+				{"[x](javascript&colon\\;alert)\n", "[x](javascript%26colon\\;alert)\n"},
+				{"[x](&\\#x64;ata:text/html,x)\n", "[x](%26\\#x64;ata:text/html,x)\n"},
+
+				// Chained resolution: `&#38;colon;` reaches the entity-name
+				// pass as `&colon;`, which resolves to `:`. See the
+				// TestPercentEncodeURL cases.
+				{"[x](javascript&#38;colon;alert)\n", "[x](javascript%26#38;colon;alert)\n"},
+			} {
+				if got := sanitize.fn(c.in); got != c.want {
+					t.Errorf("%s(%q) = %q, want %q", sanitize.name, c.in, got, c.want)
+				}
+			}
+		})
 	}
 }
 

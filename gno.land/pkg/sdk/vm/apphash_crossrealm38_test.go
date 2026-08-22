@@ -126,7 +126,30 @@ import (
 // stdlib .gno source bytes are genesis state, so any edit to them moves the
 // root. This one does change behavior, and is intentionally
 // consensus-breaking.
-const expectedCrossrealm38Hash = "b43e5fd5ab1a255ee177aef54e35a584b657b823718cc822d11c6139a2b65a8a"
+//
+// Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
+// their length checks moved into the .gno wrapper (ahead of the native call, so
+// an oversized input is not copied into Go memory for a flat fee), plus a test
+// for that. Both bn254.gno and bn254_test.gno are stdlib source bytes committed
+// into genesis state, so the root moves. Attributed by bisection against the
+// OriginSend value above: base .gno files give b43e5fd5, bn254_test.gno alone
+// gives a25dc7a4, both give the value below; the innerHash gas-table change moves
+// nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
+// filetest passes and the bn254 EIP-196/197 vectors are untouched.
+//
+// Bumped again by the entity-reference hardening of PercentEncodeURL. The
+// change to chain/markdown is comment-only on the .gno side — the encoding
+// rule itself lives in the injected Go implementation — but stdlib .gno
+// source bytes are genesis state, so documenting the new rule moves the
+// root just as the GetCoin bump above did. Re-derived after merging develop,
+// so the value below covers the bn254 wrapper bounds above and this change
+// together.
+//
+// Bumped once more within this branch by extending that same PercentEncodeURL
+// doc comment (the `&amp;` round-trip note from review). Still comment-only,
+// still consensus-breaking for the reason above; the merge commit pins
+// 0e8e8714 without it.
+const expectedCrossrealm38Hash = "d476a03d49d13121a900baa4a86cc5709183cd49b8798806875d348191dba137"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

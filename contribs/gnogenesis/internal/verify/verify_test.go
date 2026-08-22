@@ -19,6 +19,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The genesis validators below are keyed with mock keys, which have to be
+// encodable for the genesis doc to marshal.
+func init() {
+	mock.UnsafeRegisterAminoPackage()
+}
+
 func TestGenesis_Verify(t *testing.T) {
 	t.Parallel()
 

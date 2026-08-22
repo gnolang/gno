@@ -560,3 +560,64 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 		})
 	}
 }
+
+// SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
+// maintenance let it drift badly — it claimed 103 fixtures against 186 on
+// disk, documented a `Link` helper that no longer exists, and had no row at
+// all for BlockRich (30 fixtures) or BlockquoteRich (1). A stale count reads
+// as coverage that is not there, which is the opposite of what the corpus is
+// for, so the numbers are asserted rather than trusted. The Threats column
+// stays prose and is deliberately unchecked.
+func TestSanitizeCoverageTableMatchesCorpus(t *testing.T) {
+	corpus := map[string]int{}
+	err := filepath.Walk(sanitizeTestdataDir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || filepath.Ext(info.Name()) != ".txtar" {
+			return nil
+		}
+		archive, err := txtar.ParseFile(path)
+		if err != nil {
+			return err
+		}
+		sc := parseDirectives(t, archive.Comment)
+		require.NotEmpty(t, sc.Func, "%s: missing MARKDOWNFUNC directive", path)
+		corpus[sc.Func]++
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, corpus)
+
+	doc, err := os.ReadFile("SANITIZE.md")
+	require.NoError(t, err)
+
+	// Rows look like: | `Helper` | 12 | threats… |
+	rowRe := regexp.MustCompile("(?m)^\\| `([A-Za-z]+)` \\| ([0-9]+) \\|")
+	documented := map[string]int{}
+	for _, m := range rowRe.FindAllStringSubmatch(string(doc), -1) {
+		n, err := strconv.Atoi(m[2])
+		require.NoError(t, err)
+		documented[m[1]] = n
+	}
+	require.NotEmpty(t, documented, "no helper rows parsed out of SANITIZE.md")
+
+	for fn, want := range corpus {
+		got, ok := documented[fn]
+		require.True(t, ok,
+			"SANITIZE.md has no row for %s, which has %d fixtures", fn, want)
+		require.Equal(t, want, got,
+			"SANITIZE.md row for %s says %d cases, corpus has %d", fn, got, want)
+	}
+	for fn := range documented {
+		require.Contains(t, corpus, fn,
+			"SANITIZE.md documents %s, which has no fixtures (helper removed?)", fn)
+	}
+
+	total := 0
+	for _, n := range corpus {
+		total += n
+	}
+	require.Contains(t, string(doc), fmt.Sprintf("%d fixtures total", total),
+		"SANITIZE.md total is stale; corpus has %d fixtures", total)
+}
