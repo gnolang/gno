@@ -10,8 +10,6 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-var ErrMemberNotFound = errors.New("member not found")
-
 type GovDAO struct {
 	pss    ProposalsStatuses
 	render *render
@@ -72,31 +70,31 @@ func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid
 
 func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	if !g.isValidCall(0, rlm) {
-		return errors.New("proposal voting must be done directly by a user")
+		return dao.ErrDirectCallRequired
 	}
 
 	caller := unsafe.OriginCaller()
 	mem, tie := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
-		return ErrMemberNotFound
+		return dao.ErrMemberNotFound
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)
 	if status == nil {
-		return errors.New("proposal not found")
+		return dao.ErrProposalNotFound
 	}
 
 	if status.Denied || status.Accepted {
-		return errors.New(ufmt.Sprintf("proposal closed. Accepted: %v", status.Accepted))
+		return dao.NewProposalClosedError(status.Accepted)
 	}
 
 	if !status.IsAllowed(tie) {
-		return errors.New("member on specified tier is not allowed to vote on this proposal")
+		return dao.ErrNotAllowedToVote
 	}
 
 	mVoted, _ := status.AllVotes.GetMember(caller)
 	if mVoted != nil {
-		return errors.New("already voted on proposal")
+		return dao.ErrAlreadyVoted
 	}
 
 	switch r.Option {
@@ -110,7 +108,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.AbstainVotes.SetMember(tie, caller, mem)
 	default:
-		return errors.New("voting can only be YES, NO, or ABSTAIN")
+		return dao.ErrInvalidVoteOption
 	}
 
 	return nil
