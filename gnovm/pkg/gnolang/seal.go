@@ -103,7 +103,7 @@ func (s *sealer) sealType(t Type) {
 		// methodIndex builds only past methodIndexThreshold. Uverse singletons
 		// never reach it, but a realm type readily does, and GetMethodIndex
 		// would then build the map on whichever query touched it first.
-		if len(ct.Methods) > methodIndexThreshold {
+		if ct.methodIndex == nil && len(ct.Methods) > methodIndexThreshold {
 			ct.buildMethodIndex()
 		}
 		s.sealType(ct.Base)
