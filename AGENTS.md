@@ -51,6 +51,12 @@ make fmt                        # Format all code
 
 ### Verification Rules
 
+- After changing anything under `gnovm/stdlibs/`, `gnovm/tests/stdlibs/`, or the
+  VM's execution context, always run the Gno example suite before declaring done:
+  - `cd examples && go run ../gnovm/cmd/gno test ./...`
+  Go tests do not cover `.gno` filetests. A change can pass every `go test`
+  target below and still leave `examples/` red — stdlib behavior reaches
+  filetests through a different path.
 - After changing gas constants or allocation/GC logic, always run these before declaring done:
   - `go test ./gno.land/pkg/sdk/vm/ -run Gas`
   - `go test ./gno.land/pkg/integration/ -run TestTestdata`

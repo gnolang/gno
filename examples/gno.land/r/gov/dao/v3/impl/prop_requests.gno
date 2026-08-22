@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -31,6 +32,20 @@ func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	// Rejected here as well as in UpdateImpl so the mistake surfaces when the
+	// proposal is written, not when it executes. An empty realmPkg would be
+	// stored as an allowlist entry matching every user realm's empty
+	// PkgPath(), and would render as a blank name in the grant sentence below.
+	if strings.TrimSpace(realmPkg) == "" {
+		panic("realmPkg must be the realm path being granted govDAO authority")
+	}
+	// Padding is rejected for the same reason UpdateImpl rejects it: the entry
+	// is stored as given and matched whole, so a padded path grants nobody
+	// anything. Caught here so the author sees it, not the voters.
+	if realmPkg != strings.TrimSpace(realmPkg) {
+		panic("realmPkg must not have leading or trailing spaces")
+	}
+
 	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -45,12 +60,29 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	// State the grant: this executor rewrites AllowedDAOs, and previously
+	// rendered nothing at all. realmPkg is caller-supplied and lands in a code
+	// span, so it is wrapped with sanitize.InlineCode — which emits its own
+	// fence, so do not add backticks around it. (md.EscapeText is wrong here:
+	// CommonMark 6.1 does not process backslash escapes inside code spans.)
+	// Nothing ties realmPkg to newDao, which is why the text says so.
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf(
+		"Replaces the govDAO implementation with the DAO carried by this proposal.\n\n"+
+			"After execution, only `gno.land/r/gov/dao/v3/impl` and %s may replace the "+
+			"implementation, mutate the member store, or move treasury funds.\n\n"+
+			"This grant is stated by the proposer: the incoming implementation is passed "+
+			"as a value and is not verified to belong to the realm named above.",
+		sanitize.InlineCode(realmPkg)))
 
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
 func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+	// Reject a non-bech32 address at proposal-build time (see AddMember): keeps
+	// an unauthenticable / injection-bearing key out of the member store.
+	if !addr.IsValid() {
+		panic("invalid member address: " + addr.String())
+	}
 	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
