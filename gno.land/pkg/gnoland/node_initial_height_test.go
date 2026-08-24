@@ -74,7 +74,16 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 		t.Fatal("timeout waiting for node to produce first block")
 	}
 
-	height := n.BlockStore().Height()
-	require.Equal(t, initialHeight, height,
-		"first committed block should be at InitialHeight (%d), got %d", initialHeight, height)
+	// Assert on which heights the store holds, not on its current tip. Ready()
+	// closes when the FIRST block arrives, and TestConfig sets
+	// SkipTimeoutCommit with CreateEmptyBlocks on, so the tip moves off
+	// InitialHeight about 20ms later: reading it here is a race the test loses
+	// on a loaded runner. Which height the chain started at never changes.
+	bs := n.BlockStore()
+	require.NotNil(t, bs.LoadBlockMeta(initialHeight),
+		"no block at InitialHeight (%d); store tip is %d", initialHeight, bs.Height())
+	require.Nil(t, bs.LoadBlockMeta(1),
+		"a block exists at height 1, so the chain ignored InitialHeight (%d)", initialHeight)
+	require.Nil(t, bs.LoadBlockMeta(initialHeight-1),
+		"a block exists below InitialHeight (%d), so it is not the first", initialHeight)
 }
