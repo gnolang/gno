@@ -1478,10 +1478,13 @@ func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredT
 	case *PackageNode, *FileNode:
 		// keep blank.
 	case *FuncDecl, *FuncLitExpr:
-		// Non-zero (setNodeLocations stamps every block node before
-		// preprocessing). IsFuncLocal relies on this: any case added
-		// here for a non-package scope must set a non-zero ploc.
 		ploc = parent.GetLocation()
+		// IsFuncLocal relies on a non-zero ploc for function scopes.
+		if debugAssert && ploc.IsZero() {
+			panic(fmt.Sprintf(
+				"declareWith: unstamped parent %T for local type %s.%s",
+				parent, pkgPath, name))
+		}
 	default:
 		panic(fmt.Sprintf("expected type expr but got %T", parent))
 	}
