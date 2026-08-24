@@ -1,0 +1,59 @@
+name: ci / race
+
+# The main test workflow runs with -covermode=set, which the toolchain refuses
+# to combine with -race ("-covermode must be \"atomic\", not \"set\", when -race
+# is enabled"), so nothing in CI was running the race detector at all. The
+# concurrency work on the query path — parallel ABCI queries, the sealed VM type
+# graph, the snapshot-isolated simulate path — asserts its correctness under
+# -race and nowhere else, so that assertion needs a job of its own.
+#
+# Deliberately narrow. This is not "./... with -race": that costs far more than
+# the signal is worth and would time out. It is the set of packages whose tests
+# exist to exercise concurrency, and it should grow only when a package gains a
+# test that means something under the detector.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - tm2/pkg/bft/proxy/**
+      - tm2/pkg/bft/abci/client/**
+      - tm2/pkg/bft/appconn/**
+      - tm2/pkg/sdk/**
+      - tm2/pkg/store/**
+      - gnovm/pkg/gnolang/**
+      - gno.land/pkg/gnoland/**
+      - gno.land/pkg/sdk/vm/**
+      - go.mod
+      - .github/workflows/ci-race.yml
+      - '!**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  race:
+    name: race
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: ABCI connection concurrency
+        run: go test -race -covermode=atomic -timeout 20m ./tm2/pkg/bft/proxy/...
+      - name: Simulate and store concurrency
+        run: go test -race -covermode=atomic -timeout 20m ./tm2/pkg/sdk/... ./tm2/pkg/store/rootmulti/...
+      - name: Transaction log
+        run: go test -race -covermode=atomic -timeout 10m ./gnovm/pkg/gnolang/internal/txlog/...
+      - name: Parallel query paths and concurrent boots
+        run: |
+          go test -race -covermode=atomic -timeout 30m \
+            -run 'TestParallelQueries|TestParallelVMQueries|TestQueryRace|TestConcurrentInitChain' \
+            ./gno.land/pkg/gnoland/
