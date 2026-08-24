@@ -24,7 +24,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -106,8 +105,7 @@ type VMKeeper struct {
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 	// committed typecheck cache
-	typeCheckCache  gno.TypeCheckCache
-	testStdlibCache testStdlibCache
+	typeCheckCache gno.TypeCheckCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -127,10 +125,6 @@ func NewVMKeeper(
 		bank:           bank,
 		prmk:           prmk,
 		typeCheckCache: gno.TypeCheckCache{},
-		testStdlibCache: testStdlibCache{
-			rootDir: gnoenv.RootDir(),
-			cache:   map[string]*std.MemPackage{},
-		},
 	}
 
 	return vmk
@@ -169,10 +163,14 @@ func (vm *VMKeeper) Initialize(
 		gno.EnableDebug()
 
 		opts := gno.TypeCheckOptions{
-			Getter:     vm.gnoStore,
-			TestGetter: vm.testStdlibCache.memPackageGetter(vm.gnoStore),
-			Mode:       gno.TCLatestStrict,
-			Cache:      vm.typeCheckCache,
+			Getter: vm.gnoStore,
+			Mode:   gno.TCLatestStrict,
+			Cache:  vm.typeCheckCache,
+			// GetMemPackage returns the production blob only (test files live
+			// in the #allbutprod sibling), so there is nothing here for the
+			// test passes to check; stating it keeps the overlay out of every
+			// keeper path.
+			ProdOnly: true,
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
@@ -239,10 +237,10 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		loadStdlib(gs, stdlibDir)
 		cachedInitTypeCheckCache = make(gno.TypeCheckCache)
 		opts := gno.TypeCheckOptions{
-			Getter:     gs,
-			TestGetter: vm.testStdlibCache.memPackageGetter(gs),
-			Mode:       gno.TCLatestStrict,
-			Cache:      cachedInitTypeCheckCache,
+			Getter:   gs,
+			Mode:     gno.TCLatestStrict,
+			Cache:    cachedInitTypeCheckCache,
+			ProdOnly: true, // see Initialize
 		}
 		for _, lib := range stdlibs.InitOrder() {
 			pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
@@ -273,10 +271,10 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
 	opts := gno.TypeCheckOptions{
-		Getter:     gs,
-		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
-		Mode:       gno.TCLatestStrict,
-		Cache:      vm.typeCheckCache,
+		Getter:   gs,
+		Mode:     gno.TCLatestStrict,
+		Cache:    vm.typeCheckCache,
+		ProdOnly: true, // see Initialize
 	}
 	for _, lib := range stdlibs.InitOrder() {
 		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
@@ -315,61 +313,6 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
-}
-
-type testStdlibCache struct {
-	rootDir  string
-	cache    map[string]*std.MemPackage // nil = no test package, use source; otherwise result from test stdlib
-	cacheMtx sync.RWMutex
-}
-
-type testStdlibGetter struct {
-	*testStdlibCache
-	source gno.MemPackageGetter
-}
-
-func (tsc *testStdlibCache) memPackageGetter(source gno.Store) gno.MemPackageGetter {
-	return testStdlibGetter{testStdlibCache: tsc, source: source}
-}
-
-func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
-	// Only stdlibs have alternative versions.
-	if !gno.IsStdlib(pkgPath) {
-		return tsg.source.GetMemPackage(pkgPath)
-	}
-
-	tsg.cacheMtx.RLock()
-	res, ok := tsg.cache[pkgPath]
-	tsg.cacheMtx.RUnlock()
-	// fast path: if cache was hit, return the mempackage from tsg.source (if
-	// nil) or
-	if ok {
-		if res == nil {
-			return tsg.source.GetMemPackage(pkgPath)
-		}
-		return res
-	}
-
-	// Cache miss: load package, and join it with the base package if necessary.
-	sourceMpkg := tsg.source.GetMemPackage(pkgPath)
-	// load from directory. NOTE: pkgPath is validated by `!gno.IsStdlib`,
-	// hence it cannot contain path traversals like `../`.
-	dir := filepath.Join(tsg.rootDir, "gnovm", "tests", "stdlibs", pkgPath)
-	testMpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPStdlibTest)
-	if err != nil {
-		tsg.cacheMtx.Lock()
-		tsg.cache[pkgPath] = nil
-		tsg.cacheMtx.Unlock()
-		return sourceMpkg
-	}
-	if sourceMpkg != nil {
-		testMpkg.Files = slices.Concat(sourceMpkg.Files, testMpkg.Files)
-	}
-
-	tsg.cacheMtx.Lock()
-	tsg.cache[pkgPath] = testMpkg
-	tsg.cacheMtx.Unlock()
-	return testMpkg
 }
 
 type vmkContextKey int
@@ -580,13 +523,15 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 }
 
 // chargePreprocessGas charges PreprocessGasPerByte gas per byte of every .gno
-// source file (prod, _test, and _filetest) in mpkg: the native type-check
-// pass processes all of them and the preprocess pass the prod subset, both
-// otherwise unmetered. AddPackage and Run call it immediately before their
-// type-check so an oversized package is rejected by the gas meter instead of
-// consuming unmetered validator CPU. Params.Validate rejects a non-positive
-// PreprocessGasPerByte, and GetParams defaults the field when reading a
-// legacy params blob that predates it, so the charge is always active.
+// source file (prod, _test, and _filetest) in mpkg: every file is parsed and
+// the prod subset is type-checked and preprocessed, all otherwise unmetered.
+// Charging over test bytes too is deliberately conservative — they are parsed,
+// not type-checked (see TypeCheckOptions.ProdOnly). AddPackage and Run call it
+// immediately before their type-check so an oversized package is rejected by
+// the gas meter instead of consuming unmetered validator CPU. Params.Validate
+// rejects a non-positive PreprocessGasPerByte, and GetParams defaults the field
+// when reading a legacy params blob that predates it, so the charge is always
+// active.
 func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
 	var srcBytes int64
 	for _, f := range mpkg.Files {
@@ -685,6 +630,30 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
+	// Refuse coins that could never be spent again.
+	//
+	// A realm can spend from its own address later, via a banker, so coins
+	// attached to a realm deploy are recoverable and are allowed. A pure
+	// `p/` package cannot: it has no realm identity, so it can never obtain
+	// a banker, and nothing else can move coins out of its address either.
+	// Crediting it would destroy the coins with no error and no way back.
+	//
+	// The principle is that we refuse a payment the receiver could not act
+	// on, rather than accepting it and losing it silently.
+	//
+	// Placed after the path checks above so a bad path reports the path
+	// problem rather than this one, and before the type check below so the
+	// caller is not charged for compiling a package we are going to reject.
+	// The checks above have already established the path is a realm or a
+	// pure package, so "not a realm" here means "pure package". It also
+	// precedes the inert-submission branch below, which does its own
+	// SendCoins and would otherwise bypass this guard.
+	if !send.IsZero() && !gno.IsRealmPath(pkgPath) {
+		return ErrUnspendableSend(fmt.Sprintf(
+			"%s sent to %s, which is a pure package and can never spend it",
+			send.String(), pkgPath))
+	}
+
 	// If the chain is operating in "inert" submission mode, store the package
 	// without typechecking or execution. It becomes callable only after an
 	// approver sends MsgEnablePackage.
@@ -711,10 +680,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	opts := gno.TypeCheckOptions{
-		Getter:     gnostore,
-		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
-		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Getter: gnostore,
+		Mode:   gno.TCLatestStrict,
+		Cache:  vm.getTypeCheckCache(ctx),
+		// Type-check production files only. Test files are still stored and
+		// still parsed (a syntax error anywhere rejects the deploy), but the
+		// chain can never run them, so their type-check verdict has no
+		// on-chain meaning — while resolving their stdlib imports would read
+		// a test-stdlib overlay off the node's local filesystem, making
+		// consensus depend on node-local state. No TestGetter is supplied:
+		// with ProdOnly the passes that would consult it never run.
+		ProdOnly: true,
 	}
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
@@ -791,10 +767,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, creator),
+		// send was credited to pkgAddr just above; that is the only
+		// address a BankerTypeOriginSend banker may spend from in this
+		// message.
+		OriginSendRecipient: pkgAddr.Bech32(),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -863,12 +843,16 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	if memPkg == nil {
 		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
 	}
-	// Typecheck the stored package.
+	// Typecheck the stored package. Production files only, matching the
+	// consensus type-check AddPackage performs: test files are stored but the
+	// chain can never run them, and resolving their stdlib imports would read
+	// a test-stdlib overlay off the node's local filesystem. No TestGetter is
+	// supplied; with ProdOnly the passes that would consult it never run.
 	opts := gno.TypeCheckOptions{
-		Getter:     gnostore,
-		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
-		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Getter:   gnostore,
+		Mode:     gno.TCLatestStrict,
+		Cache:    vm.getTypeCheckCache(ctx),
+		ProdOnly: true,
 	}
 	if _, err = gno.TypeCheckMemPackage(memPkg, opts); err != nil {
 		return ErrTypeCheck(err)
@@ -974,17 +958,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     chainDomain,
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    caller.Bech32(),
-		OriginSend:      send,
-		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		ChainID:            ctx.ChainID(),
+		ChainDomain:        chainDomain,
+		Height:             ctx.BlockHeight(),
+		Timestamp:          ctx.BlockTime().Unix(),
+		OriginCaller:       caller.Bech32(),
+		OriginSend:         send,
+		OriginSendSpent:    new(std.Coins),
+		OriginSendObserved: new(bool),
+		// send is credited to pkgAddr (the entry realm) below; that is
+		// the only address a BankerTypeOriginSend banker may spend from
+		// in this message.
+		OriginSendRecipient:     pkgAddr.Bech32(),
+		OriginSendRecipientPath: pkgPath,
+		Banker:                  NewSDKBanker(vm, ctx),
+		Params:                  NewSDKParams(vm.prmk, ctx),
+		EventLogger:             ctx.EventLogger(),
+		SessionAccount:          getSessionAccount(ctx, caller),
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -1059,6 +1049,23 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
+	}
+
+	// Reject a send-envelope that nothing observed. The coins were credited
+	// to pkgAddr above; if no executing code ever read them, the callee has
+	// no notion of being paid and they would be stranded there. Returning an
+	// error discards the whole message including that credit (msg execution
+	// is cache-wrapped, tm2/pkg/sdk/baseapp.go:901).
+	//
+	// MsgCall only. MsgAddPackage is exempt because its envelope lands in
+	// the new package's own address, recoverable later by the realm itself
+	// — except for a pure `p/` package, whose address nothing can ever
+	// spend from. MsgRun is exempt because pkgAddr == caller makes its
+	// send a self-transfer no-op.
+	if !send.IsZero() && !*msgCtx.OriginSendObserved {
+		return "", ErrUnobservedSend(fmt.Sprintf(
+			"%s sent to %s.%s, which never read the send-envelope",
+			send.String(), pkgPath, fnc))
 	}
 
 	// Use parameters before executing the message, as they may change during execution.
@@ -1185,10 +1192,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
-		Getter:     gnostore,
-		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
-		Mode:       gno.TCLatestRelaxed,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Getter: gnostore,
+		Mode:   gno.TCLatestRelaxed,
+		Cache:  vm.getTypeCheckCache(ctx),
+		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
+		// test files, so there is nothing for the test passes to check; being
+		// explicit keeps the consensus path free of the test-stdlib overlay.
+		ProdOnly: true,
 	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
@@ -1211,10 +1221,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm.prmk, ctx),
-		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, caller),
+		// No OriginSendRecipient here, deliberately. pkgAddr == caller for
+		// MsgRun, so the coins move from the caller to the caller and the
+		// envelope never lands anywhere. A run script cannot construct a
+		// BankerTypeOriginSend banker either — its cur.Previous() is the
+		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
+		// the recipient empty is fail-closed: nothing can spend against an
+		// envelope that never moved.
+		Banker:         NewSDKBanker(vm, ctx),
+		Params:         NewSDKParams(vm.prmk, ctx),
+		EventLogger:    ctx.EventLogger(),
+		SessionAccount: getSessionAccount(ctx, caller),
 	}
 
 	buf := new(bytes.Buffer)
