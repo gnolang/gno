@@ -441,13 +441,10 @@ func SetPaused(cur realm, next bool) {
 }
 ```
 
-Prefer authenticating the live crossing frame:
+Prefer authenticating the realm that crossed into this frame:
 
 ```go
 func SetPaused(cur realm, next bool) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     if cur.Previous().Address() != owner {
         panic("owner only")
     }
@@ -460,15 +457,15 @@ protecting:
 
 | Context | Prefer | Why |
 |---------|--------|-----|
-| Realm API authorization | `cur.Previous()` after `cur.IsCurrent()` | Authorizes the immediate caller that crossed into this realm. |
+| Realm API authorization | `cur.Previous()` | Authorizes the immediate caller that crossed into this realm. |
 | Payment-gated user action | `cur.Previous().IsUserCall()` plus the payment check | Rejects realm-mediated calls when the product requires a direct user call. |
 | Explicit EOA-origin policy | `OriginCaller()` | Only when the API intentionally follows the transaction signer through intermediate realms. Document this. |
 | Remembering a caller for later | `cur.Previous().Address()` or `.PkgPath()` | Realm values are frame-local and must not be persisted. |
 | Caller-supplied address parameter | Avoid for auth; derive inside the function | A parameter is only data supplied by the caller. |
 
-**Rule**: use `cur.Previous()` under `cur.IsCurrent()` for ordinary realm API
-authorization. Use direct-user and origin-caller checks only when that is the
-actual product policy, and make the tradeoff explicit.
+**Rule**: use `cur.Previous()` for ordinary realm API authorization. Use
+direct-user and origin-caller checks only when that is the actual product
+policy, and make the tradeoff explicit.
 
 ### 5.10 Raw public text in `Render`
 
