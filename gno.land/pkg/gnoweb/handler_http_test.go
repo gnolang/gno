@@ -1534,6 +1534,9 @@ func TestHTTPHandler_MarkdownNegotiation(t *testing.T) {
 
 			body := rr.Body.String()
 			if tc.markdown {
+				// Realm Render() output is served verbatim, so the browser must
+				// not be allowed to sniff it back into an executable type.
+				assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
 				assert.NotContains(t, body, "<!doctype html>")
 				assert.Contains(t, body, "[example.com]/r/mock/path") // from MockClient.Realm
 			} else {

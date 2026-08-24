@@ -314,6 +314,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
 	if bodyView.Type == components.MarkdownViewType {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// Render() output reaches the client unsanitized here, so pin the type:
+		// without this a browser may sniff the body back into HTML and run it.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(status)
 		if err := bodyView.Render(w); err != nil {
 			h.Logger.Error("failed to render markdown view", "error", err)

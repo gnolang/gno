@@ -12,6 +12,11 @@ import (
 // is named explicitly in the Accept header and not refused with an explicit
 // q=0. It never matches the "*/*" or "text/*" wildcards, so browsers — which
 // always accept "*/*" — continue to receive HTML.
+//
+// Relative q-ranking is deliberately not honored: naming markdown at any
+// non-zero q selects it, even when another type is ranked higher. Only a client
+// that asks for markdown by name reaches this branch, so there is no competing
+// preference worth ordering.
 func negotiatesMarkdown(accept string) bool {
 	for _, part := range strings.Split(accept, ",") {
 		mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(part))
