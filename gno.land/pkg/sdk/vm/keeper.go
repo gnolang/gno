@@ -1052,6 +1052,26 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// This makes parked packages unactivatable once the policy moves, which is
 	// the intended outcome; returning to "inert" makes them activatable again.
 	// Note that nothing evicts them in the meantime — see DisablePackage.
+	// Genesis replay is exempt from both gates above, and from the "something is
+	// parked" requirement below.
+	//
+	// AddPackage's inert branch already declines to park during replay, so a
+	// replayed history takes the ordinary path and its packages are live by the
+	// time the matching MsgEnablePackage arrives. That message is then a no-op
+	// that has to succeed: nothing is parked, so without this it returns "no
+	// inert package at path", and a failed genesis transaction under
+	// StrictReplay is a node that will not boot. A fork of a chain that actually
+	// ran "inert" would refuse to start.
+	//
+	// The two authorization gates are exempt for the same reason they are in the
+	// ante: replay re-executes historical transactions after InitGenesis has
+	// installed the fork's params, so a fork that moves off "inert" or rotates
+	// pkg_approvers would otherwise refuse its own history. The mandate those
+	// gates protect was exercised on the source chain; replay is reproducing
+	// that record, not granting it again.
+	if auth.IsGenesisReplay(ctx) {
+		return nil
+	}
 	if params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"code_submission_policy is %q, not %q: packages cannot be enabled",
@@ -1161,13 +1181,28 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// getGnoTransactionStore and clears realmStorageDiffs. Running them after
 	// RunMemPackage wipes the storage the deposit is computed from, so the
 	// creator is charged nothing -- caught by the deposit tests.
+	// The chain domain, the last of AddPackage's path rules. chain_domain is a
+	// governance param, so a change between submit and enable would otherwise
+	// let a package go live under a domain AddPackage would now refuse.
+	//
+	// Not redundant with checkNamespacePermission, which applies the same prefix
+	// rule: that function returns nil early when sys_names_pkgpath is empty, so
+	// on a chain running without namespace enforcement it checks nothing.
+	// AddPackage applies the domain rule unconditionally, so this does too.
+	//
+	// First, as AddPackage orders it: the two checks below each evaluate a realm,
+	// so a domain-mismatched package would otherwise pay for two realm executions
+	// before being refused -- and when sys_names_pkgpath is set, the namespace
+	// check would report the less specific "invalid package path" instead.
+	if !strings.HasPrefix(msg.PkgPath, params.ChainDomain+"/") {
+		return ErrInvalidPkgPath("invalid domain: " + msg.PkgPath)
+	}
 	if err := vm.checkNamespacePermission(ctx, creator, msg.PkgPath); err != nil {
 		return err
 	}
 	if err := vm.checkCLASignature(ctx, creator); err != nil {
 		return err
 	}
-
 	// Typecheck the stored package.
 	opts := gno.TypeCheckOptions{
 		Getter: gnostore,

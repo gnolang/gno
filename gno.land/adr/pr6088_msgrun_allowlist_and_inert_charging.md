@@ -499,6 +499,82 @@ cross-field rule — changing that verdict belongs in its own PR rather than in 
 branch stacked on top of it. (No test asserts the pairing either way; the
 permission is by absence of a check, not by assertion.)
 
+### 8. Not done: making the submitter pay for `init()` at enable
+
+Under `inert` the approver's transaction supplies the gas meter for a parked
+package's `init()`, so the submitter chooses the cost and the approver -- in
+practice an unattended oracle -- supplies the budget. This was designed,
+implemented, and abandoned. It is recorded because the obvious fixes each look
+right and are not.
+
+**The money problem is smaller than it looks.** tm2 fees are flat: the ante
+deducts `tx.Fee.GasFee` in full regardless of gas used, so the approver's cost
+per enable never scaled with `init()` to begin with. What remains is that the
+approver must keep `GasWanted` high enough for the largest legitimate `init()`,
+and the minimum fee scales with that -- worth roughly a third of the flat fee
+gpao already volunteers per enable.
+
+**Recording the declared gas limit does not prove payment.**
+`EnsureSufficientMempoolFees` is what ties `GasFee` to `GasWanted`, and the ante
+runs it only under `ctx.IsCheckTx() && !simulate`; its own contract says it
+"cannot be part of consensus". `std.Tx.ValidateBasic` imposes no relation
+between the two and `minGasPrices` is node-local. So on the consensus path a
+submitter reaching a proposer directly can declare `Block.MaxGas` for a nominal
+fee. Anyone tempted to read `GasWanted` as evidence of payment should stop here.
+
+**Consuming the reservation instead does not survive contact either.**
+
+- The store's gas context and meter are read once and frozen into the gno store
+  by `BeginTransaction`, before any handler runs. `ctx.WithGasMeter` copies a
+  Context field and cannot reach them, so storage I/O during `init()` still
+  bills the approver; only `MachineOptions.GasMeter` and the allocator move.
+  Storage dominates a realm-creating `init()`, so the split puts the small half
+  on the reservation. The existing `ctx.WithGasMeter(store.NewGasMeter(n))`
+  sites are not precedent: every one is a query path that then builds a
+  throwaway store. `EnablePackage` must use the committed store.
+- `NewMachineWithOptions` mutates the store-owned allocator's gas meter and
+  nothing restores it, so after `init()` returns the storage-deposit charge and
+  every later allocation bill the side meter.
+- Work on a side meter is invisible to `BlockGasMeter`, which is fed post-hoc
+  from the transaction's meter. That removes it from the block bound *and* from
+  the fee market: `UpdateGasPrice` reads `BlockGasMeter().GasConsumed()` and
+  treats a low reading as the strongest "under target" signal, so a block
+  saturated with off-meter `init()` looks idle and pushes the gas price down.
+- It does not fix the drain. A one-gas reservation on an expensive `init()`
+  still costs the approver a full flat fee when the enable fails, which is the
+  same rate as before.
+- Charging a declared figure with `ConsumeGas` would be the first primitive here
+  that burns gas without doing work, so one small transaction could consume a
+  whole block's allowance -- and the mempool reaps against *declared* gas, so it
+  reserves the block before executing.
+- Recording the transaction's limit rather than a per-message figure over-issues
+  by the message count, since nothing caps messages per transaction and they
+  share one meter.
+
+**`gnomod.toml` is the wrong home regardless.** §5g exists because a
+hand-written `max_deposit` was once honoured, and its fix was the invariant that
+`stampGnomod` assigns every field unconditionally so nothing user-authored
+survives. A submitter-declared `init_gas` read back out of the same section
+breaks that invariant in the section that already sprang once.
+
+**What to do instead.** A chain-wide cap is the cheap option -- one `vm` param
+and a passthrough meter at the machine construction, which keeps every unit
+visible to the block meter and needs no new state. But note what it bounds: the
+value reaches only the machine's meter and the allocator, so it caps interpreter
+work and not storage, for the same frozen-meter reason above. It bounds the VM
+half; it does not bound the approver's exposure. Alternatively move the budget
+off chain, extending gpao's verifier child from `PreprocessFiles` to a bounded
+full run -- §6 made that safe by turning the budget into a real deadline
+enforced by killing a process -- so the fee is never spent on a package that
+would fail.
+
+The orthogonal fix, if "the submitter pays" is ever made a requirement, is to
+stop having one party execute another's code: split enable into an approval
+(approver, O(1), binding a content hash) and an activation sent by the creator
+on an ordinary transaction and an ordinary meter. That makes declarer and
+spender the same party, and would retire §5c's ceiling carry, §5g's stamping
+defence, and the content-hash gap item 12 lists as open.
+
 ## Alternatives considered
 
 **Escrow the deposit ceiling at submit and refund the remainder at enable.**
@@ -934,6 +1010,20 @@ Closing the `add_package` row for real transactions still means running under
     reproduce what the source chain did, whatever policy the fork adopts going
     forward. (`TestVMKeeperGenesisReplayIgnoresInertPolicy`.)
 
+    That carve-out has a consequence on the other side of the split, now also
+    fixed. Because a replayed submission goes live instead of parking, the
+    matching `MsgEnablePackage` -- also in the replayed history -- finds nothing
+    parked. It has to succeed anyway: a failed genesis transaction under
+    `StrictReplay` is a node that will not boot, so a fork of a chain that
+    genuinely ran `inert` could not start. `EnablePackage` now returns early
+    during replay, which also exempts the policy and approver gates, for the
+    same reason the ante exempts its own: replay runs after `InitGenesis` has
+    installed the fork's params, so a fork that moves off `inert` or rotates
+    `pkg_approvers` would otherwise refuse its own history. The mandate those
+    gates protect was exercised on the source chain; replay reproduces that
+    record rather than granting it again.
+    (`TestVMKeeperGenesisReplayEnableIsANoOp`.)
+
 16. **Fixed: `EnablePackage` checks the policy and re-applies the gnomod rules.**
     Enable used to run under any later policy, so a package parked during an
     `inert` era stayed activatable forever — governance moves to `permissioned`
@@ -979,6 +1069,23 @@ Closing the `add_package` row for real transactions still means running under
     it prevents is worse — but it needs a companion: let a namespace-permitted
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
+
+18a. **Parked bytes are priced well below live bytes, and only `.gno` bytes are
+    priced at all.** `chargePreprocessGas` sums `len(f.Body)` only for files
+    ending in `.gno`, so a submission's README, extra `.toml`, or arbitrary data
+    files are charged nothing at the per-byte preprocess rate. They are still
+    written -- `AddInertPackage` sets into `iavlStore`, the merkleized store --
+    at amino-encode plus one `WriteCostFlat` 24,000 + 14/byte, against
+    `storagePriceDefault` of 100ugnot per byte for live realm state. And no
+    storage deposit is taken at submit at all: `processStorageDeposit` runs only
+    at enable. Combined with items 13 and 17 (nothing can delete a parked
+    package, and the path is bound to its original submitter), a submitter can
+    put mostly-unpriced bytes into the app hash permanently. §3's claim that
+    inert submissions are "charged up front" is true of the type-check work it
+    defers and not of the bytes it stores. Fixing it means either charging the
+    deposit for the parked blob at submit or counting all bytes rather than only
+    `.gno` -- the latter changes the ordinary path too, so it is a consensus
+    decision rather than a patch.
 
 18. **There is no way to enumerate parked packages.** `FindPathsByPrefix` ranges
     only over `pkg:`, so `inert_pkg:` is invisible to it. A node operator cannot

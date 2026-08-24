@@ -810,3 +810,104 @@ func Who(cur realm) string { return "parked" }`},
 	assert.Nil(t, gs.GetPackage(livePath, false), "live traffic must still park")
 	assert.NotNil(t, gs.GetInertPackage(livePath))
 }
+
+// TestVMKeeperGenesisReplayEnableIsANoOp continues the story
+// TestVMKeeperGenesisReplayIgnoresInertPolicy starts.
+//
+// That test establishes that a replayed MsgAddPackage deploys live rather than
+// parking. The consequence is this one: the matching MsgEnablePackage, which is
+// also in the replayed history, now finds nothing parked. It has to succeed
+// anyway. A failed transaction during genesis replay is a node that will not
+// boot under StrictReplay, so without this a fork of a chain that actually ran
+// "inert" could not start.
+//
+// The two authorization gates are exempt for the same reason: replay runs after
+// InitGenesis has installed the fork's params, so a fork that moves off "inert"
+// or rotates pkg_approvers must not refuse its own history.
+func TestVMKeeperGenesisReplayEnableIsANoOp(t *testing.T) {
+	const pkgPath = "gno.land/r/test/replayenable"
+	files := func(name string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/test/" + name)},
+			{Name: name + ".gno", Body: "package " + name + `
+
+func Who(cur realm) string { return "live" }`},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("historical"))
+	stranger := crypto.AddressFromPreimage([]byte("rotated-out-approver"))
+	env, ctx := inertEnv(t, approver, creator, stranger)
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+
+	// The replayed deploy goes live, per the carve-out in AddPackage.
+	require.NoError(t, env.vmk.AddPackage(replayCtx,
+		NewMsgAddPackage(creator, pkgPath, files("replayenable"))))
+	gs := env.vmk.getGnoTransactionStore(ctx)
+	require.NotNil(t, gs.GetPackage(pkgPath, false))
+	require.Nil(t, gs.GetInertPackage(pkgPath))
+
+	// The replayed enable therefore has nothing to enable, and must still succeed.
+	require.NoError(t, env.vmk.EnablePackage(replayCtx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		"a replayed enable whose package is already live must be a no-op, not an error")
+	assert.NotNil(t, gs.GetPackage(pkgPath, false), "the package must still be live")
+
+	// An approver the fork has since rotated out must also replay.
+	require.NoError(t, env.vmk.EnablePackage(replayCtx,
+		MsgEnablePackage{Approver: stranger, PkgPath: pkgPath}),
+		"a fork that rotated pkg_approvers must not refuse the enables in its own history")
+
+	// And a fork that has moved off "inert" must still replay its history.
+	offInert := DefaultParams()
+	offInert.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
+	offInert.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, offInert)
+	require.NoError(t, env.vmk.EnablePackage(replayCtx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		"a fork that moved off inert must not refuse the enables in its own history")
+
+	// Live traffic is unaffected: the same call outside replay still refuses.
+	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err, "the carve-out must be scoped to replay")
+}
+
+// TestVMKeeperEnableChecksChainDomain covers the last of AddPackage's path rules
+// at enable.
+//
+// chain_domain is a governance param, so a change between submit and enable
+// would otherwise let a parked package go live under a domain AddPackage would
+// refuse. Exercised with sys_names_pkgpath empty, which is where the gap is
+// reachable: checkNamespacePermission applies the same prefix rule but returns
+// early when that param is unset, while AddPackage applies it unconditionally.
+func TestVMKeeperEnableChecksChainDomain(t *testing.T) {
+	const pkgPath = "gno.land/r/test/domainshift"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("domaincreator"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	params.SysNamesPkgPath = ""
+	env.vmk.SetParams(ctx, params)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "domainshift.gno", Body: `package domainshift
+
+func Who(cur realm) string { return "parked" }`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	})))
+
+	// Governance moves the chain domain after the package was parked.
+	params.ChainDomain = "example.com"
+	env.vmk.SetParams(ctx, params)
+
+	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err,
+		"a parked package must not go live under a domain AddPackage would refuse")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "invalid domain")
+}
