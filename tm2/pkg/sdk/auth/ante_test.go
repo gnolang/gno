@@ -955,3 +955,118 @@ func TestSetGasMeter_SkipGasMeteringKey(t *testing.T) {
 		})
 	})
 }
+
+// TestAnteHandlerGenesisReplaySkip verifies the genesis-replay signature
+// skip: a tx whose signature no longer matches its body (as happens to a
+// --patch-txs-rewritten historical tx) is skipped ONLY when the node ran
+// with --skip-genesis-sig-verification (VerifyGenesisSignatures == false)
+// AND the ctx carries GenesisReplayKey{}. Neither alone bypasses
+// verification, so a normally-configured node (flag unset) always verifies.
+func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	// Non-genesis block height: the BlockHeight()==0 gate does not apply,
+	// mirroring a historical/patched replay tx whose height is overridden > 0.
+	ctx := env.ctx
+	header := ctx.BlockHeader().(*bft.Header)
+	header.Height = 100
+	ctx = ctx.WithBlockHeader(header)
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	// Sign over the WRONG sequence (99) so the signature won't verify
+	// against the tx as reconstructed at the ante (sequence 0) — mirrors
+	// the invalidation a --patch-txs body rewrite causes.
+	msg := tu.NewTestMsg(addr)
+	fee := tu.NewTestFee()
+	signPayload, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      99,
+		Fee:           fee,
+		Msgs:          []std.Msg{msg},
+	})
+	require.NoError(t, err)
+	tx := tu.NewTestTxWithSignBytes([]std.Msg{msg}, []crypto.PrivKey{priv}, fee, signPayload, "")
+
+	ctxReplay := ctx.WithValue(GenesisReplayKey{}, true)
+
+	// flag OFF (VerifyGenesisSignatures=true): the replay key is present
+	// but the operator did not opt in — signature is verified and rejected.
+	verifyHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	checkInvalidTx(t, verifyHandler, ctxReplay, tx, false, std.UnauthorizedError{})
+
+	// flag ON (VerifyGenesisSignatures=false) but WITHOUT the replay key:
+	// not a replay tx, so it is still verified and rejected.
+	skipHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
+	checkInvalidTx(t, skipHandler, ctx, tx, false, std.UnauthorizedError{})
+
+	// flag ON AND replay key set: signature verification is skipped.
+	checkValidTx(t, skipHandler, ctxReplay, tx, false)
+
+	// flag OFF and no replay key (a fully normal node): the feature is
+	// inert — the invalid signature is verified and rejected.
+	checkInvalidTx(t, verifyHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
+// splitTierBank reports a balance the account object does not carry, which is what
+// a fee denom looks like once non-gas balances live in their own store keys.
+//
+// This package's DummyBankKeeper keeps every balance in the account object, so
+// with it DeductFees reading through the bank cannot be told apart from reading
+// acc.GetCoins() directly: reverting the fee check to the account object passes
+// this whole package and fails only in gno.land, where fixtures happen to pay
+// fees in atom. That is what this stub exists to close.
+type splitTierBank struct {
+	BankKeeperI
+	denom  string
+	amount int64
+	sent   std.Coins
+}
+
+func (b *splitTierBank) GetCoin(_ sdk.Context, _ crypto.Address, denom string) int64 {
+	if denom == b.denom {
+		return b.amount
+	}
+	return 0
+}
+
+func (b *splitTierBank) SendCoinsUnrestricted(_ sdk.Context, _, _ crypto.Address, amt std.Coins) error {
+	b.sent = amt
+	return nil
+}
+
+// TestDeductFeesReadsTheBankNotTheAccountObject pins the reason BankKeeperI needs
+// GetCoin at all: the fee denom is whatever the transaction names, and a balance
+// for it need not be in the account object.
+func TestDeductFeesReadsTheBankNotTheAccountObject(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("fee-payer"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	collector := crypto.AddressFromPreimage([]byte("fee-collector"))
+	fees := std.Coins{{Denom: "atom", Amount: 150}}
+
+	require.Zero(t, acc.GetCoins().AmountOf("atom"),
+		"precondition: the account object must carry none of the fee denom")
+
+	funded := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 150}
+	res := DeductFees(funded, ctx, acc, collector, fees)
+	require.False(t, res.IsErr(), "a fee covered by a split-tier balance must be accepted: %s", res.Log)
+	require.Equal(t, fees, funded.sent)
+
+	// One short, so this cannot pass against a DeductFees that checks nothing.
+	short := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 149}
+	res = DeductFees(short, ctx, acc, collector, fees)
+	require.True(t, res.IsErr())
+	require.Contains(t, res.Log, "insufficient funds to pay for fees; 149atom < 150atom")
+	require.Empty(t, short.sent, "a refused fee must not be sent")
+}

@@ -14,7 +14,15 @@ import (
 
 // RenderMembers returns the members list with tier filters and pagination.
 func RenderMembers(path string, members MembersByTier) string {
-	u, _ := url.Parse(path)
+	u, err := url.Parse(path)
+	if err != nil {
+		// A path url.Parse rejects (e.g. a control byte) is the caller's own
+		// malformed input. Degrade to the unfiltered first page instead of
+		// nil-derefing in ApplyFilters or panicking in MustGetPageByPath below
+		// — this is a read-only, unauthenticated render.
+		u, _ = url.Parse("")
+		path = ""
+	}
 	mdFilters, items := urlfilter.ApplyFilters(u, members.BPTree, "filter")
 	var sb strings.Builder
 
@@ -43,7 +51,7 @@ func renderMembersPages(u *url.URL, page *pager.Page, members *bptree.BPTree) st
 
 	for _, item := range page.Items {
 		addr := item.Key
-		tn, _ := members.Get(addr)
+		tn := members.Get(addr)
 		tnStr, _ := tn.(string)
 		tierCell := ufmt.Sprintf("%s %s", tierColoredChip(tnStr), tn)
 		table.Rows = append(table.Rows, []string{tierCell, addr})

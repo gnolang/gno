@@ -103,6 +103,25 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			errContains("cannot use 11"),
 		},
 		{
+			"BlankFuncsAllChecked",
+			&std.MemPackage{
+				Type: MPUserProd,
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							func _() { var x int = "a"; _ = x }
+							func _() { var y string = 1; _ = y }`,
+					},
+				},
+			},
+			nil,
+			errContains(`cannot use "a"`, "cannot use 1"),
+		},
+		{
 			"ParseError",
 			&std.MemPackage{
 				Type: MPUserProd,
@@ -392,6 +411,87 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	}
 }
 
+// TestTypeCheckMemPackage_prodOnlyPassGating pins which type-check passes
+// ProdOnly gates. The wtests argument of typeCheckMemPackage is three-state
+// (nil / &false / &true), so ProdOnly must map false to nil and not to &true:
+// &true stops after the with-tests pass, silently dropping the xxx_test and
+// _filetest passes for `gno test`, `gno lint` and the gnovm test harness.
+// Each case puts a type error in exactly one bucket, so collapsing the mapping
+// fails here instead of only in review.
+func TestTypeCheckMemPackage_prodOnlyPassGating(t *testing.T) {
+	t.Parallel()
+
+	const prod = `package hello
+
+func Hello() string { return "hi" }
+`
+
+	tt := []struct {
+		name string
+		file string
+		body string
+	}{
+		{
+			// Same-package _test.gno: GoParseMemPackage puts it in gofs,
+			// filterTests strips it from the production pass, so only the
+			// with-tests pass sees it.
+			"same_package_test",
+			"hello_test.gno",
+			"package hello\n\nvar _ int = \"nope\"\n",
+		},
+		{
+			// xxx_test package: goes to _gofs, seen only by the xxx_test pass.
+			"xxx_test_package",
+			"hello_test.gno",
+			"package hello_test\n\nvar _ int = \"nope\"\n",
+		},
+		{
+			// _filetest.gno: goes to tgofs, seen only by the _filetest pass.
+			"filetest",
+			"hello_filetest.gno",
+			"package main\n\nvar _ int = \"nope\"\n\nfunc main() {}\n",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// A fresh mempackage per pass: type-checking mutates the AST.
+			mpkg := func() *std.MemPackage {
+				return &std.MemPackage{
+					Type: MPUserAll,
+					Name: "hello",
+					Path: "gno.land/p/demo/hello",
+					Files: []*std.MemFile{
+						{Name: "hello.gno", Body: prod},
+						{Name: tc.file, Body: tc.body},
+					},
+				}
+			}
+			mpkgGetter := mockPackageGetter{}
+
+			// ProdOnly false (gno test, gno lint): the error must be reported.
+			_, err := TypeCheckMemPackage(mpkg(), TypeCheckOptions{
+				Getter:     mpkgGetter,
+				TestGetter: mpkgGetter,
+				Mode:       TCLatestRelaxed,
+			})
+			require.Error(t, err, "a type error in %s must be caught without ProdOnly", tc.file)
+			assert.ErrorContains(t, err, "cannot use")
+
+			// ProdOnly true (the chain): test files are not type-checked.
+			_, err = TypeCheckMemPackage(mpkg(), TypeCheckOptions{
+				Getter:     mpkgGetter,
+				TestGetter: mpkgGetter,
+				Mode:       TCLatestRelaxed,
+				ProdOnly:   true,
+			})
+			assert.NoError(t, err, "ProdOnly must skip %s", tc.file)
+		})
+	}
+}
+
 func TestTypeCheckMemPackage_format(t *testing.T) {
 	t.Parallel()
 
@@ -438,4 +538,39 @@ func TestTypeCheckMemPackage_format(t *testing.T) {
 		assert.NotEqual(t, input, pkg.Files[0].Body)
 		assert.Equal(t, expected, pkg.Files[0].Body)
 	*/
+}
+
+// TestTypeCheckMemPackage_GoVersionPinned locks in the pinned Config.GoVersion
+// (gotypecheck.go). Without the pin, the accept/reject verdict for a
+// version-gated construct depends on the validator binary's go/types version —
+// a consensus fork. A go1.22 feature (range-over-int) must be rejected
+// regardless of the toolchain gno is built with. A loop whose body closes over
+// the loop variable is valid syntax at every Go version and must stay accepted:
+// its go1.22 per-iteration semantics live in the interpreter, not in this gate.
+func TestTypeCheckMemPackage_GoVersionPinned(t *testing.T) {
+	t.Parallel()
+
+	rangeOverInt := &std.MemPackage{
+		Type:  MPUserProd,
+		Name:  "rint",
+		Path:  "gno.land/p/demo/rint",
+		Files: []*std.MemFile{{Name: "rint.gno", Body: "package rint\nfunc F() { for range 10 {} }\n"}},
+	}
+	_, err := TypeCheckMemPackage(rangeOverInt, TypeCheckOptions{Mode: TCLatestRelaxed})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "go1.22",
+		"range-over-int must be rejected by the pinned GoVersion, not silently accepted")
+
+	loopClosure := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "lc",
+		Path: "gno.land/p/demo/lc",
+		Files: []*std.MemFile{{Name: "lc.gno", Body: "package lc\n" +
+			"func F() (fns []func() int) {\n" +
+			"\tfor _, v := range []int{1, 2} {\n" +
+			"\t\tfns = append(fns, func() int { return v })\n" +
+			"\t}\n\treturn\n}\n"}},
+	}
+	_, err = TypeCheckMemPackage(loopClosure, TypeCheckOptions{Mode: TCLatestRelaxed})
+	assert.NoError(t, err, "loop-closure syntax must remain accepted under the pin")
 }

@@ -6,6 +6,11 @@ variable "PROJECT_NAME" {
   default = "gno"
 }
 
+# computed by the caller and forwarded as a build arg.
+variable "BUILD_VERSION" {
+  default = "dev"
+}
+
 #########################################
 ################ GROUPS #################
 #########################################
@@ -52,10 +57,13 @@ target "common" {
     "type=sbom",
   ]
   context = "../../../"
+  args = {
+    BUILD_VERSION = "${BUILD_VERSION}"
+  }
   platforms = [
     "linux/amd64",
     "linux/arm64"
-  ] 
+  ]
   output = ["type=image"] # ,push=true -> Pushes to registry
 }
 

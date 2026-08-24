@@ -180,8 +180,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 			uassert.Equal(t, derived, valoper.SigningAddress)
 
 			// signingRegistry tracks the active entry.
-			_, exists := signingRegistry.Get(derived.String())
-			uassert.True(t, exists, "signingRegistry must contain the active entry")
+			uassert.True(t, signingRegistry.Has(derived.String()), "signingRegistry must contain the active entry")
 		})
 	})
 

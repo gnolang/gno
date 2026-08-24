@@ -219,6 +219,57 @@ back to `/r/V`, and the write commits.
 **Rule**: getters return either values (copies), unexported method
 results, or read-only views. Never a pointer to internal mutable state.
 
+#### 5.1a `/p/`-type with unexported fields but exported mutation methods
+
+The taint-bypasses-method-dispatch gap applies even when the `/p/`-type
+has *no exported fields at all*. If every field is unexported but the
+type has exported methods that mutate the receiver, returning a pointer
+to an instance stored in your realm is equivalent to publishing those
+mutators as your own API.
+
+`avl.Tree` is the canonical example. All fields (`root`, `size`) are
+unexported — a naive reviewer sees no exposed state. But `Tree.Set`,
+`Tree.Remove`, and `Tree.ReverseIterate` all mutate or traverse the
+tree. An attacker who receives a `*avl.Tree` pointer can call
+`tree.Set(key, value)`, borrow rule #2 fires (the tree was allocated
+in `/r/V`), and the write commits under victim authority.
+
+```go
+var store = avl.NewTree()
+
+// WRONG — all fields unexported, but exported methods are mutators
+func GetStore() *avl.Tree { return store }
+
+// Attacker: GetStore().Set("k", "injected")  →  commits under /r/V
+```
+
+#### 5.1b Exported pointer fields on `/p/` structs
+
+The same path exists one level of indirection deeper. If a `/p/` struct
+has an exported field that is itself a pointer type whose type has
+mutation methods, returning a pointer to the containing struct gives
+indirect access to that inner mutator.
+
+```go
+// p/mylib
+type Container struct {
+    Items *avl.Tree   // exported pointer field — mutation methods reachable
+    Label string
+}
+
+// r/V
+var c = &Container{Items: avl.NewTree()}
+func GetContainer() *Container { return c }
+
+// Attacker: GetContainer().Items.Set(key, value)
+// Readonly taint on c does NOT block method dispatch.
+// Borrow rule #2 fires on Items (allocated in /r/V) → write commits.
+```
+
+**Rule**: treat every exported pointer field of a `/p/` type as a live
+mutator handle if the pointed-to type has any mutation method. Never
+return the containing struct as a pointer.
+
 ### 5.2 Embedding a `/p/`-type with concrete-callback higher-order methods
 
 The (B)-class vector. Even if your container is `/r/`-declared, if
@@ -251,6 +302,17 @@ while holding your own `m.Realm`. Either:
 - Type the callback parameter with one of your own `/r/V`-declared
   types so attackers can't supply a matching `/p/`-callback, OR
 - Do not invoke caller callbacks at all; design synchronous APIs.
+
+**Safe by contrast — threading `cur` through your own concrete `/p/`
+functions.** The danger above is a *caller-supplied* `func` or
+`interface` value, not the `realm` token itself. Passing your own `cur`
+down into concrete functions you import from a `/p/` package is safe: a
+realm token grants authority only while `cur.IsCurrent()` holds, and a
+concrete callee cannot be swapped for attacker code the way an interface
+or callback parameter can. This is the interrealm pattern
+[daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64)
+relies on — do not avoid passing `realm` to `/p/` altogether; only avoid
+handing your authority to values the *caller* controls.
 
 ### 5.4 Trusting an interface value without canonical-type check
 
@@ -326,6 +388,118 @@ a call frame`.
 
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
+
+### 5.8 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
+
+`chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
+obtaining the previous realm. Using it in a crossing function that already
+receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
+verification that makes `cur.Previous()` safe, and silently ignores the
+`cur` capability token the runtime minted for exactly this purpose.
+
+```go
+// WRONG: cur is accepted but never used; no IsCurrent() guard
+import "chain/runtime/unsafe"
+
+func Set(cur realm, key, value string) {
+    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    ...
+}
+
+// RIGHT
+func Set(cur realm, key, value string) {
+    if !cur.IsCurrent() { panic("spoofed realm") }
+    caller := cur.Previous().Address()
+    ...
+}
+```
+
+Any import of `chain/runtime/unsafe` in a realm that also declares
+crossing functions (`func F(cur realm, ...)`) is a red flag. The
+`unsafe` package is appropriate only in non-crossing helpers or
+in realms that have not yet been migrated to the `cur realm` API.
+
+**Rule**: in crossing functions, always derive caller identity from
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+`chain/runtime/unsafe` import.
+
+### 5.9 `OriginCaller()` as authorization identity
+
+`OriginCaller()` names the transaction origin, not necessarily the
+immediate realm that crossed into your function. If a realm uses it as
+an admin or ownership check, an intermediate realm can become a confused
+deputy path unless the API is intentionally EOA-only and documents that
+constraint.
+
+```go
+func SetPaused(cur realm, next bool) {
+    if OriginCaller() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+Prefer authenticating the live crossing frame:
+
+```go
+func SetPaused(cur realm, next bool) {
+    if !cur.IsCurrent() {
+        panic("invalid realm")
+    }
+    if cur.Previous().Address() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+Choose the caller identity primitive that matches the boundary you are
+protecting:
+
+| Context | Prefer | Why |
+|---------|--------|-----|
+| Realm API authorization | `cur.Previous()` after `cur.IsCurrent()` | Authorizes the immediate caller that crossed into this realm. |
+| Payment-gated user action | `cur.Previous().IsUserCall()` plus the payment check | Rejects realm-mediated calls when the product requires a direct user call. |
+| Explicit EOA-origin policy | `OriginCaller()` | Only when the API intentionally follows the transaction signer through intermediate realms. Document this. |
+| Remembering a caller for later | `cur.Previous().Address()` or `.PkgPath()` | Realm values are frame-local and must not be persisted. |
+| Caller-supplied address parameter | Avoid for auth; derive inside the function | A parameter is only data supplied by the caller. |
+
+**Rule**: use `cur.Previous()` under `cur.IsCurrent()` for ordinary realm API
+authorization. Use direct-user and origin-caller checks only when that is the
+actual product policy, and make the tradeoff explicit.
+
+### 5.10 Raw public text in `Render`
+
+`Render(path string) string` is a public display surface. The `path`
+argument and any user-authored state are attacker-controlled text. Do
+not concatenate them directly into markdown links, tables, headings, or
+HTML-like text.
+
+```go
+func Render(path string) string {
+    return "# Echo\n\n" + path // raw markdown injection surface
+}
+```
+
+Escape user text before display, or keep it in a format where the renderer
+treats it as plain text. Prefer the official Gno markdown sanitizer for your
+target Gno version over open-coded replacers.
+
+```go
+import "gno.land/p/nt/markdown/sanitize/v0"
+
+func Render(path string) string {
+    return "# Echo\n\n" + sanitize.InlineText(path)
+}
+```
+
+This is not a cross-realm authority bug by itself, but it is a common
+way to turn harmless stored text or URL path data into misleading UI.
+Opinionated rendering libraries and frameworks can help keep this consistent,
+but check whether each helper sanitizes internally or expects sanitized input.
+See [Community Packages](./community-packages.md) for non-official markdown
+builders and their review checklist.
 
 ---
 
@@ -435,8 +609,17 @@ Before deploying a realm:
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.
 
+- [ ] Authorization checks do not use `OriginCaller()` unless the
+  function is intentionally EOA-origin-only and documents why immediate
+  caller identity is not required.
+
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
+
+- [ ] `Render(path)` and any markdown helper output escape
+  user-controlled path, profile, title, description, or message text
+  before returning it, using the official Gno markdown sanitizer where
+  practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
@@ -528,6 +711,9 @@ Attackers cannot:
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
+- [`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md) —
+  audit pattern harness fixtures, expected records, and run instructions that
+  keep recurring audit lessons executable.
 - `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
   the four bypass tests demonstrating why seal is documentation, not
   defense.

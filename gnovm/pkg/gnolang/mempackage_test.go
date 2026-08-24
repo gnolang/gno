@@ -1,10 +1,13 @@
 package gnolang
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemPackage_Validate(t *testing.T) {
@@ -32,7 +35,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "example.com/r/path/to/pkg",
+				Path:  "example.com/r/path/to/hey",
 				Files: []*std.MemFile{{Name: "b.gno", Body: "package hey"}, {Name: "a.gno", Body: "package hey"}},
 			},
 			"unsorted",
@@ -43,7 +46,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "example.com/r/path/to/pkg",
+				Path:  "example.com/r/path/to/hey",
 				Files: []*std.MemFile{{Name: "a.gno", Body: "package hey"}, {Name: "a.gno", Body: "package hey"}},
 			},
 			"duplicate",
@@ -54,7 +57,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "example.com/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
+				Path:  "example.com/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -244,7 +247,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/r/path/p_ath",
+				Path:  "gno.land/r/p_ath/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -321,7 +324,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/x/path/path",
+				Path:  "gno.land/x/path/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -332,7 +335,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "github.com/p/path/path",
+				Path:  "github.com/p/path/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -343,7 +346,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/p/path/path",
+				Path:  "gno.land/p/path/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -354,7 +357,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
-				Path:  "gno.land/r/path/path",
+				Path:  "gno.land/r/path/hey",
 				Files: heyPackageFiles,
 			},
 			"",
@@ -365,7 +368,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type: MPUserProd,
 				Name: "hey",
-				Path: "gno.land/r/path/path",
+				Path: "gno.land/r/path/hey",
 				Files: []*std.MemFile{
 					{Name: "a.gno", Body: "package hey"},
 					{Name: "bar.toml"},
@@ -380,7 +383,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type: MPUserProd,
 				Name: "hey",
-				Path: "gno.land/r/path/path",
+				Path: "gno.land/r/path/hey",
 				Files: []*std.MemFile{
 					{Name: "README.md", Body: "# Hey Package"},
 					{Name: "a.gno", Body: "package hey"},
@@ -395,7 +398,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			&std.MemPackage{
 				Type: MPUserProd,
 				Name: "hey",
-				Path: "gno.land/r/path/path",
+				Path: "gno.land/r/path/hey",
 				Files: []*std.MemFile{
 					{Name: "a.gno", Body: "package hey"},
 					{Name: "other.md", Body: "# Other markdown file"},
@@ -425,4 +428,173 @@ func TestMemPackage_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); the
+// reservation is an explicit check with its own diagnostic, ahead of
+// the path regexes that also exclude it.
+func TestValidateMemPackageAny_SepReserved(t *testing.T) {
+	t.Parallel()
+	mpkg := &std.MemPackage{
+		Type:  MPUserProd,
+		Name:  "hey",
+		Path:  "example.com/r/hey#sub",
+		Files: []*std.MemFile{{Name: "a.gno", Body: "package hey"}},
+	}
+	err := ValidateMemPackageAny(mpkg)
+	assert.ErrorContains(t, err, "is reserved for sub-realm derivation")
+}
+
+func TestIsVersionSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"v1", true}, // v1 is allowed for backwards compatibility
+		{"v2", true},
+		{"v3", true},
+		{"v10", true},
+		{"v99", true},
+		{"v0", true}, // v0 is a valid version suffix (e.g. gno.land/p/nt/avl/v0)
+		{"v", false}, // incomplete
+		{"v2beta", false},
+		{"2", false}, // missing v prefix
+		{"", false},
+		{"V2", false}, // uppercase not allowed
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			got := isVersionSuffix(tt.input)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestLastPathElement(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		path     string
+		expected string
+	}{
+		{"gno.land/r/demo/counter", "counter"},
+		{"gno.land/p/demo/avl", "avl"},
+		{"gno.land/r/demo/foo/v1", "foo"},  // v1 is version suffix, return foo
+		{"gno.land/r/demo/foo/v2", "foo"},  // v2 is version suffix, return foo
+		{"gno.land/r/demo/foo/v10", "foo"}, // multi-digit version
+		{"encoding/json", "json"},          // stdlib
+		{"gno.land/r/demo/v2app", "v2app"}, // v2 in name, not suffix
+		{"gno.land/r/demo/myv2", "myv2"},   // v2 suffix in name
+		{"single", "single"},               // single element path
+		{"", ""},                           // empty path
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+			got := LastPathElement(tt.path)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestValidatePkgNameMatchesPath(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		pkgName     Name
+		pkgPath     string
+		errContains string
+	}{
+		{"match", "counter", "gno.land/r/demo/counter", ""},
+		{"mismatch", "hello", "gno.land/r/demo/goodbye", "does not match path element"},
+		{"version_suffix_v1_match", "foo", "gno.land/r/demo/foo/v1", ""},
+		{"version_suffix_v1_mismatch", "bar", "gno.land/r/demo/foo/v1", "does not match path element"},
+		{"version_suffix_v2_match", "foo", "gno.land/r/demo/foo/v2", ""},
+		{"version_suffix_v2_mismatch", "bar", "gno.land/r/demo/foo/v2", "does not match path element"},
+		{"stdlib_match", "json", "encoding/json", ""},
+		{"stdlib_mismatch", "xml", "encoding/json", "does not match path element"},
+		{"empty_path", "foo", "", ""},
+		{"consecutive_version_suffixes", "v2", "gno.land/r/demo/foo/v2/v3", "consecutive version suffixes"},
+		{"consecutive_version_suffixes_any_name", "foo", "gno.land/r/demo/foo/v1/v2", "consecutive version suffixes"},
+		{"consecutive_version_suffixes_only", "v2", "v1/v2", "consecutive version suffixes"},
+		{"version_suffix_under_namespace", "demo", "gno.land/r/demo/v2", ""},
+		{"version_suffix_single_element", "v2", "v2", ""}, // degenerate, not consecutive
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := ValidatePkgNameMatchesPath(tt.pkgName, tt.pkgPath)
+			if tt.errContains == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.errContains)
+			}
+		})
+	}
+}
+
+func TestWriteMemPackageTo_FiletestsRoundTrip(t *testing.T) {
+	// Lay out a package following the gno conventions: regular files in
+	// the package dir, filetests in the filetests/ subdir plus one legacy
+	// filetest at the root. Bodies are distinct so content assertions can
+	// prove each write landed in the right place.
+	rootBody := "package main\n\nfunc main() { println(\"root\") }\n"
+	subBody := "package main\n\nfunc main() { println(\"sub\") }\n"
+	dir := t.TempDir()
+	writeFile := func(rel, body string) {
+		fpath := filepath.Join(dir, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(fpath), 0o755))
+		require.NoError(t, os.WriteFile(fpath, []byte(body), 0o644))
+	}
+	writeFile("gnomod.toml", "module = \"gno.land/p/demo/rt\"\ngno = \"0.9\"\n")
+	writeFile("rt.gno", "package rt\n")
+	writeFile("root_filetest.gno", rootBody)
+	writeFile("filetests/sub_filetest.gno", subBody)
+
+	mpkg, err := ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
+	require.NoError(t, err)
+	require.NotNil(t, mpkg.GetFile("sub_filetest.gno")) // flattened name
+
+	// Simulate a transform editing both filetests, and one new filetest
+	// with no on-disk home (must land flat in the package dir).
+	mpkg.GetFile("root_filetest.gno").Body = rootBody + "// edited\n"
+	mpkg.GetFile("sub_filetest.gno").Body = subBody + "// edited\n"
+	newBody := "package main\n\nfunc main() { println(\"new\") }\n"
+	mpkg.Files = append(mpkg.Files, &std.MemFile{Name: "new_filetest.gno", Body: newBody})
+
+	// Write back: every file must land where it was read from, so a
+	// second read succeeds (no duplicate flat copy of sub_filetest.gno).
+	require.NoError(t, WriteMemPackageTo(mpkg, dir))
+	readBack := func(rel string) string {
+		bz, err := os.ReadFile(filepath.Join(dir, rel))
+		require.NoError(t, err)
+		return string(bz)
+	}
+	assert.False(t, osFileExists(filepath.Join(dir, "sub_filetest.gno")))
+	assert.Equal(t, subBody+"// edited\n", readBack("filetests/sub_filetest.gno"))
+	assert.Equal(t, rootBody+"// edited\n", readBack("root_filetest.gno"))
+	assert.Equal(t, newBody, readBack("new_filetest.gno"))
+	_, err = ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserAll)
+	assert.NoError(t, err)
+}
+
+func TestWriteMemPackageTo_RejectsBadNames(t *testing.T) {
+	dir := t.TempDir()
+	mpkg := &std.MemPackage{
+		Name: "rt",
+		Path: "gno.land/p/demo/rt",
+		Files: []*std.MemFile{
+			{Name: "ok.gno", Body: "package rt\n"},
+			{Name: "../evil_filetest.gno", Body: "x"},
+		},
+	}
+	// Non-local name: rejected with no partial writes.
+	require.Error(t, WriteMemPackageTo(mpkg, dir))
+	assert.False(t, osFileExists(filepath.Join(dir, "ok.gno")))
+
+	// Separator-bearing name (would break filetests routing): rejected.
+	mpkg.Files[1].Name = "filetests/x_filetest.gno"
+	require.Error(t, WriteMemPackageTo(mpkg, dir))
+	assert.False(t, osFileExists(filepath.Join(dir, "ok.gno")))
 }

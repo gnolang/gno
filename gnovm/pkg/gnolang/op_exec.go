@@ -213,7 +213,7 @@ func (m *Machine) doOpExec(op Op) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
-					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
 				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
@@ -537,7 +537,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
 			numInit = len(as.Lhs)
@@ -564,7 +564,7 @@ EXEC_SWITCH:
 			m.PushOp(OpExec)
 		}
 	case *IfStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		m.PushOp(OpIfCond)
@@ -622,7 +622,7 @@ EXEC_SWITCH:
 		}
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
@@ -728,6 +728,12 @@ EXEC_SWITCH:
 			nextClause := cs.BodyIndex + 1
 			// expand block size
 			cl := &ss.Clauses[nextClause]
+			// All clauses share the switch's block: the switch's own names
+			// come first (copied by copyFromFauxBlock during preprocess) and
+			// the running clause's names are appended by ExpandWith. Drop the
+			// falling-through clause's names first; they are out of scope in
+			// the next clause, which gets fresh slots of its own.
+			b.Values = b.Values[:ss.GetNumNames()]
 			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
@@ -774,7 +780,7 @@ EXEC_SWITCH:
 	case *SwitchStmt:
 		m.PushFrameBasic(cs)
 		m.PushOp(OpPopFrameAndReset)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
@@ -798,7 +804,7 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
