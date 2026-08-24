@@ -542,6 +542,58 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
 }
 
+// stampGnomod writes the chain's own metadata into the package's gnomod.toml
+// and re-encodes it in mpkg.
+//
+// Shared by AddPackage's inert and normal paths, and this one is a cross-
+// function contract rather than merely shared lines: EnablePackage reads
+// AddPkg.Creator back out of the stored file to decide OriginCaller. If the two
+// paths ever stamped differently, the same source would initialize under a
+// different identity depending on which policy was in force when it was
+// submitted — with nothing to catch it. One writer makes that unrepresentable.
+// maxDeposit is the creator's declared storage-deposit ceiling, and is written
+// only where the charge outlives the declaring message — the inert path, where
+// EnablePackage reads it back. The ordinary path passes "".
+//
+// Every AddPkg field is assigned unconditionally, including the empty cases.
+// The section is keeper bookkeeping, but it lives in a file the submitter
+// authors, so anything not overwritten here is attacker-supplied: a hand-written
+// `[addpkg] max_deposit` would otherwise survive and be read at enable as though
+// the message had declared it.
+func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator crypto.Address, height int64, maxDeposit string) {
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	gm.AddPkg.Creator = creator.String()
+	gm.AddPkg.Height = int(height)
+	gm.AddPkg.MaxDeposit = maxDeposit
+	mpkg.SetFile("gnomod.toml", gm.WriteString())
+}
+
+// checkGnomodConstraints applies the keeper-only gnomod.toml rules that the type
+// checker cannot express. Shared by AddPackage's normal and inert paths so a
+// package cannot be parked inert to dodge a rule the normal path enforces;
+// EnablePackage does not re-check them, so the inert path is the only chance.
+// pv is the package already at pkgPath, or nil; height is the submitting block.
+func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, pv *gno.PackageValue, height int64) error {
+	// no development packages.
+	if gm.HasReplaces() {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
+	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
+	}
+	if gm.Draft && height > 0 {
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
+	}
+	// no (deprecated) gno.mod file.
+	if mpkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+	return nil
+}
+
 // hasProdGnoFile reports whether mpkg contains at least one production
 // (non-test) .gno file. It applies MPFProd's own per-file predicate so it
 // cannot drift from what the storage split (store.go splitProdAllButProd)
@@ -611,16 +663,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
-	if pv != nil {
-		// A private package is being redeployed (non-private re-adds were
-		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
-		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
-		// its conditional writes don't fully replace across both keys, so a stale
-		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
-		// survive the re-add and be served by qfile/GetMemPackage.
-		gnostore.DeleteMemPackage(pkgPath)
-	}
-
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -652,23 +694,115 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			send.String(), pkgPath))
 	}
 
+	// Use the parameters before executing the message, as they may change during
+	// execution. The message should not fail due to parameter changes in the same
+	// transaction. Read once, above the policy branch below, so the inert and the
+	// normal path decide from the same snapshot.
+	params := vm.GetParams(ctx)
+
 	// If the chain is operating in "inert" submission mode, store the package
 	// without typechecking or execution. It becomes callable only after an
 	// approver sends MsgEnablePackage.
 	//
-	// Placed after the unspendable-send check above so an inert submission
-	// cannot credit a pure package's address and lose the coins: this branch
-	// sends the coins itself and returns, so it would otherwise skip that
-	// check entirely.
-	if vm.GetParams(ctx).CodeSubmissionPolicy == CodeSubmissionPolicyInert {
+	// Not at genesis. Genesis content is the chain's own, already reviewed by
+	// whoever wrote the genesis file, and there is nobody for an approver to
+	// protect it from. Parking it would produce a chain that boots with nothing
+	// deployed: no r/sys/params and no govdao, so no way to propose a change,
+	// and no approver able to act because the realms it would need do not exist
+	// yet. The policy governs what strangers may submit to a running chain.
+	//
+	// The other height-sensitive rules here already work this way -- the type
+	// checker drops to genesis mode at height 0, and the draft-package rule is
+	// waived there too.
+	if params.CodeSubmissionPolicy == CodeSubmissionPolicyInert && ctx.BlockHeight() > 0 {
+		// Charge the type-check and preprocess cost here, at submit, even though
+		// neither runs on this path. The work is deferred, not avoided:
+		// MsgEnablePackage type-checks and runs exactly these bytes later.
+		// Nothing else in this branch is priced by source length, so without this
+		// a submitter could park an arbitrarily large package for the price of
+		// one amino write and leave the compile bill to whoever enables it.
+		// Charging the submitter keeps the payer and the cause together, and
+		// EnablePackage deliberately does not charge it a second time.
+		chargePreprocessGas(ctx, params, memPkg, "AddInertPackagePreprocess")
 		gm, err := gnomod.ParseMemPackage(memPkg)
 		if err != nil {
 			return ErrInvalidPackage(err.Error())
 		}
-		gm.Module = pkgPath
-		gm.AddPkg.Creator = creator.String()
-		gm.AddPkg.Height = int(ctx.BlockHeight())
-		memPkg.SetFile("gnomod.toml", gm.WriteString())
+		// Only the original submitter may replace a package already parked at
+		// this path.
+		//
+		// The ErrPkgAlreadyExists guard above reads GetPackage, which sees only
+		// the ACTIVE store; parked packages live under inert_pkg:<path> and are
+		// invisible to it. Without this check anyone may overwrite anyone's
+		// parked submission, and the overwrite is silent: AddInertPackage is an
+		// unconditional Set. That is not merely untidy. An approver reviews the
+		// source at a path and sends MsgEnablePackage; a third party who
+		// front-runs the enable has their own bytes type-checked, init()ed and
+		// stamped as creator under the reviewed path. Namespace permission does
+		// not stand in the way either — checkNamespacePermission returns nil
+		// while the names realm is undeployed, which under "inert" is exactly
+		// the state a chain boots in.
+		//
+		// Same-submitter replacement stays allowed: it is the retry path after
+		// an enable fails, and the parked bytes are the submitter's own.
+		if prior := gnostore.GetInertPackage(pkgPath); prior != nil {
+			priorGm, perr := gnomod.ParseMemPackage(prior)
+			if perr != nil {
+				return ErrInvalidPackage(fmt.Sprintf(
+					"cannot read the parked package at %s: %v", pkgPath, perr))
+			}
+			if priorGm.AddPkg.Creator != creator.String() {
+				return ErrPkgAlreadyExists(fmt.Sprintf(
+					"package already awaiting approval at %s, submitted by %s",
+					pkgPath, priorGm.AddPkg.Creator))
+			}
+		}
+		// Apply the same gnomod rules as the normal path. Skipping them here
+		// would make "inert" a way to park a package that no policy would ever
+		// accept, and EnablePackage does not re-check them.
+		if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv, ctx.BlockHeight()); err != nil {
+			return err
+		}
+		// Carry the creator's declared ceiling to whoever pays.
+		//
+		// This is the one path where the deposit is charged by a LATER message
+		// than the one that declared the limit. Dropping it means EnablePackage
+		// falls back to params.DefaultDeposit — so a creator who declared
+		// 1000ugnot could be charged up to the chain default (100 GNOT today)
+		// against a package they never got to re-approve. Recording it also
+		// pins the ceiling to submit time, so a governance change to
+		// DefaultDeposit between submit and enable cannot raise what the
+		// creator is exposed to.
+		//
+		// Stamped through the same gnomod round-trip as Creator, which
+		// EnablePackage already re-reads. Empty when nothing was declared, so
+		// the ordinary path's stored gnomod.toml is unchanged -- and stamped
+		// unconditionally either way, so a hand-written value in the
+		// submitter's own file cannot stand in for a declaration.
+		// Stamp the EFFECTIVE ceiling, including when none was declared.
+		//
+		// Leaving it empty pinned nothing for the common case: enable fell back
+		// to params.DefaultDeposit read at ENABLE time, so a governance raise
+		// between submit and enable widened the creator's exposure -- the exact
+		// drift this stamping exists to prevent. Recording the submit-time
+		// default closes that, and makes the stored value mean "what this
+		// submitter agreed to" rather than "what they typed".
+		declared := params.DefaultDeposit
+		if !maxDeposit.IsZero() {
+			// Storage deposits are denominated in the gas denom only, and
+			// processStorageDeposit reads exactly that component. A ceiling
+			// carrying none of it would parse cleanly at enable, contribute
+			// nothing, and silently fall back to params.DefaultDeposit — read
+			// at enable time, which is precisely the pinning this section
+			// exists to provide. Refuse it rather than honour it in name only.
+			if maxDeposit.AmountOf(ugnot.Denom) == 0 {
+				return std.ErrInvalidCoins(fmt.Sprintf(
+					"max_deposit %s carries no %s, so it cannot cap the storage deposit",
+					maxDeposit, ugnot.Denom))
+			}
+			declared = maxDeposit.String()
+		}
+		stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), declared)
 		if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 			return err
 		}
@@ -680,6 +814,34 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		}
 		gnostore.AddInertPackage(memPkg)
 		return nil
+	}
+
+	if pv != nil {
+		// NOTE: reading `pv` above put this package in the object cache, and
+		// RunMemPackage below panics in SetCachePackage on a cached package.
+		// This path survives only because checkNamespacePermission and
+		// checkCLASignature re-enter getGnoTransactionStore, whose
+		// ClearObjectCache evicts it in between. That is incidental, not
+		// designed: EnablePackage had the same shape, called neither, and its
+		// private-redeploy branch was dead on arrival until it stopped loading
+		// the package value at all. Do not reorder those checks below this
+		// point without re-reading that.
+		//
+		// A private package is being redeployed (non-private re-adds were
+		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
+		// its conditional writes don't fully replace across both keys, so a stale
+		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
+		// survive the re-add and be served by qfile/GetMemPackage.
+		//
+		// This must stay BELOW the inert branch, which returns without ever
+		// calling AddMemPackage. Deleting there would strip a live package's
+		// source while its realm, objects and package index survive: at boot
+		// PreprocessAllFilesAndSaveBlockNodes skips the now-nil mempackage
+		// silently, so a restarted node rebuilds no PackageNode and panics on
+		// call, while a node that has not restarted still answers from
+		// cacheNodes. That is a consensus split keyed on restart history.
+		gnostore.DeleteMemPackage(pkgPath)
 	}
 
 	opts := gno.TypeCheckOptions{
@@ -698,9 +860,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
-	// use the parameters before executing the message, as they may change during execution.
-	// The message should not fail due to parameter changes in the same transaction.
-	params := vm.GetParams(ctx)
 	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
@@ -713,30 +872,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
-	// no development packages.
-	if gm.HasReplaces() {
-		return ErrInvalidPackage("development packages are not allowed")
-	}
-	if pv != nil && pv.Private && !gm.Private {
-		return ErrInvalidPackage("a private package cannot be overridden by a public package")
-	}
-	if gm.Private && !gno.IsRealmPath(pkgPath) {
-		return ErrInvalidPackage("private packages must be realm packages")
-	}
-	if gm.Draft && ctx.BlockHeight() > 0 {
-		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
-	}
-	// no (deprecated) gno.mod file.
-	if memPkg.GetFile("gno.mod") != nil {
-		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv, ctx.BlockHeight()); err != nil {
+		return err
 	}
 
-	// Patch gnomod.toml metadata
-	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
-	gm.AddPkg.Creator = creator.String()
-	gm.AddPkg.Height = int(ctx.BlockHeight())
-	// Re-encode gnomod.toml in memPkg
-	memPkg.SetFile("gnomod.toml", gm.WriteString())
+	// No ceiling stamped: on this path the deposit is charged in this same
+	// message, so nothing needs to outlive it.
+	stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), "")
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -846,36 +988,140 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	if memPkg == nil {
 		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
 	}
-	// Typecheck the stored package.
+	// Refuse to activate over a package that is already live, applying exactly
+	// the rule AddPackage applies: a public package may not be replaced, a
+	// private one may.
 	//
-	// Production files only, for the same reason as AddPackage above: this is
-	// a consensus path, and resolving test-file imports would read a
-	// test-stdlib overlay off the node's local filesystem, making the result
-	// depend on node-local state. No TestGetter is supplied — with ProdOnly
-	// the passes that would consult it never run.
+	// Enable is the deferred second half of a deploy, so it has to enforce the
+	// deploy's preconditions; it previously enforced none of them. Its whole
+	// precondition set was "the sender is an approver" and "something is parked
+	// at this path", which leaves a package takeover. A path can be parked and
+	// live at once — the two live in different key spaces, and nothing clears a
+	// parked blob when governance moves the policy off "inert" — so: A parks at
+	// P and is never approved; the policy flips to permissionless; B deploys at
+	// P through the now-open normal path; any approver then enables P and A's
+	// bytes replace B's live package, running with OriginCaller = A, which is
+	// what p/nt/ownable records as the owner. It does not even panic, because
+	// runMemPackage takes its fresh-package branch when MachineOptions.PkgPath
+	// is empty, so it silently rebuilds the node and package value over B's and
+	// orphans B's realm objects.
+	//
+	// Deleting the prior blobs for the private case is the same requirement
+	// AddPackage documents: AddMemPackage's writes are conditional across the
+	// prod and #allbutprod keys and are not a full replace, so a stale sibling
+	// would otherwise survive and be served by qfile.
+	// Probed through the stored blob, NOT GetPackage. Loading the live
+	// PackageValue populates the object cache, and RunMemPackage below then
+	// panics in SetCachePackage because the package is already cached — which
+	// made the private-replacement branch dead on arrival. AddPackage does read
+	// the PackageValue, and escapes only incidentally: checkNamespacePermission
+	// re-enters getGnoTransactionStore, whose ClearObjectCache evicts the entry
+	// between the read and the run. EnablePackage calls neither, so it must not
+	// create the entry in the first place.
+	//
+	// Blob presence is an exact liveness test here: a parked package is stored
+	// under a different key prefix and is invisible to GetMemPackage, while a
+	// live one always has a production blob (hasProdGnoFile guarantees it at
+	// deploy). `private` comes from the same gnomod.toml the deploy stored.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
+	if liveBlob != nil {
+		liveGm, perr := gnomod.ParseMemPackage(liveBlob)
+		if perr != nil || !liveGm.Private {
+			return ErrPkgAlreadyExists("package already exists: " + msg.PkgPath)
+		}
+		// The private-override rule, re-applied here because
+		// checkGnomodConstraints ran at SUBMIT against whatever was live then —
+		// which, for a package parked before anything existed at this path, was
+		// nothing at all. Without this, a public package parked early can be
+		// activated over a private realm deployed later and flip it public,
+		// retroactively exposing objects that were persisted under the
+		// invariant that nothing outside the realm could reference them.
+		if !gm.Private {
+			return ErrInvalidPackage(
+				"a private package cannot be overridden by a public package")
+		}
+	}
+	// AddPackage wrote the creator into gnomod.toml before storing (see the
+	// inert branch), so it round-trips; genesis.go reads it back the same way.
+	// gm was parsed above, before the liveness probe that needs it. Parsed here
+	// rather than lower down because the namespace check below needs it.
+	creator, err := crypto.AddressFromBech32(gm.AddPkg.Creator)
+	if err != nil {
+		return ErrInvalidPackage(fmt.Sprintf(
+			"invalid creator %q in stored gnomod.toml: %v", gm.AddPkg.Creator, err))
+	}
+
+	// Re-check namespace and CLA, which ran at SUBMIT against whatever was true
+	// then.
+	//
+	// Same reasoning as the private-override rule above: a package must not reach
+	// execution having cleared a weaker rule set than the deploy path enforces.
+	// It matters most at bootstrap, because checkNamespacePermission returns nil
+	// while r/sys/names is undeployed -- under "inert", the state a chain boots
+	// in. Without this an attacker parks under a namespace nobody owns yet, and
+	// an approver (typically an oracle checking only that the code type-checks)
+	// activates it later under a namespace that by then belongs to someone else,
+	// with OriginCaller set to the attacker.
+	//
+	// Placed HERE, before the type check and RunMemPackage, and not next to the
+	// deposit: both of these evaluate a realm, which re-enters
+	// getGnoTransactionStore and clears realmStorageDiffs. Running them after
+	// RunMemPackage wipes the storage the deposit is computed from, so the
+	// creator is charged nothing -- caught by the deposit tests.
+	if err := vm.checkNamespacePermission(ctx, creator, msg.PkgPath); err != nil {
+		return err
+	}
+	if err := vm.checkCLASignature(ctx, creator); err != nil {
+		return err
+	}
+
+	// Typecheck the stored package.
 	opts := gno.TypeCheckOptions{
-		Getter:   gnostore,
+		Getter: gnostore,
+		// No TestGetter, and ProdOnly: mirrors AddPackage. GetMemPackage
+		// returns the production blob only, and resolving test-stdlib imports
+		// would make this consensus path depend on node-local state. #5888
+		// predates that change on master and passed a test getter here.
+		ProdOnly: true,
 		Mode:     gno.TCLatestStrict,
 		Cache:    vm.getTypeCheckCache(ctx),
-		ProdOnly: true,
 	}
 	if _, err = gno.TypeCheckMemPackage(memPkg, opts); err != nil {
 		return ErrTypeCheck(err)
 	}
+	// The origin caller is the package's creator, not the approver.
+	//
+	// The approver authorises activation; they did not write the code. init()
+	// runs here, and it commonly records chain.OriginCaller() as the owner
+	// (p/nt/ownable's default). Passing the approver would hand every inert
+	// package's ownership to whichever approver happened to sign the enable,
+	// and would make ownership depend on the order approvers act in. It also
+	// diverges from the non-inert path, where init() sees the deployer — so
+	// the same source would initialize differently under a different policy.
+	//
 	// Execute and persist the package.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:         ctx.ChainID(),
-		ChainDomain:     vm.getChainDomainParam(ctx),
-		Height:          ctx.BlockHeight(),
-		Timestamp:       ctx.BlockTime().Unix(),
-		OriginCaller:    msg.Approver.Bech32(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: vm.getChainDomainParam(ctx),
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
+		// Height/Timestamp are enable-time, not submit-time: init() observes
+		// when it actually ran. Only the caller identity is inherited.
+		OriginCaller:    creator.Bech32(),
 		OriginSend:      std.Coins{},
 		OriginSendSpent: new(std.Coins),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
-		SessionAccount:  getSessionAccount(ctx, msg.Approver),
+		// Keyed on the creator to stay coherent with OriginCaller. The creator
+		// is normally not a signer of this tx, so this is normally nil — the
+		// correct answer, since no session of theirs authorised the enable.
+		SessionAccount: getSessionAccount(ctx, creator),
 	}
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:            "",
@@ -892,7 +1138,72 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
+	if liveBlob != nil {
+		// Private redeploy: clear the prior blobs, as the normal path does.
+		gnostore.DeleteMemPackage(msg.PkgPath)
+	}
 	m2.RunMemPackage(memPkg, true)
+
+	// Take the storage deposit for the realm objects this enable just created.
+	//
+	// Without this they are free: the submit path cannot charge them, because
+	// processStorageDeposit is driven entirely by RealmStorageDiffs() and
+	// nothing has executed yet at submit time, and EnablePackage previously
+	// never called it at all. So under "inert" every byte of realm state
+	// created at activation escaped the deposit entirely.
+	//
+	// Charged to the creator, not the approver. The creator caused the storage
+	// and only their own submission can lock their own funds, so this is
+	// consented by the act of submitting. Charging the approver would be worse
+	// than merely unfair: an approver is typically an automated oracle with a
+	// hot key, so an attacker could submit large packages to bleed its balance
+	// and stall approvals for everyone.
+	//
+	// Capped by the ceiling recorded at submit, read back from the same stamped
+	// gnomod.toml the creator address came from.
+	//
+	// The inert path always records one -- what the submitter declared, or the
+	// chain default as it stood at submit time. So the empty case below is not
+	// the normal path; it covers a blob written by something other than that
+	// branch, such as a genesis file, and falls back to the current default
+	// exactly as an ordinary deploy would.
+	//
+	// This is the only path where the message that DECLARES the ceiling is not
+	// the message that SPENDS against it, so the declaration has to be carried
+	// or it is silently discarded. Reading params.DefaultDeposit here instead
+	// would both ignore a creator who asked for a lower limit and let a
+	// governance raise between submit and enable widen their exposure.
+	//
+	// So the split follows what each stage can know. Submit knows the source
+	// length and the creator's declared limit; only execution reveals the realm
+	// state, so enable charges the deposit against that limit.
+	//
+	// Escrowing the ceiling at submit was considered and rejected. The ceiling
+	// is not a quote — the sample package in
+	// TestVMKeeperEnableTakesStorageDepositFromCreator needs 210_200ugnot
+	// against a 100_000_000ugnot default cap — and there is no source-bytes to
+	// realm-bytes estimator to size it better (one sample is ~24x, and another
+	// in examples/ is ~74x, so it is a data point, not a model). More to the
+	// point, escrow would buy little: a failed enable leaves the package parked
+	// and retryable once the creator is funded, so the loss it prevents is one
+	// approver's gas on a transaction that can be simulated first, while the
+	// cost it adds is funds locked on every submission that is never approved.
+	//
+	// Before DelInertPackage so the ordering reads pay-then-activate. An error
+	// aborts the whole message either way, leaving the package inert and
+	// retryable once the creator is funded.
+	var declaredDeposit std.Coins
+	if gm.AddPkg.MaxDeposit != "" {
+		declaredDeposit, err = std.ParseCoins(gm.AddPkg.MaxDeposit)
+		if err != nil {
+			return ErrInvalidPackage(fmt.Sprintf(
+				"invalid max_deposit %q in stored gnomod.toml: %v", gm.AddPkg.MaxDeposit, err))
+		}
+	}
+	if err := vm.processStorageDeposit(ctx, creator, declaredDeposit, gnostore, params); err != nil {
+		return err
+	}
+
 	// Remove from inert store now that it is active.
 	gnostore.DelInertPackage(msg.PkgPath)
 	return nil

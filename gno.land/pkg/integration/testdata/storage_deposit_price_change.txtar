@@ -33,8 +33,12 @@ stdout '500000 int'
 gnokey query vm/qstorage --data gno.land/r/test/storage
 stdout 'storage: 503690, deposit: 50369000'
 
+# NOTE: this balance also carries the genesis cost of every package the harness
+# deploys, so adding source to ANY genesis realm shifts it and this line has to
+# be re-derived. The assertion that actually tests this file's subject is the
+# storage/deposit pair above.
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999815'
+stdout '"coins": "9999813986400'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -69,7 +73,7 @@ stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999853'
+stdout '"coins": "9999851630100'
 
 -- loader/load_govdao.gno --
 package loader

@@ -131,11 +131,28 @@ import (
 // (code_submission_policy, code_submitters, pkg_approvers) plus inert-storage
 // keying serialize additional defaults into the genesis vm params state,
 // shifting the committed multistore root. Behavior is unchanged (policy
-// defaults to permissionless).
+// defaults to permissionless). Re-derived after merging master.
 //
-// Re-derived for the merge of master into #5888: both sides moved the root, so
-// neither side's value survives the combination.
-const expectedCrossrealm38Hash = "89c3e94a1d9c00e887eeefe6a5a6c433c6fe0a902676a2bec35ddd6116c529e1"
+// Re-derived once more for the merge of master into #5888: both sides moved
+// the root, so neither side's value survives the combination.
+//
+// Bumped by the run_submitters vm param (MsgRun allowlist). A new Params field
+// moves this root even though its default is an empty list: params.SetStruct
+// goes through encodeStructFields (tm2/pkg/sdk/params/amino_helper.go), which
+// writes one store key per field unconditionally and does not skip zero values.
+// So the genesis vm params state gains a `vm:p:run_submitters` key holding
+// `null`. Behavior at this hash is unchanged — the scenario sends no MsgRun.
+//
+// Bumped again by lowering the DefaultDeposit param from 600000000ugnot to
+// 100000000ugnot. Unlike the bumps above this is a value change, not a new
+// key: `vm:p:default_deposit` is genesis state, so its contents are in the
+// root. It does change behavior at the margin — the param is the fallback
+// CEILING on a storage deposit when a message declares no MaxDeposit, so a
+// single message may now add at most 1 MB of realm state rather than 6 MB
+// before it is refused. Measured against all 321 genesis packages the largest
+// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// new ceiling clears the worst real case by 3.6x.
+const expectedCrossrealm38Hash = "c90a420c22ab242d5f03a2f4170eb98df1030b4a25fa6eeb830c42f11b332ddd"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

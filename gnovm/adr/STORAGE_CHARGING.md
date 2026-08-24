@@ -107,7 +107,7 @@ Defined in `gno.land/pkg/sdk/vm/params.go`, governable via param proposals:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `StoragePrice` | `100ugnot` | Cost per byte of storage |
-| `DefaultDeposit` | `600000000ugnot` | Fallback deposit cap if `msg.MaxDeposit` is 0 |
+| `DefaultDeposit` | `100000000ugnot` | Fallback deposit cap if `msg.MaxDeposit` is 0 |
 | `StorageFeeCollector` | derived from `"storage_fee_collector"` | Address that receives withheld refunds |
 
 At the default price: 1 GNOT = 10 KB of storage.

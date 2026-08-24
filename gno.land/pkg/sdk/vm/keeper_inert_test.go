@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -171,4 +172,100 @@ func TestVMKeeperDisablePackageNotImplemented(t *testing.T) {
 	err = env.vmk.DisablePackage(ctx, MsgDisablePackage{Approver: approver, PkgPath: "gno.land/r/test/x"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown request")
+}
+
+// TestVMKeeperEnableTakesStorageDepositFromCreator pins who pays for the realm
+// state that MsgEnablePackage brings into existence.
+//
+// Neither path charged it before. processStorageDeposit is driven entirely by
+// RealmStorageDiffs(), which is empty at submit because nothing has executed
+// yet, and EnablePackage never called processStorageDeposit at all — so under
+// "inert" every byte of realm state created at activation was free.
+//
+// It is charged to the creator, not the approver. An approver is typically an
+// automated oracle holding a hot key; billing it for other people's storage
+// would let an attacker bleed its balance with large submissions and stall
+// approvals for everyone. Only the creator's own submission can lock the
+// creator's own funds, so the charge is consented by the act of submitting.
+//
+// The approver is funded in both cases below, so the failing case can only be
+// about the creator's balance.
+func TestVMKeeperEnableTakesStorageDepositFromCreator(t *testing.T) {
+	const pkgPath = "gno.land/r/test/deposit"
+	files := []*std.MemFile{
+		{Name: "deposit.gno", Body: `package deposit
+
+var Greeting = "hello"
+
+func Set(cur realm, s string) { Greeting = s }`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+
+	t.Run("funded creator pays", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("fundedcreator"))
+		for _, addr := range []crypto.Address{approver, creator} {
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		}
+
+		params := DefaultParams()
+		params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+		params.PkgApprovers = []crypto.Address{approver}
+		env.vmk.SetParams(ctx, params)
+
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+
+		before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		approverBefore := env.bankk.GetCoins(ctx, approver).AmountOf(ugnot.Denom)
+
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+
+		after := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		assert.Less(t, after, before,
+			"the creator must have paid a storage deposit for the realm state enable created")
+		assert.Equal(t, approverBefore, env.bankk.GetCoins(ctx, approver).AmountOf(ugnot.Denom),
+			"the approver must not pay for someone else's storage")
+	})
+
+	t.Run("unfunded creator blocks activation", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("brokecreator"))
+		for _, addr := range []crypto.Address{approver, creator} {
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+		}
+		// Approver funded, creator not.
+		require.NoError(t, env.bankk.SetCoins(ctx, approver, initialBalance))
+
+		params := DefaultParams()
+		params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+		params.PkgApprovers = []crypto.Address{approver}
+		env.vmk.SetParams(ctx, params)
+
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+
+		err := env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		require.Error(t, err,
+			"activation must fail when the creator cannot cover the storage deposit")
+		assert.Contains(t, err.Error(), "deposit",
+			"the failure must be about the deposit, not something incidental")
+
+		// Deliberately not asserting that the package is absent from the store
+		// here. EnablePackage writes into the gno transaction store as it goes,
+		// and discarding those writes on error is the tx boundary's job
+		// (SetEndTxHook commits only when the result is OK) — a direct keeper
+		// call like this one bypasses it, so the package IS present in the
+		// store at this point. The returned error is the part this change
+		// controls; the rollback is pre-existing machinery tested elsewhere.
+	})
 }

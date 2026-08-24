@@ -1,0 +1,652 @@
+package vm
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+// inertEnv builds a chain running the "inert" policy with one approver.
+func inertEnv(t *testing.T, approver crypto.Address, funded ...crypto.Address) (testEnv, sdk.Context) {
+	t.Helper()
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	for _, addr := range append([]crypto.Address{approver}, funded...) {
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+	}
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+	return env, ctx
+}
+
+// TestVMKeeperInertHonorsDeclaredMaxDeposit pins that the ceiling a creator
+// declares on MsgAddPackage still binds the charge that MsgEnablePackage makes
+// later.
+//
+// Inert is the only path where the message that DECLARES the deposit ceiling is
+// not the message that SPENDS against it. If the declaration is not carried
+// across, enable falls back to params.DefaultDeposit — so a creator who asked
+// to risk 1000ugnot could be charged up to the chain default (100 GNOT) on a
+// transaction they do not sign and cannot refuse.
+func TestVMKeeperInertHonorsDeclaredMaxDeposit(t *testing.T) {
+	const pkgPath = "gno.land/r/test/declared"
+
+	// Built fresh per submission. stampGnomod rewrites gnomod.toml in place via
+	// SetFile, so a shared slice leaks one subtest's stamped max_deposit into the
+	// next -- which made the "no declaration" subtest below look covered when it
+	// was really reading the previous subtest's ceiling.
+	newFiles := func() []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "declared.gno", Body: `package declared
+
+var Greeting = "hello"
+
+func Set(cur realm, s string) { Greeting = s }`},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+	}
+
+	submit := func(t *testing.T, env testEnv, ctx sdk.Context, creator crypto.Address, ceiling std.Coins) error {
+		t.Helper()
+		msg := NewMsgAddPackage(creator, pkgPath, newFiles())
+		msg.MaxDeposit = ceiling
+		return env.vmk.AddPackage(ctx, msg)
+	}
+
+	t.Run("a ceiling below the real cost blocks the charge", func(t *testing.T) {
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("frugalcreator"))
+		env, ctx := inertEnv(t, approver, creator)
+
+		// Far below the ~210_200ugnot this package actually needs, but far
+		// below params.DefaultDeposit too — so if the declaration is dropped,
+		// the fallback silently covers it and the enable succeeds.
+		require.NoError(t, submit(t, env, ctx, creator, std.NewCoins(std.NewCoin(ugnot.Denom, 1000))))
+
+		before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		require.Error(t, err,
+			"enable must respect the ceiling the creator declared at submit")
+		assert.Contains(t, err.Error(), "deposit",
+			"the refusal must be about the deposit, not something incidental")
+		assert.Equal(t, before, env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
+			"a refused enable must not move the creator's funds")
+	})
+
+	t.Run("a sufficient declared ceiling still activates", func(t *testing.T) {
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("generouscreator"))
+		env, ctx := inertEnv(t, approver, creator)
+
+		require.NoError(t, submit(t, env, ctx, creator, std.NewCoins(std.NewCoin(ugnot.Denom, 500_000_000))))
+
+		before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+			"a ceiling above the real cost must not get in the way")
+
+		// Pin the MAGNITUDE against the realm's own recorded deposit, not just
+		// "something was taken". A ceiling must cap the charge, never set it:
+		// asserting only that the balance fell would pass just as happily if
+		// the charge were doubled, or if an extra amount were siphoned on top.
+		charged := before - env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		rlm := env.vmk.getGnoTransactionStore(ctx).GetPackageRealm(pkgPath)
+		require.NotNil(t, rlm)
+		// Derive the expectation from bytes and price, NOT from rlm.Deposit:
+		// lockStorageDeposit adds the charge to rlm.Deposit, so comparing the
+		// two is self-referential and a doubled charge would satisfy it.
+		price := std.MustParseCoin(DefaultParams().StoragePrice).Amount
+		assert.Equal(t, int64(rlm.Storage)*price, charged,
+			"the creator must be charged exactly bytes x price, no more")
+		assert.Less(t, charged, int64(500_000_000),
+			"and strictly less than the declared ceiling, which caps rather than sets")
+	})
+
+	t.Run("no declaration falls back to the chain default", func(t *testing.T) {
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("silentcreator"))
+		env, ctx := inertEnv(t, approver, creator)
+
+		// Asserting only that an undeclared submission activates would prove
+		// nothing: it holds for ANY ceiling at or above the real cost,
+		// including no ceiling at all. So squeeze the chain default until it
+		// bites, and require the refusal to follow it. That pins WHICH value
+		// the fallback reads.
+		params := DefaultParams()
+		params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+		params.PkgApprovers = []crypto.Address{approver}
+		params.DefaultDeposit = "1000ugnot"
+		env.vmk.SetParams(ctx, params)
+
+		require.NoError(t, submit(t, env, ctx, creator, nil))
+		err := env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		require.Error(t, err,
+			"with nothing declared the charge must be capped by params.DefaultDeposit")
+		assert.Contains(t, err.Error(), "deposit")
+	})
+}
+
+// TestVMKeeperInertResubmissionIsCreatorBound pins that only the original
+// submitter may replace a package already parked at a path.
+//
+// AddPackage's ErrPkgAlreadyExists guard reads GetPackage, which sees only the
+// ACTIVE store; parked packages live in a separate key space and are invisible
+// to it, and AddInertPackage overwrites unconditionally. Without a guard, an
+// attacker can wait for an approver to review source at a path and then
+// front-run the enable, having their own bytes type-checked, init()ed and
+// stamped as creator under the reviewed path.
+func TestVMKeeperInertResubmissionIsCreatorBound(t *testing.T) {
+	const pkgPath = "gno.land/r/test/contested"
+	filesFor := func(body string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "contested.gno", Body: body},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+	}
+	original := `package contested
+
+func Who(cur realm) string { return "original" }`
+	swapped := `package contested
+
+func Who(cur realm) string { return "swapped" }`
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("firstsubmitter"))
+	attacker := crypto.AddressFromPreimage([]byte("frontrunner"))
+	env, ctx := inertEnv(t, approver, creator, attacker)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, filesFor(original))))
+
+	t.Run("a stranger cannot overwrite a parked submission", func(t *testing.T) {
+		err := env.vmk.AddPackage(ctx, NewMsgAddPackage(attacker, pkgPath, filesFor(swapped)))
+		require.Error(t, err, "a third party must not be able to replace parked bytes")
+		// The detail lives in the wrapped trace, which is what reaches the ABCI
+		// log; Error() alone is the generic "package already exists" that the
+		// live-package guard also returns, so asserting on it would not tell
+		// the two apart.
+		assert.Contains(t, fmt.Sprintf("%+v", err), "already awaiting approval")
+
+		parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+		require.NotNil(t, parked)
+		assert.Contains(t, parked.GetFile("contested.gno").Body, "original",
+			"the parked bytes must be the ones the approver would review")
+	})
+
+	t.Run("the original submitter may still retry", func(t *testing.T) {
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, filesFor(swapped))),
+			"resubmission by the same creator is the retry path after a failed enable")
+
+		parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+		require.NotNil(t, parked)
+		assert.Contains(t, parked.GetFile("contested.gno").Body, "swapped")
+	})
+}
+
+// TestVMKeeperInertSubmitKeepsLivePrivateSource pins that parking a package over
+// a live PRIVATE package does not destroy the live package's source.
+//
+// AddPackage deletes a private package's stored mempackage blobs before
+// redeploying, because the prod / #allbutprod pair is not fully replaced by a
+// re-add. That delete must not run on the inert path, which returns without
+// ever calling AddMemPackage: the source would be gone while the realm, its
+// objects and the package index survive. At boot,
+// PreprocessAllFilesAndSaveBlockNodes skips a nil mempackage silently, so a
+// restarted node rebuilds no PackageNode and panics on call, while a node that
+// has not restarted keeps answering from its in-memory node cache. That is a
+// consensus split keyed on restart history, which is exactly the hazard the
+// surrounding code was written to avoid.
+func TestVMKeeperInertSubmitKeepsLivePrivateSource(t *testing.T) {
+	const pkgPath = "gno.land/r/test/livepriv"
+	privateFiles := []*std.MemFile{
+		{Name: "gnomod.toml", Body: `module = "gno.land/r/test/livepriv"
+gno = "0.9"
+private = true`},
+		{Name: "livepriv.gno", Body: `package livepriv
+
+func Echo(cur realm) string { return "live" }`},
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("privowner"))
+
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	for _, addr := range []crypto.Address{approver, creator} {
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+	}
+
+	// Deploy it for real first, under the default permissionless policy.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, privateFiles)))
+	require.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath),
+		"precondition: the package is live and its source is stored")
+
+	// Now the chain switches to inert and the same path is submitted again.
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, privateFiles)))
+
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath),
+		"parking a submission must not delete the live package's source: the realm "+
+			"and package index survive, so a restarted node would diverge from one that has not restarted")
+}
+
+// TestVMKeeperEnableCannotTakeOverALivePackage pins that activating a parked
+// package cannot replace one that is already live.
+//
+// EnablePackage is the deferred second half of a deploy, but it enforced none
+// of the deploy's preconditions: its entire precondition set was "the sender is
+// an approver" and "something is parked here". A path can be parked and live at
+// the same time, because the two live in different key spaces and nothing
+// clears a parked blob when governance moves the policy off "inert". So an
+// attacker parks at a path, waits for the policy to open up, lets someone else
+// deploy there for real, and then any approver's routine enable silently
+// replaces the live package with the attacker's bytes -- running init() with
+// the attacker as OriginCaller, which is what p/nt/ownable records as owner.
+func TestVMKeeperEnableCannotTakeOverALivePackage(t *testing.T) {
+	const pkgPath = "gno.land/r/test/takeover"
+	filesFor := func(body string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "takeover.gno", Body: body},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	attacker := crypto.AddressFromPreimage([]byte("squatter"))
+	owner := crypto.AddressFromPreimage([]byte("realowner"))
+	env, ctx := inertEnv(t, approver, attacker, owner)
+
+	// 1. Under inert, the attacker parks a package at the path.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(attacker, pkgPath, filesFor(
+		`package takeover
+
+func Who(cur realm) string { return "attacker" }`))))
+
+	// 2. Governance opens the chain. The parked blob is not cleaned up, and
+	//    the approver list is not cleared.
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+
+	// 3. Somebody deploys at that path for real.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(owner, pkgPath, filesFor(
+		`package takeover
+
+func Who(cur realm) string { return "owner" }`))))
+	require.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
+		"precondition: the path is live")
+
+	// 4. A routine enable must not hand the path back to the attacker.
+	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err, "enabling over a live package is a takeover and must be refused")
+	// Discriminate. "already exists in cache" is a DIFFERENT failure --
+	// RunMemPackage's SetCachePackage panic, which an earlier version of this
+	// guard triggered on every private redeploy -- and matching the bare phrase
+	// would let that stand in for the guard actually firing. The guard's own
+	// message names the path, and lives in the wrapped trace rather than in
+	// Error().
+	full := fmt.Sprintf("%+v", err)
+	assert.Contains(t, full, "package already exists: "+pkgPath)
+	assert.NotContains(t, full, "in cache",
+		"the refusal must be the guard, not a cache-collision panic")
+
+	stored := env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath)
+	require.NotNil(t, stored, "the live package must survive the refused enable")
+	assert.Contains(t, stored.GetFile("takeover.gno").Body, "owner",
+		"the live package's source must still be the one its deployer published")
+}
+
+// TestVMKeeperInertIgnoresHandWrittenMaxDeposit pins that the deposit ceiling
+// read at enable comes from the MESSAGE, never from the file.
+//
+// The [addpkg] section is keeper bookkeeping, but it lives in a file the
+// submitter authors, so any field the keeper does not overwrite is
+// attacker-supplied. A hand-written max_deposit that survived the stamp would
+// be read back at enable as though the message had declared it.
+func TestVMKeeperInertIgnoresHandWrittenMaxDeposit(t *testing.T) {
+	const pkgPath = "gno.land/r/test/handwritten"
+	// Declares a ceiling far below what this package needs, in the file only.
+	// If it were honoured, the enable would be refused.
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: `module = "gno.land/r/test/handwritten"
+gno = "0.9"
+
+[addpkg]
+max_deposit = "1ugnot"`},
+		{Name: "handwritten.gno", Body: `package handwritten
+
+var Greeting = "hello"
+
+func Set(cur realm, s string) { Greeting = s }`},
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("handwriter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// Message declares nothing, so the chain default applies.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+
+	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+	require.NotNil(t, parked)
+	assert.NotContains(t, parked.GetFile("gnomod.toml").Body, "1ugnot",
+		"the stamp must overwrite a hand-written ceiling, not preserve it")
+
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		"a ceiling the message never declared must not be able to block activation")
+}
+
+// TestVMKeeperEnableCanRedeployALivePrivatePackage pins the other half of the
+// live-package rule: a PRIVATE package may be replaced, exactly as the ordinary
+// deploy path allows.
+//
+// This is the branch that is easy to add and never exercise. It also sits on a
+// trap: reading the live PackageValue to decide whether the path is private
+// populates the object cache, and RunMemPackage's SetCachePackage panics when
+// the package is already cached. AddPackage escapes that only by accident --
+// checkNamespacePermission re-enters getGnoTransactionStore, which clears the
+// object cache between the read and the run -- and EnablePackage calls neither
+// of those. So the liveness probe here must not load the package value.
+func TestVMKeeperEnableCanRedeployALivePrivatePackage(t *testing.T) {
+	const pkgPath = "gno.land/r/test/privcycle"
+	filesFor := func(body string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: `module = "gno.land/r/test/privcycle"
+gno = "0.9"
+private = true`},
+			{Name: "privcycle.gno", Body: body},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("privcycler"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// v1: park, then activate.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, filesFor(
+		`package privcycle
+
+func Which(cur realm) string { return "v1" }`))))
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+
+	// v2: park over the now-live private package, then activate again.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, filesFor(
+		`package privcycle
+
+func Which(cur realm) string { return "v2" }`))),
+		"the same creator may park a replacement for their own private package")
+
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		"a private package may be replaced, so activating the replacement must work")
+
+	stored := env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath)
+	require.NotNil(t, stored)
+	assert.Contains(t, stored.GetFile("privcycle.gno").Body, "v2",
+		"the activated replacement must be the source that is stored")
+}
+
+// TestVMKeeperInertIgnoresHandWrittenCreator pins the security-relevant half of
+// the unconditional-stamp contract: the creator recorded on a parked package is
+// the message signer, never a value the submitter wrote into their own file.
+//
+// This matters more than the ceiling. EnablePackage reads AddPkg.Creator back to
+// decide who init() runs as and who pays the deposit, and the re-submission
+// guard compares against it to decide who may replace the parked bytes. A
+// hand-written creator that survived the stamp would let a submitter park a
+// package attributed to someone else -- charging them, initializing under their
+// identity, and locking them into the retry path.
+func TestVMKeeperInertIgnoresHandWrittenCreator(t *testing.T) {
+	const pkgPath = "gno.land/r/test/forgedcreator"
+	victim := crypto.AddressFromPreimage([]byte("victim"))
+	files := []*std.MemFile{
+		{Name: "forgedcreator.gno", Body: `package forgedcreator
+
+func Who(cur realm) string { return "x" }`},
+		{Name: "gnomod.toml", Body: `module = "gno.land/r/test/forgedcreator"
+gno = "0.9"
+
+[addpkg]
+creator = "` + victim.String() + `"
+height = 999`},
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	forger := crypto.AddressFromPreimage([]byte("forger"))
+	env, ctx := inertEnv(t, approver, forger, victim)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(forger, pkgPath, files)))
+
+	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+	require.NotNil(t, parked)
+	stamped := parked.GetFile("gnomod.toml").Body
+	assert.Contains(t, stamped, forger.String(),
+		"the stamped creator must be the message signer")
+	assert.NotContains(t, stamped, victim.String(),
+		"a hand-written creator must not survive the stamp")
+
+	// And the consequence that makes it matter: the deposit follows the signer.
+	victimBefore := env.bankk.GetCoins(ctx, victim).AmountOf(ugnot.Denom)
+	forgerBefore := env.bankk.GetCoins(ctx, forger).AmountOf(ugnot.Denom)
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+	assert.Equal(t, victimBefore, env.bankk.GetCoins(ctx, victim).AmountOf(ugnot.Denom),
+		"the named victim must not be charged for someone else's submission")
+	assert.Less(t, env.bankk.GetCoins(ctx, forger).AmountOf(ugnot.Denom), forgerBefore,
+		"the actual submitter pays")
+}
+
+// TestVMKeeperEnableCannotPublicizeALivePrivateRealm pins that activating a
+// parked PUBLIC package over a live PRIVATE realm is refused.
+//
+// checkGnomodConstraints enforces "a private package cannot be overridden by a
+// public package" at deploy, but on the inert path it runs at SUBMIT, against
+// whatever was live then — and for a package parked before anything existed at
+// the path, that was nothing. So the rule has to be re-applied at enable.
+//
+// The consequence of missing it is not cosmetic. `private` means other realms
+// cannot import the package and cannot store references to its objects.
+// Flipping a live private realm public retroactively exposes state that was
+// persisted under that invariant.
+func TestVMKeeperEnableCannotPublicizeALivePrivateRealm(t *testing.T) {
+	const pkgPath = "gno.land/r/test/privflip"
+	mod := func(private bool) string {
+		m := "module = \"" + pkgPath + "\"\ngno = \"0.9\""
+		if private {
+			m += "\nprivate = true"
+		}
+		return m
+	}
+	filesFor := func(private bool, body string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: mod(private)},
+			{Name: "privflip.gno", Body: body},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	attacker := crypto.AddressFromPreimage([]byte("earlyparker"))
+	owner := crypto.AddressFromPreimage([]byte("privowner2"))
+	env, ctx := inertEnv(t, approver, attacker, owner)
+
+	// 1. Nothing is live yet, so the submit-time constraint check sees no
+	//    private package to protect. The attacker parks a PUBLIC package.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(attacker, pkgPath, filesFor(false,
+		`package privflip
+
+func Who(cur realm) string { return "attacker" }`))))
+
+	// 2. Governance opens the chain and the owner deploys a PRIVATE realm there.
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(owner, pkgPath, filesFor(true,
+		`package privflip
+
+func Who(cur realm) string { return "owner" }`))))
+
+	// 3. The stale parked public package must not be activatable over it.
+	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err,
+		"a public package must not be activated over a live private realm")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "cannot be overridden by a public package")
+
+	stored := env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath)
+	require.NotNil(t, stored)
+	assert.Contains(t, stored.GetFile("gnomod.toml").Body, "private = true",
+		"the live realm must still be private")
+}
+
+// TestVMKeeperInertChargesPreprocessGasAtSubmit pins the economic argument the
+// inert policy rests on: the submitter pays for the compile work their bytes
+// will cause, at submit, priced by source length.
+//
+// Deleting chargePreprocessGas from the inert branch previously passed every
+// test in the repository, which left the entire anti-DoS justification for
+// "inert" unguarded -- a submitter could park an arbitrarily large package for
+// the price of one amino write and leave the compile bill to whoever enables it.
+func TestVMKeeperInertChargesPreprocessGasAtSubmit(t *testing.T) {
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("gascreator"))
+
+	// Gas charged for a submission, measured on the env's own meter. The package
+	// clause has to match the last path element, so the body is generated.
+	submitGas := func(t *testing.T, name string, extraLines int) (int64, int) {
+		t.Helper()
+		pkgPath := "gno.land/r/test/" + name
+		body := "package " + name + "\n\nfunc F(cur realm) int { return 1 }\n"
+		for i := 0; i < extraLines; i++ {
+			body += "// padding to make this package substantially longer\n"
+		}
+
+		env, ctx := inertEnv(t, approver, creator)
+		// Sorted by name: "gas.gno" < "gnomod.toml".
+		files := []*std.MemFile{
+			{Name: "gas.gno", Body: body},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		before := ctx.GasMeter().GasConsumed()
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+		return ctx.GasMeter().GasConsumed() - before, len(body)
+	}
+
+	smallGas, smallLen := submitGas(t, "gassmall", 0)
+	largeGas, largeLen := submitGas(t, "gaslarge", 400)
+
+	perByte := DefaultParams().PreprocessGasPerByte
+	require.Positive(t, perByte)
+
+	delta := int64(largeLen - smallLen)
+	require.Positive(t, delta)
+	assert.GreaterOrEqual(t, largeGas-smallGas, perByte*delta,
+		"the submitter must be charged at least PreprocessGasPerByte for every "+
+			"additional source byte parked; without that, parking a large "+
+			"package is nearly free and the compile bill falls on whoever enables it")
+}
+
+// TestInertPolicyDoesNotParkGenesisPackages pins that a chain launching under
+// the "inert" policy still deploys its own genesis packages.
+//
+// Genesis content is the chain's own, already reviewed by whoever wrote the
+// genesis file -- there is nobody for an approver to protect it from. Parking it
+// would mean a chain that boots with nothing deployed: no r/sys/params, no
+// govdao, so no way to propose the change that would let anything be enabled,
+// and no approver able to act because the realms an approver needs do not exist
+// yet. The policy is about what STRANGERS may submit after the chain is running.
+//
+// Every other height-sensitive rule in AddPackage already knows this: the type
+// checker drops to genesis mode at height 0, and the draft-package rule is
+// waived there too.
+func TestInertPolicyDoesNotParkGenesisPackages(t *testing.T) {
+	const pkgPath = "gno.land/r/test/atgenesis"
+	files := []*std.MemFile{
+		{Name: "atgenesis.gno", Body: `package atgenesis
+
+func Hello(cur realm) string { return "hi" }`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("genesiscreator"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// Height 0 is genesis. The shared env runs at 42, which is why the inert
+	// branch was reached unconditionally before.
+	genesisCtx := ctx.WithBlockHeader(&bft.Header{ChainID: ctx.ChainID(), Height: 0})
+
+	require.NoError(t, env.vmk.AddPackage(genesisCtx, NewMsgAddPackage(creator, pkgPath, files)))
+
+	store := env.vmk.getGnoTransactionStore(genesisCtx)
+	assert.Nil(t, store.GetInertPackage(pkgPath),
+		"a genesis package must not be parked: there is no functioning chain yet "+
+			"for an approver to enable it from")
+	assert.NotNil(t, store.GetMemPackage(pkgPath),
+		"it must be deployed, like every other genesis package")
+}
+
+// TestOrdinaryDeployStoresNoMaxDeposit pins that adding the max_deposit field
+// did not change what an ordinary deploy stores.
+//
+// A package's gnomod.toml is stored in chain state, so its bytes are covered by
+// the app hash. If the ordinary path started writing a max_deposit line, every
+// deploy on every chain would produce different bytes -- a consensus break for a
+// field only the inert path needs. The empty value plus `omitempty` is what
+// keeps that from happening, and nothing else was checking it.
+func TestOrdinaryDeployStoresNoMaxDeposit(t *testing.T) {
+	const pkgPath = "gno.land/r/test/plaindeploy"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "plaindeploy.gno", Body: `package plaindeploy
+
+func Hello(cur realm) string { return "hi" }`},
+	}
+
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	creator := crypto.AddressFromPreimage([]byte("plaincreator"))
+	acc := env.acck.NewAccountWithAddress(ctx, creator)
+	env.acck.SetAccount(ctx, acc)
+	require.NoError(t, env.bankk.SetCoins(ctx, creator, initialBalance))
+
+	// Default policy: permissionless, so this is the ordinary deploy path.
+	msg := NewMsgAddPackage(creator, pkgPath, files)
+	msg.MaxDeposit = std.NewCoins(std.NewCoin(ugnot.Denom, 500_000_000))
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+
+	stored := env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath)
+	require.NotNil(t, stored)
+	body := stored.GetFile("gnomod.toml").Body
+
+	// Declared on the message and still absent from what is stored: the
+	// ordinary path consumes the ceiling in the same transaction, so there is
+	// nothing to carry.
+	assert.NotContains(t, body, "max_deposit",
+		"an ordinary deploy must store the same bytes it always did")
+	// The two fields that DO round-trip are still there, so this is not passing
+	// because the stamp stopped working altogether.
+	assert.Contains(t, body, "creator")
+	assert.Contains(t, body, creator.String())
+}

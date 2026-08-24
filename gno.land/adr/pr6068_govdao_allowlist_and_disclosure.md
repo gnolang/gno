@@ -433,7 +433,7 @@ fixing rather than tolerating. `PreExecuteProposal` gates on `isValidCall` only
 — there is no membership check — so **any** account may execute a proposal that
 has passed, and `VMKeeper.Call` charges the storage deposit to `msg.Caller`, the
 account that sent the transaction. The charge is capped by `msg.MaxDeposit`, or
-by the chain's `DefaultDeposit` of 600,000,000 ugnot when the sender sets none —
+by the chain's `DefaultDeposit` of 100,000,000 ugnot when the sender sets none —
 about 6 MB at the default price, so a 250 KB error was paid silently rather than
 refused. A sender who lowers `MaxDeposit` is not charged, but then the
 transaction fails and the proposal cannot be finalized by anyone unwilling to

@@ -94,3 +94,37 @@ flow end-to-end:
   `"permissionless"`. Chains that don't opt in see no change.
 - **Disable deferred**: MsgDisablePackage is stubbed; implementation requires a
   strategy for cleaning up executed objects from the base store.
+
+---
+
+## Addendum: two consequences above are amended by the MsgRun-allowlist PR
+
+Added by the follow-up work in
+[prxxxx_msgrun_allowlist_and_inert_charging.md](./prxxxx_msgrun_allowlist_and_inert_charging.md).
+The original text is left as written, because it records what this PR
+understood; this section records what turned out to be true.
+
+**"The DoS surface from the typechecker is removed from block execution time"
+did not hold as shipped, and now does.** `MsgRun` type-checks *and* executes
+caller-supplied source immediately, under every policy value including
+`inert` — so under the very policy introduced to keep the type checker off the
+critical path, `MsgRun` put it straight back. This PR never mentions `MsgRun`
+again after the opening paragraph. The follow-up closes it with a
+`run_submitters` allowlist, and only with that in place does the claim hold for
+both code-bearing messages under `inert`.
+
+**"Chains that don't opt in see no change" is no longer true.** `run_submitters`
+is enforced under *every* policy, including the `permissionless` default,
+because the policy value has no bearing on the hazard. It also fails closed. So
+a chain that opts into nothing must still populate that param, and an upgrade
+that does not is a chain whose `MsgRun` stops working — which, since govdao
+proposal creation is `MsgRun`-only, means governance stops with it. Genesis
+seeding is the only bootstrap; the follow-up ADR explains why the realm-`init()`
+escape people reach for does not exist.
+
+**Also corrected there:** the `inert` path charged nothing for the type-check it
+deferred, `MsgEnablePackage` ran `init()` as the approver rather than the
+creator, it never took a storage deposit for the realm state it created, and it
+skipped the `gnomod.toml` rules (`HasReplaces`, draft, private, `gno.mod`
+deprecation) that the normal path applies — so `inert` was a way to park a
+package no policy would ever accept.
