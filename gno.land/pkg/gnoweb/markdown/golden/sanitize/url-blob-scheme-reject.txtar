@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: URL
+// CONTEXT: [click](%s)
+-- input.md --
+blob:https://attacker.example/uuid
+-- output.md --
+
+-- output.html --
+<p><a href="">click</a></p>

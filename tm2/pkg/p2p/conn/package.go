@@ -19,15 +19,15 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 		// NOTE: Keep the names short.
 		pkg.Type{
-			Type: reflect.TypeOf(PacketPing{}),
+			Type: reflect.TypeFor[PacketPing](),
 			Name: "Ping",
 		},
 		pkg.Type{
-			Type: reflect.TypeOf(PacketPong{}),
+			Type: reflect.TypeFor[PacketPong](),
 			Name: "Pong",
 		},
 		pkg.Type{
-			Type: reflect.TypeOf(PacketMsg{}),
+			Type: reflect.TypeFor[PacketMsg](),
 			Name: "Msg",
 		},
 	))

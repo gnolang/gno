@@ -5,10 +5,10 @@ gno test .
 ! stdout .+
 stderr 'ok      \. 	\d+\.\d\ds'
 
-! gno test ./...
+gno test ./...
 
 ! stdout .+
-stderr 'recursive pattern not supported in single-package mode, consider creating a gnowork.toml file'
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
 package valid

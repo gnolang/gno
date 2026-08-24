@@ -45,11 +45,11 @@ import (
 
 const txAddr = address("${TX_ADDRESS}")
 
-func main() {
-	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
+func main(cur realm) {
+	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	// Proposal 1: remove val1 — individually valid.
-	r1 := valr.NewPropRequest(
+	r1 := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -61,14 +61,14 @@ func main() {
 		"Remove validator ${TARGET_ADDR}",
 		"",
 	)
-	pid1 := dao.MustCreateProposal(cross, r1)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid1})
-	dao.ExecuteProposal(cross, pid1)
+	pid1 := dao.MustCreateProposal(cross(cur), r1)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid1))
+	dao.ExecuteProposal(cross(cur), pid1)
 
 	// Proposal 2: re-add val1 with new power — individually valid.
 	// Together with proposal 1, the block-level change slice now contains
 	// two entries for the same address, which crashes the node in EndBlocker.
-	r2 := valr.NewPropRequest(
+	r2 := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -81,9 +81,9 @@ func main() {
 		"Re-add validator ${TARGET_ADDR}",
 		"",
 	)
-	pid2 := dao.MustCreateProposal(cross, r2)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid2})
-	dao.ExecuteProposal(cross, pid2)
+	pid2 := dao.MustCreateProposal(cross(cur), r2)
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid2))
+	dao.ExecuteProposal(cross(cur), pid2)
 }
 
 func must(err error) {

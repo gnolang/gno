@@ -13,8 +13,8 @@ import (
 
 func getBoard(bid BoardID) *Board {
 	bidkey := boardIDKey(bid)
-	board_, exists := gBoards.Get(bidkey)
-	if !exists {
+	board_ := gBoards.Get(bidkey)
+	if board_ == nil {
 		return nil
 	}
 	board := board_.(*Board)

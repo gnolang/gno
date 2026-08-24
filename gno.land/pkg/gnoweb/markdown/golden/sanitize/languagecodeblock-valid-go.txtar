@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: LanguageCodeBlock
+// ARGS: "go"
+// CONTEXT: %s
+-- input.md --
+fmt.Println("hello")
+-- output.md --
+```go
+fmt.Println("hello")
+```
+-- output.html --
+<pre><code class="language-go">fmt.Println(&quot;hello&quot;)
+</code></pre>

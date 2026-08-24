@@ -38,8 +38,18 @@ type cacheEntry struct {
 // PreviousRealm() shifts exactly one frame to valopers. A user MsgCall
 // would see PreviousRealm() == UserRealm (pkgpath ""); a third realm
 // cross-call would see its own pkgpath. Either fails this check.
-func assertValopersCaller() {
-	caller := runtime.PreviousRealm().PkgPath()
+func assertValopersCaller(_ int, rlm realm) {
+	// Defense-in-depth IsCurrent gate. Current call sites pass live
+	// cur (cross(cur) from valopers), so this never fires today — but
+	// the helper trusts its rlm input, and any future call that threads
+	// a stashed/sibling-frame realm value with .Previous().PkgPath() ==
+	// valopersRealmPath would silently bypass the gate (Class-2
+	// designation forgery; see docs/resources/gno-security.md). Gating
+	// here makes the precondition enforceable rather than convention.
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
+	caller := rlm.Previous().PkgPath()
 	if caller != valopersRealmPath {
 		panic("caller realm must be " + valopersRealmPath + ", got " + caller)
 	}
@@ -53,7 +63,7 @@ func assertValopersCaller() {
 // as args. This eliminates the confused-deputy class where v3 → valopers
 // callbacks would make valopers see v3 as PreviousRealm.
 func NotifyValoperChanged(cur realm, op address, signingPubKey string, signingAddress address, keepRunning bool) {
-	assertValopersCaller()
+	assertValopersCaller(0, cur)
 	valoperCache.Set(op.String(), cacheEntry{
 		SigningPubKey:  signingPubKey,
 		SigningAddress: signingAddress,
@@ -77,7 +87,7 @@ func NotifyValoperChanged(cur realm, op address, signingPubKey string, signingAd
 //
 // Emits ValoperRotated event with op + old/new addresses + height.
 func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string) {
-	assertValopersCaller()
+	assertValopersCaller(0, cur)
 
 	oldAddr, err := chain.PubKeyAddress(oldPubKey)
 	if err != nil {
@@ -133,7 +143,7 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 		entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 	}
 	sort.Strings(entries)
-	sysparams.SetValsetProposal(cross, entries)
+	sysparams.SetValsetProposal(cross(cur), entries)
 
 	chain.Emit(
 		"ValoperRotated",

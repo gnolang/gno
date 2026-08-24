@@ -4,10 +4,10 @@
 <gno-columns>
 ## Title 1
 content 1
-|||
+<gno-columns-sep />
 ## Title 2
 content 2
-|||
+<gno-columns-sep />
 ## Title 3
 content 3
 <gno-columns-sep />

@@ -165,7 +165,11 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 	sModNScalar := new(secp.ModNScalar)
 	sModNScalar.SetByteSlice(s.Bytes())
 	if sModNScalar.IsOverHalfOrder() {
-		s = new(big.Int).Sub(secp.S256().N, s)
+		// s = N - s, computed in the scalar field to avoid the deprecated
+		// elliptic.Curve interface (secp.S256).
+		sModNScalar.Negate()
+		sBytes := sModNScalar.Bytes()
+		s = new(big.Int).SetBytes(sBytes[:])
 	}
 
 	sigBytes := make([]byte, 64)

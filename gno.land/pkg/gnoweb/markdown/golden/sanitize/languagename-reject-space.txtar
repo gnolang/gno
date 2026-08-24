@@ -1,0 +1,5 @@
+// MARKDOWNFUNC: LanguageName
+-- input.md --
+not a lang
+-- output.md --
+

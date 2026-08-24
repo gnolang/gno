@@ -23,13 +23,6 @@ func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, cr
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
 
-	// Create and fund master account.
-	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
-	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(tu.NewTestCoins())
-	masterAcc.SetPubKey(masterPub)
-	env.acck.SetAccount(env.ctx, masterAcc)
-
 	// Set block time > 0 to avoid genesis special casing.
 	now := time.Now()
 	env.ctx = env.ctx.WithBlockHeader(&bft.Header{
@@ -38,7 +31,23 @@ func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, cr
 		Time:    now,
 	})
 
+	masterPriv, masterAddr := setupSessionFromEnv(t, env)
 	return env, anteHandler, masterPriv, masterAddr
+}
+
+// setupSessionFromEnv creates a funded master account, given a env (for example
+// from setupSessionEnv).
+func setupSessionFromEnv(t *testing.T, env testEnv) (crypto.PrivKey, crypto.Address) {
+	t.Helper()
+
+	// Create and fund master account.
+	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
+	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
+	masterAcc.SetCoins(tu.NewTestCoins())
+	masterAcc.SetPubKey(masterPub)
+	env.acck.SetAccount(env.ctx, masterAcc)
+
+	return masterPriv, masterAddr
 }
 
 // sessionSpendLimit returns a spend limit large enough to cover test fees.
@@ -237,7 +246,7 @@ func TestSessionRevokeAll(t *testing.T) {
 	var sessionAddrs []crypto.Address
 	var sessionAccNums []uint64
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		spriv, spub, saddr := tu.KeyTestPubAddr()
 		createMsg := MsgCreateSession{
 			Creator:    masterAddr,
@@ -258,7 +267,7 @@ func TestSessionRevokeAll(t *testing.T) {
 
 	// Verify all sessions work.
 	fee := tu.NewTestFee()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
 		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPrivs[i], sessionAddrs[i], sessionAccNums[i], 0, fee)
 		checkValidTx(t, anteHandler, ctx, tx, false)
@@ -270,7 +279,7 @@ func TestSessionRevokeAll(t *testing.T) {
 	require.True(t, res.IsOK(), res.Log)
 
 	// Verify none of the sessions work anymore.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
 		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPrivs[i], sessionAddrs[i], sessionAccNums[i], 0, fee)
 		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
@@ -297,7 +306,7 @@ func TestSessionCreateValidation(t *testing.T) {
 
 	t.Run("too many sessions", func(t *testing.T) {
 		// Create MaxSessionsPerAccount sessions.
-		for i := 0; i < std.MaxSessionsPerAccount; i++ {
+		for i := range std.MaxSessionsPerAccount {
 			_, spub, _ := tu.KeyTestPubAddr()
 			msg := MsgCreateSession{
 				Creator:    masterAddr,
@@ -891,7 +900,7 @@ func TestIterateAccountsExcludesSessions(t *testing.T) {
 	ctx := env.ctx
 
 	// Create a few sessions.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, sessionPub, _ := tu.KeyTestPubAddr()
 		createSessionDirect(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600)
 	}

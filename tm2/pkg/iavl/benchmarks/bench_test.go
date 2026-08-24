@@ -29,7 +29,7 @@ func prepareTree(b *testing.B, db dbm.DB, size, keyLen, dataLen int) (*iavl.Muta
 	t := iavl.NewMutableTree(db, size, false, iavl.NewNopLogger())
 	keys := make([][]byte, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := randBytes(keyLen)
 		_, err := t.Set(key, randBytes(dataLen))
 		require.NoError(b, err)
@@ -211,7 +211,7 @@ func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int,
 	// check := t
 
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < blockSize; j++ {
+		for range blockSize {
 			// 50% insert, 50% update
 			var key []byte
 			if i%2 == 0 {
@@ -246,7 +246,6 @@ func BenchmarkRandomBytes(b *testing.B) {
 		{4}, {16}, {32}, {100}, {1000},
 	}
 	for _, bench := range benchmarks {
-		bench := bench
 		name := fmt.Sprintf("random-%d", bench.length)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -323,7 +322,6 @@ func BenchmarkLevelDBLargeData(b *testing.B) {
 func runBenchmarks(b *testing.B, benchmarks []benchmark) { //nolint: thelper
 	fmt.Printf("%s\n", iavl.GetVersionInfo())
 	for _, bb := range benchmarks {
-		bb := bb
 		prefix := fmt.Sprintf("%s-%d-%d-%d-%d", bb.dbType,
 			bb.initSize, bb.blockSize, bb.keyLen, bb.dataLen)
 
