@@ -1,0 +1,136 @@
+# A grc20 ledger backed by p/nt/hashmap must survive a real store reload, and
+# must stay usable from a realm that never imports hashmap.
+#
+# grc20's KV seam stores a caller-supplied concrete type behind an interface
+# field in realm state. The interesting case is not the realm that created the
+# token — it imports the backend, so the type is trivially in its closure — but
+# a *third* realm that resolves the token dynamically through grc20reg. Its
+# package closure holds only grc20 + grc20reg, yet the ledger it reads and
+# writes is a *hashmap.Map. This test pins that down across a node restart,
+# when the object cache is cold and the type registry is rebuilt from disk.
+
+loadpkg gno.land/p/nt/hashmap/v0
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/demo/kvtok $WORK/kvtok
+loadpkg gno.land/r/demo/kvcons $WORK/kvcons
+gnoland start
+
+# the ledger really is hashmap-backed, one store per map — without this the
+# rest of the test would still pass if WithStorage silently fell back to avl
+gnokey query vm/qeval --data "gno.land/r/demo/kvtok.Backend()"
+stdout 'hashmap x2'
+
+# the hashmap-unaware consumer resolves the token through the registry
+gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
+stdout 'KVT accounts=2 owner=1000 self=1000'
+
+# grow the ledger through the owning realm
+gnokey maketx call -pkgpath gno.land/r/demo/kvtok -func MintTo -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 500 -gas-fee 1000000ugnot -gas-wanted 40_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
+stdout 'KVT accounts=3 owner=1000 self=1000'
+
+# full node restart: store reload, cold object cache, type registry rebuilt
+gnoland restart
+
+# still 2, not 4: the counter is realm state, so this also shows init did not
+# re-run on restart
+gnokey query vm/qeval --data "gno.land/r/demo/kvtok.Backend()"
+stdout 'hashmap x2'
+
+# reads still resolve the *hashmap.Map behind the KV interface
+gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
+stdout 'KVT accounts=3 owner=1000 self=1000'
+
+# and a write driven entirely by the hashmap-unaware consumer
+gnokey maketx call -pkgpath gno.land/r/demo/kvcons -func Move -args 250 -gas-fee 1000000ugnot -gas-wanted 40_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/demo/kvcons.Read()"
+stdout 'KVT accounts=3 owner=1000 self=750'
+
+-- kvtok/kvtok.gno --
+package kvtok
+
+import (
+	"chain"
+	"strconv"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/hashmap/v0"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	Token  *grc20.Token
+	ledger *grc20.PrivateLedger
+
+	// Counts factory invocations, so the test can prove WithStorage actually
+	// built the ledger from hashmap rather than silently falling back to the
+	// avl default. Nothing else can observe a token's backend from outside.
+	backendCalls int
+)
+
+const owner = address("g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp")
+
+func init(cur realm) {
+	Token, ledger = grc20.NewToken("KVToken", "KVT", 4, 0, cur,
+		grc20.WithStorage(func() grc20.KV {
+			backendCalls++
+			return hashmap.New()
+		}))
+	ledger.Mint(owner, 1000)
+	ledger.Mint(chain.PackageAddress("gno.land/r/demo/kvcons"), 1000)
+	grc20reg.Register(cross(cur), Token, "")
+}
+
+// Backend reports how many hashmap stores the ledger was built from: 2, one
+// for balances and one for allowances.
+func Backend() string {
+	return "hashmap x" + strconv.Itoa(backendCalls)
+}
+
+func MintTo(cur realm, to address, amount int64) {
+	if err := ledger.Mint(to, amount); err != nil {
+		panic(err)
+	}
+}
+
+-- kvcons/kvcons.gno --
+package kvcons
+
+// Deliberately imports neither p/nt/hashmap nor r/demo/kvtok: this realm's
+// package closure holds only grc20reg (and grc20 through it), yet the ledger
+// it reads and writes is a *hashmap.Map created by another realm.
+
+import (
+	"chain"
+	"strconv"
+
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+const (
+	key   = "gno.land/r/demo/kvtok.KVT"
+	owner = address("g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp")
+	dest  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+)
+
+func Read() string {
+	t := grc20reg.MustGet(key)
+	self := chain.PackageAddress("gno.land/r/demo/kvcons")
+	return t.GetSymbol() +
+		" accounts=" + strconv.Itoa(t.KnownAccounts()) +
+		" owner=" + strconv.FormatInt(t.BalanceOf(owner), 10) +
+		" self=" + strconv.FormatInt(t.BalanceOf(self), 10)
+}
+
+func Move(cur realm, amount int64) {
+	t := grc20reg.MustGet(key)
+	// RealmTeller debits kvcons's own realm address, not the EOA caller.
+	if err := t.RealmTeller(0, cur).Transfer(0, cur, dest, amount); err != nil {
+		panic(err)
+	}
+}

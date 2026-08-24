@@ -2,8 +2,6 @@ package grc20
 
 import (
 	"errors"
-
-	"gno.land/p/nt/avl/v0"
 )
 
 // Teller interface defines the methods that a GRC20 token must implement. It
@@ -93,6 +91,90 @@ type Token struct {
 	ledger *PrivateLedger
 }
 
+// KV is the key-value storage backend used by a PrivateLedger for its
+// balances and allowances maps. Three in-tree types satisfy it:
+// *avl.Tree (p/nt/avl/v0 — the default; key-ordered, O(log n)
+// persisted-object loads per op), *hashmap.Map (p/nt/hashmap/v0 —
+// unordered, O(1) persisted-object loads per op, cheapest gas for large
+// ledgers), and *bptree.BPTree (p/nt/bptree/v0 — key-ordered, fewer
+// object loads than avl at high fanout).
+type KV interface {
+	// Get returns the value stored under key, or nil if the key is absent.
+	// (Matches avl.Tree/bptree.BPTree: absence is nil, so ledger values must
+	// be non-nil — grc20 stores int64.)
+	Get(key string) any
+	Set(key string, value any) (updated bool)
+	Remove(key string) (value any, removed bool)
+	Has(key string) bool
+	Size() int
+}
+
+// Option configures a Token created by NewToken.
+type Option func(*ledgerConfig)
+
+type ledgerConfig struct {
+	newKV func() KV
+}
+
+// WithStorage makes NewToken build the ledger's balances and allowances maps
+// with newKV instead of the default avl.Tree. Use it to opt in to a storage
+// backend with a different gas/ordering trade-off, e.g. hashmap for
+// large ledgers:
+//
+//	grc20.NewToken("Foo", "FOO", 6, nextTokenID.Next(), cur,
+//		grc20.WithStorage(func() grc20.KV { return hashmap.New() }))
+//
+// newKV is called once per map and must return a fresh, empty store each
+// time. NewToken enforces that: handing back one shared store would make
+// KnownAccounts count allowance rows as holders, and handing back a
+// pre-populated store would produce balances that the token's totalSupply
+// never accounted for. Both are rejected at construction.
+func WithStorage(newKV func() KV) Option {
+	if newKV == nil {
+		panic(ErrNilStorage)
+	}
+	return func(cfg *ledgerConfig) { cfg.newKV = newKV }
+}
+
+// newLedgerStores builds the two backing stores and rejects a constructor
+// that breaks the "fresh and distinct per call" contract.
+func (cfg ledgerConfig) newLedgerStores() (balances, allowances KV) {
+	balances, allowances = cfg.newKV(), cfg.newKV()
+	if balances == nil || allowances == nil {
+		panic(ErrNilStorage)
+	}
+	if sameStore(balances, allowances) {
+		panic(ErrSharedStorage)
+	}
+	if balances.Size() != 0 || allowances.Size() != 0 {
+		panic(ErrNonEmptyStorage)
+	}
+	return balances, allowances
+}
+
+// sameStore reports whether a and b are certainly the same underlying store.
+//
+// KV is a public interface, so its dynamic type need not be comparable: a KV
+// implemented as a struct value holding a map or slice makes `a == b` a
+// runtime panic, which would fail construction that is otherwise valid. Such a
+// pair is reported as distinct.
+//
+// That leaves one gap: a constructor that returns one shared store of an
+// uncomparable type is not detected, and the ledger it builds will count
+// allowance rows as holders. Detecting it would mean writing a probe key into
+// a caller-supplied store and relying on Remove to undo it — a constructor
+// that mutates state it does not own, and that misreports a store whose Remove
+// is a no-op. Every in-tree backend is a pointer and so is compared exactly;
+// the gap is left open rather than closed by a check with side effects.
+func sameStore(a, b KV) (same bool) {
+	defer func() {
+		if recover() != nil { // uncomparable dynamic type
+			same = false
+		}
+	}()
+	return a == b
+}
+
 // PrivateLedger is a struct that holds the balances and allowances for the
 // token. It provides administrative functions for minting, burning,
 // transferring tokens, and managing allowances.
@@ -104,9 +186,9 @@ type PrivateLedger struct {
 	// Total supply of the token managed by this ledger.
 	totalSupply int64
 	// chain.Address -> int64
-	balances avl.Tree
+	balances KV
 	// owner.(chain.Address)+":"+spender.(chain.Address)) -> int64
-	allowances avl.Tree
+	allowances KV
 	// Pointer to the associated Token struct
 	token *Token
 }
@@ -125,6 +207,9 @@ var (
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
+	ErrNilStorage            = errors.New("storage constructor must not be nil or return nil")
+	ErrSharedStorage         = errors.New("storage constructor must return a distinct store per call")
+	ErrNonEmptyStorage       = errors.New("storage constructor must return an empty store")
 )
 
 // Construction limits. Symbol is restricted to the same charset as
