@@ -3,7 +3,7 @@
 Builds on [PR #5888](https://github.com/gnolang/gno/pull/5888) (phase 2, inert
 packages), which builds on [#5885](https://github.com/gnolang/gno/pull/5885)
 (phase 1, `code_submission_policy`). Read
-[pr5885_phase2_inert_packages.md](./pr5885_phase2_inert_packages.md) first.
+[pr5888_phase2_inert_packages.md](./pr5888_phase2_inert_packages.md) first.
 
 ## Context
 
@@ -41,18 +41,44 @@ an attacker-chosen `Caller`.
 
 ## Decision
 
-### 1. `run_submitters`: a new vm param, enforced under every policy
+### 1. `run_submitters`: a new vm param, consulted under every policy
 
 `Params.RunSubmitters []crypto.Address`, proto field 18 (#5888 owns 15/16/17).
-Fails closed: an empty list means nobody may `MsgRun`.
 
-Enforced unconditionally, unlike `CodeSubmitters`. The full matrix:
+**An empty list means the gate is OFF: anyone may `MsgRun`.** That is the
+behaviour which predates the field, so it is what the zero value has to mean.
+Listing one address turns the gate on.
+
+This is the opposite of `CodeSubmitters`, and the asymmetry is the design, not
+an inconsistency:
+
+- `CodeSubmitters` is unreachable until an operator has explicitly moved
+  `code_submission_policy` to `permissioned`. Its empty state is therefore a
+  half-finished opt-in, and refusing is the safe reading.
+- `RunSubmitters` has no such switch in front of it — it is consulted on every
+  `MsgRun` from the moment the field exists. A fail-closed empty value would
+  disable `MsgRun` on every chain that upgrades without editing genesis,
+  including `gnoland start` with stock genesis. Because GovDAO proposal
+  *creation* is `MsgRun`-only, that takes governance down with it and leaves no
+  in-band repair.
+
+An earlier revision of this work did fail closed, and paid for it in exactly the
+places that prove the point: `DefaultTestingGenesisConfig`, the txtar
+`gnoland start` merge, `adduser`, `adduserfrom` and gnodev all had to seed the
+list, and CI stayed green the whole time — the breakage was reachable only on a
+real chain. Seeding a fail-closed default across every harness is the smell, not
+the fix.
+
+The cost of the current reading is that the param cannot express "nobody may
+`MsgRun`". Nobody has asked for that configuration.
+
+The full matrix:
 
 | policy | `vm/add_package` | `vm/run` |
 |---|---|---|
-| `permissionless` | allow | require `run_submitters` |
-| `permissioned` | require `code_submitters` | require `run_submitters` |
-| `inert` | allow (stored inert) | require `run_submitters` |
+| `permissionless` | allow | `run_submitters`, if non-empty |
+| `permissioned` | require `code_submitters` | `run_submitters`, if non-empty |
+| `inert` | allow (stored inert) | `run_submitters`, if non-empty |
 
 `MsgRun`'s column does not vary because no policy value makes it safe. It is
 also the only code-bearing message with no other gate: `MsgAddPackage` clears
@@ -455,10 +481,14 @@ Both are also plausibly deliberate — `permissioned` with nobody listed is the
 only vm-level way to express an emergency deploy freeze, and `inert` with no
 approver yet is the natural state while adopting an oracle.
 
-And it validated the wrong thing. The one genuinely unrecoverable configuration
-is `run_submitters` empty, which `Validate` cannot reject because it is the
-default. A rule that refuses two recoverable states and cannot touch the
-unrecoverable one does not track the property it claims to enforce.
+And it validated the wrong thing. At the time this was written the one
+configuration it should have worried about was `run_submitters` empty — which
+`Validate` cannot reject, because it is the default. §1 has since removed that
+hazard by making the empty list mean "gate off" rather than "nobody", so there
+is now no unrecoverable pairing for a cross-field rule to catch at all. A rule
+that refuses two recoverable states and cannot touch the unrecoverable one did
+not track the property it claimed to enforce; today it would refuse two
+recoverable states and nothing else.
 
 If a fat-finger guard is wanted, the defensible form is a *transition* check in
 `WillSetParam` — which alone sees both the old and the new value — refusing a
@@ -527,91 +557,90 @@ it bills the approver for a byte count the submitter chose.
 
 ## Consequences
 
-### Bootstrap requires genesis seeding. There is no in-band recovery.
+### Bootstrap is not a hazard, because empty means open
 
-An earlier draft of this work claimed a chain with an empty `run_submitters`
-could recover by deploying a realm whose `init()` creates the governance
-proposal. **That is wrong and the claim is retracted.** `isValidCall` in
-`r/gov/dao/v3/impl/govdao.gno` admits a caller only when the previous realm is
-a user or the `/e/<addr>/run` ephemeral realm; a deployed realm's `init()` frame
-is neither, and that exclusion is deliberate — it is what prevents
-vote-laundering through an intermediary realm.
+A chain boots with `run_submitters` empty, which means the gate is off. Nothing
+has to be seeded for governance to work, and `gnoland start` with stock genesis
+behaves exactly as it did before this param existed.
 
-Nor can `MsgCall` substitute: `ProposalRequest`'s fields are unexported and it
-carries an `Executor` interface over a `func(realm) error`, while
-`convertArgToGno` panics on struct, interface and func arguments (and on a
-non-variadic `[]string`, though a variadic `...string` is callable), and the
-keeper synthesizes exactly one call with no composition.
+Turning the gate on is a deliberate act, and the ordering follows from one fact:
+governance *proposal creation* is `MsgRun`-only.
 
-So governance *proposal creation* is `MsgRun`-only by design. Voting and
-execution are `MsgCall`-able, so seeding **one** break-glass address keeps
-governance reachable.
+`isValidCall` in `r/gov/dao/v3/impl/govdao.gno` admits a caller only when the
+previous realm is a user or the `/e/<addr>/run` ephemeral realm; a deployed
+realm's `init()` frame is neither, and that exclusion is deliberate — it is what
+prevents vote-laundering through an intermediary realm. Nor can `MsgCall`
+substitute: `ProposalRequest`'s fields are unexported and it carries an
+`Executor` interface over a `func(realm) error`, while `convertArgToGno` panics
+on struct, interface and func arguments, and the keeper synthesizes exactly one
+call with no composition.
 
-This targets a **new chain**, so there is no upgrade-in-place case: like any
-other launch parameter, `run_submitters` is set in genesis, and
-`gnogenesis params set vm.run_submitters <addr>,...` already works via the
-reflect-based setter. What remains is that it must not be *forgotten*, which is
-why `InitGenesis` logs an error when the list is empty — the one configuration
-with no in-band repair should not boot quietly.
+So whoever populates the list must keep at least one address that can create
+proposals, or the *next* change to this param becomes unproposable. Both routes
+work:
 
-One rough edge on that path, left alone deliberately. The declarative route,
-`genesis_params.toml` via `LoadGenesisParamsFile`, cannot set this param — it
-accepts only `chain_domain` and `sysnames_pkgpath` and errors on anything else.
-Adding a case for `run_submitters` alone was considered and rejected: that
-function carries its own `XXX Write onto ggs for other keeper params`, so it is
-knowingly incomplete for *every* vm param, and special-casing the newest one
-would add a one-off to a function that needs generalizing instead. The
-imperative route works today, so this costs an operator nothing beyond knowing
-which of the two to reach for.
+- **At genesis**, `gnogenesis params set vm.run_submitters <addr>,...`, via the
+  reflect-based setter. (The declarative route, `genesis_params.toml` through
+  `LoadGenesisParamsFile`, cannot set it — that function accepts only
+  `chain_domain` and `sysnames_pkgpath` and carries its own `XXX Write onto ggs
+  for other keeper params`. It is knowingly incomplete for every vm param, and
+  special-casing the newest one would add a one-off to a function that needs
+  generalizing instead.)
+- **On a running chain**, a governance proposal, created while the list is still
+  empty and therefore permissive. `run_submitters.txtar` walks exactly this
+  path: open chain, vote, gate on, stranger refused.
 
-### Test chains must be seeded, and are
+The delegated manager (`r/sys/params`) cannot undo it. It may only add, may only
+remove what it added, and may never take the list to zero — see
+`RemoveRunSubmitters`. Reaching zero would switch the gate off entirely, which
+is not a smaller version of removing one address but the revocation of the whole
+restriction GovDAO voted for.
 
-Fail-closed otherwise refuses every `gnokey maketx run` in the suite: 58 txtar
-files, 165 live invocations, of which the standard test account signs 108 and
-`member` a further 36. Re-measure rather than trust these if you are relying on
-them — the counts move whenever a txtar is added. One key dominating the suite is what makes the seeding
-blind spot below worth naming.
+### Test chains are NOT seeded, deliberately
 
-- `DefaultTestingGenesisConfig` seeds the standard test account, mirroring the
-  `auth.UnrestrictedAddrs` seeding beside it.
-- `adduser`/`adduserfrom` append each address as it is created; `adduser` mints
-  fresh entropy per run, so no static list can name it.
-- The `gnoland start` handler now also carries
-  `tsGenesis.VM.Params.RunSubmitters`. It already copied `Txs`, `Balances`,
-  `VM.RealmParams` and conditionally `Bank.Params.RestrictedDenoms`, so the gap
-  was specifically `VM.Params` — without this the two hooks above would have had
-  no effect.
-- The merge is **deduplicated**. `vm.Params.Validate` rejects duplicate
-  addresses, and the two sources legitimately collide: `adduserfrom.txtar`
-  re-derives the default test account from that account's own mnemonic with no
-  derivation index. This was found by the suite, not predicted.
-- gnodev seeds every funded dev account, via one `devGenState` helper replacing
-  four copies of `DefaultGenState()` + `Balances`. gnodev exists to run
-  arbitrary local code; anyone who can reach one already holds its keys.
+The harness leaves `run_submitters` at its default. `DefaultTestingGenesisConfig`,
+the txtar `gnoland start` merge, `adduser`, `adduserfrom` and gnodev all use the
+stock VM genesis state, so every existing txtar keeps working unchanged and none
+of them is quietly testing a pre-seeded allowlist.
 
-Production defaults are deliberately untouched. Seeding `vm.DefaultParams` or
-`gnoland.DefaultGenState` would ship test keys as privileged on real chains.
+The two txtars that exercise the gate populate it in-script, by governance
+proposal, which also documents the bootstrap order above.
+
+One unrelated fix in that area is kept: the `gnoland start` handler now carries
+`tsGenesis.VM.Params.ChainDomain` and `.SysNamesPkgPath`. Those are the only two
+scalar vm params `LoadGenesisParamsFile` writes, and the merge previously
+dropped them — harmless only because the file happens to set what the defaults
+already are, so a test would have passed while a real chain used the file's
+value. `TestGenesisParamsReachTheHarness` fails if a third field is added to the
+loader without being carried here.
+
+Production defaults are untouched.
 
 ### Each row of the matrix needs its own refusal test
 
-Seeding creates a blind spot worth naming, because #5888 is standing in it.
-Once every test account is on the allowlist, *every* txtar passes whether the
-gate runs or not, and unit tests on the decision function pass whether it is
-wired in or not. So `run_submitters.txtar` exists to expect a **refusal**: an
-account that is funded, correctly signed, and simply not on the list.
+Every txtar in the suite signs as an account nobody listed, on a chain whose
+allowlist is empty — so all of them pass whether the gate runs or not. A test
+that expects a **refusal** is the only kind that distinguishes "the gate
+authorized this signer" from "there is no gate", and there has to be one per
+row.
+
+`run_submitters.txtar` covers the run row end to end, and covers both readings
+of the param in the order a chain meets them: empty, a stranger runs;
+populated by governance vote, the same stranger is refused. The vote in the
+middle is not scaffolding — it is the bootstrap order, and it only works because
+the list starts permissive.
 
 This was verified by deleting the `checkCodePolicy` call from the ante closure.
 The txtar fails, and so does one Go test — `app_test.go`'s "historical MsgRun
-replays despite an empty run_submitters", which sends a live MsgRun and asserts
-the refusal names `run_submitters`. An earlier draft of this section claimed
-every Go test still passed; that was wrong, and the correct version is a
-stronger result rather than a weaker one. What the txtar uniquely covers is the
-*integration* path: a funded, correctly signed account that is simply not on the
-list, reaching the gate through a real node.
+replays under a run_submitters list it is not on", which sends a live MsgRun and
+asserts the refusal names `run_submitters`. An earlier draft of this section
+claimed every Go test still passed; that was wrong, and the correct version is a
+stronger result rather than a weaker one.
 
-The refused account cannot come from `adduser`/`adduserfrom`, since both append
-to the allowlist as they create an address; the txtar recovers a key from a
-fixed mnemonic and funds it by transfer instead.
+The refused account cannot come from `adduser`/`adduserfrom`, since those write
+a genesis balance and this has to be an account the seeding proposal never
+named; the txtar recovers a key from a fixed mnemonic and funds it by transfer
+instead.
 
 The same reasoning applies per row, and the rows are not interchangeable.
 `run_submitters.txtar` covers `vm/run`; `code_submission_policy.txtar` (grafted
@@ -867,37 +896,72 @@ Closing the `add_package` row for real transactions still means running under
     private redeploy and no message deletes one. What is specific to `inert` is
     unreclaimable state that was never even usable.
 
-14. **`msg.Send` on an inert submission panics a payable `init()`.** Sharper
-    than first recorded. The coins move to the package address at submit, but
-    `EnablePackage` sets `OriginSend: std.Coins{}` *and leaves
-    `OriginSendRecipient` unset* — the only two `ExecContext` fields that differ
-    from the ordinary deploy path. A realm whose `init()` opens a
-    `BankerTypeOriginSend` banker does not merely see an empty envelope, it
-    panics on the recipient mismatch. So identical source deploys under
-    `permissionless` and fails under `inert`. Deterministic, so not a fork, but
-    it makes the policy change program semantics. Either refuse a non-zero
-    `Send` under `inert` or carry the envelope through to enable.
+14. **Fixed: `msg.Send` is refused on an inert submission.** The coins used to
+    move to the package address at submit, but `EnablePackage` builds its
+    `ExecContext` with an empty `OriginSend` and no `OriginSendRecipient` — the
+    only two fields that differed from the ordinary deploy path — so a payable
+    `init()` did not merely see an empty envelope, it panicked on the recipient
+    mismatch. Identical source deployed under `permissionless` and failed under
+    `inert`, which made a governance parameter change program semantics.
 
-    Related, same shape: `AddPackage` downgrades to `TCGenesisStrict` at height
-    0, while `EnablePackage` is unconditionally `TCLatestStrict`, so a
-    genesis-time enable rejects draft imports a genesis-time add allows.
+    `AddPackage` now refuses a non-zero `Send` on the inert branch, and sends no
+    coins there at all. Carrying the envelope through to enable was the
+    alternative and was rejected: it means stamping the amount into
+    `gnomod.toml` beside the deposit ceiling and reconstructing an origin-send
+    context for coins that moved in a different transaction, at a different
+    height, possibly under a different account state — a lot of machinery to
+    make a two-phase deploy impersonate a one-phase one. Refusing costs the
+    submitter one transfer after activation, and it also stops coins being
+    stranded at the address of a package that is never approved.
+    (`TestVMKeeperInertRefusesPayableSubmission`.)
 
-15. **Genesis replay evaluates the current policy against historical txs.**
-    `InitGenesis` runs before the replay loop, so a fork that changes
-    `code_submission_policy` silently changes what every historical
-    `MsgAddPackage` does — a package that deployed live on the source chain
-    parks on the fork, or vice versa. Pin the source chain's policy for the
-    duration of replay. (The type-check-mode asymmetry that compounds this is
-    item 14.)
+    The related type-check-mode asymmetry is now moot: `AddPackage` drops to
+    `TCGenesisStrict` at height 0 while `EnablePackage` is unconditionally
+    `TCLatestStrict`, but nothing can be parked at genesis (item 21) and enable
+    now requires the `inert` policy (item 16), so a genesis-time enable has
+    nothing to act on.
 
-16. **`EnablePackage` does not check the policy, or most of the deploy's other
-    preconditions.** §5f closes the overwrite, but enable still runs when
-    `code_submission_policy` is no longer `inert`, and still skips
-    `checkGnomodConstraints`, `checkNamespacePermission` and
-    `checkCLASignature`. A package parked under `inert` therefore remains
-    activatable forever, under any later policy, without re-clearing the rules
-    its submission was accepted under. The narrow fix is a policy check; the
-    principled one is to run the same precondition set as a deploy.
+15. **Fixed: genesis replay ignores the policy.** `InitGenesis` runs before the
+    replay loop, so a fork that turned `code_submission_policy` to `inert`
+    re-executed every historical `MsgAddPackage` down the inert branch: packages
+    that deployed live on the source chain parked on the fork, and the chain
+    came up with its own realms missing — silently, until something called one.
+
+    `AddPackage`'s inert branch now also tests `!isGenesisReplay(ctx)`, keyed on
+    the same `auth.GenesisReplayKey{}` context value the ante's carve-out uses.
+    Two carve-outs, because they guard two different decisions: the ante decides
+    whether the tx is admitted, this decides what the message does. Replay must
+    reproduce what the source chain did, whatever policy the fork adopts going
+    forward. (`TestVMKeeperGenesisReplayIgnoresInertPolicy`.)
+
+16. **Fixed: `EnablePackage` checks the policy and re-applies the gnomod rules.**
+    Enable used to run under any later policy, so a package parked during an
+    `inert` era stayed activatable forever — governance moves to `permissioned`
+    precisely to stop strangers getting code onto the chain, and every parked
+    package remained a stranger's pending deploy one approver could still land.
+    `PkgApprovers` was no substitute: it is not cleared when the policy changes.
+
+    Enable now refuses unless `code_submission_policy == "inert"`, before the
+    approver check so the refusal names the real reason. Returning to `inert`
+    makes parked packages activatable again; the check is about the policy in
+    force, not a permanent disqualification.
+    (`TestVMKeeperEnableRequiresInertPolicy`.)
+
+    It also now calls the full `checkGnomodConstraints`, rather than the
+    hand-copied private-override rule it carried before. That rule is the one
+    whose answer actually changes between submit and enable — for a package
+    parked before anything existed at the path, submit evaluated it against
+    nothing at all. The rest are stable across the split and are re-checked
+    anyway rather than hand-picked: enumerating which of a deploy's
+    preconditions enable may skip is how the override rule went missing in the
+    first place. `checkGnomodConstraints` takes a `priorPrivate bool` instead of
+    a `*gno.PackageValue` to make this possible — enable cannot load the live
+    package value without poisoning the object cache, and the bool is the only
+    thing the function ever asked of it.
+
+    `checkNamespacePermission` and `checkCLASignature` were already re-run at
+    enable, above the type check; an earlier draft of this list said otherwise
+    and was wrong.
 
 17. **The creator-bound guard makes a parked path unclaimable.** §5b's guard
     has a cost worth stating plainly rather than burying. Under `inert`,
@@ -908,8 +972,11 @@ Closing the `add_package` row for real transactions still means running under
     not governance. With `DelInertPackage` reachable only after a successful
     enable and `DisablePackage` unimplemented, the legitimate owner's only
     routes are to have an approver activate the squatter's code or to wait for
-    the policy to leave `inert`. The guard is still right — the front-running it
-    prevents is worse — but it needs a companion: let a namespace-permitted
+    the policy to leave `inert` — which, with item 16's policy check, now
+    neutralises the squat permanently rather than merely deferring it, but also
+    leaves the blob parked forever with no way to deploy at the path until the
+    chain leaves `inert` for good. The guard is still right — the front-running
+    it prevents is worse — but it needs a companion: let a namespace-permitted
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
 

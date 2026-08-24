@@ -146,11 +146,21 @@ unbounded *adds* — which is what the allowlist exists to prevent — while
 denial-by-removal is the lesser harm; and add-only leaves a delegate unable to
 de-list its own mistake, which is an allowlist manager's core job.
 
-Scoping removal to its own grants is what makes that safe, and it closes a
-specific deadlock: GovDAO proposal creation is `MsgRun`-only, so a delegate able
-to empty this list could prevent the very proposal that revokes it. An entry
-that predates the delegation is therefore never removable by the delegate, and
-the genesis break-glass address always survives.
+Two bounds make that safe, and they close different holes.
+
+**Grant-scoping.** An entry that predates the delegation is never removable by
+the delegate, so a list GovDAO curated survives a rogue one.
+
+**A non-empty floor.** `RemoveRunSubmitters` refuses any removal that would take
+the list to zero, whatever the grant record says. An empty `run_submitters` means
+the gate is *off* — anyone on the chain may `MsgRun` — so emptying it is not a
+smaller version of removing one address, it is the unilateral revocation of the
+entire restriction GovDAO voted for. Grant-scoping alone does not prevent that:
+it holds only while at least one entry the delegate did not grant survives, and
+GovDAO replacing the list wholesale can remove its own entries without touching
+the grant record. The floor makes the invariant structural rather than emergent.
+Only GovDAO can reach zero, through the whole-list setter, where the resulting
+list is on the ballot.
 
 That invariant did not hold in the first implementation, and the way it failed
 is worth recording because the mechanism is not obvious. `UpdateSysParamStrings`
@@ -158,10 +168,12 @@ is worth recording because the mechanism is not obvious. `UpdateSysParamStrings`
 parameter unchanged — but the first version recorded a grant for every argument
 regardless. That let the delegate launder authority over entries it never
 granted: read the list, re-add all of it (a no-op on the parameter, yet every
-address now recorded as its own), then remove all of it. The allowlist ends
-empty, and the brick follows. Found by audit, with a runnable proof; the
-existing test missed it because it attempted the removal without the priming
-add.
+address now recorded as its own), then remove all of it — including whatever
+predated the delegation. The floor above would refuse the last of those
+removals, but only the last: everything up to it still goes through, leaving the
+delegate holding the sole listed address and so sole authority over who may
+`MsgRun`. Found by audit, with a runnable proof; the existing test missed it
+because it attempted the removal without the priming add.
 
 The fix is that the grant record follows the **parameter**, not the argument: an
 address already present when `AddRunSubmitters` runs gets no grant. The test
