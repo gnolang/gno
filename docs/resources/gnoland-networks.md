@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network           | RPC Endpoint                             |  Chain ID    |
-|-------------------|------------------------------------------|--------------|
-| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
-| Staging           | https://rpc.staging.gno.land:443         | `staging`    |
-| Test13            | https://rpc.test13.testnets.gno.land:443 | `test-13`    |
+| Network           | RPC Endpoint                               | Chain ID     | Deployment files                                                                                                              |
+|-------------------|--------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Betanet (current) | https://rpc.gno.land:443                   | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                   |
+| Staging           | https://rpc.staging.gno.land:443           | `staging`    | [`misc/loop`](../../misc/loop)                                                                                                |
+| Sapphire / Test15 | https://rpc.sapphire.testnets.gno.land:443 | `sapphire-1` | [`misc/deployments/sapphire.gno.land`](https://github.com/gnolang/gno/tree/chain/sapphire/misc/deployments/sapphire.gno.land) |
 
 ### WebSocket endpoints
 
@@ -16,11 +16,40 @@ All networks follow the same pattern for websocket connections:
 wss://<rpc-endpoint:port>/websocket
 ```
 
+### Deployment files
+
+If you intend to [run a node](../builders/running-a-node.md) — a full node
+or a validator — the operational details you need are not in this page.
+They live with the network itself, under
+[`misc/deployments/`](../../misc/deployments)
+in the monorepo: one directory per network, holding its `config.toml`,
+its genesis (or the script that regenerates it), and a `README.md` /
+`VALIDATOR.md` with the join instructions.
+
+Two conventions to know:
+
+- A network's directory sits on that network's **`chain/<name>` branch**,
+  not on `master` — that's the branch the chain's release is cut from. The
+  `master` copy is where the next network is prepared, plus the archives of
+  past ones.
+- Release artifacts — binaries, container images, `genesis.json` and its
+  checksum — are attached to the matching
+  [release tag](https://github.com/gnolang/gno/releases).
+
+Related infrastructure directories in the monorepo:
+
+| Directory | What it is |
+|-----------|------------|
+| [`misc/deployments`](../../misc/deployments) | Per-network genesis, config, and node/validator instructions |
+| [`misc/loop`](../../misc/loop) | Infrastructure running the Staging chain |
+| [`contribs/tx-archive`](../../contribs/tx-archive) | Archiving and replaying transaction history between networks |
+| [`gnolang/tx-exports`](https://github.com/gnolang/tx-exports) | Archived transaction data of past testnets |
+
 ## Staging Environments
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
-& the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive) tool, the Staging
+& the [tx-archive](../../contribs/tx-archive) tool, the Staging
 can run the latest code from the master branch on the [Gno monorepo](https://github.com/gnolang/gno),
 while preserving most/all the previous transaction data.
 
@@ -60,7 +89,7 @@ Below is a diagram demonstrating how the Staging chain works:
 
 Specifically, Staging behaves like a normal network until a change is detected
 in the `master` branch in the Gno monorepo. At this point, the Staging chain archives
-on-chain data using the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive)
+on-chain data using the [tx-archive](../../contribs/tx-archive)
 tool, saving all transactions that happened on it thus far.
 
 It then pulls the latest changes from the `master` branch, and inserts all
@@ -129,25 +158,37 @@ is the `gnoweb` render of the Staging testnet.
   - Providing access the latest version of Gno for fast development & demoing
 - **Versioning strategy**:
   - Staging infrastructure is managed within the
-    [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
+    [`misc/loop`](../../misc/loop) folder in the
     monorepo
 
-### Test13
+### Sapphire / Test15
 
-The latest Gno.land testnet, released on the 15th of June, 2026.
+The latest Gno.land testnet, released on the 7th of August, 2026, and the one to use unless you have a reason not to.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test13](https://github.com/gnolang/gno/releases/tag/chain%2Ftest13)
+  - Pre-deployed packages and realms are at release tag [chain/sapphire](https://github.com/gnolang/gno/releases/tag/chain%2Fsapphire)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
+- **Versioning strategy:**
+  - Cut from the [`chain/sapphire`](https://github.com/gnolang/gno/tree/chain/sapphire)
+    branch; deployment files under
+    [`misc/deployments/sapphire.gno.land`](https://github.com/gnolang/gno/tree/chain/sapphire/misc/deployments/sapphire.gno.land)
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Topaz / Test14 (archive)
+
+Topaz (Test14) was released on the 17th of July, 2026, and superseded by Sapphire / Test15.
+
+### Test13 (archive)
+
+Test13 was released on the 15th of June, 2026, and superseded by Topaz / Test14.
 
 ### Test12 (archive)
 
