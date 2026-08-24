@@ -100,7 +100,7 @@ flow end-to-end:
 ## Addendum: two consequences above are amended by the MsgRun-allowlist PR
 
 Added by the follow-up work in
-[prxxxx_msgrun_allowlist_and_inert_charging.md](./prxxxx_msgrun_allowlist_and_inert_charging.md).
+[pr6088_msgrun_allowlist_and_inert_charging.md](./pr6088_msgrun_allowlist_and_inert_charging.md).
 The original text is left as written, because it records what this PR
 understood; this section records what turned out to be true.
 

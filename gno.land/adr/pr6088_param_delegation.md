@@ -1,7 +1,7 @@
 # ADR: delegating one chain parameter from GovDAO to another realm
 
 Stacked on the MsgRun allowlist work; see
-[prxxxx_msgrun_allowlist_and_inert_charging.md](./prxxxx_msgrun_allowlist_and_inert_charging.md)
+[pr6088_msgrun_allowlist_and_inert_charging.md](./pr6088_msgrun_allowlist_and_inert_charging.md)
 for `run_submitters` itself. This document covers only the delegation
 mechanism.
 
