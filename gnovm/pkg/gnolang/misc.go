@@ -82,7 +82,7 @@ func word2UnaryOp(w Word) Op {
 	case BAND:
 		panic("unexpected unary operation & - use RefExpr instead")
 	case ARROW:
-		return OpUrecv
+		panic("channel type is not yet supported")
 	default:
 		panic("unexpected unary operation")
 	}

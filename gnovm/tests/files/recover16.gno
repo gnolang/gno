@@ -1,17 +1,15 @@
 package main
 
-
 func main() {
-    defer func() {
-    		r := recover()
-    		println("recover:", r)
-    }()
+	defer func() {
+		if r := recover(); r != nil {
+			println("recovered")
+		}
 
-    _ = make([]int, -1) // Panics because of negative length
+	}()
+	l := 2
+	_ = make([]int, l, 1)
 }
 
 // Output:
-// recover: len out of range
-
-// TypeCheckError:
-// main/recover16.gno:10:21: invalid argument: index -1 (constant of type int) must not be negative
+// recovered

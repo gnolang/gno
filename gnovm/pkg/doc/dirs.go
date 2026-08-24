@@ -126,6 +126,10 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 		}
 
 		dirName := entry.Name()
+		if dirName == "filetests" {
+			// don't treat as a package dir
+			continue
+		}
 		sub := packageImportsRecursive(filepath.Join(root, dirName), path.Join(pkgPath, dirName))
 
 		for _, imp := range sub {
@@ -216,7 +220,7 @@ func (d *bfsDirs) bfsWalkRoot(root bfsDir) {
 				// Entry is a directory.
 
 				// Ignore same directories ignored by the go tool.
-				if name[0] == '.' || name[0] == '_' || name == "testdata" {
+				if name[0] == '.' || name[0] == '_' || name == "testdata" || name == "filetests" {
 					continue
 				}
 				// Remember this (fully qualified) directory for the next pass.

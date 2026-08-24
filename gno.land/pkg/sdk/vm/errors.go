@@ -23,10 +23,26 @@ type (
 	UnauthorizedUserError struct{ abciError }
 	InvalidPackageError   struct{ abciError }
 	InvalidFileError      struct{ abciError }
-	TypeCheckError        struct {
-		abciError
-		Errors []string `json:"errors"`
-	}
+	ObjectNotFoundError   struct{ abciError }
+	// TypeCheckError deliberately carries no diagnostic strings: it is
+	// amino-encoded into ABCIResult.Error, which is merkle-hashed into the
+	// block's LastResultsHash, and raw go/types (and go/parser) messages
+	// vary in wording, count, and order across Go toolchains — hashing
+	// them would let two correctly-rejecting validators commit different
+	// result hashes. ErrTypeCheck carries the full messages on the error's
+	// msg trace instead, which reaches the user via the unhashed
+	// Result.Log.
+	TypeCheckError struct{ abciError }
+	// UnobservedSendError is returned by MsgCall when a non-empty
+	// send-envelope was attached but no executing code ever observed it.
+	// Such a call would otherwise strand the coins in the callee's
+	// address. See ExecContext.OriginSendObserved.
+	UnobservedSendError struct{ abciError }
+	// UnspendableSendError is returned by MsgAddPackage when coins are
+	// attached to the deployment of a pure `p/` package. Such a package has
+	// no realm identity, so it can never obtain a banker and can never
+	// spend from its own address — the coins would be lost for good.
+	UnspendableSendError struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
@@ -37,11 +53,14 @@ func (e InvalidFileError) Error() string      { return "file is not available" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
-func (e TypeCheckError) Error() string {
-	var bld strings.Builder
-	bld.WriteString("invalid gno package; type check errors:\n")
-	bld.WriteString(strings.Join(e.Errors, "\n"))
-	return bld.String()
+func (e ObjectNotFoundError) Error() string   { return "object not found" }
+func (e TypeCheckError) Error() string        { return "invalid gno package; type check failed" }
+func (e UnobservedSendError) Error() string {
+	return "coins were sent but the called function never read them"
+}
+
+func (e UnspendableSendError) Error() string {
+	return "coins cannot be sent to a pure package; nothing could ever spend them"
 }
 
 func ErrPkgAlreadyExists(msg string) error {
@@ -72,11 +91,26 @@ func ErrInvalidPackage(msg string) error {
 	return errors.Wrap(InvalidPackageError{}, msg)
 }
 
+func ErrObjectNotFound(msg string) error {
+	return errors.Wrap(ObjectNotFoundError{}, msg)
+}
+
+func ErrUnobservedSend(msg string) error {
+	return errors.Wrap(UnobservedSendError{}, msg)
+}
+
+func ErrUnspendableSend(msg string) error {
+	return errors.Wrap(UnspendableSendError{}, msg)
+}
+
+// ErrTypeCheck wraps err's full messages around the empty TypeCheckError
+// sentinel. Only the sentinel reaches the hashed tx result; the messages
+// ride the msg trace into the unhashed Result.Log (see TypeCheckError).
 func ErrTypeCheck(err error) error {
-	var tce TypeCheckError
 	errs := multierr.Errors(err)
-	for _, err := range errs {
-		tce.Errors = append(tce.Errors, err.Error())
+	msgs := make([]string, len(errs))
+	for i, err := range errs {
+		msgs[i] = err.Error()
 	}
-	return errors.NewWithData(tce).Stacktrace()
+	return errors.Wrap(TypeCheckError{}, strings.Join(msgs, "\n"))
 }

@@ -3,83 +3,63 @@ package params
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gov/dao"
 	ini "gno.land/r/gov/dao/v3/init"
-	susers "gno.land/r/sys/users"
 )
 
 var g1user = testutils.TestAddress("g1user")
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
-	ini.InitWithUsers(g1user)
-	registerTestUsers(g1user)
+	ini.InitWithUsers(cross(cur), g1user)
 }
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-// Register a namespace for every addresses
-// Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...address) {
-	// Set realm to users admin to register test user
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
-	for _, addr := range addrs {
-		err := susers.RegisterUser(cross, addr.String()[1:], addr)
-		if err != nil {
-			panic(err.Error() + " : " + addr.String())
-		}
-	}
-}
-
-func TestProUnlockTransfer(t *testing.T) {
+func TestProUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
-	p, err := dao.GetProposal(cross, id)
+	pr := ProposeUnlockTransferRequest(cur)
+	id := dao.MustCreateProposal(cross(cur), pr)
+	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
-func TestFailUnlockTransfer(t *testing.T) {
+func TestFailUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
+	pr := ProposeUnlockTransferRequest(cur)
+	id := dao.MustCreateProposal(cross(cur), pr)
 	urequire.AbortsWithMessage(
-		t,
-		"proposal didn't reach supermajority yet: 66",
+		t, cur,
+		"proposal didn't reach supermajority yet: 66.66",
 		func() {
-			dao.ExecuteProposal(cross, id)
+			dao.ExecuteProposal(cross(cur), id)
 		},
 	)
 }
 
-func TestExeUnlockTransfer(t *testing.T) {
+func TestExeUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
-	_, err := dao.GetProposal(cross, id)
+	pr := ProposeUnlockTransferRequest(cur)
+	id := dao.MustCreateProposal(cross(cur), pr)
+	_, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
 
 	urequire.NotPanics(
-		t,
+		t, cur,
 		func() {
-			dao.MustVoteOnProposal(cross, dao.VoteRequest{
-				Option:     dao.YesVote,
-				ProposalID: dao.ProposalID(id),
-			})
+			dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
 		},
 	)
 
 	urequire.NotPanics(
-		t,
+		t, cur,
 		func() {
-			dao.ExecuteProposal(cross, id)
+			dao.ExecuteProposal(cross(cur), id)
 		},
 	)
 }

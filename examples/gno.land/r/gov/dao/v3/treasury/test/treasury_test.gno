@@ -3,16 +3,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"sort"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/fqname"
-	"gno.land/p/nt/testutils"
-	trs_pkg "gno.land/p/nt/treasury"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/testutils/v0"
+	trs_pkg "gno.land/p/nt/treasury/v0"
+	"gno.land/p/nt/uassert/v0"
 
 	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"
@@ -20,6 +21,12 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+var nextTokenID seqid.ID
 var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
@@ -40,12 +47,9 @@ var _ trs_pkg.Payment = (*dummyPayment)(nil)
 func (dp *dummyPayment) BankerID() string { return dp.bankerID }
 func (dp *dummyPayment) String() string   { return dp.str }
 
-func init() {
+func init(cur realm) {
 	// Register allowed Realm path.
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{allowedRealm.PkgPath()},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{allowedRealm.PkgPath()}))
 }
 
 func ugnotCoins(t *testing.T, amount int64) chain.Coins {
@@ -59,7 +63,7 @@ func ugnotBalance(t *testing.T, addr address) int64 {
 	t.Helper()
 
 	// Get the balance of ugnot coins for the given address.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	coins := banker_.GetCoins(addr)
 
 	return coins.AmountOf("ugnot")
@@ -71,7 +75,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []keyedToken {
+func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, toMint address) []keyedToken {
 	t.Helper()
 
 	var (
@@ -82,27 +86,27 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []ke
 	for _, name := range tokenNames {
 		// Create the token.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0)
+		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
 
 		// Register the token.
-		grc20reg.Register(cross, token, symbol)
+		grc20reg.Register(cross(rlm), token, symbol)
 
 		// Mint tokens to the specified address.
 		ledger.Mint(toMint, mintAmount)
 
 		// Add the token and key to the lists.
-		key := fqname.Construct(runtime.CurrentRealm().PkgPath(), symbol)
+		key := fqname.Construct(unsafe.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
 		keys = append(keys, key)
 	}
 
 	// Set the token keys in the treasury.
-	treasury.SetTokenKeys(cross, keys)
+	treasury.SetTokenKeys(cross(rlm), keys)
 
 	return keyedTokens
 }
 
-func TestAllowedDAOs(t *testing.T) {
+func TestAllowedDAOs(cur realm, t *testing.T) {
 	// Set the current Realm to the not allowed one.
 	testing.SetRealm(notAllowedRealm)
 
@@ -111,9 +115,9 @@ func TestAllowedDAOs(t *testing.T) {
 
 	// Try to send, it should abort because the Realm is not allowed.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
-		func() { treasury.Send(cross, dummyP) },
+		func() { treasury.Send(cross(cur), dummyP) },
 	)
 
 	// Set the current Realm to the allowed one.
@@ -122,9 +126,9 @@ func TestAllowedDAOs(t *testing.T) {
 	// Try to send, it should not abort because the Realm is allowed,
 	// but because the dummy banker ID is not registered.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"banker not found: "+dummyP.BankerID(),
-		func() { treasury.Send(cross, dummyP) },
+		func() { treasury.Send(cross(cur), dummyP) },
 	)
 }
 
@@ -139,8 +143,12 @@ func TestRegisteredBankers(t *testing.T) {
 	}
 
 	// Get the registered bankers from the treasury and compare their lengths.
-	registeredBankerIDs := treasury.ListBankerIDs()
-	uassert.Equal(t, len(registeredBankerIDs), len(expectedBankerIDs))
+	registered := treasury.ListBankerIDs()
+	uassert.Equal(t, len(registered), len(expectedBankerIDs))
+
+	// The treasury-returned slice is foreign-readonly; copy locally
+	// before sorting in place.
+	registeredBankerIDs := append([]string(nil), registered...)
 
 	// Sort both slices then compare them.
 	sort.StringSlice(expectedBankerIDs).Sort()
@@ -163,21 +171,22 @@ func TestRegisteredBankers(t *testing.T) {
 	}
 }
 
-func TestSendGRC20Payment(t *testing.T) {
+func TestSendGRC20Payment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
 	// Try to send a GRC20 payment with a not registered token, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: GRC20 token not found: UNKNOW",
 		func() {
-			treasury.Send(cross, trs_pkg.NewGRC20Payment("UNKNOW", 100, user1Addr))
+			treasury.Send(cross(cur), trs_pkg.NewGRC20Payment("UNKNOW", 100, user1Addr))
 		},
 	)
 
 	// Create 3 GRC20 tokens and register them.
 	keyedTokens := registerGRC20Tokens(
+		0, cur,
 		t,
 		[]string{"TestToken0", "TestToken1", "TestToken2"},
 		treasuryAddr,
@@ -195,9 +204,9 @@ func TestSendGRC20Payment(t *testing.T) {
 			uassert.Equal(t, keyed.token.BalanceOf(userAddr), int64(0))
 
 			// Try to send a GRC20 payment with a registered token, it should not abort.
-			uassert.NotAborts(t, func() {
+			uassert.NotAborts(t, cur, func() {
 				treasury.Send(
-					cross,
+					cross(cur),
 					trs_pkg.NewGRC20Payment(
 						keyed.key,
 						txAmount,
@@ -238,20 +247,20 @@ func TestSendGRC20Payment(t *testing.T) {
 
 	// Try to send a dummy payment with the GRC20 banker ID, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: invalid payment type",
 		func() {
-			treasury.Send(cross, &dummyPayment{bankerID: grc20BankerID})
+			treasury.Send(cross(cur), &dummyPayment{bankerID: grc20BankerID})
 		},
 	)
 
 	// Try to send a GRC20 payment without enough balance, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: insufficient balance",
 		func() {
 			treasury.Send(
-				cross,
+				cross(cur),
 				trs_pkg.NewGRC20Payment(
 					keyedTokens[0].key,
 					mintAmount*42, // Try to send more than the treasury has.
@@ -266,7 +275,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	uassert.Equal(t, len(history), 6)
 }
 
-func TestSendCoinPayment(t *testing.T) {
+func TestSendCoinPayment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -309,13 +318,13 @@ func TestSendCoinPayment(t *testing.T) {
 	// Treasury send coins.
 	for i := int64(0); i < 3; i++ {
 		// Send ugnot coins to user1 and user2.
-		uassert.NotAborts(t, func() {
+		uassert.NotAborts(t, cur, func() {
 			treasury.Send(
-				cross,
+				cross(cur),
 				trs_pkg.NewCoinsPayment(ugnotCoins(t, txAmount), user1Addr),
 			)
 			treasury.Send(
-				cross,
+				cross(cur),
 				trs_pkg.NewCoinsPayment(ugnotCoins(t, txAmount), user2Addr),
 			)
 		})
@@ -329,4 +338,67 @@ func TestSendCoinPayment(t *testing.T) {
 		// Check balances and history after sending.
 		checkHistoryAndBalances()
 	}
+}
+
+// The allowlist is the only thing standing between an arbitrary realm and the
+// treasury: treasury.Send and treasury.SetTokenKeys gate on
+// dao.InAllowedDAOs, and that helper returns true for EVERY caller while the
+// list is empty (the genesis bootstrap window). UpdateImpl used to store an
+// empty list, so a single implementation-only upgrade — dao.UpdateImpl with
+// NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice —
+// silently reopened that window and handed the treasury to the whole chain.
+//
+// TestAllowedDAOs above proves the gate rejects an outsider in the normal
+// state. This proves the gate cannot be switched off, which is the property
+// that actually protects the funds.
+func TestTreasuryLockdownCannotBeReopened(cur realm, t *testing.T) {
+	savedDAOs := dao.AllowedDAOs()
+
+	// An allowlisted realm attempts the reopen. NewUpdateRequest(d, nil) is the
+	// production spelling — it copies nil into a non-nil empty slice, which is
+	// exactly what the old `!= nil` test accepted. (A bare UpdateRequest struct
+	// literal cannot be built here: allocating another realm's struct type from
+	// this realm is rejected by the VM. That path is covered by
+	// r/gov/dao/allowlist_test.gno, which lives in the same package.)
+	testing.SetRealm(allowedRealm)
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, nil))
+
+	// The outsider must still be refused at the treasury. Reaching
+	// "banker not found" would mean authorization had been cleared — that
+	// error comes from AFTER the InAllowedDAOs check.
+	testing.SetRealm(notAllowedRealm)
+	dummyP := &dummyPayment{bankerID: "Dummy"}
+
+	uassert.AbortsWithMessage(
+		t, cur,
+		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
+		func() { treasury.Send(cross(cur), dummyP) },
+	)
+
+	// SetTokenKeys reuses Send's message verbatim ("...to send payment...")
+	// rather than naming its own operation — a copy-paste slip in
+	// treasury.gno:65, asserted here as-is. Worth correcting separately; it is
+	// operator-visible text, not a security property, so it is not changed as
+	// part of this fix.
+	uassert.AbortsWithMessage(
+		t, cur,
+		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
+		func() { treasury.SetTokenKeys(cross(cur), []string{"evil/key"}) },
+	)
+
+	// Restore explicitly rather than via defer: the assertions above leave the
+	// current realm set to notAllowedRealm, and a deferred UpdateImpl would run
+	// under it and be refused. uassert.AbortsWithMessage recovers the abort, so
+	// control always reaches here.
+	testing.SetRealm(allowedRealm)
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, savedDAOs))
+	uassert.True(t, dao.InAllowedDAOs(allowedRealm.PkgPath()), "allowlist restored")
+}
+
+func TestRenderEscapesUnknownBankerID(t *testing.T) {
+	// The {banker} route reflects an unknown banker id into the page; a crafted
+	// id must be escaped so it cannot inject markdown/HTML.
+	out := treasury.Render("evil[x](y)")
+	uassert.True(t, strings.Contains(out, `\[x\]`), "reflected banker id must be escaped")
+	uassert.False(t, strings.Contains(out, "[x](y)"), "must not render a live link")
 }

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strconv"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Marshal returns the JSON encoding of a Node.

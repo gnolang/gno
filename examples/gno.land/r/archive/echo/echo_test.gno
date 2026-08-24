@@ -3,7 +3,7 @@ package echo
 import (
 	"testing"
 
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func Test(t *testing.T) {

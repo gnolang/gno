@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s|---|---|\n| chrome a | chrome b |
+-- input.md --
+user header A | user header B
+-- output.md --
+
+
+user header A | user header B
+
+-- output.html --
+<p>user header A | user header B</p>
+<p>|---|---|
+| chrome a | chrome b |</p>

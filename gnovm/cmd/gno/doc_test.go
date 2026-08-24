@@ -9,11 +9,11 @@ func TestGnoDoc(t *testing.T) {
 			stdoutShouldContain: "Writer is the interface that wraps",
 		},
 		{
-			args:                []string{"doc", "avl"},
+			args:                []string{"doc", "gno.land/p/nt/avl/v0"},
 			stdoutShouldContain: "func NewTree",
 		},
 		{
-			args:                []string{"doc", "-u", "avl.Node"},
+			args:                []string{"doc", "-u", "gno.land/p/nt/avl/v0.Node"},
 			stdoutShouldContain: "node *Node",
 		},
 		{

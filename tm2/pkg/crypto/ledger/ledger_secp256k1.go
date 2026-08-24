@@ -99,7 +99,7 @@ func LedgerShowAddress(path hd.BIP44Params, expectedPubKey crypto.PubKey) error 
 		return fmt.Errorf("the key's pubkey does not match with the one retrieved from Ledger. Check that the HD path and device are the correct ones")
 	}
 
-	pubKey2, _, err := getPubKeyAddrSafe(device, path, crypto.Bech32AddrPrefix)
+	pubKey2, _, err := getPubKeyAddrSafe(device, path, crypto.Bech32AddrPrefix())
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,11 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 	sModNScalar := new(secp.ModNScalar)
 	sModNScalar.SetByteSlice(s.Bytes())
 	if sModNScalar.IsOverHalfOrder() {
-		s = new(big.Int).Sub(secp.S256().N, s)
+		// s = N - s, computed in the scalar field to avoid the deprecated
+		// elliptic.Curve interface (secp.S256).
+		sModNScalar.Negate()
+		sBytes := sModNScalar.Bytes()
+		s = new(big.Int).SetBytes(sBytes[:])
 	}
 
 	sigBytes := make([]byte, 64)

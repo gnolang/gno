@@ -9,7 +9,6 @@
 // Example usage:
 //
 //	import (
-//	    "std"
 //	    "gno.land/p/moul/addrset"
 //	)
 //
@@ -45,7 +44,7 @@
 //	}
 package addrset
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 type Set struct {
 	tree avl.Tree

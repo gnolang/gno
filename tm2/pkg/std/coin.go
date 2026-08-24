@@ -26,14 +26,26 @@ type Coin struct {
 // It will panic if the amount is negative.
 // To construct a negative (invalid) amount, use an operation.
 func NewCoin(denom string, amount int64) Coin {
-	if err := validate(denom, amount); err != nil {
+	coin, err := NewCoinSafe(denom, amount)
+	if err != nil {
 		panic(err)
+	}
+
+	return coin
+}
+
+// NewCoinSafe returns a new coin with a denomination and amount.
+// It will return an error if the amount is negative.
+// To construct a negative (invalid) amount, use an operation.
+func NewCoinSafe(denom string, amount int64) (Coin, error) {
+	if err := validate(denom, amount); err != nil {
+		return Coin{}, err
 	}
 
 	return Coin{
 		Denom:  denom,
 		Amount: amount,
-	}
+	}, nil
 }
 
 func (coin Coin) MarshalAmino() (string, error) {
@@ -77,10 +89,7 @@ func validate(denom string, amount int64) error {
 
 // IsValid returns true if the Coin has a non-negative amount and the denom is valid.
 func (coin Coin) IsValid() bool {
-	if err := validate(coin.Denom, coin.Amount); err != nil {
-		return false
-	}
-	return true
+	return validate(coin.Denom, coin.Amount) == nil
 }
 
 // IsZero returns if this represents no money
@@ -120,8 +129,8 @@ func (coin Coin) IsEqual(other Coin) bool {
 // An invalid result panics.
 func (coin Coin) Add(coinB Coin) Coin {
 	res := coin.AddUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coin, coinB, res))
+	if err := validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v + %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
@@ -143,8 +152,8 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 // An invalid result panics.
 func (coin Coin) Sub(coinB Coin) Coin {
 	res := coin.SubUnsafe(coinB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coin, coinB, res))
+	if err := validate(res.Denom, res.Amount); err != nil {
+		panic(fmt.Sprintf("invalid result: %v - %v = %v: %v", coin, coinB, res, err))
 	}
 	return res
 }
@@ -191,8 +200,8 @@ func NewCoins(coins ...Coin) Coins {
 		panic(fmt.Errorf("find duplicate denom: %s", newCoins[dupIndex]))
 	}
 
-	if !newCoins.IsValid() {
-		panic(fmt.Errorf("invalid coin set: %s", newCoins))
+	if err := newCoins.validate(); err != nil {
+		panic(fmt.Errorf("invalid coin set %s: %w", newCoins, err))
 	}
 
 	return newCoins
@@ -216,47 +225,65 @@ func (coins Coins) String() string {
 		return ""
 	}
 
-	out := ""
+	var out strings.Builder
 	for _, coin := range coins {
-		out += fmt.Sprintf("%v,", coin.String())
+		out.WriteString(fmt.Sprintf("%v,", coin.String()))
 	}
-	return out[:len(out)-1]
+	return out.String()[:len(out.String())-1]
 }
 
 // IsValid asserts the Coins are sorted, have positive amount,
 // and Denom does not contain upper case characters.
 func (coins Coins) IsValid() bool {
+	return coins.validate() == nil
+}
+
+// Validate is IsValid with the reason. Callers rejecting a caller-supplied set
+// want to say why.
+func (coins Coins) Validate() error {
+	return coins.validate()
+}
+
+// validate checks that the Coins are sorted, have positive amounts,
+// and valid denoms. Returns an error describing the issue if invalid.
+func (coins Coins) validate() error {
 	switch len(coins) {
 	case 0:
-		return true
+		return nil
 	case 1:
 		if err := ValidateDenom(coins[0].Denom); err != nil {
-			return false
+			return err
 		}
-		return coins[0].IsPositive()
+		if !coins[0].IsPositive() {
+			return fmt.Errorf("non-positive coin amount: %d", coins[0].Amount)
+		}
+		return nil
 	default:
 		// check single coin case
-		if !(Coins{coins[0]}).IsValid() {
-			return false
+		if err := (Coins{coins[0]}).validate(); err != nil {
+			return err
 		}
 
 		lowDenom := coins[0].Denom
 		for _, coin := range coins[1:] {
-			if strings.ToLower(coin.Denom) != coin.Denom {
-				return false
+			if err := ValidateDenom(coin.Denom); err != nil {
+				return err
 			}
-			if coin.Denom <= lowDenom {
-				return false
+			if coin.Denom < lowDenom {
+				return fmt.Errorf("coins not sorted: %s < %s", coin.Denom, lowDenom)
+			}
+			if coin.Denom == lowDenom {
+				return fmt.Errorf("duplicate denom: %s", coin.Denom)
 			}
 			if !coin.IsPositive() {
-				return false
+				return fmt.Errorf("non-positive coin amount: %d", coin.Amount)
 			}
 
 			// we compare each coin against the last denom
 			lowDenom = coin.Denom
 		}
 
-		return true
+		return nil
 	}
 }
 
@@ -270,8 +297,8 @@ func (coins Coins) IsValid() bool {
 // denominations. Panics on invalid result.
 func (coins Coins) Add(coinsB Coins) Coins {
 	res := coins.AddUnsafe(coinsB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coins, coinsB, res))
+	if err := res.validate(); err != nil {
+		panic(fmt.Sprintf("invalid result: %v + %v = %v: %v", coins, coinsB, res, err))
 	}
 	return res
 }
@@ -371,8 +398,8 @@ func (coins Coins) DenomsSubsetOf(coinsB Coins) bool {
 // Panics on invalid result.
 func (coins Coins) Sub(coinsB Coins) Coins {
 	res := coins.SubUnsafe(coinsB)
-	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coins, coinsB, res))
+	if err := res.validate(); err != nil {
+		panic(fmt.Sprintf("invalid result: %v - %v = %v: %v", coins, coinsB, res, err))
 	}
 	return res
 }
@@ -632,18 +659,158 @@ func (coins Coins) Sort() Coins {
 // Parsing
 
 var (
-	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
+	// A realm denom embeds a package path verbatim (chain.CoinDenom), so this
+	// charset has to stay a superset of rePkgPathURL's charset in memfile.go.
+	// "-" was the one character missing from it. Package paths admit "-" in the
+	// domain and in namespace segments, so a realm at gno.land/r/my-org/token
+	// deployed fine and then failed on its first IssueCoin — a silent, late
+	// failure. TestValidateDenomAcceptsDeployablePaths pins that relation for
+	// every character class in rePkgPathURL. The trailing "-" is escaped so
+	// that appending another character cannot silently turn it into a range.
+	//
+	// "-" is deliberately absent from the leading class: a realm denom always
+	// starts with "/" and a native denom with a letter, so nothing needs it
+	// there, and admitting it would let "5-foo" and "100-foo" quietly parse as
+	// a coin whose denom is "-foo". (Amounts are unsigned, so this is a denom
+	// nobody meant to write, not a parsing ambiguity.)
+	//
+	// Sub-realm "#" paths are absent here, which is safe only because the banker
+	// refuses BankerTypeRealmIssue for sub-realms (banker.gno).
+	reDnmString = `[a-z\/][a-z0-9_.:\/\-]{2,}`
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
-	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
+// maxBaseDenomLength mirrors isValidBaseDenom in
+// gnovm/stdlibs/chain/banker/banker.gno. Go cannot import a constant out of
+// .gno source, so the two are kept in step by test: TestValidateDenomLength pins
+// this copy, and the paired 16-byte and 17-byte base denom cases in
+// gno.land/pkg/integration/testdata/realm_banker_issued_coin_denom.txtar pin
+// the Gno side from both directions.
+const maxBaseDenomLength = 16
+
+// MaxDenomLength is the longest a denom may be, in bytes — 274 today, being a
+// 256-byte package path, a 16-byte base name, and the two separators. The
+// charset is ASCII-only, so bytes and characters are the same thing here.
+//
+// It is the longest denom the chain can actually produce. chain.CoinDenom in
+// the Gno standard library builds a realm-issued denom as
+//
+//	"/" + pkgPath + ":" + baseName    e.g. "/gno.land/r/demo/foo:example"
+//
+// where pkgPath is capped at pkgPathLimit when the package is deployed
+// (MemPackage.ValidateBasic, memfile.go) and baseName is capped at
+// maxBaseDenomLength by the banker stdlib. Taking the exact sum is deliberate:
+// any smaller value would let a realm deploy at a perfectly legal package path
+// and then silently fail to issue coins.
+//
+// Those two caps only cover realm issuance, whereas ValidateDenom is the gate
+// every denom passes through whatever its origin, so restating them here is
+// what extends the limit to denoms arriving from a decoded transaction, a
+// genesis file, or bank params.
+//
+// Denom bytes are not free, and for a balance held in its own store key this cap
+// is the only thing bounding them, since store keys are not gas-metered. See
+// tm2/pkg/sdk/bank/balance.go.
+const MaxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
+
 func ValidateDenom(denom string) error {
-	if !reDnm.MatchString(denom) {
+	// Length first: cheaper than the pattern, and it names the real problem
+	// instead of a generic "invalid denom".
+	if len(denom) > MaxDenomLength {
+		return fmt.Errorf("denom length %d exceeds limit %d", len(denom), MaxDenomLength)
+	}
+	if !validDenom(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)
 	}
 	return nil
+}
+
+// validDenom is `^reDnmString$` as a byte scan, and must stay exactly equivalent to
+// the compiled form (built in coin_test.go, the only place it is still needed) —
+// TestValidDenomMatchesRegexp is the gate.
+//
+// Hand-rolled because this is on paths where the cost is visible: banker.GetCoin and
+// banker.TotalCoin validate a realm-supplied denom on every call, and the invariants
+// validate every denom in state. The regexp measured 4,446ns on a maximal 274-byte
+// denom against a native gas charge of a few hundred; this is 174ns.
+func validDenom(denom string) bool {
+	// reDnmString is `[a-z/][a-z0-9_.:/\-]{2,}`, anchored, so: at least three bytes,
+	// the first from the leading class, the rest from the continuation class.
+	if len(denom) < 3 {
+		return false
+	}
+	if c := denom[0]; (c < 'a' || c > 'z') && c != '/' {
+		return false
+	}
+	for i := 1; i < len(denom); i++ {
+		switch c := denom[i]; {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case c == '_', c == '.', c == ':', c == '/', c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// IsRealmDenom reports whether denom is one a realm may issue.
+//
+// This answers who may *create* a denom, not where its balance is stored — that
+// is an allowlist in the bank (ViewKeeper.inAccountTier). Do not conflate them:
+// an IBC voucher is neither realm-issuable nor account-tier.
+//
+// chain.CoinDenom builds a realm denom as "/" + pkgPath + ":" + base and
+// reDnmString's leading class is [a-z\/], so a leading "/" identifies exactly
+// the realm-issuable set. Enforced at SDKBanker.IssueCoin, which makes it a
+// security boundary: without it a realm could mint the chain's gas denom.
+func IsRealmDenom(denom string) bool {
+	return strings.HasPrefix(denom, "/")
+}
+
+// ParseRealmDenom splits a realm-issued denom into its package path and base name
+// and reports whether it has the shape the banker can actually issue:
+// "/" + pkgPath + ":" + base.
+//
+// Callers must have established IsRealmDenom. This mirrors assertCoinDenom and
+// isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno — deliberately without
+// their minimum base length, which is banker ergonomics with no consequence for
+// stored state, and which existing realm denoms in tests do not satisfy.
+//
+// A realm-shaped denom that fails this is not necessarily corruption: ValidateDenom
+// accepts shapes no realm could ever mint (a genesis file may name one), so a
+// caller checking stored state should report rather than reject.
+func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
+	if !IsRealmDenom(denom) {
+		return "", "", fmt.Errorf("denom %q is not realm-qualified", denom)
+	}
+	// The package path admits no colon, so the first one separates the base name.
+	pkgPath, base, ok := strings.Cut(denom[1:], ":")
+	if !ok {
+		return "", "", fmt.Errorf("denom %q has no base name", denom)
+	}
+	if len(pkgPath) > pkgPathLimit {
+		return "", "", fmt.Errorf("denom %q package path is %d bytes, over the %d limit",
+			denom, len(pkgPath), pkgPathLimit)
+	}
+	if base == "" {
+		return "", "", fmt.Errorf("denom %q has an empty base name", denom)
+	}
+	if len(base) > maxBaseDenomLength {
+		return "", "", fmt.Errorf("denom %q base name is %d bytes, over the %d limit",
+			denom, len(base), maxBaseDenomLength)
+	}
+	if base[0] < 'a' || base[0] > 'z' {
+		return "", "", fmt.Errorf("denom %q base name must start with a-z", denom)
+	}
+	for i := 1; i < len(base); i++ {
+		c := base[i]
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return "", "", fmt.Errorf("denom %q base name must be [a-z][a-z0-9]*", denom)
+		}
+	}
+	return pkgPath, base, nil
 }
 
 func mustValidateDenom(denom string) {
@@ -665,6 +832,14 @@ func MustParseCoin(coinStr string) Coin {
 func ParseCoin(coinStr string) (coin Coin, err error) {
 	coinStr = strings.TrimSpace(coinStr)
 
+	// Bound the input before the pattern runs. Coins amino-encode as a string, so
+	// every transaction decode reaches here — and decode happens before the ante
+	// handler installs a gas meter, so unbounded work here is unbilled. The cap is
+	// MaxDenomLength plus room for the amount, which cannot exceed 19 digits.
+	if len(coinStr) > MaxDenomLength+20 {
+		return Coin{}, fmt.Errorf("invalid coin expression: %d bytes exceeds the limit",
+			len(coinStr))
+	}
 	matches := reCoin.FindStringSubmatch(coinStr)
 	if matches == nil {
 		return Coin{}, fmt.Errorf("invalid coin expression: %s", coinStr)
@@ -716,8 +891,8 @@ func ParseCoins(coinsStr string) (Coins, error) {
 	coins.Sort()
 
 	// validate coins before returning
-	if !coins.IsValid() {
-		return nil, fmt.Errorf("parseCoins invalid: %#v", coins)
+	if err := coins.validate(); err != nil {
+		return nil, fmt.Errorf("parseCoins: invalid coins %v: %w", coins, err)
 	}
 
 	return coins, nil

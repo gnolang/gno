@@ -22,7 +22,7 @@ const (
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
 	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|README)$`)
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
@@ -237,6 +237,12 @@ func (mpkg *MemPackage) IsZero() bool {
 
 // Write all files into dir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
+	for _, mfile := range mpkg.Files {
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
+		}
+	}
+
 	// fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))

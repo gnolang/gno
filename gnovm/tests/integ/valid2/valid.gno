@@ -1,7 +1,7 @@
 package valid
 
 import (
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 const Foo = "foo"

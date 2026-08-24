@@ -16,7 +16,7 @@ type Board struct {
 	// Readonly indicates that the board is readonly.
 	Readonly bool
 
-	// Threads contains all board threads.
+	// Threads contains board threads.
 	Threads PostStorage
 
 	// ThreadsSequence generates sequential ID for new threads.

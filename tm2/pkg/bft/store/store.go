@@ -61,6 +61,11 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 	buf := []byte{}
 	for i := range blockMeta.BlockID.PartsHeader.Total {
 		part := bs.LoadBlockPart(height, i)
+		// If the part is missing (e.g. since it has been deleted after we
+		// loaded the block meta) we consider the whole block to be missing.
+		if part == nil {
+			return nil
+		}
 		buf = append(buf, part.Bytes...)
 	}
 	err := amino.UnmarshalSized(buf, block)
@@ -160,8 +165,13 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 		panic("BlockStore can only save a non-nil block")
 	}
 	height := block.Height
-	if g, w := height, bs.Height()+1; g != w {
-		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g))
+	// When the store is empty (Height() == 0) the chain may start at InitialHeight > 1,
+	// so any height is valid for the first block.  Once the store has blocks, saves
+	// must be strictly contiguous.
+	if bs.Height() != 0 {
+		if g, w := height, bs.Height()+1; g != w {
+			panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g))
+		}
 	}
 	if !blockParts.IsComplete() {
 		panic("BlockStore can only save complete block part sets")
@@ -200,7 +210,8 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 }
 
 func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
-	if height != bs.Height()+1 {
+	// Allow the genesis block at any height when the store is empty (InitialHeight > 1).
+	if bs.Height() != 0 && height != bs.Height()+1 {
 		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
 	partBytes := amino.MustMarshal(part)

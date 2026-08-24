@@ -1,0 +1,47 @@
+# AddToAuthList ownership test.
+#
+# AddToAuthList delegates to authorizable.Authorizable.AddToAuthList,
+# which gates on a.Owned() — i.e., PreviousRealm().Address() must
+# equal the operator-owner of the Authorizable.
+#
+# Privilege-escalation regression: if an unprivileged caller can call
+# AddToAuthList on someone else's profile, they can add their own
+# address to the auth list and then rotate the signing key. This
+# would let an attacker steal validator authority from the operator.
+#
+# This test pins the negative case:
+#   1. member registers their valoper profile.
+#   2. attacker calls AddToAuthList(memberAddr, attackerAddr) — must
+#      reject with the ownable "caller is not owner" error.
+#   3. attacker also confirms they cannot directly call UpdateSigningKey
+#      on member's profile (auth-list check fires).
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduser attacker 1010000000ugnot
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+
+gnoland start
+
+# member registers their own valoper profile.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opMember -args 'member operator' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Attack 1: attacker tries to add their own address to member's auth
+# list. Must reject — only the owner of the profile (member) can.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func AddToAuthList -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $attacker_user_addr -broadcast -chainid=tendermint_test attacker
+stderr 'caller is not superuser'
+
+# Attack 2: even without auth-list membership, attacker tries to call
+# UpdateSigningKey directly. Must reject — not in member's auth list.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test attacker
+stderr 'caller is not in authorized list'
+
+# Attack 3: attacker tries DeleteFromAuthList — same owner check
+# applies. Must reject.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test attacker
+stderr 'caller is not superuser'

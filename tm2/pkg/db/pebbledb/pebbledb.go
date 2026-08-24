@@ -7,10 +7,25 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/pebble"
+	"github.com/cockroachdb/pebble/bloom"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
+
+// DefaultPebbleOptions returns pebble.Options tuned for gno.land production.
+func DefaultPebbleOptions() *pebble.Options {
+	cache := pebble.NewCache(500 << 20) // 500 MB
+	opts := &pebble.Options{
+		Cache:                    cache,
+		MemTableSize:             64 << 20, // 64 MB
+		MaxConcurrentCompactions: func() int { return 3 },
+		Levels: []pebble.LevelOptions{
+			{FilterPolicy: bloom.FilterPolicy(10)},
+		},
+	}
+	return opts
+}
 
 func init() {
 	dbCreator := func(name string, dir string) (db.DB, error) {
@@ -132,7 +147,7 @@ type pebbleDBBatch struct {
 
 // Implements Batch.
 func (mBatch *pebbleDBBatch) Set(key, value []byte) error {
-	return mBatch.batch.Set(key, value, pebble.NoSync)
+	return mBatch.batch.Set(internal.NonNilBytes(key), internal.NonNilBytes(value), pebble.NoSync)
 }
 
 // Implements Batch.
@@ -311,4 +326,70 @@ func (itr pebbleDBIterator) assertIsValid() {
 	if !itr.Valid() {
 		panic("pebbleDBIterator is invalid")
 	}
+}
+
+func (pdb *PebbleDB) NewSnapshot() (db.Snapshot, error) {
+	snap := pdb.db.NewSnapshot()
+	return &pebbleSnapshot{snapshot: snap}, nil
+}
+
+type pebbleSnapshot struct {
+	snapshot *pebble.Snapshot
+}
+
+var _ db.Snapshot = (*pebbleSnapshot)(nil)
+
+func (s *pebbleSnapshot) Close() error {
+	return s.snapshot.Close()
+}
+
+// Implements Snapshot.
+func (s *pebbleSnapshot) Get(key []byte) ([]byte, error) {
+	key = internal.NonNilBytes(key)
+	res, closer, err := s.snapshot.Get(key)
+	if err != nil {
+		if goerrors.Is(err, pebble.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	// The caller should not modify the contents of the returned slice,
+	// but it is safe to modify the contents of the argument after db.Get returns.
+	// The returned slice will remain valid until the returned Closer is closed.
+	// On success, the caller MUST call closer.Close() or a memory leak will occur.
+	defer closer.Close()
+	out := make([]byte, len(res))
+	copy(out, res)
+	return out, nil
+}
+
+// Implements Snapshot.
+func (s *pebbleSnapshot) Has(key []byte) (bool, error) {
+	v, err := s.Get(key)
+	if err != nil {
+		return false, err
+	}
+	return v != nil, nil
+}
+
+// Implements Snapshot.
+func (s *pebbleSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
+	it, err := s.snapshot.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return newPebbleDBIterator(it, start, end, false), nil
+}
+
+// Implements Snapshot.
+func (s *pebbleSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
+	it, err := s.snapshot.NewIter(nil)
+	if err != nil {
+		return nil, err
+	}
+	return newPebbleDBIterator(it, start, end, true), nil
 }

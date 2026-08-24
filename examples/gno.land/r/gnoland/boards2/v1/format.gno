@@ -4,7 +4,9 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/markdown/foreign/v0"
 
 	"gno.land/r/sys/users"
 )
@@ -41,6 +43,21 @@ func indentBody(indent string, body string) string {
 	return res
 }
 
+// indentForeignBody is the single "render a user body" operation: it
+// sandboxes the body in a <gno-foreign> block, indents it like
+// indentBody, AND charges one unit against the per-render budget — so
+// wrapping and budget-accounting can't drift apart (the *int signals
+// the mutation). The body renders inside the sandbox: its block
+// structure (headings, blockquotes, lists, columns, alerts) is
+// contained and cannot hijack realm chrome, so boards no longer needs
+// the write-time markdown blacklist. The opener survives the "> "
+// comment indentation at any depth (goldmark strips the "> " prefix
+// before the block parser runs).
+func indentForeignBody(indent, body string, budget *int) string {
+	*budget-- // one <gno-foreign> block
+	return indentBody(indent, foreign.Foreign(body))
+}
+
 func summaryOf(text string, length int) string {
 	lines := strings.SplitN(text, "\n", 2)
 	line := lines[0]
@@ -57,4 +74,25 @@ func userLink(addr address) string {
 		return md.UserLink(u.Name())
 	}
 	return md.UserLink(addr.String())
+}
+
+func getRoleBadge(post *boards.Post) string {
+	if post == nil || post.Board == nil || post.Board.Permissions == nil {
+		return ""
+	}
+
+	perms := post.Board.Permissions
+	creator := post.Creator
+
+	// Check roles in order of priority
+	if perms.HasRole(creator, RoleOwner) {
+		return " `owner`"
+	}
+	if perms.HasRole(creator, RoleAdmin) {
+		return " `admin`"
+	}
+	if perms.HasRole(creator, RoleModerator) {
+		return " `mod`"
+	}
+	return ""
 }

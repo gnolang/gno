@@ -28,43 +28,43 @@ func TestCacheStore(t *testing.T) {
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
 
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
+	require.Empty(t, st.Get(nil, keyFmt(1)), "Expected `key1` to be empty")
 
 	// put something in mem and in cache
-	mem.Set(keyFmt(1), valFmt(1))
-	st.Set(keyFmt(1), valFmt(1))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
+	mem.Set(nil, keyFmt(1), valFmt(1))
+	st.Set(nil, keyFmt(1), valFmt(1))
+	require.Equal(t, valFmt(1), st.Get(nil, keyFmt(1)))
 
 	// update it in cache, shouldn't change mem
-	st.Set(keyFmt(1), valFmt(2))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), mem.Get(keyFmt(1)))
+	st.Set(nil, keyFmt(1), valFmt(2))
+	require.Equal(t, valFmt(2), st.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(1), mem.Get(nil, keyFmt(1)))
 
 	// write it. should change mem
 	st.Write()
-	require.Equal(t, valFmt(2), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+	require.Equal(t, valFmt(2), mem.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(2), st.Get(nil, keyFmt(1)))
 
 	// more writes and checks
 	st.Write()
 	st.Write()
-	require.Equal(t, valFmt(2), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+	require.Equal(t, valFmt(2), mem.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(2), st.Get(nil, keyFmt(1)))
 
 	// make a new one, check it
 	st = cache.New(mem)
-	require.Equal(t, valFmt(2), st.Get(keyFmt(1)))
+	require.Equal(t, valFmt(2), st.Get(nil, keyFmt(1)))
 
 	// make a new one and delete - should not be removed from mem
 	st = cache.New(mem)
-	st.Delete(keyFmt(1))
-	require.Empty(t, st.Get(keyFmt(1)))
-	require.Equal(t, mem.Get(keyFmt(1)), valFmt(2))
+	st.Delete(nil, keyFmt(1))
+	require.Empty(t, st.Get(nil, keyFmt(1)))
+	require.Equal(t, mem.Get(nil, keyFmt(1)), valFmt(2))
 
 	// Write. should now be removed from both
 	st.Write()
-	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
-	require.Empty(t, mem.Get(keyFmt(1)), "Expected `key1` to be empty")
+	require.Empty(t, st.Get(nil, keyFmt(1)), "Expected `key1` to be empty")
+	require.Empty(t, mem.Get(nil, keyFmt(1)), "Expected `key1` to be empty")
 }
 
 func TestCacheStoreNoNilSet(t *testing.T) {
@@ -72,7 +72,7 @@ func TestCacheStoreNoNilSet(t *testing.T) {
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	st := cache.New(mem)
-	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
+	require.Panics(t, func() { st.Set(nil, []byte("key"), nil) }, "setting a nil value should panic")
 }
 
 func TestCacheStoreNested(t *testing.T) {
@@ -82,28 +82,28 @@ func TestCacheStoreNested(t *testing.T) {
 	st := cache.New(mem)
 
 	// set. check its there on st and not on mem.
-	st.Set(keyFmt(1), valFmt(1))
-	require.Empty(t, mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
+	st.Set(nil, keyFmt(1), valFmt(1))
+	require.Empty(t, mem.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(1), st.Get(nil, keyFmt(1)))
 
 	// make a new from st and check
 	st2 := cache.New(st)
-	require.Equal(t, valFmt(1), st2.Get(keyFmt(1)))
+	require.Equal(t, valFmt(1), st2.Get(nil, keyFmt(1)))
 
 	// update the value on st2, check it only effects st2
-	st2.Set(keyFmt(1), valFmt(3))
-	require.Equal(t, []byte(nil), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
-	require.Equal(t, valFmt(3), st2.Get(keyFmt(1)))
+	st2.Set(nil, keyFmt(1), valFmt(3))
+	require.Equal(t, []byte(nil), mem.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(1), st.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(3), st2.Get(nil, keyFmt(1)))
 
 	// st2 writes to its parent, st. doesn't effect mem
 	st2.Write()
-	require.Equal(t, []byte(nil), mem.Get(keyFmt(1)))
-	require.Equal(t, valFmt(3), st.Get(keyFmt(1)))
+	require.Equal(t, []byte(nil), mem.Get(nil, keyFmt(1)))
+	require.Equal(t, valFmt(3), st.Get(nil, keyFmt(1)))
 
 	// updates mem
 	st.Write()
-	require.Equal(t, valFmt(3), mem.Get(keyFmt(1)))
+	require.Equal(t, valFmt(3), mem.Get(nil, keyFmt(1)))
 }
 
 func TestCacheKVIteratorBounds(t *testing.T) {
@@ -114,11 +114,11 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	// set some items
 	nItems := 5
 	for i := range nItems {
-		st.Set(keyFmt(i), valFmt(i))
+		st.Set(nil, keyFmt(i), valFmt(i))
 	}
 
 	// iterate over all of them
-	itr := st.Iterator(nil, nil)
+	itr := st.Iterator(nil, nil, nil)
 	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -131,7 +131,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.NoError(t, itr.Close())
 
 	// iterate over none
-	itr = st.Iterator(bz("money"), nil)
+	itr = st.Iterator(nil, bz("money"), nil)
 	i = 0
 	for ; itr.Valid(); itr.Next() {
 		i++
@@ -141,7 +141,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.NoError(t, itr.Close())
 
 	// iterate over lower
-	itr = st.Iterator(keyFmt(0), keyFmt(3))
+	itr = st.Iterator(nil, keyFmt(0), keyFmt(3))
 	i = 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -154,7 +154,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.NoError(t, itr.Close())
 
 	// iterate over upper
-	itr = st.Iterator(keyFmt(2), keyFmt(4))
+	itr = st.Iterator(nil, keyFmt(2), keyFmt(4))
 	i = 2
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -175,12 +175,12 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 	// set some items
 	nItems := 5
 	for i := range nItems {
-		st.Set(keyFmt(i), valFmt(i))
+		st.Set(nil, keyFmt(i), valFmt(i))
 	}
 
 	// iterate over all of them in reverse
 	i := nItems - 1
-	for itr := st.ReverseIterator(nil, nil); itr.Valid(); itr.Next() {
+	for itr := st.ReverseIterator(nil, nil, nil); itr.Valid(); itr.Next() {
 		require.Equal(t, keyFmt(i), itr.Key())
 		require.Equal(t, valFmt(i), itr.Value())
 		i--
@@ -189,14 +189,14 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 
 	// iterate over none
 	i = 0
-	for itr := st.ReverseIterator(bz("money"), nil); itr.Valid(); itr.Next() {
+	for itr := st.ReverseIterator(nil, bz("money"), nil); itr.Valid(); itr.Next() {
 		i++
 	}
 	require.Equal(t, 0, i)
 
 	// iterate over lower
 	i = 2
-	for itr := st.ReverseIterator(keyFmt(0), keyFmt(3)); itr.Valid(); itr.Next() {
+	for itr := st.ReverseIterator(nil, keyFmt(0), keyFmt(3)); itr.Valid(); itr.Next() {
 		require.Equal(t, keyFmt(i), itr.Key())
 		require.Equal(t, valFmt(i), itr.Value())
 		i--
@@ -205,7 +205,7 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 
 	// iterate over upper
 	i = 3
-	for itr := st.ReverseIterator(keyFmt(2), keyFmt(4)); itr.Valid(); itr.Next() {
+	for itr := st.ReverseIterator(nil, keyFmt(2), keyFmt(4)); itr.Valid(); itr.Next() {
 		require.Equal(t, keyFmt(i), itr.Key())
 		require.Equal(t, valFmt(i), itr.Value())
 		i--
@@ -220,12 +220,12 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 
 	// set and delete an item in the cache, iterator should be empty
 	k, v := keyFmt(0), valFmt(0)
-	st.Set(k, v)
-	st.Delete(k)
+	st.Set(nil, k, v)
+	st.Delete(nil, k)
 	assertIterateDomain(t, st, 0)
 
 	// now set it and assert its there
-	st.Set(k, v)
+	st.Set(nil, k, v)
 	assertIterateDomain(t, st, 1)
 
 	// write it and assert its there
@@ -233,7 +233,7 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 	assertIterateDomain(t, st, 1)
 
 	// remove it in cache and assert its not
-	st.Delete(k)
+	st.Delete(nil, k)
 	assertIterateDomain(t, st, 0)
 
 	// write the delete and assert its not there
@@ -242,8 +242,8 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 
 	// add two keys and assert they're there
 	k1, v1 := keyFmt(1), valFmt(1)
-	st.Set(k, v)
-	st.Set(k1, v1)
+	st.Set(nil, k, v)
+	st.Set(nil, k1, v1)
 	assertIterateDomain(t, st, 2)
 
 	// write it and assert they're there
@@ -251,7 +251,7 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 	assertIterateDomain(t, st, 2)
 
 	// remove one in cache and assert its not
-	st.Delete(k1)
+	st.Delete(nil, k1)
 	assertIterateDomain(t, st, 1)
 
 	// write the delete and assert its not there
@@ -259,7 +259,7 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 	assertIterateDomain(t, st, 1)
 
 	// delete the other key in cache and asserts its empty
-	st.Delete(k)
+	st.Delete(nil, k)
 	assertIterateDomain(t, st, 0)
 }
 
@@ -271,13 +271,13 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 	// set some items and write them
 	nItems := 5
 	for i := range nItems {
-		st.Set(keyFmt(i), valFmt(i))
+		st.Set(nil, keyFmt(i), valFmt(i))
 	}
 	st.Write()
 
 	// set some more items and leave dirty
 	for i := nItems; i < nItems*2; i++ {
-		st.Set(keyFmt(i), valFmt(i))
+		st.Set(nil, keyFmt(i), valFmt(i))
 	}
 
 	// iterate over all of them
@@ -286,7 +286,7 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 	// delete them all
 	for i := range nItems * 2 {
 		last := nItems*2 - 1 - i
-		st.Delete(keyFmt(last))
+		st.Delete(nil, keyFmt(last))
 		assertIterateDomain(t, st, last)
 	}
 }
@@ -399,7 +399,7 @@ func doOp(st types.Store, truth dbm.DB, op int, args ...int) {
 	switch op {
 	case opSet:
 		k := args[0]
-		st.Set(keyFmt(k), valFmt(k))
+		st.Set(nil, keyFmt(k), valFmt(k))
 		truth.Set(keyFmt(k), valFmt(k))
 	case opSetRange:
 		start := args[0]
@@ -407,7 +407,7 @@ func doOp(st types.Store, truth dbm.DB, op int, args ...int) {
 		setRange(st, truth, start, end)
 	case opDel:
 		k := args[0]
-		st.Delete(keyFmt(k))
+		st.Delete(nil, keyFmt(k))
 		truth.Delete(keyFmt(k))
 	case opDelRange:
 		start := args[0]
@@ -423,7 +423,7 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 	switch r {
 	case opSet:
 		k := randInt(maxKey)
-		st.Set(keyFmt(k), valFmt(k))
+		st.Set(nil, keyFmt(k), valFmt(k))
 		truth.Set(keyFmt(k), valFmt(k))
 	case opSetRange:
 		start := randInt(maxKey - 2)
@@ -431,7 +431,7 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 		setRange(st, truth, start, end)
 	case opDel:
 		k := randInt(maxKey)
-		st.Delete(keyFmt(k))
+		st.Delete(nil, keyFmt(k))
 		truth.Delete(keyFmt(k))
 	case opDelRange:
 		start := randInt(maxKey - 2)
@@ -448,7 +448,7 @@ func doRandomOp(st types.Store, truth dbm.DB, maxKey int) {
 func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 	t.Helper()
 
-	itr := st.Iterator(nil, nil)
+	itr := st.Iterator(nil, nil, nil)
 	i := 0
 	for ; itr.Valid(); itr.Next() {
 		k, v := itr.Key(), itr.Value()
@@ -465,7 +465,7 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 	t.Helper()
 
 	// iterate over each and check they match the other
-	itr := st.Iterator(nil, nil)
+	itr := st.Iterator(nil, nil, nil)
 	itr2, err := mem.Iterator(nil, nil) // ground truth
 	require.NoError(t, err)
 
@@ -498,7 +498,7 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 	t.Helper()
 
 	// iterate over each and check they match the other
-	itr := st.Iterator(nil, nil)
+	itr := st.Iterator(nil, nil, nil)
 	itr2, err := mem.Iterator(nil, nil) // ground truth
 	require.NoError(t, err)
 	checkIterators(t, itr, itr2)
@@ -524,14 +524,14 @@ func checkIterators(t *testing.T, itr, itr2 types.Iterator) {
 
 func setRange(st types.Store, mem dbm.DB, start, end int) {
 	for i := start; i < end; i++ {
-		st.Set(keyFmt(i), valFmt(i))
+		st.Set(nil, keyFmt(i), valFmt(i))
 		mem.Set(keyFmt(i), valFmt(i))
 	}
 }
 
 func deleteRange(st types.Store, mem dbm.DB, start, end int) {
 	for i := start; i < end; i++ {
-		st.Delete(keyFmt(i))
+		st.Delete(nil, keyFmt(i))
 		mem.Delete(keyFmt(i))
 	}
 }
@@ -587,6 +587,147 @@ func (krc *keyRangeCounter) key() int {
 }
 
 // --------------------------------------------------------
+// Iterator gas tests
+
+// newCacheStoreWithGas returns a cache store plus a fresh gas context
+// and meter (effectively unlimited) for tests that assert on gas
+// consumption.
+func newCacheStoreWithGas() (types.Store, *types.GasContext, types.GasMeter) {
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	cs := cache.New(mem)
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+	return cs, gctx, meter
+}
+
+// TestIteratorChargesGas verifies the per-step formula:
+// 1 × ReadCostFlat (seek) + N × (IterNextCostFlat + len(value) × ReadCostPerByte).
+func TestIteratorChargesGas(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	st.Set(nil, bz("a"), bz("val1"))    // 4 bytes
+	st.Set(nil, bz("b"), bz("value22")) // 7 bytes
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat +
+		2*cfg.IterNextCostFlat +
+		11*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorNilGctx — no panic, no wrapping, no gas consumed when
+// gctx is nil.
+func TestIteratorNilGctx(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	st := cache.New(mem)
+	st.Set(nil, bz("a"), bz("v"))
+	iter := st.Iterator(nil, nil, nil)
+	count := 0
+	for ; iter.Valid(); iter.Next() {
+		count++
+	}
+	iter.Close()
+	require.Equal(t, 1, count)
+}
+
+// TestIteratorEmptyRange — only the seek cost is charged when the
+// range is empty. WillIterator fires unconditionally; WillIterNext
+// does not.
+func TestIteratorEmptyRange(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, bz("z"), bz("zz"))
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	require.Equal(t, cfg.ReadCostFlat, meter.GasConsumed()-before)
+}
+
+// TestIteratorValidCloseIdempotent — repeated Valid()/Value()/Close()
+// on the same position do not double-charge.
+func TestIteratorValidCloseIdempotent(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	st.Set(nil, bz("a"), bz("v"))
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, nil, nil)
+	_ = iter.Valid()
+	_ = iter.Valid()
+	_ = iter.Value()
+	_ = iter.Value()
+	iter.Close()
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat + cfg.IterNextCostFlat + 1*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorNestedCacheWrap — CacheWrap of a cache store charges
+// gas only at the outermost wrap. cache.Store.iterator passes nil to
+// its parent's Iterator, so the inner newGasIterator is a no-op.
+func TestIteratorNestedCacheWrap(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	outer := cache.New(mem)
+	outer.Set(nil, bz("a"), bz("val"))
+	inner := outer.CacheWrap()
+
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+	cfg := gctx.Config
+
+	before := meter.GasConsumed()
+	iter := inner.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat + cfg.IterNextCostFlat + 3*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorDirectBareStore — calling Iterator directly on a
+// non-cache store consumes zero gas even with a real gctx. Gas is
+// only charged at the cache layer.
+func TestIteratorDirectBareStore(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	mem.Set(nil, bz("a"), bz("v1"))
+	mem.Set(nil, bz("b"), bz("v2"))
+
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+
+	before := meter.GasConsumed()
+	iter := mem.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	require.Equal(t, types.Gas(0), meter.GasConsumed()-before)
+}
+
+// --------------------------------------------------------
 
 func bz(s string) []byte { return []byte(s) }
 
@@ -595,7 +736,7 @@ func BenchmarkCacheStoreGetNoKeyFound(b *testing.B) {
 	b.ResetTimer()
 	// assumes b.N < 2**24
 	for i := 0; i < b.N; i++ {
-		st.Get([]byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)})
+		st.Get(nil, []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)})
 	}
 }
 
@@ -607,11 +748,11 @@ func BenchmarkCacheStoreGetKeyFound(b *testing.B) {
 	st := newCacheStore()
 	for i := 0; i < b.N; i++ {
 		arr := []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)}
-		st.Set(arr, arr)
+		st.Set(nil, arr, arr)
 	}
 	b.ResetTimer()
 	// assumes b.N < 2**24
 	for i := 0; i < b.N; i++ {
-		st.Get([]byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)})
+		st.Get(nil, []byte{byte((i & 0xFF0000) >> 16), byte((i & 0xFF00) >> 8), byte(i & 0xFF)})
 	}
 }
