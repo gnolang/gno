@@ -881,9 +881,10 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
-	// Save function-local types before finalization below: a file-level var
-	// initializer may already hold a value of one, and finalization persists
-	// such values (SetObject asserts their type refs under -tags debugAssert).
+	// Addpkg persists all of the package's declared types, in two steps.
+	// Step 1, before finalization: function-local types — their records
+	// embed no object hashes (locals cannot have methods), and saving early
+	// keeps the SetObject debugAssert exceptionless.
 	m.saveFuncLocalTypes(pv)
 	if pv.IsRealm() {
 		rlm := pv.Realm
@@ -897,14 +898,10 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types — only those that belong to this package.
-	// Aliases to uverse types or to types from other packages have a
-	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
-	// be redundant (cross-pkg: the owning pkg already SetType'd them;
-	// uverse: lives in the in-memory VM registry, not in chain state).
-	// Must stay after the finalization above: these records embed method
-	// FuncValue hashes, which exist only once the objects are saved.
-	// (Local types cannot have methods, hence they can save earlier.)
+	// Step 2, after finalization: package-level types — their records embed
+	// method FuncValue hashes, which exist only once the objects are saved.
+	// Only this package's own: aliased uverse/cross-pkg types are persisted
+	// by their owners (uverse: in-memory registry, not chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
