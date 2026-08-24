@@ -1286,10 +1286,13 @@ func txCarriesCode(tx std.Tx) bool {
 // message reaches the VM. It implements this (policy x message type) matrix:
 //
 //	policy          | vm/add_package          | vm/run
-//	----------------+-------------------------+------------------------
-//	permissionless  | allow                   | require run_submitters
-//	permissioned    | require code_submitters | require run_submitters
-//	inert           | allow (stored inert)    | require run_submitters
+//	----------------+-------------------------+---------------------------------
+//	permissionless  | allow                   | run_submitters, if non-empty
+//	permissioned    | require code_submitters | run_submitters, if non-empty
+//	inert           | allow (stored inert)    | run_submitters, if non-empty
+//
+// "if non-empty" is the whole of run_submitters' opt-in: an unset list is the
+// gate switched off, not a chain with MsgRun disabled. See checkRunSubmitters.
 //
 // Two sibling rules, evaluated independently below (checkRunSubmitters and
 // checkCodeSubmissionPolicy). They share only inputs — one params read, one
@@ -1349,7 +1352,7 @@ func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, 
 	// signer, and with StrictReplay the node would not boot. Keyed on the
 	// context value rather than BlockHeight, which replay deliberately does not
 	// hold at 0.
-	if replay, _ := ctx.Value(auth.GenesisReplayKey{}).(bool); replay {
+	if auth.IsGenesisReplay(ctx) {
 		return sdk.Result{}, false
 	}
 
@@ -1382,13 +1385,30 @@ func codePolicyResult(addPkgSigners, runSigners []crypto.Address, params vm.Para
 
 // checkRunSubmitters enforces the run_submitters allowlist on MsgRun signers.
 //
-// Unconditional: it takes no policy argument because no policy value makes
+// Policy-independent: it takes no policy argument because no policy value makes
 // MsgRun safe. "inert" defers MsgAddPackage's type-check but leaves MsgRun
 // type-checking and executing immediately, so the policy has no bearing on the
-// hazard. Not accepting a policy parameter is deliberate — it makes the
-// unconditionality structural rather than a branch someone can later "simplify".
+// hazard. Not accepting a policy parameter is deliberate — it keeps that
+// independence structural rather than a branch someone can later "simplify".
+//
+// An EMPTY list means the allowlist is off and anyone may send MsgRun, which is
+// the pre-existing behaviour and therefore the zero value's meaning. This is the
+// opposite of code_submitters, and the asymmetry is not an oversight:
+// code_submitters is only consulted once code_submission_policy has been
+// explicitly moved to "permissioned", so its empty state is a half-configured
+// opt-in and refusing is right. run_submitters has no such switch — it is read
+// on every MsgRun from the moment the field exists — so a fail-closed empty
+// value would silently disable MsgRun on every chain that upgrades without
+// touching genesis, including the existing ones. GovDAO proposal CREATION is
+// MsgRun-only (a ProposalRequest carries a func value, which MsgCall cannot
+// marshal), so that failure mode takes governance with it and cannot be
+// repaired in band.
+//
+// Turning the gate ON is therefore an explicit act: list at least one address.
+// The cost is that a chain cannot express "nobody may MsgRun" through this
+// param, which is not a configuration anyone has asked for.
 func checkRunSubmitters(signers []crypto.Address, params vm.Params) (sdk.Result, bool) {
-	if len(signers) == 0 {
+	if len(signers) == 0 || len(params.RunSubmitters) == 0 {
 		return sdk.Result{}, false
 	}
 	return requireListed(signers, params.RunSubmitters,
@@ -1424,8 +1444,10 @@ func checkCodeSubmissionPolicy(signers []crypto.Address, params vm.Params) (sdk.
 }
 
 // requireListed aborts unless every signer appears in allowed. An empty allowed
-// list therefore refuses everyone: these lists fail closed, so a chain that has
-// not populated one has the capability switched off rather than left open.
+// list refuses everyone, so callers that treat "unset" as "off" must test for
+// emptiness themselves before calling — checkRunSubmitters does, and documents
+// why; checkCodeSubmissionPolicy deliberately does not, because it is only
+// reached once the policy has been explicitly moved to "permissioned".
 func requireListed(signers []crypto.Address, allowed []crypto.Address, action, param string) (sdk.Result, bool) {
 	for _, signer := range signers {
 		if !slices.Contains(allowed, signer) {

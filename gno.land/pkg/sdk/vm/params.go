@@ -111,7 +111,7 @@ type Params struct {
 	// PkgApprovers may call MsgEnablePackage / MsgDisablePackage.
 	// Required when CodeSubmissionPolicy == "inert".
 	PkgApprovers []crypto.Address `json:"pkg_approvers" yaml:"pkg_approvers"`
-	// RunSubmitters may send MsgRun. Enforced under EVERY CodeSubmissionPolicy,
+	// RunSubmitters may send MsgRun. Consulted under EVERY CodeSubmissionPolicy,
 	// deliberately unlike CodeSubmitters: MsgRun type-checks and executes
 	// arbitrary source immediately, under every policy including "inert", so the
 	// policy value has no bearing on the hazard. It is also the only code-bearing
@@ -119,11 +119,23 @@ type Params struct {
 	// CLA check, while MsgRun's path is forced to /e/<caller>/run and so has no
 	// namespace to check against.
 	//
-	// Fails closed: an empty list means nobody may MsgRun. Kept separate from
-	// CodeSubmitters rather than reusing it, because reuse would make one list
-	// mean different things per policy — and an operator who populated it just to
-	// unblock MsgRun under "inert" would silently grant deploy rights the moment
-	// governance flipped the policy to "permissioned".
+	// EMPTY MEANS OFF: anyone may send MsgRun, which is the behaviour that
+	// predates this field. Listing one address turns the gate on.
+	//
+	// The asymmetry with CodeSubmitters is deliberate. CodeSubmitters is read
+	// only after CodeSubmissionPolicy has been explicitly moved to
+	// "permissioned", so its empty state is a half-finished opt-in and refusing
+	// is the safe reading. RunSubmitters has no such switch — it is read on
+	// every MsgRun from the moment the field exists — so treating empty as
+	// "nobody" would disable MsgRun on every chain that upgrades without editing
+	// genesis. Because GovDAO proposal creation is MsgRun-only (a
+	// ProposalRequest carries a func value, which MsgCall cannot marshal), that
+	// would take governance with it and leave no in-band repair.
+	//
+	// Kept as its own list rather than reusing CodeSubmitters, because reuse
+	// would make one list mean different things per policy — and an operator who
+	// populated it just to gate MsgRun would silently grant deploy rights the
+	// moment governance flipped the policy to "permissioned".
 	RunSubmitters []crypto.Address `json:"run_submitters" yaml:"run_submitters"`
 }
 

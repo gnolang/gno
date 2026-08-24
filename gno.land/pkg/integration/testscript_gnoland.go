@@ -288,12 +288,11 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
-			// MsgRun fails closed, so accounts created mid-script by
-			// adduser/adduserfrom must carry over. Deduped because the two
-			// sources can name the same address; see appendUniqueAddrs.
-			genesis.VM.Params.RunSubmitters = appendUniqueAddrs(
-				genesis.VM.Params.RunSubmitters,
-				tsGenesis.VM.Params.RunSubmitters...)
+			// run_submitters is deliberately NOT merged, and not seeded
+			// anywhere in this harness: an empty list means the MsgRun gate is
+			// off, which is what every txtar wants except the ones testing the
+			// gate itself. Those populate it in-script, so the default here
+			// must stay empty or they would be testing a pre-seeded list.
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
@@ -528,12 +527,6 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
-		// adduser mints a fresh address per run, so no static allowlist can
-		// name it; allow it to send MsgRun as it is created. Deduped like the
-		// merge in gnolandCmd, so "this slice holds no duplicate" is true at
-		// every append rather than only at the last one.
-		genesis.VM.Params.RunSubmitters = appendUniqueAddrs(
-			genesis.VM.Params.RunSubmitters, balance.Address)
 	}
 }
 
@@ -579,9 +572,6 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
-		// See adduser: allowlist the created address for MsgRun.
-		genesis.VM.Params.RunSubmitters = appendUniqueAddrs(
-			genesis.VM.Params.RunSubmitters, balance.Address)
 
 		fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 	}

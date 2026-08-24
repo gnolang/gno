@@ -79,21 +79,43 @@ func TestCodePolicyMatrix(t *testing.T) {
 	}
 }
 
-// TestCodePolicyFailsClosed pins the fail-closed property: an unpopulated list
-// permits nobody. This is the behavior that makes genesis seeding mandatory, so
-// if it ever flips to fail-open the seeding becomes silently unnecessary and the
-// gate becomes decorative.
-func TestCodePolicyFailsClosed(t *testing.T) {
+// TestEmptyListSemantics pins how each allowlist reads its own empty state.
+// The two answers differ, and the difference is the whole design, so it is
+// asserted rather than left to the field docs.
+func TestEmptyListSemantics(t *testing.T) {
 	t.Parallel()
 
-	// Empty RunSubmitters under the most permissive policy.
-	params := vm.Params{CodeSubmissionPolicy: vm.CodeSubmissionPolicyPermissionless}
-	res, abort := codePolicyResult(nil, []crypto.Address{allowedAddr}, params)
-	require.True(t, abort, "empty run_submitters must refuse everyone")
-	assert.Contains(t, res.Log, "run_submitters",
-		"the error should name the param an operator has to set")
+	// run_submitters empty == gate OFF. It is consulted on every MsgRun with no
+	// policy switch in front of it, so a fail-closed empty value would disable
+	// MsgRun -- and with it GovDAO proposal creation, which is MsgRun-only -- on
+	// every chain that upgrades without editing genesis. Under EVERY policy,
+	// including the restrictive ones: nothing about code_submission_policy
+	// changes what an unset run_submitters means.
+	for _, policy := range []vm.CodeSubmissionPolicy{
+		vm.CodeSubmissionPolicyPermissionless,
+		vm.CodeSubmissionPolicyPermissioned,
+		vm.CodeSubmissionPolicyInert,
+	} {
+		params := vm.Params{CodeSubmissionPolicy: policy}
+		_, abort := codePolicyResult(nil, []crypto.Address{otherAddr}, params)
+		assert.False(t, abort,
+			"empty run_submitters must permit everyone under policy %q", policy)
+	}
 
-	// Empty CodeSubmitters under permissioned.
+	// Populating it turns the gate on, for anyone not named.
+	params := vm.Params{
+		CodeSubmissionPolicy: vm.CodeSubmissionPolicyPermissionless,
+		RunSubmitters:        []crypto.Address{allowedAddr},
+	}
+	res, abort := codePolicyResult(nil, []crypto.Address{otherAddr}, params)
+	require.True(t, abort, "a populated run_submitters must refuse an off-list signer")
+	assert.Contains(t, res.Log, "run_submitters",
+		"the error should name the param an operator has to change")
+
+	// code_submitters empty == refuse everyone, the opposite reading, and it is
+	// safe precisely because it is unreachable until an operator has explicitly
+	// moved the policy to "permissioned". Its empty state is a half-finished
+	// opt-in, not a default.
 	params = vm.Params{CodeSubmissionPolicy: vm.CodeSubmissionPolicyPermissioned}
 	res, abort = codePolicyResult([]crypto.Address{allowedAddr}, nil, params)
 	require.True(t, abort, "empty code_submitters must refuse everyone")

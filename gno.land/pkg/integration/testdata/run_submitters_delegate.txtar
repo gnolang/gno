@@ -28,6 +28,28 @@ loadpkg gno.land/r/test/paramsgate $WORK/paramsgate
 
 gnoland start
 
+# --- Seed the allowlist, so the gate is actually on ------------------------
+#
+# run_submitters starts empty, which means OFF -- anyone may MsgRun. Every
+# refusal below would then be vacuous, so the list is populated first, with
+# test1 alone. This is also the real bootstrap order: proposal creation is
+# MsgRun-only, so the param has to start open for this very proposal to be
+# creatable.
+#
+# test1 is written here by GovDAO and NOT by the delegate, which is what makes
+# the "delegate may not remove it" assertion further down meaningful.
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_seed.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote0.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec0.gno
+stdout 'OK!'
+
+gnokey query params/vm:p:run_submitters
+stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+
 # --- Before delegation: the policy realm is not authorized -----------------
 #
 # Funded, valid signature, a real deployed realm -- and refused, because the
@@ -41,10 +63,10 @@ stderr 'no delegate is configured'
 gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_delegate.gno
 stdout 'OK!'
 
-gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote0.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote1.gno
 stdout 'OK!'
 
-gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec0.gno
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec1.gno
 stdout 'OK!'
 
 # The slot is queryable, so an operator can confirm who holds the capability.
@@ -54,8 +76,8 @@ stdout 'gno.land/r/test/paramsgate'
 # --- Create an account the chain has never heard of ------------------------
 #
 # Fixed mnemonic, so the address is deterministic. It cannot come from adduser
-# or adduserfrom: both append to run_submitters as they create an address, which
-# would make the grant below unobservable.
+# or adduserfrom: those write a genesis balance, and this has to be an account
+# the seeding proposal above never named.
 input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
 input test123
 input test123
@@ -90,10 +112,11 @@ input test123
 ! gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/run/hello.gno
 stderr 'is not authorized to send MsgRun'
 
-# ...but not test1, which genesis seeded and the delegate never granted. This is
-# the assertion that stops a chain brick: an empty run_submitters means no
-# MsgRun, and GovDAO proposal creation is MsgRun-only, so a delegate able to
-# empty this list could prevent the proposal that revokes it.
+# ...but not test1, which GovDAO seeded and the delegate never granted. This is
+# the assertion that keeps the delegation bounded in BOTH directions: a delegate
+# that could remove entries it did not add could empty the list, and an empty
+# run_submitters means the gate is off -- so it could unilaterally reopen MsgRun
+# to the whole chain, undoing the restriction GovDAO voted for.
 ! gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Revoke -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 stderr 'only GovDAO may remove it'
 
@@ -117,10 +140,10 @@ stdout 'OK!'
 gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_revoke.gno
 stdout 'OK!'
 
-gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote1.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote2.gno
 stdout 'OK!'
 
-gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec1.gno
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec2.gno
 stdout 'OK!'
 
 gnokey query vm/qeval --data 'gno.land/r/sys/params.RunSubmittersManager()'
@@ -178,6 +201,20 @@ func Grant(cur realm, addr string) {
 
 func Revoke(cur realm, addr string) {
 	params.RemoveRunSubmitters(cross(cur), []string{addr})
+}
+
+-- run/submit_seed.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringsPropRequest(cross(cur), "vm", "p", "run_submitters",
+		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+	dao.MustCreateProposal(cross(cur), prop)
 }
 
 -- run/submit_delegate.gno --
@@ -240,6 +277,24 @@ import "gno.land/r/gov/dao"
 
 func main(cur realm) {
 	dao.ExecuteProposal(cross(cur), dao.ProposalID(1))
+}
+
+-- run/vote2.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(2)))
+}
+
+-- run/exec2.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(2))
 }
 
 -- run/hello.gno --

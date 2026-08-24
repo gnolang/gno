@@ -121,27 +121,12 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 // devGenState returns the base genesis state for a dev node: the production
 // defaults plus this node's configured dev balances.
 //
-// Every funded dev account is also allowed to send MsgRun. The run_submitters
-// allowlist fails closed, and gnodev exists to run arbitrary local code against
-// local packages, so withholding it here would break `gnokey maketx run`
-// against gnodev while gaining nothing — anyone who can reach a gnodev already
-// holds its keys. Seeded from the dev balance list rather than from
-// gnoland.DefaultGenState, so real chains keep an empty list.
+// run_submitters is left empty, which means the MsgRun allowlist is off and any
+// account may run code — what gnodev wants, since it exists to run arbitrary
+// local code against local packages.
 func (n *Node) devGenState() gnoland.GnoGenesisState {
 	genesis := gnoland.DefaultGenState()
 	genesis.Balances = n.config.BalancesList
-	// Deduped: vm.Params.Validate rejects a duplicate address, and
-	// BalancesList is not guaranteed unique — it is unique when built from a
-	// balances map or from tx dependency extraction, but gnodev also accepts it
-	// straight out of a user-supplied genesis file, which can repeat an entry.
-	// Without this, such a file would fail InitGenesis rather than boot.
-	runners := make([]crypto.Address, 0, len(n.config.BalancesList))
-	for _, b := range n.config.BalancesList {
-		if !slices.Contains(runners, b.Address) {
-			runners = append(runners, b.Address)
-		}
-	}
-	genesis.VM.Params.RunSubmitters = runners
 	return genesis
 }
 

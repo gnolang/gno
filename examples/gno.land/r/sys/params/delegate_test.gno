@@ -105,9 +105,9 @@ func TestRunSubmittersSubRealmIdentityIsExact(t *testing.T) {
 }
 
 // TestRunSubmittersRemoveIsScopedToOwnGrants pins that the delegate cannot
-// remove an address it did not add. This is what stops it emptying the list --
-// and since GovDAO proposal creation is MsgRun-only, a delegate that could empty
-// the list could prevent the proposal that revokes it.
+// remove an address it did not add, so a list GovDAO curated survives a rogue
+// delegate. The companion bound -- that it can never take the list to zero by
+// any route -- is TestRunSubmittersCannotEmptyTheList.
 func TestRunSubmittersRemoveIsScopedToOwnGrants(cur realm, t *testing.T) {
 	resetDelegation()
 	defer resetDelegation()
@@ -134,6 +134,59 @@ func TestRunSubmittersRemoveIsScopedToOwnGrants(cur realm, t *testing.T) {
 	})
 	uassert.True(t, contains(GetRunSubmitters(), preexisting),
 		"the pre-existing entry must survive a refused removal")
+}
+
+// TestRunSubmittersCannotEmptyTheList pins the non-empty floor.
+//
+// An empty run_submitters means the gate is OFF: anyone on the chain may
+// MsgRun. So emptying the list is not a smaller version of removing one
+// address, it is the unilateral revocation of the whole restriction GovDAO
+// voted for -- the one thing this capability must not be able to do.
+//
+// Grant-scoping alone does not prevent it. It holds only while an entry the
+// delegate did not grant survives, and GovDAO replacing the list wholesale can
+// remove its own entries without touching the grant record, which is exactly
+// the state set up below.
+func TestRunSubmittersCannotEmptyTheList(cur realm, t *testing.T) {
+	resetDelegation()
+	defer resetDelegation()
+
+	runSubmittersMgr = testDelegate
+	a := testutils.TestAddress("granted-a").String()
+	b := testutils.TestAddress("granted-b").String()
+
+	testing.SetRealm(testing.NewCodeRealm(testDelegate))
+	AddRunSubmitters(cross(cur), []string{a, b})
+
+	// Every listed address is now one the delegate granted, so grant-scoping
+	// permits removing all of them. The floor is the only thing left.
+	uassert.True(t, RunSubmittersGrantedBy(address(a)))
+	uassert.True(t, RunSubmittersGrantedBy(address(b)))
+
+	// Down to one is fine: shrinking the list is the delegate's job.
+	RemoveRunSubmitters(cross(cur), []string{a})
+	uassert.Equal(t, 1, len(GetRunSubmitters()))
+
+	// The last one is not.
+	uassert.AbortsContains(t, cur, "refusing to empty", func() {
+		RemoveRunSubmitters(cross(cur), []string{b})
+	})
+	uassert.True(t, contains(GetRunSubmitters(), b),
+		"the last entry must survive a refused removal")
+
+	// Nor in one call, and nor by naming addresses that are not listed: the
+	// count is taken against the parameter, not the argument.
+	uassert.AbortsContains(t, cur, "refusing to empty", func() {
+		RemoveRunSubmitters(cross(cur), []string{b, b})
+	})
+	uassert.True(t, contains(GetRunSubmitters(), b))
+
+	// And the delegate is not locked out of its ordinary work: adding still
+	// works, and once there are two again it may remove one.
+	AddRunSubmitters(cross(cur), []string{a})
+	RemoveRunSubmitters(cross(cur), []string{b})
+	uassert.True(t, contains(GetRunSubmitters(), a))
+	uassert.False(t, contains(GetRunSubmitters(), b))
 }
 
 // TestRunSubmittersRevocationDropsGrantRecord pins that a new holder does not

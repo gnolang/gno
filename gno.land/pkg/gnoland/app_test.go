@@ -1915,10 +1915,12 @@ func GetHeight(cur realm) int64 { return height }
 	// at all.
 	//
 	// Left untested, a regression here would not show up in any suite; it would
-	// show up the next time somebody forks the chain. Genesis state below uses
-	// vm.DefaultGenesisState(), whose run_submitters is empty, so the tx is only
-	// deliverable because it is recognised as replay.
-	t.Run("historical MsgRun replays despite an empty run_submitters", func(t *testing.T) {
+	// show up the next time somebody forks the chain. The genesis state below
+	// populates run_submitters with an address that is NOT the signer, so the
+	// gate is armed and the tx is deliverable only because it is recognised as
+	// replay. An EMPTY list would prove nothing here — empty means the gate is
+	// off, so the tx would pass with or without the carve-out.
+	t.Run("historical MsgRun replays under a run_submitters list it is not on", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -1932,8 +1934,12 @@ func GetHeight(cur realm) int64 { return height }
 
 		// Confirm the premise rather than assuming it: the params this genesis
 		// installs really do refuse MsgRun for this signer.
-		require.Empty(t, vm.DefaultGenesisState().Params.RunSubmitters,
-			"premise: the default allowlist must be empty for this test to mean anything")
+		vmGen := vm.DefaultGenesisState()
+		vmGen.Params.RunSubmitters = []crypto.Address{
+			crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+		}
+		require.NotContains(t, vmGen.Params.RunSubmitters, key.PubKey().Address(),
+			"premise: the signer must be off the allowlist for this test to mean anything")
 
 		// MsgRun.ValidateBasic forces this exact path, so anything else is
 		// refused before the ante is reached and the test would prove nothing.
@@ -1977,7 +1983,7 @@ func GetHeight(cur realm) int64 { return height }
 					}},
 					Auth:          auth.DefaultGenesisState(),
 					Bank:          bank.DefaultGenesisState(),
-					VM:            vm.DefaultGenesisState(),
+					VM:            vmGen,
 					PastChainIDs:  []string{"old-chain"},
 					InitialHeight: 100,
 				},

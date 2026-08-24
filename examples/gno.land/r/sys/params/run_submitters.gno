@@ -8,14 +8,15 @@ package params
 // What the delegate can and cannot do, and why the asymmetry is this way round:
 //
 //   - It may ADD addresses. This is the routine work the delegation exists for.
-//   - It may REMOVE only addresses it added itself. De-listing its own mistake
-//     is a core part of managing an allowlist, so add-only would be a strange
-//     capability to hand out. Scoping removal to its own grants is what keeps it
-//     safe: the delegate can never remove an address that was present before the
-//     delegation, which is what stops it emptying the list. That matters more
-//     than it looks — GovDAO proposal creation is MsgRun-only, so a delegate
-//     that could empty this list could stop anyone from creating the proposal
-//     that revokes it. Permanent brick.
+//   - It may REMOVE only addresses it added itself, and never the last one.
+//     De-listing its own mistake is a core part of managing an allowlist, so
+//     add-only would be a strange capability to hand out. Two bounds keep that
+//     safe. Grant-scoping stops it removing an address that predates the
+//     delegation. The non-empty floor in RemoveRunSubmitters stops it reaching
+//     zero by any route — an empty list means the gate is OFF and anyone may
+//     MsgRun, so emptying it would let the delegate revoke the entire
+//     restriction GovDAO voted for, which is the one thing this capability must
+//     not be able to do.
 //   - GovDAO retains everything, including the existing whole-list setter. That
 //     is the bounded reset: one proposal returns the key to a known-good list
 //     regardless of what the delegate did, and the proposal shows voters the
@@ -170,11 +171,11 @@ func AddRunSubmitters(cur realm, addrs []string) {
 	// list leaves the parameter unchanged. Recording a grant for it anyway would
 	// let the delegate launder authority over entries it never granted: read the
 	// list, re-add all of it (a no-op on the parameter, but every address now
-	// recorded as its own), then remove all of it. That empties the allowlist,
-	// including whatever predated the delegation -- and since GovDAO proposal
-	// creation is MsgRun-only, an empty allowlist means no proposal can be
-	// created to revoke the delegate or restore the list. Chain brick, recoverable
-	// only by relaunch.
+	// recorded as its own), then remove all of it -- including whatever predated
+	// the delegation. The floor in RemoveRunSubmitters would refuse the last of
+	// those removals, but only the last: everything up to it would still go
+	// through, leaving the delegate holding the only listed address and so the
+	// sole authority over who may MsgRun.
 	//
 	// So the grant record has to follow the parameter, not the argument.
 	present := make(map[string]bool)
@@ -208,6 +209,39 @@ func RemoveRunSubmitters(cur realm, addrs []string) {
 			panic("cannot remove " + a + ": not granted by " + runSubmittersMgr +
 				", only GovDAO may remove it")
 		}
+	}
+
+	// The delegate may not empty the list, whatever it granted.
+	//
+	// An empty run_submitters means the gate is OFF -- anyone on the chain may
+	// send MsgRun. So emptying it is not a smaller version of removing one
+	// address, it is the opposite of what the delegation is for: it would let a
+	// delegate authorized to curate a list unilaterally revoke the whole
+	// restriction GovDAO voted for.
+	//
+	// Grant-scoping alone does not prevent this. It holds only while at least
+	// one entry the delegate did not grant survives, and GovDAO replacing the
+	// list wholesale can remove its own entries without touching the grant
+	// record. A floor makes the invariant structural instead of emergent.
+	//
+	// Counted against the parameter, not the argument: the caller may name
+	// addresses that are not listed, or name one twice, and neither shrinks the
+	// list. Only GovDAO can go to zero, through the whole-list setter, where the
+	// resulting list is on the ballot.
+	removing := make(map[string]bool, len(addrs))
+	for _, a := range addrs {
+		removing[a] = true
+	}
+	remaining := 0
+	for _, a := range GetRunSubmitters() {
+		if !removing[a] {
+			remaining++
+		}
+	}
+	if remaining == 0 {
+		panic("refusing to empty the " + runSubmittersKey +
+			" allowlist: an empty list disables the gate entirely, so only " +
+			"GovDAO may do it")
 	}
 
 	prms.UpdateSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs, false)

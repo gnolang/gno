@@ -116,8 +116,7 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 	genState.Txs = []gnoland.TxWithMetadata{}
 	genState.Auth = authGen
 	genState.Bank = bank.DefaultGenesisState()
-	genState.VM = vmGenesisWithRunSubmitters(
-		crypto.MustAddressFromString(DefaultAccount_Address))
+	genState.VM = vmm.DefaultGenesisState()
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -224,37 +223,9 @@ func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage)
 		}},
 		Auth: auth.DefaultGenesisState(),
 		Bank: bank.DefaultGenesisState(),
-		VM:   vmGenesisWithRunSubmitters(creator.PubKey().Address()),
+		// run_submitters is left at its default (empty), which means the MsgRun
+		// allowlist is off. Seeding it here would hide the gate from every txtar
+		// that exercises it; the two that do populate it in-script.
+		VM: vmm.DefaultGenesisState(),
 	}
-}
-
-// vmGenesisWithRunSubmitters returns the default VM genesis state with addrs
-// allowed to send MsgRun.
-//
-// The allowlist fails closed, so a test chain that does not seed the signer it
-// uses has every `gnokey maketx run` refused. This mirrors the
-// auth.UnrestrictedAddrs seeding beside the caller in
-// DefaultTestingGenesisConfig. Addresses created mid-script by
-// adduser/adduserfrom are appended as they are created; see
-// testscript_gnoland.go.
-func vmGenesisWithRunSubmitters(addrs ...crypto.Address) vmm.GenesisState {
-	gs := vmm.DefaultGenesisState()
-	gs.Params.RunSubmitters = addrs
-	return gs
-}
-
-// appendUniqueAddrs concatenates addrs onto dst, skipping any already present.
-//
-// vm.Params.Validate rejects a duplicate address, and the harness assembles
-// RunSubmitters from two independent sources that can name the same account:
-// the seed in DefaultTestingGenesisConfig, and whatever adduser/adduserfrom
-// derived during the script. adduserfrom.txtar is a live instance — it
-// re-derives the default test account from that account's own mnemonic.
-func appendUniqueAddrs(dst []crypto.Address, addrs ...crypto.Address) []crypto.Address {
-	for _, a := range addrs {
-		if !slices.Contains(dst, a) {
-			dst = append(dst, a)
-		}
-	}
-	return dst
 }
