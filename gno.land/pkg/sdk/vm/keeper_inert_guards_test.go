@@ -12,6 +12,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -296,6 +297,13 @@ func Who(cur realm) string { return "owner" }`))))
 	require.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
 		"precondition: the path is live")
 
+	// 3b. Governance returns to inert. Enable refuses outright under any other
+	//     policy, so without this the refusal below would be the policy check
+	//     rather than the takeover guard -- and the guard would go untested.
+	//     A round trip is also the harder case: the parked blob survives it.
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	env.vmk.SetParams(ctx, params)
+
 	// 4. A routine enable must not hand the path back to the attacker.
 	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
 	require.Error(t, err, "enabling over a live package is a takeover and must be refused")
@@ -508,6 +516,11 @@ func Who(cur realm) string { return "attacker" }`))))
 
 func Who(cur realm) string { return "owner" }`))))
 
+	// 2b. Back to inert, so the refusal below is the private-override rule and
+	//     not EnablePackage's policy check.
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	env.vmk.SetParams(ctx, params)
+
 	// 3. The stale parked public package must not be activatable over it.
 	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
 	require.Error(t, err,
@@ -649,4 +662,149 @@ func Hello(cur realm) string { return "hi" }`},
 	// because the stamp stopped working altogether.
 	assert.Contains(t, body, "creator")
 	assert.Contains(t, body, creator.String())
+}
+
+// TestVMKeeperInertRefusesPayableSubmission pins that a submission under
+// "inert" may not carry coins.
+//
+// The ordinary deploy path credits msg.Send to the package address AND presents
+// it to init() as the origin-send envelope. Inert can only do the first half:
+// the coins would move at submit while init() runs at enable, in a message that
+// sends nothing. EnablePackage therefore builds its ExecContext with an empty
+// OriginSend and no OriginSendRecipient, and a payable init() does not merely
+// see an empty envelope -- it panics on the recipient mismatch.
+//
+// Left unrefused, the same source deploys under "permissionless" and fails
+// under "inert", which makes a governance parameter change program semantics.
+// Deterministic, so never a fork, but a submitter has no way to see it coming.
+func TestVMKeeperInertRefusesPayableSubmission(t *testing.T) {
+	const pkgPath = "gno.land/r/test/payable"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("payer"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	msg := NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "payable.gno", Body: `package payable
+
+func Noop(cur realm) {}`},
+	})
+	msg.Send = std.MustParseCoins(ugnot.ValueString(1_000_000))
+
+	err := env.vmk.AddPackage(ctx, msg)
+	require.Error(t, err, "a payment that init() will never see must be refused")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "cannot carry a payment")
+
+	// Nothing moved and nothing was parked: the refusal is total, not partial.
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+		"a refused submission must not be parked")
+	assert.True(t, env.bankk.GetCoins(ctx, gnolang.DerivePkgCryptoAddr(pkgPath)).IsZero(),
+		"no coins may reach the package address")
+
+	// The same package without a payment goes through, so the refusal is about
+	// the coins and not about the package.
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "payable.gno", Body: `package payable
+
+func Noop(cur realm) {}`},
+	})))
+}
+
+// TestVMKeeperEnableRequiresInertPolicy pins that enable is valid only while
+// "inert" is the policy in force.
+//
+// Enable exists to finish a submission that "inert" split in two. Without this
+// check a parked package stays activatable forever: governance moves to
+// "permissioned" precisely to stop strangers getting code onto the chain, and
+// every package parked during the "inert" era would remain a stranger's pending
+// deploy that a single approver could still land -- under a policy that would
+// have refused the submission outright.
+//
+// PkgApprovers is not a substitute. It is not cleared when the policy changes,
+// and an approver's mandate was to activate what the policy of the day
+// accepted, not to carry it across a governance decision.
+func TestVMKeeperEnableRequiresInertPolicy(t *testing.T) {
+	const pkgPath = "gno.land/r/test/policygone"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "policygone.gno", Body: `package policygone
+
+func Who(cur realm) string { return "parked" }`},
+	})))
+
+	for _, policy := range []CodeSubmissionPolicy{
+		CodeSubmissionPolicyPermissionless,
+		CodeSubmissionPolicyPermissioned,
+	} {
+		params := DefaultParams()
+		params.CodeSubmissionPolicy = policy
+		params.PkgApprovers = []crypto.Address{approver}
+		env.vmk.SetParams(ctx, params)
+
+		err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		require.Error(t, err, "enable must be refused under policy %q", policy)
+		assert.Contains(t, fmt.Sprintf("%+v", err), "packages cannot be enabled")
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
+			"the package must not have been activated under policy %q", policy)
+	}
+
+	// Returning to inert makes it activatable again: the check is about the
+	// policy in force, not a permanent disqualification.
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+}
+
+// TestVMKeeperGenesisReplayIgnoresInertPolicy pins that replayed history takes
+// the ordinary deploy path whatever policy the new chain adopts.
+//
+// deliverGenesisTx replays a previous chain's transactions through this keeper
+// at BlockHeight > 0, AFTER InitGenesis has installed the new params. So a fork
+// that turns "inert" on would re-execute every historical MsgAddPackage down the
+// inert branch: packages that deployed live on the source chain would park on
+// the fork, and the chain would come up with its own realms missing -- silently,
+// until something called one.
+func TestVMKeeperGenesisReplayIgnoresInertPolicy(t *testing.T) {
+	const pkgPath = "gno.land/r/test/replayed"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("historical"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, env.vmk.AddPackage(replayCtx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "replayed.gno", Body: `package replayed
+
+func Who(cur realm) string { return "live" }`},
+	})))
+
+	gs := env.vmk.getGnoTransactionStore(ctx)
+	assert.NotNil(t, gs.GetPackage(pkgPath, false),
+		"a replayed deploy must be live, exactly as it was on the source chain")
+	assert.Nil(t, gs.GetInertPackage(pkgPath),
+		"a replayed deploy must not be parked by the fork's new policy")
+
+	// The same message NOT marked as replay still parks, so the carve-out is
+	// scoped to replay rather than having disabled the policy outright.
+	const livePath = "gno.land/r/test/notreplayed"
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, livePath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(livePath)},
+		{Name: "notreplayed.gno", Body: `package notreplayed
+
+func Who(cur realm) string { return "parked" }`},
+	})))
+	assert.Nil(t, gs.GetPackage(livePath, false), "live traffic must still park")
+	assert.NotNil(t, gs.GetInertPackage(livePath))
 }

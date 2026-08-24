@@ -569,16 +569,25 @@ func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator 
 }
 
 // checkGnomodConstraints applies the keeper-only gnomod.toml rules that the type
-// checker cannot express. Shared by AddPackage's normal and inert paths so a
-// package cannot be parked inert to dodge a rule the normal path enforces;
-// EnablePackage does not re-check them, so the inert path is the only chance.
-// pv is the package already at pkgPath, or nil; height is the submitting block.
-func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, pv *gno.PackageValue, height int64) error {
+// checker cannot express. Applied on all three paths that admit a package:
+// AddPackage's normal and inert branches, and EnablePackage. The inert path
+// runs them so a package cannot be parked to dodge a rule the normal path
+// enforces, and enable runs them again because the world can move between the
+// two messages -- see the call site there.
+// priorPrivate reports whether a PRIVATE package already occupies pkgPath;
+// height is the block the rules are evaluated against.
+//
+// A bool rather than the *gno.PackageValue this used to take, because
+// EnablePackage cannot supply one: loading the live PackageValue populates the
+// object cache and RunMemPackage then panics in SetCachePackage (see the note at
+// its call site). It reads the stored blob's gnomod.toml instead, which answers
+// the only question this function ever asked of the package value.
+func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, priorPrivate bool, height int64) error {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
-	if pv != nil && pv.Private && !gm.Private {
+	if priorPrivate && !gm.Private {
 		return ErrInvalidPackage("a private package cannot be overridden by a public package")
 	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
@@ -714,7 +723,25 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// The other height-sensitive rules here already work this way -- the type
 	// checker drops to genesis mode at height 0, and the draft-package rule is
 	// waived there too.
-	if params.CodeSubmissionPolicy == CodeSubmissionPolicyInert && ctx.BlockHeight() > 0 {
+	//
+	// Not during genesis REPLAY either, which is a separate condition from
+	// height 0, and the reason auth.IsGenesisReplay is consulted rather than
+	// the height alone. deliverGenesisTx replays a
+	// previous chain's history through this keeper at BlockHeight > 0, after
+	// InitGenesis has installed the NEW params. So a fork that turns "inert" on
+	// would re-execute every historical MsgAddPackage down this branch: packages
+	// that deployed live on the source chain would park on the fork, the chain
+	// would come up with its own realms missing, and the divergence would be
+	// invisible until something called one. Replay must reproduce what the
+	// source chain did, so it takes the ordinary path regardless of the policy
+	// the fork adopts going forward.
+	//
+	// The ante's own carve-out (checkCodePolicy in gno.land/pkg/gnoland/app.go)
+	// keys off the same context value for the same reason. Two carve-outs
+	// because they guard two different decisions: the ante decides whether the
+	// tx is admitted, this decides what the message does.
+	if params.CodeSubmissionPolicy == CodeSubmissionPolicyInert &&
+		ctx.BlockHeight() > 0 && !auth.IsGenesisReplay(ctx) {
 		// Charge the type-check and preprocess cost here, at submit, even though
 		// neither runs on this path. The work is deferred, not avoided:
 		// MsgEnablePackage type-checks and runs exactly these bytes later.
@@ -724,6 +751,38 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// Charging the submitter keeps the payer and the cause together, and
 		// EnablePackage deliberately does not charge it a second time.
 		chargePreprocessGas(ctx, params, memPkg, "AddInertPackagePreprocess")
+
+		// Refuse a payment this path cannot deliver.
+		//
+		// On the ordinary path msg.Send is credited to the package address AND
+		// presented to init() as the origin-send envelope, which is how a
+		// payable deploy works: init() opens a BankerTypeOriginSend banker and
+		// spends what the deployer attached.
+		//
+		// Here the two halves are split across two messages, and only the first
+		// half can be carried. The coins would move at submit, but init() runs
+		// at enable, in a message that sends nothing — so EnablePackage builds
+		// its ExecContext with an empty OriginSend and no OriginSendRecipient,
+		// and a payable init() does not merely see an empty envelope, it panics
+		// on the recipient mismatch. The same source would deploy under
+		// "permissionless" and fail under "inert", which makes the chain policy
+		// change program semantics.
+		//
+		// Carrying the envelope through to enable was the alternative. Rejected:
+		// it means stamping the amount into gnomod.toml beside the deposit
+		// ceiling and reconstructing an origin-send context for coins that moved
+		// in a different transaction, at a different block height, possibly
+		// under a different account state — a lot of machinery to make a
+		// two-phase deploy impersonate a one-phase one. Refusing is honest and
+		// costs the submitter one extra transfer after activation.
+		if !send.IsZero() {
+			return ErrUnspendableSend(fmt.Sprintf(
+				"%s sent to %s: a package submitted under the %q policy cannot "+
+					"carry a payment, because init() runs in a later message and "+
+					"would not see it; fund the package after it is enabled",
+				send.String(), pkgPath, CodeSubmissionPolicyInert))
+		}
+
 		gm, err := gnomod.ParseMemPackage(memPkg)
 		if err != nil {
 			return ErrInvalidPackage(err.Error())
@@ -759,8 +818,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		}
 		// Apply the same gnomod rules as the normal path. Skipping them here
 		// would make "inert" a way to park a package that no policy would ever
-		// accept, and EnablePackage does not re-check them.
-		if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv, ctx.BlockHeight()); err != nil {
+		// accept. EnablePackage runs them again on the stored blob; this is the
+		// only chance to refuse the bytes before they are written.
+		if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
 			return err
 		}
 		// Carry the creator's declared ceiling to whoever pays.
@@ -809,9 +869,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		if err := vm.checkCLASignature(ctx, creator); err != nil {
 			return err
 		}
-		if err := vm.bank.SendCoins(ctx, creator, gno.DerivePkgCryptoAddr(pkgPath), send); err != nil {
-			return err
-		}
+		// No SendCoins: a non-zero send was refused above.
 		gnostore.AddInertPackage(memPkg)
 		return nil
 	}
@@ -872,7 +930,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
-	if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv, ctx.BlockHeight()); err != nil {
+	if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
 		return err
 	}
 
@@ -979,6 +1037,26 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 // Only addresses listed in Params.PkgApprovers may call this.
 func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err error) {
 	params := vm.GetParams(ctx)
+	// Enable exists only to complete a submission the "inert" policy split in
+	// two, so it is valid only while that policy is in force.
+	//
+	// Checked before the approver check so the refusal names the actual reason.
+	// Without it, parked packages stay activatable forever under any later
+	// policy: governance moves to "permissioned" precisely to stop strangers
+	// getting code onto the chain, and every package parked during the "inert"
+	// era would remain a stranger's pending deploy that one approver could still
+	// land. PkgApprovers is not a substitute — it is not cleared when the policy
+	// changes, and an approver's mandate was to activate what the policy of the
+	// day accepted, not to carry it across a governance decision.
+	//
+	// This makes parked packages unactivatable once the policy moves, which is
+	// the intended outcome; returning to "inert" makes them activatable again.
+	// Note that nothing evicts them in the meantime — see DisablePackage.
+	if params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
+		return std.ErrUnauthorized(fmt.Sprintf(
+			"code_submission_policy is %q, not %q: packages cannot be enabled",
+			params.CodeSubmissionPolicy, CodeSubmissionPolicyInert))
+	}
 	if !isApprover(params.PkgApprovers, msg.Approver) {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"address %s is not a pkg approver", msg.Approver))
@@ -1028,22 +1106,33 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		return ErrInvalidPackage(err.Error())
 	}
 	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
+	priorPrivate := false
 	if liveBlob != nil {
 		liveGm, perr := gnomod.ParseMemPackage(liveBlob)
 		if perr != nil || !liveGm.Private {
 			return ErrPkgAlreadyExists("package already exists: " + msg.PkgPath)
 		}
-		// The private-override rule, re-applied here because
-		// checkGnomodConstraints ran at SUBMIT against whatever was live then —
-		// which, for a package parked before anything existed at this path, was
-		// nothing at all. Without this, a public package parked early can be
-		// activated over a private realm deployed later and flip it public,
-		// retroactively exposing objects that were persisted under the
-		// invariant that nothing outside the realm could reference them.
-		if !gm.Private {
-			return ErrInvalidPackage(
-				"a private package cannot be overridden by a public package")
-		}
+		priorPrivate = true
+	}
+
+	// The full gnomod rule set, re-applied at enable.
+	//
+	// It ran at SUBMIT, but against the world as it was THEN, and every rule
+	// whose answer can change between the two messages has to be asked again.
+	// The private-override rule is the one that actually moves: for a package
+	// parked before anything existed at this path, submit evaluated it against
+	// nothing at all, so without this a public package parked early can be
+	// activated over a private realm deployed later and flip it public,
+	// retroactively exposing objects persisted under the invariant that nothing
+	// outside the realm could reference them.
+	//
+	// The rest are stable across the split — the stored bytes cannot change, so
+	// replaces, draft and gno.mod give the same answer — and are re-checked
+	// anyway rather than hand-picked. Enable is the second half of a deploy;
+	// enumerating which of a deploy's preconditions it may skip is how the
+	// override rule went missing in the first place.
+	if err := checkGnomodConstraints(gm, memPkg, msg.PkgPath, priorPrivate, ctx.BlockHeight()); err != nil {
+		return err
 	}
 	// AddPackage wrote the creator into gnomod.toml before storing (see the
 	// inert branch), so it round-trips; genesis.go reads it back the same way.

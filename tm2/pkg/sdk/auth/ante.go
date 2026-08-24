@@ -220,7 +220,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			// verify by design. isGenesis is left untouched so the
 			// accNum/accSeq sign-bytes logic below still uses source values.
 			if !opts.VerifyGenesisSignatures {
-				if replay, _ := ctx.Value(GenesisReplayKey{}).(bool); replay {
+				if IsGenesisReplay(ctx) {
 					continue
 				}
 			}
@@ -536,6 +536,18 @@ type SkipGasMeteringKey struct{}
 // on signature verification. Set only by gnoland's InitChainer per-tx
 // delivery wrapper.
 type GenesisReplayKey struct{}
+
+// IsGenesisReplay reports whether ctx is delivering a historical transaction
+// replayed from a previous chain, rather than live traffic.
+//
+// The predicate belongs beside the key: four places now branch on it — this
+// package's ante, gno.land's code-submission gate, and the vm keeper's inert
+// branch — and each open-coded `ctx.Value(...).(bool)` is a chance to get the
+// key type or the comma-ok wrong silently, in a direction that fails open.
+func IsGenesisReplay(ctx sdk.Context) bool {
+	replay, _ := ctx.Value(GenesisReplayKey{}).(bool)
+	return replay
+}
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
