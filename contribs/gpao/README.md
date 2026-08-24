@@ -13,18 +13,23 @@ sends `MsgEnablePackage`.
 
 1. **Watches** new blocks over RPC.
 2. **Extracts** `MsgAddPackage` transactions from each block.
-3. **Typechecks** the submitted package off-chain (same typechecker the chain
-   uses). Imports resolve from the local disk store (stdlibs + `examples/`)
-   first, falling back to `vm/qfile` RPC queries against the watched node for
-   on-chain-only packages.
-4. If it passes, **broadcasts** a `MsgEnablePackage` signed by the approver key,
-   activating the package on-chain.
+3. **Verifies** the submitted package off-chain — typecheck *and* preprocess,
+   the same two stages the chain re-runs at `MsgEnablePackage` — under one
+   wall-clock budget. Imports resolve from the local disk store (stdlibs +
+   `examples/`) first, falling back to `vm/qfile` RPC queries against the
+   watched node for on-chain-only packages.
+4. If it passes **and finishes in time**, **broadcasts** a `MsgEnablePackage`
+   signed by the approver key, activating the package on-chain.
 
 > The oracle proposes, the chain enforces. gpao is untrusted for correctness:
 > the validator re-runs `TypeCheckMemPackage` at `MsgEnablePackage` time and
 > rejects ill-typed code. gpao only decides *which* pending packages get
 > proposed for activation, and *when* — keeping the typechecker off the critical
 > block-execution path.
+>
+> Which is why the time budget, not the correctness check, is the part that
+> earns its keep: the chain will re-check correctness regardless, but it cannot
+> bound how long that takes.
 
 ## Usage
 
@@ -52,9 +57,43 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--key` | *(required)* | Name or bech32 address of the approver key |
 | `--gno-root` | auto-detected | gno repo root, used to resolve stdlibs and examples for typechecking |
 | `--gas-fee` | `1000000ugnot` | Gas fee for approval transactions |
+| `--max-spend` | `100000000ugnot` | Total fees this run will pay for approvals before it stops approving |
 | `--gas-wanted` | `20000000` | Gas wanted for approval transactions |
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
+| `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
+
+### About `--verify-budget`
+
+This is what the oracle is for. The chain re-runs the same type check *and*
+preprocess when the package is enabled, so an oracle that only checked
+correctness would repeat a check the validator already performs. What only an
+off-chain actor can judge is whether verification *finishes quickly*, because
+wall-clock time is not a consensus quantity.
+
+Both stages are measured, since a package that type-checks quickly but
+preprocesses slowly costs the chain just as much. Verification runs in a child
+process (`gpao verify-one`, invoked by gpao on itself), which is what lets the
+budget be *enforced* — a goroutine cannot be killed, but a process can. It also
+means a package that crashes the typechecker takes down only its own child, and
+that the approver key is never loaded in the process handling untrusted code.
+
+The child's type-check options mirror `MsgEnablePackage`'s exactly (production
+files only, no test-file evaluation), because the whole point is to predict what
+the validator will do — any divergence is a way to approve something the chain
+then rejects, or to reject something it would have accepted. Preprocess is skipped, with a
+log line, for a package whose imports this oracle cannot resolve — approving on
+the type check alone is what it did before, and refusing would penalise the
+package for a limitation of the oracle.
+
+The default is deliberately generous: a real package verifies in milliseconds,
+and a borderline one should pass rather than lose a race with whatever else the
+machine is doing.
+
+Exceeding the budget is **not** a rejection. The package is left pending and
+neither approved nor recorded as bad. Nothing re-offers it automatically — block
+heights are read once and only move forward — so retrying it means restarting
+with `--start-height` at or below the block that submitted it.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
@@ -71,6 +110,23 @@ transactions are rejected.
   *transactions* (`MsgEnablePackage`), which they cannot do. Use the gnokey
   keystore (or, in future, an HSM/KMS-backed keystore that can sign txs).
 
+## Where imports come from
+
+Standard library packages are read from local disk. They ship with the binary
+and are not chain state, so disk is the only place to get them.
+
+Everything else — `/p/` and `/r/` packages — is read from the chain, and disk is
+not consulted for them at all. This is the point of the daemon: the verdict has
+to describe what the validator will see when it runs the enable, and the
+validator resolves imports from chain state. A package importing something that
+exists in the operator's `examples/` but not on the chain must not verify clean;
+if it did, the approval would fail its own type-check on chain, burning a fee and
+blaming the code for the operator's local tree.
+
+With no `--remote` there is nothing to ask, so disk answers everything. That is
+a development mode, and the verdict then describes the operator's tree rather
+than the chain.
+
 ## Import cache
 
 Packages fetched via `vm/qfile` are cached for the process lifetime. This is
@@ -78,6 +134,21 @@ safe: on-chain package paths are write-once (re-adding an existing path fails),
 so a fetched package never changes. Only successful fetches are cached — a miss
 (a package still inert, or enabled later in the run) is re-queried on the next
 lookup rather than pinned to "not found".
+
+### About `--max-spend`
+
+Every approval costs the full gas fee, whether or not the message succeeds. The
+daemon decides on its own when to send one, so anything that makes approvals
+fail repeatedly will drain the approver key. The bound stops that.
+
+Two things reduce how often it is reached. Before approving, the daemon checks
+whether the package is already deployed and skips it if so, which is the common
+case when catching up with `--start-height` over blocks that were already
+approved. And it ignores transactions that failed on chain, so a submission the
+chain rejected never leads to an approval.
+
+When the bound is reached the daemon says so and stops approving. It keeps
+watching blocks. Raise the bound or restart to continue.
 
 ## Limitations
 

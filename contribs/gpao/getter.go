@@ -10,20 +10,42 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// hybridGetter resolves imported packages for the typechecker: first from the
-// local disk store (stdlibs + examples/), then, on a miss, from the chain over
-// RPC. This lets the oracle typecheck packages that import other on-chain-only
-// packages, matching the validator's view.
+// hybridGetter resolves imported packages for the typechecker, taking each kind
+// of import from wherever the chain would take it.
+//
+// Stdlibs come from local disk. They ship with the binary and are not user
+// state, so disk is the only place to get them and the only place that is right.
+//
+// Everything else -- /p/ and /r/ packages -- comes from the chain. This is the
+// point of the whole daemon: the verdict has to describe what the validator will
+// see when it runs the enable, and the validator resolves imports from chain
+// state.
+//
+// Disk is NOT consulted for those, even as a fallback, when a remote is
+// configured. It used to be tried first, which meant a package importing
+// something present in the operator's examples/ but absent from the chain
+// verified clean and got approved -- and then failed its own type-check at enable
+// time, burning a fee and marking the path rejected for a fault that was the
+// operator's local tree, not the code. Where the two agree the answer is the
+// same; where they disagree the chain is the one that matters.
+//
+// With no remote there is nothing to ask, so disk is used for everything. That
+// is a development mode, and the verdict then describes the operator's tree.
 type hybridGetter struct {
 	disk gno.MemPackageGetter
 	rpc  *rpcGetter
 }
 
 func (h hybridGetter) GetMemPackage(pkgPath string) *std.MemPackage {
-	if mpkg := h.disk.GetMemPackage(pkgPath); mpkg != nil {
-		return mpkg
+	// No remote: nothing to ask, so disk answers everything. Also guards the
+	// nil receiver below, which would panic -- a crash rather than a verdict.
+	if h.rpc == nil {
+		return h.disk.GetMemPackage(pkgPath)
 	}
-	return h.rpc.GetMemPackage(pkgPath)
+	if gno.IsUserlib(pkgPath) {
+		return h.rpc.GetMemPackage(pkgPath)
+	}
+	return h.disk.GetMemPackage(pkgPath)
 }
 
 // qfileFunc runs a vm/qfile query for a package path or a package file path.

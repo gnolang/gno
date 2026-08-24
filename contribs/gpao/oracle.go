@@ -2,23 +2,25 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	// Importing the vm package also registers its message types (MsgAddPackage,
 	// MsgEnablePackage, ...) with amino so block txs decode correctly.
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // oracle watches a chain, typechecks submitted packages off-chain, and
@@ -29,21 +31,70 @@ type oracle struct {
 	client   gnoclient.Client
 	approver crypto.Address
 
-	// Disk-backed stores + cache used to typecheck candidate packages,
-	// resolving stdlib and examples/ imports. Built once and reused.
-	prodbs storetypes.CommitStore
-	prodgs gno.Store
-	testbs storetypes.CommitStore
-	testgs gno.Store
-	cache  gno.TypeCheckCache
+	// candidates carries submitted packages from the block reader to the
+	// verifier goroutine. See runVerifier for why they are separate.
+	candidates chan *std.MemPackage
 
-	// rpc resolves on-chain-only imports the disk store can't (falls back to
-	// vm/qfile queries against the watched node).
-	rpc *rpcGetter
-
-	// seen dedupes packages already processed in this run.
+	// seen dedupes packages already processed in this run. Touched ONLY by the
+	// verifier goroutine, never by the block reader, or the two race on a plain
+	// map.
 	seen map[string]struct{}
+
+	// overBudget counts how many times a path has run out of verification time
+	// without reaching a verdict.
+	overBudget map[string]int
+
+	// spent is the gas fees paid for approvals so far this run, and maxSpend the
+	// bound from -max-spend. Touched only by the verifier goroutine, which is
+	// the only thing that approves.
+	spent     int64
+	maxSpend  int64
+	enableFee int64
+
+	// logMu serializes writes to io. commands.IOImpl buffers through a
+	// bufio.Writer, which is not goroutine-safe, and the block reader and the
+	// verifier goroutine both log -- a real race, not a theoretical one
+	// (reproduced under -race). Every log in this daemon goes through logf/errf.
+	logMu sync.Mutex
 }
+
+func (o *oracle) logf(format string, args ...any) {
+	o.logMu.Lock()
+	defer o.logMu.Unlock()
+	o.io.Printfln(format, args...)
+}
+
+func (o *oracle) errf(format string, args ...any) {
+	o.logMu.Lock()
+	defer o.logMu.Unlock()
+	o.io.ErrPrintfln(format, args...)
+}
+
+func (o *oracle) logln(args ...any) {
+	o.logMu.Lock()
+	defer o.logMu.Unlock()
+	o.io.Println(args...)
+}
+
+// maxOverBudgetAttempts caps how often one package path may consume a full
+// budget without producing a verdict.
+//
+// Leaving an overrun unrecorded is what lets a transient one be retried, but
+// taken alone it lets a single path consume a full budget per resubmission
+// indefinitely, and resubmitting MsgAddPackage is cheap under "inert". After
+// this many attempts the path is recorded as seen and left for a human — the
+// oracle declines to keep paying, and says so.
+//
+// This bounds repeat spend on one set of BYTES, which is all it claims. Fresh
+// paths get a fresh allowance, and so does fresh content at the same path --
+// correct, since different bytes are different work. The per-attempt budget is
+// what bounds those.
+const maxOverBudgetAttempts = 3
+
+// candidateQueueSize bounds how far the block reader may run ahead of the
+// verifier. Generous, because its whole job is absorbing a bursty block; past
+// that, blocking the reader is the honest response to a saturated oracle.
+const candidateQueueSize = 256
 
 func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	signer, err := buildSigner(cfg, io)
@@ -63,30 +114,37 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		return nil, fmt.Errorf("failed to build RPC client: %w", err)
 	}
 
-	// Type-check stores mirror `gno lint`: production files against stdlibs +
-	// examples, with a test-stdlib overlay. PreprocessOnly avoids executing
-	// imported code — we only need the type information.
-	prodbs, prodgs := test.StoreWithOptions(
-		cfg.gnoRoot, io.Err(),
-		test.StoreOptions{PreprocessOnly: true, WithExamples: true},
-	)
-	testbs, testgs := test.StoreWithOptions(
-		cfg.gnoRoot, io.Err(),
-		test.StoreOptions{PreprocessOnly: true, WithExamples: true, Testing: true, SourceStore: prodgs},
-	)
+	gasFee, err := std.ParseCoin(cfg.gasFee)
+	if err != nil {
+		return nil, fmt.Errorf("invalid gas fee %q: %w", cfg.gasFee, err)
+	}
+	var maxSpend std.Coin
+	if cfg.maxSpend != "" {
+		maxSpend, err = std.ParseCoin(cfg.maxSpend)
+		if err != nil {
+			return nil, fmt.Errorf("invalid max spend %q: %w", cfg.maxSpend, err)
+		}
+		if maxSpend.Denom != gasFee.Denom {
+			return nil, fmt.Errorf("max spend is in %s but gas fees are paid in %s",
+				maxSpend.Denom, gasFee.Denom)
+		}
+		if maxSpend.Amount < gasFee.Amount {
+			return nil, fmt.Errorf("max spend %s is below the cost of a single "+
+				"approval (%s), so nothing could ever be approved",
+				cfg.maxSpend, cfg.gasFee)
+		}
+	}
 
 	return &oracle{
-		cfg:      cfg,
-		io:       io,
-		client:   gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver: info.GetAddress(),
-		prodbs:   prodbs,
-		prodgs:   prodgs,
-		testbs:   testbs,
-		testgs:   testgs,
-		cache:    make(gno.TypeCheckCache),
-		rpc:      newRPCGetter(rpc),
-		seen:     make(map[string]struct{}),
+		cfg:        cfg,
+		io:         io,
+		client:     gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:   info.GetAddress(),
+		candidates: make(chan *std.MemPackage, candidateQueueSize),
+		seen:       make(map[string]struct{}),
+		overBudget: make(map[string]int),
+		enableFee:  gasFee.Amount,
+		maxSpend:   maxSpend.Amount,
 	}, nil
 }
 
@@ -138,27 +196,62 @@ func (o *oracle) run(ctx context.Context) error {
 		height = status.SyncInfo.LatestBlockHeight + 1
 	}
 
+	// Verification runs on its own goroutine, never on the block reader.
+	//
+	// The original reason was that verification was unbounded; a child process
+	// now bounds it, so this is no longer about runaway work. What remains is
+	// burst absorption: a single block can carry many MsgAddPackage, and inline
+	// each one costs up to the full budget, so a burst would stall
+	// chain-following for the sum of them.
+	//
+	// The visible cost is that `height` runs ahead of what has actually been
+	// verified. That is cheap here because no progress is persisted either way
+	// -- height is in-memory and a restart resumes from -start-height -- so
+	// running ahead loses nothing a crash would not have lost anyway.
+	//
+	// One verifier, not a pool. Each verification is an isolated process now,
+	// so concurrency would be safe; it stays serial because verification is the
+	// expensive thing this daemon does and running several at once would make
+	// each slower and the budget harder to interpret.
+	go o.runVerifier(ctx)
+
 	ticker := time.NewTicker(o.cfg.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			o.io.Println("gpao: shutting down")
+			o.logln("gpao: shutting down")
 			return nil
 		case <-ticker.C:
 		}
 
 		status, err := o.client.RPCClient.Status(ctx, nil)
 		if err != nil {
-			o.io.ErrPrintfln("gpao: status query failed: %v", err)
+			o.errf("gpao: status query failed: %v", err)
 			continue
 		}
 		latest := status.SyncInfo.LatestBlockHeight
 
 		for ; height <= latest; height++ {
+			// Catching up can span many blocks, and enqueue blocks when the
+			// verifier is behind. Without this the only ctx check is between
+			// ticks, so SIGINT would be ignored for the whole catch-up.
+			select {
+			case <-ctx.Done():
+				o.logln("gpao: shutting down")
+				return nil
+			default:
+			}
 			if err := o.processBlock(ctx, height); err != nil {
-				o.io.ErrPrintfln("gpao: block %d processing failed: %v", height, err)
+				// Do NOT advance past it. Heights are read once and only move
+				// forward, so skipping drops every MsgAddPackage in that block
+				// permanently -- and the usual causes (node restart, timeout)
+				// are transient. The outer ticker paces the retry, so this
+				// cannot hot-spin.
+				o.errf("gpao: block %d processing failed, will retry: %v",
+					height, err)
+				break
 			}
 		}
 	}
@@ -173,10 +266,45 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 	if res.Block == nil {
 		return nil
 	}
-	for _, raw := range res.Block.Data.Txs {
+	txs := res.Block.Data.Txs
+	if len(txs) == 0 {
+		return nil
+	}
+	// Only transactions that SUCCEEDED count. A block carries every transaction
+	// that was proposed, including those that failed in DeliverTx -- CheckTx
+	// admission is not success. Without this a submitter parks slow but valid
+	// bytes at a path, then sends a second MsgAddPackage at the SAME path with
+	// gas too low to survive the preprocess charge: it fails and changes
+	// nothing, yet it sits in the block, so verification times the trivial
+	// bytes and approves a path whose stored contents are the slow ones. The
+	// enable this daemon signs would then be the vehicle for exactly the
+	// unmetered compile it exists to prevent.
+	//
+	// Fails closed. If results cannot be fetched, or do not pair one-for-one
+	// with the transactions, nothing here is queued and the caller retries the
+	// height -- acting on an unverifiable block is worse than lagging.
+	//
+	// This does NOT close the other half: the submitter may still replace parked
+	// bytes between verification and enable, because MsgEnablePackage names a
+	// path rather than a content hash. That needs a chain-side change.
+	results, err := o.client.RPCClient.BlockResults(ctx, &height)
+	if err != nil {
+		return fmt.Errorf("cannot read results for block %d, refusing to verify "+
+			"transactions whose outcome is unknown: %w", height, err)
+	}
+	if results.Results == nil || len(results.Results.DeliverTxs) != len(txs) {
+		return fmt.Errorf("block %d has %d transactions but %d results; "+
+			"refusing to pair them by position",
+			height, len(txs), deliverTxCount(results))
+	}
+
+	for i, raw := range txs {
+		if !results.Results.DeliverTxs[i].IsOK() {
+			continue
+		}
 		var tx std.Tx
 		if err := amino.Unmarshal(raw, &tx); err != nil {
-			o.io.ErrPrintfln("gpao: skipping undecodable tx at height %d: %v", height, err)
+			o.errf("gpao: skipping undecodable tx at height %d: %v", height, err)
 			continue
 		}
 		for _, msg := range tx.Msgs {
@@ -184,70 +312,189 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 			if !ok || add.Package == nil {
 				continue
 			}
-			o.handleCandidate(add.Package)
+			if err := o.enqueue(ctx, add.Package); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
+func deliverTxCount(r *ctypes.ResultBlockResults) int {
+	if r == nil || r.Results == nil {
+		return 0
+	}
+	return len(r.Results.DeliverTxs)
+}
+
+// runVerifier drains the candidate queue, one package at a time.
+func (o *oracle) runVerifier(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case mpkg := <-o.candidates:
+			o.handleCandidate(ctx, mpkg)
+		}
+	}
+}
+
+// enqueue hands a candidate to the verifier, blocking if it is behind.
+//
+// Nothing is dropped. A dropped candidate would never be verified and so never
+// approved, and since each block is read exactly once there would be no later
+// retry -- it would stay inert with no record of why. Blocking is the honest
+// alternative, and saturation is announced rather than left to be inferred from
+// the oracle mysteriously lagging.
+func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
+	select {
+	case o.candidates <- mpkg:
+		return nil
+	default:
+	}
+	o.errf(
+		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated",
+		cap(o.candidates))
+	select {
+	case o.candidates <- mpkg:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
 // a MsgEnablePackage to activate it on-chain.
-func (o *oracle) handleCandidate(mpkg *std.MemPackage) {
+func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	path := mpkg.Path
-	if _, done := o.seen[path]; done {
+	// Keyed on the bytes, not just the path. A rejection is a verdict about the
+	// code, so a submitter who fixes the code and resubmits deserves a fresh
+	// look -- keying on the path alone ignored them for the lifetime of the
+	// process, which turned "your package does not compile" into "this path is
+	// dead until someone restarts the daemon".
+	//
+	// It also means a package whose bytes changed is re-verified rather than
+	// assumed settled, which matters because the submitter may replace parked
+	// bytes at any time.
+	key := candidateKey(mpkg)
+	if _, done := o.seen[key]; done {
 		return
 	}
-	o.seen[path] = struct{}{}
 
-	o.io.Printfln("gpao: typechecking %q", path)
-	if err := o.typecheck(mpkg); err != nil {
-		o.io.Printfln("gpao: %q rejected, not approving: %v", path, err)
+	o.logf("gpao: verifying %q (budget %s)", path, o.cfg.verifyBudget)
+	err := o.verify(ctx, mpkg)
+	if errors.Is(err, errVerifyUnavailable) {
+		// Left unseen and uncounted, so a restart or resubmission retries it.
+		o.errf("gpao: could not verify %q, leaving it pending: %v", path, err)
 		return
 	}
-
-	o.io.Printfln("gpao: %q passed typecheck, broadcasting approval", path)
-	if err := o.enable(path); err != nil {
-		o.io.ErrPrintfln("gpao: failed to approve %q: %v", path, err)
-		return
-	}
-	o.io.Printfln("gpao: %q approved and enabled", path)
-}
-
-// typecheck runs the Gno typechecker on a candidate package, mirroring the
-// on-chain check the validator will re-run at MsgEnablePackage time. Any panic
-// from the typechecker is converted into an error so a single bad package can't
-// crash the daemon.
-func (o *oracle) typecheck(mpkg *std.MemPackage) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("typecheck panicked: %v", r)
+	if errors.Is(err, errVerifyBudget) {
+		// Not (usually) marked seen: the verdict is "we ran out of time", not
+		// "this package is bad", and CPU contention is transient.
+		//
+		// Note what that does and does not buy. Heights are read once and only
+		// move forward, so nothing re-offers this package on its own; the retry
+		// is a restart (with -start-height at or below the submitting block) or
+		// a resubmission. Leaving it unseen is what makes either effective
+		// instead of a no-op, and it keeps a slow package off the rejected list.
+		o.overBudget[key]++
+		if n := o.overBudget[key]; n >= maxOverBudgetAttempts {
+			o.seen[key] = struct{}{}
+			o.errf(
+				"gpao: %q exceeded the verify budget %d times, giving up on it this run "+
+					"(needs a human, or a larger -verify-budget): %v", path, n, err)
+			return
 		}
-	}()
-
-	// Best-effort: preload imports resolvable from disk (stdlibs + examples).
-	// Missing on-chain-only imports surface as typecheck errors below.
-	_ = test.LoadImports(o.testgs, mpkg, false)
-
-	// Fresh transactions isolate each typecheck from the persistent base stores.
-	newProdGnoStore := func() gno.Store {
-		cw := o.prodbs.CacheWrap()
-		return o.prodgs.BeginTransaction(cw, cw, nil, nil)
+		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
+		return
 	}
-	newTestGnoStore := func() gno.Store {
-		cw := o.testbs.CacheWrap()
-		return o.testgs.BeginTransaction(cw, cw, nil, nil)
+	// Everything below is a verdict about the package itself, so record it.
+	o.seen[key] = struct{}{}
+	if err != nil {
+		o.logf("gpao: %q rejected, not approving: %v", path, err)
+		return
 	}
 
-	// Wrap the disk getters with an RPC fallback so imports of on-chain-only
-	// packages (not present under examples/) still resolve.
-	_, errs := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-		Getter:     hybridGetter{disk: newProdGnoStore(), rpc: o.rpc},
-		TestGetter: hybridGetter{disk: newTestGnoStore(), rpc: o.rpc},
-		Mode:       gno.TCLatestStrict,
-		Cache:      o.cache,
-	})
-	return errs
+	// Already live? Then there is nothing to enable, and sending the message
+	// anyway costs the full fee to be told so. This is the common case when
+	// catching up with -start-height over blocks that were already approved.
+	if o.isActive(ctx, path) {
+		o.logf("gpao: %q is already active, nothing to approve", path)
+		return
+	}
+
+	// Stop before spending past the bound rather than after. The fee is charged
+	// whether or not the message succeeds, so the check has to come first.
+	if o.wouldExceedSpend() {
+		o.errf("gpao: not approving %q: it would take this run past its "+
+			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
+			path, o.maxSpend, ugnotDenom, o.spent)
+		return
+	}
+
+	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
+	// Counted before the call, not after: the fee is deducted by the ante
+	// handler, so a failed approval costs exactly as much as a successful one.
+	o.spent += o.enableFee
+	if err := o.enable(path); err != nil {
+		o.errf("gpao: failed to approve %q: %v", path, err)
+		return
+	}
+	o.logf("gpao: %q approved and enabled", path)
 }
+
+// wouldExceedSpend reports whether paying for one more approval would take this
+// run past its bound. Zero means no bound.
+//
+// Asked BEFORE approving, because the fee is deducted by the ante handler
+// whether or not the message succeeds -- so checking afterwards would always be
+// one approval too late.
+func (o *oracle) wouldExceedSpend() bool {
+	return o.maxSpend > 0 && o.spent+o.enableFee > o.maxSpend
+}
+
+const ugnotDenom = "ugnot"
+
+// isActive reports whether a package is already deployed at this path.
+//
+// vm/qfile reads the active store, so a successful answer means the path is
+// live. A parked package is invisible to it, which is what makes this a useful
+// pre-flight: it distinguishes "waiting to be enabled" from "already enabled".
+//
+// On a query error this returns false, so a node that cannot answer does not
+// silently stop the oracle approving. The spend bound is what limits the damage
+// if the node is wrong.
+func (o *oracle) isActive(ctx context.Context, pkgPath string) bool {
+	res, err := o.client.Query(gnoclient.QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(pkgPath),
+	})
+	if err != nil || res == nil {
+		return false
+	}
+	return res.Response.Error == nil
+}
+
+// candidateKey identifies what was verified: the path plus a hash of the
+// package. Two submissions at the same path with different code are different
+// candidates, because the verdict is about the code.
+func candidateKey(mpkg *std.MemPackage) string {
+	sum := sha256.Sum256(amino.MustMarshal(mpkg))
+	return mpkg.Path + "@" + hex.EncodeToString(sum[:8])
+}
+
+// errVerifyBudget reports that verification ran out of time rather than
+// finding a problem with the package. Distinguished from a rejection because
+// the two deserve opposite treatment: a bad package is settled, a slow one may
+// simply have lost a race with whatever else the box was doing.
+var errVerifyBudget = errors.New("verify budget exceeded")
+
+// errVerifyUnavailable reports that the verifier itself could not run -- a fork
+// failure, a signal death, a missing binary. Distinguished from both a rejection
+// and an overrun: it says nothing about the package, and unlike an overrun it
+// does not count against the per-path allowance, because the operator's box
+// misbehaving is not the submitter's doing.
+var errVerifyUnavailable = errors.New("verifier unavailable")
 
 // enable builds, signs and broadcasts a MsgEnablePackage for pkgPath.
 func (o *oracle) enable(pkgPath string) error {

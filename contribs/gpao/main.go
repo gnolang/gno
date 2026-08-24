@@ -25,15 +25,39 @@ import (
 )
 
 const (
-	defaultRemote       = "http://127.0.0.1:26657"
-	defaultGasFee       = "1000000ugnot"
+	defaultRemote = "http://127.0.0.1:26657"
+	defaultGasFee = "1000000ugnot"
+
+	// defaultMaxSpend bounds what one run will pay in gas fees for approvals.
+	//
+	// Every approval costs the full gas fee whether or not it succeeds, and the
+	// daemon decides on its own when to send one -- so without a bound, anything
+	// that makes approvals fail repeatedly drains the approver key. 100 GNOT at
+	// the default 1 GNOT fee is a hundred approvals, generous for normal
+	// operation and small enough to notice.
+	defaultMaxSpend     = "100000000ugnot"
 	defaultGasWanted    = int64(20_000_000)
 	defaultPollInterval = time.Second
+	// defaultVerifyBudget bounds how long one candidate may take to
+	// typecheck+preprocess. This is the oracle's whole reason to exist: the
+	// validator re-runs both at MsgEnablePackage time and cannot bound their
+	// duration itself (wall-clock is not a consensus quantity), so if this
+	// daemon does not refuse slow packages it only repeats a correctness
+	// check the chain already does. Generous on purpose -- a real package
+	// takes milliseconds, and borderline ones should pass rather than be
+	// rejected for losing a race with CPU contention.
+	defaultVerifyBudget = 10 * time.Second
 )
 
-func main() {
+// newRootCmd builds the full command tree.
+//
+// Shared with TestMain so the tests drive the same wiring production does. When
+// the tests routed to the subcommand themselves, neither AddSubCommands nor
+// NoParentFlags was covered -- and a break in either makes the child exit
+// non-zero on argument parsing, which verify() reads as a REJECTION and
+// handleCandidate then records in `seen`, permanently rejecting every package.
+func newRootCmd(io commands.IO) *commands.Command {
 	cfg := &config{}
-	io := commands.NewDefaultIO()
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -51,6 +75,15 @@ func main() {
 			return execOracle(ctx, cfg, io)
 		},
 	)
+
+	// The child half of the verification budget; see verifyone.go.
+	cmd.AddSubCommands(newVerifyOneCmd(io))
+	return cmd
+}
+
+func main() {
+	io := commands.NewDefaultIO()
+	cmd := newRootCmd(io)
 
 	// Cancel on SIGINT/SIGTERM for graceful shutdown.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -76,7 +109,12 @@ type config struct {
 	gasFee       string
 	gasWanted    int64
 	pollInterval time.Duration
+	// verifyBudget: see defaultVerifyBudget.
+	verifyBudget time.Duration
 	startHeight  int64
+	// maxSpend bounds the total gas fees this run will pay for approvals. See
+	// defaultMaxSpend.
+	maxSpend string
 }
 
 func (c *config) RegisterFlags(fs *flag.FlagSet) {
@@ -91,8 +129,14 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 			"its address must be listed in the chain's vm PkgApprovers param")
 	fs.StringVar(&c.gnoRoot, "gno-root", gnoenv.RootDir(),
 		"path to the gno repository root, used to resolve stdlibs and examples for typechecking")
+	fs.StringVar(&c.maxSpend, "max-spend", defaultMaxSpend,
+		"total gas fees this run will pay for approvals before it stops "+
+			"approving; the daemon holds a hot key, and every approval costs a "+
+			"fee whether or not it succeeds")
 	fs.StringVar(&c.gasFee, "gas-fee", defaultGasFee,
 		"gas fee for approval transactions")
+	fs.DurationVar(&c.verifyBudget, "verify-budget", defaultVerifyBudget,
+		"withhold approval from a package whose verification exceeds this duration (it is left pending, not rejected)")
 	fs.Int64Var(&c.gasWanted, "gas-wanted", defaultGasWanted,
 		"gas wanted for approval transactions")
 	fs.DurationVar(&c.pollInterval, "poll-interval", defaultPollInterval,
@@ -110,6 +154,9 @@ func (c *config) validate() error {
 	}
 	if c.gnoRoot == "" {
 		return fmt.Errorf("--gno-root is required (could not auto-detect the gno root)")
+	}
+	if c.verifyBudget <= 0 {
+		return fmt.Errorf("verify-budget must be positive, got %s", c.verifyBudget)
 	}
 	if c.gasWanted <= 0 {
 		return fmt.Errorf("--gas-wanted must be > 0")
