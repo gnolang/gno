@@ -783,6 +783,7 @@ func init() {
 func Echo(cur realm, msg string) string {
 	addr := unsafe.OriginCaller()
 	pkgAddr := unsafe.CurrentRealm().Address()
+	_ = unsafe.OriginSend() // acknowledge the envelope; MsgCall rejects unobserved sends
 	send := chain.Coins{{"ugnot", 1000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
@@ -893,9 +894,10 @@ func Do(cur realm) string {
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
-	// Run Echo function.
-	coins := std.MustParseCoins(ugnot.ValueString(8_000_000))
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Do", []string{})
+	// Run Do function. No send-envelope: Do only writes params and has no
+	// notion of payment, and MsgCall rejects an envelope no code reads.
+	// This test asserts nothing about balances, so the send was incidental.
+	msg2 := NewMsgCall(addr, nil, pkgPath, "Do", []string{})
 
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
@@ -2008,13 +2010,18 @@ func TestSessionMsgCallSendCountsAgainstSpendLimit(t *testing.T) {
 	env.acck.SetAccount(ctx, masterAcc)
 	env.bankk.SetCoins(ctx, master, initialBalance)
 
-	// Deploy a simple realm that accepts coins (no-op on them).
+	// Deploy a simple realm that accepts coins and keeps them. It must
+	// read the envelope: this test's whole point is that a MsgCall send
+	// counts against the session spend limit, and MsgCall rejects an
+	// envelope no executing code observes.
 	const pkgPath = "gno.land/r/absorb"
 	files := []*std.MemFile{
 		{Name: "absorb.gno", Body: `
 package absorb
 
-func Absorb(cur realm) {}`},
+import "chain/runtime/unsafe"
+
+func Absorb(cur realm) { _ = unsafe.OriginSend() }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 	}
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(master, pkgPath, files)))
