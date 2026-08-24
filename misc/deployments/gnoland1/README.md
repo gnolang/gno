@@ -13,7 +13,7 @@ The following tools must be installed before proceeding:
 - **python3**
 - **gzip**
 
-Hardware: at least **16 GB RAM** is recommended. Node startup temporarily exceeds 8 GB during genesis execution. See also the [dedicated gnops article](https://gnops.io/articles/effective-gnops/validator-specs/).
+Hardware: at least **16 GB RAM** is recommended. Node startup temporarily exceeds 8 GB during genesis execution. See also [`gno.land/cmd/gnoland`](../../../gno.land/cmd/gnoland) for sentry-node architecture, remote signing, and the validator onboarding process.
 
 ## 1. Generate the Genesis
 
