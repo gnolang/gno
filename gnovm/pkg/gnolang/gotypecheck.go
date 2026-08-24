@@ -110,6 +110,14 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 		return gnoBuiltinsMemPackage(pkgPath)
 	} else if gw.mpkg != nil && gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
 		return gw.mpkg
+	} else if gw.getter == nil {
+		// Reached only if a pass needs an import but no getter was supplied.
+		// The chain leaves TestGetter nil because ProdOnly means the passes
+		// that consult it never run; if ProdOnly were dropped there, say so
+		// here rather than nil-dereferencing into an opaque "internal error".
+		panic(fmt.Sprintf("gotypecheck: no getter configured to import %q "+
+			"(set Getter/TestGetter, or set ProdOnly to skip the test passes)",
+			pkgPath))
 	} else {
 		return gw.getter.GetMemPackage(pkgPath)
 	}
@@ -151,6 +159,26 @@ type TypeCheckOptions struct {
 	// After TypeCheckMemPackage returns, it contains the file position
 	// information from the parsed package.
 	Fset *token.FileSet
+
+	// ProdOnly stops after type-checking production files, skipping the
+	// with-tests, xxx_test and _filetest passes.
+	//
+	// Every file is still PARSED (see GoParseMemPackage below), so a syntax
+	// error anywhere — including in a _test.gno — still fails. Only the
+	// type-checking of test files is skipped.
+	//
+	// Set by the chain at AddPackage. Test files can never execute on chain
+	// (runMemPackage demotes MP*All to MP*Prod, and importers filter MPFProd),
+	// so their type-check verdict has no on-chain meaning. It does, however,
+	// have a cost: resolving a test file's stdlib imports goes through
+	// TestGetter, which reads a test-stdlib overlay from the node's local
+	// filesystem — putting node-local state into a gas-metered consensus
+	// computation. That forked topaz-1 at block 301381. See
+	// gno.land/adr/pr6025_prod_only_typecheck_at_addpackage.md.
+	//
+	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
+	// keep checking test files.
+	ProdOnly bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -196,7 +224,17 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, nil)
+	// wtests is three-state and must NOT be collapsed to !opts.ProdOnly:
+	// nil stops nowhere (prod, w/ tests, xxx_test and _filetest all run),
+	// a pointer to false stops after the production pass (see ProdOnly),
+	// and a pointer to TRUE stops after the with-tests pass — which would
+	// silently drop the xxx_test and _filetest passes for `gno test`,
+	// `gno lint` and the gnovm test harness.
+	var wtests *bool
+	if opts.ProdOnly {
+		wtests = new(bool)
+	}
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
 	return
 }
 
@@ -580,6 +618,9 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
 //
+// Every returned file has its GoVersion cleared, so the ASTs do not carry the
+// //go:build go1.N line the source may have declared.
+//
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
@@ -637,6 +678,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		// Build constraints have no meaning in Gno. A //go:build go1.N line
+		// otherwise sets this file's language version in go/types, overriding
+		// the pinned Config.GoVersion, so the accept/reject verdict would
+		// depend on the submitter's tag and on the toolchain each validator
+		// binary was built with. Blank it so the pin is the sole authority.
+		gof.GoVersion = ""
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
 			mpkg.Type == MPFiletests {

@@ -21,6 +21,21 @@ var exportedPointerFuncRE = regexp.MustCompile(`^func\s+([A-Z]\w*)\([^)]*\)\s+\*
 var freshConstructorReturnRE = regexp.MustCompile(`return\s+&[A-Z]\w*\s*\{`)
 var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 
+// crossingFuncRE matches a crossing function declaration (top-level func or
+// method) whose first parameter is the realm capability token `cur realm`.
+var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm\b`)
+
+// pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
+// the receiver, so a pointer to one is a live mutator handle. avl.Tree is the
+// canonical example (Set/Remove/ReverseIterate); extend as more are documented.
+var pkgMutablePointerTypeRE = `\*avl\.Tree\b`
+
+// pkgMutableReturnRE matches an exported function returning a pointer to such a
+// type (guide §5.1a). pkgMutableFieldRE matches an exported struct field or
+// package var of that pointer type (guide §5.1b).
+var pkgMutableReturnRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?[A-Z]\w*\([^)]*\)\s+` + pkgMutablePointerTypeRE)
+var pkgMutableFieldRE = regexp.MustCompile(`^(?:var\s+)?[A-Z]\w*\s+` + pkgMutablePointerTypeRE)
+
 type Options struct {
 	GNOBin string
 }
@@ -140,9 +155,85 @@ func RunRule(rule, dir string) ([]Hit, error) {
 		return exportedPointerLeakHits(dir)
 	case "render_map_iteration":
 		return renderMapIterationHits(dir)
+	case "unsafe_previous_realm":
+		return unsafePreviousRealmHits(dir)
+	case "pkg_mutable_pointer":
+		return pkgMutablePointerHits(dir)
 	default:
 		return nil, fmt.Errorf("unknown rule %q", rule)
 	}
+}
+
+// unsafePreviousRealmHits flags any PreviousRealm() call in a file that also
+// declares a crossing function (`func F(cur realm, ...)`). In a crossing
+// function the caller must be derived from cur.Previous() under a
+// cur.IsCurrent() guard; reaching for chain/runtime/unsafe.PreviousRealm()
+// instead skips the frame check and ignores the cur token (guide §5.8).
+func unsafePreviousRealmHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		src, err := loadGnoSource(file)
+		if err != nil {
+			return nil, err
+		}
+
+		crossing := false
+		for _, line := range src.code {
+			if crossingFuncRE.MatchString(strings.TrimSpace(line)) {
+				crossing = true
+				break
+			}
+		}
+		if !crossing {
+			continue
+		}
+
+		for i, line := range src.code {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if strings.Contains(line, "PreviousRealm()") {
+				hits = append(hits, src.hit(dir, file, i))
+			}
+		}
+	}
+	return hits, nil
+}
+
+// pkgMutablePointerHits flags a pointer to a /p/ type whose exported methods
+// mutate the receiver (avl.Tree) exposed as an exported function return
+// (guide §5.1a) or an exported struct field / package var (guide §5.1b).
+// Readonly taint does not block method dispatch, so such a handle publishes
+// the type's mutators under the realm's authority.
+func pkgMutablePointerHits(dir string) ([]Hit, error) {
+	files, err := gnoFiles(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var hits []Hit
+	for _, file := range files {
+		src, err := loadGnoSource(file)
+		if err != nil {
+			return nil, err
+		}
+		for i, line := range src.code {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if pkgMutableReturnRE.MatchString(trimmed) || pkgMutableFieldRE.MatchString(trimmed) {
+				hits = append(hits, src.hit(dir, file, i))
+			}
+		}
+	}
+	return hits, nil
 }
 
 func currentGuardHits(dir string) ([]Hit, error) {
@@ -153,15 +244,14 @@ func currentGuardHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
 		inFunc := false
 		braceDepth := 0
 		seenIsCurrent := false
-		orig := strings.Split(string(data), "\n")
-		for i, line := range codeLines(data) {
+		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
@@ -176,7 +266,7 @@ func currentGuardHits(dir string) ([]Hit, error) {
 				seenIsCurrent = true
 			}
 			if strings.Contains(line, ".Previous()") && !seenIsCurrent {
-				hits = append(hits, newHit(dir, file, i+1, orig[i]))
+				hits = append(hits, src.hit(dir, file, i))
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
@@ -195,14 +285,13 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
 		inRender := false
 		braceDepth := 0
-		orig := strings.Split(string(data), "\n")
-		for i, line := range codeLines(data) {
+		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func Render(") {
 				inRender = true
@@ -213,7 +302,7 @@ func renderMarkdownEscapeHits(dir string) ([]Hit, error) {
 				braceDepth -= strings.Count(line, "}")
 				lower := strings.ToLower(line)
 				if strings.Contains(line, "return") && strings.Contains(line, "path") && !strings.Contains(lower, "escape") {
-					hits = append(hits, newHit(dir, file, i+1, orig[i]))
+					hits = append(hits, src.hit(dir, file, i))
 				}
 			}
 			if inRender && braceDepth <= 0 {
@@ -232,15 +321,14 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
 		inFunc := false
 		braceDepth := 0
 		seenUserCall := false
-		orig := strings.Split(string(data), "\n")
-		for i, line := range codeLines(data) {
+		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
@@ -255,7 +343,7 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
 				seenUserCall = true
 			}
 			if strings.Contains(line, "OriginSend()") && !seenUserCall {
-				hits = append(hits, newHit(dir, file, i+1, orig[i]))
+				hits = append(hits, src.hit(dir, file, i))
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
@@ -293,14 +381,13 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
 		inInterface := false
 		braceDepth := 0
-		orig := strings.Split(string(data), "\n")
-		for i, line := range codeLines(data) {
+		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.Contains(trimmed, "interface {") {
 				inInterface = true
@@ -310,7 +397,7 @@ func interfaceRealmParamHits(dir string) ([]Hit, error) {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
 				if strings.Contains(line, "realm") {
-					hits = append(hits, newHit(dir, file, i+1, orig[i]))
+					hits = append(hits, src.hit(dir, file, i))
 				}
 			}
 			if inInterface && braceDepth <= 0 {
@@ -329,12 +416,11 @@ func exportedPointerLeakHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
-		orig := strings.Split(string(data), "\n")
-		lines := codeLines(data)
+		lines := src.code
 		for i := range lines {
 			line := lines[i]
 			trimmed := strings.TrimSpace(line)
@@ -342,7 +428,7 @@ func exportedPointerLeakHits(dir string) ([]Hit, error) {
 				continue
 			}
 			if exportedPointerVarRE.MatchString(trimmed) {
-				hits = append(hits, newHit(dir, file, i+1, orig[i]))
+				hits = append(hits, src.hit(dir, file, i))
 				continue
 			}
 			match := exportedPointerFuncRE.FindStringSubmatch(trimmed)
@@ -352,7 +438,7 @@ func exportedPointerLeakHits(dir string) ([]Hit, error) {
 			if strings.HasPrefix(match[1], "New") && returnsFreshPointer(lines[i:]) {
 				continue
 			}
-			hits = append(hits, newHit(dir, file, i+1, orig[i]))
+			hits = append(hits, src.hit(dir, file, i))
 		}
 	}
 	return hits, nil
@@ -381,27 +467,29 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
 
-		mapVars := make(map[string]struct{})
-		orig := strings.Split(string(data), "\n")
-		lines := codeLines(data)
-		for _, line := range lines {
+		mapRanges := make(map[string]*regexp.Regexp)
+		for _, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "//") {
 				continue
 			}
 			if match := mapVarRE.FindStringSubmatch(trimmed); match != nil {
-				mapVars[match[1]] = struct{}{}
+				name := match[1]
+				// Match "range <name>" only when <name> ends at a word
+				// boundary, so a map "scores" does not flag "range scoresList"
+				// (an unrelated slice).
+				mapRanges[name] = regexp.MustCompile(`\brange\s+` + regexp.QuoteMeta(name) + `\b`)
 			}
 		}
 
 		inRender := false
 		braceDepth := 0
-		for i, line := range lines {
+		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func Render(") {
 				inRender = true
@@ -411,11 +499,10 @@ func renderMapIterationHits(dir string) ([]Hit, error) {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
 				if strings.Contains(line, "range ") {
-					// Normalize to remove extra spaces: range     var -> range var
-					normalized := strings.Join(strings.Fields(line), " ")
-					for name := range mapVars {
-						if strings.Contains(normalized, "range "+name) {
-							hits = append(hits, newHit(dir, file, i+1, orig[i]))
+					for _, re := range mapRanges {
+						if re.MatchString(line) {
+							hits = append(hits, src.hit(dir, file, i))
+							break
 						}
 					}
 				}
@@ -436,14 +523,13 @@ func lineContainsHits(dir string, match func(string) bool) ([]Hit, error) {
 
 	var hits []Hit
 	for _, file := range files {
-		data, err := readGnoSource(file)
+		src, err := loadGnoSource(file)
 		if err != nil {
 			return nil, err
 		}
-		orig := strings.Split(string(data), "\n")
-		for i, line := range codeLines(data) {
+		for i, line := range src.code {
 			if match(line) {
-				hits = append(hits, newHit(dir, file, i+1, orig[i]))
+				hits = append(hits, src.hit(dir, file, i))
 			}
 		}
 	}
@@ -462,22 +548,135 @@ func newHit(dir, file string, line int, text string) Hit {
 	}
 }
 
-// readGnoSource reads a .gno file and returns its gofmt-normalized contents so
-// the line-based pattern matchers are not defeated by irregular spacing. For
-// example "func GetVault()*Vault{" is normalized to "func GetVault() *Vault {"
-// before scanning, which the matchers expect. .gno files use Go syntax, so
-// go/format applies. If the source cannot be parsed (e.g. intentionally broken
-// fixture), the raw bytes are returned unchanged.
-func readGnoSource(file string) ([]byte, error) {
-	data, err := os.ReadFile(file)
+// gnoSource is a .gno file prepared for line-based matching. Matchers scan
+// code (the gofmt-normalized, literal/comment-blanked view) so irregular
+// spacing and text inside strings/comments cannot defeat or fool them, but
+// report hits against the original on-disk source via hit, so file:line and
+// text always point at what the author actually wrote — even when the input
+// was not gofmt-clean and formatting shifted line numbers.
+type gnoSource struct {
+	code   []string // gofmt-normalized + literal/comment-blanked, for matching
+	orig   []string // raw on-disk lines, for reporting
+	toOrig []int    // code line index -> orig line index (0-based)
+}
+
+// hit builds a Hit for a match on code line i, mapped back to the original
+// source line and text.
+func (s *gnoSource) hit(dir, file string, i int) Hit {
+	o := i
+	if i >= 0 && i < len(s.toOrig) {
+		o = s.toOrig[i]
+	}
+	text := ""
+	if o >= 0 && o < len(s.orig) {
+		text = s.orig[o]
+	}
+	return newHit(dir, file, o+1, text)
+}
+
+// loadGnoSource reads a .gno file and prepares it for matching. It gofmt-
+// normalizes the bytes so "func GetVault()*Vault{" becomes
+// "func GetVault() *Vault {" before scanning (.gno uses Go syntax); if the
+// source cannot be parsed (e.g. an intentionally broken fixture) the raw
+// bytes are used unchanged. toOrig maps each normalized line back to the line
+// it came from on disk so reported hits are never off by the formatter's line
+// shifts.
+func loadGnoSource(file string) (*gnoSource, error) {
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
-	formatted, err := format.Source(data)
+	formatted, err := format.Source(raw)
 	if err != nil {
-		return data, nil
+		formatted = raw
 	}
-	return formatted, nil
+	return &gnoSource{
+		code:   codeLines(formatted),
+		orig:   strings.Split(string(raw), "\n"),
+		toOrig: lineMap(raw, formatted),
+	}, nil
+}
+
+// lineMap returns, for each line of formatted, the 0-based index of the line
+// in orig it originated from. gofmt only rewrites whitespace and comment
+// layout — it never adds, drops, or reorders real tokens — so aligning the two
+// token streams (ignoring the scanner's auto-inserted semicolons, whose count
+// depends on line breaks) recovers the mapping even when formatting changed
+// the line count. When orig and formatted are byte-identical (the common case:
+// committed, gofmt-clean code) the map is the identity. If the streams cannot
+// be aligned the last known original line is carried forward, which degrades
+// to a best-effort nearby line rather than a wrong one.
+func lineMap(orig, formatted []byte) []int {
+	nf := strings.Count(string(formatted), "\n") + 1
+	if bytes.Equal(orig, formatted) {
+		m := make([]int, nf)
+		for i := range m {
+			m[i] = i
+		}
+		return m
+	}
+	origTokLines := tokenLines(orig)
+	firstTok := firstTokenIndexByLine(formatted, nf)
+	m := make([]int, nf)
+	last := 0
+	for f := 0; f < nf; f++ {
+		if k := firstTok[f]; k >= 0 && k < len(origTokLines) {
+			last = origTokLines[k]
+		}
+		m[f] = last
+	}
+	return m
+}
+
+// tokenLines returns the 0-based line of each real token in data, in scan
+// order. The scanner's auto-inserted semicolons are skipped because their
+// number depends on line breaks and would desynchronize the alignment.
+func tokenLines(data []byte) []int {
+	fset := token.NewFileSet()
+	f := fset.AddFile("", fset.Base(), len(data))
+	var s scanner.Scanner
+	s.Init(f, data, nil, scanner.ScanComments)
+	var lines []int
+	for {
+		pos, tok, _ := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok == token.SEMICOLON {
+			continue
+		}
+		lines = append(lines, fset.Position(pos).Line-1)
+	}
+	return lines
+}
+
+// firstTokenIndexByLine returns, for each of the nLines lines of data, the
+// index (into the auto-semicolon-filtered token stream) of the first real
+// token on that line, or -1 for lines with no token (blank/comment-shifted).
+func firstTokenIndexByLine(data []byte, nLines int) []int {
+	idx := make([]int, nLines)
+	for i := range idx {
+		idx[i] = -1
+	}
+	fset := token.NewFileSet()
+	f := fset.AddFile("", fset.Base(), len(data))
+	var s scanner.Scanner
+	s.Init(f, data, nil, scanner.ScanComments)
+	k := 0
+	for {
+		pos, tok, _ := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok == token.SEMICOLON {
+			continue
+		}
+		if line := fset.Position(pos).Line - 1; line >= 0 && line < nLines && idx[line] == -1 {
+			idx[line] = k
+		}
+		k++
+	}
+	return idx
 }
 
 // codeLines splits gno source into lines with the contents of string/char

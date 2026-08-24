@@ -21,7 +21,7 @@ graduate out of quarantine.
 ## Markdown Helpers
 
 Start with the official markdown sanitizer for untrusted text when your target
-Gno version provides it. See [Raw public text in `Render`](./gno-security-guide.md#59-raw-public-text-in-render)
+Gno version provides it. See [Raw public text in `Render`](./gno-security-guide.md#510-raw-public-text-in-render)
 for the recommended `gno.land/p/nt/markdown/sanitize/v0` shape:
 
 ```go

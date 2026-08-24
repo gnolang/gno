@@ -303,6 +303,17 @@ while holding your own `m.Realm`. Either:
   types so attackers can't supply a matching `/p/`-callback, OR
 - Do not invoke caller callbacks at all; design synchronous APIs.
 
+**Safe by contrast — threading `cur` through your own concrete `/p/`
+functions.** The danger above is a *caller-supplied* `func` or
+`interface` value, not the `realm` token itself. Passing your own `cur`
+down into concrete functions you import from a `/p/` package is safe: a
+realm token grants authority only while `cur.IsCurrent()` holds, and a
+concrete callee cannot be swapped for attacker code the way an interface
+or callback parameter can. This is the interrealm pattern
+[daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64)
+relies on — do not avoid passing `realm` to `/p/` altogether; only avoid
+handing your authority to values the *caller* controls.
+
 ### 5.4 Trusting an interface value without canonical-type check
 
 ```go
@@ -378,7 +389,41 @@ a call frame`.
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
-### 5.8 `OriginCaller()` as authorization identity
+### 5.8 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
+
+`chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
+obtaining the previous realm. Using it in a crossing function that already
+receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
+verification that makes `cur.Previous()` safe, and silently ignores the
+`cur` capability token the runtime minted for exactly this purpose.
+
+```go
+// WRONG: cur is accepted but never used; no IsCurrent() guard
+import "chain/runtime/unsafe"
+
+func Set(cur realm, key, value string) {
+    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    ...
+}
+
+// RIGHT
+func Set(cur realm, key, value string) {
+    if !cur.IsCurrent() { panic("spoofed realm") }
+    caller := cur.Previous().Address()
+    ...
+}
+```
+
+Any import of `chain/runtime/unsafe` in a realm that also declares
+crossing functions (`func F(cur realm, ...)`) is a red flag. The
+`unsafe` package is appropriate only in non-crossing helpers or
+in realms that have not yet been migrated to the `cur realm` API.
+
+**Rule**: in crossing functions, always derive caller identity from
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+`chain/runtime/unsafe` import.
+
+### 5.9 `OriginCaller()` as authorization identity
 
 `OriginCaller()` names the transaction origin, not necessarily the
 immediate realm that crossed into your function. If a realm uses it as
@@ -424,7 +469,7 @@ protecting:
 authorization. Use direct-user and origin-caller checks only when that is the
 actual product policy, and make the tradeoff explicit.
 
-### 5.9 Raw public text in `Render`
+### 5.10 Raw public text in `Render`
 
 `Render(path string) string` is a public display surface. The `path`
 argument and any user-authored state are attacker-controlled text. Do
@@ -455,39 +500,6 @@ Opinionated rendering libraries and frameworks can help keep this consistent,
 but check whether each helper sanitizes internally or expects sanitized input.
 See [Community Packages](./community-packages.md) for non-official markdown
 builders and their review checklist.
-### 5.10 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
-
-`chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
-obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
-verification that makes `cur.Previous()` safe, and silently ignores the
-`cur` capability token the runtime minted for exactly this purpose.
-
-```go
-// WRONG: cur is accepted but never used; no IsCurrent() guard
-import "chain/runtime/unsafe"
-
-func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()  // skips frame check
-    ...
-}
-
-// RIGHT
-func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
-    caller := cur.Previous().Address()
-    ...
-}
-```
-
-Any import of `chain/runtime/unsafe` in a realm that also declares
-crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
-
-**Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
-`chain/runtime/unsafe` import.
 
 ---
 

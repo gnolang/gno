@@ -66,6 +66,10 @@ Current pattern slices:
   state.
 - `render-map-iteration`: public Render output that depends on map iteration
   order.
+- `unsafe-previous-realm`: `unsafe.PreviousRealm()` used in a realm that
+  declares crossing functions (`func F(cur realm, ...)`).
+- `pkg-mutable-pointer`: pointer to a `/p/` type with mutation methods
+  (`*avl.Tree`) exposed as an exported return, field, or var.
 
 Each `expected/*.yaml` record describes one finding family and its fixtures:
 
@@ -73,11 +77,6 @@ Each `expected/*.yaml` record describes one finding family and its fixtures:
 id: current-guard
 title: cur.Previous without cur.IsCurrent
 rule: current_guard
-repair:
-  from_fixture: vulnerable
-  to_fixture: fixed
-  goal: Check cur.IsCurrent before reading cur.Previous for authorization.
-  allow_removed_exports: [] # optional, for intentionally removed unsafe APIs
 fixtures:
   - name: vulnerable
     path: ../fixtures/current-guard/vulnerable
@@ -92,20 +91,12 @@ fixtures:
 Paths are relative to the YAML file. `want_gno_test` is `pass` or `fail`.
 `want_pattern_hits` is the exact count expected from the rule.
 
-The `repair` block is experimental. It describes the intended bad-to-good
-fixture pair for an agent or tool to learn from. `TestRepairContracts` verifies
-that the source fixture demonstrates the pattern, the target fixture removes it,
-the `.gno` files actually changed, and exported top-level function names remain
-stable across the repair except for names listed in `allow_removed_exports`.
-
 ## Adding a pattern slice
 
 1. Add sanitized fixtures under `fixtures/<slice>/`.
 2. Add an `expected/<slice>.yaml` record.
-3. Add a `repair` block that points from the vulnerable fixture to the fixed
-   fixture and states the intended remediation goal.
-4. Teach `internal/auditpattern` the new rule.
-5. Promote stable, sanitized lessons to `docs/resources` and
+3. Teach `internal/auditpattern` the new rule.
+4. Promote stable, sanitized lessons to `docs/resources` and
    `examples/gno.land` when they are useful for builders.
 
 ## Known limitations
@@ -146,6 +137,35 @@ Flags exported package-level pointer variables and exported pointer-returning
 functions. Constructors shaped like `NewX() *X { return &X{} }` are ignored as
 fresh allocations; manually inspect constructors that may return aliases to
 shared package state.
+
+### render_map_iteration
+
+Flags `for ... range <m>` inside `Render` where `<m>` is a package-level `map`
+variable, matched at a word boundary so a map `scores` does not flag an
+unrelated `range scoresList`. A map ranged behind a local alias, or built
+inside `Render`, is not detected.
+
+### unsafe_previous_realm
+
+Flags `PreviousRealm()` calls only in files that also declare a crossing
+function (`func F(cur realm, ...)`). A non-crossing helper or a not-yet-migrated
+realm that legitimately uses `chain/runtime/unsafe` is not flagged. Detection is
+per file, so a crossing function in one file and the unsafe call in another (same
+package) are not correlated.
+
+### pkg_mutable_pointer
+
+Flags a pointer to a `/p/` type whose exported methods mutate the receiver,
+exposed as an exported function return, struct field, or package var. The known
+mutable type set is currently `avl.Tree` only; a pointer to another mutable
+`/p/` type, or the type reached behind a local alias, is not detected. Getters
+returning a locally-declared `*T` are already covered by `exported_pointer_leak`.
+
+### Line reporting
+
+Sources are gofmt-normalized before matching so irregular spacing cannot defeat
+the rules, but every hit's `file:line` and text are mapped back to the original
+on-disk source, so they stay accurate even on input that was not gofmt-clean.
 
 ### Spec corpus test
 

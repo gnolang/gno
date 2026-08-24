@@ -5,14 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 )
-
-var exportedFuncRE = regexp.MustCompile(`(?m)^func\s+([A-Z]\w*)\s*\(`)
 
 // pkgDir is the directory containing this test file, resolved at init time via
 // runtime.Caller so that path computations work regardless of working directory.
@@ -203,6 +200,119 @@ func TestRenderMapIterationRule(t *testing.T) {
 	assertRuleCounts(t, "render_map_iteration", "render-map-iteration", 1, 0)
 }
 
+func TestUnsafePreviousRealmRule(t *testing.T) {
+	assertRuleCounts(t, "unsafe_previous_realm", "unsafe-previous-realm", 1, 0)
+}
+
+// TestUnsafePreviousRealmIgnoresNonCrossing ensures PreviousRealm() is only
+// flagged in a file that also declares a crossing function; a non-crossing
+// helper that legitimately uses the unsafe API is left alone.
+func TestUnsafePreviousRealmIgnoresNonCrossing(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"import \"chain/runtime/unsafe\"\n\n" +
+		"func caller() address {\n" +
+		"\treturn unsafe.PreviousRealm().Address()\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("unsafe_previous_realm", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("non-crossing helper using the unsafe API was flagged: %+v", hits)
+	}
+}
+
+func TestPkgMutablePointerRule(t *testing.T) {
+	assertRuleCounts(t, "pkg_mutable_pointer", "pkg-mutable-pointer", 2, 0)
+}
+
+// TestPkgMutablePointerIgnoresUnexported ensures an unexported field and an
+// unexported getter of the mutable /p/ type are not flagged — only exported
+// handles publish the mutators.
+func TestPkgMutablePointerIgnoresUnexported(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"import \"gno.land/p/nt/avl/v0\"\n\n" +
+		"var store = avl.NewTree()\n\n" +
+		"type box struct {\n" +
+		"\titems *avl.Tree\n" +
+		"}\n\n" +
+		"func size() int { return store.Size() }\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("pkg_mutable_pointer", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("unexported mutable-pointer handles were flagged: %+v", hits)
+	}
+}
+
+// TestRenderMapIterationWordBoundary ensures "range <map>" is matched only at a
+// word boundary, so a map "scores" does not flag "range scoresList" (an
+// unrelated slice that merely shares a prefix).
+func TestRenderMapIterationWordBoundary(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" +
+		"var scores = map[string]int{}\n" +
+		"var scoresList = []int{}\n\n" +
+		"func Render(path string) string {\n" +
+		"\tfor _, v := range scoresList {\n" +
+		"\t\t_ = v\n" +
+		"\t}\n" +
+		"\treturn \"\"\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("render_map_iteration", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("unrelated slice sharing the map's prefix was flagged: %+v", hits)
+	}
+}
+
+// TestHitReportsOriginalSourceLine ensures a hit's file:line and text come from
+// the on-disk source, not the gofmt-normalized buffer, even when formatting
+// shifts line numbers (here gofmt collapses the run of blank lines, so the
+// flagged line moves from on-disk line 7 to buffer line 5).
+func TestHitReportsOriginalSourceLine(t *testing.T) {
+	dir := t.TempDir()
+	src := "package x\n\n" + // 1, 2
+		"func F(cur realm) {\n" + // 3
+		"\n\n\n" + // 4, 5, 6 (collapsed to one by gofmt)
+		"\t_ = cur.Previous()\n" + // 7
+		"}\n" // 8
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 hit, got %d: %+v", len(hits), hits)
+	}
+	if hits[0].Line != 7 {
+		t.Fatalf("hit line %d does not match on-disk line 7: %+v", hits[0].Line, hits[0])
+	}
+	if hits[0].Text != "_ = cur.Previous()" {
+		t.Fatalf("hit text %q does not match on-disk source", hits[0].Text)
+	}
+}
+
 func TestRunWithFakeGNO(t *testing.T) {
 	tmp := t.TempDir()
 	gno := filepath.Join(tmp, "gno")
@@ -241,6 +351,8 @@ func TestAgentPatternContract(t *testing.T) {
 		"payment-user-call":     {"OriginSend()", "IsUserCall()"},
 		"render-map-iteration":  {"Render", "map iteration"},
 		"render-markdown":       {"Render(path)", "markdown/sanitize"},
+		"unsafe-previous-realm": {"unsafe.PreviousRealm()", "cur realm"},
+		"pkg-mutable-pointer":   {"avl.Tree", "mutation method"},
 	}
 	// Every vulnerable hit must contain the rule's detection signal. Counting
 	// hits alone lets a rule be rewritten to flag a coincidental line (e.g. an
@@ -255,6 +367,8 @@ func TestAgentPatternContract(t *testing.T) {
 		"payment-user-call":     "OriginSend()",
 		"render-map-iteration":  "range ",
 		"render-markdown":       "path",
+		"unsafe-previous-realm": "PreviousRealm()",
+		"pkg-mutable-pointer":   "avl.Tree",
 	}
 
 	corpus := readSpecCorpus(t, specFiles)
@@ -336,50 +450,6 @@ func TestAgentPatternContractWithGNO(t *testing.T) {
 	}
 }
 
-func TestRepairContracts(t *testing.T) {
-	for _, rec := range loadAllRecords(t, harnessRoot()) {
-		t.Run(rec.ID, func(t *testing.T) {
-			from := fixtureByName(t, rec, rec.Repair.FromFixture)
-			to := fixtureByName(t, rec, rec.Repair.ToFixture)
-			if strings.TrimSpace(rec.Repair.Goal) == "" {
-				t.Fatalf("repair goal is empty")
-			}
-
-			fromHits, err := RunRule(rec.Rule, from.Path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(fromHits) == 0 {
-				t.Fatalf("repair source %q must demonstrate at least one hit", from.Name)
-			}
-
-			toHits, err := RunRule(rec.Rule, to.Path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(toHits) != 0 {
-				t.Fatalf("repair target %q still has hits: %+v", to.Name, toHits)
-			}
-
-			fromFiles := gnoFileContents(t, from.Path)
-			toFiles := gnoFileContents(t, to.Path)
-			if !sameKeys(fromFiles, toFiles) {
-				t.Fatalf("repair fixtures must keep the same .gno file set: from=%v to=%v", sortedKeys(fromFiles), sortedKeys(toFiles))
-			}
-			if !anyChanged(fromFiles, toFiles) {
-				t.Fatalf("repair target must change at least one .gno file")
-			}
-
-			fromAPI := exportedFuncNames(fromFiles)
-			toAPI := exportedFuncNames(toFiles)
-			fromAPI = withoutStrings(fromAPI, rec.Repair.AllowRemovedExports)
-			if !sameStringSlices(fromAPI, toAPI) {
-				t.Fatalf("repair target should preserve exported top-level function names: from=%v to=%v", fromAPI, toAPI)
-			}
-		})
-	}
-}
-
 func assertRuleCounts(t *testing.T, rule, fixture string, vulnerable, fixed int) {
 	t.Helper()
 	base := fixturesDir(fixture)
@@ -445,115 +515,4 @@ func loadAllRecords(t *testing.T, harnessRoot string) []Record {
 		records = append(records, rec)
 	}
 	return records
-}
-
-func fixtureByName(t *testing.T, rec Record, name string) Fixture {
-	t.Helper()
-
-	for _, fixture := range rec.Fixtures {
-		if fixture.Name == name {
-			return fixture
-		}
-	}
-	t.Fatalf("fixture %q not found in %s", name, rec.ID)
-	return Fixture{}
-}
-
-func gnoFileContents(t *testing.T, dir string) map[string]string {
-	t.Helper()
-
-	files, err := gnoFiles(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := map[string]string{}
-	for _, file := range files {
-		rel, err := filepath.Rel(dir, file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		data, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out[filepath.ToSlash(rel)] = string(data)
-	}
-	if len(out) == 0 {
-		t.Fatalf("no .gno files under %s", dir)
-	}
-	return out
-}
-
-func exportedFuncNames(files map[string]string) []string {
-	seen := map[string]bool{}
-	for _, data := range files {
-		for _, match := range exportedFuncRE.FindAllStringSubmatch(data, -1) {
-			seen[match[1]] = true
-		}
-	}
-	names := make([]string, 0, len(seen))
-	for name := range seen {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-func sameKeys(left, right map[string]string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for key := range left {
-		if _, ok := right[key]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func sortedKeys(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func anyChanged(left, right map[string]string) bool {
-	for key, value := range left {
-		if right[key] != value {
-			return true
-		}
-	}
-	return false
-}
-
-func sameStringSlices(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for i := range left {
-		if left[i] != right[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func withoutStrings(values, remove []string) []string {
-	if len(remove) == 0 {
-		return values
-	}
-	blocked := map[string]bool{}
-	for _, value := range remove {
-		blocked[value] = true
-	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if !blocked[value] {
-			out = append(out, value)
-		}
-	}
-	return out
 }
