@@ -1,0 +1,7 @@
+// MARKDOWNFUNC: FootnoteDefinition
+// ARGS: "note1"
+-- input.md --
+Long form of the citation.
+-- output.md --
+[^note1]:
+    Long form of the citation.

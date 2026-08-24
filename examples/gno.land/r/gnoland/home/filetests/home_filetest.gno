@@ -44,17 +44,17 @@ func main() {
 // - [Explore the Ecosystem](/ecosystem)
 // - [Careers](https://jobs.ashbyhq.com/allinbits)
 //
-// |||
+// <gno-columns-sep>
 //
 // ## Build with Gno
 //
 // - [Write Gno in the browser](https://play.gno.land)
 // - [Read about the Gno Language](/gnolang)
 // - [Visit the official documentation](https://docs.gno.land)
-// - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
+// - [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 // - [Get testnet GNOTs](https://faucet.gno.land)
 //
-// |||
+// <gno-columns-sep>
 //
 // ## Explore the universe
 //
@@ -73,7 +73,7 @@ func main() {
 //
 // No posts.
 //
-// |||
+// <gno-columns-sep>
 //
 // ## [Latest Events](/events)
 //
@@ -108,7 +108,7 @@ func main() {
 //
 // [Browse](/r/gnoland)
 //
-// |||
+// <gno-columns-sep>
 //
 // ### r/sys
 //
@@ -116,7 +116,7 @@ func main() {
 //
 // [Browse](/r/sys)
 //
-// |||
+// <gno-columns-sep>
 //
 // ### r/demo
 //
@@ -124,7 +124,7 @@ func main() {
 //
 // [Browse](/r/demo)
 //
-// |||
+// <gno-columns-sep>
 //
 // ### p/demo
 //
@@ -146,7 +146,7 @@ func main() {
 // - [Youtube](https://www.youtube.com/@_gnoland)
 // - [Telegram](https://t.me/gnoland)
 //
-// |||
+// <gno-columns-sep>
 //
 // ## Quote of the ~Day~ Block #123
 //

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_request_invite_04_filetest
+
+package z_request_invite_04_filetest
 
 import (
 	"testing"
@@ -11,10 +13,10 @@ const (
 	user  address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.RequestInvite(cross, 404)
+	boards2.RequestInvite(cross(cur), 404)
 }
 
 // Error:

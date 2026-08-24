@@ -10,6 +10,10 @@ type Entry struct {
 
 var entries []*Entry
 
+func NewEntry(key string, value int) *Entry {
+	return &Entry{Key: key, Value: value}
+}
+
 func Add(cur realm, e *Entry) {
 	entries = append(entries, e)
 }

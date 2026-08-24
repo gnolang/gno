@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: LinkReferenceDefinition
+// ARGS: "/r/docs/help", ""
+-- input.md --
+r-docs-help
+-- output.md --
+
+
+[r-docs-help]: /r/docs/help
+

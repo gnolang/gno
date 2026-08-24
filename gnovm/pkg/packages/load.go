@@ -165,12 +165,18 @@ func findLoaderContext() (*loaderContext, error) {
 	if err != nil {
 		return nil, err
 	}
+	return findLoaderContextFor(wd)
+}
 
+// findLoaderContextFor resolves the loader context rooted at dir, which must be
+// absolute: the nearest gnowork.toml ancestor (workspace mode), else dir itself
+// when it holds a gnomod.toml (single-package mode), else ErrGnoContextNotFound.
+func findLoaderContextFor(dir string) (*loaderContext, error) {
 	{
-		dir, err := findWorkspaceRootDir(wd)
+		root, err := findWorkspaceRootDir(dir)
 		switch {
 		case err == nil:
-			return &loaderContext{Root: dir, IsWorkspace: true}, nil
+			return &loaderContext{Root: root, IsWorkspace: true}, nil
 		case errors.Is(err, ErrGnoworkNotFound):
 			// continue
 		default:
@@ -178,16 +184,34 @@ func findLoaderContext() (*loaderContext, error) {
 		}
 	}
 
-	gnomodPath := filepath.Join(wd, "gnomod.toml")
-	_, err = os.Stat(gnomodPath)
+	gnomodPath := filepath.Join(dir, "gnomod.toml")
+	_, err := os.Stat(gnomodPath)
 	switch {
 	case err == nil:
-		return &loaderContext{Root: wd}, nil
+		return &loaderContext{Root: dir}, nil
 	case os.IsNotExist(err):
 		return nil, ErrGnoContextNotFound
 	default:
 		return nil, err
 	}
+}
+
+// FindLoaderRoot resolves the loader root for dir using the same rule Load
+// applies to its working directory (see findLoaderContextFor), returning
+// ErrGnoContextNotFound when dir is in neither a gnowork.toml workspace nor a
+// gnomod.toml package. dir is made absolute first. Build a recursive pattern
+// (root + "/...") from the result so the pattern handed to Load is one its own
+// loader context can satisfy.
+func FindLoaderRoot(dir string) (string, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	ctx, err := findLoaderContextFor(abs)
+	if err != nil {
+		return "", err
+	}
+	return ctx.Root, nil
 }
 
 // ErrGnoworkNotFound is returned by [findRootDir] when, even after traversing

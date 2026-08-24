@@ -30,6 +30,10 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Part)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*PartSet)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*PartSetHeader)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CanonicalBlockID)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CanonicalPartSetHeader)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CanonicalProposal)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CanonicalVote)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Validator)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ValidatorSet)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*EventNewBlock)(nil)).Elem())
@@ -2016,6 +2020,617 @@ func (goo *PartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for PartSetHeader", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo CanonicalBlockID) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	{
+		before := offset
+		offset, err = goo.PartsHeader.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	if len(goo.Hash) != 0 {
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Hash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo CanonicalBlockID) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if len(goo.Hash) != 0 {
+		s += 1 + amino.ByteSliceSize(goo.Hash)
+	}
+	{
+		cs, err := goo.PartsHeader.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *CanonicalBlockID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = CanonicalBlockID{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if len(v) == 0 {
+				goo.Hash = nil
+			} else {
+				goo.Hash = v
+			}
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.PartsHeader.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for CanonicalBlockID", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo CanonicalPartSetHeader) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if len(goo.Hash) != 0 {
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Hash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Total != 0 {
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Total))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo CanonicalPartSetHeader) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.Total != 0 {
+		s += 1 + amino.UvarintSize(uint64(goo.Total))
+	}
+	if len(goo.Hash) != 0 {
+		s += 1 + amino.ByteSliceSize(goo.Hash)
+	}
+	return s, nil
+}
+
+func (goo *CanonicalPartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = CanonicalPartSetHeader{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeUvarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Total = uint32(v)
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if len(v) == 0 {
+				goo.Hash = nil
+			} else {
+				goo.Hash = v
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for CanonicalPartSetHeader", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo CanonicalProposal) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.ChainID != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.ChainID))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.Timestamp)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	{
+		before := offset
+		offset, err = goo.BlockID.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	if goo.POLRound != 0 {
+		{
+			before := offset
+			offset = amino.PrependPlainVarint(buf, offset, int64(goo.POLRound))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Round != 0 {
+		{
+			before := offset
+			offset = amino.PrependInt64(buf, offset, int64(goo.Round))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ38Byte)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Height != 0 {
+		{
+			before := offset
+			offset = amino.PrependInt64(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ38Byte)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Type != 0 {
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Type))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo CanonicalProposal) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.Type != 0 {
+		s += 1 + amino.UvarintSize(uint64(goo.Type))
+	}
+	if goo.Height != 0 {
+		s += 1 + 8
+	}
+	if goo.Round != 0 {
+		s += 1 + 8
+	}
+	if goo.POLRound != 0 {
+		s += 1 + amino.PlainVarintSize(int64(goo.POLRound))
+	}
+	{
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	{
+		cs := amino.TimeSize(goo.Timestamp)
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	if goo.ChainID != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.ChainID))) + len(goo.ChainID)
+	}
+	return s, nil
+}
+
+func (goo *CanonicalProposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = CanonicalProposal{}
+	goo.Timestamp = time.Unix(0, 0).UTC()
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeUvarint8(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Type = SignedMsgType(v)
+		case 2:
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
+			}
+			v, n, err := amino.DecodeInt64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Height = int64(v)
+		case 3:
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
+			}
+			v, n, err := amino.DecodeInt64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Round = int64(v)
+		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodePlainVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.POLRound = int64(v)
+		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		case 6:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			// time.Time (ByteLength)
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Timestamp, _, err = amino.DecodeTime(fbz)
+			if err != nil {
+				return err
+			}
+		case 7:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 7: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.ChainID = string(v)
+		default:
+			return fmt.Errorf("unknown field number %d for CanonicalProposal", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo CanonicalVote) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.ChainID != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.ChainID))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	{
+		before := offset
+		offset, err = amino.PrependTime(buf, offset, goo.Timestamp)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	{
+		before := offset
+		offset, err = goo.BlockID.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	if goo.Round != 0 {
+		{
+			before := offset
+			offset = amino.PrependInt64(buf, offset, int64(goo.Round))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ38Byte)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Height != 0 {
+		{
+			before := offset
+			offset = amino.PrependInt64(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ38Byte)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Type != 0 {
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Type))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo CanonicalVote) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.Type != 0 {
+		s += 1 + amino.UvarintSize(uint64(goo.Type))
+	}
+	if goo.Height != 0 {
+		s += 1 + 8
+	}
+	if goo.Round != 0 {
+		s += 1 + 8
+	}
+	{
+		cs, err := goo.BlockID.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	{
+		cs := amino.TimeSize(goo.Timestamp)
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	if goo.ChainID != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.ChainID))) + len(goo.ChainID)
+	}
+	return s, nil
+}
+
+func (goo *CanonicalVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = CanonicalVote{}
+	goo.Timestamp = time.Unix(0, 0).UTC()
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeUvarint8(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Type = SignedMsgType(v)
+		case 2:
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
+			}
+			v, n, err := amino.DecodeInt64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Height = int64(v)
+		case 3:
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
+			}
+			v, n, err := amino.DecodeInt64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Round = int64(v)
+		case 4:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			// time.Time (ByteLength)
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Timestamp, _, err = amino.DecodeTime(fbz)
+			if err != nil {
+				return err
+			}
+		case 6:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.ChainID = string(v)
+		default:
+			return fmt.Errorf("unknown field number %d for CanonicalVote", fnum)
 		}
 	}
 	return nil

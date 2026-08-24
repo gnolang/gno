@@ -33,7 +33,11 @@ func ValidateGenesis(gs GenesisState) error {
 	if amino.DeepEqual(gs, GenesisState{}) {
 		return fmt.Errorf("vm genesis state cannot be empty")
 	}
-	err := gs.Params.Validate()
+	// Tolerate a genesis that predates PreprocessGasPerByte (an old-binary
+	// export omits the field, decoding it as zero); applyLegacyDefaults fills
+	// it so validation matches GetParams' runtime behavior. InitGenesis stores
+	// the defaulted value.
+	err := gs.Params.applyLegacyDefaults().Validate()
 	if err != nil {
 		return err
 	}
@@ -45,6 +49,7 @@ func ValidateGenesis(gs GenesisState) error {
 
 // InitGenesis - Init store state from genesis data
 func (vm *VMKeeper) InitGenesis(ctx sdk.Context, gs GenesisState) {
+	gs.Params = gs.Params.applyLegacyDefaults()
 	if err := ValidateGenesis(gs); err != nil {
 		panic(err)
 	}

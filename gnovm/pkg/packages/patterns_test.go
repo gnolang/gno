@@ -125,6 +125,7 @@ func TestDataExpandPatterns(t *testing.T) {
 	tcs := []struct {
 		name              string
 		workroot          string
+		singlePackage     bool
 		patterns          []string
 		conf              *LoadConfig
 		res               []*pkgMatch
@@ -278,6 +279,63 @@ func TestDataExpandPatterns(t *testing.T) {
 			patterns:          []string{localFromSlash("./emptydir/...")},
 			warnShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./emptydir/...")),
 		},
+		{
+			name:          "single-package-dot",
+			workroot:      localFromSlash("./testdata/singlepkg-1"),
+			singlePackage: true,
+			patterns:      []string{"."},
+			res: []*pkgMatch{{
+				Dir:   filepath.Join(cwd, "testdata", "singlepkg-1"),
+				Match: []string{"."},
+			}},
+		},
+		{
+			name:              "single-package-recursive",
+			workroot:          localFromSlash("./testdata/singlepkg-1"),
+			singlePackage:     true,
+			patterns:          []string{"./..."},
+			warnShouldContain: "nested package(s) ignored: nested",
+			res: []*pkgMatch{{
+				Dir:   filepath.Join(cwd, "testdata", "singlepkg-1"),
+				Match: []string{"./..."},
+			}},
+		},
+		{
+			name:              "single-package-bare-recursive",
+			workroot:          localFromSlash("./testdata/singlepkg-1"),
+			singlePackage:     true,
+			patterns:          []string{"..."},
+			warnShouldContain: "nested package(s) ignored: nested",
+			res: []*pkgMatch{{
+				Dir:   filepath.Join(cwd, "testdata", "singlepkg-1"),
+				Match: []string{"..."},
+			}},
+		},
+		{
+			name:              "single-package-abs-recursive",
+			workroot:          localFromSlash("./testdata/singlepkg-1"),
+			singlePackage:     true,
+			patterns:          []string{filepath.Join(cwd, "testdata", "singlepkg-1", "...")},
+			warnShouldContain: "nested package(s) ignored: nested",
+			res: []*pkgMatch{{
+				Dir:   filepath.Join(cwd, "testdata", "singlepkg-1"),
+				Match: []string{filepath.Join(cwd, "testdata", "singlepkg-1", "...")},
+			}},
+		},
+		{
+			name:             "err-single-package-subdir-recursive",
+			workroot:         localFromSlash("./testdata/singlepkg-1"),
+			singlePackage:    true,
+			patterns:         []string{"./sub/..."},
+			errShouldContain: "is not rooted at the current package in single-package mode",
+		},
+		{
+			name:             "err-single-package-other-dir",
+			workroot:         localFromSlash("./testdata/singlepkg-1"),
+			singlePackage:    true,
+			patterns:         []string{"./sub"},
+			errShouldContain: "is not the current package",
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,8 +345,7 @@ func TestDataExpandPatterns(t *testing.T) {
 			testChdir(t, workroot)
 
 			warn := &strings.Builder{}
-			// TODO: test single-package mode
-			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: !tc.singlePackage, Root: workroot}, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

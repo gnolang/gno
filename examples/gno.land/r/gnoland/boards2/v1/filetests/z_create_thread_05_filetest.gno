@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_thread_05_filetest
+
 // Open board: Test creating a new thread as a non member user
-package main
+package z_create_thread_05_filetest
 
 // SEND: 1000000ugnot
 
@@ -21,19 +23,19 @@ const (
 
 var bid boards.ID // Operate on board DAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, true)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to create threads
-	tid := boards2.CreateThread(cross, bid, title, body)
+	tid := boards2.CreateThread(cross(cur), bid, title, body)
 
 	// Ensure that returned ID is right
 	println(tid == 1)
@@ -48,6 +50,12 @@ func main() {
 // ## Test Thread
 //
 // **[g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj](/u/g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj)** · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
 // Test body
+// </gno-foreign>
+//
+//
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test123/1/flag) • [Repost](/r/gnoland/boards2/v1:test123/1/repost) • [Comment](/r/gnoland/boards2/v1:test123/1/reply) • [Edit](/r/gnoland/boards2/v1:test123/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)

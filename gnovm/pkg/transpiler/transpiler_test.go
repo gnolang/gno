@@ -389,11 +389,12 @@ func otherFunc() {
 package runtime
 
 func ChainID()
-func originCaller() string
+func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)
 
 func testfunc() {
 	ChainID()
-	println(originCaller())
+	addr, _, _, _ := getSessionInfo()
+	println(addr)
 }
 `,
 			expectedOutput: `
@@ -404,13 +405,13 @@ package runtime
 
 func testfunc() {
 	ChainID(nil)
-	println(X_originCaller(nil))
+	addr, _, _, _ := X_getSessionInfo(nil)
+	println(addr)
 }
 `,
 		},
 	}
 	for _, c := range cases {
-		c := c // scopelint
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			// "\n" is added for better test case readability, now trim it

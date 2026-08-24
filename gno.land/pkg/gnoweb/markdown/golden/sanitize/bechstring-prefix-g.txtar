@@ -1,0 +1,6 @@
+// MARKDOWNFUNC: BechString
+// ARGS: "g"
+-- input.md --
+g1abc123def456ghi789jkl
+-- output.md --
+g1abc123def456ghi789jkl

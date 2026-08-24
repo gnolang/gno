@@ -59,7 +59,7 @@ stdout ${RFOO_USER_ADDR}
 ## stdout ${test1_user_addr}
 
 ## 7. MsgRun -> myrlm.A: user address
-gnokey maketx run -gas-fee 160001ugnot -gas-wanted 1_600_000 -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
+gnokey maketx run -gas-fee 160001ugnot -gas-wanted 2_100_000 -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
 stdout ${test1_user_addr}
 
 ## 8. MsgRun -> myrealm.B -> myrlm.A: user address
@@ -89,16 +89,16 @@ stdout ${RFOO_USER_ADDR}
 ## stdout ${test1_user_addr}
 
 ## 14. MsgRun -> std.PreviousRealm(): user address
-gnokey maketx run -gas-fee 100001ugnot -gas-wanted 1_000_000 -chainid tendermint_test test1 $WORK/run/baz.gno
+gnokey maketx run -gas-fee 100001ugnot -gas-wanted 1_400_000 -chainid tendermint_test test1 $WORK/run/baz.gno
 stdout ${test1_user_addr}
 
 -- r/myrlm/myrlm.gno --
 package myrlm
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func A(cur realm) string {
-	return runtime.PreviousRealm().Address().String()
+	return unsafe.PreviousRealm().Address().String()
 }
 
 func B(cur realm) string {
@@ -110,19 +110,19 @@ package foo
 import "gno.land/r/myrlm"
 
 func A(cur realm) string {
-	return myrlm.A(cross)
+	return myrlm.A(cross(cur))
 }
 
 func B(cur realm) string {
-	return myrlm.B(cross)
+	return myrlm.B(cross(cur))
 }
 -- p/demo/bar/bar.gno --
 package bar
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func A() string {
-	return runtime.PreviousRealm().Address().String()
+	return unsafe.PreviousRealm().Address().String()
 }
 
 func B() string {
@@ -133,32 +133,32 @@ package main
 
 import myrlm "gno.land/r/myrlm"
 
-func main() {
-	println(myrlm.A(cross))
+func main(cur realm) {
+	println(myrlm.A(cross(cur)))
 }
 -- run/myrlm-b.gno --
 package main
 
 import "gno.land/r/myrlm"
 
-func main() {
-	println(myrlm.B(cross))
+func main(cur realm) {
+	println(myrlm.B(cross(cur)))
 }
 -- run/foo-a.gno --
 package main
 
 import "gno.land/r/foo"
 
-func main() {
-	println(foo.A(cross))
+func main(cur realm) {
+	println(foo.A(cross(cur)))
 }
 -- run/foo-b.gno --
 package main
 
 import "gno.land/r/foo"
 
-func main() {
-	println(foo.B(cross))
+func main(cur realm) {
+	println(foo.B(cross(cur)))
 }
 
 -- run/bar-b.gno --
@@ -172,9 +172,9 @@ func main() {
 -- run/baz.gno --
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	name := runtime.PreviousRealm().Address().String()
+	name := unsafe.PreviousRealm().Address().String()
 	println(name)
 }

@@ -90,40 +90,40 @@ func assertUnsupportedKind(t *testing.T, rt reflect.Type) {
 // silently produce broken code with mismatched marshal/size/unmarshal.
 
 func TestGenproto2_PanicsOnUintptr(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(uintptr(0)))
+	assertUnsupportedKind(t, reflect.TypeFor[uintptr]())
 }
 
 func TestGenproto2_PanicsOnComplex64(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(complex64(0)))
+	assertUnsupportedKind(t, reflect.TypeFor[complex64]())
 }
 
 func TestGenproto2_PanicsOnComplex128(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(complex128(0)))
+	assertUnsupportedKind(t, reflect.TypeFor[complex128]())
 }
 
 func TestGenproto2_PanicsOnMap(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(map[string]int{}))
+	assertUnsupportedKind(t, reflect.TypeFor[map[string]int]())
 }
 
 func TestGenproto2_PanicsOnChan(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(make(chan int)))
+	assertUnsupportedKind(t, reflect.TypeFor[chan int]())
 }
 
 func TestGenproto2_PanicsOnFunc(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(func() {}))
+	assertUnsupportedKind(t, reflect.TypeFor[func()]())
 }
 
 func TestGenproto2_PanicsOnUnsafePointer(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf(unsafe.Pointer(nil)))
+	assertUnsupportedKind(t, reflect.TypeFor[unsafe.Pointer]())
 }
 
 // Non-uint8 slice element: []int, []int32, []float64 — these should also
 // panic because writePrimitiveEncode's Slice case only handles []byte.
 func TestGenproto2_PanicsOnNonByteSliceElement(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf([]int{}))
+	assertUnsupportedKind(t, reflect.TypeFor[[]int]())
 }
 
 // Non-uint8 array element: [4]int, [4]int32 — same reasoning.
 func TestGenproto2_PanicsOnNonByteArrayElement(t *testing.T) {
-	assertUnsupportedKind(t, reflect.TypeOf([4]int{}))
+	assertUnsupportedKind(t, reflect.TypeFor[[4]int]())
 }

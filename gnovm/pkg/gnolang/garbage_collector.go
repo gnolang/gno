@@ -97,6 +97,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Account for blocks parked in the per-machine pool. They are dead from
+	// the program's perspective, but the machine pins each one for reuse — a
+	// Block plus its capacity-retained Values backing array — so the alloc
+	// tally must include them; otherwise recycling a block would appear to
+	// free memory that is in fact still held. Pooled blocks are zeroed and
+	// reference nothing else, so count them directly (by capacity, the real
+	// retained footprint) rather than walking them.
+	for _, b := range m.blockPool {
+		m.Alloc.Recount(allocBlock + allocBlockItem*int64(cap(b.Values)))
+	}
+
 	// Visit frames
 	for _, frame := range m.Frames {
 		stop := frame.Visit(m.Alloc, vis)
@@ -145,9 +156,38 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	if debugAssert {
+		// Recycle-safety invariant: a pooled (released) block must be
+		// unreachable, so this recount must never visit one. Released blocks
+		// are zeroed (LastGCCycle == 0); the visitor stamps the current cycle
+		// on every object it reaches. So a pooled block carrying the current
+		// cycle was reached — i.e. some live reference outlived its pop (the
+		// hazard that removing Defer.Parent eliminated). Reference-path
+		// agnostic: fires for any future regression that re-pins a dead block.
+		for _, b := range m.blockPool {
+			if b.GetLastGCCycle() == m.GCCycle {
+				panic("GarbageCollect: recount reached a pooled block — a popped block is still GC-reachable (recycle-safety invariant violated)")
+			}
+		}
+	}
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
+}
+
+// isUverseValue reports whether v is the global .uverse package value or its
+// block — the only GC-reachable objects shared across machines.
+func isUverseValue(v Value) bool {
+	switch v := v.(type) {
+	case *PackageValue:
+		return v.PkgPath == uversePkgPath
+	case *Block:
+		if pn, ok := v.Source.(*PackageNode); ok {
+			return pn.PkgPath == uversePkgPath
+		}
+	}
+	return false
 }
 
 // Returns a visitor that bumps the GCCycle counter
@@ -158,6 +198,18 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
+		}
+
+		// The .uverse package is a process-global singleton shared by every
+		// machine (SetCachePackage(Uverse())). Counting it here would write
+		// per-machine GC state (LastGCCycle) into that shared object, so a
+		// concurrent machine's GC could skip it — making GC gas
+		// non-deterministic across parallel in-memory nodes. Its contents are
+		// already excluded from traversal by the .uverse checks in the
+		// VisitAssociated methods; exclude the package value and its block
+		// from the visit count too, so GC gas never depends on shared state.
+		if isUverseValue(v) {
+			return false
 		}
 
 		if oo, isObject := v.(Object); isObject {
@@ -451,9 +503,9 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
-		// visit dfr.Func
-		if dfr.Func != nil {
-			stop = vis(dfr.Func)
+		// visit dfr.Callable (the deferred func / bound method)
+		if dfr.Callable != nil {
+			stop = vis(dfr.Callable)
 		}
 		if stop {
 			return
@@ -468,13 +520,6 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 			if stop {
 				return
 			}
-		}
-
-		if dfr.Parent != nil {
-			stop = vis(dfr.Parent)
-		}
-		if stop {
-			return
 		}
 	}
 
