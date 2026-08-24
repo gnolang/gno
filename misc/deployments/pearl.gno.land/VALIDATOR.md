@@ -62,7 +62,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 
 | Key | Value |
 | --- | --- |
-| `p2p.persistent_peers` | `XXX_PLACEHOLDER` — the pearl pubseed node IDs land here with the infra handoff (the sapphire-era IDs do not apply) |
+| `p2p.persistent_peers` | `g1m37xukfq6yl555k93fcyzns83qnmgyax9zm875@seed-1.pearl.testnets.gno.land:26656,g1ngukqd3khekaqjf90k45cglzm0l25wwzl2fkn2@seed-2.pearl.testnets.gno.land:26656` |
 | `application.prune_strategy` | `syncable` |
 | `consensus.timeout_commit` | `3s` |
 | `consensus.peer_gossip_sleep_duration` | `10ms` |

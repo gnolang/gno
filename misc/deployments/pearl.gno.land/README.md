@@ -2,13 +2,13 @@
 
 Builds the **pearl** genesis. pearl is a **fresh chain** — not a hardfork, no historical replay.
 
-> **Status: launch values are placeholders.** The validator ceremony keys, faucet accounts, vested-account list, and genesis time still carry sapphire's values (or are empty) pending the pearl infra handoff — see the `XXX: PLACEHOLDER` markers in `gen-genesis.sh`. `CHECKSUMS_DATA` stays unlocked until they are final.
+> **Status: two launch values still pending.** The ceremony keys, genesis time, faucet accounts, and peers are final; the gno-core-validator-3 operator address is a stand-in and the vested-account list is empty — see the `XXX: PLACEHOLDER` markers in `gen-genesis.sh`. `CHECKSUMS_DATA` stays unlocked until both are final.
 
 ## What pearl contains
 
 - **Packages**: the curated `examples/` set (resolved with transitive deps) — `r/sys/...`, `r/gov/...`, `r/gnoland/{blog,wugnot,coins,boards2}/...`, `r/gnops/valopers/...`, `p/onbloc/{uint256,int256,json}`, `r/sys/validators/v3`, `r/demo/defi/grc20reg` — deployed by the deterministic `GenesisDeployer` key (packages carrying a `gnomod.toml` `[addpkg] creator` are deployed under that creator instead). The resolution includes test-only dependencies (`-test-dep`): packages ship on-chain with their `_test.gno` files, and `MsgAddPackage` type-checks the whole package, so test imports must be deployed too.
 - **Governance**: aeddi (`g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m`) is the sole GovDAO T1 member, seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`. Additional members join via GovDAO proposals.
-- **Validators**: 2 founding validators (`gno-core-validator-1/-2`, power 60 each) in `GenesisDoc.Validators`. InitChainer seeds `r/sys/params`' `valset:current` from it, so `r/sys/validators/v3` proposals manage the set post-genesis. Each founder has a valoper profile (registered at genesis via `gnogenesis fork valoper-seed`) keyed on an operator address, giving them the operator-keyed management plane (signing-key rotation, profile edits, opt-out).
+- **Validators**: 3 founding validators (`gno-core-validator-1/-2/-3`, power 60 each) in `GenesisDoc.Validators` — at 3 × 60, one validator dark is exactly the one-third halt boundary, accepted for launch until partners join. InitChainer seeds `r/sys/params`' `valset:current` from it, so `r/sys/validators/v3` proposals manage the set post-genesis. Each founder has a valoper profile (registered at genesis via `gnogenesis fork valoper-seed`) keyed on an operator address, giving them the operator-keyed management plane (signing-key rotation, profile edits, opt-out).
 - **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The call's caller field is patched to the admin address hardcoded in `r/sys/names/verifier.gno` (trusted under `--skip-genesis-sig-verification`; the private key is not needed).
 - **Balances**: 3 faucet accounts at 1e18 ugnot (≈1T GNOT) each — the web faucet's dispensing account, the faucet-agent's dispensing account, and an operator reserve — plus exact-burn funding for the genesis-tx fee payers — the deployer, the names admin, and every `gnomod.toml` `[addpkg] creator` address in the package set — which land at zero once the genesis txs execute. No airdrop, no inherited balances.
 - **Vested accounts**: the `VESTED_ACCOUNTS` entries, created at genesis as vesting accounts via the balance-sheet vesting syntax (`addr=coins;vesting=coins,start,end[;type=delayed]`). Continuous schedules unlock linearly between start and end; delayed schedules are a cliff. The unvested remainder is spendable immediately.
@@ -59,7 +59,7 @@ pearl.gno.land/
 6. Add the `names.Enable` MsgCall from `transactions/migration/names-enable/`.
 7. Build the valoper CSV from `INITIAL_VALSET` + `INITIAL_VALSET_OPERATORS` and add the `valopers.Register` txs (via `gnogenesis fork valoper-seed`).
 8. Measure fee-payer balances via a two-pass temp-node run (measure → verify zero). Readiness gates on committed state, and a fee payer reading zero in the measure pass aborts the build.
-9. Add the 2 validators + balances (fee payers + faucet accounts + vested accounts), run `gnogenesis verify`, move `genesis.json` into place.
+9. Add the validators + balances (fee payers + faucet accounts + vested accounts), run `gnogenesis verify`, move `genesis.json` into place.
 
 The locked artifacts (package list, valoper seed, tx stream, `genesis.json`) are checked against the `CHECKSUMS_DATA` manifest embedded in the script: after the first clean build, paste the printed "not listed" lines into the heredoc to lock the build; any future run producing different bytes fails loudly.
 

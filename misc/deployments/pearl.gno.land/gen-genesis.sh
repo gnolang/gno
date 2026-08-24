@@ -17,7 +17,7 @@
 #      admin address hardcoded in r/sys/names/verifier.gno; the tx's
 #      caller field is jq-patched to that address post-sign, which the
 #      chain trusts under --skip-genesis-sig-verification.
-#   4. Two valopers.Register MsgCalls (emitted by `gnogenesis fork
+#   4. Per-validator valopers.Register MsgCalls (emitted by `gnogenesis fork
 #      valoper-seed` from INITIAL_VALSET + INITIAL_VALSET_OPERATORS) so
 #      the founding validators have operator-keyed valoper profiles and
 #      r/sys/validators/v3 can manage the set post-genesis.
@@ -50,9 +50,7 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=pearl-1
-# XXX: PLACEHOLDER (sapphire's launch time) — set the real pearl launch
-# time from PEARL-PR-HANDOFF.md before locking the genesis.
-GENESIS_TIME=1786104000 # Friday, August 7th 2026 14:00 CEST (12:00 UTC)
+GENESIS_TIME=1787752800 # Wednesday, August 26th 2026 16:00 CEST (14:00 UTC)
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
@@ -87,19 +85,21 @@ FILTERED_PACKAGES=(
 # so later valset changes can hand out proportional fractions of the
 # founders' voting power without fractional remainders.
 #
-# Two founding validators is an operational bootstrap, not the target
-# topology: with two equal powers, either node going down halts consensus
-# until it returns. The set widens post-genesis via r/gnops/valopers +
-# r/sys/validators/v3 proposals.
+# Three founding validators is an operational bootstrap, not the target
+# topology: at 3 × 60, one validator dark loses exactly one third of the
+# voting power — the halt boundary — accepted for launch. Partner joins
+# post-genesis relax it, via r/gnops/valopers + r/sys/validators/v3.
 #
-# The consensus keys live only on the tmkms hosts; the validator nodes
-# hold no signing key.
+# Validators 1/2 sign via horcrux clusters (2-of-3 threshold), validator
+# 3 via tmkms softsign; the consensus keys never touch the validator
+# nodes.
 #
-# XXX: PLACEHOLDER (sapphire's ceremony keys) — replace with the pearl
-# ceremony keys from PEARL-PR-HANDOFF.md before locking the genesis.
+# Ceremony keys of 2026-08-24 (FINAL, from PEARL-PR-HANDOFF.md):
+# validators 1/2 on horcrux clusters, validator 3 on tmkms.
 INITIAL_VALSET=(
-  "gno-core-validator-1 60 g1tkgpy9vnktvjwwxrtxan6fdgjmzz3pfu3cehy6 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqtzh37wr4nku6gm64gsra23vtc2qszy83csk0qpk5ssmngkc2r8pn4pmzh"
-  "gno-core-validator-2 60 g1h8hupzdacjc0xhy9c2uulg8xdtsehq69y8hg7w gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvkw3fscuux2nde07e6umu9wnknr745csqgqnaa9fh893naqn8yj6qapen"
+  "gno-core-validator-1 60 g1l92r5ystf0c97j923wn6dnvswjqnzwmyjtnpyg gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq6yf7gyvwpw8yywe9n6nwahp9g3s7wyydlqj0aakasx8r5twdqy0g245ue"
+  "gno-core-validator-2 60 g1etztcjetpm5yuvsw2xdw0uvkqg0ur6tjzgtxtf gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqthqhdmvlzvv07xrfqmmtjyshlsnctt44wml26gnvh6pjh8wynml2jjjf3"
+  "gno-core-validator-3 60 g1ca5dqn0h4nsk0sp95wzpswvacnmtzq2pqly765 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp7qqkm9qz6g8u3nlc4pqlzau7pndrx99mar2vu6m0p92xxwwsutsr2qx9j"
 )
 
 # Operator address for each INITIAL_VALSET entry (same index). MUST be
@@ -111,11 +111,16 @@ INITIAL_VALSET=(
 # holds it can rotate the signing key, edit the valoper profile, and
 # signal opt-out via r/gnops/valopers + r/sys/validators/v3.
 #
-# XXX: PLACEHOLDER (sapphire's operators) — confirm or replace from
-# PEARL-PR-HANDOFF.md before locking the genesis.
+# Slots 1-2 reuse the topaz/sapphire operator pair (confirmed). Valoper
+# profiles are keyed on the operator address and `fork valoper-seed`
+# rejects duplicate operators, so slot 3 cannot reuse either of them.
+#
+# XXX: PLACEHOLDER — slot 3 is a stand-in address; replace with the real
+# gno-core-validator-3 operator before locking the genesis.
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator
   "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m" # gno-core-validator-2 operator
+  "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # gno-core-validator-3 operator — XXX stand-in
 )
 
 # Faucet balances. Each gets $FAUCET_BALANCE ugnot at genesis. Addresses
@@ -129,8 +134,9 @@ INITIAL_VALSET_OPERATORS=(
 # so consolidating all genesis funds into one account must not be able to
 # exceed it.
 FAUCET_BALANCE=1000000000000000000 # 1e18 ugnot per faucet (1 trillion GNOT)
-# XXX: PLACEHOLDER (sapphire's accounts) — confirm or replace from
-# PEARL-PR-HANDOFF.md before locking the genesis.
+# Confirmed by PEARL-PR-HANDOFF.md: reuse sapphire's accounts and
+# amounts. The faucet account doubles as the infra's snapshot-validation
+# probe (gnoland_snapshot_probe_address), so funding it is load-bearing.
 FAUCET_ADDRESSES=(
   g18qhq2fl54lszhmxeyqlvxnwjzc3xpu4nnakclp # faucet (captcha) dispensing account
   g1k28nhw04v54602jkdfrnu25gq07nyc2rehz9vl # faucet-agent dispensing account
