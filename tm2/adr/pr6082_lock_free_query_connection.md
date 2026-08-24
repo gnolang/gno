@@ -180,6 +180,48 @@ a handful of startup calls costs nothing measurable, and it means the branch is
 correct on its own terms instead of on an argument about who can reach it.
 
 
+## Alternatives considered
+
+**Drop `Lock`/`Unlock` from `QuerySync` outright.** The two mutating connections
+would still serialise through their own methods, so this reads as the smaller
+change. It moves the decision to the wrong place: `localClient` would no longer
+have a concurrency setting at all, and every future caller of `NewLocalClient`
+would inherit unsynchronised queries whether or not its application is ready for
+them. Passing a `Locker` keeps the choice at the call site that can justify it.
+
+**Mark the client read-only with a boolean.** A `readOnly bool` on `localClient`
+skipping the lock, and panicking on a mutating method such as `DeliverTxAsync`.
+This gives a sharper error on misuse than the current shape, which leaves the
+full `abcicli.Client` surface callable and documents the three safe methods
+instead. It was not taken because the boolean encodes one fixed policy, admit
+everyone or admit one, where the `Locker` also expresses the bound the query
+connection actually wants. A bound of 1 recovers the mutex exactly, which is what
+makes the change testable in both directions.
+
+**An `RWMutex` on the query connection.** Suggested while PR 5431 was open. It
+does not help: the query connection has no writer, so every caller takes the read
+lock and the mutex is a no-op with extra steps. It also leaves the `checkState`
+fallback in `Simulate` untouched, which is where the remaining race lived.
+
+**Path-sniffing in `QuerySync`.** Skip the lock for `.app/simulate` paths only.
+Leaks application semantics into the transport layer and still races on
+`checkState`. Recorded in
+[the PR 5431 ADR](./pr5431_concurrent_queries.md) and rejected there.
+
+**Derive the concurrency bound from a memory figure** rather than from
+`GOMAXPROCS`. Deferred, not rejected. The quantity is not observable yet, there
+is no in-flight query counter and no query-latency histogram, and `GOMEMLIMIT`,
+the only memory ceiling the process declares, is unset on a default node. The
+Consequences section records what the current bound costs in the meantime.
+
+**Lock around the lazily-memoized VM caches** instead of pre-filling them. A
+mutex or `sync.Map` per cache would make concurrent readers safe without the
+sealer, at the price of an atomic on every type-id, bound-type and method-index
+read on the hot interpreter path, including single-threaded transaction
+execution. Sealing pays once per publication instead, on the goroutine that
+already owns the graph, and leaves the read path exactly as it was.
+
+
 ## Consequences
 
 **The invariant is load-bearing, and now has enforcement.** "Everything
@@ -291,10 +333,10 @@ is the kind of change that looks like a simplification. `TestPublicationSeals`
 pins the property everything else rests on, at both doors: a package published
 straight into the store, and one published through a transaction's `Write`,
 must both come out with the memo caches on their shared graph filled. It
-asserts on the caches that preprocessing provably leaves cold — a method's own
-`TypeID`, its bound form, and `DeclaredType.pkgID` — because `nameIndex` and
-`methodIndex` are already built by `Define2` and `TryDefineMethod` on that path
-and would pass with sealing removed.
+asserts on the three caches this path provably leaves cold: a method's own
+`TypeID`, its bound form, and `DeclaredType.pkgID`. `DeclaredType`'s own
+`TypeID` is filled by preprocessing either way, so asserting it would pass with
+sealing removed.
 
 `gno.land/pkg/gnoland/app_concurrent_initchain_test.go`
 (`TestConcurrentInitChain`) boots 24 nodes in one process from a single barrier,
@@ -329,10 +371,19 @@ Negative controls, all confirmed. Restoring a real mutex on the query connection
 fails the overlap assertion with `peak in-flight = 1`. Reverting the seal makes
 `TestParallelVMQueries` fail under `-race` on `FuncType.BoundType`,
 `FuncType.TypeID` and `DeclaredType.GetPkgID`, and each door's removal fails its
-own half of `TestPublicationSeals`. Dropping `ct.methodIndex == nil` fails
-`TestSealSkipsBuiltMethodIndex` and takes `TestConcurrentInitChain` down with
-`fatal error: concurrent map read and map write`. Looping `SetBlockNode` in
-`SaveBlockNodes` fails `TestSaveBlockNodesPublishesOneBatch`. Reverting the
-`Simulate` change makes `TestParallelQueries_PreFirstBlockSimulate` fail on the
-`CheckTx` assertion, and — before that assertion existed — on a single shared
-`infiniteGasMeter` under `-race`.
+own half of `TestPublicationSeals`, the direct door and the transaction door
+independently. Looping `SetBlockNode` in `SaveBlockNodes` fails
+`TestSaveBlockNodesPublishesOneBatch`. Reverting the `Simulate` change makes
+`TestParallelQueries_PreFirstBlockSimulate` fail on the `CheckTx` assertion, and,
+before that assertion existed, on a single shared `infiniteGasMeter` under
+`-race`.
+
+Dropping `ct.methodIndex == nil` is the one control whose two tests do not agree,
+which is why both exist. `TestSealSkipsBuiltMethodIndex` fails 5 times out of 5.
+`TestConcurrentInitChain` fails 5 times out of 10 with a plain `go test`, the
+shape the coverage workflow uses, and 5 out of 5 under `-race`, reporting either
+`fatal error: concurrent map writes` or the detector's own report. A whole-boot
+test cannot be more reliable than that: whether two of the 24 goroutines reach
+the same unfilled cache in the same instant is a scheduling outcome. The unit
+test is the deterministic half and the boot test is the one that proves a real
+node depends on the guard.

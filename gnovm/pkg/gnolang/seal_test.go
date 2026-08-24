@@ -106,10 +106,10 @@ func main() { x := T(1); { y := x.M(); println(y) } }`,
 // through a transaction's Write, must both come out with the memo caches on
 // their shared graph filled.
 //
-// It asserts only on caches preprocessing provably leaves cold. DeclaredType's
-// own typeid and its nameIndex are already filled on this path and would pass
-// with sealing removed; pkgID, a method's FuncType typeid and its bound form are
-// not.
+// It asserts only on the three caches this path provably leaves cold: pkgID, the
+// method's FuncType typeid, and its bound form. DeclaredType's own typeid is
+// filled by preprocessing either way, so asserting it would pass with sealing
+// removed.
 func TestPublicationSeals(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
