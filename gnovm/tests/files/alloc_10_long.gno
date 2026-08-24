@@ -1,15 +1,16 @@
+// PKGPATH: gno.land/r/test/alloc_10
 // MAXALLOC: 10000
 
-package main
+package alloc_10
 
 import (
 	"gno.land/r/archive/boards"
 )
 
-func main() {
+func main(cur realm) {
 	// not enough memory to run.
-	_ = boards.CreateBoard(cross, "testboard")
+	_ = boards.CreateBoard(cross(cur), "testboard")
 }
 
 // Error:
-// allocation limit exceeded
+// internal/bytealg/compare_generic.gno:30:5-11: allocation limit exceeded (no GC)

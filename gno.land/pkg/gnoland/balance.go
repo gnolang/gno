@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -12,9 +13,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Balance represents a genesis account balance with an optional vesting schedule.
 type Balance struct {
-	Address bft.Address
-	Amount  std.Coins
+	Address bft.Address          `json:"address" yaml:"address"`
+	Amount  std.Coins            `json:"amount" yaml:"amount"`
+	Vesting *std.VestingSchedule `json:"vesting,omitempty" yaml:"vesting,omitempty"`
+}
+
+// IsVesting returns true if this balance entry creates a vesting account.
+func (b Balance) IsVesting() bool {
+	return b.Vesting != nil && !b.Vesting.IsZero()
 }
 
 func (b *Balance) Verify() error {
@@ -26,25 +34,91 @@ func (b *Balance) Verify() error {
 		return ErrBalanceEmptyAmount
 	}
 
+	if b.Vesting != nil {
+		if err := b.Vesting.Validate(); err != nil {
+			return fmt.Errorf("invalid vesting schedule: %w", err)
+		}
+		if !b.Amount.IsAllGTE(b.Vesting.OriginalVesting) {
+			return fmt.Errorf(
+				"original vesting amount (%s) exceeds total balance (%s)",
+				b.Vesting.OriginalVesting, b.Amount,
+			)
+		}
+	}
+
 	return nil
 }
 
 func (b *Balance) Parse(entry string) error {
-	parts := strings.Split(strings.TrimSpace(entry), "=") // <address>=<coins>
-	if len(parts) != 2 {
+	// Format: <address>=<coins> [;vesting=<coins>,<start>,<end> [;type=delayed]]
+	// The vesting suffix is optional.
+	parts := strings.SplitN(strings.TrimSpace(entry), ";", 3)
+	balancePart := parts[0]
+
+	kv := strings.SplitN(balancePart, "=", 2)
+	if len(kv) != 2 {
 		return fmt.Errorf("malformed entry: %q", entry)
 	}
 
 	var err error
 
-	b.Address, err = crypto.AddressFromBech32(parts[0])
+	b.Address, err = crypto.AddressFromBech32(kv[0])
 	if err != nil {
-		return fmt.Errorf("invalid address %q: %w", parts[0], err)
+		return fmt.Errorf("invalid address %q: %w", kv[0], err)
 	}
 
-	b.Amount, err = std.ParseCoins(parts[1])
+	b.Amount, err = std.ParseCoins(kv[1])
 	if err != nil {
-		return fmt.Errorf("invalid amount %q: %w", parts[1], err)
+		return fmt.Errorf("invalid amount %q: %w", kv[1], err)
+	}
+
+	// Parse optional vesting suffix.
+	if len(parts) >= 2 {
+		vestingPart := parts[1]
+		if !strings.HasPrefix(vestingPart, "vesting=") {
+			return fmt.Errorf("malformed vesting option: %q", vestingPart)
+		}
+		vestingValue := strings.TrimPrefix(vestingPart, "vesting=")
+
+		// vesting=<coins>,<start_time>,<end_time>
+		//
+		// The times are taken from the right, because <coins> is Coins.String(), which
+		// joins multiple denoms with commas — so a two-denom schedule writes
+		// "100atom,200ugnot,1000,2000" and splitting left-to-right would read
+		// "200ugnot" as the start time. Anything a left-to-right split accepted still
+		// parses identically, since a single-denom schedule has exactly three fields.
+		fields := strings.Split(vestingValue, ",")
+		if len(fields) < 3 {
+			return fmt.Errorf("malformed vesting schedule: expected <coins>,<start>,<end>, got %q", vestingValue)
+		}
+		coinsField := strings.Join(fields[:len(fields)-2], ",")
+		startField, endField := fields[len(fields)-2], fields[len(fields)-1]
+
+		var schedule std.VestingSchedule
+		schedule.OriginalVesting, err = std.ParseCoins(coinsField)
+		if err != nil {
+			return fmt.Errorf("invalid vesting amount %q: %w", coinsField, err)
+		}
+		schedule.StartTime, err = strconv.ParseInt(startField, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid vesting start time %q: %w", startField, err)
+		}
+		schedule.EndTime, err = strconv.ParseInt(endField, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid vesting end time %q: %w", endField, err)
+		}
+
+		// Parse optional type discriminator.
+		if len(parts) == 3 {
+			typePart := parts[2]
+			if typePart == "type=delayed" {
+				schedule.Type = std.VestingDelayed
+			} else {
+				return fmt.Errorf("unknown vesting type: %q", typePart)
+			}
+		}
+
+		b.Vesting = &schedule
 	}
 
 	return nil
@@ -59,7 +133,18 @@ func (b Balance) MarshalAmino() (string, error) {
 }
 
 func (b Balance) String() string {
-	return fmt.Sprintf("%s=%s", b.Address.String(), b.Amount.String())
+	s := fmt.Sprintf("%s=%s", b.Address.String(), b.Amount.String())
+	if b.Vesting != nil && !b.Vesting.IsZero() {
+		s += fmt.Sprintf(";vesting=%s,%d,%d",
+			b.Vesting.OriginalVesting.String(),
+			b.Vesting.StartTime,
+			b.Vesting.EndTime,
+		)
+		if b.Vesting.Type == std.VestingDelayed {
+			s += ";type=delayed"
+		}
+	}
+	return s
 }
 
 type Balances map[crypto.Address]Balance

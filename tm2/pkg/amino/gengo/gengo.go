@@ -39,7 +39,7 @@ func PrintStructFieldEncoder(p *press.Press, ref string, info amino.FieldInfo) {
 		p.Pl("XXX PrintValueEncoder()")
 		p.Pl("pos3 := w.Len()")
 		// Maybe skip the writing of zero structs unless also WriteEmpty.
-		if info.Type.Kind() == reflect.Ptr && !info.WriteEmpty {
+		if info.Type.Kind() == reflect.Pointer && !info.WriteEmpty {
 			p.Pl("if (pos2 == pos3-1 && w.PeekLastByte() == 0x00) {").I(func(p *press.Press) {
 				p.Pl("w.Truncate(pos1)")
 			}).Pl("}")
@@ -54,7 +54,7 @@ func printStructFieldSkipCond(p *press.Press, fref string, info amino.FieldInfo)
 	// here, but later in PrintStructFieldEncoder() upon inspecting the number
 	// of written bytes.
 	switch info.Type.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return _fmt("%v == nil", fref)
 	case reflect.Bool:
 		return _fmt("%v == false", fref)

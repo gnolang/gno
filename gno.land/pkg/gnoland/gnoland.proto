@@ -45,6 +45,9 @@ message GnoTxMetadata {
 	repeated SignerAccountInfo signer_info = 5;
 	sint64 gas_used = 6;
 	sint64 gas_wanted = 7;
+	string source = 8;
+	string note = 9;
+	std.Tx original_tx = 10;
 }
 
 message SignerAccountInfo {

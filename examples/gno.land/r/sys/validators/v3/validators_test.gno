@@ -42,7 +42,7 @@ func mustAddr(t *testing.T, pk string) address {
 	return a
 }
 
-func TestEffectiveView_DirtyFalseReadsCurrent(t *testing.T) {
+func TestEffectiveView_DirtyFalseReadsCurrent(cur realm, t *testing.T) {
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
 
@@ -51,7 +51,7 @@ func TestEffectiveView_DirtyFalseReadsCurrent(t *testing.T) {
 	urequire.Equal(t, 1, len(GetValidators()))
 }
 
-func TestEffectiveView_DirtyTrueReadsProposed(t *testing.T) {
+func TestEffectiveView_DirtyTrueReadsProposed(cur realm, t *testing.T) {
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
 	testing.SetSysParamStrings(module, submodule, propKey, []string{pubKeyA + ":10", pubKeyB + ":1"})
@@ -64,7 +64,7 @@ func TestEffectiveView_DirtyTrueReadsProposed(t *testing.T) {
 	urequire.Equal(t, 2, len(GetValidators()))
 }
 
-func TestGetValidator_ReturnsParsedEntry(t *testing.T) {
+func TestGetValidator_ReturnsParsedEntry(cur realm, t *testing.T) {
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":42"})
 
@@ -73,7 +73,7 @@ func TestGetValidator_ReturnsParsedEntry(t *testing.T) {
 	urequire.Equal(t, pubKeyA, v.PubKey)
 }
 
-func TestRender_DefaultTestHeight(t *testing.T) {
+func TestRender_DefaultTestHeight(cur realm, t *testing.T) {
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
 

@@ -1,8 +1,10 @@
-package main
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_3_prop4_filetest
+
+package z_3_prop4_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/r/gov/dao"
@@ -17,44 +19,38 @@ import (
 //  2. propose unpause via NewSetPausedExecutor(false), vote YES, execute,
 //     observe IsPaused() flip back to false.
 //  3. Register works again post-unpause.
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
-func init() {
+func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(c)
+	daov3init.InitWithUsers(cross(cur), c)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
 
 	println("paused before:", users.IsPaused())
 
 	// Propose, vote, execute: pause.
-	dao.MustCreateProposal(cross, users.NewSetPausedExecutor(true))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	dao.MustCreateProposal(cross(cur), users.NewSetPausedExecutor(cross(cur), true))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 	println("paused after pause prop:", users.IsPaused())
 
 	// Propose, vote, execute: unpause.
-	dao.MustCreateProposal(cross, users.NewSetPausedExecutor(false))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(1),
-	})
-	dao.ExecuteProposal(cross, dao.ProposalID(1))
+	dao.MustCreateProposal(cross(cur), users.NewSetPausedExecutor(cross(cur), false))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(1))
 	println("paused after unpause prop:", users.IsPaused())
 
 	// Register works again (the pause check inside Register would have
 	// panicked with ErrPaused had the unpause executor not run).
-	users.Register(cross, "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 	data, _ := susers.ResolveName("nym-alice123")
 	println("registered alice at:", data.Addr())
 }

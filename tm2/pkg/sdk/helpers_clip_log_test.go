@@ -37,7 +37,7 @@ func TestClipLog_PerLineCap_MultiLine(t *testing.T) {
 
 func TestClipLog_LineCount_Cap(t *testing.T) {
 	var b strings.Builder
-	for i := 0; i < maxLogLines+5; i++ {
+	for range maxLogLines + 5 {
 		b.WriteString("line\n")
 	}
 	in := b.String()
@@ -51,7 +51,7 @@ func TestClipLog_LineCount_Cap(t *testing.T) {
 func TestClipLog_BothCaps(t *testing.T) {
 	long := strings.Repeat("X", maxLogLineBytes*2)
 	var b strings.Builder
-	for i := 0; i < maxLogLines*2; i++ {
+	for range maxLogLines * 2 {
 		b.WriteString(long)
 		b.WriteString("\n")
 	}

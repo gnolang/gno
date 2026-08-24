@@ -1,11 +1,9 @@
 package validators
 
 import (
-	"math/overflow"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"chain"
 
@@ -25,6 +23,13 @@ import (
 type ValoperChange struct {
 	OperatorAddress address
 	Power           uint64
+}
+
+func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
+	return ValoperChange{
+		OperatorAddress: operatorAddress,
+		Power:           power,
+	}
 }
 
 const errNoValoperChanges = "no valoper changes proposed"
@@ -61,7 +66,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(changes []ValoperChange, title, description string) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
 	}
@@ -71,13 +76,6 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 	}
 	if len(changes) > 40 {
 		panic("max number of allowed validators per proposal is 40")
-	}
-
-	// Cooldown: refuse to even queue a proposal if the previous valset
-	// update happened too recently. The executor re-checks this — see
-	// the comment on lastValsetUpdate in limits.gno.
-	if time.Since(lastValsetUpdate) < valsetUpdateCooldown {
-		panic(errValsetUpdateCooldown)
 	}
 
 	// Dedupe: each operator may appear at most once per proposal.
@@ -97,8 +95,8 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 	// and adds require KeepRunning=true. KeepRunning=false is a
 	// binding opt-out; no proposal shape can override it.
 	for _, c := range changes {
-		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-		if !ok {
+		rawCache := valoperCache.Get(c.OperatorAddress.String())
+		if rawCache == nil {
 			panic("unknown operator: " + c.OperatorAddress.String())
 		}
 		entry := rawCache.(cacheEntry)
@@ -124,12 +122,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		}
 	}
 
-	// Snapshot the trust-level ratio at proposal-creation time so the
-	// rule a proposal was screened against can't be relaxed between
-	// propose and execute. Without this snapshot a same-block sequence
-	// "trust-level-drop executor → valset-change executor" would let
-	// the second proposal pass under the looser ratio.
-	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(changes, trustLevelRatio))
+	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(cur, changes))
 }
 
 // newValoperChangeExecutor builds the GovDAO executor that, on
@@ -144,35 +137,17 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // address, the entry's voting power is overwritten. Tendermint
 // natively handles ValidatorUpdates as upserts, so a single-entry
 // power change is the canonical form.
-//
-// snapshotTrustLevel captures trustLevelRatio at proposal-creation
-// time. The IBC-trust-level rule is checked against this snapshot, not
-// the package-level trustLevelRatio that may have moved by exec time.
-func newValoperChangeExecutor(changes []ValoperChange, snapshotTrustLevel trustRatio) dao.Executor {
+func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 	callback := func(cur realm) error {
-		// Cooldown re-check: the binding source of truth. Creation-time
-		// only filters obvious failures; a proposal can sit in GovDAO
-		// while another proposal lands first.
-		if time.Since(lastValsetUpdate) < valsetUpdateCooldown {
-			panic(errValsetUpdateCooldown)
-		}
-
 		baseline := sysparams.GetValsetEffective()
 		set := make(map[address]validators.Validator, len(baseline))
-		// baselineByAddr captures the pre-update voting power keyed by
-		// signing address — used by the trust-level check below to
-		// measure how much of the previous set survived.
-		baselineByAddr := make(map[address]uint64, len(baseline))
-		var baselineTotal uint64
 		for _, v := range baseline {
 			set[v.Address] = v
-			baselineByAddr[v.Address] = v.VotingPower
-			baselineTotal += v.VotingPower
 		}
 
 		for _, c := range changes {
-			rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-			if !ok {
+			rawCache := valoperCache.Get(c.OperatorAddress.String())
+			if rawCache == nil {
 				panic("operator vanished from valoperCache between propose and execute: " + c.OperatorAddress.String())
 			}
 			entry := rawCache.(cacheEntry)
@@ -218,56 +193,14 @@ func newValoperChangeExecutor(changes []ValoperChange, snapshotTrustLevel trustR
 			panic("valset proposal would empty the validator set; refused to keep consensus liveness")
 		}
 
-		// Trust-level check (IBC light-client rule): the previous
-		// validator set must retain at least trustLevelRatio of its own
-		// voting power in the new set, so a light client at the old
-		// header can verify the new header.
-		//
-		// "Retained" is weighted by each survivor's BASELINE voting
-		// power, not the new one. This matches CometBFT's tally in
-		// types/validation.go:verifyCommitSingle — `talliedVotingPower
-		// += val.VotingPower` where `val` comes from the TRUSTED
-		// validator set, regardless of any new VP the same validator
-		// has in the untrusted header. Using new-VP here would create
-		// a false-positive accept: a proposal can remove most of the
-		// baseline and inflate a single survivor's VP to mask the
-		// loss; the light client (using baseline VPs) would refuse to
-		// verify the resulting header.
-		//
-		// Cross-multiply with overflow.Mulu64 so the comparison stays
-		// integer-deterministic.
-		var retainedFromBaseline uint64
-		for addr, baselineVP := range baselineByAddr {
-			if _, stillIn := set[addr]; stillIn {
-				retainedFromBaseline += baselineVP
-			}
-		}
-		if baselineTotal > 0 {
-			left, okL := overflow.Mulu64(retainedFromBaseline, snapshotTrustLevel.denominator)
-			right, okR := overflow.Mulu64(baselineTotal, snapshotTrustLevel.numerator)
-			if !okL || !okR {
-				panic(errTrustLevelOverflow)
-			}
-			// Strict inequality matches CometBFT's light-client check
-			// (types/validation.go:355,503): fail iff
-			// talliedVotingPower <= votingPowerNeeded. The boundary
-			// case (tallied * den == total * num) is REJECTED here so
-			// no chain-side-accepted update can leave an IBC light
-			// client unable to verify the next header.
-			if left <= right {
-				panic(errTrustLevelViolated)
-			}
-		}
-
 		entries := make([]string, 0, len(set))
 		for _, v := range set {
 			entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 		}
 		sort.Strings(entries)
-		sysparams.SetValsetProposal(cross, entries)
-		lastValsetUpdate = time.Now()
+		sysparams.SetValsetProposal(cross(cur), entries)
 		return nil
 	}
 
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }
