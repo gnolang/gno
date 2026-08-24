@@ -479,7 +479,6 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
 					pkg.Reserve(false, nx, n, NSFuncDecl, -1)
-					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
 				for i := range n.Params {
