@@ -34,6 +34,25 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+
+	// RequireSigForSimulate reports whether tx must have its signatures
+	// cryptographically verified even in simulate mode.
+	//
+	// Simulate normally skips verification so a caller can estimate gas
+	// without holding a key. That is safe only for messages whose
+	// authorization does not depend on who signed: `.app/simulate` is a
+	// public query that executes the messages, so for a message authorized
+	// by signer identity the skip would let an unauthenticated caller name
+	// somebody else's address and have it accepted. Applications set this
+	// for those message types.
+	//
+	// A missing or miscounted signature is already refused for every mode by
+	// tx.ValidateBasic below, so this only closes the verification gap.
+	//
+	// Note for callers that estimate gas without signing: a tx containing a
+	// message selected by this predicate must carry a real signature, not a
+	// pubkey-only placeholder.
+	RequireSigForSimulate func(tx std.Tx) bool
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -278,7 +297,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, res, true
 			}
 
-			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+			// Simulate normally skips verification; see RequireSigForSimulate
+			// for why some messages cannot afford that.
+			verifySig := !simulate ||
+				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
 			}
 
