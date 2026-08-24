@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -550,20 +551,21 @@ func TestVMKeeperInertChargesPreprocessGasAtSubmit(t *testing.T) {
 	submitGas := func(t *testing.T, name string, extraLines int) (int64, int) {
 		t.Helper()
 		pkgPath := "gno.land/r/test/" + name
-		body := "package " + name + "\n\nfunc F(cur realm) int { return 1 }\n"
-		for i := 0; i < extraLines; i++ {
-			body += "// padding to make this package substantially longer\n"
+		var body strings.Builder
+		body.WriteString("package " + name + "\n\nfunc F(cur realm) int { return 1 }\n")
+		for range extraLines {
+			body.WriteString("// padding to make this package substantially longer\n")
 		}
 
 		env, ctx := inertEnv(t, approver, creator)
 		// Sorted by name: "gas.gno" < "gnomod.toml".
 		files := []*std.MemFile{
-			{Name: "gas.gno", Body: body},
+			{Name: "gas.gno", Body: body.String()},
 			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		}
 		before := ctx.GasMeter().GasConsumed()
 		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
-		return ctx.GasMeter().GasConsumed() - before, len(body)
+		return ctx.GasMeter().GasConsumed() - before, len(body.String())
 	}
 
 	smallGas, smallLen := submitGas(t, "gassmall", 0)

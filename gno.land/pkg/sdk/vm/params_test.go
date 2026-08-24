@@ -521,7 +521,7 @@ func TestAddressListLengthCap(t *testing.T) {
 	addrs := func(n int) []crypto.Address {
 		out := make([]crypto.Address, n)
 		for i := range out {
-			out[i] = crypto.AddressFromPreimage([]byte(fmt.Sprintf("addr-%d", i)))
+			out[i] = crypto.AddressFromPreimage(fmt.Appendf(nil, "addr-%d", i))
 		}
 		return out
 	}

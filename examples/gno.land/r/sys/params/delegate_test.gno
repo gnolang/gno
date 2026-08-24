@@ -223,10 +223,10 @@ func TestDelegatePathValidation(t *testing.T) {
 		"gno.land/r/",
 		// Paths no caller could ever present. Storing one would leave GovDAO
 		// believing it delegated while the delegate is refused on every call.
-		"gno.land/r/test/delegate ",                   // trailing space
-		" gno.land/r/test/delegate",                   // leading space
-		"gno.land/r/nt/commondao/v0#DAO/42",           // uppercase subpath
-		"gno.land/r/nt/commondao/v0#dao/42#dao/43",    // two separators
+		"gno.land/r/test/delegate ",                // trailing space
+		" gno.land/r/test/delegate",                // leading space
+		"gno.land/r/nt/commondao/v0#DAO/42",        // uppercase subpath
+		"gno.land/r/nt/commondao/v0#dao/42#dao/43", // two separators
 	} {
 		// PanicsContains, not AbortsContains: this is a same-realm call, so
 		// the panic never crosses a realm boundary and is not an abort.

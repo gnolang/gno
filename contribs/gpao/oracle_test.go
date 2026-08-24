@@ -421,7 +421,7 @@ func TestOracleReVerifiesChangedBytesAtTheSamePath(t *testing.T) {
 		"different bytes must be a different candidate")
 
 	// Burn the first candidate's whole allowance so it is given up on.
-	for i := 0; i < maxOverBudgetAttempts; i++ {
+	for range maxOverBudgetAttempts {
 		o.handleCandidate(context.Background(), first)
 	}
 	require.Contains(t, o.seen, candidateKey(first))
