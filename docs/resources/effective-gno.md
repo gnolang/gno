@@ -141,8 +141,8 @@ In Gno, `init()` primarily serves two purposes:
 ```go
 import "gno.land/r/some/registry"
 
-func init() {
-	registry.Register(cross, "myID", myCallback)
+func init(cur realm) {
+	registry.Register(cross(cur), "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -632,83 +632,153 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Prefer avl.Tree over map for scalable storage
+### Choose storage types by access pattern
 
-An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
-entries in one object (accessing any value loads everything), while AVL trees
-store each node separately (accessing a value loads only the search path).
-This makes `avl.Tree` significantly more efficient in both gas usage and
-runtime performance for large or growing datasets.
+Gno persists ordinary variables, but not every Go-shaped data structure is a
+good storage shape for a realm. A slice or map is often fine for small,
+bounded state. It becomes ineffective when the collection grows over time,
+changes frequently, or needs range queries, pagination, membership tests, or
+stable iteration.
+
+The reason is storage locality. A `map` or `slice` is stored as one logical
+object graph. Updating or reading one element can force the VM to load or write
+more state than the operation conceptually needs. Tree-backed packages store
+items as separate nodes, so touching one key mostly touches the search path,
+leaf page, or changed node.
+
+Use this rule of thumb:
+
+| Need | Prefer | Avoid |
+|------|--------|-------|
+| Small fixed config | struct fields, constants, small maps | over-engineered trees |
+| Growing key/value state | a tree-backed index | package-level `map[...]...` |
+| Membership set | a set helper or tree-backed index | linear scan over `[]address` |
+| Ordered/range iteration | a sorted tree-backed index | map iteration or sorted slices |
+| User-facing pagination | pager helpers over a tree-backed index | rendering the whole collection |
+| Append-only queue | a queue helper or purpose-built index | `append` plus front deletion |
+| Unique list semantics | unique-list or set helpers | manual dedupe over slices |
+
+This is not a ban on slices and maps. They are still effective for:
+
+- tiny bounded lists, such as two admins or three enum-like options;
+- transient values built inside one function call;
+- render-time formatting after you have already paged or filtered the stored
+  state;
+- simple structs where every field is usually read or written together.
+
+It is a warning against making them the default persistent index for things
+that will grow with users, posts, votes, orders, balances, messages, claims,
+positions, or game objects.
+
+#### Choose the simplest storage shape that matches the access pattern
+
+Pick the storage type that matches the operations your realm promises to
+support. Keep storage private, expose typed methods, and page or range over
+large collections.
+
+Use this short decision model:
+
+- fields or small maps for tiny bounded configuration;
+- maps for small direct lookups where iteration order is irrelevant;
+- tree-backed indexes for growing key/value state, ordering, range queries, or
+  pagination;
+- list or queue helpers for append-only feeds and queues;
+- explicit secondary indexes for every query path users depend on.
+
+For detailed examples and package tradeoffs, see
+[Gno Data Structures](./gno-data-structures.md). For non-official community
+helpers, see [Community Packages](./community-packages.md).
+
+#### Prefer tree-backed indexes over maps for scalable key/value storage
+
+Tree-backed indexes work like a `map` for storing key-value pairs. Maps store
+all entries in one object graph, while tree implementations store nodes or leaf
+pages separately. This usually makes a tree-backed index more efficient in gas
+usage and runtime performance for large or growing datasets.
 
 **Key differences**:
 
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Tree-backed indexes**: O(log n) lookup, lazy loading, iterate in **sorted
+  key order**.
 - **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
-**Use `avl.Tree` when you need**:
+**Use a tree-backed index when you need**:
 
 - Lazy loading (efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "bob" and "charlie")
 - Data that grows over time (user registries, leaderboards)
 - Sorted iteration by key value
+- Offset-based pagination over a stable order
 
 **Use `map` when you need**:
 
 - O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
-- Type safety (AVL values are `any` and require type assertions)
+- Small bounded datasets (for example, configuration values)
+- Type safety (tree values are usually `any` and require type assertions)
+
+Do not make map iteration order part of a public API or `Render` output.
+Gno's current map iteration is deterministic, but map order is still the wrong
+contract for leaderboards, member lists, tables, feeds, and pagination. If
+users can observe or link to an order, store explicit sortable keys and iterate
+through a tree-backed index or an explicit ordered list.
 
 ```go
-// Map example
-users := make(map[string]User)
-users["bob"] = User{}
-users["alice"] = User{}
-for name := range users { // unspecified order
-	// ...
+// Small, bounded lookup: a map can be fine.
+usersByName[name] = user
+
+// Growing, ordered lookup: use a tree-backed index.
+usersByName.Set(name, user)
+usersByCreatedAt.Set(createdAtKey, userID)
+```
+
+For a detailed explanation of how tree nodes are stored in Gno's object store,
+see the [AVL package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+For a higher-fanout alternative with the same core interface, see
+[`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno).
+
+#### Avoid slice-as-database patterns
+
+The most common ineffective realm pattern is a package-level slice that grows
+forever:
+
+```go
+var posts []Post
+
+func AddPost(cur realm, text string) {
+	posts = append(posts, Post{
+		Author: cur.Previous().Address(),
+		Text:   text,
+	})
 }
-user := users["alice"] // O(1) direct access
 
-// AVL example
-var users avl.Tree
-users.Set("bob", &User{})
-users.Set("alice", &User{})
-users.Set("charlie", &User{})
-
-// Iterate all users (sorted alphabetically)
-users.Iterate("", "", func(name string, value any) bool {
-	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User) // Type assertion required - values are any
-	return false // return true to stop iteration
-})
-
-// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
-// This is O(log n + k) where k = results in range
-users.Iterate("bob", "charlie", func(name string, value any) bool {
-	// Only visits: bob (end is exclusive)
-	user := value.(*User) 
-	return false
-})
-
-// Get a specific user (O(log n))
-value, exists := users.Get("alice")
-if !exists {
-	return nil
-}
-return value.(*User)
-
-// Multi-index example - search the same data in different ways
-var (
-	usersById   avl.Tree // Find user by ID
-	usersByName avl.Tree // Find user by name
-)
-
-func AddUser(id, name string) {
-	usersById.Set(id, name)     // Can search by ID
-	usersByName.Set(name, id)   // Can search by name
+func Render(_ string) string {
+	out := ""
+	for _, post := range posts {
+		out += post.Text + "\n"
+	}
+	return out
 }
 ```
 
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+This is easy to write, but it couples every operation to the whole collection.
+Deleting from the front shifts elements. Looking up by author is a linear scan.
+Rendering all posts grows with total history rather than with the page the user
+asked for.
+
+Prefer storing by stable key and rendering one page at a time. Use an existing
+list helper for append-only feeds, or combine a sequential ID helper with a
+tree-backed index:
+
+```go
+id := ids.Next().String()
+posts.Set(id, post)
+var postsByAuthor avl.Tree // author + "/" + id -> id
+```
+
+The storage model should match the operations you expect the realm to support.
+If users can query by owner, maintain an owner index. If they can page by time,
+use sortable keys. If they only ever need the latest item, do not store a full
+history unless the history is part of the product.
 
 ### Construct "safe" objects
 
@@ -779,6 +849,94 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
+store key, while `GetCoins(addr)` reads every denom the address holds. That
+distinction is not just an optimization. Anyone can send any address a new denom
+without its consent, so `GetCoins` on a caller-supplied address costs whatever a
+third party decided it should — enough of them and your function can no longer be
+called at all.
+
+#### Verifying inbound Coin payments
+
+A realm that wants to charge for a function typically attaches a payment check
+like this:
+
+```go
+func BuyThing(_ realm, ...) {
+    if !runtime.PreviousRealm().IsUser() {   // BAD
+        panic("must be called by a user")
+    }
+    if banker.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+This is **subtly unsafe**. `banker.OriginSend()` returns the coins attached to
+the *original transaction*, not the coins actually received by this realm. If
+anything runs between the tx origin and this realm's function, those coins may
+have been consumed by the intermediary. Two attacker shapes bypass the check:
+
+1. **Intermediate code realm.** User calls `r/attacker/wrapper.DoIt()` with
+   `-send 1000000ugnot`. The wrapper keeps the coins (via its own banker) and
+   then calls `BuyThing(cross(cur), ...)` on your realm. Your realm sees
+   `OriginSend() = 1000000ugnot`, the `IsUser()` check passes because... actually
+   it doesn't — `IsUser()` rejects pure code realms. Which leads to:
+
+2. **User-run ephemeral realm (`maketx run`).** The attacker writes a short
+   script and broadcasts it via `gnokey maketx run -send 1000000ugnot ...`.
+   That script runs in an ephemeral code realm at path
+   `gno.land/e/{attacker}/run`. Inside main, the script consumes the origin-send
+   envelope (via its own `BankerTypeOriginSend`) or simply does whatever it
+   wants with the coins, then calls `BuyThing(cross(cur), ...)`. Your realm sees
+   `OriginSend() = 1000000ugnot` in the envelope and `IsUser() = true` because
+   **`IsUser()` accepts both `IsUserCall()` (pure EOA) AND `IsUserRun()` (user-run
+   ephemeral realm)**. The check passes but no coins reached your realm.
+
+The fix is to use `IsUserCall()` instead of `IsUser()`:
+
+```go
+func BuyThing(_ realm, ...) {
+    if !runtime.PreviousRealm().IsUserCall() {  // GOOD
+        panic("must be called directly by an EOA (maketx call)")
+    }
+    if banker.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+`IsUserCall()` returns true only when `PreviousRealm().PkgPath() == ""`, i.e.
+the caller is a pure EOA. In that case the `-send` coins are guaranteed to
+have landed at this realm's address, so `OriginSend()` and receipt agree.
+
+Why the pairing matters: removing either check alone reopens the bypass.
+`OriginSend()` without the EOA guard is lying about receipt. The EOA guard
+without the amount check lets users pay nothing. Keep them together, commented
+as a pair, and ideally cover the bypass with a regression test using
+`testing.NewCodeRealm()` to simulate an intermediate attacker realm.
+
+Alternatives considered:
+
+- **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
+  intermediaries, no MsgRun". Correct, but stricter than most realms want:
+  rejects `testing.NewUserRealm`-based unit tests in some configurations and
+  blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
+  (e.g. governance-only functions).
+
+- **`banker.NewBanker(banker.BankerTypeOriginSend)`** — creating this banker
+  requires `PreviousRealm().PkgPath() == ""`, so it implicitly asserts EOA. But
+  it's a side-effectful assertion; if you don't need the banker itself,
+  `IsUserCall()` is clearer.
+
+- **Pulling coins from the caller** — **not possible** in current gno. Every
+  `banker.SendCoins(from, to, amt)` requires `from == pkgAddr` (your own realm's
+  address); there is no ERC-20-style `transferFrom`. Payment flow is push-only
+  via `-send`. The `OriginSend` amount check + `IsUserCall` guard is the only
+  pattern available.
+
 #### GRC20 tokens
 
 GRC20 tokens, on the other hand, are like Ethereum's ERC20 or CosmWasm's CW20.
@@ -804,9 +962,15 @@ import (
 )
 
 var (
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4)
-	UserTeller           = Token.CallerTeller()
+	Token         *grc20.Token
+	privateLedger *grc20.PrivateLedger
+	UserTeller    grc20.Teller
 )
+
+func init(cur realm) {
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
+	UserTeller = Token.CallerTeller()
+}
 
 func MyBalance(_ realm) int64 {
 	caller := runtime.PreviousRealm().Address()

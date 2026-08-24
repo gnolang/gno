@@ -2,6 +2,7 @@ package fork
 
 import (
 	"context"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,6 +67,40 @@ func minimalAppState() gnoland.GnoGenesisState {
 		Bank:     bank.DefaultGenesisState(),
 		VM:       vmm.DefaultGenesisState(),
 	}
+}
+
+// TestTestCfg_FlagDefaults asserts the default values of fork test's
+// command-line flags. The defaults must match production node behavior:
+// sig verification skipped (mirroring -skip-genesis-sig-verification on
+// gnoland), but failing txs do fail the test (explicit opt-in required
+// via --skip-failing-genesis-txs for parity with the cluster's permissive
+// mode).
+func TestTestCfg_FlagDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg := &testCfg{}
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse(nil))
+
+	// Default ON: sig verification must be skipped to not trip historical
+	// txs whose deployer keys don't match msg.Creator (manfred et al).
+	require.True(t, cfg.skipGenesisSigVerification,
+		"skip-genesis-sig-verification should default to true")
+
+	// Default OFF: failing txs should still fail the test by default
+	// (strictest posture for CI). Operators match the cluster flag
+	// explicitly when the chain tolerates genesis tx failures.
+	require.False(t, cfg.skipFailingTxs,
+		"skip-failing-genesis-txs should default to false")
+
+	// Override parse.
+	require.NoError(t, fs.Parse([]string{
+		"--skip-genesis-sig-verification=false",
+		"--skip-failing-genesis-txs=true",
+	}))
+	require.False(t, cfg.skipGenesisSigVerification)
+	require.True(t, cfg.skipFailingTxs)
 }
 
 // TestExecTest_MissingGenesis verifies that a missing genesis file is caught.
@@ -172,3 +207,33 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 	require.NoError(t, err, "hardfork genesis replay should succeed")
 }
 
+// TestCountDeliverableTxs covers the deliverable-count contract the
+// incomplete-replay guard depends on: entries flagged metadata.Failed=true
+// are excluded (deliverGenesisTx skips them without invoking the result
+// handler), everything else — including nil metadata — counts. An all-failed
+// genesis yields 0, the degenerate-but-legal case the guard treats as a pass.
+func TestCountDeliverableTxs(t *testing.T) {
+	t.Parallel()
+
+	failed := &gnoland.GnoTxMetadata{Failed: true}
+	deliverable := &gnoland.GnoTxMetadata{Failed: false}
+
+	tests := []struct {
+		name string
+		txs  []gnoland.TxWithMetadata
+		want int
+	}{
+		{"empty", nil, 0},
+		{"nil metadata counts", []gnoland.TxWithMetadata{{Metadata: nil}}, 1},
+		{"failed=false counts", []gnoland.TxWithMetadata{{Metadata: deliverable}}, 1},
+		{"failed=true skipped", []gnoland.TxWithMetadata{{Metadata: failed}}, 0},
+		{"mixed", []gnoland.TxWithMetadata{{Metadata: nil}, {Metadata: deliverable}, {Metadata: failed}}, 2},
+		{"all failed", []gnoland.TxWithMetadata{{Metadata: failed}, {Metadata: failed}}, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, countDeliverableTxs(tt.txs))
+		})
+	}
+}

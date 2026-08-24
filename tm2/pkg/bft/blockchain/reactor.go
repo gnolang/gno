@@ -282,10 +282,12 @@ FOR_LOOP:
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
 
-				bcR.switchToConsensusFn(state, blocksSynced)
-				// else {
-				// should only happen during testing
-				// }
+				// switchToConsensusFn may be nil under test harnesses that
+				// construct a reactor in isolation; production wiring always
+				// supplies it.
+				if bcR.switchToConsensusFn != nil {
+					bcR.switchToConsensusFn(state, blocksSynced)
+				}
 
 				break FOR_LOOP
 			}

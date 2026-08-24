@@ -1,6 +1,6 @@
 module indexparser
 
-go 1.22.7
+go 1.25.9
 
 require (
 	github.com/peterbourgon/ff/v3 v3.4.0

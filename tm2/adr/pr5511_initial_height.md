@@ -57,8 +57,13 @@ All fixes land together so `InitialHeight > 1` works end-to-end:
   validation.
 - **`BaseApp.validateHeight`** (`tm2/pkg/sdk/baseapp.go`) — the
   multistore version counter auto-increments from 0 and lags block
-  height by `InitialHeight - 1`. Accept the monotonic jump between
-  block height and store version instead of requiring strict equality.
+  height by `InitialHeight - 1`. Track real chain height in BaseApp
+  via `lastBlockHeight`, recomputed from `multistoreVersion +
+  initialHeightOffset` on every `Commit` and on restart in
+  `initFromMainStore`. The offset is a chain-wide constant persisted
+  in the base store under `mainInitialHeightKey` from `InitChain`.
+  Strict contiguity is enforced against the real chain height (no
+  permanent allow-jump branch).
 - **`BaseApp.Info`** — return the persisted header's `LastBlockHeight`
   when it exceeds the store version, so on restart the handshaker
   doesn't rewind to `InitialHeight` and try to re-replay.

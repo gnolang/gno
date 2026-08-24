@@ -64,30 +64,17 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("wrong Header.LastBlockID: %w", err)
 	}
 
-	// Validate the last commit and its hash.
-	// The genesis block (height 1 for standard genesis, or InitialHeight for
-	// chains starting at a higher height) has an empty last commit and a zero
-	// LastBlockID. Non-genesis blocks must have a valid commit.
-	//
-	// ValidateBasic is stateless: it cannot know InitialHeight, so we allow
-	// a zero-LastBlockID block to skip full commit validation ONLY when the
-	// commit is also nil/empty. This prevents an attacker from zeroing
-	// LastBlockID on a real block while keeping a crafted commit with
-	// precommits. Full genesis validation is done in the stateful
-	// ValidateBlock (validation.go) via state.LastBlockID.IsZero().
-	isGenesisBlock := b.Height == 1 || (b.Header.LastBlockID.IsZero() && (b.LastCommit == nil || b.LastCommit.Size() == 0))
-	if !isGenesisBlock {
-		if b.LastCommit == nil {
-			return errors.New("nil LastCommit")
-		}
-		// A zero LastBlockID with a non-empty commit is inconsistent:
-		// genesis blocks have no previous block to commit to.
-		if b.Header.LastBlockID.IsZero() && b.LastCommit.Size() > 0 {
-			return errors.New("zero LastBlockID with non-empty LastCommit")
-		}
-		if err := b.LastCommit.ValidateBasic(); err != nil {
-			return fmt.Errorf("wrong LastCommit")
-		}
+	// Validate the last commit. Always required to be non-nil: genesis blocks
+	// must carry an empty-but-non-nil commit produced by
+	// types.NewCommit(BlockID{}, nil), which Commit.ValidateBasic accepts via
+	// an early-return for the zero-BlockID + zero-precommits shape. Stateful
+	// ValidateBlock distinguishes genesis vs non-genesis via
+	// block.Height == state.InitialHeight.
+	if b.LastCommit == nil {
+		return errors.New("nil LastCommit")
+	}
+	if err := b.LastCommit.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong LastCommit")
 	}
 	if err := ValidateHash(b.LastCommitHash); err != nil {
 		return fmt.Errorf("wrong Header.LastCommitHash: %w", err)
@@ -566,6 +553,13 @@ func (commit *Commit) IsCommit() bool {
 // ValidateBasic performs basic validation that doesn't involve state data.
 // Does not actually check the cryptographic signatures.
 func (commit *Commit) ValidateBasic() error {
+	// Genesis-shape: an empty-but-non-nil commit produced by
+	// types.NewCommit(BlockID{}, nil). Treat as structurally valid;
+	// stateful ValidateBlock distinguishes via
+	// block.Height == state.InitialHeight.
+	if commit.BlockID.IsZero() && len(commit.Precommits) == 0 {
+		return nil
+	}
 	if commit.BlockID.IsZero() {
 		return errors.New("Commit cannot be for nil block")
 	}

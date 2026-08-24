@@ -91,7 +91,7 @@ func TestBeginBlockValidators(t *testing.T) {
 		// block for height 2
 		block, _ := state.MakeBlock(2, makeTxs(2), lastCommit, state.Validators.GetProposer().Address)
 
-		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, log.NewTestingLogger(t), stateDB)
+		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, state, log.NewTestingLogger(t), stateDB)
 		require.Nil(t, err, tc.desc)
 
 		// -> app receives a list of validators with a bool indicating if they signed
@@ -169,7 +169,6 @@ func TestValidateValidatorUpdates(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -239,7 +238,6 @@ func TestUpdateValidators(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -369,6 +367,7 @@ func TestGetBeginBlockLastCommitInfo_InitialHeight(t *testing.T) {
 
 	// Build a genesis block at initialHeight with zero LastBlockID (no prev block).
 	state, stateDB, _ := makeState(1, 1)
+	state.InitialHeight = initialHeight
 	state.LastBlockHeight = initialHeight - 1
 
 	emptyCommit := types.NewCommit(types.BlockID{}, nil)
@@ -378,7 +377,7 @@ func TestGetBeginBlockLastCommitInfo_InitialHeight(t *testing.T) {
 	// because the chain never produced blocks before initialHeight.
 	// Before the fix this panics with "Could not find validator set for height #99".
 	assert.NotPanics(t, func() {
-		info := sm.GetBeginBlockLastCommitInfo(block, stateDB)
+		info := sm.GetBeginBlockLastCommitInfo(block, state, stateDB)
 		// Genesis block: no votes
 		assert.Empty(t, info.Votes)
 	})

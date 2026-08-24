@@ -23,10 +23,12 @@ import (
 )
 
 type testCfg struct {
-	genesis     string
-	timeout     time.Duration
-	verbose     bool
-	keepRunning bool
+	genesis                    string
+	timeout                    time.Duration
+	verbose                    bool
+	keepRunning                bool
+	skipFailingTxs             bool
+	skipGenesisSigVerification bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -74,6 +76,12 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&c.timeout, "timeout", 30*time.Minute, "maximum time to wait for genesis replay to complete")
 	fs.BoolVar(&c.verbose, "verbose", false, "print each tx result during replay")
 	fs.BoolVar(&c.keepRunning, "keep-running", false, "keep the node running after genesis replay (for manual RPC inspection)")
+	fs.BoolVar(&c.skipFailingTxs, "skip-failing-genesis-txs", false,
+		"count failed genesis txs as informational (report count, still exit 0) instead of failing the test. "+
+			"Match this to production node flags when the chain runs with -skip-failing-genesis-txs.")
+	fs.BoolVar(&c.skipGenesisSigVerification, "skip-genesis-sig-verification", true,
+		"bypass signature verification for genesis-mode txs (default true, matching production node behavior). "+
+			"Set to false to exercise sig verification as a stricter consistency check.")
 }
 
 func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
@@ -186,11 +194,15 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 		Genesis:                    &genDoc,
 		TMConfig:                   tmConfig,
 		DB:                         memdb.NewMemDB(),
-		SkipGenesisSigVerification: true,
+		SkipGenesisSigVerification: cfg.skipGenesisSigVerification,
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: txResultHandler,
 			StdlibDir:              stdlibDir,
 			CacheStdlibLoad:        false,
+			// fork test injects a fresh MockPV as the sole genesis
+			// validator; its signing addr has no valoper profile, so
+			// the hardfork-mode coverage assertion would fire spuriously.
+			SkipValoperCoverageAssertion: true,
 		},
 	}
 
@@ -250,15 +262,54 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
-			if failures > 0 {
-				io.Println()
-				io.Printf("FAIL: %d transaction(s) failed during genesis replay.\n", failures)
-				io.Println("Run with --verbose to see individual failures.")
-				return fmt.Errorf("genesis replay completed with %d failures", failures)
+			// Catch any incomplete InitChainer run: if the result handler
+			// fired fewer times than there were deliverable txs, the chain
+			// boot is silently broken. Two known reasons to land here:
+			//   - InitChainer returned a ResponseInitChain.Error before
+			//     the tx loop (e.g. validateSignerInfo rejected the
+			//     genesis) — processed stays at 0.
+			//   - InitChainer aborted the tx loop before delivering every
+			//     deliverable tx, leaving processed between 0 and expected.
+			// Without this guard the test prints "PASS" while the chain
+			// has effectively zero / partial genesis state; the empty or
+			// truncated appHash is the only on-the-wire signal and is
+			// easy to miss. Fail loudly instead.
+			//
+			// Per-tx metadata.Failed entries are skipped by the InitChain
+			// loop (no handler call), so the deliverable count excludes
+			// them — degenerate genesises where every tx is
+			// metadata.Failed (expected=0) trivially pass the check.
+			expected := int64(countDeliverableTxs(appState.Txs))
+			if processed < expected {
+				return fmt.Errorf(
+					"FAIL: genesis replay delivered %d of %d expected txs — "+
+						"InitChainer either returned a ResponseInitChain.Error before the tx loop "+
+						"or exited the loop early; re-run a real `gnoland start` against the same "+
+						"genesis with --log-level debug to surface the underlying error (typically "+
+						"validateSignerInfo or InitialHeight mismatch)",
+					processed, expected,
+				)
 			}
 
-			io.Println()
-			io.Println("PASS: genesis replay completed successfully.")
+			if failures > 0 {
+				io.Println()
+				if cfg.skipFailingTxs {
+					// --skip-failing-genesis-txs matches production cluster
+					// behavior: failed genesis txs are absorbed so the chain
+					// still boots. Report count for visibility; don't fail.
+					io.Printf("WARN: %d transaction(s) failed during genesis replay (absorbed by --skip-failing-genesis-txs).\n", failures)
+					io.Println("Run with --verbose to see individual failures.")
+					io.Println()
+					io.Println("PASS: genesis replay completed (failures were suppressed).")
+				} else {
+					io.Printf("FAIL: %d transaction(s) failed during genesis replay.\n", failures)
+					io.Println("Run with --verbose to see individual failures.")
+					return fmt.Errorf("genesis replay completed with %d failures", failures)
+				}
+			} else {
+				io.Println()
+				io.Println("PASS: genesis replay completed successfully.")
+			}
 
 			if cfg.keepRunning {
 				io.Println()
@@ -281,4 +332,21 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 				cfg.timeout, processed, len(appState.Txs))
 		}
 	}
+}
+
+// countDeliverableTxs returns the number of txs whose result handler
+// would fire during loadAppState — i.e. everything except entries
+// flagged metadata.Failed=true, which deliverGenesisTx skips (it returns
+// before calling the result handler). A genesis with len(state.Txs)>0 but
+// countDeliverableTxs==0 is degenerate but legal — the guard treats
+// expected==0 as a trivial pass to avoid a false-positive failure.
+func countDeliverableTxs(txs []gnoland.TxWithMetadata) int {
+	n := 0
+	for _, tx := range txs {
+		if tx.Metadata != nil && tx.Metadata.Failed {
+			continue
+		}
+		n++
+	}
+	return n
 }

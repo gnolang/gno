@@ -12,6 +12,13 @@ import (
 // Validate block
 
 func (state State) ValidateBlock(block *types.Block) error {
+	// Wire-facing guard: peer-supplied block must not crash the node.
+	// Returns error rather than panicking. Internal sites use defensive
+	// panics for plumbing bugs; this is the boundary between trusted and
+	// untrusted input.
+	if block.Height < state.InitialHeight {
+		return fmt.Errorf("block height %d < state.InitialHeight %d", block.Height, state.InitialHeight)
+	}
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -92,11 +99,10 @@ func (state State) ValidateBlock(block *types.Block) error {
 	}
 
 	// Validate block LastCommit.
-	// The genesis block (height 1, or InitialHeight > 1 where there is no real
-	// previous block) has an empty LastCommit; all other blocks must have a valid
-	// commit from the previous round. We detect the genesis case by checking
-	// whether state.LastBlockID is zero (no previous block exists).
-	isGenesisBlock := state.LastBlockID.IsZero()
+	// The genesis block of this chain (block.Height == state.InitialHeight)
+	// has an empty LastCommit; all other blocks must have a valid commit
+	// from the previous round.
+	isGenesisBlock := block.Height == state.InitialHeight
 	if isGenesisBlock {
 		if len(block.LastCommit.Precommits) != 0 {
 			return errors.New("genesis block can't have LastCommit precommits")

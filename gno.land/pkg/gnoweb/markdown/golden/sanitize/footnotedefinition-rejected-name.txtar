@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: FootnoteDefinition
+// ARGS: "with space"
+// Name fails FootnoteLabel charset (contains space), so the entire
+// definition is suppressed — sanitize must never emit a half-built
+// footnote def whose key was rejected.
+-- input.md --
+Body that should be dropped because the name was rejected.
+-- output.md --
+

@@ -46,7 +46,10 @@ type RequestInitChain struct {
 	ConsensusParams *ConsensusParams
 	Validators      []ValidatorUpdate
 	AppState        any
-	InitialHeight   int64 // block height the chain will start from after InitChain
+	// InitialHeight mirrors GenesisDoc.InitialHeight. 0 or 1 means standard
+	// genesis at height 1; >1 means the first produced block has this
+	// height (chain upgrade / hardfork replay).
+	InitialHeight int64
 }
 
 type RequestQuery struct {

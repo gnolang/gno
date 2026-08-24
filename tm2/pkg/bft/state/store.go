@@ -106,12 +106,19 @@ func SaveState(db dbm.DB, state State) {
 
 func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
-	// If first block (standard genesis at height 1 or InitialHeight > 1),
-	// save the full validator set and consensus params at nextHeight.
-	// This is needed so that LoadValidators/LoadConsensusParams can find
-	// the data when processing the first real block.
-	isFirstBlock := nextHeight == 1 || loadValidatorsInfo(db, nextHeight) == nil
-	if isFirstBlock {
+	// Defensive guard: a state with LastBlockHeight in the open interval
+	// (0, InitialHeight-1) is invalid for hardfork chains. nextHeight==1 is
+	// the legitimate fresh state pre-fix-a (LoadStateFromDBOrGenesisDoc
+	// saves the genesis state before the handshaker hoists
+	// LastBlockHeight to InitialHeight-1).
+	if nextHeight > 1 && nextHeight < state.InitialHeight {
+		panic(fmt.Sprintf("saveState: nextHeight %d in invalid range (1, state.InitialHeight=%d)", nextHeight, state.InitialHeight))
+	}
+	// If first block (standard genesis at InitialHeight==1 or hardfork at
+	// InitialHeight>1), save the full validator set and consensus params at
+	// nextHeight. This is needed so that LoadValidators/LoadConsensusParams
+	// can find the data when processing the first real block.
+	if nextHeight == state.InitialHeight {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
 		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)

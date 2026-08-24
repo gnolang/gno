@@ -10,9 +10,9 @@ import (
 )
 
 type Param struct {
-	Key   string
-	Type  string
-	Value any
+	Key   string `json:"key" yaml:"key"`
+	Type  string `json:"type" yaml:"type"`
+	Value any    `json:"value" yaml:"value"`
 }
 
 const (

@@ -11,7 +11,6 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -117,12 +116,15 @@ func Incr(cur realm) {
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
-		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
-		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		// No coins attached: this test is about capturing package paths,
+		// and Incr has no notion of being paid. MsgCall now rejects coins
+		// that the called function never reads, because they would be
+		// stranded in its address.
+		tx.Fee = std.Fee{GasWanted: 5e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
-			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
-			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
-			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, nil, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, nil, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, nil, targetPath, "Incr", nil),
 		}
 
 		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
@@ -176,7 +178,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 
 		// Build transaction
 		var tx std.Tx
-		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Fee = std.Fee{GasWanted: 5e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
 			vm.NewMsgAddPackage(creator, barPath, files),
 		}
@@ -239,7 +241,10 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		require.NoError(t, err)
 		require.NoError(t, res.Response.Error)
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret struct {
+			BaseAccount std.BaseAccount
+			Attributes  uint64 `json:"attributes"` // GnoAccount extension
+		}
 		err = amino.UnmarshalJSON(res.Response.Data, &qret)
 		require.NoError(t, err)
 		assert.Equal(t, qret.BaseAccount.Address, creator)

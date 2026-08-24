@@ -30,7 +30,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 	prmk := params.NewParamsKeeper(authCapKey)
 
-	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount)
+	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount, std.ProtoBaseSessionAccount)
 	bankk := NewDummyBankKeeper(acck, prmk.ForModule("dummybank"))
 	gk := NewGasPriceKeeper(authCapKey)
 
@@ -67,6 +67,16 @@ type DummyBankKeeper struct {
 // NewDummyBankKeeper creates a DummyBankKeeper instance
 func NewDummyBankKeeper(acck AccountKeeper, prmk params.ParamsKeeperI) DummyBankKeeper {
 	return DummyBankKeeper{acck}
+}
+
+// GetCoin mirrors the real keeper's per-denom read. The dummy keeps every
+// balance in the account object, so it reads from there.
+func (bankk DummyBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	acc := bankk.acck.GetAccount(ctx, addr)
+	if acc == nil {
+		return 0
+	}
+	return acc.GetCoins().AmountOf(denom)
 }
 
 func (bankk DummyBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {

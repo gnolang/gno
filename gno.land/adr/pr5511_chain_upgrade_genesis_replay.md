@@ -45,8 +45,12 @@ Populated by the hardfork export tool (`gnogenesis fork generate`):
   AccountNum, Sequence)`. Before each historical tx is delivered, the
   replay loop force-sets each signer's account number and pre-tx
   sequence from this. If the account doesn't exist yet,
-  `auth.NewAccountWithNumber` creates it with the specified number,
-  bypassing the auto-increment counter.
+  `auth.NewAccountWithUncheckedNumber` creates it with the specified
+  number, bypassing the auto-increment counter. Uniqueness of the
+  `(Address, AccountNum)` pair across all SignerInfo entries and
+  balance-init accounts is enforced by `validateSignerInfo` as a
+  pre-flight check in `loadAppState` (the keeper primitive does not
+  re-check; its name now telegraphs the precondition).
 - **`GasUsed`**, **`GasWanted`** (`int64`) — source-chain gas; used by
   `GasReplayMode="source"` and the replay report.
 
@@ -221,6 +225,22 @@ hardcodes the gnoland1→gnoland-1 chain IDs and delegates to the CLI.
   with backoff and HTTP timeout so transient external-host failures
   don't block unrelated PRs.
 
+### `InitChainerConfig.StrictReplay` — opt-in fail-closed boot
+
+Defaults to `false` for backwards compatibility. Hardfork operators set
+it to `true` so any non-skipped genesis tx failure aborts `InitChain`
+with an error instead of letting the chain boot in a corrupted state
+(AppHash diverging from source under `GasReplayMode="strict"`). Skipped
+txs (`metadata.Failed = true`, intentional source-chain failures) do
+not count as failures. The `replayReport.FailedCount()` accessor exposes
+the underlying tally for tooling that wants to gate on it externally.
+
+A complementary BaseApp fix surfaces the real `loadAppState` error
+through to the operator: when `InitChainer` returns
+`ResponseInitChain.Error`, `BaseApp.InitChain` now returns it cleanly
+instead of falling through to a misleading `validators count mismatch`
+panic.
+
 ## Known unfixed (follow-up PRs)
 
 1. **RPC source has no retry/resume.** A single transient error aborts
@@ -228,10 +248,7 @@ hardcodes the gnoland1→gnoland-1 chain IDs and delegates to the CLI.
    checkpointing.
 2. **All txs accumulated in memory.** Full tx history is held in a
    single slice — will OOM on large chains. Needs streaming writer.
-3. **`NewAccountWithNumber` has no duplicate check.** Pre-flight
-   validation in `loadAppState` is the recommended approach (see PR
-   discussion).
-4. **`queryAccountAtHeight` silent nil.** All error paths return nil
+3. **`queryAccountAtHeight` silent nil.** All error paths return nil
    with no indication; flaky RPC → wrong sequence metadata.
 
 ## Validation
