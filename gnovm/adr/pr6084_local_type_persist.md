@@ -142,9 +142,11 @@ escaping into realm state, so no ephemeral-package types are persisted.
   which Realm goldens cannot see); `zrealm_localtype3.gno` fails on master
   — a second, in-process release-build reproducer: its addpkg-time escape
   is reloaded by main's own transaction, panicking with "unexpected type
-  with id ...". All four carry Realm goldens pinning the on-the-wire
-  bracketed `RefType` encoding across the escape shapes (localtype3's is
-  bare — main only reads), and all four act as save-side tripwires under
+  with id ...". localtype0's Realm golden pins the on-the-wire bracketed
+  `RefType` encoding; localtype3's bare one pins that main persists
+  nothing (its escape happened at addpkg); localtype1/2 carry none —
+  goldens cannot detect the missing `/t/` record, so hundreds of lines of
+  hash churn buy no regression power. All four act as save-side tripwires under
   `-tags debugAssert` (`make test.debugAssert`, not yet in CI; verified:
   neutering `saveFuncLocalTypes` fails all four at save time with the
   dangling-ref assert, while untagged only localtype3 and the txtar
