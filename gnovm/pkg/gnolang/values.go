@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // ----------------------------------------
@@ -1030,9 +1031,17 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue) PointerValue {
-	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, gm types.GasMeter, store Store, key TypedValue) PointerValue {
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
+	return mv.getPointerForComputedKey(alloc, kmk, isNaN, key)
+}
+
+// getPointerForComputedKey is GetPointerForKey with the map key already
+// computed (and charged) by the caller — GetPointerAtIndex computes it for
+// its oldObject lookup, and recomputing from a value-copy would return the
+// same MapKey and charge the meter twice per assignment.
+func (mv *MapValue) getPointerForComputedKey(alloc *Allocator, kmk MapKey, isNaN bool, key TypedValue) PointerValue {
+	// If NaN, instead of using the map key, just append to List.
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
 			// When assigning to a map item, the key is always equal to that of the
@@ -1058,9 +1067,9 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(gm types.GasMeter, store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return
 	}
@@ -1075,9 +1084,9 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 // that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
+func (mv *MapValue) DeleteForKey(gm types.GasMeter, store Store, key *TypedValue) (deletedKey *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return nil
 	}
@@ -1871,9 +1880,16 @@ func (tv *TypedValue) Sign() int {
 // isNaN returns whether tv, or any of the values contained within (like in an
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
-func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key MapKey, isNaN bool) {
-	if m != nil && m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
+//
+// gm is the gas meter to charge for the key computation: VM-runtime callers
+// pass m.GasMeter, the realm-restore path passes the store's tx-scoped meter
+// (see loadObjectSafe). nil means unmetered: tests and tools, plus
+// GetPointerAtIndex's nil-Machine path, which only ever reaches the
+// slice/string branches (see GetPointerAtIndexInt) and so computes no
+// map key.
+func (tv *TypedValue) ComputeMapKey(gm types.GasMeter, store Store, omitType bool) (key MapKey, isNaN bool) {
+	if gm != nil {
+		gm.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
 	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1898,9 +1914,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	// prefix, av.Data, string content, brackets/separators, uvarint
 	// length headers, children's mk re-appended). This catches every
 	// O(N) work path uniformly, including early isNaN returns.
-	if m != nil && m.GasMeter != nil {
+	if gm != nil {
 		defer func() {
-			m.GasMeter.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
+			gm.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
 		}()
 	}
 	if !omitType {
@@ -1951,7 +1967,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				mk, isNaN := ev.ComputeMapKey(m, store, omitTypes)
+				mk, isNaN := ev.ComputeMapKey(gm, store, omitTypes)
 				if isNaN {
 					return "", true
 				}
@@ -1976,7 +1992,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
+			mk, isNaN := fv.ComputeMapKey(gm, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
@@ -2335,10 +2351,10 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 }
 
 // Convenience for GetPointerAtIndex(). Slow.
-func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
+func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
+	return tv.GetPointerAtIndex(nil, nilRealm, nil, store, &iv)
 }
 
 // GetByteAtIndexInt is a read-only fast path of GetPointerAtIndex for
@@ -2451,7 +2467,13 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(m, store, false)
+		// Meter from m: the nil-m path (GetPointerAtIndexInt) only ever
+		// indexes slices/strings, so no map-key gas is lost there.
+		var gm types.GasMeter
+		if m != nil {
+			gm = m.GasMeter
+		}
+		key, isNaN := iv.ComputeMapKey(gm, store, false)
 		if !isNaN {
 			k, ok := mv.vmap[key]
 			if ok {
@@ -2460,7 +2482,10 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(m, alloc, store, ivk)
+		// key was already computed (and charged) from iv above, and ivk is a
+		// value-copy of iv, so recomputing it here would return the same
+		// MapKey and charge twice.
+		pv := mv.getPointerForComputedKey(alloc, key, isNaN, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -2825,13 +2850,6 @@ type Block struct {
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 
-	// notRecyclable marks the block as ineligible for Machine.releaseBlock's
-	// pool because a reference to it may outlive its time on the machine's
-	// block stack (currently only Defer.Parent; see setNotRecyclable). It is
-	// transient runtime state — not persisted, and zeroed when a block is
-	// recycled or freshly allocated.
-	notRecyclable bool
-
 	// poisoned marks a block that has been returned to the machine's block
 	// pool (see Machine.releaseBlock). It only carries meaning under the
 	// debugAssert build tag, where PointerValue.Deref/Assign2 panic on a
@@ -2905,12 +2923,6 @@ func normalizeDecodedCap(oo Object) {
 		b.Values = b.Values[:len(b.Values):len(b.Values)]
 	}
 }
-
-// setNotRecyclable marks the block as ineligible for Machine.releaseBlock's
-// pool, because a reference to it may outlive its time on the machine's
-// block stack (currently only Defer.Parent, which the garbage collector
-// visits until the defer runs).
-func (b *Block) setNotRecyclable() { b.notRecyclable = true }
 
 // initHeapItems prepopulates the heap-item slots of a block's values per
 // source.GetHeapItems(); these slots must always hold heap items. Used by

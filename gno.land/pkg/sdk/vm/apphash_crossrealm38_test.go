@@ -119,7 +119,14 @@ import (
 // stdlib source change and is intended. Note this is the *only* reason this
 // branch moves the pin — the balance split alone does not, because that scenario
 // holds no non-gas denom.
-const expectedCrossrealm38Hash = "914602d9e206bf666cbfdf6e28f9147317e96e2d16b665bda67ffb33b7d0e1a8"
+//
+// Bumped again by the OriginSend banker lifetime fix. banker.gno gains the
+// realm-handle field that pins such a banker to its message, plus the
+// accompanying doc. Same reason as the comment-only bump noted above:
+// stdlib .gno source bytes are genesis state, so any edit to them moves the
+// root. This one does change behavior, and is intentionally
+// consensus-breaking.
+const expectedCrossrealm38Hash = "b43e5fd5ab1a255ee177aef54e35a584b657b823718cc822d11c6139a2b65a8a"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

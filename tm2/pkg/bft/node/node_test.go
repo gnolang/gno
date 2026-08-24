@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -370,6 +372,66 @@ func TestNodeSetAppVersion(t *testing.T) {
 	appVersion2, ok := n.nodeInfo.VersionSet.Get("app")
 	assert.True(t, ok)
 	assert.Equal(t, appVersion2.Version, appVersion)
+}
+
+// TestParseSeedAddrs verifies the parsing of config.P2P.Seeds on the node.
+// Invalid entries are dropped, and the seeds are ignored entirely when peer
+// exchange is disabled: without the discovery reactor there is no way to ask
+// a seed for peers, so the connection would serve no purpose.
+func TestParseSeedAddrs(t *testing.T) {
+	generateSeed := func(t *testing.T, hostPort string) string {
+		t.Helper()
+
+		return p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), hostPort)
+	}
+
+	t.Run("seeds are parsed", func(t *testing.T) {
+		seeds := []string{
+			generateSeed(t, "127.0.0.1:26656"),
+			generateSeed(t, "127.0.0.1:26657"),
+		}
+
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join(seeds, ",")
+
+		seedAddrs := parseSeedAddrs(config, log.NewNoopLogger())
+
+		require.Len(t, seedAddrs, len(seeds))
+
+		for index, addr := range seedAddrs {
+			assert.Equal(t, seeds[index], addr.String())
+		}
+	})
+
+	t.Run("invalid seed addresses are dropped", func(t *testing.T) {
+		validSeed := generateSeed(t, "127.0.0.1:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join([]string{"not-a-seed-address", validSeed}, ",")
+
+		seedAddrs := parseSeedAddrs(config, log.NewNoopLogger())
+
+		require.Len(t, seedAddrs, 1)
+		assert.Equal(t, validSeed, seedAddrs[0].String())
+	})
+
+	t.Run("seeds are ignored when peer exchange is disabled", func(t *testing.T) {
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = false
+		config.P2P.Seeds = generateSeed(t, "127.0.0.1:26656")
+
+		assert.Empty(t, parseSeedAddrs(config, log.NewNoopLogger()))
+	})
+
+	t.Run("no seeds configured", func(t *testing.T) {
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = ""
+
+		assert.Empty(t, parseSeedAddrs(config, log.NewNoopLogger()))
+	})
 }
 
 func TestNodeSetPrivValTCP(t *testing.T) {
