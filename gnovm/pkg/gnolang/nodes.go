@@ -1920,11 +1920,13 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	return slices.Contains(sb.Consts, n)
 }
 
-// IsAssignable returns false iff n denotes a package-level func decl
-// (per its NameSource in the block that declares it) or a uverse name.
-// Constants and type names never reach this check: both are folded to
-// const expressions during preprocessing.
-func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
+// IsAssignableName returns false iff n denotes a package-level func decl
+// (per its NameSource in the block that declares it) or a uverse name,
+// i.e. a name that may not appear as an assignment LHS. Unlike
+// checkAssignableTo, this is about the name's object kind, not type
+// assignability. Constants and type names never reach this check: both
+// are folded to const expressions during preprocessing.
+func (sb *StaticBlock) IsAssignableName(store Store, n Name) bool {
 	idx, ok := sb.GetLocalIndex(n)
 	bp := sb.GetParentNode(store)
 	for {

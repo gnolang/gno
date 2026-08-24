@@ -1,4 +1,4 @@
-# ADR: Derive `IsAssignable` from `NameSources`, drop `StaticBlock.UnassignableNames`
+# ADR: Derive `IsAssignableName` from `NameSources`, drop `StaticBlock.UnassignableNames`
 
 ## Context
 
@@ -11,7 +11,9 @@ calling `Reserve(false, nx, n, NSFuncDecl, -1)` on the same package
 block. Every other kind of unassignable name is handled elsewhere —
 constants are folded to `ConstExpr` (and tracked in `Consts`), type
 names are folded to `constTypeExpr`, and uverse names are refused by an
-explicit branch inside `IsAssignable`.
+explicit branch inside `IsAssignableName` (formerly `IsAssignable`;
+renamed to avoid confusion with type assignability à la
+`checkAssignableTo`).
 
 That `Reserve` call already records the same fact in
 `StaticBlock.NameSources`: the entry at the name's local index carries
@@ -22,7 +24,7 @@ list" — which is false.
 
 ## Decision
 
-- Delete the `UnassignableNames` field. `IsAssignable` now answers from
+- Delete the `UnassignableNames` field. `IsAssignableName` now answers from
   the block that declares the name: `NameSources[idx].Type != NSFuncDecl`,
   an O(1) lookup instead of an O(n) scan. Indexing `NameSources` by a
   `GetLocalIndex` result is safe: `Define2` panics unless
@@ -53,7 +55,7 @@ list" — which is false.
   `-run Gas`, `TestTestdata`) all pass unchanged.
 - Like the `Externs` removal, the reserved slot must stay in place;
   amino field removal remains order-brittle.
-- Possible follow-ups, out of scope here: an `IsAssignableAt(store,
+- Possible follow-ups, out of scope here: an `IsAssignableNameAt(store,
   path)` fast path (the `AssignStmt` call site already has a resolved
   `ValuePath`, mirroring `GetIsConstAt`), and merging `Consts` into
   `NameSources` the same way, retiring the last parallel name-list.

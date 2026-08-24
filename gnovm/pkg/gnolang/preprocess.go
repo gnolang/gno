@@ -2727,7 +2727,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
 						if ne, ok := lh.(*NameExpr); ok {
-							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+							if !last.GetStaticBlock().IsAssignableName(store, ne.Name) {
 								panic("not assignable")
 							}
 						}
