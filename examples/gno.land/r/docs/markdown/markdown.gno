@@ -224,7 +224,7 @@ Images can be included using the following syntax:
 ![Alt text](/public/imgs/gnoland.svg "Optional title")
 
 > [!CAUTION]
-> ±https://± image URLs are **silently broken** at render time. The gnoweb renderer strips the ±https://± prefix from ±<img src>±, producing ±src=""± — a broken image with no error signal. The CSP allowlist below is a browser-side check that only runs _after_ the renderer, so even allowlisted hosts produce empty ±src± attributes. Use SVG data URIs (±data:image/svg+xml;base64,…±) for inline images that must always render.
+> Non-SVG ±data:± image URIs are erased at render time: the image validator empties ±<img src>±, producing ±src=""± with no error signal. ±data:image/svg+xml± is the one ±data:± form that survives. Remote ±https://± URLs pass the renderer untouched — whether the browser loads them is then governed by the CSP allowlist below.
 
 The browser-side CSP allowlist (what passes after the renderer step) includes:
 
@@ -778,7 +778,7 @@ There are six types of alerts:
 - WARNING
 - CAUTION
 
-**NOTE**: Alert types are case-sensitive — ±[!note]± does NOT match. The ±[!FOO]± fallback behavior (rendering as INFO) is an implementation detail, not a contract.
+**NOTE**: Alert types are case-insensitive — ±[!note]± and ±[!NOTE]± both match. An unrecognized type such as ±[!FOO]± falls back to INFO.
 
 The alert boxes are expandable/collapsible and can have a title. 
 By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
@@ -867,16 +867,26 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
-### Auto-linked Addresses and Emails
+### Auto-linked Mentions and Addresses
 
-Gno markdown automatically recognizes and renders Bech32 addresses and email addresses as clickable links.
+Gno markdown automatically recognizes ±@username± mentions and Bech32 addresses, rendering both as links to a user profile.
 
 > [!NOTE]
-> The ±@username± syntax is NOT auto-linked. Only bech32 addresses (±g1…±, 40-char) and email addresses are auto-linked. For a named user link, use explicit markdown: ±[@alice](/r/sys/users:alice)±.
+> Email addresses are **not** auto-linked: ±user@example.com± renders as plain text.
+
+#### User Mentions
+
+A ±@username± mention — letters, digits and underscores, 3 to 90 characters — is auto-linked to ±/u/{username}±.
+
+±±±markdown
+Ask @alice about it.
+±±±
+
+Ask @alice about it.
 
 #### Bech32 Addresses
 
-Valid Gno bech32 addresses (±g1± prefix, 40 characters) are auto-linked to the user profile at ±/u/{addr}±.
+Valid Gno bech32 addresses (±g1± prefix, 39 to 92 characters) are auto-linked to the user profile at ±/u/{addr}±.
 
 ±±±markdown
 This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
@@ -888,15 +898,15 @@ This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
 You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
-#### Named User Links
+#### Custom Link Text
 
-For linking to a user by name, use the ±[@username](/r/sys/users:username)± explicit link pattern:
+A bare ±@username± already links to ±/u/{username}±. Use an explicit link only when the text must differ from the name:
 
 ±±±markdown
-[@alice](/r/sys/users:alice)
+[Alice's profile](/u/alice)
 ±±±
 
-[@alice](/r/sys/users:alice)
+[Alice's profile](/u/alice)
 
 ## Future Enhancements
 

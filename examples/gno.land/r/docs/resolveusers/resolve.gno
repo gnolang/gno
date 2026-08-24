@@ -24,8 +24,9 @@ usernames and addresses in their realms. Check out the example below.
 	}
 
 	// Try to resolve the search input in the registry.
-	// ResolveAny's second return is true when input was parsed as a valid bech32 address
-	// (address-branch taken), false when input was treated as a name lookup.
+	// ResolveAny's second return reports whether input is the user's canonical
+	// form: true for a valid bech32 address, and true for a name only when it
+	// matches the current username, so an older alias resolves with false.
 	data, _ := users.ResolveAny(path)
 	if data != nil {
 		out += "## Found the user you're looking for: "
