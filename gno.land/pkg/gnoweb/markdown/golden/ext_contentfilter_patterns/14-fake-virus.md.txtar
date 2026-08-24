@@ -1,0 +1,7 @@
+-- input.md --
+Your computer is infected with malware click here to clean.
+
+Comparing antivirus software options for home use.
+-- output.html --
+<p>[fake virus]</p>
+<p>Comparing antivirus software options for home use.</p>

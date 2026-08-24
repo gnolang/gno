@@ -1,0 +1,5 @@
+-- input.md --
+The word cafe with accent: café.
+
+-- output.html --
+<p>The word cafe with accent: café.</p>

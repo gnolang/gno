@@ -1,0 +1,7 @@
+-- input.md --
+Text with hidden​​​ zero width characters inside.
+
+Standard text encoding and format.
+-- output.html --
+<p>[hidden]</p>
+<p>Standard text encoding and format.</p>

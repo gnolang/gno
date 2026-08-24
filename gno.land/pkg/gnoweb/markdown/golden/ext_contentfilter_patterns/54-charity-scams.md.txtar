@@ -1,0 +1,7 @@
+-- input.md --
+Urgent donation needed please for earthquake victims now.
+
+Verifying charitable organizations before giving.
+-- output.html --
+<p>[charity scam]</p>
+<p>Verifying charitable organizations before giving.</p>

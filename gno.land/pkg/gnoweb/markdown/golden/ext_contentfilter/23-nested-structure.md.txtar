@@ -1,0 +1,11 @@
+-- input.md --
+- > **evil-site.com** is bad
+
+-- output.html --
+<ul>
+<li>
+<blockquote>
+<p>[blocked URL]</p>
+</blockquote>
+</li>
+</ul>
