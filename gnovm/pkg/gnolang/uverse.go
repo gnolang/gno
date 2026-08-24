@@ -1928,10 +1928,10 @@ func makeUverseNode() {
 // (filled at runtime via isEql) — none of which is safe to fill from multiple
 // goroutines. Computing them here once makes the shared type graph immutable.
 //
-// Per-store types are NOT unaffected, which they were when this was written: a
+// Per-store types are affected too, which this comment used to deny: a
 // defaultStore's cacheNodes map is shared by every store forked from it, and
-// concurrent queries read those nodes. They are sealed on publication instead —
-// see seal.go, whose walk this shares. Only the roots differ.
+// concurrent queries read those nodes. They are sealed on publication instead,
+// by seal.go, whose walk this shares. Only the roots differ.
 //
 // The set of shared types is everything reachable from the uverse block — both
 // the named types installed via def() (any, error, the primitives, address,

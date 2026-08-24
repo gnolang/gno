@@ -10,9 +10,9 @@ package gnoland
 // ABCI proxy client creator — block execution with signed bank sends driven
 // through the CONSENSUS connection while goroutines hammer account and .store
 // queries through the READ-ONLY QUERY connection, which takes no lock against
-// consensus and genuinely races the commit drain (tm2/pkg/bft/proxy). The txtar integration
-// framework cannot express this (it is sequential); this is the flow that
-// poisoned topaz-1.
+// consensus and genuinely races the commit drain (tm2/pkg/bft/proxy). The txtar
+// integration framework cannot express this (it is sequential); this is the flow
+// that poisoned topaz-1.
 //
 // The racing interleaving itself is made deterministic the same way the
 // tm2-level regression does it (the stochastic window — a version scan and a

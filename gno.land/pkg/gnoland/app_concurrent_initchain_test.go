@@ -17,6 +17,7 @@ package gnoland
 // unit test; this one pins that the guard is what a real boot depends on.
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -33,9 +34,14 @@ func TestConcurrentInitChain(t *testing.T) {
 		t.Skip("boots 24 nodes in one process")
 	}
 
-	// Above any core count this runs on, so the boots overlap rather than
-	// queueing behind GOMAXPROCS.
+	// Enough boots that two of them land in the same unfilled cache often
+	// enough to matter. The barrier is what makes them overlap, at any core
+	// count.
 	const nodes = 24
+
+	// Failures are collected rather than asserted in place: testing.T.FailNow,
+	// which require reaches, has to run on the test's own goroutine.
+	errs := make([]error, nodes)
 
 	var wg, gate sync.WaitGroup
 	gate.Add(1)
@@ -43,7 +49,10 @@ func TestConcurrentInitChain(t *testing.T) {
 		wg.Go(func() {
 			gate.Wait() // release every boot at once
 			app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
-			require.NoError(t, err)
+			if err != nil {
+				errs[i] = fmt.Errorf("node %d NewAppWithOptions: %w", i, err)
+				return
+			}
 			bapp := app.(*sdk.BaseApp)
 			resp := bapp.InitChain(abci.RequestInitChain{
 				ChainID: "dev",
@@ -53,10 +62,17 @@ func TestConcurrentInitChain(t *testing.T) {
 				},
 				AppState: DefaultGenState(),
 			})
-			require.Truef(t, resp.IsOK(), "node %d InitChain: %v", i, resp)
+			if !resp.IsOK() {
+				errs[i] = fmt.Errorf("node %d InitChain: %v", i, resp)
+				return
+			}
 			bapp.Commit()
 		})
 	}
 	gate.Done()
 	wg.Wait()
+
+	for _, err := range errs {
+		require.NoError(t, err)
+	}
 }

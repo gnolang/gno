@@ -86,9 +86,8 @@ func TestReadOnlyClientAdmitsConcurrentQueries(t *testing.T) {
 	t.Parallel()
 
 	// The bound is GOMAXPROCS, so ask for exactly that many rather than a
-	// number that happens to fit on this machine. Reading the package var is
-	// safe; writing it would race every other test that builds a client.
-	callers := maxConcurrentQueries
+	// number that happens to fit on this machine.
+	callers := maxConcurrentQueries()
 	if callers < 2 {
 		t.Skip("GOMAXPROCS is 1: this machine cannot run two queries at once")
 	}
@@ -114,9 +113,8 @@ func TestReadOnlyClientAdmitsConcurrentQueries(t *testing.T) {
 func TestReadOnlyClientRespectsConcurrencyBound(t *testing.T) {
 	t.Parallel()
 
-	// The limiter is passed explicitly rather than by setting
-	// maxConcurrentQueries, which is a package-level var that every other test
-	// reads while building a client. This is the same construction
+	// The limiter is passed explicitly so the bound under test does not depend on
+	// the machine's core count. This is the same construction
 	// NewReadOnlyABCIClient performs.
 	app := newGateApp()
 	client := abcicli.NewLocalClient(newQueryLimiter(1), app)

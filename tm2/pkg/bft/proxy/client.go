@@ -10,11 +10,13 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
-var (
-	// maxConcurrentQueries bounds how many calls may be inside the application
-	// through the read-only connection at once.
-	maxConcurrentQueries = max(runtime.GOMAXPROCS(0), 1)
-)
+// maxConcurrentQueries bounds how many calls may be inside the application
+// through the read-only connection at once. Read per client rather than at
+// package init: since Go 1.25 the default GOMAXPROCS tracks the cgroup CPU limit
+// and moves when that limit does.
+func maxConcurrentQueries() int {
+	return runtime.GOMAXPROCS(0)
+}
 
 // ClientCreator creates ABCI clients for the three Tendermint connections.
 type ClientCreator interface {
@@ -66,7 +68,7 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 // completeRequest. Nothing calls it on this connection today — the appconn
 // Query wrapper does not expose it — and nothing should.
 func (l *localClientCreator) NewReadOnlyABCIClient() (abcicli.Client, error) {
-	return abcicli.NewLocalClient(newQueryLimiter(maxConcurrentQueries), l.app), nil
+	return abcicli.NewLocalClient(newQueryLimiter(maxConcurrentQueries()), l.app), nil
 }
 
 // queryLimiter is the Locker handed to the read-only connection. It bounds how

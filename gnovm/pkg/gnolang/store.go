@@ -68,6 +68,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	// SetBlockNodes publishes a group built together; never loop SetBlockNode.
 	SetBlockNodes([]BlockNode)
 	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
@@ -945,6 +946,9 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	return nil
 }
 
+// SetBlockNode publishes one block node. For a group built together, such as one
+// file's worth, call SetBlockNodes instead: looping here seals each node under
+// its own sealer and re-walks the package's type graph once per node.
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	ds.SetBlockNodes([]BlockNode{bn})
 }
