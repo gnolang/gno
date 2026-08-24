@@ -54,7 +54,7 @@ func main() {
 // This type of proposal is also known as text proposal which can be used for example to get consensus on initiatives without actually making any change on-chain.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [Update Council](/r/nt/commondao/v0$help&func=CreateCouncilUpdateProposal&daoID=2&newMembers=&removeMembers=)
 //
 // This type of proposal can be used to add new council members to this DAO and also to remove existing ones.
@@ -62,7 +62,7 @@ func main() {
 // A single proposal allows new council members to be added and any number of existing ones removed within the same proposal.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [Ancestor Council Update](/r/nt/commondao/v0$help&func=CreateAncestorCouncilUpdateProposal&daoID=2&newMembers=&removeMembers=&targetID=)
 //
 // This type of proposal lets this DAO, as an ancestor, add or remove council members of one of its descendant DAOs — the rescue path for a descendant whose council is stuck or empty.
@@ -77,13 +77,13 @@ func main() {
 // Dissolving a DAO can't be undone, once the dissolution proposal passes and is executed DAO will be readonly.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [Treasury Spend](/r/nt/commondao/v0$help&func=CreateTreasurySpendProposal&amount=&daoID=2&denom=ugnot&to=)
 //
 // This type of proposal sends coins from the DAO's own treasury when it passes and is executed.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [Treasury Clawback](/r/nt/commondao/v0$help&func=CreateTreasuryClawbackProposal&daoID=2&targetID=)
 //
 // This type of proposal sweeps a descendant DAO's treasury to the descendant's parent DAO.
@@ -96,13 +96,13 @@ func main() {
 // This type of proposal freezes or unfreezes a descendant DAO's treasury. While frozen, no funds can leave the treasury.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [New SubDAO](/r/nt/commondao/v0$help&func=CreateSubDAOProposal&daoID=2&description=&members=&name=&purpose=)
 //
 // This type of proposal is used to create SubDAOs, which are used to create tree based DAOs.
 //
 //
-// <gno-columns-sep>
+// <gno-columns-sep/>
 // [Register Proposal Kind](/r/nt/commondao/v0$help&func=CreateRegisterKindProposal&daoID=2&kindName=) • [Deregister Proposal Kind](/r/nt/commondao/v0$help&func=CreateDeregisterKindProposal&daoID=2&kindName=)
 //
 // This type of proposal registers one of the realm's catalog proposal kinds on this DAO by name, or deregisters a kind. Deregistering a kind blocks new proposals of that kind while in-flight ones still vote and execute. The manage-kinds kind itself cannot be deregistered.
