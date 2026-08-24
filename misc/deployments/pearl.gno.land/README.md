@@ -2,7 +2,7 @@
 
 Builds the **pearl** genesis. pearl is a **fresh chain** — not a hardfork, no historical replay.
 
-> **Status: two launch values still pending.** The ceremony keys, genesis time, faucet accounts, and peers are final; the gno-core-validator-3 operator address is a stand-in and the vested-account list is empty — see the `XXX: PLACEHOLDER` markers in `gen-genesis.sh`. `CHECKSUMS_DATA` stays unlocked until both are final.
+> **Status: one launch value still pending.** The ceremony keys, operators, genesis time, faucet accounts, and peers are final; the vested-account list is still empty — see the `XXX: PLACEHOLDER` marker in `gen-genesis.sh`. `CHECKSUMS_DATA` stays unlocked until it is final.
 
 ## What pearl contains
 

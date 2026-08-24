@@ -111,16 +111,13 @@ INITIAL_VALSET=(
 # holds it can rotate the signing key, edit the valoper profile, and
 # signal opt-out via r/gnops/valopers + r/sys/validators/v3.
 #
-# Slots 1-2 reuse the topaz/sapphire operator pair (confirmed). Valoper
-# profiles are keyed on the operator address and `fork valoper-seed`
-# rejects duplicate operators, so slot 3 cannot reuse either of them.
-#
-# XXX: PLACEHOLDER — slot 3 is a stand-in address; replace with the real
-# gno-core-validator-3 operator before locking the genesis.
+# Valoper profiles are keyed on the operator address and `fork
+# valoper-seed` rejects duplicate operators, so the three slots must be
+# distinct addresses.
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator
   "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m" # gno-core-validator-2 operator
-  "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # gno-core-validator-3 operator — XXX stand-in
+  "g18e69gfvt9c5mw40ykfzvhtjlmur8guhp4zjtav" # gno-core-validator-3 operator
 )
 
 # Faucet balances. Each gets $FAUCET_BALANCE ugnot at genesis. Addresses
