@@ -3,8 +3,8 @@ package valopers
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"crypto/bech32"
 	"errors"
 	"regexp"
@@ -43,6 +43,7 @@ var (
 	ErrFrontrunValidator    = errors.New("post-genesis: signing address is already an active validator")
 	ErrRotationThrottled    = errors.New("rotation throttled: try again later")
 	ErrRegistryEntryMissing = errors.New("signing address has no active registry entry (corrupted state)")
+	ErrDisallowedPubKeyType = errors.New("consensus pubkey type is not allowed for validators")
 )
 
 var (
@@ -89,14 +90,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(member); err != nil {
+	if err := v.Auth().AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
@@ -119,7 +120,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // requires the attacker to be able to satisfy OriginCaller==victim,
 // which requires the victim's signing key. r/sys/namereg/v1.Register
 // also gates on IsUserCall, but that's because IT reads
-// banker.OriginSend() for the anti-squatting payment and IsUserCall
+// unsafe.OriginSend() for the anti-squatting payment and IsUserCall
 // is needed to ensure the OriginSend envelope reflects what landed at
 // this realm rather than a phantom payment from a previous frame.
 // valopers.Register has no per-call payment-receipt check (fees are
@@ -136,7 +137,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
-	if runtime.ChainHeight() > 0 && runtime.OriginCaller() != addr {
+	if runtime.ChainHeight() > 0 && unsafe.OriginCaller() != addr {
 		panic(ErrOperatorSquatGuard)
 	}
 
@@ -144,7 +145,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	// governance raises it post-transfer-enablement).
 	if fee := sysparams.GetValoperRegisterFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}
@@ -154,6 +155,9 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	if isValoper(addr) {
 		panic(ErrValoperExists)
 	}
+
+	// Reject disallowed key types early (else the EndBlocker drops it silently).
+	assertPubKeyTypeAllowed(pubKey)
 
 	// Derive the consensus signing address from the pubkey.
 	signingAddr, err := chain.PubKeyAddress(pubKey)
@@ -181,7 +185,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		SigningAddress:     signingAddr,
 		LastRotationHeight: runtime.ChainHeight(),
 		KeepRunning:        true,
-		auth:               authorizable.New(ownable.NewWithAddressByPrevious(addr)),
+		auth:               authorizable.New(ownable.NewWithAddress(addr)),
 	}
 
 	if err := v.Validate(); err != nil {
@@ -199,7 +203,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	})
 
 	// Refresh v3's cache for this operator.
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateMoniker updates an existing valoper's moniker.
@@ -212,7 +216,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the moniker.
 	v.Moniker = moniker
@@ -231,7 +235,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the description.
 	v.Description = description
@@ -246,7 +250,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update status.
 	v.KeepRunning = keepRunning
@@ -255,7 +259,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	valopers.Set(addr.String(), v)
 
 	// Refresh v3's cache (KeepRunning is one of the cached fields).
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateServerType updates an existing valoper's server type.
@@ -268,7 +272,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update server type.
 	v.ServerType = serverType
@@ -287,7 +291,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 //     rotationPeriodBlocks
 //   - signingRegistry uniqueness: derived(newPubKey) not in registry
 //     (active OR retired); permanently blocks key reuse
-//   - fee: banker.OriginSend() >= rotationFee (mirrors Register's
+//   - fee: unsafe.OriginSend() >= rotationFee (mirrors Register's
 //     fee-check pattern)
 //
 // Effect: profile's SigningPubKey/SigningAddress/LastRotationHeight
@@ -304,7 +308,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Throttle: limit one rotation per rotation_period_blocks per
 	// operator (per profile, not per caller — multi-member auth lists
@@ -318,11 +322,14 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// rotation_fee defaults to zero pre-transfer-enablement).
 	if fee := sysparams.GetValoperRotationFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}
 	}
+
+	// Reject disallowed key types early (else the EndBlocker drops it silently).
+	assertPubKeyTypeAllowed(newPubKey)
 
 	// Derive the new signing address from the new pubkey.
 	newSigningAddr, err := chain.PubKeyAddress(newPubKey)
@@ -336,14 +343,28 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 		panic(ErrSigningKeyTaken)
 	}
 
+	// Front-running guard: the derived signing address must not already
+	// be an active validator. Mirrors the same guard in Register
+	// (ErrFrontrunValidator). signingRegistry uniqueness above only
+	// blocks signing addresses that previously went through Register or
+	// UpdateSigningKey — genesis-seeded validators bypassed both, so
+	// their signing addresses are absent from signingRegistry. Without
+	// this check, a valoper could rotate onto such a slot and hijack
+	// it: v3.RotateValoperSigningKey would overwrite the active entry
+	// with this operator's claim, and a subsequent govDAO remove-op
+	// proposal would then delete it.
+	if validators.IsValidator(newSigningAddr) {
+		panic(ErrFrontrunValidator)
+	}
+
 	// Remember the previous signing key for the v3 cross-call.
 	oldPubKey := v.SigningPubKey
 	oldSigningAddr := v.SigningAddress
 
 	// Mark the old registry entry retired. The entry must exist —
 	// it was inserted at Register time.
-	rawOld, ok := signingRegistry.Get(oldSigningAddr.String())
-	if !ok {
+	rawOld := signingRegistry.Get(oldSigningAddr.String())
+	if rawOld == nil {
 		panic(ErrRegistryEntryMissing)
 	}
 	oldEntry := rawOld.(regEntry)
@@ -366,14 +387,14 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// Apply to consensus via v3, then refresh v3's cache view of the
 	// profile. Order matters only in that both must complete; tx
 	// atomicity rolls back together on any panic.
-	validators.RotateValoperSigningKey(cross, addr, oldPubKey, newPubKey)
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.RotateValoperSigningKey(cross(cur), addr, oldPubKey, newPubKey)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // GetByAddr fetches the valoper using the operator address, if present.
 func GetByAddr(addr address) Valoper {
-	valoperRaw, exists := valopers.Get(addr.String())
-	if !exists {
+	valoperRaw := valopers.Get(addr.String())
+	if valoperRaw == nil {
 		panic(ErrValoperMissing)
 	}
 
@@ -392,8 +413,8 @@ func Render(fullPath string) string {
 		if len(addr) < 2 || addr[:2] != "g1" {
 			return "invalid address " + addr
 		}
-		valoperRaw, exists := valopers.Get(addr)
-		if !exists {
+		valoperRaw := valopers.Get(addr)
+		if valoperRaw == nil {
 			return "unknown address " + addr
 		}
 		v := valoperRaw.(Valoper)
@@ -463,9 +484,7 @@ func (v Valoper) Render() string {
 
 // isValoper checks if the valoper exists.
 func isValoper(addr address) bool {
-	_, exists := valopers.Get(addr.String())
-
-	return exists
+	return valopers.Has(addr.String())
 }
 
 // validateMoniker checks if the moniker is valid.
@@ -514,6 +533,46 @@ func validatePubKey(pubKey string) error {
 	}
 
 	return nil
+}
+
+// assertPubKeyTypeAllowed panics if pubKey's type is not in the chain's validator allow-list (empty list accepts any).
+func assertPubKeyTypeAllowed(pubKey string) {
+	allowed := sysparams.GetValsetPubKeyTypes()
+	if len(allowed) == 0 {
+		return
+	}
+	typeURL, err := pubKeyTypeURL(pubKey)
+	if err != nil {
+		panic(err)
+	}
+	for _, a := range allowed {
+		if a == typeURL {
+			return
+		}
+	}
+	panic(ErrDisallowedPubKeyType)
+}
+
+// pubKeyTypeURL returns the amino type URL (e.g. "/tm.PubKeyEd25519") of a bech32 consensus pubkey.
+func pubKeyTypeURL(pubKey string) (string, error) {
+	// gpub exceeds bech32's 90-char cap, so decode without the limit.
+	_, data5, err := bech32.DecodeNoLimit(pubKey)
+	if err != nil {
+		return "", err
+	}
+	data, err := bech32.ConvertBits(data5, 5, 8, false)
+	if err != nil {
+		return "", err
+	}
+	// Type URL is the first amino field: 0x0A <len> <typeURL>.
+	if len(data) < 2 || data[0] != 0x0A {
+		return "", errors.New("malformed consensus pubkey: " + pubKey)
+	}
+	n := int(data[1])
+	if n == 0 || len(data) < 2+n {
+		return "", errors.New("malformed consensus pubkey: " + pubKey)
+	}
+	return string(data[2 : 2+n]), nil
 }
 
 // validateServerType checks if the server type is valid.

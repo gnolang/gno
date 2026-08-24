@@ -1,9 +1,11 @@
 package main
 
-import "chain/runtime"
+import (
+	"chain/runtime/unsafe"
+)
 
 func main() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	println(caller)
 }
 

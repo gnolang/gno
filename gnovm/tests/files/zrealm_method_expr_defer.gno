@@ -1,12 +1,14 @@
 // PKGPATH: gno.land/r/test/methodexprdefer
 package methodexprdefer
 
-// Probe: `defer Type.Method(recv)` on a cross-realm-stored receiver.
-// Because this is a deferred FuncValue call (not a deferred bound method),
-// dfr.IsBoundMethod stays false, the deferred-call path in
-// doOpReturnCallDefers passes TypedValue{} for the receiver, and
-// PushFrameCall does not perform the implicit borrow-realm switch.
-// The defer-method fix does not apply to this form. Expected to panic.
+// Probe: `defer Type.Method(recv)` on a cross-realm-stored receiver
+// constructed in the caller's realm. Storage is authority and is
+// stamped at construction, so recv.PkgID stays at the constructor's
+// realm even after the SetObject hand-off, and the deferred mutation
+// runs without a readonly-taint panic. (Note: this previously also
+// probed the borrow-realm-switch in deferred-method dispatch — that
+// probe no longer triggers under the construction-authority model
+// because the constructor's realm matches recv.PkgID.)
 
 import (
 	crossrealm "gno.land/r/tests/vm/crossrealm"
@@ -22,10 +24,10 @@ func (s *S) Close() {
 
 func main(cur realm) {
 	s := &S{}
-	crossrealm.SetObject(cross, s)
+	crossrealm.SetObject(cross(cur), s)
 	defer (*S).Close(s)
 	println("body done")
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.Closed
+// Output:
+// body done

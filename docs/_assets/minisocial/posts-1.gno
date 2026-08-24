@@ -1,9 +1,9 @@
 package minisocial
 
 import (
-	"chain/runtime" // Special Gno package providing access to the caller
-	"errors"        // For handling errors
-	"time"          // For handling time
+	"chain/runtime/unsafe" // Stack-walking primitives (see unsafe.PreviousRealm docs)
+	"errors"               // For handling errors
+	"time"                 // For handling time
 )
 
 var posts []*Post
@@ -20,7 +20,7 @@ func CreatePost(_ realm, text string) error {
 	// Append the new post to the list
 	posts = append(posts, &Post{
 		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		author:    unsafe.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
 		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 

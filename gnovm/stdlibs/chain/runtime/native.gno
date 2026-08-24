@@ -10,20 +10,6 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
-func OriginCaller() address {
-	return address(originCaller())
-}
-
-func CurrentRealm() Realm {
-	addr, path := getRealm(0)
-	return Realm{address(addr), path}
-}
-
-func PreviousRealm() Realm {
-	addr, path := getRealm(1)
-	return Realm{address(addr), path}
-}
-
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.
 //
@@ -49,6 +35,4 @@ func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string,
 }
 
 // Variations which don't use named types.
-func originCaller() string
-func getRealm(height int) (address string, pkgPath string)
 func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)

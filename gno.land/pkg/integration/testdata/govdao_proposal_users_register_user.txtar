@@ -17,7 +17,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
 # Create proposal to register @user1
-gnokey maketx run -gas-fee 3300001ugnot -gas-wanted 35_000_000 -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
+gnokey maketx run -gas-fee 3300001ugnot -gas-wanted 36_000_000 -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -25,7 +25,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Register User to \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 21000000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 22000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
@@ -37,7 +37,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1\")"
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 
 # Create proposal for name alias @user1alias
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 36000000 -chainid=tendermint_test test1 $WORK/run/create_update_name_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 37000000 -chainid=tendermint_test test1 $WORK/run/create_update_name_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -57,7 +57,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1alias\")"
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 
 # Create proposal for to delete @user1
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 32000000 -chainid=tendermint_test test1 $WORK/run/create_delete_user_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 33000000 -chainid=tendermint_test test1 $WORK/run/create_delete_user_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -81,8 +81,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_register_user_proposal.gno --
@@ -93,9 +93,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
-	r := users.ProposeRegisterUser("user1", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
-	dao.MustCreateProposal(cross, r)
+func main(cur realm) {
+	r := users.ProposeRegisterUser(cross(cur), "user1", address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/create_update_name_proposal.gno --
@@ -106,9 +106,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
-	r := users.ProposeUpdateName("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "user1alias")
-	dao.MustCreateProposal(cross, r)
+func main(cur realm) {
+	r := users.ProposeUpdateName(cross(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"), "user1alias")
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/create_delete_user_proposal.gno --
@@ -119,7 +119,7 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
-	r := users.ProposeDeleteUser("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
-	dao.MustCreateProposal(cross, r)
+func main(cur realm) {
+	r := users.ProposeDeleteUser(cross(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
+	dao.MustCreateProposal(cross(cur), r)
 }

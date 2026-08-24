@@ -1,8 +1,6 @@
-package foo20
+package grc20factory
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl/v0"
@@ -10,13 +8,15 @@ import (
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
 var (
-	instances avl.Tree // symbol -> *instance
-	pager     = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
+	instances   avl.Tree // symbol -> *instance
+	nextTokenID seqid.ID
+	pager       = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
 )
 
 type instance struct {
@@ -27,7 +27,7 @@ type instance struct {
 }
 
 func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
@@ -37,7 +37,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		panic("token already exists")
 	}
 
-	token, ledger := grc20.NewToken(name, symbol, decimals)
+	token, ledger := grc20.NewToken(name, symbol, decimals, nextTokenID.Next(), cur)
 	if initialMint > 0 {
 		ledger.Mint(admin, initialMint)
 	}
@@ -45,12 +45,12 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	inst := instance{
 		token:  token,
 		ledger: ledger,
-		admin:  ownable.NewWithAddressByPrevious(admin),
+		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
 
-	grc20reg.Register(cross, token, symbol)
+	grc20reg.Register(cross(cur), token, symbol)
 }
 
 func Bank(symbol string) *grc20.Token {
@@ -80,23 +80,23 @@ func Allowance(symbol string, owner, spender address) int64 {
 
 func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Transfer(to, amount))
+	checkErr(teller.Transfer(0, cur, to, amount))
 }
 
 func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Approve(spender, amount))
+	checkErr(teller.Approve(0, cur, spender, amount))
 }
 
 func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.TransferFrom(from, to, amount))
+	checkErr(teller.TransferFrom(0, cur, from, to, amount))
 }
 
 // faucet.
@@ -107,31 +107,31 @@ func Faucet(cur realm, symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
 func Mint(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwned()
+	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(cur realm, symbol string, from address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwned()
+	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
 // instance admin functionality
 func DropInstanceOwnership(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnership())
+	checkErr(inst.admin.DropOwnership(0, cur))
 }
 
 func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.TransferOwnership(newOwner))
+	checkErr(inst.admin.TransferOwnership(0, cur, newOwner))
 }
 
 func ListTokens(pageNumber, pageSize int) []*grc20.Token {
@@ -210,8 +210,8 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func mustGetInstance(symbol string) *instance {
-	t, exists := instances.Get(symbol)
-	if !exists {
+	t := instances.Get(symbol)
+	if t == nil {
 		panic("token instance does not exist")
 	}
 	return t.(*instance)
