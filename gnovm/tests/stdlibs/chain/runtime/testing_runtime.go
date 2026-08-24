@@ -7,6 +7,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -50,11 +51,11 @@ func isOriginCall(m *gno.Machine) bool {
 		// 1. $RealmFuncName
 		// 2. runtime.AssertOriginCall
 		return callFrames == 3
-	case "RunTest": // test is a _test
+	case "RunTest", "runTest_cur": // _test, with or without (cur realm, t *testing.T)
 		// Non-closure frames expected:
-		// 0. testing.RunTest
-		// 1. tRunner
-		// 2. $TestFuncName
+		// 0. testing.RunTest / runTest_cur
+		// 1. tRunner / tRunner_cur
+		// 2. $TestFuncName / $TestFuncName_cur
 		// 3. $RealmFuncName
 		// 4. runtime.AssertOriginCall
 		return callFrames == 5
@@ -66,6 +67,26 @@ func isOriginCall(m *gno.Machine) bool {
 		return callFrames == 3
 	}
 	panic("unable to determine if test is a _test or a _filetest")
+}
+
+// anyLiveOverride reports whether any on-stack frame carries a live
+// testing.SetRealm override (map entry AND the frame's TestOverridden
+// flag, matching getOverride's validity rule). Stale map entries left
+// by popped frames don't count — they must not disable the identity
+// chain for the rest of the machine.
+func anyLiveOverride(m *gno.Machine, ctx *TestExecContext) bool {
+	if len(ctx.RealmFrames) == 0 {
+		return false
+	}
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		if !m.Frames[i].TestOverridden {
+			continue
+		}
+		if _, ok := ctx.RealmFrames[i]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
@@ -81,8 +102,21 @@ func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
 func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
+	ctx := m.Context.(*TestExecContext)
+
+	// Identity-chain walk (see execctx.GetRealm / gno.PresentedRealmAt):
+	// serves presented identities, including sub-realm tokens. Applied
+	// only when no live testing.SetRealm override is on the stack:
+	// overrides are frame-index-keyed and interleave with the legacy
+	// walk below, and UserRealm overrides on non-crossing frames are
+	// invisible to the chain — the gate is load-bearing.
+	if !anyLiveOverride(m, ctx) {
+		if a, p, ok := gno.PresentedRealmAt(m, height); ok {
+			return a, p
+		}
+	}
+
 	var (
-		ctx     = m.Context.(*TestExecContext)
 		lfr     = m.LastFrame() // last call frame
 		crosses int             // track realm crosses
 	)
@@ -180,6 +214,14 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 	return tb.CoinTable[addr]
 }
 
+// GetCoin implements the Banker interface.
+func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
+	// AmountOf validates the denom before reading anything, so a malformed one
+	// panics here as it does on chain, where SDKBanker.GetCoin checks explicitly
+	// because the keeper reaches a store key without going through Coins.
+	return tb.CoinTable[addr].AmountOf(denom)
+}
+
 // SendCoins implements the Banker interface.
 func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
 	fcoins, fexists := tb.CoinTable[from]
@@ -205,10 +247,40 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 
 // TotalCoin implements the Banker interface.
 func (tb *TestBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	// Summed from the table rather than kept as a counter: the test banker has no
+	// mint/burn asymmetry, so the sum *is* the supply. Total, like the chain — a
+	// denom nobody holds has zero supply, and a malformed one panics as SDKBanker's
+	// does, so `gno test` and production agree.
+	//
+	// Checked up front rather than left to AmountOf below, which is only reached
+	// once per held denom: an empty table would skip the loop entirely and report
+	// a malformed denom as zero, where the chain panics.
+	if err := tm2std.ValidateDenom(denom); err != nil {
+		panic(err)
+	}
+	// Overflow-checked, so this cannot report a wrapped negative where the chain
+	// would refuse the mint outright — the supply cap is exactly what the chain's
+	// counter enforces, and `gno test` must not disagree with it.
+	var total int64
+	for _, coins := range tb.CoinTable {
+		sum, ok := overflow.Add(total, coins.AmountOf(denom))
+		if !ok {
+			panic("total supply of " + denom + " overflows int64")
+		}
+		total = sum
+	}
+	return total
 }
 
 // IssueCoin implements the Banker interface.
+//
+// Deliberately does not enforce the chain's per-denom supply cap: there is no counter
+// here, so an aggregate past MaxInt64 is reachable under `gno test` where MintCoins
+// would refuse the second mint. TotalCoin above panics rather than reporting a wrapped
+// total, so the state cannot be read as a number, and the divergence is in the
+// permissive direction. See the "Known limitation" note in
+// tm2/adr/pr6034_coin_supply.md before changing this — an overflow check here alone
+// refuses at the right point for the wrong reason and still does not model burn.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})

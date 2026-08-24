@@ -42,7 +42,7 @@ func TestCodecParity_Auth(t *testing.T) {
 			Creator:     creator,
 			SessionKey:  pk,
 			ExpiresAt:   1700000000,
-			AllowPaths:  []string{"gno.land/r/foo", "gno.land/r/bar"},
+			AllowPaths:  []string{"vm/exec:gno.land/r/foo", "bank/send"},
 			SpendLimit:  std.Coins{{Denom: "ugnot", Amount: 100}},
 			SpendPeriod: 3600,
 		}},
@@ -56,7 +56,6 @@ func TestCodecParity_Auth(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("%d/%s", i, c.name), func(t *testing.T) {
 			t.Parallel()
 			aminotest.AssertCodecParity(t, cdc, c.v)

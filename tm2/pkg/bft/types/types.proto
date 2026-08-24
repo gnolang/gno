@@ -96,6 +96,35 @@ message PartSetHeader {
 	bytes hash = 2;
 }
 
+message CanonicalBlockID {
+	bytes hash = 1 [json_name = "Hash"];
+	CanonicalPartSetHeader parts_header = 2 [json_name = "PartsHeader"];
+}
+
+message CanonicalPartSetHeader {
+	uint32 total = 1 [json_name = "Total"];
+	bytes hash = 2 [json_name = "Hash"];
+}
+
+message CanonicalProposal {
+	uint32 type = 1 [json_name = "Type"];
+	sfixed64 height = 2 [json_name = "Height"];
+	sfixed64 round = 3 [json_name = "Round"];
+	int64 pol_round = 4 [json_name = "POLRound"];
+	CanonicalBlockID block_id = 5 [json_name = "BlockID"];
+	google.protobuf.Timestamp timestamp = 6 [json_name = "Timestamp"];
+	string chain_id = 7 [json_name = "ChainID"];
+}
+
+message CanonicalVote {
+	uint32 type = 1 [json_name = "Type"];
+	sfixed64 height = 2 [json_name = "Height"];
+	sfixed64 round = 3 [json_name = "Round"];
+	CanonicalBlockID block_id = 4 [json_name = "BlockID"];
+	google.protobuf.Timestamp timestamp = 5 [json_name = "Timestamp"];
+	string chain_id = 6 [json_name = "ChainID"];
+}
+
 message Validator {
 	string address = 1;
 	google.protobuf.Any pub_key = 2;

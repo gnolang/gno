@@ -53,6 +53,10 @@ func (p *Pager) GetPage(pageNumber int) *Page {
 }
 
 func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
+	if pageSize <= 0 {
+		panic("GetPageWithSize: invalid page size")
+	}
+
 	totalItems := p.Tree.Size()
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
@@ -61,11 +65,6 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 		TotalPages: totalPages,
 		PageSize:   pageSize,
 		Pager:      p,
-	}
-
-	// pages without content
-	if pageSize < 1 {
-		return page
 	}
 
 	// page number provided is not available

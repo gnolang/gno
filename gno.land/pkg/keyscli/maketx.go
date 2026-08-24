@@ -22,6 +22,7 @@ func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		client.NewMakeSendCmd(cfg, io),
+		client.NewSessionCmd(cfg, io),
 
 		// custom commands
 		NewMakeAddPkgCmd(cfg, io),

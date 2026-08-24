@@ -6,6 +6,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -49,13 +50,16 @@ func init() {
 	}
 }
 
-// runtime debugging flag.
+// runtime debugging flag. Toggled by EnableDebug/DisableDebug (e.g. filetests
+// mute it during realm setup) and read only inside `if debug` blocks. It is
+// atomic because the parallel test suites toggle it from multiple goroutines.
+var enabled atomic.Bool
 
-var enabled bool = true
+func init() { enabled.Store(true) }
 
 func (debugging) Println(args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -66,7 +70,7 @@ func (debugging) Println(args ...any) {
 
 func (debugging) Printf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
@@ -82,7 +86,7 @@ var derrors []string = nil
 // test, and the file test fails if any unexpected debug errors were found.
 func (debugging) Errorf(format string, args ...any) {
 	if debug {
-		if enabled {
+		if enabled.Load() {
 			derrors = append(derrors, fmt.Sprintf(format, args...))
 		}
 	}
@@ -102,13 +106,67 @@ func (p *PreprocessError) Unwrap() error {
 
 // Stack produces a string representation of the preprocessing stack
 // trace that was associated with the error occurrence.
+//
+// Each frame is rendered as "<kind> <pkg-path>/<file>:<line:col-line:col>",
+// not as the BlockNode's String() (which dumps the partially preprocessed
+// AST including const-folded values, potentially megabytes per decl).
+//
+// Frames are walked from top (innermost = last pushed) downward. The
+// walk stops AFTER printing the first frame whose location has a
+// non-zero span. Earlier frames with zero spans (e.g., synthetic
+// blocks) are still printed; later frames are dropped because the
+// remaining lexical context is recoverable by reading the source at
+// the printed location.
+//
+// Bounding by the first non-zero-span frame keeps output O(stack
+// depth × ~70B) at worst (synthetic frames at the top are rare) and
+// typically O(1) frame, regardless of how big the values being
+// processed at panic time are.
 func (p *PreprocessError) Stack() string {
 	var stacktrace strings.Builder
 	for i := len(p.stack) - 1; i >= 0; i-- {
 		sbn := p.stack[i]
-		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
+		loc := sbn.GetLocation()
+		fmt.Fprintf(&stacktrace, "stack %d: %s %s\n", i, blockNodeKind(sbn), loc)
+		if !loc.Span.IsZero() {
+			break
+		}
 	}
 	return stacktrace.String()
+}
+
+// blockNodeKind returns a short label for the BlockNode type. Used
+// only by PreprocessError.Stack() to produce stack frames without
+// dumping the BlockNode's contents.
+func blockNodeKind(bn BlockNode) string {
+	switch bn.(type) {
+	case *FileNode:
+		return "file"
+	case *PackageNode:
+		return "package"
+	case *FuncDecl:
+		return "func"
+	case *FuncLitExpr:
+		return "func-lit"
+	case *BlockStmt:
+		return "block"
+	case *IfStmt:
+		return "if"
+	case *IfCaseStmt:
+		return "if-case"
+	case *ForStmt:
+		return "for"
+	case *RangeStmt:
+		return "range"
+	case *SwitchStmt:
+		return "switch"
+	case *SwitchClauseStmt:
+		return "switch-case"
+	case *SelectCaseStmt:
+		return "select-case"
+	default:
+		return fmt.Sprintf("%T", bn)
+	}
 }
 
 // Error consolidates and returns the full error message, including
@@ -143,15 +201,15 @@ func IsDebug() bool {
 }
 
 func IsDebugEnabled() bool {
-	return bool(debug) && enabled
+	return bool(debug) && enabled.Load()
 }
 
 func DisableDebug() {
-	enabled = false
+	enabled.Store(false)
 }
 
 func EnableDebug() {
-	enabled = true
+	enabled.Store(true)
 }
 
 func PrintCaller(start, end int) {
