@@ -159,7 +159,7 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 	fnum := field.BinFieldNum
 	fopts := field.FieldOptions
 	ftype := field.Type
-	isPtr := ftype.Kind() == reflect.Ptr
+	isPtr := ftype.Kind() == reflect.Pointer
 
 	accessor := fmt.Sprintf("%s.%s", recv, fname)
 
@@ -254,14 +254,14 @@ func (ctx *P3Context2) writeFieldValueSize(sb *strings.Builder, accessor string,
 	fks := fieldKeySize(fnum, typ3)
 
 	switch {
-	case rinfo.Type == reflect.TypeOf(time.Time{}):
+	case rinfo.Type == reflect.TypeFor[time.Time]():
 		// Time: encode as struct with seconds + nanos fields.
 		fmt.Fprintf(sb, "%s{\n", indent)
 		fmt.Fprintf(sb, "%s\tcs := amino.TimeSize(%s)\n", indent, accessor)
 		ctx.writeByteFieldSizeCheck(sb, fks, writeEmpty, indent)
 		fmt.Fprintf(sb, "%s}\n", indent)
 
-	case rinfo.Type == reflect.TypeOf(time.Duration(0)):
+	case rinfo.Type == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%s{\n", indent)
 		fmt.Fprintf(sb, "%s\tcs := amino.DurationSize(%s)\n", indent, accessor)
 		ctx.writeByteFieldSizeCheck(sb, fks, writeEmpty, indent)
@@ -307,7 +307,7 @@ func (ctx *P3Context2) writeFieldValueSize(sb *strings.Builder, accessor string,
 		} else if einfo != nil {
 			sizeExpr := ctx.primitiveValueSizeExpr("e", einfo, eFopts)
 			elemUsed := strings.Contains(sizeExpr, "e")
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				fmt.Fprintf(sb, "%s\tfor _, e := range %s {\n", indent, accessor)
 				fmt.Fprintf(sb, "%s\t\tif e == nil {\n%s\t\t\tcs += %s\n%s\t\t} else {\n",
 					indent, indent, ctx.primitiveValueSizeExpr(fmt.Sprintf("*new(%s)", ctx.goTypeName(ert.Elem())), einfo, eFopts), indent)
@@ -369,7 +369,7 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 				sb, "\t\tcs = len(%s)\n", accessor)
 		} else {
 			fmt.Fprintf(sb, "\t\tfor _, elem := range %s {\n", accessor)
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				fmt.Fprintf(sb, "\t\t\tif elem == nil {\n")
 				fmt.Fprintf(sb, "\t\t\t\tcs += %s\n", ctx.primitiveValueSizeExpr(fmt.Sprintf("*new(%s)", ctx.goTypeName(ert.Elem())), einfo, fopts))
 				fmt.Fprintf(sb, "\t\t\t} else {\n")
@@ -387,7 +387,7 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 		fks := fieldKeySize(fopts.BinFieldNum, amino.Typ3ByteLength)
 		// TypeInfo invariant: einfo.Elem is non-nil for list types; match
 		// reflect (binary_encode.go:400) which derefs without a nil guard.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
@@ -439,7 +439,7 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 			fmt.Fprintf( // outer = field key + ByteSlice(iss)
 				sb, "%ss += %d + amino.UvarintSize(uint64(iss)) + iss\n", extraIndent, fks)
 		} else if einfo.ReprType.Type.Kind() == reflect.Struct ||
-			einfo.ReprType.Type == reflect.TypeOf(time.Duration(0)) ||
+			einfo.ReprType.Type == reflect.TypeFor[time.Duration]() ||
 			(isListType(einfo.ReprType.Type) && einfo.ReprType.Type.Elem().Kind() != reflect.Uint8) {
 			// Struct/Duration/nested-list element: length-prefixed.
 			ctx.writeElementContentSize(sb, "cs", elemAccessor, einfo, fopts, extraIndent)
@@ -472,7 +472,7 @@ func (ctx *P3Context2) writeListContentSize(sb *strings.Builder, accessor string
 	if typ3 != amino.Typ3ByteLength {
 		sizeExpr := ctx.primitiveValueSizeExpr("e", einfo, fopts)
 		elemUsed := strings.Contains(sizeExpr, "e")
-		if ert.Kind() == reflect.Ptr {
+		if ert.Kind() == reflect.Pointer {
 			fmt.Fprintf(sb, "%sfor _, e := range %s {\n", indent, accessor)
 			fmt.Fprintf(sb, "%s\tif e == nil {\n%s\t\tics += %s\n%s\t} else {\n",
 				indent, indent, ctx.primitiveValueSizeExpr(fmt.Sprintf("*new(%s)", ctx.goTypeName(ert.Elem())), einfo, fopts), indent)
@@ -500,9 +500,9 @@ func (ctx *P3Context2) writeListContentSize(sb *strings.Builder, accessor string
 func (ctx *P3Context2) writeElementContentSize(sb *strings.Builder, varname, accessor string, einfo *amino.TypeInfo, fopts amino.FieldOptions, indent string) {
 	rinfo := einfo.ReprType
 	switch {
-	case rinfo.Type == reflect.TypeOf(time.Time{}):
+	case rinfo.Type == reflect.TypeFor[time.Time]():
 		fmt.Fprintf(sb, "%s%s := amino.TimeSize(%s)\n", indent, varname, accessor)
-	case rinfo.Type == reflect.TypeOf(time.Duration(0)):
+	case rinfo.Type == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%s%s := amino.DurationSize(%s)\n", indent, varname, accessor)
 	case rinfo.Type.Kind() == reflect.Struct:
 		fmt.Fprintf(sb, "%s%s, err := %s.SizeBinary2(cdc)\n", indent, varname, accessor)
@@ -533,10 +533,10 @@ func (ctx *P3Context2) writeElementContentSize(sb *strings.Builder, varname, acc
 		fmt.Fprintf(sb, "%svar %s int\n", indent, varname)
 		fmt.Fprintf(sb, "%sfor _, ie := range %s {\n", indent, accessor)
 		switch {
-		case innerRinfo.Type == reflect.TypeOf(time.Time{}):
+		case innerRinfo.Type == reflect.TypeFor[time.Time]():
 			fmt.Fprintf(sb, "%s\tts := amino.TimeSize(ie)\n", indent)
 			fmt.Fprintf(sb, "%s\t%s += %d + amino.UvarintSize(uint64(ts)) + ts\n", indent, varname, ifks)
-		case innerRinfo.Type == reflect.TypeOf(time.Duration(0)):
+		case innerRinfo.Type == reflect.TypeFor[time.Duration]():
 			fmt.Fprintf(sb, "%s\tds := amino.DurationSize(ie)\n", indent)
 			fmt.Fprintf(sb, "%s\t%s += %d + amino.UvarintSize(uint64(ds)) + ds\n", indent, varname, ifks)
 		case innerRinfo.Type.Kind() == reflect.Struct:

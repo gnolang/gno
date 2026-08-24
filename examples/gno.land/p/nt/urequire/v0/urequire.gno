@@ -92,7 +92,7 @@ func AbortsContains(t uassert.TestingT, rlm realm, substr string, f any, msgs ..
 // See uassert.AbortsWithMessage for `rlm` semantics.
 func NotAborts(t uassert.TestingT, rlm realm, f any, msgs ...string) {
 	t.Helper()
-	if uassert.NotPanics(t, rlm, f, msgs...) {
+	if uassert.NotAborts(t, rlm, f, msgs...) {
 		return
 	}
 	t.FailNow()

@@ -10,8 +10,8 @@ var counter int
 func incr() int { counter++; return counter }
 
 var (
-	_ = incr() // counter=1
-	_ = incr() // counter=2
+	_ = incr()  // counter=1
+	_ = incr()  // counter=2
 	A = counter // should be 2
 )
 

@@ -57,7 +57,7 @@ func BenchmarkParseFile_BinaryChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nconst x = 1")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString(" + 1")
 		}
 		sb.WriteString("\n\nfunc main() { _ = x }\n")
@@ -72,7 +72,7 @@ func BenchmarkParseFile_CallChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = f")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString("()")
 		}
 		sb.WriteString(" }\n")
@@ -85,7 +85,7 @@ func BenchmarkParseFile_IndexChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = a")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString("[0]")
 		}
 		sb.WriteString(" }\n")
@@ -98,7 +98,7 @@ func BenchmarkParseFile_SelectorChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = a")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString(".b")
 		}
 		sb.WriteString(" }\n")
@@ -111,7 +111,7 @@ func BenchmarkParseFile_SliceChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = s")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString("[:]")
 		}
 		sb.WriteString(" }\n")
@@ -124,7 +124,7 @@ func BenchmarkParseFile_TypeAssertChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = x")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString(".(I)")
 		}
 		sb.WriteString(" }\n")
@@ -171,7 +171,7 @@ func BenchmarkParseFile_RefChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = ")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString("& ")
 		}
 		sb.WriteString("x }\n")
@@ -208,7 +208,7 @@ func BenchmarkParseFile_LabeledStmtChain(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() {\n")
-		for i := 0; i < n; i++ {
+		for i := range n {
 			fmt.Fprintf(&sb, "L%d:\n", i)
 		}
 		sb.WriteString("\t;\n}\n")
@@ -227,7 +227,7 @@ func BenchmarkParseFile_BinaryChainRightLeaning(b *testing.B) {
 	benchmarkChain(b, func(n int) string {
 		var sb strings.Builder
 		sb.WriteString("package main\n\nfunc main() { _ = ")
-		for i := 0; i < n; i++ {
+		for range n {
 			sb.WriteString("1 + (")
 		}
 		sb.WriteString("1")
