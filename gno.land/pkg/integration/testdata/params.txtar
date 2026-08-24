@@ -13,7 +13,7 @@ gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: $'
 
 # add params to gno.land/r/myrealm
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 380001ugnot -gas-wanted 3_800_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 380001ugnot -gas-wanted 5_200_000 -chainid=tendermint_test test1
 
 # query after adding the package, but before setting values
 gnokey query params/vm:gno.land/r/myrealm:foo
@@ -69,11 +69,11 @@ gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
 stdout 'data: "ugnot"'
 
 -- params/gnomod.toml --
-module = "gno.land/r/sys/params"
+module = "gno.land/r/myrealm"
 gno = "0.9"
 
 -- params/setter.gno --
-package params
+package myrealm
 
 import params_ "chain/params"
 

@@ -77,8 +77,8 @@ func setupExportTreeRandom(t *testing.T) *ImmutableTree { //nolint: dupl,thelper
 
 	var version int64
 	keys := make([][]byte, 0, versionOps)
-	for i := 0; i < versions; i++ {
-		for j := 0; j < versionOps; j++ {
+	for range versions {
+		for range versionOps {
 			key := make([]byte, keySize)
 			value := make([]byte, valueSize)
 
@@ -236,7 +236,6 @@ func TestExporter_Import(t *testing.T) { //nolint: tparallel
 	}
 
 	for desc, tree := range testcases {
-		tree := tree
 		for _, compress := range []bool{false, true} {
 			if compress {
 				desc += "-compress"

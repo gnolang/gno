@@ -37,12 +37,12 @@ var preRegisteredUsers = []struct {
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
 }
 
-func init() {
+func init(cur realm) {
 	// add pre-registered users via the bypass path (genesis posture).
 	// Errors are intentionally discarded; the seed is curated and any
 	// duplicate-address / already-deleted entries (re-init across test
 	// realm reuse) just no-op.
 	for _, res := range preRegisteredUsers {
-		susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
+		susers.RegisterUserIgnoreCanonical(cross(cur), res.Name, res.Address)
 	}
 }

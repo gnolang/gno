@@ -25,6 +25,13 @@ type ValoperChange struct {
 	Power           uint64
 }
 
+func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
+	return ValoperChange{
+		OperatorAddress: operatorAddress,
+		Power:           power,
+	}
+}
+
 const errNoValoperChanges = "no valoper changes proposed"
 
 // NewValidatorProposalRequest builds a GovDAO proposal that, when
@@ -59,7 +66,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(changes []ValoperChange, title, description string) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
 	}
@@ -88,8 +95,8 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 	// and adds require KeepRunning=true. KeepRunning=false is a
 	// binding opt-out; no proposal shape can override it.
 	for _, c := range changes {
-		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-		if !ok {
+		rawCache := valoperCache.Get(c.OperatorAddress.String())
+		if rawCache == nil {
 			panic("unknown operator: " + c.OperatorAddress.String())
 		}
 		entry := rawCache.(cacheEntry)
@@ -115,7 +122,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		}
 	}
 
-	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(changes))
+	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(cur, changes))
 }
 
 // newValoperChangeExecutor builds the GovDAO executor that, on
@@ -130,7 +137,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // address, the entry's voting power is overwritten. Tendermint
 // natively handles ValidatorUpdates as upserts, so a single-entry
 // power change is the canonical form.
-func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
+func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 	callback := func(cur realm) error {
 		baseline := sysparams.GetValsetEffective()
 		set := make(map[address]validators.Validator, len(baseline))
@@ -139,8 +146,8 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 		}
 
 		for _, c := range changes {
-			rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
-			if !ok {
+			rawCache := valoperCache.Get(c.OperatorAddress.String())
+			if rawCache == nil {
 				panic("operator vanished from valoperCache between propose and execute: " + c.OperatorAddress.String())
 			}
 			entry := rawCache.(cacheEntry)
@@ -191,9 +198,9 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 			entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 		}
 		sort.Strings(entries)
-		sysparams.SetValsetProposal(cross, entries)
+		sysparams.SetValsetProposal(cross(cur), entries)
 		return nil
 	}
 
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_thread_02_filetest
+
+package z_create_thread_02_filetest
 
 import (
 	"testing"
@@ -15,15 +17,15 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.CreateThread(cross, bid, "Foo", "bar")
+	boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 }
 
 // Error:

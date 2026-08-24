@@ -20,8 +20,10 @@ biome := $(node_modules)/.bin/biome
 # css config
 css_config_path := frontend/css/main.css
 
-# main css config
-main_css_files := $(shell find frontend/css -name '*.css')
+# main css config — includes per-feature CSS pulled into the Cube CSS Block
+# layer via @import from frontend/css/06-blocks.css (postcss-import resolves
+# at compile time, so the final bundle and layer order are unchanged).
+main_css_files := $(shell find frontend/css feature -name '*.css' 2>/dev/null)
 output_maincss := $(PUBLIC_DIR)/main.css
 
 templates_files := $(shell find . -iname '*.html')
@@ -35,11 +37,25 @@ output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_st
 # esbuild config
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
-input_js := $(shell find $(src_dir_js) -name '*.ts')
+# Pick up both legacy controllers under frontend/js/ and per-feature
+# controllers under feature/<name>/frontend/. All compile to
+# $(out_dir_js)/<basename>.js (flat output, no source-path mirroring).
+input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts') \
+            $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null)
+# Guard against silent overwrites: two features cannot ship the same
+# controller-X.ts basename (they would compile to the same target).
+_dup_check := $(shell echo "$(notdir $(input_js))" | tr ' ' '\n' | sort | uniq -d)
+ifneq ($(_dup_check),)
+$(error duplicate JS controller basenames: $(_dup_check))
+endif
 # Separate shared and controller files
 shared_js := $(src_dir_js)/controller.ts
 controller_js := $(filter-out $(shared_js),$(input_js))
-output_js := $(patsubst $(src_dir_js)/%.ts,$(out_dir_js)/%.js,$(input_js))
+# Flatten: any .ts (legacy or feature) → $(out_dir_js)/<basename>.js.
+output_js := $(addprefix $(out_dir_js)/,$(patsubst %.ts,%.js,$(notdir $(input_js))))
+# Tell make where to look for .ts sources so the %.js pattern rule
+# below resolves both legacy and feature-local controllers.
+vpath %.ts $(src_dir_js) $(shell find feature -path 'feature/*/frontend' -type d 2>/dev/null)
 
 # cache
 cache_dir := .cache
@@ -82,14 +98,27 @@ $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
 	$(postcss) $(css_config_path) -o $@ --env production
 	touch $@
 
+# Per-feature controllers live under feature/<name>/frontend/, outside
+# frontend/js/. NODE_PATH points esbuild at the single frontend/node_modules
+# so npm imports (e.g. "htmx.org") resolve from any source location.
+node_path := $(node_modules)
+
 ts: $(esbuild) $(output_js)
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
-	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
 
-# Build controller files with shared chunk reference
-$(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js
-	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
+# sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
+# parsing until executed and guarantees window.sa_metadata is set before SA's
+# async latest.js loads. It must be an IIFE, not an ES module.
+$(out_dir_js)/sa-bootstrap.js: $(src_dir_js)/sa-bootstrap.ts $(esbuild)
+	NODE_ENV=production $(esbuild) $< --log-level=error --outfile=$@ --format=iife --minify
+
+# Build controller files with shared chunk reference. The bare %.ts
+# prerequisite lets `vpath` resolve sources from frontend/js/ OR from
+# feature/<name>/frontend/ (set above). $< is the path Make found.
+$(out_dir_js)/%.js: %.ts $(out_dir_js)/controller.js
+	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -123,7 +152,7 @@ dev.maincss: generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
+	NODE_ENV=development NODE_PATH=$(node_path) $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools

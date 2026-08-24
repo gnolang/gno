@@ -23,7 +23,7 @@ gnoland start
 # tx1: granter installs outer recover-defer FIRST, then defer al.Close()
 # (so Close runs first on unwind, then outer recover catches if needed).
 # Callee persists the pointer. Outcome under test.
-gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4500000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4900000 -chainid=tendermint_test user1
 
 # tx2: inspect the persisted state. With the fix, Close ran cleanly
 # (no panic) and the persisted struct is closed.
@@ -82,7 +82,7 @@ package outerrecovergranter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -99,17 +99,21 @@ import (
 // from `defer al.Close()`? And if so, does the tx commit with the
 // persisted allowance still in open (closed=false) state?
 func GrantWithOuterRecover(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
+
 	defer func() {
 		if r := recover(); r != nil {
 			println("OUTER_RECOVERED_FROM:", r)
 		}
 	}()
 
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	outerrecovercallee.Store(cross, al)
+	outerrecovercallee.Store(cross(cur), al)
 }

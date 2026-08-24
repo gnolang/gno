@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_unban_00_filetest
+
+package z_unban_00_filetest
 
 import (
 	"testing"
@@ -15,16 +17,16 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	boards2.Ban(cross, bid, user, boards2.BanDay, "Unpolite behavior")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	boards2.Ban(cross(cur), bid, user, boards2.BanDay, "Unpolite behavior")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.Unban(cross, bid, user, "")
+	boards2.Unban(cross(cur), bid, user, "")
 
 	println(boards2.IsBanned(bid, user))
 }
