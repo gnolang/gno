@@ -1973,6 +1973,14 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 	}
 }
 
+// Both IsFuncLocal helpers below are deliberately implicit: they infer the
+// verdict from minting conventions (ParentLoc stamping in declareWith, the
+// bracketed ID encoding) instead of an explicit marker. Rejected
+// alternatives: a FuncLocal field on DeclaredType duplicates ParentLoc
+// (drift risk, amino schema change to /t/ records); an explicit TypeID
+// marker is consensus-breaking and still unsound, since composite IDs embed
+// nested declared-type IDs verbatim. Open question for reviewers.
+
 // IsFuncLocal reports whether rt names a function-local declared type.
 // Exact on RefType: its ID is by construction a declared-type ID, where
 // only func-local ones carry a bracket (unlike raw TypeIDs, e.g. "[3]int").
