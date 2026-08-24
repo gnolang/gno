@@ -1,0 +1,12 @@
+id: pkg-mutable-pointer
+title: Pointer to a /p/-type with mutation methods returned from a realm
+rule: pkg_mutable_pointer
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/pkg-mutable-pointer/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 2
+  - name: fixed
+    path: ../fixtures/pkg-mutable-pointer/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0
