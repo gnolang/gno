@@ -136,9 +136,20 @@ escaping into realm state, so no ephemeral-package types are persisted.
 - Tests: `restart_local_type.txtar` is the true reproducer (fails on
   master — since #5737, the lt1 method-value route fails first); its
   `zlti` realm covers the addpkg-time escape (file-level var initializer)
-  across a restart. `zrealm_localtype0/1/2/3.gno` filetests pass on master
-  and act as save-side guards via `-tags debugAssert`
-  (`make test.debugAssert`, not yet in CI) plus a golden pinning the
-  on-the-wire bracketed `RefType`; `zrealm_localtype3.gno` additionally
-  pins the save-before-finalization ordering, and
+  across a restart. `zrealm_localtype0/1/2.gno` pass on master (verified:
+  the bracketed `RefType` IDs in object bytes come from the live type and
+  were always correct — the bug's missing artifact is the `/t/` record,
+  which Realm goldens cannot see); `zrealm_localtype3.gno` fails on master
+  — a second, in-process release-build reproducer: its addpkg-time escape
+  is reloaded by main's own transaction, panicking with "unexpected type
+  with id ...". All four carry Realm goldens pinning the on-the-wire
+  bracketed `RefType` encoding across the escape shapes (localtype3's is
+  bare — main only reads), and all four act as save-side tripwires under
+  `-tags debugAssert` (`make test.debugAssert`, not yet in CI; verified:
+  neutering `saveFuncLocalTypes` fails all four at save time with the
+  dangling-ref assert, while untagged only localtype3 and the txtar
+  fail). The `zltsh CallB` scenario turned out to persist no trace of S2
+  at all (the type name is preprocess-folded into a constTypeExpr, not
+  captured) — it pins TypeID stability of a type re-minted from source
+  after restart, not a persistence route.
   `TestAssertFuncLocalTypesCompleteFires` pins the bookkeeping audit.

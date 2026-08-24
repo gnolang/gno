@@ -20,8 +20,10 @@
 #   zlti:  addpkg-time escape — a file-level var initializer persists the
 #          local-typed value in the same tx that persists the type record;
 #          no later call involved
-#   zltsh CallB: TypeValue-only escape — closure constructs the local type
-#          per call; the only persisted trace of S2 is the captured type
+#   zltsh CallB: no-trace escape — closure constructs the local type per
+#          call; nothing S2-typed persists at Bind time (the type name is
+#          preprocess-folded, not captured), so this pins that the type
+#          re-minted from source after restart keeps the same TypeID
 #   zltsh CallC: type declared inside a closure literal (ParentLoc =
 #          FuncLitExpr); post-restart call re-declares it and persists a
 #          fresh value (checked again after the second restart via CallX)
