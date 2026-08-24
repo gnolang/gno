@@ -165,6 +165,7 @@ func execReplay(ctx context.Context, cfg *replayCfg, io commands.IO) error {
 		nodeCfg.Application,
 		evsw,
 		logger,
+		nodeCfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create gnoland app: %w", err)
