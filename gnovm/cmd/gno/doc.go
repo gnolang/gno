@@ -7,19 +7,23 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type docCfg struct {
-	all        bool
-	src        bool
-	unexported bool
-	short      bool
-	rootDir    string
+	all           bool
+	src           bool
+	unexported    bool
+	short         bool
+	rootDir       string
+	remote        string
+	remoteTimeout time.Duration
 }
 
 func newDocCmd(io commands.IO) *commands.Command {
@@ -73,6 +77,20 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
+
+	fs.StringVar(
+		&c.remote,
+		"remote",
+		"https://rpc.gno.land:443",
+		"remote gno.land node address (if needed)",
+	)
+
+	fs.DurationVar(
+		&c.remoteTimeout,
+		"remote-timeout",
+		time.Minute,
+		"defined how much time a request to the node should live before timeout",
+	)
 }
 
 func execDoc(cfg *docCfg, args []string, io commands.IO) error {
@@ -101,7 +119,11 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 
 	// select dirs from which to gather directories
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs")}
-	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported)
+	queryClient, err := client.NewHTTPClient(cfg.remote, client.WithRequestTimeout(cfg.remoteTimeout))
+	if err != nil {
+		return err
+	}
+	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported, queryClient)
 	if res == nil {
 		return err
 	}

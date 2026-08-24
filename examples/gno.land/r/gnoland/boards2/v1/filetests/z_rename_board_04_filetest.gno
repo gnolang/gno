@@ -1,0 +1,28 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_rename_board_04_filetest
+
+package z_rename_board_04_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+const (
+	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	name          = "foo123"
+)
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	boards2.CreateBoard(cross(cur), name, false, false)
+}
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	boards2.RenameBoard(cross(cur), name, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+// Error:
+// addresses are not allowed as board name

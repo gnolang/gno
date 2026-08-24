@@ -3,7 +3,7 @@ package fifo
 import (
 	"testing"
 
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestNew(t *testing.T) {

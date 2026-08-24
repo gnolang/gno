@@ -1,18 +1,43 @@
 package gnolang
 
 import (
+	"math/bits"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
-// Represents the "time unit" cost for
-// a single garbage collection visit.
-// It's similar to "CPU cycles" and is
-// calculated based on a rough benchmarking
-// results.
-// TODO: more accurate benchmark.
-const VisitCpuFactor = 8
+// gcVisitGasTable[k] = gas per GC visit when log2(visitCount) == k.
+// 1 gas = 1 nanosecond on reference hardware.
+// Per-visit cost increases with heap size due to CPU cache effects:
+// small heaps fit in L2/L3 (~29ns/visit), large heaps hit DRAM (~700ns/visit).
+//
+// Calibrated from BenchmarkGCVisit on DigitalOcean Dedicated (2-core),
+// Intel Xeon Platinum 8168 @ 2.70GHz.
+//
+// See gnovm/pkg/gnolang/bench_gc_test.go for benchmarks.
+var gcVisitGasTable = [25]int64{
+	29, 29, 29, 29, 29, 29, 29, // 2^0 - 2^6:   1-64 visits       (~29ns, L1/L2)
+	40, 40, 40, // 2^7 - 2^9:   128-512 visits     (~40ns, L2/L3)
+	91, 91, 91, // 2^10 - 2^12: 1K-4K visits       (~91ns, L3)
+	160, 160, 160, 197, // 2^13 - 2^16: 8K-64K visits      (~160-197ns, L3/DRAM)
+	290, 290, 380, // 2^17 - 2^19: 128K-512K visits   (~290-380ns, DRAM)
+	380, 380, 520, // 2^20 - 2^22: 1M-4M visits       (~380-520ns, DRAM)
+	700, 700, // 2^23 - 2^24: 8M-16M visits      (~700ns, DRAM+TLB)
+}
+
+// gcVisitGas returns total gas for a GC traversal of visitCount objects.
+// Uses a per-visit cost that scales with heap size (cache effects).
+func gcVisitGas(visitCount int64) int64 {
+	if visitCount <= 0 {
+		return 0
+	}
+	k := bits.Len64(uint64(visitCount)) - 1
+	if k >= len(gcVisitGasTable) {
+		k = len(gcVisitGasTable) - 1
+	}
+	return overflow.Mulp(visitCount, gcVisitGasTable[k])
+}
 
 // Visit visits all reachable associated values.
 // It is used primarily for GC.
@@ -39,7 +64,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	var visitCount int64
 
 	defer func() {
-		gasCPU := overflow.Mulp(overflow.Mulp(visitCount, VisitCpuFactor), GasFactorCPU)
+		gasCPU := gcVisitGas(visitCount)
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
@@ -70,6 +95,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		if stop {
 			return -1, false
 		}
+	}
+
+	// Account for blocks parked in the per-machine pool. They are dead from
+	// the program's perspective, but the machine pins each one for reuse — a
+	// Block plus its capacity-retained Values backing array — so the alloc
+	// tally must include them; otherwise recycling a block would appear to
+	// free memory that is in fact still held. Pooled blocks are zeroed and
+	// reference nothing else, so count them directly (by capacity, the real
+	// retained footprint) rather than walking them.
+	for _, b := range m.blockPool {
+		m.Alloc.Recount(allocBlock + allocBlockItem*int64(cap(b.Values)))
 	}
 
 	// Visit frames
@@ -120,9 +156,38 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	if debugAssert {
+		// Recycle-safety invariant: a pooled (released) block must be
+		// unreachable, so this recount must never visit one. Released blocks
+		// are zeroed (LastGCCycle == 0); the visitor stamps the current cycle
+		// on every object it reaches. So a pooled block carrying the current
+		// cycle was reached — i.e. some live reference outlived its pop (the
+		// hazard that removing Defer.Parent eliminated). Reference-path
+		// agnostic: fires for any future regression that re-pins a dead block.
+		for _, b := range m.blockPool {
+			if b.GetLastGCCycle() == m.GCCycle {
+				panic("GarbageCollect: recount reached a pooled block — a popped block is still GC-reachable (recycle-safety invariant violated)")
+			}
+		}
+	}
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
+}
+
+// isUverseValue reports whether v is the global .uverse package value or its
+// block — the only GC-reachable objects shared across machines.
+func isUverseValue(v Value) bool {
+	switch v := v.(type) {
+	case *PackageValue:
+		return v.PkgPath == uversePkgPath
+	case *Block:
+		if pn, ok := v.Source.(*PackageNode); ok {
+			return pn.PkgPath == uversePkgPath
+		}
+	}
+	return false
 }
 
 // Returns a visitor that bumps the GCCycle counter
@@ -133,6 +198,18 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
+		}
+
+		// The .uverse package is a process-global singleton shared by every
+		// machine (SetCachePackage(Uverse())). Counting it here would write
+		// per-machine GC state (LastGCCycle) into that shared object, so a
+		// concurrent machine's GC could skip it — making GC gas
+		// non-deterministic across parallel in-memory nodes. Its contents are
+		// already excluded from traversal by the .uverse checks in the
+		// VisitAssociated methods; exclude the package value and its block
+		// from the visit count too, so GC gas never depends on shared state.
+		if isUverseValue(v) {
+			return false
 		}
 
 		if oo, isObject := v.(Object); isObject {
@@ -160,7 +237,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			return true
 		}
 
-		alloc.Allocate(size)
+		alloc.Recount(size)
 
 		// bump before visiting associated,
 		// this avoids infinite recursion.
@@ -406,7 +483,7 @@ func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis receiver
 	if fr.Receiver.IsDefined() {
-		alloc.Allocate(allocTypedValue) // alloc shallowly
+		alloc.Recount(allocTypedValue) // reclaim shallowly
 
 		if v := fr.Receiver.V; v != nil {
 			stop = vis(v)
@@ -426,16 +503,16 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
-		// visit dfr.Func
-		if dfr.Func != nil {
-			stop = vis(dfr.Func)
+		// visit dfr.Callable (the deferred func / bound method)
+		if dfr.Callable != nil {
+			stop = vis(dfr.Callable)
 		}
 		if stop {
 			return
 		}
 
 		for _, arg := range dfr.Args {
-			alloc.Allocate(allocTypedValue)
+			alloc.Recount(allocTypedValue)
 
 			if arg.V != nil {
 				stop = vis(arg.V)
@@ -443,13 +520,6 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 			if stop {
 				return
 			}
-		}
-
-		if dfr.Parent != nil {
-			stop = vis(dfr.Parent)
-		}
-		if stop {
-			return
 		}
 	}
 
@@ -466,7 +536,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 func (e *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
-	alloc.Allocate(allocTypedValue)
+	alloc.Recount(allocTypedValue)
 	if v := e.Value.V; v != nil {
 		stop = vis(v)
 	}

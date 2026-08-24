@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -55,15 +56,20 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	bank.prmk.GetStruct(ctx, "p", &params)
+	// Bypass store-side gas metering — see auth/params.go for rationale.
+	bank.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
 	return params
 }
 
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+	params := bank.GetParams(ctx)
 	switch key {
-	case "p:restricted_denoms": // XXX test
-		bank.WillSetRestrictedDenoms(ctx, value.([]string))
+	case "p:restricted_denoms":
+		params.RestrictedDenoms = sdkparams.MustParamStrings("restricted_denoms", value)
 	default:
-		// Allow setting non-existent key.
+		panic(fmt.Sprintf("unknown bank param key: %q", key))
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
 	}
 }

@@ -7,11 +7,11 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 740001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2100000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 760001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 190001ugnot -gas-wanted 1_900_000 -chainid tendermint_test alice
 stdout 'edited'
 
 
@@ -23,7 +23,7 @@ gno "0.9"
 package admin
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 
 	"gno.land/p/moul/authz"
@@ -37,17 +37,15 @@ type prop struct {
 var props []*prop
 
 func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
-	if runtime.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
+	if unsafe.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
 		return errors.New("unauthorized proposer")
 	}
-	func(cur realm) {
-		props = append(props, &prop{title: title, action: action})
-	}(cross)
+	props = append(props, &prop{title: title, action: action})
 	return nil
 }
 
 func ExecuteAction(cur realm, index int) {
-	if runtime.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+	if unsafe.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
 		panic(errors.New("not alice"))
 	}
 	if err := props[index].action(); err != nil {
@@ -76,12 +74,10 @@ func Value(cur realm) string {
 
 func Edit(cur realm, newValue string) {
 	doEdit := func() error {
-		func(cur realm) {
-			value = newValue
-		}(cross)
+		value = newValue
 		return nil
 	}
-	if err := a.DoByPrevious("Edit", doEdit); err != nil {
+	if err := a.DoByPrevious(0, cur, "Edit", doEdit); err != nil {
 		panic(err)
 	}
 }

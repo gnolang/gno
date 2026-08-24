@@ -47,7 +47,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -106,7 +106,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -168,7 +168,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -232,7 +232,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -289,7 +289,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt", "gno.land/r/tests/vm")
+	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt/v0", "gno.land/r/tests/vm")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -311,7 +311,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -319,15 +319,15 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
-func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
+func main(cur realm) {
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross)
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	caller, err := client.Signer.Info()
@@ -366,7 +366,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(rootdir)
 	meta := loadpkgs(t, rootdir,
-		"gno.land/p/nt/ufmt",
+		"gno.land/p/nt/ufmt/v0",
 		"gno.land/r/tests/vm",
 		"gno.land/r/tests/vm/deep/very/deep",
 	)
@@ -389,8 +389,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(2300000),
-		GasWanted:      23000000,
+		GasFee:         ugnot.ValueString(5000000),
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -398,20 +398,20 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	tests "gno.land/r/tests/vm"
 )
-func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
+func main(cur realm) {
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross)
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	fileBody2 := `package main
 import (
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
@@ -485,7 +485,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -539,10 +539,10 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 176800}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
+	deploymentPathB := "gno.land/p/demo/integration/test2/echo"
 	msg.Package.Path = deploymentPathB
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg)
 	assert.NoError(t, err)
@@ -574,14 +574,13 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
 	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
-	send := std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -635,7 +634,6 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Send:       send,
 		MaxDeposit: deposit,
 	}
 
@@ -658,7 +656,7 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
-	assert.Equal(t, "177600ugnot", baseAcc.GetCoins().String())
+	assert.Equal(t, "176800ugnot", baseAcc.GetCoins().String())
 
 	// Check Package #2
 	query, err = client.Query(QueryCfg{
@@ -672,22 +670,25 @@ func Hello(str string) string {
 	// Query storage deposit balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 178700}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177900}}, baseAcc.GetCoins())
 
-	// Verify the realm account balance received from the send
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
-	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1000000}}, baseAcc.GetCoins())
+	// This used to attach coins to the deploy and assert they landed in the
+	// package's address. That is no longer allowed: a pure package has no
+	// realm identity, so it can never obtain a banker and could never spend
+	// from that address — the coins were unrecoverable. MsgAddPackage now
+	// rejects it, so no account is created for the package address at all.
 
 	// Verify remaining balance of deployer's account
 	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
 	require.NoError(t, err)
-	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 177600 + Storage Deposit 178700 + Send 1000000)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
+	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 176800 + Storage Deposit 177900 + Send 1000000)
+	// 1_000_000 higher than before: that is the payment the deployer used to
+	// attach to the pure-package deploy and lose permanently.
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999997545300}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
-	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
-	deploymentPath2B := "gno.land/p/demo/integration/test/hello2"
+	deploymentPath1B := "gno.land/p/demo/integration/test2/echo"
+	deploymentPath2B := "gno.land/p/demo/integration/test2/hello"
 	msg1.Package.Path = deploymentPath1B
 	msg2.Package.Path = deploymentPath2B
 	_, err = addPackageSigningSeparately(t, client, baseCfg, msg1, msg2)
@@ -735,10 +736,9 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 	loader := integration.NewPkgsLoader()
 	examplesDir := filepath.Join(rootdir, "examples")
 	for _, path := range paths {
-		path = filepath.Clean(path)
-		path = filepath.Join(examplesDir, path)
-		err := loader.LoadPackage(examplesDir, path, "")
-		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", path, err)
+		dir := integration.ResolveExamplePath(examplesDir, filepath.Clean(path))
+		err := loader.LoadPackage(examplesDir, dir, "")
+		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", dir, err)
 	}
 	privKey, err := integration.GeneratePrivKeyFromMnemonic(integration.DefaultAccount_Seed, "", 0, 0)
 	require.NoError(t, err)

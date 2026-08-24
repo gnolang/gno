@@ -11,10 +11,8 @@ import (
 )
 
 const (
-	maxRequestsPerMinute = 5
-
 	defaultCleanTimeout      = time.Minute * 3
-	defaultRateLimitInterval = time.Minute / maxRequestsPerMinute
+	defaultRateLimitInterval = time.Minute
 )
 
 var errInvalidNumberOfRequests = errors.New("invalid number of requests")
@@ -91,7 +89,7 @@ func (st *ipThrottler) registerNewRequest(ip netip.Addr) error {
 	c := st.requestMap[ip]
 	if c == nil {
 		c = &client{
-			limiter: rate.NewLimiter(rate.Every(st.rateLimitInterval), 5),
+			limiter: rate.NewLimiter(rate.Every(st.rateLimitInterval), 1),
 			seen:    time.Now(),
 		}
 

@@ -57,6 +57,10 @@ type NodeInfoOther struct {
 // if the NetAddress is malformed, or if the NetAddress is a host name
 // that can not be resolved to some IP
 func (info NodeInfo) Validate() error {
+	if info.NetAddress == nil {
+		return fmt.Errorf("invalid net address in node info, %w", ErrInvalidNetAddress)
+	}
+
 	// There are a few checks that need to be performed when validating
 	// the node info's net address:
 	// - the ID needs to be valid

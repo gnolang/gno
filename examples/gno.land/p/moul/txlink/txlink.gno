@@ -29,6 +29,7 @@ package txlink
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"net/url"
 	"strings"
 )
@@ -129,7 +130,7 @@ func Call(fn string, args ...string) string {
 func (r Realm) prefix() string {
 	// relative
 	if r == "" {
-		curPath := runtime.CurrentRealm().PkgPath()
+		curPath := unsafe.CurrentRealm().PkgPath()
 		return strings.TrimPrefix(curPath, chainDomain)
 	}
 

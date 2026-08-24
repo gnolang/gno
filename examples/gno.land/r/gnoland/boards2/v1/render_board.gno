@@ -7,9 +7,8 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mdalert"
-	"gno.land/p/nt/mux"
-	"gno.land/r/gnoland/boards2/v1/permissions"
+	"gno.land/p/nt/mdalert/v0"
+	"gno.land/p/nt/mux/v0"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -17,14 +16,14 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	board, found := gBoards.GetByName(name)
 	if !found {
 		res.Write(md.H3("The board you are looking for does not exist"))
-		res.Write("Do you want to " + md.Link("create a new board", createBoardURI) + " ?")
+		res.Write("Do you want to " + md.Link("create a new board", createBoardURI) + "?")
 		return
 	}
 
 	creatorLink := userLink(board.Creator)
 	date := board.CreatedAt.Format(dateFormat)
 
-	res.Write(md.H1("Boards › " + board.Name))
+	res.Write(md.H1(md.Link("Boards", gRealmPath) + " › " + board.Name))
 	if board.Readonly {
 		res.Write(
 			mdalert.Warning("Info", "Creating new threads and commenting are disabled within this board") + "\n",
@@ -39,37 +38,25 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(md.H3("This board doesn't have any threads"))
 		if !board.Readonly {
 			startConversationLink := md.Link("start a new conversation", makeCreateThreadURI(board))
-			res.Write("Do you want to " + startConversationLink + " in this board ?")
+			res.Write("Do you want to " + startConversationLink + " in this board?")
 		}
 		return
 	}
 
-	p, err := pager.New(req.RawPath, board.Threads.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
+	p := newClampedPager(req.RawPath, board.Threads.Size(), pageSizeDefault)
 
 	render := func(thread *boards.Post) bool {
-		if !thread.Hidden {
-			res.Write(renderThreadSummary(thread) + "\n")
-		}
+		res.Write(renderThreadSummary(thread) + "\n")
 		return false
 	}
 
 	res.Write("Sort by: ")
 
-	r := parseRealmPath(req.RawPath)
-	sortOrder := r.Query.Get("order")
-	if sortOrder == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
-	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
-	}
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
 
 	count := p.PageSize()
-	if sortOrder == "desc" {
+	if desc {
 		count = -count // Reverse iterate
 	}
 
@@ -79,6 +66,14 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(md.HorizontalRule())
 		res.Write(pager.Picker(p))
 	}
+}
+
+// renderSubMenu renders a sub-menu with a distinct visual pattern.
+func renderSubMenu(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	return "└─ " + strings.Join(items, " • ") + "\n"
 }
 
 func renderBoardMenu(board *boards.Board, req *mux.Request) string {
@@ -93,6 +88,7 @@ func renderBoardMenu(board *boards.Board, req *mux.Request) string {
 		b.WriteString(md.Link("Unfreeze Board", makeUnfreezeBoardURI(board)))
 		b.WriteString("\n")
 	} else {
+		b.WriteString("↳ ")
 		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
 		b.WriteString(" • ")
 		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
@@ -108,17 +104,14 @@ func renderBoardMenu(board *boards.Board, req *mux.Request) string {
 		b.WriteString("  \n")
 
 		if menu == menuManageBoard {
-			b.WriteString("↳")
-			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Members", boardMembersURL))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
-			b.WriteString("\n")
+			subMenuItems := []string{
+				md.Link("Invite Member", makeInviteMemberURI(board)),
+				md.Link("List Invite Requests", makeBoardURI(board)+"/invites"),
+				md.Link("List Members", boardMembersURL),
+				md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"),
+				md.Link("Freeze Board", makeFreezeBoardURI(board)),
+			}
+			b.WriteString(renderSubMenu(subMenuItems))
 		}
 	}
 
@@ -130,7 +123,7 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("Board not found")
 		return
 	}
 
@@ -144,22 +137,23 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"user",
 		"placeholder", "Address",
+		"required", "true",
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleOwner),
+		string(RoleOwner),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleAdmin),
+		string(RoleAdmin),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleModerator),
+		string(RoleModerator),
 	)
 	form.Select(
 		"role",
-		string(permissions.RoleGuest),
+		string(RoleGuest),
 		"selected", "true",
 	)
 

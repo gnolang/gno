@@ -8,7 +8,6 @@ import (
 	"gno.land/r/gov/dao"
 	daoimpl "gno.land/r/gov/dao/v3/impl"
 	daoinit "gno.land/r/gov/dao/v3/init"
-	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -17,73 +16,55 @@ var (
 	user3 address = chain.PackageAddress("user3.gno")
 )
 
-func init() {
-	daoinit.InitWithUsers(user1, user2, user3)
-	registerTestUsers(user1, user2, user3)
+func init(cur realm) {
+	daoinit.InitWithUsers(cross(cur), user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO: govDAO,
-	})
+	// UpdateRequest is declared in /r/gov/dao; the construction-time
+	// check forbids allocating it from /r/govdao directly. Use the
+	// dao-side constructor, which runs under borrow rule #1 to /r/gov/dao.
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, nil))
 }
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-// Register a namespace for every addresses
-// Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...address) {
-	// Set realm to users admin to register test user
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
-	for _, addr := range addrs {
-		err := susers.RegisterUser(cross, addr.String()[1:], addr)
-		if err != nil {
-			panic(err.Error() + " : " + addr.String())
-		}
-	}
-}
-
-func main() {
-	// run the test as end user instead of the testing realm
+func main(cur realm) {
+	// run the test as end user instead of the testing realm.
+	// SetRealm mutates main's cur HIV in place; subsequent helpers
+	// receive the mutated cur as rlm.
 	testing.SetRealm(testing.NewUserRealm(user1))
-	pid := CreateProposal()
-	VoteProposal(pid)
-	// run the test as another user
-	func() {
-		testing.SetRealm(testing.NewUserRealm(user2))
-		VoteProposal(pid)
-	}()
-	accepted := ExecuteProposal(pid)
+	pid := CreateProposal(0, cur)
+	VoteProposal(0, cur, pid)
+	// switch to another user and vote again. SetRealm must run in
+	// main's crossing frame (not a non-crossing lambda) so the in-place
+	// HIV mutation lands on main's cur — see migration_guide.md §12.
+	testing.SetRealm(testing.NewUserRealm(user2))
+	VoteProposal(0, cur, pid)
+	accepted := ExecuteProposal(0, cur, pid)
 	println(accepted)
-	Render()
+	Render(0, cur)
 }
 
-func CreateProposal() dao.ProposalID {
-	e := dao.NewSimpleExecutor(
-		func(realm) error {
-			return nil
-		},
+func CreateProposal(_ int, rlm realm) dao.ProposalID {
+	e := dao.NewSimpleExecutor(0, rlm,
+		func(realm) error { return nil },
 		"",
 	)
-	pid := dao.MustCreateProposal(cross,
+	return dao.MustCreateProposal(cross(rlm),
 		dao.NewProposalRequest("Proposal Title: Dummy proposal", "Description: Do nothing", e),
 	)
-	return pid
 }
 
-func VoteProposal(pid dao.ProposalID) {
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+func VoteProposal(_ int, rlm realm, pid dao.ProposalID) {
+	// VoteRequest is /r/gov/dao-declared; use the dao-side constructor
+	// to satisfy the construction-time check.
+	dao.MustVoteOnProposal(cross(rlm), dao.NewVoteRequest(dao.YesVote, pid))
 }
 
-func ExecuteProposal(pid dao.ProposalID) bool {
-	accepted := dao.ExecuteProposal(cross, pid)
-	return accepted
+func ExecuteProposal(_ int, rlm realm, pid dao.ProposalID) bool {
+	return dao.ExecuteProposal(cross(rlm), pid)
 }
 
-func Render() {
-	println(dao.Render(""))
+func Render(_ int, rlm realm) {
+	println(dao.Render(cross(rlm), ""))
 }
 
 // Output:
@@ -93,7 +74,7 @@ func Render() {
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
 // ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACCEPTED
 //

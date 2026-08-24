@@ -4,12 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
+
+// StreamableResult is implemented by RPC result types that prefer to write
+// their JSON representation incrementally rather than be fully marshaled in
+// memory. Use this for results whose serialized size is unbounded (e.g.,
+// genesis state with large balance/tx tables) — the standard marshal path
+// would otherwise allocate the entire response twice (once when wrapping the
+// result into the JSON-RPC envelope, again when writing the envelope to the
+// socket), which can OOM the server on large payloads.
+//
+// Implementations MUST honor ctx cancellation between writes so a slow or
+// disconnected client doesn't pin server resources for a long stream.
+type StreamableResult interface {
+	StreamJSON(ctx context.Context, w io.Writer) error
+}
 
 // JSONRPCID is a wrapper type for JSON-RPC request IDs,
 // which can be a string value | number value | not set (nil)
@@ -42,6 +57,8 @@ func parseID(idValue any) (JSONRPCID, error) {
 		// but the JSONRPC2.0 spec says the id SHOULD NOT contain
 		// decimals - so we truncate the decimals here.
 		return JSONRPCIntID(int(id)), nil
+	case nil:
+		return nil, errors.New("request ID cannot be nil")
 	default:
 		typ := reflect.TypeOf(id)
 		return nil, fmt.Errorf("JSON-RPC ID (%v) is of unknown type (%v)", id, typ)
@@ -74,11 +91,6 @@ func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 	request.JSONRPC = unsafeReq.JSONRPC
 	request.Method = unsafeReq.Method
 	request.Params = unsafeReq.Params
-
-	// Check if the ID is set
-	if unsafeReq.ID == nil {
-		return nil
-	}
 
 	// Parse the ID
 	id, err := parseID(unsafeReq.ID)
@@ -173,14 +185,12 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 	response.Error = unsafeResp.Error
 	response.Result = unsafeResp.Result
 
-	// Check if any response ID is set
-	if unsafeResp.ID == nil {
-		return nil
-	}
-
 	// Parse the ID
 	id, err := parseID(unsafeResp.ID)
 	if err != nil {
+		if response.Error != nil {
+			return response.Error
+		}
 		return fmt.Errorf("unable to parse response ID, %w", err)
 	}
 

@@ -1,10 +1,12 @@
 // PKGPATH: gno.land/r/std
 package std
 
-import "chain/runtime"
+import (
+	"chain/runtime/unsafe"
+)
 
 func main(cur realm) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	println(caller)
 }
 

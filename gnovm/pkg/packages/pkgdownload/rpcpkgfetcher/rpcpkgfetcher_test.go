@@ -16,18 +16,18 @@ func TestRpcURLFromPkgPath(t *testing.T) {
 	}{
 		{
 			name:    "happy path simple",
-			pkgPath: "gno.land/p/nt/avl",
+			pkgPath: "gno.land/p/nt/avl/v0",
 			result:  "https://rpc.gno.land:443",
 		},
 		{
 			name:      "happy path override",
-			pkgPath:   "gno.land/p/nt/avl",
+			pkgPath:   "gno.land/p/nt/avl/v0",
 			overrides: map[string]string{"gno.land": "https://example.com/rpc:42"},
 			result:    "https://example.com/rpc:42",
 		},
 		{
 			name:      "happy path override no effect",
-			pkgPath:   "gno.land/p/nt/avl",
+			pkgPath:   "gno.land/p/nt/avl/v0",
 			overrides: map[string]string{"some.chain": "https://example.com/rpc:42"},
 			result:    "https://rpc.gno.land:443",
 		},

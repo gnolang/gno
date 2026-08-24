@@ -13,10 +13,12 @@ import (
 )
 
 var DefaultChromaRenderStyle = styles.Get("friendly")
+var DefaultChromaDarkRenderStyle = styles.Get("nord")
 
 // RenderConfig holds configuration for syntax highlighting and Markdown rendering.
 type RenderConfig struct {
 	ChromaStyle     *chroma.Style
+	ChromaDarkStyle *chroma.Style
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
 }
@@ -24,6 +26,7 @@ type RenderConfig struct {
 // NewDefaultRenderConfig returns a RenderConfig with default styles and options.
 func NewDefaultRenderConfig() (cfg RenderConfig) {
 	cfg.ChromaStyle = DefaultChromaRenderStyle
+	cfg.ChromaDarkStyle = DefaultChromaDarkRenderStyle
 	cfg.GoldmarkOptions = NewDefaultGoldmarkOptions()
 	cfg.ChromaOptions = NewDefaultChromaOptions()
 	return cfg

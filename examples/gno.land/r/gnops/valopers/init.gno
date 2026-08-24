@@ -3,7 +3,7 @@ package valopers
 import (
 	"gno.land/p/moul/authz"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 func init() {
@@ -11,7 +11,7 @@ func init() {
 
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gov/dao",
+			"gno.land/r/gnops/valopers",
 			func(_ string, action authz.PrivilegedAction) error {
 				return action()
 			},
@@ -43,11 +43,19 @@ To add your validator node to the registry, use the [**Register**](` + txlink.Ca
   - **Max length**: **2048 characters**
   - Must include answers to the questions listed below
 
-- **Validator Address**
-  - Your validator node’s address
+- **Server Type** (Infrastructure Type)
+  - Must be one of the following values:
+    - **cloud**: For validators running on cloud infrastructure (AWS, GCP, Azure, etc.)
+    - **on-prem**: For validators running on on-premises infrastructure
+    - **data-center**: For validators running in dedicated data centers
 
-- **Validator Public Key**
-  - Your validator node’s public key
+- **Operator Address**
+  - The ` + "`g1...`" + ` address of your operator account (from your ` + "`gnokey`" + ` keyring)
+  - **Must be controlled by the signer** of this transaction — the realm rejects the call if the signer doesn't control that address
+
+- **Validator Consensus Public Key**
+  - Your validator node's consensus public key, in the ` + "`gpub1...`" + ` format
+  - Retrieve it by running: ` + "`gnoland secrets get validator_key`" + `
 
 ### ✍️ Required Information for the Description
 
@@ -80,7 +88,7 @@ This will initiate a governance process where **GovDAO** members will vote on yo
 
 🚀 **Register now and become a part of gno.land’s validator ecosystem!**
 
-Read more: [How to become a testnet validator](https://gnops.io/articles/guides/become-testnet-validator/) <!-- XXX: replace with a r/gnops/blog:xxx link -->
+Read more: [How to become a validator](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland#become-a-validator)
 
 Disclaimer: Please note, registering your validator profile and/or validating on testnets does not guarantee a validator slot on the gno.land beta mainnet. However, active participation and contributions to testnets will help establish credibility and may improve your chances for future validator acceptance. The initial validator amount and valset will ultimately be selected through GovDAO governance proposals and acceptance.
 

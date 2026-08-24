@@ -9,15 +9,56 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/mux"
+	"gno.land/p/nt/markdown/foreign/v0"
+	"gno.land/p/nt/mux/v0"
 )
 
 const (
 	pageSizeDefault = 6
 	pageSizeReplies = 10
+	// pageSizeFlat is the page size of the flat "all comments" view (?flat=1).
+	// Each comment renders exactly one <gno-foreign> block (no recursion); with
+	// the OP (and any repost-source body) the per-page total stays well under
+	// maxRenderedBodies, so a flat page can't hit the render cap.
+	pageSizeFlat = 50
 )
+
+// maxRenderedBodies caps user bodies wrapped in <gno-foreign> per page
+// render, kept a margin under gnoweb's per-render foreign-block cap
+// (foreign.MaxBlocksPerRender, sourced from chain/markdown so it can't
+// drift from the renderer). On reaching it the tree stops descending
+// and shows a truncation notice instead of letting the renderer blank
+// comments past the cap. The margin absorbs the OP, repost source
+// bodies, and chrome.
+//
+// Computed lazily (a func, not a package-level var) so it tracks the
+// native cap across chain upgrades: a var initializer runs once at
+// realm-init and persists, freezing a stale value if the underlying
+// MaxBlocksPerRender ever changes; recomputing per render re-reads it.
+func maxRenderedBodies() int {
+	return foreign.MaxBlocksPerRender() - 10
+}
+
+// sortToggleLink builds the asc/desc sort-toggle link for path. The label
+// names the DESTINATION order (what you get by clicking), not the order you're
+// currently viewing, and ?page= is reset since page N of one order is a
+// different slice in the other. It reports whether the CURRENT order is
+// descending, so callers can drive their own (signed-count or reverse-iterate)
+// pagination. Other query params (e.g. flat=1) are preserved.
+func sortToggleLink(path string) (link string, desc bool) {
+	r := parseRealmPath(path)
+	desc = r.Query.Get("order") == "desc"
+	r.Query.Del("page")
+	if desc {
+		r.Query.Set("order", "asc")
+		return md.Link("oldest first", r.String()), true
+	}
+	r.Query.Set("order", "desc")
+	return md.Link("newest first", r.String()), false
+}
 
 const menuManageBoard = "manageBoard"
 
@@ -45,11 +86,13 @@ func Render(path string) string {
 	router.HandleFunc("{board}/invite-member", renderInviteMember)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
 	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/{reply}/flagging-reasons", renderFlaggingReasonsPost)
 	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
@@ -58,8 +101,8 @@ func Render(path string) string {
 	}
 
 	// Render common realm header before resolving render path
-	if gNotice != "" {
-		b.WriteString(infoAlert("Notice", gNotice))
+	if Notice != "" {
+		b.WriteString(infoAlert("Notice", Notice))
 	}
 
 	// Render view for current path
@@ -70,14 +113,14 @@ func Render(path string) string {
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 	res.Write(md.H1("Boards Help"))
-	if gHelp != "" {
-		res.Write(gHelp)
+	if Help != "" {
+		res.Write(Help)
 		return
 	}
 
-	link := gRealmLink.Call("SetHelp", "content", "")
+	link := RealmLink.Call("SetHelp", "content", "")
 	res.Write(md.H3("Help content has not been uploaded"))
-	res.Write("Do you want to " + md.Link("upload boards help", link) + " ?")
+	res.Write("Do you want to " + md.Link("upload boards help", link) + "?")
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -87,21 +130,18 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	if gListedBoardsByID.Size() == 0 {
 		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + " !")
+		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + "!")
 		return
 	}
 
-	p, err := pager.New(req.RawPath, gListedBoardsByID.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
+	p := newClampedPager(req.RawPath, gListedBoardsByID.Size(), pageSizeDefault)
 
 	render := func(_ string, v any) bool {
 		board := v.(*boards.Board)
 		userLink := userLink(board.Creator)
 		date := board.CreatedAt.Format(dateFormat)
 
-		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write(md.H6(md.Link(board.Name, makeBoardURI(board))))
 		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
 
 		status := strconv.Itoa(board.Threads.Size()) + " threads"
@@ -114,14 +154,11 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("Sort by: ")
-	r := parseRealmPath(req.RawPath)
-	if r.Query.Get("order") == "desc" {
-		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()) + "\n\n")
+	link, desc := sortToggleLink(req.RawPath)
+	res.Write(link + "\n\n")
+	if desc {
 		gListedBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
-		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()) + "\n\n")
 		gListedBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
@@ -145,12 +182,13 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	form.Input(
 		"name",
 		"placeholder", "Board name",
+		"required", "true",
 	)
 	form.Radio(
 		"listed",
 		"true",
 		"checked", "true",
-		"description", "Should board be publically listed?",
+		"description", "Should board be publicly listed?",
 	)
 	form.Radio(
 		"listed",
@@ -168,6 +206,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 	)
 
 	res.Write(md.H1("Boards: Create Board"))
+	res.Write(md.Link("← Back to boards", gRealmPath) + "\n\n")
 	res.Write(
 		md.Paragraph(
 			"Boards are by default listed by the realm but they can optionally " +
@@ -181,6 +220,7 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		),
 	)
 	res.Write(form.String())
+	res.Write("\n\n**Done?** " + svgbtn.ButtonWithRadius(136, 32, 4, "#E2E2E2", "#54595D", "Return to boards", gRealmPath) + "\n")
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
@@ -206,11 +246,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Create a pager with a small page size to reduce
 	// the number of username lookups per page.
-	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, perms.UsersCount(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"Member", "Role", "Actions"},
@@ -218,12 +254,12 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u boards.User) bool {
 		actions := []string{
-			md.Link("remove", gRealmLink.Call(
+			md.Link("remove", RealmLink.Call(
 				"RemoveMember",
 				"boardID", boardID.String(),
 				"member", u.Address.String(),
 			)),
-			md.Link("change role", gRealmLink.Call(
+			md.Link("change role", RealmLink.Call(
 				"ChangeMemberRole",
 				"boardID", boardID.String(),
 				"member", u.Address.String(),
@@ -261,11 +297,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, requests.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, requests.Size(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"User", "Request Date", "Actions"},
@@ -274,12 +306,12 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H3("These users have requested to be invited to the board"))
 	requests.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
 		actions := []string{
-			md.Link("accept", gRealmLink.Call(
+			md.Link("accept", RealmLink.Call(
 				"AcceptInvite",
 				"boardID", board.ID.String(),
 				"user", addr,
 			)),
-			md.Link("revoke", gRealmLink.Call(
+			md.Link("revoke", RealmLink.Call(
 				"RevokeInvite",
 				"boardID", board.ID.String(),
 				"user", addr,
@@ -317,11 +349,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, banned.Size(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	p := newClampedPager(req.RawPath, banned.Size(), pageSizeDefault)
 
 	table := mdtable.Table{
 		Headers: []string{"User", "Banned Until", "Actions"},
@@ -332,7 +360,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 		table.Append([]string{
 			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
-			md.Link("unban", gRealmLink.Call(
+			md.Link("unban", RealmLink.Call(
 				"Unban",
 				"boardID", board.ID.String(),
 				"user", addr,

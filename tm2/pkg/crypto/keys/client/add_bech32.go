@@ -58,28 +58,26 @@ func execAddBech32(cfg *AddBech32Cfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	// Check if the key exists
-	exists, err := kb.HasByName(name)
-	if err != nil {
-		return fmt.Errorf("unable to fetch key, %w", err)
-	}
-
-	// Get overwrite confirmation, if any
-	if exists {
-		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-		if err != nil {
-			return fmt.Errorf("unable to get confirmation, %w", err)
-		}
-
-		if !overwrite {
-			return errOverwriteAborted
-		}
-	}
-
 	// Parse the public key
 	publicKey, err := crypto.PubKeyFromBech32(cfg.PublicKey)
 	if err != nil {
 		return fmt.Errorf("unable to parse public key from bech32, %w", err)
+	}
+
+	// If not forcing, check for collisions with existing keys
+	if !cfg.RootCfg.Force {
+		// Derive the address to check for collision
+		newAddress := publicKey.Address()
+
+		// Handle address / name collision if any
+		handled, err := handleCollision(kb, name, newAddress, keys.TypeOffline, io)
+		if err != nil {
+			return err
+		}
+		// If a collision was found and handled, we can skip saving the new key
+		if handled {
+			return nil
+		}
 	}
 
 	// Save it offline in the keybase

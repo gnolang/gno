@@ -284,7 +284,10 @@ func fetchAccount(
 		return nil, fmt.Errorf("account is not initialized: %s", address.String())
 	}
 
-	var qret struct{ BaseAccount std.BaseAccount }
+	var qret struct {
+		BaseAccount std.BaseAccount
+		Attributes  uint64 `json:"attributes"` // GnoAccount extension
+	}
 
 	if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal Amino JSON: %w", err)

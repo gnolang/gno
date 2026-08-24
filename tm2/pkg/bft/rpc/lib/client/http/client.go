@@ -61,6 +61,9 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 
 	// Make sure the ID matches
 	if request.ID != response.ID {
+		if (response.ID == nil || response.ID.String() == "") && response.Error != nil {
+			return nil, response.Error
+		}
 		return nil, ErrRequestResponseIDMismatch
 	}
 
@@ -83,6 +86,9 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	// Make sure the IDs match
 	for index, response := range responses {
 		if requests[index].ID != response.ID {
+			if (response.ID == nil || response.ID.String() == "") && response.Error != nil {
+				return nil, response.Error
+			}
 			return nil, ErrRequestResponseIDMismatch
 		}
 	}

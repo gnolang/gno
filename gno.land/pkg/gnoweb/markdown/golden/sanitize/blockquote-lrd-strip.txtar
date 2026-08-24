@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Blockquote
+// CONTEXT: %s
+-- input.md --
+[evil]: https://attacker.com
+
+resolves [click][evil]
+-- output.md --
+
+> resolves \[click\]\[evil\]
+
+-- output.html --
+<blockquote>
+<p>resolves [click][evil]</p>
+</blockquote>

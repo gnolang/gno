@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -15,14 +16,16 @@ type Signer interface {
 	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
 	Info() (keys.Info, error)      // Returns key information, including the address.
 	Validate() error               // Checks whether the signer is properly configured.
+	GetMaster() crypto.Address     // The address of the master account if this is a session account.
 }
 
 // SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
-	Keybase  keys.Keybase // Stores keys in memory or on disk
-	Account  string       // Account name or bech32 format
-	Password string       // Password for encryption
-	ChainID  string       // Chain ID for transaction signing
+	Keybase  keys.Keybase   // Stores keys in memory or on disk
+	Account  string         // Account name or bech32 format
+	Password string         // Password for encryption
+	ChainID  string         // Chain ID for transaction signing
+	Master   crypto.Address // The address of the master account if this is a session account.
 }
 
 // Validate checks if the signer is properly configured.
@@ -36,14 +39,20 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
-	caller, err := s.Info()
-	if err != nil {
-		return err
-	}
-
 	// To verify if the password unlocks the account, sign a blank transaction.
+	// To set the Caller, imitate Sign below
+	var addr crypto.Address
+	if !s.GetMaster().IsZero() {
+		addr = s.GetMaster()
+	} else {
+		signer, err := s.Info()
+		if err != nil {
+			return err
+		}
+		addr = signer.GetAddress()
+	}
 	msg := vm.MsgCall{
-		Caller: caller.GetAddress(),
+		Caller: addr,
 	}
 	signCfg := SignCfg{
 		UnsignedTX: std.Tx{
@@ -65,6 +74,10 @@ func (s SignerFromKeybase) Info() (keys.Info, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func (s SignerFromKeybase) GetMaster() crypto.Address {
+	return s.Master
 }
 
 // SignCfg provides the signing configuration, containing:
@@ -111,7 +124,12 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr := pub.Address()
+	var addr crypto.Address
+	if !s.GetMaster().IsZero() {
+		addr = s.GetMaster()
+	} else {
+		addr = pub.Address()
+	}
 	found := false
 	for i := range tx.Signatures {
 		if signers[i] == addr {
