@@ -1904,6 +1904,98 @@ func GetHeight(cur realm) int64 { return height }
 		assert.Contains(t, string(resp.Data), "(42 int64)")
 	})
 
+	// A historical MsgRun must replay even though run_submitters is empty.
+	//
+	// This is the carve-out in checkCodePolicy, and it is load-bearing for every
+	// hardfork: deliverGenesisTx replays history through the same ante with
+	// BlockHeight > 0, AFTER InitGenesis installs the NEW params. So without the
+	// exemption a fork refuses to replay its own past the moment a historical
+	// signer is absent from the new allowlist -- and since the allowlist fails
+	// closed, "absent" is the default. With StrictReplay the node would not boot
+	// at all.
+	//
+	// Left untested, a regression here would not show up in any suite; it would
+	// show up the next time somebody forks the chain. Genesis state below uses
+	// vm.DefaultGenesisState(), whose run_submitters is empty, so the tx is only
+	// deliverable because it is recognised as replay.
+	t.Run("historical MsgRun replays despite an empty run_submitters", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// Confirm the premise rather than assuming it: the params this genesis
+		// installs really do refuse MsgRun for this signer.
+		require.Empty(t, vm.DefaultGenesisState().Params.RunSubmitters,
+			"premise: the default allowlist must be empty for this test to mean anything")
+
+		// MsgRun.ValidateBasic forces this exact path, so anything else is
+		// refused before the ante is reached and the test would prove nothing.
+		runPath := "gno.land/e/" + key.PubKey().Address().String() + "/run"
+		runMsg := vm.MsgRun{
+			Caller: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "main",
+				Path: runPath,
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+					{Name: "main.gno", Body: "package main\n\nfunc main() {\n\tprintln(\"replayed\")\n}\n"},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{runMsg}, "old-chain", key)
+
+		// PanicOnFailingTxResultHandler (from TestAppOptions) panics if a
+		// genesis tx fails, so a refused replay surfaces as a panic here.
+		require.NotPanics(t, func() {
+			app.InitChain(abci.RequestInitChain{
+				ChainID:       chainID,
+				Time:          time.Now(),
+				InitialHeight: 100,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: GnoGenesisState{
+					Txs: []TxWithMetadata{{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+						},
+					}},
+					Balances: []Balance{{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					}},
+					Auth:          auth.DefaultGenesisState(),
+					Bank:          bank.DefaultGenesisState(),
+					VM:            vm.DefaultGenesisState(),
+					PastChainIDs:  []string{"old-chain"},
+					InitialHeight: 100,
+				},
+			})
+		}, "a historical MsgRun must replay even though run_submitters is empty")
+
+		// And the gate is still armed for live traffic: the same signer sending
+		// the same message NOT as replay must be refused. Without this the test
+		// would also pass if the carve-out were replaced by no gate at all.
+		liveTx := createAndSignTxWithAccSeq(t, []std.Msg{runMsg}, chainID, key, 0, 1)
+		marshalled, err := amino.Marshal(liveTx)
+		require.NoError(t, err)
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalled})
+		require.False(t, resp.IsOK(),
+			"a live MsgRun must still be refused; only replay is exempt")
+		assert.Contains(t, resp.Log, "run_submitters")
+	})
+
 	t.Run("metadata block height in GnoTxMetadata serializes correctly", func(t *testing.T) {
 		t.Parallel()
 
@@ -3756,4 +3848,113 @@ func TestGenesisSignerMintIsAccounted(t *testing.T) {
 	require.Equal(t, strconv.Quote(strconv.FormatInt(funding+genesisSignerFunding, 10)),
 		string(qres.Data),
 		"genesis auto-funding must mint, or the counter under-records what the chain holds")
+}
+
+// txCarriesCode selects which txs must have their signatures verified even on
+// the simulate path. It must match both code-bearing messages and nothing else:
+// too wide breaks keyless gas estimation for ordinary messages, too narrow
+// leaves `.app/simulate` able to compile and run caller-supplied source under
+// an address the caller does not control.
+func TestTxCarriesCode(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.Address{}
+	tests := []struct {
+		name string
+		msgs []std.Msg
+		want bool
+	}{
+		{"no messages", nil, false},
+		{"run alone", []std.Msg{vm.MsgRun{Caller: addr}}, true},
+		{"add_package alone", []std.Msg{vm.MsgAddPackage{Creator: addr}}, true},
+		{"call alone", []std.Msg{vm.MsgCall{Caller: addr}}, false},
+		// A run hidden behind another message must still be found: the
+		// predicate is asked once for the whole tx.
+		{"run after a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgRun{Caller: addr}}, true},
+		{"run before a call", []std.Msg{vm.MsgRun{Caller: addr}, vm.MsgCall{Caller: addr}}, true},
+		// enable_package is authorized from msg.Approver -- a caller-supplied
+		// field -- and type-checks and init()s a parked package, so an
+		// unverified simulate lets anyone name the real approver and have that
+		// work done for free. Its omission here was a live hole, reproduced end
+		// to end against a running app.
+		{"enable_package alone", []std.Msg{vm.MsgEnablePackage{Approver: addr}}, true},
+		{"disable_package alone", []std.Msg{vm.MsgDisablePackage{Approver: addr}}, true},
+		{"enable_package behind a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgEnablePackage{Approver: addr}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, txCarriesCode(std.Tx{Msgs: tt.msgs}))
+		})
+	}
+}
+
+// txCodeMsgSigners is the single scan both code gates key off, so a message
+// kind it fails to report is a gate that silently does not run for that kind.
+// This extends TestTxHasMsgRun above to the add_package axis; that test now
+// covers the MsgRun projection of the same function.
+//
+// It asserts the SIGNERS rather than mere presence, because the granularity is
+// the part that is easy to get wrong: authorization belongs to the signer of
+// each code message, not to every signer of the transaction.
+func TestTxCodeMsgSigners(t *testing.T) {
+	t.Parallel()
+
+	alice := crypto.AddressFromPreimage([]byte("alice"))
+	bob := crypto.AddressFromPreimage([]byte("bob"))
+
+	tests := []struct {
+		name           string
+		msgs           []std.Msg
+		wantAddPkg     []crypto.Address
+		wantRunSigners []crypto.Address
+	}{
+		{"no messages", nil, nil, nil},
+		{
+			"add_package alone",
+			[]std.Msg{vm.MsgAddPackage{Creator: alice}},
+			[]crypto.Address{alice}, nil,
+		},
+		{
+			"run alone",
+			[]std.Msg{vm.MsgRun{Caller: alice}},
+			nil, []crypto.Address{alice},
+		},
+		{
+			// Both in one tx is the case that separates the two rules: under
+			// "inert" add_package is open while run stays gated, so conflating
+			// them would let a bundled MsgRun through.
+			"both, different signers",
+			[]std.Msg{
+				vm.MsgAddPackage{Creator: alice},
+				vm.MsgRun{Caller: bob},
+			},
+			[]crypto.Address{alice}, []crypto.Address{bob},
+		},
+		{
+			// MsgCall names a package but carries no source, so it must not be
+			// classified as code-bearing.
+			"call alone",
+			[]std.Msg{vm.MsgCall{Caller: alice}},
+			nil, nil,
+		},
+		{
+			// A bystander on a non-code message must not appear at all: that is
+			// what keeps them from needing code-submission rights.
+			"bank send bystander is not collected",
+			[]std.Msg{
+				bank.MsgSend{FromAddress: bob, ToAddress: alice},
+				vm.MsgRun{Caller: alice},
+			},
+			nil, []crypto.Address{alice},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			addPkg, run := txCodeMsgSigners(std.Tx{Msgs: tt.msgs})
+			assert.Equal(t, tt.wantAddPkg, addPkg, "add_package signers")
+			assert.Equal(t, tt.wantRunSigners, run, "run signers")
+		})
+	}
 }

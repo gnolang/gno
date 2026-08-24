@@ -1,0 +1,71 @@
+# MsgRun requires the signer to be in the vm run_submitters param.
+#
+# This is a wiring test: it fails if the checkCodePolicy call is removed from
+# the ante closure in app.go. It is not the only one that does -- so does
+# code_submission_policy.txtar, run_submitters_delegate.txtar, and one Go test
+# in gno.land/pkg/gnoland. What makes a REFUSAL case necessary at all is that
+# the harness seeds every account it creates into run_submitters, so every
+# positive assertion in every other txtar passes whether or not the gate runs.
+# Without a case that expects a refusal the gate could be deleted from the ante
+# and nothing would notice -- which is the state #5888 shipped
+# code_submission_policy in.
+#
+# The refused account has to be funded but never named in genesis. adduser and
+# adduserfrom both append to run_submitters as they create an address, so
+# neither can produce one; the key is created inside the script with a fixed
+# mnemonic and funded by a transfer instead.
+
+loadpkg gno.land/r/foobar/bar $WORK/bar
+
+gnoland start
+
+# test1 is seeded by DefaultTestingGenesisConfig, so it may run.
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1 $WORK/script/script.gno
+stdout 'main: --- hello from foo ---'
+stdout 'OK!'
+
+# Create an account the chain has never heard of. Fixed mnemonic, so the
+# address below is deterministic.
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
+gnokey add stranger --recover --insecure-password-stdin
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+# Fund it, so the refusal below is about authorization and not about an
+# unfunded account or a missing pubkey.
+gnokey maketx send -send 10000000ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# It may not run: funded, valid signature, simply not on the list.
+input test123
+! gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/script/script.gno
+stderr 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 is not authorized to send MsgRun'
+stderr 'run_submitters'
+
+# But the account itself still works: the gate is specific to MsgRun and must
+# not have become a blanket ban on an unlisted signer. Same key, same password,
+# a message that carries no source.
+input test123
+gnokey maketx send -send 1000ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -insecure-password-stdin stranger
+stdout 'OK!'
+
+-- bar/gnomod.toml --
+module = "gno.land/r/foobar/bar"
+gno = "0.9"
+
+-- bar/bar.gno --
+package bar
+
+func Render(path string) string {
+	return "hello from foo"
+}
+
+-- script/script.gno --
+package main
+
+import "gno.land/r/foobar/bar"
+
+func main() {
+	println("main: ---", bar.Render(""), "---")
+}
