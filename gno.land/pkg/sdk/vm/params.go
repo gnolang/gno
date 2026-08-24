@@ -14,8 +14,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-// CodeSubmissionPolicy controls who may submit MsgAddPackage and MsgRun, and
-// how submitted packages are processed.
+// CodeSubmissionPolicy controls who may submit MsgAddPackage, and how submitted
+// packages are processed. It has no bearing on MsgRun: that is gated by
+// RunSubmitters under every policy value, because no policy value makes running
+// arbitrary source safe. See the RunSubmitters field doc.
 type CodeSubmissionPolicy string
 
 const (
@@ -34,8 +36,8 @@ const (
 	sysNamesPkgDefault             = "gno.land/r/sys/names"
 	sysCLAPkgDefault               = "gno.land/r/sys/cla"
 	chainDomainDefault             = "gno.land"
-	depositDefault                 = "600000000ugnot"
-	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
+	depositDefault                 = "100000000ugnot" // 1 MB of realm state at storagePriceDefault
+	storagePriceDefault            = "100ugnot"       // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
 	codeSubmissionPolicyDefault    = CodeSubmissionPolicyPermissionless
 
@@ -100,14 +102,29 @@ type Params struct {
 	// number matches master; the code-submission fields below take 15/16/17.
 	PreprocessGasPerByte int64 `json:"preprocess_gas_per_byte" yaml:"preprocess_gas_per_byte"`
 
-	// CodeSubmissionPolicy controls who may submit MsgAddPackage/MsgRun and
-	// how packages are processed on arrival. Defaults to "permissionless".
+	// CodeSubmissionPolicy controls who may submit MsgAddPackage and how
+	// packages are processed on arrival. Defaults to "permissionless".
+	// Not consulted for MsgRun; see RunSubmitters.
 	CodeSubmissionPolicy CodeSubmissionPolicy `json:"code_submission_policy" yaml:"code_submission_policy"`
 	// CodeSubmitters is the allowlist used when CodeSubmissionPolicy == "permissioned".
 	CodeSubmitters []crypto.Address `json:"code_submitters" yaml:"code_submitters"`
 	// PkgApprovers may call MsgEnablePackage / MsgDisablePackage.
 	// Required when CodeSubmissionPolicy == "inert".
 	PkgApprovers []crypto.Address `json:"pkg_approvers" yaml:"pkg_approvers"`
+	// RunSubmitters may send MsgRun. Enforced under EVERY CodeSubmissionPolicy,
+	// deliberately unlike CodeSubmitters: MsgRun type-checks and executes
+	// arbitrary source immediately, under every policy including "inert", so the
+	// policy value has no bearing on the hazard. It is also the only code-bearing
+	// message with no other gate — MsgAddPackage clears a namespace check and a
+	// CLA check, while MsgRun's path is forced to /e/<caller>/run and so has no
+	// namespace to check against.
+	//
+	// Fails closed: an empty list means nobody may MsgRun. Kept separate from
+	// CodeSubmitters rather than reusing it, because reuse would make one list
+	// mean different things per policy — and an operator who populated it just to
+	// unblock MsgRun under "inert" would silently grant deploy rights the moment
+	// governance flipped the policy to "permissioned".
+	RunSubmitters []crypto.Address `json:"run_submitters" yaml:"run_submitters"`
 }
 
 // NewParams creates a new Params object
@@ -159,6 +176,7 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("CodeSubmissionPolicy: %q\n", p.CodeSubmissionPolicy))
 	sb.WriteString(fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters))
 	sb.WriteString(fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers))
+	sb.WriteString(fmt.Sprintf("RunSubmitters: %v\n", p.RunSubmitters))
 	sb.WriteString(fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte))
 	return sb.String()
 }
@@ -234,6 +252,9 @@ func (p Params) Validate() error {
 	if err := validateAddressSlice("CodeSubmitters", p.CodeSubmitters); err != nil {
 		return err
 	}
+	if err := validateAddressSlice("RunSubmitters", p.RunSubmitters); err != nil {
+		return err
+	}
 	if err := validateAddressSlice("PkgApprovers", p.PkgApprovers); err != nil {
 		return err
 	}
@@ -275,7 +296,35 @@ func mustParseAddressStrings(paramName string, value any) []crypto.Address {
 	return addrs
 }
 
+// maxAddressListLen bounds every governance address list in Params.
+//
+// These lists are not read lazily. gno.land's ante closure calls
+// vmk.GetParams(ctx) on EVERY transaction, before auth's SetGasMeter installs
+// the per-tx meter — so in DeliverTx the decode is charged to a passthrough
+// bounded by remaining BLOCK gas rather than the sender's GasWanted, and in
+// CheckTx to an infinite meter with no block-gas bound at all, re-run on every
+// mempool recheck. GetParams does one store read plus one amino JSON unmarshal
+// per field, and unmarshalling []crypto.Address bech32-decodes every element.
+//
+// So an unbounded list is unmetered per-transaction work that the party who
+// caused it does not pay for: at roughly 43 bytes per entry, 10k entries is
+// ~430KB decoded and 10k bech32 decodes on every transaction, forever, for a
+// one-off cost of about 43 GNOT in storage deposit. Gas is not the binding
+// constraint — you would need hundreds of MB to exhaust a block.
+//
+// 1000 is chosen to be generous for real operation (~43KB, well under a
+// millisecond) while keeping the ceiling finite. Do not raise it casually and
+// do not lower it later: a chain whose genesis already exceeds a smaller cap
+// would fail to import. Enforced here rather than in the realm because the
+// realm is replaceable state, while this covers governance, genesis and
+// gnogenesis in one place.
+const maxAddressListLen = 1000
+
 func validateAddressSlice(name string, addrs []crypto.Address) error {
+	if len(addrs) > maxAddressListLen {
+		return fmt.Errorf("%s has %d entries, exceeding the maximum of %d",
+			name, len(addrs), maxAddressListLen)
+	}
 	seen := make(map[string]struct{}, len(addrs))
 	for i, addr := range addrs {
 		if addr.IsZero() {
@@ -334,6 +383,14 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 func (p Params) applyLegacyDefaults() Params {
 	if p.PreprocessGasPerByte == 0 {
 		p.PreprocessGasPerByte = preprocessGasPerByteDefault
+	}
+	// A params blob written before code_submission_policy existed has no value
+	// for it, and so does a genesis that simply omits it. Defaulting here, on
+	// the one read path every caller goes through, means no consumer has to
+	// carry its own empty-string case — the ante's policy check previously did,
+	// which is three statements of the same rule in three files.
+	if p.CodeSubmissionPolicy == "" {
+		p.CodeSubmissionPolicy = codeSubmissionPolicyDefault
 	}
 	return p
 }
@@ -410,6 +467,8 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.CodeSubmitters = mustParseAddressStrings("code_submitters", value)
 	case "p:pkg_approvers":
 		params.PkgApprovers = mustParseAddressStrings("pkg_approvers", value)
+	case "p:run_submitters":
+		params.RunSubmitters = mustParseAddressStrings("run_submitters", value)
 	case "p:preprocess_gas_per_byte":
 		params.PreprocessGasPerByte = sdkparams.MustParamInt64("preprocess_gas_per_byte", value)
 	default:

@@ -119,6 +119,15 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 		return fmt.Errorf("no value(s) to set")
 	}
 
+	// Kind, not concrete type, for the string case: vm.CodeSubmissionPolicy is a
+	// named string type, so `case string:` misses it and the switch fell through
+	// to "unsupported type". That made code_submission_policy unsettable while
+	// the three address lists it governs set fine.
+	if dstValue.Kind() == reflect.String {
+		dstValue.SetString(vals[0])
+		return nil
+	}
+
 	switch dstValue.Interface().(type) {
 	case string:
 		dstValue.Set(reflect.ValueOf(vals[0]))

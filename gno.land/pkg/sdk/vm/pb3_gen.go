@@ -1386,6 +1386,15 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	for i := len(goo.RunSubmitters) - 1; i >= 0; i-- {
+		elem := goo.RunSubmitters[i]
+		er, err := elem.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		offset = amino.PrependString(buf, offset, string(er))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 18, amino.Typ3ByteLength)
+	}
 	for i := len(goo.PkgApprovers) - 1; i >= 0; i-- {
 		elem := goo.PkgApprovers[i]
 		er, err := elem.MarshalAmino()
@@ -1662,6 +1671,14 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 		vs := amino.UvarintSize(uint64(len(er))) + len(er)
 		s += 2 + vs
 	}
+	for _, elem := range goo.RunSubmitters {
+		er, err := elem.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		vs := amino.UvarintSize(uint64(len(er))) + len(er)
+		s += 2 + vs
+	}
 	return s, nil
 }
 
@@ -1919,6 +1936,49 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 					return err
 				}
 				goo.PkgApprovers = append(goo.PkgApprovers, ev)
+			}
+		case 18:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 18: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev crypto.Address
+			var rv string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			rv = string(v)
+			if err := ev.UnmarshalAmino(rv); err != nil {
+				return err
+			}
+			goo.RunSubmitters = append(goo.RunSubmitters, ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 18 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 18: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev crypto.Address
+				var rv string
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				rv = string(v)
+				if err := ev.UnmarshalAmino(rv); err != nil {
+					return err
+				}
+				goo.RunSubmitters = append(goo.RunSubmitters, ev)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for Params", fnum)

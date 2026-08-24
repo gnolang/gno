@@ -100,4 +100,5 @@ message Params {
 	string code_submission_policy = 15;
 	repeated string code_submitters = 16;
 	repeated string pkg_approvers = 17;
+	repeated string run_submitters = 18;
 }
