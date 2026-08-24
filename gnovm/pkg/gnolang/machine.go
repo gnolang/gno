@@ -925,7 +925,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // later transaction — assigned to an interface-typed package var, captured
 // by a closure — and its serialized RefType ("pkg[loc].Name") must resolve
 // on reload. Persisting here, like package-level types, puts the cost at
-// addpkg with the deployer (rationale: gnovm/adr/pr5935_local_type_persist.md).
+// addpkg with the deployer (rationale: gnovm/adr/pr6084_local_type_persist.md).
 //
 // The types were collected on the PackageNode at predefine time
 // (ATTR_FUNC_LOCAL_TYPES, see AddFuncLocalType), so the save is a direct
