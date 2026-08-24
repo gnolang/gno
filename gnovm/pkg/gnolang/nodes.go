@@ -1330,11 +1330,8 @@ func (pn *PackageNode) FuncLocalTypes() []*DeclaredType {
 }
 
 // AddFuncLocalType records a function-local declared type minted at
-// predefine time (tryPredefine); addpkg persists the collection
-// (saveFuncLocalTypes). Completeness invariant, audited under
-// -tags debugAssert: every code path minting a function-local
-// DeclaredType must append here. (Blank type decls never mint one —
-// tryPredefine returns before declareWith.)
+// predefine (tryPredefine); addpkg persists the collection. Invariant,
+// audited under -tags debugAssert: every mint path must append here.
 func (pn *PackageNode) AddFuncLocalType(dt *DeclaredType) {
 	pn.SetAttribute(ATTR_FUNC_LOCAL_TYPES, append(pn.FuncLocalTypes(), dt))
 }

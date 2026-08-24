@@ -14,10 +14,8 @@ import (
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-// The predefine-time bookkeeping audit must fire when a function-local type
-// is missing from ATTR_FUNC_LOCAL_TYPES — i.e. a mint path forgot
-// AddFuncLocalType. Guards the completeness invariant the collection
-// design rests on.
+// The predefine-time bookkeeping audit must fire when a mint path forgot
+// AddFuncLocalType (simulated below by deleting the attribute).
 func TestAssertFuncLocalTypesCompleteFires(t *testing.T) {
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})

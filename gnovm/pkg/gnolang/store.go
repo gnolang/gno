@@ -647,12 +647,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
 	if debugAssert {
-		// Invariant: every function-local declared type referenced by the
-		// persist-copy must be known to the store — SetType'd at addpkg
-		// (saveFuncLocalTypes) or loaded via GetType — so it must be in
-		// cacheTypes. A miss means a RefType was minted that the store
-		// cannot resolve on reload — the object would be persisted
-		// permanently unreadable.
+		// Every function-local type ref in the persist-copy must resolve
+		// (SetType'd at addpkg or loaded); a miss would persist an object
+		// permanently unreadable after restart.
 		ds.assertNoDanglingLocalTypeRef(o2)
 	}
 	// marshal to binary.
@@ -898,30 +895,19 @@ func (ds *defaultStore) SetType(tt Type) {
 	ds.cacheTypes[tid] = tt
 }
 
-// assertNoDanglingLocalTypeRef (debugAssert only) walks a persist-copy
-// produced by copyValueWithRefs and panics if it references a function-local
-// declared type (RefType whose TypeID carries a location) that is not in
-// cacheTypes. See the SetObject call site for the invariant.
-//
-// Scoped to function-local refs because they are the only class checkable
-// at SetObject time: within the addpkg tx, objects are saved before the
-// package-level type records (whose bytes embed method FuncValue hashes,
-// see saveNewPackageValuesAndTypes), so refs to the new package's own
-// package-level types are legitimately unresolvable-yet here.
-//
-// Shape mirrors fillTypesOfValue (the load-side walk over the same graph);
-// it cannot reuse fillTypesOfValue/assertTypeIsPublic because those resolve
-// types via GetType (amino decode, gas, cache fills) or run in release
-// builds — this walk must be side-effect-free.
+// assertNoDanglingLocalTypeRef (debugAssert only) walks a persist-copy and
+// panics on a function-local RefType absent from cacheTypes and backend.
+// Func-local only: package-level type records are written after realm
+// finalization (see saveNewPackageValuesAndTypes), so their refs
+// legitimately don't resolve here yet. Bespoke walk, not fillTypesOfValue:
+// it must be side-effect- and gas-free.
 func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 	switch cv := val.(type) {
 	case nil, StringValue, BigintValue, BigdecValue, RefValue:
 		// Scalars and refs carry no type refs.
 	case PointerValue, *SliceValue, *PackageValue:
-		// In a persist-copy these carry only refs (copyValueWithRefs turns
-		// Pointer.Base/Slice.Base/Package.Block+FBlocks into RefValues and
-		// elides the pointer's inline TV); referents are asserted by their
-		// own SetObject.
+		// Persist-copies hold only RefValues here (the pointer's inline TV
+		// is elided); referents are asserted by their own SetObject.
 	case *ArrayValue:
 		for i := range cv.List {
 			ds.assertNoDanglingLocalTypeRefTV(&cv.List[i])
@@ -955,8 +941,7 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRef(val Value) {
 	case TypeValue:
 		ds.assertNoDanglingLocalTypeRefType(cv.Type)
 	default:
-		// A kind this walker doesn't know can hide a local-type ref; fail
-		// loudly rather than silently weakening the debug invariant.
+		// An unknown kind could hide a local-type ref; fail loudly.
 		panic(fmt.Sprintf(
 			"assertNoDanglingLocalTypeRef: unhandled value kind %T", cv))
 	}
@@ -976,12 +961,9 @@ func (ds *defaultStore) assertNoDanglingLocalTypeRefType(t Type) {
 		if _, exists := ds.cacheTypes[ct.ID]; exists {
 			return
 		}
-		// Not in this transaction's cache: the type must already be in
-		// the backend, written at addpkg by saveFuncLocalTypes. Raw key
-		// probe (not GetTypeSafe) so the debug-only assert has no amino
-		// decode cost and no cache side effects; nil GasContext so it
-		// charges no gas — debugAssert builds must consume exactly the
-		// same gas as release builds.
+		// Else it must be in the backend (written at addpkg). Raw key probe
+		// with nil GasContext: no amino decode, no cache fills, no gas —
+		// debugAssert builds must consume exactly release-build gas.
 		if ds.baseStore != nil {
 			key := backendTypeKey(ct.ID)
 			if ds.baseStore.Get(nil, []byte(key)) != nil {

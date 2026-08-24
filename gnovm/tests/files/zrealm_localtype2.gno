@@ -1,6 +1,5 @@
 // PKGPATH: gno.land/r/test
-// Mirrored (with restart coverage) by restart_local_type.txtar's zltsh realm;
-// keep the scenario sets in sync.
+// Mirrored (plus restart coverage) by restart_local_type.txtar's zltsh realm.
 package test
 
 type T struct{ x int }
@@ -26,11 +25,9 @@ func mk2() any {
 }
 
 func main(cur realm) {
-	// B: no-trace escape — the closure constructs the local type per call,
-	// and nothing S2-typed persists at save time, not even a TypeValue
-	// (preprocess folds the type name into a constTypeExpr, so there is no
-	// runtime capture; the Realm golden below shows only the FuncValue).
-	// The type is re-minted from source on reload with the same TypeID.
+	// B: no-trace escape — nothing S2-typed persists at save time, not even
+	// a TypeValue (the type name is preprocess-folded, not captured; the
+	// golden shows only the FuncValue). Reload re-mints S2, same TypeID.
 	type S2 struct{ T }
 	G = func() any { return S2{T{7}} }
 	println(G().(Getter).Get())
@@ -80,12 +77,12 @@ func main(cur realm) {
 //             "Span": {
 //                 "End": {
 //                     "Column": "36",
-//                     "Line": "35"
+//                     "Line": "32"
 //                 },
 //                 "Num": "0",
 //                 "Pos": {
 //                     "Column": "6",
-//                     "Line": "35"
+//                     "Line": "32"
 //                 }
 //             }
 //         }
@@ -135,12 +132,12 @@ func main(cur realm) {
 //             "Span": {
 //                 "End": {
 //                     "Column": "3",
-//                     "Line": "42"
+//                     "Line": "39"
 //                 },
 //                 "Num": "0",
 //                 "Pos": {
 //                     "Column": "7",
-//                     "Line": "39"
+//                     "Line": "36"
 //                 }
 //             }
 //         }
@@ -261,7 +258,7 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "a99e8208b788d2622859cae4dadf866aa50a2cc5",
+//     +            "Hash": "ca70cd14ed4a35a71307427fc2989fa0f6c5f2f6",
 //     +            "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //              }
 //          }
@@ -283,7 +280,7 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "ef292c4e5540e190e7d594d155708383e6950584",
+//     +            "Hash": "78a9408acaf9be2846a14ef73b18d678db182cc6",
 //     +            "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:12"
 //              }
 //          }
@@ -302,7 +299,7 @@ func main(cur realm) {
 //     +    "Value": {
 //     +        "T": {
 //     +            "@type": "/gno.RefType",
-//     +            "ID": "gno.land/r/test[gno.land/r/test/zrealm_localtype2.gno:18:1-21:2].S"
+//     +            "ID": "gno.land/r/test[gno.land/r/test/zrealm_localtype2.gno:17:1-20:2].S"
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
@@ -325,7 +322,7 @@ func main(cur realm) {
 //     +    "Value": {
 //     +        "T": {
 //     +            "@type": "/gno.RefType",
-//     +            "ID": "gno.land/r/test[gno.land/r/test/zrealm_localtype2.gno:23:1-26:2].S"
+//     +            "ID": "gno.land/r/test[gno.land/r/test/zrealm_localtype2.gno:22:1-25:2].S"
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
@@ -349,7 +346,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "e457ee3297d44037f86e277b030ba75d1cc77177",
-//     +                "Hash": "6115ce9e69f0cd92b1aebab4e5cd0e3d08a9bb7d",
+//     +                "Hash": "38b8b0228ed46e13b122cb043e386c585ed78f50",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },
@@ -358,7 +355,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "ed5c72731df782c2a7a498f131024a7e8abc1277",
-//     +                "Hash": "518360d9db420fd33366a415a958fb7aae90f023",
+//     +                "Hash": "1c645eb480e10c5ab201117bd7e9e105a5704339",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                  }
 //              },
@@ -367,7 +364,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "091813d68ddddd3d9a460952d01c6e8427f33f07",
-//     +                "Hash": "344899919344187e30999537dcb7b037a83efbda",
+//     +                "Hash": "d0b0e7c20d8a96c64d14bac1b10a19d4d7e55723",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                  }
 //              },
@@ -376,7 +373,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "50a7f52f8f9d6e7936afc5575fedbf44ca9b5794",
-//     +                "Hash": "f86789e123000d1b831810af7f7e3bbdb3cb5dfe",
+//     +                "Hash": "715e82ae508b7982380555216ccd8f9d743f3919",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //                  }
 //              },

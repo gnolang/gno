@@ -1,40 +1,25 @@
 # Regression test: values referencing a function-local declared type must
-# survive persist/reload. Local types are SetType'd eagerly at addpkg
-# (saveFuncLocalTypes) like package-level types; without that, a persisted
-# value serializes a dangling RefType ("pkg[loc].Name") and using it after a
-# node restart panics with "unexpected type with id ...".
+# survive persist/reload. Without eager SetType at addpkg, persisted values
+# hold a dangling RefType ("pkg[loc].Name") and panic after a node restart.
 #
 # One chain, two restarts, all escape routes:
-#   lt1:   interface-bound method value (G = i.Get) — call-time dispatch,
-#          live since #5737
+#   lt1:   interface-bound method value (G = i.Get), live since #5737
 #   lt2:   plain interface-typed package var (X = S{...})
 #   lt3:   closure capturing an S value (heap-item slot)
-#   zlta/zltb: cross-realm — zltb's local type S stored in zlta's state
-#          (foreign owner)
-#   zltm:  map with local-type key (lookup after restart re-mints K from the
-#          persisted TypeValue — pins TypeID stability), recursive local
-#          type, and a reload -> mutate -> re-save -> reload loop across the
-#          second restart
-#   zltc/zzltp: local type declared in a pure p/ package function, stored in
-#          a realm
+#   zlta/zltb: cross-realm — zltb's local type stored in zlta's state
+#   zltm:  map with local-type key, recursive local type, and a reload ->
+#          mutate -> re-save -> reload loop across the second restart
+#   zltc/zzltp: local type declared in a p/ package function, stored in a realm
 #   zlti:  addpkg-time escape — a file-level var initializer persists the
-#          local-typed value in the same tx that persists the type record;
-#          no later call involved
-#   zltsh CallB: no-trace escape — closure constructs the local type per
-#          call; nothing S2-typed persists at Bind time (the type name is
-#          preprocess-folded, not captured), so this pins that the type
-#          re-minted from source after restart keeps the same TypeID
+#          value in the same tx that persists the type record
+#   zltsh CallB: no-trace escape — nothing S2-typed persists at Bind time;
+#          pins that the type re-minted after restart keeps its TypeID
 #   zltsh CallC: type declared inside a closure literal (ParentLoc =
-#          FuncLitExpr); post-restart call re-declares it and persists a
-#          fresh value (checked again after the second restart via CallX)
-#   zltsh CallD: same local type name in two different functions (distinct
-#          ParentLoc)
-#   zltsh Bind x2: fresh *DeclaredType instance, same TypeID — SetType
-#          idempotency across transactions
-#   script (negative): local type declared in a maketx run script cannot
-#          escape — an existing guard rejects persisting values of types
-#          defined in the ephemeral run package, so no dangling e/-pkgpath
-#          type is possible
+#          FuncLitExpr); a post-restart call persists a fresh value (CallX)
+#   zltsh CallD: same local type name in two different functions
+#   zltsh Bind x2: fresh *DeclaredType, same TypeID — SetType idempotency
+#   script (negative): a maketx run script's local type cannot escape into
+#          realm state (a pre-existing guard rejects it)
 
 loadpkg gno.land/p/test/zzltp $WORK/zzltp
 loadpkg gno.land/r/test/lt1 $WORK/lt1
@@ -303,8 +288,7 @@ func Call(cur realm) int {
 }
 
 -- zltsh/zltsh.gno --
-// Mirror of gnovm/tests/files/zrealm_localtype2.gno plus restart coverage
-// (X/CallX); keep the scenario sets in sync.
+// Mirror of gnovm/tests/files/zrealm_localtype2.gno, plus restart coverage (X/CallX).
 package zltsh
 
 type T struct{ x int }

@@ -1971,12 +1971,8 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 }
 
 // IsFuncLocal reports whether rt names a function-local declared type.
-// The probe is exact here because a RefType's ID is by construction a
-// declared-type ID (RefTypes are minted solely from DeclaredTypes, see
-// refOrCopyType/copyTypeWithRefs), and per the encoding above only
-// function-local declared-type IDs carry a bracket. On a raw TypeID the
-// same probe would misclassify unnamed composites (e.g. "[3]int"), which
-// is why this lives on RefType.
+// Exact on RefType: its ID is by construction a declared-type ID, where
+// only func-local ones carry a bracket (unlike raw TypeIDs, e.g. "[3]int").
 func (rt RefType) IsFuncLocal() bool {
 	return strings.Contains(string(rt.ID), "[")
 }

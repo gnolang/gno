@@ -881,10 +881,9 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
-	// Save function-local declared types before the realm finalization
-	// below: a file-level var initializer may already hold a value of one,
-	// and FinalizeRealmTransaction persists such values (SetObject asserts
-	// resolvability of their type refs under -tags debugAssert).
+	// Save function-local types before finalization below: a file-level var
+	// initializer may already hold a value of one, and finalization persists
+	// such values (SetObject asserts their type refs under -tags debugAssert).
 	m.saveFuncLocalTypes(pv)
 	if pv.IsRealm() {
 		rlm := pv.Realm
@@ -904,9 +903,8 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// be redundant (cross-pkg: the owning pkg already SetType'd them;
 	// uverse: lives in the in-memory VM registry, not in chain state).
 	// Must stay after the finalization above: these records embed method
-	// FuncValue hashes, assigned when finalization saves the objects
-	// (moving this loop earlier panics with "non-escaped object should
-	// not have zero hash").
+	// FuncValue hashes, which exist only once the objects are saved.
+	// (Local types cannot have methods, hence they can save earlier.)
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
@@ -919,33 +917,14 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	return
 }
 
-// saveFuncLocalTypes persists every function-local declared type in the
-// package (`type S ...` inside a function or closure body, DeclaredType
-// with ParentLoc set). A value of such a type can be persisted by any
-// later transaction — assigned to an interface-typed package var, captured
-// by a closure — and its serialized RefType ("pkg[loc].Name") must resolve
-// on reload. Persisting here, like package-level types, puts the cost at
-// addpkg with the deployer (rationale: gnovm/adr/pr6084_local_type_persist.md).
-//
-// The types were collected on the PackageNode at predefine time
-// (ATTR_FUNC_LOCAL_TYPES, see AddFuncLocalType), so the save is a direct
-// iteration. No recursion through Base is needed: any local type reachable
-// from another's Base is itself declared by a *TypeDecl in the same package
-// and thus collected.
-//
-// Running before FinalizeRealmTransaction is safe only for this class of
-// types: methods attach exclusively to package-level named types, so local
-// DeclaredTypes carry none and their persisted records embed no object
-// refs. Package-level type records DO embed their method FuncValues'
-// hashes (copyTypeWithRefs -> copyMethods -> toRefValue), which exist only
-// after finalization saves the objects — hence the package-level SetType
-// loop in the caller runs after it.
+// saveFuncLocalTypes persists the package's function-local declared types
+// (collected at predefine, see AddFuncLocalType) so that persisted values'
+// serialized RefType IDs ("pkg[loc].Name") resolve on reload.
+// Rationale and ordering: gnovm/adr/pr6084_local_type_persist.md.
 func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
-	// At addpkg-save time the package was just constructed by this machine:
-	// its block is a live *Block sourced from a *PackageNode. Anything else
-	// would silently skip type persistence — the dangling-ref corruption
-	// this fix exists to prevent — so the assertions fail loudly (the tx
-	// aborts and rolls back) rather than return.
+	// The package was just constructed by this machine: a live *Block
+	// sourced from a *PackageNode. Anything else must fail loudly rather
+	// than silently skip type persistence.
 	bv := pv.Block.(*Block)
 	pn := bv.GetSource(m.Store).(*PackageNode)
 	if debugAssert {
@@ -957,12 +936,8 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 }
 
 // assertFuncLocalTypesComplete (debugAssert only) audits the predefine-time
-// bookkeeping against the language-fact enumeration: every function-local
-// type is a *TypeDecl in the fileset, so an AST walk cannot miss one. A
-// walk hit absent from ATTR_FUNC_LOCAL_TYPES means a code path minted a
-// local DeclaredType without the tryPredefine append — the invariant
-// documented on the attribute — and would otherwise persist as a dangling
-// RefType.
+// collection against an AST walk (every local type is a *TypeDecl in the
+// fileset); a mismatch means a mint path missed AddFuncLocalType.
 func assertFuncLocalTypesComplete(pn *PackageNode) {
 	fts := pn.FuncLocalTypes()
 	collected := make(map[TypeID]struct{}, len(fts))
