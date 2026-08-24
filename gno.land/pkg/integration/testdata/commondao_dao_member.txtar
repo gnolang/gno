@@ -1,0 +1,140 @@
+# A DAO acting as a council member of another DAO, end-to-end on a real node.
+#
+# P (the parent, dao/3) has two council members: the person `test1` and another
+# DAO, M (dao/2). A DAO has no private key, so M cannot sign a Vote transaction.
+# M votes by running an EXECUTION proposal in its own governance whose closure
+# calls commondao.Vote as M's own sub-identity: the host mints M's sub
+# (cur.Sub("dao/2")) and the closure crosses into Vote with it, so P records the
+# vote under M's address.
+#
+# A closure cannot be encoded in a CLI transaction, so it is authored by a small
+# policy realm (mpolicy) that sits on M's council. That realm is M's governance:
+# it creates M, opts M into the execution kind, and drives M's votes.
+#
+# We prove M's vote is decisive with the bank keeper: P passes a treasury spend
+# that a two-member council can only pass with BOTH members voting YES. After
+# only test1 votes the spend cannot execute; once M votes too, it executes and
+# the coins move.
+
+loadpkg gno.land/r/nt/commondao/v0
+
+# Collapse the genesis council to test1 (the two hardcoded members become a
+# one-address set, so a single YES is a supermajority there).
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
+
+gnoland start
+
+# Deploy the policy realm that sits on M's council and authors M's vote closures.
+gnokey maketx addpkg -pkgdir $WORK/mpolicy -pkgpath gno.land/r/$test1_user_addr/mpolicy -gas-fee 2000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# test1 (genesis council) invites itself so the DAOs below can be created.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# M = dao/2, created BY the policy realm, so mpolicy is M's sole council member.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/mpolicy -func CreateMemberDAO -gas-fee 2000000ugnot -gas-wanted 60000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Register the execution kind on M through mpolicy (M's council).
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/mpolicy -func RegisterExecutionKind -args 2 -gas-fee 2000000ugnot -gas-wanted 60000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# P = dao/3, with two council members: test1 (person) and M's address (dao/2 =
+# g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'ParentDAO' -args 'Governed by a person and a DAO' -args '' -args g1vpah5sslxspfdvj9vk07rukek327dzmtxqkmk2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Fund P's treasury (dao/3 derived address).
+gnokey maketx send -send 500000ugnot -to g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Pass a spend in P where M's vote is decisive ---
+
+# Tx1: P proposes a 300000ugnot spend to a fresh address (proposal 1 on dao/3).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 3 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 300000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Tx2: the person votes YES. That is one of two members — short of the threshold.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 3 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# With only one of two YES the proposal has not passed, so it cannot execute yet.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 3 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stderr 'voting deadline not met'
+
+# Tx3: M creates its execution proposal and passes it (proposal 2 on dao/2). Its
+# closure will cast M's YES vote in (P=3, proposal 1).
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/mpolicy -func ProposeParentVote -args 2 -args 3 -args 1 -gas-fee 2000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Tx4: executing M's proposal runs the closure, which casts M's YES vote in P as
+# M's own sub-identity (dao/2).
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/mpolicy -func ExecuteProposal -args 2 -args 2 -gas-fee 2000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Tx5: with both members' YES the spend has passed and now executes.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 3 -args 1 -gas-fee 2000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The member DAO's vote was decisive: the spend executed and the coins moved.
+gnokey query bank/balances/g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2
+stdout '300000ugnot'
+
+gnokey query bank/balances/g17pr3grpaag8ketn84dl2y0nncef6u3jw8ca9gl
+stdout '200000ugnot'
+
+-- mpolicy/gnomod.toml --
+module = "gno.land/r/mpolicy"
+gno = "0.9"
+
+-- mpolicy/mpolicy.gno --
+// Package mpolicy is a minimal "policy realm" that sits on a CommonDAO's
+// council so that DAO can act as its own address. It exists because a DAO has
+// no private key and commondao.CreateExecutionProposal needs a closure authored
+// in a persistent realm. A real deployment would gate these entrypoints to the
+// DAO's operators; it is left open here for the test.
+package mpolicy
+
+import (
+	pdao "gno.land/p/nt/commondao/v0"
+	commondao "gno.land/r/nt/commondao/v0"
+)
+
+// CreateMemberDAO creates a CommonDAO whose sole council member is THIS realm
+// (the immediate caller of New), and returns its ID. The transaction origin
+// must hold a commondao invite.
+func CreateMemberDAO(cur realm) uint64 {
+	return commondao.New(cross(cur), "MemberDAO", "A DAO governed by a policy realm", "", "")
+}
+
+// RegisterExecutionKind opts DAO mID into the execution kind through its own
+// governance. This realm is mID's sole council member, so one YES decides.
+func RegisterExecutionKind(cur realm, mID uint64) {
+	pid := commondao.CreateRegisterKindProposal(cross(cur), mID, "execution")
+	commondao.Vote(cross(cur), mID, pid, pdao.ChoiceYes, "")
+	commondao.Execute(cross(cur), mID, pid)
+}
+
+// ProposeParentVote makes DAO mID create an execution proposal that will cast a
+// YES vote as mID in the parent proposal (parentID, propID), then votes YES on
+// it as mID's sole council member so it passes. Returns the execution proposal
+// ID; ExecuteProposal runs it, which casts mID's vote in the parent.
+func ProposeParentVote(cur realm, mID, parentID, propID uint64) uint64 {
+	execID := commondao.CreateExecutionProposal(cross(cur), mID,
+		"Vote in parent DAO", "Cast this DAO's YES vote on the parent proposal.",
+		func(_ int, sub realm) error {
+			commondao.Vote(cross(sub), parentID, propID, pdao.ChoiceYes, "cast as the member DAO")
+			return nil
+		},
+	)
+	commondao.Vote(cross(cur), mID, execID, pdao.ChoiceYes, "")
+	return execID
+}
+
+// ExecuteProposal executes a passed proposal of DAO mID. This realm is a council
+// member of mID, so it may execute before the voting deadline.
+func ExecuteProposal(cur realm, mID, propID uint64) {
+	commondao.Execute(cross(cur), mID, propID)
+}

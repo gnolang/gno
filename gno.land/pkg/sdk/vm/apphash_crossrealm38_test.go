@@ -105,12 +105,34 @@ import (
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
 //
+// Bumped again by a doc-comment-only edit to chain/banker's package comment
+// (the NewBanker capability-persistence warning). Stdlib .gno sources are
+// stored in chain state, so their bytes — comments included — are covered by
+// the multistore root: editing a comment in a stdlib package is a
+// consensus-breaking change, even though no behavior changes. Confirmed by
+// reverting that comment alone, which restores the previous hash. No
+// executable code was touched.
+// Hash bumped by adding banker.GetCoin: the chain/banker stdlib gained an
+// interface method, a native declaration and a method body, and stdlib .gno
+// source bytes are committed into genesis state, so the multistore root moves.
+// The crossrealm38 scenario itself does not call GetCoin; the shift is purely the
+// stdlib source change and is intended. Note this is the *only* reason this
+// branch moves the pin — the balance split alone does not, because that scenario
+// holds no non-gas denom.
+//
+// Bumped again by the OriginSend banker lifetime fix. banker.gno gains the
+// realm-handle field that pins such a banker to its message, plus the
+// accompanying doc. Same reason as the comment-only bump noted above:
+// stdlib .gno source bytes are genesis state, so any edit to them moves the
+// root. This one does change behavior, and is intentionally
+// consensus-breaking.
+//
 // Hash bumped by the code_submission_policy PR (#5885): two new vm params
 // (code_submission_policy default "permissionless", code_submitters default
 // empty) are serialized into the genesis vm params state, shifting the
 // committed multistore root. Behavior is unchanged (policy defaults to
 // permissionless). Re-derived after merging master.
-const expectedCrossrealm38Hash = "1099be82dd5ca9fd964a6dd66c0cc37a98146302694145d43ef6fa7279b7ea46"
+const expectedCrossrealm38Hash = "f324912916d5832e8fefce0f3f73c9a73d59acef81aba236b445b041ba77f306"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

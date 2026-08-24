@@ -26,6 +26,11 @@ func daoProposalsURL(daoID uint64) string {
 	return ufmt.Sprintf("%s:%d/proposals", path, daoID)
 }
 
+func bylawsURL(daoID uint64) string {
+	path := currentRealmPath()
+	return ufmt.Sprintf("%s:%d/bylaws", path, daoID)
+}
+
 func proposalURL(daoID, proposalID uint64) string {
 	path := currentRealmPath()
 	return ufmt.Sprintf("%s:%d/proposals/%d", path, daoID, proposalID)
