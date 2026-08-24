@@ -25,6 +25,14 @@ var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 // method) whose first parameter is the realm capability token `cur realm`.
 var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm\b`)
 
+// funcSigRE captures a func declaration's parameter list: group 1 is the
+// receiver (empty for a plain func), group 2 the parameters. A signature that
+// wraps across lines is not matched — the scanner is line-based.
+var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
+
+// realmParamRE matches a single `name realm` parameter.
+var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
+
 // pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
 // the receiver, so a pointer to one is a live mutator handle. avl.Tree is the
 // canonical example (Set/Remove/ReverseIterate); extend as more are documented.
@@ -166,9 +174,9 @@ func RunRule(rule, dir string) ([]Hit, error) {
 
 // unsafePreviousRealmHits flags any PreviousRealm() call in a file that also
 // declares a crossing function (`func F(cur realm, ...)`). In a crossing
-// function the caller must be derived from cur.Previous() under a
-// cur.IsCurrent() guard; reaching for chain/runtime/unsafe.PreviousRealm()
-// instead skips the frame check and ignores the cur token (guide §5.8).
+// function the caller must be derived from cur.Previous(); reaching for
+// chain/runtime/unsafe.PreviousRealm() instead ignores the cur token and
+// reports the outermost crossing realm, not the immediate caller (guide §5.8).
 func unsafePreviousRealmHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -236,6 +244,41 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 	return hits, nil
 }
 
+// guardedRealmParams returns the realm-typed parameter names in a func
+// declaration line that require an IsCurrent() check. A crossing function's
+// first parameter (`cur realm` in first position) is minted per crossing frame
+// by the runtime and is always current, so it is excluded. Every other realm
+// parameter is filled from an ordinary argument and can carry a forwarded or
+// derived realm value such as cur.Previous().
+func guardedRealmParams(line string) []string {
+	m := funcSigRE.FindStringSubmatch(line)
+	if m == nil {
+		return nil
+	}
+	var names []string
+	for i, p := range strings.Split(m[2], ",") {
+		pm := realmParamRE.FindStringSubmatch(strings.TrimSpace(p))
+		if pm == nil {
+			continue
+		}
+		if i == 0 && pm[1] == "cur" {
+			continue
+		}
+		names = append(names, pm[1])
+	}
+	return names
+}
+
+// realmValueRead reports whether line derives an identity from realm value name.
+func realmValueRead(line, name string) bool {
+	for _, accessor := range []string{".Previous()", ".Address()", ".PkgPath()"} {
+		if strings.Contains(line, name+accessor) {
+			return true
+		}
+	}
+	return false
+}
+
 func currentGuardHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -250,27 +293,36 @@ func currentGuardHits(dir string) ([]Hit, error) {
 		}
 		inFunc := false
 		braceDepth := 0
-		seenIsCurrent := false
+		var guarded []string
+		seen := map[string]bool{}
 		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
 				braceDepth = 0
-				seenIsCurrent = false
+				guarded = guardedRealmParams(trimmed)
+				seen = map[string]bool{}
 			}
 			if inFunc {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
-			}
-			if strings.Contains(line, ".IsCurrent()") {
-				seenIsCurrent = true
-			}
-			if strings.Contains(line, ".Previous()") && !seenIsCurrent {
-				hits = append(hits, src.hit(dir, file, i))
+				for _, name := range guarded {
+					if strings.Contains(line, name+".IsCurrent()") {
+						seen[name] = true
+						continue
+					}
+					if seen[name] {
+						continue
+					}
+					if realmValueRead(line, name) {
+						hits = append(hits, src.hit(dir, file, i))
+						break
+					}
+				}
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
-				seenIsCurrent = false
+				guarded = nil
 			}
 		}
 	}

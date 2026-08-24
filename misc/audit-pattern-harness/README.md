@@ -56,7 +56,7 @@ variant runs automatically when `GNO_BIN` is set or `gno` is available on
 
 Current pattern slices:
 
-- `current-guard`: `cur.Previous()` before `cur.IsCurrent()`.
+- `current-guard`: a secondary `rlm realm` parameter trusted without `rlm.IsCurrent()`.
 - `render-markdown`: raw `Render(path)` markdown output.
 - `payment-user-call`: `OriginSend()` without an `IsUserCall()` guard.
 - `origin-caller-auth`: `OriginCaller()` used as authorization identity.
@@ -106,10 +106,13 @@ false positives and false negatives in real-world code.
 
 ### current_guard
 
-Detects `.Previous()` before `.IsCurrent()` only within the **same function**.
-If the `IsCurrent()` check lives in a helper function called from the same
-function that calls `.Previous()`, the detector will not flag it. Check helper
-call chains manually when auditing cross-realm code.
+Detects a secondary `rlm realm` parameter read before `rlm.IsCurrent()` only
+within the **same function**, and only when the signature fits on one line. A
+crossing function's first `cur realm` is exempt: the runtime mints it per
+crossing frame, so `cur.IsCurrent()` on it is always true (see
+`gnovm/tests/files/zrealm_iscurrent.gno`). If the check lives in a helper
+called from the function that reads the realm value, the detector will not
+flag it. Check helper call chains manually when auditing cross-realm code.
 
 ### payment_user_call
 

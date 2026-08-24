@@ -32,15 +32,12 @@ func Message() string {
 
 func Render(path string) string {
 	out := "# Security Patterns\n\n"
-	out += "This realm demonstrates three defensive patterns; read the source " +
+	out += "This realm demonstrates two defensive patterns; read the source " +
 		"alongside this page:\n\n"
-	out += "1. **Live-realm guard** — `assertAdmin` panics unless " +
-		"`cur.IsCurrent()` holds, so a stale realm token captured elsewhere " +
-		"cannot mutate state.\n"
-	out += "2. **Caller identity via `cur.Previous().Address()`** — the admin " +
+	out += "1. **Caller identity via `cur.Previous().Address()`** — the admin " +
 		"check reads the immediate caller, not `OriginCaller()`, so an " +
 		"intermediary realm cannot pass itself off as the user.\n"
-	out += "3. **Sanitized render output** — every value echoed below is run " +
+	out += "2. **Sanitized render output** — every value echoed below is run " +
 		"through `p/nt/markdown/sanitize` first, so caller-controlled text " +
 		"cannot inject markdown or break out of a code span.\n\n"
 	// InlineCode wraps in a backtick run wide enough to outscan any backticks
@@ -54,13 +51,10 @@ func Render(path string) string {
 	return out
 }
 
-// assertAdmin guards a state-mutating call. The caller must pass its own cur
-// realm down; assertAdmin is a non-crossing helper, so it does not shift
-// PreviousRealm — the crossing happened in the outer function.
+// assertAdmin guards a state-mutating call. The caller forwards its own cur
+// without crossing, so cur.Previous() still names the realm that crossed into
+// the exported entrypoint rather than this realm.
 func assertAdmin(cur realm) bool {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	if cur.Previous().Address() != admin {
 		panic("admin only")
 	}

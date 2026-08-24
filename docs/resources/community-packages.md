@@ -170,9 +170,6 @@ import "gno.land/p/nt/ownable/v0"
 var owner = ownable.NewWithAddress("g1...")
 
 func SetName(cur realm, name string) {
-    if !cur.IsCurrent() {
-        panic("invalid realm")
-    }
     owner.AssertOwnedBy(cur.Previous().Address())
     displayName = name
 }

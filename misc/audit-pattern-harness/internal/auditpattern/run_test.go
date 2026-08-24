@@ -53,7 +53,7 @@ func TestCurrentGuardRule(t *testing.T) {
 	if len(hits) != 1 {
 		t.Fatalf("expected 1 hit, got %d", len(hits))
 	}
-	if hits[0].File != "admin.gno" || hits[0].Line != 7 {
+	if hits[0].File != "admin.gno" || hits[0].Line != 12 {
 		t.Fatalf("unexpected hit: %+v", hits[0])
 	}
 
@@ -170,17 +170,15 @@ func TestRuleNormalizesFormatting(t *testing.T) {
 	}
 }
 
-// TestBraceInStringNoFalsePositive ensures a "}" inside a string literal does
-// not flip brace-depth tracking and flag a correctly guarded function.
-func TestBraceInStringNoFalsePositive(t *testing.T) {
+// TestBraceInStringTracksFunctionBody ensures a "}" inside a string literal
+// does not flip brace-depth tracking and end the function body early, which
+// would hide the unguarded realm read that follows it.
+func TestBraceInStringTracksFunctionBody(t *testing.T) {
 	dir := t.TempDir()
 	src := "package x\n\n" +
-		"func F(cur realm) {\n" +
-		"\tif !cur.IsCurrent() {\n" +
-		"\t\tpanic(\"no\")\n" +
-		"\t}\n" +
+		"func F(_ int, rlm realm) {\n" +
 		"\tmsg := \"}\"\n" +
-		"\t_ = cur.Previous()\n" +
+		"\t_ = rlm.Previous()\n" +
 		"\t_ = msg\n" +
 		"}\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
@@ -191,8 +189,8 @@ func TestBraceInStringNoFalsePositive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 0 {
-		t.Fatalf("guarded function flagged due to brace in string: %+v", hits)
+	if len(hits) != 1 {
+		t.Fatalf("brace in string ended the function body early: %+v", hits)
 	}
 }
 
@@ -290,9 +288,9 @@ func TestRenderMapIterationWordBoundary(t *testing.T) {
 func TestHitReportsOriginalSourceLine(t *testing.T) {
 	dir := t.TempDir()
 	src := "package x\n\n" + // 1, 2
-		"func F(cur realm) {\n" + // 3
+		"func F(_ int, rlm realm) {\n" + // 3
 		"\n\n\n" + // 4, 5, 6 (collapsed to one by gofmt)
-		"\t_ = cur.Previous()\n" + // 7
+		"\t_ = rlm.Previous()\n" + // 7
 		"}\n" // 8
 	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -308,7 +306,7 @@ func TestHitReportsOriginalSourceLine(t *testing.T) {
 	if hits[0].Line != 7 {
 		t.Fatalf("hit line %d does not match on-disk line 7: %+v", hits[0].Line, hits[0])
 	}
-	if hits[0].Text != "_ = cur.Previous()" {
+	if hits[0].Text != "_ = rlm.Previous()" {
 		t.Fatalf("hit text %q does not match on-disk source", hits[0].Text)
 	}
 }
