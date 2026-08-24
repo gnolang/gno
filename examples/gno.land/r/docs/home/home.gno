@@ -46,6 +46,7 @@ The cur capability, crossing functions, and who is allowed to call what.
 - [Resolving users](/r/docs/resolveusers) — read identity from ^r/sys/users^.
 - [User profiles](/r/docs/userprofile) — per-user profile data on top of ^r/sys/users^ and ^r/demo/profile^.
 - [Private realms](/r/docs/private) — the gnomod private flag and realm isolation.
+- [Security patterns](/r/docs/security_patterns) — an admin gate built on ^cur.Previous().Address()^, and ^Render^ output escaped through ^p/nt/markdown/sanitize^.
 
 ## Advanced / Patterns
 
