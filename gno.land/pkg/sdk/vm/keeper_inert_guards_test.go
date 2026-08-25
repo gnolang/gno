@@ -1193,3 +1193,50 @@ func TestChainDomainAccessorsAgree(t *testing.T) {
 		})
 	}
 }
+
+// TestVMKeeperEnableTypeChecksProductionFilesOnly pins ProdOnly on the enable
+// type check.
+//
+// A parked blob is stored exactly as submitted, test files included, and enable
+// type-checks it. Without ProdOnly it would check the _test.gno files too, and
+// resolving their test-stdlib imports needs a getter the consensus path does not
+// have -- so the answer would depend on what the node has on disk rather than on
+// what the chain agreed. That is a consensus split, and it fails silently: nodes
+// that agree still agree, so nothing shows up until one does not.
+//
+// AddPackage takes the same option for the same reason. This test exists because
+// mutating ProdOnly to false broke nothing else in the suite.
+func TestVMKeeperEnableTypeChecksProductionFilesOnly(t *testing.T) {
+	const pkgPath = "gno.land/r/test/prodonly"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// The production file compiles. The test file does not: it calls something
+	// that does not exist, so type-checking it is an error.
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "prodonly.gno", Body: `package prodonly
+
+func Who(cur realm) string { return "live" }`},
+		{Name: "prodonly_test.gno", Body: `package prodonly
+
+func BrokenIfTypeChecked() { thisSymbolDoesNotExist() }`},
+	}
+	slices.SortFunc(files, func(a, b *std.MemFile) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+	gs := env.vmk.getGnoTransactionStore(ctx)
+	parked := gs.GetInertPackage(pkgPath)
+	require.NotNil(t, parked)
+	require.Len(t, parked.Files, 3,
+		"the parked blob keeps the test file, which is what makes ProdOnly matter")
+
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		"enable must type-check production files only; a broken _test.gno is not its business")
+	assert.NotNil(t, gs.GetPackage(pkgPath, false), "and the package must go live")
+}
