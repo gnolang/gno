@@ -505,8 +505,22 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 // nothing gpao approves should need more than a full block's worth anyway.
 func (o *oracle) queryBlockMaxGas(ctx context.Context) int64 {
 	res, err := o.client.RPCClient.ConsensusParams(ctx, nil)
+	maxGas := blockMaxGasFrom(res, err)
+	if maxGas == defaultBlockMaxGas {
+		o.logf("gpao: using %d for block max gas: %v", defaultBlockMaxGas, err)
+	}
+	return maxGas
+}
+
+// blockMaxGasFrom picks the ceiling from a consensus-params response, falling
+// back to defaultBlockMaxGas on anything unusable.
+//
+// Split out from the query so it can be tested without a node. A chain may
+// legitimately report -1, meaning no bound; the fallback covers that too,
+// because an unbounded ceiling would let one absurd estimate ask for unbounded
+// gas.
+func blockMaxGasFrom(res *ctypes.ResultConsensusParams, err error) int64 {
 	if err != nil || res == nil || res.ConsensusParams.Block == nil {
-		o.logf("gpao: could not read block max gas, assuming %d: %v", defaultBlockMaxGas, err)
 		return defaultBlockMaxGas
 	}
 	if maxGas := res.ConsensusParams.Block.MaxGas; maxGas > 0 {

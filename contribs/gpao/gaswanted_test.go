@@ -1,9 +1,13 @@
 package main
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 )
 
 // TestGasWantedFor covers the sizing of an enable's GasWanted.
@@ -85,5 +89,45 @@ func TestGasWantedFor(t *testing.T) {
 			"an estimate above the chain's own limit must be cut to it")
 		assert.Equal(t, int64(120_000), gasWantedFor(100_000, fallback, small),
 			"and one below it still gets its headroom")
+	})
+}
+
+// TestBlockMaxGasFrom covers how the gas ceiling is chosen from what the node
+// reports.
+//
+// The ceiling has to be the chain's own Block.MaxGas, because the ante refuses
+// a transaction above it rather than clamping. Everything unusable falls back to
+// the tm2 default rather than to zero or to no bound: zero would make every
+// approval fail instantly, and no bound would let one absurd estimate ask for
+// unbounded gas.
+func TestBlockMaxGasFrom(t *testing.T) {
+	withMaxGas := func(v int64) *ctypes.ResultConsensusParams {
+		return &ctypes.ResultConsensusParams{
+			ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: v}},
+		}
+	}
+
+	t.Run("the chain's own value is used", func(t *testing.T) {
+		assert.Equal(t, int64(500_000), blockMaxGasFrom(withMaxGas(500_000), nil))
+	})
+
+	t.Run("a query error falls back", func(t *testing.T) {
+		assert.Equal(t, defaultBlockMaxGas,
+			blockMaxGasFrom(withMaxGas(500_000), errors.New("node unreachable")),
+			"a reported value must not be trusted when the query itself failed")
+	})
+
+	t.Run("no bound falls back rather than being taken literally", func(t *testing.T) {
+		// -1 is legal and means "no limit". Honouring it would remove the only
+		// thing stopping an absurd estimate.
+		assert.Equal(t, defaultBlockMaxGas, blockMaxGasFrom(withMaxGas(-1), nil))
+		assert.Equal(t, defaultBlockMaxGas, blockMaxGasFrom(withMaxGas(0), nil))
+	})
+
+	t.Run("a malformed response falls back", func(t *testing.T) {
+		assert.Equal(t, defaultBlockMaxGas, blockMaxGasFrom(nil, nil))
+		assert.Equal(t, defaultBlockMaxGas,
+			blockMaxGasFrom(&ctypes.ResultConsensusParams{}, nil),
+			"a response with no Block section must not nil-deref")
 	})
 }
