@@ -310,10 +310,14 @@ func GetRunSubmitters() []string {
 // and the list is not re-checked when they do. It rules out arriving at a dead
 // list in one vote; it cannot rule out drifting into one.
 func ProposeSetRunSubmitters(cur realm, addrs []string) dao.ProposalRequest {
-	// IsCurrent before Previous, as assertDelegate does. Without it a caller
-	// threading a stashed or sibling-frame realm value picks whose address the
-	// rule below is checked against -- and that address is the one the proposal
-	// is required to list.
+	// IsCurrent before Previous, as AGENTS.md requires and assertDelegate does.
+	//
+	// Belt and braces here rather than load-bearing: the compiler already
+	// refuses anything but `cur` or `cross(rlm)` as the first argument to a
+	// crossing function, so this cur is live by construction and the check
+	// cannot fire. It earns its place if this ever becomes a helper taking an
+	// ordinary realm parameter, which is the shape assertDelegate has and where
+	// a stashed value really can be threaded in.
 	if !cur.IsCurrent() {
 		panic("unauthorized: cur is not the caller's live realm")
 	}

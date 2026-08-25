@@ -564,3 +564,37 @@ func TestSetRunSubmittersReplacesTheList(cur realm, t *testing.T) {
 	uassert.Equal(t, 0, len(GetRunSubmitters()),
 		"an empty list must be reachable, or the gate can never be turned off")
 }
+
+// TestAssertDelegateRejectsANonLiveRealm covers the IsCurrent check in
+// assertDelegate.
+//
+// This is the shape where the check can actually fire. assertDelegate takes its
+// realm as an ordinary parameter, so a caller can hand it a stashed or
+// sibling-frame value; without IsCurrent it would then compare that value's
+// Previous() against the delegate path and admit whoever assembled it.
+//
+// Crossing functions cannot be tested this way, and do not need to be: the
+// compiler refuses anything but `cur` or `cross(rlm)` as their first argument,
+// so their cur is live by construction.
+func TestAssertDelegateRejectsANonLiveRealm(cur realm, t *testing.T) {
+	resetDelegation()
+	defer resetDelegation()
+
+	runSubmittersMgr = testDelegate
+
+	// A synthetic realm whose Previous() names the delegate. The path check
+	// alone would admit it; IsCurrent is the only thing that does not.
+	fake := testing.MakeRealm(
+		testutils.TestAddress("impostor"), "gno.land/r/impostor",
+		testing.MakeRealm(testutils.TestAddress("d"), testDelegate, testing.OriginRealm()),
+	)
+	uassert.Equal(t, testDelegate, fake.Previous().PkgPath(),
+		"premise: the forged realm must pass the path check, or this proves nothing")
+
+	// PanicsContains, not Aborts: assertDelegate is called directly here, in
+	// this realm, so the refusal is a panic. It surfaces as an abort only when
+	// it happens across a realm boundary.
+	uassert.PanicsContains(t, cur, "not the caller's live cur", func() {
+		assertDelegate(0, fake, runSubmittersMgr, "the "+runSubmittersKey+" allowlist")
+	})
+}
