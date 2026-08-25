@@ -120,7 +120,10 @@ import (
 )
 
 func main(cur realm) {
-	prop := params.NewSysParamStringsPropRequest(cross(cur), "vm", "p", "run_submitters",
+	// The dedicated setter, not the generic factory: vm:p:run_submitters is
+	// reserved so every whole-list write carries the proposer rule. test1 signs
+	// this and is the address being listed, which is what that rule requires.
+	prop := params.ProposeSetRunSubmitters(cross(cur),
 		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
 	dao.MustCreateProposal(cross(cur), prop)
 }

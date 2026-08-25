@@ -453,3 +453,64 @@ func TestRunSubmittersDelegateCannotArmTheGate(cur realm, t *testing.T) {
 	uassert.Equal(t, 2, len(GetRunSubmitters()),
 		"curating an armed list is still the delegate's job")
 }
+
+// TestRunSubmittersKeyIsReservedFromGenericFactories pins that the whole-list
+// path is the dedicated constructor and nothing else.
+//
+// The generic factories take module, submodule and name as arguments, so
+// without this any of the nine could write run_submitters and walk past the
+// proposer rule in ProposeSetRunSubmitters. Same shape as the valset
+// reservation next to it.
+func TestRunSubmittersKeyIsReservedFromGenericFactories(cur realm, t *testing.T) {
+	addr := testutils.TestAddress("someone").String()
+
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamStringsPropRequest(cross(cur), "vm", "p", runSubmittersKey, []string{addr})
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamStringsPropRequestWithTitle(cross(cur), "vm", "p", runSubmittersKey, "t", []string{addr})
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamStringsPropRequestAddWithTitle(cross(cur), "vm", "p", runSubmittersKey, "t", []string{addr})
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamStringsPropRequestRemoveWithTitle(cross(cur), "vm", "p", runSubmittersKey, "t", []string{addr})
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamStringPropRequest(cross(cur), "vm", "p", runSubmittersKey, addr)
+	})
+
+	// A different key in the same module is unaffected.
+	uassert.NotAborts(t, cur, func() {
+		NewSysParamStringsPropRequest(cross(cur), "vm", "p", "code_submitters", []string{addr})
+	})
+}
+
+// TestProposeSetRunSubmittersRequiresProposerOnTheList covers the rule that a
+// non-empty allowlist must include whoever proposed it.
+//
+// A list naming nobody who can create a proposal cannot be undone, because
+// creating one needs MsgRun. Requiring the proposer's own address proves the
+// list is usable: GovDAO refuses a proposal from a non-member, and the proposer
+// just signed the transaction, so that address demonstrably holds a key.
+func TestProposeSetRunSubmittersRequiresProposerOnTheList(cur realm, t *testing.T) {
+	other := testutils.TestAddress("someone-else").String()
+
+	// A list without the proposer is refused.
+	uassert.AbortsContains(t, cur, "omits the proposer", func() {
+		ProposeSetRunSubmitters(cross(cur), []string{other})
+	})
+
+	// Emptying the list is always allowed: that switches the gate off, which
+	// cannot lock anyone out.
+	uassert.NotAborts(t, cur, func() {
+		ProposeSetRunSubmitters(cross(cur), []string{})
+	})
+
+	// A list that does include the proposer goes through.
+	proposer := testutils.TestAddress("proposer")
+	testing.SetRealm(testing.NewUserRealm(proposer))
+	uassert.NotAborts(t, cur, func() {
+		ProposeSetRunSubmitters(cross(cur), []string{other, proposer.String()})
+	})
+}

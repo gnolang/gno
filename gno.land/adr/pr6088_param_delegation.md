@@ -303,3 +303,60 @@ supermajority from writing validator-set state through the generic factory.
 Written with AI assistance (Claude Code). The design in this document is the
 second one; the first is described under "A named slot, not a registry" and was
 discarded for the reasons given there.
+
+## The whole-list path, and why the proposer must be on the list
+
+An empty `run_submitters` means the MsgRun gate is off. So the dangerous state is
+not an empty list but a **non-empty one that names nobody able to create a GovDAO
+proposal**, and that state cannot be undone: creating a proposal needs MsgRun,
+because a `ProposalRequest` carries an `Executor` and `MsgCall` cannot build one
+from string arguments, while `isValidCall` refuses realm intermediaries. The vote
+that armed the gate would be the last vote.
+
+Two changes close the ways to get there in one step.
+
+`vm:p:run_submitters` is reserved from the nine generic
+`NewSysParam*PropRequest` factories, exactly as `node:valset:*` already is, and a
+dedicated `ProposeSetRunSubmitters` owns the whole-list path. Reserving the key
+keeps the number of ways to write this parameter at one, rather than adding the
+same check to nine siblings and hoping the tenth remembers.
+
+That constructor requires the proposer's own address to be on any non-empty list
+it proposes. GovDAO refuses a proposal from a non-member, so if the proposal
+exists its author is a member -- and they just signed the transaction that
+created it, so the address demonstrably holds a key. That is what makes this
+stronger than requiring the list merely to *name* a member: any member may enrol
+an arbitrary address, so a named member proves neither that anyone holds the key
+nor that they will use it.
+
+It is checked at proposal creation, not in the executor. Nothing in
+`r/gov/dao` recovers from an executor panic, so a check that fires at execution
+turns a passed proposal into one that can never be executed. At creation the
+refusal reaches a person who can still fix the list.
+
+**What this is not.** It is a floor, not an invariant, and three gaps are worth
+stating plainly rather than discovering later:
+
+- It decays. The proposer may resign from GovDAO afterwards, and nothing
+  re-checks the list when they do. It rules out arriving at a dead list in one
+  vote; it cannot rule out drifting into one.
+- It is not global. `gnogenesis params set vm.run_submitters` and the
+  `RealmParams` loader write the keeper directly, bypassing this realm entirely,
+  so a memberless list is still reachable at genesis.
+- It does not bound capture. A member who lists only themselves satisfies the
+  rule and then holds the sole MsgRun capability on the chain.
+
+**Recovery, if it happens anyway.** Voting and executing an already-created
+proposal are both `MsgCall`-able (`MustVoteOnProposalSimple`,
+`ExecuteProposal`), and proposals never expire. So a "reset `run_submitters`"
+proposal created *before* the gate is armed is a permanent one-shot rescue that
+survives a total MsgRun lockout. Worth doing on any chain that arms this gate.
+
+**The durable fix, deliberately not taken here.** All of this exists because
+proposal *creation* is MsgRun-only, and that is an argument-marshalling
+accident rather than a security property -- `isValidCall` already admits
+`MsgCall`. Making one narrow proposal `MsgCall`-constructible, through a
+GovDAO-controlled registry of proposal-factory realms, would remove the coupling
+instead of guarding one instance of it, and would cover the genesis paths no
+realm-side rule can reach. That is a change to `r/gov/dao` and needs its own
+review.

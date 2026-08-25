@@ -281,3 +281,72 @@ func GetRunSubmitters() []string {
 	vals, _ := prms.GetSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey)
 	return vals
 }
+
+// ProposeSetRunSubmitters creates a GovDAO proposal replacing the whole
+// run_submitters allowlist.
+//
+// This is the only way to set the list by vote: the generic factories refuse
+// the key (see assertNotRunSubmittersKey), so every whole-list write comes
+// through here and carries the rule below.
+//
+// The proposer must be on the list they propose.
+//
+// An empty run_submitters means the gate is off and anyone may MsgRun. A
+// non-empty one therefore decides who may run code at all -- and a list naming
+// nobody who can create a GovDAO proposal cannot be undone, because creating a
+// proposal needs MsgRun: a ProposalRequest carries an Executor, and MsgCall
+// cannot build one from string arguments. The vote would end governance.
+//
+// Requiring the proposer's own address is a cheap way to prove the list is
+// usable rather than merely plausible. GovDAO refuses a proposal from a
+// non-member (PreCreateProposal, "only members can create new proposals"), so
+// if this proposal exists at all its author is a member -- and they just signed
+// the transaction that created it, so the address demonstrably holds a key. A
+// list that merely NAMES a member proves neither: the address may belong to
+// nobody, since any member can enroll an arbitrary address.
+//
+// Checked here, at proposal creation, rather than inside the executor. Nothing
+// in r/gov/dao recovers from an executor panic, so a check that fires at
+// execution turns a passed proposal into one that can never be executed. Here
+// the refusal reaches a person who can still fix the list and propose again.
+//
+// This is a floor, not an invariant. The proposer may resign from GovDAO later,
+// and the list is not re-checked when they do. It rules out arriving at a dead
+// list in one vote; it cannot rule out drifting into one.
+func ProposeSetRunSubmitters(cur realm, addrs []string) dao.ProposalRequest {
+	proposer := cur.Previous().Address()
+	listed := false
+	for _, a := range addrs {
+		if a == proposer.String() {
+			listed = true
+			break
+		}
+	}
+	if len(addrs) > 0 && !listed {
+		panic("refusing to propose a " + runSubmittersKey + " allowlist that omits " +
+			"the proposer " + proposer.String() + ": a non-empty list that names nobody " +
+			"who can create a proposal cannot be changed back")
+	}
+
+	title := "Set the " + runSubmittersKey + " allowlist"
+	desc := "Replace the " + runSubmittersKey + " allowlist, which gates who may " +
+		"send MsgRun."
+	if len(addrs) == 0 {
+		desc += " This empties the list, which switches the gate OFF: anyone may " +
+			"send MsgRun."
+	} else {
+		desc += " Only these addresses may send MsgRun. Creating a GovDAO proposal " +
+			"needs MsgRun, so this list also decides who can govern."
+		for _, a := range addrs {
+			desc += "\n- " + a
+		}
+	}
+
+	callback := func(cur realm) error {
+		prms.UpdateSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs, true)
+		chain.Emit("SetRunSubmitters", "key", runSubmittersKey, "proposer", proposer.String())
+		return nil
+	}
+	return dao.NewProposalRequest(title, desc,
+		dao.NewSimpleExecutor(0, cur, callback, ""))
+}
