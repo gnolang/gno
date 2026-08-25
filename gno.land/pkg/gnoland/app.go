@@ -179,6 +179,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// params are user-tunable consensus state and we want a
 			// real gas signal on changes), so this read uses the ctx's
 			// current (default) gasCfg until it's replaced below.
+			// "Meters" means it does not nil the meter the way
+			// acck.GetParams does; the read still costs nothing here,
+			// because the ctx is on the infinite meter until
+			// auth.SetGasMeter runs. See checkCodePolicy.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three

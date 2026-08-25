@@ -634,9 +634,15 @@ const (
 //
 // Returns the fallback when the estimate is unusable (zero or negative, i.e.
 // the simulation did not produce a number), so a failed estimate degrades to
-// the configured -gas-wanted rather than to zero gas.
+// the configured -gas-wanted rather than to zero gas. The fallback is bounded
+// too: -gas-wanted is operator input and can exceed the chain's Block.MaxGas,
+// which the ante refuses outright rather than clamping. An unbounded fallback
+// would fail every enable on exactly the chains it exists to keep working on.
 func gasWantedFor(estimated, fallback, ceiling int64) int64 {
 	if estimated <= 0 {
+		if fallback > ceiling {
+			return ceiling
+		}
 		return fallback
 	}
 	// Overflow guard before the multiply: an absurd estimate would otherwise
@@ -681,11 +687,10 @@ func (o *oracle) enable(pkgPath string) error {
 	// so. The alternative -- refusing to approve because the node would not
 	// simulate -- hands anyone who can disturb the query path a way to stall
 	// approvals chain-wide.
-	gasWanted := o.cfg.gasWanted
+	gasWanted := gasWantedFor(0, o.cfg.gasWanted, o.blockMaxGas)
 	estimated, err := o.client.EstimateGas(probe)
 	if err != nil {
-		o.logf("estimate failed for %s, using -gas-wanted %d: %v",
-			pkgPath, o.cfg.gasWanted, err)
+		o.logf("estimate failed for %s, using %d: %v", pkgPath, gasWanted, err)
 	} else {
 		gasWanted = gasWantedFor(estimated, o.cfg.gasWanted, o.blockMaxGas)
 		o.logf("estimated %d gas for %s, sending with %d", estimated, pkgPath, gasWanted)

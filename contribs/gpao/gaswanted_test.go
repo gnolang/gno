@@ -90,6 +90,16 @@ func TestGasWantedFor(t *testing.T) {
 		assert.Equal(t, int64(120_000), gasWantedFor(100_000, fallback, small),
 			"and one below it still gets its headroom")
 	})
+
+	t.Run("a fallback above the chain's ceiling is cut to it", func(t *testing.T) {
+		// The fallback is -gas-wanted, which is operator input and is not
+		// checked against the chain. It is also what a failed estimate degrades
+		// to -- so leaving it unbounded would refuse every enable on exactly
+		// the chains the fallback exists to keep working on.
+		const small = int64(500_000)
+		assert.Greater(t, fallback, small, "premise: the fallback must exceed the ceiling")
+		assert.Equal(t, small, gasWantedFor(0, fallback, small))
+	})
 }
 
 // TestBlockMaxGasFrom covers how the gas ceiling is chosen from what the node
