@@ -8,18 +8,16 @@ var (
 )
 
 func SetMessage(cur realm, next string) {
-	if assertAdmin(cur) {
-		message = next
-	}
+	assertAdmin(cur)
+	message = next
 }
 
 func TransferAdmin(cur realm, next address) {
 	if !next.IsValid() {
 		panic("invalid admin")
 	}
-	if assertAdmin(cur) {
-		admin = next
-	}
+	assertAdmin(cur)
+	admin = next
 }
 
 func Admin() address {
@@ -47,7 +45,7 @@ func Render(path string) string {
 	// in the content, so a backtick in path cannot close the span early — a
 	// naive "`" + path + "`" would.
 	out += "Admin: " + sanitize.InlineCode(admin.String()) + "\n\n"
-	out += "Message: " + escapeRenderText(message) + "\n"
+	out += "Message: " + sanitize.InlineText(message) + "\n"
 	if path != "" {
 		out += "\nPath: " + sanitize.InlineCode(path) + "\n"
 	}
@@ -57,16 +55,11 @@ func Render(path string) string {
 // assertAdmin guards a state-mutating call. The caller must pass its own cur
 // realm down; assertAdmin is a non-crossing helper, so it does not shift
 // PreviousRealm — the crossing happened in the outer function.
-func assertAdmin(cur realm) bool {
+func assertAdmin(cur realm) {
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}
 	if cur.Previous().Address() != admin {
 		panic("admin only")
 	}
-	return true
-}
-
-func escapeRenderText(s string) string {
-	return sanitize.InlineText(s)
 }
