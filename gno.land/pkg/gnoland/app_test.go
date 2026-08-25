@@ -4131,3 +4131,112 @@ func TestTxCodeMsgSigners(t *testing.T) {
 		})
 	}
 }
+
+// TestSimulateVerifiesSignaturesOnCodeBearingTx pins that gno.land actually
+// WIRES txCarriesCode into the ante, not merely that the predicate and the ante
+// mechanism each work on their own.
+//
+// Both halves were already covered and the connection between them was not.
+// TestTxCarriesCode checks the predicate; the auth package checks that the ante
+// honours RequireSigForSimulate. Deleting `RequireSigForSimulate: txCarriesCode`
+// from NewAppWithOptions broke neither -- verified by mutation.
+//
+// What that line buys: `.app/simulate` is a public query that EXECUTES the
+// messages it is given. Skipping signature verification there is safe only for
+// messages whose authorization does not depend on who signed. MsgRun and
+// MsgAddPackage are gated on their signer, so without verification an
+// unauthenticated caller could name a listed address, attach arbitrary bytes as
+// a signature, and drive a full type-check and init() per query. The soundness
+// argument in checkCodePolicy rests on this line.
+func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
+	t.Parallel()
+
+	const chainID = "test-chain"
+	key := getDummyKeys(t, 1)[0]
+	addr := key.PubKey().Address()
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Balances: []Balance{{
+				Address: addr,
+				Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
+			}},
+			Auth: auth.DefaultGenesisState(),
+			Bank: bank.DefaultGenesisState(),
+			VM:   vm.DefaultGenesisState(),
+		},
+	})
+	app.Commit()
+
+	// Advance one block before simulating, and do not remove this.
+	//
+	// The ante treats ctx.BlockHeight() == 0 as genesis, and at genesis with
+	// SkipGenesisSigVerification -- which TestAppOptions sets -- it skips
+	// signature checks entirely, before RequireSigForSimulate is ever consulted.
+	// Simulating straight after InitChain therefore accepts any signature, so
+	// this test would pass against a build with the wiring deleted.
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
+		ChainID: chainID, Height: 1, Time: time.Now(),
+	}})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// A correctly shaped transaction whose signature is garbage. Shape matters:
+	// a missing or miscounted signature is refused in every mode by
+	// tx.ValidateBasic, which would make this pass for the wrong reason.
+	// The refusal lands in the transaction result, which .app/simulate returns
+	// amino-marshalled inside the query response Value. ResponseQuery.Error is
+	// only for a failure of the query itself, so asserting on it would pass for
+	// the wrong reason -- it is nil here even when the ante refuses.
+	simulate := func(t *testing.T, msgs []std.Msg) abci.ResponseDeliverTx {
+		t.Helper()
+		tx := createAndSignTxWithAccSeq(t, msgs, chainID, key, 0, 0)
+		require.Len(t, tx.Signatures, 1)
+		tx.Signatures[0].Signature = []byte("not a real signature at all")
+		raw, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		qres := app.Query(abci.RequestQuery{Path: ".app/simulate", Data: raw})
+		require.Nil(t, qres.Error, "the query itself must succeed: %v", qres.Error)
+		var dres abci.ResponseDeliverTx
+		require.NoError(t, amino.Unmarshal(qres.Value, &dres))
+		return dres
+	}
+
+	t.Run("a code-bearing message is refused", func(t *testing.T) {
+		res := simulate(t, []std.Msg{vm.MsgRun{
+			Caller: addr,
+			Package: &std.MemPackage{
+				Name: "main",
+				Path: "gno.land/e/" + addr.String() + "/run",
+				Files: []*std.MemFile{
+					{Name: "main.gno", Body: "package main\n\nfunc main() {}\n"},
+				},
+			},
+		}})
+		require.NotNil(t, res.Error,
+			"simulate must verify signatures for a message authorized by its signer")
+		assert.Contains(t, fmt.Sprintf("%v %s", res.Error, res.Log), "signature",
+			"and must refuse on the signature, not on something incidental")
+	})
+
+	t.Run("an ordinary message still simulates without a valid signature", func(t *testing.T) {
+		// The other half of the predicate: too wide and keyless gas estimation
+		// breaks for every ordinary message. MsgCall is not signer-authorized,
+		// so it must still be estimable by a caller holding no key.
+		res := simulate(t, []std.Msg{vm.MsgCall{
+			Caller: addr, PkgPath: "gno.land/r/demo/absent", Func: "Nope",
+		}})
+		if res.Error != nil {
+			assert.NotContains(t, fmt.Sprintf("%v %s", res.Error, res.Log), "signature",
+				"an ordinary message must not be refused for its signature")
+		}
+	})
+}
