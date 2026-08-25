@@ -28,9 +28,10 @@ jobs:
         # reason and this one cannot.
         #
         # The cost is silence: a Go program under misc/ that is not listed here
-        # is simply never built, with nothing to say so. Some are covered by a
-        # dedicated workflow instead — genproto2 by ci-codegen-verify,
-        # multiarch-determinism and stdlib_diff by their own — which is fine.
+        # is simply never built, with nothing to say so. Some are covered
+        # elsewhere instead — genproto2 by a job in ci-codegen-verify,
+        # multiarch-determinism by its own workflow, and stdlib_diff by
+        # deploy-pages, which runs its generator on pull requests touching it.
         # A new one with neither is untested from its first commit.
         program:
           - audit-pattern-harness
