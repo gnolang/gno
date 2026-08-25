@@ -28,7 +28,7 @@ func TestRenderHome(t *testing.T) {
 		"/r/docs/optional_render",
 		"/r/docs/charts",
 		"/r/docs/safeobjects",
-		"/r/docs/avl_pager)",
+		"/r/docs/avl_pager",
 	}
 	for _, bad := range mustNotContain {
 		if strings.Contains(output, bad) {

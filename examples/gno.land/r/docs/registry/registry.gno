@@ -248,9 +248,6 @@ their username and address, and anyone can look them up.
 - [r/demo/defi/grc20reg](/r/demo/defi/grc20reg) - GRC20 token registry.
 Token realms register themselves so other contracts can discover available tokens.
 
-- [r/leon/hor](/r/leon/hor) - Hall of Realms. Realms register themselves by
-calling ` + "`hor.Register()`" + ` from their init function to be showcased in the exhibition.
-
 [View source code](/r/docs/registry$source)
 `
 	return out

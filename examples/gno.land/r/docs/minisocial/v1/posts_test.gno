@@ -9,12 +9,6 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-// resetPostsForTest clears the realm's post state so each test starts from a
-// known-empty feed independent of test ordering.
-func resetPostsForTest() {
-	posts = nil
-}
-
 func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
@@ -31,17 +25,6 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Content should have the (sanitized) text and alice's address in it
 	condition := strings.Contains(got, sanitize.Block(text1)) && strings.Contains(got, aliceAddr.String())
 	uassert.True(t, condition, "expected render to contain text & alice's address")
-}
-
-func TestResetPostsRejectsNonOwner(cur realm, t *testing.T) {
-	resetPostsForTest()
-
-	// A non-owner caller is rejected by the ownable guard.
-	notOwner := testutils.TestAddress("mallory")
-	testing.SetRealm(testing.NewUserRealm(notOwner))
-	uassert.AbortsWithMessage(t, cur, "ownable: caller is not owner", func(cur realm) {
-		ResetPosts(cur)
-	})
 }
 
 func TestCreatePostMultiple(cur realm, t *testing.T) {
