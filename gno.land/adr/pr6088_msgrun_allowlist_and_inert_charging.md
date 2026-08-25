@@ -1147,6 +1147,20 @@ Closing the `add_package` row for real transactions still means running under
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
 
+18b. **Correction to an earlier commit message.** The commit that added the
+    realm-param key rule says the `[vm:p]` genesis section "bypasses
+    validation". That is wrong and overstates the hole. `SetAny` reaches
+    `ParamsKeeper.validate`, which resolves the module prefix and calls
+    `VMKeeper.WillSetParam`; that has a `p:run_submitters` case, parses the
+    addresses, and finishes with `params.Validate()`. An unparseable or invalid
+    value is refused.
+
+    What the section actually bypasses is the loader's `[vm]` allowlist, which
+    admits only `chain_domain` and `sysnames_pkgpath`. So the hole is "an
+    operator can set vm params the allowlist was written to refuse", not
+    "arbitrary unvalidated values reach the store". Recorded here because the
+    commit has descendants and cannot be amended.
+
 18a. **Parked bytes are priced well below live bytes, and only `.gno` bytes are
     priced at all.** `chargePreprocessGas` sums `len(f.Body)` only for files
     ending in `.gno`, so a submission's README, extra `.toml`, or arbitrary data
