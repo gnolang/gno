@@ -166,7 +166,7 @@ authorizes the writes inside the method body.
 pointer to mutable state. If the pointed-to type has any mutation method, it is a
 live mutator handle. Never return the containing struct as a pointer.
 
-### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
+### 9. `unsafe.PreviousRealm()` — old API, ignores the cur token
 
 Using `chain/runtime/unsafe.PreviousRealm()` directly ignores the `cur` token the
 runtime minted for this call. It should never appear alongside a

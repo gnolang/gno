@@ -405,7 +405,7 @@ that makes `cur.Previous()` safe.
 import "chain/runtime/unsafe"
 
 func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    caller := unsafe.PreviousRealm().Address()  // ignores the cur token
     ...
 }
 
