@@ -111,7 +111,7 @@ make fmt                        # Format all code
 - Never return a pointer to a `/p/`-type instance stored in realm state if that type has any exported mutation method (e.g. `avl.Tree.Set`, `avl.Tree.Remove`). Readonly taint does not block method dispatch — borrow rule #2 fires and the write commits under your realm's authority. Return values or narrow read-only views instead.
 - `Render(path string)` receives attacker-controlled input. Never write path segments, user-supplied keys, or free-form string values directly into markdown output. Use `sanitize.InlineText` from `gno.land/p/nt/markdown/sanitize/v0` for inline content.
 
-Read [`docs/resources/gno-security-guide.md`](docs/resources/gno-security-guide.md) for the full catalog of known vulnerability families. The audit pattern harness in `misc/audit-pattern-harness/` contains executable fixtures for each of these families — run it against unfamiliar realm code as a quick sanity check.
+Read [`docs/resources/gno-security-guide.md`](docs/resources/gno-security-guide.md) for the full catalog of known vulnerability families. The audit pattern harness in `misc/audit-pattern-harness/` has a vulnerable/fixed fixture pair for each family the VM permits — run it against unfamiliar realm code as a quick sanity check. The one exception is a stored `realm`-typed value (guide §5.7), which the VM refuses outright, so there is no runnable vulnerable variant to compare against.
 
 ---
 
