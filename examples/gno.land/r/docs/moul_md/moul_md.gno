@@ -411,7 +411,8 @@ func renderSeeAlso() string {
 		md.BulletList(links)
 }
 
-// Helper function to render an example with code and result
+// renderExample renders one example: its source code and the result.
+// An empty title omits the heading.
 func renderExample(title, code, result string) string {
 	output := ""
 	if title != "" {
@@ -422,7 +423,7 @@ func renderExample(title, code, result string) string {
 	return output
 }
 
-// Helper function for examples where result needs raw output
+// renderExampleWithRawResult renders one example whose result needs raw output.
 func renderExampleWithRawResult(title, code, result string) string {
 	output := md.H3(title)
 	output += md.LanguageCodeBlock("go", code) + "\n"

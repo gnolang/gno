@@ -1,8 +1,6 @@
 // Package tdd demonstrates test-driven development with a small calculator.
 package tdd
 
-// Calculator provides simple arithmetic operations
-
 var lastResult int64
 
 func Add(_ realm, a, b int64) int64 {

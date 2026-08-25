@@ -21,7 +21,7 @@ func TestRenderHome(t *testing.T) {
 		}
 	}
 
-	// Links to dropped or merged realms must not appear.
+	// No realm sits behind these paths; a link to one is dead.
 	mustNotContain := []string{
 		"/r/docs/adder",
 		"/r/docs/img_embed",

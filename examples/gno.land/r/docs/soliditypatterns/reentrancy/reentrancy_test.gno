@@ -6,11 +6,10 @@ import (
 )
 
 // TestRenderDoesNotOverstateSafety guards the page's central claim. The realm
-// has no state and no coin path of its own; what it ships is the explanation,
-// so the explanation is what a test can protect. Coin transfers running no
-// recipient code removes Solidity's automatic-callback vector, but a realm that
-// calls out through an interface or callback can still be re-entered, and
-// earlier revisions of this page said otherwise in several places.
+// has no state and no coin path of its own, so the explanation it ships is what
+// a test can protect. Coin transfers run no recipient code, which removes
+// Solidity's automatic-callback vector, but a realm that calls out through an
+// interface or callback can still be re-entered.
 func TestRenderDoesNotOverstateSafety(t *testing.T) {
 	out := Render("")
 

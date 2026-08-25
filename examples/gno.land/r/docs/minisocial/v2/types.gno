@@ -29,8 +29,7 @@ func (p Post) String() string {
 	// We can import and use the r/sys/users package to resolve addresses
 	user := users.ResolveAddress(p.author)
 	if user != nil {
-		// RenderLink provides a link that is clickable
-		// The link goes to the user's profile page
+		// RenderLink provides a clickable link to the user's profile page
 		author = user.RenderLink("")
 	}
 

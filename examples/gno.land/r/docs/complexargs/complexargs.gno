@@ -19,10 +19,10 @@ type CustomType struct {
 	Numbers []int
 }
 
-// NewCustomType constructs a CustomType. Because the storage = authority rule
-// forbids allocating a foreign realm's /r/-declared type outside its home
-// realm, callers (including MsgRun ephemerals) must obtain CustomType values
-// through this constructor rather than composing the struct literal directly.
+// NewCustomType constructs a CustomType. The storage = authority rule forbids
+// allocating a foreign realm's /r/-declared type outside its home realm, so
+// callers (including MsgRun ephemerals) build CustomType values here rather
+// than by struct literal.
 func NewCustomType(name string, numbers []int) CustomType {
 	return CustomType{Name: name, Numbers: numbers}
 }

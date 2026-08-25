@@ -25,7 +25,7 @@ func Lock(cur realm) {
 }
 
 // Unlock transitions the contract from Locked to Active.
-// Same caller model as Lock: any authenticated caller may unlock.
+// Any authenticated caller may unlock.
 func Unlock(cur realm) {
 	assertInState(StateLocked)
 	state = StateActive

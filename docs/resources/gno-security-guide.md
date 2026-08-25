@@ -373,12 +373,13 @@ func DoThing(cur realm) {
 }
 ```
 
+This is class **2 (designation-forgery)** from `gno-security.md`.
+
 The runtime mints the first `cur realm` per crossing frame, so it is guaranteed
 current — no `cur.IsCurrent()` check is needed on it (see
-[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)). The check is required on any *other*
-realm value a function receives, such as a secondary `rlm realm` parameter.
-
-This is class **2 (designation-forgery)** from `gno-security.md`.
+[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
+The check is required on any *other* realm value a function receives, such as a
+secondary `rlm realm` parameter.
 
 ### 5.7 Stored `realm`-typed values
 

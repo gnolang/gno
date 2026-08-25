@@ -2,7 +2,7 @@ package private
 
 import "strings"
 
-// Documentation for private realms in Gno.
+// Render returns the documentation page for private realms in Gno.
 func Render(path string) string {
 	output := `# Private Realms
 

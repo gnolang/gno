@@ -8,9 +8,6 @@ import (
 	"gno.land/r/sys/users"
 )
 
-// This example demonstrates using both r/sys/users and r/demo/profile
-// to create a rich user experience.
-
 func Render(path string) string {
 	if path == "" {
 		return renderHome()
@@ -103,7 +100,7 @@ func RenderUser(nameOrAddr string) string {
 
 ## Live Demo
 
-Try looking up at test user:
+Try looking up a test user:
 - [@test1](/r/docs/userprofile:test1)
 
 ---

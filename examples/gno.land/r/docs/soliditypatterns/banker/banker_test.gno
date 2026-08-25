@@ -17,8 +17,8 @@ func TestDepositRejectsNonUserCall(cur realm, t *testing.T) {
 	})
 }
 
-// TestUserRunIsNotAUserCall is the reason the guard reads IsUserCall rather
-// than IsUser: a `gnokey maketx run` script executes in an ephemeral
+// TestUserRunIsNotAUserCall shows why the guard reads IsUserCall rather than
+// IsUser: a `gnokey maketx run` script executes in an ephemeral
 // /e/{addr}/run realm, which IsUser admits and IsUserCall refuses.
 func TestUserRunIsNotAUserCall(t *testing.T) {
 	addr := testutils.TestAddress("alice")

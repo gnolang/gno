@@ -8,9 +8,6 @@ import (
 	"gno.land/r/docs/composition/logger"
 )
 
-// This realm demonstrates composition by combining functionality
-// from two sub-realms: a counter and a logger.
-
 // IncrementAndLog increments the counter and logs the action
 func IncrementAndLog(cur realm) {
 	counter.Increment(cross(cur))
