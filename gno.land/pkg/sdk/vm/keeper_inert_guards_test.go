@@ -1097,6 +1097,44 @@ func TestInertSubmissionChargeIsNotTakenFromARefusedSubmission(t *testing.T) {
 		"and must not be charged for the refusal")
 }
 
+// TestInertSubmissionChargeRespectsATokenLock pins the use of SendCoins rather
+// than SendCoinsUnrestricted at the charge.
+//
+// The charge is a one-way transfer, so a locked account has to be refused. The
+// storage deposit next to it uses the unrestricted call because it refunds, and
+// copying that here would let the charge spend locked coins.
+func TestInertSubmissionChargeRespectsATokenLock(t *testing.T) {
+	const pkgPath = "gno.land/r/test/locked"
+	const charge = int64(3_000_000)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("lockedsubmitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	params.InertSubmissionCharge = ugnot.ValueString(charge)
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+
+	// Lock ugnot. The creator is a plain BaseAccount, which does not implement
+	// AccountUnrestricter, so it is not on the token-lock whitelist.
+	env.bankk.SetRestrictedDenoms(ctx, []string{ugnot.Denom})
+
+	before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+	err := env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("locked")))
+	require.Error(t, err, "a locked account must not be able to pay the charge")
+	// The charge's own wording reaches the ABCI log, not Error(), which returns
+	// a bare "insufficient coins error". Checking the log stops this passing on
+	// some unrelated refusal, and pins the surface a creator actually reads.
+	require.Contains(t, sdk.ABCIResultFromError(err).Log, "submission charge")
+	assert.Equal(t, before, env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
+		"and must keep its coins")
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+		"and the package must not park, because the charge gates it")
+}
+
 // TestInertSubmissionChargeValidation covers the bounds on the param.
 //
 // The ceiling is the point: a charge governance can raise without limit is a
