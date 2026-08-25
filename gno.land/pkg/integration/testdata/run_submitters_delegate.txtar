@@ -7,10 +7,16 @@
 # can show -- the keeper tests call the realm directly, and the ante only exists
 # in a real node.
 #
-# The REFUSAL at the top is the load-bearing part. Every other assertion here
-# would pass with the delegation gate deleted entirely, because the policy realm
-# would then simply be allowed to write. Only an attempt that must fail
-# distinguishes "the gate authorized this caller" from "there is no gate".
+# The REFUSALS are the load-bearing part. Every write assertion here would pass
+# with the delegation gate deleted entirely, because the policy realm would then
+# simply be allowed to write. Only an attempt that must fail distinguishes "the
+# gate authorized this caller" from "there is no gate".
+#
+# Two different refusals are needed, and one alone is not enough. The
+# "no delegate is configured" cases fire when the slot is EMPTY, so they survive
+# the path comparison being deleted. The "may write" case below fires while
+# ANOTHER realm holds the delegation, which is the only way to exercise the
+# comparison itself. Both are mutation-verified against delegate.gno.
 
 # GovDAO setup, matching code_submission_policy.txtar: the default harness does
 # not initialize the DAO, and every proposal below needs it.
@@ -25,6 +31,7 @@ patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpft
 
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 loadpkg gno.land/r/test/paramsgate $WORK/paramsgate
+loadpkg gno.land/r/test/rogue $WORK/rogue
 
 gnoland start
 
@@ -72,6 +79,16 @@ stdout 'OK!'
 # The slot is queryable, so an operator can confirm who holds the capability.
 gnokey query vm/qeval --data 'gno.land/r/sys/params.RunSubmittersManager()'
 stdout 'gno.land/r/test/paramsgate'
+
+# A realm that is NOT the delegate is refused, even though a delegate exists.
+#
+# This is the assertion that tells "the gate authorized paramsgate" apart from
+# "there is no gate". The refusals above fire when the slot is EMPTY, so they
+# survive the path check being deleted -- verified by mutation. Only a caller
+# that holds no delegation, attempted while another realm holds one, exercises
+# the comparison itself.
+! gnokey maketx call -pkgpath gno.land/r/test/rogue -func Grant -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'only gno.land/r/test/paramsgate may write'
 
 # --- Create an account the chain has never heard of ------------------------
 #
@@ -201,6 +218,22 @@ func Grant(cur realm, addr string) {
 
 func Revoke(cur realm, addr string) {
 	params.RemoveRunSubmitters(cross(cur), []string{addr})
+}
+
+-- rogue/gnomod.toml --
+module = "gno.land/r/test/rogue"
+gno = "0.9"
+
+-- rogue/rogue.gno --
+// rogue is shaped exactly like paramsgate but was never delegated to. It exists
+// so the refusal it earns is about WHICH realm is calling, not about the call
+// being malformed or the slot being empty.
+package rogue
+
+import "gno.land/r/sys/params"
+
+func Grant(cur realm, addr string) {
+	params.AddRunSubmitters(cross(cur), []string{addr})
 }
 
 -- run/submit_seed.gno --
