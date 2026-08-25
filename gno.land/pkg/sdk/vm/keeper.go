@@ -886,9 +886,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// token lock should refuse it, not be bypassed. It also does the
 		// session-spend check itself, so one call cannot get the order wrong.
 		//
-		// Last in the branch, so nothing after it can fail. Writes revert as a
-		// unit either way; the ordering just makes pay-then-park legible without
-		// knowing baseapp's revert rules. EnablePackage places its deposit
+		// Placed immediately before the package is parked, so the order reads
+		// pay-then-park. Writes revert as a unit either way, so this is for the
+		// reader rather than for safety. EnablePackage places its deposit
 		// immediately before DelInertPackage for the same reason.
 		if params.InertSubmissionCharge != "" && !params.InertChargeCollector.IsZero() {
 			charge, err := std.ParseCoins(params.InertSubmissionCharge)

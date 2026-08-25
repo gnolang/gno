@@ -563,8 +563,10 @@ func IsGenesisReplay(ctx sdk.Context) bool {
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
-	// Genesis is unmetered: at height 0 there is no sender to bill and the
-	// content is the chain's own.
+	// Height 0 runs unmetered: consumption is uncapped, so a genesis tx whose
+	// gas_wanted is too low still runs to completion instead of being dropped.
+	// The fee is charged either way -- genesis txs carry a real gas_fee, and
+	// Phase 2b does not exempt them.
 	//
 	// Simulation is NOT exempt, despite being the case people expect to be.
 	// This function is not told whether it is simulating -- there is one call
