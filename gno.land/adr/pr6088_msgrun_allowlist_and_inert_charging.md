@@ -575,6 +575,68 @@ on an ordinary transaction and an ordinary meter. That makes declarer and
 spender the same party, and would retire §5c's ceiling carry, §5g's stamping
 defence, and the content-hash gap item 12 lists as open.
 
+### 8a. Candidate: charge the creator a block's gas at enable, one enable per block
+
+A design that puts the cost on the creator without reshaping #5888's messages.
+Recorded because it answers §8's objections rather than restating them.
+
+**The shape.**
+
+- `MsgEnablePackage` succeeds at most once per block. A second one in the same
+  block is refused.
+- Before `init()` runs, the CREATOR is charged up front for a whole block's gas
+  -- `Block.MaxGas` priced at the chain's current gas price -- and refunded
+  whatever `init()` did not use.
+- `init()` runs against a budget of `Block.MaxGas`, so the worst case a block
+  can absorb is roughly double its normal execution time.
+- The approver's transaction stays small: it authorises and pays its own flat
+  fee, nothing more.
+
+**Why the one-per-block rule needs no ante change.** A failed message commits
+nothing -- baseapp writes the message cache only when the result is OK -- so an
+unauthorised enable fails at the approver check and never marks the slot as
+used. Only a *successful* enable takes it, and only an approver can produce one.
+A spammer cannot starve the oracle by racing for the slot.
+
+**Where the slot marker lives.** Not the context: `getContextForTx` rebuilds each
+transaction's context from block state, and the block context is only reassigned
+at InitChain and BeginBlock, so a value set inside one transaction does not reach
+the next. A keeper field reset on the height changing is deterministic -- every
+node replays the same block in the same order -- and keeping it out of the store
+leaves no app-hash surface and nothing to migrate.
+
+**Why the up-front charge is not the escrow this ADR already rejected.** That one
+held a ceiling across time, typically thousands of times the real charge, from
+submit until an approval that might never come. This is charged and refunded
+inside a single message. The price is available: the chain's gas price is
+consensus state, set per block by the auth keeper, so the conversion is
+deterministic.
+
+**What it fixes.** The party who chose the cost pays it. A failed `init()` costs
+the creator the gas actually burned, so retrying is not free -- and it cannot be
+retried more than once a block. The oracle's exposure returns to one flat fee,
+independent of what the submitter wrote.
+
+**Open questions, both real.**
+
+1. Genesis replay. `deliverGenesisTx` delivers historical transactions carrying
+   overridden heights. If a fork's history contains two enables at the same
+   source height, a naive per-height rule refuses the second and StrictReplay
+   refuses to boot. It needs the same exemption the other carve-outs have.
+2. Liquidity. The creator must hold a block's gas -- on the order of several
+   GNOT at present prices -- from submit until whenever an approver acts, which
+   is unbounded. And exhausting the budget costs them all of it while leaving
+   the package parked, which is correct as a deterrent but is the most expensive
+   single mistake a submitter can make. It should be named in the error, not
+   discovered from a balance.
+
+**Compared with the approve/activate split.** That one dissolves the problem by
+making declarer and spender the same party, and retires §5c and §5b's
+content-hash gap along the way, but it reshapes messages #5888 introduced and
+lets the creator retry an expensive `init()` at will. This keeps the message
+shapes and bounds retries structurally, at the cost of a new per-block rule and
+an up-front charge.
+
 ## Alternatives considered
 
 **Escrow the deposit ceiling at submit and refund the remainder at enable.**
