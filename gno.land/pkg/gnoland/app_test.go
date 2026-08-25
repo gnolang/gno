@@ -2071,6 +2071,93 @@ func GetHeight(cur realm) int64 { return height }
 		}, "a fresh chain's genesis MsgRun must be exempt, or bootstrap cannot seed governance")
 	})
 
+	// The carve-out guards two gates, and the two tests above pin only one.
+	//
+	// checkCodePolicy refuses MsgRun by run_submitters AND MsgAddPackage by
+	// code_submitters, and the same exemption covers both. A tightening that
+	// kept the MsgRun half working while breaking the MsgAddPackage half -- for
+	// instance restricting the carve-out to transactions with no add-package
+	// signers -- left the whole package green before this test existed.
+	//
+	// The shape here is a hardfork replaying an MsgAddPackage under a
+	// "permissioned" policy whose code_submitters no longer lists the historical
+	// signer, which is what rotating deployers after a fork looks like.
+	t.Run("historical MsgAddPackage replays under a code_submitters list it is not on", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		vmGen := vm.DefaultGenesisState()
+		vmGen.Params.CodeSubmissionPolicy = vm.CodeSubmissionPolicyPermissioned
+		vmGen.Params.CodeSubmitters = []crypto.Address{
+			crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+		}
+		require.NotContains(t, vmGen.Params.CodeSubmitters, key.PubKey().Address(),
+			"premise: the signer must be off the allowlist for this test to mean anything")
+
+		const pkgPath = "gno.land/r/test/replayedpkg"
+		addMsg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "replayedpkg",
+				Path: pkgPath,
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+					{Name: "replayedpkg.gno", Body: "package replayedpkg\n\nfunc Hello() string { return \"hi\" }\n"},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{addMsg}, "old-chain", key)
+
+		require.NotPanics(t, func() {
+			app.InitChain(abci.RequestInitChain{
+				ChainID:       chainID,
+				Time:          time.Now(),
+				InitialHeight: 100,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: GnoGenesisState{
+					Txs: []TxWithMetadata{{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+						},
+					}},
+					Balances: []Balance{{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					}},
+					Auth:          auth.DefaultGenesisState(),
+					Bank:          bank.DefaultGenesisState(),
+					VM:            vmGen,
+					PastChainIDs:  []string{"old-chain"},
+					InitialHeight: 100,
+				},
+			})
+		}, "a historical MsgAddPackage must replay even though code_submitters excludes its signer")
+
+		// And the gate is still armed for live traffic, so this cannot pass by
+		// the policy simply not being enforced.
+		liveTx := createAndSignTxWithAccSeq(t, []std.Msg{addMsg}, chainID, key, 0, 1)
+		marshalled, err := amino.Marshal(liveTx)
+		require.NoError(t, err)
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalled})
+		require.False(t, resp.IsOK(),
+			"a live MsgAddPackage must still be refused; only replay is exempt")
+		assert.Contains(t, resp.Log, "code_submitters")
+	})
+
 	t.Run("metadata block height in GnoTxMetadata serializes correctly", func(t *testing.T) {
 		t.Parallel()
 
