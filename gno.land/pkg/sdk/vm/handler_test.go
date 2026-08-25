@@ -780,6 +780,34 @@ func TestVmHandlerQuery_TypeJSON_NotFound(t *testing.T) {
 	assert.Regexp(t, `invalid expression`, res.Error.Error())
 }
 
+// TestVmHandlerQueryRoutesPackageMeta pins the query wiring for
+// vm/qpkgmeta_json.
+//
+// The keeper method is covered elsewhere, by tests that call it directly -- so
+// nothing there exercises the path string or the switch case. A typo in either
+// leaves those green while the endpoint answers "unknown vm query endpoint".
+//
+// An absent package is the right case to assert on, because it is also where
+// this query differs from every other one: absent is a SUCCESSFUL response
+// carrying a status. A missing route and an absent package must not look alike,
+// which is exactly what this asserts.
+func TestVmHandlerQueryRoutesPackageMeta(t *testing.T) {
+	env := setupTestEnv()
+
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qpkgmeta_json",
+		Data: []byte("gno.land/r/nonexistent/pkg"),
+	})
+	require.True(t, res.IsOK(),
+		"an absent package must not be a query error: %v", res.Error)
+
+	var got PackageMeta
+	require.NoError(t, json.Unmarshal(res.Data, &got))
+	assert.Equal(t, "gno.land/r/nonexistent/pkg", got.Path)
+	assert.Equal(t, PackageStatusAbsent, got.Status)
+	assert.False(t, got.Pending)
+}
+
 // TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
 // inert-policy messages to their keeper methods.
 //
