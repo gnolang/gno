@@ -1045,13 +1045,17 @@ A new `Params` field moves the genesis root even with an empty default:
 skip zero values, and `getStructFieldsFromStore` reads them back the same way,
 one `Get` per field.
 
-Gas goldens do **not** move. That was established by running them, not derived
-from the read path, and the read path is not a safe thing to argue from: the two
-keepers meter these reads differently. `AccountKeeper.GetParams` passes
-`ctx.WithGasMeter(nil)`, so auth's config reads are unmetered wherever they
-happen — the ordering against `auth.SetGasMeter` does no work, and neither does
-the infinite meter `sdk.NewContext` installs. `VMKeeper.GetParams` does not do
-this; it reads through whatever meter the caller holds.
+Gas goldens do **not** move, and the mechanism is worth recording because the
+intuition says otherwise. The whole-struct `GetParams` happens in gno.land's own
+ante closure in `app.go`, not in tm2's auth ante — it runs before
+`authAnteHandler`, so the ctx still carries the throwaway `NewInfiniteGasMeter`
+that `sdk.NewContext` installed and `auth.SetGasMeter` has not yet replaced.
+baseapp keeps one cache wrap across the ante and the message handlers, so every
+later `GetParams` is a cache hit, and `cacheStore.Get` charges nothing for those.
+
+Look in the right ante when checking this. `AccountKeeper.GetParams` passes
+`ctx.WithGasMeter(nil)`, which is a different mechanism for a different struct;
+`VMKeeper.GetParams` does not, and tm2's auth ante never reads vm params at all.
 
 ### The DoS is narrowed, not closed
 
