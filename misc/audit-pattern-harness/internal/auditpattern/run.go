@@ -27,7 +27,7 @@ var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm
 
 // funcSigRE captures a func declaration's parameter list: group 1 is the
 // receiver (empty for a plain func), group 2 the parameters. A signature that
-// wraps across lines is not matched — the scanner is line-based.
+// wraps across lines is not matched: the scanner is line-based.
 var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
 
 var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)

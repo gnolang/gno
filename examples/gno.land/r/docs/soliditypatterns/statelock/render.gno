@@ -78,7 +78,7 @@ func Unlock(cur realm) {
 * The ^Lock^ function changes the state from ^Active^ to ^Locked^. It checks the expected state before mutating.
 * The ^Unlock^ function reverses the state from ^Locked^ to ^Active^, applying the same state check.
 
-> **Note on caller gating.** This demo restricts by *contract state*, not by *caller identity* — any authenticated caller may lock or unlock. This maps to a Solidity ^modifier^ used for state-machine control. A Solidity ^modifier^ used for *access control* (e.g. ^onlyOwner^) maps to an additional ^cur.Previous().Address()^ owner check. See the [ownable sibling](/r/docs/soliditypatterns/ownable) for that pattern.
+> **Note on caller gating.** This demo restricts by *contract state*, not by *caller identity*: any authenticated caller may lock or unlock. This maps to a Solidity ^modifier^ used for state-machine control. A Solidity ^modifier^ used for *access control* (e.g. ^onlyOwner^) maps to an additional ^cur.Previous().Address()^ owner check. See the [ownable sibling](/r/docs/soliditypatterns/ownable) for that pattern.
 
 ---
 

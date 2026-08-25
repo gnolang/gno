@@ -92,7 +92,7 @@ func wildcardHandler(res *mux.ResponseWriter, req *mux.Request) {
 	out := "# Wildcard handler\n\n"
 
 	// Use GetVar("*") to access the wildcard part of the route.
-	// Sanitize before embedding in markdown — path segments are user-controlled.
+	// Sanitize before embedding in markdown: path segments are user-controlled.
 	wild := sanitize.InlineText(req.GetVar("*"))
 	out += "This page matched a wildcard route.\n\n"
 	out += ufmt.Sprintf("**Wildcard path:** `%s`\n\n", wild)

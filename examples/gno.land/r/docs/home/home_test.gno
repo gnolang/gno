@@ -10,7 +10,7 @@ func TestRenderHome(t *testing.T) {
 
 	// These strings must appear in the rendered index.
 	mustContain := []string{
-		"# Gno by Example — r/docs",
+		"# Gno by Example: r/docs",
 		"Official documentation",
 		"/r/docs/hello",
 		"p/nt/mux/v0",

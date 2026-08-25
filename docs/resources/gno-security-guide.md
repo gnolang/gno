@@ -376,7 +376,7 @@ func DoThing(cur realm) {
 This is class **2 (designation-forgery)** from `gno-security.md`.
 
 The runtime mints the first `cur realm` per crossing frame, so it is guaranteed
-current — no `cur.IsCurrent()` check is needed on it (see
+current, so no `cur.IsCurrent()` check is needed on it (see
 [`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
 The check is required on any *other* realm value a function receives, such as a
 secondary `rlm realm` parameter.
@@ -397,7 +397,7 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
 obtaining the previous realm. Using it in a crossing function that already
 receives `cur realm` is always wrong: it silently ignores the `cur` capability
-token the runtime minted for exactly this purpose — the per-frame guarantee
+token the runtime minted for exactly this purpose, the per-frame guarantee
 that makes `cur.Previous()` safe.
 
 ```go
@@ -422,7 +422,7 @@ crossing functions (`func F(cur realm, ...)`) is a red flag. The
 in realms that have not yet been migrated to the `cur realm` API.
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` — the runtime guarantees the first `cur` is current. Delete
+`cur.Previous()`. The runtime guarantees the first `cur` is current. Delete
 the `chain/runtime/unsafe` import.
 
 ### 5.9 `OriginCaller()` as authorization identity
@@ -588,7 +588,7 @@ Before deploying a realm:
   - Pure read (returns primitives or values, no internal pointers).
   - Takes `cur realm` and derives the caller from `cur.Previous()`;
     any secondary `rlm realm` parameter is checked with
-    `rlm.IsCurrent()` first (the first `cur` is guaranteed current —
+    `rlm.IsCurrent()` first (the first `cur` is guaranteed current,
     see [`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
   - Documented intentionally permissive (faucet, public mint).
 
@@ -658,7 +658,7 @@ func Value() int {
 }
 
 // Public mutator. The crossing entrypoint's cur is minted per frame
-// by the runtime — no IsCurrent() check is needed on it.
+// by the runtime, so no IsCurrent() check is needed on it.
 func Increment(cur realm) {
     gCounter.value++
 }
@@ -713,6 +713,6 @@ Attackers cannot:
 - [`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md) —
   audit pattern harness fixtures, expected records, and run instructions that
   keep recurring audit lessons executable.
-- `examples/quarantined/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
+- `examples/quarantined/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno`:
   the four bypass tests demonstrating why seal is documentation, not
   defense.

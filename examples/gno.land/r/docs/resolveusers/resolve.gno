@@ -38,7 +38,7 @@ usernames and addresses in their realms. Check out the example below.
 	// The above can also be done with typed inputs:
 	// - users.ResolveName(name) returns (*UserData, isCurrent bool), where isCurrent
 	//   distinguishes the canonical username from a historical alias.
-	// - users.ResolveAddress(addr) returns *UserData directly (no bool — addresses are stable).
+	// - users.ResolveAddress(addr) returns *UserData directly (no bool, addresses are stable).
 
 	out += "## Didn't find that user :/"
 

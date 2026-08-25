@@ -388,10 +388,10 @@ int, rlm realm)`, or a crossing function's extra realm argument)
 must be checked with `rlm.IsCurrent()` before `Previous()` /
 `Address()` / `PkgPath()` is trusted. Without that check, a stale or
 attacker-supplied realm value's `Address()` and `PkgPath()` still
-resolve numerically — they just no longer refer to the live caller.
+resolve numerically; they just no longer refer to the live caller.
 This is class **2 (designation-forgery)** in `gno-security.md`. The
 first `cur` of a crossing function is minted per-frame by the
-runtime and is always current — checking it is redundant (see
+runtime and is always current, so checking it is redundant (see
 `gnovm/tests/files/zrealm_iscurrent.gno`).
 
 ### 5.3 Realm values are ephemeral

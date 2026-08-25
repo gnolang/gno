@@ -224,7 +224,7 @@ Images can be included using the following syntax:
 ![Alt text](/public/imgs/gnoland.svg "Optional title")
 
 > [!CAUTION]
-> Non-SVG ±data:± image URIs are erased at render time: the image validator empties ±<img src>±, producing ±src=""± with no error signal. ±data:image/svg+xml± is the one ±data:± form that survives. Remote ±https://± URLs pass the renderer untouched — whether the browser loads them is then governed by the CSP allowlist below.
+> Non-SVG ±data:± image URIs are erased at render time: the image validator empties ±<img src>±, producing ±src=""± with no error signal. ±data:image/svg+xml± is the one ±data:± form that survives. Remote ±https://± URLs pass the renderer untouched; whether the browser loads them is then governed by the CSP allowlist below.
 
 The browser-side CSP allowlist (what passes after the renderer step) includes:
 
@@ -778,7 +778,7 @@ There are six types of alerts:
 - WARNING
 - CAUTION
 
-**NOTE**: Alert types are case-insensitive — ±[!note]± and ±[!NOTE]± both match. An unrecognized type such as ±[!FOO]± falls back to INFO.
+**NOTE**: Alert types are case-insensitive: ±[!note]± and ±[!NOTE]± both match. An unrecognized type such as ±[!FOO]± falls back to INFO.
 
 The alert boxes are expandable/collapsible and can have a title. 
 By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
@@ -876,7 +876,7 @@ Gno markdown automatically recognizes ±@username± mentions and Bech32 addresse
 
 #### User Mentions
 
-A ±@username± mention — letters, digits and underscores, 3 to 90 characters — is auto-linked to ±/u/{username}±.
+A ±@username± mention (letters, digits and underscores, 3 to 90 characters) is auto-linked to ±/u/{username}±.
 
 ±±±markdown
 Ask @alice about it.

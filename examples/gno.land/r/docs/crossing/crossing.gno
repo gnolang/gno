@@ -70,7 +70,7 @@ Gno follows this chain of calls, so at any point the code can ask:
 
 There is no general "who called me?" outside a crossing function.
 ` + "`unsafe.PreviousRealm()`" + ` reports the realm before the most recent
-*crossing*, whichever function reads it — from a non-crossing helper it can
+*crossing*, whichever function reads it. From a non-crossing helper it can
 name a realm far above the immediate caller. Treat it as a stack inspector, not a
 caller check, and derive caller identity from ` + "`cur.Previous()`" + `.
 

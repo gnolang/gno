@@ -63,10 +63,10 @@ func Render(path string) string {
 Realms can render clickable controls that view a specific page or submit a
 transaction. There are two primitives for the transaction case:
 
-- **` + "`<gno-form>`" + `** — the idiomatic, wallet-mediated form. It renders
+- **` + "`<gno-form>`" + `**: the idiomatic, wallet-mediated form. It renders
   input fields and submits a ` + "`MsgCall`" + ` to the named exported function.
   Use this whenever the caller supplies arguments.
-- **` + "`txlink.Call`" + `** — builds a bare ` + "`$help`" + ` link with the
+- **` + "`txlink.Call`" + `**: builds a bare ` + "`$help`" + ` link with the
   arguments baked in. No form, just a hyperlink, for fixed-argument
   one-click actions.
 

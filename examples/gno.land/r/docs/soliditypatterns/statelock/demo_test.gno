@@ -40,5 +40,5 @@ func TestUnlockRejectsWrongState(cur realm, t *testing.T) {
 		Unlock(cross(cur))
 	}, "Unlock must panic when state is not Locked")
 
-	// state remains Active — no restore needed.
+	// state remains Active, no restore needed.
 }

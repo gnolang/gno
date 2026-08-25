@@ -33,7 +33,7 @@ another forwarded value:
 
 ```go
 // Non-crossing helper receiving the acting realm as a plain value.
-// `_ int` keeps `rlm` out of first position — a realm-typed first
+// `_ int` keeps `rlm` out of first position: a realm-typed first
 // parameter would make this a crossing function.
 func helper(_ int, rlm realm) {
     if !rlm.IsCurrent() { panic("rlm is not the current realm") }
@@ -166,7 +166,7 @@ authorizes the writes inside the method body.
 pointer to mutable state. If the pointed-to type has any mutation method, it is a
 live mutator handle. Never return the containing struct as a pointer.
 
-### 9. `unsafe.PreviousRealm()` — old API, ignores the cur token
+### 9. `unsafe.PreviousRealm()`: old API, ignores the cur token
 
 Using `chain/runtime/unsafe.PreviousRealm()` directly ignores the `cur` token the
 runtime minted for this call. It should never appear alongside a
@@ -213,7 +213,7 @@ func Render(path string) string {
 // ALSO WRONG: table cell content not escaped
 b.WriteString("| " + key + " | " + val + " |\n")  // | in key breaks table
 
-// RIGHT: TableCell for table cells — it adds `|` escaping on top of
+// RIGHT: TableCell for table cells. It adds `|` escaping on top of
 // InlineText, which leaves `|` literal by design. InlineText is for
 // headings and other inline text.
 import "gno.land/p/nt/markdown/sanitize/v0"
@@ -277,8 +277,8 @@ Two cases where the swap is **wrong**, both found by making it:
 ## Review Checklist
 
 - [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
-- [ ] Every realm value other than the frame's own first `cur` — any secondary `rlm realm` parameter, in a helper or in a crossing function — is checked with `rlm.IsCurrent()` before `Previous()`/`Address()`/`PkgPath()` is trusted
-- [ ] No realm value is passed to code outside this realm's trust boundary (the callee can mint and retain a `banker.NewBanker(BankerTypeRealmSend, rlm)` — permanent spend authority)
+- [ ] Every realm value other than the frame's own first `cur` (any secondary `rlm realm` parameter, in a helper or in a crossing function) is checked with `rlm.IsCurrent()` before `Previous()`/`Address()`/`PkgPath()` is trusted
+- [ ] No realm value is passed to code outside this realm's trust boundary (the callee can mint and retain a `banker.NewBanker(BankerTypeRealmSend, rlm)`, which is permanent spend authority)
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state

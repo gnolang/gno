@@ -30,7 +30,7 @@ func NewCustomType(name string, numbers []int) CustomType {
 // SetSlice takes a complex argument that must be called using MsgRun or from
 // another contract that imports this one. It is intentionally unguarded so the
 // demo stays focused on argument passing; a production crossing function that
-// derives caller identity should use cur.Previous() — see gno.land/r/docs/private.
+// derives caller identity should use cur.Previous(), see gno.land/r/docs/private.
 func SetSlice(_ realm, newSlice []int) {
 	slice = newSlice
 }
@@ -70,7 +70,7 @@ func Render(_ string) string {
 			s += ufmt.Sprintf("%d", v)
 		}
 		// myObject.Name is settable via SetMyObject, so it is untrusted input
-		// echoed into markdown — sanitize it before output.
+		// echoed into markdown, so sanitize it before output.
 		out += "Value of myObject: " + sanitize.InlineCode("CustomType{Name: "+myObject.Name+", Numbers: "+s+"}")
 	}
 
