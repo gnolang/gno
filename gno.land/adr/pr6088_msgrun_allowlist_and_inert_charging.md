@@ -1071,6 +1071,22 @@ Closing the `add_package` row for real transactions still means running under
    makes this tractable for the first time (a hostile `init()` is now just a
    process to kill), which is a reason to revisit it, not a reason it is done.
 
+   Gas estimation (item 22) changes the picture without closing this. Simulating
+   an enable runs the message for real on the node, `init()` included — the
+   simulate path executes handlers, it only discards the result. So the oracle
+   now has an answer about `init()` in hand before it broadcasts; it just does
+   not act on it. A package whose `init()` panics fails the simulate, gpao logs
+   that the estimate failed, and broadcasts anyway — paying a full fee to be
+   told what it already knew.
+
+   Not changed here because the two failure kinds need telling apart first. "The
+   node says this message fails" is grounds to decline; "the node would not
+   answer" is not, and treating them alike hands anyone who can disturb the query
+   path a way to stall approvals chain-wide. `Simulate` reports both as an error
+   and distinguishes them only by message text. **Needs a decision:** either
+   surface the ABCI error typed so the two can be separated, or leave the fee as
+   the cost of not knowing.
+
 2. **`DisablePackage`** remains unimplemented in #5888 (it needs object
    eviction), so a package can be enabled exactly once — and the storage deposit
    taken at enable is correspondingly never released.
