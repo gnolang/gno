@@ -45,6 +45,68 @@ func ugnotBalance(t *testing.T, app abci.Application, addr crypto.Address) int64
 	return queryAccount(t, app, addr).Coins.AmountOf("ugnot")
 }
 
+// inertChain boots a chain on the given vm genesis, funds every key, and returns
+// the app together with a function that delivers one transaction per block.
+//
+// Each transaction gets its own committed block. Committing is not incidental:
+// the account query deliver makes reads committed state, and enable must see
+// what submit actually persisted rather than an uncommitted cache.
+func inertChain(t *testing.T, vmGen vm.GenesisState, keys []crypto.PrivKey) (
+	abci.Application,
+	func(t *testing.T, msgs []std.Msg, key crypto.PrivKey) abci.ResponseDeliverTx,
+) {
+	t.Helper()
+
+	const chainID = "test-chain"
+
+	balances := make([]Balance, 0, len(keys))
+	for _, k := range keys {
+		balances = append(balances, Balance{
+			Address: k.PubKey().Address(),
+			Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
+		})
+	}
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Balances: balances,
+			Auth:     auth.DefaultGenesisState(),
+			Bank:     bank.DefaultGenesisState(),
+			VM:       vmGen,
+		},
+	})
+	// Commit genesis, so the accounts seeded above are visible to the queries
+	// the signing helper makes.
+	app.Commit()
+
+	height := int64(0)
+	deliver := func(t *testing.T, msgs []std.Msg, key crypto.PrivKey) abci.ResponseDeliverTx {
+		t.Helper()
+		signer := queryAccount(t, app, key.PubKey().Address())
+		height++
+		app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
+			ChainID: chainID, Height: height, Time: time.Now(),
+		}})
+		tx := createAndSignTxWithAccSeq(t, msgs, chainID, key,
+			signer.AccountNumber, signer.Sequence)
+		raw, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: raw})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+		return resp
+	}
+	return app, deliver
+}
+
 // TestInertPackageLifecycleEndToEnd drives submit -> parked -> enable through
 // real transactions, which is the only way to cover what the keeper's own unit
 // tests cannot: the ante handler, the transaction boundary, and the committed
@@ -67,8 +129,7 @@ func TestInertPackageLifecycleEndToEnd(t *testing.T) {
 	t.Parallel()
 
 	const (
-		chainID = "test-chain"
-		path    = "gno.land/r/demo/inertlife"
+		path = "gno.land/r/demo/inertlife"
 		// init() records who the VM believes is running it. Under "inert" that
 		// happens at enable time, in a transaction the approver signs -- so a
 		// naive implementation records the approver, and this realm is what
@@ -98,55 +159,7 @@ func Origin(cur realm) string { return origin }
 	vmGen.Params.CodeSubmissionPolicy = "inert"
 	vmGen.Params.PkgApprovers = []crypto.Address{approverAddr}
 
-	balances := make([]Balance, 0, len(keys))
-	for _, k := range keys {
-		balances = append(balances, Balance{
-			Address: k.PubKey().Address(),
-			Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
-		})
-	}
-
-	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
-	require.NoError(t, err)
-
-	app.InitChain(abci.RequestInitChain{
-		ChainID: chainID,
-		Time:    time.Now(),
-		ConsensusParams: &abci.ConsensusParams{
-			Block:     defaultBlockParams(),
-			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
-		},
-		AppState: GnoGenesisState{
-			Balances: balances,
-			Auth:     auth.DefaultGenesisState(),
-			Bank:     bank.DefaultGenesisState(),
-			VM:       vmGen,
-		},
-	})
-	// Commit genesis, so the accounts seeded above are visible to the queries
-	// the signing helper makes.
-	app.Commit()
-
-	// Each transaction gets its own committed block. Committing is not
-	// incidental: the account queries below read committed state, and enable
-	// must see what submit actually persisted rather than an uncommitted cache.
-	height := int64(0)
-	deliver := func(t *testing.T, msgs []std.Msg, key crypto.PrivKey) abci.ResponseDeliverTx {
-		t.Helper()
-		signer := queryAccount(t, app, key.PubKey().Address())
-		height++
-		app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
-			ChainID: chainID, Height: height, Time: time.Now(),
-		}})
-		tx := createAndSignTxWithAccSeq(t, msgs, chainID, key,
-			signer.AccountNumber, signer.Sequence)
-		raw, err := amino.Marshal(tx)
-		require.NoError(t, err)
-		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: raw})
-		app.EndBlock(abci.RequestEndBlock{})
-		app.Commit()
-		return resp
-	}
+	app, deliver := inertChain(t, vmGen, keys)
 
 	// 1. Submit. Accepted, but nothing runs yet.
 	addResp := deliver(t, []std.Msg{vm.MsgAddPackage{
@@ -232,10 +245,9 @@ func TestInertSubmissionChargeEndToEnd(t *testing.T) {
 	t.Parallel()
 
 	const (
-		chainID = "test-chain"
-		path    = "gno.land/r/demo/inertcharge"
-		charge  = int64(3_000_000)
-		body    = `package inertcharge
+		path   = "gno.land/r/demo/inertcharge"
+		charge = int64(3_000_000)
+		body   = `package inertcharge
 
 func Hello(cur realm) string { return "hi" }
 `
@@ -253,49 +265,7 @@ func Hello(cur realm) string { return "hi" }
 	vmGen.Params.InertSubmissionCharge = "3000000ugnot"
 	vmGen.Params.InertChargeCollector = collectorAddr
 
-	balances := make([]Balance, 0, len(keys))
-	for _, k := range keys {
-		balances = append(balances, Balance{
-			Address: k.PubKey().Address(),
-			Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
-		})
-	}
-
-	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
-	require.NoError(t, err)
-	app.InitChain(abci.RequestInitChain{
-		ChainID: chainID,
-		Time:    time.Now(),
-		ConsensusParams: &abci.ConsensusParams{
-			Block:     defaultBlockParams(),
-			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
-		},
-		AppState: GnoGenesisState{
-			Balances: balances,
-			Auth:     auth.DefaultGenesisState(),
-			Bank:     bank.DefaultGenesisState(),
-			VM:       vmGen,
-		},
-	})
-	app.Commit()
-
-	height := int64(0)
-	deliver := func(t *testing.T, msgs []std.Msg, key crypto.PrivKey) abci.ResponseDeliverTx {
-		t.Helper()
-		signer := queryAccount(t, app, key.PubKey().Address())
-		height++
-		app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
-			ChainID: chainID, Height: height, Time: time.Now(),
-		}})
-		tx := createAndSignTxWithAccSeq(t, msgs, chainID, key,
-			signer.AccountNumber, signer.Sequence)
-		raw, err := amino.Marshal(tx)
-		require.NoError(t, err)
-		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: raw})
-		app.EndBlock(abci.RequestEndBlock{})
-		app.Commit()
-		return resp
-	}
+	app, deliver := inertChain(t, vmGen, keys)
 
 	creatorBefore := ugnotBalance(t, app, creatorAddr)
 	collectorBefore := ugnotBalance(t, app, collectorAddr)
