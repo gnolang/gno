@@ -1032,7 +1032,7 @@ func (h *HTTPHandler) pendingApprovalView(ctx context.Context, gnourl *weburl.Gn
 	if meta.Status != vm.PackageStatusInert {
 		return nil
 	}
-	return components.StatusPendingApprovalComponent(gnourl.Path, meta.Reason)
+	return components.StatusPendingApprovalComponent(meta.Reason)
 }
 
 func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
