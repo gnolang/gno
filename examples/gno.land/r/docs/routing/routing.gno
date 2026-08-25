@@ -25,7 +25,10 @@ func init() {
 	// Named path variable: {name}
 	router.HandleFunc("user/{name}", profileHandler)
 
-	// Wildcard segment: matches wildcard/foo, wildcard/foo/bar, etc.
+	// Wildcard segment: matches wildcard, wildcard/foo, wildcard/foo/bar, etc.
+	// The bare segment is registered on its own because `wildcard/*` covers
+	// only requests that carry a segment in the `*` position.
+	router.HandleFunc("wildcard", wildcardHandler)
 	router.HandleFunc("wildcard/*", wildcardHandler)
 }
 
