@@ -1271,12 +1271,26 @@ Closing the `add_package` row for real transactions still means running under
     caller who arrives before the approver does now gets this. Fixing it means
     touching the generic call path, so it is called out rather than folded in.
 
-12. **A content hash in `MsgEnablePackage` is still needed.** The creator-bound
-    guard in §5b stops a stranger from swapping bytes under a reviewed path, but
-    not the submitter themselves: the same creator may replace GOOD with EVIL
-    after an approver has read GOOD, because that replacement is also the
-    legitimate retry after a failed enable. Approval names a path, not bytes.
-    This is the single largest remaining hole in the inert flow.
+12. **Fixed: `MsgEnablePackage` names the source it approves.** The
+    creator-bound guard in §5b stops a stranger from swapping bytes under a
+    reviewed path, but not the submitter themselves: the same creator may
+    replace GOOD with EVIL after an approver has read GOOD, because that
+    replacement is also the legitimate retry after a failed enable. Approval
+    named a path, not bytes.
+
+    `PkgHash` is now required on a live enable and checked against the parked
+    blob. `PackageContentHash` excludes `gnomod.toml`, which is what lets both
+    sides agree: `stampGnomod` rewrites that file at submit and touches nothing
+    else, so an approver hashing the source it saw in the transaction gets the
+    same value the keeper computes from the stored blob. Every reviewed byte is
+    still covered, and the gnomod rules are re-applied from the stored file at
+    enable regardless.
+
+    Skipped on replay, like the policy and approver gates: history predating
+    the field carries no hash, and replay is not racing a submitter. The wire
+    encoding of existing messages is unchanged — the field is appended and
+    omitted when empty.
+    (`TestEnableRefusesSourceChangedAfterApproval`, `TestEnableRequiresAHash`.)
 
 13. **Nothing can delete a parked package.** `DelInertPackage` runs only after a
     successful enable, `DisablePackage` is unimplemented, and there is no reject

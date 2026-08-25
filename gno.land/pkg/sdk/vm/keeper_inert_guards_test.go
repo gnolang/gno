@@ -19,6 +19,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// approvalFor builds an approval naming the source currently parked at path.
+//
+// EnablePackage refuses an approval that does not name the bytes it is
+// activating, so every test that expects an enable to succeed has to compute
+// the hash the same way a real approver would.
+func approvalFor(t *testing.T, env testEnv, ctx sdk.Context, approver crypto.Address, path string) MsgEnablePackage {
+	t.Helper()
+	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(path)
+	require.NotNil(t, parked, "nothing parked at %s to approve", path)
+	return MsgEnablePackage{
+		Approver: approver,
+		PkgPath:  path,
+		PkgHash:  PackageContentHash(parked),
+	}
+}
+
 // inertEnv builds a chain running the "inert" policy with one approver.
 func inertEnv(t *testing.T, approver crypto.Address, funded ...crypto.Address) (testEnv, sdk.Context) {
 	t.Helper()
@@ -81,7 +97,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 		require.NoError(t, submit(t, env, ctx, creator, std.NewCoins(std.NewCoin(ugnot.Denom, 1000))))
 
 		before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
-		err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 		require.Error(t, err,
 			"enable must respect the ceiling the creator declared at submit")
 		assert.Contains(t, err.Error(), "deposit",
@@ -99,7 +115,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 
 		before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
 		require.NoError(t, env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+			approvalFor(t, env, ctx, approver, pkgPath)),
 			"a ceiling above the real cost must not get in the way")
 
 		// Pin the MAGNITUDE against the realm's own recorded deposit, not just
@@ -137,7 +153,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 
 		require.NoError(t, submit(t, env, ctx, creator, nil))
 		err := env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+			approvalFor(t, env, ctx, approver, pkgPath))
 		require.Error(t, err,
 			"with nothing declared the charge must be capped by params.DefaultDeposit")
 		assert.Contains(t, err.Error(), "deposit")
@@ -308,7 +324,7 @@ func Who(cur realm) string { return "owner" }`))))
 	env.vmk.SetParams(ctx, params)
 
 	// 4. A routine enable must not hand the path back to the attacker.
-	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 	require.Error(t, err, "enabling over a live package is a takeover and must be refused")
 	// Discriminate. "already exists in cache" is a DIFFERENT failure --
 	// RunMemPackage's SetCachePackage panic, which an earlier version of this
@@ -364,7 +380,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 		"the stamp must overwrite a hand-written ceiling, not preserve it")
 
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		approvalFor(t, env, ctx, approver, pkgPath)),
 		"a ceiling the message never declared must not be able to block activation")
 }
 
@@ -400,7 +416,7 @@ private = true`},
 
 func Which(cur realm) string { return "v1" }`))))
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+		approvalFor(t, env, ctx, approver, pkgPath)))
 
 	// v2: park over the now-live private package, then activate again.
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, filesFor(
@@ -410,7 +426,7 @@ func Which(cur realm) string { return "v2" }`))),
 		"the same creator may park a replacement for their own private package")
 
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		approvalFor(t, env, ctx, approver, pkgPath)),
 		"a private package may be replaced, so activating the replacement must work")
 
 	stored := env.vmk.getGnoTransactionStore(ctx).GetMemPackage(pkgPath)
@@ -462,7 +478,7 @@ height = 999`},
 	victimBefore := env.bankk.GetCoins(ctx, victim).AmountOf(ugnot.Denom)
 	forgerBefore := env.bankk.GetCoins(ctx, forger).AmountOf(ugnot.Denom)
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+		approvalFor(t, env, ctx, approver, pkgPath)))
 	assert.Equal(t, victimBefore, env.bankk.GetCoins(ctx, victim).AmountOf(ugnot.Denom),
 		"the named victim must not be charged for someone else's submission")
 
@@ -533,7 +549,7 @@ func Who(cur realm) string { return "owner" }`))))
 	env.vmk.SetParams(ctx, params)
 
 	// 3. The stale parked public package must not be activatable over it.
-	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 	require.Error(t, err,
 		"a public package must not be activated over a live private realm")
 	assert.Contains(t, fmt.Sprintf("%+v", err), "cannot be overridden by a public package")
@@ -760,7 +776,7 @@ func Who(cur realm) string { return "parked" }`},
 		params.PkgApprovers = []crypto.Address{approver}
 		env.vmk.SetParams(ctx, params)
 
-		err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+		err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 		require.Error(t, err, "enable must be refused under policy %q", policy)
 		assert.Contains(t, fmt.Sprintf("%+v", err), "packages cannot be enabled")
 		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
@@ -774,7 +790,7 @@ func Who(cur realm) string { return "parked" }`},
 	params.PkgApprovers = []crypto.Address{approver}
 	env.vmk.SetParams(ctx, params)
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+		approvalFor(t, env, ctx, approver, pkgPath)))
 	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
@@ -873,7 +889,7 @@ func TestVMKeeperGenesisReplayEnableActivatesAParkedPackage(t *testing.T) {
 	// Sent by an approver the fork has since rotated out, so this also covers
 	// the approver gate's exemption.
 	require.NoError(t, env.vmk.EnablePackage(replayCtx,
-		MsgEnablePackage{Approver: stranger, PkgPath: pkgPath}),
+		approvalFor(t, env, ctx, stranger, pkgPath)),
 		"a fork that rotated pkg_approvers must not refuse the enables in its own history")
 	assert.NotNil(t, gs.GetPackage(pkgPath, false),
 		"the replayed enable must activate the package it parked")
@@ -993,7 +1009,7 @@ func Who(cur realm) string { return "parked" }`},
 	params.ChainDomain = "example.com"
 	env.vmk.SetParams(ctx, params)
 
-	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 	require.Error(t, err,
 		"a parked package must not go live under a domain AddPackage would refuse")
 	assert.Contains(t, fmt.Sprintf("%+v", err), "invalid domain")
@@ -1274,7 +1290,7 @@ func BrokenIfTypeChecked() { thisSymbolDoesNotExist() }`},
 		"the parked blob keeps the test file, which is what makes ProdOnly matter")
 
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
+		approvalFor(t, env, ctx, approver, pkgPath)),
 		"enable must type-check production files only; a broken _test.gno is not its business")
 	assert.NotNil(t, gs.GetPackage(pkgPath, false), "and the package must go live")
 }
@@ -1372,7 +1388,7 @@ func TestQueryPackageMetaTellsTheThreeStatesApart(t *testing.T) {
 
 		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, privPath, priv())))
 		require.NoError(t, env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: privPath}))
+			approvalFor(t, env, ctx, approver, privPath)))
 		live := decode(t, privPath)
 		require.Equal(t, PackageStatusLive, live.Status, "premise: live before the redeploy")
 		require.False(t, live.Pending, "premise: nothing pending yet")
@@ -1391,7 +1407,7 @@ func TestQueryPackageMetaTellsTheThreeStatesApart(t *testing.T) {
 		require.Equal(t, PackageStatusInert, decode(t, livePath).Status, "premise: parked first")
 
 		require.NoError(t, env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: livePath}))
+			approvalFor(t, env, ctx, approver, livePath)))
 
 		got := decode(t, livePath)
 		assert.Equal(t, PackageStatusLive, got.Status,
@@ -1458,7 +1474,7 @@ func TestQueryPackageMetaReportsWhyItIsNotLive(t *testing.T) {
 		require.NoError(t, env.vmk.AddPackage(ctx,
 			NewMsgAddPackage(creator, pkgPath, replayFiles("whyparked"))))
 		require.NoError(t, env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+			approvalFor(t, env, ctx, approver, pkgPath)))
 
 		raw, err := env.vmk.QueryPackageMeta(ctx, pkgPath)
 		require.NoError(t, err)
@@ -1499,7 +1515,7 @@ func TestQueryInertPathsListsWhatIsAwaitingApproval(t *testing.T) {
 		"a parked package must not appear in the live listing")
 
 	require.NoError(t, env.vmk.EnablePackage(ctx,
-		MsgEnablePackage{Approver: approver, PkgPath: enabled}))
+		approvalFor(t, env, ctx, approver, enabled)))
 
 	inert, err = env.vmk.QueryInertPaths(ctx, "", 100)
 	require.NoError(t, err)
@@ -1524,4 +1540,64 @@ func TestQueryInertPathsListsWhatIsAwaitingApproval(t *testing.T) {
 		_, err := env.vmk.QueryInertPaths(ctx, "", -1)
 		assert.Error(t, err)
 	})
+}
+
+// TestEnableRefusesSourceChangedAfterApproval covers the swap this hash exists
+// to stop.
+//
+// The creator-bound guard at submit stops a STRANGER replacing parked bytes.
+// It cannot stop the creator, because replacing your own parked bytes is the
+// legitimate retry after a failed enable. So a creator could park GOOD, wait
+// for an approver to read it, park EVIL, and have the approval activate EVIL:
+// the approval named a path, and the path still held something.
+func TestEnableRefusesSourceChangedAfterApproval(t *testing.T) {
+	const pkgPath = "gno.land/r/test/swapped"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	good := sortMemFiles([]*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "swapped.gno", Body: "package swapped\n\nfunc Who(cur realm) string { return \"good\" }"},
+	})
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, good)))
+
+	// What the approver reviewed and signed off on.
+	approval := approvalFor(t, env, ctx, approver, pkgPath)
+
+	// The same creator replaces the parked source. Permitted, and has to be:
+	// this is indistinguishable from the retry path.
+	evil := sortMemFiles([]*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "swapped.gno", Body: "package swapped\n\nfunc Who(cur realm) string { return \"evil\" }"},
+	})
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, evil)),
+		"a creator may replace its own parked bytes; that is the retry path")
+
+	err := env.vmk.EnablePackage(ctx, approval)
+	require.Error(t, err, "the approval named the source it read, which is no longer parked")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "changed after review")
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
+		"and nothing may go live")
+
+	// Approving what is actually parked now still works: the check binds the
+	// approval to bytes, it does not freeze the path.
+	require.NoError(t, env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath)))
+}
+
+// TestEnableRequiresAHash pins that an approval must name a source at all.
+// Optional would leave the hole open for any sender that omits it.
+func TestEnableRequiresAHash(t *testing.T) {
+	const pkgPath = "gno.land/r/test/nohash"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("nohash"))))
+
+	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err)
+	assert.Contains(t, fmt.Sprintf("%+v", err), "missing pkg_hash")
 }

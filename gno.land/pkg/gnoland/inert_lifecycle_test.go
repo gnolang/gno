@@ -162,17 +162,18 @@ func Origin(cur realm) string { return origin }
 	app, deliver := inertChain(t, vmGen, keys)
 
 	// 1. Submit. Accepted, but nothing runs yet.
+	submitted := &std.MemPackage{
+		Name: "inertlife",
+		Path: path,
+		// Sorted by name: AddMemPackage rejects an unsorted file list.
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "inertlife.gno", Body: body},
+		},
+	}
 	addResp := deliver(t, []std.Msg{vm.MsgAddPackage{
 		Creator: creatorAddr,
-		Package: &std.MemPackage{
-			Name: "inertlife",
-			Path: path,
-			// Sorted by name: AddMemPackage rejects an unsorted file list.
-			Files: []*std.MemFile{
-				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
-				{Name: "inertlife.gno", Body: body},
-			},
-		},
+		Package: submitted,
 	}}, creator)
 	require.True(t, addResp.IsOK(), "submit under inert should be accepted: %s", addResp.Log)
 
@@ -198,8 +199,13 @@ func Origin(cur realm) string { return origin }
 	approverBefore := ugnotBalance(t, app, approverAddr)
 
 	// 3. Enable, signed by the approver.
+	//
+	// The hash is computed from the source that was submitted, which is how a
+	// real approver gets it -- they saw the transaction. It matches the parked
+	// blob because PackageContentHash excludes gnomod.toml, the only file the
+	// keeper stamps at submit.
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path,
+		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "approver should be able to enable: %s", enableResp.Log)
 
@@ -270,16 +276,17 @@ func Hello(cur realm) string { return "hi" }
 	creatorBefore := ugnotBalance(t, app, creatorAddr)
 	collectorBefore := ugnotBalance(t, app, collectorAddr)
 
+	submitted := &std.MemPackage{
+		Name: "inertcharge",
+		Path: path,
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "inertcharge.gno", Body: body},
+		},
+	}
 	addResp := deliver(t, []std.Msg{vm.MsgAddPackage{
 		Creator: creatorAddr,
-		Package: &std.MemPackage{
-			Name: "inertcharge",
-			Path: path,
-			Files: []*std.MemFile{
-				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
-				{Name: "inertcharge.gno", Body: body},
-			},
-		},
+		Package: submitted,
 	}}, creator)
 	require.True(t, addResp.IsOK(), "submit should be accepted: %s", addResp.Log)
 
@@ -295,7 +302,7 @@ func Hello(cur realm) string { return "hi" }
 	collectorAfterSubmit := ugnotBalance(t, app, collectorAddr)
 
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path,
+		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "enable should succeed: %s", enableResp.Log)
 

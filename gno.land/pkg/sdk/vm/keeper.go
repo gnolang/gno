@@ -1129,6 +1129,30 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		}
 		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
 	}
+	// The approver names the source it reviewed, and this is where that is
+	// checked. Approval otherwise names a path, and a path's contents can
+	// change: the same creator may replace parked bytes at any time, and that
+	// replacement is also the legitimate retry after a failed enable. So the
+	// creator who parked GOOD and had it reviewed can park EVIL before the
+	// enable lands, and nothing above would notice -- the creator-bound guard
+	// at submit stops a stranger doing it, not the submitter themselves.
+	//
+	// Skipped on replay, like the two gates above: history predating the field
+	// carries no hash, and refusing it would fail every replayed enable. The
+	// bytes are already fixed by then in any case -- replay is not racing a
+	// submitter.
+	if !replay {
+		if msg.PkgHash == "" {
+			return ErrInvalidPackage(
+				"missing pkg_hash: an approval has to name the source it approves")
+		}
+		if got := PackageContentHash(memPkg); got != msg.PkgHash {
+			return ErrInvalidPackage(fmt.Sprintf(
+				"the parked source at %s is not what was approved "+
+					"(approved %s, parked %s); it changed after review",
+				msg.PkgPath, msg.PkgHash, got))
+		}
+	}
 	// Refuse to activate over a package that is already live, applying exactly
 	// the rule AddPackage applies: a public package may not be replaced, a
 	// private one may.

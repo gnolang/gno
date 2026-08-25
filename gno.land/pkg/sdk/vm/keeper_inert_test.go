@@ -75,7 +75,7 @@ func Echo(cur realm, msg string) string {
 	}, "inert package must not be callable")
 
 	// ---- 2. Only an approver may enable --------------------------------------
-	err = env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: stranger, PkgPath: pkgPath})
+	err = env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, stranger, pkgPath))
 	require.Error(t, err, "non-approver must not be able to enable a package")
 	assert.Contains(t, err.Error(), "unauthorized")
 
@@ -88,7 +88,7 @@ func Echo(cur realm, msg string) string {
 	require.Error(t, err, "enabling a non-existent inert package must fail")
 
 	// ---- 4. Oracle approves --------------------------------------------------
-	err = env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	err = env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 	require.NoError(t, err, "approver must be able to enable a valid inert package")
 
 	// The package is now a normal, resolvable package...
@@ -140,7 +140,7 @@ func Boom(cur realm) string {
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(submitter, pkgPath, files)),
 		"inert submission must not typecheck")
 
-	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	err := env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath))
 	require.Error(t, err, "chain must reject activation of ill-typed code")
 
 	// The package never becomes callable.
@@ -224,7 +224,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 		approverBefore := env.bankk.GetCoins(ctx, approver).AmountOf(ugnot.Denom)
 
 		require.NoError(t, env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+			approvalFor(t, env, ctx, approver, pkgPath)))
 
 		after := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
 		assert.Less(t, after, before,
@@ -254,7 +254,7 @@ func Set(cur realm, s string) { Greeting = s }`},
 		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
 
 		err := env.vmk.EnablePackage(ctx,
-			MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+			approvalFor(t, env, ctx, approver, pkgPath))
 		require.Error(t, err,
 			"activation must fail when the creator cannot cover the storage deposit")
 		assert.Contains(t, err.Error(), "deposit",

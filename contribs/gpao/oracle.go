@@ -531,7 +531,7 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// Counted before the call, not after: the fee is deducted by the ante
 	// handler, so a failed approval costs exactly as much as a successful one.
 	o.spent += o.enableFee
-	if err := o.enable(path); err != nil {
+	if err := o.enable(path, vm.PackageContentHash(mpkg)); err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
 		// chain's state rather than the code, and most such causes clear.
@@ -758,12 +758,15 @@ func gasWantedFor(estimated, fallback, ceiling int64) int64 {
 // at -gas-wanted would make the simulation run out of gas exactly on the
 // packages whose cost we most need to learn, and report that failure instead of
 // a measurement.
-func (o *oracle) enable(pkgPath string) error {
+func (o *oracle) enable(pkgPath, pkgHash string) error {
 	gasFee, err := std.ParseCoin(o.cfg.gasFee)
 	if err != nil {
 		return fmt.Errorf("invalid gas fee %q: %w", o.cfg.gasFee, err)
 	}
-	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath}
+	// Name the source that was verified. The keeper hashes the parked blob the
+	// same way and refuses if they differ, so a creator who replaces the bytes
+	// after verification cannot ride this approval.
+	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath, PkgHash: pkgHash}
 
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{

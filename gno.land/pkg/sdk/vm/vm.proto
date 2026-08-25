@@ -34,6 +34,7 @@ message m_addpkg {
 message m_enable_pkg {
 	string approver = 1;
 	string pkg_path = 2;
+	string pkg_hash = 3;
 }
 
 message m_disable_pkg {

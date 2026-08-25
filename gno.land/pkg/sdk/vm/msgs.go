@@ -284,6 +284,14 @@ func (msg MsgRun) SpendForSigner(signer crypto.Address) std.Coins {
 type MsgEnablePackage struct {
 	Approver crypto.Address `json:"approver" yaml:"approver"`
 	PkgPath  string         `json:"pkg_path" yaml:"pkg_path"`
+	// PkgHash names the source being approved, as PackageContentHash computes
+	// it. Approval otherwise names only a path, and the creator may replace
+	// what is parked there before the enable lands.
+	//
+	// Appended last: amino field numbers are positional, so inserting it
+	// anywhere else would renumber the fields above and change how every
+	// existing transaction decodes.
+	PkgHash string `json:"pkg_hash" yaml:"pkg_hash"`
 }
 
 var _ std.Msg = MsgEnablePackage{}
