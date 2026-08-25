@@ -1024,6 +1024,72 @@ Closing the `add_package` row for real transactions still means running under
     record rather than granting it again.
     (`TestVMKeeperGenesisReplayEnableIsANoOp`.)
 
+15b. **Still open: replay reproduces the fork's policy, not the source chain's.
+    Planned fix below.**
+
+    The carve-out in item 15 is right for a fork that turns `inert` ON, and
+    wrong for a fork OF a chain that already ran it. On such a chain
+    `MsgAddPackage` filed the code away without compiling it -- deferring the
+    compile is the whole point of the policy, so uncompilable parked code is
+    ordinary, not exotic. Replay now takes the ordinary path for those same
+    transactions, compiles them for the first time, and they fail. A failed
+    genesis transaction under `StrictReplay` is a node that will not boot, so
+    such a chain cannot fork itself. Reproduced: the same package parks cleanly
+    on the source chain and fails replay with "invalid gno package; type check
+    failed".
+
+    Two more in the same family. The documented same-creator re-parking retry
+    path replays as v1 going live and v2 hitting "package already exists". And a
+    submission the source chain's approver reviewed and turned down deploys live
+    on the fork -- the takeover §5f exists to prevent, reintroduced through
+    replay.
+
+    Neither keeping nor removing the carve-out fixes this; each is right for one
+    fork direction and wrong for the other. The branch has to follow the policy
+    the source chain had **at that transaction's height**, and nothing records
+    that today.
+
+    **Carry it per transaction, not per chain.** `GnoTxMetadata` already carries
+    what the source chain did for each replayed transaction -- `GasUsed`,
+    `GasWanted`, `Source`, `Note` -- populated by `gnogenesis fork generate` at
+    assembly time and unused in normal operation. A source policy belongs in
+    exactly that set. Per-transaction also handles a history whose policy changed
+    partway, which a single pinned value cannot.
+
+    The alternative considered and rejected was a policy-epoch list on
+    `vm.GenesisState`. It needs a new protobuf message type rather than one
+    scalar field, it cannot express a policy that changed mid-history without
+    interval logic, and it puts chain-shape data in a keeper's genesis rather
+    than with the transactions it describes.
+
+    Touch points:
+
+    - `gnoland.proto` / `types.go` / `pb3_gen.go`: add
+      `CodeSubmissionPolicy string` to `GnoTxMetadata`. One scalar, no new
+      message. `pb3_gen.go` is hand-maintained in this tree, so this is an edit
+      rather than a regeneration.
+    - `contribs/gnogenesis/internal/fork/generate.go`: populate it, beside the
+      existing `GasUsed`/`GasWanted` provenance.
+    - `deliverGenesisTx`: put it in the context, alongside the
+      `GenesisReplayKey` it already sets.
+    - `AddPackage`: during replay, take the policy from the context instead of
+      `params`, and drop `!auth.IsGenesisReplay(ctx)` from the branch condition.
+      The branch then parks exactly when the source chain parked.
+    - `EnablePackage`: same source-policy read for its policy gate, and keep the
+      approver exemption -- a fork may legitimately have rotated
+      `pkg_approvers`, and replay is reproducing a record rather than granting
+      it again. The early return added for item 15's knock-on can go: once
+      replay parks correctly, the replayed enable finds its package and does its
+      ordinary work.
+
+    Absent metadata -- an older export, or a fresh launch -- keeps today's
+    behaviour, so nothing that boots now stops booting.
+
+    Worth stating: this is only reachable once a chain has actually run `inert`
+    for a while and then forks. Since this PR is what introduces the policy, the
+    near-term case is the one item 15 already handles. That is why this is
+    planned rather than done.
+
 16. **Fixed: `EnablePackage` checks the policy and re-applies the gnomod rules.**
     Enable used to run under any later policy, so a package parked during an
     `inert` era stayed activatable forever — governance moves to `permissioned`
