@@ -575,10 +575,10 @@ on an ordinary transaction and an ordinary meter. That makes declarer and
 spender the same party, and would retire §5c's ceiling carry, §5g's stamping
 defence, and the content-hash gap item 12 lists as open.
 
-### 8a. Candidate: charge the creator a block's gas at enable, one enable per block
+### 8a. Rejected: charge the creator a block's gas at enable, one enable per block
 
-A design that puts the cost on the creator without reshaping #5888's messages.
-Recorded because it answers §8's objections rather than restating them.
+Designed, reviewed, and refused. Recorded in full because the shape is the one
+most people reach for, and the reason it fails is not obvious from the outside.
 
 **The shape.**
 
@@ -612,10 +612,59 @@ inside a single message. The price is available: the chain's gas price is
 consensus state, set per block by the auth keeper, so the conversion is
 deterministic.
 
-**What it fixes.** The party who chose the cost pays it. A failed `init()` costs
-the creator the gas actually burned, so retrying is not free -- and it cannot be
-retried more than once a block. The oracle's exposure returns to one flat fee,
-independent of what the submitter wrote.
+**Why it fails: the charge is reverted by the failure it exists to punish.**
+
+The charge and refund are bank writes inside the message. `runTx` takes its
+checkpoint after the ante and before the messages, and on failure
+`WriteCheckpoint` flushes only the ante writes -- baseapp says so in a comment
+at that line. So when `init()` exhausts the budget, the out-of-gas panic fails
+the message and the charge is rolled back with everything else. The creator pays
+nothing; the approver still pays its flat fee. That is precisely the drain §8
+set out to close, arriving back intact.
+
+It gets worse under an adversary. A package whose `init()` loops and then panics
+is approved by the oracle -- which type-checks and preprocesses but never runs
+`init()` -- costs the chain a full block's work, and costs its author only the
+submit fee, because the panic reverts the charge. Ending `init()` with a panic
+rather than exhausting gas is a large discount on the same attack.
+
+There is no fix inside this message shape. For a charge to survive a failed
+transaction it must be an ante-phase write, and the ante cannot know the
+creator: the creator is read from the stored `gnomod.toml` inside the keeper,
+long after the ante has run. Putting the creator on the transaction is the only
+way, and that is a different design -- see below.
+
+**Three more, each independently disqualifying.**
+
+- The `Block.MaxGas` budget does not bound what it claims. The store's gas meter
+  is frozen at `BeginTransaction`, before any handler runs, so a swapped meter
+  reaches only the VM half and storage keeps billing the approver -- the same
+  objection §8 already records. The enable-time type check is outside every
+  budget, metered only by the flat per-byte charge levied at submit.
+- Moving `init()` off the transaction's meter breaks block accounting either
+  way. Left off the block meter, a saturated block reads as idle and the dynamic
+  gas price *falls*, so attacking gets cheaper the more you do it. Charged to
+  the block meter, one enable consumes the whole block allowance and evicts
+  every other transaction. Today, with `init()` on the approver's ordinary
+  meter, neither happens.
+- The per-block marker cannot live in memory. `runMsgs` executes for simulate as
+  well as delivery, `.app/simulate` is a public query that runs outside the
+  consensus mutex against the last committed height, and only *store* writes are
+  rolled back by the surrounding cache wrap. A field on the keeper would be both
+  a data race with consensus and a fork: a simulate at height H can clear a mark
+  set by a delivery at H+1, letting a second enable through on that node alone.
+  A store key would be rolled back correctly, which is the pattern the auth
+  keeper already uses for per-block gas price.
+
+**Two further problems found in review.**
+
+0. On any chain that did not configure an initial gas price the charge is zero,
+   because the price accessor returns an empty value and the update
+   short-circuits on it -- so the mechanism is silently inert, including on
+   every txtar chain, which is why no integration test would have caught any of
+   this. And the charge is unconsented in the sense §5c exists to prevent: the
+   creator never declares it, it is set by a consensus param and a moving price,
+   and it lands in a transaction they neither sign nor can refuse.
 
 **Open questions, both real.**
 
@@ -630,12 +679,24 @@ independent of what the submitter wrote.
    single mistake a submitter can make. It should be named in the error, not
    discovered from a balance.
 
-**Compared with the approve/activate split.** That one dissolves the problem by
-making declarer and spender the same party, and retires §5c and §5b's
-content-hash gap along the way, but it reshapes messages #5888 introduced and
-lets the creator retry an expensive `init()` at will. This keeps the message
-shapes and bounds retries structurally, at the cost of a new per-block rule and
-an up-front charge.
+**What to do instead.** Two things, in order.
+
+A chain-wide `max_init_gas` vm param, applied as a passthrough meter at the
+machine construction, is worth shipping on its own merits and does not depend on
+any of the above. It turns the approver's required `GasWanted` from an unbounded
+guess into a known constant, keeps every unit on the block meter and in the fee
+market, and adds no state, no coin flow and no message change. It needs the
+allocator's meter restored afterwards, which is a live bug today regardless.
+
+For the cost question itself, put the creator on the transaction. Adding a
+`Creator` signer to `MsgEnablePackage` makes them the fee payer, runs `init()`
+on their own meter under their own limit, and drops the approver's cost to
+nothing. It also bounds retries in a way this design could not: the ante
+increments the sequence for every signer and sequence writes survive a failed
+transaction, so a failed enable burns the approval and the creator must return
+for a fresh signature. It closes the content-hash gap in the same stroke if the
+message also carries the hash. The cost is one off-chain round trip -- the
+oracle co-signs rather than broadcasts.
 
 ## Alternatives considered
 
