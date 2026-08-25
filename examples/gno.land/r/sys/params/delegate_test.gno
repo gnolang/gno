@@ -3,6 +3,8 @@ package params
 import (
 	"testing"
 
+	prms "sys/params"
+
 	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
@@ -21,6 +23,24 @@ const (
 func resetDelegation() {
 	runSubmittersMgr = ""
 	runSubmittersGrants = addrset.Set{}
+}
+
+// armRunSubmitters puts addresses on the list the way GovDAO does: by writing
+// the parameter, not through the delegate.
+//
+// Tests need it because the delegate may no longer arm an empty list. An empty
+// run_submitters means the gate is off, so the first add would switch a
+// chain-wide restriction on rather than curate one, and that is a vote.
+func armRunSubmitters(addrs ...string) {
+	prms.UpdateSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs, true)
+}
+
+// unarmRunSubmitters drops addresses the way a GovDAO vote does, bypassing the
+// delegate's grant-scoping. Used to build a list whose every remaining entry was
+// granted by the delegate, which is the only state where the non-empty floor is
+// the binding constraint.
+func unarmRunSubmitters(addrs ...string) {
+	prms.UpdateSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs, false)
 }
 
 // TestRunSubmittersUndelegatedDeniesEveryone is the single most important test
@@ -53,6 +73,7 @@ func TestRunSubmittersOnlyTheDelegateMayWrite(cur realm, t *testing.T) {
 	defer resetDelegation()
 
 	runSubmittersMgr = testDelegate
+	armRunSubmitters(testutils.TestAddress("seeded-by-vote").String())
 	addr := testutils.TestAddress("granted").String()
 
 	// A different realm is refused.
@@ -117,6 +138,7 @@ func TestRunSubmittersRemoveIsScopedToOwnGrants(cur realm, t *testing.T) {
 		[]string{preexisting})
 
 	runSubmittersMgr = testDelegate
+	armRunSubmitters(testutils.TestAddress("seeded-by-vote").String())
 	own := testutils.TestAddress("ownadd").String()
 
 	testing.SetRealm(testing.NewCodeRealm(testDelegate))
@@ -152,11 +174,20 @@ func TestRunSubmittersCannotEmptyTheList(cur realm, t *testing.T) {
 	defer resetDelegation()
 
 	runSubmittersMgr = testDelegate
+	seed := testutils.TestAddress("seeded-by-vote").String()
+	armRunSubmitters(seed)
 	a := testutils.TestAddress("granted-a").String()
 	b := testutils.TestAddress("granted-b").String()
 
 	testing.SetRealm(testing.NewCodeRealm(testDelegate))
 	AddRunSubmitters(cross(cur), []string{a, b})
+
+	// GovDAO then drops its own seed by vote, which grant-scoping does not
+	// constrain. This is the only way to reach a list whose every entry was
+	// granted by the delegate, now that the delegate cannot arm an empty one --
+	// and it is the state where the floor is the last thing standing.
+	unarmRunSubmitters(seed)
+	uassert.Equal(t, 2, len(GetRunSubmitters()))
 
 	// Every listed address is now one the delegate granted, so grant-scoping
 	// permits removing all of them. The floor is the only thing left.
@@ -196,6 +227,7 @@ func TestRunSubmittersRevocationDropsGrantRecord(cur realm, t *testing.T) {
 	defer resetDelegation()
 
 	runSubmittersMgr = testDelegate
+	armRunSubmitters(testutils.TestAddress("seeded-by-vote").String())
 	addr := testutils.TestAddress("byfirst").String()
 	testing.SetRealm(testing.NewCodeRealm(testDelegate))
 	AddRunSubmitters(cross(cur), []string{addr})
@@ -301,6 +333,7 @@ func TestRunSubmittersGrantLaunderingIsRefused(cur realm, t *testing.T) {
 		[]string{breakglass})
 
 	runSubmittersMgr = testDelegate
+	armRunSubmitters(testutils.TestAddress("seeded-by-vote").String())
 	testing.SetRealm(testing.NewCodeRealm(testDelegate))
 
 	// Step 1: re-add what is already there. A no-op on the parameter, and it
@@ -357,6 +390,7 @@ func TestRenderShowsDelegationState(t *testing.T) {
 
 	// Delegated: the holder is named.
 	runSubmittersMgr = testDelegate
+	armRunSubmitters(testutils.TestAddress("seeded-by-vote").String())
 	out = Render("")
 	uassert.True(t, contains2(out, testDelegate),
 		"the delegate holding the capability must be named")
@@ -380,4 +414,42 @@ func contains2(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// TestRunSubmittersDelegateCannotArmTheGate covers the direction the non-empty
+// floor does not: turning the allowlist ON.
+//
+// An empty run_submitters means the gate is off and anyone may MsgRun. So a
+// delegate adding the first address is not curating a list, it is switching a
+// chain-wide restriction on and choosing who it admits -- leaving that address
+// the only one on the chain that may run code.
+//
+// That is unrepairable in band. Creating a GovDAO proposal needs MsgRun, so
+// once the gate is armed against the members they cannot propose the vote that
+// would reset the list or revoke the delegation, and the floor in
+// RemoveRunSubmitters stops the delegate from undoing it either.
+func TestRunSubmittersDelegateCannotArmTheGate(cur realm, t *testing.T) {
+	resetDelegation()
+	defer resetDelegation()
+
+	runSubmittersMgr = testDelegate
+	attacker := testutils.TestAddress("attacker").String()
+
+	// The gate starts off.
+	uassert.Equal(t, 0, len(GetRunSubmitters()))
+
+	testing.SetRealm(testing.NewCodeRealm(testDelegate))
+	uassert.AbortsContains(t, cur, "refusing to arm", func() {
+		AddRunSubmitters(cross(cur), []string{attacker})
+	})
+	uassert.Equal(t, 0, len(GetRunSubmitters()),
+		"a refused arm must leave the gate off")
+
+	// Once GovDAO has armed it, the delegate may curate as before.
+	seeded := testutils.TestAddress("seeded-by-vote").String()
+	armRunSubmitters(seeded)
+	testing.SetRealm(testing.NewCodeRealm(testDelegate))
+	AddRunSubmitters(cross(cur), []string{attacker})
+	uassert.Equal(t, 2, len(GetRunSubmitters()),
+		"curating an armed list is still the delegate's job")
 }

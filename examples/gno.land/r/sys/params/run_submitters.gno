@@ -165,6 +165,30 @@ func AddRunSubmitters(cur realm, addrs []string) {
 		return
 	}
 
+	// The delegate may curate a list that is already in force. It may not put
+	// one into force.
+	//
+	// An empty run_submitters means the allowlist is OFF and anyone may MsgRun.
+	// So the first add is not curation: it switches a chain-wide restriction on
+	// and picks who it admits. A delegate adding one address to an empty list
+	// leaves that address the only one on the chain that may run code.
+	//
+	// That is unrepairable, which is why it is refused rather than merely
+	// discouraged. Creating a GovDAO proposal needs MsgRun -- a ProposalRequest
+	// carries an Executor, which MsgCall cannot build from string arguments --
+	// so once the gate is armed against them, members cannot propose the vote
+	// that would reset the list or revoke the delegation. The floor in
+	// RemoveRunSubmitters means the delegate cannot undo it either.
+	//
+	// Arming the gate stays GovDAO's, by vote, where the resulting list is on
+	// the ballot. This is also the bootstrap order the delegation was documented
+	// with: populate by vote first, delegate second.
+	if len(GetRunSubmitters()) == 0 {
+		panic("refusing to arm the " + runSubmittersKey +
+			" allowlist: it is empty, so the gate is off and anyone may MsgRun. " +
+			"Turning it on is a GovDAO vote, not a delegated edit")
+	}
+
 	// Record a grant only for an address this call actually ADDED.
 	//
 	// UpdateSysParamStrings dedupes on add, so passing an address already on the
