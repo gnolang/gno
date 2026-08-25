@@ -213,7 +213,7 @@ func Withdraw(cur realm, amount int64) {
 ## Key Differences from Solidity
 
 Gno requires an explicit Banker with appropriate permissions.
-Reentrancy attacks are not possible (see [Reentrancy](/r/docs/soliditypatterns/reentrancy)).
+Banker sends execute no recipient code, so they cannot re-enter (see [Reentrancy](/r/docs/soliditypatterns/reentrancy)).
 Multiple coin denominations are supported, not just one native token.
 
 [View source code](/r/docs/soliditypatterns/banker$source)

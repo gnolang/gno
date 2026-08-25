@@ -61,14 +61,14 @@ func Withdraw(cur realm, amount int64) {
 
     bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)
     bnk.SendCoins(cur.Address(), caller, chain.Coins{chain.NewCoin("ugnot", amount)})  // No code executes on recipient
-    deposits[caller] -= amount  // Safe - no reentrancy possible
+    deposits[caller] -= amount  // Safe here: SendCoins runs no recipient code
 }
 ` + "```" + `
 
 ## Best Practice: Checks-Effects-Interactions
 
-Even though Gno prevents reentrancy attacks, following the **Checks-Effects-Interactions**
-pattern keeps your code clear and maintainable:
+Because a realm can still be re-entered through an interface or callback it invokes,
+follow the **Checks-Effects-Interactions** pattern:
 
 ` + "```go" + `
 func Withdraw(cur realm, amount int64) {
@@ -92,8 +92,8 @@ func Withdraw(cur realm, amount int64) {
 }
 ` + "```" + `
 
-This pattern remains a best practice for code clarity and future-proofing, even when
-reentrancy isn't a concern.
+Apply it everywhere, including the paths where a banker send is the only external
+call and cannot re-enter.
 
 ---
 

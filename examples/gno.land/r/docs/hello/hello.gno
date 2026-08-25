@@ -1,7 +1,8 @@
 // Package hello demonstrates basic usage of Render().
 // Try adding `:World` at the end of the URL, like `.../hello:World`.
 //
-// Render() is optional — a realm without it simply has no gnoweb page.
+// Render() is optional: a realm without it still has a gnoweb page, showing
+// its file listing instead of rendered markdown.
 // When present, it must have the exact signature: func Render(path string) string.
 package hello
 
