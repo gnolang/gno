@@ -1366,6 +1366,35 @@ func TestQueryPackageMetaTellsTheThreeStatesApart(t *testing.T) {
 			"and it must name the creator, who pays the deposit at enable")
 	})
 
+	t.Run("a redeploy parked over a live private realm is reported pending", func(t *testing.T) {
+		// AddPackage refuses to park over a live PUBLIC package, so this is the
+		// only way the two key spaces hold the same path at once. Without the
+		// second lookup the status reads plain "live" and the creator cannot
+		// see that their redeploy is waiting -- the blind spot this query
+		// exists to close, reappearing one case further in.
+		const privPath = "gno.land/r/test/privpending"
+		priv := func() []*std.MemFile {
+			return sortMemFiles([]*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(privPath) + "\nprivate = true\n"},
+				{Name: "privpending.gno", Body: "package privpending\n\nfunc Who(cur realm) string { return \"live\" }"},
+			})
+		}
+
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, privPath, priv())))
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: privPath}))
+		live := decode(t, privPath)
+		require.Equal(t, PackageStatusLive, live.Status, "premise: live before the redeploy")
+		require.False(t, live.Pending, "premise: nothing pending yet")
+
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, privPath, priv())),
+			"a private realm may be parked over while live; that is the redeploy path")
+
+		got := decode(t, privPath)
+		assert.Equal(t, PackageStatusLive, got.Status, "the old code is still what runs")
+		assert.True(t, got.Pending, "but the parked redeploy must be visible")
+	})
+
 	t.Run("live after enable", func(t *testing.T) {
 		require.NoError(t, env.vmk.AddPackage(ctx,
 			NewMsgAddPackage(creator, livePath, replayFiles("wentlive"))))

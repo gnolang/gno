@@ -2189,6 +2189,15 @@ type PackageMeta struct {
 	// activated it. Under "inert" those differ.
 	Height     int    `json:"height,omitempty"`
 	MaxDeposit string `json:"max_deposit,omitempty"`
+	// Pending reports a parked submission awaiting an approver. It is always
+	// true for status "inert", and also true for a live PRIVATE realm with a
+	// redeploy parked over it -- AddPackage refuses to park over a live public
+	// package but allows it for a private one, so the two can coexist.
+	//
+	// The fields above describe what is callable. When a live package has a
+	// submission pending, they are the live one's, and the parked submission's
+	// own creator and height are not reported here.
+	Pending bool `json:"pending,omitempty"`
 }
 
 // QueryPackageMeta reports what the chain holds at a package path: live, parked
@@ -2212,8 +2221,13 @@ func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res strin
 	mpkg := gnostore.GetMemPackage(pkgPath)
 	if mpkg != nil {
 		info.Status = PackageStatusLive
+		// Both key spaces are read even when the live one answers, or a
+		// redeploy parked over a live private realm would be invisible -- the
+		// case this query exists to make visible.
+		info.Pending = gnostore.GetInertPackage(pkgPath) != nil
 	} else if mpkg = gnostore.GetInertPackage(pkgPath); mpkg != nil {
 		info.Status = PackageStatusInert
+		info.Pending = true
 	}
 
 	// A stored package always carries a gnomod.toml the keeper stamped, so a
