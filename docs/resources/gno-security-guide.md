@@ -375,7 +375,7 @@ func DoThing(cur realm) {
 
 The runtime mints the first `cur realm` per crossing frame, so it is guaranteed
 current — no `cur.IsCurrent()` check is needed on it (see
-`gnovm/tests/files/zrealm_iscurrent.gno`). The check is required on any *other*
+[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)). The check is required on any *other*
 realm value a function receives, such as a secondary `rlm realm` parameter.
 
 This is class **2 (designation-forgery)** from `gno-security.md`.
@@ -588,7 +588,7 @@ Before deploying a realm:
   - Takes `cur realm` and derives the caller from `cur.Previous()`;
     any secondary `rlm realm` parameter is checked with
     `rlm.IsCurrent()` first (the first `cur` is guaranteed current —
-    see `gnovm/tests/files/zrealm_iscurrent.gno`).
+    see [`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
   - Documented intentionally permissive (faucet, public mint).
 
 - [ ] No exported var or function returns a pointer aliasing

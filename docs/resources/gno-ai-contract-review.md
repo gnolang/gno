@@ -22,13 +22,14 @@ func AdminAction(cur realm) {
 }
 ```
 
-The first `cur realm` of a crossing function is guaranteed current by the runtime,
-so an `IsCurrent()` check on it is dead code (see `gnovm/adr/interrealm_v2.md` and
-the filetest `gnovm/tests/files/zrealm_iscurrent.gno`). The check is load-bearing
-on every realm value a function is handed other than that first `cur`: a secondary
-`rlm realm` parameter — on a non-crossing helper, or alongside a crossing
-function's own `cur` — can be filled with a forwarded or derived realm value,
-typically `cur.Previous()`:
+A crossing function's first `cur realm` is guaranteed current by the runtime, so an
+`IsCurrent()` check on it is dead code (see
+[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md) and
+[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
+Check every *other* realm value a function receives. A secondary `rlm realm`,
+whether on a non-crossing helper or beside a crossing function's own `cur`, is
+filled from an ordinary argument and can carry `cur.Previous()` or another
+forwarded value:
 
 ```go
 // Non-crossing helper receiving the acting realm as a plain value.
