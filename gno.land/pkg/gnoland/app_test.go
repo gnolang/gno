@@ -4211,6 +4211,8 @@ func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
 	}
 
 	t.Run("a code-bearing message is refused", func(t *testing.T) {
+		t.Parallel()
+
 		res := simulate(t, []std.Msg{vm.MsgRun{
 			Caller: addr,
 			Package: &std.MemPackage{
@@ -4228,6 +4230,8 @@ func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
 	})
 
 	t.Run("an ordinary message still simulates without a valid signature", func(t *testing.T) {
+		t.Parallel()
+
 		// The other half of the predicate: too wide and keyless gas estimation
 		// breaks for every ordinary message. MsgCall is not signer-authorized,
 		// so it must still be estimable by a caller holding no key.
