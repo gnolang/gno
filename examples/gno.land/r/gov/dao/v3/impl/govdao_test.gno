@@ -440,14 +440,16 @@ func TestPromoteToTierMissingFromStoreKeepsTheMember(cur realm, t *testing.T) {
 		dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 	}
 
-	// The executor must refuse before removing anything. A panic aborts the
-	// transaction, so nothing it did commits; a returned error would not.
-	// AbortsContains, not Panics: the refusal happens across a realm boundary,
-	// which surfaces as an abort.
-	urequire.AbortsContains(t, cur,
-		"destination tier is missing from the member store: T3", func() {
-			dao.ExecuteOrRejectProposal(cross(cur), dao.ProposalID(pid))
-		})
+	// The executor refuses before removing anything, and returns rather than
+	// panicking. That rejects the proposal and closes it, and since nothing was
+	// written, committing the rejection loses nothing.
+	//
+	// So the assertion below is about the chain, not the harness: the member
+	// survives because no write happened, not because a panic reverted one.
+	// Under the earlier panic-after-removal shape it held only because gno test
+	// does not revert an abort, which proved nothing about production.
+	accepted := dao.ExecuteOrRejectProposal(cross(cur), dao.ProposalID(pid))
+	urequire.Equal(t, false, accepted, "the promotion must be rejected")
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	after, tier := memberstore.Get(0, cur).GetMember(m1)

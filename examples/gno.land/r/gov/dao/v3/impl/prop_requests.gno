@@ -166,33 +166,23 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 	cb := func(cur realm) error {
 		// Fail on an unknown destination tier before touching the member.
 		//
-		// This does NOT fix a data-loss bug: an unknown tier already panicked a
-		// few lines down, because memberByTier's default case panics and it is
-		// evaluated as SetMember's third argument. A panic is reverted -- baseapp
-		// commits message writes only when the result is OK -- so the earlier
-		// RemoveMember never stuck. Checking here only moves the failure earlier
-		// and names the actual cause.
+		// Everything that can be checked before a write is checked here, and
+		// RETURNS. A returned executor error rejects the proposal and closes it,
+		// and since nothing has been mutated yet that commits nothing.
 		//
-		// The remove-then-add hazard is closed below. SetMember RETURNS errors
-		// rather than panicking -- for a member that already exists, and for a
-		// tier missing from the per-store index -- and a returned executor error
-		// does not revert: ExecuteOrRejectProposal marks the proposal rejected
-		// and the transaction still commits, so those paths would have left the
-		// member removed and not re-added. Both are now ruled out before
-		// anything is removed, and the leftover error path panics.
+		// After RemoveMember the policy inverts: a return would commit a member
+		// who was removed and not re-added, so everything below panics instead,
+		// which reverts the whole transaction.
 		if _, ok := memberstore.GetTier(toTier); !ok {
-			panic("unknown destination tier: " + toTier)
+			return ufmt.Errorf("unknown destination tier: %s", toTier)
 		}
 
 		mbt := memberstore.Get(0, cur)
 
-		// And against the index SetMember actually consults, which is not the
-		// table above. GetTier reads the global tier definitions; SetMember
-		// checks whether this store has a bucket for the tier, and the two are
-		// populated separately -- DeleteAll empties the buckets while leaving
-		// the definitions intact.
+		// SetMember consults the store's own index, not the global tier table
+		// above: DeleteAll empties the buckets and leaves the definitions.
 		if !mbt.Has(toTier) {
-			panic("destination tier is missing from the member store: " + toTier)
+			return ufmt.Errorf("destination tier is missing from the member store: %s", toTier)
 		}
 
 		prevTier := mbt.RemoveMember(addr)
@@ -205,12 +195,8 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 		}
 
 		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
-			// Unreachable, and panicking rather than returning is what makes it
-			// safe to be wrong about that. SetMember fails on an address that
-			// already exists -- this one was just removed -- or on a missing
-			// tier bucket, checked above. If either reasoning is ever wrong, a
-			// panic reverts the removal, while returning the error would commit
-			// it and lose the member.
+			// Unreachable: both of SetMember's failures are ruled out above.
+			// Panicking is what makes it safe to be wrong about that.
 			panic("promotion failed after removal: " + err.Error())
 		}
 
