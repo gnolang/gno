@@ -23,6 +23,8 @@ type MockPackage struct {
 	Inert bool
 	// Pending stages a redeploy parked over a live package.
 	Pending bool
+	// Reason overrides the parked reason; defaults to awaiting-an-approver.
+	Reason string
 }
 
 // MockClient is a mock implementation of the ClientAdapter interface for testing.
@@ -60,6 +62,10 @@ func (m *MockClient) PackageMeta(ctx context.Context, path string) (*vm.PackageM
 	if pkg.Inert {
 		meta.Status = vm.PackageStatusInert
 		meta.Pending = true
+		meta.Reason = pkg.Reason
+		if meta.Reason == "" {
+			meta.Reason = vm.ReasonAwaitingApprover
+		}
 	}
 	return meta, nil
 }

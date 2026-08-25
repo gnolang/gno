@@ -33,13 +33,17 @@ func StatusErrorComponent(message string) *View {
 // package is stored, but nothing that reads the live key space can see it --
 // and telling a creator who has already paid to submit that their path does not
 // exist is the confusing half of that.
-func StatusPendingApprovalComponent(pkgPath string) *View {
+func StatusPendingApprovalComponent(pkgPath, reason string) *View {
+	body := "This package has been submitted. Its source is not readable and it cannot be called until it is enabled."
+	if reason != "" {
+		body += " Reason: " + reason + "."
+	}
 	return NewTemplateView(
 		StatusViewType,
 		"status",
 		StatusData{
 			Title:      "Not Yet Enabled",
-			Body:       "This package has been submitted and is waiting for an approver. Its source is not readable and it cannot be called until then.",
+			Body:       body,
 			ButtonURL:  "/",
 			ButtonText: "Go Back Home",
 		},

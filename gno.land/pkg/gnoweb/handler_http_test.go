@@ -1936,6 +1936,27 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		})
 	}
 
+	t.Run("the reason reaches the page", func(t *testing.T) {
+		// A creator who cannot tell "queued" from "nothing on this chain can
+		// enable anything" has no idea whether to wait or to go ask governance.
+		blocked := &gnoweb.MockPackage{
+			Domain: "example.com",
+			Path:   "/r/mock/blocked",
+			Files:  map[string]string{"render.gno": `package main`},
+			Inert:  true,
+			Reason: vm.ReasonNoApprovers,
+		}
+		cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(blocked))
+		h, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), cfg)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "/r/mock/blocked", nil)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		assert.Contains(t, rr.Body.String(), vm.ReasonNoApprovers,
+			"the banner must say why, not just that it is waiting")
+	})
+
 	t.Run("a path nobody submitted still reads as not found", func(t *testing.T) {
 		status, body := get(t, "/r/mock/neverexisted")
 		assert.Equal(t, http.StatusNotFound, status)

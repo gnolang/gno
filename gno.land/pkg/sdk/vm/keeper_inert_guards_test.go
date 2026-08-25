@@ -1410,3 +1410,71 @@ func TestQueryPackageMetaTellsTheThreeStatesApart(t *testing.T) {
 			"the creator survives activation; the approver never becomes the owner")
 	})
 }
+
+// TestQueryPackageMetaReportsWhyItIsNotLive covers the reason a parked package
+// carries.
+//
+// Two of the three are states a creator cannot diagnose from outside and cannot
+// fix by resubmitting: an empty approver list means nobody on the chain can
+// enable anything, and a policy that has moved off "inert" means the same until
+// it moves back. Without a reason both look like an approver being slow.
+func TestQueryPackageMetaReportsWhyItIsNotLive(t *testing.T) {
+	const pkgPath = "gno.land/r/test/whyparked"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+
+	reasonFor := func(t *testing.T, mutate func(*Params)) string {
+		t.Helper()
+		env, ctx := inertEnv(t, approver, creator)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("whyparked"))))
+
+		params := env.vmk.GetParams(ctx)
+		mutate(&params)
+		require.NoError(t, env.vmk.SetParams(ctx, params))
+
+		raw, err := env.vmk.QueryPackageMeta(ctx, pkgPath)
+		require.NoError(t, err)
+		var got PackageMeta
+		require.NoError(t, json.Unmarshal([]byte(raw), &got))
+		require.Equal(t, PackageStatusInert, got.Status, "premise: still parked")
+		return got.Reason
+	}
+
+	t.Run("an approver exists, so it is only queued", func(t *testing.T) {
+		assert.Equal(t, ReasonAwaitingApprover, reasonFor(t, func(p *Params) {}))
+	})
+
+	t.Run("no approvers means nobody can enable it", func(t *testing.T) {
+		// isApprover is a membership test with no empty-means-open case, so an
+		// empty list refuses every address.
+		assert.Equal(t, ReasonNoApprovers, reasonFor(t, func(p *Params) {
+			p.PkgApprovers = nil
+		}))
+	})
+
+	t.Run("a policy that moved off inert blocks it", func(t *testing.T) {
+		// Checked before the approver gate in EnablePackage, so it is the
+		// reason reported even when both apply.
+		assert.Equal(t, ReasonPolicyMoved, reasonFor(t, func(p *Params) {
+			p.CodeSubmissionPolicy = CodeSubmissionPolicyPermissioned
+			p.PkgApprovers = nil
+		}))
+	})
+
+	t.Run("a live package carries no reason", func(t *testing.T) {
+		env, ctx := inertEnv(t, approver, creator)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("whyparked"))))
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
+
+		raw, err := env.vmk.QueryPackageMeta(ctx, pkgPath)
+		require.NoError(t, err)
+		var got PackageMeta
+		require.NoError(t, json.Unmarshal([]byte(raw), &got))
+		require.Equal(t, PackageStatusLive, got.Status)
+		assert.Empty(t, got.Reason, "there is nothing to explain once it is live")
+	})
+}

@@ -2168,6 +2168,23 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 	return amino.MarshalAny(exported)
 }
 
+// Reasons a parked package is not live, reported in PackageMeta.Reason.
+//
+// Each mirrors a gate in EnablePackage, in the order EnablePackage applies
+// them, so the reason is the one a MsgEnablePackage would actually hit.
+const (
+	// ReasonAwaitingApprover is the ordinary case: nothing is wrong, no
+	// approver has enabled it yet.
+	ReasonAwaitingApprover = "waiting for a package approver to enable it"
+	// ReasonNoApprovers means nothing on this chain can be enabled at all.
+	// isApprover is a membership test, so an empty list admits nobody.
+	ReasonNoApprovers = "no package approvers are configured on this chain"
+	// ReasonPolicyMoved means the chain has left the policy the package was
+	// submitted under. Reversible: returning to "inert" makes it enablable
+	// again, and nothing evicts the package meanwhile.
+	ReasonPolicyMoved = `the chain no longer runs the "inert" code submission policy`
+)
+
 // Package statuses reported by QueryPackageMeta.
 const (
 	PackageStatusLive   = "live"   // deployed and callable
@@ -2189,6 +2206,9 @@ type PackageMeta struct {
 	// activated it. Under "inert" those differ.
 	Height     int    `json:"height,omitempty"`
 	MaxDeposit string `json:"max_deposit,omitempty"`
+	// Reason says why a parked package is not live yet, in terms its submitter
+	// can act on. Empty unless Status is "inert".
+	Reason string `json:"reason,omitempty"`
 	// Pending reports a parked submission awaiting an approver. It is always
 	// true for status "inert", and also true for a live PRIVATE realm with a
 	// redeploy parked over it -- AddPackage refuses to park over a live public
@@ -2228,6 +2248,7 @@ func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res strin
 	} else if mpkg = gnostore.GetInertPackage(pkgPath); mpkg != nil {
 		info.Status = PackageStatusInert
 		info.Pending = true
+		info.Reason = enableBlockedReason(vm.GetParams(ctx))
 	}
 
 	// A stored package always carries a gnomod.toml the keeper stamped, so a
@@ -2247,6 +2268,23 @@ func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res strin
 		return "", err
 	}
 	return string(bz), nil
+}
+
+// enableBlockedReason reports why a parked package cannot be enabled right now,
+// checking the same gates as EnablePackage in the same order.
+//
+// It reads the chain's own configuration only. Whether an approver will choose
+// to enable a given package, or whether the creator can still cover the deposit
+// at that point, is not knowable here.
+func enableBlockedReason(params Params) string {
+	switch {
+	case params.CodeSubmissionPolicy != CodeSubmissionPolicyInert:
+		return ReasonPolicyMoved
+	case len(params.PkgApprovers) == 0:
+		return ReasonNoApprovers
+	default:
+		return ReasonAwaitingApprover
+	}
 }
 
 // QueryPkg returns the named block variables of a package as Amino JSON.
