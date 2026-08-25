@@ -108,7 +108,13 @@ func BuyTicket(cur realm, eventId uint64) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(0, cur, cur.Address(), int64(event.price)); err != nil {
+		// eventix does not own this token, so it cannot use a frame-relative
+		// teller to charge its caller — that shape is a confused deputy and is
+		// exactly what the ledger-scoped CallerTeller now prevents. The buyer
+		// approves eventix on the token first; eventix then spends that
+		// allowance as itself, via a RealmTeller eagerly bound to its own
+		// address.
+		if err := pt.RealmTeller(0, cur).TransferFrom(0, cur, buyer, cur.Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:

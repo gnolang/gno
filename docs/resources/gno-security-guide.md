@@ -183,6 +183,7 @@ encapsulation:
 | All sensitive fields are unexported | `Token.ledger`, `PrivateLedger.balances`, `PrivateLedger.allowances`, `fnTeller.accountFn` all lowercase. Foreign packages cannot access them. |
 | No exported method leaks an interior pointer | No `Token` method returns `*PrivateLedger`, `*avl.Tree`, or `*avl.Node`. |
 | Authority transitions gated by `rlm.IsCurrent()` | Every `Teller` method checks `rlm.IsCurrent()` before resolving `rlm.Previous().Address()`. |
+| A frame-relative teller never leaves its realm | `CallerTeller` hangs off `*PrivateLedger`, which `NewToken` gives only to the creating realm, so a foreign realm cannot mint one. Every write also checks that the invoking realm is the token's own `origRealm` (host compared after stripping any `realm.Sub` subpath), so a teller that is legally built and then *exported as a value* is inert elsewhere. Keying on the actor instead would miss two cases: a realm charged by a realm it calls, and `TransferFrom`, whose actor is the spender while the debited owner is a parameter. |
 | Forgery defended by nominal type assertion | `IsCanonicalTeller(t)` checks `_, ok := t.(*fnTeller)`. Embedding wrappers (`type Evil struct { Teller }`) fail this check despite method promotion. |
 | `*PrivateLedger`'s unauthenticated mutators isolated by package privacy | `Mint`/`Burn`/etc. have no `rlm` check. They're safe only because no realm exports the `*PrivateLedger` pointer. |
 

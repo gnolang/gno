@@ -10,13 +10,20 @@ gnoland start
 # run the faucet before transferring the balance
 gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 740001ugnot -gas-wanted 7_400_000 -chainid=tendermint_test test1
 
+# A registry hub may not debit the transaction origin through a CallerTeller
+# (it is not the token's own realm), so the owner approves the hub's realm
+# address through the token's own Approve and the hub spends that allowance
+# with its RealmTeller. g13dkxh9... is DerivePkgAddr("gno.land/r/grc20transfer").
+gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Approve -args 'g13dkxh9kxdamjrjcq80hn97frs3lweagvv0uf77' -args '1000000' -gas-fee 940001ugnot -gas-wanted 9_400_000 -chainid=tendermint_test test1
+stdout OK!
+
 # check the event after transferring the grc20 token
 gnokey maketx call -pkgpath gno.land/r/grc20transfer -func TransferBy -args 'gno.land/r/demo/defi/foo20.FOO' -args 'g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp' -args '1000000' -gas-fee 940001ugnot -gas-wanted 9_400_000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: [0-9]+'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
-stdout 'EVENTS:     \[{"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20.FOO.0000000"},{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"1000000"}\],"pkg_path":"gno.land/p/demo/tokens/grc20"},{\"bytes_delta\":2029,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":202900},\"pkg_path\":\"gno.land/r/demo/defi/foo20\"}\]'
+stdout 'EVENTS:     \[{"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20.FOO.0000000"},{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"1000000"}\],"pkg_path":"gno.land/p/demo/tokens/grc20"},{\"bytes_delta\":959,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":95900},\"pkg_path\":\"gno.land/r/demo/defi/foo20\"}\]'
 stdout 'TX HASH:    '
 
 -- gnomod.toml --
@@ -27,9 +34,17 @@ package grc20transfer
 
 import "gno.land/r/demo/defi/grc20reg"
 
+// TransferBy moves `amount` of the registered token from the caller to `to`.
+//
+// A hub is not the token's own realm, so it cannot debit the caller through a
+// frame-relative CallerTeller. It spends a prior allowance instead: the actor
+// is this realm (RealmTeller, eagerly bound to the hub's own address), and the
+// owner is named explicitly. The emitted Transfer event is unchanged — the
+// ledger still debits the owner.
 func TransferBy(cur realm, path string, to address, amount int64) {
+	owner := cur.Previous().Address()
 	grc20 := grc20reg.MustGet(path)
-	err := grc20.CallerTeller().Transfer(0, cur, to, amount)
+	err := grc20.RealmTeller(0, cur).TransferFrom(0, cur, owner, to, amount)
 	if err != nil {
 		panic(err)
 	}

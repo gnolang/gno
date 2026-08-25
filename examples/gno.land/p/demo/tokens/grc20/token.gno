@@ -57,11 +57,12 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	}
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:       pkgPath + "." + symbol + "." + id.String(),
-		name:     name,
-		symbol:   symbol,
-		decimals: decimals,
-		ledger:   ledger,
+		id:        pkgPath + "." + symbol + "." + id.String(),
+		name:      name,
+		symbol:    symbol,
+		decimals:  decimals,
+		ledger:    ledger,
+		origRealm: pkgPath,
 	}
 	ledger.token = token
 
