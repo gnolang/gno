@@ -861,17 +861,26 @@ func Who(cur realm) string { return "live" }`},
 		"a fork that rotated pkg_approvers must not refuse the enables in its own history")
 
 	// And a fork that has moved off "inert" must still replay its history.
+	//
+	// The carve-out is deliberately unconditional, so this and the two above it
+	// reach the same early return. They document which forks must keep working
+	// rather than covering three separate branches.
 	offInert := DefaultParams()
 	offInert.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
 	offInert.PkgApprovers = []crypto.Address{approver}
-	env.vmk.SetParams(ctx, offInert)
+	require.NoError(t, env.vmk.SetParams(ctx, offInert))
 	require.NoError(t, env.vmk.EnablePackage(replayCtx,
 		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
 		"a fork that moved off inert must not refuse the enables in its own history")
 
-	// Live traffic is unaffected: the same call outside replay still refuses.
+	// Live traffic is unaffected: the same call outside replay still refuses,
+	// and for the policy reason -- not because the setup above silently failed
+	// and left nothing parked at the path.
 	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
 	require.Error(t, err, "the carve-out must be scoped to replay")
+	// %+v, not Error(): tm2's abci errors keep the detail on the wrapped trace.
+	assert.Contains(t, fmt.Sprintf("%+v", err), "code_submission_policy",
+		"it must refuse on the policy, not because the setup left nothing parked")
 }
 
 // TestVMKeeperEnableChecksChainDomain covers the last of AddPackage's path rules
