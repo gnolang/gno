@@ -48,20 +48,20 @@ All per-byte costs are `constant × len(amino_serialized_bytes)`.
 Each store method serializes (or deserializes) the data and charges gas on the
 serialized size before writing to (or after reading from) the backend:
 
-- **`loadObjectSafe`** (`store.go:442`): `GasGetObject × len(bz)` after reading
+- **`loadObjectSafe`** (`store.go`): `GasGetObject × len(bz)` after reading
   from `baseStore.Get`.
-- **`SetObject`** (`store.go:594`): `GasSetObject × len(bz)` after
+- **`SetObject`** (`store.go`): `GasSetObject × len(bz)` after
   `amino.MustMarshalAny`. The value written to `baseStore` is `hash || bz`
   (HashSize + amino bytes). For escaped objects, a separate `oid → hash` entry
   is written to `iavlStore`.
-- **`DelObject`** (`store.go:698`): flat `GasDeleteObject`. Deletes from
+- **`DelObject`** (`store.go`): flat `GasDeleteObject`. Deletes from
   `baseStore` (and `iavlStore` if escaped).
-- **`GetTypeSafe`** (`store.go:731`): `GasGetType × len(bz)`.
-- **`SetType`** (`store.go:781`): `GasSetType × len(bz)`.
-- **`GetPackageRealm`** (`store.go:372`): `GasGetPackageRealm × len(bz)`.
-- **`SetPackageRealm`** (`store.go:398`): `GasSetPackageRealm × len(bz)`.
-- **`AddMemPackage`** (`store.go:911`): `GasAddMemPackage × len(bz)`.
-- **`GetMemPackage`** (`store.go:946`): `GasGetMemPackage × len(bz)`.
+- **`GetTypeSafe`** (`store.go`): `GasGetType × len(bz)`.
+- **`SetType`** (`store.go`): `GasSetType × len(bz)`.
+- **`GetPackageRealm`** (`store.go`): `GasGetPackageRealm × len(bz)`.
+- **`SetPackageRealm`** (`store.go`): `GasSetPackageRealm × len(bz)`.
+- **`AddMemPackage`** (`store.go`): `GasAddMemPackage × len(bz)`.
+- **`GetMemPackage`** (`store.go`): `GasGetMemPackage × len(bz)`.
 
 Gas is consumed via `ds.consumeGas()` which calls `ds.gasMeter.ConsumeGas()`
 if a gas meter is set (tests may run without one).
@@ -74,7 +74,7 @@ Modules like `auth` use this via `ctx.GasStore(key)`.
 
 **The VM keeper does not use this wrapper.** It calls `ctx.Store(key)` (raw,
 unwrapped) when creating the GnoVM transaction store
-(`gno.land/pkg/sdk/vm/keeper.go:334`). The raw stores are passed directly to
+(`newGnoTransactionStore` in `gno.land/pkg/sdk/vm/keeper.go`). The raw stores are passed directly to
 `gnoStore.BeginTransaction()`. Therefore the SDK-level store gas costs
 **do not apply** to GnoVM storage operations — only the GnoVM `GasConfig`
 constants above are charged.
@@ -114,7 +114,7 @@ At the default price: 1 GNOT = 10 KB of storage.
 
 ### How storage differences are tracked
 
-1. During realm finalization (`realm.go:387–390`), each realm accumulates a
+1. During realm finalization, each realm accumulates a
    net byte delta (`sumDiff`) from `SetObject` and `DelObject` calls:
    - `SetObject` returns `len(hash+bz) - LastObjectSize` (the difference from
      the previous serialized size, or the full size for new objects).
@@ -127,8 +127,18 @@ At the default price: 1 GNOT = 10 KB of storage.
 
 ### Deposit processing
 
-After each VM message (`MsgAddPackage`, `MsgCall`, `MsgRun`), the keeper calls
-`processStorageDeposit()` (`keeper.go:1221–1311`):
+After each VM message that can create realm state — `MsgAddPackage`,
+`MsgEnablePackage`, `MsgCall`, `MsgRun` — the keeper calls
+`processStorageDeposit()` in `gno.land/pkg/sdk/vm/keeper.go`.
+
+`MsgEnablePackage` is the interesting one. Under the `inert` code submission
+policy nothing runs at submit, so no realm state exists to charge for; the
+deposit is taken at enable instead, which is the first moment the state exists.
+That message is signed by an approver, but the deposit is charged to the
+package's CREATOR, read back from the `gnomod.toml` the keeper stamped at
+submit. So for that path the `caller` parameter below is the creator, not the
+transaction's signer — deliberately, since the creator caused the storage and
+only their own submission can commit their funds.
 
 1. Read `realmDiffs` from the store.
 2. Determine available deposit: `msg.MaxDeposit` if provided, else
@@ -159,7 +169,7 @@ depositUnlocked = |diff| × StoragePrice.Amount
 
 ### Realm state
 
-Each `Realm` (`realm.go:117–124`) tracks:
+Each `Realm` (the struct in `realm.go`) tracks:
 
 | Field | Type | Description |
 |-------|------|-------------|
