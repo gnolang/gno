@@ -1291,6 +1291,14 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 // already-parked package for free. That the bytes are already stored makes it
 // worse rather than better, since under "inert" anyone may park them.
 //
+// MsgRejectPackage is deliberately NOT covered. It is authorized from its own
+// payload like the two above, but it executes nothing: it reads the parked
+// blob, parses its gnomod.toml and deletes it. The harm the others invite --
+// driving a free type-check and init() per query -- has no analogue, and the
+// blob decode it does do is already reachable anonymously through
+// vm/qpkgmeta_json. Requiring a signature to simulate it would cost keyless
+// estimation for no gain.
+//
 // Enumerated by type rather than derived from the allowlist scan, so that adding
 // a message which is authorized from its own payload and executes code is a
 // deliberate decision here rather than a silent omission.

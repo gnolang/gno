@@ -53,16 +53,26 @@ func TestCodecParity_VM(t *testing.T) {
 		// number or a dropped field in either would not have been caught -- while
 		// the same diff extended this test for Params.
 		//
-		// A dropped field matters more than usual for these two: Approver is the
-		// whole authorization, and PkgPath is what the chain compiles. Losing
-		// either on the wire is not a decoding curiosity.
+		// A dropped field matters more than usual for these: Approver is the
+		// whole authorization, PkgPath is what the chain compiles, and PkgHash
+		// binds the approval to the source it approved. Losing any of them on
+		// the wire is not a decoding curiosity.
+		//
+		// PkgHash is populated rather than left zero. An omitted field is
+		// encoded as absent, so a zero value would exercise none of its codec
+		// and pass even if the field had no wire support at all.
 		{"MsgEnablePackage", &vm.MsgEnablePackage{
 			Approver: caller,
 			PkgPath:  "gno.land/r/demo/foo",
+			PkgHash:  "b1946ac92492d2347c6235b4d2611184",
 		}},
 		{"MsgDisablePackage", &vm.MsgDisablePackage{
 			Approver: caller,
 			PkgPath:  "gno.land/r/demo/foo",
+		}},
+		{"MsgRejectPackage", &vm.MsgRejectPackage{
+			Sender:  caller,
+			PkgPath: "gno.land/r/demo/foo",
 		}},
 		{"Params", &vm.Params{}},
 		// Populated address lists. The empty Params case above never enters the
