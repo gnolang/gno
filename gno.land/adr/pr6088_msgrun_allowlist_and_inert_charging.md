@@ -884,14 +884,21 @@ Closing the `add_package` row for real transactions still means running under
    carrying the expensive type-check. The codebase currently asserts both
    positions at once. Worth resolving deliberately.
 
-5. **The replay carve-out is per-check, not per-delivery.** "This delivery is
-   replayed history" is a property of the delivery, yet each check hooks
-   `GenesisReplayKey` itself — and `checkSessionRestrictions` has no carve-out
-   at all, so a replayed session tx *is* re-authorized against current params.
-   Extracting `isGenesisReplay(ctx)` and deciding that asymmetry belongs in a
-   follow-up. Note also that the auth ante's own use of this key requires a
-   second condition (the operator's `--skip-genesis-sig-verification`); this
-   carve-out fires on the key alone.
+5. **Partly fixed: the replay carve-out is per-check, not per-delivery.** "This
+   delivery is replayed history" is a property of the delivery, yet each check
+   hooked `GenesisReplayKey` itself.
+
+   The extraction this item asked for has landed: `auth.IsGenesisReplay(ctx)`
+   now sits beside the key and all four branch sites call it, so the comma-ok
+   and the key type are written once.
+
+   What is still open is the asymmetry it exposed. `checkSessionRestrictions`
+   has no carve-out at all, so a replayed session tx *is* re-authorized against
+   current params — a fork that tightens session rules would refuse its own
+   history. And the auth ante's own use requires a second condition (the
+   operator's `--skip-genesis-sig-verification`) while the code-policy and vm
+   carve-outs fire on the predicate alone, so the same phrase means two
+   different things depending on where it is read.
 
 6. **Split the policy enum.** `permissioned` is an authorization rule and
    `inert` is a processing mode, so the enum cannot express "only trusted
