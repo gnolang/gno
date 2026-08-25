@@ -77,9 +77,11 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 	// Validate before writing, so a bad value is a CLI error here rather than a
 	// panic when the node boots.
 	//
-	// updateParamsField sets the struct field by reflection and consults neither
-	// Validate nor the keeper's WillSetParam, so nothing else on this path looks
-	// at the value at all, and every one of these params is consensus state.
+	// updateParamsField sets the struct field by reflection. It parses the value
+	// into the field's type -- rejecting a malformed address, gas price or
+	// duration -- but consults neither Validate nor the keeper's WillSetParam,
+	// so nothing on this path judges whether the value makes sense. Every one of
+	// these params is consensus state.
 	//
 	// Only the module this key touches, and only after the same legacy
 	// defaulting the node applies. Validating all three would refuse to edit a

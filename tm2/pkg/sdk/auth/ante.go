@@ -553,8 +553,9 @@ type GenesisReplayKey struct{}
 //
 // The predicate belongs beside the key: four places now branch on it — this
 // package's ante, gno.land's code-submission gate, and the vm keeper's inert
-// branch — and each open-coded `ctx.Value(...).(bool)` is a chance to get the
-// key type or the comma-ok wrong silently, in a direction that fails open.
+// and enable paths — and each open-coded `ctx.Value(...).(bool)` is a chance to
+// get the key type or the comma-ok wrong silently, in a direction that fails
+// open.
 func IsGenesisReplay(ctx sdk.Context) bool {
 	replay, _ := ctx.Value(GenesisReplayKey{}).(bool)
 	return replay
