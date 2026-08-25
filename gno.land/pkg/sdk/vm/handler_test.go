@@ -779,3 +779,79 @@ func TestVmHandlerQuery_TypeJSON_NotFound(t *testing.T) {
 	assert.False(t, res.IsOK(), "should have an error")
 	assert.Regexp(t, `invalid expression`, res.Error.Error())
 }
+
+// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
+// inert-policy messages to their keeper methods.
+//
+// The keeper methods are covered in depth elsewhere; what has no other test is
+// the wiring. handleMsgDisablePackage had zero coverage anywhere in the tree,
+// and handleMsgEnablePackage only reached through one end-to-end test in
+// another package — so deleting either case from the switch left a message that
+// ValidateBasic accepts, the ante admits, and the VM then silently rejects as
+// "unrecognized vm message type". That is a routing failure reported as a
+// message-type failure, at the point a chain has already committed to the
+// policy.
+//
+// Asserted through the errors the keeper alone produces: "not a pkg approver"
+// can only come from EnablePackage/DisablePackage, and "not yet implemented"
+// only from the DisablePackage stub. An unrouted message would instead say
+// "unrecognized", which is what the negative case at the bottom pins.
+func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	vh := NewHandler(env.vmk)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	stranger := crypto.AddressFromPreimage([]byte("stranger"))
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+
+	t.Run("enable reaches the keeper's approver gate", func(t *testing.T) {
+		res := vh.Process(ctx, MsgEnablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "not a pkg approver")
+		assert.NotContains(t, res.Log, "unrecognized")
+	})
+
+	t.Run("enable reaches the keeper's parked-package lookup", func(t *testing.T) {
+		// An authorized approver gets past the gates and fails on absence,
+		// which only the keeper body can report.
+		res := vh.Process(ctx, MsgEnablePackage{Approver: approver, PkgPath: "gno.land/r/test/nothinghere"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "no inert package at path")
+	})
+
+	t.Run("disable reaches the keeper's approver gate", func(t *testing.T) {
+		res := vh.Process(ctx, MsgDisablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "not a pkg approver")
+		assert.NotContains(t, res.Log, "unrecognized")
+	})
+
+	t.Run("disable reaches the stub", func(t *testing.T) {
+		res := vh.Process(ctx, MsgDisablePackage{Approver: approver, PkgPath: "gno.land/r/test/x"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "not yet implemented")
+	})
+
+	t.Run("an unrouted message is distinguishable", func(t *testing.T) {
+		res := vh.Process(ctx, testUnroutedMsg{})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "unrecognized vm message type")
+	})
+}
+
+// testUnroutedMsg is a vm-route message Process has no case for, so the
+// "unrecognized" arm above is asserted against a real miss rather than assumed.
+type testUnroutedMsg struct{}
+
+func (testUnroutedMsg) Route() string                           { return RouterKey }
+func (testUnroutedMsg) Type() string                            { return "unrouted" }
+func (testUnroutedMsg) ValidateBasic() error                    { return nil }
+func (testUnroutedMsg) GetSignBytes() []byte                    { return nil }
+func (testUnroutedMsg) GetSigners() []crypto.Address            { return nil }
+func (testUnroutedMsg) GetReceived() std.Coins                  { return nil }
+func (testUnroutedMsg) SpendForSigner(crypto.Address) std.Coins { return nil }
