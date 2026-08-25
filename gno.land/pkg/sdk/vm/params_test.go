@@ -6,8 +6,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// TestDefaultParams checks the plain defaults, pins the depth-gas defaults for
+// the mounted reference store (B+32 + fast index), and guards a keeper
+// SetParams→GetParams round-trip of the exact default values.
+func TestDefaultParams(t *testing.T) {
+	params := DefaultParams()
+	assert.Equal(t, sysNamesPkgDefault, params.SysNamesPkgPath)
+	assert.Equal(t, chainDomainDefault, params.ChainDomain)
+	assert.Equal(t, depositDefault, params.DefaultDeposit)
+	assert.Equal(t, storagePriceDefault, params.StoragePrice)
+	assert.Equal(t, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)), params.StorageFeeCollector)
+
+	assert.Equal(t, int64(100), params.FixedGetReadDepth100, "GET pinned: 1.0 flat read via the fast index")
+	assert.Equal(t, int64(200), params.FixedSetReadDepth100, "SET-read pinned at the measured-with-cache descent")
+	assert.Equal(t, int64(540), params.FixedWriteDepth100, "WRITE pinned: 4.4 batched COW + 1.0 index write")
+	assert.Equal(t, params.FixedGetReadDepth100, params.MinGetReadDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, params.FixedSetReadDepth100, params.MinSetReadDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, params.FixedWriteDepth100, params.MinWriteDepth100, "NewParams pins Fixed = Min")
+	assert.Equal(t, int64(1_000), params.IterNextCostFlat)
+	assert.NoError(t, params.Validate())
+
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	env.vmk.SetParams(ctx, params)
+	got := env.vmk.GetParams(ctx)
+	assert.Equal(t, params, got, "defaults must round-trip through the params keeper unchanged")
+}
 
 // TestParamsString verifies the output of the String method.
 func TestParamsString(t *testing.T) {
@@ -40,7 +69,107 @@ func TestParamsString(t *testing.T) {
 	}
 }
 
-func TestWillSetParam(t *testing.T) {
+func TestParamsValidate(t *testing.T) {
+	zeroAddr := crypto.Address{}
+
+	tests := []struct {
+		name    string
+		modify  func(p Params) Params
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid default params",
+			modify:  func(p Params) Params { return p },
+			wantErr: false,
+		},
+		{
+			name:    "valid params with empty sysnames path",
+			modify:  func(p Params) Params { p.SysNamesPkgPath = ""; return p },
+			wantErr: false,
+		},
+		{
+			name:    "valid params with empty chain domain",
+			modify:  func(p Params) Params { p.ChainDomain = ""; return p },
+			wantErr: false,
+		},
+		{
+			name:    "invalid sysnames package path - not userlib",
+			modify:  func(p Params) Params { p.SysNamesPkgPath = "invalid/path"; return p },
+			wantErr: true,
+			errMsg:  "invalid user package path",
+		},
+		{
+			name:    "invalid chain domain - special characters",
+			modify:  func(p Params) Params { p.ChainDomain = "invalid@domain"; return p },
+			wantErr: true,
+			errMsg:  "invalid chain domain",
+		},
+		{
+			name:    "invalid chain domain - no TLD",
+			modify:  func(p Params) Params { p.ChainDomain = "invalid"; return p },
+			wantErr: true,
+			errMsg:  "invalid chain domain",
+		},
+		{
+			name:    "invalid default deposit - empty",
+			modify:  func(p Params) Params { p.DefaultDeposit = ""; return p },
+			wantErr: true,
+			errMsg:  "invalid default storage deposit",
+		},
+		{
+			name:    "invalid default deposit - malformed",
+			modify:  func(p Params) Params { p.DefaultDeposit = "invalid"; return p },
+			wantErr: true,
+			errMsg:  "invalid default storage deposit",
+		},
+		{
+			name:    "invalid storage price - empty",
+			modify:  func(p Params) Params { p.StoragePrice = ""; return p },
+			wantErr: true,
+			errMsg:  "invalid storage price",
+		},
+		{
+			name:    "invalid storage price - malformed",
+			modify:  func(p Params) Params { p.StoragePrice = "invalid"; return p },
+			wantErr: true,
+			errMsg:  "invalid storage price",
+		},
+		{
+			name: "invalid storage price - different denomination",
+			modify: func(p Params) Params {
+				p.DefaultDeposit = "1000ugnot"
+				p.StoragePrice = "10uatom"
+				return p
+			},
+			wantErr: true,
+			errMsg:  "storage price \"10uatom\" coins must be a subset of default deposit \"1000ugnot\" coins",
+		},
+		{
+			name:    "invalid storage fee collector - zero address",
+			modify:  func(p Params) Params { p.StorageFeeCollector = zeroAddr; return p },
+			wantErr: true,
+			errMsg:  "invalid storage fee collector, cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := tt.modify(DefaultParams())
+			err := p.Validate()
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestVMKeeperWillSetParam(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 	vmk := env.vmk
@@ -283,74 +412,4 @@ func TestGenesisToleratesLegacyPreprocessGasPerByte(t *testing.T) {
 	bad := DefaultParams()
 	bad.PreprocessGasPerByte = -1
 	assert.Error(t, ValidateGenesis(NewGenesisState(bad)))
-}
-
-func TestParamsValidate(t *testing.T) {
-	valid := DefaultParams()
-
-	tests := []struct {
-		name    string
-		modify  func(p Params) Params
-		wantErr bool
-	}{
-		{
-			name:    "valid default params",
-			modify:  func(p Params) Params { return p },
-			wantErr: false,
-		},
-		{
-			name:    "invalid storage_price",
-			modify:  func(p Params) Params { p.StoragePrice = "invalid"; return p },
-			wantErr: true,
-		},
-		{
-			name:    "empty storage_price",
-			modify:  func(p Params) Params { p.StoragePrice = ""; return p },
-			wantErr: true,
-		},
-		{
-			name:    "invalid chain_domain",
-			modify:  func(p Params) Params { p.ChainDomain = "not/a/domain"; return p },
-			wantErr: true,
-		},
-		{
-			name:    "invalid default_deposit",
-			modify:  func(p Params) Params { p.DefaultDeposit = "garbage"; return p },
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := tt.modify(valid)
-			err := p.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestDefaultParams pins the depth-gas defaults for the mounted reference
-// store (B+32 + fast index) and guards a keeper SetParams→GetParams
-// round-trip of the exact default values.
-func TestDefaultParams(t *testing.T) {
-	p := DefaultParams()
-
-	assert.Equal(t, int64(100), p.FixedGetReadDepth100, "GET pinned: 1.0 flat read via the fast index")
-	assert.Equal(t, int64(200), p.FixedSetReadDepth100, "SET-read pinned at the measured-with-cache descent")
-	assert.Equal(t, int64(540), p.FixedWriteDepth100, "WRITE pinned: 4.4 batched COW + 1.0 index write")
-	assert.Equal(t, p.FixedGetReadDepth100, p.MinGetReadDepth100, "NewParams pins Fixed = Min")
-	assert.Equal(t, p.FixedSetReadDepth100, p.MinSetReadDepth100, "NewParams pins Fixed = Min")
-	assert.Equal(t, p.FixedWriteDepth100, p.MinWriteDepth100, "NewParams pins Fixed = Min")
-	assert.Equal(t, int64(1_000), p.IterNextCostFlat)
-	assert.NoError(t, p.Validate())
-
-	env := setupTestEnv()
-	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-	env.vmk.SetParams(ctx, p)
-	got := env.vmk.GetParams(ctx)
-	assert.Equal(t, p, got, "defaults must round-trip through the params keeper unchanged")
 }
