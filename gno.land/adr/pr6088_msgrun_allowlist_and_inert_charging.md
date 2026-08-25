@@ -1468,6 +1468,12 @@ reason rather than by luck:**
 - **Wall clock, filesystem, environment, randomness.** None on a consensus path,
   and `ProdOnly` with no test getter holds at all three type-check sites —
   including `EnablePackage`, which is the newest and was the one worth checking.
+  It is load-bearing rather than tidy: `AddInertPackage` stores the mempackage
+  verbatim, test files included, so without it enable would type-check `_test.gno`
+  and need a getter the consensus path does not have — making the answer depend
+  on the node's disk. Pinned by
+  `TestVMKeeperEnableTypeChecksProductionFilesOnly`, which exists because
+  mutating the flag broke nothing else in the suite.
 
 One structural finding deserves recording even though it is not a bug:
 **`baseKey` is not merkleized.** It is mounted with `dbadapter`, whose `Commit`
