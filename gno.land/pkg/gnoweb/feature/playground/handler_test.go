@@ -20,6 +20,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,13 +31,15 @@ import (
 // returns canned data so the API path can be exercised without importing
 // the gnoweb package (which would create a test-time cycle).
 type stubClient struct {
-	evalResult []byte
-	evalErr    error
-	docResult  *doc.JSONDocumentation
-	docErr     error
-	files      []string
-	filesErr   error
-	fileBodies map[string][]byte
+	evalResult     []byte
+	evalErr        error
+	docResult      *doc.JSONDocumentation
+	docErr         error
+	files          []string
+	filesErr       error
+	fileBodies     map[string][]byte
+	simulateResult *abci.ResponseDeliverTx
+	simulateErr    error
 }
 
 func (s *stubClient) ListFiles(context.Context, string) ([]string, error) {
@@ -55,6 +60,10 @@ func (s *stubClient) Doc(context.Context, string) (*doc.JSONDocumentation, error
 
 func (s *stubClient) Eval(context.Context, string) ([]byte, error) {
 	return s.evalResult, s.evalErr
+}
+
+func (s *stubClient) Simulate(context.Context, *std.Tx, crypto.Address) (*abci.ResponseDeliverTx, error) {
+	return s.simulateResult, s.simulateErr
 }
 
 func discardLogger() *slog.Logger {
