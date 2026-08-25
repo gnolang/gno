@@ -517,6 +517,21 @@ func (p Params) applyLegacyDefaults() Params {
 	if p.InertChargeCollector.IsZero() {
 		p.InertChargeCollector = crypto.AddressFromPreimage([]byte(inertChargeCollectorNameDefault))
 	}
+	// These three used to be reachable two ways: through the struct, and
+	// through a small accessor that seeded its own default before reading the
+	// same key. The two disagreed whenever the key was absent, which is how
+	// AddPackage and EnablePackage came to apply the same domain rule
+	// differently. Defaulting them here leaves one read path and no second
+	// answer to keep in step.
+	if p.ChainDomain == "" {
+		p.ChainDomain = chainDomainDefault
+	}
+	if p.SysNamesPkgPath == "" {
+		p.SysNamesPkgPath = sysNamesPkgDefault
+	}
+	if p.SysCLAPkgPath == "" {
+		p.SysCLAPkgPath = sysCLAPkgDefault
+	}
 	return p
 }
 
@@ -533,24 +548,6 @@ const (
 	sysCLAPkgParamPath   = moduleParamPrefix + ":p:syscla_pkgpath"
 	chainDomainParamPath = moduleParamPrefix + ":p:chain_domain"
 )
-
-func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
-	chainDomain := chainDomainDefault // default
-	vm.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
-	return chainDomain
-}
-
-func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
-	sysNamesPkg := sysNamesPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysNamesPkg)
-	return sysNamesPkg
-}
-
-func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
-	sysCLAPkg := sysCLAPkgDefault
-	vm.prmk.GetString(ctx, sysCLAPkgParamPath, &sysCLAPkg)
-	return sysCLAPkg
-}
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	params := vm.GetParams(ctx)

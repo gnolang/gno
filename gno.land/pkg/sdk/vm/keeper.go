@@ -380,10 +380,10 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 func (vm *VMKeeper) callRealmBool(
 	ctx sdk.Context,
 	creator crypto.Address,
+	chainDomain string,
 	pkgPath, importAlias, funcName string,
 	args ...any,
 ) (result bool, err error) {
-	chainDomain := vm.getChainDomainParam(ctx)
 	store := vm.getGnoTransactionStore(ctx)
 
 	msgCtx := stdlibs.ExecContext{
@@ -436,12 +436,12 @@ func (vm *VMKeeper) callRealmBool(
 }
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
-func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, params Params, creator crypto.Address, pkgPath string) error {
+	sysNamesPkg := params.SysNamesPkgPath
 	if sysNamesPkg == "" {
 		return nil
 	}
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := params.ChainDomain
 
 	store := vm.getGnoTransactionStore(ctx)
 
@@ -465,7 +465,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+	result, err := vm.callRealmBool(ctx, creator, chainDomain, sysNamesPkg, "names",
 		"IsAuthorizedAddressForNamespace",
 		gno.Str(creator.String()), gno.Str(namespace))
 	if err != nil {
@@ -489,8 +489,8 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 //   - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
 //     itself must be deployable before it exists on-chain)
 //   - Creator has a valid CLA signature
-func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
-	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
+func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, params Params, creator crypto.Address) error {
+	sysCLAPkg := params.SysCLAPkgPath
 	if sysCLAPkg == "" {
 		return nil // CLA enforcement disabled
 	}
@@ -506,7 +506,7 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 		return nil
 	}
 
-	result, err := vm.callRealmBool(ctx, creator, sysCLAPkg, "cla",
+	result, err := vm.callRealmBool(ctx, creator, params.ChainDomain, sysCLAPkg, "cla",
 		"HasValidSignature",
 		gno.Str(creator.String()))
 	if err != nil {
@@ -640,7 +640,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	send := msg.Send
 	maxDeposit := msg.MaxDeposit
 	gnostore := vm.getGnoTransactionStore(ctx)
-	chainDomain := vm.getChainDomainParam(ctx)
+	// Read once, before anything executes: parameters may change during
+	// execution and the message must not fail because of a change made inside
+	// its own transaction. The inert and the normal path below decide from this
+	// same snapshot.
+	params := vm.GetParams(ctx)
+	chainDomain := params.ChainDomain
 
 	memPkg.Type = gno.MPUserAll
 
@@ -702,12 +707,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			"%s sent to %s, which is a pure package and can never spend it",
 			send.String(), pkgPath))
 	}
-
-	// Use the parameters before executing the message, as they may change during
-	// execution. The message should not fail due to parameter changes in the same
-	// transaction. Read once, above the policy branch below, so the inert and the
-	// normal path decide from the same snapshot.
-	params := vm.GetParams(ctx)
 
 	// If the chain is operating in "inert" submission mode, store the package
 	// without typechecking or execution. It becomes callable only after an
@@ -861,10 +860,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			declared = maxDeposit.String()
 		}
 		stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), declared)
-		if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		if err := vm.checkNamespacePermission(ctx, params, creator, pkgPath); err != nil {
 			return err
 		}
-		if err := vm.checkCLASignature(ctx, creator); err != nil {
+		if err := vm.checkCLASignature(ctx, params, creator); err != nil {
 			return err
 		}
 		// Charge for the init() this submission defers onto the approver.
@@ -983,12 +982,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+	if err := vm.checkNamespacePermission(ctx, params, creator, pkgPath); err != nil {
 		return err
 	}
 
 	// Check CLA signature
-	if err := vm.checkCLASignature(ctx, creator); err != nil {
+	if err := vm.checkCLASignature(ctx, params, creator); err != nil {
 		return err
 	}
 
@@ -1235,21 +1234,16 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// AddPackage orders it: the two checks below each evaluate a realm, so a
 	// mismatch would otherwise pay for both before being refused.
 	//
-	// Read through getChainDomainParam, the same accessor AddPackage uses, and
-	// NOT params.ChainDomain. The two disagree when vm:p:chain_domain is absent
-	// rather than empty: GetString here leaves the "gno.land" default in place,
-	// while GetStruct leaves the struct field at "" and applyLegacyDefaults does
-	// not fill it. Enable would then test HasPrefix(path, "/") and refuse every
-	// package while AddPackage accepted it -- the two halves of one deploy
-	// disagreeing about the rule they both apply. Pinned by
-	// TestChainDomainAccessorsAgree.
-	if !strings.HasPrefix(msg.PkgPath, vm.getChainDomainParam(ctx)+"/") {
+	// Same source as AddPackage: params.ChainDomain, defaulted once in
+	// applyLegacyDefaults. Two halves of one deploy applying one rule must not
+	// be able to read it from two places.
+	if !strings.HasPrefix(msg.PkgPath, params.ChainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + msg.PkgPath)
 	}
-	if err := vm.checkNamespacePermission(ctx, creator, msg.PkgPath); err != nil {
+	if err := vm.checkNamespacePermission(ctx, params, creator, msg.PkgPath); err != nil {
 		return err
 	}
-	if err := vm.checkCLASignature(ctx, creator); err != nil {
+	if err := vm.checkCLASignature(ctx, params, creator); err != nil {
 		return err
 	}
 	// Typecheck the stored package.
@@ -1280,7 +1274,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
-		ChainDomain: vm.getChainDomainParam(ctx),
+		ChainDomain: params.ChainDomain,
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
 		// Height/Timestamp are enable-time, not submit-time: init() observes
@@ -1441,7 +1435,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := params.ChainDomain
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
@@ -1657,8 +1651,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
-	chainDomain := vm.getChainDomainParam(ctx)
 	params := vm.GetParams(ctx)
+	chainDomain := params.ChainDomain
 
 	memPkg.Type = gno.MPUserProd
 
@@ -1832,7 +1826,7 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		return collectWithLimit(store.FindPathsByPrefix(path), limit), nil
 	}
 	// Lookup for both `/r` & `/p` paths of the namespace
-	ctxDomain := vm.getChainDomainParam(ctx)
+	ctxDomain := vm.GetParams(ctx).ChainDomain
 	rpath := path.Join(ctxDomain, "r", name, subPrefix)
 	ppath := path.Join(ctxDomain, "p", name, subPrefix)
 
@@ -1999,7 +1993,7 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 			"package not found: %s", pkgPath))
 	}
 	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := vm.GetParams(ctx).ChainDomain
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
 		ChainDomain: chainDomain,
