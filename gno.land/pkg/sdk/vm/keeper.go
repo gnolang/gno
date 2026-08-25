@@ -1241,7 +1241,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// but returns nil early when sys_names_pkgpath is empty. Placed first, as
 	// AddPackage orders it: the two checks below each evaluate a realm, so a
 	// mismatch would otherwise pay for both before being refused.
-	if !strings.HasPrefix(msg.PkgPath, params.ChainDomain+"/") {
+	if !strings.HasPrefix(msg.PkgPath, vm.getChainDomainParam(ctx)+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + msg.PkgPath)
 	}
 	if err := vm.checkNamespacePermission(ctx, creator, msg.PkgPath); err != nil {
