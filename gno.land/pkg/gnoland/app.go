@@ -628,14 +628,12 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 // enforceStrictReplay aborts the boot when a genesis transaction failed and the
 // operator asked for strictness.
 //
-// It PANICS rather than returning an error, for the reason spelled out at the
+// It panics rather than returning an error, for the reason spelled out at the
 // valoper coverage assertion above: an error returned from here reaches
 // ResponseInitChain.Error and stops there. localClient.InitChainSync returns a
 // nil Go error regardless, and the handshake inspects only that — so the field
-// is populated and never read, and the node boots anyway. That made StrictReplay
-// advisory: it reported the failures and then ignored them, which is worse than
-// not having it, because a fork could come up missing packages while logging
-// that it had.
+// is populated and never read. The node would boot anyway, and a fork could come
+// up missing packages while logging that it had them.
 //
 // Panicking propagates up the boot goroutine (NewNode -> Handshaker.ReplayBlocks
 // -> InitChainSync) and crashes the process, which is what "refusing to boot"
