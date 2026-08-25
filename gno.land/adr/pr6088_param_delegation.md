@@ -257,18 +257,26 @@ should pre-check.
 
 ## Testing
 
-Nine Gno tests in `examples/gno.land/r/sys/params/delegate_test.gno`, and an
-end-to-end txtar. Three mutations were verified against the unit tests —
-dropping the empty-slot check, anchored-prefix matching, and unscoped removal
-each fail exactly the test that covers them.
+Sixteen Gno tests in `examples/gno.land/r/sys/params/delegate_test.gno`, and an
+end-to-end txtar. Mutations verified against the unit tests: dropping the
+empty-slot check, anchored-prefix matching, unscoped removal, the `IsCurrent`
+frame check, the arming guard, and the grant-laundering guard each fail exactly
+the test that covers them.
 
 `run_submitters_delegate.txtar` is the wiring test: it delegates through a real
 GovDAO proposal, has the policy realm grant MsgRun rights to an account GovDAO
 never named, confirms that account can actually run, then revokes and confirms
-the former delegate is refused. Its first assertion is a **refusal**, which is
-the only part that distinguishes "the gate authorized this caller" from "there
-is no gate" — verified by disabling `assertDelegate`, which fails that
-assertion. Everything after it would pass with the gate deleted.
+the former delegate is refused. The **refusals** are what distinguish "the gate
+authorized this caller" from "there is no gate"; every write assertion would
+pass with the gate deleted.
+
+Two different refusals are needed, and this took two attempts to get right. The
+"no delegate is configured" cases fire when the slot is EMPTY, so they survive
+the path comparison in `assertDelegate` being deleted — the whole txtar passed
+with any realm able to write any delegated parameter. Only a caller that holds
+no delegation, attempted while ANOTHER realm holds one, exercises the comparison
+itself. The `rogue` realm exists for that and nothing else, and deleting the
+comparison now fails on `only gno.land/r/test/paramsgate may write`.
 
 Two pre-existing coverage gaps were closed while factoring the shared gate:
 `assertValsetCaller` had no test in this realm, and neither did
