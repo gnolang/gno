@@ -496,21 +496,91 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // misbehaving is not the submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
+// maxBlockGas is the ceiling on an estimated gas-wanted. It matches tm2's
+// MaxBlockMaxGas and the production default for Block.MaxGas, which is also
+// what the ante caps a transaction's GasWanted at -- so asking for more is
+// refused at CheckTx rather than being merely wasteful.
+const maxBlockGas = int64(3_000_000_000)
+
+// gasHeadroomNum/Den add 20% to a measured estimate.
+//
+// The estimate is a measurement of one execution against the state the
+// simulation saw, and the enable lands against later state: the package's
+// dependencies may have grown, the names or CLA realms may have been touched,
+// and the storage deposit is priced off realm bytes that the simulation
+// computed on a different tree. Headroom absorbs that. It costs nothing when
+// unused -- fees are flat, so an over-large GasWanted is not over-paid, it just
+// has to clear the mempool's minimum.
+const (
+	gasHeadroomNum = 12
+	gasHeadroomDen = 10
+)
+
+// gasWantedFor sizes an enable's GasWanted from a measured estimate.
+//
+// Returns the fallback when the estimate is unusable (zero or negative, i.e.
+// the simulation did not produce a number), so a failed estimate degrades to
+// the configured -gas-wanted rather than to zero gas.
+func gasWantedFor(estimated, fallback int64) int64 {
+	if estimated <= 0 {
+		return fallback
+	}
+	// Overflow guard before the multiply: an absurd estimate would otherwise
+	// wrap negative and be refused as a non-positive GasWanted.
+	if estimated > maxBlockGas {
+		return maxBlockGas
+	}
+	if want := estimated * gasHeadroomNum / gasHeadroomDen; want < maxBlockGas {
+		return want
+	}
+	return maxBlockGas
+}
+
 // enable builds, signs and broadcasts a MsgEnablePackage for pkgPath.
+//
+// Signed twice, deliberately. The fee is part of the sign bytes, so the
+// GasWanted cannot be corrected after signing -- the first signature exists only
+// to make the transaction simulatable, and the second carries the real number.
+//
+// The provisional GasWanted is the block ceiling rather than the configured
+// value, because simulate executes under the transaction's own limit: sizing it
+// at -gas-wanted would make the simulation run out of gas exactly on the
+// packages whose cost we most need to learn, and report that failure instead of
+// a measurement.
 func (o *oracle) enable(pkgPath string) error {
 	gasFee, err := std.ParseCoin(o.cfg.gasFee)
 	if err != nil {
 		return fmt.Errorf("invalid gas fee %q: %w", o.cfg.gasFee, err)
 	}
-
-	tx := std.Tx{
-		Msgs:       []std.Msg{vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath}},
-		Fee:        std.NewFee(o.cfg.gasWanted, gasFee),
-		Signatures: nil,
-	}
+	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath}
 
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
-	signed, err := o.client.SignTx(tx, 0, 0)
+	probe, err := o.client.SignTx(std.Tx{
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(maxBlockGas, gasFee),
+	}, 0, 0)
+	if err != nil {
+		return fmt.Errorf("sign: %w", err)
+	}
+
+	// A failed estimate is not fatal: fall back to the configured value and say
+	// so. The alternative -- refusing to approve because the node would not
+	// simulate -- hands anyone who can disturb the query path a way to stall
+	// approvals chain-wide.
+	gasWanted := o.cfg.gasWanted
+	estimated, err := o.client.EstimateGas(probe)
+	if err != nil {
+		o.logf("estimate failed for %s, using -gas-wanted %d: %v",
+			pkgPath, o.cfg.gasWanted, err)
+	} else {
+		gasWanted = gasWantedFor(estimated, o.cfg.gasWanted)
+		o.logf("estimated %d gas for %s, sending with %d", estimated, pkgPath, gasWanted)
+	}
+
+	signed, err := o.client.SignTx(std.Tx{
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(gasWanted, gasFee),
+	}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}

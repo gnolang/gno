@@ -611,18 +611,38 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	}
 
 	report.emit(ctx.Logger())
-
-	if cfg.StrictReplay {
-		if n := report.FailedCount(); n > 0 {
-			return txResponses, fmt.Errorf(
-				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
-					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
-				n,
-			)
-		}
-	}
+	cfg.enforceStrictReplay(report)
 
 	return txResponses, nil
+}
+
+// enforceStrictReplay aborts the boot when a genesis transaction failed and the
+// operator asked for strictness.
+//
+// It PANICS rather than returning an error, for the reason spelled out at the
+// valoper coverage assertion above: an error returned from here reaches
+// ResponseInitChain.Error and stops there. localClient.InitChainSync returns a
+// nil Go error regardless, and the handshake inspects only that — so the field
+// is populated and never read, and the node boots anyway. That made StrictReplay
+// advisory: it reported the failures and then ignored them, which is worse than
+// not having it, because a fork could come up missing packages while logging
+// that it had.
+//
+// Panicking propagates up the boot goroutine (NewNode -> Handshaker.ReplayBlocks
+// -> InitChainSync) and crashes the process, which is what "refusing to boot"
+// has to mean. Opt-in via cfg.StrictReplay, so nothing that boots today starts
+// crashing.
+func (cfg InitChainerConfig) enforceStrictReplay(report *replayReport) {
+	if !cfg.StrictReplay {
+		return
+	}
+	if n := report.FailedCount(); n > 0 {
+		panic(fmt.Errorf(
+			"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+				"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+			n,
+		))
+	}
 }
 
 // applyStreamingAppState mirrors applyInMemoryAppState but pulls each
@@ -696,16 +716,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 	}
 
 	report.emit(ctx.Logger())
-
-	if cfg.StrictReplay {
-		if n := report.FailedCount(); n > 0 {
-			return txResponses, fmt.Errorf(
-				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
-					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
-				n,
-			)
-		}
-	}
+	cfg.enforceStrictReplay(report)
 
 	return txResponses, nil
 }
@@ -1358,10 +1369,9 @@ func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, 
 	// installed the NEW params — so without this carve-out a hardfork would refuse to replay
 	// its own history the moment either list fails to contain a historical
 	// signer, and would come up missing every package those signers deployed.
-	// Note StrictReplay does not stop that: ResponseInitChain.Error is discarded
-	// by the handshake (see the note at deliverGenesisTx), so the count it
-	// reports is advisory. Keyed on the context value rather than BlockHeight,
-	// which replay deliberately does not hold at 0.
+	// — or, under StrictReplay, refuse to boot at all. Keyed on the context
+	// value rather than BlockHeight, which replay deliberately does not hold
+	// at 0.
 	if auth.IsGenesisReplay(ctx) {
 		return sdk.Result{}, false
 	}

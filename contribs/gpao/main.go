@@ -138,7 +138,7 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&c.verifyBudget, "verify-budget", defaultVerifyBudget,
 		"withhold approval from a package whose verification exceeds this duration (it is left pending, not rejected)")
 	fs.Int64Var(&c.gasWanted, "gas-wanted", defaultGasWanted,
-		"gas wanted for approval transactions")
+		"fallback gas wanted for approval transactions, used only when the node will not simulate one (each approval is normally estimated, plus 20%, capped at the block limit)")
 	fs.DurationVar(&c.pollInterval, "poll-interval", defaultPollInterval,
 		"how often to poll the node for new blocks")
 	fs.Int64Var(&c.startHeight, "start-height", 0,

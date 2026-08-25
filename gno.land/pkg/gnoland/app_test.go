@@ -2744,25 +2744,36 @@ func TestInitChainer_StrictReplay(t *testing.T) {
 
 		app, err := NewAppWithOptions(opts)
 		require.NoError(t, err)
-		resp := app.InitChain(abci.RequestInitChain{
-			ChainID: "test-chain",
-			Time:    time.Now(),
-			ConsensusParams: &abci.ConsensusParams{
-				Block:     defaultBlockParams(),
-				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+
+		// PANICS rather than returning an error, and the distinction is the
+		// whole point of the guard. An error here reaches
+		// ResponseInitChain.Error and stops: localClient.InitChainSync returns
+		// a nil Go error regardless and the handshake reads only that, so the
+		// field was populated and never inspected. Asserting on resp.Error --
+		// which this test used to do -- passed while the node booted anyway.
+		require.PanicsWithError(t,
+			"strict replay: 1 genesis tx(s) failed; chain refusing to boot "+
+				"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+			func() {
+				app.InitChain(abci.RequestInitChain{
+					ChainID: "test-chain",
+					Time:    time.Now(),
+					ConsensusParams: &abci.ConsensusParams{
+						Block:     defaultBlockParams(),
+						Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+					},
+					AppState: GnoGenesisState{
+						Balances: []Balance{},
+						Txs: []TxWithMetadata{
+							{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+						},
+						Auth: auth.DefaultGenesisState(),
+						Bank: bank.DefaultGenesisState(),
+						VM:   vm.DefaultGenesisState(),
+					},
+				})
 			},
-			AppState: GnoGenesisState{
-				Balances: []Balance{},
-				Txs: []TxWithMetadata{
-					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
-				},
-				Auth: auth.DefaultGenesisState(),
-				Bank: bank.DefaultGenesisState(),
-				VM:   vm.DefaultGenesisState(),
-			},
-		})
-		require.NotNil(t, resp.Error, "StrictReplay true should refuse to boot on failing tx")
-		assert.Contains(t, resp.Error.Error(), "strict replay")
+			"StrictReplay must abort the boot, not report and continue")
 	})
 
 	t.Run("StrictReplay true: tx marked Failed in source is skipped, not counted", func(t *testing.T) {
