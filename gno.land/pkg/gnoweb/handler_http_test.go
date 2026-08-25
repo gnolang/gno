@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,6 +87,12 @@ func (s *stubClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, 
 
 func (s *stubClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
+}
+
+// PackageMeta reports absent, so these tests keep their existing not-found
+// behaviour rather than picking up the pending-approval view.
+func (s *stubClient) PackageMeta(_ context.Context, path string) (*vm.PackageMeta, error) {
+	return &vm.PackageMeta{Path: path, Status: vm.PackageStatusAbsent}, nil
 }
 
 type rawRenderer struct{}
@@ -1883,4 +1890,56 @@ func TestHTTPHandler_GetAlwaysBoundsContext(t *testing.T) {
 
 	assert.True(t, sawDeadline,
 		"request context must carry a deadline even when Timeout is unset")
+}
+
+// TestHTTPHandler_PendingApprovalBanner covers what a creator sees between
+// submitting a package and somebody approving it.
+//
+// Under the "inert" code submission policy the package is stored but invisible
+// to every query that reads the live key space, so without this the render and
+// source pages both report "not found" -- the same answer a path nobody ever
+// used gets. The point of the test is the difference, so it asserts the parked
+// page and the genuinely-absent page against one handler.
+func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
+	t.Parallel()
+
+	parked := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/parked",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "not readable yet" }`,
+		},
+		Inert: true,
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(parked))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	get := func(t *testing.T, path string) (int, string) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr.Code, rr.Body.String()
+	}
+
+	for _, path := range []string{"/r/mock/parked", "/r/mock/parked/", "/r/mock/parked$source"} {
+		t.Run("parked "+path, func(t *testing.T) {
+			status, body := get(t, path)
+			assert.Equal(t, http.StatusNotFound, status)
+			assert.Contains(t, body, "Not Yet Enabled",
+				"a submitted package must say so, not read as missing")
+			assert.NotContains(t, body, "not readable yet",
+				"and its source must stay unreadable until it is approved")
+		})
+	}
+
+	t.Run("a path nobody submitted still reads as not found", func(t *testing.T) {
+		status, body := get(t, "/r/mock/neverexisted")
+		assert.Equal(t, http.StatusNotFound, status)
+		assert.NotContains(t, body, "Not Yet Enabled",
+			"or the banner would claim every typo is awaiting approval")
+	})
 }

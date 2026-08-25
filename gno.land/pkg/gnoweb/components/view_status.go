@@ -25,6 +25,27 @@ func StatusErrorComponent(message string) *View {
 }
 
 // StatusNoRenderComponent returns a view for non-error notifications when Render() is not implemented.
+// StatusPendingApprovalComponent is shown for a package that was submitted but
+// has not been approved yet.
+//
+// Distinct from the not-found status on purpose. Under the "inert" code
+// submission policy those two look identical from every other query -- the
+// package is stored, but nothing that reads the live key space can see it --
+// and telling a creator who has already paid to submit that their path does not
+// exist is the confusing half of that.
+func StatusPendingApprovalComponent(pkgPath string) *View {
+	return NewTemplateView(
+		StatusViewType,
+		"status",
+		StatusData{
+			Title:      "Not Yet Enabled",
+			Body:       "This package has been submitted and is waiting for an approver. Its source is not readable and it cannot be called until then.",
+			ButtonURL:  "/",
+			ButtonText: "Go Back Home",
+		},
+	)
+}
+
 func StatusNoRenderComponent(pkgPath string) *View {
 	return NewTemplateView(
 		StatusViewType,
