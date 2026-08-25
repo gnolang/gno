@@ -58,7 +58,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--gno-root` | auto-detected | gno repo root, used to resolve stdlibs and examples for typechecking |
 | `--gas-fee` | `1000000ugnot` | Gas fee for approval transactions |
 | `--max-spend` | `100000000ugnot` | Total fees this run will pay for approvals before it stops approving |
-| `--gas-wanted` | `20000000` | Gas wanted for approval transactions |
+| `--gas-wanted` | `20000000` | Fallback gas wanted, used only when the node will not simulate an approval |
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
@@ -94,6 +94,13 @@ Exceeding the budget is **not** a rejection. The package is left pending and
 neither approved nor recorded as bad. Nothing re-offers it automatically — block
 heights are read once and only move forward — so retrying it means restarting
 with `--start-height` at or below the block that submitted it.
+
+A failed **enable** works the same way. A package that verified but whose
+approval failed on chain is left pending through a bounded number of attempts,
+because the usual causes are not the package: an unfunded storage deposit, a
+dependency not live yet, a namespace or governance param that moved, a block out
+of gas. Those clear on their own. After the last attempt the path is recorded
+and the log says a human is needed.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
@@ -134,6 +141,30 @@ safe: on-chain package paths are write-once (re-adding an existing path fails),
 so a fetched package never changes. Only successful fetches are cached — a miss
 (a package still inert, or enabled later in the run) is re-queried on the next
 lookup rather than pinned to "not found".
+
+### About `--gas-wanted`
+
+Each approval is sized by simulating it first: the measured gas plus 20%,
+bounded by the chain's `Block.MaxGas`. The flag is only the fallback for when
+the node will not answer a simulation.
+
+Sizing it by hand is hard to get right, which is why it is measured. The worst
+case is nearer 40,000,000 than the default — a 1 MB parked package, plus the
+namespace and CLA realm calls, all of which run on the approver's meter — and
+that ceiling depends on what the submitter sent, so no fixed number is safe for
+every package.
+
+Two details, in case the numbers look odd in the logs. The probe transaction is
+signed at the chain's block ceiling rather than at the fallback, because a
+simulation executes under the transaction's own limit — sizing the probe at the
+fallback would run out of gas on exactly the packages worth measuring. And the
+ceiling is read from the chain at startup rather than assumed, because the ante
+REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a chain
+configured below the tm2 default would reject every probe.
+
+A failed simulation does not withhold approval. It logs, falls back, and sends.
+Refusing to approve whenever the query path is unavailable would let anyone who
+can disturb it stall approvals for the whole chain.
 
 ### About `--max-spend`
 
