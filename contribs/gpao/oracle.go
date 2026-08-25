@@ -47,7 +47,8 @@ type oracle struct {
 	// failedEnable counts how many times a package that PASSED verification
 	// failed to enable on-chain. Same shape and same reason as overBudget: the
 	// bytes are not the problem, so the path is left retryable until the count
-	// says otherwise.
+	// says otherwise. Touched only by the verifier goroutine, like seen and
+	// overBudget, or they race on a plain map.
 	failedEnable map[string]int
 
 	// spent is the gas fees paid for approvals so far this run, and maxSpend the
@@ -57,10 +58,15 @@ type oracle struct {
 	maxSpend  int64
 	enableFee int64
 
-	// blockMaxGas is the chain's Block.MaxGas, read once at startup. It bounds
-	// both the probe used for estimation and the resulting gas-wanted, because
-	// the ante refuses a transaction above it rather than clamping. Set to
-	// defaultBlockMaxGas when the chain reports no bound or cannot be asked.
+	// blockMaxGas is the chain's Block.MaxGas. It bounds both the probe used for
+	// estimation and the resulting gas-wanted, because the ante refuses a
+	// transaction above it rather than clamping. Set to defaultBlockMaxGas when
+	// the chain reports no bound or cannot be asked.
+	//
+	// Written once at the top of run(), before the verifier goroutine is
+	// started, and read only by that goroutine afterwards. Starting the
+	// goroutine is what publishes the value; there is no lock. Re-reading it
+	// per approval, or writing it anywhere else, needs one.
 	blockMaxGas int64
 
 	// logMu serializes writes to io. commands.IOImpl buffers through a
