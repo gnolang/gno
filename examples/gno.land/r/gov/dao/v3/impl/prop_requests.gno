@@ -108,20 +108,16 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 	cb := func(cur realm) error {
 		// Add the member first, spend the proposer's invitation point second.
 		//
-		// SetMember is the step that can fail: it returns an error if the
-		// address is already a member -- easy to reach, since AddMember enrols
-		// T3 members directly and two add-proposals can name one address -- or
-		// if the tier is missing from the store's index. A returned executor
-		// error does not revert. ExecuteOrRejectProposal marks the proposal
-		// rejected and the transaction still commits, so with the old order the
-		// point was spent and the member was not added: the proposer paid for
-		// nothing, permanently.
+		// SetMember RETURNS an error when the address is already a member --
+		// easy to reach, since AddMember enrols T3 members directly. A returned
+		// executor error does not revert: ExecuteOrRejectProposal marks the
+		// proposal rejected and the transaction still commits. So with the old
+		// order the point was spent and the member was not added.
 		//
-		// Ordering the fallible step first fixes that without a panic, which
-		// would revert but leave the proposal impossible to execute or reject.
-		// RemoveInvitationPoint cannot fail here -- the build-time check above
-		// already refuses a proposer with no points, and nothing between the two
-		// can spend them.
+		// RemoveInvitationPoint can still fail, despite the build-time check
+		// above: it panics at zero, and AddMember spends points from this same
+		// captured member, so a proposer can drain their own between creation
+		// and execution. That panics and reverts, which loses nothing.
 		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
 			return err
 		}

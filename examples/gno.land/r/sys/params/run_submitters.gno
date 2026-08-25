@@ -314,6 +314,13 @@ func GetRunSubmitters() []string {
 // and the list is not re-checked when they do. It rules out arriving at a dead
 // list in one vote; it cannot rule out drifting into one.
 func ProposeSetRunSubmitters(cur realm, addrs []string) dao.ProposalRequest {
+	// IsCurrent before Previous, as assertDelegate does. Without it a caller
+	// threading a stashed or sibling-frame realm value picks whose address the
+	// rule below is checked against -- and that address is the one the proposal
+	// is required to list.
+	if !cur.IsCurrent() {
+		panic("unauthorized: cur is not the caller's live realm")
+	}
 	proposer := cur.Previous().Address()
 	listed := false
 	for _, a := range addrs {
