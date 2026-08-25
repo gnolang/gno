@@ -57,6 +57,12 @@ type oracle struct {
 	maxSpend  int64
 	enableFee int64
 
+	// blockMaxGas is the chain's Block.MaxGas, read once at startup. It bounds
+	// both the probe used for estimation and the resulting gas-wanted, because
+	// the ante refuses a transaction above it rather than clamping. Set to
+	// defaultBlockMaxGas when the chain reports no bound or cannot be asked.
+	blockMaxGas int64
+
 	// logMu serializes writes to io. commands.IOImpl buffers through a
 	// bufio.Writer, which is not goroutine-safe, and the block reader and the
 	// verifier goroutine both log -- a real race, not a theoretical one
@@ -207,6 +213,8 @@ func buildSigner(cfg config, io commands.IO) (gnoclient.Signer, error) {
 
 // run polls the node for new blocks and processes each one, until ctx is done.
 func (o *oracle) run(ctx context.Context) error {
+	o.blockMaxGas = o.queryBlockMaxGas(ctx)
+
 	height := o.cfg.startHeight
 	if height <= 0 {
 		status, err := o.client.RPCClient.Status(ctx, nil)
@@ -485,6 +493,28 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	o.logf("gpao: %q approved and enabled", path)
 }
 
+// queryBlockMaxGas reads the chain's Block.MaxGas, falling back to
+// defaultBlockMaxGas.
+//
+// Asked once at startup rather than per approval: it is a consensus param, so
+// it changes rarely, and a per-approval query would add a round trip to every
+// enable to learn something that almost never moves.
+//
+// A chain may set -1, meaning no bound. The fallback is used there too -- an
+// unbounded ceiling would let one absurd estimate ask for unbounded gas, and
+// nothing gpao approves should need more than a full block's worth anyway.
+func (o *oracle) queryBlockMaxGas(ctx context.Context) int64 {
+	res, err := o.client.RPCClient.ConsensusParams(ctx, nil)
+	if err != nil || res == nil || res.ConsensusParams.Block == nil {
+		o.logf("gpao: could not read block max gas, assuming %d: %v", defaultBlockMaxGas, err)
+		return defaultBlockMaxGas
+	}
+	if maxGas := res.ConsensusParams.Block.MaxGas; maxGas > 0 {
+		return maxGas
+	}
+	return defaultBlockMaxGas
+}
+
 // recordEnableFailure counts a failed enable for this content and reports the
 // count, plus whether the oracle should stop retrying it.
 //
@@ -554,11 +584,16 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // misbehaving is not the submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
-// maxBlockGas is the ceiling on an estimated gas-wanted. It matches tm2's
-// MaxBlockMaxGas and the production default for Block.MaxGas, which is also
-// what the ante caps a transaction's GasWanted at -- so asking for more is
-// refused at CheckTx rather than being merely wasteful.
-const maxBlockGas = int64(3_000_000_000)
+// defaultBlockMaxGas is the fallback ceiling on a gas-wanted, used until the
+// chain's own Block.MaxGas is known. It matches tm2's MaxBlockMaxGas, which is
+// also the default a chain gets if it sets nothing.
+//
+// The real value matters because the ante REFUSES a transaction whose
+// GasWanted exceeds Block.MaxGas rather than clamping it. So on a chain
+// configured below this fallback, a probe signed at the fallback is rejected
+// and every estimate fails -- which is why blockMaxGas is queried at startup
+// instead of assumed.
+const defaultBlockMaxGas = int64(3_000_000_000)
 
 // gasHeadroomNum/Den add 20% to a measured estimate.
 //
@@ -574,24 +609,25 @@ const (
 	gasHeadroomDen = 10
 )
 
-// gasWantedFor sizes an enable's GasWanted from a measured estimate.
+// gasWantedFor sizes an enable's GasWanted from a measured estimate, bounded by
+// the chain's Block.MaxGas.
 //
 // Returns the fallback when the estimate is unusable (zero or negative, i.e.
 // the simulation did not produce a number), so a failed estimate degrades to
 // the configured -gas-wanted rather than to zero gas.
-func gasWantedFor(estimated, fallback int64) int64 {
+func gasWantedFor(estimated, fallback, ceiling int64) int64 {
 	if estimated <= 0 {
 		return fallback
 	}
 	// Overflow guard before the multiply: an absurd estimate would otherwise
 	// wrap negative and be refused as a non-positive GasWanted.
-	if estimated > maxBlockGas {
-		return maxBlockGas
+	if estimated > ceiling {
+		return ceiling
 	}
-	if want := estimated * gasHeadroomNum / gasHeadroomDen; want < maxBlockGas {
+	if want := estimated * gasHeadroomNum / gasHeadroomDen; want < ceiling {
 		return want
 	}
-	return maxBlockGas
+	return ceiling
 }
 
 // enable builds, signs and broadcasts a MsgEnablePackage for pkgPath.
@@ -615,7 +651,7 @@ func (o *oracle) enable(pkgPath string) error {
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{
 		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(maxBlockGas, gasFee),
+		Fee:  std.NewFee(o.blockMaxGas, gasFee),
 	}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
@@ -631,7 +667,7 @@ func (o *oracle) enable(pkgPath string) error {
 		o.logf("estimate failed for %s, using -gas-wanted %d: %v",
 			pkgPath, o.cfg.gasWanted, err)
 	} else {
-		gasWanted = gasWantedFor(estimated, o.cfg.gasWanted)
+		gasWanted = gasWantedFor(estimated, o.cfg.gasWanted, o.blockMaxGas)
 		o.logf("estimated %d gas for %s, sending with %d", estimated, pkgPath, gasWanted)
 	}
 

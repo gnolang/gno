@@ -15,7 +15,10 @@ import (
 // high and the transaction is refused at CheckTx, because the ante caps
 // GasWanted at the block limit.
 func TestGasWantedFor(t *testing.T) {
-	const fallback = int64(20_000_000)
+	const (
+		fallback = int64(20_000_000)
+		ceiling  = int64(3_000_000_000)
+	)
 
 	for _, tc := range []struct {
 		name      string
@@ -47,13 +50,13 @@ func TestGasWantedFor(t *testing.T) {
 		{
 			name: "headroom is capped at the block ceiling",
 			// Just under the ceiling: +20% would clear it, so the cap binds.
-			estimated: maxBlockGas - 1,
-			want:      maxBlockGas,
+			estimated: ceiling - 1,
+			want:      ceiling,
 		},
 		{
 			name:      "an estimate at the ceiling stays at the ceiling",
-			estimated: maxBlockGas,
-			want:      maxBlockGas,
+			estimated: ceiling,
+			want:      ceiling,
 		},
 		{
 			name: "an absurd estimate is capped, not overflowed",
@@ -61,15 +64,26 @@ func TestGasWantedFor(t *testing.T) {
 			// non-positive GasWanted is refused by the ante -- so an overflow
 			// here would read as "the oracle asked for negative gas".
 			estimated: 1 << 62,
-			want:      maxBlockGas,
+			want:      ceiling,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := gasWantedFor(tc.estimated, fallback)
+			got := gasWantedFor(tc.estimated, fallback, ceiling)
 			assert.Equal(t, tc.want, got)
 			assert.Positive(t, got, "GasWanted must always be positive")
-			assert.LessOrEqual(t, got, maxBlockGas,
+			assert.LessOrEqual(t, got, ceiling,
 				"and must never exceed the ceiling the ante enforces")
 		})
 	}
+
+	t.Run("the ceiling is the chain's, not a constant", func(t *testing.T) {
+		// The ante REFUSES a gas-wanted above Block.MaxGas rather than clamping
+		// it, so a chain configured below the default would reject everything
+		// sized against the default. This is why the ceiling is queried.
+		const small = int64(500_000)
+		assert.Equal(t, small, gasWantedFor(10_000_000, fallback, small),
+			"an estimate above the chain's own limit must be cut to it")
+		assert.Equal(t, int64(120_000), gasWantedFor(100_000, fallback, small),
+			"and one below it still gets its headroom")
+	})
 }
