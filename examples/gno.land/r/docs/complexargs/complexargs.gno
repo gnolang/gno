@@ -71,7 +71,7 @@ func Render(_ string) string {
 		}
 		// myObject.Name is settable via SetMyObject, so it is untrusted input
 		// echoed into markdown — sanitize it before output.
-		out += ufmt.Sprintf("Value of myObject: `CustomType{Name: %s, Numbers: %s}`", sanitize.InlineText(myObject.Name), s)
+		out += "Value of myObject: " + sanitize.InlineCode("CustomType{Name: "+myObject.Name+", Numbers: "+s+"}")
 	}
 
 	return out

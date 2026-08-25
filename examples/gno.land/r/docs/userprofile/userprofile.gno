@@ -120,7 +120,7 @@ func renderUser(nameOrAddr string) string {
 	// Try to resolve the user
 	userData, _ := users.ResolveAny(nameOrAddr)
 	if userData == nil {
-		out += "User not found: `" + sanitize.InlineText(nameOrAddr) + "`\n\n"
+		out += "User not found: " + sanitize.InlineCode(nameOrAddr) + "\n\n"
 		out += "[Back to Home](/r/docs/userprofile)\n"
 		return out
 	}

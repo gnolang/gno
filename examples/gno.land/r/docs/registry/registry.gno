@@ -146,7 +146,7 @@ func Render(path string) string {
 		name := parts[1]
 		service, ok := Lookup(owner, name)
 		if !ok {
-			return "# Service Not Found\n\nNo service with address `" + sanitize.InlineText(parts[0]) + "` and name `" + sanitize.InlineText(name) + "` is registered."
+			return "# Service Not Found\n\nNo service with address " + sanitize.InlineCode(parts[0]) + " and name " + sanitize.InlineCode(name) + " is registered."
 		}
 		return renderService(service)
 	}
