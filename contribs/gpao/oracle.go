@@ -44,6 +44,12 @@ type oracle struct {
 	// without reaching a verdict.
 	overBudget map[string]int
 
+	// failedEnable counts how many times a package that PASSED verification
+	// failed to enable on-chain. Same shape and same reason as overBudget: the
+	// bytes are not the problem, so the path is left retryable until the count
+	// says otherwise.
+	failedEnable map[string]int
+
 	// spent is the gas fees paid for approvals so far this run, and maxSpend the
 	// bound from -max-spend. Touched only by the verifier goroutine, which is
 	// the only thing that approves.
@@ -91,6 +97,19 @@ func (o *oracle) logln(args ...any) {
 // what bounds those.
 const maxOverBudgetAttempts = 3
 
+// maxEnableAttempts caps how often a package that passed verification may fail
+// to enable before the oracle stops trying.
+//
+// A failed enable is usually not about the bytes -- the creator cannot cover the
+// storage deposit, a dependency is not live yet, a namespace or governance param
+// moved, the block ran out of gas, or the gas estimate was measured against
+// state that has since changed. Those clear on their own, and the estimate in
+// particular is re-measured against fresher state on the next attempt. Marking
+// the path seen on the first failure retires those bytes for the rest of the run
+// with the reason visible only in this process's stderr, which is how a creator
+// pays a submission charge and then never learns why nothing happened.
+const maxEnableAttempts = 3
+
 // candidateQueueSize bounds how far the block reader may run ahead of the
 // verifier. Generous, because its whole job is absorbing a bursty block; past
 // that, blocking the reader is the honest response to a saturated oracle.
@@ -136,15 +155,16 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}
 
 	return &oracle{
-		cfg:        cfg,
-		io:         io,
-		client:     gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver:   info.GetAddress(),
-		candidates: make(chan *std.MemPackage, candidateQueueSize),
-		seen:       make(map[string]struct{}),
-		overBudget: make(map[string]int),
-		enableFee:  gasFee.Amount,
-		maxSpend:   maxSpend.Amount,
+		cfg:          cfg,
+		io:           io,
+		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:     info.GetAddress(),
+		candidates:   make(chan *std.MemPackage, candidateQueueSize),
+		seen:         make(map[string]struct{}),
+		overBudget:   make(map[string]int),
+		failedEnable: make(map[string]int),
+		enableFee:    gasFee.Amount,
+		maxSpend:     maxSpend.Amount,
 	}, nil
 }
 
@@ -408,9 +428,11 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
 		return
 	}
-	// Everything below is a verdict about the package itself, so record it.
-	o.seen[key] = struct{}{}
+	// A rejection IS a verdict about the bytes, so record it: re-verifying them
+	// would reach the same answer, and the submitter has to change something for
+	// it to be worth another look -- which produces a different key.
 	if err != nil {
+		o.seen[key] = struct{}{}
 		o.logf("gpao: %q rejected, not approving: %v", path, err)
 		return
 	}
@@ -418,13 +440,19 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// Already live? Then there is nothing to enable, and sending the message
 	// anyway costs the full fee to be told so. This is the common case when
 	// catching up with -start-height over blocks that were already approved.
+	// Terminal, so recorded.
 	if o.isActive(ctx, path) {
+		o.seen[key] = struct{}{}
 		o.logf("gpao: %q is already active, nothing to approve", path)
 		return
 	}
 
 	// Stop before spending past the bound rather than after. The fee is charged
 	// whether or not the message succeeds, so the check has to come first.
+	//
+	// Left UNSEEN. The message tells the operator to raise the bound or restart,
+	// and both are no-ops if the package has been retired -- the whole point is
+	// that it should be approved once there is budget for it.
 	if o.wouldExceedSpend() {
 		o.errf("gpao: not approving %q: it would take this run past its "+
 			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
@@ -437,10 +465,40 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// handler, so a failed approval costs exactly as much as a successful one.
 	o.spent += o.enableFee
 	if err := o.enable(path); err != nil {
-		o.errf("gpao: failed to approve %q: %v", path, err)
+		// Left unseen until the count runs out, for the reason at
+		// maxEnableAttempts: the package verified, so the failure is about the
+		// chain's state rather than the code, and most such causes clear.
+		//
+		// As with overBudget, this does not re-offer the package by itself --
+		// heights only move forward. It is what makes a restart (with
+		// -start-height at or below the submitting block) or a resubmission of
+		// the same bytes effective instead of a silent no-op.
+		if n, giveUp := o.recordEnableFailure(key); giveUp {
+			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
+				"(needs a human): %v", path, n, err)
+			return
+		}
+		o.errf("gpao: failed to approve %q, leaving it pending: %v", path, err)
 		return
 	}
+	o.seen[key] = struct{}{}
 	o.logf("gpao: %q approved and enabled", path)
+}
+
+// recordEnableFailure counts a failed enable for this content and reports the
+// count, plus whether the oracle should stop retrying it.
+//
+// Marks the content seen only on the last attempt, which is the whole point:
+// until then the path stays eligible, so a restart or a resubmission of the same
+// bytes gets another go at a failure that was never about the bytes.
+func (o *oracle) recordEnableFailure(key string) (n int, giveUp bool) {
+	o.failedEnable[key]++
+	n = o.failedEnable[key]
+	if n >= maxEnableAttempts {
+		o.seen[key] = struct{}{}
+		return n, true
+	}
+	return n, false
 }
 
 // wouldExceedSpend reports whether paying for one more approval would take this
