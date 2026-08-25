@@ -154,3 +154,23 @@ func TestResetPostsRejectsNonOwner(cur realm, t *testing.T) {
 		ResetPosts(cur)
 	})
 }
+
+func TestUpdatePostClosesWindowAfterTenMinutes(cur realm, t *testing.T) {
+	resetPostsForTest()
+
+	// Alice creates a post and never edits it, so updatedAt still equals
+	// createdAt. The window must be measured from createdAt for this to close.
+	aliceAddr := testutils.TestAddress("alice")
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
+	uassert.NoError(t, CreatePost(cross(cur), "original"))
+
+	id := postID.String()
+
+	// SkipHeights advances block time five seconds a height, so 240 heights is
+	// twenty minutes: past the ten-minute window.
+	testing.SkipHeights(240)
+
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
+	err := UpdatePost(cross(cur), id, "late edit")
+	uassert.ErrorIs(t, err, ErrUpdateWindowExpired, "edit past the window must be refused")
+}
