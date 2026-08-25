@@ -731,11 +731,19 @@ that flat fee times the number of approvals it can be induced to make, and gpao
 stops approving for everyone once `--max-spend` is reached. At shipped defaults
 that is 100 approvals at 1 GNOT each.
 
-An inert submission is nearly free today. The chain's initial price is
-`1ugnot/1000gas`, and the inert branch does strictly less work than an ordinary
-deploy (no type check, no preprocess, no `init()`, no storage deposit), so a
-submission costs at most a few thousand ugnot. An attacker therefore halts the
-deploy pipeline for well under 1 GNOT, against 100 GNOT of oracle budget.
+A *small* inert submission is nearly free today, and small is what the attack
+wants. The chain's initial price is `1ugnot/1000gas`, and the branch does not
+type-check, run `init()`, or take a storage deposit. What it does charge is
+`chargePreprocessGas`, at 1250 gas per `.gno` byte, for the compile it is
+deferring. That is proportional to source size, so it prices a large package
+seriously — roughly 1 GNOT for 900 KB — and barely at all for the few hundred
+bytes an attacker needs. A minimal package costs a few hundred ugnot, so the
+deploy pipeline can be halted for well under 1 GNOT against 100 GNOT of oracle
+budget.
+
+That asymmetry is the point: the byte charge already prices bulk, and what it
+cannot price is a tiny package that is nonetheless expensive to activate. The
+flat charge is what covers that.
 
 The charge inverts that ratio: each induced approval costs the attacker the
 charge and the oracle its flat fee. Note the value is a governance decision and
@@ -746,9 +754,11 @@ the chain's actual price.
 **What it does not do.** It prices the drain rather than eliminating it, and it
 does not bound the approver's per-enable gas: a parked blob is bounded by
 `MaxTxBytes` at 1 MB, and reading it plus the namespace and CLA realm calls puts
-the approver's worst case near 40M gas, above gpao's shipped `--gas-wanted` of
-20,000,000. That default has to move. The approve/activate split above remains
-the better long-term answer, because it deletes the drain instead of pricing it.
+the approver's worst case near 40M gas. gpao now sizes each approval by
+simulating it rather than by a fixed flag (item 22), so that number no longer has
+to be guessed at — but it is still gas the approver pays. The approve/activate
+split above remains the better long-term answer, because it deletes the drain
+instead of pricing it.
 
 **Ceiling.** `Validate` caps the charge, because a charge governance can raise
 without limit is a deploy freeze — the outcome the charge exists to prevent. It
@@ -1465,13 +1475,27 @@ this class.
     even though the two other height-sensitive rules beside it — the type-check
     mode and the draft-package rule — both have it.
 
-22. **gpao's remaining fee exposure is bounded, not eliminated.** It now skips
-    a path that is already deployed, ignores transactions that failed on chain,
-    and stops approving once a run has spent `--max-spend`. What it still cannot
-    do is estimate an enable before sending it, so an approval that exceeds
-    `--gas-wanted` still costs a fee to discover. Fixing that needs either gas
-    estimation for the message or a query that exposes the parked key space;
-    neither exists today.
+22. **gpao's remaining fee exposure is bounded, not eliminated.** It skips a path
+    that is already deployed, ignores transactions that failed on chain, and
+    stops approving once a run has spent `--max-spend`.
+
+    It now also sizes each approval by simulating it: the measured gas plus 20%,
+    bounded by the chain's `Block.MaxGas`. That replaces a fixed `--gas-wanted`
+    flag that was shipped at 20,000,000 against a worst case near 40M, so
+    approvals no longer fail for being under-funded by default. The flag remains
+    as the fallback for a node that will not simulate.
+
+    Two details the implementation turns on. The probe is signed at the chain's
+    block ceiling rather than at the fallback, because simulate executes under
+    the transaction's own limit — sizing the probe at the fallback would run out
+    of gas on exactly the packages worth measuring. And the ceiling is read from
+    the chain rather than assumed, because the ante refuses a `GasWanted` above
+    `Block.MaxGas` instead of clamping it, so a chain configured below the tm2
+    default would reject every probe.
+
+    What remains: fees are flat, so a failed enable still costs a full fee to
+    discover. `--max-spend` bounds that across a run, and a per-package attempt
+    counter (item 24) bounds it per package.
 
 23. **Fixed: gpao resolved user imports from local disk before the chain.** A
     package importing something present in the operator's `examples/` but absent
@@ -1481,6 +1505,28 @@ this class.
     `/r/` imports from the chain only, and stdlibs from disk, because stdlibs
     ship with the binary and are not chain state. Where disk and chain agree the
     answer is unchanged; where they disagree the chain is the one that decides.
+
+24. **Fixed: gpao retired a package on its first failed enable.** A candidate was
+    marked seen before the approval was broadcast, so one failure removed those
+    bytes from consideration for the rest of the run, with the reason visible
+    only in the oracle's stderr.
+
+    That matters more once submitting costs money: a creator pays the charge, the
+    oracle approves, the enable fails for something that is not about their code
+    — an unfunded storage deposit, a dependency not yet live, a namespace or
+    governance param that moved, a block out of gas — and they see a charge
+    followed by silence.
+
+    Seen is now set only on terminal outcomes: verification rejected the bytes,
+    the package was already active, or the enable succeeded. A failed enable goes
+    through a bounded attempt counter instead, the same shape the verify-budget
+    overrun already used. The spend-bound refusal is also left unrecorded, since
+    it tells the operator to raise the bound or restart and both are no-ops on a
+    path that has been retired.
+
+    As with the overrun counter this does not re-offer the package by itself —
+    heights only move forward. It is what makes a restart, or a resubmission of
+    the same bytes, do something rather than nothing.
 
 Written with AI assistance (Claude Code). Every claim about existing behavior
 here was checked against the code at the commit that introduced it. Numbers
