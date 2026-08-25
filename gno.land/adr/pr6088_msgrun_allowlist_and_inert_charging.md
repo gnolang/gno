@@ -812,6 +812,50 @@ so the parse does not scale with package size.
 
 Not done: gnoweb does not call it, so nothing renders a status yet.
 
+### 10. Listing the queue, and the oracle's own verdicts
+
+§9 answers "is *my* package parked". Two other questions had no answer at all.
+
+**What is awaiting approval.** Parked packages sort outside
+`FindPathsByPrefix`'s range, so they appeared in no listing. An operator asking
+what was waiting had to keep its own books, and an oracle restarting could not
+catch up on what it missed while down — it learns about packages by watching
+blocks go past, so anything submitted during an outage was simply never seen.
+`vm/qinertpaths` is a plain prefix match with the same `?limit=` cap as
+`vm/qpaths`, which the two now share rather than copy. Deliberately without
+`qpaths`' `@user` handling: this answers an operational question about a queue,
+not a browsing one.
+
+**Why *this* package was refused.** That is the oracle's knowledge and not the
+chain's. The chain can report that a package is parked and that no enable could
+succeed right now — no approvers configured, policy moved off `inert`. It
+cannot report that the code failed to type-check, or that the enable was
+simulated and the chain would reject it. Until now the only record was the
+operator's stderr, so a submitter paid the charge and heard nothing.
+
+gpao records a verdict at each point it reaches one and serves them read-only
+under `--status-listen`, off by default. `blocked` is kept distinct from the
+failure states: it means the oracle has hit `--max-spend` and nothing is wrong
+with the package, which is the difference between "fix your code" and "go ask
+the operator" — indistinguishable from silence otherwise.
+
+The board is a separate structure rather than an export of `seen`,
+`overBudget` and `failedEnable`. Those are owned by the verifier goroutine and
+carry no lock, which is what keeps the hot path cheap; serving them would read
+them from the HTTP goroutine. This is the only oracle state that crosses that
+boundary, so it is the only state that takes a mutex. It is keyed by path,
+where the retry counters are keyed by content hash — a retry is about specific
+bytes, but somebody asking after a package wants the latest word on the path
+they submitted.
+
+Related: gpao no longer broadcasts an enable the node has already rejected.
+`gnoclient.Simulate` reported a transport failure, a rejected query and a
+failed message as one error; `SimulateResult` returns the response as given so
+the three can be told apart. The right answer to an unreachable node is the
+opposite of the right answer to a rejected message — a node that cannot be
+reached must not stop approvals, or anyone able to disturb the query path
+could stall the chain's deploys.
+
 ## Alternatives considered
 
 **Escrow the deposit ceiling at submit and refund the remainder at enable.**
@@ -1471,11 +1515,10 @@ Closing the `add_package` row for real transactions still means running under
     `.gno` -- the latter changes the ordinary path too, so it is a consensus
     decision rather than a patch.
 
-18. **There is no way to enumerate parked packages.** `FindPathsByPrefix` ranges
-    only over `pkg:`, so `inert_pkg:` is invisible to it. A node operator cannot
-    answer "what is awaiting approval" without external bookkeeping. §9 answers
-    the per-path question — "is *my* package parked" — which is the creator's;
-    enumeration is the operator's and is still open.
+18. **Fixed: parked packages can be enumerated.** `FindPathsByPrefix` ranges
+    only over `pkg:`, so `inert_pkg:` is invisible to it and a parked package
+    appeared in no listing at all. `FindInertPathsByPrefix` ranges that space
+    and `vm/qinertpaths` serves it; see §10.
 
 ## Determinism audit
 
