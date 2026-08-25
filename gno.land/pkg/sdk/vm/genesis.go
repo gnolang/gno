@@ -42,43 +42,44 @@ func ValidateGenesis(gs GenesisState) error {
 	if err != nil {
 		return err
 	}
-	// Realm params are keyed <realm-path>:<name>, and InitGenesis writes them as
-	// "vm:"+key. So a key whose first segment is not a realm path lands in the
-	// vm module's OWN parameter namespace instead of a realm's.
-	//
-	// That matters because the realm-param loop runs after SetParams and
-	// overwrites it. A genesis section [vm:p] with run_submitters.strings = [...]
-	// becomes the key "p:run_submitters", writes vm:p:run_submitters, and
-	// silently replaces the validated Params value -- while bypassing the scalar
-	// [vm] allowlist, which admits only chain_domain and sysnames_pkgpath.
-	//
-	// A realm path always contains a "/" (gno.land/r/...); the vm's own
-	// submodules do not, so requiring one separates the two namespaces exactly.
-	//
-	// XXX still open: values are not checked against a supported-type list.
 	for _, rp := range gs.RealmParams {
-		realm, name, found := strings.Cut(rp.Key, ":")
-		if !found || realm == "" || name == "" {
-			return fmt.Errorf(
-				"invalid realm param key %q: want <realm-path>:<name>", rp.Key)
+		if err := ValidateRealmParamKey(rp.Key); err != nil {
+			return err
 		}
-		if !strings.Contains(realm, "/") {
-			return fmt.Errorf(
-				"invalid realm param key %q: %q is not a realm path, so this would "+
-					"write the vm module's own parameter vm:%s rather than a realm's",
-				rp.Key, realm, rp.Key)
-		}
-		// One colon exactly. A realm writing a param at runtime goes through
-		// sys/params' prmkey, which panics on a name containing a colon, so a
-		// key with two is one only genesis can produce. It is also ambiguous:
-		// this splits on the first colon to find the realm, while
-		// realmFromKey (params_deposit.go) splits on the last, so the two would
-		// attribute the same key to different realms.
-		if strings.Contains(name, ":") {
-			return fmt.Errorf(
-				"invalid realm param key %q: the name %q must not contain a colon",
-				rp.Key, name)
-		}
+	}
+	return nil
+}
+
+// ValidateRealmParamKey reports whether key is a well-formed realm parameter
+// key, <realm-path>:<name>.
+//
+// Exported so the genesis loader can apply the same rules and name the offending
+// section, instead of letting a bad key reach InitGenesis and panic the node at
+// boot. It had a copy of the first rule and neither of the others.
+//
+// XXX values are still not checked against a supported-type list.
+func ValidateRealmParamKey(key string) error {
+	realm, name, found := strings.Cut(key, ":")
+	if !found || realm == "" || name == "" {
+		return fmt.Errorf("invalid realm param key %q: want <realm-path>:<name>", key)
+	}
+	// InitGenesis writes these as "vm:"+key, and the vm's own params live at
+	// vm:p:<field>, so a first segment that is not a realm path overwrites those
+	// rather than addressing a realm. Realm paths contain a "/"; vm submodules
+	// do not.
+	if !strings.Contains(realm, "/") {
+		return fmt.Errorf(
+			"invalid realm param key %q: %q is not a realm path, so this would "+
+				"write the vm module's own parameter vm:%s rather than a realm's",
+			key, realm, key)
+	}
+	// One colon exactly. This splits on the first to find the realm while
+	// realmFromKey (params_deposit.go) splits on the last, so a second colon
+	// would attribute the same key to two different realms.
+	if strings.Contains(name, ":") {
+		return fmt.Errorf(
+			"invalid realm param key %q: the name %q must not contain a colon",
+			key, name)
 	}
 	return nil
 }

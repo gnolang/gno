@@ -118,20 +118,13 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		numparts := len(parts)
 		if numparts == 2 {
 			realm := parts[1]
-			// The realm part has to be a realm path. These keys are written as
-			// "vm:"+key, and the vm's own params live at vm:p:<field>, so a
-			// section named [vm:p] overwrites those instead of addressing a
-			// realm -- and sidesteps the [vm] section above, which accepts only
-			// two fields. Realm paths contain a "/" and vm submodules do not.
-			// vm.ValidateGenesis applies the same rule and would panic the node
-			// at boot; refusing here names the offending section instead.
-			if !strings.Contains(realm, "/") {
-				return errors.New("invalid section [" + modrlm + "]: " + realm +
-					" is not a realm path, so these keys would set the vm module's own " +
-					"parameters rather than a realm's")
-			}
 			for name, value := range values {
 				name, type_ := splitTypedName(name)
+				// The same rules vm.ValidateGenesis applies at boot, where a bad
+				// key is a node panic. Refusing here names the offending section.
+				if err := vmm.ValidateRealmParamKey(realm + ":" + name); err != nil {
+					return fmt.Errorf("invalid section [%s]: %w", modrlm, err)
+				}
 				if type_ == "strings" {
 					vz := value.([]any)
 					sz := make([]string, len(vz))
