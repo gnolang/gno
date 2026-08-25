@@ -77,19 +77,14 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 	// Validate before writing, so a bad value is a CLI error here rather than a
 	// panic when the node boots.
 	//
-	// updateParamsField sets the struct field by reflection. It parses the value
-	// into the field's type -- rejecting a malformed address, gas price or
-	// duration -- but consults neither Validate nor the keeper's WillSetParam,
-	// so nothing on this path judges whether the value makes sense. Every one of
-	// these params is consensus state.
+	// updateParamsField parses the value into the field's type but consults
+	// neither Validate nor WillSetParam, so nothing else on this path judges
+	// whether it makes sense -- and all of these params are consensus state.
 	//
-	// Only the module this key touches, and only after the same legacy
-	// defaulting the node applies. Validating all three would refuse to edit a
-	// genesis the node boots fine: a partially-built one whose
-	// auth.fee_collector is not filled in yet, or an older export missing a
-	// field ApplyLegacyDefaults supplies at boot. The point is to catch a bad
-	// value earlier than boot, not to hold a work in progress to a stricter
-	// standard than the chain.
+	// Only the module the key names, and only after the legacy defaulting the
+	// node applies. Validating all three would refuse to edit a genesis the node
+	// boots fine: one still being filled in, or an older export missing a field
+	// ApplyLegacyDefaults supplies at boot.
 	var verr error
 	switch {
 	case strings.HasPrefix(key, "vm."):

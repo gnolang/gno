@@ -173,16 +173,12 @@ func AddRunSubmitters(cur realm, addrs []string) {
 	// and picks who it admits. A delegate adding one address to an empty list
 	// leaves that address the only one on the chain that may run code.
 	//
-	// That is unrepairable, which is why it is refused rather than merely
-	// discouraged. Creating a GovDAO proposal needs MsgRun -- a ProposalRequest
-	// carries an Executor, which MsgCall cannot build from string arguments --
-	// so once the gate is armed against them, members cannot propose the vote
-	// that would reset the list or revoke the delegation. The floor in
-	// RemoveRunSubmitters means the delegate cannot undo it either.
-	//
-	// Arming the gate stays GovDAO's, by vote, where the resulting list is on
-	// the ballot. This is also the bootstrap order the delegation was documented
-	// with: populate by vote first, delegate second.
+	// Refused rather than discouraged because it is unrepairable. Creating a
+	// GovDAO proposal needs MsgRun -- a ProposalRequest carries an Executor,
+	// which MsgCall cannot build from string arguments -- so once the gate is
+	// armed against the members they cannot propose the vote that would undo
+	// it, and the floor in RemoveRunSubmitters stops the delegate undoing it
+	// either.
 	if len(GetRunSubmitters()) == 0 {
 		panic("refusing to arm the " + runSubmittersKey +
 			" allowlist: it is empty, so the gate is off and anyone may MsgRun. " +
