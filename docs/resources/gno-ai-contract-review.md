@@ -26,10 +26,10 @@ A crossing function's first `cur realm` is guaranteed current by the runtime, so
 `IsCurrent()` check on it is dead code (see
 [`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md) and
 [`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno)).
-Check every *other* realm value a function receives. A secondary `rlm realm`,
-whether on a non-crossing helper or beside a crossing function's own `cur`, is
-filled from an ordinary argument and can carry `cur.Previous()` or another
-forwarded value:
+Check every *other* realm value a function receives. A secondary `rlm realm` is
+filled from an ordinary argument, whether it sits on a non-crossing helper or
+beside a crossing function's own `cur`, and can carry `cur.Previous()` or
+another forwarded value:
 
 ```go
 // Non-crossing helper receiving the acting realm as a plain value.
@@ -72,7 +72,7 @@ func GetBalance() int { return gAccount.balance }
 
 ```go
 // WRONG: a top-level /p/-declared fn triggers no borrow rule, so your
-// realm's m.Realm stays in effect for its body and it can write your state
+// realm's m.Realm stays in effect for its body and fn can write your state
 func ApplyHook(fn func()) { fn() }
 
 // RIGHT: type the callback with your own /r/-declared type so
@@ -168,8 +168,8 @@ live mutator handle. Never return the containing struct as a pointer.
 
 ### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
 
-Using `chain/runtime/unsafe.PreviousRealm()` directly bypasses the frame verification
-that a runtime-current `cur realm` provides. It should never appear alongside a
+Using `chain/runtime/unsafe.PreviousRealm()` directly ignores the `cur` token the
+runtime minted for this call. It should never appear alongside a
 `cur realm` parameter.
 
 ```go
@@ -189,8 +189,8 @@ func Set(cur realm, key, value string) {
 
 Inside a crossing function the two calls return the same realm, so this shape is
 a greppability defect rather than an exploit. The exploitable shape is a
-non-crossing helper: there `unsafe.PreviousRealm()` returns whichever realm was
-outermost-crossing in the chain, not the immediate caller, so
+non-crossing helper: there `unsafe.PreviousRealm()` returns whatever realm
+crossed into the nearest enclosing crossing function, not the immediate caller, so
 `unsafe.PreviousRealm().PkgPath() == "gno.land/r/admin"` is an authentication
 bypass. Accept `_ int, rlm realm` and check `rlm.IsCurrent()` instead (case 1).
 

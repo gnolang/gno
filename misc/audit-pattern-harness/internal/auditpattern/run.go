@@ -30,7 +30,6 @@ var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm
 // wraps across lines is not matched — the scanner is line-based.
 var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
 
-// realmParamRE matches a single `name realm` parameter.
 var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
 
 // pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
@@ -175,8 +174,9 @@ func RunRule(rule, dir string) ([]Hit, error) {
 // unsafePreviousRealmHits flags any PreviousRealm() call in a file that also
 // declares a crossing function (`func F(cur realm, ...)`). In a crossing
 // function the caller must be derived from cur.Previous(); reaching for
-// chain/runtime/unsafe.PreviousRealm() instead ignores the cur token and
-// reports the outermost crossing realm, not the immediate caller (guide §5.8).
+// chain/runtime/unsafe.PreviousRealm() instead ignores the cur token, and in a
+// non-crossing helper it names whatever realm crossed into the nearest
+// enclosing crossing function rather than the immediate caller (guide §5.8).
 func unsafePreviousRealmHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -245,11 +245,10 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 }
 
 // guardedRealmParams returns the realm-typed parameter names in a func
-// declaration line that require an IsCurrent() check. A crossing function's
-// first parameter (`cur realm` in first position) is minted per crossing frame
-// by the runtime and is always current, so it is excluded. Every other realm
-// parameter is filled from an ordinary argument and can carry a forwarded or
-// derived realm value such as cur.Previous().
+// declaration line that require an IsCurrent() check. A leading `cur realm` is
+// excluded: the runtime mints it per crossing frame, so it is always current.
+// Any other realm parameter arrives as an ordinary argument and can carry a
+// forwarded or derived value such as cur.Previous().
 func guardedRealmParams(line string) []string {
 	m := funcSigRE.FindStringSubmatch(line)
 	if m == nil {

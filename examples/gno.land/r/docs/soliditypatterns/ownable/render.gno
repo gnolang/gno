@@ -72,7 +72,7 @@ func ChangeOwner(cur realm, newOwner address) {
 * On success ^ChangeOwner^ updates ^owner^ and emits an ^OwnershipChange^ event so off-chain indexers can observe the transfer.
 
 > [!WARNING]
-> **Do not translate ^msg.sender^ to a stack-walking helper.** A natural-looking port writes a non-crossing helper like ^func assertOnlyOwner() { if unsafe.PreviousRealm().Address() != owner { panic(...) } }^ and calls it from ^ChangeOwner^. This is **insecure**. A non-crossing call creates no realm boundary, so ^unsafe.PreviousRealm()^ returns whatever was previous *before the caller's own call* — not the immediate caller. An intermediate realm can launder the owner check. Caller identity must be derived inside the crossing function via ^cur.Previous().Address()^, never in a non-crossing helper.
+> **Do not translate ^msg.sender^ to a stack-walking helper.** A natural-looking port writes a non-crossing helper like ^func assertOnlyOwner() { if unsafe.PreviousRealm().Address() != owner { panic(...) } }^ and calls it from ^ChangeOwner^. The realm walk skips non-crossing frames, so here it reaches ^ChangeOwner^'s own crossing frame and returns the same realm as ^cur.Previous()^. The helper is still the wrong home for the check: nothing in it requires its caller to be crossing, so the same helper reached from a non-crossing exported function does not name the immediate caller. Derive caller identity inside the crossing function via ^cur.Previous().Address()^, where the ^cur^ token makes that guarantee static.
 
 > [!NOTE]
 > For a library that handles single-owner access control for you, check out [^gno.land/p/nt/ownable/v0^](/p/nt/ownable/v0).
