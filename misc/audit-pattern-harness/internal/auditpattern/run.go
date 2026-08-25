@@ -32,6 +32,15 @@ var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
 
 var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
 
+// funcLitRE captures the parameter list of a func literal. A callback that must
+// stay non-crossing is written as a literal, because a realm-typed first
+// parameter would make a declaration a crossing function.
+var funcLitRE = regexp.MustCompile(`func\(([^)]*)\)`)
+
+// realmSelectorRE matches a selector on an identifier: the receiver in group 1,
+// the member in group 2.
+var realmSelectorRE = regexp.MustCompile(`\b([A-Za-z_]\w*)\.(\w+)`)
+
 // pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
 // the receiver, so a pointer to one is a live mutator handle. avl.Tree is the
 // canonical example (Set/Remove/ReverseIterate); extend as more are documented.
@@ -244,18 +253,14 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 	return hits, nil
 }
 
-// guardedRealmParams returns the realm-typed parameter names in a func
-// declaration line that require an IsCurrent() check. A leading `cur realm` is
-// excluded: the runtime mints it per crossing frame, so it is always current.
-// Any other realm parameter arrives as an ordinary argument and can carry a
-// forwarded or derived value such as cur.Previous().
-func guardedRealmParams(line string) []string {
-	m := funcSigRE.FindStringSubmatch(line)
-	if m == nil {
-		return nil
-	}
+// realmParamsNeedingGuard returns the realm-typed names in a parameter list
+// that require an IsCurrent() check. A leading `cur realm` is excluded: the
+// runtime mints it per crossing frame, so it is always current. Any other realm
+// parameter arrives as an ordinary argument and can carry a forwarded or
+// derived value such as cur.Previous().
+func realmParamsNeedingGuard(params string) []string {
 	var names []string
-	for i, p := range strings.Split(m[2], ",") {
+	for i, p := range strings.Split(params, ",") {
 		pm := realmParamRE.FindStringSubmatch(strings.TrimSpace(p))
 		if pm == nil {
 			continue
@@ -268,10 +273,33 @@ func guardedRealmParams(line string) []string {
 	return names
 }
 
-// realmValueRead reports whether line derives an identity from realm value name.
+// guardedRealmParams returns the realm-typed parameters of a func declaration
+// line.
+func guardedRealmParams(line string) []string {
+	m := funcSigRE.FindStringSubmatch(line)
+	if m == nil {
+		return nil
+	}
+	return realmParamsNeedingGuard(m[2])
+}
+
+// literalRealmParams returns the realm-typed parameters of every func literal
+// on the line.
+func literalRealmParams(line string) []string {
+	var names []string
+	for _, m := range funcLitRE.FindAllStringSubmatch(line, -1) {
+		names = append(names, realmParamsNeedingGuard(m[1])...)
+	}
+	return names
+}
+
+// realmValueRead reports whether line reads realm value name through anything
+// other than the IsCurrent() guard itself. Every other member derives identity
+// or authority from the value, so matching by exclusion keeps the rule correct
+// as the realm type gains members.
 func realmValueRead(line, name string) bool {
-	for _, accessor := range []string{".Previous()", ".Address()", ".PkgPath()"} {
-		if strings.Contains(line, name+accessor) {
+	for _, m := range realmSelectorRE.FindAllStringSubmatch(line, -1) {
+		if m[1] == name && m[2] != "IsCurrent" {
 			return true
 		}
 	}
@@ -301,6 +329,11 @@ func currentGuardHits(dir string) ([]Hit, error) {
 				braceDepth = 0
 				guarded = guardedRealmParams(trimmed)
 				seen = map[string]bool{}
+			} else if lit := literalRealmParams(trimmed); len(lit) > 0 {
+				// A literal nests inside the enclosing function, so its
+				// parameters join the set rather than replacing it.
+				inFunc = true
+				guarded = append(guarded, lit...)
 			}
 			if inFunc {
 				braceDepth += strings.Count(line, "{")

@@ -106,8 +106,10 @@ false positives and false negatives in real-world code.
 
 ### current_guard
 
-Detects a secondary `rlm realm` parameter read before `rlm.IsCurrent()` only
-within the **same function**, and only when the signature fits on one line. A
+Detects a secondary `rlm realm` parameter, declared on a func or on a func
+literal, read before `rlm.IsCurrent()` only within the **same function**, and
+only when the signature fits on one line. Any member other than `IsCurrent()`
+counts as a read. A
 crossing function's first `cur realm` is exempt: the runtime mints it per
 crossing frame, so `cur.IsCurrent()` on it is always true (see
 `gnovm/tests/files/zrealm_iscurrent.gno`). If the check lives in a helper

@@ -2,6 +2,7 @@ package auditpattern
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +64,91 @@ func TestCurrentGuardRule(t *testing.T) {
 	}
 	if len(hits) != 0 {
 		t.Fatalf("expected no hits, got %d", len(hits))
+	}
+}
+
+func TestCurrentGuardFlagsEveryRealmAccessor(t *testing.T) {
+	// Every selector on a secondary realm value derives identity or authority
+	// from it: Sub() mints a sub-realm identity and the Is* predicates answer
+	// authorization questions, so none of them is safe to read unguarded.
+	const tmpl = `package x
+
+func f(_ int, rlm realm) {
+	_ = rlm.%s
+}
+`
+
+	for _, accessor := range []string{
+		"Previous()", "Address()", "PkgPath()", "String()",
+		`Sub("treasury")`, "Subpath()",
+		"IsUser()", "IsUserCall()", "IsUserRun()", "IsCode()",
+	} {
+		dir := t.TempDir()
+		src := fmt.Sprintf(tmpl, accessor)
+		if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		hits, err := RunRule("current_guard", dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(hits) != 1 {
+			t.Errorf("unguarded rlm.%s: expected 1 hit, got %d", accessor, len(hits))
+		}
+	}
+}
+
+func TestCurrentGuardAcceptsGuardedAccessor(t *testing.T) {
+	const src = `package x
+
+func f(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("invalid realm")
+	}
+	_ = rlm.String()
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("read after an IsCurrent() guard was flagged: %+v", hits)
+	}
+}
+
+func TestCurrentGuardFlagsFuncLiteralParams(t *testing.T) {
+	// A non-crossing callback is forced into literal form, because a
+	// realm-typed first parameter would make it a crossing function.
+	const src = `package x
+
+func teller() *fnTeller {
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("realm parameter on a func literal not checked: expected 1 hit, got %d", len(hits))
 	}
 }
 
