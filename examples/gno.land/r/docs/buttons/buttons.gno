@@ -43,7 +43,7 @@ func Render(path string) string {
 		out += "`txlink.Call` builds a `$help` URL with the arguments pre-filled. " +
 			"It produces a plain clickable link rather than a form, useful when you " +
 			"want a one-click action with fixed arguments:\n\n"
-		link := txlink.Call("UpdateMOTD", "newmotd", "Message!") // "/r/docs/buttons$help&func=UpdateMOTD&newmotd=Message!"
+		link := txlink.Call("UpdateMOTD", "newmotd", "Message!") // "/r/docs/buttons$help&func=UpdateMOTD&newmotd=Message%21"
 		out += ufmt.Sprintf("Click **[here](%s)** to update the Message of The Day.\n\n", link)
 
 		out += "[Go back to home page](/r/docs/buttons)\n\n"
@@ -67,7 +67,7 @@ transaction. There are two primitives for the transaction case:
   input fields and submits a ` + "`MsgCall`" + ` to the named exported function.
   Use this whenever the caller supplies arguments.
 - **` + "`txlink.Call`" + `** — builds a bare ` + "`$help`" + ` link with the
-  arguments baked in. No form, just a hyperlink; handy for fixed-argument
+  arguments baked in. No form, just a hyperlink, for fixed-argument
   one-click actions.
 
 The foundation for both is a markdown link; for example, you can click...

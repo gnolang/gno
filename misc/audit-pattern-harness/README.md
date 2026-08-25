@@ -75,7 +75,7 @@ Each `expected/*.yaml` record describes one finding family and its fixtures:
 
 ```yaml
 id: current-guard
-title: cur.Previous without cur.IsCurrent
+title: secondary realm parameter trusted without IsCurrent
 rule: current_guard
 fixtures:
   - name: vulnerable
