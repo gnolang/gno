@@ -458,3 +458,40 @@ func Test() string {
 		})
 	}
 }
+
+// TestLoadGenesisParamsFile_RealmSection covers the realm part of a [vm:<x>]
+// section.
+//
+// These keys are written as "vm:"+key, and the vm's own params live at
+// vm:p:<field>, so a section named [vm:p] sets those rather than a realm's --
+// and gets past the [vm] section, which accepts only two named fields. The
+// realm-param loop also runs after the vm params are set, so it wins.
+func TestLoadGenesisParamsFile_RealmSection(t *testing.T) {
+	t.Parallel()
+
+	load := func(t *testing.T, body string) error {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "params.toml")
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+		ggs := &GnoGenesisState{VM: vmm.DefaultGenesisState()}
+		return LoadGenesisParamsFile(path, ggs)
+	}
+
+	t.Run("a vm submodule is refused", func(t *testing.T) {
+		t.Parallel()
+		err := load(t, "[\"vm:p\"]\n  \"run_submitters.strings\" = [\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"]\n")
+		require.Error(t, err, "[vm:p] must not be able to set a vm parameter")
+		assert.Contains(t, err.Error(), "is not a realm path")
+	})
+
+	t.Run("a realm path is accepted and reaches RealmParams", func(t *testing.T) {
+		t.Parallel()
+		path := filepath.Join(t.TempDir(), "params.toml")
+		require.NoError(t, os.WriteFile(path,
+			[]byte("[\"vm:gno.land/r/demo/foo\"]\n  bar = \"baz\"\n"), 0o644))
+		ggs := &GnoGenesisState{VM: vmm.DefaultGenesisState()}
+		require.NoError(t, LoadGenesisParamsFile(path, ggs))
+		require.Len(t, ggs.VM.RealmParams, 1)
+		assert.Equal(t, "gno.land/r/demo/foo:bar", ggs.VM.RealmParams[0].Key)
+	})
+}
