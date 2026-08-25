@@ -173,6 +173,12 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 		// After RemoveMember the policy inverts: a return would commit a member
 		// who was removed and not re-added, so everything below panics instead,
 		// which reverts the whole transaction.
+		// A tier dropped from the global table. NewChangeTiersRequest replaces
+		// that table wholesale, so a proposal listing only T1 and T2 removes T3
+		// for good. memberByTier would not notice: it switches on the constant
+		// and ignores GetTier's ok, so the promotion would succeed and hand the
+		// member zero invitation points. Untested -- reaching it needs a passed
+		// tier-change proposal, which rewrites state every other test shares.
 		if _, ok := memberstore.GetTier(toTier); !ok {
 			return ufmt.Errorf("unknown destination tier: %s", toTier)
 		}
