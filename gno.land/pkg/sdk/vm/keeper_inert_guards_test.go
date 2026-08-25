@@ -464,8 +464,16 @@ height = 999`},
 		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}))
 	assert.Equal(t, victimBefore, env.bankk.GetCoins(ctx, victim).AmountOf(ugnot.Denom),
 		"the named victim must not be charged for someone else's submission")
-	assert.Less(t, env.bankk.GetCoins(ctx, forger).AmountOf(ugnot.Denom), forgerBefore,
-		"the actual submitter pays")
+
+	// Pinned to bytes x price rather than "the balance went down". Asserting
+	// only a decrease would pass just as happily if the forger were charged
+	// twice over, or if something unrelated were taken alongside the deposit.
+	charged := forgerBefore - env.bankk.GetCoins(ctx, forger).AmountOf(ugnot.Denom)
+	rlm := env.vmk.getGnoTransactionStore(ctx).GetPackageRealm(pkgPath)
+	require.NotNil(t, rlm)
+	price := std.MustParseCoin(DefaultParams().StoragePrice).Amount
+	assert.Equal(t, int64(rlm.Storage)*price, charged,
+		"the actual submitter pays, and pays exactly the storage deposit")
 }
 
 // TestVMKeeperEnableCannotPublicizeALivePrivateRealm pins that activating a
@@ -769,24 +777,28 @@ func Who(cur realm) string { return "parked" }`},
 	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
-// replayFiles builds a trivial package whose directory name is also its package
-// name, for the genesis-replay and submission-charge tests below.
+// sortMemFiles puts files in the order ValidateMemPackage requires.
 //
-// Sorted explicitly: ValidateMemPackage refuses unsorted files, and whether
-// "<name>.gno" sorts before or after "gnomod.toml" depends on the name, so
-// hard-coding an order works for some names and not others.
-func replayFiles(name string) []*std.MemFile {
-	path := "gno.land/r/test/" + name
-	files := []*std.MemFile{
-		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
-		{Name: name + ".gno", Body: "package " + name + `
-
-func Who(cur realm) string { return "live" }`},
-	}
+// Worth a helper rather than a hand-written order: whether "<name>.gno" sorts
+// before or after "gnomod.toml" depends on the name, so a fixed order is
+// correct for some packages and rejected for others.
+func sortMemFiles(files []*std.MemFile) []*std.MemFile {
 	slices.SortFunc(files, func(a, b *std.MemFile) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 	return files
+}
+
+// replayFiles builds a trivial package whose directory name is also its package
+// name, for the genesis-replay and submission-charge tests below.
+func replayFiles(name string) []*std.MemFile {
+	path := "gno.land/r/test/" + name
+	return sortMemFiles([]*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+		{Name: name + ".gno", Body: "package " + name + `
+
+func Who(cur realm) string { return "live" }`},
+	})
 }
 
 // TestVMKeeperGenesisReplayFollowsTheReplayedPolicy pins that replayed history
@@ -1215,7 +1227,7 @@ func TestVMKeeperEnableTypeChecksProductionFilesOnly(t *testing.T) {
 
 	// The production file compiles. The test file does not: it calls something
 	// that does not exist, so type-checking it is an error.
-	files := []*std.MemFile{
+	files := sortMemFiles([]*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "prodonly.gno", Body: `package prodonly
 
@@ -1223,9 +1235,6 @@ func Who(cur realm) string { return "live" }`},
 		{Name: "prodonly_test.gno", Body: `package prodonly
 
 func BrokenIfTypeChecked() { thisSymbolDoesNotExist() }`},
-	}
-	slices.SortFunc(files, func(a, b *std.MemFile) int {
-		return strings.Compare(a.Name, b.Name)
 	})
 
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
