@@ -1297,14 +1297,26 @@ Closing the `add_package` row for real transactions still means running under
     omitted when empty.
     (`TestEnableRefusesSourceChangedAfterApproval`, `TestEnableRequiresAHash`.)
 
-13. **Nothing can delete a parked package.** `DelInertPackage` runs only after a
-    successful enable, `DisablePackage` is unimplemented, and there is no reject
-    or expiry message. A submission an approver declines occupies IAVL forever.
-    It is paid for — roughly 1.27ugnot/byte in non-refundable gas at submit, so
-    it is not free state — but it is unreclaimable. Nor is an ordinary live
-    package's blob reclaimable: `DeleteMemPackage` is reachable only on a
-    private redeploy and no message deletes one. What is specific to `inert` is
-    unreclaimable state that was never even usable.
+13. **Fixed: a parked package can be removed.** `DelInertPackage` ran only
+    after a successful enable and `DisablePackage` is unimplemented, so a
+    submission an approver declined occupied the store forever — and so did one
+    parked under a policy that has since moved off `inert`, which no enable can
+    ever activate.
+
+    `MsgRejectPackage` deletes the parked blob. Either the creator or an
+    approver may send it: the bytes are the creator's, and declining them is
+    the approver's job. Not gated on the policy still being `inert`, because
+    cleanup is most needed exactly when it is not. `gnokey maketx rejectpkg`
+    sends one.
+
+    The submission charge is not refunded. It priced the work of parking the
+    bytes, which happened, and refunding it would make rejection a way to
+    recover the charge — which is what makes bulk submission cost something.
+
+    Still true of ordinary live packages: `DeleteMemPackage` is reachable only
+    on a private redeploy and no message deletes one. What is fixed is the part
+    specific to `inert`, state that was never usable.
+    (`TestRejectPackageClearsTheQueue`.)
 
 14. **Fixed: `msg.Send` is refused on an inert submission.** The coins used to
     move to the package address at submit, but `EnablePackage` builds its

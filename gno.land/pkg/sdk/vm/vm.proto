@@ -42,6 +42,11 @@ message m_disable_pkg {
 	string pkg_path = 2;
 }
 
+message m_reject_pkg {
+	string sender = 1;
+	string pkg_path = 2;
+}
+
 message InvalidPkgPathError {
 }
 

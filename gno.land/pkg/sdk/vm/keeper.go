@@ -1406,6 +1406,46 @@ func isApprover(approvers []crypto.Address, addr crypto.Address) bool {
 // DisablePackage moves an active package back to inert state.
 // NOTE: full disable requires evicting executed objects from the base store,
 // which is not yet implemented. This stub is provided for interface completeness.
+// RejectPackage deletes a package that is parked awaiting approval.
+//
+// Nothing else could remove one. DelInertPackage ran only after a successful
+// enable and DisablePackage is unimplemented, so a submission an approver
+// declined occupied the store forever -- and so did one parked under a policy
+// that has since moved off "inert", which no enable can ever activate.
+//
+// Either the creator or an approver may send it. Both have standing: the bytes
+// are the creator's, and declining them is the approver's job. Anyone else is
+// refused, or a stranger could clear a queue they have no part in.
+//
+// Not gated on the policy still being "inert". Cleanup is most needed exactly
+// when it is not: those packages are unactivatable and would otherwise be
+// unremovable too.
+//
+// The submission charge is not refunded. See MsgRejectPackage.
+func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
+	gnostore := vm.getGnoTransactionStore(ctx)
+	memPkg := gnostore.GetInertPackage(msg.PkgPath)
+	if memPkg == nil {
+		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
+	}
+
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(fmt.Sprintf(
+			"cannot read the parked package at %s: %v", msg.PkgPath, err))
+	}
+
+	params := vm.GetParams(ctx)
+	if !isApprover(params.PkgApprovers, msg.Sender) && gm.AddPkg.Creator != msg.Sender.String() {
+		return std.ErrUnauthorized(fmt.Sprintf(
+			"address %s is neither a pkg approver nor the creator of %s",
+			msg.Sender, msg.PkgPath))
+	}
+
+	gnostore.DelInertPackage(msg.PkgPath)
+	return nil
+}
+
 func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error {
 	params := vm.GetParams(ctx)
 	if !isApprover(params.PkgApprovers, msg.Approver) {

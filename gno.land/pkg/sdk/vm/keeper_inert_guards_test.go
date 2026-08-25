@@ -1601,3 +1601,79 @@ func TestEnableRequiresAHash(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, fmt.Sprintf("%+v", err), "missing pkg_hash")
 }
+
+// TestRejectPackageClearsTheQueue covers MsgRejectPackage.
+//
+// Nothing else could remove a parked package: DelInertPackage ran only after a
+// successful enable, so a declined submission occupied the store forever.
+func TestRejectPackageClearsTheQueue(t *testing.T) {
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	stranger := crypto.AddressFromPreimage([]byte("stranger"))
+
+	parked := func(t *testing.T, env testEnv, ctx sdk.Context, path string) bool {
+		t.Helper()
+		return env.vmk.getGnoTransactionStore(ctx).GetInertPackage(path) != nil
+	}
+
+	t.Run("an approver may decline", func(t *testing.T) {
+		const pkgPath = "gno.land/r/test/declined"
+		env, ctx := inertEnv(t, approver, creator)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("declined"))))
+		require.True(t, parked(t, env, ctx, pkgPath), "premise")
+
+		require.NoError(t, env.vmk.RejectPackage(ctx,
+			MsgRejectPackage{Sender: approver, PkgPath: pkgPath}))
+		assert.False(t, parked(t, env, ctx, pkgPath), "the blob must be gone")
+	})
+
+	t.Run("the creator may withdraw its own", func(t *testing.T) {
+		const pkgPath = "gno.land/r/test/withdrawn"
+		env, ctx := inertEnv(t, approver, creator)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("withdrawn"))))
+
+		require.NoError(t, env.vmk.RejectPackage(ctx,
+			MsgRejectPackage{Sender: creator, PkgPath: pkgPath}))
+		assert.False(t, parked(t, env, ctx, pkgPath))
+	})
+
+	t.Run("a stranger may not", func(t *testing.T) {
+		const pkgPath = "gno.land/r/test/notyours"
+		env, ctx := inertEnv(t, approver, creator, stranger)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("notyours"))))
+
+		err := env.vmk.RejectPackage(ctx, MsgRejectPackage{Sender: stranger, PkgPath: pkgPath})
+		require.Error(t, err, "or anyone could clear a queue they have no part in")
+		assert.True(t, parked(t, env, ctx, pkgPath), "and the blob must survive the refusal")
+	})
+
+	t.Run("a package parked under a policy that has moved is still removable", func(t *testing.T) {
+		// The case cleanup is most needed in: no enable can ever activate these,
+		// so without this they would be unactivatable and unremovable both.
+		const pkgPath = "gno.land/r/test/stranded"
+		env, ctx := inertEnv(t, approver, creator)
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, pkgPath, replayFiles("stranded"))))
+
+		moved := DefaultParams()
+		moved.CodeSubmissionPolicy = CodeSubmissionPolicyPermissioned
+		moved.PkgApprovers = []crypto.Address{approver}
+		require.NoError(t, env.vmk.SetParams(ctx, moved))
+		require.Error(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: pkgPath}), "premise: stranded")
+
+		require.NoError(t, env.vmk.RejectPackage(ctx,
+			MsgRejectPackage{Sender: approver, PkgPath: pkgPath}))
+		assert.False(t, parked(t, env, ctx, pkgPath))
+	})
+
+	t.Run("nothing parked is an error, not a silent success", func(t *testing.T) {
+		env, ctx := inertEnv(t, approver, creator)
+		err := env.vmk.RejectPackage(ctx,
+			MsgRejectPackage{Sender: approver, PkgPath: "gno.land/r/test/nothing"})
+		assert.Error(t, err)
+	})
+}

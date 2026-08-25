@@ -329,6 +329,55 @@ func (msg MsgEnablePackage) SpendForSigner(_ crypto.Address) std.Coins { return 
 //
 // NOTE: full disable (cleaning up executed objects from the base store) is not
 // yet implemented; the handler returns an error until a follow-up PR completes it.
+//----------------------------------------
+// MsgRejectPackage
+
+// MsgRejectPackage removes a package that is parked awaiting approval.
+//
+// Two parties may send it, and for different reasons: an approver declining a
+// submission, and the creator withdrawing its own. One message rather than two
+// because the effect is identical -- the parked blob is deleted and nothing
+// else happens.
+//
+// The submission charge is NOT refunded. It priced the work of parking the
+// bytes, which happened; refunding it would also make rejection a way to
+// recover the charge, and the charge is what makes bulk submission cost
+// something.
+type MsgRejectPackage struct {
+	Sender  crypto.Address `json:"sender" yaml:"sender"`
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+}
+
+var _ std.Msg = MsgRejectPackage{}
+
+func (msg MsgRejectPackage) Route() string { return RouterKey }
+func (msg MsgRejectPackage) Type() string  { return "reject_package" }
+
+func (msg MsgRejectPackage) ValidateBasic() error {
+	if msg.Sender.IsZero() {
+		return std.ErrInvalidAddress("missing sender address")
+	}
+	if msg.PkgPath == "" {
+		return ErrInvalidPkgPath("missing package path")
+	}
+	return nil
+}
+
+func (msg MsgRejectPackage) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+func (msg MsgRejectPackage) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Sender}
+}
+
+func (msg MsgRejectPackage) GetReceived() std.Coins { return nil }
+
+func (msg MsgRejectPackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
+
+//----------------------------------------
+// MsgDisablePackage
+
 type MsgDisablePackage struct {
 	Approver crypto.Address `json:"approver" yaml:"approver"`
 	PkgPath  string         `json:"pkg_path" yaml:"pkg_path"`

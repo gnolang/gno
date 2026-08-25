@@ -830,6 +830,23 @@ func TestVmHandlerQueryRoutesInertPaths(t *testing.T) {
 	assert.False(t, bad.IsOK(), "an unparseable limit must be refused")
 }
 
+// TestVmHandlerProcessRoutesReject pins that Process dispatches MsgRejectPackage.
+//
+// Without the switch case the message would be accepted by ValidateBasic,
+// admitted by the ante, and then silently rejected as unrecognised.
+func TestVmHandlerProcessRoutesReject(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	res := env.vmh.Process(ctx, MsgRejectPackage{
+		Sender:  crypto.AddressFromPreimage([]byte("someone")),
+		PkgPath: "gno.land/r/test/nothingparked",
+	})
+	require.False(t, res.IsOK(), "nothing is parked, so it must fail")
+	assert.Contains(t, res.Error.Error(), "invalid package path",
+		"and fail in the keeper body, not as an unrecognised message type")
+}
+
 // TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
 // inert-policy messages to their keeper methods.
 //

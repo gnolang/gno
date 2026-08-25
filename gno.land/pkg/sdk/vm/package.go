@@ -19,6 +19,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
 	MsgEnablePackage{}, "m_enable_pkg",
 	MsgDisablePackage{}, "m_disable_pkg",
+	MsgRejectPackage{}, "m_reject_pkg",
 
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",
