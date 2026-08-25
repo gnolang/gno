@@ -68,6 +68,17 @@ func ValidateGenesis(gs GenesisState) error {
 					"write the vm module's own parameter vm:%s rather than a realm's",
 				rp.Key, realm, rp.Key)
 		}
+		// One colon exactly. A realm writing a param at runtime goes through
+		// sys/params' prmkey, which panics on a name containing a colon, so a
+		// key with two is one only genesis can produce. It is also ambiguous:
+		// this splits on the first colon to find the realm, while
+		// realmFromKey (params_deposit.go) splits on the last, so the two would
+		// attribute the same key to different realms.
+		if strings.Contains(name, ":") {
+			return fmt.Errorf(
+				"invalid realm param key %q: the name %q must not contain a colon",
+				rp.Key, name)
+		}
 	}
 	return nil
 }
