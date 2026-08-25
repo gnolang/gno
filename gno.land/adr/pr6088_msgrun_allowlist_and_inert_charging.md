@@ -1238,6 +1238,21 @@ Closing the `add_package` row for real transactions still means running under
     already returns what the source chain read at that point in its history,
     including a history whose policy changed partway.
 
+    **That rests on one property of the fork tool worth naming, because nothing
+    in the keeper can see it.** `buildHardforkGenesis` starts from the source
+    chain's **genesis document**, not from a state export, and appends history
+    after it. So the fork begins at the source's height-0 params and every
+    governance transaction that moved them replays in order.
+
+    Snapshot the source's FINAL state instead and this inverts: every historical
+    transaction would run under the last policy the chain ever had, so a chain
+    that adopted `inert` late would park its entire history. The keeper would be
+    reading the params correctly and still get every answer wrong. Both halves
+    are covered — the source-genesis start by the params assertions in
+    `TestBuildHardforkGenesis_DefaultsGasParams`, the ordering by the
+    `SourceBase`-then-`SourceHistorical` assertions in
+    `TestBuildHardforkGenesis_AnnotatesSource`.
+
     `AddPackage`'s inert branch therefore reads the policy like any other
     delivery. A chain that parked a package parks it again; one that deployed
     live, deploys live.
