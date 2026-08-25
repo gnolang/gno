@@ -1147,6 +1147,20 @@ Closing the `add_package` row for real transactions still means running under
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
 
+18c. **Correction to another commit message.** The commit adding the
+    second-colon rule justifies it by saying a realm writing a param at runtime
+    goes through `sys/params`' `prmkey`. That names the wrong path. `sys/params`
+    is governance-only, locked to `gno.land/r/sys/params`; an ordinary realm
+    writes through `chain/params`' `pkey`, which panics on a colon in the key
+    and builds `vm:<realm-path>:<key>` from a package path that cannot contain
+    one.
+
+    The rule is still right, and for a better reason than the one given: a
+    runtime key has exactly one colon because `pkey` enforces it, so genesis is
+    the only writer that can produce more. Worth noting `prmkey` checks the name
+    but not the submodule, so `gno.land/r/sys/params` could in principle build a
+    multi-colon key -- no code there does, and that realm cannot be redeployed.
+
 18b. **Correction to an earlier commit message.** The commit that added the
     realm-param key rule says the `[vm:p]` genesis section "bypasses
     validation". That is wrong and overstates the hole. `SetAny` reaches
