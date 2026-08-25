@@ -113,6 +113,8 @@ make fmt                        # Format all code
 
 Read [`docs/resources/gno-security-guide.md`](docs/resources/gno-security-guide.md) for the full catalog of known vulnerability families. The audit pattern harness in `misc/audit-pattern-harness/` has a vulnerable/fixed fixture pair for each family the VM permits — run it against unfamiliar realm code as a quick sanity check. The one exception is a stored `realm`-typed value (guide §5.7), which the VM refuses outright, so there is no runnable vulnerable variant to compare against.
 
+Its rules match text, not an AST, so it reports both false positives and false negatives — a clean run is a smoke test passing, not a realm being safe. Read the code against the guide's checklist regardless; the harness is there to catch the shapes you would otherwise have to remember.
+
 ---
 
 ## Architecture Decision Records (ADRs)
