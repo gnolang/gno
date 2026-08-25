@@ -514,3 +514,36 @@ func TestProposeSetRunSubmittersRequiresProposerOnTheList(cur realm, t *testing.
 		ProposeSetRunSubmitters(cross(cur), []string{other, proposer.String()})
 	})
 }
+
+// TestSetRunSubmittersReplacesTheList covers what the whole-list setter does to
+// a list that is not empty.
+//
+// This realm reserves run_submitters from the generic factories, so its own
+// setter is the only route by vote. If that setter appended instead of
+// replacing, the parameter would be append-only chain-wide: a compromised
+// address could never be de-listed and the gate could never be turned back off,
+// while the proposal shown to voters would say otherwise.
+//
+// Every other test here starts from an empty list, where appending and
+// replacing look identical, which is why this one starts armed.
+func TestSetRunSubmittersReplacesTheList(cur realm, t *testing.T) {
+	resetDelegation()
+	defer resetDelegation()
+
+	a := testutils.TestAddress("keep-a").String()
+	b := testutils.TestAddress("drop-b").String()
+	armRunSubmitters(a, b)
+	uassert.Equal(t, 2, len(GetRunSubmitters()))
+
+	// Dropping b must actually drop it.
+	setRunSubmitters([]string{a})
+	got := GetRunSubmitters()
+	uassert.Equal(t, 1, len(got), "the list must be replaced, not appended to")
+	uassert.True(t, contains(got, a))
+	uassert.False(t, contains(got, b), "a de-listed address must be gone")
+
+	// And emptying must switch the gate off, which is what the proposal says.
+	setRunSubmitters([]string{})
+	uassert.Equal(t, 0, len(GetRunSubmitters()),
+		"an empty list must be reachable, or the gate can never be turned off")
+}

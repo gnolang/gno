@@ -17,10 +17,10 @@ package params
 //     MsgRun, so emptying it would let the delegate revoke the entire
 //     restriction GovDAO voted for, which is the one thing this capability must
 //     not be able to do.
-//   - GovDAO retains everything, including the existing whole-list setter. That
-//     is the bounded reset: one proposal returns the key to a known-good list
-//     regardless of what the delegate did, and the proposal shows voters the
-//     exact resulting list.
+//   - GovDAO retains everything, through ProposeSetRunSubmitters below -- the
+//     generic factories no longer accept this key. That is the bounded reset:
+//     one proposal returns the key to a known-good list regardless of what the
+//     delegate did, and the proposal shows voters the exact resulting list.
 //
 // A cost to state plainly rather than bury: this key is read by the ante handler
 // on EVERY transaction, before the per-tx gas meter exists, so its length is an
@@ -343,10 +343,25 @@ func ProposeSetRunSubmitters(cur realm, addrs []string) dao.ProposalRequest {
 	}
 
 	callback := func(cur realm) error {
-		prms.UpdateSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs, true)
+		setRunSubmitters(addrs)
 		chain.Emit("SetRunSubmitters", "key", runSubmittersKey, "proposer", proposer.String())
 		return nil
 	}
 	return dao.NewProposalRequest(title, desc,
 		dao.NewSimpleExecutor(0, cur, callback, ""))
+}
+
+// setRunSubmitters replaces the whole allowlist.
+//
+// SetSysParamStrings, not UpdateSysParamStrings: Update with add=true appends
+// non-duplicates onto what is already there, so it can never remove an address
+// or empty the list. This realm reserves the key from the generic factories, so
+// this is the only route by vote -- if it appended, the parameter would be
+// append-only chain-wide, a compromised address could never be de-listed, and
+// the gate could never be turned back off.
+//
+// A named function rather than the executor's body inline, so a test can reach
+// it: a closure held in a ProposalRequest cannot be called from outside.
+func setRunSubmitters(addrs []string) {
+	prms.SetSysParamStrings(vmModulePrefix, vmParamsSubmodule, runSubmittersKey, addrs)
 }
