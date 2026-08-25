@@ -867,41 +867,29 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		if err := vm.checkCLASignature(ctx, creator); err != nil {
 			return err
 		}
-		// Charge for the init() this submission defers onto someone else.
+		// Charge for the init() this submission defers onto the approver.
 		//
-		// Enable runs this package's init() on the APPROVER's transaction and
-		// gas meter, and fees are flat — so the approver pays the same whatever
-		// the package costs, and its exposure is that fee times the number of
-		// approvals it can be induced to make. Submitting is otherwise close to
-		// free, so provoking those approvals is cheap. This puts a price on it,
-		// paid by the party that chose the cost.
+		// Enable runs this package's init() on the approver's transaction and
+		// gas meter, and fees are flat -- so its exposure is that fee times the
+		// number of approvals it can be induced to make, and submitting is
+		// otherwise nearly free. The charge prices that, on the party that chose
+		// the cost. Why it is a flat amount rather than a measured one is in the
+		// ADR; the short version is that a refund computed from a gas meter makes
+		// gas a consensus input, and forks then disagree about balances.
 		//
-		// Deliberately flat rather than measured. Metering the deferred work and
-		// refunding the remainder was tried four ways and rejected each time:
-		// money derived from a gas reading makes gas a consensus input, so a
-		// fork recomputes a different refund than the source chain paid. See the
-		// ADR.
+		// Empty means off. The collector is checked here because Params.Validate
+		// deliberately does not: skipping the charge costs nothing, while paying
+		// the zero address would burn it.
 		//
-		// Placed last, where nothing after it can fail. Everything reverts
-		// together anyway — message-phase writes are discarded as a unit — but
-		// the ordering makes pay-then-park legible here rather than requiring a
-		// reader to know baseapp's revert semantics. It mirrors EnablePackage,
-		// which puts its deposit immediately before DelInertPackage for the same
-		// reason.
+		// SendCoins rather than SendCoinsUnrestricted, because this is a one-way
+		// transfer and not the refundable escrow the storage deposit uses -- a
+		// token lock should refuse it, not be bypassed. It also does the
+		// session-spend check itself, so one call cannot get the order wrong.
 		//
-		// SendCoins, not SendCoinsUnrestricted: this is a one-way transfer to a
-		// governance-chosen address, not the refundable escrow the deposit path
-		// uses, so a token lock should refuse it rather than be bypassed. It also
-		// performs the session-spend check itself, so this is one call and the
-		// order cannot be got wrong.
-		//
-		// The zero guard is load-bearing: SendCoinsUnrestricted has no zero
-		// short-circuit, and even SendCoins' costs a store read. Off must cost
-		// nothing, or the shipped default moves gas on every inert deploy.
-		// The collector guard is the reason Params.Validate does not check it:
-		// skipping the charge costs nothing, while charging the zero address
-		// would burn it. applyLegacyDefaults supplies a collector on this read
-		// path, so this is defence rather than an expected state.
+		// Last in the branch, so nothing after it can fail. Writes revert as a
+		// unit either way; the ordering just makes pay-then-park legible without
+		// knowing baseapp's revert rules. EnablePackage places its deposit
+		// immediately before DelInertPackage for the same reason.
 		if params.InertSubmissionCharge != "" && !params.InertChargeCollector.IsZero() {
 			charge, err := std.ParseCoins(params.InertSubmissionCharge)
 			if err != nil {
@@ -909,10 +897,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 				// stored. Panicking is what makes it safe to be wrong about that.
 				panic("invalid inert_submission_charge in params: " + err.Error())
 			}
-			if !charge.IsZero() {
-				if err := vm.bank.SendCoins(ctx, creator, params.InertChargeCollector, charge); err != nil {
-					return err
-				}
+			if err := vm.bank.SendCoins(ctx, creator, params.InertChargeCollector, charge); err != nil {
+				return err
 			}
 		}
 		// No SendCoins for msg.Send: a non-zero send was refused above.
