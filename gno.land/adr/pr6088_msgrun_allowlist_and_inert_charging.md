@@ -1256,11 +1256,16 @@ Closing the `add_package` row for real transactions still means running under
    The structural fix — one merge function, or one genesis state instead of two —
    is still worth doing; this only makes the drift loud.
 
-10. **`MsgEnablePackage` has no `gnokey` route.** It can only be sent by a
-    programmatic client or a hand-built tx, which is why the inert lifecycle
-    test is Go rather than txtar. An approver operating by hand has no
-    supported path today; `gnokey maketx enablepkg` belongs with the message
-    itself (#5888) rather than here, but the gap should not go unrecorded.
+10. **Fixed: `MsgEnablePackage` has a `gnokey` route.** `maketx enablepkg`
+    sends one, which matters more since §12: an approval names the source it
+    approves, so a human approver needs a way to compute that hash.
+
+    `-pkgdir` hashes a local copy of the reviewed source. Deliberately not a
+    lookup against the chain — taking the hash from the chain would approve
+    whatever is parked at the moment of sending, which is exactly what §12
+    guards against. `-pkg-hash` takes a value computed elsewhere. One or the
+    other is required; there is no default, because the sensible-looking
+    default is the unsafe one.
 
 11. **Calling an absent package panics instead of erroring.** `MsgCall` to a
     path with no enabled package dies on `unexpected node with location
