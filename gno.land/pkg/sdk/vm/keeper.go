@@ -1241,6 +1241,15 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// but returns nil early when sys_names_pkgpath is empty. Placed first, as
 	// AddPackage orders it: the two checks below each evaluate a realm, so a
 	// mismatch would otherwise pay for both before being refused.
+	//
+	// Read through getChainDomainParam, the same accessor AddPackage uses, and
+	// NOT params.ChainDomain. The two disagree when vm:p:chain_domain is absent
+	// rather than empty: GetString here leaves the "gno.land" default in place,
+	// while GetStruct leaves the struct field at "" and applyLegacyDefaults does
+	// not fill it. Enable would then test HasPrefix(path, "/") and refuse every
+	// package while AddPackage accepted it -- the two halves of one deploy
+	// disagreeing about the rule they both apply. Pinned by
+	// TestChainDomainAccessorsAgree.
 	if !strings.HasPrefix(msg.PkgPath, vm.getChainDomainParam(ctx)+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + msg.PkgPath)
 	}

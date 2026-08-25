@@ -179,8 +179,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// params are user-tunable consensus state and we want a
 			// real gas signal on changes), so this read uses the ctx's
 			// current (default) gasCfg until it's replaced below.
+			// Kept, not discarded: checkCodePolicy below needs the same
+			// struct, and re-reading it there would repeat the decode --
+			// GetParams amino-unmarshals every field, and the three
+			// allowlists bech32-decode every element, up to
+			// maxAddressListLen each. The store reads would be cache hits
+			// and cost no gas, but the decode is real work on every
+			// code-bearing transaction. Nothing writes vm params between
+			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
+			vmParams := vmk.GetParams(ctx)
+			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
 			// During genesis (block height 0), automatically create accounts for signers
@@ -220,7 +229,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			}
 			// Code-submission authorization (gno.land layer). Same
 			// res-preservation rule as above.
-			if codeRes, codeAbort := checkCodePolicy(newCtx, tx, vmk); codeAbort {
+			if codeRes, codeAbort := checkCodePolicy(newCtx, tx, vmParams); codeAbort {
 				return newCtx, codeRes, true
 			}
 			return
@@ -1348,7 +1357,7 @@ func txCarriesCode(tx std.Tx) bool {
 // grant, not a fail-closed one: AllowPaths decides whether the session may
 // carry a MsgRun at all, and run_submitters decides whether its master may run
 // code. Listing a session address here would have no effect.
-func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, bool) {
+func checkCodePolicy(ctx sdk.Context, tx std.Tx, params vm.Params) (sdk.Result, bool) {
 	addPkgSigners, runSigners := txCodeMsgSigners(tx)
 	if len(addPkgSigners) == 0 && len(runSigners) == 0 {
 		// No code-bearing message: skip the params read entirely, so no other
@@ -1376,16 +1385,15 @@ func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, 
 		return sdk.Result{}, false
 	}
 
-	// Costs no gas, but only because of where it sits. The ante already read
-	// the whole vm params struct near the top of this closure, on the
-	// throwaway meter installed before auth.SetGasMeter replaces it, and
-	// baseapp keeps one cache wrap across the ante and the message handlers —
-	// so this is a cache hit, and cacheStore.Get charges nothing for those.
-	// Making that read conditional, or moving this below auth.SetGasMeter,
-	// would turn it into ~18 metered store reads on every code-bearing tx.
-	// (Moving it merely ABOVE the app.go read is harmless — that read is itself
-	// on the pre-ante throwaway meter.)
-	return codePolicyResult(addPkgSigners, runSigners, vmk.GetParams(ctx))
+	// params is passed in rather than read here. The ante already reads the
+	// whole struct near the top of the closure, to build the gas config, on the
+	// throwaway meter installed before auth.SetGasMeter replaces it. Reading it
+	// again would cost no gas -- baseapp keeps one cache wrap across the ante
+	// and the handlers, and cacheStore.Get charges nothing for a hit -- but it
+	// would repeat the decode, and GetParams bech32-decodes every entry of all
+	// three allowlists. Threading the value keeps that at one decode per tx and
+	// removes the ordering constraint the old comment here had to explain.
+	return codePolicyResult(addPkgSigners, runSigners, params)
 }
 
 // codePolicyResult is the decision half of checkCodePolicy, split from the

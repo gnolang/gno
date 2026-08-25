@@ -1151,3 +1151,45 @@ func TestInertSubmissionChargeValidation(t *testing.T) {
 			"but the charge itself must stay off, or replay levies it on history that never paid")
 	})
 }
+
+// TestChainDomainAccessorsAgree pins that the two ways of reading the chain
+// domain never disagree.
+//
+// AddPackage reads it through getChainDomainParam and EnablePackage through the
+// same accessor; they are the two halves of one deploy applying one rule, so a
+// divergence means a package AddPackage accepted becomes one EnablePackage
+// refuses. The accessors default differently on purpose-free grounds:
+// getChainDomainParam seeds "gno.land" and lets GetString overwrite it, while
+// GetStruct leaves the field at "" for an absent key and applyLegacyDefaults --
+// which does fill PreprocessGasPerByte and CodeSubmissionPolicy -- does not fill
+// ChainDomain. Reading params.ChainDomain here would therefore test
+// HasPrefix(path, "/") and refuse everything.
+//
+// Asserted across the states a chain can actually be in rather than by
+// constructing an absent key directly, since SetParams always writes every
+// field. If a future field is added to Params without a legacy default, this
+// fails as soon as any of these states stops round-tripping.
+func TestChainDomainAccessorsAgree(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		domain string
+	}{
+		{"the shipped default", chainDomainDefault},
+		{"a custom domain", "example.com"},
+		{"explicitly empty", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+			p := DefaultParams()
+			p.ChainDomain = tt.domain
+			require.NoError(t, p.Validate())
+			require.NoError(t, env.vmk.SetParams(ctx, p))
+
+			assert.Equal(t, env.vmk.GetParams(ctx).ChainDomain, env.vmk.getChainDomainParam(ctx),
+				"GetParams().ChainDomain and getChainDomainParam() must agree; "+
+					"EnablePackage and AddPackage apply the same domain rule")
+		})
+	}
+}
