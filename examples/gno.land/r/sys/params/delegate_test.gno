@@ -480,6 +480,23 @@ func TestRunSubmittersKeyIsReservedFromGenericFactories(cur realm, t *testing.T)
 		NewSysParamStringPropRequest(cross(cur), "vm", "p", runSubmittersKey, addr)
 	})
 
+	// The four typed factories too. They cannot carry a run_submitters value,
+	// but they can name the key, and the reservation is about the key -- all
+	// nine share one check on the funnel they return through, so all nine are
+	// listed here rather than the five that happen to take strings.
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamInt64PropRequest(cross(cur), "vm", "p", runSubmittersKey, 1)
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamUint64PropRequest(cross(cur), "vm", "p", runSubmittersKey, 1)
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamBoolPropRequest(cross(cur), "vm", "p", runSubmittersKey, true)
+	})
+	uassert.AbortsContains(t, cur, "reserved for ProposeSetRunSubmitters", func() {
+		NewSysParamBytesPropRequest(cross(cur), "vm", "p", runSubmittersKey, []byte{1})
+	})
+
 	// A different key in the same module is unaffected.
 	uassert.NotAborts(t, cur, func() {
 		NewSysParamStringsPropRequest(cross(cur), "vm", "p", "code_submitters", []string{addr})
