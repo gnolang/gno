@@ -391,3 +391,68 @@ func TestAddMemberKeepsInvitationPointWhenAddFails(cur realm, t *testing.T) {
 	urequire.Equal(t, pointsBefore, after.InvitationPoints,
 		"a failed add must not spend the proposer's invitation point")
 }
+
+// TestPromoteToTierMissingFromStoreKeepsTheMember covers the remove-then-add
+// hazard in the promotion executor.
+//
+// The executor removes the member and re-adds them at the new tier. SetMember
+// returns an error rather than panicking when the store has no bucket for that
+// tier, and a returned executor error does not revert -- the proposal is marked
+// rejected and the transaction still commits -- so the member would be removed
+// and not re-added.
+//
+// The two tier registries are separate. GetTier reads the global definitions,
+// which always hold T1/T2/T3; SetMember checks whether this store has a bucket,
+// and DeleteAll empties the buckets while leaving the definitions intact. So a
+// destination can pass the first check and fail the second, which is what this
+// sets up.
+func TestPromoteToTierMissingFromStoreKeepsTheMember(cur realm, t *testing.T) {
+	loadMembers(cur)
+
+	// Drop the T3 bucket while the global definition of T3 survives.
+	mstore := memberstore.Get(0, cur)
+	mstore.DeleteAll()
+	mstore.SetTier(memberstore.T1)
+	mstore.SetTier(memberstore.T2)
+	mstore.SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
+	mstore.SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
+
+	// Premise: T3 is defined globally but absent from this store.
+	_, defined := memberstore.GetTier(memberstore.T3)
+	urequire.Equal(t, true, defined, "premise: T3 must still be a defined tier")
+	urequire.Equal(t, false, mstore.Has(memberstore.T3),
+		"premise: this store must have no T3 bucket, or the test proves nothing")
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	preq := NewPromoteMemberRequest(cur, m1, memberstore.T1, memberstore.T3)
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid := dao.MustCreateProposal(cross(cur), preq)
+
+	for _, voter := range []address{m1, m11, m111, m1111, m2, m3} {
+		testing.SetOriginCaller(voter)
+		dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	}
+
+	// The executor must refuse before removing anything. A panic aborts the
+	// transaction, so nothing it did commits; a returned error would not.
+	// AbortsContains, not Panics: the refusal happens across a realm boundary,
+	// which surfaces as an abort.
+	urequire.AbortsContains(t, cur,
+		"destination tier is missing from the member store: T3", func() {
+			dao.ExecuteOrRejectProposal(cross(cur), dao.ProposalID(pid))
+		})
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	after, tier := memberstore.Get(0, cur).GetMember(m1)
+	urequire.Equal(t, true, after != nil, "the member must survive a refused promotion")
+	urequire.Equal(t, memberstore.T1, tier, "and must still be on their original tier")
+
+	loadMembers(cur)
+}

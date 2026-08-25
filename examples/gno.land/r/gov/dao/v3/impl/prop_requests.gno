@@ -177,18 +177,29 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 		// RemoveMember never stuck. Checking here only moves the failure earlier
 		// and names the actual cause.
 		//
-		// The real remove-then-add hazard is still open and this guard does not
-		// close it. SetMember RETURNS errors rather than panicking, for a member
-		// that already exists and for a tier missing from the per-store index,
-		// and a returned executor error does not revert: ExecuteOrRejectProposal
-		// marks the proposal rejected and the transaction still commits. Those
-		// paths would leave the member removed and not re-added. GetTier below
-		// reads the global tier table, which is not the index SetMember checks.
+		// The remove-then-add hazard is closed below. SetMember RETURNS errors
+		// rather than panicking -- for a member that already exists, and for a
+		// tier missing from the per-store index -- and a returned executor error
+		// does not revert: ExecuteOrRejectProposal marks the proposal rejected
+		// and the transaction still commits, so those paths would have left the
+		// member removed and not re-added. Both are now ruled out before
+		// anything is removed, and the leftover error path panics.
 		if _, ok := memberstore.GetTier(toTier); !ok {
 			panic("unknown destination tier: " + toTier)
 		}
 
-		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
+		mbt := memberstore.Get(0, cur)
+
+		// And against the index SetMember actually consults, which is not the
+		// table above. GetTier reads the global tier definitions; SetMember
+		// checks whether this store has a bucket for the tier, and the two are
+		// populated separately -- DeleteAll empties the buckets while leaving
+		// the definitions intact.
+		if !mbt.Has(toTier) {
+			panic("destination tier is missing from the member store: " + toTier)
+		}
+
+		prevTier := mbt.RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -197,9 +208,17 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		err := memberstore.Get(0, cur).SetMember(toTier, addr, memberByTier(toTier))
+		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
+			// Unreachable, and panicking rather than returning is what makes it
+			// safe to be wrong about that. SetMember fails on an address that
+			// already exists -- this one was just removed -- or on a missing
+			// tier bucket, checked above. If either reasoning is ever wrong, a
+			// panic reverts the removal, while returning the error would commit
+			// it and lose the member.
+			panic("promotion failed after removal: " + err.Error())
+		}
 
-		return err
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
