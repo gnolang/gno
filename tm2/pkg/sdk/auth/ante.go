@@ -563,8 +563,14 @@ func IsGenesisReplay(ctx sdk.Context) bool {
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
-	// In various cases such as simulation and during the genesis block, we do not
-	// meter any gas utilization.
+	// Genesis is unmetered: at height 0 there is no sender to bill and the
+	// content is the chain's own.
+	//
+	// Simulation is NOT exempt, despite being the case people expect to be.
+	// This function is not told whether it is simulating -- there is one call
+	// site and it is unconditional -- so a simulated tx above height 0 runs
+	// under a real basicGasMeter(GasWanted) like any other. Anything reasoning
+	// about what `.app/simulate` can afford has to account for that.
 	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
