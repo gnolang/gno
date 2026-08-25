@@ -31,6 +31,15 @@ sends `MsgEnablePackage`.
 > earns its keep: the chain will re-check correctness regardless, but it cannot
 > bound how long that takes.
 
+## Install
+
+From this directory:
+
+```sh
+make install   # go install . — puts gpao on your $PATH
+make build     # go build -o build/gpao . — leaves it here instead
+```
+
 ## Usage
 
 The approver key lives in a local [gnokey](../../gno.land/cmd/gnokey) keystore.
