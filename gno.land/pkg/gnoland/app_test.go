@@ -1904,15 +1904,15 @@ func GetHeight(cur realm) int64 { return height }
 		assert.Contains(t, string(resp.Data), "(42 int64)")
 	})
 
-	// A historical MsgRun must replay even though run_submitters is empty.
+	// A historical MsgRun must replay even when run_submitters excludes its signer.
 	//
 	// This is the carve-out in checkCodePolicy, and it is load-bearing for every
 	// hardfork: deliverGenesisTx replays history through the same ante with
 	// BlockHeight > 0, AFTER InitGenesis installs the NEW params. So without the
 	// exemption a fork refuses to replay its own past the moment a historical
-	// signer is absent from the new allowlist -- and since the allowlist fails
-	// closed, "absent" is the default. With StrictReplay the node would not boot
-	// at all.
+	// signer is absent from the new allowlist -- and a fork that rotates
+	// operators will routinely have historical signers who are not on the new
+	// list. With StrictReplay the node would not boot at all.
 	//
 	// Left untested, a regression here would not show up in any suite; it would
 	// show up the next time somebody forks the chain. The genesis state below
@@ -1988,7 +1988,7 @@ func GetHeight(cur realm) int64 { return height }
 					InitialHeight: 100,
 				},
 			})
-		}, "a historical MsgRun must replay even though run_submitters is empty")
+		}, "a historical MsgRun must replay even though run_submitters excludes its signer")
 
 		// And the gate is still armed for live traffic: the same signer sending
 		// the same message NOT as replay must be refused. Without this the test
@@ -2000,6 +2000,75 @@ func GetHeight(cur realm) int64 { return height }
 		require.False(t, resp.IsOK(),
 			"a live MsgRun must still be refused; only replay is exempt")
 		assert.Contains(t, resp.Log, "run_submitters")
+	})
+
+	// The same carve-out has to cover a FRESH chain's own genesis txs, not just
+	// replayed history.
+	//
+	// gnoland marks every tx delivered during InitChain, metadata or not, and
+	// production bootstrap depends on that: a chain seeds its first GovDAO
+	// members with a genesis MsgRun, before any allowlist could name them. The
+	// key's doc used to describe it as hardfork-only, so a reasonable-looking
+	// tightening -- requiring metadata, or BlockHeight > 0 -- would break every
+	// fresh launch that ships a non-empty run_submitters, and no test said so.
+	//
+	// The genesis below has no Metadata and no PastChainIDs, which is what makes
+	// it a fresh launch rather than a replay.
+	t.Run("fresh-launch genesis MsgRun is exempt from run_submitters", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "fresh-chain"
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		vmGen := vm.DefaultGenesisState()
+		vmGen.Params.RunSubmitters = []crypto.Address{
+			crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+		}
+		require.NotContains(t, vmGen.Params.RunSubmitters, key.PubKey().Address(),
+			"premise: the signer must be off the allowlist for this test to mean anything")
+
+		runPath := "gno.land/e/" + key.PubKey().Address().String() + "/run"
+		runMsg := vm.MsgRun{
+			Caller: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "main",
+				Path: runPath,
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+					{Name: "main.gno", Body: "package main\n\nfunc main() {\n\tprintln(\"bootstrapped\")\n}\n"},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{runMsg}, chainID, key)
+
+		require.NotPanics(t, func() {
+			app.InitChain(abci.RequestInitChain{
+				ChainID:       chainID,
+				Time:          time.Now(),
+				InitialHeight: 1,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: GnoGenesisState{
+					// No Metadata: this is a fresh chain's own genesis tx.
+					Txs: []TxWithMetadata{{Tx: tx}},
+					Balances: []Balance{{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					}},
+					Auth: auth.DefaultGenesisState(),
+					Bank: bank.DefaultGenesisState(),
+					VM:   vmGen,
+				},
+			})
+		}, "a fresh chain's genesis MsgRun must be exempt, or bootstrap cannot seed governance")
 	})
 
 	t.Run("metadata block height in GnoTxMetadata serializes correctly", func(t *testing.T) {

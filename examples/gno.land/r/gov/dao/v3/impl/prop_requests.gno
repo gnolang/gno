@@ -150,6 +150,25 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 
 func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(cur realm) error {
+		// Check the destination tier before removing anything.
+		//
+		// This executor removes the member and then re-adds them at the new
+		// tier. If the second step failed, the first had already happened and
+		// the error was returned rather than raised -- and a returned executor
+		// error does not revert: ExecuteOrRejectProposal marks the proposal
+		// rejected and the transaction still commits. So an unknown target tier
+		// silently removed the member from the DAO altogether.
+		//
+		// Validating first makes the pair safe by removing the failure between
+		// them, rather than by relying on the caller to notice.
+		//
+		// Not covered by a test: ProposalRequest.executor is unexported, so the
+		// callback is only reachable through a full create-vote-execute cycle,
+		// which needs a passing vote with the right tier weights.
+		if _, ok := memberstore.GetTier(toTier); !ok {
+			panic("unknown destination tier: " + toTier)
+		}
+
 		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")

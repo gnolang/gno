@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -41,9 +42,33 @@ func ValidateGenesis(gs GenesisState) error {
 	if err != nil {
 		return err
 	}
-	// XXX validate RealmParams.
-	// 1. all keys must be realm paths.
-	// 2. all values must be supported types.
+	// Realm params are keyed <realm-path>:<name>, and InitGenesis writes them as
+	// "vm:"+key. So a key whose first segment is not a realm path lands in the
+	// vm module's OWN parameter namespace instead of a realm's.
+	//
+	// That matters because the realm-param loop runs after SetParams and
+	// overwrites it. A genesis section [vm:p] with run_submitters.strings = [...]
+	// becomes the key "p:run_submitters", writes vm:p:run_submitters, and
+	// silently replaces the validated Params value -- while bypassing the scalar
+	// [vm] allowlist, which admits only chain_domain and sysnames_pkgpath.
+	//
+	// A realm path always contains a "/" (gno.land/r/...); the vm's own
+	// submodules do not, so requiring one separates the two namespaces exactly.
+	//
+	// XXX still open: values are not checked against a supported-type list.
+	for _, rp := range gs.RealmParams {
+		realm, name, found := strings.Cut(rp.Key, ":")
+		if !found || realm == "" || name == "" {
+			return fmt.Errorf(
+				"invalid realm param key %q: want <realm-path>:<name>", rp.Key)
+		}
+		if !strings.Contains(realm, "/") {
+			return fmt.Errorf(
+				"invalid realm param key %q: %q is not a realm path, so this would "+
+					"write the vm module's own parameter vm:%s rather than a realm's",
+				rp.Key, realm, rp.Key)
+		}
+	}
 	return nil
 }
 

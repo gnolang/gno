@@ -537,8 +537,17 @@ type SkipGasMeteringKey struct{}
 // delivery wrapper.
 type GenesisReplayKey struct{}
 
-// IsGenesisReplay reports whether ctx is delivering a historical transaction
-// replayed from a previous chain, rather than live traffic.
+// IsGenesisReplay reports whether ctx is delivering a transaction as part of
+// InitChain, rather than live traffic.
+//
+// Note the wording: it is true for EVERY tx delivered during InitChain, which
+// includes a fresh chain's own genesis txs, not only history replayed from a
+// previous chain. gnoland's delivery wrapper sets it unconditionally. Callers
+// that want "this is replayed history specifically" must also test the tx's
+// metadata; nothing here distinguishes the two, and a fresh launch relies on
+// the broad reading -- gno.land's code-submission gate exempts genesis MsgRun
+// through exactly this predicate, which is how a chain seeds its first DAO
+// members before any allowlist exists.
 //
 // The predicate belongs beside the key: four places now branch on it — this
 // package's ante, gno.land's code-submission gate, and the vm keeper's inert

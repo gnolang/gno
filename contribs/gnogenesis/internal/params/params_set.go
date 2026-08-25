@@ -74,6 +74,24 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 		return fmt.Errorf("unable to set params %q: %w", key, err)
 	}
 
+	// Validate before writing, so a bad value is a CLI error here rather than a
+	// panic when the node boots.
+	//
+	// updateParamsField sets the struct field by reflection and consults neither
+	// Validate nor the keeper's WillSetParam, so nothing else on this path looks
+	// at the value at all. Every one of these params is consensus state, and the
+	// node's own InitGenesis panics on an invalid set -- which is a much worse
+	// place to find out.
+	if err := appstate.VM.Params.Validate(); err != nil {
+		return fmt.Errorf("invalid vm params after setting %q: %w", key, err)
+	}
+	if err := appstate.Auth.Params.Validate(); err != nil {
+		return fmt.Errorf("invalid auth params after setting %q: %w", key, err)
+	}
+	if err := appstate.Bank.Params.Validate(); err != nil {
+		return fmt.Errorf("invalid bank params after setting %q: %w", key, err)
+	}
+
 	// Override AppState with the updated one
 	genesis.AppState = appstate
 

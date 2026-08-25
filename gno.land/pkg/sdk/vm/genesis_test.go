@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"log/slog"
 	"testing"
 
@@ -49,5 +50,40 @@ func TestInitGenesisWarnsOnEmptyRunSubmitters(t *testing.T) {
 		out := run(t, []crypto.Address{crypto.AddressFromPreimage([]byte("runner"))})
 		assert.NotContains(t, out, "run_submitters is empty",
 			"a correctly configured chain must not be warned, or the warning gets ignored")
+	})
+}
+
+// TestValidateGenesisRejectsNonRealmParamKeys covers realm-param keys that are
+// not realm paths.
+//
+// InitGenesis writes realm params as "vm:"+key AFTER SetParams, so a key whose
+// first segment is a vm submodule rather than a realm path overwrites a
+// validated vm parameter. The genesis loader turns a [vm:p] section into
+// exactly that shape, and it bypasses the scalar [vm] allowlist, which admits
+// only chain_domain and sysnames_pkgpath.
+func TestValidateGenesisRejectsNonRealmParamKeys(t *testing.T) {
+	t.Parallel()
+
+	mk := func(key string, value any) GenesisState {
+		gs := DefaultGenesisState()
+		gs.RealmParams = []params.Param{params.NewParam(key, value)}
+		return gs
+	}
+
+	t.Run("vm submodule key is refused", func(t *testing.T) {
+		t.Parallel()
+		err := ValidateGenesis(mk("p:run_submitters", []string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}))
+		require.Error(t, err, "a [vm:p] genesis section must not be able to overwrite a vm parameter")
+		assert.Contains(t, err.Error(), "not a realm path")
+	})
+
+	t.Run("malformed key is refused", func(t *testing.T) {
+		t.Parallel()
+		require.Error(t, ValidateGenesis(mk("nocolon", "x")))
+	})
+
+	t.Run("a real realm path is accepted", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, ValidateGenesis(mk("gno.land/r/demo/foo:bar", "x")))
 	})
 }
