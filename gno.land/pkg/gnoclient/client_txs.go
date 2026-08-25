@@ -488,7 +488,29 @@ func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
 
 // Simulate the transaction and return the ResponseDeliverTx.
 // The simulation process assumes the transaction signature has the proper public key
+//
+// A message that ran and failed is returned as an error. Callers that need to
+// tell that apart from a node that would not answer want SimulateResult.
 func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
+	deliverTx, err := c.SimulateResult(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = deliverTx.Error; err != nil {
+		return nil, fmt.Errorf("error encountered during simulation: %w", err)
+	}
+
+	return deliverTx, nil
+}
+
+// SimulateResult runs tx through .app/simulate and returns the node's response
+// as given, including one whose message failed.
+//
+// The difference from Simulate matters when the answer decides whether to
+// broadcast: "the node would not answer" and "the message ran and failed" are
+// opposite conclusions, and an error that means either is no use for that.
+func (c *Client) SimulateResult(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	// Make sure the RPC client is set
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
@@ -516,10 +538,6 @@ func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	deliverTx := new(abci.ResponseDeliverTx)
 	if err = amino.Unmarshal(resp.Response.Value, deliverTx); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal simulation response: %w", err)
-	}
-
-	if err = deliverTx.Error; err != nil {
-		return nil, fmt.Errorf("error encountered during simulation: %w", err)
 	}
 
 	return deliverTx, nil

@@ -141,3 +141,46 @@ func TestBlockMaxGasFrom(t *testing.T) {
 			"a response with no Block section must not nil-deref")
 	})
 }
+
+// TestClassifySimulate covers the three-way split a simulation result gets.
+//
+// Two of the three look identical through gnoclient.Simulate, which reports a
+// transport failure, a rejected query and a failed message as one error -- and
+// the correct response to a node that will not answer is the opposite of the
+// correct response to a message it has already rejected.
+func TestClassifySimulate(t *testing.T) {
+	boom := errors.New("connection refused")
+
+	for _, tc := range []struct {
+		name string
+		res  *abci.ResponseDeliverTx
+		err  error
+		want simulateVerdict
+	}{
+		{
+			name: "the node did not answer",
+			err:  boom,
+			want: verdictUnknown,
+		},
+		{
+			name: "no error and no response is still not an answer",
+			want: verdictUnknown,
+		},
+		{
+			// Not verdictUnknown: approvals must not stop because one node is
+			// unreachable, but they must stop for a message already rejected.
+			name: "the message ran and failed",
+			res:  &abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{Error: abci.StringError("insufficient coins")}},
+			want: verdictWillFail,
+		},
+		{
+			name: "the message ran and succeeded",
+			res:  &abci.ResponseDeliverTx{GasUsed: 1234},
+			want: verdictReady,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, classifySimulate(tc.res, tc.err))
+		})
+	}
+}

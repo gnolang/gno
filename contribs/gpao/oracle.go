@@ -15,6 +15,7 @@ import (
 	// MsgEnablePackage, ...) with amino so block txs decode correctly.
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -629,6 +630,41 @@ const (
 	gasHeadroomDen = 10
 )
 
+// simulateVerdict says what a simulation told us about an enable.
+type simulateVerdict int
+
+const (
+	// verdictReady: the message ran and succeeded. Use the measured gas.
+	verdictReady simulateVerdict = iota
+	// verdictUnknown: the node did not answer. Nothing was learned about the
+	// message.
+	verdictUnknown
+	// verdictWillFail: the message ran and failed. Broadcasting would pay a
+	// gas fee to be told the same thing on-chain.
+	verdictWillFail
+)
+
+// classifySimulate splits a simulation outcome three ways.
+//
+// The distinction is the whole point: gnoclient.Simulate reports a transport
+// failure, a rejected query and a failed message as one error, and the right
+// response to the first two is the opposite of the right response to the third.
+// A node that cannot be reached must not stop approvals -- anyone able to
+// disturb the query path could then stall the chain's deploys -- while a
+// message the node has already run and rejected is not worth paying to repeat.
+//
+// Split out from the query so it can be tested without a node.
+func classifySimulate(res *abci.ResponseDeliverTx, err error) simulateVerdict {
+	switch {
+	case err != nil || res == nil:
+		return verdictUnknown
+	case res.Error != nil:
+		return verdictWillFail
+	default:
+		return verdictReady
+	}
+}
+
 // gasWantedFor sizes an enable's GasWanted from a measured estimate, bounded by
 // the chain's Block.MaxGas.
 //
@@ -683,17 +719,22 @@ func (o *oracle) enable(pkgPath string) error {
 		return fmt.Errorf("sign: %w", err)
 	}
 
-	// A failed estimate is not fatal: fall back to the configured value and say
-	// so. The alternative -- refusing to approve because the node would not
-	// simulate -- hands anyone who can disturb the query path a way to stall
-	// approvals chain-wide.
 	gasWanted := gasWantedFor(0, o.cfg.gasWanted, o.blockMaxGas)
-	estimated, err := o.client.EstimateGas(probe)
-	if err != nil {
-		o.logf("estimate failed for %s, using %d: %v", pkgPath, gasWanted, err)
-	} else {
-		gasWanted = gasWantedFor(estimated, o.cfg.gasWanted, o.blockMaxGas)
-		o.logf("estimated %d gas for %s, sending with %d", estimated, pkgPath, gasWanted)
+	sim, simErr := o.client.SimulateResult(probe)
+	switch classifySimulate(sim, simErr) {
+	case verdictWillFail:
+		// The node has already run this and rejected it. Broadcasting would
+		// spend a gas fee to have it rejected again, in a block, and the
+		// creator would still be told nothing they can act on.
+		return fmt.Errorf("simulate says the enable would fail: %w", sim.Error)
+	case verdictUnknown:
+		// Not fatal, and deliberately so: refusing to approve because the node
+		// would not answer hands anyone who can disturb the query path a way to
+		// stall approvals chain-wide. Fall back to the configured value.
+		o.logf("estimate failed for %s, using %d: %v", pkgPath, gasWanted, simErr)
+	case verdictReady:
+		gasWanted = gasWantedFor(sim.GasUsed, o.cfg.gasWanted, o.blockMaxGas)
+		o.logf("estimated %d gas for %s, sending with %d", sim.GasUsed, pkgPath, gasWanted)
 	}
 
 	signed, err := o.client.SignTx(std.Tx{
