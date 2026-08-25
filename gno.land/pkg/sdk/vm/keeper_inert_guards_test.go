@@ -1249,3 +1249,40 @@ func BrokenIfTypeChecked() { thisSymbolDoesNotExist() }`},
 		"enable must type-check production files only; a broken _test.gno is not its business")
 	assert.NotNil(t, gs.GetPackage(pkgPath, false), "and the package must go live")
 }
+
+// TestInertSubmissionChargeNamesItselfWhenUnaffordable covers the refusal a
+// creator who cannot pay actually sees.
+//
+// The bank's own error talks about funds and not about why the amount is being
+// asked for, so on its own it reads as a wrong gas fee. That matters more than
+// usual here: the charge defaults to off, so the first person to meet it is
+// someone whose chain just turned it on by governance vote, with nothing in the
+// message to connect the two.
+func TestInertSubmissionChargeNamesItselfWhenUnaffordable(t *testing.T) {
+	const pkgPath = "gno.land/r/test/toopoor"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("brokecreator"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// Above the funded balance, so the transfer cannot succeed.
+	broke := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	params.InertSubmissionCharge = ugnot.ValueString(broke + 1)
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+
+	err := env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("toopoor")))
+	require.Error(t, err)
+	// %+v, not Error(): tm2's abci errors keep the detail on the wrapped trace.
+	detail := fmt.Sprintf("%+v", err)
+	assert.Contains(t, detail, "submission charge",
+		"the refusal must name the charge, not just report missing funds")
+	assert.Contains(t, detail, string(CodeSubmissionPolicyInert),
+		"and name the policy that requires it, so the cause is findable")
+
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+		"and nothing may be parked when the charge was not paid")
+}

@@ -898,7 +898,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 				panic("invalid inert_submission_charge in params: " + err.Error())
 			}
 			if err := vm.bank.SendCoins(ctx, creator, params.InertChargeCollector, charge); err != nil {
-				return err
+				// Name the charge. The bank's own error is about funds and says
+				// nothing about why the amount is being asked for, so a creator
+				// who could submit last week reads it as their gas fee being
+				// wrong. The charge defaults to off, so anyone meeting it for
+				// the first time has just had governance turn it on.
+				return std.ErrInsufficientCoins(fmt.Sprintf(
+					"cannot pay the %s submission charge that the %q code submission "+
+						"policy requires: %v", charge, CodeSubmissionPolicyInert, err))
 			}
 		}
 		// No SendCoins for msg.Send: a non-zero send was refused above.
