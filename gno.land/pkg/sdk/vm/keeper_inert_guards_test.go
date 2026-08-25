@@ -1468,3 +1468,60 @@ func TestQueryPackageMetaReportsWhyItIsNotLive(t *testing.T) {
 		assert.Empty(t, got.Reason, "there is nothing to explain once it is live")
 	})
 }
+
+// TestQueryInertPathsListsWhatIsAwaitingApproval covers vm/qinertpaths.
+//
+// The listing has to be exactly complementary to QueryPaths: a parked package
+// appears in one and not the other, and enabling moves it across. Asserting
+// both directions is the point -- a listing that returned everything, or
+// nothing, would pass a one-sided check.
+func TestQueryInertPathsListsWhatIsAwaitingApproval(t *testing.T) {
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	const parked = "gno.land/r/test/stillparked"
+	const enabled = "gno.land/r/test/wasparked"
+
+	for _, p := range []string{parked, enabled} {
+		name := p[strings.LastIndex(p, "/")+1:]
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, p, replayFiles(name))))
+	}
+
+	inert, err := env.vmk.QueryInertPaths(ctx, "", 100)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{parked, enabled}, inert,
+		"both submissions are awaiting approval")
+
+	live, err := env.vmk.QueryPaths(ctx, "", 100)
+	require.NoError(t, err)
+	assert.NotContains(t, live, parked,
+		"a parked package must not appear in the live listing")
+
+	require.NoError(t, env.vmk.EnablePackage(ctx,
+		MsgEnablePackage{Approver: approver, PkgPath: enabled}))
+
+	inert, err = env.vmk.QueryInertPaths(ctx, "", 100)
+	require.NoError(t, err)
+	assert.Equal(t, []string{parked}, inert,
+		"enabling must remove it from the queue, or an operator cannot see progress")
+
+	live, err = env.vmk.QueryPaths(ctx, "", 100)
+	require.NoError(t, err)
+	assert.Contains(t, live, enabled, "and it must appear in the live listing")
+
+	t.Run("a prefix narrows the listing", func(t *testing.T) {
+		got, err := env.vmk.QueryInertPaths(ctx, "gno.land/r/test/stillp", 100)
+		require.NoError(t, err)
+		assert.Equal(t, []string{parked}, got)
+
+		got, err = env.vmk.QueryInertPaths(ctx, "gno.land/r/nothinghere", 100)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("a negative limit is refused", func(t *testing.T) {
+		_, err := env.vmk.QueryInertPaths(ctx, "", -1)
+		assert.Error(t, err)
+	})
+}

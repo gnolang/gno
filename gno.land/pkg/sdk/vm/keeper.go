@@ -1798,6 +1798,26 @@ var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
 // QueryPaths returns public facing function signatures.
 // XXX: Implement pagination
+// QueryInertPaths lists packages parked awaiting an approver, under an optional
+// path prefix.
+//
+// QueryPaths cannot answer this: it ranges the live key space only, so a parked
+// package is missing from every listing. An operator asking "what is waiting on
+// me" had no way to find out, and an oracle restarting had no way to catch up
+// on what it missed while down -- it learns about packages by watching blocks.
+//
+// Deliberately a plain prefix match, without QueryPaths' @user handling. This
+// answers an operational question about a queue, not a browsing one.
+func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) ([]string, error) {
+	if limit < 0 {
+		return nil, errors.New("cannot have negative limit value")
+	}
+
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	return collectWithLimit(gnostore.FindInertPathsByPrefix(prefix), limit), nil
+}
+
 func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")

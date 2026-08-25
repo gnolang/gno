@@ -808,6 +808,28 @@ func TestVmHandlerQueryRoutesPackageMeta(t *testing.T) {
 	assert.False(t, got.Pending)
 }
 
+// TestVmHandlerQueryRoutesInertPaths pins the wiring for vm/qinertpaths.
+//
+// As with qpkgmeta_json, the keeper method is tested directly, so nothing else
+// exercises the path string or the switch case.
+func TestVmHandlerQueryRoutesInertPaths(t *testing.T) {
+	env := setupTestEnv()
+
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qinertpaths",
+		Data: []byte(""),
+	})
+	require.True(t, res.IsOK(), "an empty queue is not an error: %v", res.Error)
+	assert.Empty(t, string(res.Data), "nothing is parked in a fresh env")
+
+	// The limit is shared with vm/qpaths, so a bad one must be refused here too.
+	bad := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qinertpaths?limit=notanumber",
+		Data: []byte(""),
+	})
+	assert.False(t, bad.IsOK(), "an unparseable limit must be refused")
+}
+
 // TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
 // inert-policy messages to their keeper methods.
 //

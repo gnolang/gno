@@ -90,6 +90,7 @@ type Store interface {
 	GetInertPackage(path string) *std.MemPackage
 	DelInertPackage(path string)
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	FindInertPathsByPrefix(prefix string) iter.Seq[string]
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
@@ -1244,6 +1245,32 @@ func (ds *defaultStore) DelInertPackage(path string) {
 	ds.iavlStore.Delete(ds.gctx, pathkey)
 }
 
+// FindInertPathsByPrefix lists packages parked awaiting an approver, under an
+// optional path prefix. An empty prefix lists all of them.
+//
+// Simpler than FindPathsByPrefix because this key space has no #allbutprod
+// sibling: a parked package is one blob under one key, so there is nothing to
+// de-duplicate.
+func (ds *defaultStore) FindInertPathsByPrefix(prefix string) iter.Seq[string] {
+	// An empty prefix needs no special case: the end key increments the ":" of
+	// the bare prefix, which bounds every key in the space.
+	startKey := []byte(backendInertPackagePathKey(prefix))
+	endKey := slices.Clone(startKey)
+	endKey[len(endKey)-1]++
+
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
+		defer iter.Close()
+
+		for ; iter.Valid(); iter.Next() {
+			path := strings.TrimPrefix(string(iter.Key()), inertPackagePrefix)
+			if !yield(path) {
+				return
+			}
+		}
+	}
+}
+
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
@@ -1520,7 +1547,12 @@ func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
 
-func backendInertPackagePathKey(path string) string { return "inert_pkg:" + path }
+// inertPackagePrefix is the key space for packages awaiting an approver. It
+// sorts outside backendPackageGlobalPath's range, which is why a parked package
+// is invisible to FindPathsByPrefix and needs its own listing.
+const inertPackagePrefix = "inert_pkg:"
+
+func backendInertPackagePathKey(path string) string { return inertPackagePrefix + path }
 
 // backendPackageAllButProdKey returns the sibling key holding a package's
 // test/filetest files (everything in an MP*All package but its production
