@@ -18,7 +18,7 @@ import (
 // only lowercase letters, digits and a few separators; the addresses come from
 // the parameter itself, which the chain validates as bech32; and the valset
 // realm is a compile-time constant.
-func Render(_ string) string {
+func Render(path string) string {
 	out := md.H1("Chain parameter delegation")
 	out += md.Paragraph(
 		"Chain parameters are written by GovDAO proposal. A parameter may also " +
