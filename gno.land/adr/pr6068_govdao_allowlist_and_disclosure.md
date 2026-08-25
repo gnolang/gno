@@ -179,10 +179,10 @@ That last point was checked against the keeper rather than assumed, because it
 is what makes the blank-entry case latent instead of live. Two rules block it,
 and each of the five is blocked by one of them:
 
-- `keeper.go:818` requires a callable function's first parameter to be
-  `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int` first, so
-  it is rejected outright. `SafeExecutor.Execute` is a method, and the lookup
-  resolves package-level names only.
+- `VMKeeper.Call` in `keeper.go` requires a callable function's first parameter
+  to be `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int`
+  first, so it is rejected outright. `SafeExecutor.Execute` is a method, and the
+  lookup resolves package-level names only.
 - `convert.go` turns string arguments into Gno values and handles primitives,
   arrays, and `[]byte` alone. Everything else panics with "unexpected type in
   contract arg". That stops `UpdateImpl` (a struct), `treasury.Send` (an
