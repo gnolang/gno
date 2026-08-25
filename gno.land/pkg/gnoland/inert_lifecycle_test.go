@@ -210,3 +210,125 @@ func Origin(cur realm) string { return origin }
 	assert.Equal(t, approverBefore-2_000_000, approverAfter,
 		"the approver must pay its gas fee and nothing else -- no deposit, no storage cost")
 }
+
+// TestInertSubmissionChargeEndToEnd drives the submission charge through real
+// transactions.
+//
+// The keeper's own tests call AddPackage directly, which skips the ante
+// handler, the transaction boundary and the commit. For a rule about who pays
+// what, that is the wrong level: it cannot show that the money survives a real
+// transaction alongside the fee the ante takes, nor that it lands in the
+// committed store.
+//
+// Three things it pins that the unit tests cannot:
+//
+//   - the collector receives EXACTLY the charge, no more. It signs nothing and
+//     pays no fees, so its balance isolates the charge from gas;
+//   - the charge lands at SUBMIT. Asserting it after the whole lifecycle would
+//     pass just as well if it were taken at enable, which is the design the
+//     ADR rejected;
+//   - enable does not charge again.
+func TestInertSubmissionChargeEndToEnd(t *testing.T) {
+	t.Parallel()
+
+	const (
+		chainID = "test-chain"
+		path    = "gno.land/r/demo/inertcharge"
+		charge  = int64(3_000_000)
+		body    = `package inertcharge
+
+func Hello(cur realm) string { return "hi" }
+`
+	)
+
+	keys := getDummyKeys(t, 3)
+	creator, approver, collector := keys[0], keys[1], keys[2]
+	creatorAddr := creator.PubKey().Address()
+	approverAddr := approver.PubKey().Address()
+	collectorAddr := collector.PubKey().Address()
+
+	vmGen := vm.DefaultGenesisState()
+	vmGen.Params.CodeSubmissionPolicy = "inert"
+	vmGen.Params.PkgApprovers = []crypto.Address{approverAddr}
+	vmGen.Params.InertSubmissionCharge = "3000000ugnot"
+	vmGen.Params.InertChargeCollector = collectorAddr
+
+	balances := make([]Balance, 0, len(keys))
+	for _, k := range keys {
+		balances = append(balances, Balance{
+			Address: k.PubKey().Address(),
+			Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
+		})
+	}
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Balances: balances,
+			Auth:     auth.DefaultGenesisState(),
+			Bank:     bank.DefaultGenesisState(),
+			VM:       vmGen,
+		},
+	})
+	app.Commit()
+
+	height := int64(0)
+	deliver := func(t *testing.T, msgs []std.Msg, key crypto.PrivKey) abci.ResponseDeliverTx {
+		t.Helper()
+		signer := queryAccount(t, app, key.PubKey().Address())
+		height++
+		app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
+			ChainID: chainID, Height: height, Time: time.Now(),
+		}})
+		tx := createAndSignTxWithAccSeq(t, msgs, chainID, key,
+			signer.AccountNumber, signer.Sequence)
+		raw, err := amino.Marshal(tx)
+		require.NoError(t, err)
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: raw})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+		return resp
+	}
+
+	creatorBefore := ugnotBalance(t, app, creatorAddr)
+	collectorBefore := ugnotBalance(t, app, collectorAddr)
+
+	addResp := deliver(t, []std.Msg{vm.MsgAddPackage{
+		Creator: creatorAddr,
+		Package: &std.MemPackage{
+			Name: "inertcharge",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				{Name: "inertcharge.gno", Body: body},
+			},
+		},
+	}}, creator)
+	require.True(t, addResp.IsOK(), "submit should be accepted: %s", addResp.Log)
+
+	// Exact, not "went up": the collector signs nothing, so anything other than
+	// the charge landing here is a bug rather than a fee.
+	assert.Equal(t, collectorBefore+charge, ugnotBalance(t, app, collectorAddr),
+		"the collector must receive exactly the charge at submit")
+	// The creator also paid a gas fee, so this is the one side that cannot be
+	// pinned exactly. At least the charge is still a real bound.
+	assert.LessOrEqual(t, ugnotBalance(t, app, creatorAddr), creatorBefore-charge,
+		"the creator must be down at least the charge")
+
+	collectorAfterSubmit := ugnotBalance(t, app, collectorAddr)
+
+	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
+		Approver: approverAddr, PkgPath: path,
+	}}, approver)
+	require.True(t, enableResp.IsOK(), "enable should succeed: %s", enableResp.Log)
+
+	assert.Equal(t, collectorAfterSubmit, ugnotBalance(t, app, collectorAddr),
+		"enable must not charge again; the charge is a submit-time cost")
+}
