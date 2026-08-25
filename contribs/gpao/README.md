@@ -71,6 +71,42 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
+| `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
+
+### About `--status-listen`
+
+gpao decides things nobody else can see. That a package failed to typecheck,
+or that its enable was simulated and the chain would reject it, is the oracle's
+knowledge alone -- the chain can say a package is parked, and why no enable
+could succeed right now, but not why *this* one was refused. Without somewhere
+to put it the only record is this process's stderr, so a submitter pays the
+submission charge and then hears nothing.
+
+With `--status-listen` set, two read-only JSON endpoints answer for it:
+
+```sh
+curl http://127.0.0.1:8546/status                        # every verdict
+curl http://127.0.0.1:8546/status/gno.land/r/you/yours   # one package
+```
+
+```json
+{
+  "path": "gno.land/r/you/yours",
+  "status": "rejected",
+  "reason": "typecheck failed: undefined: Foo"
+}
+```
+
+`status` is one of `rejected` (the code did not pass), `pending` (will be
+retried), `gave_up` (retried to the cap, needs a human), `blocked` (nothing
+wrong with the package -- the oracle has hit `--max-spend`), `approved`, or
+`unknown` (never seen). `blocked` is the one worth separating: it means to go
+and ask the operator, not to go and fix your code.
+
+Off by default, and unauthenticated when on. Everything it reports concerns a
+package submitted in a public transaction, so there is nothing here its
+submitter could not already see -- but it does tell the world what this oracle
+is doing, so bind it where you want that read.
 
 ### About `--verify-budget`
 

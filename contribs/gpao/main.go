@@ -107,6 +107,7 @@ type config struct {
 
 	gnoRoot      string
 	gasFee       string
+	statusListen string
 	gasWanted    int64
 	pollInterval time.Duration
 	// verifyBudget: see defaultVerifyBudget.
@@ -129,6 +130,12 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 			"its address must be listed in the chain's vm PkgApprovers param")
 	fs.StringVar(&c.gnoRoot, "gno-root", gnoenv.RootDir(),
 		"path to the gno repository root, used to resolve stdlibs and examples for typechecking")
+	fs.StringVar(&c.statusListen, "status-listen", "",
+		"address to serve the approval status API on, e.g. 127.0.0.1:8546. "+
+			"Off when empty. Read-only JSON: GET /status for every verdict, "+
+			"GET /status/<pkgpath> for one. It carries why a package was not "+
+			"approved -- a typecheck failure, or an enable the chain would "+
+			"reject -- which nothing else exposes")
 	fs.StringVar(&c.maxSpend, "max-spend", defaultMaxSpend,
 		"total gas fees this run will pay for approvals before it stops "+
 			"approving; the daemon holds a hot key, and every approval costs a "+
