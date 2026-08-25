@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -1323,4 +1324,60 @@ func TestInertSubmissionChargeNamesItselfWhenUnaffordable(t *testing.T) {
 
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
 		"and nothing may be parked when the charge was not paid")
+}
+
+// TestQueryPackageMetaTellsTheThreeStatesApart covers vm/qpkgmeta_json.
+//
+// The point of the query is the distinction, so all three states are asserted
+// against the same keeper: a parked package that reads as "absent" would leave
+// its creator exactly where they were before the query existed.
+func TestQueryPackageMetaTellsTheThreeStatesApart(t *testing.T) {
+	const parkedPath = "gno.land/r/test/parked"
+	const livePath = "gno.land/r/test/wentlive"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	decode := func(t *testing.T, path string) PackageMeta {
+		t.Helper()
+		raw, err := env.vmk.QueryPackageMeta(ctx, path)
+		require.NoError(t, err, "an unknown path must not be an error")
+		var got PackageMeta
+		require.NoError(t, json.Unmarshal([]byte(raw), &got))
+		assert.Equal(t, path, got.Path)
+		return got
+	}
+
+	t.Run("absent", func(t *testing.T) {
+		got := decode(t, "gno.land/r/test/neversubmitted")
+		assert.Equal(t, PackageStatusAbsent, got.Status)
+		assert.Empty(t, got.Creator, "there is nothing to report about a path nobody used")
+	})
+
+	t.Run("inert", func(t *testing.T) {
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, parkedPath, replayFiles("parked"))))
+
+		got := decode(t, parkedPath)
+		assert.Equal(t, PackageStatusInert, got.Status,
+			"a submitted package must not read as absent; that is the blind spot this closes")
+		assert.Equal(t, creator.String(), got.Creator,
+			"and it must name the creator, who pays the deposit at enable")
+	})
+
+	t.Run("live after enable", func(t *testing.T) {
+		require.NoError(t, env.vmk.AddPackage(ctx,
+			NewMsgAddPackage(creator, livePath, replayFiles("wentlive"))))
+		require.Equal(t, PackageStatusInert, decode(t, livePath).Status, "premise: parked first")
+
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			MsgEnablePackage{Approver: approver, PkgPath: livePath}))
+
+		got := decode(t, livePath)
+		assert.Equal(t, PackageStatusLive, got.Status,
+			"enabling must flip the status, or the query cannot show progress")
+		assert.Equal(t, creator.String(), got.Creator,
+			"the creator survives activation; the approver never becomes the owner")
+	})
 }

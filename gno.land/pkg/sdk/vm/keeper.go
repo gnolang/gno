@@ -2168,6 +2168,73 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 	return amino.MarshalAny(exported)
 }
 
+// Package statuses reported by QueryPackageMeta.
+const (
+	PackageStatusLive   = "live"   // deployed and callable
+	PackageStatusInert  = "inert"  // submitted, stored, awaiting an approver
+	PackageStatusAbsent = "absent" // the chain holds nothing at this path
+)
+
+// PackageMeta is the vm/qpkgmeta_json response.
+//
+// Fields beyond Path and Status are whatever the chain stamped at submit time,
+// and are omitted when the package is absent.
+type PackageMeta struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+	// Creator submitted the package, and pays its storage deposit whichever
+	// message activates it.
+	Creator string `json:"creator,omitempty"`
+	// Height is the block the package was submitted in, not the one that
+	// activated it. Under "inert" those differ.
+	Height     int    `json:"height,omitempty"`
+	MaxDeposit string `json:"max_deposit,omitempty"`
+}
+
+// QueryPackageMeta reports what the chain holds at a package path: live, parked
+// awaiting an approver, or nothing at all.
+//
+// Absent is a successful response carrying Status, not an error. Callers have
+// to tell "this path was never submitted" from "the node could not answer",
+// and an error collapses the two.
+//
+// It exists because every other query reads the live key space only. Under the
+// "inert" policy a submitted package is stored without being activated, so its
+// creator could see nothing between paying to submit and somebody approving --
+// vm/qpkg_json and vm/qfile both answer "package not found", the same as for a
+// path nobody ever used.
+func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res string, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	info := PackageMeta{Path: pkgPath, Status: PackageStatusAbsent}
+	mpkg := gnostore.GetMemPackage(pkgPath)
+	if mpkg != nil {
+		info.Status = PackageStatusLive
+	} else if mpkg = gnostore.GetInertPackage(pkgPath); mpkg != nil {
+		info.Status = PackageStatusInert
+	}
+
+	// A stored package always carries a gnomod.toml the keeper stamped, so a
+	// parse failure here is a corrupt store rather than bad input. Report the
+	// status anyway: "it is parked" is the answer the caller came for, and is
+	// still true.
+	if mpkg != nil {
+		if gm, perr := gnomod.ParseMemPackage(mpkg); perr == nil {
+			info.Creator = gm.AddPkg.Creator
+			info.Height = gm.AddPkg.Height
+			info.MaxDeposit = gm.AddPkg.MaxDeposit
+		}
+	}
+
+	bz, err := json.Marshal(info)
+	if err != nil {
+		return "", err
+	}
+	return string(bz), nil
+}
+
 // QueryPkg returns the named block variables of a package as Amino JSON.
 // This is the entry point for the state explorer: given a package path,
 // return variable names alongside their exported Amino JSON values.

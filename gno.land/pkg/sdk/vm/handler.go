@@ -105,6 +105,10 @@ const (
 	QueryStorage      = "qstorage"
 	QueryPkgJSON      = "qpkg_json"
 	QueryTypeJSON     = "qtype_json"
+	// QueryPackageMetaJSON reports a path's status and submit-time metadata.
+	// Distinct from QueryPkgJSON, which dumps a live package's variables and
+	// cannot answer for one that is not live yet.
+	QueryPackageMetaJSON = "qpkgmeta_json"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -136,6 +140,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryStorage(ctx, req)
 	case QueryPkgJSON:
 		res = vh.queryPkg(ctx, req)
+	case QueryPackageMetaJSON:
+		res = vh.queryPackageMeta(ctx, req)
 	case QueryTypeJSON:
 		res = vh.queryType(ctx, req)
 	default:
@@ -329,6 +335,19 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 }
 
 // queryPkg returns the named block variables of a package as Amino JSON.
+// queryPackageMeta answers vm/qpkgmeta_json. An unknown path is a successful
+// response with status "absent", so a caller can tell it from a node that would
+// not answer.
+func (vh vmHandler) queryPackageMeta(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	result, err := vh.vm.QueryPackageMeta(ctx, string(req.Data))
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
 func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgPath := string(req.Data)
 	result, err := vh.vm.QueryPkg(ctx, pkgPath)
