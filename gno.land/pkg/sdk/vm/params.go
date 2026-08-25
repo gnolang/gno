@@ -392,6 +392,10 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 // preprocess charge active on legacy chains, keeps WillSetParam's whole-struct
 // re-validation from rejecting an unrelated param update on such state, and
 // lets a relaunch genesis that predates the field still pass ValidateGenesis.
+// ApplyLegacyDefaults is the exported form, for tools that must judge a genesis
+// the way the node will boot it rather than as written.
+func (p Params) ApplyLegacyDefaults() Params { return p.applyLegacyDefaults() }
+
 func (p Params) applyLegacyDefaults() Params {
 	if p.PreprocessGasPerByte == 0 {
 		p.PreprocessGasPerByte = preprocessGasPerByteDefault

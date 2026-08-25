@@ -79,17 +79,26 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 	//
 	// updateParamsField sets the struct field by reflection and consults neither
 	// Validate nor the keeper's WillSetParam, so nothing else on this path looks
-	// at the value at all. Every one of these params is consensus state, and the
-	// node's own InitGenesis panics on an invalid set -- which is a much worse
-	// place to find out.
-	if err := appstate.VM.Params.Validate(); err != nil {
-		return fmt.Errorf("invalid vm params after setting %q: %w", key, err)
+	// at the value at all, and every one of these params is consensus state.
+	//
+	// Only the module this key touches, and only after the same legacy
+	// defaulting the node applies. Validating all three would refuse to edit a
+	// genesis the node boots fine: a partially-built one whose
+	// auth.fee_collector is not filled in yet, or an older export missing a
+	// field ApplyLegacyDefaults supplies at boot. The point is to catch a bad
+	// value earlier than boot, not to hold a work in progress to a stricter
+	// standard than the chain.
+	var verr error
+	switch {
+	case strings.HasPrefix(key, "vm."):
+		verr = appstate.VM.Params.ApplyLegacyDefaults().Validate()
+	case strings.HasPrefix(key, "auth."):
+		verr = appstate.Auth.Params.Validate()
+	case strings.HasPrefix(key, "bank."):
+		verr = appstate.Bank.Params.Validate()
 	}
-	if err := appstate.Auth.Params.Validate(); err != nil {
-		return fmt.Errorf("invalid auth params after setting %q: %w", key, err)
-	}
-	if err := appstate.Bank.Params.Validate(); err != nil {
-		return fmt.Errorf("invalid bank params after setting %q: %w", key, err)
+	if verr != nil {
+		return fmt.Errorf("invalid params after setting %q: %w", key, verr)
 	}
 
 	// Override AppState with the updated one

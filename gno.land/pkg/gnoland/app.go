@@ -1345,9 +1345,17 @@ func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, 
 		return sdk.Result{}, false
 	}
 
-	// Genesis replay is exempt. deliverGenesisTx replays historical txs through
-	// this same ante with BlockHeight > 0, after InitGenesis has installed the
-	// NEW params — so without this carve-out a hardfork would refuse to replay
+	// Every tx delivered during InitChain is exempt, not only replayed history.
+	//
+	// A fresh chain seeds its first GovDAO members with a genesis MsgRun, before
+	// any allowlist could name them, so narrowing this to the hardfork case
+	// (requiring metadata, or BlockHeight > 0) breaks bootstrap on any chain
+	// shipping a non-empty run_submitters. TestChainUpgradeGenesisReplay pins
+	// both shapes.
+	//
+	// The hardfork case is the other half: deliverGenesisTx replays historical
+	// txs through this same ante with BlockHeight > 0, after InitGenesis has
+	// installed the NEW params — so without this carve-out a hardfork would refuse to replay
 	// its own history the moment either list fails to contain a historical
 	// signer, and with StrictReplay the node would not boot. Keyed on the
 	// context value rather than BlockHeight, which replay deliberately does not

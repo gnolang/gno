@@ -523,11 +523,13 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 // preserve source-chain outcomes when gas requirements have changed.
 type SkipGasMeteringKey struct{}
 
-// GenesisReplayKey is a context key marking a tx delivery as part of an
-// InitChain genesis replay. During a hardfork replay, historical and
-// patched txs carry a BlockHeight > 0 (overridden for faithful
-// re-execution), so the ctx.BlockHeight()==0 genesis check under-reports
-// them; this key covers those txs.
+// GenesisReplayKey is a context key marking a tx delivery as part of InitChain.
+// It is set for EVERY such tx, including a fresh chain's own genesis txs -- not
+// only history replayed from a previous chain. The hardfork case is why it
+// exists: replayed txs carry a BlockHeight > 0 (overridden for faithful
+// re-execution), so a ctx.BlockHeight()==0 check under-reports them. But
+// callers depend on the broad reading too, so do not narrow it to the hardfork
+// case. See IsGenesisReplay.
 //
 // It never bypasses signature verification on its own: the ante skips
 // verification for a replay tx only when the node was also started with

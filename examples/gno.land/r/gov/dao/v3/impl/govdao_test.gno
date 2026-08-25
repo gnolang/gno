@@ -333,4 +333,3 @@ func TestAbstainVote(cur realm, t *testing.T) {
 func contains(s, substr string) bool {
 	return strings.Index(s, substr) >= 0
 }
-

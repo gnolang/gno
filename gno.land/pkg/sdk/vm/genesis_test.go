@@ -2,7 +2,6 @@ package vm
 
 import (
 	"bytes"
-	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"log/slog"
 	"testing"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 )
 
 // TestInitGenesisWarnsOnEmptyRunSubmitters pins the boot-time warning for the
