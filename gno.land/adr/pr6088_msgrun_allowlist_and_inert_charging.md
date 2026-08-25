@@ -778,6 +778,40 @@ cross-field rule would abort a governance proposal mid-execution, since
 one key per proposal. The guard sits at the charge instead, where a
 misconfiguration skips it rather than burning it at the zero address.
 
+### 9. `vm/qpkgmeta_json`: a parked package is visible to its creator
+
+Under "inert" a submission is stored without being activated, and every other
+query reads the live key space only. `GetInertPackage` had two callers, both
+inside the keeper's write path. So between paying to submit and somebody
+approving, a creator could see nothing: `vm/qpkg_json` and `vm/qfile` both
+answer "package not found", exactly as they do for a path nobody ever used.
+With a submission charge, that is a real cost followed by silence.
+
+The query reports `live`, `inert` or `absent`, plus the creator, submit height
+and declared deposit that `stampGnomod` wrote. Both key spaces store that file,
+so one read path serves both states and nothing new is persisted.
+
+**Absent is a successful response carrying a status, not an error.** A caller
+has to tell "never submitted" from "the node could not answer", and an error
+collapses the two — which is the failure being fixed, not a detail of it.
+
+**`Pending` is separate from the status.** `AddPackage` refuses to park over a
+live package, but only a public one — its liveness check is
+`pv != nil && !pv.Private`, and that exemption is what makes a private redeploy
+possible. Both key spaces then hold the path at once. Reporting only the live
+package there would hide the parked submission, so the status keeps describing
+what is callable and `Pending` reports that something awaits approval.
+
+**Named apart from `qpkg_json` deliberately.** That one dumps a live package's
+variables and cannot answer for a package that is not live yet. Sharing a prefix
+would imply they are two encodings of one question.
+
+The query is metered like the others: `GetInertPackage` charges amino-decode gas
+by blob length, under `maxGasQuery`. `ParseMemPackage` reads only `gnomod.toml`,
+so the parse does not scale with package size.
+
+Not done: gnoweb does not call it, so nothing renders a status yet.
+
 ## Alternatives considered
 
 **Escrow the deposit ceiling at submit and refund the remainder at enable.**
@@ -1439,7 +1473,9 @@ Closing the `add_package` row for real transactions still means running under
 
 18. **There is no way to enumerate parked packages.** `FindPathsByPrefix` ranges
     only over `pkg:`, so `inert_pkg:` is invisible to it. A node operator cannot
-    answer "what is awaiting approval" without external bookkeeping.
+    answer "what is awaiting approval" without external bookkeeping. §9 answers
+    the per-path question — "is *my* package parked" — which is the creator's;
+    enumeration is the operator's and is still open.
 
 ## Determinism audit
 
