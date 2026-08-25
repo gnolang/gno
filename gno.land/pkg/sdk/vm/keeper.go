@@ -1128,9 +1128,9 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// private one may.
 	//
 	// Enable is the deferred second half of a deploy, so it has to enforce the
-	// deploy's preconditions; it previously enforced none of them. Its whole
-	// precondition set was "the sender is an approver" and "something is parked
-	// at this path", which leaves a package takeover. A path can be parked and
+	// deploy's preconditions. "The sender is an approver" and "something is
+	// parked at this path" are not enough on their own, because they leave a
+	// package takeover open. A path can be parked and
 	// live at once — the two live in different key spaces, and nothing clears a
 	// parked blob when governance moves the policy off "inert" — so: A parks at
 	// P and is never approved; the policy flips to permissionless; B deploys at
@@ -1312,11 +1312,9 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//
-	// Without this they are free: the submit path cannot charge them, because
-	// processStorageDeposit is driven entirely by RealmStorageDiffs() and
-	// nothing has executed yet at submit time, and EnablePackage previously
-	// never called it at all. So under "inert" every byte of realm state
-	// created at activation escaped the deposit entirely.
+	// It cannot be taken at submit: processStorageDeposit is driven entirely by
+	// RealmStorageDiffs(), and nothing has executed yet at that point, so there
+	// are no diffs to price. Enable is the first moment the realm state exists.
 	//
 	// Charged to the creator, not the approver. The creator caused the storage
 	// and only their own submission can lock their own funds, so this is

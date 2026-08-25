@@ -495,9 +495,9 @@ func (p Params) applyLegacyDefaults() Params {
 	}
 	// A params blob written before code_submission_policy existed has no value
 	// for it, and so does a genesis that simply omits it. Defaulting here, on
-	// the one read path every caller goes through, means no consumer has to
-	// carry its own empty-string case — the ante's policy check previously did,
-	// which is three statements of the same rule in three files.
+	// the one read path every caller goes through, means no consumer carries its
+	// own empty-string case — which would be the same rule restated in as many
+	// files as there are readers.
 	if p.CodeSubmissionPolicy == "" {
 		p.CodeSubmissionPolicy = codeSubmissionPolicyDefault
 	}

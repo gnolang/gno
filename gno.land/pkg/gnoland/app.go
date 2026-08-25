@@ -1318,11 +1318,10 @@ func txCarriesCode(tx std.Tx) bool {
 // checkCodeSubmissionPolicy). They share only inputs — one params read, one
 // signer scan, one replay carve-out — never control flow.
 //
-// Keeping them separate is the point. The phase-1 patch gated add_package and
-// run TOGETHER behind a single `policy != permissionless` test, so once "inert"
-// joined the enum it silently started gating add_package on code_submitters,
-// contradicting the whole point of inert (anyone may submit; approval happens
-// later).
+// Keeping them separate is the point. Gating both behind one
+// `policy != permissionless` test reads as equivalent and is not: it makes
+// add_package answer to code_submitters under "inert" too, which contradicts
+// what inert is for. Anyone may submit; approval happens later.
 //
 // MsgRun's column does not vary with policy. "inert" defers MsgAddPackage's
 // type-check, but MsgRun still type-checks and executes immediately under every
@@ -1332,12 +1331,15 @@ func txCarriesCode(tx std.Tx) bool {
 // namespace to check against. Hence a separate, always-on list.
 //
 // Enforced here rather than in the keeper, deliberately. This is the only layer
-// that can refuse a tx during CheckTx and keep it out of the mempool, it is
+// that can refuse a tx during CheckTx and keep it out of the mempool, and it is
 // where gno.land's other signer-derived policy already lives
-// (checkSessionRestrictions, directly below), and it keeps the replay carve-out
-// in exactly one place. A second copy in VMKeeper would need its own carve-out,
-// and a missed one does not fail in tests — it fails the next time somebody
-// forks the chain.
+// (checkSessionRestrictions, directly below).
+//
+// The keeper does consult IsGenesisReplay, for a different question: this
+// decides whether a tx is ADMITTED, the keeper decides what a message DOES.
+// Replay must not re-authorize a historical signer, and separately must
+// reproduce what the source chain's policy made the message do. Neither answer
+// substitutes for the other.
 //
 // Authorization is read from the signers, which is sound on the simulate path
 // only because RequireSigForSimulate (see txCarriesCode) makes the auth ante
