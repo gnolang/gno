@@ -150,21 +150,22 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 
 func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(cur realm) error {
-		// Check the destination tier before removing anything.
+		// Fail on an unknown destination tier before touching the member.
 		//
-		// This executor removes the member and then re-adds them at the new
-		// tier. If the second step failed, the first had already happened and
-		// the error was returned rather than raised -- and a returned executor
-		// error does not revert: ExecuteOrRejectProposal marks the proposal
-		// rejected and the transaction still commits. So an unknown target tier
-		// silently removed the member from the DAO altogether.
+		// This does NOT fix a data-loss bug: an unknown tier already panicked a
+		// few lines down, because memberByTier's default case panics and it is
+		// evaluated as SetMember's third argument. A panic is reverted -- baseapp
+		// commits message writes only when the result is OK -- so the earlier
+		// RemoveMember never stuck. Checking here only moves the failure earlier
+		// and names the actual cause.
 		//
-		// Validating first makes the pair safe by removing the failure between
-		// them, rather than by relying on the caller to notice.
-		//
-		// Not covered by a test: ProposalRequest.executor is unexported, so the
-		// callback is only reachable through a full create-vote-execute cycle,
-		// which needs a passing vote with the right tier weights.
+		// The real remove-then-add hazard is still open and this guard does not
+		// close it. SetMember RETURNS errors rather than panicking, for a member
+		// that already exists and for a tier missing from the per-store index,
+		// and a returned executor error does not revert: ExecuteOrRejectProposal
+		// marks the proposal rejected and the transaction still commits. Those
+		// paths would leave the member removed and not re-added. GetTier below
+		// reads the global tier table, which is not the index SetMember checks.
 		if _, ok := memberstore.GetTier(toTier); !ok {
 			panic("unknown destination tier: " + toTier)
 		}
