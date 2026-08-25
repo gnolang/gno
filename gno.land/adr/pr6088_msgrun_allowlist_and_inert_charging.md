@@ -1147,6 +1147,26 @@ Closing the `add_package` row for real transactions still means running under
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
 
+18d. **A capability the realm-param key rule removes, stated here because the
+    commit that added it did not.** A genesis section named `[vm:p]` used to
+    work as a way to set any vm parameter. The loader read `p` as the realm
+    part, so the keys became `p:<name>`, `InitGenesis` wrote them as
+    `vm:p:<name>` -- the same store keys the real fields use -- and
+    `WillSetParam` validated and applied them. That route went around the `[vm]`
+    section, which accepts only `chain_domain` and `sysnames_pkgpath`.
+
+    It was an accident of the loader rather than a designed path, and it is what
+    let a genesis file quietly overwrite a validated parameter, so refusing it is
+    the point. But `genesis_params.toml` carries three commented-out vm params
+    (`max_gas`, `chain_tz`, `default_storage_allowance`) waiting on the
+    unmarshaler work its own TODO describes, and `[vm:p]` was the workaround an
+    operator could have reached for.
+
+    The supported route is `gnogenesis params set vm.<field>`, which sets the
+    typed struct field by its json tag and is validated before the file is
+    written. Widening the `[vm]` section to the full struct is the real fix and
+    is what that TODO is asking for.
+
 18c. **Correction to another commit message.** The commit adding the
     second-colon rule justifies it by saying a realm writing a param at runtime
     goes through `sys/params`' `prmkey`. That names the wrong path. `sys/params`
