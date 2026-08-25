@@ -1386,6 +1386,36 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	{
+		repr, err := goo.InertChargeCollector.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		if repr != "" {
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 20, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
+		}
+	}
+	if goo.InertSubmissionCharge != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.InertSubmissionCharge))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 19, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
 	for i := len(goo.RunSubmitters) - 1; i >= 0; i-- {
 		elem := goo.RunSubmitters[i]
 		er, err := elem.MarshalAmino()
@@ -1678,6 +1708,18 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 		}
 		vs := amino.UvarintSize(uint64(len(er))) + len(er)
 		s += 2 + vs
+	}
+	if goo.InertSubmissionCharge != "" {
+		s += 2 + amino.UvarintSize(uint64(len(goo.InertSubmissionCharge))) + len(goo.InertSubmissionCharge)
+	}
+	{
+		repr, err := goo.InertChargeCollector.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		if repr != "" {
+			s += 2 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }
@@ -1979,6 +2021,30 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 					return err
 				}
 				goo.RunSubmitters = append(goo.RunSubmitters, ev)
+			}
+		case 19:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 19: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.InertSubmissionCharge = string(v)
+		case 20:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 20: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.InertChargeCollector.UnmarshalAmino(repr); err != nil {
+				return err
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for Params", fnum)

@@ -101,4 +101,6 @@ message Params {
 	repeated string code_submitters = 16;
 	repeated string pkg_approvers = 17;
 	repeated string run_submitters = 18;
+	string inert_submission_charge = 19;
+	string inert_charge_collector = 20;
 }

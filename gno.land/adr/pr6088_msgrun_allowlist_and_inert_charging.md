@@ -698,6 +698,76 @@ for a fresh signature. It closes the content-hash gap in the same stroke if the
 message also carries the hash. The cost is one off-chain round trip -- the
 oracle co-signs rather than broadcasts.
 
+### 8b. Done: a flat charge on inert submission
+
+Two vm params, `inert_submission_charge` (a literal ugnot amount, empty by
+default) and `inert_charge_collector` (where it goes). `AddPackage`'s inert
+branch moves the charge from the creator to the collector, last, after every
+refusal. `EnablePackage` is untouched.
+
+**Why flat rather than metered.** §8 and §8a, and two later attempts, all tried
+to bill the creator for the work actually done, which means reading a gas meter
+and refunding the remainder. Every one of them failed on the same property: once
+money is derived from a gas reading, gas becomes a consensus input. A fork
+replaying history recomputes a different refund than the source chain paid, so
+balances drift; the store's per-transaction write-gas dedup can refund a charge
+made on one meter into another, inflating the refund; and two node-local caches
+that gate I/O gas (`stdlibKeyBytes`, the type-check cache) stop being liveness
+hazards and become app-hash inputs. A flat amount reads no meter and refunds
+nothing, so none of that is reachable.
+
+**Why a literal amount rather than a price-derived one.** `LastGasPrice` is
+recomputed only in `auth.EndBlocker`, and `InitChain` runs no EndBlock, so
+during a fork's replay it stays pinned at `InitialGasPrice` for the whole
+history. A charge computed as `Block.MaxGas × price` would therefore collect
+something different on the fork than the source chain collected. A literal
+amount replays correctly because params are store-backed: a governance
+transaction that changed it re-applies at its own point in the replayed history.
+
+**The economics.** The exposure being priced is not `init()` gas. Fees are flat
+— the ante deducts `tx.Fee.GasFee` in full regardless of consumption — so the
+approver pays the same whether the package burns 1M gas or 40M. Its exposure is
+that flat fee times the number of approvals it can be induced to make, and gpao
+stops approving for everyone once `--max-spend` is reached. At shipped defaults
+that is 100 approvals at 1 GNOT each.
+
+An inert submission is nearly free today. The chain's initial price is
+`1ugnot/1000gas`, and the inert branch does strictly less work than an ordinary
+deploy (no type check, no preprocess, no `init()`, no storage deposit), so a
+submission costs at most a few thousand ugnot. An attacker therefore halts the
+deploy pipeline for well under 1 GNOT, against 100 GNOT of oracle budget.
+
+The charge inverts that ratio: each induced approval costs the attacker the
+charge and the oracle its flat fee. Note the value is a governance decision and
+should be set against the real floor above — an earlier draft of this design
+calibrated it against a figure taken from a txtar test convention, which is 100×
+the chain's actual price.
+
+**What it does not do.** It prices the drain rather than eliminating it, and it
+does not bound the approver's per-enable gas: a parked blob is bounded by
+`MaxTxBytes` at 1 MB, and reading it plus the namespace and CLA realm calls puts
+the approver's worst case near 40M gas, above gpao's shipped `--gas-wanted` of
+20,000,000. That default has to move. The approve/activate split above remains
+the better long-term answer, because it deletes the drain instead of pricing it.
+
+**Ceiling.** `Validate` caps the charge, because a charge governance can raise
+without limit is a deploy freeze — the outcome the charge exists to prevent. It
+is otherwise an ordinary `vm:p:` param and `r/sys/params`' generic factories can
+set it; if the collector is an approver DAO, that DAO can propose its own
+revenue, which is a reason to consider a gated setter later.
+
+**Empty means off, and the collector is not validated.** Empty-by-default is
+what makes replay correct without a carve-out — a chain whose history predates
+the field replays charge-free rather than being charged for submissions that
+never paid. So `applyLegacyDefaults` fills the collector and must never fill the
+charge, and neither must the legacy fill in `gnogenesis fork generate`. The
+collector is deliberately unvalidated: an unconditional non-zero rule breaks
+`fork generate`, which builds `Params` without `applyLegacyDefaults`, and a
+cross-field rule would abort a governance proposal mid-execution, since
+`WillSetParam` re-validates the whole struct and panics while `r/sys/params` sets
+one key per proposal. The guard sits at the charge instead, where a
+misconfiguration skips it rather than burning it at the zero address.
+
 ## Alternatives considered
 
 **Escrow the deposit ceiling at submit and refund the remainder at enable.**
@@ -904,9 +974,11 @@ two steps are load-bearing together and neither should be deleted alone.
 `deliverGenesisTx` replays historical txs through this same ante with
 `BlockHeight > 0`, *after* `InitGenesis` has installed the new params. Without
 the carve-out a hardfork would refuse to replay its own history the moment
-either list omits a historical signer, and with `StrictReplay` the node would
-not boot. Keyed on `auth.GenesisReplayKey`, not `BlockHeight() == 0`, because
-forked txs carry their original heights.
+either list omits a historical signer, and would come up missing every package
+those signers deployed. `StrictReplay` does not prevent that — see item 15 —
+so the failure would be reported and then ignored. Keyed on
+`auth.GenesisReplayKey`, not `BlockHeight() == 0`, because forked txs carry
+their original heights.
 
 This is a real hole — replayed history is not re-authorized — and it is stated
 here rather than left to be discovered.
@@ -1127,102 +1199,82 @@ Closing the `add_package` row for real transactions still means running under
     now requires the `inert` policy (item 16), so a genesis-time enable has
     nothing to act on.
 
-15. **Fixed: genesis replay ignores the policy.** `InitGenesis` runs before the
-    replay loop, so a fork that turned `code_submission_policy` to `inert`
-    re-executed every historical `MsgAddPackage` down the inert branch: packages
-    that deployed live on the source chain parked on the fork, and the chain
-    came up with its own realms missing — silently, until something called one.
+15. **Fixed: genesis replay follows the policy that governed the replayed
+    history.** Replay executes a previous chain's transactions through this
+    keeper at `BlockHeight > 0`, after `InitGenesis` has installed the fork's
+    params. The question is which policy those transactions run under.
 
-    `AddPackage`'s inert branch now also tests `!isGenesisReplay(ctx)`, keyed on
-    the same `auth.GenesisReplayKey{}` context value the ante's carve-out uses.
-    Two carve-outs, because they guard two different decisions: the ante decides
-    whether the tx is admitted, this decides what the message does. Replay must
-    reproduce what the source chain did, whatever policy the fork adopts going
-    forward. (`TestVMKeeperGenesisReplayIgnoresInertPolicy`.)
+    The answer the params already give is the right one. `code_submission_policy`
+    is store-backed, `gnogenesis fork generate` copies the source chain's vm
+    params into the fork's genesis untouched — it rewrites only the depth params
+    and `preprocess_gas_per_byte` — and every historical governance transaction
+    that moved the policy re-applies as it replays. So `GetParams` during replay
+    already returns what the source chain read at that point in its history,
+    including a history whose policy changed partway.
 
-    That carve-out has a consequence on the other side of the split, now also
-    fixed. Because a replayed submission goes live instead of parking, the
-    matching `MsgEnablePackage` -- also in the replayed history -- finds nothing
-    parked. It has to succeed anyway: a failed genesis transaction under
-    `StrictReplay` is a node that will not boot, so a fork of a chain that
-    genuinely ran `inert` could not start. `EnablePackage` now returns early
-    during replay, which also exempts the policy and approver gates, for the
-    same reason the ante exempts its own: replay runs after `InitGenesis` has
-    installed the fork's params, so a fork that moves off `inert` or rotates
-    `pkg_approvers` would otherwise refuse its own history. The mandate those
-    gates protect was exercised on the source chain; replay reproduces that
-    record rather than granting it again.
-    (`TestVMKeeperGenesisReplayEnableIsANoOp`.)
+    `AddPackage`'s inert branch therefore reads the policy like any other
+    delivery. A chain that parked a package parks it again; one that deployed
+    live, deploys live.
+    (`TestVMKeeperGenesisReplayFollowsTheReplayedPolicy`.)
 
-15b. **Still open: replay reproduces the fork's policy, not the source chain's.
-    Planned fix below.**
+    `EnablePackage` exempts its two **authorization** gates during replay, and
+    runs everything else. The exemption is for the reason the ante exempts its
+    own: a fork may have moved off `inert` or rotated `pkg_approvers`, and must
+    not refuse its own history — the mandate those gates protect was exercised
+    on the source chain, and replay reproduces that record rather than granting
+    it again. Everything after them runs, so a package the source chain parked is
+    activated here as it was there.
+    (`TestVMKeeperGenesisReplayEnableActivatesAParkedPackage`.)
 
-    The carve-out in item 15 is right for a fork that turns `inert` ON, and
-    wrong for a fork OF a chain that already ran it. On such a chain
-    `MsgAddPackage` filed the code away without compiling it -- deferring the
-    compile is the whole point of the policy, so uncompilable parked code is
-    ordinary, not exotic. Replay now takes the ordinary path for those same
-    transactions, compiles them for the first time, and they fail. A failed
-    genesis transaction under `StrictReplay` is a node that will not boot, so
-    such a chain cannot fork itself. Reproduced: the same package parks cleanly
-    on the source chain and fails replay with "invalid gno package; type check
-    failed".
+    One exemption remains beyond the gates: a replayed enable that finds nothing
+    parked **and finds the package live** returns nil. That is the case where the
+    replayed policy was not `inert`, so the submission went live on the ordinary
+    path and the enable is genuinely spare work — which is what every genesis
+    exported before this branch existed looks like.
+    (`TestVMKeeperGenesisReplayEnableWithNothingParkedIsANoOp`.)
 
-    Two more in the same family. The documented same-creator re-parking retry
-    path replays as v1 going live and v2 hitting "package already exists". And a
-    submission the source chain's approver reviewed and turned down deploys live
-    on the fork -- the takeover §5f exists to prevent, reintroduced through
-    replay.
+    The liveness condition is load-bearing, and an earlier version of this branch
+    omitted it. "Nothing parked" has a second cause: the replayed `MsgAddPackage`
+    **failed**, which it can do for reasons its own history did not have — a
+    creator whose account an earlier diverging transaction never created, a
+    namespace that changed hands, a prior park by someone else. Returning nil
+    there records success for a package that is not on the chain, and the fork
+    boots with the realm missing while the replay report's last word on that path
+    is "enabled OK". Blob presence is the exact liveness test, probed with
+    `GetMemPackage` rather than `GetPackage` for the reason documented at the
+    `liveBlob` probe.
+    (`TestVMKeeperGenesisReplayEnableRefusesWhenNothingIsLive`.)
 
-    Neither keeping nor removing the carve-out fixes this; each is right for one
-    fork direction and wrong for the other. The branch has to follow the policy
-    the source chain had **at that transaction's height**, and nothing records
-    that today.
+    **`StrictReplay` is advisory, not a boot guard.** Several comments on this
+    branch justified themselves with "a failed genesis transaction stops the node
+    booting". It does not. `InitChain` puts the failure count in
+    `ResponseInitChain.Error`, `localClient.InitChainSync` returns a nil Go error
+    regardless, and the handshake inspects only that error — so the response
+    field is never read. The repo already knew: the valoper coverage check
+    `panic`s precisely because that is "the only way to abort handshake". Nothing
+    on this branch may rest on StrictReplay stopping a node until that is fixed,
+    which is its own change.
 
-    **Carry it per transaction, not per chain.** `GnoTxMetadata` already carries
-    what the source chain did for each replayed transaction -- `GasUsed`,
-    `GasWanted`, `Source`, `Note` -- populated by `gnogenesis fork generate` at
-    assembly time and unused in normal operation. A source policy belongs in
-    exactly that set. Per-transaction also handles a history whose policy changed
-    partway, which a single pinned value cannot.
+    **Rejected: carry the source policy per transaction in `GnoTxMetadata`.**
+    This was the planned fix, and it is unnecessary and unimplementable as
+    designed. Unnecessary because the params already carry the answer, as above.
+    Unimplementable because nothing can populate the field: every metadata field
+    `gnogenesis fork generate` sets is an observation of block data, and its only
+    chain-state query is one account lookup at the halt height. A policy at
+    height H is keeper state, which would need an archive node retaining every
+    version and a query per transaction. `tx-archive backup` is further still —
+    it populates only `Timestamp`. The field would also have been the first
+    `GnoTxMetadata` entry to change a message's state transition rather than its
+    delivery context, and it would have needed a `pb3_gen.go` regeneration to
+    avoid being silently dropped on the binary codec path.
 
-    The alternative considered and rejected was a policy-epoch list on
-    `vm.GenesisState`. It needs a new protobuf message type rather than one
-    scalar field, it cannot express a policy that changed mid-history without
-    interval logic, and it puts chain-shape data in a keeper's genesis rather
-    than with the transactions it describes.
-
-    Touch points:
-
-    - `gnoland.proto` / `types.go` / `pb3_gen.go`: add
-      `CodeSubmissionPolicy string` to `GnoTxMetadata`. One scalar, no new
-      message. `pb3_gen.go` carries a "generated by genproto2; DO NOT EDIT"
-      header and there is a `go generate` target, so this needs a regeneration
-      rather than an edit -- and AGENTS.md says not to run `go generate` without
-      being asked. Whoever implements this should confirm how the tree wants
-      that done; the precedent is that `vm.proto` and `pb3_gen.go` moved
-      together when `run_submitters` was added.
-    - `contribs/gnogenesis/internal/fork/generate.go`: populate it, beside the
-      existing `GasUsed`/`GasWanted` provenance.
-    - `deliverGenesisTx`: put it in the context, alongside the
-      `GenesisReplayKey` it already sets.
-    - `AddPackage`: during replay, take the policy from the context instead of
-      `params`, and drop `!auth.IsGenesisReplay(ctx)` from the branch condition.
-      The branch then parks exactly when the source chain parked.
-    - `EnablePackage`: same source-policy read for its policy gate, and keep the
-      approver exemption -- a fork may legitimately have rotated
-      `pkg_approvers`, and replay is reproducing a record rather than granting
-      it again. The early return added for item 15's knock-on can go: once
-      replay parks correctly, the replayed enable finds its package and does its
-      ordinary work.
-
-    Absent metadata -- an older export, or a fresh launch -- keeps today's
-    behaviour, so nothing that boots now stops booting.
-
-    Worth stating: this is only reachable once a chain has actually run `inert`
-    for a while and then forks. Since this PR is what introduces the policy, the
-    near-term case is the one item 15 already handles. That is why this is
-    planned rather than done.
+    **Known limit.** An operator who sets a *different* policy in the fork's own
+    genesis params gets that policy applied to the replayed history, because
+    `InitGenesis` runs before the replay loop. To adopt `inert` at a fork, turn
+    it on with a migration tx appended after the history rather than in the
+    genesis params. The alternative — staging vm params across the replay
+    boundary so replay always runs on source params — moves every vm param, not
+    just this one, and needs its own analysis.
 
 16. **Fixed: `EnablePackage` checks the policy and re-applies the gnomod rules.**
     Enable used to run under any later policy, so a package parked during an

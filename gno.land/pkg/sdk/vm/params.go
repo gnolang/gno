@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -33,13 +34,20 @@ const (
 )
 
 const (
-	sysNamesPkgDefault             = "gno.land/r/sys/names"
-	sysCLAPkgDefault               = "gno.land/r/sys/cla"
-	chainDomainDefault             = "gno.land"
-	depositDefault                 = "100000000ugnot" // 1 MB of realm state at storagePriceDefault
-	storagePriceDefault            = "100ugnot"       // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
-	storageFeeCollectorNameDefault = "storage_fee_collector"
-	codeSubmissionPolicyDefault    = CodeSubmissionPolicyPermissionless
+	sysNamesPkgDefault              = "gno.land/r/sys/names"
+	sysCLAPkgDefault                = "gno.land/r/sys/cla"
+	chainDomainDefault              = "gno.land"
+	depositDefault                  = "100000000ugnot" // 1 MB of realm state at storagePriceDefault
+	storagePriceDefault             = "100ugnot"       // cost per byte (1 gnot per 10KB) 1.333B GNOT == 13.33TB
+	storageFeeCollectorNameDefault  = "storage_fee_collector"
+	codeSubmissionPolicyDefault     = CodeSubmissionPolicyPermissionless
+	inertChargeCollectorNameDefault = "inert_charge_collector"
+	// maxInertSubmissionCharge caps InertSubmissionCharge. A charge governance
+	// can raise without limit is a deploy freeze, which is the outcome the
+	// charge exists to prevent. 1000 GNOT is far above any plausible setting
+	// (a block of gas is worth ~3 GNOT at the initial price) and far below a
+	// figure that would price deploys out.
+	maxInertSubmissionCharge = int64(1_000_000_000_000) // 1000 GNOT in ugnot
 
 	// Depth pins for the reference store: B+32 mounted with the fast index
 	// (storebptree.FastStoreConstructor), calibrated at 100M items, 10K node
@@ -137,6 +145,53 @@ type Params struct {
 	// populated it just to gate MsgRun would silently grant deploy rights the
 	// moment governance flipped the policy to "permissioned".
 	RunSubmitters []crypto.Address `json:"run_submitters" yaml:"run_submitters"`
+
+	// InertSubmissionCharge is taken from the creator on every MsgAddPackage
+	// that parks under the "inert" policy, and paid to InertChargeCollector.
+	//
+	// Under "inert" the submitter chooses the work and an unattended approval
+	// oracle pays for it: MsgEnablePackage runs their init() on ITS transaction
+	// and ITS gas meter. Since fees are flat, the oracle's exposure is its fee
+	// times the number of approvals it can be induced to make, and it stops
+	// approving for everyone once its spend limit is reached. Submitting is
+	// close to free today, so that is cheap to provoke. A charge at submit
+	// prices it: the attacker pays per approval they induce, and the payer is
+	// the party who chose the cost.
+	//
+	// It is a flat amount and NOT derived from the gas price, deliberately.
+	// LastGasPrice is recomputed only in auth.EndBlocker and InitChain runs no
+	// EndBlock, so a price-derived amount would collect something different
+	// during a fork's replay than the source chain collected, and balances would
+	// drift silently. A literal amount replays correctly because params are
+	// store-backed: a governance transaction that changed it re-applies at its
+	// own point in the replayed history.
+	//
+	// EMPTY MEANS OFF, and this is what makes replay correct without a carve-out.
+	// applyLegacyDefaults must never fill it, and neither must `gnogenesis fork
+	// generate` — a chain whose history predates the field then replays
+	// charge-free, rather than being charged for submissions that never paid.
+	// Governance turns it on going forward. A fork adopting it must do so with a
+	// migration tx appended AFTER the history, never in the fork's genesis
+	// params, for the same reason CodeSubmissionPolicy must (see AddPackage).
+	//
+	// Capped by maxInertSubmissionCharge. Without a ceiling, governance could
+	// price deploys out of reach entirely, which is the outcome the charge
+	// exists to prevent.
+	InertSubmissionCharge string `json:"inert_submission_charge" yaml:"inert_submission_charge"`
+	// InertChargeCollector receives InertSubmissionCharge. Validate rejects the
+	// zero address, and the default is a derived placeholder, so the "charge set,
+	// collector unset" combination is unrepresentable — deliberately, rather than
+	// as a cross-field rule. Cross-field validation on Params was tried and
+	// reverted (see the ADR): WillSetParam re-validates the whole struct and
+	// PANICS, and r/sys/params sets one key per proposal, so a rule spanning two
+	// fields aborts a proposal that already passed its vote.
+	//
+	// The intended value is an approver treasury, so that submissions fund the
+	// approvals they cause. Note that this is a governance convention and not a
+	// property of the mechanism: nothing can tell a spendable treasury from a
+	// derived address with no private key, and the default IS such an address.
+	// Set it before turning the charge on, or the charge is burned.
+	InertChargeCollector crypto.Address `json:"inert_charge_collector" yaml:"inert_charge_collector"`
 }
 
 // NewParams creates a new Params object
@@ -157,6 +212,11 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		IterNextCostFlat:     iterNextCostFlat,
 		CodeSubmissionPolicy: codeSubmissionPolicyDefault,
 		PreprocessGasPerByte: preprocessGasPerByte,
+		// InertSubmissionCharge is deliberately left empty: off by default.
+		// The collector still gets a value, so that Validate can reject the zero
+		// address unconditionally and the "charge set, collector unset"
+		// combination never has to be expressed as a cross-field rule.
+		InertChargeCollector: crypto.AddressFromPreimage([]byte(inertChargeCollectorNameDefault)),
 	}
 }
 
@@ -189,6 +249,8 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters))
 	sb.WriteString(fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers))
 	sb.WriteString(fmt.Sprintf("RunSubmitters: %v\n", p.RunSubmitters))
+	sb.WriteString(fmt.Sprintf("InertSubmissionCharge: %q\n", p.InertSubmissionCharge))
+	sb.WriteString(fmt.Sprintf("InertChargeCollector: %q\n", p.InertChargeCollector.String()))
 	sb.WriteString(fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte))
 	return sb.String()
 }
@@ -214,6 +276,37 @@ func (p Params) Validate() error {
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
 	}
+	// Empty is off, and is the only spelling of off: ParseCoins("") returns no
+	// error and no coins, while "0ugnot" fails Coins.validate, so a zero amount
+	// cannot be smuggled through as a second spelling.
+	if p.InertSubmissionCharge != "" {
+		coins, err = std.ParseCoins(p.InertSubmissionCharge)
+		if err != nil || len(coins) != 1 || coins[0].Denom != ugnot.Denom {
+			return fmt.Errorf(
+				"invalid inert submission charge %q, want a single %s amount",
+				p.InertSubmissionCharge, ugnot.Denom)
+		}
+		if coins[0].Amount > maxInertSubmissionCharge {
+			return fmt.Errorf("inert submission charge must be <= %d%s, got %d",
+				maxInertSubmissionCharge, ugnot.Denom, coins[0].Amount)
+		}
+	}
+	// The collector is deliberately NOT validated here, in either form.
+	//
+	// A cross-field rule ("charge set implies collector set") would abort a
+	// governance proposal that already passed its vote: WillSetParam
+	// re-validates the whole struct and panics, and r/sys/params sets one key
+	// per proposal, so "charge set, collector unset" is an unavoidable
+	// intermediate state.
+	//
+	// An unconditional non-zero rule fails every path that builds Params without
+	// going through applyLegacyDefaults -- `gnogenesis fork generate` does
+	// exactly that, and would refuse to produce a fork genesis.
+	//
+	// applyLegacyDefaults supplies the collector on the one read path the keeper
+	// uses, and AddPackage skips the charge entirely if it is somehow still zero,
+	// so a misconfiguration costs nothing rather than burning coins at the zero
+	// address.
 	// Depth floors / overrides are 100x fixed-point. The cap is 10_000
 	// (= 100 tree levels), well beyond any plausible B+tree / IAVL
 	// depth. Upper bound prevents a governance proposal from setting
@@ -408,6 +501,22 @@ func (p Params) applyLegacyDefaults() Params {
 	if p.CodeSubmissionPolicy == "" {
 		p.CodeSubmissionPolicy = codeSubmissionPolicyDefault
 	}
+	// The COLLECTOR is defaulted here; the CHARGE deliberately is not.
+	//
+	// Validate rejects a zero collector unconditionally, so a params blob
+	// written before these fields existed would otherwise fail validation on
+	// every read — and WillSetParam re-validates the whole struct and panics,
+	// which would make every unrelated governance param update abort on a
+	// legacy chain.
+	//
+	// Filling the charge would be the opposite of harmless: it would levy a
+	// charge on replayed history that never paid one, so balances would drift
+	// from the source chain. Empty means off, and that is what makes replay
+	// correct without a carve-out. Do not add a case for it here, and do not
+	// add one to the legacy fill in `gnogenesis fork generate` either.
+	if p.InertChargeCollector.IsZero() {
+		p.InertChargeCollector = crypto.AddressFromPreimage([]byte(inertChargeCollectorNameDefault))
+	}
 	return p
 }
 
@@ -487,6 +596,15 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.RunSubmitters = mustParseAddressStrings("run_submitters", value)
 	case "p:preprocess_gas_per_byte":
 		params.PreprocessGasPerByte = sdkparams.MustParamInt64("preprocess_gas_per_byte", value)
+	case "p:inert_submission_charge":
+		params.InertSubmissionCharge = sdkparams.MustParamString("inert_submission_charge", value)
+	case "p:inert_charge_collector":
+		s := sdkparams.MustParamString("inert_charge_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid inert_charge_collector address: %v", err))
+		}
+		params.InertChargeCollector = addr
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))

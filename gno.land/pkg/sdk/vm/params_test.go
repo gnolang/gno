@@ -39,6 +39,8 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("CodeSubmitters: %v\n", p.CodeSubmitters) +
 		fmt.Sprintf("PkgApprovers: %v\n", p.PkgApprovers) +
 		fmt.Sprintf("RunSubmitters: %v\n", p.RunSubmitters) +
+		fmt.Sprintf("InertSubmissionCharge: %q\n", p.InertSubmissionCharge) +
+		fmt.Sprintf("InertChargeCollector: %q\n", p.InertChargeCollector.String()) +
 		fmt.Sprintf("PreprocessGasPerByte: %d\n", p.PreprocessGasPerByte)
 
 	// Assert: check if the result matches the expected string.

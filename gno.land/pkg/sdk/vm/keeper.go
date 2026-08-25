@@ -724,24 +724,22 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// checker drops to genesis mode at height 0, and the draft-package rule is
 	// waived there too.
 	//
-	// Not during genesis REPLAY either, which is a separate condition from
-	// height 0, and the reason auth.IsGenesisReplay is consulted rather than
-	// the height alone. deliverGenesisTx replays a
-	// previous chain's history through this keeper at BlockHeight > 0, after
-	// InitGenesis has installed the NEW params. So a fork that turns "inert" on
-	// would re-execute every historical MsgAddPackage down this branch: packages
-	// that deployed live on the source chain would park on the fork, the chain
-	// would come up with its own realms missing, and the divergence would be
-	// invisible until something called one. Replay must reproduce what the
-	// source chain did, so it takes the ordinary path regardless of the policy
-	// the fork adopts going forward.
+	// Genesis REPLAY is not exempt, and reads the policy like any other
+	// delivery. code_submission_policy is store-backed, so replayed history
+	// carries its own: `gnogenesis fork generate` copies the source chain's vm
+	// params into the fork's genesis untouched, and every historical governance
+	// tx that moved the policy re-applies as it replays. A chain that parked a
+	// package parks it again; one that deployed live, deploys live. Replay
+	// reproduces what the source chain did by reading what the source chain
+	// read, rather than by skipping the branch.
 	//
-	// The ante's own carve-out (checkCodePolicy in gno.land/pkg/gnoland/app.go)
-	// keys off the same context value for the same reason. Two carve-outs
-	// because they guard two different decisions: the ante decides whether the
-	// tx is admitted, this decides what the message does.
+	// The exception is an operator who sets a DIFFERENT policy in the fork's
+	// own genesis params, which InitGenesis installs before the replay loop
+	// (gno.land/pkg/gnoland/app.go). Replayed history would then run under a
+	// policy that was never in force for it. To adopt "inert" at a fork, turn
+	// it on with a migration tx appended after the history instead.
 	if params.CodeSubmissionPolicy == CodeSubmissionPolicyInert &&
-		ctx.BlockHeight() > 0 && !auth.IsGenesisReplay(ctx) {
+		ctx.BlockHeight() > 0 {
 		// Charge the type-check and preprocess cost here, at submit, even though
 		// neither runs on this path. The work is deferred, not avoided:
 		// MsgEnablePackage type-checks and runs exactly these bytes later.
@@ -869,7 +867,55 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		if err := vm.checkCLASignature(ctx, creator); err != nil {
 			return err
 		}
-		// No SendCoins: a non-zero send was refused above.
+		// Charge for the init() this submission defers onto someone else.
+		//
+		// Enable runs this package's init() on the APPROVER's transaction and
+		// gas meter, and fees are flat — so the approver pays the same whatever
+		// the package costs, and its exposure is that fee times the number of
+		// approvals it can be induced to make. Submitting is otherwise close to
+		// free, so provoking those approvals is cheap. This puts a price on it,
+		// paid by the party that chose the cost.
+		//
+		// Deliberately flat rather than measured. Metering the deferred work and
+		// refunding the remainder was tried four ways and rejected each time:
+		// money derived from a gas reading makes gas a consensus input, so a
+		// fork recomputes a different refund than the source chain paid. See the
+		// ADR.
+		//
+		// Placed last, where nothing after it can fail. Everything reverts
+		// together anyway — message-phase writes are discarded as a unit — but
+		// the ordering makes pay-then-park legible here rather than requiring a
+		// reader to know baseapp's revert semantics. It mirrors EnablePackage,
+		// which puts its deposit immediately before DelInertPackage for the same
+		// reason.
+		//
+		// SendCoins, not SendCoinsUnrestricted: this is a one-way transfer to a
+		// governance-chosen address, not the refundable escrow the deposit path
+		// uses, so a token lock should refuse it rather than be bypassed. It also
+		// performs the session-spend check itself, so this is one call and the
+		// order cannot be got wrong.
+		//
+		// The zero guard is load-bearing: SendCoinsUnrestricted has no zero
+		// short-circuit, and even SendCoins' costs a store read. Off must cost
+		// nothing, or the shipped default moves gas on every inert deploy.
+		// The collector guard is the reason Params.Validate does not check it:
+		// skipping the charge costs nothing, while charging the zero address
+		// would burn it. applyLegacyDefaults supplies a collector on this read
+		// path, so this is defence rather than an expected state.
+		if params.InertSubmissionCharge != "" && !params.InertChargeCollector.IsZero() {
+			charge, err := std.ParseCoins(params.InertSubmissionCharge)
+			if err != nil {
+				// Unreachable: Params.Validate parses this before it can be
+				// stored. Panicking is what makes it safe to be wrong about that.
+				panic("invalid inert_submission_charge in params: " + err.Error())
+			}
+			if !charge.IsZero() {
+				if err := vm.bank.SendCoins(ctx, creator, params.InertChargeCollector, charge); err != nil {
+					return err
+				}
+			}
+		}
+		// No SendCoins for msg.Send: a non-zero send was refused above.
 		gnostore.AddInertPackage(memPkg)
 		return nil
 	}
@@ -1037,19 +1083,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 // Only addresses listed in Params.PkgApprovers may call this.
 func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err error) {
 	params := vm.GetParams(ctx)
-	// Every transaction delivered during InitChain is exempt: both gates below
-	// and the "something is parked" check.
-	//
-	// AddPackage declines to park during replay, so a replayed history is
-	// already live when its MsgEnablePackage arrives. That message is a no-op
-	// that still has to succeed, or a failed genesis transaction under
-	// StrictReplay stops the node booting and a fork of a chain that ran "inert"
-	// cannot start. The gates are exempt for the reason the ante's are: replay
-	// reproduces a record rather than granting it again, and the fork may have
-	// moved off "inert" or rotated pkg_approvers since.
-	if auth.IsGenesisReplay(ctx) {
-		return nil
-	}
+	// Genesis replay reproduces a record rather than granting it again, so the
+	// two authorization gates below are exempt: the fork may have moved off
+	// "inert" or rotated pkg_approvers since, and must not refuse its own
+	// history. Everything after them runs, so a package the source chain parked
+	// is activated here as it was there -- which is the point, since AddPackage
+	// parks during replay whenever the replayed policy says to.
+	replay := auth.IsGenesisReplay(ctx)
 
 	// Enable exists only to complete a submission the "inert" policy split in
 	// two, so it is valid only while that policy is in force.
@@ -1066,18 +1106,35 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// This makes parked packages unactivatable once the policy moves, which is
 	// the intended outcome; returning to "inert" makes them activatable again.
 	// Note that nothing evicts them in the meantime — see DisablePackage.
-	if params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
+	if !replay && params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"code_submission_policy is %q, not %q: packages cannot be enabled",
 			params.CodeSubmissionPolicy, CodeSubmissionPolicyInert))
 	}
-	if !isApprover(params.PkgApprovers, msg.Approver) {
+	if !replay && !isApprover(params.PkgApprovers, msg.Approver) {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"address %s is not a pkg approver", msg.Approver))
 	}
 	gnostore := vm.getGnoTransactionStore(ctx)
 	memPkg := gnostore.GetInertPackage(msg.PkgPath)
 	if memPkg == nil {
+		// Nothing parked AND the package is live: the replayed submission took
+		// the ordinary path, because the policy at that point in the replayed
+		// history was not "inert". The enable is a genuine no-op, and every
+		// genesis exported before this branch existed looks exactly like this.
+		//
+		// Nothing parked and nothing live means replay has already gone wrong --
+		// the submission failed, so there was never anything to enable. Returning
+		// nil there reports success for a package that is not on the chain, and
+		// the fork comes up silently missing a realm with the enable recorded as
+		// the last word on it. Refuse, so the replay report names it.
+		//
+		// Blob presence is the liveness test, for the reason spelled out at the
+		// liveBlob probe below: GetPackage would populate the object cache and
+		// make RunMemPackage panic later.
+		if replay && gnostore.GetMemPackage(msg.PkgPath) != nil {
+			return nil
+		}
 		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
 	}
 	// Refuse to activate over a package that is already live, applying exactly

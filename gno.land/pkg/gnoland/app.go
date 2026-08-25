@@ -1357,9 +1357,11 @@ func checkCodePolicy(ctx sdk.Context, tx std.Tx, vmk *vm.VMKeeper) (sdk.Result, 
 	// txs through this same ante with BlockHeight > 0, after InitGenesis has
 	// installed the NEW params — so without this carve-out a hardfork would refuse to replay
 	// its own history the moment either list fails to contain a historical
-	// signer, and with StrictReplay the node would not boot. Keyed on the
-	// context value rather than BlockHeight, which replay deliberately does not
-	// hold at 0.
+	// signer, and would come up missing every package those signers deployed.
+	// Note StrictReplay does not stop that: ResponseInitChain.Error is discarded
+	// by the handshake (see the note at deliverGenesisTx), so the count it
+	// reports is advisory. Keyed on the context value rather than BlockHeight,
+	// which replay deliberately does not hold at 0.
 	if auth.IsGenesisReplay(ctx) {
 		return sdk.Result{}, false
 	}

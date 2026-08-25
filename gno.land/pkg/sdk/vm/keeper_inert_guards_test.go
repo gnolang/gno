@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -768,72 +769,81 @@ func Who(cur realm) string { return "parked" }`},
 	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
-// TestVMKeeperGenesisReplayIgnoresInertPolicy pins that replayed history takes
-// the ordinary deploy path whatever policy the new chain adopts.
+// replayFiles builds a trivial package whose directory name is also its package
+// name, for the genesis-replay and submission-charge tests below.
 //
-// deliverGenesisTx replays a previous chain's transactions through this keeper
-// at BlockHeight > 0, AFTER InitGenesis has installed the new params. So a fork
-// that turns "inert" on would re-execute every historical MsgAddPackage down the
-// inert branch: packages that deployed live on the source chain would park on
-// the fork, and the chain would come up with its own realms missing -- silently,
-// until something called one.
-func TestVMKeeperGenesisReplayIgnoresInertPolicy(t *testing.T) {
-	const pkgPath = "gno.land/r/test/replayed"
+// Sorted explicitly: ValidateMemPackage refuses unsorted files, and whether
+// "<name>.gno" sorts before or after "gnomod.toml" depends on the name, so
+// hard-coding an order works for some names and not others.
+func replayFiles(name string) []*std.MemFile {
+	path := "gno.land/r/test/" + name
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+		{Name: name + ".gno", Body: "package " + name + `
 
+func Who(cur realm) string { return "live" }`},
+	}
+	slices.SortFunc(files, func(a, b *std.MemFile) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return files
+}
+
+// TestVMKeeperGenesisReplayFollowsTheReplayedPolicy pins that replayed history
+// is executed under the policy that governed it, and that the policy is simply
+// read rather than skipped.
+//
+// The params already carry the answer: `gnogenesis fork generate` copies the
+// source chain's vm params into the fork's genesis untouched, and every
+// historical governance tx that moved the policy re-applies as it replays.
+//
+// Taking the ordinary path regardless would bring up a package the source chain
+// left awaiting approval -- running its init() and charging its creator a
+// storage deposit that the source chain never charged.
+func TestVMKeeperGenesisReplayFollowsTheReplayedPolicy(t *testing.T) {
 	approver := crypto.AddressFromPreimage([]byte("oracle"))
 	creator := crypto.AddressFromPreimage([]byte("historical"))
 	env, ctx := inertEnv(t, approver, creator)
 
 	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
-	require.NoError(t, env.vmk.AddPackage(replayCtx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
-		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
-		{Name: "replayed.gno", Body: `package replayed
 
-func Who(cur realm) string { return "live" }`},
-	})))
-
+	// Replayed while the policy reads "inert": parks, as it did on the source.
+	const parkedPath = "gno.land/r/test/replayparked"
+	require.NoError(t, env.vmk.AddPackage(replayCtx,
+		NewMsgAddPackage(creator, parkedPath, replayFiles("replayparked"))))
 	gs := env.vmk.getGnoTransactionStore(ctx)
-	assert.NotNil(t, gs.GetPackage(pkgPath, false),
-		"a replayed deploy must be live, exactly as it was on the source chain")
-	assert.Nil(t, gs.GetInertPackage(pkgPath),
-		"a replayed deploy must not be parked by the fork's new policy")
+	assert.Nil(t, gs.GetPackage(parkedPath, false),
+		"a package the source chain parked must not be deployed live by replay")
+	assert.NotNil(t, gs.GetInertPackage(parkedPath),
+		"it must park, exactly as it did on the source chain")
 
-	// The same message NOT marked as replay still parks, so the carve-out is
-	// scoped to replay rather than having disabled the policy outright.
-	const livePath = "gno.land/r/test/notreplayed"
-	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, livePath, []*std.MemFile{
-		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(livePath)},
-		{Name: "notreplayed.gno", Body: `package notreplayed
+	// Replayed while the policy reads something else: deploys live. This is the
+	// same history a governance tx earlier in the replay would produce.
+	open := DefaultParams()
+	open.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
+	open.PkgApprovers = []crypto.Address{approver}
+	require.NoError(t, env.vmk.SetParams(ctx, open))
 
-func Who(cur realm) string { return "parked" }`},
-	})))
-	assert.Nil(t, gs.GetPackage(livePath, false), "live traffic must still park")
-	assert.NotNil(t, gs.GetInertPackage(livePath))
+	const livePath = "gno.land/r/test/replaylive"
+	require.NoError(t, env.vmk.AddPackage(replayCtx,
+		NewMsgAddPackage(creator, livePath, replayFiles("replaylive"))))
+	assert.NotNil(t, gs.GetPackage(livePath, false),
+		"a package the source chain deployed live must not be parked by replay")
+	assert.Nil(t, gs.GetInertPackage(livePath))
 }
 
-// TestVMKeeperGenesisReplayEnableIsANoOp continues the story
-// TestVMKeeperGenesisReplayIgnoresInertPolicy starts.
+// TestVMKeeperGenesisReplayEnableActivatesAParkedPackage continues the story
+// TestVMKeeperGenesisReplayFollowsTheReplayedPolicy starts.
 //
-// That test establishes that a replayed MsgAddPackage deploys live rather than
-// parking. The consequence is this one: the matching MsgEnablePackage, which is
-// also in the replayed history, now finds nothing parked. It has to succeed
-// anyway. A failed transaction during genesis replay is a node that will not
-// boot under StrictReplay, so without this a fork of a chain that actually ran
-// "inert" could not start.
+// The replayed MsgAddPackage parks, so the matching MsgEnablePackage -- also in
+// the replayed history -- finds its package and activates it. That reproduces
+// the source chain's outcome rather than approximating it.
 //
-// The two authorization gates are exempt for the same reason: replay runs after
-// InitGenesis has installed the fork's params, so a fork that moves off "inert"
-// or rotates pkg_approvers must not refuse its own history.
-func TestVMKeeperGenesisReplayEnableIsANoOp(t *testing.T) {
+// The two authorization gates are exempt: replay runs after InitGenesis has
+// installed the fork's params, so a fork that moved off "inert" or rotated
+// pkg_approvers must not refuse the enables in its own history.
+func TestVMKeeperGenesisReplayEnableActivatesAParkedPackage(t *testing.T) {
 	const pkgPath = "gno.land/r/test/replayenable"
-	files := func(name string) []*std.MemFile {
-		return []*std.MemFile{
-			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/test/" + name)},
-			{Name: name + ".gno", Body: "package " + name + `
-
-func Who(cur realm) string { return "live" }`},
-		}
-	}
 
 	approver := crypto.AddressFromPreimage([]byte("oracle"))
 	creator := crypto.AddressFromPreimage([]byte("historical"))
@@ -842,45 +852,100 @@ func Who(cur realm) string { return "live" }`},
 
 	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
 
-	// The replayed deploy goes live, per the carve-out in AddPackage.
 	require.NoError(t, env.vmk.AddPackage(replayCtx,
-		NewMsgAddPackage(creator, pkgPath, files("replayenable"))))
+		NewMsgAddPackage(creator, pkgPath, replayFiles("replayenable"))))
 	gs := env.vmk.getGnoTransactionStore(ctx)
-	require.NotNil(t, gs.GetPackage(pkgPath, false))
-	require.Nil(t, gs.GetInertPackage(pkgPath))
+	require.NotNil(t, gs.GetInertPackage(pkgPath), "the replayed add must park")
 
-	// The replayed enable therefore has nothing to enable, and must still succeed.
-	require.NoError(t, env.vmk.EnablePackage(replayCtx,
-		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
-		"a replayed enable whose package is already live must be a no-op, not an error")
-	assert.NotNil(t, gs.GetPackage(pkgPath, false), "the package must still be live")
-
-	// An approver the fork has since rotated out must also replay.
+	// Sent by an approver the fork has since rotated out, so this also covers
+	// the approver gate's exemption.
 	require.NoError(t, env.vmk.EnablePackage(replayCtx,
 		MsgEnablePackage{Approver: stranger, PkgPath: pkgPath}),
 		"a fork that rotated pkg_approvers must not refuse the enables in its own history")
+	assert.NotNil(t, gs.GetPackage(pkgPath, false),
+		"the replayed enable must activate the package it parked")
+	assert.Nil(t, gs.GetInertPackage(pkgPath),
+		"and clear the parked blob, as an ordinary enable does")
+}
 
-	// And a fork that has moved off "inert" must still replay its history.
-	//
-	// The carve-out is deliberately unconditional, so this and the two above it
-	// reach the same early return. They document which forks must keep working
-	// rather than covering three separate branches.
+// TestVMKeeperGenesisReplayEnableWithNothingParkedIsANoOp covers the other half:
+// a replayed enable whose package went live on the ordinary path.
+//
+// It has to succeed. Every genesis exported before this branch existed looks
+// like this: the replayed add deploys live and leaves nothing parked, so the
+// matching enable has nothing to do and must not turn a working fork into a
+// replay failure.
+//
+// The no-op is conditional on the package actually being live -- see
+// TestVMKeeperGenesisReplayEnableRefusesWhenNothingIsLive for why.
+func TestVMKeeperGenesisReplayEnableWithNothingParkedIsANoOp(t *testing.T) {
+	const pkgPath = "gno.land/r/test/replaynothing"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("historical"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// A fork that has moved off "inert": the replayed add deploys live, so the
+	// replayed enable finds nothing.
 	offInert := DefaultParams()
 	offInert.CodeSubmissionPolicy = CodeSubmissionPolicyPermissionless
 	offInert.PkgApprovers = []crypto.Address{approver}
 	require.NoError(t, env.vmk.SetParams(ctx, offInert))
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, env.vmk.AddPackage(replayCtx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("replaynothing"))))
+	gs := env.vmk.getGnoTransactionStore(ctx)
+	require.Nil(t, gs.GetInertPackage(pkgPath))
+
 	require.NoError(t, env.vmk.EnablePackage(replayCtx,
 		MsgEnablePackage{Approver: approver, PkgPath: pkgPath}),
-		"a fork that moved off inert must not refuse the enables in its own history")
+		"a replayed enable with nothing parked must be a no-op, not an error")
+	assert.NotNil(t, gs.GetPackage(pkgPath, false), "the package must still be live")
 
 	// Live traffic is unaffected: the same call outside replay still refuses,
-	// and for the policy reason -- not because the setup above silently failed
-	// and left nothing parked at the path.
+	// and for the policy reason -- not because the setup left nothing parked.
 	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
-	require.Error(t, err, "the carve-out must be scoped to replay")
+	require.Error(t, err, "the exemption must be scoped to replay")
 	// %+v, not Error(): tm2's abci errors keep the detail on the wrapped trace.
 	assert.Contains(t, fmt.Sprintf("%+v", err), "code_submission_policy",
-		"it must refuse on the policy, not because the setup left nothing parked")
+		"it must refuse on the policy, not because nothing was parked")
+}
+
+// TestVMKeeperGenesisReplayEnableRefusesWhenNothingIsLive pins the condition on
+// the no-op above.
+//
+// "Nothing parked" has two causes and they need opposite answers. If the package
+// is live, the replayed add took the ordinary path and the enable is genuinely
+// spare work. If nothing is live either, the replayed add FAILED -- and a
+// replayed MsgAddPackage has plenty of ways to fail that its own history did
+// not: a creator whose account an earlier diverging tx never created, a
+// namespace that changed hands, a prior park by someone else.
+//
+// Returning nil there records success for a package that is not on the chain.
+// The fork boots with the realm missing, and the replay report's last word on
+// that path is "enabled OK" -- so the one failure it does show reads like an
+// isolated hiccup rather than a missing package.
+func TestVMKeeperGenesisReplayEnableRefusesWhenNothingIsLive(t *testing.T) {
+	const pkgPath = "gno.land/r/test/replaymissing"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("historical"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	// Stand in for the replayed add having failed: nothing parked, nothing live.
+	gs := env.vmk.getGnoTransactionStore(ctx)
+	require.Nil(t, gs.GetInertPackage(pkgPath))
+	require.Nil(t, gs.GetMemPackage(pkgPath))
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	err := env.vmk.EnablePackage(replayCtx,
+		MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
+	require.Error(t, err,
+		"a replayed enable must not report success for a package that is not on the chain")
+	// %+v, not Error(): tm2's abci errors keep the detail on the wrapped trace.
+	assert.Contains(t, fmt.Sprintf("%+v", err), "no inert package at path",
+		"and it must say what is actually wrong")
 }
 
 // TestVMKeeperEnableChecksChainDomain covers the last of AddPackage's path rules
@@ -919,4 +984,170 @@ func Who(cur realm) string { return "parked" }`},
 	require.Error(t, err,
 		"a parked package must not go live under a domain AddPackage would refuse")
 	assert.Contains(t, fmt.Sprintf("%+v", err), "invalid domain")
+}
+
+// TestInertSubmissionChargeIsTakenFromTheCreator covers the charge that prices
+// the init() an inert submission defers onto the approver.
+//
+// The approver runs that init() on its own transaction and its own gas meter,
+// and fees are flat — so its exposure is its fee times the number of approvals
+// it can be induced to make, and it stops approving for everyone once its spend
+// limit is reached. Submitting is otherwise nearly free, so provoking those
+// approvals is cheap. The charge puts the price on the party that chose the
+// cost.
+func TestInertSubmissionChargeIsTakenFromTheCreator(t *testing.T) {
+	const pkgPath = "gno.land/r/test/charged"
+	const charge = int64(3_000_000)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	params.InertSubmissionCharge = ugnot.ValueString(charge)
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+	collector := params.InertChargeCollector
+
+	creatorBefore := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+	collectorBefore := env.bankk.GetCoins(ctx, collector).AmountOf(ugnot.Denom)
+
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("charged"))))
+
+	assert.Equal(t, creatorBefore-charge,
+		env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
+		"the creator must pay the charge")
+	assert.Equal(t, collectorBefore+charge,
+		env.bankk.GetCoins(ctx, collector).AmountOf(ugnot.Denom),
+		"and the collector must receive exactly it")
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+		"the package must still park")
+}
+
+// TestInertSubmissionChargeIsOffByDefault pins the default.
+//
+// Empty means off, and it is the only spelling of off: ParseCoins("") yields no
+// coins and no error, while "0ugnot" fails Coins.validate. This matters beyond
+// tidiness -- empty-by-default is what makes genesis replay correct without a
+// carve-out. A default charge would be levied on replayed history that never
+// paid one, and a fork's balances would drift from its source chain.
+func TestInertSubmissionChargeIsOffByDefault(t *testing.T) {
+	const pkgPath = "gno.land/r/test/uncharged"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	require.Empty(t, DefaultParams().InertSubmissionCharge,
+		"the shipped default must be off")
+
+	before := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("uncharged"))))
+	assert.Equal(t, before, env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
+		"with the charge off, an inert submit must move no coins at all")
+}
+
+// TestInertSubmissionChargeIsNotTakenFromARefusedSubmission pins the placement.
+//
+// The charge sits last in the branch, after every refusal, so a submission that
+// is turned away pays nothing and reports its real reason rather than an
+// insufficient-funds error. Everything in the message phase reverts together
+// regardless, but the ordering is what makes that legible at the call site
+// instead of requiring a reader to know baseapp's revert semantics.
+func TestInertSubmissionChargeIsNotTakenFromARefusedSubmission(t *testing.T) {
+	const pkgPath = "gno.land/r/test/refused"
+	const charge = int64(3_000_000)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	first := crypto.AddressFromPreimage([]byte("firstsubmitter"))
+	second := crypto.AddressFromPreimage([]byte("frontrunner"))
+	env, ctx := inertEnv(t, approver, first, second)
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	params.InertSubmissionCharge = ugnot.ValueString(charge)
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(first, pkgPath, replayFiles("refused"))))
+
+	// A different creator cannot replace a parked package, and must not be
+	// charged for being told so.
+	before := env.bankk.GetCoins(ctx, second).AmountOf(ugnot.Denom)
+	err := env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(second, pkgPath, replayFiles("refused")))
+	require.Error(t, err, "a stranger must not overwrite a parked package")
+	assert.Equal(t, before, env.bankk.GetCoins(ctx, second).AmountOf(ugnot.Denom),
+		"and must not be charged for the refusal")
+}
+
+// TestInertSubmissionChargeValidation covers the bounds on the param.
+//
+// The ceiling is the point: a charge governance can raise without limit is a
+// deploy freeze, which is the outcome the charge exists to prevent.
+func TestInertSubmissionChargeValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		charge string
+		ok     bool
+	}{
+		{"empty is off", "", true},
+		{"a plain ugnot amount", "3000000ugnot", true},
+		{"at the ceiling", ugnot.ValueString(maxInertSubmissionCharge), true},
+		{"above the ceiling", ugnot.ValueString(maxInertSubmissionCharge + 1), false},
+		{"zero is not a second spelling of off", "0ugnot", false},
+		{"a foreign denom", "5foo", false},
+		{"more than one coin", "1000ugnot,5foo", false},
+		{"not a coin at all", "banana", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			params := DefaultParams()
+			params.InertSubmissionCharge = tc.charge
+			err := params.Validate()
+			if tc.ok {
+				assert.NoError(t, err)
+				return
+			}
+			assert.Error(t, err)
+		})
+	}
+
+	t.Run("a zero collector validates, and is defaulted before it is read", func(t *testing.T) {
+		// Validate deliberately says nothing about the collector. An
+		// unconditional non-zero rule breaks `gnogenesis fork generate`, which
+		// builds Params without applyLegacyDefaults and would then refuse to
+		// produce a fork genesis. A cross-field rule ("charge set implies
+		// collector set") would abort a governance proposal mid-execution,
+		// because WillSetParam re-validates the whole struct and panics while
+		// r/sys/params sets one key per proposal.
+		//
+		// applyLegacyDefaults is what makes that safe: the keeper's one read path
+		// never sees a zero collector. The guard at the charge itself is
+		// unreachable defence, kept so a misconfiguration would skip the charge
+		// rather than burn it at the zero address.
+		params := DefaultParams()
+		params.InertChargeCollector = crypto.Address{}
+		params.InertSubmissionCharge = "3000000ugnot"
+		require.NoError(t, params.Validate(),
+			"an unconditional collector rule would break the fork tool")
+		assert.False(t, params.ApplyLegacyDefaults().InertChargeCollector.IsZero(),
+			"and the read path must supply one regardless")
+	})
+
+	t.Run("a legacy params blob still validates", func(t *testing.T) {
+		// A blob written before these fields existed reads the collector as
+		// zero. Validate rejects that, and WillSetParam re-validates the whole
+		// struct and PANICS -- so without the legacy default every unrelated
+		// governance param update would abort on such a chain.
+		legacy := DefaultParams()
+		legacy.InertChargeCollector = crypto.Address{}
+		assert.NoError(t, legacy.ApplyLegacyDefaults().Validate(),
+			"legacy state must keep validating")
+		assert.Empty(t, legacy.ApplyLegacyDefaults().InertSubmissionCharge,
+			"but the charge itself must stay off, or replay levies it on history that never paid")
+	})
 }

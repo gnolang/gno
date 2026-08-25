@@ -152,7 +152,11 @@ import (
 // before it is refused. Measured against all 321 genesis packages the largest
 // deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
-const expectedCrossrealm38Hash = "c90a420c22ab242d5f03a2f4170eb98df1030b4a25fa6eeb830c42f11b332ddd"
+// Bumped again by the two inert-charge vm params, for the same reason as
+// run_submitters above: two more keys, written unconditionally. Behavior at
+// this hash is unchanged — inert_submission_charge defaults to empty, which
+// means off, and the scenario submits nothing under the "inert" policy anyway.
+const expectedCrossrealm38Hash = "3de2574b220ca19d04a19a6287d9ad82fdd2edf3770b7dc107da19b3be1775a2"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
