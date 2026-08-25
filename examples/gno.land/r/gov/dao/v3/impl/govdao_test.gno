@@ -333,3 +333,61 @@ func TestAbstainVote(cur realm, t *testing.T) {
 func contains(s, substr string) bool {
 	return strings.Index(s, substr) >= 0
 }
+
+// TestAddMemberKeepsInvitationPointWhenAddFails covers the executor's ordering.
+//
+// The executor spends the proposer's invitation point and adds the member. If
+// the add fails, a returned executor error does NOT revert: ExecuteProposal
+// marks the proposal denied and ExecuteOrRejectProposal still commits the
+// transaction. So with the old order the point was gone and the member was not
+// added, permanently.
+//
+// The failure is reachable: SetMember refuses an address that is already a
+// member, and AddMember enrols T3 members directly, so proposing an existing
+// member to another tier is an ordinary mistake rather than a contrived one.
+//
+// Uses ExecuteOrRejectProposal deliberately. ExecuteProposal panics on an
+// executor error, and a panic aborts the transaction, which would revert the
+// spend and hide the bug.
+func TestAddMemberKeepsInvitationPointWhenAddFails(cur realm, t *testing.T) {
+	loadMembers(cur)
+
+	// m4 is already a T3 member, so adding it to T2 must fail in SetMember.
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	preq := NewAddMemberRequest(cur, m4, memberstore.T2, "# Portfolio\n\n- things")
+
+	// memberstore.Get requires an allowed-DAO caller, so read under the impl
+	// realm rather than whatever the previous step left in place.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	before, tier := memberstore.Get(0, cur).GetMember(m1)
+	urequire.Equal(t, memberstore.T1, tier)
+	pointsBefore := before.InvitationPoints
+	urequire.Equal(t, true, pointsBefore > 0, "premise: the proposer must have a point to lose")
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid := dao.MustCreateProposal(cross(cur), preq)
+
+	// A T2 addition is voted on by T1 and T2. Every one of them votes yes, so
+	// the proposal certainly passes and the executor certainly runs -- if it did
+	// not, this test would prove nothing.
+	for _, voter := range []address{m1, m11, m111, m1111, m2, m3} {
+		testing.SetOriginCaller(voter)
+		dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	}
+
+	accepted := dao.ExecuteOrRejectProposal(cross(cur), dao.ProposalID(pid))
+	urequire.Equal(t, false, accepted, "the add must fail, since m4 is already a member")
+
+	// Proves the executor ran and returned an error, rather than the vote
+	// failing to reach a threshold -- only GovDAO.ExecuteProposal writes this.
+	rendered := dao.Render(cross(cur), fmt.Sprintf("%d", int(pid)))
+	urequire.Equal(t, true, contains(rendered, "execution failed"),
+		"the proposal must have been denied by the executor, not by the vote")
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	after, _ := memberstore.Get(0, cur).GetMember(m1)
+	urequire.Equal(t, pointsBefore, after.InvitationPoints,
+		"a failed add must not spend the proposer's invitation point")
+}
