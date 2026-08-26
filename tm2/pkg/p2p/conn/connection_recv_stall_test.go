@@ -134,3 +134,111 @@ func TestRecvAssemblyDeadlineNotChargedForReactorStall(t *testing.T) {
 		t.Fatal("the assembly deadline stopped working after a credited stall")
 	}
 }
+
+// TestRecvAssemblyDeadlineNotChargedForManyShortStalls is the same concern as
+// TestRecvAssemblyDeadlineNotChargedForReactorStall, reached by accumulation
+// rather than by one long block.
+//
+// Each individual stall here is under recvAssemblyStallGrace, so none of them is
+// worth walking the channels for on its own -- but together they consume the
+// whole deadline while recvRoutine is not reading. A reactor that parks it for
+// tens of milliseconds per message is ordinary (the mempool's Receive runs
+// CheckTx), so the credit has to be carried until it is worth applying, not
+// dropped for being small.
+func TestRecvAssemblyDeadlineNotChargedForManyShortStalls(t *testing.T) {
+	t.Parallel()
+
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	errorsCh := make(chan error, 1)
+	onError := func(r error) {
+		select {
+		case errorsCh <- r:
+		default:
+		}
+	}
+
+	const (
+		assemblyTimeout = 600 * time.Millisecond
+		perStall        = 40 * time.Millisecond // below recvAssemblyStallGrace
+		stalls          = 20                    // 800ms in total, past the deadline
+	)
+
+	// recvPacketMsg reuses the recving backing array, so the bytes handed to
+	// onReceive must be copied before they leave the callback.
+	receivedCh := make(chan []byte, stalls+1)
+	onReceive := func(chID byte, msgBytes []byte) {
+		if chID == 0x01 {
+			time.Sleep(perStall)
+		}
+
+		receivedCh <- append([]byte(nil), msgBytes...)
+	}
+
+	cfg := quietPingConfig()
+	cfg.RecvAssemblyTimeout = assemblyTimeout
+
+	mconn := NewMConnectionWithConfig(client, []*ChannelDescriptor{
+		{ID: 0x01, Priority: 1, SendQueueCapacity: 1, RecvMessageCapacity: 4096},
+		{ID: 0x02, Priority: 1, SendQueueCapacity: 1, RecvMessageCapacity: 4096},
+	}, onReceive, onError, cfg)
+	mconn.SetLogger(log.NewTestingLogger(t))
+	require.NoError(t, mconn.Start())
+	defer mconn.Stop()
+
+	// An honest peer: it opens a message on 0x02, hands us a run of complete
+	// messages on 0x01 that each park recvRoutine for less than the grace, then
+	// finishes 0x02.
+	writeDone := make(chan error, 1)
+	go func() {
+		if err := writeRawPacketMsg(server, 0x02, 0x00, []byte("part-1")); err != nil {
+			writeDone <- err
+
+			return
+		}
+
+		for range stalls {
+			if err := writeRawPacketMsg(server, 0x01, 0x01, []byte("x")); err != nil {
+				writeDone <- err
+
+				return
+			}
+		}
+
+		writeDone <- writeRawPacketMsg(server, 0x02, 0x01, []byte("part-2"))
+	}()
+
+	// The peer's message must complete, and the connection must survive.
+	for {
+		select {
+		case b := <-receivedCh:
+			if bytes.Equal(b, []byte("x")) {
+				continue // one of the stalling messages
+			}
+
+			assert.Equal(t, []byte("part-1part-2"), b,
+				"the peer's message must complete, not be cut short")
+
+			require.NoError(t, <-writeDone)
+
+			// And the deadline still bites for the peer's own next unfinished
+			// message.
+			require.NoError(t, writeRawPacketMsg(server, 0x02, 0x00, []byte("orphan")))
+
+			select {
+			case err := <-errorsCh:
+				assert.Contains(t, err.Error(), "assembly timeout")
+			case <-time.After(5 * time.Second):
+				t.Fatal("the assembly deadline stopped working after credited stalls")
+			}
+
+			return
+		case err := <-errorsCh:
+			t.Fatalf("connection torn down by an accumulation of our own short stalls: %v", err)
+		case <-time.After(30 * time.Second):
+			t.Fatal("the peer's message was never delivered")
+		}
+	}
+}

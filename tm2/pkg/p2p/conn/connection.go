@@ -85,11 +85,12 @@ const (
 	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
 	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
 
-	// recvAssemblyStallGrace is how long recvRoutine may spend in a reactor
-	// callback before that time is credited back to the assembly deadlines. It
-	// only exists to keep the per-message path free of the channel walk; any
-	// stall long enough to matter against a 30s deadline is orders of magnitude
-	// above it.
+	// recvAssemblyStallGrace is how much stall time recvRoutine accumulates
+	// before handing it to the channels' assembly deadlines. It only exists to
+	// keep the per-message path free of the channel walk, so it batches the
+	// credit rather than dropping it: stalls below it are carried in
+	// recvStalledUncredited until they add up, because many short stalls consume
+	// a deadline just as surely as one long one.
 	recvAssemblyStallGrace = 50 * time.Millisecond
 )
 
@@ -184,6 +185,11 @@ type MConnection struct {
 	// recvRoutine, read by sendRoutine to tell a genuinely unanswered ping from
 	// one whose pong lost the race for pongTimeoutCh.
 	lastPongAt atomic.Int64
+
+	// recvStalledUncredited is stall time not yet handed to the channels'
+	// assembly deadlines, because on its own it has not reached
+	// recvAssemblyStallGrace. Only touched from recvRoutine.
+	recvStalledUncredited time.Duration
 
 	// pingSentAt and stalledAtPing snapshot the start of the current pong
 	// window. Only touched from sendRoutine.
@@ -761,10 +767,17 @@ FOR_LOOP:
 				c.recvStalledTotal.Add(int64(stalled))
 				c.recvStallSince.Store(0)
 
-				if stalled >= recvAssemblyStallGrace {
+				// Carry stalls too short to be worth the channel walk rather
+				// than dropping them: a reactor that parks recvRoutine for 40ms
+				// per message consumes a 30s deadline in 750 messages, and the
+				// peer mid-assembly on another channel did none of it.
+				c.recvStalledUncredited += stalled
+				if c.recvStalledUncredited >= recvAssemblyStallGrace {
 					for _, channel := range c.channels {
-						channel.extendRecvAssemblyDeadline(stalled)
+						channel.extendRecvAssemblyDeadline(c.recvStalledUncredited)
 					}
+
+					c.recvStalledUncredited = 0
 				}
 			}
 		default:
