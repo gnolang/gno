@@ -715,6 +715,8 @@ const maxBaseDenomLength = 16
 // tm2/pkg/sdk/bank/balance.go.
 const MaxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
 
+const MaxCoinsCount = 256
+
 func ValidateDenom(denom string) error {
 	// Length first: cheaper than the pattern, and it names the real problem
 	// instead of a generic "invalid denom".
@@ -876,15 +878,19 @@ func ParseCoins(coinsStr string) (Coins, error) {
 		return nil, nil
 	}
 
-	coinStrs := strings.Split(coinsStr, ",")
-	coins := make(Coins, len(coinStrs))
-	for i, coinStr := range coinStrs {
+	coinCount := strings.Count(coinsStr, ",") + 1
+	if coinCount > MaxCoinsCount {
+		return nil, fmt.Errorf("coin count exceeds the limit %d", MaxCoinsCount)
+	}
+
+	coins := make(Coins, 0, coinCount)
+	for coinStr := range strings.SplitSeq(coinsStr, ",") {
 		coin, err := ParseCoin(coinStr)
 		if err != nil {
 			return nil, err
 		}
 
-		coins[i] = coin
+		coins = append(coins, coin)
 	}
 
 	// sort coins for determinism

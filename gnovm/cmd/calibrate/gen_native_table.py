@@ -4,8 +4,9 @@ Generate native function gas table for GnoVM stdlibs from Go benchmarks.
 
 Mirrors gen_analysis.py (opcode handler gas) and gen_alloc_table.py
 (allocation gas). Reads `go test -bench=BenchmarkNative` output, fits a
-formula per native (flat, base + slope*N, or base + α·count + β·total_bytes
-for slice-of-string natives), and prints:
+formula per native (flat, base + slope*N, base + α·(Na+Nb) for natives
+taking two unbounded byte slices, or base + α·count + β·total_bytes for
+slice-of-string natives), and prints:
 
   - native_gas_formulas.md  — markdown table of fits
   - native_gas_table.go.txt — Go-pasteable nativeGasTable block
@@ -180,8 +181,6 @@ NATIVE_SPECS = [
      r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "leafHash", 0, "LenBytes",
      r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/merkle", "innerHash", None, "Flat",
-     r"BenchmarkNative_Merkle_InnerHash-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
      # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
      # + 6 payload), plus 4 for the outer count header.
@@ -189,6 +188,22 @@ NATIVE_SPECS = [
     ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
      # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
      r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# Pair specs: natives taking two independent unbounded byte-slice params
+# whose cost tracks the sum of the two lengths (crypto/merkle.innerHash
+# hashes 0x01||left||right). Charging only one of the two would leave the
+# other free, so the emitted row puts a slope on each.
+#
+# The bench sweeps both operands at the same size n, so a 1-D fit over n
+# measures base + rate*(2n) and the fitted slope is 2x the per-operand rate;
+# emit_go_table halves it back out into Slope and Slope2.
+#
+# Format: (pkg, fn, idx_a, idx_b, kind, regex)
+NATIVE_SPECS_PAIR = [
+    ("crypto/merkle", "innerHash", 0, 1, "LenBytes",
+     r"BenchmarkNative_Merkle_InnerHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 
@@ -233,6 +248,19 @@ def parse_bench(path):
                 ns = float(m.group(2))
                 var_data[(pkg, fn)][size].append(ns)
     return var_data, flat_data
+
+
+def parse_bench_pair(path):
+    """Parse pair-spec bench rows: per-operand size → list of ns observations."""
+    text = open(path).read()
+    data = defaultdict(lambda: defaultdict(list))
+    for pkg, fn, _, _, _, regex in NATIVE_SPECS_PAIR:
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            data[(pkg, fn)][int(m.group(1))].append(float(m.group(2)))
+    return data
 
 
 def parse_bench_2d(path):
@@ -339,6 +367,13 @@ def emit_markdown(rows, out):
                 f"{r['base']:.1f} | {r['alpha']:.4f} | {r['beta']:.4f} | "
                 f"{n_desc(r['count_kind'], r['idx'])} + sum_inner_len | {r['r2']:.3f} |\n"
             )
+        elif r["shape"] == "pair":
+            rate = r["slope"] / 2.0
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·(Na+Nb) | {r['base']:.1f} | "
+                f"{rate:.4f} | — | {n_desc(r['kind'], r['idx_a'])} + "
+                f"{n_desc(r['kind'], r['idx_b'])} | {r['r2']:.3f} |\n"
+            )
 
 
 def emit_go_table(rows, out):
@@ -359,6 +394,24 @@ def emit_go_table(rows, out):
                 f'Base: {int(round(r["base"]))}, '
                 f'SlopeIdx: -1, SlopeKind: SizeFlat}},'
                 f' // flat, median {r["base"]:.1f}ns\n'
+            )
+            continue
+        if r["shape"] == "pair":
+            # The bench held both operands at the same size, so the fitted
+            # slope covers both; half of it goes on each param so the total
+            # charge tracks len(a)+len(b).
+            rate_per_1024 = int(round(r["slope"] / 2.0 * 1024))
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'Slope: {rate_per_1024}, '
+                f'SlopeIdx: {r["idx_a"]}, '
+                f'SlopeKind: Size{r["kind"]}, '
+                f'Slope2: {rate_per_1024}, '
+                f'Slope2Idx: {r["idx_b"]}, '
+                f'Slope2Kind: Size{r["kind"]}}},'
+                f' // fit base={r["base"]:.1f}ns slope={r["slope"] / 2.0:.4f}ns/N'
+                f' (={rate_per_1024}/1024) per operand R²={r["r2"]:.3f}\n'
             )
             continue
         if r["shape"] == "2d":
@@ -430,6 +483,8 @@ def _param_label(r):
         return ""
     if r["shape"] == "2d":
         return f"count = len(p{r['idx']}); bytes = sum_inner_len"
+    if r["shape"] == "pair":
+        return f"N = len(p{r['idx_a']}) = len(p{r['idx_b']}) — {r['kind']}"
     kind = r["kind"]
     if kind == "NumCallFrames":
         return "N = m.NumCallFrames()"
@@ -438,7 +493,7 @@ def _param_label(r):
     return f"N = len(p{r['slope_idx']}) — {kind}"
 
 
-def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
+def plot_fits(var_data, flat_data, pair_data, two_d_data, rows, out_path):
     """Render the parameterized fits — linear and 2-D.
 
     Flat natives (single horizontal reference; no parameter on the x-axis)
@@ -512,6 +567,8 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
             # count, holding bytes near zero" slice that motivated the
             # 1-D fit).
             d = var_data.get((r["pkg"], r["fn"]))
+            if d is None and r["shape"] == "pair":
+                d = pair_data.get((r["pkg"], r["fn"]))
             if d is None:
                 grid = two_d_data.get((r["pkg"], r["fn"]), {})
                 if not grid:
@@ -558,6 +615,7 @@ def main():
     args = ap.parse_args()
 
     var_data, flat_data = parse_bench(args.bench_file)
+    pair_data = parse_bench_pair(args.bench_file)
     two_d_data = parse_bench_2d(args.bench_file)
 
     rows = []
@@ -585,6 +643,24 @@ def main():
                 rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
                              "base": base, "slope": slope, "r2": r2,
                              "slope_idx": slope_idx, "kind": kind})
+
+    # Pair fits (two byte-slice params, one shared per-byte rate).
+    for pkg, fn, idx_a, idx_b, kind, _ in NATIVE_SPECS_PAIR:
+        d = pair_data.get((pkg, fn))
+        if not d or len(d) < 2:
+            print(f"WARN: not enough size points for pair {pkg}.{fn}", file=sys.stderr)
+            continue
+        base, slope, r2 = fit_linear(d)
+        if int(round(slope / 2.0 * 1024)) == 0:
+            # A zero rate would re-open the hole a pair spec exists to close,
+            # so refuse to emit rather than silently degrade to flat.
+            print(f"ERROR: pair {pkg}.{fn} fitted a zero per-byte rate "
+                  f"(slope={slope:.6f}, R²={r2:.3f}); it charges two unbounded "
+                  f"byte slices and must not be flat", file=sys.stderr)
+            sys.exit(1)
+        rows.append({"pkg": pkg, "fn": fn, "shape": "pair",
+                     "base": base, "slope": slope, "r2": r2,
+                     "idx_a": idx_a, "idx_b": idx_b, "kind": kind})
 
     # 2-D fits.
     for pkg, fn, idx, count_kind, _, post in NATIVE_SPECS_2D:
@@ -650,7 +726,7 @@ def main():
     print()
     emit_go_table(rows, sys.stdout)
     if not args.no_plot:
-        plot_fits(var_data, flat_data, two_d_data, rows, args.plot)
+        plot_fits(var_data, flat_data, pair_data, two_d_data, rows, args.plot)
 
 
 if __name__ == "__main__":
