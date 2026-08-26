@@ -104,7 +104,59 @@ import (
 // Behavior is unchanged for all typed values; only the constant-folding
 // arithmetic is corrected (fixes #5862). Re-derived after merging master, so
 // it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
-const expectedCrossrealm38Hash = "78afdd8db6d24f664f096ed2596febfe79accbf07c8ca5463a5427140e89b11d"
+//
+// Bumped again by a doc-comment-only edit to chain/banker's package comment
+// (the NewBanker capability-persistence warning). Stdlib .gno sources are
+// stored in chain state, so their bytes — comments included — are covered by
+// the multistore root: editing a comment in a stdlib package is a
+// consensus-breaking change, even though no behavior changes. Confirmed by
+// reverting that comment alone, which restores the previous hash. No
+// executable code was touched.
+// Hash bumped by adding banker.GetCoin: the chain/banker stdlib gained an
+// interface method, a native declaration and a method body, and stdlib .gno
+// source bytes are committed into genesis state, so the multistore root moves.
+// The crossrealm38 scenario itself does not call GetCoin; the shift is purely the
+// stdlib source change and is intended. Note this is the *only* reason this
+// branch moves the pin — the balance split alone does not, because that scenario
+// holds no non-gas denom.
+//
+// Bumped again by the OriginSend banker lifetime fix. banker.gno gains the
+// realm-handle field that pins such a banker to its message, plus the
+// accompanying doc. Same reason as the comment-only bump noted above:
+// stdlib .gno source bytes are genesis state, so any edit to them moves the
+// root. This one does change behavior, and is intentionally
+// consensus-breaking.
+//
+// Hash bumped by the phase-2 inert-packages PR (#5888): new vm params
+// (code_submission_policy, code_submitters, pkg_approvers) plus inert-storage
+// keying serialize additional defaults into the genesis vm params state,
+// shifting the committed multistore root. Behavior is unchanged (policy
+// defaults to permissionless). Re-derived after merging master.
+//
+// Re-derived once more for the merge of master into #5888: both sides moved
+// the root, so neither side's value survives the combination.
+//
+// Bumped by the run_submitters vm param (MsgRun allowlist). A new Params field
+// moves this root even though its default is an empty list: params.SetStruct
+// goes through encodeStructFields (tm2/pkg/sdk/params/amino_helper.go), which
+// writes one store key per field unconditionally and does not skip zero values.
+// So the genesis vm params state gains a `vm:p:run_submitters` key holding
+// `null`. Behavior at this hash is unchanged — the scenario sends no MsgRun.
+//
+// Bumped again by lowering the DefaultDeposit param from 600000000ugnot to
+// 100000000ugnot. Unlike the bumps above this is a value change, not a new
+// key: `vm:p:default_deposit` is genesis state, so its contents are in the
+// root. It does change behavior at the margin — the param is the fallback
+// CEILING on a storage deposit when a message declares no MaxDeposit, so a
+// single message may now add at most 1 MB of realm state rather than 6 MB
+// before it is refused. Measured against all 321 genesis packages the largest
+// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// new ceiling clears the worst real case by 3.6x.
+// Bumped again by the two inert-charge vm params, for the same reason as
+// run_submitters above: two more keys, written unconditionally. Behavior at
+// this hash is unchanged — inert_submission_charge defaults to empty, which
+// means off, and the scenario submits nothing under the "inert" policy anyway.
+const expectedCrossrealm38Hash = "3de2574b220ca19d04a19a6287d9ad82fdd2edf3770b7dc107da19b3be1775a2"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

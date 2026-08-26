@@ -17,6 +17,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
+	MsgEnablePackage{}, "m_enable_pkg",
+	MsgDisablePackage{}, "m_disable_pkg",
+	MsgRejectPackage{}, "m_reject_pkg",
 
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",
@@ -29,6 +32,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	InvalidPackageError{}, "InvalidPackageError",
 	InvalidFileError{}, "InvalidFileError",
 	ObjectNotFoundError{}, "ObjectNotFoundError",
+	UnobservedSendError{}, "UnobservedSendError",
+	UnspendableSendError{}, "UnspendableSendError",
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
 ))

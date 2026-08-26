@@ -1013,3 +1013,134 @@ func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
 	// inert — the invalid signature is verified and rejected.
 	checkInvalidTx(t, verifyHandler, ctx, tx, false, std.UnauthorizedError{})
 }
+
+// splitTierBank reports a balance the account object does not carry, which is what
+// a fee denom looks like once non-gas balances live in their own store keys.
+//
+// This package's DummyBankKeeper keeps every balance in the account object, so
+// with it DeductFees reading through the bank cannot be told apart from reading
+// acc.GetCoins() directly: reverting the fee check to the account object passes
+// this whole package and fails only in gno.land, where fixtures happen to pay
+// fees in atom. That is what this stub exists to close.
+type splitTierBank struct {
+	BankKeeperI
+	denom  string
+	amount int64
+	sent   std.Coins
+}
+
+func (b *splitTierBank) GetCoin(_ sdk.Context, _ crypto.Address, denom string) int64 {
+	if denom == b.denom {
+		return b.amount
+	}
+	return 0
+}
+
+func (b *splitTierBank) SendCoinsUnrestricted(_ sdk.Context, _, _ crypto.Address, amt std.Coins) error {
+	b.sent = amt
+	return nil
+}
+
+// TestDeductFeesReadsTheBankNotTheAccountObject pins the reason BankKeeperI needs
+// GetCoin at all: the fee denom is whatever the transaction names, and a balance
+// for it need not be in the account object.
+func TestDeductFeesReadsTheBankNotTheAccountObject(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("fee-payer"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	collector := crypto.AddressFromPreimage([]byte("fee-collector"))
+	fees := std.Coins{{Denom: "atom", Amount: 150}}
+
+	require.Zero(t, acc.GetCoins().AmountOf("atom"),
+		"precondition: the account object must carry none of the fee denom")
+
+	funded := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 150}
+	res := DeductFees(funded, ctx, acc, collector, fees)
+	require.False(t, res.IsErr(), "a fee covered by a split-tier balance must be accepted: %s", res.Log)
+	require.Equal(t, fees, funded.sent)
+
+	// One short, so this cannot pass against a DeductFees that checks nothing.
+	short := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 149}
+	res = DeductFees(short, ctx, acc, collector, fees)
+	require.True(t, res.IsErr())
+	require.Contains(t, res.Log, "insufficient funds to pay for fees; 149atom < 150atom")
+	require.Empty(t, short.sent, "a refused fee must not be sent")
+}
+
+// Simulate normally skips signature verification so gas can be estimated
+// without a key. RequireSigForSimulate opts a message type out of that, for
+// messages whose authorization is derived from the signer: `.app/simulate` is
+// a public query that executes the messages, so the skip would otherwise let
+// an unauthenticated caller name somebody else's address.
+func TestAnteHandlerRequireSigForSimulate(t *testing.T) {
+	t.Parallel()
+
+	// A tx signed over the wrong account number: the signature is present and
+	// correctly counted (tx.ValidateBasic passes) but does not verify.
+	badlySignedTx := func(ctx sdk.Context, priv crypto.PrivKey, addr crypto.Address) std.Tx {
+		return tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+			[]crypto.PrivKey{priv}, []uint64{1}, []uint64{0}, tu.NewTestFee())
+	}
+
+	tests := []struct {
+		name     string
+		requires func(std.Tx) bool
+		wantPass bool
+	}{
+		{"nil predicate keeps the skip", nil, true},
+		{"predicate declines: skip retained", func(std.Tx) bool { return false }, true},
+		{"predicate selects: verification enforced", func(std.Tx) bool { return true }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			env := setupTestEnv()
+			opts := defaultAnteOptions()
+			opts.RequireSigForSimulate = tt.requires
+			anteHandler := NewAnteHandler(env.acck, env.bankk,
+				DefaultSigVerificationGasConsumer, opts)
+			ctx := env.ctx
+
+			priv, _, addr := tu.KeyTestPubAddr()
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc.SetCoins(tu.NewTestCoins())
+			require.NoError(t, acc.SetAccountNumber(0))
+			env.acck.SetAccount(ctx, acc)
+
+			tx := badlySignedTx(ctx, priv, addr)
+			if tt.wantPass {
+				checkValidTx(t, anteHandler, ctx, tx, true)
+			} else {
+				checkInvalidTx(t, anteHandler, ctx, tx, true, std.UnauthorizedError{})
+			}
+		})
+	}
+}
+
+// A correctly signed tx must still simulate cleanly when the predicate selects
+// it -- the point is to verify the signature, not to refuse simulation.
+func TestAnteHandlerRequireSigForSimulateAcceptsValidSig(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	opts := defaultAnteOptions()
+	opts.RequireSigForSimulate = func(std.Tx) bool { return true }
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, opts)
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx, tx, true)
+}

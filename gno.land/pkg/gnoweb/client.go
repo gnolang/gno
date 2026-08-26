@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -104,6 +105,12 @@ type ClientAdapter interface {
 	// StateType retrieves a type definition by TypeID at the given
 	// block height (0 for latest).
 	StateType(ctx context.Context, typeId string, height int64) ([]byte, error)
+
+	// PackageMeta reports whether a path holds a live package, one parked
+	// awaiting an approver, or nothing. An absent path is a nil error with
+	// status "absent", not ErrClientPackageNotFound: the caller needs to tell
+	// "nothing here" from "the node did not answer".
+	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
 }
 
 type rpcClient struct {
@@ -241,6 +248,25 @@ func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]
 	path = strings.Trim(path, "/")
 	data := fmt.Sprintf("%s/%s", c.domain, path)
 	return c.query(ctx, qpath, []byte(data), height)
+}
+
+// PackageMeta queries vm/qpkgmeta_json. Always at the latest height: the
+// question is whether the package is live *now*, and a historical answer would
+// say nothing about whether it still needs approving.
+func (c *rpcClient) PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error) {
+	const qpath = "vm/qpkgmeta_json"
+
+	path = strings.Trim(path, "/")
+	data := fmt.Sprintf("%s/%s", c.domain, path)
+	raw, err := c.query(ctx, qpath, []byte(data), 0)
+	if err != nil {
+		return nil, err
+	}
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return nil, fmt.Errorf("unable to decode package meta: %w", err)
+	}
+	return &meta, nil
 }
 
 // StateObject retrieves an object by ObjectID via vm/qobject_json
