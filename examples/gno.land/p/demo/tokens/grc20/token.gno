@@ -55,6 +55,11 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
+	// origRealm drops any realm.Sub subpath: a token created while its realm
+	// operates under a sub identity still belongs to the host realm. guardHome
+	// resolves the invoking host the same way, so storing the raw path here
+	// would pin the token to that sub and lock its own realm out for good.
+	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
 		id:        pkgPath + "." + symbol + "." + id.String(),
@@ -62,7 +67,7 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 		symbol:    symbol,
 		decimals:  decimals,
 		ledger:    ledger,
-		origRealm: pkgPath,
+		origRealm: origRealm,
 	}
 	ledger.token = token
 

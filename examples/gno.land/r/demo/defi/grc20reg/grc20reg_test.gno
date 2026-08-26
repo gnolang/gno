@@ -51,86 +51,84 @@ func TestRegistry(cur realm, t *testing.T) {
 	})
 }
 
-func TestRegistryWrappers(cur realm, t *testing.T) {
+// TestRegistryLookupGrantsNoSpendAuthority pins the property that replaced the
+// former Transfer/Approve/TransferFrom wrappers: a registry lookup yields a
+// *Token, and a *Token alone carries no authority to debit anybody. The
+// frame-relative teller is reachable only from the ledger, which never leaves
+// the token's own realm, so this realm cannot act on behalf of its caller —
+// that shape was the confused deputy.
+//
+// The supported route for a realm that must move a user's funds is the one
+// exercised below: the user grants an allowance, and the realm spends it as
+// itself through a RealmTeller, which is eagerly bound to its own address.
+func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
 	const (
-		tokenPath   = "gno.land/r/demo/token"
-		realmCaller = "gno.land/r/demo/vault"
+		tokenPath    = "gno.land/r/demo/token"
+		consumerPath = "gno.land/r/demo/grc20reg_consumer"
 	)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	carol := testutils.TestAddress("carol")
-	realmAddr := chain.PackageAddress(realmCaller)
+	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
 	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
-	urequire.NoError(t, ledger.Mint(realmAddr, 200))
 	tokenKey := Register(cross(cur), token, "")
 	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
-	uassert.Equal(t, "TST", MustGet(tokenKey).GetSymbol())
-	uassert.Equal(t, 4, MustGet(tokenKey).GetDecimals())
-	uassert.Equal(t, int64(1_200), MustGet(tokenKey).TotalSupply())
 	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, int64(0), MustGet(tokenKey).Allowance(alice, carol))
+	uassert.Equal(t, int64(0), MustGet(tokenKey).Allowance(alice, consumer))
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-	Transfer(cross(cur), tokenKey, bob, 100)
-	Approve(cross(cur), tokenKey, carol, 300)
+	// alice approves the consumer realm on the token. On chain she does this
+	// through the token realm's own entry point; the ledger stands in for it.
+	urequire.NoError(t, ledger.ImpersonateTeller(alice).Approve(0, cur, consumer, 300))
+	uassert.Equal(t, int64(300), MustGet(tokenKey).Allowance(alice, consumer))
 
-	testing.SetRealm(testing.NewUserRealm(carol))
-	TransferFrom(cross(cur), tokenKey, alice, bob, 200)
-	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, int64(300), MustGet(tokenKey).BalanceOf(bob))
-	uassert.Equal(t, int64(100), MustGet(tokenKey).Allowance(alice, carol))
+	// The consumer spends that allowance as ITSELF, over a token it found in
+	// the registry and does not own. The actor is fixed at construction, so it
+	// cannot be redirected by whoever calls in.
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	spender := MustGet(tokenKey).RealmTeller(0, cur)
+	urequire.NoError(t, spender.TransferFrom(0, cur, alice, bob, 200))
+	uassert.Equal(t, int64(800), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(200), MustGet(tokenKey).BalanceOf(bob))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).Allowance(alice, consumer))
 
-	testing.SetOriginCaller(alice)
-	testing.SetRealm(testing.NewCodeRealm(realmCaller))
-	Transfer(cross(cur), tokenKey, bob, 50)
-	uassert.Equal(t, int64(150), MustGet(tokenKey).BalanceOf(realmAddr))
-	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
-
-	testing.SetRealm(testing.NewUserRealm(alice))
-	uassert.AbortsWithMessage(t, cur, "insufficient balance", func() {
-		Transfer(cross(cur), tokenKey, bob, 701)
-	})
-	uassert.Equal(t, int64(700), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, int64(350), MustGet(tokenKey).BalanceOf(bob))
+	// Beyond the allowance it stops: the balance is not reachable directly.
+	uassert.ErrorContains(t,
+		spender.TransferFrom(0, cur, alice, bob, 101),
+		"insufficient allowance")
+	uassert.Equal(t, int64(800), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(200), MustGet(tokenKey).BalanceOf(bob))
 }
 
-func viaWrapper(cur realm, tokenKey string, to address, amount int64) {
-	Transfer(cross(cur), tokenKey, to, amount)
-}
-
-func viaCallerTeller(cur realm, token *grc20.Token, to address, amount int64) error {
-	return token.CallerTeller().Transfer(0, cur, to, amount)
-}
-
-func TestRegistryWrapperCallerSemantics(cur realm, t *testing.T) {
-	const tokenPath = "gno.land/r/demo/token_caller_semantics"
+// TestRegistryConsumerCannotRedirectItsActor is the negative half of the
+// property above: a realm holding a registered token pays out of its own
+// balance, not the signing user's. The actor is bound at construction, so the
+// transaction's origin caller has no bearing on who is debited — which is what
+// made the frame-relative teller in a foreign realm a phishing primitive.
+func TestRegistryConsumerCannotRedirectItsActor(cur realm, t *testing.T) {
+	const (
+		tokenPath    = "gno.land/r/demo/token_actor_binding"
+		consumerPath = "gno.land/r/demo/grc20reg_actor_consumer"
+	)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	intermediary := cur.Address()
+	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("CallerSemantics", "CALL", 4, 0, cur)
+	token, ledger := grc20.NewToken("ActorBinding", "ACTB", 4, 0, cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
-	urequire.NoError(t, ledger.Mint(intermediary, 1_000))
+	urequire.NoError(t, ledger.Mint(consumer, 500))
 	tokenKey := Register(cross(cur), token, "")
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	// ViaWrapper adds another registry frame, so CallerTeller sees the
-	// intermediary realm rather than alice.
-	viaWrapper(cross(cur), tokenKey, bob, 100)
-	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
-	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
-
-	// ViaCallerTeller has no extra frame, so CallerTeller sees alice.
-	urequire.NoError(t, viaCallerTeller(cross(cur), token, bob, 100))
-	uassert.Equal(t, int64(900), token.BalanceOf(alice))
-	uassert.Equal(t, int64(900), token.BalanceOf(intermediary))
-	uassert.Equal(t, int64(200), token.BalanceOf(bob))
+	// alice signs the transaction, and holds a balance the consumer would love
+	// to spend. The consumer pays out of its own instead.
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	urequire.NoError(t, MustGet(tokenKey).RealmTeller(0, cur).Transfer(0, cur, bob, 100))
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(400), MustGet(tokenKey).BalanceOf(consumer))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).BalanceOf(bob))
 }
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
@@ -223,4 +221,96 @@ func TestRegisterRejectsNilToken(cur realm, t *testing.T) {
 	urequire.AbortsContains(t, cur, "nil token", func() {
 		Register(cross(cur), nil, "")
 	})
+}
+
+// TestWrappersBindActorToCallingRealm pins the property that makes the write
+// wrappers safe: they are non-crossing, so `rlm` reaches RealmTeller as the
+// caller's own live token and the debit lands on the caller. A crossing wrapper
+// would mint a fresh `cur` for grc20reg and spend the registry's balance
+// instead, which is why the convention is not a stylistic choice.
+//
+// Both the consumer and the registry hold a balance, so whichever one is
+// debited is observable rather than inferred.
+func TestWrappersBindActorToCallingRealm(cur realm, t *testing.T) {
+	const (
+		tokenPath    = "gno.land/r/demo/token_wrapper_actor"
+		consumerPath = "gno.land/r/demo/grc20reg_wrapper_consumer"
+	)
+	bob := testutils.TestAddress("bob")
+	consumer := chain.PackageAddress(consumerPath)
+	registry := chain.PackageAddress("gno.land/r/demo/defi/grc20reg")
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("WrapperActor", "WRPA", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(consumer, 1_000))
+	urequire.NoError(t, ledger.Mint(registry, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	Transfer(0, cur, tokenKey, bob, 100)
+
+	uassert.Equal(t, int64(900), MustGet(tokenKey).BalanceOf(consumer))
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(registry))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).BalanceOf(bob))
+}
+
+// TestWrapperActorIgnoresSigningUser is the negative half: the signing user has
+// a balance the calling realm would like to spend, and does not lose it. The
+// actor comes from rlm.Address(), so the transaction's origin has no say in who
+// pays — a hub cannot be induced to debit its caller's caller.
+func TestWrapperActorIgnoresSigningUser(cur realm, t *testing.T) {
+	const (
+		tokenPath    = "gno.land/r/demo/token_wrapper_origin"
+		consumerPath = "gno.land/r/demo/grc20reg_wrapper_origin_consumer"
+	)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	consumer := chain.PackageAddress(consumerPath)
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("WrapperOrigin", "WRPO", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	urequire.NoError(t, ledger.Mint(consumer, 500))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	Transfer(0, cur, tokenKey, bob, 100)
+
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(400), MustGet(tokenKey).BalanceOf(consumer))
+}
+
+// TestTransferFromSpendsAllowanceGrantedToCallingRealm records the semantic
+// shift that comes with binding the actor to the caller: the owner must have
+// approved the CALLING REALM, not the signing user. An allowance granted to
+// anyone else does not authorize the wrapper.
+func TestTransferFromSpendsAllowanceGrantedToCallingRealm(cur realm, t *testing.T) {
+	const (
+		tokenPath    = "gno.land/r/demo/token_wrapper_allowance"
+		consumerPath = "gno.land/r/demo/grc20reg_wrapper_allowance_consumer"
+	)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	consumer := chain.PackageAddress(consumerPath)
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("WrapperAllowance", "WRPL", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	// No allowance yet: the wrapper cannot touch alice's balance.
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	uassert.PanicsContains(t, cur, "insufficient allowance", func() {
+		TransferFrom(0, cur, tokenKey, alice, bob, 100)
+	})
+	uassert.Equal(t, int64(1_000), MustGet(tokenKey).BalanceOf(alice))
+
+	// alice approves the consuming realm itself, and only then does it work.
+	urequire.NoError(t, ledger.Approve(alice, consumer, 100))
+
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	TransferFrom(0, cur, tokenKey, alice, bob, 100)
+	uassert.Equal(t, int64(900), MustGet(tokenKey).BalanceOf(alice))
+	uassert.Equal(t, int64(100), MustGet(tokenKey).BalanceOf(bob))
 }

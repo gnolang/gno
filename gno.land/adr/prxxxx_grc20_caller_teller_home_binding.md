@@ -21,7 +21,8 @@ There are two distinct ways a foreign realm can end up holding one:
    (`wugnot.Token`, `foo20.Token`, `grc20factory.Bank`, `grc20reg.Get`), so any
    realm can call the accessor on it.
 2. **Travel.** A realm that legitimately owns a token can build a teller and
-   then export the resulting *value*, as `bar20` does with `UserTeller`.
+   then export the resulting *value*, as `bar20` used to do with `UserTeller`
+   (now unexported, behind narrow wrappers).
 
 Any fix that addresses only one of these leaves the other open. That is not
 hypothetical: it is what the two earlier attempts each got wrong, in opposite
@@ -79,10 +80,30 @@ asking *who* is being debited; it is closed only by ensuring the frame-relative
 teller never runs outside the realm that owns the ledger.
 
 **Cost: the generic-hub pattern is withdrawn.** A non-owner realm can no longer
-charge its caller through an arbitrary token. This is the real price, and it is
-not small: the largest downstream consumer routes every token movement through
-one `GetToken(path).CallerTeller()` helper (263 call sites at evaluation time,
-including its own token). Those must migrate.
+charge its caller through an arbitrary token. This is the real price, but it is
+smaller than the figure this decision was weighed against. A "263 call sites"
+estimate was inherited from an earlier assessment and repeated here and in the
+sibling proposals without verification. Measured file by file against the
+largest downstream consumer:
+
+| | count | nature |
+|---|---|---|
+| `.CallerTeller()` call sites | 17 | 16 on realms that own their token — the call moves to the ledger and keeps working; 1 on a generic `common` helper |
+| `common.*` token movement, product code | **31**, in 18 files | the real migration: per-module `RealmTeller` for module-owned funds, `Approve` + `RealmTeller().TransferFrom` for user funds |
+| same, `contract/r/scenario/**` filetests | 139 | test surface despite not matching `*_test.gno` |
+| same, `_test.gno` | 75 | test surface |
+
+The hub cannot be patched in place: substituting `RealmTeller(0, cur)` inside
+the helper freezes the actor to the helper realm's own address, so it would move
+its own funds. There is no safe generic pass-through, because "act as my caller"
+is precisely the vulnerability.
+
+**In-tree, the same shape had to be removed rather than migrated.**
+`grc20reg` had grown `Transfer`/`Approve`/`TransferFrom` wrappers over
+`MustGet(key).CallerTeller()`. A registry holds only `*Token` pointers, so it
+cannot reach the ledger, and `RealmTeller` would debit the registry itself —
+the wrappers are unimplementable by construction, and were deleted. Callers use
+the token realm's own entry points instead.
 
 **The capability is not lost, only renamed.** The supported route is `Approve`
 + `RealmTeller().TransferFrom` — eagerly bound to the spending realm's own
@@ -126,6 +147,21 @@ token's own realm still moves its users' funds, and that a foreign realm can
 still spend an allowance granted to it via `RealmTeller`. Each attacker
 surfaces the error, so the assertions are on the specific refusal rather than
 on balances happening not to move.
+
+`filetests/caller_teller_sub_realm_filetest.gno` covers both directions of the
+`realm.Sub` case, which a raw path comparison gets wrong: a teller invoked from
+the token realm's own sub identity, and a token *created* from a sub frame then
+used from its host. Both sides resolve the host with `chain.SplitPkgSubPath` —
+`guardHome` on the invoking path, `NewToken` on the stored `origRealm` — since
+stripping on only one side strands the token in whichever identity it was born
+under.
+
+**Negative controls.** Each guard was disabled in turn and the corresponding
+test confirmed to go red: `guardHome` returning early makes
+`grc20_callerteller_home.txtar` fail at its first exported-teller drain
+(line 45, the refusal no longer raised); dropping the strip on either the
+invoking path or the stored `origRealm` fails the sub-realm filetest, on the
+sub-invocation and sub-creation case respectively.
 
 `gno test` + `gno lint` green on `grc20`, `wugnot`, `foo20`, `grc20factory`,
 `grc20reg`, `bar20`, `eventix`; full `TestTestdata` green.
