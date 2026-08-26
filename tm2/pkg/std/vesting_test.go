@@ -319,3 +319,18 @@ func TestVestingSchedule_String(t *testing.T) {
 	assert.Contains(t, linear().String(), "continuous")
 	assert.Contains(t, cliff().String(), "delayed")
 }
+
+// A schedule has to be visible in the account's own String output, which is what
+// logs and CLI output use. An account without one must print exactly as it did
+// before the field existed.
+func TestBaseAccount_StringShowsAScheduleOnlyWhenThereIsOne(t *testing.T) {
+	t.Parallel()
+
+	acc := NewBaseAccount(crypto.AddressFromPreimage([]byte("vester")), ugnot(1000), nil, 7, 3)
+	assert.NotContains(t, acc.String(), "Vesting",
+		"an account with no schedule must not gain a line")
+
+	acc.SetVesting(linear())
+	assert.Contains(t, acc.String(), "Vesting")
+	assert.Contains(t, acc.String(), "1000ugnot", "the amount must be shown")
+}

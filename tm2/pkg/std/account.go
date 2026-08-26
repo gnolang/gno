@@ -100,7 +100,7 @@ func (acc BaseAccount) String() string {
 		pubkey = crypto.PubKeyToBech32(acc.PubKey)
 	}
 
-	return fmt.Sprintf(`Account:
+	s := fmt.Sprintf(`Account:
   Address:       %s
   Pubkey:        %s
   Coins:         %s
@@ -108,6 +108,12 @@ func (acc BaseAccount) String() string {
   Sequence:      %d`,
 		acc.Address, pubkey, acc.Coins, acc.AccountNumber, acc.Sequence,
 	)
+	// Only when there is one, so an account without a schedule prints exactly as
+	// it always has. Otherwise every account would gain a line saying "none".
+	if !acc.Vesting.IsZero() {
+		s += fmt.Sprintf("\n  Vesting:       %s", acc.Vesting)
+	}
+	return s
 }
 
 // GetVesting - Implements Account.

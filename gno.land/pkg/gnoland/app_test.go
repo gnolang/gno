@@ -4253,3 +4253,49 @@ func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
 		}
 	})
 }
+
+// A vesting account must also be whitelistable against the token lock. The two
+// are meant to be combined -- see docs/CONSTITUTION.md, "Whitelisted funds
+// remain subject to the vesting schedule" -- and the combination used to abort
+// genesis, because applyBalance built a bare std.BaseAccount subtype while
+// applyUnrestrictedAddrs asserts every genesis account to *GnoAccount.
+func TestInitChainer_VestingAccountCanBeWhitelisted(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("vested-investor"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount, Vesting: &std.VestingSchedule{
+		OriginalVesting: amount, StartTime: 100, EndTime: 200,
+	}})
+
+	// The panic this guards against happened here.
+	require.NotPanics(t, func() {
+		cfg.applyUnrestrictedAddrs(ctx, []crypto.Address{addr})
+	}, "a vesting account must be whitelistable")
+
+	acc := acck.GetAccount(ctx, addr)
+	unrestricter, ok := acc.(std.AccountUnrestricter)
+	require.True(t, ok, "a vesting account must carry the token-lock attributes")
+	assert.True(t, unrestricter.IsTokenLockWhitelisted(), "the whitelist bit must have been set")
+
+	// Both rules still apply: whitelisted against the token lock, and still
+	// locked by the schedule. Whitelisting must not have cleared it.
+	assert.False(t, acc.GetVesting().IsZero(), "whitelisting must not clear the schedule")
+	locked := acc.LockedCoins(time.Unix(150, 0))
+	assert.Equal(t, int64(500), locked.AmountOf(ugnot.Denom),
+		"halfway through, half must still be locked")
+}
