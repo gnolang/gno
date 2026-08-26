@@ -32,7 +32,7 @@ const ReadmeFileName = "README.md"
 
 // defaultRequestTimeout bounds every GET when no explicit Timeout is
 // configured, so r.Context() always carries a deadline (the page path
-// can fan out to many RPC calls — an unbounded request is a DoS vector).
+// can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.
@@ -238,7 +238,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 
 		// A `$state&json` request must get a JSON envelope even when the
 		// URL fails to parse — honor the JSON-in/JSON-out contract instead
@@ -316,8 +316,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
-// short fields (path, height, file); 64 KiB leaves plenty of headroom
-// while preventing a 32 MiB Go default from being weaponised.
+// short fields (path, height, file); 64 KiB leaves plenty of headroom.
 const maxPostFormBytes = 64 * 1024
 
 // Post processes a POST HTTP request.
@@ -339,7 +338,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		http.Error(w, "invalid path", http.StatusNotFound)
 		return
 	}
@@ -385,7 +384,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 	gnourl.Origin = requestOrigin(r)

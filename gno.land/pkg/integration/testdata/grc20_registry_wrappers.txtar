@@ -1,0 +1,154 @@
+# The registry write wrappers bind the actor to the CALLING REALM.
+#
+# The wrappers are non-crossing (`_ int, rlm realm`), so the caller forwards its
+# own live `cur` and RealmTeller binds the actor to the caller's address. The
+# two failure modes this pins:
+#
+#   (a) the registry paying instead of its caller — what a crossing wrapper
+#       would do, since it mints a fresh `cur` for the registry itself
+#   (b) the actor being redirected by the signing user, i.e. a hub debiting
+#       whoever it can be induced to serve
+#
+# `consumer` is funded and so is the registry, so whichever one is debited is
+# visible in the balances rather than inferred.
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/test/wtoken $WORK/wtoken
+loadpkg gno.land/r/test/consumer $WORK/consumer
+
+gnoland start
+
+# Fund the consumer realm and the registry with equal balances.
+gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintTo -args 'gno.land/r/test/consumer' -args '1000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintTo -args 'gno.land/r/demo/defi/grc20reg' -args '1000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+## Fund the signing user too, so a redirected actor would be visible as a
+## drop in the user's balance rather than only inferred.
+gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintToAddr -args $test1_user_addr -args '5000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func Balances -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'consumer=1000 registry=1000'
+
+## The consumer spends through the registry wrapper. The consumer is debited;
+## the registry's balance is untouched.
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func SpendViaRegistry -args '100' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func Balances -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'consumer=900 registry=1000'
+
+## The signing user cannot redirect the actor. test1 signs, but the debit still
+## lands on the consumer realm — the origin caller has no bearing on who pays.
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func UserBalance -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'user=5000'
+
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func SpendViaRegistry -args '50' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func Balances -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'consumer=850 registry=1000'
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func UserBalance -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'user=5000'
+
+## A stale realm token is refused. The consumer re-enters itself so an outer
+## `cur` is no longer the live crossing frame, then forwards it to the wrapper.
+! gnokey maketx call -pkgpath gno.land/r/test/consumer -func SpendWithStaleRealm -args '10' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stderr 'rlm does not match the current crossing frame'
+
+gnokey maketx call -pkgpath gno.land/r/test/consumer -func Balances -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'consumer=850 registry=1000'
+
+-- wtoken/gnomod.toml --
+module = "gno.land/r/test/wtoken"
+gno = "0.9"
+-- wtoken/wtoken.gno --
+package wtoken
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	Token  *grc20.Token
+	ledger *grc20.PrivateLedger
+	Key    string
+)
+
+func init(cur realm) {
+	Token, ledger = grc20.NewToken("WToken", "WTK", 4, 0, cur)
+	Key = grc20reg.Register(cross(cur), Token, "")
+}
+
+// MintTo credits a realm's own address, so the test can fund both the
+// consumer and the registry.
+func MintTo(cur realm, pkgPath string, amount int64) {
+	ledger.Mint(chain.PackageAddress(pkgPath), amount)
+}
+
+func MintToAddr(cur realm, addr address, amount int64) {
+	ledger.Mint(addr, amount)
+}
+
+func BalanceOf(addr address) int64 { return Token.BalanceOf(addr) }
+
+-- consumer/gnomod.toml --
+module = "gno.land/r/test/consumer"
+gno = "0.9"
+-- consumer/consumer.gno --
+package consumer
+
+import (
+	"chain"
+
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/test/wtoken"
+)
+
+const sink = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+
+// SpendViaRegistry moves the consumer's OWN tokens through the registry
+// wrapper, without importing the token realm for the write. The wrapper is
+// non-crossing, so `cur` is forwarded rather than re-minted and the actor
+// resolves to this realm.
+func SpendViaRegistry(cur realm, amount int64) {
+	grc20reg.Transfer(0, cur, wtoken.Key, sink, amount)
+}
+
+// SpendWithStaleRealm re-enters this realm so that `outer` is no longer the
+// live crossing frame, then forwards the stale token. RealmTeller's IsCurrent
+// assertion must refuse it.
+func SpendWithStaleRealm(cur realm, amount int64) {
+	hop(cross(cur), cur, amount)
+}
+
+func hop(cur realm, outer realm, amount int64) {
+	again(cross(cur), outer, amount)
+}
+
+func again(cur realm, outer realm, amount int64) {
+	grc20reg.Transfer(0, outer, wtoken.Key, sink, amount)
+}
+
+func Balances(cur realm) string {
+	consumer := chain.PackageAddress("gno.land/r/test/consumer")
+	registry := chain.PackageAddress("gno.land/r/demo/defi/grc20reg")
+	return ufmt.Sprintf("consumer=%d registry=%d",
+		wtoken.BalanceOf(consumer), wtoken.BalanceOf(registry))
+}
+
+// UserBalance reads the signing user's balance. Under MsgCall the user is this
+// frame's previous realm, so no unsafe origin lookup is needed.
+func UserBalance(cur realm) string {
+	if !cur.IsCurrent() {
+		panic("spoofed realm")
+	}
+	return ufmt.Sprintf("user=%d", wtoken.BalanceOf(cur.Previous().Address()))
+}
