@@ -1,0 +1,58 @@
+# Regression test for the deep-recursion blowup on the value-returning query
+# endpoints, the depth counterpart to
+# query_export_size_guard.txtar. A thin, deeply nested ephemeral value (a linked
+# list) stays cheap per node, so it slips under the export byte budget — but
+# exporting and amino-marshaling it recurses on the goroutine stack (a fatal,
+# unrecoverable overflow) and the marshal is superlinear in depth. A single free
+# query of this shape must be rejected by the export depth guard, and the node
+# must stay alive to serve the next query.
+
+loadpkg gno.land/r/test/deep $WORK/realm
+
+gnoland start
+
+# Small value: serviced normally.
+gnokey query vm/qeval_json --data "gno.land/r/test/deep.Small()"
+stdout 'results'
+stdout 'Link'
+
+# Deep value: within the eval alloc/gas ceiling and under the 10MB export byte
+# budget (a thin linked list is cheap per node), but nested far past the export
+# depth cap. The walk aborts with a clean error BEFORE recursing to overflow or
+# handing amino a tree it would marshal for minutes.
+! gnokey query vm/qeval_json --data "gno.land/r/test/deep.Deep(5000)"
+stderr 'export depth limit exceeded'
+
+# vm/qeval is bounded too: it renders with TypedValue.String(), which truncates,
+# but it runs the same export walk first as a size oracle — so the walk's own
+# recursion is the unbounded cost on this endpoint as well.
+! gnokey query vm/qeval --data "gno.land/r/test/deep.Deep(5000)"
+stderr 'export depth limit exceeded'
+
+# The node survived the rejected queries and still answers.
+gnokey query vm/qeval_json --data "gno.land/r/test/deep.Small()"
+stdout 'results'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/test/deep"
+gno = "0.9"
+
+-- realm/realm.gno --
+package deep
+
+type Link struct {
+	Next *Link
+}
+
+func Small() *Link { return &Link{Next: &Link{}} }
+
+// Deep builds an n-deep ephemeral linked list: thin (one pointer per node), so
+// it stays under the export byte budget even at thousands of levels, but
+// exporting + marshaling it recurses n deep.
+func Deep(n int) *Link {
+	var head *Link
+	for i := 0; i < n; i++ {
+		head = &Link{Next: head}
+	}
+	return head
+}
