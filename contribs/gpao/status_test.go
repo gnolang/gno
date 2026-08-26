@@ -47,7 +47,7 @@ func TestStatusBoardIsSafeAcrossGoroutines(t *testing.T) {
 	b := newStatusBoard()
 	var wg sync.WaitGroup
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(2)
 		go func(i int) { defer wg.Done(); b.record("gno.land/r/x/y", statusPending, "retrying", i) }(i)
 		go func() { defer wg.Done(); _ = b.list(); _ = b.get("gno.land/r/x/y") }()

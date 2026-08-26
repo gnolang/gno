@@ -212,8 +212,8 @@ func pathsLimit(reqPath string) (int, error) {
 	const maxLimit = 10_000
 
 	var query string
-	if i := strings.IndexByte(reqPath, '?'); i >= 0 {
-		query = reqPath[i+1:]
+	if _, after, ok := strings.Cut(reqPath, "?"); ok {
+		query = after
 	}
 	params, _ := url.ParseQuery(query)
 
