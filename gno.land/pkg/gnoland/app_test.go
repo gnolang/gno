@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -4383,4 +4384,64 @@ func TestInitChainer_RejectsABadVestingSchedule(t *testing.T) {
 			cfg.applyBalance(ctx, bal)
 		})
 	}
+}
+
+// The whole path an operator actually takes: a balance sheet with a vesting
+// entry, loaded from file, applied at genesis, and then enforced by the bank.
+// Each half is covered on its own; this is the seam between them, where a
+// schedule that parses but never reaches the account would otherwise go
+// unnoticed.
+func TestInitChainer_VestingFromABalanceSheetIsEnforced(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+	sheet := filepath.Join(t.TempDir(), "balances.txt")
+	require.NoError(t, os.WriteFile(sheet,
+		[]byte(addr+"=1000ugnot;vesting=1000ugnot,100,200\n"), 0o600))
+
+	loaded, err := LoadGenesisBalancesFile(sheet)
+	require.NoError(t, err)
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	for _, bal := range loaded.List() {
+		cfg.applyBalance(ctx, bal)
+	}
+
+	vester := crypto.MustAddressFromString(addr)
+	to := crypto.AddressFromPreimage([]byte("sheet-vesting-to"))
+
+	atTime := func(unix int64) sdk.Context {
+		return ctx.WithBlockHeader(&bft.Header{ChainID: ctx.ChainID(), Time: time.Unix(unix, 0)})
+	}
+
+	// Before it starts: the schedule made it all the way from the file.
+	before := atTime(50)
+	require.Error(t, bankk.SendCoins(before, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
+		"a schedule read from the sheet must be enforced")
+	require.Equal(t, int64(1000), bankk.GetCoin(before, vester, ugnot.Denom))
+
+	// Halfway: exactly half is spendable, so this pins the schedule's numbers and
+	// not merely that something is locked.
+	half := atTime(150)
+	require.Error(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 501}}))
+	require.NoError(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+
+	// After it ends: the rest is free.
+	after := atTime(250)
+	require.NoError(t, bankk.SendCoins(after, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+	require.Zero(t, bankk.GetCoin(after, vester, ugnot.Denom))
 }
