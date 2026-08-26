@@ -589,6 +589,7 @@ func TestSessionAlwaysDeniedMatrix(t *testing.T) {
 		// Approver authority, unscopeable — the cases under test.
 		{"vm/enable_package", vm.MsgEnablePackage{Approver: addr, PkgPath: pkgPath}, true},
 		{"vm/disable_package", vm.MsgDisablePackage{Approver: addr, PkgPath: pkgPath}, true},
+		{"vm/reject_package", vm.MsgRejectPackage{Sender: addr, PkgPath: pkgPath}, true},
 		// The whole auth route: a session must not manage sessions, or it could
 		// mint itself a fresh one with wider AllowPaths and outlive its own
 		// revocation.
