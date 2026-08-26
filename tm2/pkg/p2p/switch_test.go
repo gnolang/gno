@@ -457,20 +457,30 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			ch         = make(chan struct{}, 1)
 			maxInbound = uint64(10)
 
-			peerRemoved bool
-
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
-				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
+				// Honour the context so cancelling it stops the accept loop.
+				// Without this the loop spins on this mock at full speed for the
+				// lifetime of the test binary, since runAcceptLoop only leaves
+				// the loop on an error from Accept.
+				acceptFn: func(ctx context.Context, _ PeerBehavior) (PeerConn, error) {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+
 					return p, nil
 				},
 				removeFn: func(removedPeer PeerConn) {
-					require.Equal(t, p.ID(), removedPeer.ID())
+					assert.Equal(t, p.ID(), removedPeer.ID())
 
-					peerRemoved = true
-
-					ch <- struct{}{}
+					// The accept loop keeps accepting the same peer until the
+					// context is cancelled, so the signal is best-effort; never
+					// block it.
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 				},
 			}
 
@@ -493,11 +503,12 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 		go sw.runAcceptLoop(ctx)
 
 		select {
-		case <-ch:
+		case <-ch: // the peer was removed
 		case <-time.After(5 * time.Second):
+			t.Fatal("the peer was not removed")
 		}
 
-		assert.True(t, peerRemoved)
+		cancelFn() // stop the accept loop
 	})
 
 	t.Run("peer accepted", func(t *testing.T) {
@@ -513,12 +524,18 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 			ch         = make(chan struct{}, 1)
 			maxInbound = uint64(10)
 
-			peerAdded bool
-
 			p = mock.GeneratePeers(t, 1)[0]
 
 			mockTransport = &mockTransport{
-				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
+				// Honour the context so cancelling it stops the accept loop.
+				// Without this the loop spins on this mock at full speed for the
+				// lifetime of the test binary, since runAcceptLoop only leaves
+				// the loop on an error from Accept.
+				acceptFn: func(ctx context.Context, _ PeerBehavior) (PeerConn, error) {
+					if err := ctx.Err(); err != nil {
+						return nil, err
+					}
+
 					return p, nil
 				},
 			}
@@ -528,11 +545,15 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 					return maxInbound - 1 // available slot
 				},
 				addFn: func(peer PeerConn) error {
-					require.Equal(t, p.ID(), peer.ID())
+					assert.Equal(t, p.ID(), peer.ID())
 
-					peerAdded = true
-
-					ch <- struct{}{}
+					// The accept loop keeps accepting the same peer until the
+					// context is cancelled, so the signal is best-effort; never
+					// block it.
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 
 					return nil
 				},
@@ -551,11 +572,12 @@ func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 		go sw.runAcceptLoop(ctx)
 
 		select {
-		case <-ch:
+		case <-ch: // the peer was added
 		case <-time.After(5 * time.Second):
+			t.Fatal("the peer was not added")
 		}
 
-		assert.True(t, peerAdded)
+		cancelFn() // stop the accept loop
 	})
 }
 

@@ -120,9 +120,16 @@ func MakeConnectedPeers(
 
 	// Connect switches and ensure all peers are connected
 	connectPeers := func(switchIndex int) error {
+		// Every node in the cluster listens on the loopback address, so the
+		// same-IP guard has to be lifted. Prepended so callers can override it.
+		opts := append(
+			[]p2p.SwitchOption{p2p.WithAllowDuplicateIP(true)},
+			cfg.SwitchOptions[switchIndex]...,
+		)
+
 		multiplexSwitch := p2p.NewMultiplexSwitch(
 			ts[switchIndex],
-			cfg.SwitchOptions[switchIndex]...,
+			opts...,
 		)
 
 		ch, unsubFn := multiplexSwitch.Subscribe(func(event events.Event) bool {

@@ -588,6 +588,7 @@ func NewNode(config *cfg.Config,
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
+		p2p.WithAllowDuplicateIP(config.P2P.AllowDuplicateIP),
 	}
 
 	// Prepare the reactor switch options
