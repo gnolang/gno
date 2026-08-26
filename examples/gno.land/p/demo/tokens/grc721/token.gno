@@ -37,12 +37,20 @@ func NewToken(name, symbol string, id seqid.ID, rlm realm) (*Token, *PrivateLedg
 		panic(ErrInvalidSymbol)
 	}
 
+	// origRealm is the host path, with any ":subpath" synthesized by realm.Sub
+	// stripped. guardHome strips the invoking path the same way, so a token
+	// created from a sub frame is not locked out of its own host realm, and a
+	// host's sub-realms are not falsely rejected. Token.ID() keeps the raw
+	// pkgPath, so identities and the NewToken event are unaffected.
+	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
+
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:     pkgPath + "." + symbol + "." + id.String(),
-		name:   name,
-		symbol: symbol,
-		ledger: ledger,
+		id:        pkgPath + "." + symbol + "." + id.String(),
+		name:      name,
+		symbol:    symbol,
+		ledger:    ledger,
+		origRealm: origRealm,
 	}
 	ledger.token = token
 

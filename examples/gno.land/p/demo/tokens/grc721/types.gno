@@ -61,6 +61,9 @@ type Token struct {
 	name   string
 	symbol string
 	ledger *PrivateLedger
+	// origRealm is the PkgPath of the realm that created the token, captured
+	// unforgeably in NewToken. A frame-relative teller only works there.
+	origRealm string
 }
 
 type PrivateLedger struct {
@@ -85,6 +88,7 @@ var (
 	ErrTokenIdAlreadyExists       = errors.New("token id already exists")
 	ErrReadonly                   = errors.New("teller is readonly")
 	ErrSpoofedRealm               = errors.New("rlm does not match the current crossing frame")
+	ErrForeignCallerTeller        = errors.New("frame-relative teller used outside the token's realm")
 	ErrNotRealm                   = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName                = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol              = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -110,6 +114,9 @@ var zeroAddress = address("")
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
+	// homeGuard marks a frame-relative teller, whose writes are confined to
+	// the token's own realm. See fnTeller.guardHome.
+	homeGuard bool
 	*Token
 }
 
