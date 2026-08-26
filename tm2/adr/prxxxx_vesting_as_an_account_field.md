@@ -102,7 +102,29 @@ and sets only address, pubkey, number and master.
 The genesis text format still writes and requires three fields, so `Parse` and
 `String` remain symmetric; the relaxation only widens what is accepted.
 
-`subtract` treats a nil account as one holding no account-tier coins. That was
-already true and is now load-bearing in one more place, so
-`subtractCoinsUnrestricted` reads the account rather than passing nil. Getting
-this wrong failed two existing tests, which is how it was caught.
+`subtract` reads the account itself when the caller passes nil, so nil means "I do
+not have it" in both halves of that function. Its read half used to treat nil as
+an account holding nothing while its write half read it from the store, which
+meant a nil caller was refused every account-tier debit. Nothing passed nil until
+this work did, and two existing tests caught it immediately.
+
+## Fixes found alongside
+
+Auditing this turned up three faults in how the genesis balance format is read and
+written. None is caused by the redesign -- master has all three -- but all three
+concern whether a vesting schedule survives, so they are fixed here rather than
+left next to the code that now depends on them.
+
+- `gnogenesis balances add` dropped a schedule when an input entry overrode an
+  address's amount. `LeftMerge` only fills in absent addresses and the input
+  sheets merge first, so the input entry won and it carries an amount and nothing
+  else. Silent, and a tx export names every address that ever transacted.
+- `gnoland start --genesis-balances-file` read the sheet with its own
+  split-on-`=` parser, which sees three fields in a vesting entry and rejects the
+  line. The file `gnogenesis` writes was refused at boot. It now delegates to the
+  same parser, deleting the duplicate.
+- The summary `balances add` prints wrote `address=amount`, dropping the suffix
+  that `balances export` keeps.
+
+The pattern is the same in each: the account now has one owner of what vesting
+means, but the text format had several.

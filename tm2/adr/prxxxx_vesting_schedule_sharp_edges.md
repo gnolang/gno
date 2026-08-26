@@ -2,7 +2,10 @@
 
 ## Status
 
-Proposed
+Proposed. The account-type half is superseded by
+[vesting as an account field](prxxxx_vesting_as_an_account_field.md), which
+removes the type this reports on and so removes the fault it reports. The genesis
+time warning and the documented boundaries of the lock stand on their own.
 
 ## Context
 
