@@ -151,6 +151,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
+		// MsgAddPackage and MsgRun both compile caller-supplied Gno source,
+		// and who is allowed to do that is decided from the signer.
+		// `.app/simulate` is a public query that RUNS the messages, so
+		// without this an unauthenticated caller could name any address and
+		// have that authorization accepted. Restricted to the two
+		// code-bearing messages, so gas estimation for every other message
+		// type keeps working without a key.
+		RequireSigForSimulate: txCarriesCode,
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
@@ -171,8 +179,21 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// params are user-tunable consensus state and we want a
 			// real gas signal on changes), so this read uses the ctx's
 			// current (default) gasCfg until it's replaced below.
+			// "Meters" means it does not nil the meter the way
+			// acck.GetParams does; the read still costs nothing here,
+			// because the ctx is on the infinite meter until
+			// auth.SetGasMeter runs. See checkCodePolicy.
+			// Kept, not discarded: checkCodePolicy below needs the same
+			// struct, and re-reading it there would repeat the decode --
+			// GetParams amino-unmarshals every field, and the three
+			// allowlists bech32-decode every element, up to
+			// maxAddressListLen each. The store reads would be cache hits
+			// and cost no gas, but the decode is real work on every
+			// code-bearing transaction. Nothing writes vm params between
+			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
+			vmParams := vmk.GetParams(ctx)
+			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
 			// During genesis (block height 0), automatically create accounts for signers
@@ -209,6 +230,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// on success, which would otherwise zero out GasWanted.
 			if sessRes, sessAbort := checkSessionRestrictions(newCtx, tx); sessAbort {
 				return newCtx, sessRes, true
+			}
+			// Code-submission authorization (gno.land layer). Same
+			// res-preservation rule as above.
+			if codeRes, codeAbort := checkCodePolicy(newCtx, tx, vmParams); codeAbort {
+				return newCtx, codeRes, true
 			}
 			return
 		},
@@ -598,18 +624,36 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	}
 
 	report.emit(ctx.Logger())
-
-	if cfg.StrictReplay {
-		if n := report.FailedCount(); n > 0 {
-			return txResponses, fmt.Errorf(
-				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
-					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
-				n,
-			)
-		}
-	}
+	cfg.enforceStrictReplay(report)
 
 	return txResponses, nil
+}
+
+// enforceStrictReplay aborts the boot when a genesis transaction failed and the
+// operator asked for strictness.
+//
+// It panics rather than returning an error, for the reason spelled out at the
+// valoper coverage assertion above: an error returned from here reaches
+// ResponseInitChain.Error and stops there. localClient.InitChainSync returns a
+// nil Go error regardless, and the handshake inspects only that — so the field
+// is populated and never read. The node would boot anyway, and a fork could come
+// up missing packages while logging that it had them.
+//
+// Panicking propagates up the boot goroutine (NewNode -> Handshaker.ReplayBlocks
+// -> InitChainSync) and crashes the process, which is what "refusing to boot"
+// has to mean. Opt-in via cfg.StrictReplay, so nothing that boots today starts
+// crashing.
+func (cfg InitChainerConfig) enforceStrictReplay(report *replayReport) {
+	if !cfg.StrictReplay {
+		return
+	}
+	if n := report.FailedCount(); n > 0 {
+		panic(fmt.Errorf(
+			"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+				"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+			n,
+		))
+	}
 }
 
 // applyStreamingAppState mirrors applyInMemoryAppState but pulls each
@@ -683,16 +727,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 	}
 
 	report.emit(ctx.Logger())
-
-	if cfg.StrictReplay {
-		if n := report.FailedCount(); n > 0 {
-			return txResponses, fmt.Errorf(
-				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
-					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
-				n,
-			)
-		}
-	}
+	cfg.enforceStrictReplay(report)
 
 	return txResponses, nil
 }
@@ -1203,6 +1238,267 @@ func EndBlocker(
 	}
 }
 
+// txCodeMsgSigners collects the signers of tx's code-bearing messages, split by
+// kind. MsgAddPackage and MsgRun are the only two messages that hand the chain
+// Gno source to compile, and both gates below key off them, so this
+// classification lives in one place rather than being re-walked per caller.
+//
+// Per MESSAGE, not per transaction, and that distinction is load-bearing. A
+// MsgRun's signer is the address whose code executes; a MsgAddPackage's signer
+// is the address that deploys. Someone who co-signs an unrelated message in the
+// same tx — a bank send, say — is not submitting code, so requiring them to
+// hold code-submission rights would refuse legitimate bundles and, worse,
+// report the bystander as "not authorized to send MsgRun" when they sent no
+// such thing. Using tx.GetSigners() here reads naturally and is wrong.
+func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
+	for _, msg := range tx.GetMsgs() {
+		switch msg.(type) {
+		case vm.MsgAddPackage:
+			addPkgSigners = append(addPkgSigners, msg.GetSigners()...)
+		case vm.MsgRun:
+			runSigners = append(runSigners, msg.GetSigners()...)
+		}
+	}
+	return addPkgSigners, runSigners
+}
+
+// txCarriesCode reports whether tx carries any message that hands the chain Gno
+// source to compile.
+//
+// Wired into auth.AnteOptions.RequireSigForSimulate. Both code-bearing messages
+// are authorized from their signer and both compile and execute the source they
+// carry, so on the simulate path — a public query that runs the messages — an
+// unverified signature means the gate reads an attacker-chosen address.
+//
+// It covers MsgAddPackage as well as MsgRun, and did not always. An earlier
+// revision matched MsgRun alone, from when that was the only gated message:
+// code_submission_policy existed but nothing enforced it. Adding that
+// enforcement made MsgAddPackage gated too and left this predicate behind — so
+// under "permissioned", the policy whose entire purpose is keeping strangers
+// off the type checker, anyone could name a listed submitter, attach arbitrary
+// bytes as a signature, and drive a full type-check plus init() per query, free.
+//
+// The cost: keyless gas estimation no longer works for either message. gnokey
+// signs a second transaction for simulation and is unaffected; other clients
+// that estimate before signing must supply a real signature.
+// MsgEnablePackage and MsgDisablePackage are covered too, and are NOT part of
+// txCodeMsgSigners: that function feeds the code_submitters/run_submitters
+// allowlists, which have no authority over enabling. Their gate is
+// params.PkgApprovers, checked in the keeper against msg.Approver -- a
+// caller-supplied field, exactly like the signers above. So the same reasoning
+// applies: on an unverified simulate, anyone may name the real approver, attach
+// arbitrary bytes as a signature, and have the chain type-check and init() an
+// already-parked package for free. That the bytes are already stored makes it
+// worse rather than better, since under "inert" anyone may park them.
+//
+// MsgRejectPackage is deliberately NOT covered. It is authorized from its own
+// payload like the two above, but it executes nothing: it reads the parked
+// blob, parses its gnomod.toml and deletes it. The harm the others invite --
+// driving a free type-check and init() per query -- has no analogue, and the
+// blob decode it does do is already reachable anonymously through
+// vm/qpkgmeta_json. Requiring a signature to simulate it would cost keyless
+// estimation for no gain.
+//
+// Enumerated by type rather than derived from the allowlist scan, so that adding
+// a message which is authorized from its own payload and executes code is a
+// deliberate decision here rather than a silent omission.
+func txCarriesCode(tx std.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		switch msg.(type) {
+		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage, vm.MsgDisablePackage:
+			return true
+		}
+	}
+	return false
+}
+
+// checkCodePolicy enforces who may submit code, from the tx signers, before any
+// message reaches the VM. It implements this (policy x message type) matrix:
+//
+//	policy          | vm/add_package          | vm/run
+//	----------------+-------------------------+---------------------------------
+//	permissionless  | allow                   | run_submitters, if non-empty
+//	permissioned    | require code_submitters | run_submitters, if non-empty
+//	inert           | allow (stored inert)    | run_submitters, if non-empty
+//
+// "if non-empty" is the whole of run_submitters' opt-in: an unset list is the
+// gate switched off, not a chain with MsgRun disabled. See checkRunSubmitters.
+//
+// Two sibling rules, evaluated independently below (checkRunSubmitters and
+// checkCodeSubmissionPolicy). They share only inputs — one params read, one
+// signer scan, one replay carve-out — never control flow.
+//
+// Keeping them separate is the point. Gating both behind one
+// `policy != permissionless` test reads as equivalent and is not: it makes
+// add_package answer to code_submitters under "inert" too, which contradicts
+// what inert is for. Anyone may submit; approval happens later.
+//
+// MsgRun's column does not vary with policy. "inert" defers MsgAddPackage's
+// type-check, but MsgRun still type-checks and executes immediately under every
+// policy value, so no policy makes it safe. It is also the only code-bearing
+// message with no other gate: MsgAddPackage clears a namespace check and a CLA
+// check, while MsgRun's path is forced to /e/<caller>/run and so has no
+// namespace to check against. Hence a separate, always-on list.
+//
+// Enforced here rather than in the keeper, deliberately. This is the only layer
+// that can refuse a tx during CheckTx and keep it out of the mempool, and it is
+// where gno.land's other signer-derived policy already lives
+// (checkSessionRestrictions, directly below).
+//
+// The keeper does consult IsGenesisReplay, for a different question: this
+// decides whether a tx is ADMITTED, the keeper decides what a message DOES.
+// Replay must not re-authorize a historical signer, and separately must
+// reproduce what the source chain's policy made the message do. Neither answer
+// substitutes for the other.
+//
+// Authorization is read from the signers, which is sound on the simulate path
+// only because RequireSigForSimulate (see txCarriesCode) makes the auth ante
+// verify MsgRun signatures there too. Without that, `.app/simulate` would let
+// an unauthenticated caller name any address and have it accepted here.
+//
+// Session txs are authorized through their MASTER, not the session key.
+// MsgRun.GetSigners() returns msg.Caller — the master address — and that is
+// what txCodeMsgSigners collects. The session key lives in
+// Signature.SessionAddr, a separate field this check never reads (see the
+// contract on std.SessionAccountsContextKey, which spells out that the map is
+// keyed on "the master account address returned by msg.GetSigners(), NOT the
+// session pubkey address").
+//
+// So authorization here is a property of the master account, and a session key
+// permitted to send vm/run by its AllowPaths inherits it. That is a two-layer
+// grant, not a fail-closed one: AllowPaths decides whether the session may
+// carry a MsgRun at all, and run_submitters decides whether its master may run
+// code. Listing a session address here would have no effect.
+func checkCodePolicy(ctx sdk.Context, tx std.Tx, params vm.Params) (sdk.Result, bool) {
+	addPkgSigners, runSigners := txCodeMsgSigners(tx)
+	if len(addPkgSigners) == 0 && len(runSigners) == 0 {
+		// No code-bearing message: skip the params read entirely, so no other
+		// message type pays for this check.
+		return sdk.Result{}, false
+	}
+
+	// Every tx delivered during InitChain is exempt, not only replayed history.
+	//
+	// A fresh chain seeds its first GovDAO members with a genesis MsgRun, before
+	// any allowlist could name them, so narrowing this to the hardfork case
+	// (requiring metadata, or BlockHeight > 0) breaks bootstrap on any chain
+	// shipping a non-empty run_submitters. TestChainUpgradeGenesisReplay pins
+	// both shapes.
+	//
+	// The hardfork case is the other half: deliverGenesisTx replays historical
+	// txs through this same ante with BlockHeight > 0, after InitGenesis has
+	// installed the NEW params — so without this carve-out a hardfork would refuse to replay
+	// its own history the moment either list fails to contain a historical
+	// signer, and would come up missing every package those signers deployed.
+	// — or, under StrictReplay, refuse to boot at all. Keyed on the context
+	// value rather than BlockHeight, which replay deliberately does not hold
+	// at 0.
+	if auth.IsGenesisReplay(ctx) {
+		return sdk.Result{}, false
+	}
+
+	// params is passed in rather than read here. The ante already reads the
+	// whole struct near the top of the closure, to build the gas config, on the
+	// throwaway meter installed before auth.SetGasMeter replaces it. Reading it
+	// again would cost no gas -- baseapp keeps one cache wrap across the ante
+	// and the handlers, and cacheStore.Get charges nothing for a hit -- but it
+	// would repeat the decode, and GetParams bech32-decodes every entry of all
+	// three allowlists. Threading the value keeps that at one decode per tx and
+	// removes the ordering constraint the old comment here had to explain.
+	return codePolicyResult(addPkgSigners, runSigners, params)
+}
+
+// codePolicyResult is the decision half of checkCodePolicy, split from the
+// context and keeper reads so the whole matrix above is testable without
+// standing up a VM keeper.
+func codePolicyResult(addPkgSigners, runSigners []crypto.Address, params vm.Params) (sdk.Result, bool) {
+	// The two rules are siblings, evaluated independently. Neither is nested in
+	// the other, which is the shape that matters: phase 1 gated add_package and
+	// run together behind one policy test, so adding `inert` to the enum
+	// silently changed what happened to both. They share only the inputs —
+	// params read once by the caller, signers scanned once — not control flow.
+	if res, abort := checkRunSubmitters(runSigners, params); abort {
+		return res, abort
+	}
+	return checkCodeSubmissionPolicy(addPkgSigners, params)
+}
+
+// checkRunSubmitters enforces the run_submitters allowlist on MsgRun signers.
+//
+// Policy-independent: it takes no policy argument because no policy value makes
+// MsgRun safe. "inert" defers MsgAddPackage's type-check but leaves MsgRun
+// type-checking and executing immediately, so the policy has no bearing on the
+// hazard. Not accepting a policy parameter is deliberate — it keeps that
+// independence structural rather than a branch someone can later "simplify".
+//
+// An EMPTY list means the allowlist is off and anyone may send MsgRun, which is
+// the pre-existing behaviour and therefore the zero value's meaning. This is the
+// opposite of code_submitters, and the asymmetry is not an oversight:
+// code_submitters is only consulted once code_submission_policy has been
+// explicitly moved to "permissioned", so its empty state is a half-configured
+// opt-in and refusing is right. run_submitters has no such switch — it is read
+// on every MsgRun from the moment the field exists — so a fail-closed empty
+// value would silently disable MsgRun on every chain that upgrades without
+// touching genesis, including the existing ones. GovDAO proposal CREATION is
+// MsgRun-only (a ProposalRequest carries a func value, which MsgCall cannot
+// marshal), so that failure mode takes governance with it and cannot be
+// repaired in band.
+//
+// Turning the gate ON is therefore an explicit act: list at least one address.
+// The cost is that a chain cannot express "nobody may MsgRun" through this
+// param, which is not a configuration anyone has asked for.
+func checkRunSubmitters(signers []crypto.Address, params vm.Params) (sdk.Result, bool) {
+	if len(signers) == 0 || len(params.RunSubmitters) == 0 {
+		return sdk.Result{}, false
+	}
+	return requireListed(signers, params.RunSubmitters,
+		"send MsgRun", "run_submitters")
+}
+
+// checkCodeSubmissionPolicy enforces code_submission_policy on MsgAddPackage
+// signers. Named after #5885's function, which this replaces, so the two are
+// easy to diff.
+func checkCodeSubmissionPolicy(signers []crypto.Address, params vm.Params) (sdk.Result, bool) {
+	if len(signers) == 0 {
+		return sdk.Result{}, false
+	}
+	// A switch with an explicit default, not `== permissioned`, so an
+	// unrecognised policy string refuses rather than allows. Params.Validate
+	// makes that unreachable today, but this file promises fail-closed
+	// everywhere else and an equality test quietly promises the opposite the
+	// moment a new value is added to the enum without being handled here.
+	switch params.CodeSubmissionPolicy {
+	case vm.CodeSubmissionPolicyPermissionless,
+		// "inert" accepts from anyone by design: nothing is compiled or run at
+		// submit, and approval is a separate, gated step.
+		vm.CodeSubmissionPolicyInert:
+		return sdk.Result{}, false
+	case vm.CodeSubmissionPolicyPermissioned:
+		return requireListed(signers, params.CodeSubmitters,
+			"submit packages", "code_submitters")
+	default:
+		return sdk.ABCIResultFromError(std.ErrUnauthorized(fmt.Sprintf(
+			"unknown vm code_submission_policy %q; refusing to submit code",
+			params.CodeSubmissionPolicy))), true
+	}
+}
+
+// requireListed aborts unless every signer appears in allowed. An empty allowed
+// list refuses everyone, so callers that treat "unset" as "off" must test for
+// emptiness themselves before calling — checkRunSubmitters does, and documents
+// why; checkCodeSubmissionPolicy deliberately does not, because it is only
+// reached once the policy has been explicitly moved to "permissioned".
+func requireListed(signers []crypto.Address, allowed []crypto.Address, action, param string) (sdk.Result, bool) {
+	for _, signer := range signers {
+		if !slices.Contains(allowed, signer) {
+			return sdk.ABCIResultFromError(std.ErrUnauthorized(fmt.Sprintf(
+				"%s is not authorized to %s; see the vm %s param",
+				signer.String(), action, param))), true
+		}
+	}
+	return sdk.Result{}, false
+}
+
 // checkSessionRestrictions enforces gno.land session key restrictions.
 // Two filters apply, in order:
 //
@@ -1255,8 +1551,18 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 	if msg.Route() == "auth" {
 		return true
 	}
-	if msg.Route() == "vm" && msg.Type() == "add_package" {
-		return true
+	if msg.Route() == "vm" {
+		switch msg.Type() {
+		case "add_package":
+			return true
+		case "enable_package", "disable_package":
+			// Approver authority, and it cannot be scoped down. A session's
+			// AllowPaths are matched via GetPkgPath(), which only MsgCall
+			// implements -- so no path-scoped entry can ever match these, and
+			// the only way to grant them would be the "*" wildcard, handing a
+			// session its master's full approver power. Deny outright.
+			return true
+		}
 	}
 	return false
 }

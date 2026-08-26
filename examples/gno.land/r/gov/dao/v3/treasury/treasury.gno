@@ -58,6 +58,12 @@ func init(cur realm) {
 
 // SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
 func SetTokenKeys(cur realm, keys []string) {
+	// Crossing function, so cur is a live minted cur and this is redundant
+	// today; kept to match the documented rule that caller identity is
+	// derived from cur.Previous() only under an IsCurrent() guard.
+	if !cur.IsCurrent() {
+		panic("realm value is not the caller's live cur")
+	}
 	caller := cur.Previous().PkgPath()
 
 	// Check if the caller realm is allowed to set token keys.
@@ -70,6 +76,11 @@ func SetTokenKeys(cur realm, keys []string) {
 
 // Send sends a payment using the treasury instance.
 func Send(cur realm, payment t.Payment) {
+	// See SetTokenKeys: redundant under the crossing-function guarantee, kept
+	// for conformance with the IsCurrent()-before-Previous() rule.
+	if !cur.IsCurrent() {
+		panic("realm value is not the caller's live cur")
+	}
 	caller := cur.Previous().PkgPath()
 
 	// Check if the caller realm is allowed to send payments.

@@ -118,9 +118,13 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		numparts := len(parts)
 		if numparts == 2 {
 			realm := parts[1]
-			// XXX validate realm part.
 			for name, value := range values {
 				name, type_ := splitTypedName(name)
+				// The same rules vm.ValidateGenesis applies at boot, where a bad
+				// key is a node panic. Refusing here names the offending section.
+				if err := vmm.ValidateRealmParamKey(realm + ":" + name); err != nil {
+					return fmt.Errorf("invalid section [%s]: %w", modrlm, err)
+				}
 				if type_ == "strings" {
 					vz := value.([]any)
 					sz := make([]string, len(vz))
