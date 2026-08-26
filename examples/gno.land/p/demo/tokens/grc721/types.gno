@@ -37,8 +37,10 @@ type Teller interface {
 // Extension hooks fire on every mint/transfer/burn. This is a trust grant to the
 // issuer, not an EIP-721 feature: only the issuer can attach one (RegisterExtension
 // holds the PrivateLedger), but once attached the hook runs arbitrary issuer code on
-// every movement, a panic in OnMint/OnTransfer/OnBurn aborts that operation — an
-// implicit veto over transfers — and gas scales linearly with the extension count.
+// every movement, a panic in OnMint/OnTransfer/OnBurn aborts the transaction before
+// the movement is announced — an implicit veto over transfers — and gas scales
+// linearly with the extension count. Hooks run after the ledger write so they observe
+// the post-movement state; only a caller that recovers from the panic keeps that write.
 // Holders of a collection's tokens are therefore trusting the issuer not to freeze or
 // tax movement through this surface. Hooks take no rlm params (they cannot capture cur);
 // attach only via RegisterExtension.

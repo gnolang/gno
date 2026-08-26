@@ -127,7 +127,8 @@ func (tok *Token) RenderHome() string {
 // RegisterExtension attaches an issuer-supplied hook set. Issuer-only (holds the
 // PrivateLedger), which keeps the surface from being attacker-attachable — but the
 // attachment is still a privilege: per the Extension doc, an attached hook can veto
-// transfers (a panic reverts the movement) and adds gas to every movement.
+// transfers (a panic aborts the transaction before the Transfer event is emitted) and
+// adds gas to every movement.
 // Same pointer twice is a no-op; a different ext of an already-attached kind panics.
 func (led *PrivateLedger) RegisterExtension(ext Extension) {
 	if ext == nil {
@@ -167,6 +168,10 @@ func (led *PrivateLedger) Mint(to address, tid TokenID) error {
 	led.owners.Set(tid.String(), to)
 	led.totalSupply = overflow.Add64p(led.totalSupply, 1)
 
+	for _, ext := range led.extensions {
+		ext.OnMint(to, tid)
+	}
+
 	// Mint emits Transfer from the empty address (EIP-721); indexers reconstruct ownership from Transfer alone.
 	chain.Emit(
 		TransferEvent,
@@ -175,10 +180,6 @@ func (led *PrivateLedger) Mint(to address, tid TokenID) error {
 		"to", to.String(),
 		"tokenId", tid.String(),
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnMint(to, tid)
-	}
 
 	return nil
 }
@@ -196,6 +197,10 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 	led.owners.Remove(tidStr)
 	led.totalSupply = overflow.Sub64p(led.totalSupply, 1)
 
+	for _, ext := range led.extensions {
+		ext.OnBurn(tid)
+	}
+
 	// Burn emits Transfer to the empty address (EIP-721).
 	chain.Emit(
 		TransferEvent,
@@ -204,10 +209,6 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 		"to", "",
 		"tokenId", tidStr,
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnBurn(tid)
-	}
 
 	return nil
 }
@@ -310,6 +311,10 @@ func (led *PrivateLedger) transfer(from, to address, tid TokenID) error {
 	led.setBalance(to, overflow.Add64p(led.balanceOf(to), 1))
 	led.owners.Set(tidStr, to)
 
+	for _, ext := range led.extensions {
+		ext.OnTransfer(from, to, tid)
+	}
+
 	chain.Emit(
 		TransferEvent,
 		"token", led.token.id,
@@ -317,10 +322,6 @@ func (led *PrivateLedger) transfer(from, to address, tid TokenID) error {
 		"to", to.String(),
 		"tokenId", tidStr,
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnTransfer(from, to, tid)
-	}
 
 	return nil
 }
