@@ -77,6 +77,26 @@ type nativeGasEntry struct {
 // future natives that genuinely scale on both dimensions.
 //
 // 52 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+//
+// The six chain/params Get* rows are the exception to the reproducibility
+// claim above. They are present and cover their natives, but they were not
+// fitted: native_bench_output.txt holds no samples for them, so re-running the
+// fitter drops those rows rather than reproducing them. Each Base is copied
+// from the matching Set*, and GetBytes and GetStrings additionally borrow a
+// PostSlope from the sys/params getter of the same shape.
+//
+// The benchmarks that would replace them exist (BenchmarkNative_Params_Get* in
+// gnovm/cmd/calibrate/native_machine_bench_test.go); run them on the reference
+// machine, refresh native_bench_output.txt and regenerate before any
+// consensus-relevant deployment.
+//
+// The borrowed Base is very unlikely to undercharge: a setter writes rather
+// than reads and also runs recordParamsDelta for storage-deposit accounting,
+// so it does strictly more work than the getter lending its price. That
+// argument covers the flat part only. The two borrowed PostSlopes come from
+// measured sys/params getters rather than from a setter, and the four scalar
+// getters carry no length term at all.
+
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991

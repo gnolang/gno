@@ -48,7 +48,11 @@ func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
 }
 
 // GetString reads a realm-local param previously written with SetString.
-// The bool reports whether the key existed.
+//
+// The bool reports whether anything is stored at the key, NOT whether it holds
+// the type being asked for. Reading at the wrong type panics or converts, and
+// never reports false. The same applies to every GetXxx below; see the doc on
+// params.gno for what each mismatch does.
 func GetString(m *gno.Machine, key string) (string, bool) {
 	pk := pkey(m, key)
 	var out string
