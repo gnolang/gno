@@ -1555,12 +1555,18 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 		switch msg.Type() {
 		case "add_package":
 			return true
-		case "enable_package", "disable_package":
+		case "enable_package", "disable_package", "reject_package":
 			// Approver authority, and it cannot be scoped down. A session's
 			// AllowPaths are matched via GetPkgPath(), which only MsgCall
 			// implements -- so no path-scoped entry can ever match these, and
 			// the only way to grant them would be the "*" wildcard, handing a
 			// session its master's full approver power. Deny outright.
+			//
+			// reject_package is here even though its gate is approver OR
+			// creator: a creator withdrawing their own submission is
+			// legitimate, but there is no way to grant a session that half
+			// alone, and the wildcard that would grant it also hands over the
+			// approver half -- which can empty the whole approval queue.
 			return true
 		}
 	}
