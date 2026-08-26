@@ -2,7 +2,7 @@
 
 Builds the **pearl** genesis. pearl is a **fresh chain** — not a hardfork, no historical replay.
 
-> **Status: one launch value still pending.** The ceremony keys, operators, genesis time, faucet accounts, and peers are final; the vested-account list is still empty — see the `XXX: PLACEHOLDER` marker in `gen-genesis.sh`. `CHECKSUMS_DATA` stays unlocked until it is final.
+> **Status: all launch values set.** The ceremony keys, operators, genesis time, faucet accounts, peers, and the ten vested test accounts are final; `CHECKSUMS_DATA` is locked on the next clean build.
 
 ## What pearl contains
 

@@ -150,10 +150,22 @@ FAUCET_ADDRESSES=(
 # nothing unlocks before <end_unix>, everything at once after. The vested
 # coins must be <= the total, and the difference is spendable immediately.
 #
-# XXX: PLACEHOLDER (empty) — fill the real vesting list before locking
-# the genesis. The commented entry documents the expected shape.
+# Ten shared core-team test accounts (testing-acct-1 to -10, mnemonics in the
+# team password manager, keybase off-tree). 1000 GNOT each, 750 vested and 250
+# spendable for fees. Every schedule completes within 7 days of GENESIS_TIME
+# (1787752800) so each transition is observable during a two-week testnet, and
+# the second week exercises the fully-vested state.
 VESTED_ACCOUNTS=(
-  # "g1exampleexampleexampleexampleexampleexam=1000000000ugnot;vesting=750000000ugnot,1798761600,1830297600"
+  "g1m3efp098exf9n93l8vdh0uesftp2asr9446qh0=1000000000ugnot;vesting=750000000ugnot,1787749200,1787752800" # testing-acct-1: continuous, ended at genesis: fully unlocked from block 1
+  "g19em6j7376mvlf68n89k73ce3hg04zpaxf46a0e=1000000000ugnot;vesting=750000000ugnot,1787752800,1787756400" # testing-acct-2: continuous, 1 hour
+  "g13egct6g3d68vmrjsc5m2rrwm4767rt6wf0ytq7=1000000000ugnot;vesting=750000000ugnot,1787752800,1787839200" # testing-acct-3: continuous, 1 day
+  "g1uqzvq2gwakml2a6r234mw0eu0x8qck9qp42ueq=1000000000ugnot;vesting=750000000ugnot,1787752800,1788012000" # testing-acct-4: continuous, 3 days
+  "g14dqplajk29l0tjwr9avd5rvx6tyn7nrmkdvmxa=1000000000ugnot;vesting=750000000ugnot,1787752800,1788357600" # testing-acct-5: continuous, 7 days
+  "g1gdetwlyr2rw8w722whzh3jlzjmkz92pzv93jee=1000000000ugnot;vesting=750000000ugnot,1787752800,1787756400;type=delayed" # testing-acct-6: delayed cliff at genesis + 1 hour
+  "g1dasewzx6c4fhseevfwsdfsnfy9an42kr83kzdd=1000000000ugnot;vesting=750000000ugnot,1787752800,1787839200;type=delayed" # testing-acct-7: delayed cliff at genesis + 1 day
+  "g1pdhv586g6jl3pjml0fk5h828dad23sjlzukp4w=1000000000ugnot;vesting=750000000ugnot,1787752800,1788357600;type=delayed" # testing-acct-8: delayed cliff at genesis + 7 days
+  "g10w8l2hg7690upa4dcy6suq8yvkju7q4za0sfey=1000000000ugnot;vesting=750000000ugnot,1787839200,1788098400" # testing-acct-9: continuous, starts 1 day after genesis, ends at 4 days
+  "g17s8dlta3fjgztppcr5z7tlmkeg4ecwsfeeatag=1000000000ugnot;vesting=750000000ugnot,1787148000,1788357600" # testing-acct-10: continuous, started 7 days before genesis, half unlocked at launch, ends at 7 days
 )
 
 # =============================================================================
