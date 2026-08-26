@@ -50,6 +50,14 @@ func (m *mockExtension) OnBurn(tid TokenID) {
 	m.lastBurn = tid
 }
 
+// Value type holding a slice: uncomparable, so `==` on two of them is a runtime fault.
+type journalExtension struct{ seen []TokenID }
+
+func (e journalExtension) ExtensionKind() string                    { return "journal" }
+func (e journalExtension) OnMint(to address, tid TokenID)           {}
+func (e journalExtension) OnTransfer(from, to address, tid TokenID) {}
+func (e journalExtension) OnBurn(tid TokenID)                       {}
+
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")
@@ -665,24 +673,34 @@ func TestRegisterExtensionNil(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegisterExtensionRejectsDuplicateKind(cur realm, t *testing.T) {
+	_, led := newTestToken("Foo", "FOO", 0, cur)
+	ext := &mockExtension{}
+	led.RegisterExtension(ext)
+
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
+		led.RegisterExtension(ext)
+	})
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
+		led.RegisterExtension(&mockExtension{})
+	})
+}
+
+func TestRegisterExtensionRejectsDuplicateKindOfUncomparableType(cur realm, t *testing.T) {
+	_, led := newTestToken("Foo", "FOO", 0, cur)
+	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}})
+
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: journal", func() {
+		led.RegisterExtension(journalExtension{seen: []TokenID{"2"}})
+	})
+}
+
 func TestExtensionHookFanOut(cur realm, t *testing.T) {
 	tests := []struct {
 		name   string
 		run    func(t *testing.T, led *PrivateLedger, ext *mockExtension)
 		verify func(t *testing.T, ext *mockExtension)
 	}{
-		{
-			name: "duplicate registration is ignored and mint fires once",
-			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {
-				led.RegisterExtension(ext)
-				led.RegisterExtension(ext)
-				urequire.NoError(t, led.Mint(alice, "1"))
-			},
-			verify: func(t *testing.T, ext *mockExtension) {
-				uassert.Equal(t, 1, ext.mints)
-				uassert.Equal(t, alice, ext.lastMintTo)
-			},
-		},
 		{
 			name: "mint, transfer and burn each notify the extension",
 			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {

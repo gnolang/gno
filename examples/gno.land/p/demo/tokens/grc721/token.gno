@@ -143,7 +143,7 @@ func (tok *Token) RenderHome() string {
 // attachment is still a privilege: per the Extension doc, an attached hook can veto
 // transfers (a panic aborts the transaction before the Transfer event is emitted) and
 // adds gas to every movement.
-// Same pointer twice is a no-op; a different ext of an already-attached kind panics.
+// One extension per kind; a second registration of an attached kind panics.
 func (led *PrivateLedger) RegisterExtension(ext Extension) {
 	if ext == nil {
 		panic("grc721: nil extension")
@@ -151,10 +151,6 @@ func (led *PrivateLedger) RegisterExtension(ext Extension) {
 
 	kind := ext.ExtensionKind()
 	for _, e := range led.extensions {
-		if e == ext {
-			return
-		}
-
 		if e.ExtensionKind() == kind {
 			panic("grc721: extension kind already registered: " + kind)
 		}
