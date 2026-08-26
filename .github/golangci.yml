@@ -91,6 +91,10 @@ linters:
       - builtin$
       - examples$
       - gnovm/pkg/parser/
+      # A fork of pelletier/go-toml v1.9.5 (see its LICENSE and README). Linted
+      # upstream, not here: every fix would widen the diff against the version
+      # it was forked from and make the next re-sync harder to read.
+      - tm2/pkg/toml/
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -111,3 +115,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - tm2/pkg/toml/ # forked upstream code; see the note above
