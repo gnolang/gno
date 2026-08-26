@@ -17,16 +17,16 @@ import (
 // oracle's alone, and without somewhere to put it the only record is the
 // operator's stderr.
 const (
-	StatusRejected = "rejected" // verification says the code is bad
-	StatusPending  = "pending"  // no verdict yet; will be retried
-	StatusGaveUp   = "gave_up"  // retried to the cap, needs a human
-	StatusBlocked  = "blocked"  // nothing wrong with the package; the oracle cannot proceed
-	StatusApproved = "approved" // enabled on-chain by this oracle
-	StatusUnknown  = "unknown"  // never seen
+	statusRejected = "rejected" // verification says the code is bad
+	statusPending  = "pending"  // no verdict yet; will be retried
+	statusGaveUp   = "gave_up"  // retried to the cap, needs a human
+	statusBlocked  = "blocked"  // nothing wrong with the package; the oracle cannot proceed
+	statusApproved = "approved" // enabled on-chain by this oracle
+	statusUnknown  = "unknown"  // never seen
 )
 
-// PkgStatus is one package's last verdict.
-type PkgStatus struct {
+// pkgStatus is one package's last verdict.
+type pkgStatus struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
 	// Reason is free text from the failure itself. Present for anything a
@@ -49,11 +49,11 @@ type PkgStatus struct {
 // asking after a package wants the latest word on the path they submitted.
 type statusBoard struct {
 	mu sync.RWMutex
-	by map[string]PkgStatus
+	by map[string]pkgStatus
 }
 
 func newStatusBoard() *statusBoard {
-	return &statusBoard{by: make(map[string]PkgStatus)}
+	return &statusBoard{by: make(map[string]pkgStatus)}
 }
 
 // record stores the latest verdict for a path, replacing any earlier one.
@@ -63,32 +63,32 @@ func (b *statusBoard) record(path, status, reason string, attempt int) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.by[path] = PkgStatus{Path: path, Status: status, Reason: reason, Attempt: attempt}
+	b.by[path] = pkgStatus{Path: path, Status: status, Reason: reason, Attempt: attempt}
 }
 
 // get returns the verdict for a path. A path the oracle never reached is
-// StatusUnknown rather than an error: "we have nothing on this" is an answer,
+// statusUnknown rather than an error: "we have nothing on this" is an answer,
 // and the caller cannot tell it from a failed lookup otherwise.
-func (b *statusBoard) get(path string) PkgStatus {
+func (b *statusBoard) get(path string) pkgStatus {
 	if b == nil {
-		return PkgStatus{Path: path, Status: StatusUnknown}
+		return pkgStatus{Path: path, Status: statusUnknown}
 	}
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	if s, ok := b.by[path]; ok {
 		return s
 	}
-	return PkgStatus{Path: path, Status: StatusUnknown}
+	return pkgStatus{Path: path, Status: statusUnknown}
 }
 
 // list returns every verdict, sorted by path so the output is stable.
-func (b *statusBoard) list() []PkgStatus {
+func (b *statusBoard) list() []pkgStatus {
 	if b == nil {
 		return nil
 	}
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	out := make([]PkgStatus, 0, len(b.by))
+	out := make([]pkgStatus, 0, len(b.by))
 	for _, s := range b.by {
 		out = append(out, s)
 	}
@@ -99,7 +99,7 @@ func (b *statusBoard) list() []PkgStatus {
 // statusHandler serves the board read-only over HTTP.
 //
 //	GET /status            every verdict
-//	GET /status/<pkgpath>  one verdict, StatusUnknown if there is none
+//	GET /status/<pkgpath>  one verdict, statusUnknown if there is none
 //
 // Read-only and unauthenticated by design: every verdict here concerns a
 // package that was submitted in a public transaction, and the point is for its

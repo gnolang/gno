@@ -459,7 +459,7 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	err := o.verify(ctx, mpkg)
 	if errors.Is(err, errVerifyUnavailable) {
 		// Left unseen and uncounted, so a restart or resubmission retries it.
-		o.status.record(path, StatusPending, "the oracle could not run verification: "+err.Error(), 0)
+		o.status.record(path, statusPending, "the oracle could not run verification: "+err.Error(), 0)
 		o.errf("gpao: could not verify %q, leaving it pending: %v", path, err)
 		return
 	}
@@ -475,14 +475,14 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		o.overBudget[key]++
 		if n := o.overBudget[key]; n >= maxOverBudgetAttempts {
 			o.seen[key] = struct{}{}
-			o.status.record(path, StatusGaveUp,
+			o.status.record(path, statusGaveUp,
 				"verification ran out of time repeatedly; needs a larger -verify-budget", n)
 			o.errf(
 				"gpao: %q exceeded the verify budget %d times, giving up on it this run "+
 					"(needs a human, or a larger -verify-budget): %v", path, n, err)
 			return
 		}
-		o.status.record(path, StatusPending, "verification ran out of time; will be retried",
+		o.status.record(path, statusPending, "verification ran out of time; will be retried",
 			o.overBudget[key])
 		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
 		return
@@ -492,7 +492,7 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// it to be worth another look -- which produces a different key.
 	if err != nil {
 		// The one a submitter can actually act on: their code did not pass.
-		o.status.record(path, StatusRejected, err.Error(), 0)
+		o.status.record(path, statusRejected, err.Error(), 0)
 		o.seen[key] = struct{}{}
 		o.logf("gpao: %q rejected, not approving: %v", path, err)
 		return
@@ -503,7 +503,7 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// catching up with -start-height over blocks that were already approved.
 	// Terminal, so recorded.
 	if o.isActive(ctx, path) {
-		o.status.record(path, StatusApproved, "already active on-chain", 0)
+		o.status.record(path, statusApproved, "already active on-chain", 0)
 		o.seen[key] = struct{}{}
 		o.logf("gpao: %q is already active, nothing to approve", path)
 		return
@@ -519,7 +519,7 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		// Nothing is wrong with the package; the oracle is out of allowance.
 		// Saying so is the difference between "your code is bad" and "ask the
 		// operator", which the submitter cannot otherwise tell apart.
-		o.status.record(path, StatusBlocked,
+		o.status.record(path, statusBlocked,
 			"the oracle has reached its spending limit for this run", 0)
 		o.errf("gpao: not approving %q: it would take this run past its "+
 			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
@@ -541,16 +541,16 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		// -start-height at or below the submitting block) or a resubmission of
 		// the same bytes effective instead of a silent no-op.
 		if n, giveUp := o.recordEnableFailure(key); giveUp {
-			o.status.record(path, StatusGaveUp, err.Error(), n)
+			o.status.record(path, statusGaveUp, err.Error(), n)
 			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
 				"(needs a human): %v", path, n, err)
 			return
 		}
-		o.status.record(path, StatusPending, err.Error(), o.failedEnable[key])
+		o.status.record(path, statusPending, err.Error(), o.failedEnable[key])
 		o.errf("gpao: failed to approve %q, leaving it pending: %v", path, err)
 		return
 	}
-	o.status.record(path, StatusApproved, "", 0)
+	o.status.record(path, statusApproved, "", 0)
 	o.seen[key] = struct{}{}
 	o.logf("gpao: %q approved and enabled", path)
 }
