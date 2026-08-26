@@ -38,23 +38,8 @@ path is attacker-controlled.
 
 ## 2. Four Structural Defenses
 
-The VM provides four defenses. A realm becomes exploitable when an API
-design defeats all of them at once.
-
-Two scoping facts about the first three, both from `PushFrameCall`
-itself, because reasoning about them without these gets the wrong
-answer:
-
-**They govern ordinary calls, not boundary crossings.** A `cross(...)`
-call sets `m.Realm` to the callee's realm and returns before any of
-them; a non-crossing call of a crossing function (`Public(cur, ...)`)
-returns too, after checking the target is not an external realm. The
-three rules below decide what a call that is *neither* borrows.
-
-**They are a priority chain, not three separate tests.** The first
-applicable rule fires and the others do not. So "rule #2 protects this
-receiver" only holds where rule #1 does not already apply. Readonly
-taint (2.4) is genuinely independent of all three.
+The VM provides four independent defenses. A realm becomes
+exploitable when an API design defeats all of them at once.
 
 ### 2.1 Declaration-Site Rule (borrow rule #1 of PushFrameCall)
 
@@ -198,6 +183,7 @@ encapsulation:
 | All sensitive fields are unexported | `Token.ledger`, `PrivateLedger.balances`, `PrivateLedger.allowances`, `fnTeller.accountFn` all lowercase. Foreign packages cannot access them. |
 | No exported method leaks an interior pointer | No `Token` method returns `*PrivateLedger`, `*avl.Tree`, or `*avl.Node`. |
 | Authority transitions gated by `rlm.IsCurrent()` | Every `Teller` method checks `rlm.IsCurrent()` before resolving `rlm.Previous().Address()`. |
+| A frame-relative teller never leaves its realm | `CallerTeller` hangs off `*PrivateLedger`, which `NewToken` gives only to the creating realm, so a foreign realm cannot mint one. Every write also checks that the invoking realm is the token's own `origRealm` (host compared after stripping any `realm.Sub` subpath), so a teller that is legally built and then *exported as a value* is inert elsewhere. Keying on the actor instead would miss two cases: a realm charged by a realm it calls, and `TransferFrom`, whose actor is the spender while the debited owner is a parameter. |
 | Forgery defended by nominal type assertion | `IsCanonicalTeller(t)` checks `_, ok := t.(*fnTeller)`. Embedding wrappers (`type Evil struct { Teller }`) fail this check despite method promotion. |
 | `*PrivateLedger`'s unauthenticated mutators isolated by package privacy | `Mint`/`Burn`/etc. have no `rlm` check. They're safe only because no realm exports the `*PrivateLedger` pointer. |
 
@@ -318,17 +304,6 @@ while holding your own `m.Realm`. Either:
   types so attackers can't supply a matching `/p/`-callback, OR
 - Do not invoke caller callbacks at all; design synchronous APIs.
 
-**Safe by contrast — threading `cur` through your own concrete `/p/`
-functions.** The danger above is a *caller-supplied* `func` or
-`interface` value, not the `realm` token itself. Passing your own `cur`
-down into concrete functions you import from a `/p/` package is safe: a
-realm token grants authority only while `cur.IsCurrent()` holds, and a
-concrete callee cannot be swapped for attacker code the way an interface
-or callback parameter can. This is the interrealm pattern
-[daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64)
-relies on — do not avoid passing `realm` to `/p/` altogether; only avoid
-handing your authority to values the *caller* controls.
-
 ### 5.4 Trusting an interface value without canonical-type check
 
 ```go
@@ -441,81 +416,6 @@ in realms that have not yet been migrated to the `cur realm` API.
 `cur.Previous()`, guarding it with `cur.IsCurrent()` first in a method. Delete
 the `chain/runtime/unsafe` import.
 
-### 5.9 `OriginCaller()` as authorization identity
-
-`OriginCaller()` names the transaction origin, not necessarily the
-immediate realm that crossed into your function. If a realm uses it as
-an admin or ownership check, an intermediate realm can become a confused
-deputy path unless the API is intentionally EOA-only and documents that
-constraint.
-
-```go
-func SetPaused(cur realm, next bool) {
-    if OriginCaller() != owner {
-        panic("owner only")
-    }
-    paused = next
-}
-```
-
-Prefer authenticating the realm that crossed into this frame:
-
-```go
-func SetPaused(cur realm, next bool) {
-    if cur.Previous().Address() != owner {
-        panic("owner only")
-    }
-    paused = next
-}
-```
-
-Choose the caller identity primitive that matches the boundary you are
-protecting:
-
-| Context | Prefer | Why |
-|---------|--------|-----|
-| Realm API authorization | `cur.Previous()` | Authorizes the immediate caller that crossed into this realm. |
-| Payment-gated user action | `cur.Previous().IsUserCall()` plus the payment check | Rejects realm-mediated calls when the product requires a direct user call. |
-| Explicit EOA-origin policy | `OriginCaller()` | Only when the API intentionally follows the transaction signer through intermediate realms. Document this. |
-| Remembering a caller for later | `cur.Previous().Address()` or `.PkgPath()` | Realm values are frame-local and must not be persisted. |
-| Caller-supplied address parameter | Avoid for auth; derive inside the function | A parameter is only data supplied by the caller. |
-
-**Rule**: use `cur.Previous()` for ordinary realm API authorization. Use
-direct-user and origin-caller checks only when that is the actual product
-policy, and make the tradeoff explicit.
-
-### 5.10 Raw public text in `Render`
-
-`Render(path string) string` is a public display surface. The `path`
-argument and any user-authored state are attacker-controlled text. Do
-not concatenate them directly into markdown links, tables, headings, or
-HTML-like text.
-
-```go
-func Render(path string) string {
-    return "# Echo\n\n" + path // raw markdown injection surface
-}
-```
-
-Escape user text before display, or keep it in a format where the renderer
-treats it as plain text. Prefer the official Gno markdown sanitizer for your
-target Gno version over open-coded replacers.
-
-```go
-import "gno.land/p/nt/markdown/sanitize/v0"
-
-func Render(path string) string {
-    return "# Echo\n\n" + sanitize.InlineText(path)
-}
-```
-
-This is not a cross-realm authority bug by itself, but it is a common
-way to turn harmless stored text or URL path data into misleading UI.
-Opinionated rendering libraries and frameworks can help keep this consistent,
-but check whether each helper sanitizes internally or expects sanitized input.
-See [Community Packages](./community-packages.md) for non-official markdown
-builders and their review checklist.
-
 ---
 
 ## 6. Properties That Make the Boundary Stronger Than Expected
@@ -627,17 +527,8 @@ Before deploying a realm:
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.
 
-- [ ] Authorization checks do not use `OriginCaller()` unless the
-  function is intentionally EOA-origin-only and documents why immediate
-  caller identity is not required.
-
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
-
-- [ ] `Render(path)` and any markdown helper output escape
-  user-controlled path, profile, title, description, or message text
-  before returning it, using the official Gno markdown sanitizer where
-  practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
