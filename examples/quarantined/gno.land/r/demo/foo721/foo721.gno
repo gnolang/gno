@@ -16,7 +16,9 @@ var (
 
 func init(cur realm) {
 	token, ledger = grc721.NewToken("Foo NFT", "FNFT", 0, cur)
-	callerTelr = token.CallerTeller()
+	// Minted from the ledger: the frame-relative teller is confined to this
+	// realm, which is where it is used.
+	callerTelr = ledger.CallerTeller()
 
 	mintN(admin, 10)
 }
@@ -33,7 +35,13 @@ func mintN(owner address, n int64) {
 
 // Getters
 
-func BalanceOf(user address) int64 { return token.BalanceOf(user) }
+func BalanceOf(user address) int64 {
+	balance, err := token.BalanceOf(user)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
 
 func OwnerOf(tid grc721.TokenID) address {
 	owner, err := token.OwnerOf(tid)

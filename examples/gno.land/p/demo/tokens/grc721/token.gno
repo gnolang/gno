@@ -37,12 +37,20 @@ func NewToken(name, symbol string, id seqid.ID, rlm realm) (*Token, *PrivateLedg
 		panic(ErrInvalidSymbol)
 	}
 
+	// origRealm is the host path, with any ":subpath" synthesized by realm.Sub
+	// stripped. guardHome strips the invoking path the same way, so a token
+	// created from a sub frame is not locked out of its own host realm, and a
+	// host's sub-realms are not falsely rejected. Token.ID() keeps the raw
+	// pkgPath, so identities and the NewToken event are unaffected.
+	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
+
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:     pkgPath + "." + symbol + "." + id.String(),
-		name:   name,
-		symbol: symbol,
-		ledger: ledger,
+		id:        pkgPath + "." + symbol + "." + id.String(),
+		name:      name,
+		symbol:    symbol,
+		ledger:    ledger,
+		origRealm: origRealm,
 	}
 	ledger.token = token
 
@@ -98,11 +106,25 @@ func (tok *Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 
 func (tok *Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-func (tok *Token) BalanceOf(addr address) int64 { return tok.ledger.balanceOf(addr) }
+// EIP-721: balanceOf throws for queries about the zero address,
+// since NFTs assigned to it are considered invalid.
+func (tok *Token) BalanceOf(addr address) (int64, error) {
+	if !addr.IsValid() {
+		return 0, ErrInvalidAddress
+	}
+
+	return tok.ledger.balanceOf(addr), nil
+}
 
 func (tok *Token) OwnerOf(tid TokenID) (address, error) { return tok.ledger.ownerOf(tid) }
 
+// EIP-721: getApproved throws for a token that is not a valid NFT, so a missing
+// token is ErrInvalidTokenId and a live but unapproved one is ErrTokenIdNotApproved.
 func (tok *Token) GetApproved(tid TokenID) (address, error) {
+	if !tok.ledger.exists(tid) {
+		return zeroAddress, ErrInvalidTokenId
+	}
+
 	addr := tok.ledger.tokenApprovals.Get(tid.String())
 	if addr == nil {
 		return zeroAddress, ErrTokenIdNotApproved
@@ -127,8 +149,9 @@ func (tok *Token) RenderHome() string {
 // RegisterExtension attaches an issuer-supplied hook set. Issuer-only (holds the
 // PrivateLedger), which keeps the surface from being attacker-attachable — but the
 // attachment is still a privilege: per the Extension doc, an attached hook can veto
-// transfers (a panic reverts the movement) and adds gas to every movement.
-// Same pointer twice is a no-op; a different ext of an already-attached kind panics.
+// transfers (a panic aborts the transaction before the Transfer event is emitted) and
+// adds gas to every movement.
+// One extension per kind; a second registration of an attached kind panics.
 func (led *PrivateLedger) RegisterExtension(ext Extension) {
 	if ext == nil {
 		panic("grc721: nil extension")
@@ -136,10 +159,6 @@ func (led *PrivateLedger) RegisterExtension(ext Extension) {
 
 	kind := ext.ExtensionKind()
 	for _, e := range led.extensions {
-		if e == ext {
-			return
-		}
-
 		if e.ExtensionKind() == kind {
 			panic("grc721: extension kind already registered: " + kind)
 		}
@@ -167,6 +186,10 @@ func (led *PrivateLedger) Mint(to address, tid TokenID) error {
 	led.owners.Set(tid.String(), to)
 	led.totalSupply = overflow.Add64p(led.totalSupply, 1)
 
+	for _, ext := range led.extensions {
+		ext.OnMint(to, tid)
+	}
+
 	// Mint emits Transfer from the empty address (EIP-721); indexers reconstruct ownership from Transfer alone.
 	chain.Emit(
 		TransferEvent,
@@ -175,10 +198,6 @@ func (led *PrivateLedger) Mint(to address, tid TokenID) error {
 		"to", to.String(),
 		"tokenId", tid.String(),
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnMint(to, tid)
-	}
 
 	return nil
 }
@@ -196,6 +215,10 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 	led.owners.Remove(tidStr)
 	led.totalSupply = overflow.Sub64p(led.totalSupply, 1)
 
+	for _, ext := range led.extensions {
+		ext.OnBurn(tid)
+	}
+
 	// Burn emits Transfer to the empty address (EIP-721).
 	chain.Emit(
 		TransferEvent,
@@ -204,10 +227,6 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 		"to", "",
 		"tokenId", tidStr,
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnBurn(tid)
-	}
 
 	return nil
 }
@@ -268,7 +287,12 @@ func (led *PrivateLedger) SetApprovalForAll(owner, operator address, approved bo
 		return ErrApprovalToCurrentOwner
 	}
 
-	led.operatorApprovals.Set(operatorKey(owner, operator), approved)
+	key := operatorKey(owner, operator)
+	if approved {
+		led.operatorApprovals.Set(key, approved)
+	} else {
+		led.operatorApprovals.Remove(key)
+	}
 
 	chain.Emit(
 		ApprovalForAllEvent,
@@ -305,6 +329,10 @@ func (led *PrivateLedger) transfer(from, to address, tid TokenID) error {
 	led.setBalance(to, overflow.Add64p(led.balanceOf(to), 1))
 	led.owners.Set(tidStr, to)
 
+	for _, ext := range led.extensions {
+		ext.OnTransfer(from, to, tid)
+	}
+
 	chain.Emit(
 		TransferEvent,
 		"token", led.token.id,
@@ -312,10 +340,6 @@ func (led *PrivateLedger) transfer(from, to address, tid TokenID) error {
 		"to", to.String(),
 		"tokenId", tidStr,
 	)
-
-	for _, ext := range led.extensions {
-		ext.OnTransfer(from, to, tid)
-	}
 
 	return nil
 }

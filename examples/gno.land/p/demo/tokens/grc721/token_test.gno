@@ -10,6 +10,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+func mustBalanceOf(t *testing.T, tok *Token, addr address) int64 {
+	balance, err := tok.BalanceOf(addr)
+	urequire.NoError(t, err)
+	return balance
+}
+
 // newTestToken builds via same-realm cross (NewToken requires rlm.IsCurrent()).
 func newTestToken(name, symbol string, id seqid.ID, rlm realm) (tok *Token, led *PrivateLedger) {
 	func(cur realm) {
@@ -43,6 +49,14 @@ func (m *mockExtension) OnBurn(tid TokenID) {
 	m.burns++
 	m.lastBurn = tid
 }
+
+// Value type holding a slice: uncomparable, so `==` on two of them is a runtime fault.
+type journalExtension struct{ seen []TokenID }
+
+func (e journalExtension) ExtensionKind() string                    { return "journal" }
+func (e journalExtension) OnMint(to address, tid TokenID)           {}
+func (e journalExtension) OnTransfer(from, to address, tid TokenID) {}
+func (e journalExtension) OnBurn(tid TokenID)                       {}
 
 var (
 	alice = testutils.TestAddress("alice")
@@ -141,7 +155,7 @@ func TestMint(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.Equal(t, int64(1), tok.TotalSupply())
-				uassert.Equal(t, int64(1), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 1, tok.KnownAccounts())
 				owner, err := tok.OwnerOf("1")
 				urequire.NoError(t, err)
@@ -180,7 +194,7 @@ func TestMint(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
-				uassert.Equal(t, int64(2), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(2), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, int64(2), tok.TotalSupply())
 				uassert.Equal(t, 1, tok.KnownAccounts())
 			},
@@ -220,7 +234,7 @@ func TestBurn(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.Equal(t, int64(0), tok.TotalSupply())
-				uassert.Equal(t, int64(0), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(0), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 0, tok.KnownAccounts())
 				_, err := tok.OwnerOf("1")
 				uassert.ErrorIs(t, err, ErrInvalidTokenId)
@@ -235,8 +249,9 @@ func TestBurn(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				uassert.Equal(t, 0, led.tokenApprovals.Size())
 				_, err := tok.GetApproved("1")
-				uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+				uassert.ErrorIs(t, err, ErrInvalidTokenId)
 			},
 		},
 		{
@@ -255,7 +270,7 @@ func TestBurn(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
-				uassert.Equal(t, int64(1), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 1, tok.KnownAccounts())
 				uassert.Equal(t, int64(1), tok.TotalSupply())
 			},
@@ -398,7 +413,7 @@ func TestSetApprovalForAll(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name: "revoke operator approval",
+			name: "revoke operator approval releases the node",
 			action: func(led *PrivateLedger) error {
 				urequire.NoError(t, led.SetApprovalForAll(alice, bob, true))
 				return led.SetApprovalForAll(alice, bob, false)
@@ -406,6 +421,18 @@ func TestSetApprovalForAll(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.False(t, tok.IsApprovedForAll(alice, bob))
+				uassert.Equal(t, 0, led.operatorApprovals.Size())
+			},
+		},
+		{
+			name: "revoke without a prior grant stores nothing",
+			action: func(led *PrivateLedger) error {
+				return led.SetApprovalForAll(alice, bob, false)
+			},
+			wantErr: nil,
+			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				uassert.False(t, tok.IsApprovedForAll(alice, bob))
+				uassert.Equal(t, 0, led.operatorApprovals.Size())
 			},
 		},
 		{
@@ -459,8 +486,8 @@ func TestTransferFrom(cur realm, t *testing.T) {
 				owner, err := tok.OwnerOf("1")
 				urequire.NoError(t, err)
 				uassert.Equal(t, bob, owner)
-				uassert.Equal(t, int64(0), tok.BalanceOf(alice))
-				uassert.Equal(t, int64(1), tok.BalanceOf(bob))
+				uassert.Equal(t, int64(0), mustBalanceOf(t, tok, alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, bob))
 			},
 		},
 		{
@@ -588,10 +615,14 @@ func TestReadViews(cur realm, t *testing.T) {
 			uassert.Equal(t, 2, tok.KnownAccounts())
 		}},
 		{"BalanceOf of a holder", func(t *testing.T) {
-			uassert.Equal(t, int64(2), tok.BalanceOf(alice))
+			uassert.Equal(t, int64(2), mustBalanceOf(t, tok, alice))
 		}},
 		{"BalanceOf of a non-holder is zero", func(t *testing.T) {
-			uassert.Equal(t, int64(0), tok.BalanceOf(carl))
+			uassert.Equal(t, int64(0), mustBalanceOf(t, tok, carl))
+		}},
+		{"BalanceOf of the zero address returns ErrInvalidAddress", func(t *testing.T) {
+			_, err := tok.BalanceOf(zeroAddress)
+			uassert.ErrorIs(t, err, ErrInvalidAddress)
 		}},
 		{"OwnerOf existing token", func(t *testing.T) {
 			owner, err := tok.OwnerOf("3")
@@ -610,6 +641,10 @@ func TestReadViews(cur realm, t *testing.T) {
 		{"GetApproved on unapproved token returns ErrTokenIdNotApproved", func(t *testing.T) {
 			_, err := tok.GetApproved("2")
 			uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+		}},
+		{"GetApproved on missing token returns ErrInvalidTokenId", func(t *testing.T) {
+			_, err := tok.GetApproved("999")
+			uassert.ErrorIs(t, err, ErrInvalidTokenId)
 		}},
 		{"IsApprovedForAll true for operator", func(t *testing.T) {
 			uassert.True(t, tok.IsApprovedForAll(alice, bob))
@@ -638,24 +673,34 @@ func TestRegisterExtensionNil(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegisterExtensionRejectsDuplicateKind(cur realm, t *testing.T) {
+	_, led := newTestToken("Foo", "FOO", 0, cur)
+	ext := &mockExtension{}
+	led.RegisterExtension(ext)
+
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
+		led.RegisterExtension(ext)
+	})
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
+		led.RegisterExtension(&mockExtension{})
+	})
+}
+
+func TestRegisterExtensionRejectsDuplicateKindOfUncomparableType(cur realm, t *testing.T) {
+	_, led := newTestToken("Foo", "FOO", 0, cur)
+	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}})
+
+	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: journal", func() {
+		led.RegisterExtension(journalExtension{seen: []TokenID{"2"}})
+	})
+}
+
 func TestExtensionHookFanOut(cur realm, t *testing.T) {
 	tests := []struct {
 		name   string
 		run    func(t *testing.T, led *PrivateLedger, ext *mockExtension)
 		verify func(t *testing.T, ext *mockExtension)
 	}{
-		{
-			name: "duplicate registration is ignored and mint fires once",
-			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {
-				led.RegisterExtension(ext)
-				led.RegisterExtension(ext)
-				urequire.NoError(t, led.Mint(alice, "1"))
-			},
-			verify: func(t *testing.T, ext *mockExtension) {
-				uassert.Equal(t, 1, ext.mints)
-				uassert.Equal(t, alice, ext.lastMintTo)
-			},
-		},
 		{
 			name: "mint, transfer and burn each notify the extension",
 			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {

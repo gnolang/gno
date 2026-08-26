@@ -147,8 +147,8 @@ func Render(path string) string {
 			regDetails := record.(*RegistrationDetails)
 			addr := regDetails.Address
 			nftList := ""
-			balance := dao.BalanceOf(addr)
-			if balance > 0 {
+			balance, err := dao.BalanceOf(addr)
+			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
 				for i := int64(0); i < balance; i++ {
 					if i > 0 {
@@ -174,8 +174,8 @@ func Render(path string) string {
 			regDetails := record.(*RegistrationDetails)
 			addr := regDetails.Address
 			nftList := ""
-			balance := dao.BalanceOf(addr)
-			if balance > 0 {
+			balance, err := dao.BalanceOf(addr)
+			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
 				for i := int64(0); i < balance; i++ {
 					if i > 0 {

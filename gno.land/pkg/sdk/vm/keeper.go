@@ -1478,7 +1478,20 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
-func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) (paths []string, err error) {
+	// Same reasoning as QueryInertPaths, which this is the sibling of: the
+	// iteration below is lazy and metered, maxGasQuery is a real ceiling, and
+	// exhausting it panics with OutOfGasError. handleQueryCustom does not
+	// recover, so without this the panic leaves the ABCI Query instead of being
+	// reported as an error.
+	//
+	// Reaching it takes roughly maxGasQuery/IterNextCostFlat steps, which is
+	// millions of packages under one prefix -- far enough away that there is no
+	// test for it here, and near enough that the answer should not be a node
+	// panic. Governance can also move IterNextCostFlat, which changes the
+	// distance without changing this code.
+	defer doRecoverQueryNoMachine(&err)
+
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
 	}
