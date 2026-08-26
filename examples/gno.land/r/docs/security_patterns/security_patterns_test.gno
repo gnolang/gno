@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
-func TestSetMessageRejectsNonAdmin(cur realm, t *testing.T) {
+func TestSetMessageRequiresLiveAdmin(cur realm, t *testing.T) {
 	// cross(cur) at the call site performs the realm crossing: PreviousRealm
 	// inside SetMessage becomes the UserRealm set just above, so assertAdmin
 	// can verify the caller's address.

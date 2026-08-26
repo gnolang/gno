@@ -703,7 +703,7 @@ func lineMap(orig, formatted []byte) []int {
 	firstTok := firstTokenIndexByLine(formatted, nf)
 	m := make([]int, nf)
 	last := 0
-	for f := 0; f < nf; f++ {
+	for f := range nf {
 		if k := firstTok[f]; k >= 0 && k < len(origTokLines) {
 			last = origTokLines[k]
 		}
