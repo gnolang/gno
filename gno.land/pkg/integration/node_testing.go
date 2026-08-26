@@ -223,6 +223,9 @@ func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage)
 		}},
 		Auth: auth.DefaultGenesisState(),
 		Bank: bank.DefaultGenesisState(),
-		VM:   vmm.DefaultGenesisState(),
+		// run_submitters is left at its default (empty), which means the MsgRun
+		// allowlist is off. Seeding it here would hide the gate from every txtar
+		// that exercises it; the two that do populate it in-script.
+		VM: vmm.DefaultGenesisState(),
 	}
 }
