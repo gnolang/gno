@@ -150,6 +150,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	// Merge the two balance sheets, with the input
 	// having precedence over the genesis balances
 	finalBalances.LeftMerge(genesisBalances)
+	carryOverVesting(finalBalances, genesisBalances)
 
 	// Save the balances
 	sortedBalances := finalBalances.List()
@@ -284,6 +285,33 @@ func getBalancesFromTransactions(
 	}
 
 	return balances, nil
+}
+
+// carryOverVesting keeps a genesis vesting schedule on an address whose amount an
+// input entry has replaced.
+//
+// Overriding an amount is the point of this command, but a schedule is not part
+// of the amount. Dropping it releases the funds, and silently, because what is
+// left looks like any other balance. A tx export is the easy way to hit this: it
+// names every address that ever sent or received, so a vesting investor who made
+// one transaction would come out unlocked.
+//
+// An input entry carrying its own schedule keeps it -- there the operator said
+// what they meant. If the carried schedule vests more than the new amount the
+// result is invalid, and `gnogenesis verify` and the chain both reject it. That
+// is the intended failure: a loud one beats a silent unlock.
+func carryOverVesting(final, genesis gnoland.Balances) {
+	for addr, genBal := range genesis {
+		if !genBal.IsVesting() {
+			continue
+		}
+		cur, present := final[addr]
+		if !present || cur.IsVesting() {
+			continue
+		}
+		cur.Vesting = genBal.Vesting
+		final[addr] = cur
+	}
 }
 
 // mapGenesisBalancesFromState extracts the initial account balances from the
