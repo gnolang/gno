@@ -1166,13 +1166,17 @@ Closing the `add_package` row for real transactions still means running under
    that the estimate failed, and broadcasts anyway — paying a full fee to be
    told what it already knew.
 
-   Not changed here because the two failure kinds need telling apart first. "The
-   node says this message fails" is grounds to decline; "the node would not
-   answer" is not, and treating them alike hands anyone who can disturb the query
-   path a way to stall approvals chain-wide. `Simulate` reports both as an error
-   and distinguishes them only by message text. **Needs a decision:** either
-   surface the ABCI error typed so the two can be separated, or leave the fee as
-   the cost of not knowing.
+   **That decision has since been taken.** The two failure kinds needed telling
+   apart first — "the node says this message fails" is grounds to decline, "the
+   node would not answer" is not, and treating them alike hands anyone who can
+   disturb the query path a way to stall approvals chain-wide. `Simulate`
+   reported both as one error. `SimulateResult` now returns the response as
+   given and `classifySimulate` splits it three ways, so gpao declines an enable
+   the node has already rejected instead of paying a fee to be told again.
+
+   What remains is the narrower original point: gpao's own verifier still does
+   not execute the package, so `init()` is certified only by the node's
+   simulate, and only for the enable gpao is about to send.
 
 2. **`DisablePackage`** remains unimplemented in #5888 (it needs object
    eviction), so a package can be enabled exactly once — and the storage deposit
@@ -1480,6 +1484,16 @@ Closing the `add_package` row for real transactions still means running under
     it prevents is worse — but it needs a companion: let a namespace-permitted
     address replace, or let an approver reject and evict, or adopt the content
     hash of item 12, which removes the need to bind a path to a creator at all.
+
+    **Two of those three have since landed.** An approver can evict a squat
+    with `MsgRejectPackage` (item 13), so the path is no longer unclaimable
+    until the chain leaves `inert` — that was the sharp edge. And the content
+    hash exists (item 12), which is what would let §5b's creator binding be
+    relaxed: an approval now names the bytes it approves, so a stranger
+    replacing parked bytes can no longer ride a review. Relaxing it is a
+    decision, not a consequence, and is not taken here. What remains open is
+    only the first companion: eviction still needs an approver, so a namespace
+    owner facing a squat has to ask one rather than clear it themselves.
 
 18d. **A capability the realm-param key rule removes, stated here because the
     commit that added it did not.** A genesis section named `[vm:p]` used to
