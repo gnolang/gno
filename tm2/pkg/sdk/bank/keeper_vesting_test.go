@@ -18,17 +18,23 @@ func ugnotCoins(n int64) std.Coins {
 	return std.NewCoins(std.NewCoin("ugnot", n))
 }
 
+// setupVestingSchedule is the schedule setupVestingAccount installs: `total`
+// ugnot vesting linearly from t=100 to t=200.
+func setupVestingSchedule(total int64) std.VestingSchedule {
+	return std.VestingSchedule{
+		OriginalVesting: ugnotCoins(total),
+		StartTime:       100,
+		EndTime:         200,
+	}
+}
+
 // setupVestingAccount stores a continuous vesting account at addr: `total`
 // ugnot, all of it vesting linearly from t=100 to t=200.
 func setupVestingAccount(t *testing.T, env testEnv, addr crypto.Address, total int64) {
 	t.Helper()
 
 	baseAcc := std.NewBaseAccount(addr, ugnotCoins(total), nil, 0, 0)
-	baseAcc.Vesting = std.VestingSchedule{
-		OriginalVesting: ugnotCoins(total),
-		StartTime:       100,
-		EndTime:         200,
-	}
+	baseAcc.Vesting = setupVestingSchedule(total)
 	env.acck.SetAccount(env.ctx, baseAcc)
 }
 
@@ -123,6 +129,12 @@ func TestBankKeeper_VestingUnrestrictedBypass(t *testing.T) {
 	err := env.bankk.SendCoinsUnrestricted(ctx, fromAddr, toAddr, ugnotCoins(100))
 	require.NoError(t, err, "unrestricted transfers must bypass the vesting lock")
 	require.Equal(t, int64(900), env.bankk.GetCoins(ctx, fromAddr).AmountOf("ugnot"))
+
+	// Bypassing the lock must not clear it. This is the path every transaction
+	// takes to pay gas, and it rewrites the account object, so a schedule lost
+	// here would be lost on the first fee any vesting account ever paid.
+	require.Equal(t, setupVestingSchedule(1000), env.acck.GetAccount(ctx, fromAddr).GetVesting(),
+		"paying through the unrestricted path must leave the schedule intact")
 	require.Equal(t, int64(100), env.bankk.GetCoins(ctx, toAddr).AmountOf("ugnot"))
 }
 
