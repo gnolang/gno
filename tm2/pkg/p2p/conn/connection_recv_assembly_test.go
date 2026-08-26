@@ -170,7 +170,7 @@ func TestRecvAssemblyTimeoutClearedOnCompletion(t *testing.T) {
 	// Send several two-packet messages, each spaced well beyond the deadline.
 	// Because each message completes, the deadline is cleared every time and the
 	// connection must survive.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		writePacketMsg(t, server, 0x01, 0x00, []byte("part-"))
 		writePacketMsg(t, server, 0x01, 0x01, []byte("end"))
 		select {
