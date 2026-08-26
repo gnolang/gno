@@ -105,6 +105,29 @@ func (rawRenderer) RenderDocumentation(w io.Writer, src []byte) error {
 	return err
 }
 
+// TestHTTPHandler_Get_InvalidPathNotEchoedToLog asserts the GET handler never
+// writes the request path into the log. An escaped uppercase rune fails the
+// path character check while also exercising the escaped path length.
+func TestHTTPHandler_Get_InvalidPathNotEchoedToLog(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("a", 4000)
+	path := "/r/%41" + body + "/x"
+	var logs bytes.Buffer
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&logs, nil)),
+		newTestHandlerConfig(t, gnoweb.NewMockClient()),
+	)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.NotContains(t, logs.String(), body)
+	assert.Contains(t, logs.String(), fmt.Sprintf("path_length=%d", len(path)))
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()
