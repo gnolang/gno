@@ -72,7 +72,7 @@ type typeKey struct {
 // resolved to the imported package's path.
 type declWithImports struct {
 	spec    *ast.TypeSpec
-	imports map[string]string // selector name -> import path
+	imports map[string][]string // selector name -> import path(s); see fileImports
 }
 
 // pkgDecls indexes a package's type declarations by name. A name can appear more
@@ -174,9 +174,17 @@ func (c *expansionChecker) pkgName(pkgPath string) string {
 	return fs[0].Name.Name
 }
 
-// fileImports maps each selector-visible import name in a file to its path.
-func (c *expansionChecker) fileImports(gof *ast.File) map[string]string {
-	m := make(map[string]string, len(gof.Imports))
+// fileImports maps each selector-visible import name in a file to the import
+// path(s) bound to it.
+//
+// A selector can bind more than one path: `import ("a"; x "b")` where a's package
+// name is also x is a redeclaration go/types reports — but it binds the FIRST and
+// still runs the delayed validType walk on it, so the walk expands a type this
+// guard must not price as the other. Keeping ALL candidates and taking the max in
+// cost() guarantees we never charge for the lighter one while validType walks the
+// heavier. Same rule declsFor already applies to a duplicated type name.
+func (c *expansionChecker) fileImports(gof *ast.File) map[string][]string {
+	m := make(map[string][]string, len(gof.Imports))
 	for _, imp := range gof.Imports {
 		impPath, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
@@ -195,7 +203,7 @@ func (c *expansionChecker) fileImports(gof *ast.File) map[string]string {
 			// last element, the conventional package name.
 			name = path.Base(impPath)
 		}
-		m[name] = impPath
+		m[name] = append(m[name], impPath)
 	}
 	return m
 }
@@ -284,7 +292,7 @@ func unresolvedCost(name string) uint64 {
 // cost returns the number of validType nodes visited for a type expression,
 // evaluated in the context of package pkgPath and the imports of the file the
 // expression came from.
-func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]string) uint64 {
+func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string][]string) uint64 {
 	switch t := e.(type) {
 	case *ast.ParenExpr:
 		return c.cost(t.X, pkgPath, imports)
@@ -322,8 +330,17 @@ func (c *expansionChecker) cost(e ast.Expr, pkgPath string, imports map[string]s
 		// A qualified type pkg.T: resolve the import and cross into it. validType
 		// re-walks imported types without memoizing, so this edge is real.
 		if id, ok := t.X.(*ast.Ident); ok {
-			if path := imports[id.Name]; path != "" {
-				return c.namedCost(typeKey{pkg: path, name: t.Sel.Name})
+			if paths := imports[id.Name]; len(paths) > 0 {
+				// A selector may bind more than one path (a redeclared import);
+				// go/types walks whichever it bound, so price the heaviest. See
+				// fileImports.
+				var best uint64
+				for _, p := range paths {
+					if v := c.namedCost(typeKey{pkg: p, name: t.Sel.Name}); v > best {
+						best = v
+					}
+				}
+				return best
 			}
 		}
 		// Unresolvable qualifier. Priced like any other unresolvable name rather

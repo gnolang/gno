@@ -405,6 +405,59 @@ func TestDotImportFanOutRejected(t *testing.T) {
 // re-expands imported types without memoizing, so the real walk multiplies at
 // every link. The cost model has to follow the imports, or every link past the
 // first is walked for free.
+// TestTypeExpansionCostDuplicateImportSelector pins the under-count omarsy found:
+// two imports binding the same selector name. go/types reports the redeclaration
+// but binds the FIRST import and still runs the delayed validType walk on it, so a
+// guard that kept only the LAST would price the wrong package. The charge must
+// cover whichever go/types walks — and, since we cannot depend on which it picks,
+// the max over both candidates.
+//
+// heavy holds a deep doubling chain; light is a one-liner. hijack imports both
+// under the same selector, heavy first:
+//
+//	import (
+//		heavy "gno.land/r/foobar/heavy"
+//		heavy "gno.land/r/foobar/light"   // rebinds the selector
+//	)
+//
+// Kept-last prices light (cheap) while validType walks heavy (deep) — the walk runs
+// unpriced. Max-over-candidates prices heavy, so the deploy is refused before
+// go/types.
+func TestTypeExpansionCostDuplicateImportSelector(t *testing.T) {
+	t.Parallel()
+
+	pkgs := map[string]string{
+		"gno.land/r/foobar/heavy": doublingPkgSrc("heavy", 16, ""),
+		"gno.land/r/foobar/light": "package light\ntype T struct{ a, b int }\n",
+		// One entry type over heavy.T, reached through a selector that a second
+		// import rebinds to light.
+		"gno.land/r/foobar/hijack": "package hijack\n" +
+			"import (\n\theavy \"gno.land/r/foobar/heavy\"\n\theavy \"gno.land/r/foobar/light\"\n)\n" +
+			"type U struct{ a, b [0]heavy.T }\n",
+		// Control: the honest package, heavy under its own name, no rebind.
+		"gno.land/r/foobar/honest": "package honest\n" +
+			"import \"gno.land/r/foobar/heavy\"\n" +
+			"type U struct{ a, b [0]heavy.T }\n",
+	}
+	fset := token.NewFileSet()
+	resolve := makeCostResolver(t, fset, pkgs)
+	costOf := func(pp string) uint64 {
+		return typeExpansionCost(pp, resolve(pp), resolve, nil)
+	}
+
+	honest := costOf("gno.land/r/foobar/honest")
+	hijack := costOf("gno.land/r/foobar/hijack")
+
+	// The heavy chain is what validType walks in both. hijack must be priced no
+	// lower than honest — order of the two imports must not change the charge.
+	require.Greater(t, honest, uint64(costlyThreshold),
+		"control must be expensive, or the test proves nothing")
+	assert.GreaterOrEqual(t, hijack, honest,
+		"rebinding the selector to a light package dropped the charge from %d to %d; "+
+			"go/types binds the first import and walks heavy.T, so the guard must "+
+			"price the heaviest candidate, not the last", honest, hijack)
+}
+
 func TestTypeExpansionCostImports(t *testing.T) {
 	t.Parallel()
 
