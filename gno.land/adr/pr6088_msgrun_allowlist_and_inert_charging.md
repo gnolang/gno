@@ -5,6 +5,42 @@ packages), which builds on [#5885](https://github.com/gnolang/gno/pull/5885)
 (phase 1, `code_submission_policy`). Read
 [pr5888_phase2_inert_packages.md](./pr5888_phase2_inert_packages.md) first.
 
+## How to review this
+
+This PR is large, and most of it cannot affect a running chain until governance
+decides it should. That is worth knowing before choosing where to spend
+attention, so the split is stated here rather than left to be inferred.
+
+**Dormant until opted into.** `code_submission_policy` defaults to
+`permissionless` (`codeSubmissionPolicyDefault`), so no submission is ever
+parked. `code_submitters` and `run_submitters` default empty, which means open —
+they gate nothing until set. `pkg_approvers` defaults empty too, but there it
+means the opposite: `isApprover` is a membership test with no empty-means-open
+case, so an empty list admits nobody. Either way nothing activates. So the
+whole inert flow — the submission charge, the content hash, `MsgEnablePackage`,
+`MsgRejectPackage`, `vm/qpkgmeta_json`, `vm/qinertpaths`, the gnoweb banner, and
+every line of gpao — is unreachable on a chain that does not set those params.
+Wrong code there is a bug in a feature nobody has turned on.
+
+**Live the moment this ships**, with default params, on every chain:
+
+| Change | Commit | Why it needs the scrutiny |
+|---|---|---|
+| Signatures verified when simulating a code-bearing message | `c539ff7cb` | The only client-visible break. Estimating gas for `MsgAddPackage` or `MsgRun` now needs a real signature, not a pubkey placeholder. gnokey is unaffected — it signs a second transaction to simulate — but other clients are. |
+| `default_deposit` drops 600000000ugnot → 100000000ugnot | `fc5dd7e0e` | Changes what every deployer pays for storage, on every deploy, immediately. |
+| `chain_domain`, `sysnames_pkgpath` and `syscla_pkgpath` read through `Params` only | `7094c517c`, `fb521003d` | The read path for every message that resolves a package path. The accessors that used to shadow them are deleted; a mistake here breaks all deploys, not just inert ones. |
+| Two new `Params` fields | `ff04220f2` | `SetStruct` writes one key per field, so the genesis root moves. Adopting this is a coordinated upgrade, not a rolling one. |
+
+Everything else is either dormant per the above, or documentation and tests.
+
+**Already checked, so it need not be redone.** The determinism audit at the end
+of this document enumerates the ways two honest validators could diverge and why
+each fails structurally. Gas goldens do not move — established by running them,
+not by argument. Existing encoded messages are byte-identical: `PkgHash` is
+appended and omitted when empty. `pb3_gen.go` was regenerated with `genproto2`
+rather than hand-edited, and the diff is confined to the new field and the new
+message.
+
 ## Context
 
 Reaching the Go type checker is the expensive part of accepting code. It is
