@@ -8,7 +8,7 @@ import (
 )
 
 // adminAddr mirrors the hardcoded owner of ownableInst in admin.gno.
-const adminAddr = address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+const adminAddr = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 
 func TestResetPostsUnauthorized(cur realm, t *testing.T) {
 	posts = nil
