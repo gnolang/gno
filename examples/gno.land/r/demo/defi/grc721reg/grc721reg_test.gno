@@ -183,12 +183,14 @@ func TestGettersOnAbsentKey(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name: "Render of an unknown key aborts through MustGet",
+			// Render's input is attacker-controlled, so an unknown key must
+			// render a message rather than abort: aborting hands any visitor a
+			// way to break the page with a bad URL.
+			name: "Render of an unknown key reports it instead of aborting",
 			check: func(t *testing.T) {
-				uassert.PanicsWithMessage(t, cur,
-					"grc721reg: unknown collection: "+absent, func() {
-						Render(absent)
-					})
+				out := Render(absent)
+				urequire.True(t, strings.Contains(out, "Unknown collection"),
+					"renders a not-found message, got: "+out)
 			},
 		},
 	}

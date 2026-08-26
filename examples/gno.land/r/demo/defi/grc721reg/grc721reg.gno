@@ -34,6 +34,14 @@ func Register(cur realm, token *grc721.Token, slug string, extensions ...grc721.
 		validateSlug(slug)
 	}
 
+	// The registering realm is derived from the live crossing frame, so verify
+	// the frame before reading it: .Previous() on a stale token resolves toward
+	// the origin instead of failing, which would key the entry off the wrong
+	// identity.
+	if !cur.IsCurrent() {
+		panic(grc721.ErrSpoofedRealm)
+	}
+
 	rlmPath := cur.Previous().PkgPath()
 	if !strings.HasPrefix(token.ID(), rlmPath+".") {
 		panic("grc721reg: collection must be registered from its own realm")
@@ -126,7 +134,13 @@ func Render(path string) string {
 		return s
 	default:
 		key := path
-		v := MustGet(key)
+		// Render takes attacker-controlled input, so an unknown key renders a
+		// message rather than aborting the page: MustGet would let any visitor
+		// break this view with a bad URL.
+		v := Get(key)
+		if v == nil {
+			return "Unknown collection: " + md.EscapeText(key)
+		}
 		rlmPath, sym := fqname.Parse(key)
 		rlmLink := fqname.RenderLink(rlmPath, sym)
 
@@ -140,6 +154,12 @@ func Render(path string) string {
 	}
 }
 
+// extensionBadges renders the kinds a collection advertises. ExtensionKind() is
+// issuer-supplied, so it goes through md.InlineCode rather than being pasted
+// between literal backticks: a backtick in a kind would otherwise close the
+// code span and inject markdown into the public index. InlineCode picks a
+// delimiter wide enough to outscan the content, which hand-escaping cannot do
+// inside a code span.
 func extensionBadges(v *collection.Collection) string {
 	kinds := v.Kinds()
 	if len(kinds) == 0 {
@@ -149,7 +169,7 @@ func extensionBadges(v *collection.Collection) string {
 	out := ""
 
 	for _, k := range kinds {
-		out += "`" + k + "` "
+		out += md.InlineCode(k) + " "
 	}
 
 	return strings.TrimSpace(out)
