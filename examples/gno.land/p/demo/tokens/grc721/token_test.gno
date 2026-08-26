@@ -10,6 +10,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+func mustBalanceOf(t *testing.T, tok *Token, addr address) int64 {
+	balance, err := tok.BalanceOf(addr)
+	urequire.NoError(t, err)
+	return balance
+}
+
 // newTestToken builds via same-realm cross (NewToken requires rlm.IsCurrent()).
 func newTestToken(name, symbol string, id seqid.ID, rlm realm) (tok *Token, led *PrivateLedger) {
 	func(cur realm) {
@@ -141,7 +147,7 @@ func TestMint(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.Equal(t, int64(1), tok.TotalSupply())
-				uassert.Equal(t, int64(1), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 1, tok.KnownAccounts())
 				owner, err := tok.OwnerOf("1")
 				urequire.NoError(t, err)
@@ -180,7 +186,7 @@ func TestMint(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
-				uassert.Equal(t, int64(2), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(2), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, int64(2), tok.TotalSupply())
 				uassert.Equal(t, 1, tok.KnownAccounts())
 			},
@@ -220,7 +226,7 @@ func TestBurn(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.Equal(t, int64(0), tok.TotalSupply())
-				uassert.Equal(t, int64(0), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(0), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 0, tok.KnownAccounts())
 				_, err := tok.OwnerOf("1")
 				uassert.ErrorIs(t, err, ErrInvalidTokenId)
@@ -256,7 +262,7 @@ func TestBurn(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
-				uassert.Equal(t, int64(1), tok.BalanceOf(alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, alice))
 				uassert.Equal(t, 1, tok.KnownAccounts())
 				uassert.Equal(t, int64(1), tok.TotalSupply())
 			},
@@ -472,8 +478,8 @@ func TestTransferFrom(cur realm, t *testing.T) {
 				owner, err := tok.OwnerOf("1")
 				urequire.NoError(t, err)
 				uassert.Equal(t, bob, owner)
-				uassert.Equal(t, int64(0), tok.BalanceOf(alice))
-				uassert.Equal(t, int64(1), tok.BalanceOf(bob))
+				uassert.Equal(t, int64(0), mustBalanceOf(t, tok, alice))
+				uassert.Equal(t, int64(1), mustBalanceOf(t, tok, bob))
 			},
 		},
 		{
@@ -601,10 +607,14 @@ func TestReadViews(cur realm, t *testing.T) {
 			uassert.Equal(t, 2, tok.KnownAccounts())
 		}},
 		{"BalanceOf of a holder", func(t *testing.T) {
-			uassert.Equal(t, int64(2), tok.BalanceOf(alice))
+			uassert.Equal(t, int64(2), mustBalanceOf(t, tok, alice))
 		}},
 		{"BalanceOf of a non-holder is zero", func(t *testing.T) {
-			uassert.Equal(t, int64(0), tok.BalanceOf(carl))
+			uassert.Equal(t, int64(0), mustBalanceOf(t, tok, carl))
+		}},
+		{"BalanceOf of the zero address returns ErrInvalidAddress", func(t *testing.T) {
+			_, err := tok.BalanceOf(zeroAddress)
+			uassert.ErrorIs(t, err, ErrInvalidAddress)
 		}},
 		{"OwnerOf existing token", func(t *testing.T) {
 			owner, err := tok.OwnerOf("3")

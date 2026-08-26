@@ -24,7 +24,7 @@ type Teller interface {
 	GetSymbol() string
 	ID() string
 	TotalSupply() int64
-	BalanceOf(owner address) int64
+	BalanceOf(owner address) (int64, error)
 	OwnerOf(tid TokenID) (address, error)
 	GetApproved(tid TokenID) (address, error)
 	IsApprovedForAll(owner, operator address) bool

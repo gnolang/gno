@@ -33,7 +33,13 @@ func mintN(owner address, n int64) {
 
 // Getters
 
-func BalanceOf(user address) int64 { return token.BalanceOf(user) }
+func BalanceOf(user address) int64 {
+	balance, err := token.BalanceOf(user)
+	if err != nil {
+		panic(err)
+	}
+	return balance
+}
 
 func OwnerOf(tid grc721.TokenID) address {
 	owner, err := token.OwnerOf(tid)

@@ -98,7 +98,15 @@ func (tok *Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 
 func (tok *Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-func (tok *Token) BalanceOf(addr address) int64 { return tok.ledger.balanceOf(addr) }
+// EIP-721: balanceOf throws for queries about the zero address,
+// since NFTs assigned to it are considered invalid.
+func (tok *Token) BalanceOf(addr address) (int64, error) {
+	if !addr.IsValid() {
+		return 0, ErrInvalidAddress
+	}
+
+	return tok.ledger.balanceOf(addr), nil
+}
 
 func (tok *Token) OwnerOf(tid TokenID) (address, error) { return tok.ledger.ownerOf(tid) }
 
