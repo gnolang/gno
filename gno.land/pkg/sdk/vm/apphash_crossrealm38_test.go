@@ -156,7 +156,34 @@ import (
 // run_submitters above: two more keys, written unconditionally. Behavior at
 // this hash is unchanged — inert_submission_charge defaults to empty, which
 // means off, and the scenario submits nothing under the "inert" policy anyway.
-const expectedCrossrealm38Hash = "3de2574b220ca19d04a19a6287d9ad82fdd2edf3770b7dc107da19b3be1775a2"
+//
+// Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
+// their length checks moved into the .gno wrapper (ahead of the native call, so
+// an oversized input is not copied into Go memory for a flat fee), plus a test
+// for that. Both bn254.gno and bn254_test.gno are stdlib source bytes committed
+// into genesis state, so the root moves. Attributed by bisection against the
+// OriginSend value above: base .gno files give b43e5fd5, bn254_test.gno alone
+// gives a25dc7a4, both give the value below; the innerHash gas-table change moves
+// nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
+// filetest passes and the bn254 EIP-196/197 vectors are untouched.
+//
+// Bumped again by the entity-reference hardening of PercentEncodeURL. The
+// change to chain/markdown is comment-only on the .gno side — the encoding
+// rule itself lives in the injected Go implementation — but stdlib .gno
+// source bytes are genesis state, so documenting the new rule moves the
+// root just as the GetCoin bump above did. Re-derived after merging develop,
+// so the value below covers the bn254 wrapper bounds above and this change
+// together.
+//
+// Bumped once more within this branch by extending that same PercentEncodeURL
+// doc comment (the `&amp;` round-trip note from review). Still comment-only,
+// still consensus-breaking for the reason above; the merge commit pins
+// 0e8e8714 without it.
+//
+// Re-derived for the combination: master's params/deposit bumps and this
+// branch's stdlib source bumps both move the root, so neither side's value
+// survives the merge.
+const expectedCrossrealm38Hash = "2db84d1e139ccfe28faed55b969e86f9f157cbe885c7b3cc27444c2e06256ed3"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

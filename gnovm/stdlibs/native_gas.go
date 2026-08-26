@@ -17,11 +17,12 @@ import (
 // X_ work + return push); no separate dispatch overhead constant.
 //
 // Two-slope (Slope2/PostSlope2) is supported by the runtime for natives
-// whose cost depends on both element count and per-element bytes (e.g.
-// hypothetical natives that hash inside the dispatcher). For all natives
-// shipped today the empirical per-byte CPU cost is negligible — the
-// per-byte work happens inside the metered KVStore (gctx) — so every row
-// below uses a single slope.
+// whose cost depends on two independent dimensions. Only
+// crypto/merkle.innerHash uses it today: it hashes two unbounded byte
+// slices, so each one carries its own per-byte slope. Every other row
+// uses a single slope — for the store-backed natives the per-byte work
+// happens inside the metered KVStore (gctx), so the empirical per-byte
+// CPU cost in the dispatcher is negligible.
 
 // Re-export the gnolang SizeKind constants for readable table literals.
 const (
@@ -146,13 +147,24 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
-	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},           // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
-	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 14883ns (input fixed 128B)
-	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 44465ns (input fixed 96B)
-	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes},     // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
-	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
-	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
-	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 7513ns (32+32B inputs)
+	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},       // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
+	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 14883ns (input fixed 128B)
+	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 44465ns (input fixed 96B)
+	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                   // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},        // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))
+	// — leafHash's shape over two operands instead of one, and nothing bounds
+	// either. Both operands therefore carry leafHash's per-byte rate, which
+	// makes the total charge track total hashed bytes at the same rate leafHash
+	// pays. It was flat until 1MiB+1MiB was measured running ~300x over its
+	// price; see adr/native_input_bounds.md.
+	//
+	// Draft fit base=7513ns (still the 32+32B median, so it double-counts ~2µs
+	// of per-byte cost at that size — conservative until the pending reference
+	// recalibration turns it into a proper intercept) + 32.14ns/N (=32911/1024)
+	// on each of len(left) and len(right).
+	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes, Slope2: 32911, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
 	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
 	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
 	// modExp cost is dominated by an O(N^3) big-int chain (Go big.Int.Exp). The

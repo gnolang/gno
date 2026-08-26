@@ -21,12 +21,12 @@ type Event struct {
 	price       uint64
 	// SECURITY XXX: paymentToken is `any` and accepted from the event
 	// creator. We only check the dynamic type (*grc20.Token or "ugnot"),
-	// not the token's identity. An attacker can deploy their own grc20
+	// not the token's identity. A caller can deploy their own grc20
 	// token (the *grc20.Token type is canonical, so the type check passes)
 	// where they hold an unlimited "balance" on every address. Buyers
 	// then pay for tickets in worthless counterfeit tokens; the eventix
 	// realm thinks it got paid and mints real NFT tickets. Free tickets
-	// for the attacker.
+	// for the caller.
 	// Fix: restrict paymentToken to tokens registered in r/demo/defi/grc20reg
 	// (or a hardcoded allowlist of trusted token pkgPaths). Reject any
 	// *grc20.Token that doesn't come from a known good source.
@@ -108,7 +108,13 @@ func BuyTicket(cur realm, eventId uint64) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(0, cur, cur.Address(), int64(event.price)); err != nil {
+		// eventix does not own this token, so it cannot use a frame-relative
+		// teller to charge its caller — that shape is a confused deputy and is
+		// exactly what the ledger-scoped CallerTeller now prevents. The buyer
+		// approves eventix on the token first; eventix then spends that
+		// allowance as itself, via a RealmTeller eagerly bound to its own
+		// address.
+		if err := pt.RealmTeller(0, cur).TransferFrom(0, cur, buyer, cur.Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:
