@@ -434,7 +434,15 @@ func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error
 //
 // Deliberately a plain prefix match, without QueryPaths' @user handling. This
 // answers an operational question about a queue, not a browsing one.
-func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) ([]string, error) {
+func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) (paths []string, err error) {
+	// Named returns so the recover has somewhere to write. The iteration below
+	// is lazy and metered, and maxGasQuery is a real ceiling, so exhausting it
+	// panics with OutOfGasError -- and handleQueryCustom does not recover, so
+	// without this the panic leaves the ABCI Query rather than being reported
+	// as an error. Under "inert" anyone may park a package, so the size of the
+	// key space being walked is not the operator's to bound.
+	defer doRecoverQueryNoMachine(&err)
+
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
 	}
