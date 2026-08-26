@@ -41,7 +41,7 @@ var (
 
 func init(cur realm) {
 	token, ledger = grc721.NewToken("FooNFT", "FNFT", 0, cur)
-	teller = token.CallerTeller()
+	teller = ledger.CallerTeller()
 }
 
 func Approve(cur realm, user address, tid grc721.TokenID) {
