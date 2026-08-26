@@ -3475,7 +3475,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, st, 0)
+	marshalTypeJSON(&buf, st, 0, 0)
 	var v any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
 		"output must be valid JSON; got %q", buf.String())
@@ -3487,7 +3487,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	marshalTypeJSON(&buf, gnolang.IntType, 0, 0)
 	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
 	var v any
 	require.NoError(t, json.Unmarshal([]byte(envelope), &v),

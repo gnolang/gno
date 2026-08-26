@@ -95,6 +95,36 @@ func TestG1Mul(t *testing.T) {
 	}
 }
 
+// TestOversizedInputMatchesTruncated pins the length handling that G1Add and
+// G1Mul now do before the native call. Those checks exist so an oversized
+// input is discarded before the dispatcher copies it into Go memory — both
+// natives are priced flat, so that copy would otherwise be free — and this
+// test is what says the early exits kept the EIP-196 semantics they replaced.
+func TestOversizedInputMatchesTruncated(t *testing.T) {
+	// G + G, then a megabyte of trailing garbage. EIP-196 ignores everything
+	// past byte 128, so the answer must not change.
+	gg := mustDecodeHex("0000000000000000000000000000000000000000000000000000000000000001" +
+		"0000000000000000000000000000000000000000000000000000000000000002" +
+		"0000000000000000000000000000000000000000000000000000000000000001" +
+		"0000000000000000000000000000000000000000000000000000000000000002")
+	oversized := append(append([]byte{}, gg...), make([]byte, 1<<20)...)
+	if !bytes.Equal(bn254.G1Add(oversized), bn254.G1Add(gg)) {
+		t.Errorf("G1Add: oversized input changed the result; excess bytes must be ignored")
+	}
+
+	// G1Mul takes no padding at all: any length but 96 is rejected.
+	mul := make([]byte, bn254.G1MulInputSize)
+	mul[31] = 1
+	mul[63] = 2
+	mul[bn254.G1MulInputSize-1] = 1
+	if got := bn254.G1Mul(append(append([]byte{}, mul...), make([]byte, 1<<20)...)); got != nil {
+		t.Errorf("G1Mul: oversized input returned %x, want nil", got)
+	}
+	if got := bn254.G1Mul(mul[:95]); got != nil {
+		t.Errorf("G1Mul: short input returned %x, want nil", got)
+	}
+}
+
 // TestPairingCheck uses verbatim vectors from bn256Pairing.json.
 func TestPairingCheck(t *testing.T) {
 	cases := []struct {
