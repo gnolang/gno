@@ -1,4 +1,4 @@
-package gnoblog
+package blog
 
 import (
 	"strings"
@@ -34,12 +34,12 @@ No posts.
 ### [title2](/r/gnoland/blog:p/slug2)
 20 May 2022
 
-|||
+<gno-columns-sep>
 
 ### [title1](/r/gnoland/blog:p/slug1)
 20 May 2022
 
-|||
+<gno-columns-sep>
 </gno-columns>
 `
 		assertMDEquals(t, got, expected)

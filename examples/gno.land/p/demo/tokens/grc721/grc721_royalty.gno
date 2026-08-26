@@ -17,12 +17,9 @@ type royaltyNFT struct {
 var _ IGRC2981 = (*royaltyNFT)(nil)
 
 // NewNFTWithRoyalty creates a new royalty NFT with the specified name, symbol, and royalty calculator.
-func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
-	// Create a new NFT with metadata
-	nft := NewNFTWithMetadata(name, symbol)
-
+func NewNFTWithRoyalty(_ int, rlm realm, name, symbol string) *royaltyNFT {
 	return &royaltyNFT{
-		metadataNFT:          nft,
+		metadataNFT:          NewNFTWithMetadata(0, rlm, name, symbol),
 		tokenRoyaltyInfo:     avl.NewTree(),
 		maxRoyaltyPercentage: 100,
 	}
@@ -60,8 +57,8 @@ func (r *royaltyNFT) SetTokenRoyalty(caller address, tid TokenID, royaltyInfo Ro
 // RoyaltyInfo returns the royalty information for the given token ID and sale price.
 func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (address, int64, error) {
 	// Retrieve royalty information for the token
-	val, found := r.tokenRoyaltyInfo.Get(tid.String())
-	if !found {
+	val := r.tokenRoyaltyInfo.Get(tid.String())
+	if val == nil {
 		return "", 0, ErrInvalidTokenId
 	}
 

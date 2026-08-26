@@ -4,9 +4,9 @@ package grc721
 // realm boundaries — has no rlm-typed methods, so a malicious impl can
 // only lie about read results (data-integrity issue), not capture cur.
 //
-// Writes are concrete methods on *basicNFT / *metadataNFT / *royaltyNFT
+// Writes are concrete methods on *BasicNFT / *metadataNFT / *royaltyNFT
 // only — there is no IGRC721 writer interface. The owning realm should
-// hold the concrete *basicNFT in an unexported package var and expose
+// hold the concrete *BasicNFT in an unexported package var and expose
 // public rlm-validating wrappers like:
 //
 //	func TransferFrom(cur realm, from, to address, tid TokenID) error {
@@ -42,6 +42,8 @@ const (
 	TransferEvent       = "Transfer"
 	ApprovalEvent       = "Approval"
 	ApprovalForAllEvent = "ApprovalForAll"
+	TokenURIUpdateEvent = "TokenUriUpdate"
+	MetadataUpdateEvent = "MetadataUpdate"
 )
 
 // NFTGetter returns a reader-only view of an NFT. Aggregators (such as

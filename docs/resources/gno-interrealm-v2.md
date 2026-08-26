@@ -41,8 +41,8 @@ This document defines:
    (the two borrow rules).
 3. The captured realm value (`cur realm`) and its runtime invariants.
 4. The object model: how storage is attributed (`Storage = Authority`).
-5. Write guards: readonly taint, conversion checks, construction-time
-   check.
+5. Write guards: the storage-ownership (PkgID) check, conversion
+   guards, and the construction-time check.
 6. Panic and recover semantics across realm boundaries.
 
 ## 2. Realm-Context and Realm-Storage-Context
@@ -150,6 +150,15 @@ Two practical consequences:
    declaring-borrow on call, putting `m.Realm` at the home realm
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
+
+3. **Copies are type-driven, not source-propagated.**
+   `{Array,Struct}Value.Copy` stamps the copy from the *declared type*
+   (`getDeclaredPkgID`), mirroring the allocation rule: a `/r/`-declared
+   type keeps its declared `/r/` owner, while a `/p/`-declared (or
+   unnamed) value's copy takes the copying realm's PkgID. So an in-place
+   value-copy of a `/p/`-typed value (e.g. `*z = *x` in `uint256.Set`)
+   belongs to the realm doing the copy, not the source's realm — this is
+   the #5736 / #5747 fix. See `gnovm/pkg/gnolang/values.go`.
 
 ### 3.3 /p/-Immutability
 
@@ -415,6 +424,90 @@ The two APIs differ only in shape: `runtime.CurrentRealm()` returns
 a struct, `cur realm` is the interface. They are **distinct types**
 — not assignable to each other — but surface the same identity.
 
+### 5.5 Sub-realm identities — `cur.Sub(subpath)`
+
+A realm can mint a **sub-realm token** for one of its internal actors
+(a DAO in a registry, an account in a ledger):
+
+```go
+sub := cur.Sub("dao/42")
+sub.PkgPath()  // "gno.land/r/nt/commondao/v0#dao/42"  (synthesized)
+sub.Address()  // chain.PackageAddress(sub.PkgPath())  (derived)
+```
+
+`#` is the sub-realm separator (kept distinct from `:`, which gnoweb
+uses in URLs to split a realm path from its render args). `#` is
+reserved: no real package path can contain it (rejected at package
+validation), so the synthesized form can never collide with a deployed
+package, and exact-match pkgpath auth is never silently broadened.
+
+The token is a first-class `realm` value. Cross with it (two-step —
+`cross(...)` takes a bare identifier) or hand it to token-style
+(`_ int, rlm realm`) APIs:
+
+```go
+sub := cur.Sub("dao/42")
+target.Foo(cross(sub), ...)   // callee: cur.Previous() = sub identity
+teller.Transfer(0, sub, to, amount)
+b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
+b.SendCoins(sub.Address(), to, coins)  // spend the sub-treasury
+```
+
+Semantics:
+
+- `sub.Previous() == cur.Previous()` — the host is **not** inserted as
+  a chain step; chain depth matches a non-sub crossing. The host is
+  recoverable from the pkgpath prefix (`chain.SplitPkgSubPath`).
+- `sub.IsCurrent()` is true while the minting cur is the live topmost
+  crossing cur; `cross(sub)` accepts under the same condition. §5.4
+  parity holds: `unsafe.{Current,Previous}Realm()` surface the sub
+  identity at the same positions `cur`/`cur.Previous()` do.
+- Classification: `IsCode()` true; `IsUser()`, `IsUserCall()`,
+  `IsUserRun()`, `IsEphemeral()` all false. A sub-identity is
+  programmatic, never a user.
+- `Subpath()` returns the subpath (`""` for a primary cur) — the
+  canonical "am I a sub, of what" accessor, consistent with
+  `SplitPkgSubPath`. Prefer it over string-parsing `PkgPath()`.
+- Ephemerality (§5.3) applies: sub-tokens cannot be persisted.
+
+Guards — `Sub()` panics unless all hold:
+
+1. subpath matches `segment ("/" segment)*`, where a `segment` is
+   `[a-z0-9]` optionally followed by `[a-z0-9_.-]*[a-z0-9]` (lowercase-alnum,
+   `/`-separated, `_.-` only inside a segment; no uppercase/whitespace/non-ASCII/`..`),
+   and the synthesized `host#subpath` is ≤ 256 bytes. This grammar is
+   frozen at introduction — loosening later is safe, tightening would
+   strand funds;
+2. the receiver's own HIV is the topmost crossing frame's Cur —
+   strictly stronger than `IsCurrent()`, so sub-tokens can never be
+   `Sub()`d (no `host#a#b`);
+3. `m.Realm.Path` equals the receiver's pkgpath — foreign code holding
+   a passed-around cur cannot mint in the caller's namespace;
+4. the host is not ephemeral (`/e/` run realms cannot mint).
+
+Accepting sub-identities is **opt-in** for callees. Address-keyed auth
+works unchanged (sub-addresses are ordinary addresses). PkgPath-keyed
+auth must use the anchored idiom — a bare prefix also matches sibling
+and subdirectory packages:
+
+```go
+p := cur.Previous().PkgPath()
+ok := p == host || strings.HasPrefix(p, host+"#")
+```
+
+Off-chain and cross-realm derivation without the host's cooperation:
+`chain.DerivePkgSubAddr(host, subpath)`; parse a synthesized path with
+`chain.SplitPkgSubPath(p) (host, subpath, ok)` — the `#` is the
+marker tooling should key on.
+
+Trust note: passing your live `cur` to `/p/` code already delegates
+your primary identity; with `Sub`, it also delegates every sub-address
+your namespace could ever mint (all are derivable off-chain). Audit
+`/p/` imports accordingly.
+
+Design rationale, alternatives, and the full guard analysis:
+`gnovm/adr/pr5890_realm_sub.md`.
+
 ## 6. Realm Boundaries
 
 A **realm boundary** is a transition point in the call frame stack
@@ -448,60 +541,12 @@ the entry side:
 Finalization does not occur for non-crossing calls within the same
 storage-context (which don't cross a boundary).
 
-## 8. Readonly Taint
-
-Values accessed from a foreign realm-storage via dot-selector or
-index-expression are tainted with `N_Readonly`. The taint is
-sticky: it propagates through field access, indexing, slicing,
-value copies, interface boxing/unboxing, and conversion. Any
-mutation attempt against a tainted target panics with
-`cannot directly modify readonly tainted object`.
-
-### 8.1 What gets tainted
-
-- `externalrealm.Foo` — direct package-level read.
-- `externalobject.FieldA` — field access on a foreign-stored object.
-- `externalobject.FieldA.FieldB[0]` — nested access; the taint
-  persists for the entire reference chain regardless of where each
-  intermediate object resides.
-- A local copy of a foreign value (`b := foreign.Slice[0]`) — the
-  copy carries the bit. Empirically verified in
-  `zrealm_launder_rdata_iface.gno` probe 5; this is
-  Go-semantics-divergent but conservative-safe.
-
-### 8.2 What is *not* tainted
-
-- Values returned from a foreign function/method — the return value
-  is fresh and carries no taint (function bodies operate inside the
-  borrowed realm, so newly-constructed values may legitimately be
-  attacker-mutable).
-- Primitive values copied out (an `int` extracted from a foreign
-  struct is just an int — there's no underlying object to taint).
-
-### 8.3 Write paths that check readonly
-
-Every mutation site routes through `PopAsPointer2` (machine.go) or
-the relevant uverse builtin, each of which calls `m.IsReadonly(tv)`
-before the write:
-
-- `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `++`, `--`
-- `*p = v`
-- `s[i] = v`, `m[k] = v`
-- `append(s, v)` (checks the destination slice)
-- `copy(dst, src)` (checks `dst`)
-- `delete(m, k)` (checks the map)
-- Range-loop bindings `for i, v := range x { /* writes */ }`
-
-The audit in `gno-security-guide.md` §2.3 and the agent
-investigation referenced there confirm no write path bypasses the
-check.
-
-## 9. Conversion Guards (`doOpConvert`)
+## 8. Conversion Guards (`doOpConvert`)
 
 The VM's conversion operator (`op_expressions.go doOpConvert`)
 enforces two cross-realm invariants:
 
-### 9.1 Case 1 — Refuse foreign-readonly source
+### 8.1 Case 1 — Refuse foreign-readonly source
 
 ```go
 if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
@@ -523,7 +568,7 @@ succeed under victim authority. Case 1 blocks the conversion at the
 source.
 
 The carve-out for `xv.T.PkgPath == m.Realm.Path` allows legitimate
-conversion of m.Realm's own (foreign-tainted) declared types.
+conversion of m.Realm's own declared types.
 
 **Implementation note**: Case 1 panics with raw Go `panic(...)`
 rather than `m.Panic(...)`, which means it is **not catchable by
@@ -534,7 +579,7 @@ realm code cannot recover from conversion panics. See
 `zrealm_launder_rdata_conv_iface_box.gno` for tests confirming the
 recoverability difference.
 
-### 9.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
+### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
 ```go
 if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
@@ -549,7 +594,7 @@ declare. Combined with the construction-time check (§3.2), this
 ensures every real instance of a `/r/`-declared type traces back to
 its home realm's allocator.
 
-## 10. Panic and Cross-Realm Boundary
+## 9. Panic and Cross-Realm Boundary
 
 `panic()` behaves like Go within a single realm-context. When an
 unrecovered panic crosses a realm boundary on its unwind path, the
@@ -568,7 +613,7 @@ they fire across a realm boundary — there is no half-mutated state
 to clean up, and the attacker cannot recover-and-retry under a
 different guise.
 
-### 10.1 `revive(fn)` — boundary-aware recover
+### 9.1 `revive(fn)` — boundary-aware recover
 
 `revive(fn)` is a Gno builtin that executes `fn` and returns the
 exception (if any) that crossed a realm boundary during finalization
@@ -577,7 +622,7 @@ future release `revive(fn)` will also wrap `fn` in transactional
 (cache-wrapped) memory so any mutations are discarded on abort —
 effectively giving Gno software transactional memory.
 
-## 11. Method Values
+## 10. Method Values
 
 A bound method value `mv := recv.M` is a function value that
 remembers its receiver. When invoked later (`mv()`), `PushFrameCall`
@@ -604,9 +649,9 @@ Realm authors should treat bound method values of `/p/`-types over
 their internal state as **publishing the underlying method to any
 holder** — equivalent to returning a setter closure.
 
-## 12. Guidelines
+## 11. Guidelines
 
-### 12.1 What `/p/` packages may and may not do
+### 11.1 What `/p/` packages may and may not do
 
 - May not import `/r/` or `/e/` packages.
 - May not declare crossing functions (`cur realm` parameters
@@ -616,7 +661,7 @@ holder** — equivalent to returning a setter closure.
 - After deployment, `/p/`'s persisted realm is frozen — no state
   changes survive across transactions.
 
-### 12.2 What `/r/` packages should expose
+### 11.2 What `/r/` packages should expose
 
 - Public functions intended for `MsgCall` use must be crossing
   functions (`func F(cur realm, ...)`). Non-crossing functions
@@ -627,7 +672,7 @@ holder** — equivalent to returning a setter closure.
   on data and should work uniformly regardless of where the data
   resides.
 
-### 12.3 Public API checklist
+### 11.3 Public API checklist
 
 For every exported function or method in your `/r/` realm:
 
@@ -647,9 +692,9 @@ For every exported function or method in your `/r/` realm:
 See `gno-security-guide.md` §8 for the full checklist and worked
 examples.
 
-## 13. Message Types
+## 12. Message Types
 
-### 13.1 MsgCall
+### 12.1 MsgCall
 
 `MsgCall` invokes a single exported crossing function on a target
 realm:
@@ -667,7 +712,7 @@ crossing functions of `/r/` packages can be invoked directly. This
 prevents accidental "non-crossing" calls that would inherit the
 caller's realm-context.
 
-### 13.2 MsgRun
+### 12.2 MsgRun
 
 `MsgRun` deploys an ephemeral `/e/g1user/run` package and invokes
 its `main()`. Inside `main`, the user is both the previous-realm
@@ -691,7 +736,7 @@ The ephemeral realm's address is derived from the user's address
 (via the special `e/<user>/<...>` pattern in `chain.PackageAddress`),
 so coins sent to the ephemeral realm flow back to the user.
 
-### 13.3 MsgAddPackage
+### 12.3 MsgAddPackage
 
 A new realm's `init()` and global-variable declarations run with:
 
@@ -707,7 +752,7 @@ package-level variable during init.
 The same flow applies to `/p/` package init, except after init
 completes the `/p/`'s realm is frozen.
 
-## 14. Implementation References
+## 13. Implementation References
 
 - Borrow rules: `gnovm/pkg/gnolang/machine.go` PushFrameCall
 - `setRealm` tripwire: `gnovm/pkg/gnolang/machine.go` setRealm

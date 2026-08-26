@@ -7,8 +7,16 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestSetTokenRoyalty(t *testing.T) {
-	dummy := NewNFTWithRoyalty(dummyNFTName, dummyNFTSymbol)
+func newDummyRoyaltyNFT(_ int, rlm realm) *royaltyNFT {
+	var nft *royaltyNFT
+	func(cur realm) {
+		nft = NewNFTWithRoyalty(0, cur, dummyNFTName, dummyNFTSymbol)
+	}(cross(rlm))
+	return nft
+}
+
+func TestSetTokenRoyalty(cur realm, t *testing.T) {
+	dummy := newDummyRoyaltyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := testutils.TestAddress("alice")
