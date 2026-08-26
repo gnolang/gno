@@ -38,8 +38,23 @@ path is attacker-controlled.
 
 ## 2. Four Structural Defenses
 
-The VM provides four independent defenses. A realm becomes
-exploitable when an API design defeats all of them at once.
+The VM provides four defenses. A realm becomes exploitable when an API
+design defeats all of them at once.
+
+Two scoping facts about the first three, both from `PushFrameCall`
+itself, because reasoning about them without these gets the wrong
+answer:
+
+**They govern ordinary calls, not boundary crossings.** A `cross(...)`
+call sets `m.Realm` to the callee's realm and returns before any of
+them; a non-crossing call of a crossing function (`Public(cur, ...)`)
+returns too, after checking the target is not an external realm. The
+three rules below decide what a call that is *neither* borrows.
+
+**They are a priority chain, not three separate tests.** The first
+applicable rule fires and the others do not. So "rule #2 protects this
+receiver" only holds where rule #1 does not already apply. Readonly
+taint (2.4) is genuinely independent of all three.
 
 ### 2.1 Declaration-Site Rule (borrow rule #1 of PushFrameCall)
 

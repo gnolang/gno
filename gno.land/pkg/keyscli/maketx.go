@@ -26,6 +26,8 @@ func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 
 		// custom commands
 		NewMakeAddPkgCmd(cfg, io),
+		NewMakeEnablePkgCmd(cfg, io),
+		NewMakeRejectPkgCmd(cfg, io),
 		NewMakeCallCmd(cfg, io),
 		NewMakeRunCmd(cfg, io),
 	)
