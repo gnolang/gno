@@ -152,6 +152,61 @@ func teller() *fnTeller {
 	}
 }
 
+func TestCurrentGuardFlagsCrossingMethodCur(t *testing.T) {
+	// A method's first cur realm is NOT current by construction: the frame
+	// never adopts it, so the guard is load-bearing here even though the same
+	// parameter on a plain func would be redundant.
+	const src = `package x
+
+type T struct{ n int }
+
+func (t *T) Mutate(cur realm) {
+	if cur.Previous().Address() != owner {
+		panic("owner only")
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("unguarded cur on a crossing method: expected 1 hit, got %d", len(hits))
+	}
+}
+
+func TestCurrentGuardExemptsPlainFuncCur(t *testing.T) {
+	// On a plain crossing function the frame adopts whatever cur it is handed,
+	// so IsCurrent() cannot fail and the guard would prove nothing.
+	const src = `package x
+
+func Mutate(cur realm) {
+	if cur.Previous().Address() != owner {
+		panic("owner only")
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("plain func first cur should stay exempt: %+v", hits)
+	}
+}
+
 func TestRenderMarkdownEscapeRule(t *testing.T) {
 	base := fixturesDir("render-markdown")
 

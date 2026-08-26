@@ -254,18 +254,18 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 }
 
 // realmParamsNeedingGuard returns the realm-typed names in a parameter list
-// that require an IsCurrent() check. A leading `cur realm` is excluded: the
-// runtime mints it per crossing frame, so it is always current. Any other realm
-// parameter arrives as an ordinary argument and can carry a forwarded or
-// derived value such as cur.Previous().
-func realmParamsNeedingGuard(params string) []string {
+// that require an IsCurrent() check. Any realm parameter beyond the first
+// arrives as an ordinary argument and can carry a forwarded or derived value
+// such as cur.Previous(). exemptLeadingCur drops a leading `cur realm` from the
+// result, which is correct only where the frame adopts it.
+func realmParamsNeedingGuard(params string, exemptLeadingCur bool) []string {
 	var names []string
 	for i, p := range strings.Split(params, ",") {
 		pm := realmParamRE.FindStringSubmatch(strings.TrimSpace(p))
 		if pm == nil {
 			continue
 		}
-		if i == 0 && pm[1] == "cur" {
+		if exemptLeadingCur && i == 0 && pm[1] == "cur" {
 			continue
 		}
 		names = append(names, pm[1])
@@ -274,13 +274,17 @@ func realmParamsNeedingGuard(params string) []string {
 }
 
 // guardedRealmParams returns the realm-typed parameters of a func declaration
-// line.
+// line. A plain function's leading `cur realm` is exempt because its frame
+// adopts whatever value it is handed, so IsCurrent() there cannot fail. A
+// method's is not: the frame never adopts it, the check resolves against an
+// outer crossing frame, and the guard is load-bearing.
 func guardedRealmParams(line string) []string {
 	m := funcSigRE.FindStringSubmatch(line)
 	if m == nil {
 		return nil
 	}
-	return realmParamsNeedingGuard(m[2])
+	isMethod := strings.TrimSpace(m[1]) != ""
+	return realmParamsNeedingGuard(m[2], !isMethod)
 }
 
 // literalRealmParams returns the realm-typed parameters of every func literal
@@ -288,7 +292,7 @@ func guardedRealmParams(line string) []string {
 func literalRealmParams(line string) []string {
 	var names []string
 	for _, m := range funcLitRE.FindAllStringSubmatch(line, -1) {
-		names = append(names, realmParamsNeedingGuard(m[1])...)
+		names = append(names, realmParamsNeedingGuard(m[1], true)...)
 	}
 	return names
 }
