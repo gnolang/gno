@@ -77,6 +77,12 @@ message InvalidFileError {
 message ObjectNotFoundError {
 }
 
+message ExportSizeExceededError {
+}
+
+message ExportDepthExceededError {
+}
+
 message UnobservedSendError {
 }
 
