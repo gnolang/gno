@@ -33,6 +33,10 @@ func (p Post) String() string {
 		author = user.RenderLink("")
 	}
 
-	out += ufmt.Sprintf("_by %s on %s_\n\n", author, p.createdAt.Format("02 Jan 2006, 15:04"))
+	out += ufmt.Sprintf("_by %s on %s_", author, p.createdAt.Format("02 Jan 2006, 15:04"))
+	if p.updatedAt.After(p.createdAt) {
+		out += ufmt.Sprintf(" _(edited %s)_", p.updatedAt.Format("02 Jan 2006, 15:04"))
+	}
+	out += "\n\n"
 	return out
 }

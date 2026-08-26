@@ -174,3 +174,33 @@ func TestUpdatePostClosesWindowAfterTenMinutes(cur realm, t *testing.T) {
 	err := UpdatePost(cross(cur), id, "late edit")
 	uassert.ErrorIs(t, err, ErrUpdateWindowExpired, "edit past the window must be refused")
 }
+
+func TestRenderNamesAuthorOnce(cur realm, t *testing.T) {
+	resetPostsForTest()
+	alice := testutils.TestAddress("alice")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.NoError(t, CreatePost(cross(cur), "hello"))
+
+	// The heading and the post body both used to print the author, which also
+	// resolved the address against r/sys/users twice per post per page view.
+	if got := strings.Count(Render(""), alice.String()); got != 1 {
+		t.Fatalf("author should appear once per post, got %d", got)
+	}
+}
+
+func TestRenderMarksAnEditedPost(cur realm, t *testing.T) {
+	resetPostsForTest()
+	alice := testutils.TestAddress("alice")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.NoError(t, CreatePost(cross(cur), "first"))
+
+	if strings.Contains(Render(""), "edited") {
+		t.Fatalf("an untouched post must not be marked edited")
+	}
+
+	testing.SkipHeights(1)
+	uassert.NoError(t, UpdatePost(cross(cur), "0000001", "second"))
+	if !strings.Contains(Render(""), "edited") {
+		t.Fatalf("an edited post must say so; updatedAt is otherwise dead state")
+	}
+}

@@ -9,8 +9,6 @@ import (
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
-
-	"gno.land/r/sys/users"
 )
 
 // maxPostLength bounds the size of a post's text to keep storage and render
@@ -134,14 +132,10 @@ func Render(path string) string {
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 
-		// Try resolving the address for a username
-		text := post.author.String()
-		user := users.ResolveAddress(post.author)
-		if user != nil {
-			text = user.RenderLink("")
-		}
-
-		out += md.H4(ufmt.Sprintf("Post #%s - %s\n\n", post.id.String(), text))
+		// The author is resolved once, in Post.String below. Naming it here as
+		// well would repeat it on the page and cost a second r/sys/users
+		// lookup for every post on every page view.
+		out += md.H4("Post #" + post.id.String())
 
 		out += post.String()
 		out += md.HorizontalRule()
