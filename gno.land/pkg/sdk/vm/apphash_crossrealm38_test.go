@@ -183,7 +183,14 @@ import (
 // Re-derived for the combination: master's params/deposit bumps and this
 // branch's stdlib source bumps both move the root, so neither side's value
 // survives the merge.
-const expectedCrossrealm38Hash = "2db84d1e139ccfe28faed55b969e86f9f157cbe885c7b3cc27444c2e06256ed3"
+//
+// Bumped again by the chain/params reader API: params.gno gains six GetXxx
+// declarations and the doc describing what a wrong-type read does. Stdlib .gno
+// source bytes are genesis state, so both the declarations and the comment move
+// the root. The crossrealm38 scenario calls none of them; the shift is the
+// stdlib source change alone. Re-derived after merging master, whose own
+// encode/decode work moved the root too, so neither side's value survives.
+const expectedCrossrealm38Hash = "12c7ca4d567e5e5a6d3c5572c0631a284c62b6c745faee94e9b38b617509584c"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
