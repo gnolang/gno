@@ -312,4 +312,25 @@ func TestAccountTierInvariantReportsStrandedDenoms(t *testing.T) {
 		require.True(t, broken)
 		require.Contains(t, msg, "invalid vesting schedule")
 	})
+
+	t.Run("bare BaseVestingAccount", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		// The schedule is deliberately well formed. The fault is the account
+		// type, not the schedule: nothing enforces a lock on this type, so
+		// validating the schedule would report a healthy account whose coins are
+		// all spendable. See TestABareBaseVestingAccountLocksNothing.
+		env.acck.SetAccount(env.ctx, &std.BaseVestingAccount{
+			BaseAccount: *std.NewBaseAccount(addr, nil, nil, 0, 0),
+			VestingSchedule: std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: testAccountDenom, Amount: 1}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+		})
+		msg, broken := AccountTierInvariant(env.bankk.ViewKeeper)(env.ctx)
+		require.True(t, broken, "a bare BaseVestingAccount must break the invariant")
+		require.Contains(t, msg, "bare BaseVestingAccount")
+		require.Contains(t, msg, "not enforced")
+	})
 }

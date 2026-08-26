@@ -434,3 +434,15 @@ func TestDelayedVestingAccount_SatisfiesVestingAccount(t *testing.T) {
 	var va VestingAccount = &DelayedVestingAccount{}
 	assert.NotNil(t, va)
 }
+
+// BaseVestingAccount deliberately does not satisfy VestingAccount, and this
+// pins that. The bank decides whether to apply a lock by asserting a stored
+// account to that interface, so adding the three methods here would silently
+// start locking a type that no constructor produces, and would also make the
+// bank's account-tier invariant stop reporting a bare one. Either is a change
+// that should be made on purpose, not by satisfying an interface by accident.
+func TestBaseVestingAccount_DoesNotSatisfyVestingAccount(t *testing.T) {
+	var acc Account = &BaseVestingAccount{}
+	_, ok := acc.(VestingAccount)
+	assert.False(t, ok, "a bare BaseVestingAccount must not satisfy VestingAccount")
+}

@@ -210,3 +210,59 @@ func TestBurnIsBlockedByAVestingLock(t *testing.T) {
 	require.NoError(t, env.bankk.BurnCoins(vested, addr, locked))
 	require.Zero(t, env.bankk.TotalSupply(vested, testRealmDenom))
 }
+
+// A bare BaseVestingAccount carries a schedule that locks nothing, because the
+// lock is applied only to accounts implementing std.VestingAccount and that type
+// does not. Nothing constructs one, so this is the hazard the account-tier
+// invariant reports rather than a live bug — recorded here because the
+// consequence is worth being able to read, and because a future change that
+// makes the type enforceable should fail here and be made deliberately.
+func TestABareBaseVestingAccountLocksNothing(t *testing.T) {
+	t.Parallel()
+
+	// Fully locked at t=50: vesting has not started.
+	schedule := std.VestingSchedule{
+		OriginalVesting: ugnotCoins(1000),
+		StartTime:       100,
+		EndTime:         200,
+	}
+	to := crypto.AddressFromPreimage([]byte("bare-bva-to"))
+
+	// The control. Same schedule, same time, on the type the bank does enforce.
+	// Without it this pair would also pass on a build where vesting never blocks
+	// anything at all.
+	t.Run("the same schedule on a ContinuousVestingAccount blocks the send", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		addr := crypto.AddressFromPreimage([]byte("enforced-holder"))
+		cva, err := std.NewContinuousVestingAccount(
+			std.NewBaseAccount(addr, ugnotCoins(1000), nil, 0, 0), schedule)
+		require.NoError(t, err)
+		env.acck.SetAccount(env.ctx, cva)
+
+		ctx := atTime(env, 50)
+		err = env.bankk.SendCoins(ctx, addr, to, ugnotCoins(1000))
+		require.EqualError(t, err, "vesting locked coins error",
+			"the send must be refused as locked, not for some other reason")
+		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, "ugnot"),
+			"a refused send must not move the balance")
+	})
+
+	t.Run("on a bare BaseVestingAccount the whole balance is spendable", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		addr := crypto.AddressFromPreimage([]byte("unenforced-holder"))
+		env.acck.SetAccount(env.ctx, &std.BaseVestingAccount{
+			BaseAccount:     *std.NewBaseAccount(addr, ugnotCoins(1000), nil, 0, 0),
+			VestingSchedule: schedule,
+		})
+
+		ctx := atTime(env, 50)
+		require.NoError(t, env.bankk.SendCoins(ctx, addr, to, ugnotCoins(1000)),
+			"the schedule is not enforced on this type, so the send goes through")
+		require.Equal(t, int64(0), env.bankk.GetCoin(ctx, addr, "ugnot"))
+		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, to, "ugnot"))
+	})
+}

@@ -12,11 +12,23 @@ import (
 // VestingSchedule
 
 // VestingSchedule defines the parameters of a vesting schedule.
+//
+// Times are unix seconds. Nothing compares them against the chain's own clock,
+// so a schedule that already ended when the chain starts is valid and vests
+// everything immediately. That has to stay allowed: replaying an old genesis
+// onto a fork is legitimate and its schedules are legitimately in the past.
 type VestingSchedule struct {
-	OriginalVesting Coins               `json:"original_vesting" yaml:"original_vesting"`
-	StartTime       int64               `json:"start_time,omitempty" yaml:"start_time,omitempty"`
-	EndTime         int64               `json:"end_time" yaml:"end_time"`
-	Type            VestingScheduleType `json:"type,omitempty" yaml:"type,omitempty"` // empty or "continuous" = linear; "delayed" = cliff
+	OriginalVesting Coins `json:"original_vesting" yaml:"original_vesting"`
+	// StartTime is when linear vesting begins. Delayed schedules ignore it and
+	// vest everything at EndTime, but Validate still requires it to be earlier
+	// than EndTime for both.
+	StartTime int64 `json:"start_time,omitempty" yaml:"start_time,omitempty"`
+	EndTime   int64 `json:"end_time" yaml:"end_time"`
+	// Type picks which account type genesis builds. Nothing reads it again
+	// afterwards -- the stored Go type is what decides how coins vest -- so a
+	// Type that disagrees with that type changes no behaviour and only misleads
+	// whoever reads the state.
+	Type VestingScheduleType `json:"type,omitempty" yaml:"type,omitempty"` // empty or "continuous" = linear; "delayed" = cliff
 }
 
 // VestingScheduleType discriminates between linear (continuous) and cliff (delayed) vesting.
@@ -53,10 +65,19 @@ func (vs VestingSchedule) IsZero() bool {
 // VestingAccount interface
 
 // VestingAccount defines an account type that vests coins via a vesting schedule.
+//
+// This interface is the whole of the enforcement contract: the bank decides
+// whether to apply a lock by type-asserting a stored account to it, so an
+// account that does not implement it has no lock, whatever fields it carries.
 type VestingAccount interface {
 	Account
 
 	// LockedCoins returns the set of coins that are not spendable at blockTime.
+	//
+	// "Not spendable" means not transferable. Locked coins can still leave the
+	// account as gas fees and storage deposits, which debit through the
+	// unrestricted path and never consult a schedule. So a schedule caps what a
+	// holder can move to another address; it does not reserve a balance.
 	LockedCoins(blockTime time.Time) Coins
 
 	GetVestedCoins(blockTime time.Time) Coins
@@ -65,6 +86,13 @@ type VestingAccount interface {
 	GetEndTime() int64
 	GetOriginalVesting() Coins
 }
+
+// The two account types a schedule can be enforced on. BaseVestingAccount is
+// deliberately absent; see its own comment.
+var (
+	_ VestingAccount = (*ContinuousVestingAccount)(nil)
+	_ VestingAccount = (*DelayedVestingAccount)(nil)
+)
 
 // SpendableCoins returns the account's unlocked coins at blockTime, computed as
 // its own Coins minus LockedCoins.
@@ -98,7 +126,19 @@ func SpendableCoins(va VestingAccount, blockTime time.Time) Coins {
 // -----------------------------------------------------------------------------
 // BaseVestingAccount
 
-// BaseVestingAccount provides common fields for vesting account types.
+// BaseVestingAccount carries the fields the two vesting account types share. It
+// is embedded by both and must never be stored as an account on its own.
+//
+// It has no vesting maths of its own, so it does not implement VestingAccount,
+// so the bank's type assertion misses it and its schedule locks nothing: a bare
+// one holding a fully-locked schedule can send its whole balance. Nothing
+// constructs one today -- only the two constructors below build it, always
+// embedded -- but it is amino-registered, so it can be decoded from state, and
+// the bank's account-tier invariant reports one if it ever appears.
+//
+// Giving it the three methods would be worse than leaving it out: there is no
+// correct answer for a type that does not know whether it vests linearly or at
+// a cliff, and supplying one would turn a reported fault into a silent guess.
 type BaseVestingAccount struct {
 	BaseAccount
 	VestingSchedule
@@ -307,7 +347,10 @@ func (dva DelayedVestingAccount) LockedCoins(blockTime time.Time) Coins {
 	return dva.GetVestingCoins(blockTime)
 }
 
-// GetStartTime returns zero: delayed vesting has no start time.
+// GetStartTime returns zero: delayed vesting has no start time, it vests at the
+// cliff. This shadows the embedded schedule's StartTime, which genesis still
+// has to supply and Validate still checks, so the two disagree whenever one was
+// configured. Read the field, not this, when you want what was configured.
 func (dva DelayedVestingAccount) GetStartTime() int64 {
 	return 0
 }

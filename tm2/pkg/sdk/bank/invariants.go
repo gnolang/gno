@@ -116,10 +116,18 @@ func AccountTierInvariant(view ViewKeeper) sdk.Invariant {
 				}
 				rep.Addf("address %s account object holds %q, which %s%s", e.Addr, coin.Denom, what, extra)
 			}
-			// Vesting schedules are read from the concrete type: the interface's
-			// GetStartTime returns a hardcoded zero for delayed accounts, so a
-			// schedule rebuilt from the getters would be wrong for them.
-			if sched, ok := vestingScheduleOf(e.Account); ok {
+			// A bare BaseVestingAccount is reported rather than checked. It carries
+			// a schedule but does not implement std.VestingAccount, which is what
+			// the bank asserts on before applying a lock, so the schedule holds
+			// nothing back however well formed it is. Validating it would report
+			// healthy on an account whose lock does not work.
+			if _, bare := e.Account.(*std.BaseVestingAccount); bare {
+				rep.Addf("address %s is stored as a bare BaseVestingAccount, so its "+
+					"vesting schedule is not enforced and its whole balance is spendable", e.Addr)
+			} else if sched, ok := vestingScheduleOf(e.Account); ok {
+				// Read from the concrete type: the interface's GetStartTime returns a
+				// hardcoded zero for delayed accounts, so a schedule rebuilt from the
+				// getters would be wrong for them.
 				if err := sched.Validate(); err != nil {
 					rep.Addf("address %s has an invalid vesting schedule: %v", e.Addr, err)
 				}
@@ -132,15 +140,15 @@ func AccountTierInvariant(view ViewKeeper) sdk.Invariant {
 	})
 }
 
-// vestingScheduleOf returns the stored schedule, reading the concrete type rather
-// than the std.VestingAccount interface.
+// vestingScheduleOf returns the stored schedule of an account whose schedule is
+// actually enforced, reading the concrete type rather than the
+// std.VestingAccount interface. Bare BaseVestingAccounts are excluded on
+// purpose: theirs is not enforced, and the caller reports them instead.
 func vestingScheduleOf(acc std.Account) (std.VestingSchedule, bool) {
 	switch a := acc.(type) {
 	case *std.ContinuousVestingAccount:
 		return a.VestingSchedule, true
 	case *std.DelayedVestingAccount:
-		return a.VestingSchedule, true
-	case *std.BaseVestingAccount:
 		return a.VestingSchedule, true
 	}
 	return std.VestingSchedule{}, false
