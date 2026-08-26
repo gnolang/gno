@@ -25,6 +25,21 @@ import (
 // branch stays in keeper.go: it is a branch inside the submit path, not a
 // stage of its own.
 
+// approverGateSatisfied reports whether addr may exercise pkg-approver
+// authority for an inert-lifecycle message.
+//
+// Genesis replay passes unconditionally. A fork reproduces a record rather than
+// granting it again, so it must not refuse its own history because
+// pkg_approvers moved since -- the same reason EnablePackage exempts replay
+// from the policy gate beside this one.
+//
+// One function rather than the test repeated per message: every inert
+// lifecycle message shares this gate, and a copy that forgets the exemption
+// does not fail in tests, it fails the next time somebody forks the chain.
+func approverGateSatisfied(ctx sdk.Context, params Params, addr crypto.Address) bool {
+	return auth.IsGenesisReplay(ctx) || isApprover(params.PkgApprovers, addr)
+}
+
 // EnablePackage activates an inert package: runs the typechecker and
 // initializes the package so it becomes importable and callable on-chain.
 // Only addresses listed in Params.PkgApprovers may call this.
@@ -58,7 +73,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 			"code_submission_policy is %q, not %q: packages cannot be enabled",
 			params.CodeSubmissionPolicy, CodeSubmissionPolicyInert))
 	}
-	if !replay && !isApprover(params.PkgApprovers, msg.Approver) {
+	if !approverGateSatisfied(ctx, params, msg.Approver) {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"address %s is not a pkg approver", msg.Approver))
 	}
@@ -386,7 +401,7 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 	}
 
 	params := vm.GetParams(ctx)
-	if !isApprover(params.PkgApprovers, msg.Sender) && gm.AddPkg.Creator != msg.Sender.String() {
+	if !approverGateSatisfied(ctx, params, msg.Sender) && gm.AddPkg.Creator != msg.Sender.String() {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"address %s is neither a pkg approver nor the creator of %s",
 			msg.Sender, msg.PkgPath))
@@ -398,7 +413,7 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 
 func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error {
 	params := vm.GetParams(ctx)
-	if !isApprover(params.PkgApprovers, msg.Approver) {
+	if !approverGateSatisfied(ctx, params, msg.Approver) {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"address %s is not a pkg approver", msg.Approver))
 	}
@@ -419,7 +434,15 @@ func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error
 //
 // Deliberately a plain prefix match, without QueryPaths' @user handling. This
 // answers an operational question about a queue, not a browsing one.
-func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) ([]string, error) {
+func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) (paths []string, err error) {
+	// Named returns so the recover has somewhere to write. The iteration below
+	// is lazy and metered, and maxGasQuery is a real ceiling, so exhausting it
+	// panics with OutOfGasError -- and handleQueryCustom does not recover, so
+	// without this the panic leaves the ABCI Query rather than being reported
+	// as an error. Under "inert" anyone may park a package, so the size of the
+	// key space being walked is not the operator's to bound.
+	defer doRecoverQueryNoMachine(&err)
+
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
 	}
