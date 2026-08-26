@@ -102,7 +102,13 @@ func (tok *Token) BalanceOf(addr address) int64 { return tok.ledger.balanceOf(ad
 
 func (tok *Token) OwnerOf(tid TokenID) (address, error) { return tok.ledger.ownerOf(tid) }
 
+// EIP-721: getApproved throws for a token that is not a valid NFT, so a missing
+// token is ErrInvalidTokenId and a live but unapproved one is ErrTokenIdNotApproved.
 func (tok *Token) GetApproved(tid TokenID) (address, error) {
+	if !tok.ledger.exists(tid) {
+		return zeroAddress, ErrInvalidTokenId
+	}
+
 	addr := tok.ledger.tokenApprovals.Get(tid.String())
 	if addr == nil {
 		return zeroAddress, ErrTokenIdNotApproved

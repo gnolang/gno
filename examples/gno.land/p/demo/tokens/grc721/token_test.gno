@@ -235,8 +235,9 @@ func TestBurn(cur realm, t *testing.T) {
 			},
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				uassert.Equal(t, 0, led.tokenApprovals.Size())
 				_, err := tok.GetApproved("1")
-				uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+				uassert.ErrorIs(t, err, ErrInvalidTokenId)
 			},
 		},
 		{
@@ -622,6 +623,10 @@ func TestReadViews(cur realm, t *testing.T) {
 		{"GetApproved on unapproved token returns ErrTokenIdNotApproved", func(t *testing.T) {
 			_, err := tok.GetApproved("2")
 			uassert.ErrorIs(t, err, ErrTokenIdNotApproved)
+		}},
+		{"GetApproved on missing token returns ErrInvalidTokenId", func(t *testing.T) {
+			_, err := tok.GetApproved("999")
+			uassert.ErrorIs(t, err, ErrInvalidTokenId)
 		}},
 		{"IsApprovedForAll true for operator", func(t *testing.T) {
 			uassert.True(t, tok.IsApprovedForAll(alice, bob))
