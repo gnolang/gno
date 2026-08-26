@@ -15,7 +15,7 @@ import (
 // Same-realm cross: NewToken requires rlm.IsCurrent().
 func newNFT(name, symbol string, id seqid.ID, rlm realm) (nft *NFT) {
 	func(cur realm) {
-		nft = New(name, symbol, id, cur)
+		nft, _ = New(name, symbol, id, cur)
 	}(cross(rlm))
 
 	return
@@ -35,7 +35,7 @@ func TestNewConstructors(cur realm, t *testing.T) {
 		uassert.Equal(t, "Foo NFT", nft.Token().GetName())
 		uassert.Equal(t, "FNFT", nft.Token().GetSymbol())
 		urequire.True(t, nft.Collection() != nil, "collection present")
-		urequire.True(t, nft.Ledger() != nil, "ledger present")
+		urequire.True(t, nft.ledger != nil, "ledger retained")
 		uassert.Equal(t, nft.Token().ID(), nft.Collection().Token().ID())
 	})
 
@@ -122,8 +122,8 @@ func TestNewCollection(cur realm, t *testing.T) {
 
 func TestExtensionAccessors(cur realm, t *testing.T) {
 	nft := newNFT("Foo NFT", "FNFT", 0, cur)
-	meta, _ := metadata.NewMetadata(nft.Ledger())
-	roy, _ := royalty.NewRoyalty(nft.Ledger(), 1000)
+	meta, _ := metadata.NewMetadata(nft.ledger)
+	roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
 	nft.Attach(meta).Attach(roy)
 
 	tests := []struct {
@@ -166,7 +166,7 @@ func TestExtensionAccessors(cur realm, t *testing.T) {
 func TestAttach(cur realm, t *testing.T) {
 	t.Run("Attach chains and records the view", func(t *testing.T) {
 		nft := newNFT("Foo", "FOO", 0, cur)
-		roy, _ := royalty.NewRoyalty(nft.Ledger(), 1000)
+		roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
 		got := nft.Attach(roy)
 		urequire.True(t, got == nft, "Attach returns the NFT for chaining")
 		uassert.True(t, nft.Collection().HasExtension(royalty.Kind))
@@ -182,7 +182,7 @@ func TestAttach(cur realm, t *testing.T) {
 	t.Run("Attach rejects a view from a different token", func(t *testing.T) {
 		nft := newNFT("Foo", "FOO", 0, cur)
 		other := newNFT("Other", "OTH", 1, cur)
-		royOther, _ := royalty.NewRoyalty(other.Ledger(), 1000)
+		royOther, _ := royalty.NewRoyalty(other.ledger, 1000)
 		uassert.PanicsWithMessage(t, cur, "collection: view does not belong to this token", func() {
 			nft.Attach(royOther)
 		})
@@ -190,7 +190,7 @@ func TestAttach(cur realm, t *testing.T) {
 
 	t.Run("Attach rejects a duplicate kind", func(t *testing.T) {
 		nft := newNFT("Foo", "FOO", 0, cur)
-		roy, _ := royalty.NewRoyalty(nft.Ledger(), 1000)
+		roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
 		nft.Attach(roy)
 		uassert.PanicsWithMessage(t, cur, "collection: duplicate extension kind: royalty", func() {
 			nft.Attach(roy)
@@ -203,8 +203,8 @@ func TestMintBurn(cur realm, t *testing.T) {
 	artist := testutils.TestAddress("artist")
 
 	nft := newNFT("Foo NFT", "FNFT", 0, cur)
-	meta, metaLedger := metadata.NewMetadata(nft.Ledger())
-	roy, royLedger := royalty.NewRoyalty(nft.Ledger(), 1000)
+	meta, metaLedger := metadata.NewMetadata(nft.ledger)
+	roy, royLedger := royalty.NewRoyalty(nft.ledger, 1000)
 	nft.Attach(meta).Attach(roy)
 
 	tests := []struct {

@@ -22,11 +22,11 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 		te   Teller
 		want bool
 	}{
-		{"CallerTeller is canonical", tok.CallerTeller(), true},
+		{"CallerTeller is canonical", led.CallerTeller(), true},
 		{"ReadonlyTeller is canonical", tok.ReadonlyTeller(), true},
 		{"RealmTeller is canonical", realmTeller, true},
 		{"ImpersonateTeller is canonical", led.ImpersonateTeller(alice), true},
-		{"embedding wrapper is rejected", &evilTeller{tok.CallerTeller()}, false},
+		{"embedding wrapper is rejected", &evilTeller{led.CallerTeller()}, false},
 	}
 
 	for _, tc := range tests {
@@ -46,8 +46,8 @@ func TestTellerNilGuards(cur realm, t *testing.T) {
 		msg  string
 		fn   func()
 	}{
-		{"CallerTeller on nil token panics", "Token cannot be nil", func() {
-			nilTok.CallerTeller()
+		{"CallerTeller on nil ledger panics", "Ledger cannot be nil", func() {
+			nilLed.CallerTeller()
 		}},
 		{"ReadonlyTeller on nil token panics", "Token cannot be nil", func() {
 			nilTok.ReadonlyTeller()
@@ -110,7 +110,7 @@ func TestCallerTellerFlow(cur realm, t *testing.T) {
 	urequire.NoError(t, led.Mint(alice, "1"))
 	urequire.NoError(t, led.Mint(alice, "2"))
 
-	teller := tok.CallerTeller()
+	teller := led.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	func(cur realm) {
@@ -139,9 +139,9 @@ func TestCallerTellerFlow(cur realm, t *testing.T) {
 }
 
 func TestCallerTellerSpoofedRealm(cur realm, t *testing.T) {
-	tok, led := newTestToken("Foo", "FOO", 0, cur)
+	_, led := newTestToken("Foo", "FOO", 0, cur)
 	urequire.NoError(t, led.Mint(alice, "1"))
-	teller := tok.CallerTeller()
+	teller := led.CallerTeller()
 
 	// Stale outer cur while a fresh frame is current → ErrSpoofedRealm.
 	tests := []struct {

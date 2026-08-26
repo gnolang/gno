@@ -24,7 +24,7 @@ type Teller interface {
 	GetSymbol() string
 	ID() string
 	TotalSupply() int64
-	BalanceOf(owner address) int64
+	BalanceOf(owner address) (int64, error)
 	OwnerOf(tid TokenID) (address, error)
 	GetApproved(tid TokenID) (address, error)
 	IsApprovedForAll(owner, operator address) bool
@@ -37,8 +37,10 @@ type Teller interface {
 // Extension hooks fire on every mint/transfer/burn. This is a trust grant to the
 // issuer, not an EIP-721 feature: only the issuer can attach one (RegisterExtension
 // holds the PrivateLedger), but once attached the hook runs arbitrary issuer code on
-// every movement, a panic in OnMint/OnTransfer/OnBurn aborts that operation — an
-// implicit veto over transfers — and gas scales linearly with the extension count.
+// every movement, a panic in OnMint/OnTransfer/OnBurn aborts the transaction before
+// the movement is announced — an implicit veto over transfers — and gas scales
+// linearly with the extension count. Hooks run after the ledger write so they observe
+// the post-movement state; only a caller that recovers from the panic keeps that write.
 // Holders of a collection's tokens are therefore trusting the issuer not to freeze or
 // tax movement through this surface. Hooks take no rlm params (they cannot capture cur);
 // attach only via RegisterExtension.
@@ -59,6 +61,9 @@ type Token struct {
 	name   string
 	symbol string
 	ledger *PrivateLedger
+	// origRealm is the PkgPath of the realm that created the token, captured
+	// unforgeably in NewToken. A frame-relative teller only works there.
+	origRealm string
 }
 
 type PrivateLedger struct {
@@ -83,6 +88,7 @@ var (
 	ErrTokenIdAlreadyExists       = errors.New("token id already exists")
 	ErrReadonly                   = errors.New("teller is readonly")
 	ErrSpoofedRealm               = errors.New("rlm does not match the current crossing frame")
+	ErrForeignCallerTeller        = errors.New("frame-relative teller used outside the token's realm")
 	ErrNotRealm                   = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName                = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol              = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -108,6 +114,9 @@ var zeroAddress = address("")
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
+	// homeGuard marks a frame-relative teller, whose writes are confined to
+	// the token's own realm. See fnTeller.guardHome.
+	homeGuard bool
 	*Token
 }
 
