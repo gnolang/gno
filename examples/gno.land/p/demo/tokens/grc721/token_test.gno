@@ -398,7 +398,7 @@ func TestSetApprovalForAll(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name: "revoke operator approval",
+			name: "revoke operator approval releases the node",
 			action: func(led *PrivateLedger) error {
 				urequire.NoError(t, led.SetApprovalForAll(alice, bob, true))
 				return led.SetApprovalForAll(alice, bob, false)
@@ -406,6 +406,18 @@ func TestSetApprovalForAll(cur realm, t *testing.T) {
 			wantErr: nil,
 			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
 				uassert.False(t, tok.IsApprovedForAll(alice, bob))
+				uassert.Equal(t, 0, led.operatorApprovals.Size())
+			},
+		},
+		{
+			name: "revoke without a prior grant stores nothing",
+			action: func(led *PrivateLedger) error {
+				return led.SetApprovalForAll(alice, bob, false)
+			},
+			wantErr: nil,
+			verify: func(t *testing.T, tok *Token, led *PrivateLedger) {
+				uassert.False(t, tok.IsApprovedForAll(alice, bob))
+				uassert.Equal(t, 0, led.operatorApprovals.Size())
 			},
 		},
 		{

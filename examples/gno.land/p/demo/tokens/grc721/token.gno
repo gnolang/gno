@@ -268,7 +268,12 @@ func (led *PrivateLedger) SetApprovalForAll(owner, operator address, approved bo
 		return ErrApprovalToCurrentOwner
 	}
 
-	led.operatorApprovals.Set(operatorKey(owner, operator), approved)
+	key := operatorKey(owner, operator)
+	if approved {
+		led.operatorApprovals.Set(key, approved)
+	} else {
+		led.operatorApprovals.Remove(key)
+	}
 
 	chain.Emit(
 		ApprovalForAllEvent,
