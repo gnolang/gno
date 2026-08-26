@@ -1,9 +1,11 @@
 package bank
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -205,4 +207,72 @@ func TestBurnIsBlockedByAVestingLock(t *testing.T) {
 	vested := atTime(env, 300)
 	require.NoError(t, env.bankk.BurnCoins(vested, addr, locked))
 	require.Zero(t, env.bankk.TotalSupply(vested, testRealmDenom))
+}
+
+// A schedule locks the denoms it names and nothing else. An account that has one
+// but cannot afford some other denom is short of funds, not locked, and the two
+// are different errors: only the first tells the holder to wait.
+//
+// This is what the lockedAmt==0 shortcut decides. Without it every denom would go
+// through the spendable comparison, which reports a shortfall as a vesting lock.
+func TestAnUnlockedDenomReportsAShortfallNotALock(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("partly-locked"))
+	to := crypto.AddressFromPreimage([]byte("partly-locked-to"))
+
+	// ugnot is fully locked; the realm denom is not named by the schedule at all.
+	acc := std.NewBaseAccount(addr, ugnotCoins(1000), nil, 0, 0)
+	acc.Vesting = std.VestingSchedule{
+		OriginalVesting: ugnotCoins(1000),
+		StartTime:       100,
+		EndTime:         200,
+	}
+	env.acck.SetAccount(env.ctx, acc)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 10},
+		{Denom: testAccountDenom, Amount: 1000},
+	}))
+
+	ctx := atTime(env, 50) // nothing vested
+
+	// More of the unlocked denom than is held: a shortfall.
+	err := env.bankk.SendCoins(ctx, addr, to, std.Coins{{Denom: testRealmDenom, Amount: 50}})
+	require.EqualError(t, err, "insufficient coins error",
+		"an unlocked denom the account cannot afford is a shortfall, not a lock")
+
+	// And the locked denom still reports as locked, so this cannot pass by
+	// reporting a shortfall for everything.
+	err = env.bankk.SendCoins(ctx, addr, to, std.Coins{{Denom: testAccountDenom, Amount: 1}})
+	require.EqualError(t, err, "vesting locked coins error")
+}
+
+// A schedule can lock more than the account still holds: fees and storage
+// deposits debit through the unrestricted path, which never consults it. The
+// spendable figure is clamped so the refusal reports nothing available rather
+// than a negative amount.
+func TestSpendingIntoTheLockedPortionReportsZeroNotANegative(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("overspent"))
+	to := crypto.AddressFromPreimage([]byte("overspent-to"))
+	setupVestingAccount(t, env, addr, 1000)
+
+	ctx := atTime(env, 50) // nothing vested: all 1000 locked
+
+	// The unrestricted path spends into the locked portion, exactly as a gas
+	// payment does. Now 900 is held while 1000 is locked.
+	require.NoError(t, env.bankk.SendCoinsUnrestricted(ctx, addr, to, ugnotCoins(100)))
+	require.Equal(t, int64(900), env.bankk.GetCoin(ctx, addr, "ugnot"),
+		"precondition: the account must hold less than its schedule locks")
+
+	err := env.bankk.SendCoins(ctx, addr, to, ugnotCoins(1))
+	require.Error(t, err)
+	// The detail lives under %+v; Error() is only the type name.
+	assert.Contains(t, fmt.Sprintf("%+v", err), "0ugnot <",
+		"the refusal must report nothing spendable, not a negative amount")
+	assert.NotContains(t, fmt.Sprintf("%+v", err), "-100",
+		"a negative spendable must never reach the message")
 }
