@@ -603,20 +603,19 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 
 	locked := std.Coins{{Denom: "ugnot", Amount: 1000}}
 	baseAcc := std.NewBaseAccount(addr, locked, nil, 0, 0)
-	cva, err := std.NewContinuousVestingAccount(baseAcc, std.VestingSchedule{
+	baseAcc.Vesting = std.VestingSchedule{
 		OriginalVesting: locked,
 		StartTime:       100,
 		EndTime:         200,
-	})
-	require.NoError(t, err)
-	env.acck.SetAccount(env.ctx, cva)
+	}
+	env.acck.SetAccount(env.ctx, baseAcc)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
 	env.bankk.setSplitBalance(env.ctx, addr, testRealmDenom, 50)
 
 	// At t=100 nothing has vested. The realm coin is spendable and sorts first;
 	// the ugnot is fully locked. The mixed transfer must still be refused.
 	ctx := atTime(env, 100)
-	err = env.bankk.SubtractCoins(ctx, addr, std.Coins{
+	err := env.bankk.SubtractCoins(ctx, addr, std.Coins{
 		{Denom: testRealmDenom, Amount: 1},
 		{Denom: "ugnot", Amount: 1000},
 	})
@@ -645,11 +644,8 @@ func TestVestingBindsOnASplitTierDenom(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("realm-vester"))
 	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
 
-	cva, err := std.NewContinuousVestingAccount(
-		std.NewBaseAccount(addr, locked, nil, 0, 0),
-		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
-	)
-	require.NoError(t, err)
+	cva := std.NewBaseAccount(addr, locked, nil, 0, 0)
+	cva.Vesting = std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200}
 	env.acck.SetAccount(env.ctx, cva)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
 
@@ -834,18 +830,14 @@ func TestConservation(t *testing.T) {
 	}
 
 	vesting := std.Coins{{Denom: testAccountDenom, Amount: vesterFunded}}
-	dva, err := std.NewDelayedVestingAccount(
-		// Draw a real account number: hardcoding 0 collides with the first
-		// auto-allocated account and leaves the global counter behind the state.
-		std.NewBaseAccount(vester, vesting, nil, env.acck.GetNextAccountNumber(ctx), 0),
-		std.VestingSchedule{
-			OriginalVesting: vesting,
-			StartTime:       100,
-			EndTime:         200,
-			Type:            std.VestingDelayed,
-		},
-	)
-	require.NoError(t, err)
+	// Draw a real account number: hardcoding 0 collides with the first
+	// auto-allocated account and leaves the global counter behind the state.
+	dva := std.NewBaseAccount(vester, vesting, nil, env.acck.GetNextAccountNumber(ctx), 0)
+	dva.Vesting = std.VestingSchedule{
+		OriginalVesting: vesting,
+		EndTime:         200,
+		Type:            std.VestingDelayed,
+	}
 	env.acck.SetAccount(ctx, dva)
 	require.NoError(t, env.bankk.SetCoins(ctx, vester, vesting))
 	model[vester][testAccountDenom] = vesterFunded
@@ -1283,7 +1275,7 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 		acc := env.acck.GetAccount(ctx, from)
 		require.NotPanics(t, func() {
 			require.Error(t, env.bankk.subtract(ctx, acc, from,
-				std.Coins{{Denom: testRealmDenom, Amount: bad}}, false),
+				std.Coins{{Denom: testRealmDenom, Amount: bad}}),
 				"subtract must reject a %d debit on its own", bad)
 		})
 		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom),
@@ -1339,7 +1331,7 @@ func TestNeitherTierInvertsOnANonPositiveAmount(t *testing.T) {
 			amt := std.Coins{{Denom: tier.denom, Amount: bad}}
 
 			require.NotPanics(t, func() {
-				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt, false),
+				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt),
 					"%s tier: debit of %d must be refused", tier.name, bad)
 			})
 			require.NotPanics(t, func() {
@@ -1418,7 +1410,7 @@ func TestSubtractWritesNothingWhenTheAccountWriteFails(t *testing.T) {
 	err := env.bankk.subtract(ctx, refusingAccount{env.acck.GetAccount(ctx, addr)}, addr, std.Coins{
 		{Denom: testRealmDenom, Amount: 40},
 		{Denom: testAccountDenom, Amount: 40},
-	}, false)
+	})
 	require.Error(t, err, "the account write must fail")
 	require.Equal(t, int64(100), env.bankk.getSplitBalance(ctx, addr, testRealmDenom),
 		"a failed subtract must not have debited the split tier")

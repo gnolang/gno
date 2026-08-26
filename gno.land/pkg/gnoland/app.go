@@ -771,28 +771,22 @@ func (cfg InitChainerConfig) seedSupply(ctx sdk.Context) {
 }
 
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
+	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
-		baseAcc := std.BaseAccount{
-			Address:       bal.Address,
-			Coins:         bal.Amount,
-			AccountNumber: cfg.acck.GetNextAccountNumber(ctx),
+		if err := bal.Vesting.Validate(); err != nil {
+			panic(fmt.Errorf("invalid vesting schedule for %s: %w", bal.Address, err))
 		}
-		var acc std.Account
-		var err error
-		switch bal.Vesting.Type {
-		case std.VestingDelayed:
-			acc, err = std.NewDelayedVestingAccount(&baseAcc, *bal.Vesting)
-		default: // VestingContinuous (empty string) — linear vesting
-			acc, err = std.NewContinuousVestingAccount(&baseAcc, *bal.Vesting)
+		if !bal.Amount.IsAllGTE(bal.Vesting.OriginalVesting) {
+			panic(fmt.Errorf("vesting amount (%s) exceeds the balance (%s) for %s",
+				bal.Vesting.OriginalVesting, bal.Amount, bal.Address))
 		}
-		if err != nil {
-			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
-		}
-		cfg.acck.SetAccount(ctx, acc)
-	} else {
-		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acck.SetAccount(ctx, acc)
+		acc.SetVesting(*bal.Vesting)
 	}
+	cfg.acck.SetAccount(ctx, acc)
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a

@@ -22,13 +22,12 @@ func setupVestingAccount(t *testing.T, env testEnv, addr crypto.Address, total i
 	t.Helper()
 
 	baseAcc := std.NewBaseAccount(addr, ugnotCoins(total), nil, 0, 0)
-	cva, err := std.NewContinuousVestingAccount(baseAcc, std.VestingSchedule{
+	baseAcc.Vesting = std.VestingSchedule{
 		OriginalVesting: ugnotCoins(total),
 		StartTime:       100,
 		EndTime:         200,
-	})
-	require.NoError(t, err)
-	env.acck.SetAccount(env.ctx, cva)
+	}
+	env.acck.SetAccount(env.ctx, baseAcc)
 }
 
 // atTime returns a copy of env.ctx whose block time is the given unix second.
@@ -81,9 +80,9 @@ func TestBankKeeper_VestingSpendEnforcement(t *testing.T) {
 	err = env.bankk.SendCoins(ctx, fromAddr, toAddr, ugnotCoins(1))
 	require.Error(t, err, "no spendable coins remain until more vests")
 
-	// Schedule not complete → still a vesting account.
-	_, isVesting := env.acck.GetAccount(ctx, fromAddr).(std.VestingAccount)
-	require.True(t, isVesting, "account must remain a vesting account mid-schedule")
+	// Mid-schedule the lock is still live.
+	require.False(t, env.acck.GetAccount(ctx, fromAddr).LockedCoins(ctx.BlockTime()).IsZero(),
+		"coins must still be locked mid-schedule")
 
 	// --- After end (t=250): fully vested, nothing locked. ---
 	ctx = atTime(env, 250)
@@ -92,9 +91,13 @@ func TestBankKeeper_VestingSpendEnforcement(t *testing.T) {
 	require.Equal(t, int64(0), env.bankk.GetCoins(ctx, fromAddr).AmountOf("ugnot"))
 	require.Equal(t, int64(1000), env.bankk.GetCoins(ctx, toAddr).AmountOf("ugnot"))
 
-	// The fully-vested account is upgraded to a plain BaseAccount.
-	_, isBase := env.acck.GetAccount(ctx, fromAddr).(*std.BaseAccount)
-	require.True(t, isBase, "fully-vested account must be upgraded to BaseAccount")
+	// The schedule stays on the account once it has elapsed. It locks nothing,
+	// so there is nothing to collapse and nothing to rewrite.
+	acc := env.acck.GetAccount(ctx, fromAddr)
+	require.True(t, acc.LockedCoins(ctx.BlockTime()).IsZero(),
+		"an elapsed schedule must lock nothing")
+	require.False(t, acc.GetVesting().IsZero(),
+		"the schedule is kept, not erased")
 }
 
 // TestBankKeeper_VestingUnrestrictedBypass documents the deliberate policy that
@@ -121,45 +124,41 @@ func TestBankKeeper_VestingUnrestrictedBypass(t *testing.T) {
 	require.Equal(t, int64(100), env.bankk.GetCoins(ctx, toAddr).AmountOf("ugnot"))
 }
 
-// A completed vesting schedule is collapsed to a plain account, but only when the
-// operation that noticed actually succeeds. It used to be written the moment it was
-// detected, so a debit that then failed its affordability check still rewrote the
-// account object — a write on an operation that reported failure.
-func TestFailedSubtractDoesNotRewriteAFullyVestedAccount(t *testing.T) {
+// An elapsed schedule is left on the account rather than collapsed into a
+// different account type, so a debit past EndTime rewrites nothing. The old
+// design swapped the account object out at that point, which meant a debit that
+// then failed its affordability check had still rewritten it.
+func TestAnElapsedScheduleIsLeftAloneByADebit(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
 	addr := crypto.AddressFromPreimage([]byte("vested"))
 	vesting := std.Coins{{Denom: "ugnot", Amount: 100}}
 
-	cva, err := std.NewContinuousVestingAccount(
-		std.NewBaseAccount(addr, vesting, nil, 0, 0),
-		std.VestingSchedule{OriginalVesting: vesting, StartTime: 100, EndTime: 200},
-	)
-	require.NoError(t, err)
+	cva := std.NewBaseAccount(addr, vesting, nil, 0, 0)
+	cva.Vesting = std.VestingSchedule{OriginalVesting: vesting, StartTime: 100, EndTime: 200}
 	env.acck.SetAccount(env.ctx, cva)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, vesting))
 
-	// Past EndTime, so the schedule is complete and the upgrade would trigger.
-	ctx := atTime(env, 500)
-	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr))
+	ctx := atTime(env, 500) // past EndTime: the schedule has elapsed
+	before := env.acck.GetAccount(ctx, addr)
+	require.True(t, before.LockedCoins(ctx.BlockTime()).IsZero(), "nothing may remain locked")
 
-	// More than is held: the debit must fail.
+	// More than is held: the debit must fail and touch nothing.
 	require.Error(t, env.bankk.SubtractCoins(ctx, addr, std.Coins{{Denom: "ugnot", Amount: 500}}))
-	require.IsType(t, &std.ContinuousVestingAccount{}, env.acck.GetAccount(ctx, addr),
-		"a failed debit must not have rewritten the account object")
+	require.Equal(t, before.GetVesting(), env.acck.GetAccount(ctx, addr).GetVesting(),
+		"a failed debit must not have altered the schedule")
 	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"))
 
-	// A debit that succeeds still collapses it, as before — and this case debits only
-	// a SPLIT-tier denom, so setAccountTierCoins never touches the account object.
-	// That makes the explicit success-path write the only thing that can persist the
-	// collapse; an account-tier debit would have written the account regardless and
-	// so cannot distinguish the two.
+	// A debit that succeeds keeps the schedule too. This one touches only a
+	// SPLIT-tier denom, so setAccountTierCoins never writes the account object --
+	// which is what makes an unexpected rewrite visible here at all.
 	env.bankk.setSplitBalance(ctx, addr, testRealmDenom, 50)
 	require.NoError(t, env.bankk.SubtractCoins(ctx, addr,
 		std.Coins{{Denom: testRealmDenom, Amount: 10}}))
-	require.IsType(t, &std.BaseAccount{}, env.acck.GetAccount(ctx, addr),
-		"a successful split-only debit must still collapse a completed schedule")
+	after := env.acck.GetAccount(ctx, addr)
+	require.Equal(t, before.GetVesting(), after.GetVesting(),
+		"a successful debit must not have altered the schedule either")
 	require.Equal(t, int64(40), env.bankk.GetCoin(ctx, addr, testRealmDenom))
 	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, "ugnot"), "untouched")
 }
@@ -180,11 +179,8 @@ func TestBurnIsBlockedByAVestingLock(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("realm-vester-burn"))
 	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
 
-	cva, err := std.NewContinuousVestingAccount(
-		std.NewBaseAccount(addr, locked, nil, 0, 0),
-		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
-	)
-	require.NoError(t, err)
+	cva := std.NewBaseAccount(addr, locked, nil, 0, 0)
+	cva.Vesting = std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200}
 	env.acck.SetAccount(env.ctx, cva)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
 	// Seeded, so the refusal below cannot come from nextSupply finding no counter.
@@ -193,7 +189,7 @@ func TestBurnIsBlockedByAVestingLock(t *testing.T) {
 		"precondition: the supply must be recorded, or the burn is refused for the wrong reason")
 
 	ctx := atTime(env, 100) // nothing vested yet
-	err = env.bankk.BurnCoins(ctx, addr, locked)
+	err := env.bankk.BurnCoins(ctx, addr, locked)
 	// Which refusal, not merely that it failed. std.Err* renders its detail only
 	// under %+v, so Error() is the bare type name — which is exactly what
 	// discriminates here: an unaffordable debit would say "insufficient coins error".
@@ -209,60 +205,4 @@ func TestBurnIsBlockedByAVestingLock(t *testing.T) {
 	vested := atTime(env, 300)
 	require.NoError(t, env.bankk.BurnCoins(vested, addr, locked))
 	require.Zero(t, env.bankk.TotalSupply(vested, testRealmDenom))
-}
-
-// A bare BaseVestingAccount carries a schedule that locks nothing, because the
-// lock is applied only to accounts implementing std.VestingAccount and that type
-// does not. Nothing constructs one, so this is the hazard the account-tier
-// invariant reports rather than a live bug — recorded here because the
-// consequence is worth being able to read, and because a future change that
-// makes the type enforceable should fail here and be made deliberately.
-func TestABareBaseVestingAccountLocksNothing(t *testing.T) {
-	t.Parallel()
-
-	// Fully locked at t=50: vesting has not started.
-	schedule := std.VestingSchedule{
-		OriginalVesting: ugnotCoins(1000),
-		StartTime:       100,
-		EndTime:         200,
-	}
-	to := crypto.AddressFromPreimage([]byte("bare-bva-to"))
-
-	// The control. Same schedule, same time, on the type the bank does enforce.
-	// Without it this pair would also pass on a build where vesting never blocks
-	// anything at all.
-	t.Run("the same schedule on a ContinuousVestingAccount blocks the send", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		addr := crypto.AddressFromPreimage([]byte("enforced-holder"))
-		cva, err := std.NewContinuousVestingAccount(
-			std.NewBaseAccount(addr, ugnotCoins(1000), nil, 0, 0), schedule)
-		require.NoError(t, err)
-		env.acck.SetAccount(env.ctx, cva)
-
-		ctx := atTime(env, 50)
-		err = env.bankk.SendCoins(ctx, addr, to, ugnotCoins(1000))
-		require.EqualError(t, err, "vesting locked coins error",
-			"the send must be refused as locked, not for some other reason")
-		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, addr, "ugnot"),
-			"a refused send must not move the balance")
-	})
-
-	t.Run("on a bare BaseVestingAccount the whole balance is spendable", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		addr := crypto.AddressFromPreimage([]byte("unenforced-holder"))
-		env.acck.SetAccount(env.ctx, &std.BaseVestingAccount{
-			BaseAccount:     *std.NewBaseAccount(addr, ugnotCoins(1000), nil, 0, 0),
-			VestingSchedule: schedule,
-		})
-
-		ctx := atTime(env, 50)
-		require.NoError(t, env.bankk.SendCoins(ctx, addr, to, ugnotCoins(1000)),
-			"the schedule is not enforced on this type, so the send goes through")
-		require.Equal(t, int64(0), env.bankk.GetCoin(ctx, addr, "ugnot"))
-		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, to, "ugnot"))
-	})
 }

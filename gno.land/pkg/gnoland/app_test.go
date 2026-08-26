@@ -3721,10 +3721,16 @@ func TestInitChainer_VestingAccount(t *testing.T) {
 			require.True(t, qres.IsOK(), "account query response: %v", qres)
 
 			if tt.isVesting {
-				// The account should be a vesting account type.
-				assert.Contains(t, string(qres.Data), "Vesting")
+				// An ordinary account carrying a schedule, so what identifies it
+				// is the field rather than a type name.
+				assert.Contains(t, string(qres.Data), `"vesting"`)
+				assert.Contains(t, string(qres.Data), vestingAmount.String())
 				// The account number must be present.
 				assert.Contains(t, string(qres.Data), "account_number")
+			} else {
+				// An account with no schedule must not carry the key at all: that
+				// is what keeps the field out of every existing account's bytes.
+				assert.NotContains(t, string(qres.Data), `"vesting"`)
 			}
 
 			// Verify the coins are set correctly.
@@ -3952,9 +3958,12 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	cfg.applyBalance(ctx, Balance{Address: vester, Amount: amount, Vesting: &std.VestingSchedule{
 		OriginalVesting: amount, StartTime: 100, EndTime: 1_000_000,
 	}})
-	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
-	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
 	require.IsType(t, &GnoAccount{}, acck.GetAccount(ctx, vester),
+		"a vesting balance is an ordinary account carrying a schedule")
+	require.False(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
+		"the schedule must have been set")
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
+	require.True(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
 		"a plain entry must clear an earlier vesting schedule")
 	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
 		"and the funds must be spendable")

@@ -213,29 +213,6 @@ func (bank BankKeeper) sendCoins(
 	return nil
 }
 
-// upgradeVestingAccount replaces a fully-vested VestingAccount with a plain
-// BaseAccount. Returns the replacement account, or the original if not ready.
-func (bank BankKeeper) upgradeVestingAccount(ctx sdk.Context, acc std.Account) (std.Account, bool) {
-	va, ok := acc.(std.VestingAccount)
-	if !ok {
-		return acc, false
-	}
-	if !va.GetVestingCoins(ctx.BlockTime()).IsZero() {
-		return acc, false
-	}
-	// Deliberately does not persist. Callers write it on their success path only:
-	// this used to SetAccount here, which meant a debit that then failed its
-	// affordability check still rewrote the account object — a write on an operation
-	// that reported failure. The caller knows whether it succeeded; this does not.
-	return &std.BaseAccount{
-		Address:       va.GetAddress(),
-		Coins:         va.GetCoins(),
-		PubKey:        va.GetPubKey(),
-		AccountNumber: va.GetAccountNumber(),
-		Sequence:      va.GetSequence(),
-	}, true
-}
-
 // splitByTier partitions amt by where each denom is stored. Both halves keep
 // amt's ascending order, so each can be used directly as std.Coins.
 func (view ViewKeeper) splitByTier(amt std.Coins) (split, account std.Coins) {
@@ -300,9 +277,10 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		return std.ErrInvalidCoins(amt.String())
 	}
 
-	// Once the schedule completes the account becomes a plain BaseAccount, so
-	// later transfers skip the vesting check entirely.
-	acc, upgraded := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
+	// nil when the address has no account object. Debiting one is already an
+	// error further down, but the lock has to be read before that, and a nil
+	// interface cannot be asked for its locked coins.
+	acc := bank.acck.GetAccount(ctx, addr)
 
 	// The schedule is checked one denom at a time, reading only the denoms being
 	// spent — never the whole balance set, which is what makes this O(len(amt))
@@ -310,8 +288,8 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 	// may name a "/"-prefixed denom (ValidateDenom accepts one), so locking is
 	// not assumed to apply only to the account-object tier. GetCoin routes
 	// each denom to wherever it actually lives.
-	if va, ok := acc.(std.VestingAccount); ok {
-		locked := va.LockedCoins(ctx.BlockTime())
+	if acc != nil {
+		locked := acc.LockedCoins(ctx.BlockTime())
 		for _, coin := range amt {
 			lockedAmt := locked.AmountOf(coin.Denom)
 			if lockedAmt == 0 {
@@ -330,20 +308,19 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		}
 	}
 
-	return bank.subtract(ctx, acc, addr, amt, upgraded)
+	return bank.subtract(ctx, acc, addr, amt)
 }
 
 // subtractCoinsUnrestricted performs raw coin subtraction without vesting or
 // session-spend enforcement. Used for gas payments, storage deposit refunds,
 // and other system-level transfers.
-//
-// Still upgrades fully-vested accounts to BaseAccount when the schedule ends.
 func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}
-	acc, upgraded := bank.upgradeVestingAccount(ctx, bank.acck.GetAccount(ctx, addr))
-	return bank.subtract(ctx, acc, addr, amt, upgraded)
+	// Reads the account rather than passing nil: subtract treats a nil account
+	// as one holding no account-tier coins, so every such debit would fail.
+	return bank.subtract(ctx, bank.acck.GetAccount(ctx, addr), addr, amt)
 }
 
 // subtract debits amt: one key per split-tier denom, plus at most one account
@@ -363,7 +340,7 @@ func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Ad
 // construction; nothing here should be less safe. A transaction abort would
 // usually roll a partial debit back, but that puts the invariant in the caller,
 // and it does not hold for a caller that logs and continues.
-func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins, upgraded bool) error {
+func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Address, amt std.Coins) error {
 	// A non-positive amount turns this debit into a credit, on either tier, so
 	// reject it before splitting, along with a repeated denom: two entries would
 	// each be computed from the same starting balance, so only one debit would
@@ -415,14 +392,6 @@ func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Ad
 			return std.ErrInsufficientCoins(fmt.Sprintf(
 				"insufficient account funds; %s < %s", oldCoins, account))
 		}
-	}
-
-	// A completed vesting schedule is collapsed to a plain account here, on the
-	// success path, rather than when it was detected — so a failed debit leaves the
-	// account object untouched. setAccountTierCoins below may write it again; the
-	// cache store refund-dedups repeated writes, so the cost is unchanged.
-	if upgraded {
-		bank.acck.SetAccount(ctx, acc)
 	}
 
 	// The account write goes first because it is the only step that can still
