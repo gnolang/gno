@@ -166,9 +166,9 @@ func TestAnElapsedScheduleIsLeftAloneByADebit(t *testing.T) {
 // TestBurnIsBlockedByAVestingLock records that a realm cannot always remove its own
 // coin. BurnCoins debits through SubtractCoins, whose vesting check is deliberately
 // tier-agnostic, so a genesis schedule naming a realm denom locks it against the
-// issuer too. That is reachable: applyBalance builds the account object with the
-// full pre-split amount to satisfy the schedule, then SetCoins moves the non-gas
-// denoms to their own keys, leaving OriginalVesting naming a split-tier denom.
+// issuer too. That is reachable: applyBalance checks the schedule against the whole
+// genesis amount, which spans both tiers, then SetCoins moves the non-gas denoms to
+// their own keys, leaving OriginalVesting naming a split-tier denom.
 //
 // Whether an issuer should be able to burn past a lock is a policy question and is
 // left alone; this pins what the code does, and that a refused burn moves nothing.

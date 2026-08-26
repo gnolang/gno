@@ -4299,3 +4299,88 @@ func TestInitChainer_VestingAccountCanBeWhitelisted(t *testing.T) {
 	assert.Equal(t, int64(500), locked.AmountOf(ugnot.Denom),
 		"halfway through, half must still be locked")
 }
+
+// applyBalance is the runtime path that builds accounts, and it holds the only
+// guards on a genesis schedule. Balance.Verify checks the same two things, but it
+// runs only under `gnogenesis verify`, which an operator can skip; these must
+// abort the boot on their own.
+func TestInitChainer_RejectsABadVestingSchedule(t *testing.T) {
+	t.Parallel()
+
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+
+	tests := []struct {
+		name    string
+		vesting *std.VestingSchedule
+		want    string
+	}{
+		{
+			name: "vesting more than the balance",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: ugnot.Denom, Amount: 5000}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "vesting a denom the balance does not hold",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "atom", Amount: 1}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "linear vesting that starts after it ends",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				StartTime:       300,
+				EndTime:         100,
+			},
+			want: "invalid vesting schedule",
+		},
+		{
+			name: "an end time of zero",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				Type:            std.VestingDelayed,
+			},
+			want: "invalid vesting schedule",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := memdb.NewMemDB()
+			mainKey := store.NewStoreKey("mainKey")
+			ms := store.NewCommitMultiStore(db)
+			ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+			require.NoError(t, ms.LoadLatestVersion())
+			ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+			prmk := params.NewParamsKeeper(mainKey)
+			acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+			bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+			prmk.Register(auth.ModuleName, acck)
+			prmk.Register(bank.ModuleName, bankk)
+			cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+			addr := crypto.AddressFromPreimage([]byte("bad-vester"))
+			bal := Balance{Address: addr, Amount: amount, Vesting: tt.vesting}
+
+			defer func() {
+				r := recover()
+				require.NotNil(t, r, "a bad schedule must abort genesis")
+				assert.Contains(t, fmt.Sprint(r), tt.want)
+				// Nothing may be left behind by a boot that aborted.
+				assert.Nil(t, acck.GetAccount(ctx, addr),
+					"the account must not have been written")
+			}()
+			cfg.applyBalance(ctx, bal)
+		})
+	}
+}

@@ -634,9 +634,9 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 // locked. That only shows up mid-schedule, which is why the partial-vesting spend
 // below is the assertion that matters — a fully-locked case is refused either way.
 //
-// The state is reachable exactly as genesis builds it: applyBalance writes the
-// account object with the full pre-split amount so the vesting constructor can
-// validate OriginalVesting against it, then SetCoins routes the denom to its own key.
+// The state is reachable exactly as genesis builds it: applyBalance checks
+// OriginalVesting against the whole genesis amount, which spans both tiers, then
+// SetCoins routes the denom to its own key.
 func TestVestingBindsOnASplitTierDenom(t *testing.T) {
 	t.Parallel()
 

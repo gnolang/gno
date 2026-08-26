@@ -758,10 +758,9 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 // file repeats an address, for no correctness gain.
 // seedSupply rebuilds the supply counter from the balances genesis just wrote.
 //
-// A sweep rather than an incremental hook: applyBalance writes the account object with
-// the full pre-split amount before calling SetCoins, so SetCoins reads old == new and
-// any delta would be zero for every vesting account — and that pre-write cannot be
-// removed, since the vesting constructors validate OriginalVesting against it.
+// A sweep rather than an incremental hook: SetCoins keeps no counter, so there is no
+// delta to hook. It replaces both tiers outright, which is also why genesis can write
+// a balance without the supply having to be correct yet.
 //
 // Both genesis paths call this. It is a method rather than two inline calls so that a
 // step required by one path cannot be added to the other alone; that asymmetry is
