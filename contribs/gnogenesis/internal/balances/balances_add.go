@@ -164,7 +164,9 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	}
 
 	for _, balance := range sortedBalances {
-		io.Printfln("%s=%s", balance.Address.String(), balance.Amount.String())
+		// The full entry, schedule included, so the printed line is the same
+		// format the sheet readers accept.
+		io.Printfln("%s", balance)
 	}
 
 	io.Println()
