@@ -389,10 +389,12 @@ must be checked with `rlm.IsCurrent()` before `Previous()` /
 `Address()` / `PkgPath()` is trusted. Without that check, a stale or
 attacker-supplied realm value's `Address()` and `PkgPath()` still
 resolve numerically; they just no longer refer to the live caller.
-This is class **2 (designation-forgery)** in `gno-security.md`. The
-first `cur` of a crossing function is minted per-frame by the
-runtime and is always current, so checking it is redundant (see
-`gnovm/tests/files/zrealm_iscurrent.gno`).
+This is class **2 (designation-forgery)** in `gno-security.md`. A
+plain crossing function's first `cur` is adopted by its own frame, so
+checking it is always true and proves nothing (see
+`gnovm/tests/files/zrealm_iscurrent.gno`, which exercises plain
+functions only). A crossing method's `cur` is not adopted and must be
+checked.
 
 ### 5.3 Realm values are ephemeral
 
@@ -680,9 +682,10 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take a realm parameter beyond the first `cur`? The first
-  `cur realm` is guaranteed current by the runtime; any secondary
-  `rlm realm` must be checked with `rlm.IsCurrent()` before
+- Is it a method taking `cur realm`, or does it take a realm
+  parameter beyond the first `cur`? A plain function's first `cur` is
+  adopted by its frame and needs no check; a method's `cur` and any
+  secondary `rlm realm` must be checked with `rlm.IsCurrent()` before
   `rlm.Previous()`, `rlm.Address()`, or `rlm.PkgPath()` is used.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
