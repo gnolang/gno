@@ -265,8 +265,9 @@ func (bank BankKeeper) setAccountTierCoins(ctx sdk.Context, acc std.Account, add
 
 // SubtractCoins subtracts amt from the coins at the addr.
 //
-// Enforces vesting: if the account is a VestingAccount, the amount must not
-// exceed the spendable (unlocked) balance at the current block time.
+// Enforces vesting: the amount must not exceed the balance left unlocked by the
+// account's schedule at the current block time. Almost every account carries the
+// zero schedule, which locks nothing.
 //
 // Does not enforce the session spend limit or the transfer restriction, which
 // both live in SendCoins. BurnCoins debits through here, so a realm removing its
@@ -318,9 +319,7 @@ func (bank BankKeeper) subtractCoinsUnrestricted(ctx sdk.Context, addr crypto.Ad
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}
-	// Reads the account rather than passing nil: subtract treats a nil account
-	// as one holding no account-tier coins, so every such debit would fail.
-	return bank.subtract(ctx, bank.acck.GetAccount(ctx, addr), addr, amt)
+	return bank.subtract(ctx, nil, addr, amt)
 }
 
 // subtract debits amt: one key per split-tier denom, plus at most one account
@@ -364,6 +363,14 @@ func (bank BankKeeper) subtract(ctx sdk.Context, acc std.Account, addr crypto.Ad
 	// of one address and the split tier of another.
 	if acc != nil && acc.GetAddress() != addr {
 		return fmt.Errorf("account %s was passed for address %s", acc.GetAddress(), addr)
+	}
+	// Read it when the caller did not, so that nil means "I do not have it" in
+	// both halves of this function. The debit below used to read nil as an
+	// account holding nothing while the write further down read it from the
+	// store, so passing nil refused every account-tier debit. GetAccount may
+	// still return nil, which then correctly means the address has no account.
+	if acc == nil {
+		acc = bank.acck.GetAccount(ctx, addr)
 	}
 
 	split, account := bank.splitByTier(amt)

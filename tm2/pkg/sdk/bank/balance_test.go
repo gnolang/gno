@@ -627,7 +627,7 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 // A vesting schedule can lock a SPLIT-tier denom, and the spendable calculation must
 // read the denom from wherever it lives. Every other vesting test locks the gas denom,
 // so the whole suite passes with that calculation reading acc.GetCoins() instead of
-// bank.GetCoin — which is what master did, and what std.SpendableCoins still does.
+// bank.GetCoin.
 //
 // The failure mode is over-strictness, not a bypass: an account-tier read reports zero
 // held, so spendable clamps to zero and every spend is refused while anything is
@@ -1590,4 +1590,32 @@ func TestSecondGasDenomInAccountTier(t *testing.T) {
 	require.NoError(t, k.SendCoins(ctx, addr, to, std.Coins{{Denom: voucher, Amount: 3}}))
 	require.Equal(t, int64(17), k.GetCoin(ctx, addr, voucher))
 	require.Equal(t, int64(3), k.GetCoin(ctx, to, voucher))
+}
+
+// subtract's acc parameter is an optimisation, not a declaration that the
+// address has no account: its doc says to pass nil if you do not have it. The
+// read half used to treat nil as an account holding nothing while the write half
+// read it from the store, so a nil caller was refused every account-tier debit
+// while its split-tier debits went through.
+func TestSubtractWithANilAccountStillDebitsBothTiers(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("nil-acc-holder"))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 100},
+		{Denom: testAccountDenom, Amount: 100},
+	}))
+
+	// Both tiers in one debit, so an account-tier failure cannot hide behind a
+	// working split-tier one.
+	require.NoError(t, env.bankk.subtract(env.ctx, nil, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 40},
+		{Denom: testAccountDenom, Amount: 40},
+	}), "a nil account must be read, not assumed empty")
+
+	require.Equal(t, int64(60), env.bankk.GetCoin(env.ctx, addr, testAccountDenom),
+		"the account tier must have been debited")
+	require.Equal(t, int64(60), env.bankk.GetCoin(env.ctx, addr, testRealmDenom),
+		"the split tier must have been debited")
 }
