@@ -541,14 +541,6 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	return params.applyLegacyDefaults()
 }
 
-const (
-	moduleParamPrefix = "vm"
-
-	sysUsersPkgParamPath = moduleParamPrefix + ":p:sysnames_pkgpath"
-	sysCLAPkgParamPath   = moduleParamPrefix + ":p:syscla_pkgpath"
-	chainDomainParamPath = moduleParamPrefix + ":p:chain_domain"
-)
-
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	params := vm.GetParams(ctx)
 	switch key {

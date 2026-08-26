@@ -1927,6 +1927,8 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 
 	for _, path := range []string{"/r/mock/parked", "/r/mock/parked/", "/r/mock/parked$source"} {
 		t.Run("parked "+path, func(t *testing.T) {
+			t.Parallel()
+
 			status, body := get(t, path)
 			assert.Equal(t, http.StatusNotFound, status)
 			assert.Contains(t, body, "Not Yet Enabled",
@@ -1937,6 +1939,8 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	}
 
 	t.Run("the reason reaches the page", func(t *testing.T) {
+		t.Parallel()
+
 		// A creator who cannot tell "queued" from "nothing on this chain can
 		// enable anything" has no idea whether to wait or to go ask governance.
 		blocked := &gnoweb.MockPackage{
@@ -1958,6 +1962,8 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 
 	t.Run("a path nobody submitted still reads as not found", func(t *testing.T) {
+		t.Parallel()
+
 		status, body := get(t, "/r/mock/neverexisted")
 		assert.Equal(t, http.StatusNotFound, status)
 		assert.NotContains(t, body, "Not Yet Enabled",

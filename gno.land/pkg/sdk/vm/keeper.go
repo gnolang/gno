@@ -1070,13 +1070,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	return nil
 }
 
-
 // isApprover reports whether addr is in the approvers list.
 func isApprover(approvers []crypto.Address, addr crypto.Address) bool {
 	return slices.Contains(approvers, addr)
 }
-
-
 
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
@@ -1481,7 +1478,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
-
 func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
@@ -1845,11 +1841,6 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 
 	return amino.MarshalAny(exported)
 }
-
-
-
-
-
 
 // QueryPkg returns the named block variables of a package as Amino JSON.
 // This is the entry point for the state explorer: given a package path,

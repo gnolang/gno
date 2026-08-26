@@ -116,5 +116,4 @@ func TestEstimateEnableAgainstARealChain(t *testing.T) {
 		assert.Equal(t, verdictWillFail, classifySimulate(res, simErr),
 			"simulate must surface a failing enable as a verdict, not as an unreachable node")
 	})
-
 }
