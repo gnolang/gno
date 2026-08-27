@@ -1,6 +1,7 @@
 package banker
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -27,4 +28,17 @@ func TestUserRunIsNotAUserCall(t *testing.T) {
 	uassert.True(t, run.IsUserRun(), "the /e/{addr}/run shape is a user run")
 	uassert.True(t, run.IsUser(), "IsUser admits it")
 	uassert.False(t, run.IsUserCall(), "IsUserCall refuses it")
+}
+
+// TestGetRealmBalanceReadsThisRealm pins which address GetRealmBalance queries.
+// The function is non-crossing, so a stack walk for the current realm runs past
+// its frame onto the caller's: read that way, a call from another realm reports
+// that realm's balance instead of this one's.
+func TestGetRealmBalanceReadsThisRealm(t *testing.T) {
+	self := chain.PackageAddress("gno.land/r/docs/soliditypatterns/banker")
+	testing.IssueCoins(self, chain.Coins{chain.NewCoin("ugnot", 4200)})
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/docs/zzcaller"))
+
+	uassert.Equal(t, int64(4200), GetRealmBalance())
 }

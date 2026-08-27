@@ -98,7 +98,7 @@ func GetBalance(addr address) int64 {
 // GetRealmBalance returns the total coins held by this realm
 func GetRealmBalance() int64 {
 	bnk := banker.NewReadonlyBanker()
-	realmAddr := unsafe.CurrentRealm().Address()
+	realmAddr := chain.PackageAddress("gno.land/r/docs/soliditypatterns/banker")
 	return bnk.GetCoin(realmAddr, "ugnot")
 }
 
