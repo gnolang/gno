@@ -50,7 +50,7 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=pearl-1
-GENESIS_TIME=1787752800 # Wednesday, August 26th 2026 16:00 CEST (14:00 UTC)
+GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
@@ -213,7 +213,7 @@ CHECKSUMS_DATA=$(
 499d9fbaaea8822d873a8e6693e329c9347bc69223daf056c4f31fe28aa437dc  work/genesis_txs.jsonl
 
 # Final artifact (moved to pearl.gno.land/ root on success)
-f07b8056756dae68f15ad69c7bfa6c0da2aa2a39cbbc08bfceb9e5b454c2e0cc  genesis.json
+c45fe60c8c8a1f859d9e4d5aad7ce4d100ff0eb78302e71318ba0de481a8dc91  genesis.json
 EOF
 )
 
