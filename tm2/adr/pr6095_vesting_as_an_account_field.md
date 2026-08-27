@@ -1,9 +1,8 @@
-# PRXXXX: Vesting as a field on BaseAccount, not an account type
+# PR6095: Vesting as a field on BaseAccount, not an account type
 
 ## Status
 
-Proposed. Supersedes the guard added in the preceding commit, which reported the
-account type this change deletes.
+Proposed.
 
 ## Context
 
@@ -71,6 +70,35 @@ genesis ever created them, and a fork re-parses the text balances file, so a fre
 or re-genesised chain is unaffected. This is safe because the chain is
 pre-mainnet; on a live chain it would need a migration.
 
+### Warn about implausible genesis times, do not reject them
+
+Nothing compares a schedule against the chain's clock, so one that already ended
+vests everything at boot and one written in milliseconds never vests. Both are
+silent, and both look ordinary in a genesis file.
+
+`gnogenesis verify` warns when a schedule ends at or before the genesis time, or
+more than a hundred years after it -- well past any real token schedule and well
+short of what a milliseconds-for-seconds mistake produces. It warns rather than
+rejects because both shapes are also legitimate: replaying an old genesis onto a
+fork carries schedules that are correctly in the past, and only the operator can
+tell the cases apart.
+
+The operator tool is the right home. It has the genesis time, it runs before the
+chain does, and a warning there leaves fork replay working. The horizon is
+computed by adding to the genesis time rather than subtracting from the end time,
+because the end time is an operator-supplied `int64` that can sit anywhere in the
+range while the genesis time is a real date.
+
+### Say what the lock does not do
+
+The lock blocks transfers; it does not reserve a balance. Fees and storage
+deposits debit through the unrestricted path and never consult a schedule, so a
+fully locked account can still spend itself to zero on gas. That is existing,
+tested behaviour and is unchanged here, but it diverges from Cosmos SDK -- where
+fees come out of spendable -- and a holder reads "vested" as "reserved". It is
+now recorded at the interface rather than left to be discovered, and is worth
+being a deliberate decision before mainnet.
+
 ## Alternatives considered
 
 **Embed `ContinuousVestingAccount` inside `GnoAccount`.** Every account would then
@@ -84,6 +112,16 @@ caused both faults.
 
 **Keep the types and fix the genesis path.** Addresses the panic, leaves the
 mechanism that produced it.
+
+**Reject implausible genesis times in `Validate`.** It has no notion of now, and
+an error would break the legitimate fork-replay case.
+
+**Warn at boot instead of in the operator tool.** The InitChainer would have to be
+careful to keep the warning off consensus state, and it fires when it is already
+too late to edit the file.
+
+**Change fees to respect the lock.** A consensus change well outside this one.
+Documented rather than changed.
 
 ## Consequences
 
