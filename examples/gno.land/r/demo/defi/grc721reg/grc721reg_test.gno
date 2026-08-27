@@ -457,6 +457,42 @@ func TestRenderCollections(cur realm, t *testing.T) {
 	}
 }
 
+func TestRenderEscapesExtensionKind(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_escape"))
+	token, _ := grc721.NewToken("Esc", "ESC", 0, cur)
+	view := &stubView{"a`\n# H\n`b", token.ID()}
+	key := Register(cross(cur), collection.NewCollection(token, view), "esc")
+
+	urequire.False(t, strings.Contains(Render(""), "\n# H"),
+		"a registrant-chosen kind cannot write a heading into the index")
+	urequire.False(t, strings.Contains(Render(key), "\n# H"),
+		"nor into the collection's own page")
+}
+
+func TestOneTokenTakesOneKey(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_alias"))
+	token, _ := grc721.NewToken("Alias", "ALIAS", 0, cur)
+	Register(cross(cur), collection.NewCollection(token), "a")
+
+	urequire.AbortsContains(t, cur, "already registered", func() {
+		Register(cross(cur), collection.NewCollection(token), "b")
+	})
+}
+
+func TestRegisteredCollectionStaysLive(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_live"))
+	nft, ledger := collection.New("Live", "LIVE", 0, cur)
+	key := Register(cross(cur), nft.Collection(), "")
+	urequire.Equal(t, 0, len(MustGet(key).Kinds()), "no extension at registration")
+
+	roy, _ := royalty.NewRoyalty(ledger, 1000)
+	nft.Attach(roy)
+
+	urequire.Equal(t, 1, len(MustGet(key).Kinds()), "a later Attach reaches the registry")
+	_, ok := GetExtension(key, royalty.Kind)
+	urequire.True(t, ok, "and the view is readable through the registry")
+}
+
 func TestUnregister(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_drop"))
 	token, _ := grc721.NewToken("Drop", "DROP", 0, cur)
