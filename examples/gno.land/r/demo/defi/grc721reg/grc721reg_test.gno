@@ -1,6 +1,7 @@
 package grc721reg
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -432,4 +433,48 @@ func TestRenderCollections(cur realm, t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnregister(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_drop"))
+	token, _ := grc721.NewToken("Drop", "DROP", 0, cur)
+	key := Register(cross(cur), collection.NewCollection(token), "")
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_thief"))
+	urequire.AbortsContains(t, cur, "collection not registered", func() {
+		Unregister(cross(cur), "DROP")
+	})
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_drop"))
+	urequire.Equal(t, key, Unregister(cross(cur), "DROP"), "Unregister returns the dropped key")
+	urequire.True(t, Get(key) == nil, "the entry is gone")
+
+	urequire.AbortsContains(t, cur, "collection not registered", func() {
+		Unregister(cross(cur), "DROP")
+	})
+
+	urequire.Equal(t, key, Register(cross(cur), collection.NewCollection(token), ""),
+		"the freed key can be taken again")
+}
+
+func TestRenderIndexPaginates(cur realm, t *testing.T) {
+	const infoPrefix = "/r/demo/defi/grc721reg:"
+
+	for i := 0; i < pageSize+5; i++ {
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/zpage" + strconv.Itoa(i)))
+		token, _ := grc721.NewToken("Page", "PAGE", 0, cur)
+		Register(cross(cur), collection.NewCollection(token), "")
+	}
+
+	first := Render("")
+	urequire.Equal(t, pageSize, strings.Count(first, infoPrefix),
+		"the home page renders one page, not the whole tree")
+	urequire.True(t, strings.Contains(first, "?page=2"), "the home page links the next one")
+
+	second := Render("?page=2")
+	urequire.True(t, strings.Count(second, infoPrefix) > 0, "page 2 renders the remainder")
+	urequire.NotEqual(t, first, second, "page 2 is not page 1")
+
+	// A visitor cannot widen a page, so ?size= changes nothing.
+	urequire.Equal(t, first, Render("?size=1000"), "the page size is not the visitor's to set")
 }

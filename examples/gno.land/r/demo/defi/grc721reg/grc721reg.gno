@@ -15,7 +15,9 @@ import (
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/demo/tokens/grc721/collection"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -74,6 +76,30 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	return key
 }
 
+// Unregister drops the calling realm's own entry, so an index that only ever
+// grows can also shrink.
+func Unregister(cur realm, symbol string) string {
+	if !cur.IsCurrent() {
+		panic(grc721.ErrSpoofedRealm)
+	}
+
+	rlmPath := cur.Previous().PkgPath()
+	key := fqname.Construct(rlmPath, symbol)
+
+	if _, removed := registry.Remove(key); !removed {
+		panic("grc721reg: collection not registered")
+	}
+
+	chain.Emit(
+		UnregisterEvent,
+		"token_key", key,
+		"pkgpath", rlmPath,
+		"symbol", symbol,
+	)
+
+	return key
+}
+
 func Get(key string) *collection.Collection {
 	v := registry.Get(key)
 	if v == nil {
@@ -115,49 +141,73 @@ func GetRegistry() *rotree.ReadOnlyTree {
 }
 
 func Render(path string) string {
-	switch {
-	case path == "":
-		s := ""
-		count := 0
-
-		registry.Iterate("", "", func(key string, vI any) bool {
-			count++
-
-			v := vI.(*collection.Collection)
-			rlmPath, sym := fqname.Parse(key)
-			rlmLink := fqname.RenderLink(rlmPath, sym)
-			infoLink := "/r/demo/defi/grc721reg:" + key
-			s += "- " + md.Bold(md.EscapeText(v.Token().GetName())) + " - " + rlmLink +
-				" - " + extensionBadges(v) + " - " + md.Link("info", infoLink) + "\n"
-
-			return false
-		})
-
-		if count == 0 {
-			return "No registered collection."
-		}
-
-		return s
-	default:
-		key := path
-		// Render takes attacker-controlled input, so an unknown key renders a
-		// message rather than aborting the page: MustGet would let any visitor
-		// break this view with a bad URL.
-		v := Get(key)
-		if v == nil {
-			return "Unknown collection: " + md.EscapeText(key)
-		}
-		rlmPath, sym := fqname.Parse(key)
-		rlmLink := fqname.RenderLink(rlmPath, sym)
-
-		s := ufmt.Sprintf("# %s\n", md.EscapeText(v.Token().GetName()))
-		s += "- symbol: " + md.Bold(md.EscapeText(v.Token().GetSymbol())) + "\n"
-		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
-		s += ufmt.Sprintf("- total supply: %d\n", v.Token().TotalSupply())
-		s += "- extensions: " + extensionBadges(v) + "\n"
-
-		return s
+	req := realmpath.Parse(path)
+	if req.Path == "" {
+		return renderIndex(path)
 	}
+
+	return renderCollection(req.Path)
+}
+
+// renderIndex pages the walk. Registration is open to any realm and an entry
+// costs the page every visitor reads, so the number of entries one render
+// touches must not be the registrants' to choose. SizeQueryParam is left unset
+// for the same reason: a visitor cannot widen the page either.
+func renderIndex(path string) string {
+	p := &pager.Pager{
+		Tree:            GetRegistry(),
+		PageQueryParam:  "page",
+		DefaultPageSize: pageSize,
+	}
+
+	page, err := p.GetPageByPath(path)
+	if err != nil {
+		page = p.GetPage(1)
+	}
+
+	if page.TotalItems == 0 {
+		return "No registered collection."
+	}
+
+	s := ""
+
+	for _, item := range page.Items {
+		v := item.Value.(*collection.Collection)
+		rlmPath, sym := fqname.Parse(item.Key)
+		rlmLink := fqname.RenderLink(rlmPath, sym)
+		infoLink := "/r/demo/defi/grc721reg:" + item.Key
+		s += "- " + md.Bold(md.EscapeText(v.Token().GetName())) + " - " + rlmLink +
+			" - " + extensionBadges(v) + " - " + md.Link("info", infoLink) + "\n"
+	}
+
+	// Built from the page number alone, so no other query the visitor supplied
+	// is carried into the links.
+	if picker := page.Picker(""); picker != "" {
+		s += "\n" + picker + "\n"
+	}
+
+	return s
+}
+
+func renderCollection(key string) string {
+	// Render takes attacker-controlled input, so an unknown key renders a
+	// message rather than aborting the page: MustGet would let any visitor
+	// break this view with a bad URL.
+	v := Get(key)
+	if v == nil {
+		return "Unknown collection: " + md.EscapeText(key)
+	}
+
+	rlmPath, sym := fqname.Parse(key)
+	rlmLink := fqname.RenderLink(rlmPath, sym)
+
+	s := ufmt.Sprintf("# %s\n", md.EscapeText(v.Token().GetName()))
+	s += "- symbol: " + md.Bold(md.EscapeText(v.Token().GetSymbol())) + "\n"
+	s += ufmt.Sprintf("- realm: %s\n", rlmLink)
+	s += ufmt.Sprintf("- total supply: %d\n", v.Token().TotalSupply())
+	s += "- extensions: " + extensionBadges(v) + "\n"
+
+	return s
 }
 
 // extensionBadges renders the kinds a collection advertises. ExtensionKind() is
@@ -172,9 +222,20 @@ func extensionBadges(v *collection.Collection) string {
 		return "_core only_"
 	}
 
+	// The set stays live and a kind is issuer-supplied, so neither its count
+	// nor its length is this page's to trust.
 	out := ""
 
-	for _, k := range kinds {
+	for i, k := range kinds {
+		if i == maxBadges {
+			out += "…"
+			break
+		}
+
+		if len(k) > maxKindLen {
+			k = strings.ToValidUTF8(k[:maxKindLen], "") + "…"
+		}
+
 		out += md.InlineCode(k) + " "
 	}
 
