@@ -1152,7 +1152,10 @@ if [ "$all_zero" != true ]; then
   die "Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
 fi
 print_substep "8.6" "All balances zero — fee-payer costs verified"
-cp "$BALANCES_TMP_FILE" "$DEPLOYER_BALANCES"
+# The temp sheet also carries the vested entries (so the measurement runs
+# exercise their creation); keep only the measured fee-payer lines here —
+# step 9 appends the vested entries itself.
+grep -vF -- ';vesting=' "$BALANCES_TMP_FILE" >"$DEPLOYER_BALANCES"
 
 # ---- Step 9: Add validators + balances, verify, move into place
 
