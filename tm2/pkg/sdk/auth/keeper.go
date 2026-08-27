@@ -430,6 +430,15 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
+	// A target of zero or less is not a target, and both branches below divide by
+	// it. Consensus params accept any Block.MaxGas at or above -1: a limit under
+	// 100 truncates the target to zero, and -1 means unlimited, which has no
+	// congestion to measure. This runs in EndBlocker, so dividing by zero there
+	// would halt the chain rather than fail one transaction.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
+
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
