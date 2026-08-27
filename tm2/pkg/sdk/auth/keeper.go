@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/big"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -374,6 +375,13 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
+	// At the ceiling no transaction above 1000 gas wanted can pay the minimum
+	// fee, and the write below is skipped once the price stops moving, so this
+	// is the only signal an operator gets that the chain is refusing work.
+	if newGasPrice.Price.Amount == math.MaxInt64 {
+		gk.Logger(ctx).Error("block gas price is at the int64 ceiling, transactions cannot pay for it",
+			"gasPrice", newGasPrice.String(), "gasUsed", gasUsed, "maxBlockGas", maxBlockGas)
+	}
 	// Skip the write when the price is unchanged — e.g. it already sits at the
 	// floor, the block was exactly at target, or dynamic pricing is disabled
 	// (stored price 0 or TargetGasRatio == 0). Now that empty blocks are no
@@ -396,6 +404,11 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 		})
 }
 
+// Logger returns a module-specific logger.
+func (gk GasPriceKeeper) Logger(ctx sdk.Context) *slog.Logger {
+	return ctx.Logger().With("module", ModuleName)
+}
+
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
 // newGasPrice = lastPrice + lastPrice*(gasUsed-TargetBlockGas)/TargetBlockGas/GasCompressor)
 //
@@ -405,8 +418,9 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
 // two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
 // integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
-// cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
-// point. Down the line, the solution might not be even representable by one simple formula
+// cap at the largest int64 price; when decreasing we floor the result at the initial gas price, and never
+// below 1. A block gas limit that yields no positive target leaves the price unchanged. This is just a
+// starting point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
@@ -430,6 +444,14 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
+	// No positive target, so there is no congestion to price against. Either
+	// MaxGas is one of the two unbounded spellings, -1 or 0, or it is too small
+	// for the ratio to reach 1. At 0 the branches below would divide by zero; at
+	// -1 the price would ratchet up by 1 on every block, idle ones included.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
+
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
@@ -449,7 +471,8 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// increase at least 1
 		diff := maxBig(num, bigOne)
 		num.Add(lastPriceInt, diff)
-		// XXX should we cap it with a max gas price?
+		// XXX should we cap it with a configured max gas price? The clamp below
+		// is only the int64 ceiling, not a policy one.
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
 		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
@@ -466,12 +489,14 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// value of GasPricesChangeCompressor (see issue #5906).
 		diff := maxBig(num, bigOne)
 		num.Sub(lastPriceInt, diff)
-		// gas price should not be less than the initial gas price,
-		num = maxBig(num, initPriceInt)
+		// Never below 1: a stored price of 0 reads as "pricing disabled" above.
+		num = maxBig(num, maxBig(initPriceInt, bigOne))
 	}
 
+	// Clamp rather than panic: sustained congestion would halt every node.
 	if !num.IsInt64() {
-		panic("The min gas price is out of int64 range")
+		lastGasPrice.Price.Amount = math.MaxInt64
+		return lastGasPrice
 	}
 
 	lastGasPrice.Price.Amount = num.Int64()

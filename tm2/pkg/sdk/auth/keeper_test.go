@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/big"
 	"testing"
@@ -195,10 +197,47 @@ func TestCalcBlockGasPrice(t *testing.T) {
 		require.Equal(t, price(10), gk.calcBlockGasPrice(price(10), targetGas+1, maxGas, disabledParams))
 	})
 
-	t.Run("int64 overflow", func(t *testing.T) {
-		require.PanicsWithValue(t, "The min gas price is out of int64 range", func() {
-			gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params)
-		})
+	t.Run("int64 overflow caps instead of panicking", func(t *testing.T) {
+		// Starting below the cap, so returning the price unchanged would fail.
+		require.Equal(t, price(math.MaxInt64), gk.calcBlockGasPrice(price(math.MaxInt64-10), targetGas+1, maxGas, params))
+		require.Equal(t, price(math.MaxInt64), gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params))
+	})
+
+	t.Run("sustained congestion settles at the cap", func(t *testing.T) {
+		p := price(1)
+		for range 2000 {
+			p = gk.calcBlockGasPrice(p, maxGas, maxGas, params)
+		}
+		require.Equal(t, int64(math.MaxInt64), p.Price.Amount)
+		require.Equal(t, int64(1000), p.Gas, "the clamp keeps the denominator")
+		require.Equal(t, "ugnot", p.Price.Denom, "the clamp keeps the denom")
+
+		// The cap is a pause, not a trap: idle blocks walk the price all the way
+		// back to the floor. A change to the floor, the compressor or the min-1
+		// decrement that stranded the price up here would hang this loop.
+		idle := 0
+		for p.Price.Amount != 1 {
+			p = gk.calcBlockGasPrice(p, 0, maxGas, params)
+			idle++
+			require.Less(t, idle, 1000, "the price does not return to the floor")
+		}
+	})
+
+	// Only the increase branch can leave int64 range, so the clamp is the right
+	// saturation direction. Every decrease result lands in [1, max(last, initial)],
+	// including at the largest initial price Params.Validate accepts.
+	t.Run("decreasing stays in range", func(t *testing.T) {
+		for _, last := range []int64{1, 2, 1000, math.MaxInt64 / 2, math.MaxInt64 - 1, math.MaxInt64} {
+			for _, initial := range []int64{0, 1, 1000, math.MaxInt64} {
+				p := params
+				p.InitialGasPrice = price(initial)
+				got := gk.calcBlockGasPrice(price(last), 0, maxGas, p)
+				require.LessOrEqual(t, got.Price.Amount, max(last, initial),
+					"last=%d initial=%d", last, initial)
+				require.GreaterOrEqual(t, got.Price.Amount, int64(1),
+					"last=%d initial=%d", last, initial)
+			}
+		}
 	})
 }
 
@@ -403,4 +442,132 @@ func TestIterateAccountsChargesGas(t *testing.T) {
 	require.Equal(t, n, count)
 	require.Greater(t, used, store.Gas(0),
 		"IterateAccounts should consume gas through the threaded gctx")
+}
+
+// TestCalcBlockGasPriceUnboundedMaxGas covers the two consensus-param
+// spellings of "no block gas bound". Neither carries a congestion signal, so
+// neither may move the price.
+func TestCalcBlockGasPriceUnboundedMaxGas(t *testing.T) {
+	gk := GasPriceKeeper{}
+	params := Params{
+		TargetGasRatio:            70,
+		GasPricesChangeCompressor: 10,
+		InitialGasPrice: std.GasPrice{
+			Gas:   1000,
+			Price: std.Coin{Amount: 1, Denom: "ugnot"},
+		},
+	}
+	price := func(amount int64) std.GasPrice {
+		return std.GasPrice{Gas: 1000, Price: std.Coin{Amount: amount, Denom: "ugnot"}}
+	}
+
+	// MaxGas == -1 is the sentinel ValidateConsensusParams accepts for "no
+	// gas bounds". targetGas floors to -1, so every gasUsed >= 0 used to take
+	// the increase branch and the min-1 clamp ratcheted the price up by 1 per
+	// block, idle blocks included.
+	t.Run("MaxGas -1 does not ratchet", func(t *testing.T) {
+		next := price(1000)
+		for range 5 {
+			next = gk.calcBlockGasPrice(next, 0, -1, params)
+			require.Equal(t, int64(1000), next.Price.Amount)
+		}
+		// Not even a full block moves it: there is no maximum to be full of.
+		require.Equal(t, int64(1000), gk.calcBlockGasPrice(price(1000), 1_000_000, -1, params).Price.Amount)
+	})
+
+	// maxGas*ratio < 100 makes the target 0, which both branches divide by. At
+	// the default ratio of 70 that is MaxGas 0 and 1. The gasUsed 0 rows are the
+	// exception: the usage equals the target, so they return before either
+	// division and pass without the guard too.
+	t.Run("zero target does not panic", func(t *testing.T) {
+		for _, maxGas := range []int64{0, 1} {
+			for _, gasUsed := range []int64{0, 1, 1_000_000} {
+				require.NotPanics(t, func() {
+					got := gk.calcBlockGasPrice(price(10), gasUsed, maxGas, params)
+					require.Equal(t, int64(10), got.Price.Amount)
+				}, "maxGas=%d gasUsed=%d", maxGas, gasUsed)
+			}
+		}
+	})
+
+	// The smallest MaxGas that still yields a target keeps working.
+	t.Run("smallest usable MaxGas still adjusts", func(t *testing.T) {
+		require.Equal(t, int64(9), gk.calcBlockGasPrice(price(10), 0, 2, params).Price.Amount)
+	})
+}
+
+// TestCalcBlockGasPriceZeroInitialPrice pins the floor at 1 even when
+// InitialGasPrice is 0. Params.Validate accepts that value, and a stored price
+// of 0 is absorbing: calcBlockGasPrice reads it as "dynamic pricing disabled"
+// and returns early, so the price could never recover.
+func TestCalcBlockGasPriceZeroInitialPrice(t *testing.T) {
+	gk := GasPriceKeeper{}
+	const (
+		maxGas    = int64(3_000_000_000)
+		targetGas = int64(2_100_000_000)
+	)
+	params := Params{
+		TargetGasRatio:            70,
+		GasPricesChangeCompressor: 10,
+		InitialGasPrice: std.GasPrice{
+			Gas:   1000,
+			Price: std.Coin{Amount: 0, Denom: "ugnot"},
+		},
+	}
+	require.NoError(t, func() error {
+		p := DefaultParams()
+		p.InitialGasPrice = params.InitialGasPrice
+		return p.Validate()
+	}(), "Params.Validate accepts a zero InitialGasPrice, so calc must cope with it")
+
+	next := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 3, Denom: "ugnot"}}
+	for range 10 {
+		next = gk.calcBlockGasPrice(next, 0, maxGas, params)
+		require.GreaterOrEqual(t, next.Price.Amount, int64(1))
+	}
+	require.Equal(t, int64(1), next.Price.Amount)
+
+	// Still responsive: from the floor, a full block raises the price again.
+	up := gk.calcBlockGasPrice(next, targetGas+1, maxGas, params)
+	require.Equal(t, int64(2), up.Price.Amount)
+}
+
+// The decrease floor is the initial gas price, not 1. Every other test in this
+// file sets InitialGasPrice to 1, which makes the two indistinguishable.
+func TestCalcBlockGasPriceFloorAboveOne(t *testing.T) {
+	gk := GasPriceKeeper{}
+	const maxGas = int64(3_000_000_000)
+	initial := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 100, Denom: "ugnot"}}
+	params := Params{
+		TargetGasRatio:            70,
+		GasPricesChangeCompressor: 10,
+		InitialGasPrice:           initial,
+	}
+
+	next := std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 105, Denom: "ugnot"}}
+	for range 5 {
+		next = gk.calcBlockGasPrice(next, 0, maxGas, params)
+		require.Equal(t, initial, next)
+	}
+}
+
+// A chain at the ceiling stops writing the price, so the log is the only thing
+// that tells an operator the mempool is refusing everything.
+func TestUpdateGasPriceCeilingLogs(t *testing.T) {
+	env := setupTestEnv()
+	var buf bytes.Buffer
+	ctx := env.ctx.WithLogger(slog.New(slog.NewTextHandler(&buf, nil)))
+	meter := store.NewGasMeter(math.MaxInt64)
+	meter.ConsumeGas(ctx.ConsensusParams().Block.MaxGas, "full block")
+	ctx = ctx.WithBlockGasMeter(meter)
+
+	env.gk.SetGasPrice(ctx, std.GasPrice{Gas: 1000, Price: std.Coin{Amount: math.MaxInt64 - 10, Denom: "ugnot"}})
+	env.gk.UpdateGasPrice(ctx)
+	require.Equal(t, int64(math.MaxInt64), env.gk.LastGasPrice(ctx).Price.Amount)
+	require.Contains(t, buf.String(), "int64 ceiling")
+
+	buf.Reset()
+	env.gk.SetGasPrice(ctx, std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1000, Denom: "ugnot"}})
+	env.gk.UpdateGasPrice(ctx)
+	require.NotContains(t, buf.String(), "int64 ceiling", "logged below the ceiling")
 }
