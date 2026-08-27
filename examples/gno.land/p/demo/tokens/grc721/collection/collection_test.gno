@@ -150,19 +150,17 @@ func TestExtensionAccessors(cur realm, t *testing.T) {
 			uassert.False(t, nft.Collection().HasExtension("enumerable"))
 		}},
 		{"NFT.Extension returns the registered typed view", func(t *testing.T) {
-			v, ok := nft.Extension(metadata.Kind)
-			urequire.True(t, ok, "metadata found")
+			v := nft.Extension(metadata.Kind)
+			urequire.True(t, v != nil, "metadata found")
 			uassert.Equal(t, metadata.Kind, v.(*metadata.Metadata).ExtensionKind())
 		}},
 		{"Collection.Extension returns the registered typed view", func(t *testing.T) {
-			v, ok := nft.Collection().Extension(royalty.Kind)
-			urequire.True(t, ok, "royalty found")
+			v := nft.Collection().Extension(royalty.Kind)
+			urequire.True(t, v != nil, "royalty found")
 			uassert.Equal(t, royalty.Kind, v.(*royalty.Royalty).ExtensionKind())
 		}},
-		{"Extension absent kind returns (nil,false)", func(t *testing.T) {
-			v, ok := nft.Extension("enumerable")
-			uassert.False(t, ok)
-			urequire.True(t, v == nil, "nil view")
+		{"Extension absent kind returns nil", func(t *testing.T) {
+			urequire.True(t, nft.Extension("enumerable") == nil, "nil view")
 		}},
 	}
 	for _, tt := range tests {
@@ -174,15 +172,15 @@ func TestExtensionViewsComeFromTheLedger(cur realm, t *testing.T) {
 	nft := newNFT("Foo", "FOO", 0, cur)
 	roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
 
-	v, ok := nft.Collection().Extension(royalty.Kind)
-	urequire.True(t, ok, "royalty found")
+	v := nft.Collection().Extension(royalty.Kind)
+	urequire.True(t, v != nil, "royalty found")
 	uassert.True(t, v.(*royalty.Royalty) == roy, "the ledger's own view, not a caller's")
 
 	// a view built on another ledger cannot reach this collection: there is no
 	// parameter to pass it through, and this token's ledger never saw it
 	other := newNFT("Other", "OTH", 1, cur)
 	royOther, _ := royalty.NewRoyalty(other.ledger, 1000)
-	v, _ = nft.Collection().Extension(royalty.Kind)
+	v = nft.Collection().Extension(royalty.Kind)
 	uassert.False(t, v.(*royalty.Royalty) == royOther)
 }
 

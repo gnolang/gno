@@ -705,16 +705,13 @@ func TestExtensionViewLookup(cur realm, t *testing.T) {
 	uassert.Equal(t, "mock", tok.ExtensionKinds()[0])
 	uassert.Equal(t, "journal", tok.ExtensionKinds()[1])
 
-	got, ok := tok.ExtensionView("mock")
-	urequire.True(t, ok, "mock view registered")
+	got := tok.ExtensionView("mock")
+	urequire.True(t, got != nil, "mock view registered")
 	uassert.True(t, got == ExtensionView(view))
 
 	// a kind registered without a view publishes nothing
-	_, ok = tok.ExtensionView("journal")
-	uassert.False(t, ok)
-
-	_, ok = tok.ExtensionView("absent")
-	uassert.False(t, ok)
+	uassert.True(t, tok.ExtensionView("journal") == nil)
+	uassert.True(t, tok.ExtensionView("absent") == nil)
 }
 
 type mockView struct{ core *Token }

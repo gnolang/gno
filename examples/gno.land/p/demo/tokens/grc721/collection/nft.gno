@@ -54,7 +54,7 @@ func (n *NFT) Token() *grc721.Token { return n.col.token }
 // that created the collection — see grc721's guardHome.
 func (n *NFT) CallerTeller() grc721.Teller { return n.ledger.CallerTeller() }
 
-func (n *NFT) Extension(kind string) (grc721.ExtensionView, bool) {
+func (n *NFT) Extension(kind string) grc721.ExtensionView {
 	return n.col.Extension(kind)
 }
 

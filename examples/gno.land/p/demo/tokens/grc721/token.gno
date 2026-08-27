@@ -143,14 +143,14 @@ func (tok *Token) ExtensionKinds() []string {
 	return kinds
 }
 
-// ExtensionView returns the read-view registered for kind, if it has one.
-func (tok *Token) ExtensionView(kind string) (ExtensionView, bool) {
+// ExtensionView returns the read-view registered for kind, or nil.
+func (tok *Token) ExtensionView(kind string) ExtensionView {
 	e, ok := tok.ledger.lookupExtension(kind)
-	if !ok || e.view == nil {
-		return nil, false
+	if !ok {
+		return nil
 	}
 
-	return e.view, true
+	return e.view
 }
 
 func (tok *Token) IsApprovedForAll(owner, operator address) bool {

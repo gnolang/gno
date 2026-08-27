@@ -29,16 +29,14 @@ func NewCollection(ledger *grc721.PrivateLedger) *Collection {
 
 func (c *Collection) Token() *grc721.Token { return c.token }
 
-// Extension returns the published read-view of the given kind, or (nil, false).
+// Extension returns the published read-view of the given kind, or nil.
 // Callers type-assert it to the concrete type they expect (e.g. *royalty.Royalty).
-func (c *Collection) Extension(kind string) (grc721.ExtensionView, bool) {
+func (c *Collection) Extension(kind string) grc721.ExtensionView {
 	return c.token.ExtensionView(kind)
 }
 
 func (c *Collection) HasExtension(kind string) bool {
-	_, ok := c.token.ExtensionView(kind)
-
-	return ok
+	return c.token.ExtensionView(kind) != nil
 }
 
 // Kinds returns the published kinds, sorted; a kind registered without a view is omitted.
@@ -46,7 +44,7 @@ func (c *Collection) Kinds() []string {
 	ks := []string{}
 
 	for _, kind := range c.token.ExtensionKinds() {
-		if _, ok := c.token.ExtensionView(kind); ok {
+		if c.token.ExtensionView(kind) != nil {
 			ks = append(ks, kind)
 		}
 	}
