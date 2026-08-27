@@ -33,6 +33,11 @@ func TestCodecParity_Std(t *testing.T) {
 		{"Coin", &std.Coin{Denom: "ugnot", Amount: math.MaxInt64}},
 		// Note: negative coin amounts are rejected by Coin.UnmarshalAmino,
 		// so they can't round-trip. Not included.
+		//
+		// The zero case is the bare value on purpose. A zero amount that
+		// carries a denom does not round-trip either: Coin.String renders it
+		// as the empty string, and UnmarshalAmino reads that back as the zero
+		// value, so the denom is dropped.
 		{"Coin/zero", &std.Coin{}},
 		{"GasPrice", &std.GasPrice{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}}},
 		{"Fee", &std.Fee{GasWanted: 200000, GasFee: std.Coin{Denom: "ugnot", Amount: 5000}}},
