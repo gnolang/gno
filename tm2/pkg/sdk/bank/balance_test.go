@@ -1661,3 +1661,41 @@ func TestADoubleHomedDenomIsRefusedByGetCoinsNotSummed(t *testing.T) {
 	require.True(t, broken)
 	require.Contains(t, msg, "the allowlist grew without migrating existing balances")
 }
+
+// A realm reading a balance for a denom it took from a Render path or a query
+// parameter is reading a string an attacker chose. AGENTS.md tells realm authors
+// which accessor survives that, so the two behaviours are pinned here rather than
+// left to be rediscovered.
+//
+// GetCoin absorbs anything: a malformed denom is never in the account-tier
+// allowlist, so it routes to the split tier and reads a key that cannot exist.
+// AmountOf validates first and panics, which in a Render path is a realm that
+// cannot render.
+func TestGetCoinAbsorbsAMalformedDenomButAmountOfPanics(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("holder"))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr,
+		std.Coins{{Denom: testAccountDenom, Amount: 100}}))
+
+	for _, denom := range []string{
+		"A!",                     // uppercase and punctuation
+		"",                       // empty
+		"ab",                     // under the minimum length
+		strings.Repeat("z", 500), // past MaxDenomLength
+	} {
+		require.NotPanics(t, func() {
+			require.Zero(t, env.bankk.GetCoin(env.ctx, addr, denom),
+				"a denom that cannot exist must read as zero: %q", denom)
+		}, "GetCoin must absorb %q", denom)
+
+		require.Panics(t, func() {
+			_ = env.bankk.GetCoins(env.ctx, addr).AmountOf(denom)
+		}, "AmountOf must refuse %q", denom)
+	}
+
+	// The control: a real denom still reads through both.
+	require.Equal(t, int64(100), env.bankk.GetCoin(env.ctx, addr, testAccountDenom))
+	require.Equal(t, int64(100), env.bankk.GetCoins(env.ctx, addr).AmountOf(testAccountDenom))
+}
