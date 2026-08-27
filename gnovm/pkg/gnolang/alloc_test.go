@@ -31,14 +31,9 @@ func TestAllocSizes(t *testing.T) {
 	println("ObjectInfo{}", unsafe.Sizeof(ObjectInfo{}))
 }
 
-// rangeFor returns the index of the range containing p, or -1.
-func (alloc *Allocator) rangeFor(p uintptr) int {
-	for i, r := range alloc.stringRanges {
-		if p >= r.start && p < r.end {
-			return i
-		}
-	}
-	return -1
+// rangeFor returns the tracked range containing p, or nil.
+func (alloc *Allocator) rangeFor(p uintptr) *stringRange {
+	return alloc.stringRanges.containing(p)
 }
 
 // TestStringGCRecount verifies string byte counting behavior across GC cycles:
@@ -54,7 +49,7 @@ func TestStringGCRecount(t *testing.T) {
 
 	// Verify it's tracked.
 	srcPtr := uintptr(unsafe.Pointer(unsafe.StringData(string(sv))))
-	if alloc.rangeFor(srcPtr) < 0 {
+	if alloc.rangeFor(srcPtr) == nil {
 		t.Fatal("NewString did not register a range covering the backing pointer")
 	}
 
@@ -86,8 +81,8 @@ func TestStringGCRecount(t *testing.T) {
 
 	// Cleanup: visited entry should survive.
 	alloc.CleanupTrackedStrings(gcCycle1)
-	if len(alloc.stringRanges) != 1 {
-		t.Errorf("after cycle 1 cleanup: want 1 tracked range, got %d", len(alloc.stringRanges))
+	if alloc.stringRanges.len() != 1 {
+		t.Errorf("after cycle 1 cleanup: want 1 tracked range, got %d", alloc.stringRanges.len())
 	}
 
 	// --- GC cycle 2 ---
@@ -107,8 +102,8 @@ func TestStringGCRecount(t *testing.T) {
 
 	// Cleanup: entry should still survive (visited in cycle 2).
 	alloc.CleanupTrackedStrings(gcCycle2)
-	if len(alloc.stringRanges) != 1 {
-		t.Errorf("after cycle 2 cleanup: want 1 tracked range, got %d", len(alloc.stringRanges))
+	if alloc.stringRanges.len() != 1 {
+		t.Errorf("after cycle 2 cleanup: want 1 tracked range, got %d", alloc.stringRanges.len())
 	}
 
 	// --- Dead string cleanup ---
@@ -117,8 +112,8 @@ func TestStringGCRecount(t *testing.T) {
 	alloc.CleanupTrackedStrings(gcCycle3)
 
 	// Entry should be removed (not visited in cycle 3).
-	if len(alloc.stringRanges) != 0 {
-		t.Errorf("after cycle 3 cleanup (not visited): want 0 tracked ranges, got %d", len(alloc.stringRanges))
+	if alloc.stringRanges.len() != 0 {
+		t.Errorf("after cycle 3 cleanup (not visited): want 0 tracked ranges, got %d", alloc.stringRanges.len())
 	}
 }
 
@@ -137,15 +132,15 @@ func TestStringSliceGCRecount(t *testing.T) {
 	// Slice's ptr resolves into the source's range via containment.
 	srcPtr := uintptr(unsafe.Pointer(unsafe.StringData(string(src))))
 	slicedPtr := uintptr(unsafe.Pointer(unsafe.StringData(string(sliced))))
-	srcIdx := alloc.rangeFor(srcPtr)
-	slicedIdx := alloc.rangeFor(slicedPtr)
-	if srcIdx < 0 || slicedIdx < 0 {
-		t.Fatalf("expected both ptrs to resolve; src=%d sliced=%d", srcIdx, slicedIdx)
+	srcRange := alloc.rangeFor(srcPtr)
+	slicedRange := alloc.rangeFor(slicedPtr)
+	if srcRange == nil || slicedRange == nil {
+		t.Fatalf("expected both ptrs to resolve; src=%v sliced=%v", srcRange, slicedRange)
 	}
-	if srcIdx != slicedIdx {
-		t.Errorf("source and slice should resolve to the same range, got %d vs %d", srcIdx, slicedIdx)
+	if srcRange != slicedRange {
+		t.Errorf("source and slice should resolve to the same range, got %v vs %v", *srcRange, *slicedRange)
 	}
-	if got := len(alloc.stringRanges); got != 1 {
+	if got := alloc.stringRanges.len(); got != 1 {
 		t.Errorf("expected 1 range (source only), got %d", got)
 	}
 
@@ -173,8 +168,8 @@ func TestStringSliceGCRecount(t *testing.T) {
 	}
 
 	alloc.CleanupTrackedStrings(gcCycle)
-	if len(alloc.stringRanges) != 1 {
-		t.Errorf("after cleanup: want 1 tracked range (source), got %d", len(alloc.stringRanges))
+	if alloc.stringRanges.len() != 1 {
+		t.Errorf("after cleanup: want 1 tracked range (source), got %d", alloc.stringRanges.len())
 	}
 }
 
@@ -209,8 +204,8 @@ func TestStringSliceOutlivesSource(t *testing.T) {
 
 	// The source's range was refreshed by the slice's lookup, so cleanup keeps it.
 	alloc.CleanupTrackedStrings(gcCycle)
-	if len(alloc.stringRanges) != 1 {
-		t.Errorf("after cleanup: want 1 tracked range, got %d", len(alloc.stringRanges))
+	if alloc.stringRanges.len() != 1 {
+		t.Errorf("after cleanup: want 1 tracked range, got %d", alloc.stringRanges.len())
 	}
 
 	// Next cycle: slice is still alive, range still resolves, bytes recharged.
@@ -248,7 +243,7 @@ func TestFillTypesOfValue_StringTracking(t *testing.T) {
 
 	alloc := st.GetAllocator()
 	p := uintptr(unsafe.Pointer(unsafe.StringData(string(sv))))
-	if alloc.rangeFor(p) < 0 {
+	if alloc.rangeFor(p) == nil {
 		t.Fatal("fillTypesOfValue did not register the string's backing")
 	}
 }
@@ -261,7 +256,7 @@ func TestNewString_EmptyStringNotTracked(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 	_ = alloc.NewString("")
 	_ = alloc.NewString("")
-	if got := len(alloc.stringRanges); got != 0 {
+	if got := alloc.stringRanges.len(); got != 0 {
 		t.Errorf("empty strings should not be tracked, got %d entries", got)
 	}
 
@@ -279,7 +274,7 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 
 	src := alloc.NewString("the quick brown fox")
-	if got := len(alloc.stringRanges); got != 1 {
+	if got := alloc.stringRanges.len(); got != 1 {
 		t.Fatalf("after NewString(src): got %d ranges, want 1", got)
 	}
 	srcStart, srcEnd := stringExtent(string(src))
@@ -291,7 +286,7 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	if tracked != sub {
 		t.Errorf("clone changed content: got %q, want %q", tracked, sub)
 	}
-	if got := len(alloc.stringRanges); got != 2 {
+	if got := alloc.stringRanges.len(); got != 2 {
 		t.Fatalf("trackString of an overlapping extent should clone+track, got %d ranges", got)
 	}
 	p, _ := stringExtent(tracked)
@@ -306,7 +301,7 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	if gp != fp {
 		t.Error("non-overlapping string should be tracked without cloning")
 	}
-	if got := len(alloc.stringRanges); got != 3 {
+	if got := alloc.stringRanges.len(); got != 3 {
 		t.Errorf("want 3 ranges, got %d", got)
 	}
 }
@@ -324,12 +319,14 @@ func TestTrackString_RecycledAddress(t *testing.T) {
 	s := strings.Repeat("a", 16)
 	p, end := stringExtent(s)
 
-	alloc.stringRanges = []stringRange{
+	for _, r := range []stringRange{
 		{start: p - 100, end: p - 90, lastCycle: 7},    // disjoint survivor
 		{start: p - 8, end: p + 4},                     // overlaps head, stale
 		{start: p + 6, end: p + 10},                    // contained, stale
 		{start: end - 2, end: end + 4},                 // overlaps tail, stale
 		{start: end + 50, end: end + 60, lastCycle: 7}, // disjoint survivor
+	} {
+		alloc.stringRanges.insert(r)
 	}
 
 	tracked := alloc.trackString(s)
@@ -339,17 +336,17 @@ func TestTrackString_RecycledAddress(t *testing.T) {
 
 	// The clone's exact extent is registered as its own range.
 	tp, tend := stringExtent(tracked)
-	if i := alloc.rangeFor(tp); i < 0 || alloc.stringRanges[i].start != tp || alloc.stringRanges[i].end != tend {
+	if r := alloc.rangeFor(tp); r == nil || r.start != tp || r.end != tend {
 		t.Error("tracked string's extent not registered exactly")
 	}
 	// Disjoint entries are never evicted.
-	if alloc.rangeFor(p-95) < 0 || alloc.rangeFor(end+55) < 0 {
+	if alloc.rangeFor(p-95) == nil || alloc.rangeFor(end+55) == nil {
 		t.Error("disjoint entries were wrongly evicted")
 	}
 	// Whatever wasn't provably stale is at most deferred to GC cleanup:
 	// after a cycle in which only survivors are visited, exactly they remain.
 	alloc.CleanupTrackedStrings(7)
-	if got := len(alloc.stringRanges); got != 2 {
+	if got := alloc.stringRanges.len(); got != 2 {
 		t.Errorf("after cleanup: want 2 survivor ranges, got %d", got)
 	}
 }
@@ -363,24 +360,24 @@ func TestTrackString_RecycledAddress(t *testing.T) {
 func TestFork_StartsWithEmptyTracking(t *testing.T) {
 	parent := NewAllocator(1_000_000)
 	parent.NewString("parented")
-	if got := len(parent.stringRanges); got != 1 {
+	if got := parent.stringRanges.len(); got != 1 {
 		t.Fatalf("parent should have 1 range, got %d", got)
 	}
 
 	child := parent.Fork()
-	if got := len(child.stringRanges); got != 0 {
+	if got := child.stringRanges.len(); got != 0 {
 		t.Errorf("child should start with empty tracking, got %d", got)
 	}
 
 	// The child tracks its own strings independently.
 	child.NewString("child-owned")
-	if got := len(child.stringRanges); got != 1 {
+	if got := child.stringRanges.len(); got != 1 {
 		t.Errorf("child should track its own string, got %d", got)
 	}
 
 	// Child mutations must not touch the parent.
 	child.CleanupTrackedStrings(99)
-	if got := len(parent.stringRanges); got != 1 {
+	if got := parent.stringRanges.len(); got != 1 {
 		t.Errorf("parent's ranges must be independent of the child: got %d, want 1", got)
 	}
 }

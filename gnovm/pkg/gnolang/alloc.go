@@ -3,8 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
-	"slices"
-	"sort"
 	"strings"
 	"unsafe"
 
@@ -46,8 +44,8 @@ type Allocator struct {
 	// through this allocator, so the GC can recount their backing bytes
 	// once per cycle (see CountStringBytes).
 	//
-	// Sorted by start; ranges are disjoint. Every NewString gets its OWN
-	// range — trackString clones the input if its extent overlaps an
+	// Ordered by start (see stringRangeSet); ranges are disjoint. Every
+	// NewString gets its OWN range — trackString clones the input if its extent overlaps an
 	// existing range — so the set of ranges is decided by VM logic alone,
 	// never by toolchain-dependent backing sharing (concat returning its
 	// operand, string([]byte) copy elision, literal interning).
@@ -62,7 +60,7 @@ type Allocator struct {
 	// Entries with lastCycle != current cycle at end of GC are pruned
 	// (CleanupTrackedStrings); entries whose address Go recycled earlier
 	// are evicted by trackString when the new occupant is tracked.
-	stringRanges []stringRange
+	stringRanges stringRangeSet
 }
 
 // stringRange is one tracked string-backing extent.
@@ -336,7 +334,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
-		// stringRanges starts empty (nil). The child re-registers every
+		// stringRanges starts empty. The child re-registers every
 		// string it charges through its own NewString / fillTypesOfValue
 		// path: the tx store's caches start empty, so persisted strings
 		// are reloaded and re-tracked, and runtime-created strings are
@@ -344,7 +342,6 @@ func (alloc *Allocator) Fork() *Allocator {
 		// unnecessary (they are never consulted), and sharing them would
 		// be unsafe — the child's CleanupTrackedStrings would prune the
 		// parent's entries, and query paths fork on a different goroutine.
-		stringRanges: nil,
 	}
 }
 
@@ -404,17 +401,6 @@ func stringExtent(str string) (start, end uintptr) {
 	return start, start + uintptr(len(str))
 }
 
-// overlapAt returns the index of the first tracked range not entirely
-// before [p, end) — which is also the sorted insert position for that
-// extent — and whether it actually overlaps it. Ranges are sorted and
-// disjoint, so one binary search answers both.
-func (alloc *Allocator) overlapAt(p, end uintptr) (lo int, overlaps bool) {
-	lo = sort.Search(len(alloc.stringRanges), func(i int) bool {
-		return alloc.stringRanges[i].end > p
-	})
-	return lo, lo < len(alloc.stringRanges) && alloc.stringRanges[lo].start < end
-}
-
 // trackString registers a backing extent for str so the GC can recount
 // its bytes once per cycle, and returns the string whose backing was
 // registered — str itself, or a clone of it.
@@ -442,19 +428,16 @@ func (alloc *Allocator) trackString(str string) string {
 		return str
 	}
 	p, end := stringExtent(str)
-	lo, overlaps := alloc.overlapAt(p, end)
-	if overlaps {
+	if alloc.stringRanges.overlapping(p, end) != nil {
 		str = strings.Clone(str)
 		p, end = stringExtent(str)
-		if lo, overlaps = alloc.overlapAt(p, end); overlaps {
-			// Overlap despite a fresh backing: stale entries.
-			hi := sort.Search(len(alloc.stringRanges), func(i int) bool {
-				return alloc.stringRanges[i].start >= end
-			})
-			alloc.stringRanges = slices.Delete(alloc.stringRanges, lo, hi)
+		// Overlap despite a fresh backing: stale entries whose backing
+		// died and whose address Go recycled. Evict them.
+		for r := alloc.stringRanges.overlapping(p, end); r != nil; r = alloc.stringRanges.overlapping(p, end) {
+			alloc.stringRanges.remove(r.start)
 		}
 	}
-	alloc.stringRanges = slices.Insert(alloc.stringRanges, lo, stringRange{start: p, end: end})
+	alloc.stringRanges.insert(stringRange{start: p, end: end})
 	return str
 }
 
@@ -475,16 +458,9 @@ func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) (int64, bool
 		return 0, false
 	}
 	p, _ := stringExtent(str)
-
-	i := sort.Search(len(alloc.stringRanges), func(i int) bool {
-		return alloc.stringRanges[i].start > p
-	}) - 1
-	if i < 0 {
-		return 0, false
-	}
-	r := &alloc.stringRanges[i]
-	if p >= r.end {
-		return 0, false // pointer falls in a gap
+	r := alloc.stringRanges.containing(p)
+	if r == nil {
+		return 0, false // untracked, or pointer falls in a gap
 	}
 	if r.lastCycle == gcCycle {
 		return 0, false // dedup
@@ -500,14 +476,7 @@ func (alloc *Allocator) CleanupTrackedStrings(gcCycle int64) {
 	if alloc == nil {
 		return
 	}
-	n := 0
-	for _, r := range alloc.stringRanges {
-		if r.lastCycle == gcCycle {
-			alloc.stringRanges[n] = r
-			n++
-		}
-	}
-	alloc.stringRanges = alloc.stringRanges[:n]
+	alloc.stringRanges.retain(gcCycle)
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
