@@ -764,17 +764,23 @@ completes the `/p/`'s realm is frozen.
 Under the `inert` package policy the timing splits. `MsgAddPackage`
 parks the package without running it, and `init()` runs in the
 transaction that enables it, observing enable-time height and
-timestamp. The identities above do not move with it:
-`runtime.PreviousRealm()` during that `init()` is the creator who
-submitted the code, not the approver who enabled it.
+timestamp. The identities above do not move with it: the previous
+realm during that `init()` is the creator who submitted the code, not
+the approver who enabled it.
 
 ### 12.4 Package lifecycle messages
 
-Under the `inert` policy three further messages drive a package
-between the parked and active states: `MsgEnablePackage` runs a
-parked package's `init()` and makes it callable, `MsgDisablePackage`
-returns an active package to the parked state, and
-`MsgRejectPackage` discards a parked submission.
+Two further messages drive a package between the parked and active
+states. Under the `inert` policy `MsgEnablePackage` runs a parked
+package's `init()` and makes it callable. `MsgRejectPackage` discards
+a parked submission; it is not gated on the policy still being
+`inert`, and either an approver or the package's own creator may send
+it.
+
+A third message, `MsgDisablePackage`, is declared and routed but not
+implemented. Its handler checks the approver gate and then returns
+`disable_package is not yet implemented`, so nothing returns an
+active package to the parked state.
 
 ## 13. Implementation References
 
