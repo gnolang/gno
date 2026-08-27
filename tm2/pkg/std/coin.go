@@ -610,14 +610,23 @@ func (coins Coins) IsAnyNegative() bool {
 
 // negative returns a set of coins with all amount negative.
 //
+// Panics rather than wrapping, like the arithmetic that uses it. MinInt64 has no
+// positive counterpart, so negating it silently returns MinInt64 again; SubUnsafe
+// subtracts by adding this, and would then add where it meant to subtract and
+// report a plausible wrong number instead of the overflow it really hit.
+//
 // TODO: Remove once unsigned integers are used.
 func (coins Coins) negative() Coins {
 	res := make([]Coin, 0, len(coins))
 
 	for _, coin := range coins {
+		amount, ok := overflow.Sub(0, coin.Amount)
+		if !ok {
+			panic(fmt.Sprintf("coin negate overflow: %v", coin))
+		}
 		res = append(res, Coin{
 			Denom:  coin.Denom,
-			Amount: -1 * coin.Amount,
+			Amount: amount,
 		})
 	}
 

@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"testing"
@@ -1052,4 +1053,21 @@ func TestParseCoinRejectsAnOverlongExpressionCheaply(t *testing.T) {
 	c, err := ParseCoin(longest)
 	require.NoError(t, err, "a maximal legal coin expression must still parse")
 	require.Equal(t, int64(9223372036854775807), c.Amount)
+}
+
+// MinInt64 has no positive counterpart, so negating it returns MinInt64 again.
+// Subtraction is implemented as adding the negation, so without a check a
+// subtraction of MinInt64 quietly becomes an addition of it: the overflow the
+// caller actually hit is reported as an ordinary, plausible, wrong number.
+func TestCoinsSubUnsafeRejectsAnUnnegatableAmount(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() {
+		Coins{{"ugnot", 100}}.SubUnsafe(Coins{{"ugnot", math.MinInt64}})
+	}, "subtracting MinInt64 overflows and must not return a value")
+
+	// MaxInt64 negates fine and the sum is in range, so the guard is refusing the
+	// one unnegatable value rather than large amounts generally.
+	got := Coins{{"ugnot", math.MaxInt64}}.SubUnsafe(Coins{{"ugnot", math.MaxInt64}})
+	require.True(t, got.IsZero(), "MaxInt64 - MaxInt64 must still compute")
 }
