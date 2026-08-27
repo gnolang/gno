@@ -1,12 +1,12 @@
 /* ==========================================================================
    RUN - maketx run scratchpad
    ========================================================================== */
+/* A section of the Actions page, so it sizes to its content and spaces itself
+   like the sibling .b-action-eval block. The editor sets its own height. */
 .b-run {
 	display: flex;
 	flex-direction: column;
-	min-height: 70vh;
-	grid-column: 1 / -1;
-	padding-bottom: var(--g-space-24);
+	margin-block-end: var(--g-space-8);
 }
 
 .b-run-settings {

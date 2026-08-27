@@ -1,7 +1,12 @@
 {{/* ===================================================================================
 UI - Run (maketx run) scratchpad
+
+Rendered as a section of the Actions page (components/views/action.html).
+This uses the key/address from the Actions page header (#action-user-address).
+components/template.go parses this file into the shared "web" template set via
+run.TemplatesFS(), so "ui/copy" and friends resolve here.
 =================================================================================== */}}
-{{ define "renderPage" }}
+{{ define "ui/run_script" }}
 <div class="b-run"
   data-controller="run"
   data-run-pkg-path-value="{{ .PkgPath }}"
@@ -10,7 +15,7 @@ UI - Run (maketx run) scratchpad
   data-run-chain-id-value="{{ .ChainId }}">
 
   <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
-    <h1 class="title b-content-h1">Run Script</h1>
+    <h2 class="title b-content-h2">Run Script</h2>
     <div class="header-info">
       <div class="b-btns">
         <button class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
@@ -49,12 +54,6 @@ UI - Run (maketx run) scratchpad
   <div class="b-run-settings">
     <h2 class="b-content-h2">Command Settings</h2>
     <div class="b-run-settings-grid">
-      <div class="b-input">
-        <label for="run-key">Key name or address</label>
-        <input type="text" id="run-key" data-run-target="key"
-          placeholder="mykey" class="u-font-mono"
-          autocomplete="off" />
-      </div>
       <div class="b-input">
         <label for="run-gas-wanted">Gas wanted</label>
         <input type="text" id="run-gas-wanted" data-run-target="gasWanted"

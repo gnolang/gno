@@ -10,7 +10,6 @@ export class RunController extends BaseController {
 	private declare remote: string;
 	private declare chainId: string;
 	private declare editorEl: HTMLElement;
-	private declare keyEl: HTMLInputElement;
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
@@ -18,14 +17,20 @@ export class RunController extends BaseController {
 	private declare cmdEl: HTMLElement;
 	private declare resultEl: HTMLElement;
 	private declare editor: CodeEditor;
+	// Owned by the action-header controller (#action-user-address), which
+	// broadcasts it on "address:changed" — including once on startup when it
+	// restores the value from localStorage. `declare` + assignment in connect(),
+	// per the note on BaseController: a `= ""` initialiser here would run AFTER
+	// connect(), leaving it undefined for connect()'s own _updateCommand() call.
+	private declare address: string;
 
 	protected connect(): void {
+		this.address = "";
 		this.pkgPath = this.getValue("pkg-path");
 		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
 		this.editorEl = this.getTarget("editor") as HTMLElement;
-		this.keyEl = this.getTarget("key") as HTMLInputElement;
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
@@ -47,6 +52,11 @@ export class RunController extends BaseController {
 			this.editor.changeTheme(isDarkMode());
 		});
 
+		this.on("address:changed", (event) => {
+			this.address = (event as CustomEvent).detail.address ?? "";
+			this._updateCommand();
+		});
+
 		this._setupInputListeners();
 		this._updateCommand();
 	}
@@ -65,7 +75,6 @@ func main() {
 
 	private _setupInputListeners(): void {
 		const update = (): void => this._updateCommand();
-		this.keyEl.addEventListener("input", update);
 		this.gasWantedEl.addEventListener("input", update);
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
@@ -73,7 +82,7 @@ func main() {
 	}
 
 	private _buildCmd(): string {
-		const key = this.keyEl.value.trim() || "<key-name>";
+		const key = this.address.trim() || "<key-name>";
 		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
 		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
 		const send = this.sendEl.value.trim();
@@ -131,7 +140,7 @@ func main() {
 				body: JSON.stringify({
 					pkg_path: this.pkgPath,
 					script: this.editor.getCode(),
-					address: this.keyEl.value.trim(),
+					address: this.address.trim(),
 				}),
 			});
 

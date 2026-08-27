@@ -20,7 +20,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -126,7 +125,6 @@ type HTTPHandler struct {
 
 	// Features
 	Playground *playground.Handler
-	Run        *run.Handler
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -148,12 +146,6 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Logger:   logger,
 		Playground: playground.New(playground.Deps{
 			Client:  &playgroundClientAdapter{cfg.ClientAdapter},
-			Logger:  logger,
-			Domain:  cfg.Meta.Domain,
-			Remote:  cfg.Meta.RemoteHelp,
-			ChainId: cfg.Meta.ChainId,
-		}),
-		Run: run.New(run.Deps{
 			Logger:  logger,
 			Domain:  cfg.Meta.Domain,
 			Remote:  cfg.Meta.RemoteHelp,
@@ -462,11 +454,6 @@ func (h *HTTPHandler) GetPackageView(r *http.Request, gnourl *weburl.GnoURL, ind
 	// Handle Fork page (fork source to playground)
 	if gnourl.WebQuery.Has("fork") {
 		return h.Playground.GetForkView(ctx, gnourl)
-	}
-
-	// Handle Run page (maketx run scratchpad)
-	if gnourl.WebQuery.Has("run") {
-		return h.Run.GetRunView(gnourl)
 	}
 
 	// Handle Source page: with a file -> source code view; without -> package overview.
