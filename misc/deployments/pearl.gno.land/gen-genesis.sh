@@ -703,9 +703,11 @@ print_step_header 4 "$TOTAL_STEPS" "Generate filtered examples genesis txs"
 
 print_substep "4.1" "Resolving dependencies..."
 # -test-dep also resolves test-only imports (uassert, urequire, ...).
-# It is load-bearing, not optional: packages ship on-chain with their
-# _test.gno files (MPUserAll) and MsgAddPackage type-checks the whole
-# mempackage, so a missing test dep fails the addpkg at genesis replay.
+# Packages ship on-chain with their _test.gno files (MPUserAll), but
+# addpkg type-checks production files only (tests are stored and
+# syntax-parsed), so a missing test dep does not fail the deploy — the
+# deps are included so the shipped test files keep their imports
+# resolvable on-chain.
 pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist -test-dep "${FILTERED_PACKAGES[@]}")
 pkg_count=$(echo "$pkg_dirs" | wc -l | tr -d ' ')
 print_substep "4.2" "Resolved $pkg_count packages in topological order"
