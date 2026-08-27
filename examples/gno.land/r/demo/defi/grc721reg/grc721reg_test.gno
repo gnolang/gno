@@ -119,12 +119,15 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			testing.SetRealm(testing.NewCodeRealm(tc.realmPath))
-			col := tc.build(cur)
-			key := Register(cross(cur), col, tc.slug)
+		// SetRealm inside the subtest closure does not reach the cur the
+		// closure captured, so each case registers from its realm out here.
+		testing.SetRealm(testing.NewCodeRealm(tc.realmPath))
+		col := tc.build(cur)
+		key := Register(cross(cur), col, tc.slug)
 
-			urequire.NotEqual(t, "", key, "Register returns the fqname key")
+		t.Run(tc.name, func(t *testing.T) {
+			urequire.Equal(t, tc.realmPath+"."+tc.symbol, key,
+				"Register keys the entry on the case's own realm and symbol")
 			got := Get(key)
 			urequire.True(t, got != nil, "Get resolves the registered key")
 			urequire.Equal(t, tc.symbol, MustGet(key).Token().GetSymbol(),
