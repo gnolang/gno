@@ -163,7 +163,7 @@ func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 	}
 
 	kind := ext.ExtensionKind()
-	if led.HasExtension(kind) {
+	if _, ok := led.lookupExtension(kind); ok {
 		panic("grc721: extension kind already registered: " + kind)
 	}
 
@@ -178,12 +178,6 @@ func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 	}
 
 	led.extensions = append(led.extensions, registeredExtension{kind: kind, hook: ext, view: view})
-}
-
-func (led *PrivateLedger) HasExtension(kind string) bool {
-	_, ok := led.lookupExtension(kind)
-
-	return ok
 }
 
 // ExtensionKinds returns the registered kinds, in registration order.

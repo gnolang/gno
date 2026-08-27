@@ -703,8 +703,7 @@ func TestExtensionViewLookup(cur realm, t *testing.T) {
 
 	uassert.Equal(t, 2, len(led.ExtensionKinds()))
 	uassert.Equal(t, "mock", led.ExtensionKinds()[0])
-	uassert.True(t, led.HasExtension("journal"))
-	uassert.False(t, led.HasExtension("absent"))
+	uassert.Equal(t, "journal", led.ExtensionKinds()[1])
 
 	got, ok := led.ExtensionView("mock")
 	urequire.True(t, ok, "mock view registered")
@@ -743,9 +742,9 @@ func TestRegisterExtensionFreezesTheKind(cur realm, t *testing.T) {
 
 	kind = "mock"
 
-	uassert.Equal(t, "aux", led.ExtensionKinds()[0])
-	uassert.True(t, led.HasExtension("aux"))
-	uassert.False(t, led.HasExtension("mock"))
+	kinds := led.ExtensionKinds()
+	urequire.Equal(t, 1, len(kinds))
+	uassert.Equal(t, "aux", kinds[0])
 
 	// the kind it moved to is still free for the extension that owns it
 	led.RegisterExtension(&mockExtension{}, nil)
