@@ -1274,10 +1274,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// is cache-wrapped, tm2/pkg/sdk/baseapp.go:901).
 	//
 	// MsgCall only. MsgAddPackage is exempt because its envelope lands in
-	// the new package's own address, recoverable later by the realm itself
-	// — except for a pure `p/` package, whose address nothing can ever
-	// spend from. MsgRun is exempt because pkgAddr == caller makes its
-	// send a self-transfer no-op.
+	// the new package's own address, recoverable later by the realm itself.
+	// The one address that could not recover it is a pure `p/` package's, and
+	// AddPackage refuses a send to one before executing anything, so no such
+	// envelope ever reaches a check here. MsgRun is exempt because
+	// pkgAddr == caller makes its send a self-transfer no-op.
 	if !send.IsZero() && !*msgCtx.OriginSendObserved {
 		return "", ErrUnobservedSend(fmt.Sprintf(
 			"%s sent to %s.%s, which never read the send-envelope",
