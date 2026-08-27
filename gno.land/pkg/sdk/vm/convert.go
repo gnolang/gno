@@ -24,7 +24,13 @@ func assertNoPlusPrefix(s string) {
 // in FunctionSignature{}.
 // String representation of arg must be deterministic.
 // NOTE: very important that there is no malleability.
-func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
+//
+// alloc is the tx machine's allocator. String args are minted through
+// alloc.NewString so they are charged and their backing is tracked like
+// every other runtime string (see Allocator.stringRanges); an untracked
+// string is invisible to the GC's byte recount. A nil alloc is valid
+// (tests): nothing is charged or tracked.
+func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.TypedValue) {
 	tv.T = argT
 	switch bt := gno.BaseOf(argT).(type) {
 	case gno.PrimitiveType:
@@ -43,7 +49,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg))
 			}
 		case gno.StringType:
-			tv.SetString(gno.StringValue(arg))
+			tv.V = alloc.NewString(arg)
 			return
 		case gno.IntType:
 			assertNoPlusPrefix(arg)

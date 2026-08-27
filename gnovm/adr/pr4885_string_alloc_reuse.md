@@ -57,12 +57,20 @@ case.
 Track string *backing extents* in the allocator and recount bytes once per
 backing per GC cycle:
 
-- `Allocator.stringRanges` holds sorted, disjoint `[start, end)` extents of
-  every string backing charged through the allocator. `NewString` registers
-  the extent (`trackString`); lookup is by **containment** — a pointer
-  anywhere inside a tracked range resolves to that backing. Containment (not
-  equality) is what makes the slice-whose-source-died case inexpressible as
-  a bug.
+- `Allocator.stringRanges` holds disjoint `[start, end)` extents of every
+  string backing charged through the allocator, ordered by start. `NewString`
+  registers the extent (`trackString`); lookup is by **containment** — a
+  pointer anywhere inside a tracked range resolves to that backing.
+  Containment (not equality) is what makes the slice-whose-source-died case
+  inexpressible as a bug.
+- The set is a treap keyed by start (`stringRangeSet`, `string_ranges.go`):
+  insert, containment lookup, overlap check and single removal are O(log n)
+  expected; the per-cycle prune rebuilds it balanced in O(n). Priorities are
+  derived from the key, so tree shape is a function of the tracked set and
+  never of insertion history; shape affects CPU only, never accounting. A
+  sorted slice was tried first: its O(n) insert made a tx that builds many
+  small distinct strings quadratic in CPU while paying gas only for their
+  bytes (~29µs per `NewString` at 100k live strings vs ~130ns now).
 - Every `NewString` gets its **own** range: if the input's extent overlaps a
   tracked range, `trackString` clones it onto a fresh backing and registers
   the clone (see Status note — this is what removes toolchain-dependent
@@ -92,6 +100,61 @@ backing per GC cycle:
 - Empty strings are never tracked: `unsafe.StringData("")` returns an
   unspecified shared sentinel that would collapse all empty strings onto one
   entry.
+
+### Every Gno-visible string must be minted through `NewString`
+
+The recount is only correct if the invariant *every string backing reachable
+from a Gno value is tracked* holds: an untracked string is charged the
+header only (48B) at every GC, whatever its length, so a path that mints
+strings without `NewString` is an undercount — the opposite failure mode
+from the pre-PR overcount, and the one that matters for a memory cap. The
+producer sites were audited; the entry points are `alloc.NewString`,
+`Go2GnoValue` (every stdlib native return, incl. `[]string` elementwise) and
+`fillTypesOfValue` (every persisted string on load). Confirmed tracked:
+`+`/`+=` (`addAssign`), all `string(x)` conversions, `GetSlice` and
+`TypedValue.Copy` (share the source backing; resolved by containment). Fixed
+in this PR:
+
+- `gno.land/pkg/sdk/vm/convert.go` — `MsgCall` string arguments were set
+  with a bare `tv.SetString(StringValue(arg))`: attacker-controlled, up to
+  the tx size, charged nothing and untracked. Now `alloc.NewString(arg)`;
+  `convertArgToGno` takes the tx machine's allocator.
+- `uverse.go` realm-handle constructors (`newRealmHIVPointer`,
+  `newSubRealmHIVPointer`) and `.grealm.String()` — addr/pkgPath/subpath
+  fields were raw `StringValue`s with no `AllocateString` either. Now minted
+  through `NewString`; this adds ~150 gas per crossing (visible in the gas
+  pins) for strings that were previously free.
+- `fillTypesOfValue` `*FuncValue`: captures are not walked, and need not be —
+  each capture is `{heapItemType, *HeapItemValue}` by construction and is
+  persisted as its own object, whose load re-tracks its strings. Documented
+  in place.
+
+Deliberately untracked, by design:
+
+- String literals and const-folded strings (`*ConstExpr`, `op_eval.go`) are
+  minted by the preprocess allocator and pushed verbatim at runtime. They
+  are charged once at preprocess against the tx's preprocess budget, are
+  bounded by mempackage size, and are the same bytes for every execution;
+  tracking them in the runtime allocator would put a treap lookup on every
+  literal evaluation for a quantity that is already paid. Runtime aliases of
+  a literal that pass through `NewString` (e.g. `x := lit + ""`) get their own
+  range and are counted normally.
+- `typedString` / `typedRuntimeError` panic values: short, constant or
+  numeric-formatted text; reachable from Gno only via `recover()`.
+
+Follow-up (not string-related): byte-array/slice call arguments in
+`convert.go` build `*ArrayValue` directly without `AllocateDataArray`; the
+GC recount does catch those (arrays are Objects), so it is a pre-GC
+undercharge, not a blind spot.
+
+### Interaction with GC roots
+
+Dedup happens inside the visitor callback (`GCVisitorFn`), keyed on the
+backing, so it is independent of *which* root reaches a string: blocks,
+arrays, structs, frames, and any root added to `GarbageCollect` later all get
+the same once-per-cycle charge through `vis(v)`. No root-specific string
+handling should be added; doing so at one root would give the same program a
+different tally depending on where its aliases happen to sit.
 
 ## Alternatives considered
 
@@ -131,8 +194,15 @@ backing per GC cycle:
 - New filetests `alloc_13.gno` / `alloc_13a.gno` pin recounting across two GC
   cycles and shared-backing dedup; unit tests in `alloc_test.go` cover
   tracking, dedup, cleanup, slice containment, and empty strings.
-- `trackString`/`CountStringBytes` are O(log n) via binary search on the
-  sorted range slice; inserts are O(n) but amortized by per-cycle pruning.
+- `trackString`/`CountStringBytes` are O(log n) expected (treap); the
+  per-cycle prune is O(n). Each tracked string costs one treap node (~48B of
+  Go heap) not charged to the allocator — bounded by the number of strings
+  charged, so not amplifiable. `string_ranges_test.go` model-checks the treap
+  against a brute-force slice and keeps `BenchmarkNewStringTracked` /
+  `BenchmarkGCStringPass` as the regression reference.
+- Gas pins move where strings that were previously free are now charged:
+  realm-handle strings per crossing (~150 gas) and `MsgCall` string
+  arguments (header + bytes).
 - The allocator now holds `uintptr`s into Go heap memory. They are used only
   for identity/containment (never dereferenced); stale entries are evicted
   by `trackString` when their recycled address is re-tracked, and pruned by
