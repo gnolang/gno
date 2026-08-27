@@ -553,6 +553,9 @@ func (coins Coins) Empty() bool {
 }
 
 // Returns the amount of a denom from coins, which may be negative.
+//
+// The set must be sorted. This is a binary search, so on an unsorted set it can
+// step past a denom that is there and return 0 without saying so.
 func (coins Coins) AmountOf(denom string) int64 {
 	mustValidateDenom(denom)
 

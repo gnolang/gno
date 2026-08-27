@@ -182,6 +182,11 @@ func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Ad
 	return bank.AddCoins(ctx, toAddr, amt)
 }
 
+// sendCoins moves amt from one address to another.
+//
+// The debit and the credit are not one step. If AddCoins panics, SubtractCoins
+// has already written, and only the caller discarding the state puts the coins
+// back. Every caller runs under a transaction, which does that on failure.
 func (bank BankKeeper) sendCoins(
 	ctx sdk.Context,
 	fromAddr crypto.Address,

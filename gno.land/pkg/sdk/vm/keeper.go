@@ -2304,7 +2304,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// This ensures price governance changes don't lock or orphan deposits.
 			var depositUnlocked int64
 			if rlm.Storage == uint64(released) {
-				// Freeing all storage, refund entire deposit (avoids rounding loss)
+				// Freeing everything, so the whole deposit goes back. The branch
+				// below reaches the same number -- deposit * storage / storage
+				// divides exactly -- so this only skips three big.Int
+				// allocations. Nothing reaches it while DisablePackage is a stub.
 				depositUnlocked = int64(rlm.Deposit)
 			} else {
 				// Partial free: deposit * released / storage

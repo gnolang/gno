@@ -52,7 +52,9 @@ func (c Coin) IsEqual(other Coin) bool {
 // Add adds amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
-// An invalid result panics.
+//
+// The sign of the result is not checked. Adding two negative coins returns a
+// negative one, so test the sign yourself where the value is a balance.
 func (c Coin) Add(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
 
@@ -68,7 +70,10 @@ func (c Coin) Add(other Coin) Coin {
 // Sub subtracts amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
-// An invalid result panics.
+//
+// The sign of the result is not checked. Taking more than the receiver holds
+// returns a negative coin, so test the sign yourself where the value is a
+// balance.
 func (c Coin) Sub(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
 
