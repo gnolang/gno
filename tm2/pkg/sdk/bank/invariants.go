@@ -112,7 +112,7 @@ func AccountTierInvariant(view ViewKeeper) sdk.Invariant {
 				extra := ""
 				// Only on the failure path, so it costs nothing when healthy.
 				if stor.Has(nil, BalanceKey(e.Addr, coin.Denom)) {
-					extra = " (it also has a split-tier key: double-homed, so GetCoins would sum both)"
+					extra = " (it also has a split-tier key: double-homed, so GetCoins panics for this address)"
 				}
 				rep.Addf("address %s account object holds %q, which %s%s", e.Addr, coin.Denom, what, extra)
 			}

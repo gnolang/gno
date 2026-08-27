@@ -1619,3 +1619,45 @@ func TestSubtractWithANilAccountStillDebitsBothTiers(t *testing.T) {
 	require.Equal(t, int64(60), env.bankk.GetCoin(env.ctx, addr, testRealmDenom),
 		"the split tier must have been debited")
 }
+
+// A denom in both tiers at once is corrupt state, reachable only by changing the
+// account-tier allowlist without migrating the balances it moves. The readers
+// disagree about it on purpose: GetCoin answers from the tier the current
+// allowlist names, while GetCoins refuses to answer at all rather than return a
+// figure that is either a sum of two homes or silently missing one.
+//
+// Pinned because the alternative -- summing them -- would report a balance larger
+// than the address can spend, and the account-tier invariant's report says which
+// of the two happens.
+func TestADoubleHomedDenomIsRefusedByGetCoinsNotSummed(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("double-homed"))
+
+	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+	require.NoError(t, acc.SetCoins(std.Coins{{Denom: testAccountDenom, Amount: 5}}))
+	env.acck.SetAccount(env.ctx, acc)
+
+	// Straight to the store: every keeper write routes by the allowlist, so this
+	// state has no reachable construction under a fixed one.
+	rawSet(t, env, BalanceKey(addr, testAccountDenom), encodeBalance(7))
+
+	require.Equal(t, int64(5), env.bankk.GetCoin(env.ctx, addr, testAccountDenom),
+		"GetCoin answers from the tier the allowlist names, and reads no other")
+
+	require.PanicsWithValue(t,
+		`denom "`+testAccountDenom+`" has a split-tier key but is in the account tier: `+
+			"the allowlist changed without migrating existing balances",
+		func() { env.bankk.GetCoins(env.ctx, addr) },
+		"GetCoins must refuse rather than report 12")
+
+	// An invariant names the state, so an operator is told before a query hits it.
+	// This direction -- a split key for a denom the allowlist now covers -- belongs
+	// to the keyspace sweep; the opposite direction, where the allowlist shrank
+	// and left the denom in the account object, is what AccountTierInvariant
+	// reports.
+	msg, broken := BalanceKeysInvariant(env.bankk.ViewKeeper)(env.ctx)
+	require.True(t, broken)
+	require.Contains(t, msg, "the allowlist grew without migrating existing balances")
+}

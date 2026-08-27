@@ -611,7 +611,9 @@ func (view ViewKeeper) Logger(ctx sdk.Context) *slog.Logger {
 // below everything else; with an allowlist that no longer holds — a split denom
 // such as "atom" sorts before an account-tier "ugnot" — so neither order is
 // universally ascending. Coins.Add is a merge over sorted sets, and the tiers
-// are disjoint by construction, so no two amounts are ever summed.
+// are disjoint by construction, so no two amounts are ever summed. A denom that
+// somehow reached both never gets here to be summed either: splitCoins refuses
+// to return it and panics first.
 //
 // Costs O(number of split-tier denoms held). Use GetCoin when one denom will
 // do — that is the whole point of the split.
