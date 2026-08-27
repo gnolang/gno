@@ -18,6 +18,7 @@ func (r *recordingMeter) Limit() types.Gas              { return 1 << 30 }
 func (r *recordingMeter) ConsumeGas(amount types.Gas, _ string) {
 	r.consumed += amount
 }
+
 func (r *recordingMeter) RefundGas(amount types.Gas, _ string) {
 	r.consumed -= amount
 }
@@ -224,6 +225,38 @@ func TestChargeNativeGas_SliceTotalBytes(t *testing.T) {
 		_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
 		if m.Cycles != c.want {
 			t.Errorf("count=%d innerLen=%d: got %d, want %d", c.count, c.innerLen, m.Cycles, c.want)
+		}
+	}
+}
+
+func TestChargeNativeGas_PreCallTwoSlopesOnDistinctParams(t *testing.T) {
+	// Mimic crypto/merkle.innerHash: two independent unbounded byte params,
+	// each carrying the same per-byte rate so the charge tracks the sum of
+	// their lengths. Metering only one would leave the other free — an
+	// caller just moves the payload into the unmetered operand.
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base:  100,
+		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeLenBytes,
+		Slope2: 1024, Slope2Idx: 1, Slope2Kind: SizeLenBytes,
+	})
+	defer cleanup()
+
+	cases := []struct {
+		left, right int
+		want        int64
+	}{
+		{0, 0, 100},
+		{32, 32, 100 + 64},
+		{4096, 0, 100 + 4096}, // all payload on the left
+		{0, 4096, 100 + 4096}, // ...and on the right: same charge
+		{1 << 20, 0, 100 + 1<<20},
+		{1 << 19, 1 << 19, 100 + 1<<20},
+	}
+	for _, c := range cases {
+		m := stubMachine([]int{c.left, c.right})
+		_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+		if m.Cycles != c.want {
+			t.Errorf("left=%d right=%d: got %d, want %d", c.left, c.right, m.Cycles, c.want)
 		}
 	}
 }

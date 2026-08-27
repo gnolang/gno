@@ -52,6 +52,47 @@ const (
 	maxGasQuery   = 3_000_000_000 // same as max block gas
 )
 
+// maxQueryExportBytes bounds the estimated serialized size of the value tree
+// returned by the value-returning query endpoints (qeval, qeval_json,
+// qobject_json, qobject_binary, qpkg_json) before it is rendered or
+// amino-marshaled. The eval-time alloc/gas meters only cover VM execution and
+// store I/O; the export walk, the JSON marshal and TypedValue.String() all run
+// outside them, so without this bound a single free query can force a
+// multi-gigabyte allocation and OOM the node. It also caps qtype_json's
+// hand-rolled marshal, which amplifies a type DAG into a tree the same way (see
+// marshalTypeJSONBounded). See gno.ExportValues and
+// gno.land/adr/query_export_size_guard.md.
+//
+// 10MB is deliberately permissive. It is an estimate of the *response*, and a
+// response that size still costs the node much more than that in transient
+// heap: amino allocates roughly 20x the JSON it emits, so the worst shapes
+// measured peak around 250MB (see the ADR's table for the shapes and how the
+// peak was sampled). Legitimate explorer responses are orders of
+// magnitude smaller than the budget, so if a node shows memory thrashing under
+// query load this can safely be cut 10x (to 1MB) without affecting realistic
+// consumers.
+//
+// A var, not a const, only so tests can lower it and exercise the guard with
+// KB-sized inputs instead of allocating the real 10MB+ per case. Tests that
+// mutate it must restore it with t.Cleanup and must NOT call t.Parallel(), and
+// neither may any other test in this package that depends on the value.
+var maxQueryExportBytes int64 = 10_000_000 // ~10MB estimated export size
+
+// abciExportErr maps the VM's export sentinels onto this module's ABCI error
+// types, so a client gets a stable error code for "response too large" or
+// "response too deeply nested" instead of an untyped internal error. Anything
+// else passes through unchanged.
+func abciExportErr(err error) error {
+	switch {
+	case goerrors.Is(err, gno.ErrExportSizeExceeded):
+		return ErrExportSizeExceeded(fmt.Sprintf(
+			"estimated response size exceeds %d bytes", maxQueryExportBytes))
+	case goerrors.Is(err, gno.ErrExportDepthExceeded):
+		return ErrExportDepthExceeded("response nests deeper than the export limit")
+	}
+	return err
+}
+
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
 type VMKeeperI interface {
@@ -380,10 +421,10 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 func (vm *VMKeeper) callRealmBool(
 	ctx sdk.Context,
 	creator crypto.Address,
+	chainDomain string,
 	pkgPath, importAlias, funcName string,
 	args ...any,
 ) (result bool, err error) {
-	chainDomain := vm.getChainDomainParam(ctx)
 	store := vm.getGnoTransactionStore(ctx)
 
 	msgCtx := stdlibs.ExecContext{
@@ -436,12 +477,12 @@ func (vm *VMKeeper) callRealmBool(
 }
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
-func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, params Params, creator crypto.Address, pkgPath string) error {
+	sysNamesPkg := params.SysNamesPkgPath
 	if sysNamesPkg == "" {
 		return nil
 	}
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := params.ChainDomain
 
 	store := vm.getGnoTransactionStore(ctx)
 
@@ -465,7 +506,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return nil
 	}
 
-	result, err := vm.callRealmBool(ctx, creator, sysNamesPkg, "names",
+	result, err := vm.callRealmBool(ctx, creator, chainDomain, sysNamesPkg, "names",
 		"IsAuthorizedAddressForNamespace",
 		gno.Str(creator.String()), gno.Str(namespace))
 	if err != nil {
@@ -489,8 +530,8 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 //   - CLA realm is not deployed yet (needed for bootstrap: the CLA realm
 //     itself must be deployable before it exists on-chain)
 //   - Creator has a valid CLA signature
-func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) error {
-	sysCLAPkg := vm.getSysCLAPkgParam(ctx)
+func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, params Params, creator crypto.Address) error {
+	sysCLAPkg := params.SysCLAPkgPath
 	if sysCLAPkg == "" {
 		return nil // CLA enforcement disabled
 	}
@@ -506,7 +547,7 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 		return nil
 	}
 
-	result, err := vm.callRealmBool(ctx, creator, sysCLAPkg, "cla",
+	result, err := vm.callRealmBool(ctx, creator, params.ChainDomain, sysCLAPkg, "cla",
 		"HasValidSignature",
 		gno.Str(creator.String()))
 	if err != nil {
@@ -532,14 +573,87 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 // rejects a non-positive PreprocessGasPerByte, and GetParams defaults the field
 // when reading a legacy params blob that predates it, so the charge is always
 // active.
+//
+// The mod file is charged at the same rate: it is decoded on the same path
+// (twice at AddPackage — TypeCheckMemPackage's ParseCheckGnoMod, then the
+// keeper's own gnomod.ParseMemPackage; once at Run, whose generated gnomod.toml
+// replaces the caller's before RunMemPackage sees it) and was the one
+// caller-controlled body reaching a parser for nothing but the ante handler's
+// 10 gas/byte. gnomod.maxFileSize bounds how many bytes are decoded and
+// tm2/pkg/toml bounds the shape (maxNestingDepth, maxKeyDepth), which together
+// hold the worst admitted body to ~586ns/byte across the two decodes, so 1250 is
+// conservative for it.
 func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, descriptor string) {
 	var srcBytes int64
 	for _, f := range mpkg.Files {
-		if strings.HasSuffix(f.Name, ".gno") {
+		// gnomod.toml and gno.mod are the two names gnomod.ParseMemPackage
+		// decodes; a third would have to be charged here too.
+		if strings.HasSuffix(f.Name, ".gno") || f.Name == "gnomod.toml" || f.Name == "gno.mod" {
 			srcBytes += int64(len(f.Body))
 		}
 	}
 	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
+}
+
+// stampGnomod writes the chain's own metadata into the package's gnomod.toml
+// and re-encodes it in mpkg.
+//
+// Shared by AddPackage's inert and normal paths, and this one is a cross-
+// function contract rather than merely shared lines: EnablePackage reads
+// AddPkg.Creator back out of the stored file to decide OriginCaller. If the two
+// paths ever stamped differently, the same source would initialize under a
+// different identity depending on which policy was in force when it was
+// submitted — with nothing to catch it. One writer makes that unrepresentable.
+// maxDeposit is the creator's declared storage-deposit ceiling, and is written
+// only where the charge outlives the declaring message — the inert path, where
+// EnablePackage reads it back. The ordinary path passes "".
+//
+// Every AddPkg field is assigned unconditionally, including the empty cases.
+// The section is keeper bookkeeping, but it lives in a file the submitter
+// authors, so anything not overwritten here is attacker-supplied: a hand-written
+// `[addpkg] max_deposit` would otherwise survive and be read at enable as though
+// the message had declared it.
+func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator crypto.Address, height int64, maxDeposit string) {
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	gm.AddPkg.Creator = creator.String()
+	gm.AddPkg.Height = int(height)
+	gm.AddPkg.MaxDeposit = maxDeposit
+	mpkg.SetFile("gnomod.toml", gm.WriteString())
+}
+
+// checkGnomodConstraints applies the keeper-only gnomod.toml rules that the type
+// checker cannot express. Applied on all three paths that admit a package:
+// AddPackage's normal and inert branches, and EnablePackage. The inert path
+// runs them so a package cannot be parked to dodge a rule the normal path
+// enforces, and enable runs them again because the world can move between the
+// two messages -- see the call site there.
+// priorPrivate reports whether a PRIVATE package already occupies pkgPath;
+// height is the block the rules are evaluated against.
+//
+// A bool rather than the *gno.PackageValue this used to take, because
+// EnablePackage cannot supply one: loading the live PackageValue populates the
+// object cache and RunMemPackage then panics in SetCachePackage (see the note at
+// its call site). It reads the stored blob's gnomod.toml instead, which answers
+// the only question this function ever asked of the package value.
+func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, priorPrivate bool, height int64) error {
+	// no development packages.
+	if gm.HasReplaces() {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if priorPrivate && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
+	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
+	}
+	if gm.Draft && height > 0 {
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
+	}
+	// no (deprecated) gno.mod file.
+	if mpkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+	return nil
 }
 
 // hasProdGnoFile reports whether mpkg contains at least one production
@@ -579,7 +693,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	send := msg.Send
 	maxDeposit := msg.MaxDeposit
 	gnostore := vm.getGnoTransactionStore(ctx)
-	chainDomain := vm.getChainDomainParam(ctx)
+	// Read once, before anything executes: parameters may change during
+	// execution and the message must not fail because of a change made inside
+	// its own transaction. The inert and the normal path below decide from this
+	// same snapshot.
+	params := vm.GetParams(ctx)
+	chainDomain := params.ChainDomain
 
 	memPkg.Type = gno.MPUserAll
 
@@ -611,16 +730,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
-	if pv != nil {
-		// A private package is being redeployed (non-private re-adds were
-		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
-		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
-		// its conditional writes don't fully replace across both keys, so a stale
-		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
-		// survive the re-add and be served by qfile/GetMemPackage.
-		gnostore.DeleteMemPackage(pkgPath)
-	}
-
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -651,6 +760,239 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			"%s sent to %s, which is a pure package and can never spend it",
 			send.String(), pkgPath))
 	}
+
+	// If the chain is operating in "inert" submission mode, store the package
+	// without typechecking or execution. It becomes callable only after an
+	// approver sends MsgEnablePackage.
+	//
+	// Not at genesis. Genesis content is the chain's own, already reviewed by
+	// whoever wrote the genesis file, and there is nobody for an approver to
+	// protect it from. Parking it would produce a chain that boots with nothing
+	// deployed: no r/sys/params and no govdao, so no way to propose a change,
+	// and no approver able to act because the realms it would need do not exist
+	// yet. The policy governs what strangers may submit to a running chain.
+	//
+	// The other height-sensitive rules here already work this way -- the type
+	// checker drops to genesis mode at height 0, and the draft-package rule is
+	// waived there too.
+	//
+	// Genesis REPLAY is not exempt, and reads the policy like any other
+	// delivery. code_submission_policy is store-backed, so replayed history
+	// carries its own: `gnogenesis fork generate` copies the source chain's vm
+	// params into the fork's genesis untouched, and every historical governance
+	// tx that moved the policy re-applies as it replays. A chain that parked a
+	// package parks it again; one that deployed live, deploys live. Replay
+	// reproduces what the source chain did by reading what the source chain
+	// read, rather than by skipping the branch.
+	//
+	// The exception is an operator who sets a DIFFERENT policy in the fork's
+	// own genesis params, which InitGenesis installs before the replay loop
+	// (gno.land/pkg/gnoland/app.go). Replayed history would then run under a
+	// policy that was never in force for it. To adopt "inert" at a fork, turn
+	// it on with a migration tx appended after the history instead.
+	if params.CodeSubmissionPolicy == CodeSubmissionPolicyInert &&
+		ctx.BlockHeight() > 0 {
+		// Charge the type-check and preprocess cost here, at submit, even though
+		// neither runs on this path. The work is deferred, not avoided:
+		// MsgEnablePackage type-checks and runs exactly these bytes later.
+		// Nothing else in this branch is priced by source length, so without this
+		// a submitter could park an arbitrarily large package for the price of
+		// one amino write and leave the compile bill to whoever enables it.
+		// Charging the submitter keeps the payer and the cause together, and
+		// EnablePackage deliberately does not charge it a second time.
+		chargePreprocessGas(ctx, params, memPkg, "AddInertPackagePreprocess")
+
+		// Refuse a payment this path cannot deliver.
+		//
+		// On the ordinary path msg.Send is credited to the package address AND
+		// presented to init() as the origin-send envelope, which is how a
+		// payable deploy works: init() opens a BankerTypeOriginSend banker and
+		// spends what the deployer attached.
+		//
+		// Here the two halves are split across two messages, and only the first
+		// half can be carried. The coins would move at submit, but init() runs
+		// at enable, in a message that sends nothing — so EnablePackage builds
+		// its ExecContext with an empty OriginSend and no OriginSendRecipient,
+		// and a payable init() does not merely see an empty envelope, it panics
+		// on the recipient mismatch. The same source would deploy under
+		// "permissionless" and fail under "inert", which makes the chain policy
+		// change program semantics.
+		//
+		// Carrying the envelope through to enable was the alternative. Rejected:
+		// it means stamping the amount into gnomod.toml beside the deposit
+		// ceiling and reconstructing an origin-send context for coins that moved
+		// in a different transaction, at a different block height, possibly
+		// under a different account state — a lot of machinery to make a
+		// two-phase deploy impersonate a one-phase one. Refusing is honest and
+		// costs the submitter one extra transfer after activation.
+		if !send.IsZero() {
+			return ErrUnspendableSend(fmt.Sprintf(
+				"%s sent to %s: a package submitted under the %q policy cannot "+
+					"carry a payment, because init() runs in a later message and "+
+					"would not see it; fund the package after it is enabled",
+				send.String(), pkgPath, CodeSubmissionPolicyInert))
+		}
+
+		gm, err := gnomod.ParseMemPackage(memPkg)
+		if err != nil {
+			return ErrInvalidPackage(err.Error())
+		}
+		// Only the original submitter may replace a package already parked at
+		// this path.
+		//
+		// The ErrPkgAlreadyExists guard above reads GetPackage, which sees only
+		// the ACTIVE store; parked packages live under inert_pkg:<path> and are
+		// invisible to it. Without this check anyone may overwrite anyone's
+		// parked submission, and the overwrite is silent: AddInertPackage is an
+		// unconditional Set. That is not merely untidy. An approver reviews the
+		// source at a path and sends MsgEnablePackage; a third party who
+		// front-runs the enable has their own bytes type-checked, init()ed and
+		// stamped as creator under the reviewed path. Namespace permission does
+		// not stand in the way either — checkNamespacePermission returns nil
+		// while the names realm is undeployed, which under "inert" is exactly
+		// the state a chain boots in.
+		//
+		// Same-submitter replacement stays allowed: it is the retry path after
+		// an enable fails, and the parked bytes are the submitter's own.
+		if prior := gnostore.GetInertPackage(pkgPath); prior != nil {
+			priorGm, perr := gnomod.ParseMemPackage(prior)
+			if perr != nil {
+				return ErrInvalidPackage(fmt.Sprintf(
+					"cannot read the parked package at %s: %v", pkgPath, perr))
+			}
+			if priorGm.AddPkg.Creator != creator.String() {
+				return ErrPkgAlreadyExists(fmt.Sprintf(
+					"package already awaiting approval at %s, submitted by %s",
+					pkgPath, priorGm.AddPkg.Creator))
+			}
+		}
+		// Apply the same gnomod rules as the normal path. Skipping them here
+		// would make "inert" a way to park a package that no policy would ever
+		// accept. EnablePackage runs them again on the stored blob; this is the
+		// only chance to refuse the bytes before they are written.
+		if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
+			return err
+		}
+		// Carry the creator's declared ceiling to whoever pays.
+		//
+		// This is the one path where the deposit is charged by a LATER message
+		// than the one that declared the limit. Dropping it means EnablePackage
+		// falls back to params.DefaultDeposit — so a creator who declared
+		// 1000ugnot could be charged up to the chain default (100 GNOT today)
+		// against a package they never got to re-approve. Recording it also
+		// pins the ceiling to submit time, so a governance change to
+		// DefaultDeposit between submit and enable cannot raise what the
+		// creator is exposed to.
+		//
+		// Stamped through the same gnomod round-trip as Creator, which
+		// EnablePackage already re-reads. Empty when nothing was declared, so
+		// the ordinary path's stored gnomod.toml is unchanged -- and stamped
+		// unconditionally either way, so a hand-written value in the
+		// submitter's own file cannot stand in for a declaration.
+		// Stamp the EFFECTIVE ceiling, including when none was declared.
+		//
+		// Leaving it empty pinned nothing for the common case: enable fell back
+		// to params.DefaultDeposit read at ENABLE time, so a governance raise
+		// between submit and enable widened the creator's exposure -- the exact
+		// drift this stamping exists to prevent. Recording the submit-time
+		// default closes that, and makes the stored value mean "what this
+		// submitter agreed to" rather than "what they typed".
+		declared := params.DefaultDeposit
+		if !maxDeposit.IsZero() {
+			// Storage deposits are denominated in the gas denom only, and
+			// processStorageDeposit reads exactly that component. A ceiling
+			// carrying none of it would parse cleanly at enable, contribute
+			// nothing, and silently fall back to params.DefaultDeposit — read
+			// at enable time, which is precisely the pinning this section
+			// exists to provide. Refuse it rather than honour it in name only.
+			if maxDeposit.AmountOf(ugnot.Denom) == 0 {
+				return std.ErrInvalidCoins(fmt.Sprintf(
+					"max_deposit %s carries no %s, so it cannot cap the storage deposit",
+					maxDeposit, ugnot.Denom))
+			}
+			declared = maxDeposit.String()
+		}
+		stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), declared)
+		if err := vm.checkNamespacePermission(ctx, params, creator, pkgPath); err != nil {
+			return err
+		}
+		if err := vm.checkCLASignature(ctx, params, creator); err != nil {
+			return err
+		}
+		// Charge for the init() this submission defers onto the approver.
+		//
+		// Enable runs this package's init() on the approver's transaction and
+		// gas meter, and fees are flat -- so its exposure is that fee times the
+		// number of approvals it can be induced to make, and submitting is
+		// otherwise nearly free. The charge prices that, on the party that chose
+		// the cost. Why it is a flat amount rather than a measured one is in the
+		// ADR; the short version is that a refund computed from a gas meter makes
+		// gas a consensus input, and forks then disagree about balances.
+		//
+		// Empty means off. The collector is checked here because Params.Validate
+		// deliberately does not: skipping the charge costs nothing, while paying
+		// the zero address would burn it.
+		//
+		// SendCoins rather than SendCoinsUnrestricted, because this is a one-way
+		// transfer and not the refundable escrow the storage deposit uses -- a
+		// token lock should refuse it, not be bypassed. It also does the
+		// session-spend check itself, so one call cannot get the order wrong.
+		//
+		// Placed immediately before the package is parked, so the order reads
+		// pay-then-park. Writes revert as a unit either way, so this is for the
+		// reader rather than for safety. EnablePackage places its deposit
+		// immediately before DelInertPackage for the same reason.
+		if params.InertSubmissionCharge != "" && !params.InertChargeCollector.IsZero() {
+			charge, err := std.ParseCoins(params.InertSubmissionCharge)
+			if err != nil {
+				// Unreachable: Params.Validate parses this before it can be
+				// stored. Panicking is what makes it safe to be wrong about that.
+				panic("invalid inert_submission_charge in params: " + err.Error())
+			}
+			if err := vm.bank.SendCoins(ctx, creator, params.InertChargeCollector, charge); err != nil {
+				// Name the charge. The bank's own error is about funds and says
+				// nothing about why the amount is being asked for, so a creator
+				// who could submit last week reads it as their gas fee being
+				// wrong. The charge defaults to off, so anyone meeting it for
+				// the first time has just had governance turn it on.
+				return std.ErrInsufficientCoins(fmt.Sprintf(
+					"cannot pay the %s submission charge that the %q code submission "+
+						"policy requires: %v", charge, CodeSubmissionPolicyInert, err))
+			}
+		}
+		// No SendCoins for msg.Send: a non-zero send was refused above.
+		gnostore.AddInertPackage(memPkg)
+		return nil
+	}
+
+	if pv != nil {
+		// NOTE: reading `pv` above put this package in the object cache, and
+		// RunMemPackage below panics in SetCachePackage on a cached package.
+		// This path survives only because checkNamespacePermission and
+		// checkCLASignature re-enter getGnoTransactionStore, whose
+		// ClearObjectCache evicts it in between. That is incidental, not
+		// designed: EnablePackage had the same shape, called neither, and its
+		// private-redeploy branch was dead on arrival until it stopped loading
+		// the package value at all. Do not reorder those checks below this
+		// point without re-reading that.
+		//
+		// A private package is being redeployed (non-private re-adds were
+		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
+		// its conditional writes don't fully replace across both keys, so a stale
+		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
+		// survive the re-add and be served by qfile/GetMemPackage.
+		//
+		// This must stay BELOW the inert branch, which returns without ever
+		// calling AddMemPackage. Deleting there would strip a live package's
+		// source while its realm, objects and package index survive: at boot
+		// PreprocessAllFilesAndSaveBlockNodes skips the now-nil mempackage
+		// silently, so a restarted node rebuilds no PackageNode and panics on
+		// call, while a node that has not restarted still answers from
+		// cacheNodes. That is a consensus split keyed on restart history.
+		gnostore.DeleteMemPackage(pkgPath)
+	}
+
 	opts := gno.TypeCheckOptions{
 		Getter: gnostore,
 		Mode:   gno.TCLatestStrict,
@@ -667,9 +1009,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
-	// use the parameters before executing the message, as they may change during execution.
-	// The message should not fail due to parameter changes in the same transaction.
-	params := vm.GetParams(ctx)
 	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
@@ -682,30 +1021,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
-	// no development packages.
-	if gm.HasReplaces() {
-		return ErrInvalidPackage("development packages are not allowed")
-	}
-	if pv != nil && pv.Private && !gm.Private {
-		return ErrInvalidPackage("a private package cannot be overridden by a public package")
-	}
-	if gm.Private && !gno.IsRealmPath(pkgPath) {
-		return ErrInvalidPackage("private packages must be realm packages")
-	}
-	if gm.Draft && ctx.BlockHeight() > 0 {
-		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
-	}
-	// no (deprecated) gno.mod file.
-	if memPkg.GetFile("gno.mod") != nil {
-		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
+		return err
 	}
 
-	// Patch gnomod.toml metadata
-	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
-	gm.AddPkg.Creator = creator.String()
-	gm.AddPkg.Height = int(ctx.BlockHeight())
-	// Re-encode gnomod.toml in memPkg
-	memPkg.SetFile("gnomod.toml", gm.WriteString())
+	// No ceiling stamped: on this path the deposit is charged in this same
+	// message, so nothing needs to outlive it.
+	stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), "")
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -713,12 +1035,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+	if err := vm.checkNamespacePermission(ctx, params, creator, pkgPath); err != nil {
 		return err
 	}
 
 	// Check CLA signature
-	if err := vm.checkCLASignature(ctx, creator); err != nil {
+	if err := vm.checkCLASignature(ctx, params, creator); err != nil {
 		return err
 	}
 
@@ -801,6 +1123,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	return nil
 }
 
+// isApprover reports whether addr is in the approvers list.
+func isApprover(approvers []crypto.Address, addr crypto.Address) bool {
+	return slices.Contains(approvers, addr)
+}
+
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins
@@ -843,7 +1170,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := params.ChainDomain
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
@@ -1059,8 +1386,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
-	chainDomain := vm.getChainDomainParam(ctx)
 	params := vm.GetParams(ctx)
+	chainDomain := params.ChainDomain
 
 	memPkg.Type = gno.MPUserProd
 
@@ -1204,9 +1531,20 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
-// QueryPaths returns public facing function signatures.
-// XXX: Implement pagination
-func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) (paths []string, err error) {
+	// Same reasoning as QueryInertPaths, which this is the sibling of: the
+	// iteration below is lazy and metered, maxGasQuery is a real ceiling, and
+	// exhausting it panics with OutOfGasError. handleQueryCustom does not
+	// recover, so without this the panic leaves the ABCI Query instead of being
+	// reported as an error.
+	//
+	// Reaching it takes roughly maxGasQuery/IterNextCostFlat steps, which is
+	// millions of packages under one prefix -- far enough away that there is no
+	// test for it here, and near enough that the answer should not be a node
+	// panic. Governance can also move IterNextCostFlat, which changes the
+	// distance without changing this code.
+	defer doRecoverQueryNoMachine(&err)
+
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
 	}
@@ -1234,7 +1572,7 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		return collectWithLimit(store.FindPathsByPrefix(path), limit), nil
 	}
 	// Lookup for both `/r` & `/p` paths of the namespace
-	ctxDomain := vm.getChainDomainParam(ctx)
+	ctxDomain := vm.GetParams(ctx).ChainDomain
 	rpath := path.Join(ctxDomain, "r", name, subPrefix)
 	ppath := path.Join(ctxDomain, "p", name, subPrefix)
 
@@ -1343,13 +1681,29 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
+		// Bound the result before rendering it. TypedValue.String() renders the
+		// whole tree into a Go string outside the eval alloc meter and costs
+		// about 5x the rendered size in transient heap (measured: a 64MB string
+		// result peaks at +319MB), so this endpoint is the same unmetered
+		// amplifier as qeval_json with a smaller factor.
+		//
+		// The export walk is reused purely as a size oracle: the copy it builds
+		// is bounded by the same budget and thrown away, and the rendering
+		// below is unchanged for everything that fits. Persisted children are
+		// charged as a RefValue while String() renders them inline, so this
+		// bounds the ephemeral (free) vector only — a persisted tree that large
+		// had to be paid for in storage deposit and load gas.
+		if _, exErr := gno.ExportValues(rtvs, maxQueryExportBytes); exErr != nil {
+			return abciExportErr(exErr)
+		}
 		for i, rtv := range rtvs {
 			res += rtv.String()
 			if i < len(rtvs)-1 {
 				res += "\n"
 			}
 		}
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -1360,23 +1714,18 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
 // The result is expected to be a single string (not a tuple).
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	var cbErr error
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
 		if len(rtvs) != 1 {
-			cbErr = errors.New("expected 1 string result, got %d", len(rtvs))
-			return
+			return errors.New("expected 1 string result, got %d", len(rtvs))
 		}
 		if rtvs[0].T.Kind() != gno.StringKind {
-			cbErr = errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-			return
+			return errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
 		}
 		res = rtvs[0].GetString()
+		return nil
 	})
 	if err != nil {
 		return "", err
-	}
-	if cbErr != nil {
-		return "", cbErr
 	}
 	return res, nil
 }
@@ -1386,7 +1735,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 // Callers that need to invoke methods on result values (e.g. call .Error() on
 // an error-implementing return) must use this helper so the machine is still
 // alive when fn runs.
-func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue)) (err error) {
+func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue) error) (err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
@@ -1401,7 +1750,7 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 			"package not found: %s", pkgPath))
 	}
 	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
+	chainDomain := vm.GetParams(ctx).ChainDomain
 	msgCtx := stdlibs.ExecContext{
 		ChainID:     ctx.ChainID(),
 		ChainDomain: chainDomain,
@@ -1442,8 +1791,7 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	// as init(cur realm) / main(cur realm): realms that don't declare a
 	// crossing form are unaffected.
 	m.MaybeInjectCurForEval(xx)
-	fn(m, m.Eval(xx))
-	return nil
+	return fn(m, m.Eval(xx))
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -1508,8 +1856,10 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 
 // QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
 func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
-		res = stringifyJSONResults(m, rtvs, nil)
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
+		var jsonErr error
+		res, jsonErr = stringifyJSONResults(m, rtvs, nil, maxQueryExportBytes)
+		return abciExportErr(jsonErr)
 	})
 	if err != nil {
 		return "", err
@@ -1532,7 +1882,24 @@ func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, err
 		return nil, ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
 	}
 
-	return gno.ExportObject(obj), nil
+	// Bound the export walk: a persisted object with a large Data field (e.g.
+	// a big byte array) would otherwise be copied and marshaled unmetered.
+	// This is the shared object-export path, so it protects both the JSON
+	// (qobject_json) and binary (qobject_binary) callers.
+	//
+	// Two consequences worth knowing. The *queried* object is expanded inline
+	// (only its children become RefValues), so a single large persisted object
+	// — say an 8MB byte array, charged 10.7MB — is rejected outright, with no
+	// partial or paginated view. And the estimate is JSON-shaped: byte arrays
+	// are charged at the base64 rate (4/3), so qobject_binary, whose output is
+	// raw bytes, is rejected about 25% earlier than its actual response size
+	// warrants. Both are deliberate: one estimate keeps the two endpoints from
+	// drifting apart, and erring small is the safe direction for a growth bound.
+	exported, err := gno.ExportObject(obj, maxQueryExportBytes)
+	if err != nil {
+		return nil, abciExportErr(err)
+	}
+	return exported, nil
 }
 
 // QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
@@ -1623,8 +1990,13 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 		varValues = append(varValues, tv)
 	}
 
-	// Export values (replace persisted objects with RefValues, etc.)
-	exported := gno.ExportValues(varValues)
+	// Export values (replace persisted objects with RefValues, etc.),
+	// bounding the walk so a package var holding a large ephemeral value
+	// cannot force an unmetered multi-GB export copy + JSON marshal.
+	exported, err := gno.ExportValues(varValues, maxQueryExportBytes)
+	if err != nil {
+		return "", abciExportErr(err)
+	}
 
 	valuesJSON, err := amino.MarshalJSON(exported)
 	if err != nil {
@@ -1667,7 +2039,9 @@ func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err e
 	// Use a custom serializer instead of amino.MarshalJSON to avoid fatal
 	// stack overflow from circular type references (e.g. time.Time).
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, tt, 0)
+	if exErr := marshalTypeJSONBounded(&buf, tt, maxQueryExportBytes); exErr != nil {
+		return "", abciExportErr(exErr)
+	}
 	return buildTypeJSONEnvelope(tidStr, buf.Bytes()), nil
 }
 
@@ -1695,9 +2069,41 @@ func writeJSONString(buf *bytes.Buffer, s string) {
 
 const maxTypeDepth = 8
 
+// marshalTypeJSONBounded runs marshalTypeJSON with a total-output cap and
+// recovers the ErrExportSizeExceeded panic that the cap raises, returning it so
+// QueryType can map it onto the ABCI error type. Any other panic is re-raised
+// for the caller's doRecoverQueryNoMachine to handle unchanged.
+//
+// marshalTypeJSON re-expands each DeclaredType.Base per reference with no seal
+// (unlike realm.go's fillType, which does seal), so a struct DAG whose fields
+// reference the same named types expands into a tree of size fanout^levels.
+// maxTypeDepth caps depth but not that fanout — measured, ~850 B of source
+// emits ~36 MB — and QueryType runs no allocator, so nothing else bounds it.
+// maxBytes caps the buffer instead, refusing the query before the alloc lands.
+func marshalTypeJSONBounded(buf *bytes.Buffer, t gno.Type, maxBytes int64) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok && goerrors.Is(e, gno.ErrExportSizeExceeded) {
+				err = e
+				return
+			}
+			panic(r)
+		}
+	}()
+	marshalTypeJSON(buf, t, 0, maxBytes)
+	return nil
+}
+
 // marshalTypeJSON writes a safe JSON representation of a gno.Type.
-// It limits recursion depth to avoid stack overflow from circular references.
-func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
+// It limits recursion depth to avoid stack overflow from circular references,
+// and panics gno.ErrExportSizeExceeded once buf grows past maxBytes
+// (maxBytes <= 0 disables the bound); see marshalTypeJSONBounded for why the
+// depth cap alone is not enough. The check is at entry to every recursive call,
+// so buf overshoots maxBytes by at most one node's fixed prefix before it aborts.
+func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int, maxBytes int64) {
+	if maxBytes > 0 && int64(buf.Len()) > maxBytes {
+		panic(gno.ErrExportSizeExceeded)
+	}
 	if t == nil || depth > maxTypeDepth {
 		buf.WriteString("null")
 		return
@@ -1707,15 +2113,15 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 		fmt.Fprintf(buf, `{"@type":"/gno.PrimitiveType","value":"%d"}`, int(ct))
 	case *gno.PointerType:
 		buf.WriteString(`{"@type":"/gno.PointerType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.ArrayType:
 		fmt.Fprintf(buf, `{"@type":"/gno.ArrayType","Len":"%d","Elt":`, ct.Len)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.SliceType:
 		buf.WriteString(`{"@type":"/gno.SliceType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.StructType:
 		buf.WriteString(`{"@type":"/gno.StructType","Fields":[`)
@@ -1726,15 +2132,15 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 			buf.WriteString(`{"Name":`)
 			writeJSONString(buf, string(f.Name))
 			buf.WriteString(`,"Type":`)
-			marshalTypeJSON(buf, f.Type, depth+1)
+			marshalTypeJSON(buf, f.Type, depth+1, maxBytes)
 			buf.WriteByte('}')
 		}
 		buf.WriteString("]}")
 	case *gno.MapType:
 		buf.WriteString(`{"@type":"/gno.MapType","Key":`)
-		marshalTypeJSON(buf, ct.Key, depth+1)
+		marshalTypeJSON(buf, ct.Key, depth+1, maxBytes)
 		buf.WriteString(`,"Value":`)
-		marshalTypeJSON(buf, ct.Value, depth+1)
+		marshalTypeJSON(buf, ct.Value, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.FuncType:
 		buf.WriteString(`{"@type":"/gno.FuncType"}`)
@@ -1746,13 +2152,13 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 		buf.WriteString(`,"Name":`)
 		writeJSONString(buf, string(ct.Name))
 		buf.WriteString(`,"Base":`)
-		marshalTypeJSON(buf, ct.Base, depth+1)
+		marshalTypeJSON(buf, ct.Base, depth+1, maxBytes)
 		buf.WriteByte('}')
 	case *gno.PackageType:
 		buf.WriteString(`{"@type":"/gno.PackageType"}`)
 	case *gno.ChanType:
 		buf.WriteString(`{"@type":"/gno.ChanType","Elt":`)
-		marshalTypeJSON(buf, ct.Elt, depth+1)
+		marshalTypeJSON(buf, ct.Elt, depth+1, maxBytes)
 		buf.WriteByte('}')
 	default:
 		// RefType or unknown — emit type ID if available
@@ -1801,7 +2207,6 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 //
 // Returns an aggregated error if any realm processing fails due to insufficient deposit,
 // transfer errors.
-
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
 	if ctx.IsCheckTx() {
 		// Defense-in-depth: baseapp already skips handler.Process in
@@ -1812,7 +2217,8 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	realmDiffs := gnostore.RealmStorageDiffs()
 	// Merge per-realm chain/params byte deltas accumulated on ctx.
 	// See gno.land/pkg/sdk/vm/params_deposit.go.
-	for path, diff := range ParamsRealmDiffs(ctx) {
+	paramsDiffs := ParamsRealmDiffs(ctx)
+	for path, diff := range paramsDiffs {
 		realmDiffs[path] += diff
 	}
 	depositAmt := deposit.AmountOf(ugnot.Denom)
@@ -1831,17 +2237,29 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	var allErrs error
 	for _, rlmPath := range sortedRealm {
 		diff := realmDiffs[rlmPath]
+		paramsDiff := paramsDiffs[rlmPath]
 		if diff == 0 {
+			// The components cancel: no funds move and rlm.Storage is
+			// unchanged, so there is nothing to look the realm up for.
+			// A dirty params component still needs its baseline
+			// persisted, or a later delete of those bytes floors to
+			// zero in recordParamsDelta and its refund is suppressed.
+			if paramsDiff != 0 {
+				FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
+			}
 			continue
 		}
 		rlm := gnostore.GetPackageRealm(rlmPath)
 		if rlm == nil {
-			// Should not happen: any executing realm is preprocessed
-			// and materialized before it can call chain/params. Defend
-			// against the rlm.Path nil-deref in lockStorageDeposit.
+			// Reachable: MsgRun's ephemeral gno.land/e/<addr>/run package
+			// executes but is never saved (RunMemPackage(memPkg, false)),
+			// so a run script calling chain/params lands here and aborts
+			// the tx. Erroring is deliberate — lockStorageDeposit would
+			// nil-deref on rlm.Path, and skipping would commit the params
+			// write with no deposit backing it and no baseline.
 			allErrs = goerrors.Join(allErrs, fmt.Errorf(
-				"params storage diff for unknown realm %q (size=%d) — deposit skipped",
-				rlmPath, diff))
+				"storage diff for unknown realm %q (vm=%d, params=%d) — deposit skipped",
+				rlmPath, diff-paramsDiff, paramsDiff))
 			continue
 		}
 		if diff > 0 {
