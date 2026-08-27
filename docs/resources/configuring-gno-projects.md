@@ -45,6 +45,10 @@ added. It is not intended for manual use off-chain.
   Primarily used in monorepo setups. If not specified, it's automatically set to
   the address that initiated the `addpkg` transaction.
 - **`height`**: the block height at which the module was added.
+- **`max_deposit`**: the [storage deposit](storage-deposit.md) ceiling recorded
+  for the package, present only when the chain stores a package before charging
+  for it. It is what the submitter declared, or the chain default as it stood
+  when the package was submitted.
 
 #### `draft`  
 

@@ -222,16 +222,17 @@ For `Increment`, the command looks like this:
 gnokey maketx call \
   -pkgpath "gno.land/r/myname/myrealm" \
   -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 1000000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid dev -remote http://localhost:26657 \
   alice
 ```
 
 `-pkgpath` is the realm's on-chain path, the same one you passed to
-`gno mod init`. `-gas-wanted` is the maximum units the transaction
-may consume; `-gas-fee` is the price per unit, in `ugnot`, the smallest
-GNOT denomination. Together they cap what you'll pay. See
-[Gas fees](../resources/gas-fees.md) for estimation and tuning.
+`gno mod init`. `-gas-wanted` is the maximum units the transaction may
+consume; `-gas-fee` is the whole fee for it, in `ugnot`, the smallest GNOT
+denomination. The fee is charged in full whatever the transaction uses, and it
+is accepted when `gas-fee` divided by `gas-wanted` clears the network's gas
+price. See [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
@@ -241,12 +242,19 @@ On success you'll see:
 ```text
 (1 int)
 OK!
-GAS WANTED: 1000000000
-GAS USED:   234567
-HEIGHT:     42
-EVENTS:     []
-TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+GAS WANTED: 2000000
+GAS USED:   1685051
+HEIGHT:     5
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  3000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/myname/myrealm"}]
+TX HASH:    yBwJPI1anzP44QZMLV6Sae6SZsrLqK8UhZWUOyd5T48=
 ```
+
+`TOTAL TX COST` is the fee plus the [storage deposit](../resources/storage-deposit.md)
+the chain locked for the ten bytes `count` grew by. The deposit comes back if
+that state is deleted; the fee does not.
 
 The leading `(1 int)` is `Increment`'s return value. Reload the realm
 page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
@@ -283,8 +291,10 @@ manually reviewed interest form.
 
 ### 1. Get test tokens
 
-Deploys cost [gas](../resources/gas-fees.md), paid in `ugnot`. Get them
-from the faucet: go to **[faucet.gno.land](https://faucet.gno.land)**,
+Deploys cost [gas](../resources/gas-fees.md) and lock a
+[storage deposit](../resources/storage-deposit.md), both paid in `ugnot`. The
+deposit is the larger of the two for a first realm, and it is refunded when the
+state is deleted. Get tokens from the faucet: go to **[faucet.gno.land](https://faucet.gno.land)**,
 paste your `g1…` address, pick a network, and submit. Tokens arrive in
 seconds. The
 faucet is rate-limited per address; wait out the cooldown if a
@@ -329,7 +339,7 @@ network as a single package. Deploy yours:
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 \
+  -gas-fee 5000ugnot -gas-wanted 5000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
   alice
 ```
@@ -340,13 +350,19 @@ you'll see:
 
 ```text
 OK!
-GAS WANTED: 20000000
-GAS USED:   3456789
+GAS WANTED: 5000000
+GAS USED:   2961787
 HEIGHT:     12345
-EVENTS:     []
+STORAGE DELTA:  3187 bytes
+STORAGE FEE:    318700ugnot
+TOTAL TX COST:  323700ugnot
+EVENTS:     [{"bytes_delta":3187,"fee_delta":{"denom":"ugnot","amount":318700},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
+
+The deposit dwarfs the fee here, and that is the usual shape of a deploy: the
+realm's own code and state are what you pay to keep on chain.
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
@@ -372,7 +388,7 @@ a realistic value. Call it:
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
   alice
 ```
@@ -384,9 +400,12 @@ receipt:
 (1 int)
 OK!
 GAS WANTED: 2000000
-GAS USED:   234567
+GAS USED:   1685051
 HEIGHT:     12346
-EVENTS:     []
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  3000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
 

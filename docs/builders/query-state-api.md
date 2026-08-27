@@ -17,6 +17,7 @@ type system.
 | `vm/qpkg_json` | `<pkgpath>` | Named top-level variables of a package |
 | `vm/qobject_json` | `<objectid>` | Children of a persisted object |
 | `vm/qtype_json` | `<typeid>` | Type definition (struct fields, etc.) |
+| `vm/qobject_binary` | `<objectid>` | The same object as `vm/qobject_json`, in Amino binary |
 
 ### `vm/qeval_json`
 
@@ -78,6 +79,10 @@ gnokey query vm/qobject_json --data '0186fce2acb457084a538e1c8b26f0f2b30e1d44:2'
 The response is an array of `TypedValue` objects — one per field (for structs)
 or element (for arrays/slices). Struct fields are returned by index; use
 `vm/qtype_json` to resolve field names.
+
+`vm/qobject_binary` takes the same ObjectID and returns the same object encoded
+as Amino binary rather than JSON. Reach for it from a client that already
+decodes Amino, and for anything reading the response by eye, use the JSON form.
 
 ### `vm/qtype_json`
 

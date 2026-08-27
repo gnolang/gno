@@ -330,6 +330,28 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 
 ---
 
+### Sub
+
+Mints a sub-realm identity for one of the realm's internal actors, a DAO in a
+registry or an account in a ledger. The returned value is a `realm` like any
+other: cross with it, hand it to a banker, or pass it to a token-style API.
+
+#### Parameters
+- `subpath` **string** - the actor's identifier, appended to the realm's path
+  after `#`, the sub-realm separator. No deployed package path can contain `#`,
+  so a synthesized identity never collides with a real one.
+
+#### Usage
+```go
+sub := cur.Sub("dao/42")
+sub.PkgPath()  // gno.land/r/nt/commondao/v0#dao/42
+sub.Address()  // the address derived from that path
+```
+
+The [interrealm specification](gno-interrealm-v2.md#55-sub-realm-identities--cursubsubpath)
+covers what the identity does to the crossing chain.
+
+---
 
 ## Package `chain`
 
@@ -873,6 +895,47 @@ Returns the `Coins` that were sent along with the calling transaction.
 ##### Usage
 ```go
 coinsSent := banker.OriginSend()
+```
+---
+
+### IsCanonical
+```go
+func IsCanonical(b Banker) bool
+```
+Reports whether a `Banker` is one this package produced. A realm that accepts a
+`Banker` from its caller has no other way to tell a real one from a value that
+implements the interface and moves no coins, so check it before any state change
+depends on the transfer going through.
+
+##### Usage
+```go
+if !banker.IsCanonical(b) {
+    panic("banker is not canonical")
+}
+```
+---
+
+## `chain/params`
+
+Realm-local key-value storage, readable and writable from any realm.
+
+```go
+func SetString(key string, val string)
+func GetString(key string) (string, bool)
+```
+There is a `Set`/`Get` pair per type: `String`, `Bool`, `Int64`, `Uint64`,
+`Bytes`, and `Strings`. `Get` returns `false` when the key holds nothing.
+
+Read a key with the getter matching the setter that wrote it. Stored values
+carry no type tag, so a mismatched getter either panics or returns a value that
+`true` cannot be told apart from a correct read. `gno test` does not reproduce
+that: its param store keeps a Go value per key and type-asserts on read, so a
+mismatch returns `false` in a test and misbehaves on chain.
+
+##### Usage
+```go
+params.SetInt64("threshold", 42)
+v, ok := params.GetInt64("threshold") // 42, true
 ```
 ---
 

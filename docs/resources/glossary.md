@@ -34,7 +34,7 @@ for large or growing sorted indexes. The package is deployed under
 `gno.land/p/nt/avl/v0`; other tree-backed indexes, such as B+ trees, may fit
 different workloads.
 
-See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance
 and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
@@ -209,7 +209,7 @@ Maps provide O(1) lookup time and type safety, but store all entries in a single
 object which can be inefficient for large datasets. For scalable storage in
 realms, consider a tree-backed index or purpose-built helper instead.
 See [Data Structures](./gno-data-structures.md) and
-[Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern).
+[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
 
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient

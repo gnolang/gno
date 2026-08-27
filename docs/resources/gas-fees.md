@@ -30,17 +30,18 @@ with an "out of gas" error, but will still consume the gas up to that point.
 
 ### Gas Fee
 
-`--gas-fee` specifies how much you're willing to pay per unit of gas. This is
-typically expressed in `ugnot` (micro-GNOT). For example, `1000000ugnot` means
-you're willing to pay 1 GNOT per unit of gas.
+`--gas-fee` is the whole fee for the transaction, not a price per unit. It is
+expressed in `ugnot` (micro-GNOT), so `1000000ugnot` is one GNOT for the
+transaction, whatever it ends up using.
 
-The total maximum fee you might pay is calculated as:
+Gas wanted turns that fee into a rate, and the rate is what the network checks:
 
 ```
-Maximum Fee = Gas Wanted × Gas Fee
+Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-You will be charged the gas fee you specified.
+You are charged the whole gas fee you specified, even when the transaction uses
+less gas than it asked for, and even when it fails.
 
 ### Calculating Your Gas Fee
 
@@ -112,15 +113,16 @@ Changes are gradual to avoid sudden price spikes.
 
 Here are some recommended gas values for common operations:
 
-| Operation                 | Recommended Gas Wanted | Typical Gas Fee |
-| ------------------------- | ---------------------- | --------------- |
-| Simple transfer           | 100,000                | 1000000ugnot    |
-| Calling a realm function  | 2,000,000              | 1000000ugnot    |
-| Deploying a small package | 5,000,000              | 1000000ugnot    |
-| Deploying a complex realm | 10,000,000+            | 1000000ugnot    |
+| Operation                 | Recommended Gas Wanted | Gas Fee at 1ugnot/1000gas |
+| ------------------------- | ---------------------- | ------------------------- |
+| Simple transfer           | 100,000                | 100ugnot                  |
+| Calling a realm function  | 2,000,000              | 2000ugnot                 |
+| Deploying a small package | 5,000,000              | 5000ugnot                 |
+| Deploying a complex realm | 10,000,000+            | 10000ugnot                |
 
-These values may vary based on network conditions and the specific
-implementation of your code.
+The fee column is the minimum the network accepts at the initial gas price, one
+`ugnot` per 1000 gas. It rises with the gas price, so query the current one or
+run `-simulate only` rather than copying these numbers into a script.
 
 ## Gas Estimation
 
@@ -129,10 +131,10 @@ without executing on-chain or incrementing the account sequence number:
 
 ```bash
 gnokey maketx addpkg \
-  -pkgdir "./hello" \
-  -pkgpath gno.land/r/hello \
-  -gas-wanted 2000000 \
-  -gas-fee 1000000ugnot \
+  -pkgdir "./hello_world" \
+  -pkgpath gno.land/p/examplenamespace/hello_world \
+  -gas-wanted 4000000 \
+  -gas-fee 4000ugnot \
   -remote https://rpc.gno.land:443 \
   -chainid gnoland1 \
   -simulate only \
@@ -141,13 +143,18 @@ gnokey maketx addpkg \
 
 Output:
 ```
-GAS WANTED: 2000000
-GAS USED:   268994
-INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1ugnot/1000gas
+GAS WANTED: 4000000
+GAS USED:   2590066
+STORAGE DELTA:  1748 bytes
+STORAGE FEE:    174800ugnot
+TOTAL TX COST:  178800ugnot
+INFO:       estimated gas usage: 2590066 (suggested, with 5% margin: 2719570), gas fee: 2720ugnot, current gas price: 1ugnot/1000gas
 ```
 
-Use the `estimated gas usage` and `gas fee` values as your `-gas-wanted` and `-gas-fee`
-for the actual transaction.
+Take `-gas-wanted` from the suggested figure rather than the raw estimate: gas
+usage moves between the simulation and the broadcast, and the 5% margin is what
+covers it. `gas fee` is the fee for that suggested limit, so the two go
+together.
 
 ## Gas Optimization Tips
 

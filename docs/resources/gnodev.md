@@ -143,7 +143,7 @@ Once `gnodev` is running, you can drive your realm from another terminal using
 gnokey maketx call \
   -pkgpath "gno.land/r/dev/counter" \
   -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -broadcast \
   -chainid dev -remote 127.0.0.1:26657 \
   devtest
@@ -154,12 +154,15 @@ Response (`Increment` takes no argument and returns the new count):
 ```text
 (1 int)
 OK!
-GAS WANTED: 20000000
-GAS USED:   126933
-HEIGHT:     203
-EVENTS:     []
+GAS WANTED: 2000000
+GAS USED:   1677931
+HEIGHT:     3
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  3000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/dev/counter"}]
 INFO:
-TX HASH:    k+WuKgPpoAg+EcR2EnzqxeWqUXB4KhOhg3l6zthSy0I=
+TX HASH:    MpJoHvAHfFhKRfLANopZl4N5w59Vi7+IzT86IeT+uCY=
 ```
 
 Refresh `http://localhost:8888` to see the updated `Render()` output. The
