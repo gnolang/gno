@@ -110,10 +110,14 @@ type Coins []Coin
 // resulting [Coins] will be sorted and one per coin, with the caveats mentioned
 // in [Coins.Add]'s godoc.
 //
-// If passing in a slice instead of variadic parameters (ie. `NewCoins(myVar...)`),
-// the slice will be modified in-place.
+// The argument is never modified, including when it is a slice passed with
+// `NewCoins(myVar...)`. Joining two coins of one denom shifts the rest of the
+// set down a place, so working in the caller's array would leave the caller
+// holding a repeat of its own last coin — value it never had. [Coins.Add]
+// copies for the same reason.
 func NewCoins(coins ...Coin) Coins {
-	cz := Coins(coins)
+	cz := make(Coins, len(coins))
+	copy(cz, coins)
 	return cz.sortAndJoin()
 }
 
