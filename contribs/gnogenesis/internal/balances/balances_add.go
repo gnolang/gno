@@ -245,6 +245,11 @@ func getBalancesFromTransactions(
 				// causes an accounts balance to go < 0. In these cases,
 				// we initialize the account (it is present in the balance sheet), but
 				// with the balance of 0
+				//
+				// The recipient is still credited when that happens, so the error
+				// runs upward: one send from an address this sheet never saw funded
+				// leaves the sender at 0 and the recipient holding the whole amount.
+				// The derived total can therefore exceed what the chain held.
 
 				from := balances[msgSend.FromAddress].Amount
 				to := balances[msgSend.ToAddress].Amount
