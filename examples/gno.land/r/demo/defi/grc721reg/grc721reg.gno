@@ -1,4 +1,4 @@
-// Package grc721reg discovers GRC721 collections by fqname (rlmPath.slug).
+// Package grc721reg discovers GRC721 collections by fqname (rlmPath.symbol).
 // Open to any extension via read-only ExtensionView; no concrete extension imports.
 //
 // Unlike grc20reg, which stores a concrete *grc20.Token, this registry stores the
@@ -21,10 +21,10 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // fqname(rlmPath, slug); empty slug allowed
+var registry = avl.NewTree() // fqname(rlmPath, symbol); one collection per realm+symbol
 
-// Register keys the collection under rlmPath.slug. Token must originate from the
-// registering realm (Token.ID prefix check).
+// Register keys the collection under rlmPath.symbol. Token must originate from
+// the registering realm (Token.ID prefix check).
 //
 // The caller's live *collection.Collection is stored rather than a copy, so an
 // extension attached after registration still reaches consumers.
@@ -48,11 +48,14 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	}
 
 	rlmPath := cur.Previous().PkgPath()
-	if !strings.HasPrefix(token.ID(), rlmPath+".") {
+	// Token.ID() == key + "." + <id>. Keying on the token's own symbol instead
+	// of the caller-chosen slug verifies realm and symbol in one check, and
+	// holds a collection to a single entry whose suffix is the real symbol.
+	key := fqname.Construct(rlmPath, token.GetSymbol())
+	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc721reg: collection must be registered from its own realm")
 	}
 
-	key := fqname.Construct(rlmPath, slug)
 	if registry.Has(key) {
 		panic("grc721reg: collection already registered")
 	}

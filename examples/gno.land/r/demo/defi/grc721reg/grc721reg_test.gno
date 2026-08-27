@@ -236,16 +236,16 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name:   "duplicate key (same realm and slug) aborts",
+			name:   "duplicate key (same realm and symbol) aborts",
 			substr: "collection already registered",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dupe"))
 				token, _ := grc721.NewToken("Bar", "BAR", 0, cur)
 				Register(cross(cur), collection.NewCollection(token), "dup")
 
-				replacement, _ := grc721.NewToken("Replacement", "BAR2", 1, cur)
+				replacement, _ := grc721.NewToken("Replacement", "BAR", 1, cur)
 				urequire.AbortsContains(t, cur, "collection already registered", func() {
-					Register(cross(cur), collection.NewCollection(replacement), "dup")
+					Register(cross(cur), collection.NewCollection(replacement), "other")
 				})
 			},
 		},
