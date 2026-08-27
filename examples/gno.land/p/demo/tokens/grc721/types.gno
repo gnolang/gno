@@ -77,7 +77,9 @@ type PrivateLedger struct {
 }
 
 // registeredExtension pairs an extension's hooks with the read-view it publishes.
+// kind is captured at registration so an entry cannot later re-key itself.
 type registeredExtension struct {
+	kind string
 	hook Extension
 	view ExtensionView
 }

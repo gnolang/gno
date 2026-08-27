@@ -163,7 +163,7 @@ func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 		panic("grc721: extension kind already registered: " + kind)
 	}
 
-	led.extensions = append(led.extensions, registeredExtension{hook: ext, view: view})
+	led.extensions = append(led.extensions, registeredExtension{kind: kind, hook: ext, view: view})
 }
 
 func (led *PrivateLedger) HasExtension(kind string) bool {
@@ -176,7 +176,7 @@ func (led *PrivateLedger) HasExtension(kind string) bool {
 func (led *PrivateLedger) ExtensionKinds() []string {
 	kinds := make([]string, 0, len(led.extensions))
 	for _, e := range led.extensions {
-		kinds = append(kinds, e.hook.ExtensionKind())
+		kinds = append(kinds, e.kind)
 	}
 
 	return kinds
@@ -194,7 +194,7 @@ func (led *PrivateLedger) ExtensionView(kind string) (ExtensionView, bool) {
 
 func (led *PrivateLedger) lookupExtension(kind string) (registeredExtension, bool) {
 	for _, e := range led.extensions {
-		if e.hook.ExtensionKind() == kind {
+		if e.kind == kind {
 			return e, true
 		}
 	}

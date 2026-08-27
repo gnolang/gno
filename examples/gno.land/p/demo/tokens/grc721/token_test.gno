@@ -724,6 +724,34 @@ func (m *mockView) ExtensionKind() string { return "mock" }
 
 func (m *mockView) TokenID() string { return m.core.ID() }
 
+// shiftyExtension reads its kind through a pointer, so it can try to re-key
+// itself after registration.
+type shiftyExtension struct{ kind *string }
+
+func (s shiftyExtension) ExtensionKind() string { return *s.kind }
+
+func (s shiftyExtension) OnMint(to address, tid TokenID) {}
+
+func (s shiftyExtension) OnTransfer(from, to address, tid TokenID) {}
+
+func (s shiftyExtension) OnBurn(tid TokenID) {}
+
+func TestRegisterExtensionFreezesTheKind(cur realm, t *testing.T) {
+	_, led := newTestToken("Foo", "FOO", 0, cur)
+	kind := "aux"
+	led.RegisterExtension(shiftyExtension{kind: &kind}, nil)
+
+	kind = "mock"
+
+	uassert.Equal(t, "aux", led.ExtensionKinds()[0])
+	uassert.True(t, led.HasExtension("aux"))
+	uassert.False(t, led.HasExtension("mock"))
+
+	// the kind it moved to is still free for the extension that owns it
+	led.RegisterExtension(&mockExtension{}, nil)
+	uassert.Equal(t, 2, len(led.ExtensionKinds()))
+}
+
 func TestExtensionHookFanOut(cur realm, t *testing.T) {
 	tests := []struct {
 		name   string
