@@ -158,9 +158,23 @@ func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 		panic("grc721: nil extension")
 	}
 
+	if led.token == nil {
+		panic("grc721: ledger has no token")
+	}
+
 	kind := ext.ExtensionKind()
 	if led.HasExtension(kind) {
 		panic("grc721: extension kind already registered: " + kind)
+	}
+
+	if view != nil {
+		if vk := view.ExtensionKind(); vk != kind {
+			panic("grc721: view kind does not match the extension: " + vk)
+		}
+
+		if tid := view.TokenID(); tid != led.token.id {
+			panic("grc721: view belongs to another token: " + tid)
+		}
 	}
 
 	led.extensions = append(led.extensions, registeredExtension{kind: kind, hook: ext, view: view})

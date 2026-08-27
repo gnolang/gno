@@ -752,6 +752,25 @@ func TestRegisterExtensionFreezesTheKind(cur realm, t *testing.T) {
 	uassert.Equal(t, 2, len(led.ExtensionKinds()))
 }
 
+func TestRegisterExtensionRejectsAForeignView(cur realm, t *testing.T) {
+	tokA, ledA := newTestToken("A", "AAA", 0, cur)
+	_, ledB := newTestToken("B", "BBB", 1, cur)
+
+	uassert.PanicsWithMessage(t, cur, "grc721: view kind does not match the extension: mock", func() {
+		ledA.RegisterExtension(journalExtension{seen: []TokenID{"1"}}, &mockView{core: tokA})
+	})
+
+	uassert.PanicsWithMessage(t, cur, "grc721: view belongs to another token: "+ledB.ReadToken().ID(), func() {
+		ledA.RegisterExtension(&mockExtension{}, &mockView{core: ledB.ReadToken()})
+	})
+}
+
+func TestRegisterExtensionRejectsATokenlessLedger(cur realm, t *testing.T) {
+	uassert.PanicsWithMessage(t, cur, "grc721: ledger has no token", func() {
+		(&PrivateLedger{}).RegisterExtension(&mockExtension{}, nil)
+	})
+}
+
 func TestExtensionHookFanOut(cur realm, t *testing.T) {
 	tests := []struct {
 		name   string
