@@ -144,7 +144,7 @@ gno test -run TestAdd . # Run specific test
 ---
 
 ### See also:
-- [gno test documentation](https://docs.gno.land/reference/gno-cli/gno-test)
+- [gno test documentation](https://docs.gno.land/resources/gno-testing)
 - [Crossing](/r/docs/crossing) - How to test realm boundaries
 - [Common Mistakes](/r/docs/mistakes) - Pitfalls to avoid
 `

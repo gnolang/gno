@@ -25,8 +25,8 @@ contract OnlyOwnerCanChange {
         _;
     }
 
-    function changeOwner(address memory newOwner) public onlyOwner {
-        owner = newOwner
+    function changeOwner(address newOwner) public onlyOwner {
+        owner = newOwner;
     }
 }
 ^^^
@@ -64,7 +64,7 @@ func ChangeOwner(cur realm, newOwner address) {
 }
 ^^^
 
-* We declare a persistent global variable ^owner^ of type ^address^ (an alias for ^string^ in Gno). Realm globals are the persistence layer, so this value survives across transactions.
+* We declare a persistent global variable ^owner^ of type ^address^ (a distinct type in Gno whose underlying type is ^string^). Realm globals are the persistence layer, so this value survives across transactions.
 * Both ^InitOwner^ and ^ChangeOwner^ are **crossing functions**: their first parameter is ^cur realm^, a capability token for the live call into this realm. (You could instead claim ownership at deploy time inside ^init()^ via ^unsafe.OriginCaller()^, which is the closer analogue to a Solidity ^constructor^; here we use an explicit claim-once function so the flow is easy to exercise.)
 * ^InitOwner^ lets the first caller claim ownership. It panics if ^owner^ is already set, so it works only once.
 * ^ChangeOwner^ transfers ownership. Both functions authenticate the caller the same way, before touching state:

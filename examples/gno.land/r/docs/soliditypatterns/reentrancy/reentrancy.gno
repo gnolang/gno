@@ -35,10 +35,11 @@ contract Attacker {
 
 ## Why Gno is Safe
 
-Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity's
-` + "`receive()`" + ` and ` + "`fallback()`" + ` hooks, Gno realm code only runs through explicit
-` + "`cross`" + ` function calls, so the automatic-callback vector behind the DAO hack does not
-exist here.
+Coin transfers in Gno do **not** execute code on the recipient. The banker's send
+reaches the bank keeper directly and runs no VM code, so there is no Solidity-style
+` + "`receive()`" + ` or ` + "`fallback()`" + ` hook to hang re-entry on. Realm code runs only when
+something explicitly calls it, so the automatic-callback vector behind the DAO hack
+does not exist here.
 
 This does **not** make reentrancy impossible. If your realm calls out through an
 interface, callback, or any address the caller controls, that code can re-enter your

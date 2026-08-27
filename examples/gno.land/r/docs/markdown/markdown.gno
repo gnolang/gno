@@ -442,7 +442,9 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
      - ±value±: The value to submit when selected (required for radio/checkbox)
      - ±checked±: Set to "true" to pre-select the option (optional)
    - Note: Input validation is handled by the browser's HTML5 validation
-   - Any other type will default to "text"
+   - An unrecognized type is rejected: the field is dropped and replaced by an HTML error
+     comment, and in ±exec± forms its argument is omitted from the generated command.
+     Only an omitted or empty type falls back to "text"
    - Each input must have a unique name
    - Inputs are rendered with labels and proper styling
 
@@ -746,7 +748,9 @@ All field types update the command preview in real-time as you interact with the
 1. **Validation Rules**:
    - Every ±<gno-input>± must have a ±name± attribute
    - Every ±<gno-textarea>± must have a ±name± attribute
-   - Every ±<gno-select>± must have a ±name± and ±value± attribute
+   - Every ±<gno-select>± must have a ±name± attribute. Each ±<gno-select>± is one option
+     in the group, so it also needs a ±value±, but that is not validated: without one it
+     renders as an extra blank option rather than an error
    - Duplicate attribute names are not allowed (except for radio, checkbox, and select groups)
    - Forms must be properly closed
    - Nested forms will not render
@@ -755,7 +759,7 @@ All field types update the command preview in real-time as you interact with the
    - The ±selected± attribute is only valid for ±<gno-select>± elements
    - The ±readonly="true"± attribute makes fields non-editable (works on all field types)
    - The ±required="true"± attribute marks fields as required (works on input, textarea, and select)
-   - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
+   - Textarea ±rows± is clamped to the 2 to 10 range, and defaults to 4 when omitted or unparseable
 
 2. **Security Features**:
    - Forms are processed on the realm where they are defined

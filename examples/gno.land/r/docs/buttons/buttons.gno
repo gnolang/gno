@@ -70,7 +70,7 @@ transaction. There are two primitives for the transaction case:
   arguments baked in. No form, just a hyperlink, for fixed-argument
   one-click actions.
 
-The foundation for both is a markdown link; for example, you can click...
+Click...
 ` + "\n## [here](/r/docs/buttons:motd)\n" + `...to view this realm's message of the day, where both primitives are demonstrated.`
 
 	return out

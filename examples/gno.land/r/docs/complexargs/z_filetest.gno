@@ -16,7 +16,7 @@ func main(cur realm) {
 // Output:
 // # Complex argument functions
 //
-// Exposed realm functions and methods that take in complex arguments, such as slices, structs, pointers, etc, cannot be called via a standard `MsgCall` transaction. To call these functions, users need to use `MsgRun`.
+// Exposed realm functions and methods that take in complex arguments, such as non-byte slices, structs and pointers, cannot be called via a standard `MsgCall` transaction. To call these functions, users need to use `MsgRun`. Byte slices and byte arrays are the exception: `[]byte` and `[N]byte` parameters are accepted by `MsgCall`, passed base64-encoded.
 //
 // Check out the source code to see example functions and objects.
 //

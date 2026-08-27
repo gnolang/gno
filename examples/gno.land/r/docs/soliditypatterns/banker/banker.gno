@@ -133,7 +133,7 @@ function deposit() public payable {
 ` + "```go" + `
 import "chain/runtime/unsafe"
 
-var deposits map[address]int64
+var deposits = map[address]int64{}
 
 func Deposit(cur realm) {
     // Require a direct user call so coins are credited to the real sender.
@@ -175,7 +175,7 @@ import (
     "chain/runtime/unsafe"
 )
 
-var deposits map[address]int64
+var deposits = map[address]int64{}
 
 func Withdraw(cur realm, amount int64) {
     // Require a direct user call so only the balance owner can withdraw.
@@ -207,8 +207,9 @@ func Withdraw(cur realm, amount int64) {
 | Type | Purpose |
 |------|---------|
 | ` + "`BankerTypeReadonly`" + ` | Read balances only |
+| ` + "`BankerTypeOriginSend`" + ` | Send at most the coins this message's send-envelope credited to the realm, and only while that realm is the recipient; cannot be persisted past the message |
 | ` + "`BankerTypeRealmSend`" + ` | Send coins from realm |
-| ` + "`BankerTypeRealmIssue`" + ` | Issue new realm-specific tokens |
+| ` + "`BankerTypeRealmIssue`" + ` | Issue and remove realm coins |
 
 ## Key Differences from Solidity
 

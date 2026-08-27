@@ -30,7 +30,7 @@ func NewCustomType(name string, numbers []int) CustomType {
 // SetSlice takes a complex argument that must be called using MsgRun or from
 // another contract that imports this one. It is intentionally unguarded so the
 // demo stays focused on argument passing; a production crossing function that
-// derives caller identity should use cur.Previous(), see gno.land/r/docs/private.
+// derives caller identity should use cur.Previous(), see gno.land/r/docs/crossing.
 func SetSlice(_ realm, newSlice []int) {
 	slice = newSlice
 }
@@ -44,8 +44,10 @@ func SetMyObject(_ realm, newCoolObject CustomType) {
 
 func Render(_ string) string {
 	out := "# Complex argument functions\n\n"
-	out += "Exposed realm functions and methods that take in complex arguments, such as slices, structs, pointers, etc, " +
-		"cannot be called via a standard `MsgCall` transaction. To call these functions, users need to use `MsgRun`.\n\n"
+	out += "Exposed realm functions and methods that take in complex arguments, such as non-byte slices, structs and " +
+		"pointers, cannot be called via a standard `MsgCall` transaction. To call these functions, users need to use " +
+		"`MsgRun`. Byte slices and byte arrays are the exception: `[]byte` and `[N]byte` parameters are accepted by " +
+		"`MsgCall`, passed base64-encoded.\n\n"
 	out += "Check out the source code to see example functions and objects.\n\n"
 	out += "Note that a realm's own struct type cannot be constructed outside that realm, so the realm exposes a constructor (`NewCustomType`) that `MsgRun` callers use to build the value before passing it back.\n\n"
 	out += "In this case, the following `MsgRun` code would be used to call the function:\n"

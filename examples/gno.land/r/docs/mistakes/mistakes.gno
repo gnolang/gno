@@ -32,7 +32,7 @@ Returning an error doesn't revert state changes:
 
 ` + "```go" + `
 // WRONG
-var balances map[address]int64
+var balances = map[address]int64{}
 
 func Transfer(cur realm, to address, amount int64) error {
     from := cur.Previous().Address()
@@ -49,7 +49,7 @@ Check conditions first, or use panic to revert:
 
 ` + "```go" + `
 // CORRECT
-var balances map[address]int64
+var balances = map[address]int64{}
 
 func Transfer(cur realm, to address, amount int64) {
     from := cur.Previous().Address()
@@ -69,7 +69,7 @@ Using [` + "`OriginCaller`" + `](/r/docs/crossing) for authorization enables mid
 
 ` + "```go" + `
 // VULNERABLE: Malicious realm can call this on behalf of any user
-var balances map[address]int64
+var balances = map[address]int64{}
 
 func Withdraw(_ realm, amount int64) {
     caller := unsafe.OriginCaller()  // Always returns the EOA who signed tx
@@ -78,12 +78,14 @@ func Withdraw(_ realm, amount int64) {
 ` + "```" + `
 
 Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks.
-The ` + "`cur`" + ` handle of a crossing function is guaranteed current by the runtime,
-so it always identifies the immediate caller:
+The runtime restricts what may be passed as ` + "`cur`" + `: only ` + "`cur`" + ` itself or
+` + "`cross(rlm)`" + `, and a foreign realm cannot cur-call in. In a crossing method,
+check ` + "`cur.IsCurrent()`" + ` first, because a method's frame does not adopt the
+token it is handed:
 
 ` + "```go" + `
 // SAFE
-var balances map[address]int64
+var balances = map[address]int64{}
 
 func Withdraw(cur realm, amount int64) {
     caller := cur.Previous().Address()  // Returns immediate caller

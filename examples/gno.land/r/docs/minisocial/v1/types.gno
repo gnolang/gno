@@ -17,8 +17,8 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	// text is fully user-controlled, so escape it before it enters the feed's
-	// markdown to prevent link/blockquote/code-fence injection.
+	// text is fully user-controlled and echoed into the gnoweb markdown page;
+	// sanitize it so it cannot inject markdown/HTML block constructs.
 	out := sanitize.Block(p.text)
 	out += "\n\n"
 	out += ufmt.Sprintf("_by %s_, ", p.author)

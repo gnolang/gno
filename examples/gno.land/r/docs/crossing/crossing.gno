@@ -125,10 +125,15 @@ When User → Realm A → Realm B → Realm C:
 
 ## Crossing in Packages (/p/)
 
-Unlike realms, packages (under ` + "`/p/`" + `) don't have their own persistent state.
-When a realm imports a package, any variables declared by that package are
-stored within the realm's state. This means each realm gets its
-own isolated instance of the package's data.
+A package under ` + "`/p/`" + ` does have package-level state, but it is frozen
+rather than absent. Its variables are initialized once, when the package is
+deployed, and persist as objects owned by the package itself. There is exactly
+one instance, shared by every realm that imports it. No importer gets a private
+copy, and none gets a mutable one. After init the package's values are frozen:
+writing one through a method on a package type panics with
+` + "`cannot mutate <pkgpath>: package is immutable post-init`" + `.
+
+Any state a realm needs to change must be declared in the realm itself.
 
 ## Crossing in [Tests](https://docs.gno.land/resources/gno-stdlibs/#testing)
 
@@ -139,12 +144,14 @@ import (
     "gno.land/p/nt/testutils/v0"
 )
 
-func TestWithCaller(t *testing.T) {
-    // Simulate PreviousRealm() being another realm
+func TestWithCaller(cur realm, t *testing.T) {
+    // SetOriginCaller also resets the current realm to that user, so it has to
+    // run before SetRealm or it undoes it.
+    testing.SetOriginCaller(testutils.TestAddress("user1"))
     testing.SetRealm(testing.NewCodeRealm("gno.land/r/caller"))
 
-    // Simulate OriginCaller() being an end user
-    testing.SetOriginCaller(testutils.TestAddress("user1"))
+    // Inside PublicFunction, cur.Previous() is now gno.land/r/caller.
+    PublicFunction(cross(cur))
 }
 ` + "```" + `
 
