@@ -289,19 +289,30 @@ func getBalancesFromTransactions(
 	return balances, nil
 }
 
-// carryOverVesting keeps a genesis vesting schedule on an address whose amount an
-// input entry has replaced.
+// carryOverVesting stops a change of amount from unlocking someone's coins.
 //
-// Overriding an amount is the point of this command, but a schedule is not part
-// of the amount. Dropping it releases the funds, and silently, because what is
-// left looks like any other balance. A tx export is the easy way to hit this: it
-// names every address that ever sent or received, so a vesting investor who made
-// one transaction would come out unlocked.
+// An input entry replaces the whole genesis entry for its address, and an input
+// entry is an address and an amount -- nothing else. So overriding the amount of
+// an address that was vesting dropped its schedule:
 //
-// An input entry carrying its own schedule keeps it -- there the operator said
-// what they meant. If the carried schedule vests more than the new amount the
-// result is invalid, and `gnogenesis verify` and the chain both reject it. That
-// is the intended failure: a loud one beats a silent unlock.
+//	genesis:  g1abc=1000ugnot;vesting=1000ugnot,100,200
+//	input:    g1abc=500ugnot
+//	result:   g1abc=500ugnot              <- unlocked, and nothing says so
+//
+// This copies the schedule back onto any address that had one and came out of the
+// merge without one. Changing what someone holds is the point of the command;
+// releasing it is not.
+//
+// Two cases it leaves alone. An input entry carrying its own schedule keeps it,
+// because there the operator said what they meant. And if the carried schedule
+// vests more than the new amount, the genesis is invalid and both `gnogenesis
+// verify` and the chain reject it -- the intended outcome, since a loud failure
+// beats a silent unlock.
+//
+// Worth the guard because the realistic way in is `--parse-export`, which rebuilds
+// balances from a transaction export. That names every address that ever sent or
+// received, so a vesting investor who made one transaction would come out fully
+// unlocked.
 func carryOverVesting(final, genesis gnoland.Balances) {
 	for addr, genBal := range genesis {
 		if !genBal.IsVesting() {
