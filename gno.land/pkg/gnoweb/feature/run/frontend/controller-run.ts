@@ -68,7 +68,7 @@ import "${this.pkgPath}"
 
 func main() {
 \t// Call ${this.pkgAlias} functions here, e.g.:
-\t// ${this.pkgAlias}.Render("")
+\tprintln(${this.pkgAlias}.Render(""))
 }
 `;
 	}
