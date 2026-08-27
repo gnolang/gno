@@ -73,7 +73,13 @@ type PrivateLedger struct {
 	balances          avl.Tree // owner address -> int64
 	tokenApprovals    avl.Tree // TokenID -> approved address
 	operatorApprovals avl.Tree // "owner:operator" -> bool
-	extensions        []Extension
+	extensions        []registeredExtension
+}
+
+// registeredExtension pairs an extension's hooks with the read-view it publishes.
+type registeredExtension struct {
+	hook Extension
+	view ExtensionView
 }
 
 var (
