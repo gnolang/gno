@@ -24,10 +24,17 @@
 #   5. The INITIAL_VALSET as GenesisDoc.Validators (InitChainer seeds
 #      valset:current from it, so v3/EndBlocker valset changes work).
 #   6. Balances: the faucet accounts at FAUCET_BALANCE each, the
+#      PKG_APPROVERS entries at APPROVER_BALANCE each, the
 #      VESTED_ACCOUNTS entries (created as vesting accounts at genesis),
 #      plus exact-burn funding for every genesis-tx fee payer (measured on
 #      a temp node; those accounts land at zero once the genesis txs
 #      execute).
+#   7. Code-submission vm params: CODE_SUBMISSION_POLICY (pearl launches
+#      under "inert" — post-genesis submissions park until an approver
+#      enables them), PKG_APPROVERS, an armed RUN_SUBMITTERS MsgRun
+#      allowlist, and the inert submission charge. Genesis content itself
+#      is exempt from parking and from the charge (both live behind a
+#      BlockHeight() > 0 guard in the keeper).
 #
 # Output:
 #   work/packages.gen.txt    resolved package list (audit artifact)
@@ -126,10 +133,11 @@ INITIAL_VALSET_OPERATORS=(
 # unrestrict step is needed anywhere.
 #
 # 1e18 leaves ~9.2x headroom under int64 max per account. Keep the total
-# genesis supply — (count × FAUCET_BALANCE) plus every VESTED_ACCOUNTS
-# total — under int64 max (~9.22e18): Coin.Add panics on int64 overflow,
-# so consolidating all genesis funds into one account must not be able to
-# exceed it.
+# genesis supply — (count × FAUCET_BALANCE) plus (count × APPROVER_BALANCE)
+# plus every VESTED_ACCOUNTS total — under int64 max (~9.22e18): Coin.Add
+# panics on int64 overflow, so consolidating all genesis funds into one
+# account must not be able to exceed it. Three faucets and one approver at
+# 1e18 is 4e18.
 FAUCET_BALANCE=1000000000000000000 # 1e18 ugnot per faucet (1 trillion GNOT)
 # Confirmed by PEARL-PR-HANDOFF.md: reuse sapphire's accounts and
 # amounts. The faucet account doubles as the infra's snapshot-validation
@@ -168,6 +176,102 @@ VESTED_ACCOUNTS=(
   "g10w8l2hg7690upa4dcy6suq8yvkju7q4za0sfey=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME + 86400)),$((GENESIS_TIME + 345600))"  # testing-acct-9: continuous, starts 1 day after genesis, ends at 4 days
   "g17s8dlta3fjgztppcr5z7tlmkeg4ecwsfeeatag=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME - 604800)),$((GENESIS_TIME + 604800))" # testing-acct-10: continuous, started 7 days before genesis, half unlocked at launch, ends at 7 days
 )
+
+# Code-submission policy (vm params — see gno.land/pkg/sdk/vm/params.go).
+#
+# pearl launches under "inert": a MsgAddPackage from a stranger is PARKED —
+# stored without typecheck, without init(), not importable — and becomes
+# callable only when an address in PKG_APPROVERS sends MsgEnablePackage.
+# contribs/gpao is the daemon that does that unattended.
+#
+# Genesis content is exempt by construction, and the whole launch rests on it:
+# the keeper's parking branch requires ctx.BlockHeight() > 0, and baseapp's
+# InitChain builds its header without a Height, so genesis runs at 0 and every
+# FILTERED_PACKAGES entry deploys live. Pinned by
+# TestInertPolicyAtGenesisDeploysLive (gno.land/pkg/gnoland) — including that
+# the submission charge is not levied on genesis content. The "never set this
+# policy in a fork's genesis params" caveat in keeper.go is about REPLAYED
+# history running under a policy that was never in force for it; pearl is a
+# fresh chain with no history, so it does not apply.
+CODE_SUBMISSION_POLICY=inert
+
+# Addresses permitted to send MsgEnablePackage / MsgDisablePackage.
+#
+# Load-bearing under "inert": with no approver, every submission parks forever
+# and the chain accepts deploys it can never activate. The preflight below
+# refuses to build in that state rather than shipping it.
+#
+# Keep this to the gpao oracle key and nothing else. An approver can activate
+# any parked package and disable any active one, so it is the second most
+# consequential key on the chain after governance — and it lives unattended on
+# an internet-facing daemon (gpao reads GPAO_PASSWORD to unlock it).
+PKG_APPROVERS=(
+  # PASTE THE ORACLE ADDRESS BEFORE THE LOCKING BUILD, e.g.
+  # g1... # gpao approval oracle
+)
+
+# Genesis balance for each PKG_APPROVERS entry. The approver signs one
+# MsgEnablePackage per approval and pays the gas itself (gpao defaults:
+# --gas-fee 1000000ugnot, --max-spend 100000000ugnot per run), so it must be
+# funded at genesis or the policy stalls on the first submission.
+#
+# Same 1e18 as the faucets, which keeps the supply comment above honest: four
+# accounts at 1e18 is 4e18, still well under int64 max (~9.22e18) even if every
+# genesis balance were consolidated into one account.
+APPROVER_BALANCE=1000000000000000000 # 1e18 ugnot (1 trillion GNOT)
+
+# MsgRun allowlist. NON-EMPTY MEANS THE GATE IS ARMED: only these addresses may
+# send MsgRun at all. (Empty would mean the gate is OFF — the pre-#6088
+# behaviour, where anyone may send it.)
+#
+# Armed deliberately. "inert" defers MsgAddPackage's typecheck but leaves MsgRun
+# typechecking and EXECUTING arbitrary source immediately under every policy
+# value, so an unarmed gate would leave the review gate bypassable by anyone
+# willing to run their code in an ephemeral gno.land/e/<caller>/run realm
+# instead of deploying it. Arming it is what makes "inert" mean something.
+#
+# The cost, stated plainly: ordinary testnet users cannot `gnokey maketx run` on
+# pearl. That is the trade accepted for a real review gate.
+#
+# GovDAO proposal creation is MsgRun-only (a ProposalRequest carries a func
+# value, which MsgCall cannot marshal), so the GovDAO T1 seed MUST be on this
+# list or governance is unreachable at launch with no in-band repair — amending
+# this list is itself a proposal. The preflight below cross-checks that against
+# the bootstrap tx rather than trusting this comment.
+#
+# Nine of the twelve misc/govdao-scripts/ commands are `gnokey maketx run`, and
+# pearl's govdao-exec.sh signs them as aeddi.
+#
+# Every future GovDAO member needs adding here too, or they can join the DAO and
+# still not be able to propose. Post-genesis this key is NOT settable through
+# r/sys/params' generic factories — it is reserved for ProposeSetRunSubmitters
+# (which can also delegate add-only management to another realm).
+RUN_SUBMITTERS=(
+  g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m # aeddi — sole GovDAO T1 member at launch
+  g1z437dpuh5s4p64vtq09dulg6jzxpr2hd4q8r5x # relayer
+)
+
+# Flat amount taken from the creator on every MsgAddPackage that PARKS, paid to
+# INERT_CHARGE_COLLECTOR. Empty would mean off.
+#
+# On at launch, because the party who chooses the work should pay for it: under
+# "inert" the submitter picks the package and the ORACLE pays to compile it, on
+# the enable tx's own gas meter. Unpriced, that is a cheap way to drain the
+# oracle's --max-spend and stop approvals for everyone. 1 GNOT matches gpao's
+# default --gas-fee, so roughly one submission funds one approval.
+#
+# Not charged on genesis content (the charge sits inside the parking branch),
+# so it cannot perturb the fee-payer measurement in step 8. Capped on chain at
+# 1000 GNOT (maxInertSubmissionCharge).
+INERT_SUBMISSION_CHARGE=1000000ugnot
+
+# Where the charge goes. Empty defaults to the first PKG_APPROVERS entry, so
+# submissions fund the approvals they cause — the arrangement the param was
+# written for.
+#
+# Never leave this at the chain default: that is a derived address with no
+# private key, so the charge would be burned rather than collected.
+INERT_CHARGE_COLLECTOR=
 
 # =============================================================================
 # Internal — everything below is glue, you shouldn't need to change it.
@@ -512,6 +616,139 @@ trap cleanup EXIT
 # don't speak AnnotatedTx (e.g. `gnogenesis txs add sheets`).
 # =============================================================================
 
+# ---- Code-submission (vm) params
+
+# join_commas <item>...
+# Joins its arguments with commas, the form `gnogenesis params set` takes for an
+# address-list param.
+join_commas() {
+  local IFS=,
+  echo "$*"
+}
+
+# validate_code_submission_params
+# Refuses, before anything is built, the parameter combinations that would ship
+# a broken chain. Every one of these is unrecoverable once the chain is live, so
+# they are hard failures rather than warnings.
+validate_code_submission_params() {
+  case "$CODE_SUBMISSION_POLICY" in
+  permissionless | permissioned | inert) ;;
+  *) die "CODE_SUBMISSION_POLICY must be permissionless, permissioned or inert (got '$CODE_SUBMISSION_POLICY')" ;;
+  esac
+
+  # An inert chain with no approver accepts submissions it can never activate,
+  # and only a proposal can add one — which needs a governance that has to be
+  # deployed and reachable first.
+  if [ "$CODE_SUBMISSION_POLICY" = inert ] && [ "${#PKG_APPROVERS[@]}" -eq 0 ]; then
+    die "CODE_SUBMISSION_POLICY=inert with an empty PKG_APPROVERS: every post-genesis submission would park with nobody able to enable it. Paste the gpao oracle address into PKG_APPROVERS."
+  fi
+
+  # Approvers outside "inert" are inert themselves (nothing ever parks), which
+  # is more likely a half-finished edit than an intent.
+  if [ "$CODE_SUBMISSION_POLICY" != inert ] && [ "${#PKG_APPROVERS[@]}" -gt 0 ]; then
+    die "PKG_APPROVERS is set but CODE_SUBMISSION_POLICY is '$CODE_SUBMISSION_POLICY': nothing would ever park, so the approvers would have nothing to enable"
+  fi
+
+  # A typo guard with a message that names the launch parameter. Real bech32
+  # validation happens in `gnogenesis params set`, which decodes every entry.
+  local addr
+  for addr in "${PKG_APPROVERS[@]}" "${RUN_SUBMITTERS[@]}"; do
+    case "$addr" in
+    g1*[!a-z0-9]*) die "address contains invalid characters: '$addr'" ;;
+    g1*) [ "${#addr}" -eq 40 ] || die "address is ${#addr} chars, expected 40: '$addr'" ;;
+    *) die "address does not start with 'g1': '$addr'" ;;
+    esac
+  done
+
+  # Governance is MsgRun-only, so arming the gate without the GovDAO T1 seed
+  # leaves a chain whose only governance member cannot propose anything —
+  # including the proposal that would fix the list. Read the seed out of the
+  # bootstrap tx instead of duplicating it here, so the two cannot drift.
+  if [ "${#RUN_SUBMITTERS[@]}" -gt 0 ]; then
+    local t1
+    t1=$(sed -n 's/^const govdaoT1Addr = address("\(g1[a-z0-9]*\)").*$/\1/p' \
+      "$PEARL_DIR/transactions/base/bootstrap/govdao_prop1_pearl.gno")
+    [ -n "$t1" ] || die "could not read govdaoT1Addr from the bootstrap tx — the RUN_SUBMITTERS cross-check cannot be skipped silently"
+    case ",$(join_commas "${RUN_SUBMITTERS[@]}")," in
+    *",$t1,"*) ;;
+    *) die "RUN_SUBMITTERS is armed but does not contain the GovDAO T1 seed $t1: proposal creation is MsgRun-only, so governance would be unreachable and the list could never be amended" ;;
+    esac
+  fi
+
+  # A charge with no real collector is a burn. The chain default for the
+  # collector is a derived address with no private key, and Params.Validate
+  # cannot tell that from a treasury, so the check has to live here.
+  if [ -n "$INERT_SUBMISSION_CHARGE" ]; then
+    case "$INERT_SUBMISSION_CHARGE" in
+    *[!0-9ugnot]* | "" | ugnot) die "INERT_SUBMISSION_CHARGE must look like '<amount>ugnot' (got '$INERT_SUBMISSION_CHARGE')" ;;
+    *ugnot) ;;
+    *) die "INERT_SUBMISSION_CHARGE must be denominated in ugnot (got '$INERT_SUBMISSION_CHARGE')" ;;
+    esac
+    # Read the cap out of the keeper rather than repeating the number, so the
+    # two cannot drift. Checked here at all — rather than left to `gnogenesis
+    # params set`, which validates it too — so the failure names the launch
+    # parameter, and lands before the binaries are built.
+    local cap amount=${INERT_SUBMISSION_CHARGE%ugnot}
+    cap=$(sed -n 's/.*maxInertSubmissionCharge = int64(\([0-9_]*\)).*/\1/p' \
+      "$REPO_ROOT/gno.land/pkg/sdk/vm/params.go" | tr -d _)
+    [ -n "$cap" ] || die "could not read maxInertSubmissionCharge from gno.land/pkg/sdk/vm/params.go — the INERT_SUBMISSION_CHARGE cap check cannot be skipped silently"
+    if [ "$amount" -gt "$cap" ]; then
+      die "INERT_SUBMISSION_CHARGE $INERT_SUBMISSION_CHARGE exceeds the on-chain cap of ${cap}ugnot"
+    fi
+  fi
+
+  # One place decides the collector: default it to the approver that will
+  # receive the charges, and refuse a charge that has nowhere to go. Left
+  # empty with a charge set, the chain default would take it — a derived
+  # address with no private key, so the charge would burn.
+  if [ -z "$INERT_CHARGE_COLLECTOR" ]; then
+    if [ "${#PKG_APPROVERS[@]}" -gt 0 ]; then
+      INERT_CHARGE_COLLECTOR="${PKG_APPROVERS[0]}"
+    elif [ -n "$INERT_SUBMISSION_CHARGE" ]; then
+      die "INERT_SUBMISSION_CHARGE is set but there is no collector: INERT_CHARGE_COLLECTOR is empty and there is no PKG_APPROVERS entry to default to. The charge would be burned to a keyless address."
+    fi
+  fi
+}
+
+# apply_vm_params <genesis-path>
+# Writes the code-submission params into a freshly generated genesis.
+#
+# Called for EVERY genesis this script generates, not just the shipping one.
+# The measurement genesis in step 8 is generated from scratch rather than copied
+# (so its genesis-time differs), and step 8 asserts its vm params equal the
+# shipping genesis's — a measurement taken under different fee-governing params
+# would be wrong. Applying this in one place is what keeps that assertion true.
+#
+# `gnogenesis params set` validates the whole Params struct before writing, so
+# an invalid value fails here rather than when a node boots on it.
+# _set_vm_param <genesis-path> <param-name> <value>
+_set_vm_param() {
+  run "$GNOGENESIS_BIN" params set "vm.$2" "$3" -genesis-path "$1" >/dev/null
+}
+
+apply_vm_params() {
+  local genesis="$1"
+
+  _set_vm_param "$genesis" code_submission_policy "$CODE_SUBMISSION_POLICY"
+
+  if [ "${#PKG_APPROVERS[@]}" -gt 0 ]; then
+    _set_vm_param "$genesis" pkg_approvers "$(join_commas "${PKG_APPROVERS[@]}")"
+  fi
+
+  if [ "${#RUN_SUBMITTERS[@]}" -gt 0 ]; then
+    _set_vm_param "$genesis" run_submitters "$(join_commas "${RUN_SUBMITTERS[@]}")"
+  fi
+
+  # Both or neither: an empty charge means off, and the collector is then
+  # unread, so writing one would only invite a stale value.
+  if [ -n "$INERT_SUBMISSION_CHARGE" ]; then
+    _set_vm_param "$genesis" inert_submission_charge "$INERT_SUBMISSION_CHARGE"
+    _set_vm_param "$genesis" inert_charge_collector "$INERT_CHARGE_COLLECTOR"
+  fi
+}
+
+# =============================================================================
+
 txn_dir_to_jsonl() {
   local dir="$1" outfile="$2"
   local meta="$dir/meta.json"
@@ -655,6 +892,12 @@ print_substep "1.1" "PEARL_DIR=$PEARL_DIR"
 print_substep "1.2" "REPO_ROOT=$REPO_ROOT"
 print_substep "1.3" "WORK_DIR=$WORK_DIR"
 
+# Before anything is built: a bad policy/approver/charge combination is cheaper
+# to catch now than after a full binary build, and unrecoverable if it ships.
+validate_code_submission_params
+print_substep "1.4" "Code submission: policy=$CODE_SUBMISSION_POLICY, approvers=${#PKG_APPROVERS[@]}, run_submitters=${#RUN_SUBMITTERS[@]} (gate $([ "${#RUN_SUBMITTERS[@]}" -gt 0 ] && echo ARMED || echo off))"
+print_substep "1.5" "Inert submission charge: ${INERT_SUBMISSION_CHARGE:-off}${INERT_SUBMISSION_CHARGE:+ -> $INERT_CHARGE_COLLECTOR}"
+
 # ---- Step 2: Verify required tools
 
 print_step_header 2 "$TOTAL_STEPS" "Verify required tools"
@@ -750,6 +993,7 @@ esac
 
 print_substep "4.5" "Generating empty genesis..."
 run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
+apply_vm_params "$GENESIS_FILE"
 
 print_substep "4.6" "Adding $pkg_count packages to genesis..."
 echo "" | run "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home "$WORK_DIR_GNOKEY_HOME" -key-name "$DEPLOYER_KEY" --genesis-path "$GENESIS_FILE" --insecure-password-stdin 2>&1 | sed 's/^/    /'
@@ -934,6 +1178,12 @@ FUNDED_ADDRESSES_FILE="$BALANCES_TMP_DIR/funded-addrs.txt"
   for faucet in "${FAUCET_ADDRESSES[@]}"; do
     echo "$faucet"
   done
+  # Approvers are a funded list like the faucets: same last-write-wins hazard,
+  # and an approver that were also a fee payer would have its exact-burn entry
+  # replaced by the flat approver balance.
+  for approver in "${PKG_APPROVERS[@]}"; do
+    echo "$approver"
+  done
   for vested in "${VESTED_ACCOUNTS[@]}"; do
     # Balance.Parse trims whitespace, so a padded entry would parse fine
     # downstream while its extracted address silently misses the guard —
@@ -967,6 +1217,7 @@ if [ "${#VESTED_ACCOUNTS[@]}" -gt 0 ]; then
     echo "$vested"
   done >"$VESTED_PREFLIGHT_SHEET"
   run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" -output-path "$VESTED_PREFLIGHT_GENESIS" >/dev/null 2>&1
+  apply_vm_params "$VESTED_PREFLIGHT_GENESIS"
   run "$GNOGENESIS_BIN" balances add -balance-sheet "$VESTED_PREFLIGHT_SHEET" -genesis-path "$VESTED_PREFLIGHT_GENESIS" >/dev/null
   # verify refuses an empty validator set; borrow the first founding
   # validator to make the throwaway genesis verifiable.
@@ -1003,6 +1254,7 @@ start_temp_node() {
   NODE_RPC_ADDR="127.0.0.1:$NODE_RPC_PORT"
 
   run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$(date +%s)" -output-path "$BALANCES_TMP_GENESIS"
+  apply_vm_params "$BALANCES_TMP_GENESIS"
   run "$GNOGENESIS_BIN" txs add sheets "$GENESIS_TXS_JSONL" -genesis-path "$BALANCES_TMP_GENESIS"
   run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
 
@@ -1175,10 +1427,10 @@ for validator in "${INITIAL_VALSET[@]}"; do
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$GENESIS_FILE"
 done
 
-# Fee payers (exact-burn, land at zero) + the faucets + the vested
-# accounts, one sheet. One entry per address (last write wins), so an
-# address on two lists would lose one of its entries — the overlap guard
-# in step 8 rules that out. Vested entries already carry the full
+# Fee payers (exact-burn, land at zero) + the faucets + the approvers +
+# the vested accounts, one sheet. One entry per address (last write wins),
+# so an address on two lists would lose one of its entries — the overlap
+# guard in step 8 rules that out. Vested entries already carry the full
 # balance-sheet syntax (amount + vesting schedule) and are appended
 # verbatim.
 FULL_BALANCES_FILE="$WORK_DIR/balances.txt"
@@ -1186,11 +1438,17 @@ cp "$DEPLOYER_BALANCES" "$FULL_BALANCES_FILE"
 for addr in "${FAUCET_ADDRESSES[@]}"; do
   echo "${addr}=${FAUCET_BALANCE}ugnot" >>"$FULL_BALANCES_FILE"
 done
+# The approver pays gas for every MsgEnablePackage it sends, so under the
+# "inert" policy an unfunded approver stalls the policy on the first
+# submission.
+for addr in "${PKG_APPROVERS[@]}"; do
+  echo "${addr}=${APPROVER_BALANCE}ugnot" >>"$FULL_BALANCES_FILE"
+done
 for vested in "${VESTED_ACCOUNTS[@]}"; do
   echo "$vested" >>"$FULL_BALANCES_FILE"
 done
 balance_count=$(wc -l <"$FULL_BALANCES_FILE" | tr -d ' ')
-print_substep "9.2" "Adding $balance_count balances (fee payers + ${#FAUCET_ADDRESSES[@]} faucets + ${#VESTED_ACCOUNTS[@]} vested)..."
+print_substep "9.2" "Adding $balance_count balances (fee payers + ${#FAUCET_ADDRESSES[@]} faucets + ${#PKG_APPROVERS[@]} approvers + ${#VESTED_ACCOUNTS[@]} vested)..."
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$FULL_BALANCES_FILE" --genesis-path "$GENESIS_FILE" >/dev/null
 
 print_substep "9.3" "Running gnogenesis verify..."
