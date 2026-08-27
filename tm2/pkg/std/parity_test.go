@@ -57,6 +57,14 @@ func TestCodecParity_Std(t *testing.T) {
 			PubKey:        pk,
 			AccountNumber: 7,
 			Sequence:      9,
+			// The schedule is what makes part of Coins unspendable. A field
+			// dropped on decode would hand those coins back.
+			Vesting: std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 60}},
+				StartTime:       1700000000,
+				EndTime:         1800000000,
+				Type:            std.VestingDelayed,
+			},
 		}},
 
 		// BaseSessionAccount: BaseAccount embedded + extra fields + SpendLimit
@@ -71,6 +79,10 @@ func TestCodecParity_Std(t *testing.T) {
 			ExpiresAt:     1700000000,
 			SpendLimit:    std.Coins{{Denom: "ugnot", Amount: 500}},
 			SpendPeriod:   3600,
+			// SpendUsed is the budget already consumed; losing it on decode
+			// would let the session spend its limit again.
+			SpendUsed:  std.Coins{{Denom: "ugnot", Amount: 125}},
+			SpendReset: 1700000000,
 		}},
 
 		// Signature: has PubKey (interface) + Signature bytes.
