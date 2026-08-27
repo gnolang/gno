@@ -125,8 +125,8 @@ func f(_ int, rlm realm) {
 }
 
 func TestCurrentGuardFlagsFuncLiteralParams(t *testing.T) {
-	// A non-crossing callback is forced into literal form, because a
-	// realm-typed first parameter would make it a crossing function.
+	// The `_ int` filler keeps the callback non-crossing: realm is the
+	// crossing token only in first position.
 	const src = `package x
 
 func teller() *fnTeller {

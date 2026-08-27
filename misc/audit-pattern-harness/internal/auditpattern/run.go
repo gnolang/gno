@@ -32,9 +32,10 @@ var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
 
 var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
 
-// funcLitRE captures the parameter list of a func literal. A callback that must
-// stay non-crossing is written as a literal, because a realm-typed first
-// parameter would make a declaration a crossing function.
+// funcLitRE captures the parameter list of a func literal, and of a func type
+// in a parameter or field position. A realm parameter is the crossing token
+// only in first position, so a callback that must stay non-crossing puts a
+// filler such as `_ int` ahead of it.
 var funcLitRE = regexp.MustCompile(`func\(([^)]*)\)`)
 
 // realmSelectorRE matches a selector on an identifier: the receiver in group 1,
