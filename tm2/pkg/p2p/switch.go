@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net"
 	"sync"
 	"time"
 
@@ -71,6 +72,10 @@ type MultiplexSwitch struct {
 
 	maxInboundPeers  uint64
 	maxOutboundPeers uint64
+
+	// allowDuplicateIP disables the guard that stops a single remote IP from
+	// occupying more than one inbound peer slot
+	allowDuplicateIP bool
 
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
@@ -748,6 +753,40 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 	return persistent
 }
 
+// hasPeerFromIP returns a flag indicating if the active peer set already
+// contains a peer connected from the given IP
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+
+	for _, p := range sw.peers.List() {
+		if ip.Equal(p.RemoteIP()) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// rejectInbound drops a connection the accept loop has decided not to keep.
+//
+// transport.Remove only forgets the connection; the socket the STS handshake
+// established has to be closed explicitly, or -- since a rejected peer was never
+// started, so no Stop() path runs -- it lingers until the netFD finalizer does
+// it. That lets a host open connections faster than the GC reclaims them.
+func (sw *MultiplexSwitch) rejectInbound(p PeerConn) {
+	sw.transport.Remove(p)
+
+	if err := p.CloseConn(); err != nil {
+		sw.Logger.Debug(
+			"unable to close rejected peer connection",
+			"peer", p,
+			"err", err,
+		)
+	}
+}
+
 // runAcceptLoop is the main powerhouse method
 // for accepting incoming peer connections, filtering them,
 // and persisting them
@@ -761,7 +800,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
 			return // exit
-		case errors.As(err, &errTransportClosed):
+		case errors.Is(err, errTransportClosed):
 			// Underlaying transport as been closed
 			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
 			return // exit
@@ -780,7 +819,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"max", sw.maxInboundPeers,
 			)
 
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
 			continue
 		}
 
@@ -792,13 +831,27 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
+			continue
+		}
+
+		// Reject a second connection from an IP that already holds a peer slot.
+		// Peer IDs are self-generated node keys, so without this a single host
+		// can mint fresh identities and occupy every inbound slot.
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+			sw.Logger.Info(
+				"Ignoring inbound connection: peer from this IP already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+			)
+
+			sw.rejectInbound(p)
 			continue
 		}
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
 
 			if p.IsRunning() {
 				_ = p.Stop()

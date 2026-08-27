@@ -1070,3 +1070,77 @@ func TestDeductFeesReadsTheBankNotTheAccountObject(t *testing.T) {
 	require.Contains(t, res.Log, "insufficient funds to pay for fees; 149atom < 150atom")
 	require.Empty(t, short.sent, "a refused fee must not be sent")
 }
+
+// Simulate normally skips signature verification so gas can be estimated
+// without a key. RequireSigForSimulate opts a message type out of that, for
+// messages whose authorization is derived from the signer: `.app/simulate` is
+// a public query that executes the messages, so the skip would otherwise let
+// an unauthenticated caller name somebody else's address.
+func TestAnteHandlerRequireSigForSimulate(t *testing.T) {
+	t.Parallel()
+
+	// A tx signed over the wrong account number: the signature is present and
+	// correctly counted (tx.ValidateBasic passes) but does not verify.
+	badlySignedTx := func(ctx sdk.Context, priv crypto.PrivKey, addr crypto.Address) std.Tx {
+		return tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+			[]crypto.PrivKey{priv}, []uint64{1}, []uint64{0}, tu.NewTestFee())
+	}
+
+	tests := []struct {
+		name     string
+		requires func(std.Tx) bool
+		wantPass bool
+	}{
+		{"nil predicate keeps the skip", nil, true},
+		{"predicate declines: skip retained", func(std.Tx) bool { return false }, true},
+		{"predicate selects: verification enforced", func(std.Tx) bool { return true }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			env := setupTestEnv()
+			opts := defaultAnteOptions()
+			opts.RequireSigForSimulate = tt.requires
+			anteHandler := NewAnteHandler(env.acck, env.bankk,
+				DefaultSigVerificationGasConsumer, opts)
+			ctx := env.ctx
+
+			priv, _, addr := tu.KeyTestPubAddr()
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc.SetCoins(tu.NewTestCoins())
+			require.NoError(t, acc.SetAccountNumber(0))
+			env.acck.SetAccount(ctx, acc)
+
+			tx := badlySignedTx(ctx, priv, addr)
+			if tt.wantPass {
+				checkValidTx(t, anteHandler, ctx, tx, true)
+			} else {
+				checkInvalidTx(t, anteHandler, ctx, tx, true, std.UnauthorizedError{})
+			}
+		})
+	}
+}
+
+// A correctly signed tx must still simulate cleanly when the predicate selects
+// it -- the point is to verify the signature, not to refuse simulation.
+func TestAnteHandlerRequireSigForSimulateAcceptsValidSig(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	opts := defaultAnteOptions()
+	opts.RequireSigForSimulate = func(std.Tx) bool { return true }
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, opts)
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx, tx, true)
+}
