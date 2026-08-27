@@ -236,7 +236,7 @@ func TestFillTypesOfValue_StringTracking(t *testing.T) {
 	st.SetAllocator(NewAllocator(1_000_000))
 
 	const body = "loaded-from-store"
-	loaded := fillTypesOfValue(st, StringValue(body))
+	loaded := fillTypesOfValue(nil, st, StringValue(body))
 
 	sv, ok := loaded.(StringValue)
 	if !ok {

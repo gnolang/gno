@@ -1,6 +1,8 @@
 package std
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -98,6 +100,129 @@ func TestValidate(t *testing.T) {
 			require.EqualError(t, err, tc.wantErr, "unexpected error message for validate, tc #%d", i)
 		}
 	}
+}
+
+func manyCoins(n int) string {
+	parts := make([]string, n)
+	for i := range parts {
+		parts[i] = fmt.Sprintf("1a%05x", i)
+	}
+	return strings.Join(parts, ",")
+}
+
+func TestParseCoinsCountLimit(t *testing.T) {
+	t.Parallel()
+
+	coins, err := ParseCoins(manyCoins(MaxCoinsCount))
+	require.NoError(t, err)
+	require.Len(t, coins, MaxCoinsCount)
+
+	_, err = ParseCoins(manyCoins(MaxCoinsCount + 1))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the limit")
+}
+
+// TestValidateDenomLength checks MaxDenomLength against the limits it is
+// derived from rather than against a copy of the number, so that if
+// pkgPathLimit ever moves the test moves with it.
+func TestValidateDenomLength(t *testing.T) {
+	t.Parallel()
+
+	// Self-referential on its own — it cannot see the .gno source it mirrors.
+	// It catches an edit to the Go copy alone; the txtar's 16/17-byte pair
+	// catches an edit to the Gno side alone. See maxBaseDenomLength.
+	require.Equal(t, 16, maxBaseDenomLength,
+		"must match isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno")
+
+	// The longest denom that can exist on chain: a package path at the
+	// deployment limit plus a base name at the banker's limit.
+	const prefix = "gno.land/r/"
+	longestPath := prefix + strings.Repeat("a", pkgPathLimit-len(prefix))
+	require.Len(t, longestPath, pkgPathLimit)
+	require.True(t, rePkgPathURL.MatchString(longestPath),
+		"the filler must keep longestPath a legal package path, or this stops "+
+			"measuring anything the issuance path can actually build")
+
+	longestDenom := "/" + longestPath + ":" + strings.Repeat("b", maxBaseDenomLength)
+	require.Len(t, longestDenom, MaxDenomLength,
+		"MaxDenomLength must equal the longest denom the issuance path can build")
+	require.NoError(t, ValidateDenom(longestDenom))
+
+	// One byte over is rejected, and says so specifically.
+	tooLong := longestDenom + "b"
+	require.EqualError(t, ValidateDenom(tooLong),
+		fmt.Sprintf("denom length %d exceeds limit %d", len(tooLong), MaxDenomLength))
+
+	// The limit also holds on the decode path, where untrusted input arrives:
+	// ParseCoins and Coin/Coins.UnmarshalAmino all funnel through ParseCoin.
+	// Without the length check the pattern alone would accept this denom, since
+	// every byte of it is in the allowed charset.
+	_, err := ParseCoin("100" + tooLong)
+	require.ErrorContains(t, err, "exceeds limit")
+}
+
+// TestValidateDenomAcceptsDeployablePaths pins the superset relation described
+// on reDnmString: every package path the chain will deploy must produce a denom
+// ValidateDenom accepts.
+func TestValidateDenomAcceptsDeployablePaths(t *testing.T) {
+	t.Parallel()
+
+	// Deployability is pinned end-to-end by realm_banker_issued_coin_denom.txtar,
+	// which deploys gno.land/r/test/my-org/token. Note the asymmetry: "-" is
+	// legal in the domain and in namespace segments but never in the final
+	// element, which must also be a valid Go package name, so
+	// "gno.land/r/demo/foo-bar" does not deploy.
+	paths := []string{
+		"gno.land/r/demo/foobar",
+		"gno.land/r/my-org/token",           // hyphen in the namespace
+		"gno.land/r/my-org/v2/token",        // hyphen plus extra depth
+		"my-chain.example/r/some-org/token", // hyphen in the domain
+		"gno.land/r/demo/foo_bar",           // underscore
+		"gno.land/r/demo/v0/foo123",         // digits
+	}
+	for _, p := range paths {
+		// tm2 cannot import gnovm, so this asserts only tm2's own package-path
+		// pre-check; the real gate lives in gnolang.ValidateMemPackageAny.
+		require.True(t, rePkgPathURL.MatchString(p),
+			"test path fails tm2's package-path check: %s", p)
+		require.NoError(t, ValidateDenom("/"+p+":example"),
+			"a deployable path must produce a valid denom: %s", p)
+	}
+
+	// The examples above are illustrative; this pins the relation itself, by
+	// probing every byte against each of rePkgPathURL's four character-class
+	// occurrences. The domain classes need two templates because the regex
+	// starts with a starred group: a byte placed after the star never lands
+	// inside a repetition, so widening only the repeated label would slip past.
+	//
+	// Only rePkgPathURL is swept. rePkgPathStd describes stdlib paths, which
+	// can never appear in a denom — AddPackage requires the chain-domain prefix
+	// (keeper.go), so every denom-bearing path is URL-form. Sweeping it too
+	// would assert a coincidence rather than a requirement, and on failure
+	// would direct the reader to widen reDnmString, which is exactly how "#"
+	// would get admitted and the sub-realm property above quietly lost.
+	for i := range 256 {
+		c := string([]byte{byte(i)}) // one raw byte; string(rune(i)) would UTF-8-encode i >= 0x80
+		for _, candidatePath := range []string{
+			"su" + c + "b.gno.land/r/demo/foobar", // repeated domain label
+			"gno" + c + ".land/r/demo/foobar",     // final domain label
+			"gno.la" + c + "nd/r/demo/foobar",     // TLD
+			"gno.land/r/de" + c + "mo/foobar",     // path segment (all segments share one class)
+		} {
+			if !rePkgPathURL.MatchString(candidatePath) {
+				continue
+			}
+			require.NoError(t, ValidateDenom("/"+candidatePath+":example"),
+				"byte %q is legal in a package path but not in a denom; widen "+
+					"reDnmString or narrow rePkgPathURL in memfile.go", c)
+		}
+	}
+
+	// "-" is allowed inside a denom but not at its start, so an amount can
+	// never run into the denom that follows it.
+	require.Error(t, ValidateDenom("-foo"))
+	_, err := ParseCoin("100-foo")
+	require.Error(t, err)
 }
 
 func TestCoinsValidate(t *testing.T) {
@@ -498,7 +623,12 @@ func TestParse(t *testing.T) {
 		{"98 bar , 1 foo  ", true, Coins{{"bar", int64(98)}, {"foo", one}}},
 		{"  55\t \t bling\n", true, Coins{{"bling", int64(55)}}},
 		{"2foo, 97 bar", true, Coins{{"bar", int64(97)}, {"foo", int64(2)}}},
-		{"5foo-bar", false, nil},
+		// Hyphens are valid inside a denom: package paths admit them, and a
+		// realm denom embeds its package path verbatim. A leading hyphen is
+		// still rejected — see ValidateDenom("-foo") in
+		// TestValidateDenomAcceptsDeployablePaths. ("-5foo" below fails on the
+		// amount pattern instead, so it does not exercise that rule.)
+		{"5foo-bar", true, Coins{{"foo-bar", int64(5)}}},
 		{"5 mycoin,", false, nil},             // no empty coins in a list
 		{"2 3foo, 97 bar", false, nil},        // 3foo is invalid coin name
 		{"11me coin, 12you coin", false, nil}, // no spaces in coin names
@@ -829,4 +959,97 @@ func TestContainOneOfDenom(t *testing.T) {
 
 	// only return true when the value is posible
 	require.False(t, zero.ContainOneOfDenom(restrictList))
+}
+
+// TestIsRealmDenom pins which denoms a realm may issue, against the leading-class
+// property it derives from. It must test the *first* character, not whether a "/"
+// appears anywhere. This is not the storage-tier predicate — that is an allowlist
+// in the bank — so the two groups below are "realm may issue" and "realm may
+// not", never "split tier" and "account tier".
+func TestIsRealmDenom(t *testing.T) {
+	t.Parallel()
+
+	mayIssue := []string{
+		"/gno.land/r/demo/foo:gold",
+		"/gno.land/r/my-org/token:gold",
+		"/a.b:c",
+	}
+	mayNotIssue := []string{
+		"ugnot",
+		"atom",
+		"foo-bar",
+		// Interior and trailing slashes: legal denoms that are NOT realm-issued.
+		// A substring test rather than a prefix test would mis-tier these.
+		"gno.land/r/demo/foo:gold",
+		"ugnot/evil",
+		"a/b",
+	}
+
+	for _, denom := range mayIssue {
+		require.NoError(t, ValidateDenom(denom), "test denom must be valid: %s", denom)
+		require.True(t, IsRealmDenom(denom), "%s is realm-issuable", denom)
+	}
+	for _, denom := range mayNotIssue {
+		require.NoError(t, ValidateDenom(denom), "test denom must be valid: %s", denom)
+		require.False(t, IsRealmDenom(denom),
+			"%s has no leading slash, so a realm may not issue it", denom)
+	}
+
+	// The predicate must agree with the leading class reDnmString admits: a valid
+	// denom starts with "/" or a lowercase letter and nothing else, so
+	// IsRealmDenom partitions the whole space of valid denoms.
+	for i := range 256 {
+		denom := string([]byte{byte(i)}) + "aaa"
+		if ValidateDenom(denom) != nil {
+			continue
+		}
+		require.Equal(t, denom[0] == '/', IsRealmDenom(denom),
+			"IsRealmDenom must key on the first byte alone: %q", denom)
+	}
+}
+
+// reDnm is the compiled grammar, kept here rather than in coin.go: validDenom
+// replaced its only production caller, so leaving it there compiled a regexp at
+// package init for every binary importing this package, to serve one test.
+var reDnm = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
+
+// validDenom replaces reDnm on hot paths and must accept exactly the same strings.
+// A divergence would either reject a legal denom (breaking consensus) or admit an
+// illegal one (defeating the grammar), so this is the gate on that refactor.
+func TestValidDenomMatchesRegexp(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"", "a", "ab", "abc", "ugnot", "/", "//", "/a", "/ab", "/abc",
+		"a-b", "-ab", "a_b", "a.b", "a:b", "a/b", "0ab", "Abc", "aBc", "abC",
+		"a b", "a\tb", "a\nb", "ab!", "ab~", "ab\x00", "ábc", "a€b",
+		"/gno.land/r/demo/foo:gold", "ibc/" + strings.Repeat("a1b2c3d4", 8),
+		strings.Repeat("z", MaxDenomLength), strings.Repeat("z", MaxDenomLength+1),
+	}
+	// Every byte in each position, which is where a hand-rolled charset drifts.
+	for b := range 256 {
+		cases = append(cases, string([]byte{byte(b), 'a', 'a'}))
+		cases = append(cases, string([]byte{'a', byte(b), 'a'}))
+		cases = append(cases, string([]byte{'a', 'a', byte(b)}))
+	}
+	for _, denom := range cases {
+		require.Equal(t, reDnm.MatchString(denom), validDenom(denom),
+			"validDenom disagrees with reDnm on %q", denom)
+	}
+}
+
+// ParseCoin must bound its input before running the pattern: Coins amino-encode as a
+// string, and transaction decode happens before any gas meter exists.
+func TestParseCoinRejectsAnOverlongExpressionCheaply(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseCoin("1" + strings.Repeat("z", MaxDenomLength+64))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the limit")
+
+	// The longest legal expression still parses.
+	longest := "9223372036854775807" + strings.Repeat("z", MaxDenomLength)
+	c, err := ParseCoin(longest)
+	require.NoError(t, err, "a maximal legal coin expression must still parse")
+	require.Equal(t, int64(9223372036854775807), c.Amount)
 }

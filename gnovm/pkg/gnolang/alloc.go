@@ -113,7 +113,7 @@ const (
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 232 // unsafe.Sizeof(BoundMethodValue{})
-	_allocBlock            = 528 // unsafe.Sizeof(Block{})
+	_allocBlock            = 536 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
@@ -627,7 +627,8 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	if pid != alloc.currentRealmID {
 		panic(fmt.Sprintf(
 			"cannot allocate %s in realm %s",
-			t.String(), alloc.currentRealmPath))
+			t.String(), alloc.currentRealmPath,
+		))
 	}
 }
 
@@ -830,9 +831,26 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 // NewBlock allocates a fresh Block. Blocks belong to the executing
 // package's realm (currentRealmID), since a Block represents a
 // lexical scope inside that realm's running code.
+//
+// NOTE: internal uses of Block that don't escape should use
+// [Machine.acquireBlock].
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
+}
+
+// newPooledBlock allocates a block for Machine.acquireBlock's pool (the miss
+// path), over-sizing its Values capacity to blockPoolValueCap so it can later
+// be recycled for most block sizes without a too-small miss. It charges
+// allocation gas for that actual capacity (see below); the per-acquire setup
+// CPU is charged by acquireBlock's OpCPUAcquireBlock.
+func (alloc *Allocator) newPooledBlock(source BlockNode, parent *Block) *Block {
+	// Charge for the memory actually allocated: a pooled block's Values is
+	// sized to blockPoolValueCap, so a small block costs the same malloc as
+	// a 14-slot one (that is what is allocated under the hood).
+	items := max(int(source.GetNumNames()), blockPoolValueCap)
+	alloc.AllocateBlock(int64(items))
+	return newBlockWithValueCap(alloc, source, parent, blockPoolValueCap)
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
@@ -879,7 +897,12 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefNode
 	}
 
-	ss += allocBlock + allocBlockItem*int64(len(b.Values))
+	// Charge by capacity, not length: the block retains its whole backing
+	// array, and the pool deliberately over-sizes it to blockPoolValueCap.
+	// Every path that sets this capacity is deterministic — make() with an
+	// explicit cap in newBlockWithValueCap, our own doubling in
+	// growBlockValues, and the exact re-slice in Machine.releaseBlock.
+	ss += allocBlock + allocBlockItem*int64(cap(b.Values))
 
 	return ss
 }
@@ -1059,7 +1082,8 @@ func internalRefSize(val Value) int64 {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %T",
-			val))
+			val,
+		))
 	}
 	return size
 }

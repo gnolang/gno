@@ -96,7 +96,101 @@ import (
 // unchanged; only the genesis params encoding shifted. (Value re-derived
 // after merging master, so it reflects the bptree store + #5890 + #5891 +
 // this param together.)
-const expectedCrossrealm38Hash = "058910b2a1aa0f2c900990843643b5e13d8b8dfa3be8aa7f9dc7d169c1e7cb15"
+//
+// Hash bumped by the apd -> math/big.Rat PR (#5867): BigdecValue (untyped
+// float constant representation) now amino-serializes in rational form
+// ("1/3") instead of the old decimal string ("0.3333333333"), shifting the
+// committed multistore root for any realm state containing bigdec constants.
+// Behavior is unchanged for all typed values; only the constant-folding
+// arithmetic is corrected (fixes #5862). Re-derived after merging master, so
+// it reflects the bptree store + #5890 + #5891 + #5892 + this change together.
+//
+// Bumped again by a doc-comment-only edit to chain/banker's package comment
+// (the NewBanker capability-persistence warning). Stdlib .gno sources are
+// stored in chain state, so their bytes — comments included — are covered by
+// the multistore root: editing a comment in a stdlib package is a
+// consensus-breaking change, even though no behavior changes. Confirmed by
+// reverting that comment alone, which restores the previous hash. No
+// executable code was touched.
+// Hash bumped by adding banker.GetCoin: the chain/banker stdlib gained an
+// interface method, a native declaration and a method body, and stdlib .gno
+// source bytes are committed into genesis state, so the multistore root moves.
+// The crossrealm38 scenario itself does not call GetCoin; the shift is purely the
+// stdlib source change and is intended. Note this is the *only* reason this
+// branch moves the pin — the balance split alone does not, because that scenario
+// holds no non-gas denom.
+//
+// Bumped again by the OriginSend banker lifetime fix. banker.gno gains the
+// realm-handle field that pins such a banker to its message, plus the
+// accompanying doc. Same reason as the comment-only bump noted above:
+// stdlib .gno source bytes are genesis state, so any edit to them moves the
+// root. This one does change behavior, and is intentionally
+// consensus-breaking.
+//
+// Hash bumped by the phase-2 inert-packages PR (#5888): new vm params
+// (code_submission_policy, code_submitters, pkg_approvers) plus inert-storage
+// keying serialize additional defaults into the genesis vm params state,
+// shifting the committed multistore root. Behavior is unchanged (policy
+// defaults to permissionless). Re-derived after merging master.
+//
+// Re-derived once more for the merge of master into #5888: both sides moved
+// the root, so neither side's value survives the combination.
+//
+// Bumped by the run_submitters vm param (MsgRun allowlist). A new Params field
+// moves this root even though its default is an empty list: params.SetStruct
+// goes through encodeStructFields (tm2/pkg/sdk/params/amino_helper.go), which
+// writes one store key per field unconditionally and does not skip zero values.
+// So the genesis vm params state gains a `vm:p:run_submitters` key holding
+// `null`. Behavior at this hash is unchanged — the scenario sends no MsgRun.
+//
+// Bumped again by lowering the DefaultDeposit param from 600000000ugnot to
+// 100000000ugnot. Unlike the bumps above this is a value change, not a new
+// key: `vm:p:default_deposit` is genesis state, so its contents are in the
+// root. It does change behavior at the margin — the param is the fallback
+// CEILING on a storage deposit when a message declares no MaxDeposit, so a
+// single message may now add at most 1 MB of realm state rather than 6 MB
+// before it is refused. Measured against all 321 genesis packages the largest
+// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// new ceiling clears the worst real case by 3.6x.
+// Bumped again by the two inert-charge vm params, for the same reason as
+// run_submitters above: two more keys, written unconditionally. Behavior at
+// this hash is unchanged — inert_submission_charge defaults to empty, which
+// means off, and the scenario submits nothing under the "inert" policy anyway.
+//
+// Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
+// their length checks moved into the .gno wrapper (ahead of the native call, so
+// an oversized input is not copied into Go memory for a flat fee), plus a test
+// for that. Both bn254.gno and bn254_test.gno are stdlib source bytes committed
+// into genesis state, so the root moves. Attributed by bisection against the
+// OriginSend value above: base .gno files give b43e5fd5, bn254_test.gno alone
+// gives a25dc7a4, both give the value below; the innerHash gas-table change moves
+// nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
+// filetest passes and the bn254 EIP-196/197 vectors are untouched.
+//
+// Bumped again by the entity-reference hardening of PercentEncodeURL. The
+// change to chain/markdown is comment-only on the .gno side — the encoding
+// rule itself lives in the injected Go implementation — but stdlib .gno
+// source bytes are genesis state, so documenting the new rule moves the
+// root just as the GetCoin bump above did. Re-derived after merging develop,
+// so the value below covers the bn254 wrapper bounds above and this change
+// together.
+//
+// Bumped once more within this branch by extending that same PercentEncodeURL
+// doc comment (the `&amp;` round-trip note from review). Still comment-only,
+// still consensus-breaking for the reason above; the merge commit pins
+// 0e8e8714 without it.
+//
+// Re-derived for the combination: master's params/deposit bumps and this
+// branch's stdlib source bumps both move the root, so neither side's value
+// survives the merge.
+//
+// Bumped again by the chain/params reader API: params.gno gains six GetXxx
+// declarations and the doc describing what a wrong-type read does. Stdlib .gno
+// source bytes are genesis state, so both the declarations and the comment move
+// the root. The crossrealm38 scenario calls none of them; the shift is the
+// stdlib source change alone. Re-derived after merging master, whose own
+// encode/decode work moved the root too, so neither side's value survives.
+const expectedCrossrealm38Hash = "12c7ca4d567e5e5a6d3c5572c0631a284c62b6c745faee94e9b38b617509584c"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
