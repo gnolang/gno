@@ -14,3 +14,7 @@ const (
 	maxBadges  = 8
 	maxKindLen = 64
 )
+
+// Kinds also reach the register event, where chain.Emit's own cap would
+// otherwise be the only ceiling.
+const maxEventKinds = 16

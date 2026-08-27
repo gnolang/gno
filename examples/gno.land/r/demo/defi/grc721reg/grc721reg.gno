@@ -63,15 +63,32 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	}
 
 	registry.Set(key, col)
-	chain.Emit(
-		RegisterEvent,
-		"token_key", key,
+
+	attrs := []string{
+		"token_path", key,
 		"token_id", token.ID(),
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
-		"extensions", strings.Join(col.Kinds(), ","),
-	)
+	}
+
+	// One attribute per kind: a joined list splits wrongly on a kind that
+	// carries the separator. Both bounds are checked here so an oversized set
+	// fails with the registry's name on it rather than the event's.
+	kinds := col.Kinds()
+	if len(kinds) > maxEventKinds {
+		panic("grc721reg: too many extensions")
+	}
+
+	for _, k := range kinds {
+		if len(k) > maxKindLen {
+			panic("grc721reg: extension kind too long")
+		}
+
+		attrs = append(attrs, "extension", k)
+	}
+
+	chain.Emit(RegisterEvent, attrs...)
 
 	return key
 }
@@ -92,7 +109,7 @@ func Unregister(cur realm, symbol string) string {
 
 	chain.Emit(
 		UnregisterEvent,
-		"token_key", key,
+		"token_path", key,
 		"pkgpath", rlmPath,
 		"symbol", symbol,
 	)

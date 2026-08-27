@@ -20,6 +20,13 @@ var (
 	artist = testutils.TestAddress("artist")
 )
 
+// stubView is an ExtensionView whose kind the registrant picks, which is what
+// the registry accepts from any realm it does not import.
+type stubView struct{ kind, tokenID string }
+
+func (v *stubView) ExtensionKind() string { return v.kind }
+func (v *stubView) TokenID() string       { return v.tokenID }
+
 // Must run before any Register in this file (shared registry; empty home path).
 func TestRenderEmptyRegistry(cur realm, t *testing.T) {
 	urequire.Equal(t, "No registered collection.", Render(""),
@@ -247,6 +254,18 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 				replacement, _ := grc721.NewToken("Replacement", "BAR", 1, cur)
 				urequire.AbortsContains(t, cur, "collection already registered", func() {
 					Register(cross(cur), collection.NewCollection(replacement), "other")
+				})
+			},
+		},
+		{
+			name:   "extension kind longer than the event allows aborts",
+			substr: "extension kind too long",
+			run: func(cur realm, t *testing.T) {
+				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_kind_long"))
+				token, _ := grc721.NewToken("Kind", "KIND", 0, cur)
+				view := &stubView{strings.Repeat("k", maxKindLen+1), token.ID()}
+				urequire.AbortsContains(t, cur, "extension kind too long", func() {
+					Register(cross(cur), collection.NewCollection(token, view), "")
 				})
 			},
 		},
