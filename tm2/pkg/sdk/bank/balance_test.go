@@ -1662,16 +1662,19 @@ func TestADoubleHomedDenomIsRefusedByGetCoinsNotSummed(t *testing.T) {
 	require.Contains(t, msg, "the allowlist grew without migrating existing balances")
 }
 
-// A realm reading a balance for a denom it took from a Render path or a query
-// parameter is reading a string an attacker chose. AGENTS.md tells realm authors
-// which accessor survives that, so the two behaviours are pinned here rather than
-// left to be rediscovered.
+// The keeper's GetCoin and std.Coins.AmountOf are the mirror image of the
+// realm-facing pair in chain/banker, and the two are easy to mix up.
 //
-// GetCoin absorbs anything: a malformed denom is never in the account-tier
-// allowlist, so it routes to the split tier and reads a key that cannot exist.
-// AmountOf validates first and panics, which in a Render path is a realm that
-// cannot render.
-func TestGetCoinAbsorbsAMalformedDenomButAmountOfPanics(t *testing.T) {
+//	keeper GetCoin      absorbs a malformed denom, returns zero
+//	std.Coins.AmountOf  validates first and panics
+//
+//	banker.GetCoin      validates first and panics  (SDKBanker.GetCoin)
+//	chain.Coins.AmountOf  scans linearly, returns zero
+//
+// AGENTS.md documents the realm-facing pair, which is the one realm authors
+// call. This pins the keeper pair, so a measurement taken here is not carried
+// over to guidance about the other one.
+func TestKeeperGetCoinAbsorbsAMalformedDenomButStdAmountOfPanics(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
