@@ -7,9 +7,8 @@ import (
 	"gno.land/p/nt/seqid/v0"
 )
 
-// owner gates admin-only operations. Realm globals are kept unexported so the
-// ownable pointer (and its mutators) is reachable only through this realm's own
-// gated entry points.
+// owner gates admin-only operations. Ownable guards its own mutators, so
+// exporting it would be safe; unexported keeps the admin surface to ResetPosts.
 var owner = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 
 // ResetPosts allows admin deletion of the posts
