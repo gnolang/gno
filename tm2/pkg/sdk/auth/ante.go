@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -124,7 +125,13 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
-		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(len(newCtx.TxBytes())), "txSize")
+		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,
+		// so an absurd one wraps. Some wraps land negative and the meter refuses
+		// them, but others land small and positive -- a 4096-byte transaction
+		// charged 4096 gas for its size, silently. Panic on the overflow instead,
+		// as the same per-byte multiply does in gno.land/pkg/sdk/vm.
+		newCtx.GasMeter().ConsumeGas(
+			overflow.Mulp(params.TxSizeCostPerByte, store.Gas(len(newCtx.TxBytes()))), "txSize")
 
 		if res := ValidateMemo(tx, params); !res.IsOK() {
 			return newCtx, res, true
