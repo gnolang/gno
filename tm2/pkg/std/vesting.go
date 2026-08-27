@@ -47,11 +47,22 @@ func (vs VestingSchedule) Validate() error {
 	}
 	// Only linear vesting has a start. Requiring one for a cliff would make
 	// genesis supply a number that nothing reads.
-	if vs.Type != VestingDelayed && vs.StartTime >= vs.EndTime {
-		return ErrInvalidVestingSchedule(fmt.Sprintf(
-			"vesting start-time (%d) must be before end-time (%d)",
-			vs.StartTime, vs.EndTime,
-		))
+	if vs.Type != VestingDelayed {
+		// A start before the epoch is meaningless for a chain, and rejecting it
+		// is what keeps the arithmetic below safe: with 0 <= StartTime < EndTime,
+		// neither EndTime-StartTime nor blockTime-StartTime can overflow int64.
+		// A start of MinInt64 wraps both, and the vested amount then computes
+		// from the wrapped values and can exceed the whole grant.
+		if vs.StartTime < 0 {
+			return ErrInvalidVestingSchedule(fmt.Sprintf(
+				"vesting start-time cannot be negative: %d", vs.StartTime))
+		}
+		if vs.StartTime >= vs.EndTime {
+			return ErrInvalidVestingSchedule(fmt.Sprintf(
+				"vesting start-time (%d) must be before end-time (%d)",
+				vs.StartTime, vs.EndTime,
+			))
+		}
 	}
 	if !vs.OriginalVesting.IsValid() {
 		return ErrInvalidVestingSchedule(fmt.Sprintf("invalid original vesting coins: %s", vs.OriginalVesting))

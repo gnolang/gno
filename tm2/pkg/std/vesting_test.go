@@ -79,6 +79,24 @@ func TestVestingSchedule_Validate(t *testing.T) {
 			}, "invalid original vesting coins",
 		},
 		{
+			// A negative start wraps EndTime-StartTime and blockTime-StartTime,
+			// and the vested amount then computes from the wrapped values.
+			"linear starting before the epoch", VestingSchedule{
+				OriginalVesting: ugnot(1), StartTime: -1, EndTime: 100,
+			}, "start-time cannot be negative",
+		},
+		{
+			"linear spanning the whole int64 range", VestingSchedule{
+				OriginalVesting: ugnot(1), StartTime: math.MinInt64, EndTime: math.MaxInt64,
+			}, "start-time cannot be negative",
+		},
+		{
+			// A cliff never reads its start, so it is not constrained.
+			"cliff with a negative start", VestingSchedule{
+				OriginalVesting: ugnot(1), StartTime: -1, EndTime: 100, Type: VestingDelayed,
+			}, "",
+		},
+		{
 			"unknown type", VestingSchedule{
 				OriginalVesting: ugnot(1), StartTime: 1, EndTime: 2, Type: "quarterly",
 			}, "unknown vesting type",
@@ -205,8 +223,8 @@ func TestVestingSchedule_MonotonicAndConserved(t *testing.T) {
 		{"maximum amount", VestingSchedule{
 			OriginalVesting: ugnot(math.MaxInt64), StartTime: 0, EndTime: 1000,
 		}},
-		{"start before the epoch", VestingSchedule{
-			OriginalVesting: ugnot(1000), StartTime: -500, EndTime: 500,
+		{"the largest span Validate accepts", VestingSchedule{
+			OriginalVesting: ugnot(1000), StartTime: 0, EndTime: math.MaxInt64,
 		}},
 		{"cliff", cliff()},
 	}
@@ -333,4 +351,58 @@ func TestBaseAccount_StringShowsAScheduleOnlyWhenThereIsOne(t *testing.T) {
 	acc.SetVesting(linear())
 	assert.Contains(t, acc.String(), "Vesting")
 	assert.Contains(t, acc.String(), "1000ugnot", "the amount must be shown")
+}
+
+// Whatever Validate accepts must conserve at any block time: the vested amount
+// stays within the grant, and vested plus locked is exactly the grant.
+//
+// This sweeps the extremes of the int64 range rather than plausible dates,
+// because the failure it guards is arithmetic, not calendar. A start before the
+// epoch wraps both EndTime-StartTime and blockTime-StartTime, and the vested
+// amount is then computed from the wrapped values: a grant of 1000 vested 2000,
+// which drives locked negative and makes the spendable figure exceed the balance.
+func TestVestingSchedule_AcceptedSchedulesAlwaysConserve(t *testing.T) {
+	t.Parallel()
+
+	const orig = 1000
+	starts := []int64{math.MinInt64, math.MinInt64 + 1, -(1 << 62), -1, 0, 1, 1 << 20, 1 << 62, math.MaxInt64 - 1}
+	ends := []int64{math.MinInt64, -1, 0, 1, 100, 1 << 20, 1 << 62, math.MaxInt64 - 1, math.MaxInt64}
+	nows := []int64{
+		math.MinInt64, math.MinInt64 + 1, -(1 << 62), -1, 0, 1, 99, 100,
+		1 << 20, 1893456000, 1 << 62, math.MaxInt64 - 1, math.MaxInt64,
+	}
+
+	accepted := 0
+	for _, start := range starts {
+		for _, end := range ends {
+			for _, kind := range []VestingScheduleType{VestingContinuous, VestingDelayed} {
+				vs := VestingSchedule{
+					OriginalVesting: ugnot(orig),
+					StartTime:       start,
+					EndTime:         end,
+					Type:            kind,
+				}
+				if vs.Validate() != nil {
+					continue
+				}
+				accepted++
+				for _, now := range nows {
+					vested := vs.VestedCoins(at(now)).AmountOf("ugnot")
+					locked := vs.LockedCoins(at(now)).AmountOf("ugnot")
+
+					require.GreaterOrEqual(t, vested, int64(0),
+						"start=%d end=%d type=%q now=%d", start, end, kind, now)
+					require.LessOrEqual(t, vested, int64(orig),
+						"start=%d end=%d type=%q now=%d", start, end, kind, now)
+					require.GreaterOrEqual(t, locked, int64(0),
+						"start=%d end=%d type=%q now=%d", start, end, kind, now)
+					require.Equal(t, int64(orig), vested+locked,
+						"start=%d end=%d type=%q now=%d", start, end, kind, now)
+				}
+			}
+		}
+	}
+	// Guards the sweep itself: a Validate that rejected everything would pass
+	// every assertion above without checking anything.
+	require.Greater(t, accepted, 50, "the sweep must actually accept schedules to check")
 }
