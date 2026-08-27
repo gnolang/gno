@@ -228,7 +228,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
 - `STORAGE FEE:    174800ugnot` - the [storage deposit](../resources/storage-deposit.md) locked for those bytes, refundable when the state is deleted
 - `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
-- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, here the storage event every state-changing message carries
+- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, here the storage event that the added bytes produce. A message storing no new bytes emits none, and the field reads `[]`
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 

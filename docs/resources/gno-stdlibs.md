@@ -917,7 +917,8 @@ if !banker.IsCanonical(b) {
 
 ## `chain/params`
 
-Realm-local key-value storage, readable and writable from any realm.
+Per-realm key-value storage. Any realm can use it, and each one sees only its
+own keys: every key is stored under the calling realm's path.
 
 ```go
 func SetString(key string, val string)
