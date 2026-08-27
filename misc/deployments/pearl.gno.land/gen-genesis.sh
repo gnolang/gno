@@ -157,15 +157,15 @@ FAUCET_ADDRESSES=(
 # week exercises the fully-vested state. The bounds are offsets from
 # GENESIS_TIME so moving the launch date keeps every schedule shape.
 VESTED_ACCOUNTS=(
-  "g1m3efp098exf9n93l8vdh0uesftp2asr9446qh0=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME - 3600)),$GENESIS_TIME" # testing-acct-1: continuous, ended at genesis: fully unlocked from block 1
-  "g19em6j7376mvlf68n89k73ce3hg04zpaxf46a0e=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 3600))" # testing-acct-2: continuous, 1 hour
-  "g13egct6g3d68vmrjsc5m2rrwm4767rt6wf0ytq7=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 86400))" # testing-acct-3: continuous, 1 day
-  "g1uqzvq2gwakml2a6r234mw0eu0x8qck9qp42ueq=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 259200))" # testing-acct-4: continuous, 3 days
-  "g14dqplajk29l0tjwr9avd5rvx6tyn7nrmkdvmxa=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 604800))" # testing-acct-5: continuous, 7 days
-  "g1gdetwlyr2rw8w722whzh3jlzjmkz92pzv93jee=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 3600));type=delayed" # testing-acct-6: delayed cliff at genesis + 1 hour
-  "g1dasewzx6c4fhseevfwsdfsnfy9an42kr83kzdd=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 86400));type=delayed" # testing-acct-7: delayed cliff at genesis + 1 day
+  "g1m3efp098exf9n93l8vdh0uesftp2asr9446qh0=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME - 3600)),$GENESIS_TIME"                # testing-acct-1: continuous, ended at genesis: fully unlocked from block 1
+  "g19em6j7376mvlf68n89k73ce3hg04zpaxf46a0e=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 3600))"                # testing-acct-2: continuous, 1 hour
+  "g13egct6g3d68vmrjsc5m2rrwm4767rt6wf0ytq7=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 86400))"               # testing-acct-3: continuous, 1 day
+  "g1uqzvq2gwakml2a6r234mw0eu0x8qck9qp42ueq=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 259200))"              # testing-acct-4: continuous, 3 days
+  "g14dqplajk29l0tjwr9avd5rvx6tyn7nrmkdvmxa=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 604800))"              # testing-acct-5: continuous, 7 days
+  "g1gdetwlyr2rw8w722whzh3jlzjmkz92pzv93jee=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 3600));type=delayed"   # testing-acct-6: delayed cliff at genesis + 1 hour
+  "g1dasewzx6c4fhseevfwsdfsnfy9an42kr83kzdd=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 86400));type=delayed"  # testing-acct-7: delayed cliff at genesis + 1 day
   "g1pdhv586g6jl3pjml0fk5h828dad23sjlzukp4w=1000000000ugnot;vesting=750000000ugnot,$GENESIS_TIME,$((GENESIS_TIME + 604800));type=delayed" # testing-acct-8: delayed cliff at genesis + 7 days
-  "g10w8l2hg7690upa4dcy6suq8yvkju7q4za0sfey=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME + 86400)),$((GENESIS_TIME + 345600))" # testing-acct-9: continuous, starts 1 day after genesis, ends at 4 days
+  "g10w8l2hg7690upa4dcy6suq8yvkju7q4za0sfey=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME + 86400)),$((GENESIS_TIME + 345600))"  # testing-acct-9: continuous, starts 1 day after genesis, ends at 4 days
   "g17s8dlta3fjgztppcr5z7tlmkeg4ecwsfeeatag=1000000000ugnot;vesting=750000000ugnot,$((GENESIS_TIME - 604800)),$((GENESIS_TIME + 604800))" # testing-acct-10: continuous, started 7 days before genesis, half unlocked at launch, ends at 7 days
 )
 
@@ -207,8 +207,13 @@ NAMES_ADMIN=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 # different output will fail loudly.
 CHECKSUMS_DATA=$(
   cat <<'EOF'
-# (empty — locked only once the PEARL-PR-HANDOFF.md values are final: run
-# a fresh end-to-end build and paste the printed "not listed" lines here.)
+# Build artifacts
+2f686094b25ab6cb17e5ab032e98b45de8df9db8e5be1fbb76642c137290582f  work/packages.gen.txt
+7717a8fc3f01fd40f6625daa6746b47fc2f023d1a664f5fea1e148ef86cab767  work/valoper-seed.jsonl
+499d9fbaaea8822d873a8e6693e329c9347bc69223daf056c4f31fe28aa437dc  work/genesis_txs.jsonl
+
+# Final artifact (moved to pearl.gno.land/ root on success)
+f07b8056756dae68f15ad69c7bfa6c0da2aa2a39cbbc08bfceb9e5b454c2e0cc  genesis.json
 EOF
 )
 

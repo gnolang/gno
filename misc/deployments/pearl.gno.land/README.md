@@ -2,7 +2,7 @@
 
 Builds the **pearl** genesis. pearl is a **fresh chain** — not a hardfork, no historical replay.
 
-> **Status: all launch values set.** The ceremony keys, operators, genesis time, faucet accounts, peers, and the ten vested test accounts are final; `CHECKSUMS_DATA` is locked on the next clean build.
+> **Status: all launch values are final and `CHECKSUMS_DATA` is locked.** Ceremony keys, operators, genesis time, faucet accounts, peers, and the ten vested test accounts are in; any build producing different bytes fails loudly.
 
 ## What pearl contains
 

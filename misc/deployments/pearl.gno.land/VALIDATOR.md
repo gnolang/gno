@@ -42,7 +42,7 @@ Verify its SHA256 — it must match:
 
 ```shell
 shasum -a 256 genesis.json
-# GENESIS_SHA256_PLACEHOLDER — filled once the pearl launch values are final  genesis.json
+# f07b8056756dae68f15ad69c7bfa6c0da2aa2a39cbbc08bfceb9e5b454c2e0cc  genesis.json
 ```
 
 To regenerate the genesis yourself instead of downloading it, see [`README.md`](./README.md).
