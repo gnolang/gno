@@ -83,6 +83,15 @@ func TestCodecParity_VM(t *testing.T) {
 			PkgPath: "gno.land/r/demo/foo",
 		}},
 		{"Params", &vm.Params{}},
+		// The inert submission charge, which defaults to empty because empty
+		// means off. DefaultParams leaves it that way and the encoder skips an
+		// empty string, so no other case reaches its marshal path -- a field
+		// dropped there would read back as off, and a charge governance had
+		// turned on would quietly stop being taken.
+		{"ParamsInertCharge", &vm.Params{
+			InertSubmissionCharge: "1000ugnot",
+			InertChargeCollector:  crypto.AddressFromPreimage([]byte("inert-collector")),
+		}},
 		// Populated address lists. The empty Params case above never enters the
 		// repeated-field marshal/size/unmarshal loops in pb3_gen.go, so it passes
 		// even if a repeated field has no codec at all — and DefaultParams()
