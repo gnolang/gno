@@ -36,6 +36,10 @@ func Wrap(token *grc721.Token, ledger *grc721.PrivateLedger) *NFT {
 		panic("collection: nil token or ledger")
 	}
 
+	if ledger.ReadToken() != token {
+		panic("collection: ledger does not belong to this token")
+	}
+
 	return &NFT{col: &Collection{token: token}, ledger: ledger}
 }
 

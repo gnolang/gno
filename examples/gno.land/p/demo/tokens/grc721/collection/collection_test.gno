@@ -54,6 +54,14 @@ func TestNewConstructors(cur realm, t *testing.T) {
 		uassert.Equal(t, tok.ID(), nft.Collection().Token().ID())
 	})
 
+	t.Run("Wrap rejects a mismatched token/ledger pair", func(t *testing.T) {
+		tokA, _ := newTokenLedger("A", "AAA", 3, cur)
+		_, ledB := newTokenLedger("B", "BBB", 4, cur)
+		uassert.PanicsWithMessage(t, cur, "collection: ledger does not belong to this token", func() {
+			Wrap(tokA, ledB)
+		})
+	})
+
 	panics := []struct {
 		name string
 		run  func()
