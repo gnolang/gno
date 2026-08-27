@@ -12,36 +12,32 @@ type Collection struct {
 	exts  avl.Tree // kind -> grc721.ExtensionView
 }
 
-// NewCollection builds a Collection from a core token and its extension read-views.
-func NewCollection(token *grc721.Token, views ...grc721.ExtensionView) *Collection {
-	if token == nil {
-		panic("collection: nil token")
+// NewCollection builds a Collection from a ledger's token and every read-view
+// registered on that ledger.
+func NewCollection(ledger *grc721.PrivateLedger) *Collection {
+	if ledger == nil {
+		panic("collection: nil ledger")
 	}
 
-	c := &Collection{token: token}
-
-	for _, ev := range views {
-		c.attach(ev)
-	}
+	c := &Collection{token: ledger.ReadToken()}
+	c.sync(ledger)
 
 	return c
 }
 
-func (c *Collection) attach(ev grc721.ExtensionView) {
-	if ev == nil {
-		return
-	}
+// sync copies in the read-views the ledger publishes. Views are taken from the
+// ledger rather than from a caller, so there is nothing to authenticate: a view
+// cannot be forged, cannot belong to another token, and cannot be a typed nil.
+func (c *Collection) sync(led *grc721.PrivateLedger) {
+	for _, kind := range led.ExtensionKinds() {
+		if c.exts.Has(kind) {
+			continue
+		}
 
-	if ev.TokenID() != c.token.ID() {
-		panic("collection: view does not belong to this token")
+		if view, ok := led.ExtensionView(kind); ok {
+			c.exts.Set(kind, view)
+		}
 	}
-
-	kind := ev.ExtensionKind()
-	if c.exts.Has(kind) {
-		panic("collection: duplicate extension kind: " + kind)
-	}
-
-	c.exts.Set(kind, ev)
 }
 
 func (c *Collection) Token() *grc721.Token { return c.token }
