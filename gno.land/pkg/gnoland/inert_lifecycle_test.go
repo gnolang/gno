@@ -309,3 +309,145 @@ func Hello(cur realm) string { return "hi" }
 	assert.Equal(t, collectorAfterSubmit, ugnotBalance(t, app, collectorAddr),
 		"enable must not charge again; the charge is a submit-time cost")
 }
+
+// TestInertPolicyAtGenesisDeploysLive pins the exemption a chain launching
+// directly into the "inert" policy depends on: a FRESH chain whose genesis
+// params already carry code_submission_policy = "inert" must still deploy its
+// own genesis packages live, rather than parking them.
+//
+// The failure this rules out is unrecoverable, which is why it is worth a boot
+// of its own. A chain that parked its genesis content would come up with
+// nothing deployed -- no r/sys/params, no govdao -- so there would be no way to
+// propose a policy change, and no approver could act either, because the realms
+// an approver's transaction needs do not exist yet. The only repair is a new
+// genesis file and a relaunch.
+//
+// The behavior rests on two facts in two packages, neither of which mentions
+// the other: the keeper's parking branch is guarded on ctx.BlockHeight() > 0,
+// and baseapp's InitChain builds its header without a Height, so genesis runs
+// at 0. Either could move without the other looking wrong, so this asserts the
+// outcome rather than either fact.
+//
+// Two consequences of the same carve-out ride along, since they need this exact
+// boot to observe: the submission charge is not levied on genesis content (the
+// charge is taken inside the parking branch), and an armed run_submitters does
+// not refuse the genesis deployer. The latter is also covered from the MsgRun
+// side by TestChainUpgradeGenesisReplay's fresh-chain subtest; here it is a
+// premise, so that a pass cannot be explained by an unarmed gate.
+func TestInertPolicyAtGenesisDeploysLive(t *testing.T) {
+	t.Parallel()
+
+	var (
+		db      = memdb.NewMemDB()
+		key     = getDummyKey(t) // genesis deployer
+		chainID = "inert-at-genesis"
+
+		// Three capabilities the deployer must NOT hold, so that a live deploy
+		// cannot be explained by the deployer being privileged.
+		approverAddr  = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		collectorAddr = crypto.MustAddressFromString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
+		gateHolder    = crypto.MustAddressFromString("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m")
+
+		path = "gno.land/r/demo/genesislive"
+		body = `package genesislive
+
+func Status(cur realm) string { return "live" }
+`
+	)
+
+	vmGen := vm.DefaultGenesisState()
+	vmGen.Params.CodeSubmissionPolicy = vm.CodeSubmissionPolicyInert
+	vmGen.Params.PkgApprovers = []crypto.Address{approverAddr}
+	vmGen.Params.InertSubmissionCharge = "1000000ugnot"
+	vmGen.Params.InertChargeCollector = collectorAddr
+	vmGen.Params.RunSubmitters = []crypto.Address{gateHolder}
+
+	deployer := key.PubKey().Address()
+	require.NotContains(t, vmGen.Params.PkgApprovers, deployer,
+		"premise: the genesis deployer must not be an approver")
+	require.NotContains(t, vmGen.Params.RunSubmitters, deployer,
+		"premise: the genesis deployer must be off the armed MsgRun allowlist")
+	require.NotEqual(t, collectorAddr, deployer,
+		"premise: the deployer must not be the charge collector")
+
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+
+	addPkg := vm.MsgAddPackage{
+		Creator: deployer,
+		Package: &std.MemPackage{
+			Name: "genesislive",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "genesislive.gno", Body: body},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			},
+		},
+	}
+
+	// TestAppOptions installs PanicOnFailingTxResultHandler, so a genesis tx
+	// that the policy refused would abort the boot rather than surface later as
+	// a confusing query result.
+	require.NotPanics(t, func() {
+		app.InitChain(abci.RequestInitChain{
+			ChainID:       chainID,
+			Time:          time.Now(),
+			InitialHeight: 1,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				// No Metadata: this is a fresh chain's own genesis tx, not
+				// replayed history.
+				Txs: []TxWithMetadata{
+					{Tx: createAndSignTx(t, []std.Msg{addPkg}, chainID, key)},
+				},
+				Balances: []Balance{{
+					Address: deployer,
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100_000_000)),
+				}},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vmGen,
+			},
+		})
+	}, "the genesis addpkg must be delivered under the inert policy")
+	app.Commit()
+
+	// Nothing parked. Checked before the call, because an empty queue and a
+	// successful call are different claims: this one would still catch a
+	// package that was BOTH parked and somehow reachable.
+	inert := app.Query(abci.RequestQuery{Path: "vm/qinertpaths"})
+	require.True(t, inert.IsOK(), "inert-path query failed: %v", inert.ResponseBase.Error)
+	assert.Empty(t, string(inert.Data),
+		"genesis content must not be parked under the inert policy")
+
+	// And live: MsgCall reaches a crossing function, which needs the package
+	// typechecked, its init run, and its node in the active store -- exactly
+	// the three things parking skips.
+	signer := queryAccount(t, app, deployer)
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{
+		ChainID: chainID, Height: 1, Time: time.Now(),
+	}})
+	callTx := createAndSignTxWithAccSeq(t, []std.Msg{vm.MsgCall{
+		Caller: deployer, PkgPath: path, Func: "Status",
+	}}, chainID, key, signer.AccountNumber, signer.Sequence)
+	raw, err := amino.Marshal(callTx)
+	require.NoError(t, err)
+	callResp := app.DeliverTx(abci.RequestDeliverTx{Tx: raw})
+	require.True(t, callResp.IsOK(), "genesis package must be callable: %s", callResp.Log)
+	assert.Contains(t, string(callResp.Data), "live")
+
+	// The charge lives inside the parking branch, so a genesis deploy must not
+	// have funded the collector. Queried tolerantly: with nothing received the
+	// account may not exist at all, and "no account" is the stronger outcome.
+	collector := app.Query(abci.RequestQuery{Path: "auth/accounts/" + collectorAddr.String()})
+	require.True(t, collector.IsOK(), "collector query failed: %v", collector.ResponseBase.Error)
+	if len(collector.Data) > 0 {
+		var acc GnoAccount
+		require.NoError(t, amino.UnmarshalJSON(collector.Data, &acc))
+		assert.Zero(t, acc.Coins.AmountOf("ugnot"),
+			"genesis content must not be charged the inert submission charge")
+	}
+}
