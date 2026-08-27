@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"math"
+	"runtime"
 	"strings"
 	"testing"
 	"unsafe"
@@ -306,48 +307,69 @@ func TestTrackString_OverlapClones(t *testing.T) {
 	}
 }
 
-// TestTrackString_RecycledAddress simulates Go's runtime recycling a dead
-// tracked backing's address for a new string: stale entries are
-// synthesized around a fresh string's extent. trackString cannot
-// distinguish this from sharing a live backing, so it must clone
-// conservatively and register the clone's exact extent; entries it cannot
-// prove stale are left for CleanupTrackedStrings, and disjoint live
-// entries must be untouched.
-func TestTrackString_RecycledAddress(t *testing.T) {
-	alloc := NewAllocator(1_000_000)
+// TestTrackString_PinnedBackings is the regression test for the
+// recycled-address false hit: tracked ranges pin their backings
+// (stringRange.str), so Go can never free a tracked backing and recycle
+// its address for a new, untracked string (e.g. VM panic text). Before
+// pinning, this scenario produced nondeterministic containment hits —
+// 1 to 200 per 20000 attempts, varying run to run in one process — each
+// charging a dead range's extent to a string the allocator never minted.
+// With pinning, hits must be exactly zero, always.
+func TestTrackString_PinnedBackings(t *testing.T) {
+	alloc := NewAllocator(1 << 30)
 
-	s := strings.Repeat("a", 16)
-	p, end := stringExtent(s)
+	const size = 4096
+	const attempts = 10000
 
-	for _, r := range []stringRange{
-		{start: p - 100, end: p - 90, lastCycle: 7},    // disjoint survivor
-		{start: p - 8, end: p + 4},                     // overlaps head, stale
-		{start: p + 6, end: p + 10},                    // contained, stale
-		{start: end - 2, end: end + 4},                 // overlaps tail, stale
-		{start: end + 50, end: end + 60, lastCycle: 7}, // disjoint survivor
-	} {
-		alloc.stringRanges.insert(r)
+	// Track a batch of strings and drop every test-side reference; only
+	// the allocator's pins keep the backings alive.
+	for i := 0; i < 200; i++ {
+		alloc.NewString(strings.Repeat(string(rune('a'+i%26)), size))
+	}
+	runtime.GC()
+	runtime.GC()
+
+	// Allocate fresh strings the way panic text is built (plain Go
+	// string construction, never minted through NewString). None may
+	// resolve into a tracked range: their memory cannot have been
+	// recycled from a pinned backing.
+	for i := 0; i < attempts; i++ {
+		b := make([]byte, size)
+		for j := range b {
+			b[j] = byte('A' + (i+j)%26)
+		}
+		if n, charge := alloc.CountStringBytes(string(b), 1); charge {
+			t.Fatalf("untracked string falsely resolved into a tracked range (charged %d bytes): a pinned backing was recycled", n)
+		}
+		if i%1000 == 0 {
+			runtime.GC()
+		}
+	}
+}
+
+// TestClearObjectCache_ClearsStringTracking pins the per-message reset:
+// ClearObjectCache runs before each message of a multi-message tx and
+// must drop the string tracking along with the byte count — the next
+// message's machine restarts GC cycle numbering, so leftover ranges
+// would carry stale lastCycle stamps and pin dead backings.
+func TestClearObjectCache_ClearsStringTracking(t *testing.T) {
+	tm2Store := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+	alloc := NewAllocator(1 << 20)
+	st.SetAllocator(alloc)
+
+	alloc.NewString("tracked in message 1")
+	if got := alloc.stringRanges.len(); got != 1 {
+		t.Fatalf("want 1 tracked range before reset, got %d", got)
 	}
 
-	tracked := alloc.trackString(s)
-	if tracked != s {
-		t.Errorf("clone changed content: got %q, want %q", tracked, s)
-	}
+	st.ClearObjectCache()
 
-	// The clone's exact extent is registered as its own range.
-	tp, tend := stringExtent(tracked)
-	if r := alloc.rangeFor(tp); r == nil || r.start != tp || r.end != tend {
-		t.Error("tracked string's extent not registered exactly")
+	if got := alloc.stringRanges.len(); got != 0 {
+		t.Errorf("ClearObjectCache left %d tracked ranges, want 0", got)
 	}
-	// Disjoint entries are never evicted.
-	if alloc.rangeFor(p-95) == nil || alloc.rangeFor(end+55) == nil {
-		t.Error("disjoint entries were wrongly evicted")
-	}
-	// Whatever wasn't provably stale is at most deferred to GC cleanup:
-	// after a cycle in which only survivors are visited, exactly they remain.
-	alloc.CleanupTrackedStrings(7)
-	if got := alloc.stringRanges.len(); got != 2 {
-		t.Errorf("after cleanup: want 2 survivor ranges, got %d", got)
+	if _, bytes := alloc.Status(); bytes != 0 {
+		t.Errorf("ClearObjectCache left %d charged bytes, want 0", bytes)
 	}
 }
 

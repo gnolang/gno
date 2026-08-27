@@ -19,15 +19,33 @@
 >
 > **Fix: make sharing VM-controlled.** `trackString` clones the string
 > (`strings.Clone`) iff its extent overlaps an already-tracked range —
-> i.e. exactly when toolchain sharing (or address recycling) actually
-> occurred — so every `NewString` ends up with its own tracked range on
-> every toolchain, and the range set is decided by VM logic alone. The
-> common fresh-backing case pays no copy; the one intentional sharing
-> case, `GetSlice`, does not go through `trackString`. Rejected variant:
-> unconditional clone (simpler to state, but copies every string twice on
-> paths like concat that already produced a fresh backing). Fallback if
-> address identity proves fragile anyway: a representation-level approach
-> (alternative 1 below) with its GC gaps fixed — larger migration cost.
+> i.e. exactly when toolchain sharing actually occurred — so every
+> `NewString` ends up with its own tracked range on every toolchain, and
+> the range set is decided by VM logic alone. The common fresh-backing
+> case pays no copy; the one intentional sharing case, `GetSlice`, does
+> not go through `trackString`. Rejected variant: unconditional clone
+> (simpler to state, but copies every string twice on paths like concat
+> that already produced a fresh backing). Fallback if address identity
+> proves fragile anyway: a representation-level approach (alternative 1
+> below) with its GC gaps fixed — larger migration cost.
+>
+> **Second determinism issue (fixed): address recycling could misattribute
+> untracked strings.** The allocator originally held bare `uintptr`s, so
+> Go could free a dead tracked backing and recycle its address before the
+> next GC pruned the range. A GC-visited string that was never minted
+> through `NewString` (formatted VM panic text in `m.Exception`, or a
+> recovered error string in a Gno variable) could then land inside such a
+> stale range and be charged its full extent by `CountStringBytes` — and
+> whether that happened depended on Go GC timing and heap pressure, i.e.
+> it varied across nodes (measured in-process: 1–200 false hits per 20000
+> attempts, different on every run). **Fix: pin the backing** — each
+> `stringRange` holds the string itself, so a tracked address can never be
+> freed or recycled while tracked; a containment hit always refers to the
+> tracked backing. This also made `trackString`'s stale-entry eviction
+> dead code (a fresh clone can no longer overlap any tracked range, since
+> Go never allocates over live memory). Cost: a dead backing's memory is
+> retained until the next GC prune — at most one cycle, bounded by bytes
+> already charged. Regression test: `TestTrackString_PinnedBackings`.
 
 ## Context
 
@@ -74,11 +92,13 @@ backing per GC cycle:
 - Every `NewString` gets its **own** range: if the input's extent overlaps a
   tracked range, `trackString` clones it onto a fresh backing and registers
   the clone (see Status note — this is what removes toolchain-dependent
-  backing sharing from consensus-visible accounting). A clone whose extent
-  still overlaps entries proves those entries stale — their backing died and
-  Go recycled the address, since live backings cannot be allocated over —
-  and they are evicted on the spot, earlier than `CleanupTrackedStrings`
-  would.
+  backing sharing from consensus-visible accounting).
+- Each range **pins its backing** (`stringRange.str` holds the string), so a
+  tracked address can never be freed and recycled by Go while tracked. This
+  makes containment lookups sound for *all* visited strings: an overlap in
+  `trackString` is always genuine live sharing (never a recycled address),
+  and an untracked string (panic text, recovered errors) can never falsely
+  resolve into a tracked range (see Status note, second issue).
 - `StringValue.GetShallowSize()` now returns the header only. The GC visitor
   (`GCVisitorFn`) special-cases `StringValue`: `CountStringBytes` returns the
   **full backing length** the first time any string resolving into a range is
@@ -90,8 +110,14 @@ backing per GC cycle:
   `store.GetAllocator().NewString`, so persisted strings are both charged and
   tracked on reload.
 - After each GC, `CleanupTrackedStrings` prunes ranges not visited that cycle
-  (dead backings). This also bounds the window in which Go's runtime could
-  recycle a tracked address to a single GC cycle.
+  (dead backings), releasing their pins — a dead backing's memory is retained
+  for at most one GC cycle.
+- Between messages of a multi-message tx, `ClearObjectCache` clears the
+  tracking along with the byte count (`clearStringTracking`): the next
+  message's machine restarts GC cycle numbering, so leftover ranges would
+  carry stale `lastCycle` stamps and pin dead backings across messages.
+  `Reset()` alone deliberately does *not* clear tracking — the GC calls it
+  immediately before the recount, which still needs the ranges.
 - `Fork()` starts the child with empty tracking: the child's tx store caches
   start empty, so every string it charges is re-registered through its own
   `NewString`/`fillTypesOfValue` path. Sharing the parent's slice would be
@@ -140,7 +166,11 @@ Deliberately untracked, by design:
   a literal that pass through `NewString` (e.g. `x := lit + ""`) get their own
   range and are counted normally.
 - `typedString` / `typedRuntimeError` panic values: short, constant or
-  numeric-formatted text; reachable from Gno only via `recover()`.
+  numeric-formatted text; reachable from Gno only via `recover()`. An
+  untracked string is a small deterministic undercount (charged its 48-byte
+  header at each GC), never a misattribution: tracked ranges pin their
+  backings, so an untracked string's memory can never occupy a tracked
+  range's address space.
 
 Follow-up (not string-related): byte-array/slice call arguments in
 `convert.go` build `*ArrayValue` directly without `AllocateDataArray`; the
@@ -195,18 +225,21 @@ different tally depending on where its aliases happen to sit.
   cycles and shared-backing dedup; unit tests in `alloc_test.go` cover
   tracking, dedup, cleanup, slice containment, and empty strings.
 - `trackString`/`CountStringBytes` are O(log n) expected (treap); the
-  per-cycle prune is O(n). Each tracked string costs one treap node (~48B of
-  Go heap) not charged to the allocator — bounded by the number of strings
-  charged, so not amplifiable. `string_ranges_test.go` model-checks the treap
-  against a brute-force slice and keeps `BenchmarkNewStringTracked` /
-  `BenchmarkGCStringPass` as the regression reference.
+  per-cycle prune is O(n). Each tracked string costs one treap node (~64B of
+  Go heap, including the pinning string header) not charged to the allocator
+  — bounded by the number of strings charged, so not amplifiable.
+  `string_ranges_test.go` model-checks the treap against a brute-force slice
+  and keeps `BenchmarkNewStringTracked` / `BenchmarkGCStringPass` as the
+  regression reference.
 - Gas pins move where strings that were previously free are now charged:
   realm-handle strings per crossing (~150 gas) and `MsgCall` string
   arguments (header + bytes).
-- The allocator now holds `uintptr`s into Go heap memory. They are used only
-  for identity/containment (never dereferenced); stale entries are evicted
-  by `trackString` when their recycled address is re-tracked, and pruned by
-  `CleanupTrackedStrings` otherwise.
+- The allocator now holds `uintptr`s into Go heap memory, used only for
+  identity/containment (never dereferenced), plus the tracked strings
+  themselves as pins: an address stays valid for exactly as long as it is
+  tracked, so stale entries cannot exist. Dead backings are released by
+  `CleanupTrackedStrings` after each GC (≤1 cycle of retention, bounded by
+  bytes already charged) and by `clearStringTracking` between messages.
 - Strings whose backing Go chose to share (e.g. `s1 + ""` returning `s1`)
   now pay one extra copy at `NewString`; strings with fresh backings — the
   common case — pay nothing.

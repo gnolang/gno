@@ -9,7 +9,7 @@ import (
 
 // TestStringRangeSet_Model checks the treap against a brute-force sorted
 // slice model under a fixed-seed random workload of inserts, containment
-// and overlap queries, removals and retain() cycles.
+// and overlap queries, and retain() cycles.
 func TestStringRangeSet_Model(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	var set stringRangeSet
@@ -56,7 +56,7 @@ func TestStringRangeSet_Model(t *testing.T) {
 			set.insert(r)
 			model = append(model, r)
 			sort.Slice(model, func(i, j int) bool { return model[i].start < model[j].start })
-		case op < 7: // containment + overlap queries
+		case op < 8: // containment + overlap queries
 			p := uintptr(rng.Intn(space + 32))
 			want := modelContaining(p)
 			got := set.containing(p)
@@ -67,13 +67,6 @@ func TestStringRangeSet_Model(t *testing.T) {
 			if got, want := set.overlapping(p, end) != nil, modelOverlapping(p, end); got != want {
 				t.Fatalf("step %d: overlapping(%d,%d): set=%v model=%v", step, p, end, got, want)
 			}
-		case op < 8: // remove a random existing range
-			if len(model) == 0 {
-				continue
-			}
-			i := rng.Intn(len(model))
-			set.remove(model[i].start)
-			model = append(model[:i], model[i+1:]...)
 		case op < 9: // stamp a random subset with cycle, then retain it
 			cycle := int64(step + 1)
 			for i := range model {
@@ -94,8 +87,11 @@ func TestStringRangeSet_Model(t *testing.T) {
 				}
 			}
 			model = kept
-		default: // remove a non-existent key is a no-op
-			set.remove(uintptr(space + 100 + rng.Intn(100)))
+		default: // lookups outside the populated space always miss
+			p := uintptr(space + 100 + rng.Intn(100))
+			if set.containing(p) != nil || set.overlapping(p, p+8) != nil {
+				t.Fatalf("step %d: lookup at %d beyond all ranges should miss", step, p)
+			}
 		}
 		check(step)
 	}

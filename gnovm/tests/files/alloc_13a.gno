@@ -9,12 +9,10 @@
 //   - s1 counts header (48B) only, because CountStringBytes returned
 //     true for s and false for s1 (same backing, same cycle)
 //
-// If GC double-counted:
+// If GC double-counted, s1's backing would add another 1052B to the
+// recount (after ≈ 10024).
 //
-//	after ≈ 12004 - <dead> + 48 + 1052 ≈ 9496
-//	(the extra 1052B for s1's backing would push after above 9k)
-//
-// Observed: after = 8444, confirming single-count dedup.
+// Observed: after = 8972, confirming single-count dedup.
 package test
 
 import (

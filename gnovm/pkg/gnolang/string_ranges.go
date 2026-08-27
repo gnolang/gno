@@ -3,11 +3,11 @@ package gnolang
 // stringRangeSet is an ordered set of disjoint [start, end) string-backing
 // extents keyed by start. It backs Allocator.stringRanges.
 //
-// It is a treap: insert, containment lookup, overlap check and single
-// removal are O(log n) expected, so tracking cost per NewString stays
-// logarithmic in the number of live tracked strings. A sorted slice was
-// O(n) per insert (memmove), which made a tx that builds many small
-// distinct strings quadratic in CPU while paying gas only for their bytes.
+// It is a treap: insert, containment lookup and overlap check are
+// O(log n) expected, so tracking cost per NewString stays logarithmic in
+// the number of live tracked strings. A sorted slice was O(n) per insert
+// (memmove), which made a tx that builds many small distinct strings
+// quadratic in CPU while paying gas only for their bytes.
 //
 // Node priorities derive from the key (splitmix64 of start), so the
 // tree shape is a pure function of the tracked set. Shape never affects
@@ -79,16 +79,6 @@ func (s *stringRangeSet) overlapping(p, end uintptr) *stringRange {
 		return nil
 	}
 	return &best.stringRange
-}
-
-// remove deletes the range whose start is exactly start, if present.
-func (s *stringRangeSet) remove(start uintptr) {
-	l, rt := rangeSplit(s.root, start)
-	hit, rt := rangeSplit(rt, start+1)
-	if hit != nil {
-		s.n--
-	}
-	s.root = rangeMerge(l, rt)
 }
 
 // retain keeps only the ranges with lastCycle == cycle and rebuilds the
