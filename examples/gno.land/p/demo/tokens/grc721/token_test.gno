@@ -701,19 +701,19 @@ func TestExtensionViewLookup(cur realm, t *testing.T) {
 	led.RegisterExtension(&mockExtension{}, view)
 	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}}, nil)
 
-	uassert.Equal(t, 2, len(led.ExtensionKinds()))
-	uassert.Equal(t, "mock", led.ExtensionKinds()[0])
-	uassert.Equal(t, "journal", led.ExtensionKinds()[1])
+	uassert.Equal(t, 2, len(tok.ExtensionKinds()))
+	uassert.Equal(t, "mock", tok.ExtensionKinds()[0])
+	uassert.Equal(t, "journal", tok.ExtensionKinds()[1])
 
-	got, ok := led.ExtensionView("mock")
+	got, ok := tok.ExtensionView("mock")
 	urequire.True(t, ok, "mock view registered")
 	uassert.True(t, got == ExtensionView(view))
 
 	// a kind registered without a view publishes nothing
-	_, ok = led.ExtensionView("journal")
+	_, ok = tok.ExtensionView("journal")
 	uassert.False(t, ok)
 
-	_, ok = led.ExtensionView("absent")
+	_, ok = tok.ExtensionView("absent")
 	uassert.False(t, ok)
 }
 
@@ -736,19 +736,19 @@ func (s shiftyExtension) OnTransfer(from, to address, tid TokenID) {}
 func (s shiftyExtension) OnBurn(tid TokenID) {}
 
 func TestRegisterExtensionFreezesTheKind(cur realm, t *testing.T) {
-	_, led := newTestToken("Foo", "FOO", 0, cur)
+	tok, led := newTestToken("Foo", "FOO", 0, cur)
 	kind := "aux"
 	led.RegisterExtension(shiftyExtension{kind: &kind}, nil)
 
 	kind = "mock"
 
-	kinds := led.ExtensionKinds()
+	kinds := tok.ExtensionKinds()
 	urequire.Equal(t, 1, len(kinds))
 	uassert.Equal(t, "aux", kinds[0])
 
 	// the kind it moved to is still free for the extension that owns it
 	led.RegisterExtension(&mockExtension{}, nil)
-	uassert.Equal(t, 2, len(led.ExtensionKinds()))
+	uassert.Equal(t, 2, len(tok.ExtensionKinds()))
 }
 
 func TestRegisterExtensionRejectsAForeignView(cur realm, t *testing.T) {

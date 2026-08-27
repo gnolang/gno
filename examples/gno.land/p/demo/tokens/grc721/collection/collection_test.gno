@@ -86,6 +86,12 @@ func TestNewCollection(cur realm, t *testing.T) {
 		})
 	})
 
+	t.Run("NewCollection rejects a ledger with no token", func(t *testing.T) {
+		uassert.PanicsWithMessage(t, cur, "collection: ledger has no token", func() {
+			NewCollection(&grc721.PrivateLedger{})
+		})
+	})
+
 	t.Run("NewCollection with no extensions builds an empty collection", func(t *testing.T) {
 		tok, led := newTokenLedger("Foo", "FOO", 0, cur)
 		c := NewCollection(led)
@@ -178,6 +184,35 @@ func TestExtensionViewsComeFromTheLedger(cur realm, t *testing.T) {
 	royOther, _ := royalty.NewRoyalty(other.ledger, 1000)
 	v, _ = nft.Collection().Extension(royalty.Kind)
 	uassert.False(t, v.(*royalty.Royalty) == royOther)
+}
+
+func TestKindsOrderIsIndependentOfRegistrationOrder(cur realm, t *testing.T) {
+	nft := newNFT("Foo NFT", "FNFT", 0, cur)
+	royalty.NewRoyalty(nft.ledger, 1000) // registered first, sorts second
+	metadata.NewMetadata(nft.ledger)
+
+	kinds := nft.Token().ExtensionKinds()
+	urequire.Equal(t, 2, len(kinds))
+	uassert.Equal(t, royalty.Kind, kinds[0], "the token keeps registration order")
+
+	ks := nft.Collection().Kinds()
+	urequire.Equal(t, 2, len(ks))
+	uassert.Equal(t, metadata.Kind, ks[0], "Collection.Kinds is sorted")
+	uassert.Equal(t, royalty.Kind, ks[1])
+}
+
+func TestPublishedCollectionsTrackTheirLedger(cur realm, t *testing.T) {
+	tok, led := newTokenLedger("Foo", "FOO", 0, cur)
+	standalone := NewCollection(led)
+	published := Wrap(tok, led).Collection() // what a registry stores
+
+	metadata.NewMetadata(led) // a later transaction
+
+	rewrapped := Wrap(tok, led).Collection() // the issuer re-wraps its persisted pair
+	uassert.False(t, published == rewrapped, "re-wrapping builds a new handle")
+	uassert.Equal(t, 1, len(standalone.Kinds()))
+	uassert.Equal(t, 1, len(published.Kinds()))
+	uassert.Equal(t, 1, len(rewrapped.Kinds()))
 }
 
 func TestLateRegistrationReachesAPublishedCollection(cur realm, t *testing.T) {

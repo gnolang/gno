@@ -133,6 +133,26 @@ func (tok *Token) GetApproved(tid TokenID) (address, error) {
 	return addr.(address), nil
 }
 
+// ExtensionKinds returns the registered kinds, in registration order.
+func (tok *Token) ExtensionKinds() []string {
+	kinds := make([]string, 0, len(tok.ledger.extensions))
+	for _, e := range tok.ledger.extensions {
+		kinds = append(kinds, e.kind)
+	}
+
+	return kinds
+}
+
+// ExtensionView returns the read-view registered for kind, if it has one.
+func (tok *Token) ExtensionView(kind string) (ExtensionView, bool) {
+	e, ok := tok.ledger.lookupExtension(kind)
+	if !ok || e.view == nil {
+		return nil, false
+	}
+
+	return e.view, true
+}
+
 func (tok *Token) IsApprovedForAll(owner, operator address) bool {
 	return tok.ledger.isApprovedForAll(owner, operator)
 }
@@ -178,26 +198,6 @@ func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 	}
 
 	led.extensions = append(led.extensions, registeredExtension{kind: kind, hook: ext, view: view})
-}
-
-// ExtensionKinds returns the registered kinds, in registration order.
-func (led *PrivateLedger) ExtensionKinds() []string {
-	kinds := make([]string, 0, len(led.extensions))
-	for _, e := range led.extensions {
-		kinds = append(kinds, e.kind)
-	}
-
-	return kinds
-}
-
-// ExtensionView returns the read-view registered for kind, if it has one.
-func (led *PrivateLedger) ExtensionView(kind string) (ExtensionView, bool) {
-	e, ok := led.lookupExtension(kind)
-	if !ok || e.view == nil {
-		return nil, false
-	}
-
-	return e.view, true
 }
 
 func (led *PrivateLedger) lookupExtension(kind string) (registeredExtension, bool) {

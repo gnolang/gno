@@ -43,14 +43,9 @@ func Wrap(token *grc721.Token, ledger *grc721.PrivateLedger) *NFT {
 	return &NFT{col: &Collection{token: token}, ledger: ledger}
 }
 
-// Collection returns the read-only model, refreshed with every read-view the
-// ledger publishes. It is the same object each time, so a registry already
-// holding it also sees extensions registered later.
-func (n *NFT) Collection() *Collection {
-	n.col.sync(n.ledger)
-
-	return n.col
-}
+// Collection returns the read-only model. It answers through the token, so a
+// registry that stored it also sees extensions registered later.
+func (n *NFT) Collection() *Collection { return n.col }
 
 func (n *NFT) Token() *grc721.Token { return n.col.token }
 
@@ -60,7 +55,7 @@ func (n *NFT) Token() *grc721.Token { return n.col.token }
 func (n *NFT) CallerTeller() grc721.Teller { return n.ledger.CallerTeller() }
 
 func (n *NFT) Extension(kind string) (grc721.ExtensionView, bool) {
-	return n.Collection().Extension(kind)
+	return n.col.Extension(kind)
 }
 
 func (n *NFT) Mint(to address, tid grc721.TokenID) error { return n.ledger.Mint(to, tid) }
