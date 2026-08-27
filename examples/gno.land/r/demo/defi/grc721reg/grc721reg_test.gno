@@ -32,7 +32,7 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 		symbol    string
 		tokenName string
 		slug      string
-		build     func(cur realm) (*grc721.Token, []grc721.ExtensionView)
+		build     func(cur realm) *collection.Collection
 		wantKinds []string
 		verify    func(t *testing.T, key string)
 	}
@@ -44,9 +44,9 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			symbol:    "CORE",
 			tokenName: "Core Only",
 			slug:      "",
-			build: func(cur realm) (*grc721.Token, []grc721.ExtensionView) {
+			build: func(cur realm) *collection.Collection {
 				token, _ := grc721.NewToken("Core Only", "CORE", 0, cur)
-				return token, nil
+				return collection.NewCollection(token)
 			},
 			wantKinds: []string{},
 		},
@@ -56,12 +56,12 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			symbol:    "ROY",
 			tokenName: "Royalty Only",
 			slug:      "My-Cool_Slug123",
-			build: func(cur realm) (*grc721.Token, []grc721.ExtensionView) {
+			build: func(cur realm) *collection.Collection {
 				token, ledger := grc721.NewToken("Royalty Only", "ROY", 0, cur)
 				roy, royLed := royalty.NewRoyalty(ledger, 1000)
 				urequire.NoError(t, ledger.Mint(alice, "1"))
 				urequire.NoError(t, royLed.SetTokenRoyalty("1", artist, 250))
-				return token, []grc721.ExtensionView{roy}
+				return collection.NewCollection(token, roy)
 			},
 			wantKinds: []string{royalty.Kind},
 			verify: func(t *testing.T, key string) {
@@ -78,7 +78,7 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			symbol:    "FULL",
 			tokenName: "Full Stack",
 			slug:      "full",
-			build: func(cur realm) (*grc721.Token, []grc721.ExtensionView) {
+			build: func(cur realm) *collection.Collection {
 				token, ledger := grc721.NewToken("Full Stack", "FULL", 0, cur)
 				meta, metaLed := metadata.NewMetadata(ledger)
 				roy, royLed := royalty.NewRoyalty(ledger, 1000)
@@ -86,7 +86,7 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 				urequire.NoError(t, ledger.Mint(alice, "1"))
 				urequire.NoError(t, metaLed.SetTokenURI("1", "ipfs://uri-1"))
 				urequire.NoError(t, royLed.SetDefaultRoyalty(artist, 500))
-				return token, []grc721.ExtensionView{meta, roy, enum}
+				return collection.NewCollection(token, meta, roy, enum)
 			},
 			wantKinds: []string{enumerable.Kind, metadata.Kind, royalty.Kind},
 			verify: func(t *testing.T, key string) {
@@ -113,8 +113,8 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			testing.SetRealm(testing.NewCodeRealm(tc.realmPath))
-			token, exts := tc.build(cur)
-			key := Register(cross(cur), token, tc.slug, exts...)
+			col := tc.build(cur)
+			key := Register(cross(cur), col, tc.slug)
 
 			urequire.NotEqual(t, "", key, "Register returns the fqname key")
 			got := Get(key)
@@ -212,11 +212,11 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 
 	cases := []abortCase{
 		{
-			name:   "register nil token aborts",
-			substr: "nil token",
+			name:   "register nil collection aborts",
+			substr: "nil collection",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_nil"))
-				urequire.AbortsContains(t, cur, "nil token", func() {
+				urequire.AbortsContains(t, cur, "nil collection", func() {
 					Register(cross(cur), nil, "")
 				})
 			},
@@ -227,10 +227,11 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_src"))
 				token, _ := grc721.NewToken("Mismatch", "MIS", 0, cur)
+				col := collection.NewCollection(token)
 
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dst"))
 				urequire.AbortsContains(t, cur, "must be registered from its own realm", func() {
-					Register(cross(cur), token, "")
+					Register(cross(cur), col, "")
 				})
 			},
 		},
@@ -240,11 +241,11 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dupe"))
 				token, _ := grc721.NewToken("Bar", "BAR", 0, cur)
-				Register(cross(cur), token, "dup")
+				Register(cross(cur), collection.NewCollection(token), "dup")
 
 				replacement, _ := grc721.NewToken("Replacement", "BAR2", 1, cur)
 				urequire.AbortsContains(t, cur, "collection already registered", func() {
-					Register(cross(cur), replacement, "dup")
+					Register(cross(cur), collection.NewCollection(replacement), "dup")
 				})
 			},
 		},
@@ -256,7 +257,7 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 				token, _ := grc721.NewToken("Long", "LONG", 0, cur)
 				longSlug := strings.Repeat("a", maxSlugLen+1)
 				urequire.AbortsContains(t, cur, "slug too long", func() {
-					Register(cross(cur), token, longSlug)
+					Register(cross(cur), collection.NewCollection(token), longSlug)
 				})
 			},
 		},
@@ -267,7 +268,7 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_slug_bad"))
 				token, _ := grc721.NewToken("Bad", "BAD", 0, cur)
 				urequire.AbortsContains(t, cur, "invalid slug character: /", func() {
-					Register(cross(cur), token, "bad/slug")
+					Register(cross(cur), collection.NewCollection(token), "bad/slug")
 				})
 			},
 		},
@@ -390,13 +391,13 @@ func TestNewCollectionRejects(cur realm, t *testing.T) {
 func TestRenderCollections(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/render_core"))
 	coreTok, _ := grc721.NewToken("Render Core", "RCORE", 0, cur)
-	coreKey := Register(cross(cur), coreTok, "core")
+	coreKey := Register(cross(cur), collection.NewCollection(coreTok), "core")
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/render_ext"))
 	extTok, extLed := grc721.NewToken("Render Ext", "REXT", 0, cur)
 	enum, _ := enumerable.NewEnumerable(extLed)
 	urequire.NoError(t, extLed.Mint(alice, "1"))
-	extKey := Register(cross(cur), extTok, "ext", enum)
+	extKey := Register(cross(cur), collection.NewCollection(extTok, enum), "ext")
 
 	type renderCase struct {
 		name     string

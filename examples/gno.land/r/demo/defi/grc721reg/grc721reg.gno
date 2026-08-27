@@ -2,7 +2,7 @@
 // Open to any extension via read-only ExtensionView; no concrete extension imports.
 //
 // Unlike grc20reg, which stores a concrete *grc20.Token, this registry stores the
-// caller-supplied ExtensionView interface values and hands them back out, so a
+// caller's *collection.Collection and hands its ExtensionView values back out, so a
 // consumer must type-assert an ExtensionView to a concrete view rather than trust the
 // interface. That is a deliberate trade: it keeps the registry open to extension kinds
 // it does not import, at the cost of moving the type check to the consumer.
@@ -25,10 +25,15 @@ var registry = avl.NewTree() // fqname(rlmPath, slug); empty slug allowed
 
 // Register keys the collection under rlmPath.slug. Token must originate from the
 // registering realm (Token.ID prefix check).
-func Register(cur realm, token *grc721.Token, slug string, extensions ...grc721.ExtensionView) string {
-	if token == nil {
-		panic("grc721reg: nil token")
+//
+// The caller's live *collection.Collection is stored rather than a copy, so an
+// extension attached after registration still reaches consumers.
+func Register(cur realm, col *collection.Collection, slug string) string {
+	if col == nil {
+		panic("grc721reg: nil collection")
 	}
+
+	token := col.Token()
 
 	if slug != "" {
 		validateSlug(slug)
@@ -51,8 +56,6 @@ func Register(cur realm, token *grc721.Token, slug string, extensions ...grc721.
 	if registry.Has(key) {
 		panic("grc721reg: collection already registered")
 	}
-
-	col := collection.NewCollection(token, extensions...)
 
 	registry.Set(key, col)
 	chain.Emit(
