@@ -2,11 +2,11 @@
 
 ## Network configurations
 
-| Network           | RPC Endpoint                             |  Chain ID    | Deployment files |
-|-------------------|------------------------------------------|--------------|------------------|
-| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1) |
-| Staging           | https://rpc.staging.gno.land:443         | `staging`    | [`misc/loop`](../../misc/loop) |
-| Topaz / Test14    | https://rpc.topaz.testnets.gno.land:443  | `topaz-1`    | [`misc/deployments/topaz.gno.land`](https://github.com/gnolang/gno/tree/chain/topaz/misc/deployments/topaz.gno.land) |
+| Network           | RPC Endpoint                            | Chain ID   | Deployment files                                                                                                     |
+|-------------------|-----------------------------------------|------------|----------------------------------------------------------------------------------------------------------------------|
+| Betanet (current) | https://rpc.gno.land:443                | `gnoland1` | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)          |
+| Staging           | https://rpc.staging.gno.land:443        | `staging`  | [`misc/loop`](../../misc/loop)                                                                                       |
+| Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`  | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land) |
 
 ### WebSocket endpoints
 
@@ -161,30 +161,38 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](../../misc/loop) folder in the
     monorepo
 
-### Topaz / Test14
+### Pearl / Test16
 
-The latest Gno.land testnet, and the one to use unless you have a reason not to.
+The latest Gno.land testnet, released on the 26th of August, 2026, and the one to use unless you have a reason not to.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/topaz](https://github.com/gnolang/gno/releases/tag/chain%2Ftopaz)
+  - Pre-deployed packages and realms are at release tag [chain/pearl](https://github.com/gnolang/gno/releases/tag/chain%2Fpearl)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 - **Versioning strategy:**
-  - Cut from the [`chain/topaz`](https://github.com/gnolang/gno/tree/chain/topaz)
+  - Cut from the [`chain/pearl`](https://github.com/gnolang/gno/tree/chain/pearl)
     branch; deployment files under
-    [`misc/deployments/topaz.gno.land`](https://github.com/gnolang/gno/tree/chain/topaz/misc/deployments/topaz.gno.land)
-
-### Test13 (archive)
-
-Test13 was released on the 15th of June, 2026, and superseded by Topaz / Test14.
+    [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Sapphire / Test15 (archive)
+
+Sapphire (Test15) was released on the 7th of August, 2026, and superseded by Pearl / Test16.
+
+### Topaz / Test14 (archive)
+
+Topaz (Test14) was released on the 17th of July, 2026, and superseded by Sapphire / Test15.
+
+### Test13 (archive)
+
+Test13 was released on the 15th of June, 2026, and superseded by Topaz / Test14.
 
 ### Test12 (archive)
 
