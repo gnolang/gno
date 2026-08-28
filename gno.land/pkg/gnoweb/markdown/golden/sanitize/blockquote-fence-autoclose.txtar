@@ -4,9 +4,11 @@
 ```
 user code never closes
 -- output.md --
+
 > ```
 > user code never closes
 > ```
+
 -- output.html --
 <blockquote>
 <pre><code>user code never closes

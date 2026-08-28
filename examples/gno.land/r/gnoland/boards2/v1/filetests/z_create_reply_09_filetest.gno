@@ -39,7 +39,7 @@ func main(cur realm) {
 
 	// Render content must contain the sub-reply
 	content := boards2.Render(path)
-	println(strings.Contains(content, "\n> > "+comment+"\n"))
+	println(strings.Contains(content, "\n> > "+comment))
 }
 
 // Output:

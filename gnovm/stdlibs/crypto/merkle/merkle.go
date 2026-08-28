@@ -56,8 +56,15 @@ func decodeByteSlices(b []byte) ([][]byte, bool) {
 	}
 	count := int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3])
 	b = b[4:]
+	// Each item consumes at least 4 bytes (its length header), so a valid
+	// encoding of `count` items requires len(b) >= 4*count. Reject before the
+	// allocation so a tiny input cannot force a huge make([][]byte, count).
+	// The division form avoids any multiplication overflow.
+	if count > len(b)/4 {
+		return nil, false
+	}
 	items := make([][]byte, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if len(b) < 4 {
 			return nil, false
 		}

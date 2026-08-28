@@ -3,15 +3,12 @@ package launderrh_conv_val_then_addr
 
 // CONVERSION VECTOR 9: copy struct VALUE then write through it.
 //
-// SURPRISE FINDING: Gno's readonly taint is CONSERVATIVE — it travels
-// with the value copy. `b := victim.Slice[0]` followed by `b.Field =
-// "..."` is BLOCKED, even though `b` is a fresh local variable. The
-// readonly-bit is encoded on the value itself, not just on its
-// container.
-//
-// This is over-blocking from a Go semantics perspective (Go would
-// allow mutating the local copy), but is safe: an attacker can't
-// abuse the local copy to launder writes back to the victim.
+// Post-#5747: value-copy semantics are Go-aligned — `b :=
+// victim.Slice[0]` produces a fresh, realm-local struct, and the
+// local mutation succeeds. Writes that actually reach victim's
+// storage (cases 3, 4, 5) remain blocked at the pointer-deref /
+// field-assignment checks, which are the layer that actually closes
+// the laundering path.
 
 import (
 	"gno.land/p/demo/tests/launderpkg"
@@ -78,8 +75,8 @@ func main(cur realm) {
 }
 
 // Output:
-// 1 local copy + addr write blocked: true
-// 2 same-type conv on copy blocked: true
+// 1 local copy + addr write blocked: false
+// 2 same-type conv on copy blocked: false
 // 3 &s[0] write blocked: true
 // 4 *victimPtr = newValue blocked: true
 // 5 victim.Inner = localCopy blocked: true

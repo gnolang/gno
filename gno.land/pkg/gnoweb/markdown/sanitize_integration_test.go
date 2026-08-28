@@ -8,7 +8,7 @@
 //
 // Three sections:
 //
-//	-- input.md --     user-supplied content (the attacker input)
+//	-- input.md --     user-supplied content (the caller input)
 //	-- output.md --    sanitize.X(input)  (skip-on-update generated)
 //	-- output.html --  optional: rendered via goldmark+gnoweb when CONTEXT
 //	                   is declared. Validators (no CONTEXT) omit this.
@@ -44,9 +44,9 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/tools/txtar"
@@ -121,6 +121,8 @@ func Run(fn, input, arg, arg2 string) string {
 		return sanitize.LanguageCodeBlock(arg, input)
 	case "Blockquote":
 		return sanitize.Blockquote(input)
+	case "BlockquoteRich":
+		return sanitize.BlockquoteRich(input)
 	case "FootnoteDefinition":
 		// arg = realm-provided footnote name; input = user body text.
 		return sanitize.FootnoteDefinition(arg, input)
@@ -132,55 +134,50 @@ func Run(fn, input, arg, arg2 string) string {
 }
 `
 
-// Base stores are initialized once and shared across cases via per-case
-// CacheWrap + BeginTransaction layering (same pattern filetests use to
-// keep cases isolated from each other's package writes).
+// The driver package (which imports sanitize/v0 and its stdlib chain) is
+// preprocessed exactly once and reused across every case. Preprocessing the
+// import chain dominates runtime — re-running it per case made this the
+// slowest package in the gno.land CI job — and the sanitize helpers are pure
+// string→string functions with no mutable package state, so a single shared
+// Machine is safe. Subtests here run sequentially (none call t.Parallel).
 var (
-	baseStoreOnce sync.Once
-	baseCommit    storetypes.CommitStore
-	baseGno       gno.Store
+	driverOnce    sync.Once
+	driverMachine *gno.Machine
 )
 
-func sanitizeBaseStores(t *testing.T) (storetypes.CommitStore, gno.Store) {
+func sanitizeDriverMachine(t *testing.T) *gno.Machine {
 	t.Helper()
-	baseStoreOnce.Do(func() {
-		baseCommit, baseGno = test.TestStore(gnoenv.RootDir(), io.Discard, nil)
+	driverOnce.Do(func() {
+		commit, gnoBase := test.TestStore(gnoenv.RootDir(), io.Discard, nil)
+		tcw := commit.CacheWrap()
+		tx := gnoBase.BeginTransaction(tcw, tcw, nil, nil)
+		m := gno.NewMachineWithOptions(gno.MachineOptions{
+			Store:         tx,
+			Context:       test.Context("", driverPkgPath, nil),
+			Output:        io.Discard,
+			MaxAllocBytes: math.MaxInt64,
+		})
+		mpkg := &std.MemPackage{
+			Type: gno.MPUserProd,
+			Name: "sanitize_test_driver",
+			Path: driverPkgPath,
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(driverPkgPath)},
+				{Name: "driver.gno", Body: driverSrc},
+			},
+		}
+		_, pv := m.RunMemPackage(mpkg, true)
+		m.SetActivePackage(pv)
+		driverMachine = m
 	})
-	return baseCommit, baseGno
+	return driverMachine
 }
 
-// callSanitizeGno spawns a fresh Machine for one case, loads the driver
-// package into it (which itself imports sanitize/v0), and Evals
-// `Run(fn, input, arg)`. The Machine is released before return.
-//
-// Per-case isolation: wrap the base commit store, build a fresh
-// transactional gno store on top of that wrap, and never commit. This
-// matches the filetest pattern and prevents one case's package
-// registrations from leaking into the next.
+// callSanitizeGno Evals `Run(fn, input, arg, arg2)` against the shared driver
+// Machine and returns the string result.
 func callSanitizeGno(t *testing.T, fn, input, arg, arg2 string) string {
 	t.Helper()
-	commit, gnoBase := sanitizeBaseStores(t)
-	tcw := commit.CacheWrap()
-	tx := gnoBase.BeginTransaction(tcw, tcw, nil, nil)
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Store:         tx,
-		Context:       test.Context("", driverPkgPath, nil),
-		Output:        io.Discard,
-		MaxAllocBytes: math.MaxInt64,
-	})
-	defer m.Release()
-
-	mpkg := &std.MemPackage{
-		Type: gno.MPUserProd,
-		Name: "sanitize_test_driver",
-		Path: driverPkgPath,
-		Files: []*std.MemFile{
-			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(driverPkgPath)},
-			{Name: "driver.gno", Body: driverSrc},
-		},
-	}
-	_, pv := m.RunMemPackage(mpkg, true)
-	m.SetActivePackage(pv)
+	m := sanitizeDriverMachine(t)
 
 	// Build the call AST directly. gno.X parses a Go-shaped string with
 	// chopBinary heuristics that misfire on quoted string literals, so
@@ -320,7 +317,7 @@ func splitTwoQuoted(s string) (a, b string, ok bool) {
 // template. CodeFence uses the output twice (open + close fence).
 func substituteContext(sc sanitizeCase, output string) string {
 	count := strings.Count(sc.Context, "%s")
-	args := make([]interface{}, count)
+	args := make([]any, count)
 	for i := range args {
 		args[i] = output
 	}
@@ -335,8 +332,21 @@ func renderMarkdown(t *testing.T, src string) string {
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	// Mirror gnoweb's production extension chain (render_config.go:43-54)
+	// so goldens exercise the same parser configuration users hit. Without
+	// extension.Table, the table-related fixtures would render as plain
+	// paragraphs instead of <table>, masking whether the sanitizer's
+	// table-preservation / cross-paragraph-isolation claims actually hold
+	// under production parsing.
 	ext := NewGnoExtension()
-	m := goldmark.New()
+	m := goldmark.New(
+		goldmark.WithExtensions(
+			extension.Strikethrough,
+			extension.Table,
+			extension.Footnote,
+			extension.TaskList,
+		),
+	)
 	ext.Extend(m)
 	node := m.Parser().Parse(text.NewReader([]byte(src)), ctxOpts)
 	var buf bytes.Buffer
@@ -391,7 +401,7 @@ func TestSanitizeIntegration(t *testing.T) {
 
 			// txtar appends a trailing newline to every section; strip
 			// that one newline before sanitizing (it's a fixture artifact,
-			// not part of the attacker input). If INPUT_ESCAPED is set,
+			// not part of the caller input). If INPUT_ESCAPED is set,
 			// also decode Go-string escapes so the case can author CR,
 			// NUL, or other bytes that editors normalize.
 			input := strings.TrimSuffix(string(inputData), "\n")
@@ -458,31 +468,31 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 		{
 			name:        "realm-with-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm\n",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h2",
 			realmChrome: "Realm Banner",
-			userInput:   "---\nattacker text\n",
+			userInput:   "---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-leading-blank-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\n===\nattacker text\n",
+			userInput:   "\n===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-indented-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "   ===\nattacker text\n",
+			userInput:   "   ===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
@@ -490,21 +500,21 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 			// the qualifying-setext pre-pass must also recognize it.
 			name:        "realm-no-trailing-newline-plus-u2028-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u2028===\nattacker text\n",
+			userInput:   "\u2028===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			// U+2029 paragraph separator — same concern.
 			name:        "realm-no-trailing-newline-plus-u2029-prefix-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\u2029---\nattacker text\n",
+			userInput:   "\u2029---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			// U+0085 NEL — same concern.
 			name:        "realm-no-trailing-newline-plus-nel-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u0085===\nattacker text\n",
+			userInput:   "\u0085===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
@@ -549,4 +559,65 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 				"BlockRich not idempotent for user input %q", c.userInput)
 		})
 	}
+}
+
+// SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
+// maintenance let it drift badly — it claimed 103 fixtures against 186 on
+// disk, documented a `Link` helper that no longer exists, and had no row at
+// all for BlockRich (30 fixtures) or BlockquoteRich (1). A stale count reads
+// as coverage that is not there, which is the opposite of what the corpus is
+// for, so the numbers are asserted rather than trusted. The Threats column
+// stays prose and is deliberately unchecked.
+func TestSanitizeCoverageTableMatchesCorpus(t *testing.T) {
+	corpus := map[string]int{}
+	err := filepath.Walk(sanitizeTestdataDir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || filepath.Ext(info.Name()) != ".txtar" {
+			return nil
+		}
+		archive, err := txtar.ParseFile(path)
+		if err != nil {
+			return err
+		}
+		sc := parseDirectives(t, archive.Comment)
+		require.NotEmpty(t, sc.Func, "%s: missing MARKDOWNFUNC directive", path)
+		corpus[sc.Func]++
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, corpus)
+
+	doc, err := os.ReadFile("SANITIZE.md")
+	require.NoError(t, err)
+
+	// Rows look like: | `Helper` | 12 | threats… |
+	rowRe := regexp.MustCompile("(?m)^\\| `([A-Za-z]+)` \\| ([0-9]+) \\|")
+	documented := map[string]int{}
+	for _, m := range rowRe.FindAllStringSubmatch(string(doc), -1) {
+		n, err := strconv.Atoi(m[2])
+		require.NoError(t, err)
+		documented[m[1]] = n
+	}
+	require.NotEmpty(t, documented, "no helper rows parsed out of SANITIZE.md")
+
+	for fn, want := range corpus {
+		got, ok := documented[fn]
+		require.True(t, ok,
+			"SANITIZE.md has no row for %s, which has %d fixtures", fn, want)
+		require.Equal(t, want, got,
+			"SANITIZE.md row for %s says %d cases, corpus has %d", fn, got, want)
+	}
+	for fn := range documented {
+		require.Contains(t, corpus, fn,
+			"SANITIZE.md documents %s, which has no fixtures (helper removed?)", fn)
+	}
+
+	total := 0
+	for _, n := range corpus {
+		total += n
+	}
+	require.Contains(t, string(doc), fmt.Sprintf("%d fixtures total", total),
+		"SANITIZE.md total is stale; corpus has %d fixtures", total)
 }

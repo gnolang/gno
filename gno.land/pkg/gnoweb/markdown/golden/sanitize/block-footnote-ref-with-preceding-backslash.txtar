@@ -8,6 +8,9 @@
 -- input.md --
 \[^realm-footnote]
 -- output.md --
+
+
 \[^realm-footnote\]
+
 -- output.html --
 <p>[^realm-footnote]</p>

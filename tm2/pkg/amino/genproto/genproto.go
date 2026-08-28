@@ -121,7 +121,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	if p3doc.PackageName == "" {
 		panic("cannot generate message partials in the root package \"\".")
 	}
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		panic("pointers not yet supported. if you meant pointer-preferred (for decoding), pass in rt.Elem()")
 	}
 	if rt.Kind() == reflect.Interface {
@@ -189,6 +189,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	}
 
 	p3msg.Name = info.Name // not rinfo.
+	p3msg.Reserved = rinfo.StructInfo.Reserved
 
 	var fieldComments map[string]string
 	if rinfo.Package != nil {
@@ -271,7 +272,7 @@ func (p3c *P3Context) GenerateProto3SchemaForTypes(pkg *amino.Package, rtz ...re
 	for _, rt := range rtz {
 		if rt.Kind() == reflect.Interface {
 			continue
-		} else if rt.Kind() == reflect.Ptr {
+		} else if rt.Kind() == reflect.Pointer {
 			rt = rt.Elem()
 		}
 		p3msg := p3c.GenerateProto3MessagePartial(&p3doc, rt)
@@ -312,7 +313,7 @@ func (p3c *P3Context) WriteProto3SchemaForTypes(filename string, pkg *amino.Pack
 
 var (
 	timeType     = reflect.TypeOf(time.Now())
-	durationType = reflect.TypeOf(time.Duration(0))
+	durationType = reflect.TypeFor[time.Duration]()
 )
 
 // If info.ReprType is a struct, the returned proto3 type is a P3MessageType.
@@ -405,7 +406,7 @@ func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOp
 			}
 			return elemP3Type, true, false
 		}
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr,
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer,
 		reflect.UnsafePointer:
 		panic("chan, func, map, and pointers are not supported")
 	case reflect.String:

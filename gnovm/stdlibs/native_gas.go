@@ -17,11 +17,12 @@ import (
 // X_ work + return push); no separate dispatch overhead constant.
 //
 // Two-slope (Slope2/PostSlope2) is supported by the runtime for natives
-// whose cost depends on both element count and per-element bytes (e.g.
-// hypothetical natives that hash inside the dispatcher). For all natives
-// shipped today the empirical per-byte CPU cost is negligible — the
-// per-byte work happens inside the metered KVStore (gctx) — so every row
-// below uses a single slope.
+// whose cost depends on two independent dimensions. Only
+// crypto/merkle.innerHash uses it today: it hashes two unbounded byte
+// slices, so each one carries its own per-byte slope. Every other row
+// uses a single slope — for the store-backed natives the per-byte work
+// happens inside the metered KVStore (gctx), so the empirical per-byte
+// CPU cost in the dispatcher is negligible.
 
 // Re-export the gnolang SizeKind constants for readable table literals.
 const (
@@ -76,17 +77,33 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 65 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
 // before any consensus-relevant deployment; the IBC rows are flagged
 // "draft" in their trailing comment to make that obvious.
+//
+// The six chain/params Get* rows are a further exception, and a different one:
+// they are not fitted at all. native_bench_output.txt holds no samples for
+// them, so re-running the fitter drops those rows rather than reproducing
+// them. Each Base is copied from the matching Set*, and GetBytes and
+// GetStrings additionally borrow a PostSlope from the sys/params getter of the
+// same shape. The benchmarks that would replace them exist
+// (BenchmarkNative_Params_Get* in
+// gnovm/cmd/calibrate/native_machine_bench_test.go).
+//
+// The borrowed Base is very unlikely to undercharge: a setter writes rather
+// than reads and also runs recordParamsDelta for storage-deposit accounting,
+// so it does strictly more work than the getter lending its price. That
+// argument covers the flat part only. The two borrowed PostSlopes come from
+// measured sys/params getters rather than from a setter, and the four scalar
+// getters carry no length term at all.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
-	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                       // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998
+	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                       // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998; realm.Sub mirrors this — keep gno.OpCPUSubRealmBase/Slope in sync (TestSubRealmGasMirrorsPackageAddress)
 	{Pkg: "chain", Fn: "deriveStorageDepositAddr", Base: 541, Slope: 471, SlopeIdx: 0, SlopeKind: SizeLenString},                                               // fit base=540.9ns slope=0.4602ns/N (=471/1024) R²=0.994
 	{Pkg: "chain", Fn: "pubKeyAddress", Base: 2631, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 2631.0ns
 	{Pkg: "time", Fn: "loadFromEmbeddedTZData", Base: 16068, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 16068.0ns
@@ -96,7 +113,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
 	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
 	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
-	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 88.6ns
+	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 129, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 129.2ns
+	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 87, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 87.0ns
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 140.6ns
 	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // flat, median 195.9ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
@@ -104,6 +122,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 1643.0ns
 	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 1201.0ns
 	{Pkg: "chain/params", Fn: "SetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // flat, median 1219.0ns
+	{Pkg: "chain/params", Fn: "GetBytes", Base: 1912, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params bytes return cost
+	{Pkg: "chain/params", Fn: "GetString", Base: 1772, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // mirrors chain/params SetString keying cost
+	{Pkg: "chain/params", Fn: "GetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // mirrors chain/params SetBool keying cost
+	{Pkg: "chain/params", Fn: "GetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // mirrors chain/params SetInt64 keying cost
+	{Pkg: "chain/params", Fn: "GetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // mirrors chain/params SetUint64 keying cost
 	{Pkg: "sys/params", Fn: "setSysParamBytes", Base: 323, Slope: 9703, SlopeIdx: 3, SlopeKind: SizeLenBytes},                                                  // fit base=323.3ns slope=9.4757ns/N (=9703/1024) R²=0.995
 	{Pkg: "sys/params", Fn: "getSysParamBytes", Base: 416, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=415.7ns + 10.3357ns/N (=10584/1024) R²=1.000
 	{Pkg: "sys/params", Fn: "setSysParamString", Base: 269, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 269.1ns
@@ -127,6 +150,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955
 	{Pkg: "chain/params", Fn: "SetStrings", Base: 1601, Slope: 39842, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                      // fit base=1601.1ns slope=38.9082ns/N (=39842/1024) R²=0.993
 	{Pkg: "chain/params", Fn: "UpdateParamStrings", Base: 1298, Slope: 24077, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                              // fit base=1298.0ns slope=23.5122ns/N (=24077/1024) R²=1.000
+	{Pkg: "chain/params", Fn: "GetStrings", Base: 1601, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params strings return cost
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999
@@ -142,15 +166,27 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
+	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
-	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},           // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
-	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 14883ns (input fixed 128B)
-	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 44465ns (input fixed 96B)
-	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes},     // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
-	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
-	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
-	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 7513ns (32+32B inputs)
+	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},       // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
+	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 14883ns (input fixed 128B)
+	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 44465ns (input fixed 96B)
+	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                   // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},        // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))
+	// — leafHash's shape over two operands instead of one, and nothing bounds
+	// either. Both operands therefore carry leafHash's per-byte rate, which
+	// makes the total charge track total hashed bytes at the same rate leafHash
+	// pays. It was flat until 1MiB+1MiB was measured running ~300x over its
+	// price; see adr/native_input_bounds.md.
+	//
+	// Draft fit base=7513ns (still the 32+32B median, so it double-counts ~2µs
+	// of per-byte cost at that size — conservative until the pending reference
+	// recalibration turns it into a proper intercept) + 32.14ns/N (=32911/1024)
+	// on each of len(left) and len(right).
+	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes, Slope2: 32911, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
 	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
 	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
 	// modExp cost is dominated by an O(N^3) big-int chain (Go big.Int.Exp). The

@@ -103,12 +103,14 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | Helper | Cases | Threats covered |
 |---|---|---|
 | `InlineText` | 14 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs |
-| `Block` | 16 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), CR / U+2028 / U+2029 fold |
-| `Blockquote` | 8 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
+| `Block` | 64 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), CR / U+2028 / U+2029 fold, entity-encoded scheme in a link/image destination (`&#x6a;avascript:`, `&#x64;ata:`) neutralized to `%26`, backslash-escaped scheme (`javascript\:`) left verbatim and stopped by the renderer instead |
+| `BlockRich` | 30 | the permissive counterpart: heading / blockquote / list / thematic-break / setext / GFM-table / `\|` all *preserved*, while the realm-binding defenses stay on — LRD strip, ref-link and footnote-ref escape, `<gno-card>` escape (incl. uppercase), fence autoclose + fence-walker LRD bypass + fence-info backtick, HTML block isolation (doctype / CDATA / script / comment), NUL→FFFD, leading-setext neutralization (h1 / h2 / deeper / indented-code), cross-paragraph setext / table / lazy-continuation forward isolation |
+| `Blockquote` | 9 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
+| `BlockquoteRich` | 1 | GFM table preserved inside a blockquote |
 | `LinkTitle` | 4 | quote/apostrophe/paren delimiters, newline fold |
 | `TableCell` | 2 | pipe escape, tab→space |
 | `HTMLEscape` | 5 | attribute injection, element body, ampersand, comment context, `-->` terminator bypass |
-| `URL` | 10 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` `?body=`/`cc=`/`bcc=`, embedded CRLF, relative + fragment accept |
+| `URL` | 13 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` any query (`?body=`/`subject=`/`cc=`/`bcc=`, case-insensitive, percent-encoded, HTML char-ref `&#x3f;`), embedded CRLF, relative + fragment accept |
 | `ImageURL` | 5 | `data:text/html` reject, `data:image/svg+xml` accept, `mailto:` / protocol-relative as image src |
 | `UserName` | 4 | digit-first / uppercase reject, `_`/`-` accept, RLO-stripped-then-validated |
 | `BechString` | 4 | `"g"` prefix, `""` any-prefix (`bc1...`), `"gpub"` prefix, wrong-prefix reject |
@@ -119,13 +121,18 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | `InlineCode` | 5 | basic, embedded backticks, multi-line fold, NUL, leading/trailing backtick padding |
 | `CodeBlock` | 5 | basic, bidi strip, CR normalize, embedded-fence neutralization, empty content |
 | `LanguageCodeBlock` | 3 | valid tag, rejected tag (silent fallback), embedded fence in body |
-| `Link` | 4 | basic, rejected URL, javascript scheme, bracket breakout in text |
 | `FootnoteDefinition` | 3 | basic body, multi-paragraph continuation indentation, rejected name suppresses output |
 | `LinkReferenceDefinition` | 3 | basic label/url, with title, rejected URL suppresses output |
 
-103 fixtures total. Grow the corpus by enumerating the threat surface
-for each helper as new attacks/CVEs/audit findings surface — every
-finding becomes a permanent regression test.
+186 fixtures total. The Cases column is checked against the corpus by
+`TestSanitizeCoverageTableMatchesCorpus` — add a fixture without updating the
+row and it fails with the delta, so the numbers stay honest without anyone
+recounting by hand. The Threats column is prose and is NOT checked; it is
+illustrative of a helper's threat surface, not an enumeration of its fixtures.
+
+Grow the corpus by enumerating the threat surface for each helper as new
+attacks/CVEs/audit findings surface — every finding becomes a permanent
+regression test.
 
 ## Implementation notes
 

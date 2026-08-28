@@ -183,6 +183,7 @@ encapsulation:
 | All sensitive fields are unexported | `Token.ledger`, `PrivateLedger.balances`, `PrivateLedger.allowances`, `fnTeller.accountFn` all lowercase. Foreign packages cannot access them. |
 | No exported method leaks an interior pointer | No `Token` method returns `*PrivateLedger`, `*avl.Tree`, or `*avl.Node`. |
 | Authority transitions gated by `rlm.IsCurrent()` | Every `Teller` method checks `rlm.IsCurrent()` before resolving `rlm.Previous().Address()`. |
+| A frame-relative teller never leaves its realm | `CallerTeller` hangs off `*PrivateLedger`, which `NewToken` gives only to the creating realm, so a foreign realm cannot mint one. Every write also checks that the invoking realm is the token's own `origRealm` (host compared after stripping any `realm.Sub` subpath), so a teller that is legally built and then *exported as a value* is inert elsewhere. Keying on the actor instead would miss two cases: a realm charged by a realm it calls, and `TransferFrom`, whose actor is the spender while the debited owner is a parameter. |
 | Forgery defended by nominal type assertion | `IsCanonicalTeller(t)` checks `_, ok := t.(*fnTeller)`. Embedding wrappers (`type Evil struct { Teller }`) fail this check despite method promotion. |
 | `*PrivateLedger`'s unauthenticated mutators isolated by package privacy | `Mint`/`Burn`/etc. have no `rlm` check. They're safe only because no realm exports the `*PrivateLedger` pointer. |
 
@@ -218,6 +219,57 @@ back to `/r/V`, and the write commits.
 
 **Rule**: getters return either values (copies), unexported method
 results, or read-only views. Never a pointer to internal mutable state.
+
+#### 5.1a `/p/`-type with unexported fields but exported mutation methods
+
+The taint-bypasses-method-dispatch gap applies even when the `/p/`-type
+has *no exported fields at all*. If every field is unexported but the
+type has exported methods that mutate the receiver, returning a pointer
+to an instance stored in your realm is equivalent to publishing those
+mutators as your own API.
+
+`avl.Tree` is the canonical example. All fields (`root`, `size`) are
+unexported — a naive reviewer sees no exposed state. But `Tree.Set`,
+`Tree.Remove`, and `Tree.ReverseIterate` all mutate or traverse the
+tree. An attacker who receives a `*avl.Tree` pointer can call
+`tree.Set(key, value)`, borrow rule #2 fires (the tree was allocated
+in `/r/V`), and the write commits under victim authority.
+
+```go
+var store = avl.NewTree()
+
+// WRONG — all fields unexported, but exported methods are mutators
+func GetStore() *avl.Tree { return store }
+
+// Attacker: GetStore().Set("k", "injected")  →  commits under /r/V
+```
+
+#### 5.1b Exported pointer fields on `/p/` structs
+
+The same path exists one level of indirection deeper. If a `/p/` struct
+has an exported field that is itself a pointer type whose type has
+mutation methods, returning a pointer to the containing struct gives
+indirect access to that inner mutator.
+
+```go
+// p/mylib
+type Container struct {
+    Items *avl.Tree   // exported pointer field — mutation methods reachable
+    Label string
+}
+
+// r/V
+var c = &Container{Items: avl.NewTree()}
+func GetContainer() *Container { return c }
+
+// Attacker: GetContainer().Items.Set(key, value)
+// Readonly taint on c does NOT block method dispatch.
+// Borrow rule #2 fires on Items (allocated in /r/V) → write commits.
+```
+
+**Rule**: treat every exported pointer field of a `/p/` type as a live
+mutator handle if the pointed-to type has any mutation method. Never
+return the containing struct as a pointer.
 
 ### 5.2 Embedding a `/p/`-type with concrete-callback higher-order methods
 
@@ -326,6 +378,40 @@ a call frame`.
 
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
+
+### 5.8 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
+
+`chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
+obtaining the previous realm. Using it in a crossing function that already
+receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
+verification that makes `cur.Previous()` safe, and silently ignores the
+`cur` capability token the runtime minted for exactly this purpose.
+
+```go
+// WRONG: cur is accepted but never used; no IsCurrent() guard
+import "chain/runtime/unsafe"
+
+func Set(cur realm, key, value string) {
+    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    ...
+}
+
+// RIGHT
+func Set(cur realm, key, value string) {
+    if !cur.IsCurrent() { panic("spoofed realm") }
+    caller := cur.Previous().Address()
+    ...
+}
+```
+
+Any import of `chain/runtime/unsafe` in a realm that also declares
+crossing functions (`func F(cur realm, ...)`) is a red flag. The
+`unsafe` package is appropriate only in non-crossing helpers or
+in realms that have not yet been migrated to the `cur realm` API.
+
+**Rule**: in crossing functions, always derive caller identity from
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+`chain/runtime/unsafe` import.
 
 ---
 

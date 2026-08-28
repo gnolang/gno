@@ -79,7 +79,7 @@ func returnAsAny(x any) any { return x }
 // 2 fn(any), assert, write blocked: true
 // 3 fn() any return, assert, write blocked: true
 // 4 val box, ptr-assert blocked: true
-// 5 val box, val-assert, local write blocked: true
+// 5 val box, val-assert, local write blocked: false
 // --- final reads ---
 // ptr: bare-ptr-orig
 // slice[0]: slice0

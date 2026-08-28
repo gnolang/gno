@@ -4,8 +4,10 @@
 [link text
 spans lines](/url)
 -- output.md --
+
 > [link text
 > spans lines](/url)
+
 -- output.html --
 <blockquote>
 <p><a href="/url">link text

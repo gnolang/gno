@@ -7,15 +7,18 @@ import (
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/treasury/v0"
 )
 
 const amount = int64(1000)
 
+var nextTokenID seqid.ID
+
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(0, rlm, name, symbol, 0)
+	token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)

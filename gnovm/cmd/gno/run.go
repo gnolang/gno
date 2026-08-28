@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -23,6 +24,7 @@ type runCmd struct {
 	expr      string
 	debug     bool
 	debugAddr string
+	pkgPath   string
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -75,6 +77,13 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"debug-addr",
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
+	)
+
+	fs.StringVar(
+		&c.pkgPath,
+		"pkgpath",
+		"",
+		"run with this package path, overriding the \"// PKGPATH:\" file directive and the gnomod.toml module path",
 	)
 }
 
@@ -188,30 +197,79 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// init store and machine
 	output := test.OutputWithError(stdout, stderr)
-	_, testStore := test.ProdStore(
-		cfg.rootDir, output, nil)
+	_, testStore := test.ProdStore(cfg.rootDir, output, nil)
 
 	if len(args) == 0 {
 		args = []string{"."}
 	}
 
 	var send std.Coins
-	pkgPath, err := packageNameFromFiles(args)
+	pkgName, err := packageNameFromFiles(args)
 	if err != nil {
 		return err
 	}
+
+	// The package path is given by the -pkgpath flag if set, else derived
+	// from the first argument's "// PKGPATH:" directive or gnomod.toml
+	// module path, else it defaults to the package name.
+	pkgPath := cfg.pkgPath
+	if pkgPath == "" {
+		if pkgPath, err = derivePkgPath(args[0]); err != nil {
+			return err
+		}
+	}
+	if pkgPath == "" {
+		pkgPath = pkgName
+	}
+
+	// Realm packages persist state; run them in a transaction store.
+	realmMode := gno.IsRealmPath(pkgPath)
+	store := testStore
+	if realmMode {
+		store = testStore.BeginTransaction(nil, nil, nil, nil)
+	}
+
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:       pkgPath,
 		Output:        output,
 		Input:         stdin,
-		Store:         testStore,
+		Store:         store,
 		MaxAllocBytes: maxAllocRun,
 		Context:       ctx,
 		Debug:         cfg.debug || cfg.debugAddr != "",
 	})
 
 	defer m.Release()
+
+	// Construct the package to run; don't use MachineOptions.PkgPath, which
+	// would load an existing package at the same path from the store,
+	// conflicting with the files to run ("package fork" simulation).
+	pn := gno.NewPackageNode(gno.Name(pkgName), pkgPath, &gno.FileSet{})
+	pv := pn.NewPackage(m.Alloc)
+	m.Store.SetBlockNode(pn)
+	m.Store.SetCachePackage(pv)
+	m.SetActivePackage(pv)
+
+	if cfg.debug {
+		// Provide a helper to access sources of stdlibs and examples
+		// packages, so that the debugger can list them.
+		m.Debugger.Enable(stdin, output, func(ppath, name string) string {
+			p := filepath.Join(cfg.rootDir, ppath, name)
+			b, err := os.ReadFile(p)
+			if err != nil {
+				p = filepath.Join(cfg.rootDir, "gnovm", "stdlibs", ppath, name)
+				b, err = os.ReadFile(p)
+			}
+			if err != nil {
+				p = filepath.Join(cfg.rootDir, "examples", ppath, name)
+				b, err = os.ReadFile(p)
+			}
+			if err != nil {
+				return ""
+			}
+			return string(b)
+		})
+	}
 
 	// read files
 	files, err := parseFiles(m, args, stderr)
@@ -230,9 +288,51 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		}
 	}
 
+	if realmMode {
+		// Set the origin caller before running package init, so that
+		// package-level initializers see the proper caller (matches the
+		// filetest ordering in gnovm/pkg/test).
+		ctx.OriginCaller = test.DefaultCaller
+	}
+
 	// run files
 	m.RunFiles(files...)
+
+	if realmMode {
+		// Reconstruct the active package from the store, following realm
+		// finalization by RunFiles.
+		m.SetActivePackage(m.Store.GetPackage(pkgPath, false))
+	}
 	return runExpr(m, cfg.expr)
+}
+
+// derivePkgPath derives the package path of the files to run from the first
+// argument: from its "// PKGPATH:" directive if it is a (file)test file, or
+// else from the module path of the gnomod.toml file in its directory.
+// It returns "" if neither is found.
+func derivePkgPath(arg string) (string, error) {
+	dir := arg
+	if s, err := os.Stat(arg); err != nil {
+		return "", err
+	} else if !s.IsDir() {
+		dir = filepath.Dir(arg)
+		body, err := os.ReadFile(arg)
+		if err != nil {
+			return "", err
+		}
+		pkgPath, err := parsePkgPathDirective(string(body), "")
+		if err != nil || pkgPath != "" {
+			return pkgPath, err
+		}
+	}
+	mod, err := gnomod.ParseDir(dir)
+	switch {
+	case errors.Is(err, gnomod.ErrNoModFile):
+		return "", nil
+	case err != nil:
+		return "", err
+	}
+	return mod.Module, nil
 }
 
 func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
@@ -302,6 +402,9 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 			}
 		}
 	}()
+	// If the expression is a call to a crossing function of the package
+	// (e.g. `main(cur realm)`), prepend `.cur` as the first argument.
+	m.MaybeInjectCurForEval(ex)
 	m.Eval(ex)
 	return nil
 }

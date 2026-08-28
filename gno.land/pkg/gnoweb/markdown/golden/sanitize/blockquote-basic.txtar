@@ -4,8 +4,10 @@
 line one
 line two
 -- output.md --
+
 > line one
 > line two
+
 -- output.html --
 <blockquote>
 <p>line one

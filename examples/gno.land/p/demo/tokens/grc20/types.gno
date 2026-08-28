@@ -73,24 +73,27 @@ type Teller interface {
 	TransferFrom(_ int, rlm realm, from, to address, amount int64) error
 }
 
-// Token represents a fungible token with a name, symbol, and a certain number
-// of decimal places. It maintains a ledger for tracking balances and allowances
-// of addresses.
+// Token represents a fungible token with an ID, name, symbol, and a certain
+// number of decimal places. It maintains a ledger for tracking balances and
+// allowances of addresses.
 //
 // The Token struct provides methods for retrieving token metadata, such as the
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
+	// Identifier precomputed in NewToken to make ID() a cheap field read.
+	id string
 	// Name of the token (e.g., "Dummy Token").
 	name string
 	// Symbol of the token (e.g., "DUMMY").
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
-	// Original realm of the token (e.g., "gno.land/r/demo/foo20").
-	origRealm string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
+	// origRealm is the PkgPath of the realm that created the token, captured
+	// unforgeably in NewToken. A frame-relative teller only works there.
+	origRealm string
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the
@@ -121,6 +124,7 @@ var (
 	ErrMintOverflow          = errors.New("mint overflow")
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
+	ErrForeignCallerTeller   = errors.New("caller teller is confined to the token's own realm")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -128,12 +132,11 @@ var (
 )
 
 // Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because Token.ID() = origRealm + "." + symbol is
-// emitted in events and frequently used as a registry slug; banning `.`
-// `/` and whitespace here prevents downstream parsers from being fooled
-// by ambiguous IDs (e.g. an attacker emitting tokens whose ID parses as
-// belonging to a victim realm). Name is for display only and allows
-// any valid UTF-8 except control characters.
+// grc20reg.validateSlug because it is included in Token.ID(), which is
+// emitted in events and frequently used as a registry slug; banning `.` `/`
+// and whitespace here prevents downstream parsers from being fooled by
+// ambiguous IDs. Name is for display only and allows any valid UTF-8 except
+// control characters.
 const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11
@@ -141,6 +144,7 @@ const (
 )
 
 const (
+	NewTokenEvent = "NewToken"
 	MintEvent     = "Mint"
 	BurnEvent     = "Burn"
 	TransferEvent = "Transfer"
@@ -149,6 +153,11 @@ const (
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
+	// homeGuard marks a frame-relative teller (PrivateLedger.CallerTeller),
+	// whose actor is resolved from the invoking frame. Such a teller is only
+	// meaningful in the token's own realm and is refused anywhere else, so
+	// exporting the value cannot hand out a spend capability.
+	homeGuard bool
 	*Token
 }
 

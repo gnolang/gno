@@ -51,9 +51,24 @@ func EscapeTitle(s string) string // injected
 //   - " ' ( ) < > \ ` { | } ^
 //   - 0x80-0xFF (UTF-8 high bytes — each byte encoded)
 //   - Bare % not followed by two hex digits
+//   - & when it opens an HTML entity reference (`&#…;` or `&name;`,
+//     including the `&\#…;` / `&…\;` forms a renderer unescapes before
+//     resolving). A renderer resolves those to raw bytes when it writes the
+//     URL out, so leaving `&#x6a;avascript:` intact would hand `javascript:`
+//     to any renderer that checks the scheme without resolving first.
 //
 // Preserved (URL-syntactic):
-//   - A-Z a-z 0-9 - _ . ~ / : ? # [ ] @ ! $ & + , ; = *
+//   - A-Z a-z 0-9 - _ . ~ / : ? # [ ] @ ! $ + , ; = *
+//   - & anywhere else, so query separators like `?x=1&y=2` survive
+//
+// The shape rule is deliberately blind to what a reference expands to, so
+// harmless ones are encoded too: pass `?a=1&amp;b=2` and you get
+// `?a=1%26amp;b=2`, which is ONE parameter valued `1&amp;b=2`, not two.
+// Write the bare `&` (`?a=1&b=2`) — that is what CM link destinations take,
+// and it round-trips. Exempting `&amp;` would be sound against this exact
+// resolver chain (its output `&` is produced by the last pass, so nothing
+// re-reads it) but not against a renderer that resolves to a fixed point,
+// which would turn `&amp;#x6a;` back into `j`.
 //
 // INTERNAL. Does not apply scheme allowlist. Use the URL or ImageURL
 // helpers in p/nt/md/sanitize for full filtering.
@@ -119,3 +134,12 @@ func EscapeBlockHazards(s string) string // injected
 //
 // INTERNAL. Used by p/nt/md/sanitize.BlockRich.
 func EscapeBlockHazardsRich(s string) string // injected
+
+// MaxForeignBlocksPerConvert is gnoweb's per-render cap on the number
+// of <gno-foreign> sandbox blocks a single markdown render will admit.
+// Beyond it, later openers fall through to raw HTML and are dropped by
+// safe mode. A realm that emits many foreign blocks (e.g. one per
+// comment) should keep its rendered total under this so content is not
+// silently dropped. This is the single source of truth: the gnoweb
+// foreign renderer enforces the same value.
+func MaxForeignBlocksPerConvert() int // injected

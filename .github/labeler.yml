@@ -58,7 +58,6 @@
   - changed-files:
       - any-glob-to-any-file:
           - ".github/**/*"
-          - ".codecov.yml"
 
 "🐳 devops":
   - changed-files:

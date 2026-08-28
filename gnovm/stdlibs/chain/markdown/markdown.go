@@ -3,9 +3,22 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
+
+// maxForeignBlocksPerConvert caps the number of <gno-foreign> blocks a
+// single markdown render admits (the gnoweb renderer drops openers
+// beyond it). Single source of truth: the gnoweb foreign renderer reads
+// it via MaxForeignBlocksPerConvert, and realms read the same value
+// from gno via the native of the same name.
+const maxForeignBlocksPerConvert = 256
+
+// MaxForeignBlocksPerConvert returns maxForeignBlocksPerConvert. It
+// backs the gno native of the same name (callable from realms) and is
+// also the Go accessor the gnoweb foreign renderer uses.
+func MaxForeignBlocksPerConvert() int { return maxForeignBlocksPerConvert }
 
 // ---------- StripBidiAndZeroWidth ----------
 
@@ -142,6 +155,8 @@ func needsPercentEncode(s string, i int) bool {
 	switch c {
 	case '"', '\'', '(', ')', '<', '>', '\\', '`', '{', '|', '}', '^':
 		return true
+	case '&':
+		return startsEntityReference(s, i)
 	case '%':
 		// Bare % (not followed by two hex digits) gets encoded.
 		if i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2]) {
@@ -149,6 +164,88 @@ func needsPercentEncode(s string, i int) bool {
 		}
 	}
 	return false
+}
+
+// skipEscapeBefore returns i advanced past a `\` that escapes want.
+// UnescapePunctuations runs BEFORE the reference resolvers, so `&\#x6a;`
+// and `&#x6a\;` both reach a resolver as `&#x6a;`; matching the reference
+// shape literally would let the escape hide it from us and reveal it to
+// the renderer. Only ASCII punctuation is escapable, which is why the
+// byte is checked: in `&\name;` the `\n` survives unescaping, so no
+// reference forms and the `&` stays bare.
+func skipEscapeBefore(s string, i int, want byte) int {
+	if i+1 < len(s) && s[i] == '\\' && s[i+1] == want {
+		return i + 1
+	}
+	return i
+}
+
+// endsReference reports whether the `;` closing a reference sits at i,
+// allowing for the `\;` form.
+func endsReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i, ';')
+	return i < len(s) && s[i] == ';'
+}
+
+func startsEntityReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i+1, '#')
+	if i >= len(s) {
+		return false
+	}
+	if s[i] == '#' {
+		i++
+		if i < len(s) && (s[i] == 'x' || s[i] == 'X') {
+			i++
+			start := i
+			for i < len(s) && isHex(s[i]) {
+				i++
+			}
+			return i > start && endsReference(s, i)
+		}
+		start := i
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		return i > start && endsReference(s, i)
+	}
+	if !isASCIIAlpha(s[i]) {
+		return false
+	}
+	for i++; i < len(s) && isASCIIAlphaNumeric(s[i]); i++ {
+	}
+	return endsReference(s, i)
+}
+
+func percentEncodeEntityReferences(s string) string {
+	first := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteString(s[:first])
+	for i := first; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			b.WriteString("%26")
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
+func isASCIIAlpha(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+func isASCIIAlphaNumeric(c byte) bool {
+	return isASCIIAlpha(c) || c >= '0' && c <= '9'
 }
 
 func isHex(c byte) bool {
@@ -210,10 +307,7 @@ func CodeFence(content string, minCount int) string {
 			cur = 0
 		}
 	}
-	n := longest + 1
-	if n < minCount {
-		n = minCount
-	}
+	n := max(longest+1, minCount)
 	out := make([]byte, n)
 	for i := range out {
 		out[i] = '`'
@@ -223,35 +317,53 @@ func CodeFence(content string, minCount int) string {
 
 // ---------- EscapeBlockHazards ----------
 
-// blockHazardsMode selects which doc-spoof defenses run inside
-// escapeBlockHazardsImpl. Realm-binding defenses (bracket walker,
-// extension delimiter, GFM pipe, fence state, fold-separators) are
-// unconditional and not represented as flags.
+// blockHazardsMode selects which doc-spoof and table-injection
+// defenses run inside escapeBlockHazardsImpl. Realm-binding defenses
+// that stay unconditional in BOTH strict and Rich modes (bracket
+// walker, <gno-…> extension delimiter, CM §4.6 HTML block types 1-5
+// openers, fenced-code-block state machine, U+2028/U+2029/U+0085
+// fold) are not represented as flags — they always fire.
 type blockHazardsMode int
 
 const (
 	modeEscapeLineLeader blockHazardsMode = 1 << iota
 	modeEscapeSetext
+	modeEscapePipe
+
+	// modeStrict is the strict-mode policy: all doc-spoof defenses
+	// on. ANY new bit added to blockHazardsMode MUST be OR'd in here
+	// so EscapeBlockHazards's strict posture stays the union of all
+	// defenses. Forgetting to extend this constant silently weakens
+	// strict callers (sanitize.Block) — there is no compile-time or
+	// test-level catch for the omission besides per-defense unit
+	// tests.
+	modeStrict = modeEscapeLineLeader | modeEscapeSetext | modeEscapePipe
 )
 
 // EscapeBlockHazards is the strict variant (used by sanitize.Block).
-// All doc-spoof and realm-binding defenses are on.
+// All doc-spoof, setext, and GFM-table-row defenses are on.
 func EscapeBlockHazards(s string) string {
-	return escapeBlockHazardsImpl(s, modeEscapeLineLeader|modeEscapeSetext)
+	return escapeBlockHazardsImpl(s, modeStrict)
 }
 
 // EscapeBlockHazardsRich is the permissive variant (used by
 // sanitize.BlockRich). Line-leader (#, >, list markers, thematic
-// breaks) and setext-underline escapes are skipped; the user can
-// compose multi-section markdown structure. Realm-binding defenses
-// (bracket walker, <gno-…> extension delimiters, GFM table-row
-// pipes, fence state machine, NUL / bidi / U+2028 folding) all
-// stay on.
+// breaks), setext-underline, and GFM table-row `|` escapes are all
+// skipped — the user can compose multi-section markdown structure
+// including tables. Realm-binding defenses (bracket walker,
+// <gno-…> extension delimiters, CM §4.6 HTML block types 1-5
+// openers, fenced-code-block state machine, U+2028/U+2029/U+0085
+// fold) stay on — these are mode-independent security defenses,
+// not stylistic preferences. NUL→U+FFFD replacement and
+// bidi/zero-width strip run at the Gno layer (sanitize.BlockRich)
+// before reaching this native, not here.
 //
-// Cross-boundary setext promotion (user `===`/`---` at start of
-// input reaching back to promote a realm chrome line above it) is
-// neutralized at the Gno layer by sanitize.BlockRich's
-// neuterLeadingSetextIfQualifying pre-pass, not by this native.
+// Cross-paragraph promotion (user `===`/`---` setext or
+// `|---|---|` table-separator at start or end of input reaching
+// into adjacent realm chrome) is neutralized at the Gno layer by
+// sanitize.BlockRich emitting `\n\n` (CM blank line, i.e.
+// paragraph break) on BOTH sides of the user content — symmetric
+// isolation against backward and forward attacks.
 func EscapeBlockHazardsRich(s string) string {
 	return escapeBlockHazardsImpl(s, 0)
 }
@@ -289,6 +401,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	)
 	escapeLeader := mode&modeEscapeLineLeader != 0
 	escapeSetext := mode&modeEscapeSetext != 0
+	escapePipe := mode&modeEscapePipe != 0
 
 	for idx, line := range lines {
 		writeNL := idx < len(lines)-1 || trailingNewline
@@ -324,6 +437,29 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
+		// CM §4.6 HTML block types 1-5: prefix with backslash so the
+		// leading `<` becomes a CM §2.4 inline escape and goldmark's
+		// HTML block parser (which requires the first non-whitespace
+		// char to be `<`) refuses to open. Types 1-5 are the
+		// blank-line-NON-terminating shapes (`<script>`, `<pre>`,
+		// `<style>`, `<textarea>`, `<!--`, `<?…?>`, `<!DOCTYPE…>`,
+		// `<![CDATA[…]]>`) — without this defense user content opening
+		// any of them would consume realm chrome appended afterward
+		// (until a type-specific close token or EOF). Types 6 and 7
+		// close on a blank line, so sanitize.BlockRich's "\n\n"
+		// envelope already bounds them; we don't escape those.
+		// Fires unconditionally in both strict and Rich modes — this
+		// is a security defense, not stylistic.
+		if isHTMLBlockType1to5Opener(line) {
+			out.WriteByte('\\')
+			out.WriteString(line)
+			if writeNL {
+				out.WriteByte('\n')
+			}
+			prevNonBlank = true
+			continue
+		}
+
 		// Setext underline (only if previous line was non-blank, and
 		// the strict mode is enabled).
 		if escapeSetext && prevNonBlank && isSetextUnderline(line) {
@@ -337,11 +473,10 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		}
 
 		// Block markers / fence open. Always called: fence detection is
-		// unconditional, and the function honors `escapeLeader` for the
-		// doc-spoof markers (#, >, list, HR). The GFM table-row pipe
-		// escape and code-fence detection inside escapeLineLeader are
-		// always on (realm-binding).
-		escaped, fc, fl := escapeLineLeader(line, escapeLeader)
+		// unconditional. `escapeLeader` gates the doc-spoof markers
+		// (#, >, list, HR) and `escapePipe` gates the GFM table-row
+		// `|` escape; both are on in strict mode and off in Rich.
+		escaped, fc, fl := escapeLineLeader(line, escapeLeader, escapePipe)
 		out.WriteString(escaped)
 		if writeNL {
 			out.WriteByte('\n')
@@ -397,13 +532,127 @@ func foldUnicodeSeparators(s string) string {
 // `<gno-foreign>`, anything later) auto-cover without needing a
 // sanitize-side update.
 //
+// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
+// trip). Go's html.Tokenizer (used by the extension block parsers in
+// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
+// before the per-extension matcher runs, so an uppercase or mixed-
+// case opener still opens the block. The sanitizer therefore must
+// match the same byte-shape envelope the parsers do — otherwise
+// `<GNO-columns>` slips past the sanitizer and opens a columns
+// container in goldmark, swallowing realm chrome.
+//
 // Bare `|||` (the legacy `<gno-columns>` shorthand) is intentionally
 // NOT matched here — the shorthand has been removed from the columns
 // parser, so user content writing `|||` is now harmless paragraph
 // text and doesn't need neutralisation.
 func isExtDelimiter(line string) bool {
 	trim := strings.TrimLeft(line, " \t")
-	return strings.HasPrefix(trim, "<gno-") || strings.HasPrefix(trim, "</gno-")
+	if len(trim) == 0 || trim[0] != '<' {
+		return false
+	}
+	rest := trim[1:]
+	// Optional `/` for close tags.
+	if len(rest) > 0 && rest[0] == '/' {
+		rest = rest[1:]
+	}
+	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+// isHTMLBlockType1to5Opener reports whether line opens a CommonMark
+// §4.6 HTML block of type 1, 2, 3, 4, or 5 — the types that do NOT
+// close on a blank line. Types 6 and 7 close on a blank line per
+// goldmark's `Continue` (parser/html_block.go), so the leading +
+// trailing "\n\n" envelope in sanitize.BlockRich already bounds them;
+// we only need to neutralize 1-5 here.
+//
+// Detection mirrors goldmark's regexes at parser/html_block.go:79-92
+// (case-insensitive Type 1 tag name; case-sensitive Types 2/3/4/5;
+// ASCII space-only indent of 0-3 columns — tabs are deliberately NOT
+// allowed since goldmark uses `[ ]{0,3}` literal, divergent from
+// isExtDelimiter's `TrimLeft(line, " \t")`).
+//
+// Type 4 uses `[A-Z]` (one uppercase letter) where goldmark's regex
+// is `[A-Z]+` — equivalent for opener detection because any line
+// goldmark would accept under `+` also satisfies the single-letter
+// check.
+func isHTMLBlockType1to5Opener(line string) bool {
+	// 0-3 ASCII-space indent.
+	i := 0
+	for i < 3 && i < len(line) && line[i] == ' ' {
+		i++
+	}
+	if i >= len(line) || line[i] != '<' {
+		return false
+	}
+	rest := line[i+1:]
+	if len(rest) == 0 {
+		return false
+	}
+	// Type 2: <!--
+	if strings.HasPrefix(rest, "!--") {
+		return true
+	}
+	// Type 5: <![CDATA[ (case-sensitive)
+	if strings.HasPrefix(rest, "![CDATA[") {
+		return true
+	}
+	// Type 4: <![A-Z]
+	if len(rest) >= 2 && rest[0] == '!' && rest[1] >= 'A' && rest[1] <= 'Z' {
+		return true
+	}
+	// Type 3: <?
+	if rest[0] == '?' {
+		return true
+	}
+	// Type 1: <(script|pre|style|textarea) followed by \s, >, /, or EOL.
+	for _, name := range [...]string{"script", "pre", "style", "textarea"} {
+		if hasCaseInsensitivePrefix(rest, name) {
+			after := rest[len(name):]
+			if len(after) == 0 {
+				return true
+			}
+			c := after[0]
+			if c == ' ' || c == '\t' || c == '>' || c == '/' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasBacktickBeforeNewline reports whether s[from:] contains a `
+// before the next `\n` or EOF. Used to enforce CM §4.5: a backtick
+// fence opener whose info string contains another backtick does NOT
+// open a fence. Three call sites in this file share this predicate
+// (escapeLineLeader, isBlockInterrupt, findBracketSpans); keeping
+// them on one helper prevents drift if the rule ever evolves.
+func hasBacktickBeforeNewline(s string, from int) bool {
+	for i := from; i < len(s) && s[i] != '\n'; i++ {
+		if s[i] == '`' {
+			return true
+		}
+	}
+	return false
+}
+
+// hasCaseInsensitivePrefix reports whether s begins with prefix using
+// ASCII-only case folding (A-Z → a-z). prefix MUST be lowercase ASCII;
+// Type 1 tag names (`script`, `pre`, `style`, `textarea`) all qualify.
+// No Unicode case folding — CM's HTML block 1 names are ASCII-only.
+func hasCaseInsensitivePrefix(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != prefix[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // isSetextUnderline reports whether line is shaped like ^ {0,3}=+[ \t]*$
@@ -433,15 +682,17 @@ func isSetextUnderline(line string) bool {
 }
 
 // escapeLineLeader escapes a single line-leading block marker by
-// prefixing it with \. Returns the escaped line. If the line opens
-// a code fence, also returns the fence char and length (>=3).
-// escapeLineLeader inspects the leading non-space byte of a line and
-// returns (possibly-escaped line, fence-char, fence-len). The
-// `escapeLeader` flag gates the doc-spoof markers (#, >, list, HR);
-// when false, those markers are preserved verbatim. The GFM table-row
-// pipe escape and fenced-code-block detection are always on (both
-// realm-binding / always-needed).
-func escapeLineLeader(line string, escapeLeader bool) (string, byte, int) {
+// prefixing it with \. Returns (possibly-escaped line, fence-char,
+// fence-len) — fence char/len are returned when the line opens a
+// code fence (length >= 3).
+//
+// The `escapeLeader` flag gates the doc-spoof markers (#, >, list,
+// HR); when false, those markers are preserved verbatim. The
+// `escapePipe` flag gates the GFM table-row `|` escape; when false,
+// line-leading `|` is preserved so user content can render as a
+// table. Fenced-code-block detection is always on (state machine
+// tracking, not a defense).
+func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte, int) {
 	i := 0
 	for i < len(line) && i < 3 && line[i] == ' ' {
 		i++
@@ -482,25 +733,40 @@ func escapeLineLeader(line string, escapeLeader bool) (string, byte, int) {
 			return line[:i] + "\\" + line[i:], 0, 0
 		}
 	case '|':
-		// GFM table-row line leader. gnoweb's NewGnoExtension does
-		// not load the GFM Table extension today, so a line-leading
-		// `|` is harmless there — but Block aims to be a portable
-		// defensive primitive: any goldmark consumer that DOES
-		// enable tables could otherwise have user-content table
-		// rows injected at document level (e.g. an empty 2-cell row
-		// `|||` slotted into an existing table). Prepend `\` so the
-		// line renders as literal text in every renderer.
-		return line[:i] + "\\" + line[i:], 0, 0
+		// GFM table-row line leader. gnoweb loads
+		// extension.Table (see render_config.go), so a line-leading
+		// `|` followed by a delimiter line forms a real table.
+		// Block keeps tables out of user content (strict posture);
+		// BlockRich preserves them so authors can compose tables.
+		if escapePipe {
+			return line[:i] + "\\" + line[i:], 0, 0
+		}
 	case '`', '~':
 		// Fenced code block: 3+ of ` or ~. Code fences are legitimate
 		// user content (users want to share code); do NOT escape them.
 		// Just mark the fence as open so the EOF auto-close can fire if
 		// the user never closes it.
+		//
+		// CM §4.5: for BACKTICK fences only, the info string MUST NOT
+		// contain another backtick. Goldmark enforces this — if the
+		// info string contains a `, no fence opens (the line is paragraph
+		// text). The sanitizer MUST mirror this exactly, or it would
+		// treat the line as a fence open while goldmark treats subsequent
+		// lines as paragraph content where line-leader / extension /
+		// HTML-block defenses normally apply. Without the check, an
+		// caller can write "```a`b" to make the sanitizer believe a
+		// fence opened and skip defenses on `<gno-…>`, `<!--`, `===`,
+		// `#`, `|---|`, etc. on the following lines, while goldmark
+		// happily opens those blocks. Tilde fences are NOT subject to
+		// this rule (tildes ARE allowed in tilde-fence info strings).
 		j := i
 		for j < len(line) && line[j] == c {
 			j++
 		}
 		if j-i >= 3 {
+			if c == '`' && hasBacktickBeforeNewline(line, j) {
+				return line, 0, 0
+			}
 			return line, c, j - i
 		}
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -565,10 +831,8 @@ func isCloseFence(line string, fenceChar byte, fenceLen int) bool {
 // Byte-level (not rune-level) — required for UTF-8 lead-byte fast paths.
 func containsAnyByte(s string, bs ...byte) bool {
 	for i := 0; i < len(s); i++ {
-		for _, b := range bs {
-			if s[i] == b {
-				return true
-			}
+		if slices.Contains(bs, s[i]) {
+			return true
 		}
 	}
 	return false
@@ -580,9 +844,9 @@ func containsAnyByte(s string, bs ...byte) bool {
 //   Pass 1: find spans for inline links [text](url), images ![alt](src),
 //     LRD definitions [label]: url [title], and fenced code regions. Multi-
 //     line and backslash-aware.
-//   Pass 2: rewrite bytes — preserve link/image/fence spans verbatim, delete
-//     LRD spans, escape any unescaped `[` / `]` outside spans (with
-//     backslash-parity tracking).
+//   Pass 2: rewrite bytes — encode entity references in link/image URLs,
+//     preserve fence spans, delete LRD spans, and escape any unescaped `[` / `]`
+//     outside spans (with backslash-parity tracking).
 //
 // Closes three previously-documented residuals:
 //   1. Shortcut-ref `[label]` collision with realm-emitted LRDs (both
@@ -593,14 +857,15 @@ func containsAnyByte(s string, bs ...byte) bool {
 type spanKind byte
 
 const (
-	spanLink  spanKind = iota // [text](url) or ![alt](src) — preserve
+	spanLink  spanKind = iota // [text](url) or ![alt](src) — encode entity refs in destination
 	spanLRD                   // [label]: url ["title"] — delete entirely
 	spanFence                 // fenced code block — preserve (opaque)
 )
 
 type bracketSpan struct {
-	start, end int // [start, end) half-open byte indices
-	kind       spanKind
+	start, end       int // [start, end) half-open byte indices
+	urlStart, urlEnd int // destination bounds for spanLink
+	kind             spanKind
 }
 
 // findBracketSpans is pass 1 of the bracket walker. Returns sorted,
@@ -612,7 +877,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// nextClose is the byte index of the next `]` at or after i, or
 	// len(s) if no `]` remains. Maintained lazily — we only need to
 	// recompute it when i catches up. Used to short-circuit
-	// scanLinkText on adversarial input like `[[[[…` with no closer,
+	// scanLinkText on pathological input like `[[[[…` with no closer,
 	// where every `[` would otherwise force a fresh forward walk to
 	// the next blank line or EOF (O(n²) total). With this check,
 	// each `[` either has a `]` ahead and we run the real scan, or
@@ -626,7 +891,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// every `[` could otherwise force a depth-balanced walk across most
 	// of the input. 8×len(s) leaves plenty of headroom for legitimate
 	// content (real links are short and rare relative to input size)
-	// while capping adversarial work at O(n).
+	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
 	for i < len(s) {
 		// Advance nextClose past i if needed.
@@ -652,6 +917,18 @@ func findBracketSpans(s string) []bracketSpan {
 					k++
 				}
 				if k-j >= 3 {
+					// CM §4.5: backtick fences with a backtick in the
+					// info string do NOT open. Without this check the
+					// walker treats subsequent lines as fence interior
+					// (skipping LRD strip + bracket escape) while
+					// goldmark treats them as paragraph — letting an
+					// caller smuggle a ref-link definition past the
+					// walker.
+					if fenceChar == '`' && hasBacktickBeforeNewline(s, k) {
+						i = k
+						atLineStart = false
+						continue
+					}
 					// Fence opens. Find close.
 					fenceLen := k - j
 					end := findFenceClose(s, k, fenceChar, fenceLen)
@@ -685,7 +962,7 @@ func findBracketSpans(s string) []bracketSpan {
 			if nextClose >= len(s) {
 				// No `]` remains anywhere ahead; scanLinkText will fail.
 				// Skip the scan to keep the walker linear-time even on
-				// adversarial unclosed-bracket input.
+				// pathological unclosed-bracket input.
 				i++
 				atLineStart = false
 				continue
@@ -699,9 +976,9 @@ func findBracketSpans(s string) []bracketSpan {
 			// textEnd points at the closing `]`. Next byte determines what kind.
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
-				end, ok := scanLinkURL(s, textEnd+2, &scanBudget)
+				end, urlStart, urlEnd, ok := scanLinkURL(s, textEnd+2, &scanBudget)
 				if ok {
-					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLink})
+					spans = append(spans, bracketSpan{start: start, end: end, urlStart: urlStart, urlEnd: urlEnd, kind: spanLink})
 					i = end
 					atLineStart = false
 					continue
@@ -800,7 +1077,7 @@ func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
 // true on success. `budget` is a shared work counter — each byte
 // inspected decrements it, and the scan aborts (returns false) when
 // it hits zero. This caps total pass-1 scan work at O(budget) across
-// all calls, defending against adversarial inputs like
+// all calls, bounding pathological inputs like
 // `[[[[…]]]]` where every `[` would otherwise force a fresh
 // depth-balanced walk across most of the input (O(n²)).
 func scanLinkText(s string, i int, budget *int) (int, bool) {
@@ -839,11 +1116,11 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 }
 
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
-// Returns the byte index AFTER the closing `)` and true on success.
-// Shares the pass-1 scan budget with scanLinkText so an attacker can't
+// Returns the span end and destination bounds on success.
+// Shares the pass-1 scan budget with scanLinkText so a caller can't
 // chain `[a]([a]([a](…` (which would otherwise let scanLinkURL walk to
 // EOF on every `[`, O(n²)).
-func scanLinkURL(s string, i int, budget *int) (int, bool) {
+func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
 	// Consume optional leading whitespace
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
 		i++
@@ -857,9 +1134,10 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 	// URL body — angle-bracket form or plain
 	if i < len(s) && s[i] == '<' {
 		i++
+		urlStart = i
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -868,23 +1146,25 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				continue
 			}
 			if c == '>' {
+				urlEnd = i
 				i++
 				break
 			}
 			if c == '<' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
 	} else {
 		// Plain URL with balanced parens
+		urlStart = i
 		urlDepth := 1
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -897,7 +1177,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			} else if c == ')' {
 				urlDepth--
 				if urlDepth == 0 {
-					return i + 1, true
+					return i + 1, urlStart, i, true
 				}
 			} else if c == ' ' || c == '\t' || c == '\n' {
 				// Whitespace after URL — title or close may follow
@@ -905,11 +1185,12 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			}
 			i++
 		}
+		urlEnd = i
 	}
 	// Skip whitespace before title or close
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
 		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-			return 0, false
+			return 0, 0, 0, false
 		}
 		i++
 	}
@@ -922,7 +1203,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 		i++
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -935,7 +1216,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				break
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
@@ -945,16 +1226,16 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 		}
 	}
 	if i < len(s) && s[i] == ')' {
-		return i + 1, true
+		return i + 1, urlStart, urlEnd, true
 	}
-	return 0, false
+	return 0, 0, 0, false
 }
 
 // scanLRDTail scans the `: url [title]` portion of an LRD definition.
 // `i` is the byte index right after the closing `]` of the label.
 // Returns the byte index of the LRD region's end (after the URL or after
 // the title, including a trailing newline if present) and true on success.
-// Shares the pass-1 scan budget so an attacker can't chain
+// Shares the pass-1 scan budget so a caller can't chain
 // `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
 // LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
 func scanLRDTail(s string, i int, budget *int) (int, bool) {
@@ -1147,12 +1428,23 @@ func isBlockInterrupt(s string, lineStart int) bool {
 		}
 		return false
 	case '`', '~':
-		// Fenced code: three or more of the same fence char.
+		// Fenced code: three or more of the same fence char. Mirror
+		// CM §4.5: backtick fences with a backtick in the info string
+		// do NOT open (goldmark rejects them). Without this check, the
+		// bracket walker's LRD-title scan would terminate on a line
+		// goldmark treats as paragraph text — a parser-state mismatch
+		// of the same shape that drove the escapeLineLeader fix.
 		j := i
 		for j < len(s) && s[j] == c {
 			j++
 		}
-		return j-i >= 3
+		if j-i < 3 {
+			return false
+		}
+		if c == '`' && hasBacktickBeforeNewline(s, j) {
+			return false
+		}
+		return true
 	}
 	// Ordered list: 1–9 digits then `.` or `)` then space/tab.
 	if c >= '0' && c <= '9' {
@@ -1167,9 +1459,9 @@ func isBlockInterrupt(s string, lineStart int) bool {
 	return false
 }
 
-// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, leaves
-// link/image/fence spans verbatim, deletes LRD spans, and prepends `\` to
-// any unescaped `[` / `]` outside any span.
+// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, encodes
+// entity references in link/image destinations, leaves fence spans verbatim,
+// deletes LRD spans, and prepends `\` to unescaped `[` / `]` outside spans.
 func rewriteWithSpans(s string, spans []bracketSpan) string {
 	if len(spans) == 0 && !strings.ContainsAny(s, "[]") {
 		return s
@@ -1190,8 +1482,13 @@ func rewriteWithSpans(s string, spans []bracketSpan) string {
 				trailingBackslashes = 0
 				continue
 			}
-			// Preserve verbatim
-			b.WriteString(s[sp.start:sp.end])
+			if sp.kind == spanLink {
+				b.WriteString(s[sp.start:sp.urlStart])
+				b.WriteString(percentEncodeEntityReferences(s[sp.urlStart:sp.urlEnd]))
+				b.WriteString(s[sp.urlEnd:sp.end])
+			} else {
+				b.WriteString(s[sp.start:sp.end])
+			}
 			i = sp.end
 			trailingBackslashes = 0
 			continue

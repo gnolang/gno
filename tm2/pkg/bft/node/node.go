@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -361,6 +363,7 @@ func createConsensusReactor(config *cfg.Config,
 		blockExec,
 		blockStore,
 		mempool,
+		cs.NoOpEvidencePool{},
 	)
 	consensusState.SetLogger(consensusLogger)
 	if privValidator != nil {
@@ -377,6 +380,30 @@ func createConsensusReactor(config *cfg.Config,
 type nodeReactor struct {
 	name    string
 	reactor p2p.Reactor
+}
+
+// parseSeedAddrs parses the seed node addresses from the node configuration.
+// Seeds are only meaningful alongside peer discovery: a seed connection exists
+// to ask the seed for peers, which requires the discovery reactor
+func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
+	)
+	for _, err := range errs {
+		logger.Error("invalid seed address", "err", err)
+	}
+
+	if len(seedAddrs) == 0 {
+		return nil
+	}
+
+	if !config.P2P.PeerExchange {
+		logger.Warn("ignoring configured seed nodes, peer exchange is disabled")
+
+		return nil
+	}
+
+	return seedAddrs
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -508,7 +535,24 @@ func NewNode(config *cfg.Config,
 	var discoveryReactor *discovery.Reactor
 
 	if config.P2P.PeerExchange {
-		discoveryReactor = discovery.NewReactor()
+		// Set up the persistent peer store so discovered peers survive restarts.
+		// The store file lives in the config directory alongside the node key.
+		addrBookPath := config.P2P.AddrBookFile()
+
+		if err := osm.EnsureDir(filepath.Dir(addrBookPath), cfg.DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("unable to create address book directory, %w", err)
+		}
+
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
+		}
+
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
@@ -526,6 +570,9 @@ func NewNode(config *cfg.Config,
 		p2pLogger.Error("invalid persistent peer address", "err", err)
 	}
 
+	// Parse the seed node addresses
+	seedAddrs := parseSeedAddrs(config, p2pLogger)
+
 	// Parse the private peer IDs
 	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
 		splitAndTrimEmpty(config.P2P.PrivatePeerIDs, ",", " "),
@@ -537,9 +584,11 @@ func NewNode(config *cfg.Config,
 	// Prepare the misc switch options
 	opts := []p2p.SwitchOption{
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithSeeds(seedAddrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
+		p2p.WithAllowDuplicateIP(config.P2P.AllowDuplicateIP),
 	}
 
 	// Prepare the reactor switch options
@@ -784,6 +833,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 	config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
 	config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
 	config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
+	config.IdleTimeout = n.config.RPC.IdleTimeout
 	// If necessary adjust global WriteTimeout to ensure it's greater than
 	// TimeoutBroadcastTxCommit.
 	// See https://github.com/tendermint/tendermint/issues/3435

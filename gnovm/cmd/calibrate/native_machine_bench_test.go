@@ -36,6 +36,9 @@ func newMockBanker() *mockBanker {
 func (b *mockBanker) GetCoins(addr crypto.Bech32Address) std.Coins {
 	return b.coins[addr]
 }
+func (b *mockBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
+	return b.coins[addr].AmountOf(denom)
+}
 func (b *mockBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins)           {}
 func (b *mockBanker) TotalCoin(denom string) int64                                     { return 0 }
 func (b *mockBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64)  {}
@@ -144,7 +147,7 @@ func benchBankerSendCoins(b *testing.B, n int) {
 	b.Helper()
 	denoms := make([]string, n)
 	amounts := make([]int64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		denoms[i] = fmt.Sprintf("d%05d", i)
 		amounts[i] = 1
 	}
@@ -174,7 +177,7 @@ func benchBankerGetCoins(b *testing.B, n int) {
 	bk, _ := addContextAndFrames(m, "gno.land/r/x")
 	addr := crypto.Bech32Address("g1ownr")
 	cs := make(std.Coins, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		cs[i] = std.Coin{Denom: fmt.Sprintf("d%05d", i), Amount: int64(i + 1)}
 	}
 	bk.coins[addr] = cs
@@ -191,6 +194,19 @@ func BenchmarkNative_Banker_GetCoins_1(b *testing.B)    { benchBankerGetCoins(b,
 func BenchmarkNative_Banker_GetCoins_10(b *testing.B)   { benchBankerGetCoins(b, 10) }
 func BenchmarkNative_Banker_GetCoins_100(b *testing.B)  { benchBankerGetCoins(b, 100) }
 func BenchmarkNative_Banker_GetCoins_1000(b *testing.B) { benchBankerGetCoins(b, 1000) }
+
+func BenchmarkNative_Banker_GetCoin(b *testing.B) {
+	m := newDispatchMachine(3)
+	addContextAndFrames(m, "gno.land/r/x")
+	setBlockValueFromGo(m, 0, uint8(0))
+	setBlockValueFromGo(m, 1, "g1getcoin")
+	setBlockValueFromGo(m, 2, "ugnot")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/banker", "bankerGetCoin"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
 
 func BenchmarkNative_Banker_TotalCoin(b *testing.B) {
 	m := newDispatchMachine(2)
@@ -246,9 +262,9 @@ func BenchmarkNative_Banker_OriginSend(b *testing.B) {
 // Bench grid is 2-D: (nAttrs, perElemBytes). The fitter regresses
 // cost = base + α·nAttrs + β·totalBytes. Constant-byte benches isolate
 // the count slope (α); constant-count benches isolate the byte slope (β).
-// emit truncates each value to MaxEventAttrLen=1024, so per-element
-// payloads above that cap don't grow the marshal cost — we keep the
-// bytes-grid at ≤1024/element so β reflects real marshal work.
+// emit hard-caps each value at MaxEventAttrLen (4096) and panics above it;
+// the bytes-grid stays at ≤1024/element — well under the cap — so β
+// reflects real marshal work without tripping the panic.
 
 func benchChainEmit(b *testing.B, nAttrs, perElemBytes int) {
 	b.Helper()
@@ -279,8 +295,8 @@ func BenchmarkNative_Chain_Emit_100_1(b *testing.B) { benchChainEmit(b, 100, 1) 
 // 128 = MaxEventPairs * 2 — the new hard cap from emit_event.go.
 func BenchmarkNative_Chain_Emit_128_1(b *testing.B) { benchChainEmit(b, 128, 1) }
 
-// Bytes axis (nAttrs=2). 1024 is MaxEventAttrLen; above that emit truncates
-// silently so additional bytes don't grow the marshal slope.
+// Bytes axis (nAttrs=2). Grid tops out at 1024/element, well under
+// MaxEventAttrLen (4096, the hard cap above which emit panics).
 func BenchmarkNative_Chain_Emit_2_50(b *testing.B)   { benchChainEmit(b, 2, 50) }
 func BenchmarkNative_Chain_Emit_2_500(b *testing.B)  { benchChainEmit(b, 2, 500) }
 func BenchmarkNative_Chain_Emit_2_1024(b *testing.B) { benchChainEmit(b, 2, 1024) }
@@ -390,6 +406,108 @@ func BenchmarkNative_Params_SetUint64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		h.call()
 	}
+}
+
+func benchParamsGetBytes(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	val := make([]byte, n)
+	rand.Read(val)
+	pm.SetBytes("vm:gno.land/r/x:k", val)
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetBytes"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetBytes_1(b *testing.B)    { benchParamsGetBytes(b, 1) }
+func BenchmarkNative_Params_GetBytes_10(b *testing.B)   { benchParamsGetBytes(b, 10) }
+func BenchmarkNative_Params_GetBytes_100(b *testing.B)  { benchParamsGetBytes(b, 100) }
+func BenchmarkNative_Params_GetBytes_1000(b *testing.B) { benchParamsGetBytes(b, 1000) }
+
+func benchParamsGetString(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	pm.SetString("vm:gno.land/r/x:k", strings.Repeat("x", n))
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetString"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetString_1(b *testing.B)    { benchParamsGetString(b, 1) }
+func BenchmarkNative_Params_GetString_10(b *testing.B)   { benchParamsGetString(b, 10) }
+func BenchmarkNative_Params_GetString_100(b *testing.B)  { benchParamsGetString(b, 100) }
+func BenchmarkNative_Params_GetString_1000(b *testing.B) { benchParamsGetString(b, 1000) }
+
+func newParamsFlatGetBench(b *testing.B, fn gno.Name, seed func(*mockParams)) *dispatchHarness {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	if seed != nil {
+		seed(pm)
+	}
+	setBlockValueFromGo(m, 0, "k")
+	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", fn), nReturns: 2}
+}
+
+func BenchmarkNative_Params_GetBool(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetBool", func(p *mockParams) { p.SetBool("vm:gno.land/r/x:k", true) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetInt64(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetInt64", func(p *mockParams) { p.SetInt64("vm:gno.land/r/x:k", 42) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetUint64(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetUint64", func(p *mockParams) { p.SetUint64("vm:gno.land/r/x:k", 42) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func benchParamsGetStrings(b *testing.B, n, perElemBytes int) {
+	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
+	val := make([]string, n)
+	for i := range val {
+		val[i] = elem
+	}
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	pm.SetStrings("vm:gno.land/r/x:k", val)
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetStrings"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetStrings_1_1(b *testing.B)    { benchParamsGetStrings(b, 1, 1) }
+func BenchmarkNative_Params_GetStrings_10_1(b *testing.B)   { benchParamsGetStrings(b, 10, 1) }
+func BenchmarkNative_Params_GetStrings_100_1(b *testing.B)  { benchParamsGetStrings(b, 100, 1) }
+func BenchmarkNative_Params_GetStrings_1000_1(b *testing.B) { benchParamsGetStrings(b, 1000, 1) }
+func BenchmarkNative_Params_GetStrings_2_50(b *testing.B)   { benchParamsGetStrings(b, 2, 50) }
+func BenchmarkNative_Params_GetStrings_2_500(b *testing.B)  { benchParamsGetStrings(b, 2, 500) }
+func BenchmarkNative_Params_GetStrings_2_5000(b *testing.B) { benchParamsGetStrings(b, 2, 5000) }
+func BenchmarkNative_Params_GetStrings_2_50000(b *testing.B) {
+	benchParamsGetStrings(b, 2, 50000)
 }
 
 // ---------------- sys/params ----------------
@@ -544,7 +662,7 @@ func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) {
 
 // ---- sys/params: flat setters (Bool/Int64/Uint64) ----
 
-func newSysParamsFlatSetBench(b *testing.B, fn gno.Name, val interface{}) *dispatchHarness {
+func newSysParamsFlatSetBench(b *testing.B, fn gno.Name, val any) *dispatchHarness {
 	b.Helper()
 	m := newDispatchMachine(4)
 	addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
