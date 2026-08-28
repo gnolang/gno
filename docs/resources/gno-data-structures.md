@@ -102,7 +102,7 @@ var (
 )
 ```
 
-**Learn more:** [Effective Gno: Prefer avl.Tree over map for scalable storage](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage)
+**Learn more:** [Effective Gno: Choose storage types by access pattern](./effective-gno.md#choose-storage-types-by-access-pattern)
 
 For non-official storage helpers such as unique lists, sets, and queues, see
 [Community Packages](./community-packages.md).
