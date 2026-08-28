@@ -323,7 +323,7 @@ func TestTrackString_PinnedBackings(t *testing.T) {
 
 	// Track a batch of strings and drop every test-side reference; only
 	// the allocator's pins keep the backings alive.
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		alloc.NewString(strings.Repeat(string(rune('a'+i%26)), size))
 	}
 	runtime.GC()
@@ -333,7 +333,7 @@ func TestTrackString_PinnedBackings(t *testing.T) {
 	// string construction, never minted through NewString). None may
 	// resolve into a tracked range: their memory cannot have been
 	// recycled from a pinned backing.
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		b := make([]byte, size)
 		for j := range b {
 			b[j] = byte('A' + (i+j)%26)

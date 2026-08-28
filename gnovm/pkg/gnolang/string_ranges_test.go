@@ -55,7 +55,7 @@ func TestStringRangeSet_Model(t *testing.T) {
 		return s + uintptr(rng.Intn(int(e-s)+8)) - 4
 	}
 
-	for step := 0; step < 20000; step++ {
+	for step := range 20000 {
 		switch op := rng.Intn(10); {
 		case op < 5: // insert a fresh string-backed range
 			// len >= 2: Go interns 1-byte strings into a shared static
@@ -115,7 +115,7 @@ func BenchmarkNewStringTracked(b *testing.B) {
 		b.Run(fmt.Sprintf("live=%d", live), func(b *testing.B) {
 			alloc := NewAllocator(1 << 40)
 			keep := make([]StringValue, 0, live)
-			for i := 0; i < live; i++ {
+			for i := range live {
 				keep = append(keep, alloc.NewString(fmt.Sprintf("s%08d", i)))
 			}
 			b.ResetTimer()
@@ -135,7 +135,7 @@ func BenchmarkGCStringPass(b *testing.B) {
 		b.Run(fmt.Sprintf("live=%d", live), func(b *testing.B) {
 			alloc := NewAllocator(1 << 40)
 			keep := make([]StringValue, 0, live)
-			for i := 0; i < live; i++ {
+			for i := range live {
 				keep = append(keep, alloc.NewString(fmt.Sprintf("s%08d", i)))
 			}
 			b.ResetTimer()
