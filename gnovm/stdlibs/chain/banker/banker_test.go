@@ -49,7 +49,7 @@ func TestOriginSendIsSpendableOnlyByThePaidRealm(t *testing.T) {
 				panicked = true
 			}
 		}()
-		X_bankerSendCoins(m, uint8(btOriginSend), string(from), string(to),
+		X_bankerSendCoins(m, btOriginSend, string(from), string(to),
 			[]string{"ugnot"}, []int64{10})
 		return false
 	}
