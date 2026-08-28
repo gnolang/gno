@@ -758,10 +758,9 @@ func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
 // file repeats an address, for no correctness gain.
 // seedSupply rebuilds the supply counter from the balances genesis just wrote.
 //
-// A sweep rather than an incremental hook: applyBalance writes the account object with
-// the full pre-split amount before calling SetCoins, so SetCoins reads old == new and
-// any delta would be zero for every vesting account — and that pre-write cannot be
-// removed, since the vesting constructors validate OriginalVesting against it.
+// A sweep rather than an incremental hook: SetCoins keeps no counter, so there is no
+// delta to hook. It replaces both tiers outright, which is also why genesis can write
+// a balance without the supply having to be correct yet.
 //
 // Both genesis paths call this. It is a method rather than two inline calls so that a
 // step required by one path cannot be added to the other alone; that asymmetry is
@@ -771,28 +770,22 @@ func (cfg InitChainerConfig) seedSupply(ctx sdk.Context) {
 }
 
 func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
+	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
-		baseAcc := std.BaseAccount{
-			Address:       bal.Address,
-			Coins:         bal.Amount,
-			AccountNumber: cfg.acck.GetNextAccountNumber(ctx),
+		if err := bal.Vesting.Validate(); err != nil {
+			panic(fmt.Errorf("invalid vesting schedule for %s: %w", bal.Address, err))
 		}
-		var acc std.Account
-		var err error
-		switch bal.Vesting.Type {
-		case std.VestingDelayed:
-			acc, err = std.NewDelayedVestingAccount(&baseAcc, *bal.Vesting)
-		default: // VestingContinuous (empty string) — linear vesting
-			acc, err = std.NewContinuousVestingAccount(&baseAcc, *bal.Vesting)
+		if !bal.Amount.IsAllGTE(bal.Vesting.OriginalVesting) {
+			panic(fmt.Errorf("vesting amount (%s) exceeds the balance (%s) for %s",
+				bal.Vesting.OriginalVesting, bal.Amount, bal.Address))
 		}
-		if err != nil {
-			panic(fmt.Errorf("invalid vesting account for %s: %w", bal.Address, err))
-		}
-		cfg.acck.SetAccount(ctx, acc)
-	} else {
-		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acck.SetAccount(ctx, acc)
+		acc.SetVesting(*bal.Vesting)
 	}
+	cfg.acck.SetAccount(ctx, acc)
 	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a
