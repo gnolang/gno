@@ -16,6 +16,7 @@ export class RunController extends BaseController {
 	private declare includeScriptEl: HTMLInputElement;
 	private declare cmdEl: HTMLElement;
 	private declare resultEl: HTMLElement;
+	private declare gasUsedEl: HTMLElement;
 	private declare editor: CodeEditor;
 	// Owned by the action-header controller (#action-user-address), which
 	// broadcasts it on "address:changed" — including once on startup when it
@@ -37,6 +38,7 @@ export class RunController extends BaseController {
 		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
 		this.cmdEl = this.getTarget("cmd") as HTMLElement;
 		this.resultEl = this.getTarget("result") as HTMLElement;
+		this.gasUsedEl = this.getTarget("gasUsed") as HTMLElement;
 
 		if (!this.editorEl || !this.cmdEl) return;
 
@@ -151,7 +153,7 @@ func main() {
 			if (json.error) {
 				this._setResult(`Error: ${json.error}`, true);
 			} else {
-				this._setResult(json.result || "(no output)", false);
+				this._setResult(json.result || "(no output)", false, json.gas_used);
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -159,9 +161,11 @@ func main() {
 		}
 	}
 
-	private _setResult(text: string, isError: boolean): void {
+	private _setResult(text: string, isError: boolean, gasUsed?: number): void {
 		this.resultEl.textContent = text;
 		this.resultEl.classList.toggle("u-color-danger", isError);
+		this.gasUsedEl.textContent =
+			gasUsed === undefined ? "" : `Gas Used: ${gasUsed}`;
 	}
 
 	public clearResult(): void {

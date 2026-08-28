@@ -72,6 +72,14 @@
 	letter-spacing: 0.05em;
 }
 
+/* Sits just right of the Result label; margin-right:auto keeps the Clear
+   button pinned to the far end of the space-between row. */
+.b-run-result-gas {
+	margin-inline: var(--g-space-3) auto;
+	font-size: var(--g-font-size-50);
+	color: var(--s-color-text-tertiary);
+}
+
 .b-run-result-clear {
 	border: none;
 	background: none;
