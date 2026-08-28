@@ -45,8 +45,8 @@ less gas than it asked for, and even when it fails.
 
 ### Calculating Your Gas Fee
 
-Your `--gas-fee` must meet or exceed the [network gas price](#gas-price) for your transaction
-to be accepted.
+Your `--gas-fee` divided by your `--gas-wanted` must meet or exceed the
+[network gas price](#gas-price) for your transaction to be accepted.
 
 The easiest way is to use [`-simulate only`](#gas-estimation), which automatically queries the
 current gas price and calculates the recommended fee (with a 5% buffer).
@@ -143,13 +143,22 @@ gnokey maketx addpkg \
 
 Output:
 ```
+OK!
 GAS WANTED: 4000000
 GAS USED:   2590066
+HEIGHT:     0
 STORAGE DELTA:  1748 bytes
 STORAGE FEE:    174800ugnot
 TOTAL TX COST:  178800ugnot
+EVENTS:     [{"bytes_delta":1748,"fee_delta":{"denom":"ugnot","amount":174800},"pkg_path":"gno.land/p/examplenamespace/hello_world"}]
 INFO:       estimated gas usage: 2590066 (suggested, with 5% margin: 2719570), gas fee: 2720ugnot, current gas price: 1ugnot/1000gas
+
+TX HASH:
+PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
+
+`HEIGHT: 0` and the empty `TX HASH` are how you tell a simulation from a
+broadcast: nothing reached a block.
 
 Take `-gas-wanted` from the suggested figure rather than the raw estimate: gas
 usage moves between the simulation and the broadcast, and the 5% margin is what
@@ -180,9 +189,9 @@ To minimize gas costs, consider these optimization strategies:
 
 **Out of gas:** `out of gas in location: ... wanted: 100000, used: 150000`
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas, then increase.
-- ⚠️ **You're still charged for failed transactions!** Fees are deducted before
-  execution, so even if your transaction runs out of gas, you pay for the gas
-  consumed up to the limit.
+- ⚠️ **You're still charged for failed transactions!** The whole `--gas-fee` is
+  deducted before execution, so even if your transaction runs out of gas, you
+  pay the full fee.
 
 > **Note:** By default, `gnokey maketx -broadcast` uses `-simulate test`, which
 > simulates the transaction before submitting it. If the simulation fails (e.g.,

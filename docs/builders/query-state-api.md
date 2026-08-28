@@ -80,9 +80,11 @@ The response is an array of `TypedValue` objects — one per field (for structs)
 or element (for arrays/slices). Struct fields are returned by index; use
 `vm/qtype_json` to resolve field names.
 
-`vm/qobject_binary` takes the same ObjectID and returns the same object encoded
-as Amino binary rather than JSON. Reach for it from a client that already
-decodes Amino, and for anything reading the response by eye, use the JSON form.
+### `vm/qobject_binary`
+
+Takes the same ObjectID as `vm/qobject_json` and returns the object encoded as
+Amino binary. Reach for it from a client that already decodes Amino; to read a
+response by eye, use the JSON form.
 
 ### `vm/qtype_json`
 

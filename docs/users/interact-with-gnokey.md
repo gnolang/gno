@@ -216,7 +216,8 @@ STORAGE DELTA:  1748 bytes
 STORAGE FEE:    174800ugnot
 TOTAL TX COST:  178800ugnot
 EVENTS:     [{"bytes_delta":1748,"fee_delta":{"denom":"ugnot","amount":174800},"pkg_path":"gno.land/p/examplenamespace/hello_world"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+INFO:
+TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=
 PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
@@ -228,8 +229,9 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
 - `STORAGE FEE:    174800ugnot` - the [storage deposit](../resources/storage-deposit.md) locked for those bytes, refundable when the state is deleted
 - `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
-- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, here the storage event that the added bytes produce. A message storing no new bytes emits none, and the field reads `[]`
-- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, here the storage event that the added bytes produce. Freeing bytes emits one too, with a negative delta; only a message that leaves every realm's storage unchanged emits none
+- `INFO:` - anything the node reported alongside the result, empty on a plain broadcast
+- `TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=` - the hash of the transaction
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
@@ -294,16 +296,19 @@ STORAGE DELTA:  1043 bytes
 STORAGE FEE:    104300ugnot
 TOTAL TX COST:  112300ugnot
 EVENTS:     [{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/demo/tokens/grc20"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+INFO:
+TX HASH:    YGEbzlB9hKEP/TaRCcZ8bvyuK3S30u24vcVeHn6UlKA=
 ```
 
 In this case, we can see that the `Deposit()` function emitted an
 [event](../resources/gno-stdlibs.md#events) that tells us more about what
 happened during the transaction.
 
-After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. `BalanceOf`
-reads state without changing it, so it is not callable with `maketx call`: a non-crossing function reached that way
-fails with `function BalanceOf is non-crossing and cannot be called with MsgCall`. Query it instead, which costs no gas:
+After broadcasting the transaction, we can verify that we have the amount of
+`wugnot` we expect. `BalanceOf` reads state without changing it, so it is not
+callable with `maketx call`: a non-crossing function reached that way fails with
+`function BalanceOf is non-crossing and cannot be called with MsgCall`. Query it
+instead, which costs no gas:
 
 ```bash
 gnokey query vm/qeval \

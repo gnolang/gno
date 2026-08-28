@@ -29,7 +29,8 @@ Below is an example of how the storage fee settlement flow works:
 1. Start with a message call (e.g. `AddPkg`)
 2. Specify optional `-max-deposit` to limit the GNOT that can be locked for storage.
    Leaving it out does not remove the ceiling: the chain applies its own default,
-   `100000000ugnot`, which buys one megabyte of state at the price below. A message
+   `100000000ugnot`, which buys one megabyte of state at the default price of
+   `100ugnot` per byte. A message
    that would store more is refused, and `-max-deposit` is how you raise the cap.
 3. The storage delta is calculated by the GnoVM (how much it grew or shrunk).
 4. The system locks or refunds GNOT accordingly.

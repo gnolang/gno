@@ -120,8 +120,10 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The amount paid per unit of gas, denominated in ugnot. For example,
-"1000000ugnot" means 1 GNOT per unit of gas.
+The whole fee paid for a transaction, denominated in ugnot, charged in full
+whatever the transaction uses. The network accepts the transaction when the fee
+divided by gas wanted clears the current
+[gas price](./gas-fees.md#gas-price).
 
 ### Gas Wanted
 The maximum amount of gas a transaction is allowed to consume. If a transaction

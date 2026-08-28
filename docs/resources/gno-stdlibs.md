@@ -928,12 +928,12 @@ There is a `Set`/`Get` pair per type: `String`, `Bool`, `Int64`, `Uint64`,
 `Bytes`, and `Strings`. `Get` returns `false` when the key holds nothing.
 
 Read a key with the getter matching the setter that wrote it. Stored values
-carry no type tag, so a mismatched getter either panics or returns a value that
-`true` cannot be told apart from a correct read. `gno test` does not reproduce
+carry no type tag, so a mismatched getter either panics or returns `true` with a
+value that cannot be told apart from a correct read. `gno test` does not reproduce
 that: its param store keeps a Go value per key and type-asserts on read, so a
 mismatch returns `false` in a test and misbehaves on chain.
 
-##### Usage
+### Usage
 ```go
 params.SetInt64("threshold", 42)
 v, ok := params.GetInt64("threshold") // 42, true
