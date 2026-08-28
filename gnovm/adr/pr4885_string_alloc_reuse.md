@@ -225,9 +225,11 @@ different tally depending on where its aliases happen to sit.
   cycles and shared-backing dedup; unit tests in `alloc_test.go` cover
   tracking, dedup, cleanup, slice containment, and empty strings.
 - `trackString`/`CountStringBytes` are O(log n) expected (treap); the
-  per-cycle prune is O(n). Each tracked string costs one treap node (~64B of
-  Go heap, including the pinning string header) not charged to the allocator
-  — bounded by the number of strings charged, so not amplifiable.
+  per-cycle prune is O(n). Each tracked string costs one treap node (~48B of
+  Go heap; the pinning string doubles as the extent, derived on demand, so
+  the entry is a single string header plus the cycle stamp) not charged to
+  the allocator — bounded by the number of strings charged, so not
+  amplifiable.
   `string_ranges_test.go` model-checks the treap against a brute-force slice
   and keeps `BenchmarkNewStringTracked` / `BenchmarkGCStringPass` as the
   regression reference.
