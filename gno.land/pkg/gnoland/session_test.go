@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -557,4 +558,55 @@ func TestSessionRestrictedDeniesUnlistedMsgType(t *testing.T) {
 	_, res, abort := anteHandler(ctx, tx, false)
 	require.True(t, abort, "non-wildcard session must reject unlisted msg type")
 	assert.Contains(t, res.Log, "not permitted by session")
+}
+
+// TestSessionAlwaysDeniedMatrix pins which message types a session key may never
+// carry, whatever its AllowPaths say.
+//
+// The enable/disable rows were the reason for writing this: they are approver
+// authority and, unlike MsgCall, cannot be scoped down. AllowPaths are matched
+// through GetPkgPath(), which only MsgCall implements, so no path-scoped entry
+// can ever match them and the only grant that would is the "*" wildcard —
+// handing a session its master's full approver power over every parked package
+// on the chain. They are therefore denied outright, and that branch had no test:
+// deleting the case from the switch left every suite green.
+//
+// Asserted as a full matrix rather than a single negative case, so that the
+// allowed rows fail too if the switch ever grows a wildcard.
+func TestSessionAlwaysDeniedMatrix(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("whoever"))
+	pkgPath := "gno.land/r/test/x"
+
+	for _, tt := range []struct {
+		name string
+		msg  std.Msg
+		deny bool
+	}{
+		// Compiles caller-supplied source under the master's identity.
+		{"vm/add_package", vm.MsgAddPackage{Creator: addr, Package: &std.MemPackage{Path: pkgPath}}, true},
+		// Approver authority, unscopeable — the cases under test.
+		{"vm/enable_package", vm.MsgEnablePackage{Approver: addr, PkgPath: pkgPath}, true},
+		{"vm/disable_package", vm.MsgDisablePackage{Approver: addr, PkgPath: pkgPath}, true},
+		{"vm/reject_package", vm.MsgRejectPackage{Sender: addr, PkgPath: pkgPath}, true},
+		// The whole auth route: a session must not manage sessions, or it could
+		// mint itself a fresh one with wider AllowPaths and outlive its own
+		// revocation.
+		{"auth/create_session", auth.MsgCreateSession{Creator: addr}, true},
+		{"auth/revoke_session", auth.MsgRevokeSession{Creator: addr}, true},
+		{"auth/revoke_all_sessions", auth.MsgRevokeAllSessions{Creator: addr}, true},
+		// A different route entirely, to pin that the denial is route-scoped
+		// rather than a blanket deny.
+		{"bank/send", bank.MsgSend{FromAddress: addr}, false},
+		// Allowed, and scopeable through AllowPaths.
+		{"vm/call", vm.MsgCall{Caller: addr, PkgPath: pkgPath, Func: "F"}, false},
+		{"vm/run", vm.MsgRun{Caller: addr, Package: &std.MemPackage{Path: pkgPath}}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.deny, sessionAlwaysDenied(tt.msg),
+				"sessionAlwaysDenied(%s/%s)", tt.msg.Route(), tt.msg.Type())
+		})
+	}
 }

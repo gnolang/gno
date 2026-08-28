@@ -1,11 +1,13 @@
 package vm
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMsgAddPackage_ValidateBasic(t *testing.T) {
@@ -450,4 +452,99 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMsgEnableDisablePackage covers the message contract for the two inert-flow
+// messages, which had no direct test.
+//
+// Approver is the whole authorization for both -- the keeper checks it against
+// params.PkgApprovers -- so GetSigners returning it is what makes the ante
+// verify the right signature. A wrong answer there is not a formatting bug.
+func TestMsgEnableDisablePackage(t *testing.T) {
+	t.Parallel()
+
+	approver := crypto.AddressFromPreimage([]byte("approver"))
+	const path = "gno.land/r/demo/foo"
+
+	t.Run("ValidateBasic", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name     string
+			approver crypto.Address
+			path     string
+			wantErr  string
+		}{
+			{"both present", approver, path, ""},
+			{"missing approver", crypto.Address{}, path, "missing approver address"},
+			{"missing path", approver, "", "missing package path"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				// Both messages carry the same two fields and the same rules, so
+				// a divergence between them is itself worth catching.
+				enable := MsgEnablePackage{Approver: tc.approver, PkgPath: tc.path}
+				disable := MsgDisablePackage{Approver: tc.approver, PkgPath: tc.path}
+
+				eErr, dErr := enable.ValidateBasic(), disable.ValidateBasic()
+				if tc.wantErr == "" {
+					assert.NoError(t, eErr)
+					assert.NoError(t, dErr)
+					return
+				}
+				require.Error(t, eErr)
+				require.Error(t, dErr)
+				// The detail lives in the wrapped trace, not in Error(): these
+				// errors format as the generic "invalid address error" and
+				// "invalid package path". Asserting on Error() alone would not
+				// distinguish which field was missing.
+				assert.Contains(t, fmt.Sprintf("%+v", eErr), tc.wantErr)
+				assert.Contains(t, fmt.Sprintf("%+v", dErr), tc.wantErr,
+					"disable must reject the same input as enable, for the same reason")
+			})
+		}
+	})
+
+	t.Run("GetSigners is the approver", func(t *testing.T) {
+		t.Parallel()
+
+		enable := MsgEnablePackage{Approver: approver, PkgPath: path}
+		disable := MsgDisablePackage{Approver: approver, PkgPath: path}
+
+		assert.Equal(t, []crypto.Address{approver}, enable.GetSigners())
+		assert.Equal(t, []crypto.Address{approver}, disable.GetSigners())
+	})
+
+	t.Run("GetSignBytes covers both fields", func(t *testing.T) {
+		t.Parallel()
+
+		base := MsgEnablePackage{Approver: approver, PkgPath: path}
+		otherPath := MsgEnablePackage{Approver: approver, PkgPath: path + "bar"}
+		otherApprover := MsgEnablePackage{
+			Approver: crypto.AddressFromPreimage([]byte("someone else")),
+			PkgPath:  path,
+		}
+
+		// If a field were left out of the sign bytes, a signature over one
+		// message would be valid for another -- so changing either field must
+		// change what gets signed.
+		assert.NotEqual(t, base.GetSignBytes(), otherPath.GetSignBytes(),
+			"the package path must be covered by the signature")
+		assert.NotEqual(t, base.GetSignBytes(), otherApprover.GetSignBytes(),
+			"the approver must be covered by the signature")
+		assert.Equal(t, base.GetSignBytes(), MsgEnablePackage{
+			Approver: approver, PkgPath: path,
+		}.GetSignBytes(), "and the same message must sign identically")
+	})
+
+	t.Run("route and type", func(t *testing.T) {
+		t.Parallel()
+
+		// The ante handler and the session deny-list both key off these.
+		assert.Equal(t, "vm", MsgEnablePackage{}.Route())
+		assert.Equal(t, "enable_package", MsgEnablePackage{}.Type())
+		assert.Equal(t, "vm", MsgDisablePackage{}.Route())
+		assert.Equal(t, "disable_package", MsgDisablePackage{}.Type())
+	})
 }
