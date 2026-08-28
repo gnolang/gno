@@ -2667,10 +2667,8 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		if t == StringType || t == UntypedStringType {
 			sv := tv.GetString()[low:high]
-			// Header only: the slice shares the source's backing. The
-			// source's range covers the slice's pointer (containment),
-			// so the GC's range lookup charges the full backing once per
-			// cycle via the slice's own visit if the source is dead.
+			// Header only: the slice shares the source's backing, whose
+			// range covers this pointer by containment in the GC recount.
 			alloc.Allocate(allocString)
 			return TypedValue{
 				T: tv.T,

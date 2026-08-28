@@ -264,10 +264,9 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	// mint lean, and readers of fields ≥3 go through
 	// realmSubpathOf/realmParentOf, which treat missing fields as zero.
 	// Mint the string fields through NewString so they are charged and
-	// tracked like any runtime string; a raw StringValue would be
-	// invisible to the GC's backing-byte recount. addr is a fresh
-	// backing per mint; pkgPath usually shares the realm path's backing,
-	// so NewString clones it (~tens of bytes) to keep ranges disjoint.
+	// tracked; a raw StringValue would be invisible to the GC's byte
+	// recount. pkgPath usually shares the realm path's backing, so
+	// NewString clones it to keep ranges disjoint.
 	return newRealmHIVFromFields(alloc, []TypedValue{
 		{T: gAddressType, V: alloc.NewString(addr)},
 		{T: StringType, V: alloc.NewString(pkgPath)},

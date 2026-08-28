@@ -1926,10 +1926,8 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 		return cv
 	case *FuncValue:
 		cv.Type = fillType(store, cv.Type)
-		// Captures are not walked: each is {T: heapItemType, V:
-		// *HeapItemValue} by construction (see doOpFuncLit), persisted
-		// as its own object, so its contents — strings included — are
-		// filled and re-tracked when that object is loaded.
+		// Captures are not walked: each is a *HeapItemValue persisted as
+		// its own object, filled (strings re-tracked) when loaded.
 		return cv
 	case *BoundMethodValue:
 		if cv.Func != nil { // nil for a lazy interface bind

@@ -171,9 +171,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
-	// Clear remaining string cache entries (dead strings that
-	// were not visited in this GC cycle). Preserves entries
-	// visited this cycle so they can be recounted in the next GC.
+	// Drop string ranges not visited this cycle (dead backings);
+	// visited ones stay for the next recount.
 	m.Alloc.CleanupTrackedStrings(m.GCCycle)
 
 	// Return bytes remaining.
@@ -233,16 +232,11 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
 
-		// Special case for StringValue: the backing bytes are raw data,
-		// not a Value, so VisitAssociated (which visits child Values)
-		// can't reach them. Count them inline here.
-		//
-		// CountStringBytes returns the FULL backing length the first time
-		// a containing range is seen this cycle, and (0, false) on
-		// subsequent visits or for untracked pointers. Charging the full
-		// backing (not len(sv)) is what makes slices whose source is
-		// dead account correctly: the slice's pointer resolves to the
-		// source's range via containment.
+		// Strings: the backing bytes are raw data, invisible to
+		// VisitAssociated — count them here. CountStringBytes charges
+		// the full backing once per backing per cycle (dedup for shared
+		// backings; full length, not len(sv), so a slice outliving its
+		// source keeps the backing counted).
 		if sv, ok := v.(StringValue); ok {
 			if backingBytes, charge := alloc.CountStringBytes(string(sv), gcCycle); charge {
 				size += allocStringByte * backingBytes
@@ -473,10 +467,8 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-// VisitAssociated is a no-op for StringValue.
-// String underlying bytes are raw data, not a Value, so they
-// cannot be visited. Byte accounting is handled as a special
-// case in GCVisitorFn using the allocator's string cache.
+// VisitAssociated is a no-op: the backing bytes are raw data, not a
+// Value. GCVisitorFn counts them via the allocator's string ranges.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }

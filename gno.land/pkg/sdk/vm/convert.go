@@ -25,11 +25,10 @@ func assertNoPlusPrefix(s string) {
 // String representation of arg must be deterministic.
 // NOTE: very important that there is no malleability.
 //
-// alloc is the tx machine's allocator. String args are minted through
-// alloc.NewString so they are charged and their backing is tracked like
-// every other runtime string (see Allocator.stringRanges); an untracked
-// string is invisible to the GC's byte recount. A nil alloc is valid
-// (tests): nothing is charged or tracked.
+// alloc is the tx machine's allocator: string args are minted through
+// NewString so they are charged and tracked (untracked strings are
+// invisible to the GC's byte recount). A nil alloc (tests) charges
+// nothing.
 func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.TypedValue) {
 	tv.T = argT
 	switch bt := gno.BaseOf(argT).(type) {
