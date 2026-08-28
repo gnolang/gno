@@ -9,7 +9,10 @@ import (
 
 // TestStringRangeSet_Model checks the treap against a brute-force sorted
 // slice model under a fixed-seed random workload of inserts, containment
-// and overlap queries, and retain() cycles.
+// and overlap queries, and retain() cycles. Ranges are backed by real
+// strings (extents derive from stringRange.str), so disjointness of live
+// entries is guaranteed by the Go allocator itself; probe points are
+// derived from live extents to exercise hits, boundary misses, and gaps.
 func TestStringRangeSet_Model(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	var set stringRangeSet
@@ -17,15 +20,15 @@ func TestStringRangeSet_Model(t *testing.T) {
 
 	modelContaining := func(p uintptr) *stringRange {
 		for i := range model {
-			if p >= model[i].start && p < model[i].end {
+			if s, e := model[i].extent(); p >= s && p < e {
 				return &model[i]
 			}
 		}
 		return nil
 	}
 	modelOverlapping := func(p, end uintptr) bool {
-		for _, r := range model {
-			if r.start < end && r.end > p {
+		for i := range model {
+			if s, e := model[i].extent(); s < end && e > p {
 				return true
 			}
 		}
@@ -42,22 +45,34 @@ func TestStringRangeSet_Model(t *testing.T) {
 			}
 		}
 	}
+	// probe returns an address to query: usually anchored on a live
+	// extent (start-1, inside, end-1, end, just past), sometimes far off.
+	probe := func() uintptr {
+		if len(model) == 0 || rng.Intn(8) == 0 {
+			return uintptr(rng.Uint64()) // arbitrary address, almost surely a miss
+		}
+		s, e := model[rng.Intn(len(model))].extent()
+		return s + uintptr(rng.Intn(int(e-s)+8)) - 4
+	}
 
-	const space = 4096
 	for step := 0; step < 20000; step++ {
 		switch op := rng.Intn(10); {
-		case op < 5: // insert a random non-overlapping range
-			start := uintptr(rng.Intn(space))
-			end := start + uintptr(1+rng.Intn(16))
-			if modelOverlapping(start, end) {
-				continue
+		case op < 5: // insert a fresh string-backed range
+			// len >= 2: Go interns 1-byte strings into a shared static
+			// array, so two equal 1-byte strings would produce identical
+			// (overlapping) extents. Production handles that shape via
+			// trackString's clone-on-overlap; insert's contract assumes
+			// disjoint, so the generator must not produce it.
+			b := make([]byte, 2+rng.Intn(15))
+			for i := range b {
+				b[i] = byte('a' + rng.Intn(26))
 			}
-			r := stringRange{start: start, end: end}
+			r := stringRange{str: string(b)}
 			set.insert(r)
 			model = append(model, r)
-			sort.Slice(model, func(i, j int) bool { return model[i].start < model[j].start })
-		case op < 8: // containment + overlap queries
-			p := uintptr(rng.Intn(space + 32))
+			sort.Slice(model, func(i, j int) bool { return model[i].start() < model[j].start() })
+		case op < 9: // containment + overlap queries
+			p := probe()
 			want := modelContaining(p)
 			got := set.containing(p)
 			if (want == nil) != (got == nil) || (want != nil && *want != *got) {
@@ -67,12 +82,12 @@ func TestStringRangeSet_Model(t *testing.T) {
 			if got, want := set.overlapping(p, end) != nil, modelOverlapping(p, end); got != want {
 				t.Fatalf("step %d: overlapping(%d,%d): set=%v model=%v", step, p, end, got, want)
 			}
-		case op < 9: // stamp a random subset with cycle, then retain it
+		default: // stamp a random subset with cycle, then retain it
 			cycle := int64(step + 1)
 			for i := range model {
 				if rng.Intn(2) == 0 {
 					model[i].lastCycle = cycle
-					r := set.containing(model[i].start)
+					r := set.containing(model[i].start())
 					if r == nil {
 						t.Fatalf("step %d: lost range %+v", step, model[i])
 					}
@@ -87,11 +102,6 @@ func TestStringRangeSet_Model(t *testing.T) {
 				}
 			}
 			model = kept
-		default: // lookups outside the populated space always miss
-			p := uintptr(space + 100 + rng.Intn(100))
-			if set.containing(p) != nil || set.overlapping(p, p+8) != nil {
-				t.Fatalf("step %d: lookup at %d beyond all ranges should miss", step, p)
-			}
 		}
 		check(step)
 	}

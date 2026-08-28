@@ -66,11 +66,25 @@ type Allocator struct {
 	stringRanges stringRangeSet
 }
 
-// stringRange is one tracked string-backing extent.
+// stringRange is one tracked string-backing extent. The string itself is
+// the single source of truth: it pins the backing (while tracked, Go
+// cannot free or recycle its memory — what makes containment lookups
+// sound), and the [start, end) extent is derived from it on demand, so
+// extent and pin can never disagree.
 type stringRange struct {
-	start, end uintptr // [start, end) extent of the backing
-	str        string  // pins the backing: while tracked, Go cannot free or recycle [start, end)
-	lastCycle  int64   // last GC cycle this range was visited; 0 = never
+	str       string // the tracked backing; pins it and defines its extent
+	lastCycle int64  // last GC cycle this range was visited; 0 = never
+}
+
+// start returns the first address of the backing. Never call on a
+// zero-value entry: tracked strings are always non-empty.
+func (r *stringRange) start() uintptr {
+	return uintptr(unsafe.Pointer(unsafe.StringData(r.str)))
+}
+
+// extent returns the [start, end) extent of the backing.
+func (r *stringRange) extent() (start, end uintptr) {
+	return stringExtent(r.str)
 }
 
 // Allocation size constants for gas metering.
@@ -442,12 +456,14 @@ func (alloc *Allocator) trackString(str string) string {
 	p, end := stringExtent(str)
 	if alloc.stringRanges.overlapping(p, end) != nil {
 		str = strings.Clone(str)
-		p, end = stringExtent(str)
-		if debugAssert && alloc.stringRanges.overlapping(p, end) != nil {
-			panic("trackString: fresh clone overlaps a tracked range — a pinned backing was allocated over")
+		if debugAssert {
+			p, end = stringExtent(str)
+			if alloc.stringRanges.overlapping(p, end) != nil {
+				panic("trackString: fresh clone overlaps a tracked range — a pinned backing was allocated over")
+			}
 		}
 	}
-	alloc.stringRanges.insert(stringRange{start: p, end: end, str: str})
+	alloc.stringRanges.insert(stringRange{str: str})
 	return str
 }
 
@@ -478,7 +494,7 @@ func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) (int64, bool
 		return 0, false // dedup
 	}
 	r.lastCycle = gcCycle
-	return int64(r.end - r.start), true
+	return int64(len(r.str)), true
 }
 
 // CleanupTrackedStrings drops ranges not visited in gcCycle (dead

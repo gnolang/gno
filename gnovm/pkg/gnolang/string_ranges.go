@@ -38,8 +38,9 @@ func (s *stringRangeSet) len() int { return s.n }
 // insert adds r. The caller guarantees r is non-empty and does not
 // overlap any tracked range (trackString clones on overlap first).
 func (s *stringRangeSet) insert(r stringRange) {
-	l, rt := rangeSplit(s.root, r.start)
-	node := &rangeNode{stringRange: r, prio: rangePrio(r.start)}
+	start := r.start()
+	l, rt := rangeSplit(s.root, start)
+	node := &rangeNode{stringRange: r, prio: rangePrio(start)}
 	s.root = rangeMerge(rangeMerge(l, node), rt)
 	s.n++
 }
@@ -49,14 +50,17 @@ func (s *stringRangeSet) insert(r stringRange) {
 func (s *stringRangeSet) containing(p uintptr) *stringRange {
 	var best *rangeNode
 	for n := s.root; n != nil; {
-		if n.start <= p {
+		if n.start() <= p {
 			best = n
 			n = n.right
 		} else {
 			n = n.left
 		}
 	}
-	if best == nil || p >= best.end {
+	if best == nil {
+		return nil
+	}
+	if _, bend := best.extent(); p >= bend {
 		return nil
 	}
 	return &best.stringRange
@@ -68,14 +72,17 @@ func (s *stringRangeSet) containing(p uintptr) *stringRange {
 func (s *stringRangeSet) overlapping(p, end uintptr) *stringRange {
 	var best *rangeNode
 	for n := s.root; n != nil; {
-		if n.start < end {
+		if n.start() < end {
 			best = n
 			n = n.right
 		} else {
 			n = n.left
 		}
 	}
-	if best == nil || best.end <= p {
+	if best == nil {
+		return nil
+	}
+	if _, bend := best.extent(); bend <= p {
 		return nil
 	}
 	return &best.stringRange
@@ -122,7 +129,7 @@ func rangeSplit(t *rangeNode, key uintptr) (l, r *rangeNode) {
 	if t == nil {
 		return nil, nil
 	}
-	if t.start < key {
+	if t.start() < key {
 		t.right, r = rangeSplit(t.right, key)
 		return t, r
 	}
