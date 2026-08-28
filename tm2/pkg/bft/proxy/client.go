@@ -63,12 +63,36 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 //
 // The returned client satisfies the full abcicli.Client interface, but only the
 // three methods appconn.Query exposes — EchoSync, InfoSync, QuerySync — are safe
-// to use on it. In particular SetResponseCallback is unsynchronised here: its
-// write to the client's Callback field would race with the concurrent reads in
-// completeRequest. Nothing calls it on this connection today — the appconn
-// Query wrapper does not expose it — and nothing should.
+// to use on it. The one that cannot merely be documented is SetResponseCallback,
+// which readOnlyClient rejects.
 func (l *localClientCreator) NewReadOnlyABCIClient() (abcicli.Client, error) {
-	return abcicli.NewLocalClient(newQueryLimiter(maxConcurrentQueries()), l.app), nil
+	cli := abcicli.NewLocalClient(newQueryLimiter(maxConcurrentQueries()), l.app)
+	return readOnlyClient{Client: cli}, nil
+}
+
+// readOnlyClient forwards everything to the bounded localClient underneath and
+// rejects the one method the bound makes unsafe.
+//
+// localClient guards SetResponseCallback with the same Locker it holds for every
+// call into Application. On the consensus and mempool connections that Locker is
+// a mutex, so the write to Callback is genuinely excluded from completeRequest's
+// concurrent reads; under queryLimiter the Lock takes one slot of N and excludes
+// nothing. Documenting that leaves a Lock/Unlock pair that reads as
+// synchronisation and provides none, so the method is refused here instead.
+//
+// The remaining mutating methods stay callable and documented rather than
+// guarded, as the ADR records: nothing reaches them through appconn.Query, and
+// each needs its own override. This is the place to add them if a caller ever
+// appears.
+type readOnlyClient struct {
+	abcicli.Client
+}
+
+// SetResponseCallback panics: see readOnlyClient.
+func (readOnlyClient) SetResponseCallback(abcicli.Callback) {
+	panic("proxy: SetResponseCallback on the read-only ABCI connection: the " +
+		"connection admits concurrent callers, so the write would race with " +
+		"completeRequest's reads; use a client from NewABCIClient")
 }
 
 // queryLimiter is the Locker handed to the read-only connection. It bounds how

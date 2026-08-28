@@ -7,9 +7,9 @@ package gnolang
 // construction: TypeID (and, for interfaces, the in-place sort of Methods that
 // computing it performs), FuncType.bound, Declared/StructType.pkgID, the
 // interface and struct effective counts, StructType.comparable,
-// DeclaredType.methodIndex, StaticBlock.nameIndex. Every one is a check-then-set
-// with no synchronisation, which is correct exactly as long as a single
-// goroutine touches the object.
+// DeclaredType.methodIndex, PackageNode.pkgID, StaticBlock.nameIndex. Every
+// one is a check-then-set with no synchronisation, which is correct exactly as
+// long as a single goroutine touches the object.
 //
 // Two graphs break that assumption:
 //
@@ -123,6 +123,16 @@ func (s *sealer) sealBlockNode(bn BlockNode) {
 		return
 	}
 	s.seenNodes[bn] = true
+
+	// PackageNode.pkgID is the same check-then-set memo as Declared/StructType's,
+	// on the node the defaultStore shares with every store forked from it.
+	// Preprocessing reaches it through packageOf(last).GetPkgID() — in
+	// evalStaticTypeOfRaw and evalStaticTypeMachine — which every vm/qeval runs
+	// against the loaded package's block, so more than one query can be the
+	// first to fill it.
+	if pn, ok := bn.(*PackageNode); ok {
+		pn.GetPkgID()
+	}
 
 	sb := bn.GetStaticBlock()
 	if sb == nil {

@@ -41,6 +41,11 @@ func NewLocalClient(mtx sync.Locker, app abci.Application) *localClient {
 	return cli
 }
 
+// SetResponseCallback sets the callback completeRequest invokes on every Async
+// method. The lock below is only as strong as mtx: it excludes the concurrent
+// completeRequest reads when mtx is a mutex, and not when mtx admits several
+// callers at once. A client built on such a Locker has to reject this method
+// rather than rely on the lock here — see proxy.readOnlyClient.
 func (app *localClient) SetResponseCallback(cb Callback) {
 	app.mtx.Lock()
 	app.Callback = cb

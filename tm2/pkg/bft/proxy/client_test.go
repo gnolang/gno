@@ -139,6 +139,31 @@ func TestReadOnlyClientRespectsConcurrencyBound(t *testing.T) {
 		"a one-slot limiter must serialise the connection")
 }
 
+// TestReadOnlyClientRejectsSetResponseCallback pins the one method the query
+// connection's bound makes unsafe. localClient guards the write with the Locker
+// it was given, which on this connection is a limiter admitting GOMAXPROCS
+// callers, so the lock reads as synchronisation and provides none. The client
+// has to say so rather than let the write through.
+func TestReadOnlyClientRejectsSetResponseCallback(t *testing.T) {
+	t.Parallel()
+
+	creator := NewLocalClientCreator(abci.NewBaseApplication())
+	client, err := creator.NewReadOnlyABCIClient()
+	require.NoError(t, err)
+
+	require.Panics(t, func() {
+		client.SetResponseCallback(func(abci.Request, abci.Response) {})
+	}, "the read-only connection accepted a response callback")
+
+	// The mutating connections keep it: their Locker is a mutex, so the write
+	// is excluded from completeRequest exactly as before.
+	mutating, err := creator.NewABCIClient()
+	require.NoError(t, err)
+	require.NotPanics(t, func() {
+		mutating.SetResponseCallback(func(abci.Request, abci.Response) {})
+	}, "the consensus/mempool connection must still accept a response callback")
+}
+
 // TestMutatingClientSerialises pins that this change did not loosen the
 // consensus and mempool connections: they still admit one caller at a time.
 func TestMutatingClientSerialises(t *testing.T) {

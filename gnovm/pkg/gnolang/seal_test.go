@@ -173,3 +173,23 @@ func requireSealedType(t *testing.T, store Store, path, typeName string) {
 	require.False(t, ft.typeid.IsZero(), "the method's FuncType typeid left unsealed")
 	require.NotNil(t, ft.bound, "the method's bound FuncType left unsealed")
 }
+
+// TestSealFillsPackageNodePkgID pins the PackageNode branch in sealBlockNode.
+// The field is reached through packageOf(last).GetPkgID() on every preprocess,
+// which every vm/qeval performs against the shared package node, so leaving it
+// cold is a write two concurrent queries can race on.
+//
+// A published package usually has it filled by the deploy's own preprocessing,
+// so asserting on a deployed node would pass with the branch removed. Sealing a
+// fresh node is what makes this test fail when the branch is reverted.
+func TestSealFillsPackageNodePkgID(t *testing.T) {
+	const path = "gno.vm/t/sealpkgid"
+
+	pn := NewPackageNode("sealpkgid", path, nil)
+	require.True(t, pn.pkgID.IsZero(), "a fresh PackageNode must start with no pkgID")
+
+	newSealer().sealBlockNode(pn)
+
+	require.Equal(t, PkgIDFromPkgPath(path), pn.pkgID,
+		"sealBlockNode left PackageNode.pkgID for a concurrent reader to fill")
+}

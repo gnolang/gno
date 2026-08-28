@@ -32,7 +32,8 @@ lock came off, both found by review and both reproduced with negative controls:
    Those objects memoize on first use with an unsynchronised check-then-set:
    `FuncType.bound`, `FuncType.typeid`, `Declared`/`StructType.pkgID`, the
    effective field and method counts, `StructType.comparable`,
-   `DeclaredType.methodIndex`, and `StaticBlock.nameIndex`. Two concurrent
+   `DeclaredType.methodIndex`, `PackageNode.pkgID`, and
+   `StaticBlock.nameIndex`. Two concurrent
    `vm/qeval` calls fill them together. `FuncType.BoundType` is the sharpest:
    it publishes `ft.bound` as a composite literal, so a second goroutine can
    follow that pointer and read `Params`/`Results` while the first is still
@@ -121,7 +122,8 @@ the query connection, where the lock then protects nothing.
 already used, and fills every lazily-memoized cache on a type graph and the
 block nodes reaching it — now including `DeclaredType.methodIndex` and
 `StaticBlock.nameIndex`, which no uverse singleton is wide enough to reach but a
-realm readily is.
+realm readily is, and `PackageNode.pkgID`, which every preprocess of a query
+expression reaches through `packageOf(last).GetPkgID()`.
 
 It runs at the two points where a block node stops being private:
 
@@ -196,7 +198,10 @@ full `abcicli.Client` surface callable and documents the three safe methods
 instead. It was not taken because the boolean encodes one fixed policy, admit
 everyone or admit one, where the `Locker` also expresses the bound the query
 connection actually wants. A bound of 1 recovers the mutex exactly, which is what
-makes the change testable in both directions.
+makes the change testable in both directions. The half of it that was worth
+having — a sharp error instead of a silent race on `SetResponseCallback` — is
+taken by the `readOnlyClient` wrapper in `proxy`, which composes with the
+`Locker` rather than replacing it.
 
 **An `RWMutex` on the query connection.** Suggested while PR 5431 was open. It
 does not help: the query connection has no writer, so every caller takes the read
@@ -231,12 +236,23 @@ precondition is stated on both `ClientCreator` interface declarations
 (`proxy` and `appconn`), not only on the concrete constructor, so an alternative
 implementer reads it where they will act on it.
 
-**`SetResponseCallback` is unsynchronised on the query connection.** Its write
-to `localClient.Callback` would race with concurrent `completeRequest` reads.
-Only `EchoSync`, `InfoSync` and `QuerySync` are reachable through the
-`appconn.Query` wrapper, but `NewReadOnlyABCIClient` is public and returns the
-raw `abcicli.Client`, so every method on it lost its lock, the mutating ones
-included. Nothing calls them there — documented on `NewReadOnlyABCIClient`.
+**`SetResponseCallback` is rejected on the query connection.** Its write to
+`localClient.Callback` would race with concurrent `completeRequest` reads.
+`localClient` guards that write with the same `Locker` it holds for every call
+into `Application`, which is real mutual exclusion on the two mutex-backed
+connections and none at all under `queryLimiter` — the same code, correct on one
+connection and a data race on the other. Documenting that leaves a `Lock`/
+`Unlock` pair that reads as synchronisation and provides none, so
+`NewReadOnlyABCIClient` returns a `readOnlyClient` wrapper that panics on the
+method instead. `TestReadOnlyClientRejectsSetResponseCallback` pins both
+directions: the read-only connection refuses it, the mutating one still accepts
+it.
+
+The remaining mutating methods stay callable and documented. `NewReadOnlyABCIClient`
+is public and returns the raw `abcicli.Client`, so every method on it lost its
+lock, the mutating ones included; none is reachable through the `appconn.Query`
+wrapper, and each would need its own override on the wrapper. The wrapper is the
+place to add them if a caller ever appears.
 
 **`NewLocalClient` no longer accepts nil.** The old nil guard substituted a
 fresh mutex for an untyped nil but not for a typed nil `*sync.Mutex`, so it
