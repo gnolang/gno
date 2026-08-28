@@ -290,6 +290,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		WriteTimeout:      cfg.timeout, // Time to write the entire response
 		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
 		ReadHeaderTimeout: time.Minute, // Time to read request headers
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	return func() error {
@@ -339,10 +340,11 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 
 func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
 	// Build img-src CSP directive
-	imgSrc := "'self' data:"
+	var imgSrc strings.Builder
+	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
-		imgSrc += " " + host
+		imgSrc.WriteString(" " + host)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
@@ -350,7 +352,7 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
 		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
-		imgSrc,
+		imgSrc.String(),
 		remote,
 	)
 

@@ -84,9 +84,27 @@ The components of these paths are:
 - `demo`, `gnoland`, etc., represent namespaces as described below.
 - `home`, `hof`, `avl`, `run`, etc., represent the package name found at the path.
 
-Two important facts about package paths:
+Important facts about package paths:
 - The maximum length of a package path is `256` characters.
 - A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
+- **The package name in your source code must match the last element of the path.** For example, `gno.land/r/demo/counter` requires `package counter`.
+- Because package names are identifiers of the form `[a-z][a-z0-9_]+`, the
+  last element of a deployable path must also have that form: lowercase
+  letters, digits and underscores, starting with a letter, and at least two
+  characters long. In particular, hyphens are allowed in intermediate path
+  elements (e.g. namespaces like `gno.land/r/my-team/counter`) but not in the
+  last element, since no package name could match it.
+
+### Version Suffixes
+
+Package paths can include version suffixes for versioned packages:
+
+- `gno.land/r/demo/mylib/v1` → package name should be `mylib`
+- `gno.land/r/demo/mylib/v2` → package name should be `mylib`
+- `gno.land/p/demo/utils/v10` → package name should be `utils`
+
+A path may end in at most one version suffix: paths ending in consecutive
+version suffixes (e.g. `gno.land/r/demo/mylib/v2/v3`) are rejected.
 
 ## Namespaces
 
@@ -138,10 +156,11 @@ folder.
 
 ### Package `avl`
 
-Deployed under `gno.land/p/nt/avl/v0`, the AVL package provides a gas-efficient sorted tree 
-structure for storing key-value data. Useful when you need access to large datasets.
+Deployed under `gno.land/p/nt/avl/v0`, the AVL package provides a gas-efficient sorted tree
+structure for storing key-value data. It is one option in the broader family of
+tree-backed indexes, useful when you need access to large datasets.
 
-See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
+See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for storage-type guidance
 and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 #### Usage example:
@@ -162,15 +181,19 @@ func Set(key string, value int) {
 }
 
 func Get(key string) int {
-  // tree.Get returns the value at given key in its raw form,
-  // and a bool to signify the existence of the key-value pair
-  rawValue, exists := tree.Get(key)
-  if !exists {
+  // tree.Get returns the value at given key, or nil if the key does not exist.
+  // Use a type assertion to convert the raw value into the proper type.
+  rawValue := tree.Get(key)
+  if rawValue == nil {
 	  panic("value at given key does not exist")
   }
 
-  // rawValue needs to be converted into the proper type before returning it
   return rawValue.(int)
+}
+
+func Exists(key string) bool {
+  // tree.Has returns true if the key exists
+  return tree.Has(key)
 }
 ```
 

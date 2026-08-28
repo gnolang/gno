@@ -5,12 +5,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -184,3 +186,111 @@ func TestOutOfGasLogNoSimulateHintWhenDisabled(t *testing.T) {
 	log := store.OutOfGasLog(120, 100, 200, "simulation", false)
 	require.Equal(t, "gas used (120) exceeds tx's gas wanted (100) during operation: simulation", log)
 }
+
+func TestTxWithGasWanted(t *testing.T) {
+	t.Parallel()
+
+	newTx := func(gasWanted int64) *std.Tx {
+		return &std.Tx{
+			Fee:        std.NewFee(gasWanted, std.MustParseCoin("1ugnot")),
+			Signatures: []std.Signature{{Signature: []byte("original")}},
+		}
+	}
+
+	t.Run("raises GasWanted to maxGas", func(t *testing.T) {
+		t.Parallel()
+		simTx, rewritten := txWithGasWanted(newTx(10), 25)
+		require.True(t, rewritten)
+		require.Equal(t, int64(25), simTx.Fee.GasWanted)
+	})
+
+	t.Run("no rewrite when already at or above maxGas", func(t *testing.T) {
+		t.Parallel()
+		_, rewritten := txWithGasWanted(newTx(25), 25)
+		require.False(t, rewritten)
+	})
+
+	t.Run("maxGas -1 falls back to the max", func(t *testing.T) {
+		t.Parallel()
+		simTx, rewritten := txWithGasWanted(newTx(10), -1)
+		require.True(t, rewritten)
+		require.Equal(t, simulationMaxGasFallback, simTx.Fee.GasWanted)
+	})
+
+	t.Run("maxGas 0 means unknown, so no rewrite", func(t *testing.T) {
+		t.Parallel()
+		_, rewritten := txWithGasWanted(newTx(10), 0)
+		require.False(t, rewritten)
+	})
+
+	t.Run("does not mutate the original", func(t *testing.T) {
+		t.Parallel()
+		tx := newTx(10)
+		simTx, _ := txWithGasWanted(tx, 25)
+		require.Equal(t, int64(10), tx.Fee.GasWanted)
+		// The copy inherits a signature that no longer matches it; callers
+		// that simulate against a chain which verifies signatures must
+		// clear and re-sign, which is what maketx does.
+		require.Equal(t, tx.Signatures, simTx.Signatures)
+	})
+}
+
+// TestTxNeedsSimulationSignature pins which transactions get a second signature
+// when simulated.
+//
+// Signing the rewritten simulation transaction is necessary for messages the
+// chain checks, and harmful for the rest: it produces a second broadcastable
+// transaction and, on a hardware wallet, a second prompt showing a different
+// GasWanted. Before this, every maketx paid that cost.
+func TestTxNeedsSimulationSignature(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		route string
+		typ   string
+		want  bool
+	}{
+		{"add_package carries source", "vm", "add_package", true},
+		{"run carries source", "vm", "run", true},
+		{"enable_package compiles stored source", "vm", "enable_package", true},
+		{"disable_package is gated the same way", "vm", "disable_package", true},
+		{"an ordinary call is not", "vm", "call", false},
+		{"a bank send is not", "bank", "send", false},
+		{"a vm route alone is not enough", "vm", "something_new", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tx := std.Tx{Msgs: []std.Msg{stubMsg{route: tt.route, typ: tt.typ}}}
+			assert.Equal(t, tt.want, txNeedsSimulationSignature(tx))
+		})
+	}
+
+	t.Run("found behind another message", func(t *testing.T) {
+		t.Parallel()
+		tx := std.Tx{Msgs: []std.Msg{
+			stubMsg{route: "bank", typ: "send"},
+			stubMsg{route: "vm", typ: "add_package"},
+		}}
+		assert.True(t, txNeedsSimulationSignature(tx),
+			"the whole transaction is signed once, so any code-bearing message counts")
+	})
+
+	t.Run("no messages", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, txNeedsSimulationSignature(std.Tx{}))
+	})
+}
+
+// stubMsg is the smallest thing that satisfies std.Msg for this table.
+type stubMsg struct {
+	route string
+	typ   string
+}
+
+func (m stubMsg) Route() string                { return m.route }
+func (m stubMsg) Type() string                 { return m.typ }
+func (m stubMsg) ValidateBasic() error         { return nil }
+func (m stubMsg) GetSignBytes() []byte         { return nil }
+func (m stubMsg) GetSigners() []crypto.Address { return nil }

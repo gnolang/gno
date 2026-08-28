@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 /*
@@ -1223,7 +1224,10 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 			}
 		}
 	case *BoundMethodValue:
-		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
+		// A lazy interface bind has no resolved Func; its concrete method is
+		// determined at call time from the (public) receiver type checked
+		// below, so the private-realm guard applies only to a resolved Func.
+		if v.Func != nil && v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
 			panic("cannot persist bound method from the private realm " + v.Func.PkgPath)
 		}
 		if v.Receiver.T != nil {
@@ -1383,7 +1387,9 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *BoundMethodValue:
-		more = getSelfOrChildObjects(cv.Func, more)
+		if cv.Func != nil { // nil for a lazy interface bind
+			more = getSelfOrChildObjects(cv.Func, more)
+		}
 		more = getSelfOrChildObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
@@ -1509,6 +1515,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 			Type:     refOrCopyType(field.Type),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
+			PkgPath:  field.PkgPath,
 		}
 	}
 	return fieldsCpy
@@ -1701,12 +1708,17 @@ func copyValueWithRefs(val Value) Value {
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
+		var fnc *FuncValue // nil for a lazy interface bind (resolved at call)
+		if cv.Func != nil {
+			fnc = copyValueWithRefs(cv.Func).(*FuncValue)
+		}
 		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
+			Method:     cv.Method,
+			MethodPkg:  cv.MethodPkg,
 		}
 	case *MapValue:
 		list := &MapList{}
@@ -1819,6 +1831,12 @@ func fillType(store Store, typ Type) Type {
 	case *InterfaceType:
 		for i, mthd := range ct.Methods {
 			ct.Methods[i].Type = fillType(store, mthd.Type)
+			// An embed entry means the bytes predate interface flattening
+			// (unsupported state); reject at this decode boundary, which
+			// sees every stored type. See panicUnflattened.
+			if ct.Methods[i].Type.Kind() == InterfaceKind {
+				ct.panicUnflattened(ct.Methods[i])
+			}
 		}
 		return ct
 	case *TypeType:
@@ -1862,14 +1880,14 @@ func fillType(store Store, typ Type) Type {
 	}
 }
 
-func fillTypesTV(store Store, tv *TypedValue) {
+func fillTypesTV(gm types.GasMeter, store Store, tv *TypedValue) {
 	tv.T = fillType(store, tv.T)
-	tv.V = fillTypesOfValue(store, tv.V)
+	tv.V = fillTypesOfValue(gm, store, tv.V)
 }
 
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
-func fillTypesOfValue(store Store, val Value) Value {
+func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1884,44 +1902,44 @@ func fillTypesOfValue(store Store, val Value) Value {
 	case PointerValue:
 		if cv.Base != nil {
 			// cv.Base is object.
-			// fillTypesOfValue(store, cv.Base) (wrong)
+			// fillTypesOfValue(gm, store, cv.Base) (wrong)
 			return cv
 		} else {
-			fillTypesTV(store, cv.TV)
+			fillTypesTV(gm, store, cv.TV)
 			return cv
 		}
 	case *ArrayValue:
 		for i := range cv.List {
 			ctv := &cv.List[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case *SliceValue:
-		fillTypesOfValue(store, cv.Base)
+		fillTypesOfValue(gm, store, cv.Base)
 		return cv
 	case *StructValue:
 		for i := range cv.Fields {
 			ctv := &cv.Fields[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case *FuncValue:
 		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *BoundMethodValue:
-		fillTypesOfValue(store, cv.Func)
-		fillTypesTV(store, &cv.Receiver)
+		if cv.Func != nil { // nil for a lazy interface bind
+			fillTypesOfValue(gm, store, cv.Func)
+		}
+		fillTypesTV(gm, store, &cv.Receiver)
 		return cv
 	case *MapValue:
 		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			fillTypesTV(store, &cur.Key)
-			fillTypesTV(store, &cur.Value)
+			fillTypesTV(gm, store, &cur.Key)
+			fillTypesTV(gm, store, &cur.Value)
 
 			fillValueTV(store, &cur.Key)
-			// nil machine: deserialization from disk has no *Machine in
-			// scope — we're inside the store layer, so no gas is charged.
-			mk, isNaN := cur.Key.ComputeMapKey(nil, store, false)
+			mk, isNaN := cur.Key.ComputeMapKey(gm, store, false)
 			if !isNaN {
 				cv.vmap[mk] = cur
 			}
@@ -1931,18 +1949,18 @@ func fillTypesOfValue(store Store, val Value) Value {
 		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *PackageValue:
-		fillTypesOfValue(store, cv.Block)
+		fillTypesOfValue(gm, store, cv.Block)
 		return cv
 	case *Block:
 		for i := range cv.Values {
 			ctv := &cv.Values[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case RefValue: // do nothing
 		return cv
 	case *HeapItemValue:
-		fillTypesTV(store, &cv.Value)
+		fillTypesTV(gm, store, &cv.Value)
 		return cv
 	default:
 		panic(fmt.Sprintf(

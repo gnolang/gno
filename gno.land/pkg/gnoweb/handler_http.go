@@ -15,20 +15,24 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"golang.org/x/sync/errgroup"
 )
 
 const ReadmeFileName = "README.md"
 
 // defaultRequestTimeout bounds every GET when no explicit Timeout is
 // configured, so r.Context() always carries a deadline (the page path
-// can fan out to many RPC calls — an unbounded request is a DoS vector).
+// can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.
@@ -234,7 +238,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 
 		// A `$state&json` request must get a JSON envelope even when the
 		// URL fails to parse — honor the JSON-in/JSON-out contract instead
@@ -312,8 +316,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
-// short fields (path, height, file); 64 KiB leaves plenty of headroom
-// while preventing a 32 MiB Go default from being weaponised.
+// short fields (path, height, file); 64 KiB leaves plenty of headroom.
 const maxPostFormBytes = 64 * 1024
 
 // Post processes a POST HTTP request.
@@ -335,7 +338,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		http.Error(w, "invalid path", http.StatusNotFound)
 		return
 	}
@@ -381,7 +384,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 	gnourl.Origin = requestOrigin(r)
@@ -428,9 +431,12 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Source page
+	// Handle Source page: with a file -> source code view; without -> package overview.
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourceView(ctx, gnourl)
+		if gnourl.IsFile() || gnourl.WebQuery.Get("file") != "" {
+			return h.GetSourceView(ctx, gnourl)
+		}
+		return h.GetOverviewView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -517,7 +523,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: path.Base(raw),
+			Title: displayPackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -540,6 +546,18 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username
+}
+
+// displayPackageName returns versioned name for a package path.
+// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
+func displayPackageName(pkgPath string) string {
+	base := path.Base(pkgPath)
+	name := gno.LastPathElement(pkgPath)
+	if name != base {
+		// Versioned path: show "name/vN".
+		return name + "/" + base
+	}
+	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL.
@@ -658,7 +676,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
-	realmName := path.Base(gnourl.Path)
+	realmName := displayPackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
@@ -701,6 +719,13 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
+		// This one returns the error view directly rather than funnelling
+		// through GetPathsListView, so it needs its own check.
+		if errors.Is(err, ErrClientPackageNotFound) {
+			if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+				return http.StatusNotFound, view
+			}
+		}
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 		return GetClientErrorStatusView(gnourl, err, height)
 	}
@@ -710,22 +735,12 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	var fileName string
-	if gnourl.IsFile() { // check path file from path first
+	// GetSourceView is only reached with an explicit file (see GetPackageView):
+	// a no-file $source routes to the overview, which owns the file-preference
+	// landing behaviour. Resolve the file from the path (preferred) or ?file=.
+	fileName := gnourl.WebQuery.Get("file")
+	if gnourl.IsFile() {
 		fileName = gnourl.File
-	} else if file := gnourl.WebQuery.Get("file"); file != "" {
-		fileName = file
-	} else {
-		// Prefer README.md, then .gno files, otherwise first file
-		i := slices.IndexFunc(files, func(f string) bool {
-			return f == "README.md" || strings.HasSuffix(f, ".gno")
-		})
-
-		if i >= 0 {
-			fileName = files[i] // prefer .gno files and README.md
-		} else {
-			fileName = files[0] // fallback to first file - might be a .toml file
-		}
 	}
 
 	// Standard file rendering
@@ -794,6 +809,12 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
+		// Both the realm view and the source view funnel here when nothing is
+		// live at the path, so this is the one place that has to distinguish
+		// "never submitted" from "submitted, not approved yet".
+		if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+			return http.StatusNotFound, view
+		}
 		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
 
@@ -988,6 +1009,31 @@ func clientErrorMessage(err error, height int64) (int, string) {
 // GetClientErrorStatusView wraps clientErrorMessage into a renderable View.
 // `height` is the optional ?height=N pin from the URL — pass 0 when the
 // caller does not propagate it to the chain query.
+// pendingApprovalView returns the "not yet enabled" view when the path holds a
+// package awaiting an approver, and nil otherwise.
+//
+// A parked package is invisible to every query that reads the live key space,
+// so callers reach this having already concluded "not found". Under the "inert"
+// policy that conclusion is wrong for a package its creator has paid to submit,
+// and vm/qpkgmeta_json is the only query that can tell the two apart.
+//
+// A failed lookup falls back to the not-found view rather than surfacing an
+// error: an older node has no such query, and a page that renders is better
+// than one that breaks because a nicety is unavailable.
+func (h *HTTPHandler) pendingApprovalView(ctx context.Context, gnourl *weburl.GnoURL) *components.View {
+	// Trim as GetDirectoryView does: the directory view arrives with the
+	// trailing slash still on, and a package path never carries one.
+	meta, err := h.Client.PackageMeta(ctx, strings.TrimSuffix(gnourl.Path, "/"))
+	if err != nil {
+		h.Logger.Debug("package meta unavailable", "path", gnourl.Path, "error", err)
+		return nil
+	}
+	if meta.Status != vm.PackageStatusInert {
+		return nil
+	}
+	return components.StatusPendingApprovalComponent(meta.Reason)
+}
+
 func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
 	status, msg := clientErrorMessage(err, height)
 	if msg == "" {
@@ -1054,4 +1100,127 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+// GetOverviewView renders the package overview landing page at /r/<pkg>$source.
+// It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
+// a pure OverviewData that the template renders.
+func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	pkgPath := gnourl.Path
+	height := gnourl.Height()
+
+	var (
+		files    []string
+		sources  map[string][]byte
+		jdoc     *doc.JSONDocumentation
+		readme   components.Component
+		subpaths []string
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		if files, err = h.Client.ListFiles(gctx, pkgPath, height); err != nil {
+			return err
+		}
+		// Fetch gnomod.toml + LICENSE as soon as the file list is known so they
+		// download in parallel with the Doc/README/paths queries below.
+		sources = h.fetchMetaFiles(gctx, pkgPath, files, height)
+		return nil
+	})
+	g.Go(func() error {
+		d, err := h.Client.Doc(gctx, pkgPath, height)
+		if err != nil {
+			h.Logger.Warn("overview: qdoc failed — degraded mode", "path", pkgPath, "error", err)
+			jdoc = &doc.JSONDocumentation{}
+			return nil
+		}
+		jdoc = d
+		return nil
+	})
+	g.Go(func() error {
+		// A missing or unrenderable README must not fail the whole overview;
+		// the error is intentionally dropped so the page degrades to no README.
+		readme, _ = h.renderReadme(gctx, gnourl, pkgPath)
+		return nil
+	})
+	g.Go(func() error {
+		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
+		// Match GetPathsListView's cap so a package with many descendants
+		// doesn't silently drop direct children from the Subpackages section.
+		paths, err := h.Client.ListPaths(gctx, prefix, 1_000)
+		if err != nil {
+			return nil
+		}
+		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar").
+		// buildSubpackages works on domain-relative paths.
+		subpaths = make([]string, 0, len(paths))
+		for _, p := range paths {
+			subpaths = append(subpaths, strings.TrimPrefix(p, h.Static.Domain))
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		if errors.Is(err, ErrClientPackageNotFound) {
+			if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+				return http.StatusNotFound, view
+			}
+		}
+		return GetClientErrorStatusView(gnourl, err, height)
+	}
+
+	data := components.BuildOverview(components.OverviewInput{
+		URL:         gnourl,
+		Files:       files,
+		Doc:         jdoc,
+		Sources:     sources,
+		Subpaths:    subpaths,
+		Readme:      readme,
+		Domain:      h.Static.Domain,
+		DocRenderer: h.Renderer,
+	})
+	return http.StatusOK, components.OverviewView(data)
+}
+
+// fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.
+// deriveInfo needs gnomod.toml; deriveLicense needs the LICENSE body to
+// identify the license kind. Imports are supplied by vm/qdoc, so no .gno
+// source is fetched here. Per-file errors are silent (best-effort).
+func (h *HTTPHandler) fetchMetaFiles(ctx context.Context, pkgPath string, files []string, height int64) map[string][]byte {
+	targets := filterMetaFiles(files)
+	if len(targets) == 0 {
+		return nil
+	}
+
+	var mu sync.Mutex
+	results := make(map[string][]byte, len(targets))
+
+	var wg sync.WaitGroup
+	for _, f := range targets {
+		wg.Add(1)
+		go func(file string) {
+			defer wg.Done()
+			content, _, err := h.Client.File(ctx, pkgPath, file, height)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results[file] = content
+			mu.Unlock()
+		}(f)
+	}
+	wg.Wait()
+	return results
+}
+
+// filterMetaFiles returns the metadata files the overview fetches: gnomod.toml
+// and any LICENSE file.
+func filterMetaFiles(files []string) []string {
+	out := make([]string, 0, 2)
+	for _, f := range files {
+		if f == "gnomod.toml" || components.ClassifyFile(f).IsLicense {
+			out = append(out, f)
+		}
+	}
+	return out
 }

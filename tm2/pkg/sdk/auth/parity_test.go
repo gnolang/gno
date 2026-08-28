@@ -36,6 +36,14 @@ func TestCodecParity_Auth(t *testing.T) {
 			SigVerifyCostSecp256k1:    1000,
 			GasPricesChangeCompressor: 2,
 			TargetGasRatio:            70,
+			// The chain's opening gas price, and the one field here whose zero
+			// means off: calcBlockGasPrice returns early on a zero price and
+			// the mempool check skips the block floor, so a field lost on
+			// decode disables both rather than erroring.
+			InitialGasPrice: std.GasPrice{
+				Gas:   1000,
+				Price: std.Coin{Denom: "ugnot", Amount: 3},
+			},
 		}},
 		{"GenesisState", &auth.GenesisState{Params: auth.DefaultParams()}},
 		{"MsgCreateSession/full", &auth.MsgCreateSession{
@@ -56,7 +64,6 @@ func TestCodecParity_Auth(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("%d/%s", i, c.name), func(t *testing.T) {
 			t.Parallel()
 			aminotest.AssertCodecParity(t, cdc, c.v)

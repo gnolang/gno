@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -41,6 +42,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
+	index := newPredefineDeclIndex(pn.FileSet)
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -60,7 +62,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -79,7 +81,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -98,7 +100,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -136,7 +138,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						}
 					}
 				}
-				split := make([]Decl, 0, len(vd.NameExprs))
+				parts := make([]Decl, 0, len(vd.NameExprs))
 				for j := range vd.NameExprs {
 					part := &ValueDecl{
 						NameExprs: NameExprs{{
@@ -152,25 +154,94 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
-					split = append(split, part)
+					parts = append(parts, part)
 				}
 				// Apply the split to fn.Decls BEFORE calling predefineRecursively,
 				// so that GetDeclFor resolves each split name to its own individual
 				// decl rather than the original multi-value decl, avoiding false
 				// cycle detection.
-				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
-				for j := range split {
-					if split[j].GetAttribute(ATTR_PREDEFINED) == true {
+				fn.Decls = append(fn.Decls[:i], append(parts, fn.Decls[i+1:]...)...)
+				index.rebindSplitParts(fn, vd, parts)
+				for j := range parts {
+					if parts[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursively(store, fn, split[j])
+					predefineRecursivelyIndexed(store, fn, parts[j], index)
 				}
 				i += len(vd.NameExprs) - 1
 				continue
 			} else {
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				continue
+			}
+		}
+	}
+}
+
+// predefineDecl identifies a package declaration and its containing file.
+type predefineDecl struct {
+	file *FileNode
+	decl Decl
+}
+
+// lookupPredefineDecl finds the declaration binding selected by a FileSet.
+func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
+	file, slot := fset.GetDeclFor(name)
+	return predefineDecl{file: file, decl: *slot}
+}
+
+// predefineDeclIndex binds a FileSet to its selected package declarations.
+type predefineDeclIndex struct {
+	fileSet *FileSet
+	entries map[Name]predefineDecl
+}
+
+// newPredefineDeclIndex captures the package declarations visible to PredefineFileSet.
+func newPredefineDeclIndex(fset *FileSet) *predefineDeclIndex {
+	index := &predefineDeclIndex{
+		fileSet: fset,
+		entries: make(map[Name]predefineDecl),
+	}
+	for i := len(fset.Files) - 1; i >= 0; i-- {
+		file := fset.Files[i]
+		for _, decl := range file.Decls {
+			if _, isImport := decl.(*ImportDecl); isImport {
+				continue
+			}
+			for _, name := range decl.GetDeclNames() {
+				if _, exists := index.entries[name]; !exists {
+					index.entries[name] = predefineDecl{file: file, decl: decl}
+				}
+			}
+		}
+	}
+	return index
+}
+
+// lookup resolves a name within the FileSet captured by the index.
+func (index *predefineDeclIndex) lookup(name Name) predefineDecl {
+	if indexed, ok := index.entries[name]; ok {
+		if debugAssert {
+			file, slot, found := index.fileSet.GetDeclForSafe(name)
+			if !found || indexed.file != file || indexed.decl != *slot {
+				panic(fmt.Sprintf("stale predefine declaration index for %q", name))
+			}
+		}
+		return indexed
+	}
+	// The index covers the whole FileSet, so a miss can never resolve a decl.
+	panic(fmt.Sprintf("name %s not defined in fileset with files %v", name, index.fileSet.FileNames()))
+}
+
+// rebindSplitParts redirects indexed names from an original declaration in file
+// to whichever part now declares them, leaving entries won elsewhere untouched.
+func (index *predefineDeclIndex) rebindSplitParts(file *FileNode, original Decl, parts []Decl) {
+	for _, part := range parts {
+		for _, name := range part.GetDeclNames() {
+			current := index.entries[name]
+			if current.file == file && current.decl == original {
+				index.entries[name] = predefineDecl{file: file, decl: part}
 			}
 		}
 	}
@@ -219,9 +290,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			return
 		}
 		f := map[Name]bool{}
-		for k, v := range parent {
-			f[k] = v
-		}
+		maps.Copy(f, parent)
 		if modify != nil {
 			modify(f)
 		}
@@ -353,8 +422,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 					return n, TRANS_CONTINUE
 				}
 				switch ftype {
-				case TRANS_COMPOSITE_KEY,
-					TRANS_VAR_NAME,
+				case TRANS_VAR_NAME,
 					TRANS_RANGE_KEY,
 					TRANS_RANGE_VALUE:
 					return n, TRANS_CONTINUE
@@ -1042,7 +1110,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
-								if len(n.Cases) == 1 {
+								if len(n.Cases) == 1 && ct != nil {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
@@ -1050,7 +1118,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										ss.VarName, anyValue(ct))
 								} else {
 									// If there are 2 or more
-									// cases, the type is the tag type.
+									// cases, or the sole case is nil,
+									// the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
 									last.Define(
 										ss.VarName, anyValue(tt))
@@ -1118,10 +1187,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// only for imports.
 				pushInitBlock(n, &last, &stack)
 				{
-					// This logic supports out-of-order
-					// declarations.  (this must happen
-					// after pushInitBlock above, otherwise
-					// it would happen @ *FileNode:ENTER)
+					// Supports out-of-order declarations.
+					//
+					// Machine entry points call PredefineFileSet
+					// first, so anything tryPredefine handled
+					// already has ATTR_PREDEFINED set and these
+					// loops just skip it. The predefine fallback
+					// stays for callers that invoke Preprocess
+					// directly.
+					//
+					// This must run after pushInitBlock above,
+					// otherwise it would happen at
+					// *FileNode:ENTER.
 
 					// Predefine all import decls.
 					for i := range n.Decls {
@@ -1273,12 +1350,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
+						// Struct keys are field names, not variable
+						// references, so undo any ".loopvar" rename applied
+						// by the earlier loop-var pass (which cannot yet
+						// distinguish struct keys from map/array/slice keys
+						// referencing an enclosing loop variable).
+						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
+						n.Name = Name(fname)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
-						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
+						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
 								"cannot refer to unexported field %s in struct literal of type %s",
-								n.Name, clt.String()))
+								fname, clt.String()))
 						}
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
@@ -1297,6 +1381,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
+					valueDecl, ok := pd.(*ValueDecl)
+					if !ok || !valueDecl.Const {
+						panic("cannot use iota outside constant declaration")
+					}
+
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
@@ -1317,16 +1406,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// injection (gno.Nx(".origin")) can introduce it.
 					if ftype != TRANS_CALL_ARG || index != 0 {
 						panic(".origin can only be used as the first argument to a crossing function")
-					}
-					return n, TRANS_CONTINUE
-				case "cross1":
-					// legacy sentinel: a migration aid for codebases moving from
-					// the old bare-`cross` form. Lowers to the same with-cross
-					// AST shape as `.origin` (Args[0]=nil, WithCross=true) so
-					// the runtime takes the callingCurOrOrigin path. Migrate
-					// `cross1` → `cross(rlm)` once the in-scope realm is clear.
-					if ftype != TRANS_CALL_ARG || index != 0 {
-						panic("cross1 can only be used as the first argument to a crossing function")
 					}
 					return n, TRANS_CONTINUE
 				case nilStr:
@@ -1577,13 +1656,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Out of bounds errors are usually handled during evalConst().
 						if isWhole(ct) {
 							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isDecimalInteger(bd.V) {
+								if !bd.IsInt() {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
 										arg0))
 								}
 							}
 							if isNumeric(at) {
+								convertConst(store, last, n, arg0, ct)
+								constConverted = true
+							}
+						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
+							// Convert float-valued and untyped-int constants
+							// directly to the target type: constant conversion
+							// has no signed zero, so an underflowing constant
+							// rounds to +0, unlike the machine's runtime
+							// narrowing; and an untyped int may exceed int64
+							// (e.g. float64(1<<100)) yet be representable in
+							// the float target, so it must not take the
+							// default-type (int) path below.
+							switch at.Kind() {
+							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
@@ -1756,8 +1849,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2019,7 +2115,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") && nx.Name != Name("cross1") {
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") {
 								panic(fmt.Sprintf("only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
@@ -2029,13 +2125,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// runtime path (installCrossingCur →
 								// callingCurOrOrigin → buildOriginRealm) mints an
 								// EOA-origin cur.
-								n.SetWithCross()
-								n.Args[0] = constNil(nx)
-							case Name("cross1"):
-								// legacy migration sentinel: same lowering as .origin
-								// (WithCross=true, Args[0]=constNil → runtime takes
-								// callingCurOrOrigin path). Reachable from user source
-								// to ease migration from the old bare-`cross` form.
 								n.SetWithCross()
 								n.Args[0] = constNil(nx)
 							case Name(".cur"):
@@ -2061,11 +2150,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
-								} else {
-									fpp := ftv.GetUnboundFunc().PkgPath
-									if fpp != ctxpn.PkgPath {
+								} else if fv := ftv.GetUnboundFunc(); fv != nil {
+									// fv == nil: typed-nil crossing func (e.g.
+									// `var f func(cur realm); f(cur)`) or a
+									// lazy interface bind (no concrete func
+									// until call time); fall through, the
+									// runtime check covers both.
+									if fv.PkgPath != ctxpn.PkgPath {
 										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
-											fpp, n.Func, ctxpn.PkgPath))
+											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.
@@ -2201,11 +2294,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						switch fv := cx.V.(type) {
+						case nil:
+							// typed-nil func: nothing to specialize;
+							// runtime nil-panics on call.
+						case *FuncValue:
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						default:
+							panic(fmt.Sprintf("unexpected const func value %T", cx.V))
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
@@ -2490,14 +2590,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel, nil)
-					if aerr {
+					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					switch status {
+					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, ctxpn.PkgPath))
-					} else if tr == nil {
+					case embedLookupAmbiguous:
+						panic(fmt.Sprintf("ambiguous selector %s in %s",
+							n.Sel, cxt.String()))
+					case embedLookupNone:
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+					// embedLookupFound guarantees tr != nil below.
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -2572,7 +2677,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// bound method or underlying.
 					// NOTE: unexported field access is already checked
-					// by findEmbeddedFieldType above (aerr).
+					// by findEmbeddedFieldType above (status).
 					n.Path = tr[len(tr)-1]
 
 					// n.Path = cxt.GetPathForName(n.Sel)
@@ -3091,7 +3196,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dstT = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(dstTV)))
+						reflect.TypeFor[*TypedValue]()))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
@@ -4135,9 +4240,13 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
+		pkgPath := packageOf(last).PkgPath
 		it := &InterfaceType{
-			PkgPath: packageOf(last).PkgPath,
-			Methods: buildFieldTypesAST(store, last, x.Methods, true),
+			PkgPath: pkgPath,
+			// Build without embed naming (embed=false): flattenInterfaceMethods
+			// expands embedded interfaces into their method set, making identity
+			// the method set rather than the embedded-interface (alias) spelling.
+			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
@@ -4149,8 +4258,9 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 
 // buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
 // mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
-// embed=true mirrors doOpStructType/doOpInterfaceType which call
-// fillEmbeddedName per field; embed=false mirrors doOpFuncType which does not.
+// embed=true mirrors doOpStructType, which names embedded fields per field;
+// embed=false mirrors doOpFuncType and the interface path (which leaves embeds
+// unnamed and flattens them via flattenInterfaceMethods).
 func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
 	fts := make([]FieldType, len(fxs))
 	for i := range fxs {
@@ -4163,7 +4273,7 @@ func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed b
 			ft.Tag = Tag(evalConst(store, last, fx.Tag).GetString())
 		}
 		if embed {
-			fillEmbeddedName(&ft)
+			fillEmbeddedName(&ft, fx.Type)
 		}
 		fts[i] = ft
 	}
@@ -4398,6 +4508,21 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		})
 		cv := m.EvalStatic(last, x)
 		m.Release()
+		// The machine computes with runtime (IEEE) semantics, but a folded
+		// expression is a constant, and constants have no signed zero: a
+		// float -0 result (e.g. from negation) becomes +0.
+		if cv.T != nil {
+			switch cv.T.Kind() {
+			case Float32Kind:
+				if cv.GetFloat32() == softfloat.NegZero32 {
+					cv.SetFloat32(0)
+				}
+			case Float64Kind:
+				if cv.GetFloat64() == softfloat.NegZero64 {
+					cv.SetFloat64(0)
+				}
+			}
+		}
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,
@@ -5297,18 +5422,23 @@ func checkIntegerKind(xt Type) {
 // and *ValueDecl. *ValueDecl values are NOT evaluated at this stage. *FuncDecl
 // are only partially defined and also only partially preprocessed.
 func predefineRecursively(store Store, last BlockNode, d Decl) bool {
+	return predefineRecursivelyIndexed(store, last, d, nil)
+}
+
+// predefineRecursivelyIndexed is the indexed entry point for PredefineFileSet.
+func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *predefineDeclIndex) bool {
 	defer doRecover([]BlockNode{last}, d)
 	stack := []Name{}
 	defining := make(map[Name]struct{})
 	direct := true
-	return predefineRecursively2(store, last, d, stack, defining, direct)
+	return predefineRecursively2(store, last, d, stack, defining, direct, index)
 }
 
 // `stack` and `defining` are used for cycle detection. They hold the same data.
 // NOTE: `stack` never truncates; a slice is used instead of a map to show a
 // helpful message when a circular declaration is found. `defining` is also used as
 // a map to ensure best time performance of circular definition detection.
-func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
+func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
 
 	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
@@ -5357,15 +5487,29 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 						Names(stack).Join(" -> "), un))
 				}
 			}
-			// look up dependency declaration from fileset.
-			file, unDecl := pkg.FileSet.GetDeclFor(un)
+			// Look up the dependency declaration in the fileset.
+			//
+			// index is non-nil only when called from PredefineFileSet, the
+			// package-level pass where lookups can chain N deep
+			// (v0 -> v1 -> ... -> vN) and a live scan per hop is O(N^2).
+			// Calls from Preprocess (function-body DeclStmts and the
+			// per-file fallback loops) pass nil: on machine paths they run
+			// after PredefineFileSet has already defined every package-level
+			// name, so this branch is only reached for a name defined
+			// nowhere, which is a single scan followed by GetDeclFor's panic.
+			var dependency predefineDecl
+			if index == nil {
+				dependency = lookupPredefineDecl(pkg.FileSet, un)
+			} else {
+				dependency = index.lookup(un)
+			}
 			// preprocess if not already preprocessed.
-			if !file.IsInitialized() {
+			if !dependency.file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			predefineRecursively2(store, file, *unDecl, stack, defining, directR)
+			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
 		} else {
 			break // predefine successfully performed.
 		}
