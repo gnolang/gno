@@ -7,12 +7,12 @@ OUTER:
 		println("enter, i: ", i)
 
 		for j := 0; j < 2; j++ {
-			f = func(){
+			f = func() {
 				println("j: ", j)
 			}
 			if j == 1 {
 				println("---continue")
-				i++ 
+				i++
 				// Copy out.
 				continue OUTER
 			}

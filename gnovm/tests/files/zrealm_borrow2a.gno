@@ -36,7 +36,7 @@ func (p *Passthrough) Get() int {
 var s *Struct
 
 func main(cur realm) {
-	s = &Struct{A: 100}              // saved in borrow_test.
+	s = &Struct{A: 100}                   // saved in borrow_test.
 	crossrealm_b.SetObject(cross(cur), s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}

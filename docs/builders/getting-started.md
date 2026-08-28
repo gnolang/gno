@@ -1,7 +1,7 @@
 # Getting started
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
-**[Gno](./what-is-gnolang.md)**, a deterministic variant of Go. If you
+**[Gno](./what-is-gno.md)**, a deterministic variant of Go. If you
 know Go, you can write Gno minus what doesn't fit on-chain: no
 goroutines, no `os`, no networking, and only standard-library or
 `gno.land/...` imports. See
@@ -79,7 +79,7 @@ gno = "0.9"
 The `gno` line is the language version it targets. Use `gno.land/r/…`
 for realms (stateful) or `gno.land/p/…` for pure packages (stateless).
 Note that pure packages cannot import realms; see
-[import rules](./anatomy-of-a-gno-package.md#import-rules).
+[import rules](../resources/gno-packages.md#import-rules).
 
 ### 2. Write Gno code
 
@@ -253,7 +253,7 @@ page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
 incrementing.
 
 For more options, see
-[Running a local dev node](./local-dev-with-gnodev.md).
+[Running a local dev node](../resources/gnodev.md).
 
 ## Deploy to a shared network
 
@@ -266,15 +266,13 @@ Pick a target network now and use it consistently. The faucet's
 network dropdown and every `gnokey` command's `-remote` and
 `-chainid` flags must match:
 
-| Network    | `-chainid` | `-remote`                                              |
-|------------|------------|--------------------------------------------------------|
-| Local      | `dev`      | `http://localhost:26657`                               |
-| Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
-| Testnet    | `testN`    | `https://`​`rpc.<testN>.testnets.gno.land:443`         |
+| Network    | `-chainid`   | `-remote`                                     |
+|------------|--------------|-----------------------------------------------|
+| Local      | `dev`        | `http://localhost:26657`                      |
+| Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
+| Testnet    | `pearl-1`    | `https://rpc.pearl.testnets.gno.land:443`     |
 
-Replace `testN` with the current testnet chainid. See
-[Networks](../resources/gnoland-networks.md) for the live list,
-including mainnet status.
+Pearl is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list, including mainnet status.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
@@ -347,11 +345,12 @@ GAS USED:   3456789
 HEIGHT:     12345
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://<testN>.testnets.gno.land/r/...` instead.
+testnet the URL is `https://pearl.testnets.gno.land/r/...` instead.
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
@@ -407,7 +406,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
 2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
-3. [Example: the `minisocial` dApp](./example-minisocial-dapp.md): end-to-end with deploy
+3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix
 5. [Storage deposit](../resources/storage-deposit.md): how on-chain storage is paid for, and how to cap it with `-max-deposit`
 

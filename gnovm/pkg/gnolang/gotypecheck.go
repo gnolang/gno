@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
 
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
@@ -25,20 +26,17 @@ import (
 // While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
-var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+// The map must not be mutated afterwards: it is read concurrently by parallel
+// type-checks.
+var gnoBuiltinsCache = sync.OnceValue(func() map[string]*std.MemPackage {
+	return map[string]*std.MemPackage{
+		"gnobuiltins/gno0p9": gnoBuiltinsGno0p9(),
+	}
+})
 
-func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
-	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
-		panic("expected pkgPath to start with gnobuiltins/")
-	}
-	mpkg, ok := gnoBuiltinsCache[pkgPath]
-	if ok {
-		return mpkg
-	}
-	switch pkgPath {
-	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
-		mpkg.SetFile("gno0p9.gno", `package gno0p9
+func gnoBuiltinsGno0p9() *std.MemPackage { // 0.9
+	mpkg := &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+	mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
     PkgPath() string
@@ -49,6 +47,8 @@ type realm interface {
     IsUserRun() bool
     IsEphemeral() bool
     IsCurrent() bool
+    Sub(subpath string) realm
+    Subpath() string
     String() string
 }
 type Realm = realm
@@ -58,10 +58,17 @@ func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
 `)
-	default:
+	return mpkg
+}
+
+func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
+	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		panic("expected pkgPath to start with gnobuiltins/")
+	}
+	mpkg, ok := gnoBuiltinsCache()[pkgPath]
+	if !ok {
 		panic("unrecognized gnobuiltins pkgpath")
 	}
-	gnoBuiltinsCache[pkgPath] = mpkg
 	return mpkg
 }
 
@@ -74,7 +81,6 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
-var cross1 realm // shim — legacy sentinel migration aid; lowers to .origin-shaped AST at preprocess
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
@@ -104,6 +110,14 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 		return gnoBuiltinsMemPackage(pkgPath)
 	} else if gw.mpkg != nil && gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
 		return gw.mpkg
+	} else if gw.getter == nil {
+		// Reached only if a pass needs an import but no getter was supplied.
+		// The chain leaves TestGetter nil because ProdOnly means the passes
+		// that consult it never run; if ProdOnly were dropped there, say so
+		// here rather than nil-dereferencing into an opaque "internal error".
+		panic(fmt.Sprintf("gotypecheck: no getter configured to import %q "+
+			"(set Getter/TestGetter, or set ProdOnly to skip the test passes)",
+			pkgPath))
 	} else {
 		return gw.getter.GetMemPackage(pkgPath)
 	}
@@ -145,6 +159,26 @@ type TypeCheckOptions struct {
 	// After TypeCheckMemPackage returns, it contains the file position
 	// information from the parsed package.
 	Fset *token.FileSet
+
+	// ProdOnly stops after type-checking production files, skipping the
+	// with-tests, xxx_test and _filetest passes.
+	//
+	// Every file is still PARSED (see GoParseMemPackage below), so a syntax
+	// error anywhere — including in a _test.gno — still fails. Only the
+	// type-checking of test files is skipped.
+	//
+	// Set by the chain at AddPackage. Test files can never execute on chain
+	// (runMemPackage demotes MP*All to MP*Prod, and importers filter MPFProd),
+	// so their type-check verdict has no on-chain meaning. It does, however,
+	// have a cost: resolving a test file's stdlib imports goes through
+	// TestGetter, which reads a test-stdlib overlay from the node's local
+	// filesystem — putting node-local state into a gas-metered consensus
+	// computation. That forked topaz-1 at block 301381. See
+	// gno.land/adr/pr6025_prod_only_typecheck_at_addpackage.md.
+	//
+	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
+	// keep checking test files.
+	ProdOnly bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -170,6 +204,18 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
+			// Pin the accepted Go language version. Left empty, go/types gates
+			// syntax at whatever version the validator binary was built with,
+			// so the accept/reject verdict (and its error text) becomes a
+			// function of the build, not the package — a consensus fork. This
+			// is a syntax-acceptance floor only, NOT Gno's runtime semantics:
+			// Gno matches no single Go version (no generics, like <go1.18, yet
+			// go1.22 per-iteration loopvars, implemented in the interpreter
+			// regardless of this value). go1.18 is the minimum the injected
+			// .gnobuiltins shim needs (it uses any/type params) and rejects
+			// features Gno can't run (min/max, range-over-int/func) here rather
+			// than downstream.
+			GoVersion: "go1.18",
 			Error: func(err error) {
 				gimp.Error(err)
 			},
@@ -178,7 +224,17 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, nil)
+	// wtests is three-state and must NOT be collapsed to !opts.ProdOnly:
+	// nil stops nowhere (prod, w/ tests, xxx_test and _filetest all run),
+	// a pointer to false stops after the production pass (see ProdOnly),
+	// and a pointer to TRUE stops after the with-tests pass — which would
+	// silently drop the xxx_test and _filetest passes for `gno test`,
+	// `gno lint` and the gnovm test harness.
+	var wtests *bool
+	if opts.ProdOnly {
+		wtests = new(bool)
+	}
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
 	return
 }
 
@@ -533,33 +589,36 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 // Ensure uniqueness of declarations,
 // e.g. test/stdlibs overriding stdlibs.
 func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
-	dupes := []ast.Decl{}
+	// Single pass, filtering in place: names are registered as they are
+	// visited, so no auxiliary set of duplicates to remove afterwards.
+	kept := gof.Decls[:0]
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods and init functions
-		if !ok ||
-			fd.Recv != nil ||
-			fd.Name.Name == "init" {
-			continue
-		}
-		// if declaration is duplicate, delete this one.
-		_, exists := decls[fd.Name.Name]
-		if exists {
-			// delete this one. doesn't matter which one (whether
-			// Go native or gno) for type-checking.
-			dupes = append(dupes, decl)
-		} else {
+		// ignore methods, init and blank functions
+		if ok &&
+			fd.Recv == nil &&
+			fd.Name.Name != "init" &&
+			fd.Name.Name != "_" {
+			// if declaration is duplicate, delete this one. doesn't
+			// matter which one (whether Go native or gno) for
+			// type-checking.
+			if _, exists := decls[fd.Name.Name]; exists {
+				continue
+			}
 			decls[fd.Name.Name] = struct{}{}
 		}
+		kept = append(kept, decl)
 	}
-	// actually delete.
-	gof.Decls = slices.DeleteFunc(gof.Decls,
-		func(d ast.Decl) bool { return slices.Contains(dupes, d) })
+	clear(gof.Decls[len(kept):]) // zero out the obsolete elements, for GC
+	gof.Decls = kept
 }
 
 // ========================================
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
+//
+// Every returned file has its GoVersion cleared, so the ASTs do not carry the
+// //go:build go1.N line the source may have declared.
 //
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
@@ -618,6 +677,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		// Build constraints have no meaning in Gno. A //go:build go1.N line
+		// otherwise sets this file's language version in go/types, overriding
+		// the pinned Config.GoVersion, so the accept/reject verdict would
+		// depend on the submitter's tag and on the toolchain each validator
+		// binary was built with. Blank it so the pin is the sole authority.
+		gof.GoVersion = ""
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
 			mpkg.Type == MPFiletests {

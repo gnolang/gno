@@ -31,6 +31,12 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgEnablePackage:
+		return vh.handleMsgEnablePackage(ctx, msg)
+	case MsgDisablePackage:
+		return vh.handleMsgDisablePackage(ctx, msg)
+	case MsgRejectPackage:
+		return vh.handleMsgRejectPackage(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -66,6 +72,33 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	return
 }
 
+// Handle MsgEnablePackage.
+func (vh vmHandler) handleMsgEnablePackage(ctx sdk.Context, msg MsgEnablePackage) sdk.Result {
+	err := vh.vm.EnablePackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	return sdk.Result{}
+}
+
+// Handle MsgRejectPackage.
+func (vh vmHandler) handleMsgRejectPackage(ctx sdk.Context, msg MsgRejectPackage) sdk.Result {
+	err := vh.vm.RejectPackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	return sdk.Result{}
+}
+
+// Handle MsgDisablePackage.
+func (vh vmHandler) handleMsgDisablePackage(ctx sdk.Context, msg MsgDisablePackage) sdk.Result {
+	err := vh.vm.DisablePackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	return sdk.Result{}
+}
+
 // ----------------------------------------
 // Query
 
@@ -81,6 +114,15 @@ const (
 	QueryDoc          = "qdoc"
 	QueryPaths        = "qpaths"
 	QueryStorage      = "qstorage"
+	QueryPkgJSON      = "qpkg_json"
+	QueryTypeJSON     = "qtype_json"
+	// QueryPackageMetaJSON reports a path's status and submit-time metadata.
+	// Distinct from QueryPkgJSON, which dumps a live package's variables and
+	// cannot answer for one that is not live yet.
+	QueryPackageMetaJSON = "qpkgmeta_json"
+	// QueryInertPaths lists what is awaiting approval. Separate from QueryPaths,
+	// which ranges the live key space and cannot see it.
+	QueryInertPaths = "qinertpaths"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -110,6 +152,14 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryPkgJSON:
+		res = vh.queryPkg(ctx, req)
+	case QueryPackageMetaJSON:
+		res = vh.queryPackageMeta(ctx, req)
+	case QueryInertPaths:
+		res = vh.queryInertPaths(ctx, req)
+	case QueryTypeJSON:
+		res = vh.queryType(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -154,35 +204,39 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryPaths retrieves paginated package paths based on request data.
-// data can be username prefixed by a @ or a path prefix.
-func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+// pathsLimit reads ?limit= from a query path, defaulted and capped.
+//
+// XXX: implement pagination
+func pathsLimit(reqPath string) (int, error) {
 	const defaultLimit = 1_000
 	const maxLimit = 10_000
 
-	target := string(req.Data)
-
 	var query string
-	if i := strings.IndexByte(req.Path, '?'); i >= 0 {
-		query = req.Path[i+1:]
+	if _, after, ok := strings.Cut(reqPath, "?"); ok {
+		query = after
 	}
-
 	params, _ := url.ParseQuery(query)
 
-	// XXX: implement pagination
-
-	// Get limit param, if any
-	limit := defaultLimit // default
+	limit := defaultLimit
 	if l := params.Get("limit"); len(l) > 0 {
 		var err error
 		if limit, err = strconv.Atoi(l); err != nil {
-			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
+			return 0, fmt.Errorf("invalid limit argument")
 		}
+		limit = min(limit, maxLimit)
+	}
+	return limit, nil
+}
 
-		limit = min(limit, maxLimit) // cap to maxLimit
+// queryPaths retrieves paginated package paths based on request data.
+// data can be username prefixed by a @ or a path prefix.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	limit, err := pathsLimit(req.Path)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 
-	paths, err := vh.vm.QueryPaths(ctx, target, limit)
+	paths, err := vh.vm.QueryPaths(ctx, string(req.Data), limit)
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
@@ -292,6 +346,67 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgpath := string(req.Data)
 	result, err := vh.vm.QueryStorage(ctx, pkgpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryPkg returns the named block variables of a package as Amino JSON.
+// queryInertPaths answers vm/qinertpaths, newline-separated like vm/qpaths.
+func (vh vmHandler) queryInertPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	limit, err := pathsLimit(req.Path)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
+	paths, err := vh.vm.QueryInertPaths(ctx, string(req.Data), limit)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	res.Data = []byte(strings.Join(paths, "\n"))
+	return
+}
+
+// queryPackageMeta answers vm/qpkgmeta_json. An unknown path is a successful
+// response with status "absent", so a caller can tell it from a node that would
+// not answer.
+func (vh vmHandler) queryPackageMeta(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	result, err := vh.vm.QueryPackageMeta(ctx, string(req.Data))
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgPath := string(req.Data)
+	result, err := vh.vm.QueryPkg(ctx, pkgPath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryType returns a type definition by TypeID as Amino JSON.
+func (vh vmHandler) queryType(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// Recover from panics (e.g. stack overflow from circular type references
+	// like time.Time) so the server stays alive.
+	defer func() {
+		if r := recover(); r != nil {
+			res = sdk.ABCIResponseQueryFromError(
+				fmt.Errorf("queryType panic for %q: %v", string(req.Data), r))
+		}
+	}()
+
+	tidStr := string(req.Data)
+	result, err := vh.vm.QueryType(ctx, tidStr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

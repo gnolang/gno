@@ -2,6 +2,7 @@ package weburl
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,15 +41,31 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
-			Name:  "complex file path",
-			Input: "https://gno.land/r/simple/test///...gno",
+			Name:  "simple with hyphen",
+			Input: "https://gno.land/r/hyphen-simple/test",
 			Expected: &GnoURL{
 				Domain:   "gno.land",
-				Path:     "/r/simple/test//",
+				Path:     "/r/hyphen-simple/test",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
-				File:     "...gno",
 			},
+		},
+
+		{
+			Name:  "simple with multiple hyphens",
+			Input: "https://gno.land/r/-hyphen--simple/-test-",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/-hyphen--simple/-test-",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+		},
+
+		{
+			Name:  "simple with multiple slashes",
+			Input: "https://gno.land/r/hyphen-simple//test",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{
@@ -139,14 +156,26 @@ func TestParseGnoURL(t *testing.T) {
 
 		{
 			Name:  "empty path",
-			Input: "https://gno.land/r/",
+			Input: "https://gno.land",
+			Err:   ErrURLInvalidPath,
+		},
+
+		{
+			Name:  "root path",
+			Input: "https://gno.land/",
 			Expected: &GnoURL{
-				Path:     "/r/",
+				Path:     "/",
 				Args:     "",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
 				Domain:   "gno.land",
 			},
+		},
+
+		{
+			Name:  "root path with multiple slashes",
+			Input: "https://gno.land//",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{
@@ -183,9 +212,20 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			// `<path>:<args>$<webargs>` — `$` wins, so `:` and a second `$`
+			// inside webargs stay inside webargs (lets ObjectIDs round-trip).
 			Name:  "webquery-args-webquery",
 			Input: "https://gno.land/r/demo/aaa$bbb:CCC&DDD$EEE",
-			Err:   ErrURLInvalidPath, // `/r/demo/aaa$bbb` is an invalid path
+			Expected: &GnoURL{
+				Domain: "gno.land",
+				Path:   "/r/demo/aaa",
+				Args:   "",
+				WebQuery: url.Values{
+					"bbb:CCC": []string{""},
+					"DDD$EEE": []string{""},
+				},
+				Query: url.Values{},
+			},
 		},
 
 		{
@@ -279,7 +319,7 @@ func TestIsValidPath(t *testing.T) {
 		Path  string
 		Valid bool
 	}{
-		{Path: "/", Valid: true},
+		{Path: "/", Valid: false},
 		{Path: "/r/valid", Valid: true},
 		{Path: "/p/abc_123", Valid: true},
 		{Path: "/r/demo/users/", Valid: true},
@@ -290,7 +330,8 @@ func TestIsValidPath(t *testing.T) {
 		{Path: "/r/valid/path_with/underscores", Valid: true},
 		{Path: "/r/", Valid: true},
 		{Path: "/r/with space", Valid: false},
-		{Path: "/r/hyphen-invalid", Valid: false},
+		{Path: "/r/hyphen-valid", Valid: true},
+		{Path: "/p/hyphen-valid/path", Valid: true},
 	}
 
 	for _, tc := range testCases {
@@ -299,6 +340,31 @@ func TestIsValidPath(t *testing.T) {
 			assert.Equal(t, tc.Valid, gnoURL.IsValidPath())
 		})
 	}
+}
+
+func TestPathLengthLimit(t *testing.T) {
+	validPath := "/r/" + strings.Repeat("a", 4093)
+	parsed, err := Parse(validPath)
+	require.NoError(t, err)
+	assert.Equal(t, validPath, parsed.Path)
+	assert.True(t, parsed.IsValidPath())
+
+	// The limit bounds only the path segment: a path one byte too long is rejected.
+	_, err = Parse("/r/" + strings.Repeat("a", 4094))
+	require.ErrorIs(t, err, ErrURLInvalidPath)
+
+	// Args and webargs land in the same EscapedPath but are not path segments,
+	// so a long value there does not trip the path-length limit. This is what
+	// lets a `$help` form carry a large argument value (e.g. a board post body).
+	longArgs, err := Parse("/r/foo:" + strings.Repeat("a", 8192))
+	require.NoError(t, err)
+	assert.Equal(t, "/r/foo", longArgs.Path)
+
+	longWebargs, err := Parse("/r/foo$body=" + strings.Repeat("a", 8192))
+	require.NoError(t, err)
+	assert.Equal(t, "/r/foo", longWebargs.Path)
+
+	assert.False(t, GnoURL{Path: validPath + "a"}.IsValidPath())
 }
 
 func TestNamespace(t *testing.T) {
@@ -311,14 +377,14 @@ func TestNamespace(t *testing.T) {
 		{Path: "/p/another", Expected: "another"},
 		{Path: "/r/123invalid", Expected: ""},
 		{Path: "/r/TEST", Expected: ""},
-		{Path: "/x/ns", Expected: "ns"},
+		{Path: "/x/ns", Expected: ""},
 		{Path: "/r/a", Expected: "a"},
 		{Path: "/r/a1", Expected: "a1"},
 		{Path: "/r/a_b/c", Expected: "a_b"},
 		{Path: "/invalidpath", Expected: ""},
 		{Path: "/r/", Expected: ""},
-		{Path: "/r/a-b/c", Expected: ""},
-		{Path: "/r/valid-ns", Expected: ""},
+		{Path: "/r/a-b/c", Expected: "a-b"},
+		{Path: "/r/valid-ns", Expected: "valid-ns"},
 	}
 
 	for _, tc := range testCases {

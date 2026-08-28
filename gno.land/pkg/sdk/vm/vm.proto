@@ -31,6 +31,22 @@ message m_addpkg {
 	string max_deposit = 4;
 }
 
+message m_enable_pkg {
+	string approver = 1;
+	string pkg_path = 2;
+	string pkg_hash = 3;
+}
+
+message m_disable_pkg {
+	string approver = 1;
+	string pkg_path = 2;
+}
+
+message m_reject_pkg {
+	string sender = 1;
+	string pkg_path = 2;
+}
+
 message InvalidPkgPathError {
 }
 
@@ -47,7 +63,6 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1;
 }
 
 message UnauthorizedUserError {
@@ -60,6 +75,18 @@ message InvalidFileError {
 }
 
 message ObjectNotFoundError {
+}
+
+message ExportSizeExceededError {
+}
+
+message ExportDepthExceededError {
+}
+
+message UnobservedSendError {
+}
+
+message UnspendableSendError {
 }
 
 message GenesisState {
@@ -81,4 +108,11 @@ message Params {
 	sint64 fixed_set_read_depth100 = 11 [json_name = "fixed_set_read_depth_100"];
 	sint64 fixed_write_depth100 = 12 [json_name = "fixed_write_depth_100"];
 	sint64 iter_next_cost_flat = 13;
+	sint64 preprocess_gas_per_byte = 14;
+	string code_submission_policy = 15;
+	repeated string code_submitters = 16;
+	repeated string pkg_approvers = 17;
+	repeated string run_submitters = 18;
+	string inert_submission_charge = 19;
+	string inert_charge_collector = 20;
 }

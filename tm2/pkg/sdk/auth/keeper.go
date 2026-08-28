@@ -362,15 +362,32 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	params := ctx.Value(AuthParamsContextKey{}).(Params)
 	gasUsed := ctx.BlockGasMeter().GasConsumed()
 
-	// Only update gas price if gas was consumed to avoid changing AppHash
-	// on empty blocks.
-	if gasUsed <= 0 {
+	// Guard against a negative reading from the gas meter. Empty blocks
+	// (gasUsed == 0) are intentionally NOT skipped here: an empty block is the
+	// strongest "under target" signal, and skipping it would prevent the gas
+	// price from decaying back down during idle periods (see calcBlockGasPrice
+	// and https://github.com/gnolang/gno/issues/5906).
+	if gasUsed < 0 {
 		return
 	}
 
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
+	// Skip the write when the price is unchanged — e.g. it already sits at the
+	// floor, the block was exactly at target, or dynamic pricing is disabled
+	// (stored price 0 or TargetGasRatio == 0). Now that empty blocks are no
+	// longer short-circuited, an unconditional SetGasPrice would re-write the
+	// identical value on every idle block; the bptree main store keeps the same
+	// value hash (so the AppHash is unaffected) but still rotates the value's
+	// out-of-line key and orphans the previous one each time — wasted work on an
+	// idle chain. Skipping restores the "idle block ⇒ no write" invariant the
+	// removed gasUsed<=0 guard used to provide. It never blocks decay: while the
+	// price is above the floor an empty/under-target block always moves it by at
+	// least -1, so newGasPrice != lgp and the write happens.
+	if newGasPrice == lgp {
+		return
+	}
 	gk.SetGasPrice(ctx, newGasPrice)
 	logTelemetry(newGasPrice,
 		attribute.KeyValue{
@@ -386,10 +403,10 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // 1. What do we do if the gas used is less than the target gas in a block?
 // 2. How do we bring the gas used back to the target level, if gas used is more than the target?
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
-// two scenarios differently. For example, in the first case, we need to increase the gas by at least 1 unit,
-// instead of round down for the integer divisions, and in the second case, we should set a floor
-// as the target gas price. This is just a starting point. Down the line, the solution might not be even
-// representable by one simple formula
+// two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
+// integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
+// cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
+// point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
 	if lastGasPrice.Price.Amount == 0 {
@@ -400,10 +417,8 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	if params.TargetGasRatio == 0 {
 		return lastGasPrice
 	}
-	// if no gas used, no need to change the lastPrice
-	if gasUsed == 0 {
-		return lastGasPrice
-	}
+	// Note: gasUsed == 0 (empty block) is deliberately handled by the decrease
+	// branch below, so the price can decay during idle periods.
 	var (
 		num   = new(big.Int)
 		denom = new(big.Int)
@@ -414,6 +429,15 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Mul(big.NewInt(maxGas), big.NewInt(params.TargetGasRatio))
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
+
+	// A target of zero or less is not a target, and both branches below divide by
+	// it. Consensus params accept any Block.MaxGas at or above -1: a limit under
+	// 100 truncates the target to zero, and -1 means unlimited, which has no
+	// congestion to measure. This runs in EndBlocker, so dividing by zero there
+	// would halt the chain rather than fail one transaction.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
 
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
@@ -437,7 +461,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// XXX should we cap it with a max gas price?
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
-		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
+		initPriceInt := initialPriceOver(lastGasPrice.Gas, params.InitialGasPrice)
 		if lastPriceInt.Cmp(initPriceInt) == -1 {
 			return params.InitialGasPrice
 		}
@@ -445,8 +469,12 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		num.Mul(num, lastPriceInt)
 		num.Div(num, targetGasInt)
 		num.Div(num, denom.SetInt64(c))
-
-		num.Sub(lastPriceInt, num)
+		// decrease at least 1, symmetric to the increase branch. Without this
+		// floor, integer division rounds any small decrease down to 0 and the
+		// price ratchets up: it can never come back down once it reaches the
+		// value of GasPricesChangeCompressor (see issue #5906).
+		diff := maxBig(num, bigOne)
+		num.Sub(lastPriceInt, diff)
 		// gas price should not be less than the initial gas price,
 		num = maxBig(num, initPriceInt)
 	}
@@ -457,6 +485,37 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 
 	lastGasPrice.Price.Amount = num.Int64()
 	return lastGasPrice
+}
+
+// initialPriceOver restates the initial gas price's amount over gas units of
+// gas, so it can be compared against a price written over that many units.
+//
+// A gas price is a ratio, Price per Gas units, which is why comparing two of
+// them goes through [std.GasPrice.IsGTE] rather than their amounts. The floor
+// here is the one place that still needs a bare amount, because it feeds the
+// same arithmetic as the price itself. Governance sets the initial price on its
+// own, so it can name a ratio over a different number of gas units than the
+// stored price uses; taking its amount as-is would read a floor of "10ugnot per
+// 1 gas" as "10ugnot per 1000 gas" and let the price settle a thousandfold
+// under it.
+//
+// Rounds up. A floor rounded down is a floor that lets something through.
+//
+// Either Gas being non-positive is not a ratio, so there is nothing to restate
+// and the amount stands. Params.Validate allows a zero Gas here.
+func initialPriceOver(gas int64, initial std.GasPrice) *big.Int {
+	amt := big.NewInt(initial.Price.Amount)
+	if gas <= 0 || initial.Gas <= 0 || gas == initial.Gas {
+		return amt
+	}
+	amt.Mul(amt, big.NewInt(gas))
+	initGas := big.NewInt(initial.Gas)
+	rem := new(big.Int)
+	amt.QuoRem(amt, initGas, rem)
+	if rem.Sign() > 0 {
+		amt.Add(amt, big.NewInt(1))
+	}
+	return amt
 }
 
 // max returns the larger of x or y.

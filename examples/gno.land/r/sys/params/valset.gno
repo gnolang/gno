@@ -33,6 +33,9 @@ const (
 	valsetProposedKey = "proposed"
 	valsetCurrentKey  = "current"
 
+	// pubkey_types: chain-mirrored validator pubkey-type allow-list (read-only here).
+	valsetPubKeyTypesKey = "pubkey_types"
+
 	// Only this realm may write valset:proposed and valset:dirty.
 	// valset:current is chain-managed (see ctx-sentinel in node_params.go).
 	valsetAuthorizedRealm = "gno.land/r/sys/validators/v3"
@@ -121,18 +124,22 @@ func parseEntry(entry string) (validators.Validator, error) {
 	}, nil
 }
 
+// GetValsetPubKeyTypes returns the validator pubkey-type allow-list mirrored from consensus params (empty means accept any).
+func GetValsetPubKeyTypes() []string {
+	types, _ := prms.GetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetPubKeyTypesKey)
+	return types
+}
+
+// assertValsetCaller authorizes the one realm permitted to write valset params.
+//
+// Delegates to assertDelegate (see delegate.gno) so this realm has exactly one
+// authorized-caller gate rather than two that can drift. The distinction that
+// remains is deliberate and is NOT expressible through a delegation slot: this
+// authorization is a compile-time const, so re-pointing it requires a chain
+// relaunch, and assertNotValsetKey locks GovDAO out of the key family entirely.
+// A vote-settable slot would let one supermajority re-point the valset writer at
+// an arbitrary realm and bypass v3's valoper-existence check, its KeepRunning
+// opt-out, and execution-time pubkey re-resolution.
 func assertValsetCaller(_ int, rlm realm) {
-	// Defense-in-depth IsCurrent gate. Current call sites all pass live
-	// cur (cross(cur) from cache.gno / proposal.gno), so this never
-	// fires today — but the helper trusts its rlm input, and a future
-	// caller that threads a stashed/sibling-frame realm value would
-	// silently bypass the PkgPath check below (Class-2 designation
-	// forgery; see docs/resources/gno-security.md). Gating here makes
-	// the precondition enforceable rather than convention.
-	if !rlm.IsCurrent() {
-		panic("unauthorized: rlm is not the caller's live cur")
-	}
-	if rlm.Previous().PkgPath() != valsetAuthorizedRealm {
-		panic("unauthorized: only " + valsetAuthorizedRealm + " may write valset params")
-	}
+	assertDelegate(0, rlm, valsetAuthorizedRealm, "valset params")
 }

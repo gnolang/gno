@@ -10,11 +10,16 @@ import (
 )
 
 func TestCallerTellerImpl(cur realm, t *testing.T) {
-	tok, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
-	teller := tok.CallerTeller()
+	tok, ledger := newTestToken("Dummy", "DUMMY", 4, 0, cur)
+	teller := ledger.CallerTeller()
 	urequire.False(t, tok == nil)
 	var _ Teller = teller
 }
+
+// The sub-realm case (guardHome must not lock out the token's own realm when it
+// operates under an identity minted by its own cur.Sub()) needs a real realm
+// frame, since cur.Sub() refuses to mint from a p/ package. It lives in
+// filetests/caller_teller_sub_realm_filetest.gno.
 
 // evilWrap embeds Teller; the seal-marker pattern (if we had one) would be
 // satisfied via promotion, but IsCanonicalTeller rejects it because *evilWrap
@@ -24,8 +29,8 @@ type evilWrap struct {
 }
 
 func TestIsCanonicalTeller(cur realm, t *testing.T) {
-	tok, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
-	legit := tok.CallerTeller()
+	_, ledger := newTestToken("Dummy", "DUMMY", 4, 0, cur)
+	legit := ledger.CallerTeller()
 
 	uassert.True(t, IsCanonicalTeller(legit),
 		"canonical *fnTeller from CallerTeller must pass")
@@ -42,7 +47,7 @@ func TestTeller(cur realm, t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	token, ledger := newTestToken(0, cur, "Dummy", "DUMMY", 6)
+	token, ledger := newTestToken("Dummy", "DUMMY", 6, 0, cur)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -104,8 +109,8 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	token, ledger := newTestToken(0, cur, "Dummy", "DUMMY", 6)
-	teller := token.CallerTeller()
+	token, ledger := newTestToken("Dummy", "DUMMY", 6, 0, cur)
+	teller := ledger.CallerTeller()
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
