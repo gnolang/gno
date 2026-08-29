@@ -186,6 +186,10 @@ func setupSessionCtx(t *testing.T, env testEnv, masterCoins, spendLimit std.Coin
 	base.SetExpiresAt(0)
 	base.SetSpendLimit(spendLimit)
 	base.SetSpendReset(env.ctx.BlockTime().Unix())
+	// Take a number, as NewSessionAccount does. Without one the session shares
+	// the master's zero and the auth account-number invariant reports a state
+	// the chain cannot produce, which would make it useless in these tests.
+	require.NoError(t, base.SetAccountNumber(env.acck.GetNextAccountNumber(env.ctx)))
 	env.acck.SetSessionAccount(env.ctx, masterAddr, base)
 
 	sessions := map[crypto.Address]std.DelegatedAccount{masterAddr: base}

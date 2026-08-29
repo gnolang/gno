@@ -42,6 +42,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
+	index := newPredefineDeclIndex(pn.FileSet)
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -61,7 +62,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -80,7 +81,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -99,7 +100,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				fn.Decls[i] = d
 			}
 		}
@@ -137,7 +138,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						}
 					}
 				}
-				split := make([]Decl, 0, len(vd.NameExprs))
+				parts := make([]Decl, 0, len(vd.NameExprs))
 				for j := range vd.NameExprs {
 					part := &ValueDecl{
 						NameExprs: NameExprs{{
@@ -153,25 +154,94 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
-					split = append(split, part)
+					parts = append(parts, part)
 				}
 				// Apply the split to fn.Decls BEFORE calling predefineRecursively,
 				// so that GetDeclFor resolves each split name to its own individual
 				// decl rather than the original multi-value decl, avoiding false
 				// cycle detection.
-				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
-				for j := range split {
-					if split[j].GetAttribute(ATTR_PREDEFINED) == true {
+				fn.Decls = append(fn.Decls[:i], append(parts, fn.Decls[i+1:]...)...)
+				index.rebindSplitParts(fn, vd, parts)
+				for j := range parts {
+					if parts[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursively(store, fn, split[j])
+					predefineRecursivelyIndexed(store, fn, parts[j], index)
 				}
 				i += len(vd.NameExprs) - 1
 				continue
 			} else {
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursivelyIndexed(store, fn, d, index)
 				continue
+			}
+		}
+	}
+}
+
+// predefineDecl identifies a package declaration and its containing file.
+type predefineDecl struct {
+	file *FileNode
+	decl Decl
+}
+
+// lookupPredefineDecl finds the declaration binding selected by a FileSet.
+func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
+	file, slot := fset.GetDeclFor(name)
+	return predefineDecl{file: file, decl: *slot}
+}
+
+// predefineDeclIndex binds a FileSet to its selected package declarations.
+type predefineDeclIndex struct {
+	fileSet *FileSet
+	entries map[Name]predefineDecl
+}
+
+// newPredefineDeclIndex captures the package declarations visible to PredefineFileSet.
+func newPredefineDeclIndex(fset *FileSet) *predefineDeclIndex {
+	index := &predefineDeclIndex{
+		fileSet: fset,
+		entries: make(map[Name]predefineDecl),
+	}
+	for i := len(fset.Files) - 1; i >= 0; i-- {
+		file := fset.Files[i]
+		for _, decl := range file.Decls {
+			if _, isImport := decl.(*ImportDecl); isImport {
+				continue
+			}
+			for _, name := range decl.GetDeclNames() {
+				if _, exists := index.entries[name]; !exists {
+					index.entries[name] = predefineDecl{file: file, decl: decl}
+				}
+			}
+		}
+	}
+	return index
+}
+
+// lookup resolves a name within the FileSet captured by the index.
+func (index *predefineDeclIndex) lookup(name Name) predefineDecl {
+	if indexed, ok := index.entries[name]; ok {
+		if debugAssert {
+			file, slot, found := index.fileSet.GetDeclForSafe(name)
+			if !found || indexed.file != file || indexed.decl != *slot {
+				panic(fmt.Sprintf("stale predefine declaration index for %q", name))
+			}
+		}
+		return indexed
+	}
+	// The index covers the whole FileSet, so a miss can never resolve a decl.
+	panic(fmt.Sprintf("name %s not defined in fileset with files %v", name, index.fileSet.FileNames()))
+}
+
+// rebindSplitParts redirects indexed names from an original declaration in file
+// to whichever part now declares them, leaving entries won elsewhere untouched.
+func (index *predefineDeclIndex) rebindSplitParts(file *FileNode, original Decl, parts []Decl) {
+	for _, part := range parts {
+		for _, name := range part.GetDeclNames() {
+			current := index.entries[name]
+			if current.file == file && current.decl == original {
+				index.entries[name] = predefineDecl{file: file, decl: part}
 			}
 		}
 	}
@@ -352,8 +422,7 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 					return n, TRANS_CONTINUE
 				}
 				switch ftype {
-				case TRANS_COMPOSITE_KEY,
-					TRANS_VAR_NAME,
+				case TRANS_VAR_NAME,
 					TRANS_RANGE_KEY,
 					TRANS_RANGE_VALUE:
 					return n, TRANS_CONTINUE
@@ -1041,7 +1110,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
-								if len(n.Cases) == 1 {
+								if len(n.Cases) == 1 && ct != nil {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
@@ -1049,7 +1118,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										ss.VarName, anyValue(ct))
 								} else {
 									// If there are 2 or more
-									// cases, the type is the tag type.
+									// cases, or the sole case is nil,
+									// the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
 									last.Define(
 										ss.VarName, anyValue(tt))
@@ -1117,10 +1187,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// only for imports.
 				pushInitBlock(n, &last, &stack)
 				{
-					// This logic supports out-of-order
-					// declarations.  (this must happen
-					// after pushInitBlock above, otherwise
-					// it would happen @ *FileNode:ENTER)
+					// Supports out-of-order declarations.
+					//
+					// Machine entry points call PredefineFileSet
+					// first, so anything tryPredefine handled
+					// already has ATTR_PREDEFINED set and these
+					// loops just skip it. The predefine fallback
+					// stays for callers that invoke Preprocess
+					// directly.
+					//
+					// This must run after pushInitBlock above,
+					// otherwise it would happen at
+					// *FileNode:ENTER.
 
 					// Predefine all import decls.
 					for i := range n.Decls {
@@ -1272,12 +1350,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
+						// Struct keys are field names, not variable
+						// references, so undo any ".loopvar" rename applied
+						// by the earlier loop-var pass (which cannot yet
+						// distinguish struct keys from map/array/slice keys
+						// referencing an enclosing loop variable).
+						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
+						n.Name = Name(fname)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
-						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
+						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
 								"cannot refer to unexported field %s in struct literal of type %s",
-								n.Name, clt.String()))
+								fname, clt.String()))
 						}
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
@@ -5549,18 +5634,23 @@ func checkIntegerKind(xt Type) {
 // and *ValueDecl. *ValueDecl values are NOT evaluated at this stage. *FuncDecl
 // are only partially defined and also only partially preprocessed.
 func predefineRecursively(store Store, last BlockNode, d Decl) bool {
+	return predefineRecursivelyIndexed(store, last, d, nil)
+}
+
+// predefineRecursivelyIndexed is the indexed entry point for PredefineFileSet.
+func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *predefineDeclIndex) bool {
 	defer doRecover([]BlockNode{last}, d)
 	stack := []Name{}
 	defining := make(map[Name]struct{})
 	direct := true
-	return predefineRecursively2(store, last, d, stack, defining, direct)
+	return predefineRecursively2(store, last, d, stack, defining, direct, index)
 }
 
 // `stack` and `defining` are used for cycle detection. They hold the same data.
 // NOTE: `stack` never truncates; a slice is used instead of a map to show a
 // helpful message when a circular declaration is found. `defining` is also used as
 // a map to ensure best time performance of circular definition detection.
-func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
+func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
 
 	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
@@ -5609,15 +5699,29 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 						Names(stack).Join(" -> "), un))
 				}
 			}
-			// look up dependency declaration from fileset.
-			file, unDecl := pkg.FileSet.GetDeclFor(un)
+			// Look up the dependency declaration in the fileset.
+			//
+			// index is non-nil only when called from PredefineFileSet, the
+			// package-level pass where lookups can chain N deep
+			// (v0 -> v1 -> ... -> vN) and a live scan per hop is O(N^2).
+			// Calls from Preprocess (function-body DeclStmts and the
+			// per-file fallback loops) pass nil: on machine paths they run
+			// after PredefineFileSet has already defined every package-level
+			// name, so this branch is only reached for a name defined
+			// nowhere, which is a single scan followed by GetDeclFor's panic.
+			var dependency predefineDecl
+			if index == nil {
+				dependency = lookupPredefineDecl(pkg.FileSet, un)
+			} else {
+				dependency = index.lookup(un)
+			}
 			// preprocess if not already preprocessed.
-			if !file.IsInitialized() {
+			if !dependency.file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			predefineRecursively2(store, file, *unDecl, stack, defining, directR)
+			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
 		} else {
 			break // predefine successfully performed.
 		}
