@@ -1804,10 +1804,10 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 	assert.Contains(t, body, `href="/r/mock/path$help"`,
 		"Actions tab link must point at the realm — empty href means RealmURL was not threaded")
 
-	// The HTML <title> reflects domain + path. Empty Title means
+	// The HTML <title> reflects the page. Empty Title means
 	// HeadData.Title was not set on the state branch. (Test config
-	// leaves Domain unset, so the title is " - /r/mock/path".)
-	assert.Contains(t, body, `<title> - /r/mock/path</title>`,
+	// leaves Domain unset, so the title is the page alone.)
+	assert.Contains(t, body, `<title>/r/mock/path$state</title>`,
 		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
 }
 
@@ -1992,4 +1992,116 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
 	})
+}
+
+// TestHTTPHandler_PageMetadata regresses the head metadata: every page
+// must carry a <title> and a canonical URL naming that page, so two
+// posts under one realm stop sharing one title, and the slots gnoweb
+// declares but cannot source stop rendering empty.
+func TestHTTPHandler_PageMetadata(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name string
+		url  string
+		page string // the <title> head, and the canonical path
+	}{
+		{name: "realm", url: "/r/mock/path", page: "/r/mock/path"},
+		// The two posts of one realm differ only in Args, which the old
+		// title dropped: both rendered "gno.land - /r/mock/path".
+		{name: "realm with args", url: "/r/mock/path:p/hello", page: "/r/mock/path:p/hello"},
+		{name: "source view", url: "/r/mock/path$source", page: "/r/mock/path$source"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			body := rr.Body.String()
+			canonical := "https://gno.land" + tc.page
+			assert.Contains(t, body, "<title>"+tc.page+" - gno.land</title>",
+				"page title must name the page, not the realm it sits under")
+			assert.Contains(t, body, `<link rel="canonical" href="`+canonical+`" />`,
+				"canonical link must address the page under the configured domain")
+			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`,
+				"og:url must carry the canonical URL")
+			// Description and the share image have no source until #3910
+			// settles which realm content gnoweb may repeat.
+			assert.NotContains(t, body, `<meta name="description"`, "an unsourced slot must be dropped, not rendered empty")
+			assert.NotContains(t, body, `<meta property="og:image"`, "an unsourced slot must be dropped, not rendered empty")
+		})
+	}
+}
+
+// TestHTTPHandler_AliasCanonical checks that an aliased page names the
+// alias, not the realm behind it. /about and /r/gnoland/pages:p/about
+// serve one page, and /about is the address gno.land publishes.
+func TestHTTPHandler_AliasCanonical(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/gnoland/pages",
+		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
+	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/about": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+	}
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/about", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `<title>/about - gno.land</title>`)
+	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/about" />`)
+	assert.NotContains(t, body, `href="https://gno.land/r/gnoland/pages:p/about"`,
+		"an aliased page must not name its target as canonical")
+}
+
+// TestHTTPHandler_CanonicalIgnoresForwardedHost pins the canonical link
+// to the configured domain. X-Forwarded-Host is caller-supplied, so a
+// canonical built from it would point crawlers at an attacker's host.
+func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+	req.Header.Set("X-Forwarded-Host", "evil.example")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/r/mock/path" />`)
+	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
