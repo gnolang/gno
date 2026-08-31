@@ -23,6 +23,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -36,7 +37,7 @@ const ReadmeFileName = "README.md"
 
 // defaultRequestTimeout bounds every GET when no explicit Timeout is
 // configured, so r.Context() always carries a deadline (the page path
-// can fan out to many RPC calls — an unbounded request is a DoS vector).
+// can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.
@@ -260,7 +261,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 
 		// A `$state&json` request must get a JSON envelope even when the
 		// URL fails to parse — honor the JSON-in/JSON-out contract instead
@@ -340,8 +341,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
-// short fields (path, height, file); 64 KiB leaves plenty of headroom
-// while preventing a 32 MiB Go default from being weaponised.
+// short fields (path, height, file); 64 KiB leaves plenty of headroom.
 const maxPostFormBytes = 64 * 1024
 
 // Post processes a POST HTTP request.
@@ -363,7 +363,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("unable to parse url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		http.Error(w, "invalid path", http.StatusNotFound)
 		return
 	}
@@ -407,7 +407,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 	gnourl.Origin = requestOrigin(r)
@@ -757,6 +757,13 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
+		// This one returns the error view directly rather than funnelling
+		// through GetPathsListView, so it needs its own check.
+		if errors.Is(err, ErrClientPackageNotFound) {
+			if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+				return http.StatusNotFound, view
+			}
+		}
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 		return GetClientErrorStatusView(gnourl, err, height)
 	}
@@ -849,6 +856,12 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
+		// Both the realm view and the source view funnel here when nothing is
+		// live at the path, so this is the one place that has to distinguish
+		// "never submitted" from "submitted, not approved yet".
+		if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+			return http.StatusNotFound, view
+		}
 		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
 
@@ -1043,6 +1056,31 @@ func clientErrorMessage(err error, height int64) (int, string) {
 // GetClientErrorStatusView wraps clientErrorMessage into a renderable View.
 // `height` is the optional ?height=N pin from the URL — pass 0 when the
 // caller does not propagate it to the chain query.
+// pendingApprovalView returns the "not yet enabled" view when the path holds a
+// package awaiting an approver, and nil otherwise.
+//
+// A parked package is invisible to every query that reads the live key space,
+// so callers reach this having already concluded "not found". Under the "inert"
+// policy that conclusion is wrong for a package its creator has paid to submit,
+// and vm/qpkgmeta_json is the only query that can tell the two apart.
+//
+// A failed lookup falls back to the not-found view rather than surfacing an
+// error: an older node has no such query, and a page that renders is better
+// than one that breaks because a nicety is unavailable.
+func (h *HTTPHandler) pendingApprovalView(ctx context.Context, gnourl *weburl.GnoURL) *components.View {
+	// Trim as GetDirectoryView does: the directory view arrives with the
+	// trailing slash still on, and a package path never carries one.
+	meta, err := h.Client.PackageMeta(ctx, strings.TrimSuffix(gnourl.Path, "/"))
+	if err != nil {
+		h.Logger.Debug("package meta unavailable", "path", gnourl.Path, "error", err)
+		return nil
+	}
+	if meta.Status != vm.PackageStatusInert {
+		return nil
+	}
+	return components.StatusPendingApprovalComponent(meta.Reason)
+}
+
 func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
 	status, msg := clientErrorMessage(err, height)
 	if msg == "" {
@@ -1199,6 +1237,11 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	})
 
 	if err := g.Wait(); err != nil {
+		if errors.Is(err, ErrClientPackageNotFound) {
+			if view := h.pendingApprovalView(ctx, gnourl); view != nil {
+				return http.StatusNotFound, view
+			}
+		}
 		return GetClientErrorStatusView(gnourl, err, height)
 	}
 
