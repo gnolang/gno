@@ -344,6 +344,52 @@ func TestVerifierWithoutRemoteDoesNotPanic(t *testing.T) {
 		"a missing remote must degrade to an unresolved import, not a crash")
 }
 
+// TestUnreachableRemoteIsNotAVerdict draws the triage boundary at the
+// evidence, not the process.
+//
+// The child runs fine; the network under it fails; the typechecker reports the
+// unfetchable import as unresolved; the child exits 1 -- and the parent read
+// any non-negative exit as a verdict about the PACKAGE. handleCandidate then
+// recorded statusRejected and marked the content seen, so resubmitting
+// identical bytes was a silent no-op forever. The submitter was told their
+// code is bad because the operator's network hiccuped.
+//
+// No chain anywhere: an unreachable remote is the whole reproduction.
+func TestUnreachableRemoteIsNotAVerdict(t *testing.T) {
+	o := newTestOracle(t)
+	o.cfg.remote = "http://127.0.0.1:1" // nothing listens; connection refused, fast
+	o.cfg.verifyBudget = time.Minute
+
+	mpkg := packageImportingChainOnly()
+	err := o.verify(context.Background(), mpkg)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errVerifyUnavailable,
+		"the child ran and the network under it failed; that says nothing about the package")
+	assert.ErrorContains(t, err, "import resolver unavailable")
+
+	// And the consequence the submitter feels: the content is NOT settled, so
+	// a resubmission (or a restart) gets a fresh look once the fault clears.
+	o.handleCandidate(context.Background(), mpkg)
+	assert.NotContains(t, o.seen, candidateKey(mpkg),
+		"a fault that was never about the bytes must not retire them")
+	assert.Equal(t, statusPending, o.status.get(mpkg.Path).Status)
+}
+
+// packageImportingChainOnly imports a chain path that exists nowhere on disk,
+// so with a remote configured the RPC getter is the only possible resolver.
+func packageImportingChainOnly() *std.MemPackage {
+	const path = "gno.land/r/test/needschain"
+	return &std.MemPackage{
+		Name: "needschain",
+		Path: path,
+		Type: gno.MPUserAll,
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(path)},
+			{Name: "needschain.gno", Body: "package needschain\n\nimport \"gno.land/p/nobody/nothing\"\n\nfunc F(cur realm) { _ = nothing.X }\n"},
+		},
+	}
+}
+
 // TestVerifierAcceptsPackageWithTestFiles pins the package type the child uses.
 //
 // Real packages contain _test.gno files. AddPackage stamps the stored package

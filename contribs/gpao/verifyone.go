@@ -106,8 +106,28 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 	if err != nil {
 		return err
 	}
-	return v.verifyPackage(&mpkg)
+	if err := v.verifyPackage(&mpkg); err != nil {
+		if errors.Is(err, errResolverUnavailable) {
+			// Not a verdict; say so with the exit status, which is the only
+			// channel the parent classifies on. The reason still goes to
+			// stderr, which the parent tees and reports.
+			fmt.Fprintln(cio.Err(), err)
+			os.Exit(exitResolverUnavailable)
+		}
+		return err
+	}
+	return nil
 }
+
+// exitResolverUnavailable is the child's exit status when verification could
+// not obtain evidence -- the network under the import resolver failed -- as
+// opposed to exiting 1 with a verdict. 2 belongs to the Go runtime (panic).
+//
+// Exited directly rather than through commands.ExitCodeError: the test
+// harness drives the command through ParseAndRun, which returns that error
+// instead of translating it into a status, and the parent classifies on the
+// status alone.
+const exitResolverUnavailable = 3
 
 // verify runs one verification in a child process, killed if it outlasts the
 // budget.
@@ -119,11 +139,14 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 // quickly" is the claim only an off-chain actor can make, and it is what gates
 // approval here.
 //
-// Exit status is the verdict: clean exit passes, non-zero exit is a rejection
-// carrying the child's stderr as the reason, and a deadline is errVerifyBudget,
-// which upstream treats as "no verdict yet" rather than as a rejection. That
-// distinction matters — a rejected package is settled, a slow one may just have
-// lost a race with whatever else the machine was doing.
+// Exit status is the verdict: a clean exit passes, and a non-zero exit from a
+// child that ran to completion is a rejection carrying the child's stderr as
+// the reason. Two exits are not verdicts at all: exitResolverUnavailable, which
+// says verification could not obtain evidence and becomes errVerifyUnavailable,
+// and a deadline, which becomes errVerifyBudget. Upstream treats both as "no
+// verdict yet" rather than as a rejection, and that distinction matters — a
+// rejected package is settled, a slow one may just have lost a race with
+// whatever else the machine was doing.
 func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	self, err := os.Executable()
 	if err != nil {
@@ -212,6 +235,9 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
 			msg = runErr.Error()
+		}
+		if ee.ExitCode() == exitResolverUnavailable {
+			return fmt.Errorf("%w: %s", errVerifyUnavailable, msg)
 		}
 		return errors.New(msg)
 	}

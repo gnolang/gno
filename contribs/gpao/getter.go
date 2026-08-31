@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"path"
 	"strings"
 
@@ -48,6 +50,13 @@ func (h hybridGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	return h.disk.GetMemPackage(pkgPath)
 }
 
+// errResolverUnavailable reports that an import could not be resolved because
+// the node could not be ASKED -- as opposed to the node answering that nothing
+// is stored at the path. The distinction is the whole triage: the second is
+// evidence about the package, the first is evidence about the operator's
+// network, and only evidence about the package may become a verdict.
+var errResolverUnavailable = errors.New("import resolver unavailable")
+
 // qfileFunc runs a vm/qfile query for a package path or a package file path.
 type qfileFunc func(filepath string) ([]byte, error)
 
@@ -58,13 +67,17 @@ type qfileFunc func(filepath string) ([]byte, error)
 type rpcGetter struct {
 	qfile qfileFunc
 	cache map[string]*std.MemPackage
+
+	// transportErr is the first transport fault seen this verification; the
+	// child makes exactly one.
+	transportErr error
 }
 
 func newRPCGetter(client rpcclient.Client) *rpcGetter {
 	qfile := func(filepath string) ([]byte, error) {
 		qres, err := client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errResolverUnavailable, err)
 		}
 		if qres.Response.Error != nil {
 			return nil, qres.Response.Error
@@ -90,9 +103,11 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 
 // fetch queries vm/qfile for the package's file list, then each file's body,
 // and assembles a MemPackage. Returns nil if the package is not on-chain or any
-// query fails (the typechecker then reports the import as unresolved).
+// query fails (the typechecker then reports the import as unresolved); a
+// transport failure is additionally recorded in transportErr, because it is not
+// evidence about the import.
 func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
-	list, err := g.qfile(pkgPath)
+	list, err := g.query(pkgPath)
 	if err != nil {
 		return nil
 	}
@@ -102,7 +117,7 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		if name == "" {
 			continue
 		}
-		body, err := g.qfile(path.Join(pkgPath, name))
+		body, err := g.query(path.Join(pkgPath, name))
 		if err != nil {
 			return nil
 		}
@@ -118,6 +133,16 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		Files: files,
 		Type:  gno.MPUserProd,
 	}
+}
+
+// query wraps qfile and remembers a transport fault, which is evidence
+// about the operator's network rather than about the import.
+func (g *rpcGetter) query(filepath string) ([]byte, error) {
+	body, err := g.qfile(filepath)
+	if err != nil && errors.Is(err, errResolverUnavailable) && g.transportErr == nil {
+		g.transportErr = err
+	}
+	return body, err
 }
 
 // packageName derives the package name from the first .gno file whose package

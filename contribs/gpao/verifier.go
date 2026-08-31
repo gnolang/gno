@@ -80,6 +80,11 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("verification panicked: %v", r)
 		}
+		// A failure reached while the resolver under it was failing is not a
+		// verdict: the unresolved import may exist and be unfetchable.
+		if err != nil && v.rpc != nil && v.rpc.transportErr != nil {
+			err = fmt.Errorf("%w (verification said: %w)", v.rpc.transportErr, err)
+		}
 	}()
 
 	// Best-effort preload of imports resolvable from disk (stdlibs, examples).
