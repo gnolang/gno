@@ -2,7 +2,24 @@
 
 ## Status
 
-EXPLORATORY. Not for merge as-is. Open for discussion.
+SUPERSEDED by [`pr5949_remove_secp256k1_validators.md`](./pr5949_remove_secp256k1_validators.md),
+which landed on master and removed `secp256k1.PubKeySecp256k1` from
+`validatorPubKeyTypeURLs` and `DefaultValidatorParams()`. A chain now rejects a
+secp256k1 validator at consensus-params validation, so the plumbing explored
+here has no reachable configuration.
+
+The deciding constraint turned out not to be the one this exploration set out to
+measure. #5949's reason is the **IBC GNO light client**: its signature
+verification and validator-set encoding are built around ed25519, so a chain
+admitting a secp256k1 validator would produce headers that light client cannot
+verify. That is a correctness/bridgeability argument, and it does not depend on
+how fast secp256k1 verification is. Open question 3 below has since been
+answered anyway, and the answer was "affordable" — which is exactly why it is
+worth recording that performance was not what closed this.
+
+Kept open as a record of what the change would have required, and because two
+pieces of it stand on their own regardless of the validator key policy — see
+Consequences.
 
 ## Context
 
@@ -85,15 +102,33 @@ no behaviour change. The scheme-agnostic path is opt-in via
 paths, by design.
 
 **Verification cost.** secp256k1 signature verification is meaningfully
-slower than ed25519 (an order of magnitude in the no-cgo build; less
-with cgo). Every full node verifies every commit signature each block.
-Operators considering a mixed valset should benchmark using
-`tm2/pkg/crypto/secp256k1/bench_test.go` against their actual valset
-size before adoption.
+slower than ed25519, and every full node verifies every commit signature each
+block. This was written as an unquantified worry; it is now measured end-to-end
+at the `VerifyCommit` level rather than per-signature — see Open questions 3.
+The short version: a few secp256k1 validators cost almost nothing, an
+all-secp256k1 valset costs ~3.4x, and neither is prohibitive.
 
-**Light-client / IBC.** If gno.land adopts IBC, downstream light clients
-will need to handle commits containing secp256k1 signatures. Most
-Cosmos-style light clients do; confirm any custom relayers do too.
+**Light-client / IBC.** This section originally read "most Cosmos-style light
+clients handle secp256k1; confirm any custom relayers do too" — a note to
+follow up on. It is the whole story. The Gno IBC light client's signature
+verification and validator-set encoding are built around ed25519, so a
+secp256k1 validator makes the chain unbridgeable, and #5949 removed the key
+type from the validator allow-list for that reason. Recorded here as a lesson:
+the item flagged as a "confirm later" was the blocker, while the item flagged
+as needing measurement before any decision turned out not to matter.
+
+**What stands on its own.** Two pieces of this branch are independent of the
+validator key-type policy and could be salvaged if wanted:
+
+- `tm2/pkg/bft/types/validator_set_mixed_bench_test.go` — a `VerifyCommit`
+  benchmark parameterized on valset size, which is useful for sizing the
+  ed25519-only valset too.
+- `secrets_init`'s explicit key-type flag and validation, which currently
+  accepts one value; the plumbing makes a future key type a config change
+  rather than a code change.
+
+The scheme-agnostic `MakeSecretConnectionAny` and the privval wiring are not in
+that category — they exist only to carry a non-ed25519 validator key.
 
 **Address collision risk.** Negligible. Both schemes derive 20-byte
 addresses via disjoint hash chains; collisions would require a
@@ -118,12 +153,54 @@ preimage-class break.
 1. Is the consolidation of `MakeSecretConnection` and
    `MakeSecretConnectionAny` valuable, or is keeping them parallel
    better (since p2p and privval have very different compat constraints)?
-2. Should `DefaultValidatorParams` continue to advertise secp256k1 as
+2. ~~Should `DefaultValidatorParams` continue to advertise secp256k1 as
    accepted on mainnet given there is no production tooling to onboard a
    secp256k1 validator today, or should it be narrowed to ed25519 until
-   tooling lands?
-3. Performance impact at realistic valset sizes — needs measurement
-   before any policy decision.
+   tooling lands?~~ **Answered by #5949: narrowed to ed25519**, and not for the
+   tooling reason — see Status.
+3. ~~Performance impact at realistic valset sizes — needs measurement
+   before any policy decision.~~ **Answered**, by @D4ryl00 in
+   [#5687](https://github.com/gnolang/gno/pull/5687#issuecomment-3110915073).
+   Their `BenchmarkMixedScheme_VerifyCommit` is now in-tree
+   (`tm2/pkg/bft/types/validator_set_mixed_bench_test.go`, cherry-picked from
+   their fork) so the numbers are reproducible here rather than only on a
+   branch:
+
+   ```
+   go test ./tm2/pkg/bft/types -run '^$' \
+     -bench '^BenchmarkMixedScheme_VerifyCommit$' -benchmem -benchtime=3s
+   ```
+
+   Full-node `VerifyCommit`, Apple M1 (re-run at this merge, `-benchtime=200x`;
+   matches their reported figures within noise):
+
+   | valset | all ed25519 | 1 secp | ~1/3 secp | all secp |
+   |---:|---:|---:|---:|---:|
+   | 10  | 0.54 ms | 0.55 ms | 0.77 ms |  1.54 ms |
+   | 50  | 2.31 ms | 2.40 ms | 3.95 ms |  7.64 ms |
+   | 100 | 4.43 ms | 4.54 ms | 7.99 ms | 15.34 ms |
+   | 180 | 8.11 ms | 8.18 ms | 14.56 ms | 27.62 ms |
+
+   Cost scales linearly in valset size and in the secp share. A handful of
+   secp256k1 validators is close to free (180 validators, one secp: +0.9%); an
+   all-secp256k1 valset is ~3.4x an all-ed25519 one.
+
+   Validator-side signing latency, measured separately by @D4ryl00 with a
+   scenario-23 single-validator run (each validator only signs its own
+   messages, so this does not grow with valset size), avg ms:
+
+   | phase | ed25519 | secp256k1 |
+   |---|---:|---:|
+   | proposal  | 0.167 | 0.242 |
+   | prevote   | 0.099 | 0.189 |
+   | precommit | 0.078 | 0.165 |
+
+   Conclusion: sub-millisecond on the signing side, and tens of milliseconds
+   at the worst end of verification — real but affordable. Performance was
+   therefore never the blocker.
+4. Does anything in the IBC light client's ed25519 assumption (the #5949
+   reason) have a bounded fix, or is ed25519-only a permanent property of the
+   validator set? Not investigated here.
 
 ## References
 
