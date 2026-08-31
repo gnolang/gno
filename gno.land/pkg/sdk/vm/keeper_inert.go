@@ -283,6 +283,9 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		// is normally not a signer of this tx, so this is normally nil — the
 		// correct answer, since no session of theirs authorised the enable.
 		SessionAccount: getSessionAccount(ctx, creator),
+		// Successful inert initialization commits realm state. The package
+		// object gets ID 1 before init, so token realms can issue later IDs.
+		RealmIDEnabled: true,
 	}
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:            "",

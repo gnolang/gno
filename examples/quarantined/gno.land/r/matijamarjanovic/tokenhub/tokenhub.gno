@@ -31,7 +31,7 @@ func init(cur realm) {
 // RegisterToken registers a token in grc20reg.
 // Returns the registry key (rlmPath.symbol) that can be used to retrieve the
 // token; this is grc20reg's canonical key, not the token's full ID (which
-// carries a trailing sequence id).
+// has a VM assigned identifier).
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
 	return grc20reg.Register(cross(cur), token, slug)
 }

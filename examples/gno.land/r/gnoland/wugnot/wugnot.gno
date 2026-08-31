@@ -23,8 +23,7 @@ const (
 )
 
 func init(cur realm) {
-	// wugnot only ever creates this one token, so id 0 can't collide.
-	Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, 0, cur)
+	Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, cur)
 	grc20reg.Register(cross(cur), Token, "")
 }
 

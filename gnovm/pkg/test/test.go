@@ -73,6 +73,7 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 		Banker:                  banker,
 		Params:                  newTestParams(),
 		EventLogger:             sdk.NewEventLogger(),
+		RealmIDEnabled:          true,
 	}
 	return &runtime.TestExecContext{
 		ExecContext: ctx,

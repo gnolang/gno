@@ -2,43 +2,25 @@ package grc20
 
 import (
 	"chain"
+	"chain/runtime"
 	"math"
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-// NewToken creates a Token whose origRealm is bound to the calling realm.
-// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
-// and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
-//
-// Because IsCurrent runtime-validates that rlm came from the live
-// crossing frame, origRealm is unforgeable: an external realm cannot
-// fabricate a Token claiming to belong to a different package.
-//
-// Realms that create multiple tokens should allocate id from one persistent
-// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
-//
-//	var nextTokenID seqid.ID
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
-//
-// A realm that creates only a single token can pass 0 directly, since no
-// other token of that realm can collide with it.
+// NewToken creates a Token bound to the calling realm.
+// rlm must be the caller's current realm. The VM assigns Token.ID() and
+// guarantees that every token created by the realm receives a unique value.
+// The ID is opaque and safe to use directly as an event attribute or key.
+// Its package identifier is assigned by the VM and cannot be forged by a caller.
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
+// grc20reg.Register(cross(cur), Token, slug).
 //
-// Every successful call emits a NewToken event carrying the resulting
-// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
-// Token can come into existence, so this event makes token creation fully
-// observable: an indexer that sees the same Token.ID() announced twice knows the
-// realm built two independent ledgers behind one identifier, and that every
-// later Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm
-// is emitting untrustworthy events and should be flagged or ignored wholesale.
-func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+// Every successful call emits a NewToken event carrying the resulting ID.
+func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -62,7 +44,7 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:        pkgPath + "." + symbol + "." + id.String(),
+		id:        runtime.NewRealmID(),
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
@@ -131,11 +113,13 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-// ID returns the Identifier of the token.
-// It is composed of the original realm, the symbol, and the provided id.
+// ID returns the VM assigned identifier of the token.
 func (tok *Token) ID() string {
 	return tok.id
 }
+
+// GetOriginRealm returns the realm that created the token.
+func (tok *Token) GetOriginRealm() string { return tok.origRealm }
 
 // HasAddr checks if the specified address is a known account in the bank.
 func (tok Token) HasAddr(addr address) bool {

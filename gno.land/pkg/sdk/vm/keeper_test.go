@@ -1015,6 +1015,81 @@ func main(cur realm) {
 	require.ErrorContains(t, err, "realm ID issuance is disabled")
 }
 
+func TestVMKeeperNewRealmIDInInit(t *testing.T) {
+	const source = `package realmidinit
+
+import "chain/runtime"
+
+var initID string
+
+func init(cur realm) {
+	initID = runtime.NewRealmID()
+}
+
+func InitID(cur realm) string {
+	return initID
+}
+
+func New(cur realm) string {
+	return runtime.NewRealmID()
+}`
+
+	run := func(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath string) {
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		call := func(fn string) string {
+			t.Helper()
+			callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, pkgPath, fn, nil))
+			require.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(callCtx)
+			return res
+		}
+
+		initID := call("InitID")
+		first := call("New")
+		second := call("New")
+		pkgID, err := gnolang.PkgIDFromPkgPath(pkgPath).MarshalAmino()
+		require.NoError(t, err)
+		prefix := fmt.Sprintf(`("gno:realm-id:%s:`, pkgID)
+		require.Contains(t, initID, prefix)
+		require.Contains(t, first, prefix)
+		require.Contains(t, second, prefix)
+		require.NotEqual(t, initID, first)
+		require.NotEqual(t, first, second)
+	}
+
+	t.Run("AddPackage", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		addr := crypto.AddressFromPreimage([]byte("realm-id-init-add"))
+		pkgPath := "gno.land/r/test/realmidinit"
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "realmidinit.gno", Body: source},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		run(t, env, ctx, addr, pkgPath)
+	})
+
+	t.Run("EnablePackage", func(t *testing.T) {
+		approver := crypto.AddressFromPreimage([]byte("realm-id-init-approver"))
+		addr := crypto.AddressFromPreimage([]byte("realm-id-init-enable"))
+		env, ctx := inertEnv(t, approver, addr)
+		pkgPath := "gno.land/r/test/realmidinit"
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "realmidinit.gno", Body: source},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		require.NoError(t, env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath)))
+		run(t, env, ctx, addr, pkgPath)
+	})
+}
+
 func TestVMKeeperNewRealmIDProvenance(t *testing.T) {
 	env := setupTestEnv()
 	addr := crypto.AddressFromPreimage([]byte("realm-id-provenance"))

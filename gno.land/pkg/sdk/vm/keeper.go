@@ -1069,6 +1069,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Params:              NewSDKParams(vm.prmk, ctx),
 		EventLogger:         ctx.EventLogger(),
 		SessionAccount:      getSessionAccount(ctx, creator),
+		// Successful package initialization commits realm state. The package
+		// object gets ID 1 before init, so token realms can issue later IDs.
+		RealmIDEnabled:      true,
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -1178,6 +1181,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		ChainDomain:        chainDomain,
 		Height:             ctx.BlockHeight(),
 		Timestamp:          ctx.BlockTime().Unix(),
+		// Successful calls commit realm state, so they may issue realm IDs.
+		// Queries and temporary executions leave this disabled.
 		RealmIDEnabled:     true,
 		OriginCaller:       caller.Bech32(),
 		OriginSend:         send,
