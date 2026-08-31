@@ -2,7 +2,7 @@
 
 // This filetest shows how an indexer attributes a grc20 event to its issuer.
 //
-// Two fields matter, and neither is sufficient alone:
+// Three fields matter:
 //
 //   - pkg_path is stamped by the VM from the package whose code calls
 //     chain.Emit. Every genuine grc20 event therefore carries
@@ -10,9 +10,13 @@
 //     but never the token.
 //   - the "token" attribute carries Token.ID(). The VM creates this opaque ID
 //     from the issuing realm's package identifier and a persistent counter.
+//   - the NewToken "realm" attribute carries Token.GetOriginRealm(), captured
+//     only after IsCurrent verifies the issuing realm.
 //
-// Together they prove that grc20 emitted the event and that the VM assigned
-// its token ID to the issuing realm. Callers cannot forge that package identity.
+// Together they prove that grc20 emitted NewToken, that the VM assigned its ID,
+// and that its realm attribute is authentic. An indexer can bind token ID to
+// realm there, then attribute later grc20 events through that mapping. Callers
+// cannot forge the grc20 package identity or supply a non-current origin realm.
 //
 // The realm below is an impostor trying to pass its own transfers off as
 // another realm's token, by both routes available to it, and failing at both.
@@ -57,6 +61,10 @@ func main(cur realm) {
 //       {
 //         "key": "token",
 //         "value": "gno:realm-id:08f54204e7bb748ba312daa76fd11641ce50906d:5"
+//       },
+//       {
+//         "key": "realm",
+//         "value": "gno.land/r/demo/grc20provenance"
 //       },
 //       {
 //         "key": "name",

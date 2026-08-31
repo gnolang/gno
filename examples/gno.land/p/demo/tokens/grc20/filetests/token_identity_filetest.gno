@@ -38,6 +38,10 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:6"
 //       },
 //       {
+//         "key": "realm",
+//         "value": "gno.land/r/demo/grc20identity"
+//       },
+//       {
 //         "key": "name",
 //         "value": "Same"
 //       },
@@ -58,6 +62,10 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //       {
 //         "key": "token",
 //         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:7"
+//       },
+//       {
+//         "key": "realm",
+//         "value": "gno.land/r/demo/grc20identity"
 //       },
 //       {
 //         "key": "name",

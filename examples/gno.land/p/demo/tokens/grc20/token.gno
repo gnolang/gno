@@ -19,7 +19,8 @@ import (
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug).
 //
-// Every successful call emits a NewToken event carrying the resulting ID.
+// Every successful call emits a NewToken event carrying the resulting ID and
+// origin realm.
 func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -56,6 +57,7 @@ func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLed
 	chain.Emit(
 		NewTokenEvent,
 		"token", token.id,
+		"realm", token.origRealm,
 		"name", name,
 		"symbol", symbol,
 		"decimals", strconv.Itoa(decimals),

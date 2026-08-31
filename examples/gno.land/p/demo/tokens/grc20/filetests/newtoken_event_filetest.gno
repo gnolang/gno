@@ -31,6 +31,10 @@ func main(cur realm) {
 //         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:5"
 //       },
 //       {
+//         "key": "realm",
+//         "value": "gno.land/r/demo/grc20dupsignal"
+//       },
+//       {
 //         "key": "name",
 //         "value": "Same"
 //       },
@@ -51,6 +55,10 @@ func main(cur realm) {
 //       {
 //         "key": "token",
 //         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:6"
+//       },
+//       {
+//         "key": "realm",
+//         "value": "gno.land/r/demo/grc20dupsignal"
 //       },
 //       {
 //         "key": "name",
