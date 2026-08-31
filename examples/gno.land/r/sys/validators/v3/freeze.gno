@@ -420,37 +420,49 @@ func doDropFrozen(op address, reason string) {
 // ---- invariants -------------------------------------------------------------
 
 // heldOutBy names the mechanism currently holding op out of the
-// effective valset, or "" if nothing is. Phase B (autofreeze.gno)
-// widens it to cover auto-frozen entries too.
+// effective valset, or "" if nothing is.
 //
 // Valset-membership changes must refuse a held-out operator. An add
 // would put them back while the held-out entry survives, so the slot
 // has two owners, and the later restore would silently overwrite the
 // power the add set. Exits from a hold go through that hold's own
-// release path (unfreeze, drop, or — in Phase B — expiry), never
-// through a valset proposal.
+// release path (unfreeze, drop, or expiry), never through a valset
+// proposal.
 func heldOutBy(op address) string {
-	if frozenSet.Has(op.String()) {
+	key := op.String()
+	if frozenSet.Has(key) {
 		return "frozen"
+	}
+	if autoFrozenSet.Has(key) {
+		return "auto-frozen"
 	}
 	return ""
 }
 
 // heldOutCount is how many validators this realm is currently holding
-// out of the effective valset. Phase B (autofreeze.gno) widens it to
-// cover auto-frozen entries too.
+// out of the effective valset — manually frozen plus auto-frozen.
 func heldOutCount() int {
-	return frozenSet.Size()
+	return frozenSet.Size() + autoFrozenSet.Size()
 }
 
-// heldOutPower is the voting power of everything heldOutCount covers.
-func heldOutPower() uint64 {
+// frozenPower is the voting power held out by the manual path.
+//
+// Split out from heldOutPower because AutoFreezeValidator needs the two
+// addends separately: it uses the auto-frozen sum twice, and walking
+// autoFrozenSet once instead of three times is real gas on a consensus
+// path.
+func frozenPower() uint64 {
 	total := uint64(0)
 	frozenSet.Iterate("", "", func(_ string, raw any) bool {
 		total += raw.(frozenEntry).VotingPower
 		return false
 	})
 	return total
+}
+
+// heldOutPower is the voting power of everything heldOutCount covers.
+func heldOutPower() uint64 {
+	return frozenPower() + autoFrozenPower()
 }
 
 // assertLivenessFloor panics unless at least freezeFloorNum/freezeFloorDen
