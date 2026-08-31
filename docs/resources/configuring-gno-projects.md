@@ -46,10 +46,11 @@ added. It is not intended for manual use off-chain.
   the address that initiated the `addpkg` transaction.
 - **`height`**: the block height at which the module was added.
 - **`max_deposit`**: the [storage deposit](storage-deposit.md) ceiling recorded
-  for the package. It is absent on the ordinary `addpkg` path; it is set when
-  one transaction stores the package and a later one pays its deposit. The
-  value is what the submitter declared, or the chain default as it stood when
-  the package was submitted.
+  for the package. The public networks charge the deposit in the `addpkg`
+  transaction itself and never write this field. It appears only on a chain
+  whose submission policy stores a package first and activates it later, where
+  the activating transaction pays. The value is what the submitter declared, or
+  the chain default as it stood when the package was submitted.
 
 #### `draft`  
 

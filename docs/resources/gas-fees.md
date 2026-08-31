@@ -25,8 +25,9 @@ When submitting transactions to gno.land, you need to specify two gas-related pa
 ### Gas Wanted
 
 `--gas-wanted` specifies the maximum amount of gas your transaction is allowed
-to consume. If your transaction requires more gas than this limit, it will fail
-with an "out of gas" error, but will still consume the gas up to that point.
+to consume. If your transaction requires more gas than this limit, it fails
+with an "out of gas" error and changes nothing, and the whole `--gas-fee` is
+still charged.
 
 ### Gas Fee
 
@@ -61,11 +62,12 @@ prices when usage is high and decreasing them when usage is low.
 
 The gas price is returned as a `GasPrice` object with two fields:
 - `gas` - the gas units (e.g., 1000)
-- `price` - the price for those gas units (e.g., "100ugnot")
+- `price` - the price for those gas units (e.g., "1ugnot")
 
-Together, these represent a **rate**. For example, `{gas: 1000, price: "100ugnot"}`
-means the minimum rate is 100 ugnot per 1000 gas units, which simplifies to
-0.1 ugnot per gas unit.
+Together, these represent a **rate**. `{gas: 1000, price: "1ugnot"}` means 1
+ugnot per 1000 gas units, which simplifies to 0.001 ugnot per gas unit. That is
+the floor the price never drops below, and where the networks in this guide sit
+today. Under load the `price` field grows.
 
 To calculate the minimum fee manually:
 
@@ -75,12 +77,12 @@ To calculate the minimum fee manually:
 
 **Example:**
 ```bash
-# Query returns: {gas: 1000, price: "100ugnot"}
-# Rate = 100 ÷ 1000 = 0.1 ugnot/gas
+# Query returns: {gas: 1000, price: "1ugnot"}
+# Rate = 1 ÷ 1000 = 0.001 ugnot/gas
 
 # If you want --gas-wanted 2000000:
-# Minimum fee = 2,000,000 × 0.1 = 200,000 ugnot
-# So set: --gas-fee 200000ugnot (or higher)
+# Minimum fee = 2,000,000 × 0.001 = 2,000 ugnot
+# So set: --gas-fee 2000ugnot (or higher)
 ```
 
 ### Querying Gas Price
@@ -107,7 +109,10 @@ When blocks exceed this target, prices rise. When blocks fall below it, prices d
 Changes are gradual to avoid sudden price spikes.
 
 **Note**: Individual validators can also set their own minimum gas price through the
-`min_gas_prices` configuration parameter in their `config.toml` file. Different validators may have different minimums.
+`min_gas_prices` configuration parameter in their `config.toml` file. A fee that
+meets the network price but not a given validator's own minimum is simply left
+out of that validator's blocks, so a transaction priced at the bare minimum can
+wait longer. The 5% buffer from `-simulate only` covers the usual case.
 
 ## Typical Gas Values
 
@@ -135,8 +140,8 @@ gnokey maketx addpkg \
   -pkgpath gno.land/p/examplenamespace/hello_world \
   -gas-wanted 4000000 \
   -gas-fee 4000ugnot \
-  -remote https://rpc.gno.land:443 \
-  -chainid gnoland1 \
+  -remote https://rpc.staging.gno.land:443 \
+  -chainid staging \
   -simulate only \
   YOUR_KEY_NAME
 ```
@@ -158,12 +163,15 @@ PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 `HEIGHT: 0` and the empty `TX HASH` are how you tell a simulation from a
-broadcast: nothing reached a block.
+broadcast: nothing reached a block. `STORAGE FEE` is not a gas fee: it is the
+[storage deposit](storage-deposit.md) locked for the bytes the transaction
+would add, and it comes back when that state is deleted. `TOTAL TX COST` is the
+gas fee plus that deposit.
 
-Take `-gas-wanted` from the suggested figure rather than the raw estimate: gas
-usage moves between the simulation and the broadcast, and the 5% margin is what
-covers it. `gas fee` is the fee for that suggested limit, so the two go
-together.
+Set `-gas-wanted` to the suggested figure, 2719570 here, not the raw estimate:
+gas usage shifts between the simulation and the broadcast, and the 5% margin
+absorbs the shift. Set `-gas-fee` to the printed `gas fee`, 2720ugnot here,
+which was computed for that suggested limit. Take both or neither.
 
 ## Gas Optimization Tips
 
@@ -184,10 +192,13 @@ To minimize gas costs, consider these optimization strategies:
 
 ## Common Errors
 
-**Insufficient fees:** `insufficient fees; got: 50000ugnot required: 200000ugnot`
+**Insufficient fees:** `insufficient fees; got: {Gas-Wanted: 2000000, Gas-Fee
+1000ugnot}, fee required: 1ugnot/1000gas as block gas price`
 - Your `--gas-fee` is too low. Increase it to meet the minimum required.
 
-**Out of gas:** `out of gas in location: ... wanted: 100000, used: 150000`
+**Out of gas:** `gas used (150000) exceeds tx's gas wanted (100000) during
+operation: CPUCycles; simulate with consensus maximum (3000000000) to get real
+transaction usage`
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas, then increase.
 - ⚠️ **You're still charged for failed transactions!** The whole `--gas-fee` is
   deducted before execution, so even if your transaction runs out of gas, you

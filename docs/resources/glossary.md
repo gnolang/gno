@@ -122,12 +122,13 @@ See [Gas Fees](./gas-fees.md) for detailed information.
 ### Gas Fee
 The whole fee paid for a transaction, denominated in ugnot, charged in full
 whatever the transaction uses. The network accepts the transaction when the fee
-divided by gas wanted clears the current
+divided by gas wanted is at least the current
 [gas price](./gas-fees.md#gas-price).
 
 ### Gas Wanted
 The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails without changing state.
+exceeds this limit, it fails and its effects are rolled back, except the gas
+fee, which is charged in full.
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.

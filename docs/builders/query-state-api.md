@@ -80,12 +80,6 @@ The response is an array of `TypedValue` objects — one per field (for structs)
 or element (for arrays/slices). Struct fields are returned by index; use
 `vm/qtype_json` to resolve field names.
 
-### `vm/qobject_binary`
-
-Takes the same ObjectID as `vm/qobject_json` and returns the object encoded as
-Amino binary. Reach for it from a client that already decodes Amino; to read a
-response by eye, use the JSON form.
-
 ### `vm/qtype_json`
 
 Retrieves a type definition by its TypeID. Primarily used to resolve struct
@@ -118,6 +112,12 @@ gnokey query vm/qtype_json --data 'gno.land/p/demo/avl.Node'
   }
 }
 ```
+
+### `vm/qobject_binary`
+
+Takes the same ObjectID as `vm/qobject_json` and returns the object encoded as
+Amino binary. Reach for it from a client that already decodes Amino; to read a
+response by eye, use the JSON form.
 
 ## Amino JSON Format
 

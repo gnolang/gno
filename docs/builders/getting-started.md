@@ -228,16 +228,23 @@ gnokey maketx call \
 ```
 
 `-pkgpath` is the realm's on-chain path, the same one you passed to
-`gno mod init`. `-gas-wanted` is the maximum units the transaction may
-consume; `-gas-fee` is the whole fee for it, in `ugnot`, the smallest GNOT
-denomination. The fee is charged in full whatever the transaction uses, and the
-transaction is accepted when `gas-fee` divided by `gas-wanted` clears the
-network's gas price. See [Gas fees](../resources/gas-fees.md) for estimation and tuning.
+`gno mod init`.
+
+The two gas flags do different jobs. `-gas-wanted` is a ceiling on work, counted
+in gas units: a transaction that runs past it fails and changes nothing.
+`-gas-fee` is the payment, one flat amount in `ugnot`, where 1000000ugnot is one
+GNOT. The chain deducts the whole fee whatever the transaction ends up using,
+including when it runs out of gas, and accepts the transaction when `gas-fee`
+divided by `gas-wanted` is at least the network's gas price. Raising
+`-gas-wanted` on its own lowers that ratio, so the fee has to rise with it. The
+values here fit this counter; size your own with
+[`-simulate only`](../resources/gas-fees.md#gas-estimation).
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
 
-On success you'll see:
+On success you'll see output like this. Your height, hash and exact gas will
+differ:
 
 ```text
 (1 int)
@@ -254,8 +261,9 @@ TX HASH:    yBwJPI1anzP44QZMLV6Sae6SZsrLqK8UhZWUOyd5T48=
 ```
 
 `TOTAL TX COST` is the fee plus the [storage deposit](../resources/storage-deposit.md)
-the chain locked for the ten bytes `count` grew by. The deposit comes back if
-that state is deleted; the fee does not.
+the chain locked for the few bytes `count` grew by. Despite its label, `STORAGE
+FEE` is that deposit: delete the state and it comes back. The gas fee never
+does.
 
 The leading `(1 int)` is `Increment`'s return value. Reload the realm
 page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
@@ -308,9 +316,8 @@ Confirm the funds landed before spending them on a deploy:
 gnokey query bank/balances/<your-g1-addr> -remote https://rpc.staging.gno.land:443
 ```
 
-Response shows your balance as `<amount>ugnot`, where 1 GNOT is
-1,000,000 ugnot. Read-only queries like this don't need a chainid or a
-key; they hit the RPC endpoint directly.
+Response shows your balance as `<amount>ugnot`. Read-only queries like this
+don't need a chainid or a key; they hit the RPC endpoint directly.
 
 ### 3. Before you deploy
 
@@ -362,9 +369,9 @@ TX HASH:    wpp4PT6fsm8IoCiCl8LMTEVqvJvNHoTiuZOJPFu5P8c=
 PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
-The deposit dwarfs the fee here, and that is the usual shape of a deploy: the
-realm's own code and state are what you pay to keep on chain, and the deposit
-comes back when they are deleted.
+The deposit is far bigger than the fee here, and that is normal for a deploy:
+you pay to keep the realm's own code and state on chain, and the deposit comes
+back when they are deleted.
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
@@ -382,9 +389,8 @@ wallet like Adena.
 
 ### 5. Call Increment
 
-Same shape as the local call earlier, with two changes: the package
-path uses your address-based namespace, and `-gas-wanted` is tuned to
-a realistic value. Call it:
+Same shape as the local call earlier. Only the package path, `-chainid` and
+`-remote` change. Call it:
 
 ```sh
 gnokey maketx call \

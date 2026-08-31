@@ -40,7 +40,7 @@ The `gnokey add` command allows you to generate a new key pair locally. Simply
 run the command, while adding a name for your key pair:
 
 ```bash
-gnokey add MyKey
+gnokey add mykey
 ```
 
 After running the command, `gnokey` will ask you to enter a password that will be
@@ -200,7 +200,7 @@ gnokey maketx addpkg \
 -gas-fee 4000ugnot \
 -gas-wanted 4000000 \
 -chainid staging \
--remote "https://rpc.staging.gno.land:443"
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -227,9 +227,14 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS USED:   2590046` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
-- `STORAGE FEE:    174800ugnot` - the [storage deposit](../resources/storage-deposit.md) locked for those bytes, refundable when the state is deleted
+- `STORAGE FEE:    174800ugnot` - despite the label, a
+  [storage deposit](../resources/storage-deposit.md) and not a fee: it is locked
+  for those bytes and comes back when the state is deleted
 - `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
-- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, here the storage event that the added bytes produce. Freeing bytes emits one too, with a negative delta; only a message that leaves every realm's storage unchanged emits none
+- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted
+  by the transaction, here the storage event that the added bytes produce. Every
+  message that changes a realm's storage emits one, and a negative `bytes_delta`
+  means bytes were freed
 - `INFO:` - anything the node reported alongside the result, empty on a plain broadcast
 - `TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=` - the hash of the transaction
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
@@ -1179,8 +1184,8 @@ If everything went correctly, we should get an output similar to the following:
 ```bash
 height: 0
 data: {
-  "gas": 1000,
-  "price": "100ugnot"
+  "gas": "1000",
+  "price": "1ugnot"
 }
 ```
 
