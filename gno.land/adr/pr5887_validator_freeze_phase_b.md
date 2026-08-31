@@ -136,6 +136,42 @@ artifact, but the tests that pin the cap's semantics live at small roster sizes.
 Resolving this needs a decision on the number, not just the mechanism: a count
 backstop that does not collide is probably not 2/3. Deferred to review.
 
+## Open: restores can be silently whole-rejected by the pubkey-type allow-list
+
+Landed after this PR was opened: [#5949](https://github.com/gnolang/gno/pull/5949)
+(13 Jul 2026) removed secp256k1 support for validators and added a
+chain-mirrored validator pubkey-type allow-list. The EndBlocker
+(`gno.land/pkg/gnoland/app.go`) now **whole-rejects** a valset proposal if any
+add or update in the diff carries a pubkey type outside that list — it logs,
+clears `valset:dirty`, and returns. The realm gets no signal.
+
+`r/gnops/valopers` enforces the allow-list at registration and rotation, so a
+key that was legal when registered stays in `valoperCache` after the list
+tightens. Restore paths republish straight from that cache, as adds:
+
+- `doUnfreeze` (Phase A) removes the `frozenSet` entry, publishes, and returns
+  success. If the publish is whole-rejected, the realm believes the operator is
+  unfrozen while the valset never changed — and the recorded pre-freeze power is
+  gone, so there is no second attempt: the operator is no longer frozen, so
+  unfreeze cannot be retried, and re-adding needs someone to know the number.
+- `ExpireAutoFrozen` (Phase B) is worse, because it batches. One entry with a
+  now-disallowed key type sinks the whole publish, so every other operator in
+  that sweep loses its restore too — while their `autoFrozenSet` entries have
+  already been removed. This is exactly the failure mode the skip-don't-block
+  logic was written to prevent, reappearing one layer below the realm.
+
+The triggering scenario is not hypothetical: it is the secp256k1 removal itself,
+on a chain that had secp validators frozen across the upgrade.
+
+Not fixed here. The obvious in-realm fix — check
+`sysparams.GetValsetPubKeyTypes()` before republishing and refuse or skip —
+means duplicating valopers' bech32-decode + amino-type-URL helper into v3. The
+better fix is probably a layer down, in
+`r/sys/params.SetValsetProposal`, which would cover all three publishers
+(`newValoperChangeExecutor`, `RotateValoperSigningKey`, `publishValset`) at once
+and turn a silent EndBlocker drop into a panic the caller sees. Either way it is
+a pre-existing hole these PRs widen rather than create, and it wants its own PR.
+
 ## Consequences
 
 - Three new realm-global AVL trees (`monitors`, `protectedSet`,
