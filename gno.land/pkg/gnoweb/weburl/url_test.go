@@ -2,6 +2,7 @@ package weburl
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -350,6 +351,31 @@ func TestIsValidPath(t *testing.T) {
 			assert.Equal(t, tc.Valid, gnoURL.IsValidPath())
 		})
 	}
+}
+
+func TestPathLengthLimit(t *testing.T) {
+	validPath := "/r/" + strings.Repeat("a", 4093)
+	parsed, err := Parse(validPath)
+	require.NoError(t, err)
+	assert.Equal(t, validPath, parsed.Path)
+	assert.True(t, parsed.IsValidPath())
+
+	// The limit bounds only the path segment: a path one byte too long is rejected.
+	_, err = Parse("/r/" + strings.Repeat("a", 4094))
+	require.ErrorIs(t, err, ErrURLInvalidPath)
+
+	// Args and webargs land in the same EscapedPath but are not path segments,
+	// so a long value there does not trip the path-length limit. This is what
+	// lets a `$help` form carry a large argument value (e.g. a board post body).
+	longArgs, err := Parse("/r/foo:" + strings.Repeat("a", 8192))
+	require.NoError(t, err)
+	assert.Equal(t, "/r/foo", longArgs.Path)
+
+	longWebargs, err := Parse("/r/foo$body=" + strings.Repeat("a", 8192))
+	require.NoError(t, err)
+	assert.Equal(t, "/r/foo", longWebargs.Path)
+
+	assert.False(t, GnoURL{Path: validPath + "a"}.IsValidPath())
 }
 
 func TestNamespace(t *testing.T) {
