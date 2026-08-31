@@ -84,7 +84,13 @@ timings.
 A monitor's `reason` is rendered into the realm's markdown table. It is the one
 place in this realm where an assumed-compromised key writes text a human reads,
 so it goes through `sanitize.TableCell`. Without it a stolen monitor key can
-inject markdown into `r/sys/validators`' page.
+inject markdown into `r/sys/validators`' page. The general rule, and the second
+sink it covers, are documented in `freeze.gno`'s header (see the Phase A ADR).
+
+`Evidence` is the same untrusted-source string and currently has **no** markdown
+sink — it is stored and emitted, never rendered. That is fine today, and it is
+the field that reintroduces this case the moment someone adds it to
+`renderAutoFreeze`, which is why the header rule names it explicitly.
 
 ## Alternatives considered
 
@@ -182,6 +188,13 @@ a pre-existing hole these PRs widen rather than create, and it wants its own PR.
   today, but a batch limit would be cheap insurance.
 - Invariant 2 caps total damage; it does **not** rate-limit a single monitor,
   which can exhaust the cap on its own. Per-monitor limits are deferred.
+- The *set* of hold mechanisms is still enumerated in four functions
+  (`heldOutBy`, `heldOutCount`, `heldOutPower`, and `AutoFreezeValidator`'s
+  preconditions). `heldOutBy` centralized the proposal-path lookup — which is
+  what closed the bug above — but not the knowledge of what the mechanisms are,
+  so Phase C's attestation-driven hold would touch all four again. Worth folding
+  into one enumeration before that lands, along with making explicit whether
+  `NewFreezeProposalRequest`/`doFreeze` checking only `frozenSet` is deliberate.
 - Evidence is a free-form string, recorded and emitted but not validated. A
   structured proof (e.g. a signed double-sign attestation) would let the chain
   verify rather than record. Deferred.
