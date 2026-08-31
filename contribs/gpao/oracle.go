@@ -528,9 +528,6 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	}
 
 	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
-	// Counted before the call, not after: the fee is deducted by the ante
-	// handler, so a failed approval costs exactly as much as a successful one.
-	o.spent += o.enableFee
 	if err := o.enable(path, vm.PackageContentHash(mpkg)); err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
@@ -747,6 +744,20 @@ func gasWantedFor(estimated, fallback, ceiling int64) int64 {
 	return ceiling
 }
 
+// broadcastWasFree says whether a failed broadcast cost nothing, and so whether
+// the debit taken before it has to be given back.
+//
+// Only a CheckTx rejection is free: the ante refused it before any block, so
+// nothing was deducted. A DeliverTx failure ran in a block and was charged. A
+// missing result covers both a pre-mempool refusal, which is free, and an
+// answer lost after the transaction was handed over, which may have committed
+// -- indistinguishable here, and over-counting is the safe half of that guess.
+//
+// Split out from the broadcast so it can be tested without a node.
+func broadcastWasFree(res *ctypes.ResultBroadcastTxCommit) bool {
+	return res != nil && res.CheckTx.IsErr()
+}
+
 // enable builds, signs and broadcasts a MsgEnablePackage for pkgPath.
 //
 // Signed twice, deliberately. The fee is part of the sign bytes, so the
@@ -802,8 +813,20 @@ func (o *oracle) enable(pkgPath, pkgHash string) error {
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
+	// Counted at the send, not at the decision to send: what is handed to the
+	// node is counted, and the paths above that return without broadcasting are
+	// not. No transaction exists on those, so the ante charges nothing, and
+	// counting them would make the oracle report itself out of budget while
+	// holding every coin it started with. Of what is sent, the debit is kept
+	// for any error that returns no result, because a refusal that never
+	// reached a block cannot be told apart from one that may have committed.
+	o.spent += o.enableFee
 	// BroadcastTxCommit returns an error if CheckTx or DeliverTx failed.
-	if _, err := o.client.BroadcastTxCommit(signed); err != nil {
+	res, err := o.client.BroadcastTxCommit(signed)
+	if err != nil {
+		if broadcastWasFree(res) {
+			o.spent -= o.enableFee
+		}
 		return fmt.Errorf("broadcast: %w", err)
 	}
 	return nil

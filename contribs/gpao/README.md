@@ -213,9 +213,10 @@ can disturb it stall approvals for the whole chain.
 
 ### About `--max-spend`
 
-Every approval costs the full gas fee, whether or not the message succeeds. The
-daemon decides on its own when to send one, so anything that makes approvals
-fail repeatedly will drain the approver key. The bound stops that.
+Every approval that reaches a block costs the full gas fee, whether or not the
+message succeeds. The daemon decides on its own when to send one, so anything
+that makes approvals fail repeatedly will drain the approver key. The bound
+stops that.
 
 Two things reduce how often it is reached. Before approving, the daemon checks
 whether the package is already deployed and skips it if so, which is the common
