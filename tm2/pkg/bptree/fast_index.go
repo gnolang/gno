@@ -16,12 +16,14 @@ import (
 // byte-identical to the committed snapshot at its version.
 //
 // Trust contract: index currency is verified by Load (ensureFastIndex rebuilds
-// on a stamp mismatch) and preserved from then on by eager same-batch
-// maintenance (Set/Remove/SaveVersion) and by Import dropping the index up
-// front. A tree reached ONLY via LoadVersion — never Load — over a DB whose
-// later versions were committed with the feature off is outside the contract:
-// nothing re-verifies the stamp there. The in-repo store layer always goes
-// through Load.
+// a missing or older stamp, and fails loud on a stamp ahead of the loaded
+// version) and preserved from then on by eager same-batch maintenance
+// (Set/Remove/SaveVersion) and by Import dropping the index up front. Immutable
+// snapshots additionally require a stamp ≥ their version (MutableTree.getImmutable),
+// so read-only LoadVersion paths fall back to the authoritative walk without
+// maintenance rather than trusting a too-old index. Only a raw working-tree read
+// (MutableTree.Get after a bare LoadVersion, no getImmutable) remains outside
+// the contract; the in-repo store layer never does this.
 //
 // Properties:
 //   - Not in the Merkle commitment — an unauthenticated accelerator, like cosmos
@@ -34,9 +36,11 @@ import (
 //   - Maintained in the SAME batch as the tree (Set/Remove stage into ndb.batch,
 //     committed atomically by SaveVersion → Commit), so it can never disagree
 //     with the committed tree, even across a crash.
-//   - ADVISORY on read: a hit is trusted only when its version ≤ the snapshot
-//     version (else the entry is newer than the reader's snapshot); a miss,
-//     a too-new entry, or a corrupt/too-short entry all fall back to the
+//   - ADVISORY on read: an immutable snapshot consults the index only when the
+//     stamp is ≥ its version (else the index may be too old for it), and then
+//     trusts a hit only when the entry's version ≤ the snapshot version (else
+//     the entry is newer than the reader's snapshot). A miss, an untrusted
+//     stamp, a too-new entry, or a corrupt/too-short entry all fall back to the
 //     authoritative tree walk. Index completeness is therefore a performance
 //     property, never a correctness one.
 
@@ -137,18 +141,23 @@ func (ndb *nodeDB) getFastIndexVersion() (int64, bool, error) {
 const fastRebuildFlush = 1 << 16
 
 // clearFastIndex stages deletion of every existing 'F' entry, flushing in
-// bounded chunks. After each chunk Commits, the deleted keys are gone from the
-// DB, so re-opening the iterator from the range start finds the remaining keys.
+// bounded chunks. Each chunk resumes AFTER the last staged key rather than
+// re-scanning from the range start: progress must not depend on the staged
+// deletes being applied to the DB between chunks — under rootmulti's
+// CollectingDB the chunk Commit only moves them into the shared collector
+// (applied at the block-level drain), and the iterator reads the underlying
+// DB, so a restart-from-start scan would re-see the same keys forever.
 // Leaves a fresh batch for the caller.
 func (ndb *nodeDB) clearFastIndex() error {
-	prefix := []byte{PrefixFast}
+	start := []byte{PrefixFast}
 	end := []byte{PrefixFast + 1}
 	for {
-		itr, err := ndb.db.Iterator(prefix, end)
+		itr, err := ndb.db.Iterator(start, end)
 		if err != nil {
 			return err
 		}
 		n := 0
+		var last []byte
 		for ; itr.Valid() && n < fastRebuildFlush; itr.Next() {
 			k := itr.Key()
 			kc := make([]byte, len(k))
@@ -157,6 +166,7 @@ func (ndb *nodeDB) clearFastIndex() error {
 				itr.Close()
 				return err
 			}
+			last = kc
 			n++
 		}
 		ierr := itr.Error()
@@ -173,6 +183,7 @@ func (ndb *nodeDB) clearFastIndex() error {
 		if n < fastRebuildFlush {
 			return nil
 		}
+		start = append(last, 0) // resume at the immediate successor of the last staged key
 	}
 }
 
@@ -205,10 +216,25 @@ func (ndb *nodeDB) dropFastIndex() (err error) {
 }
 
 // ensureFastIndex rebuilds the fast index from the latest root if it is absent
-// or stale (the stamp != the loaded version). Called from Load when the feature
-// is on. The index is advisory, so a stale/missing index is never wrong, only
-// slower; a rebuild error is returned to Load's caller (the loaded tree is still
-// usable, and a retry Load re-attempts the rebuild).
+// or BEHIND the loaded version (stamp < version: versions were committed with
+// the feature off). Called from Load when the feature is on. The index is
+// advisory, so a stale/missing index is never wrong, only slower; a rebuild
+// error is returned to Load's caller (the loaded tree is still usable, and a
+// retry Load re-attempts the rebuild).
+//
+// A stamp AHEAD of the loaded version (stamp > version) is an ERROR, never a
+// rebuild: the stamp and each version's records commit in one atomic batch, so
+// at rest they are equal. A newer stamp therefore means either (a) this tree
+// is an out-of-contract reader racing a newer commit — rebuilding from its
+// outdated root would rewrite the whole index to old values under a stamp
+// later commits re-validate, exactly the gno#6011 poisoning (in-contract
+// query paths use LoadReadonly and never reach here) — or (b) the DB was
+// externally rewound (partial restore, manual surgery), in which case
+// old-timeline entries may exist that would regain trust as the chain
+// re-passes their versions, and the operator must decide: delete the stamp
+// (PrefixMeta‖"fastidx") to force a rebuild from the surviving root, or
+// resync. Failing loud covers both: (a) gets a hard error instead of a
+// silently degraded load, (b) cannot boot into silent divergence.
 func (t *MutableTree) ensureFastIndex() error {
 	if !t.ndb.opts.FastIndex {
 		return nil
@@ -217,10 +243,16 @@ func (t *MutableTree) ensureFastIndex() error {
 	if err != nil {
 		return err
 	}
-	if ok && stamp == t.version {
-		return nil // already complete through the loaded version
+	if !ok || stamp < t.version {
+		return t.rebuildFastIndex()
 	}
-	return t.rebuildFastIndex()
+	if stamp > t.version {
+		return fmt.Errorf("bptree: fast index stamp (%d) is ahead of the loaded version (%d): "+
+			"the DB was rewound externally, or this load races a newer commit; "+
+			"refusing to trust or rebuild the index — delete the fast-index stamp "+
+			"(PrefixMeta%q) to force a rebuild at the next load, or resync", stamp, t.version, "fastidx")
+	}
+	return nil // stamp == version: complete through the loaded version
 }
 
 // rebuildFastIndex clears any stale 'F' entries, then re-derives the index from

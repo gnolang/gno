@@ -135,6 +135,11 @@ func registerUser(cur realm, name string, address_XXX address, ignoreCanonical b
 // collision detection: a name whose Canonicalize-form matches a prior
 // registration returns ErrCanonicalCollision.
 func RegisterUser(cur realm, name string, address_XXX address) error {
+	// IsCurrent before Previous, as UpdateName/Delete below already do. The
+	// file was inconsistent: those three checked it, these two did not.
+	if !cur.IsCurrent() {
+		return NewErrNotWhitelisted(0, cur.Previous())
+	}
 	// At genesis (height 0), allow any caller to register users.
 	// After genesis, only whitelisted controllers can register.
 	if runtime.ChainHeight() > 0 && !controllers.Has(cur.Previous().Address()) {
@@ -151,6 +156,11 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 // registered here can canonical-collide with existing ones, weakening
 // confusable protection for everyone.
 func RegisterUserIgnoreCanonical(cur realm, name string, address_XXX address) error {
+	// IsCurrent before Previous, as UpdateName/Delete below already do. The
+	// file was inconsistent: those three checked it, these two did not.
+	if !cur.IsCurrent() {
+		return NewErrNotWhitelisted(0, cur.Previous())
+	}
 	if runtime.ChainHeight() > 0 && !controllers.Has(cur.Previous().Address()) {
 		return NewErrNotWhitelisted(0, cur.Previous())
 	}

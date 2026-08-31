@@ -65,6 +65,13 @@ func (gp GasPrice) IsGTE(gpB GasPrice) (bool, error) {
 	if gp.Gas == 0 || gpB.Gas == 0 {
 		return false, errors.New("GasPrice.Gas cannot be zero; %+v, %+v", gp, gpB)
 	}
+	// The comparison below is a cross-multiplication, so a negative gas flips the
+	// sign of one side and inverts the answer: a fee of nothing then reports as
+	// sufficient. Callers take gas from the transaction, and nothing about a
+	// GasPrice makes a negative impossible.
+	if gp.Gas < 0 || gpB.Gas < 0 {
+		return false, errors.New("GasPrice.Gas cannot be negative; %+v, %+v", gp, gpB)
+	}
 
 	gpg := big.NewInt(gp.Gas)
 	gpa := big.NewInt(gp.Price.Amount)

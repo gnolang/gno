@@ -1,0 +1,50 @@
+{
+  "reason": "noop patch (boards2 RemoveMember dead-letter): on gnoland1 g16jpf0… was a member then self-removed; on test-13 PR #5280 removed g16jpf0… from boards2/v1 admin so they were never added as a member, making this RemoveMember a no-op. Empty body keeps fee-deduction faithful. height=126917",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774087406",
+    "block_height": "126917",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+        "account_num": "3262718",
+        "sequence": "4"
+      }
+    ]
+  },
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "noop.gno",
+              "body": "// NOOP run tx\npackage main\n\nfunc main(cur realm) {}\n"
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "A8h05m7T1PeedzXEgFNpFOIbgm13kpU76KcHY34KxruH"
+        },
+        "signature": "hjGX/5FYUemWAM7kQkHeEU4PRz+YEBW2hQdKJVl1T+V1XPBQ8HGo3v9zGhhrMkTxP/rA8tXeGC+/hysjvN7IRQ=="
+      }
+    ],
+    "memo": ""
+  }
+}

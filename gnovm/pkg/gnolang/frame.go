@@ -118,7 +118,6 @@ type Defer struct {
 	Callable Value
 	Args     []TypedValue // arguments (Args[0] is the receiver for a bound method)
 	Source   *DeferStmt   // source
-	Parent   *Block
 }
 
 type StacktraceCall struct {

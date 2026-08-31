@@ -84,6 +84,15 @@ func TestBalanceChecker(t *testing.T) {
 			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
 		},
 		{
+			// The "coin" parameter is whatever the URL says. banker.GetCoin panics on a
+			// malformed denom where chain.Coins.AmountOf returns zero, so this page
+			// must be rendered from the balances already read rather than by asking
+			// the banker for an unvalidated denom — otherwise any visitor can 500 it.
+			name:     "malformed coin denom renders zero instead of panicking",
+			path:     ufmt.Sprintf("balances?address=%s&coin=UPPERCASE", addr1.String()),
+			contains: ufmt.Sprintf("`%s` has `%d%s`", addr1.String(), 0, "UPPERCASE"),
+		},
+		{
 			name:      "no addr",
 			path:      "balances?address=",
 			contains:  "Please input a valid address",

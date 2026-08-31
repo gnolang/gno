@@ -287,6 +287,12 @@ func (g *infiniteGasMeter) Remaining() Gas {
 }
 
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
+	// Refused here as it is on the metered meter. Consuming a negative amount
+	// would lower the total instead of raising it, and this meter reports that
+	// total as the transaction's gas used.
+	if amount < 0 {
+		panic("gas must not be negative")
+	}
 	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
 		panic(GasOverflowError{descriptor})

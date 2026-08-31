@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[click](&#x6a;avascript:alert(1))
+-- output.md --
+
+
+[click](%26#x6a;avascript:alert(1))
+
+-- output.html --
+<p><a href="%26#x6a;avascript:alert(1)">click</a></p>

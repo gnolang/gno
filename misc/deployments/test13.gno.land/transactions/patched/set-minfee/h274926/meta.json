@@ -1,0 +1,51 @@
+{
+  "reason": "API drift on proposal.ProposeNewMinFeeProposalRequest (post-#5669): add cur realm to main, replace bare cross with cross(cur), switch dao.VoteRequest{} to dao.NewVoteRequest factory.",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774606875",
+    "block_height": "274926",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "account_num": "3096261",
+        "sequence": "26"
+      }
+    ]
+  },
+  "body_file": "set_minfee.gno",
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "set_minfee.gno",
+              "body": ""
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AgBSSj+NLAA6icQ/Rf6vbrjtRbbjo197vms7Sf+eLYPI"
+        },
+        "signature": "rNB3O/7oF5tGjBZtWu6B9VX+eEZGPMHaAUPLVJICwwkj9YC/mwGFFXD0XvkHfVz31NdwuxFbsiWpRV6nkGWgBw=="
+      }
+    ],
+    "memo": ""
+  }
+}

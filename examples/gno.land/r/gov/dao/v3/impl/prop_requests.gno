@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -31,6 +32,20 @@ func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	// Rejected here as well as in UpdateImpl so the mistake surfaces when the
+	// proposal is written, not when it executes. An empty realmPkg would be
+	// stored as an allowlist entry matching every user realm's empty
+	// PkgPath(), and would render as a blank name in the grant sentence below.
+	if strings.TrimSpace(realmPkg) == "" {
+		panic("realmPkg must be the realm path being granted govDAO authority")
+	}
+	// Padding is rejected for the same reason UpdateImpl rejects it: the entry
+	// is stored as given and matched whole, so a padded path grants nobody
+	// anything. Caught here so the author sees it, not the voters.
+	if realmPkg != strings.TrimSpace(realmPkg) {
+		panic("realmPkg must not have leading or trailing spaces")
+	}
+
 	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -45,12 +60,29 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	// State the grant: this executor rewrites AllowedDAOs, and previously
+	// rendered nothing at all. realmPkg is caller-supplied and lands in a code
+	// span, so it is wrapped with sanitize.InlineCode — which emits its own
+	// fence, so do not add backticks around it. (md.EscapeText is wrong here:
+	// CommonMark 6.1 does not process backslash escapes inside code spans.)
+	// Nothing ties realmPkg to newDao, which is why the text says so.
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf(
+		"Replaces the govDAO implementation with the DAO carried by this proposal.\n\n"+
+			"After execution, only `gno.land/r/gov/dao/v3/impl` and %s may replace the "+
+			"implementation, mutate the member store, or move treasury funds.\n\n"+
+			"This grant is stated by the proposer: the incoming implementation is passed "+
+			"as a value and is not verified to belong to the realm named above.",
+		sanitize.InlineCode(realmPkg)))
 
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
 func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+	// Reject a non-bech32 address at proposal-build time (see AddMember): keeps
+	// an unauthenticable / injection-bearing key out of the member store.
+	if !addr.IsValid() {
+		panic("invalid member address: " + addr.String())
+	}
 	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -74,10 +106,24 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 	}
 
 	cb := func(cur realm) error {
+		// Add the member first, spend the proposer's invitation point second.
+		//
+		// SetMember RETURNS an error when the address is already a member --
+		// easy to reach, since AddMember enrols T3 members directly. A returned
+		// executor error does not revert: ExecuteOrRejectProposal marks the
+		// proposal rejected and the transaction still commits. So with the old
+		// order the point was spent and the member was not added.
+		//
+		// RemoveInvitationPoint can still fail, despite the build-time check
+		// above: it panics at zero, and AddMember spends points from this same
+		// captured member, so a proposer can drain their own between creation
+		// and execution. That panics and reverts, which loses nothing.
+		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
+			return err
+		}
 		member.RemoveInvitationPoint()
-		err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier))
 
-		return err
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
@@ -118,7 +164,34 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 
 func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(cur realm) error {
-		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
+		// Fail on an unknown destination tier before touching the member.
+		//
+		// Everything that can be checked before a write is checked here, and
+		// RETURNS. A returned executor error rejects the proposal and closes it,
+		// and since nothing has been mutated yet that commits nothing.
+		//
+		// After RemoveMember the policy inverts: a return would commit a member
+		// who was removed and not re-added, so everything below panics instead,
+		// which reverts the whole transaction.
+		// A tier dropped from the global table. NewChangeTiersRequest replaces
+		// that table wholesale, so a proposal listing only T1 and T2 removes T3
+		// for good. memberByTier would not notice: it switches on the constant
+		// and ignores GetTier's ok, so the promotion would succeed and hand the
+		// member zero invitation points. Untested -- reaching it needs a passed
+		// tier-change proposal, which rewrites state every other test shares.
+		if _, ok := memberstore.GetTier(toTier); !ok {
+			return ufmt.Errorf("unknown destination tier: %s", toTier)
+		}
+
+		mbt := memberstore.Get(0, cur)
+
+		// SetMember consults the store's own index, not the global tier table
+		// above: DeleteAll empties the buckets and leaves the definitions.
+		if !mbt.Has(toTier) {
+			return ufmt.Errorf("destination tier is missing from the member store: %s", toTier)
+		}
+
+		prevTier := mbt.RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -127,9 +200,13 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		err := memberstore.Get(0, cur).SetMember(toTier, addr, memberByTier(toTier))
+		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
+			// Unreachable: both of SetMember's failures are ruled out above.
+			// Panicking is what makes it safe to be wrong about that.
+			panic("promotion failed after removal: " + err.Error())
+		}
 
-		return err
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))

@@ -85,7 +85,8 @@ type Batch interface {
 	// methods will error.
 	WriteSync() error
 
-	// Close closes the batch. It is idempotent, but calls to other methods afterwards will error.
+	// Close closes the batch, DISCARDING any ops staged since the last Write.
+	// It is idempotent, but calls to other methods afterwards will error.
 	Close() error
 
 	// GetByteSize that returns the current size of the batch in bytes. Depending on the implementation,

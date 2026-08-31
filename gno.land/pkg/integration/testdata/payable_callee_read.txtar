@@ -1,0 +1,94 @@
+# A realm deeper in the call chain must not vouch for the realm that got paid.
+#
+# When you attach coins to a call, they land in the address of the realm you
+# called. That realm has to look at them, or the coins sit there and nobody
+# knows they arrived. The chain rejects the call if nobody looked.
+#
+# The catch: any realm can read the envelope, at any depth. So a realm that
+# never looked could still have its call accepted, just because something it
+# called happened to look. The coins would strand in the first realm, while
+# the second one believes it was paid.
+#
+# This test pins that shut. Only the realm the coins landed in counts as
+# having looked.
+
+loadpkg gno.land/r/test/inner $WORK/inner
+loadpkg gno.land/r/test/outer $WORK/outer
+
+adduser alice
+
+gnoland start
+
+## The realm that was paid never looks; the one it calls does.
+## Rejected, and the coins stay with alice.
+! gnokey maketx call -pkgpath gno.land/r/test/outer -func Ignores -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stderr 'never read the send-envelope'
+
+## Control: the realm that was paid looks. Accepted.
+gnokey maketx call -pkgpath gno.land/r/test/outer -func Looks -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout OK!
+stdout 'outer-saw=400'
+
+## Only the accepted call moved coins, so outer holds 400, not 800.
+gnokey maketx call -pkgpath gno.land/r/test/outer -func Balance -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout 'balance=400'
+
+## Reading at depth still returns the real number. This is not about hiding
+## it, only about who is allowed to vouch for it.
+gnokey maketx call -pkgpath gno.land/r/test/outer -func Looks -send 100ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout 'inner-saw=100'
+
+-- inner/gnomod.toml --
+module = "gno.land/r/test/inner"
+gno = "0.9"
+
+-- inner/inner.gno --
+package inner
+
+import (
+	"strconv"
+
+	"chain/runtime/unsafe"
+)
+
+// Peek reads the envelope while running one level down. The coins are not
+// in this realm's address.
+func Peek(cur realm) string {
+	return "inner-saw=" + strconv.FormatInt(
+		unsafe.OriginSend().AmountOf("ugnot"), 10)
+}
+
+-- outer/gnomod.toml --
+module = "gno.land/r/test/outer"
+gno = "0.9"
+
+-- outer/outer.gno --
+package outer
+
+import (
+	"strconv"
+
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/r/test/inner"
+)
+
+// Ignores is the realm the coins land in, and it never looks at them.
+// It only calls inner, which does look.
+func Ignores(cur realm) string {
+	return inner.Peek(cross(cur))
+}
+
+// Looks is the same shape, except this realm looks first.
+func Looks(cur realm) string {
+	mine := unsafe.OriginSend().AmountOf("ugnot")
+	return "outer-saw=" + strconv.FormatInt(mine, 10) +
+		" " + inner.Peek(cross(cur))
+}
+
+func Balance(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	return "balance=" + strconv.FormatInt(
+		banker.NewReadonlyBanker().GetCoins(me).AmountOf("ugnot"), 10)
+}

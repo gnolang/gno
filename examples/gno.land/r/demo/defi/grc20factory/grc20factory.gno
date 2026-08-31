@@ -199,7 +199,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Get the balance of the specified address for the token.
 	inst := mustGetInstance(symbol)
-	balance := inst.token.CallerTeller().BalanceOf(address(addr))
+	balance := inst.token.BalanceOf(address(addr))
 
 	// Render the balance information.
 	out := md.Paragraph(

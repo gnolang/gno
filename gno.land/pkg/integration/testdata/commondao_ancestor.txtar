@@ -1,0 +1,54 @@
+# Ancestor council mutation on a real node (Constitution :1531-1532): a DAO's
+# ancestor can replace the council of a descendant. A root DAO creates a
+# sub-DAO whose sole council member is test2, then — as the proper ancestor —
+# passes an ancestor-council-update swapping test2 out for test3. The change
+# is proved on-chain: the removed member can no longer propose to the sub,
+# the added member can.
+
+loadpkg gno.land/r/nt/commondao/v0
+
+adduser test2
+adduser test3
+
+# Genesis council collapses to test1 (the inviter / root creator).
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
+
+gnoland start
+
+# --- test1 creates a root DAO (id 2) ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'Root' -args 'Purpose' -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Root creates a sub-DAO (id 3) whose sole council member is test2 ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateSubDAOProposal -args 2 -args 'Leaf' -args 'Purpose' -args '' -args $test2_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The sub's member (test2) can propose; a stranger (test3) cannot yet.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTextProposal -args 3 -args 'T' -args 'B' -args 0 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stderr 'caller is not a council member'
+
+# --- Root, as proper ancestor, swaps the sub's council test2 -> test3 ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateAncestorCouncilUpdateProposal -args 2 -args 3 -args $test3_user_addr -args $test2_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 2 -args 2 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 2 -args 2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- The swap took effect: test2 is out, test3 is in ---
+
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTextProposal -args 3 -args 'T' -args 'B' -args 0 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stderr 'caller is not a council member'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTextProposal -args 3 -args 'T' -args 'B' -args 0 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stdout 'OK!'

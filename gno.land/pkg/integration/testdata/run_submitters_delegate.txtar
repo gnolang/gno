@@ -1,0 +1,341 @@
+# End-to-end test of delegated run_submitters management.
+#
+# GovDAO authorizes a policy realm to add addresses to the run_submitters
+# allowlist; that realm then grants MsgRun rights to an account GovDAO never
+# named, and the account can actually run. The point is to prove the delegated
+# write reaches the ante handler's view of the parameter, which no Gno unit test
+# can show -- the keeper tests call the realm directly, and the ante only exists
+# in a real node.
+#
+# The REFUSALS are the load-bearing part. Every write assertion here would pass
+# with the delegation gate deleted entirely, because the policy realm would then
+# simply be allowed to write. Only an attempt that must fail distinguishes "the
+# gate authorized this caller" from "there is no gate".
+#
+# Two different refusals are needed, and one alone is not enough. The
+# "no delegate is configured" cases fire when the slot is EMPTY, so they survive
+# the path comparison being deleted. The "may write" case below fires while
+# ANOTHER realm holds the delegation, which is the only way to exercise the
+# comparison itself. Both are mutation-verified against delegate.gno.
+
+# GovDAO setup, matching code_submission_policy.txtar: the default harness does
+# not initialize the DAO, and every proposal below needs it.
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# r/sys/params must be loaded explicitly: loadpkg resolves dependencies from the
+# examples tree, and paramsgate lives in $WORK, so its import is not followed.
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/test/paramsgate $WORK/paramsgate
+loadpkg gno.land/r/test/rogue $WORK/rogue
+
+gnoland start
+
+# --- Seed the allowlist, so the gate is actually on ------------------------
+#
+# run_submitters starts empty, which means OFF -- anyone may MsgRun. Every
+# refusal below would then be vacuous, so the list is populated first, with
+# test1 alone. This is also the real bootstrap order: proposal creation is
+# MsgRun-only, so the param has to start open for this very proposal to be
+# creatable.
+#
+# test1 is written here by GovDAO and NOT by the delegate, which is what makes
+# the "delegate may not remove it" assertion further down meaningful.
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_seed.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote0.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec0.gno
+stdout 'OK!'
+
+gnokey query params/vm:p:run_submitters
+stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+
+# --- Before delegation: the policy realm is not authorized -----------------
+#
+# Funded, valid signature, a real deployed realm -- and refused, because the
+# delegation slot is empty. Empty must deny: a direct call presents an empty
+# previous package path, so a gate that compared it against an unset slot
+# without checking for empty first would admit every account on the chain.
+! gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Grant -args g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'no delegate is configured'
+
+# --- GovDAO delegates to the policy realm ---------------------------------
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_delegate.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote1.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec1.gno
+stdout 'OK!'
+
+# The slot is queryable, so an operator can confirm who holds the capability.
+gnokey query vm/qeval --data 'gno.land/r/sys/params.RunSubmittersManager()'
+stdout 'gno.land/r/test/paramsgate'
+
+# A realm that is NOT the delegate is refused, even though a delegate exists.
+#
+# This is the assertion that tells "the gate authorized paramsgate" apart from
+# "there is no gate". The refusals above fire when the slot is EMPTY, so they
+# survive the path check being deleted -- verified by mutation. Only a caller
+# that holds no delegation, attempted while another realm holds one, exercises
+# the comparison itself.
+! gnokey maketx call -pkgpath gno.land/r/test/rogue -func Grant -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'only gno.land/r/test/paramsgate may write'
+
+# --- Create an account the chain has never heard of ------------------------
+#
+# Fixed mnemonic, so the address is deterministic. It cannot come from adduser
+# or adduserfrom: those write a genesis balance, and this has to be an account
+# the seeding proposal above never named.
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
+gnokey add stranger --recover --insecure-password-stdin
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+gnokey maketx send -send 10000000ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Funded but unlisted, so MsgRun is refused -- the state the grant will change.
+input test123
+! gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/run/hello.gno
+stderr 'is not authorized to send MsgRun'
+
+# --- The delegate grants, without any further GovDAO vote ------------------
+gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Grant -args g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The delegated write reached the parameter the ante handler reads.
+input test123
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/run/hello.gno
+stdout 'hello from a delegated submitter'
+stdout 'OK!'
+
+# --- Removal is scoped to the delegate's own grants ------------------------
+#
+# It may de-list what it granted...
+gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Revoke -args g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+input test123
+! gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/run/hello.gno
+stderr 'is not authorized to send MsgRun'
+
+# ...but not test1, which GovDAO seeded and the delegate never granted. This is
+# the assertion that keeps the delegation bounded in BOTH directions: a delegate
+# that could remove entries it did not add could empty the list, and an empty
+# run_submitters means the gate is off -- so it could unilaterally reopen MsgRun
+# to the whole chain, undoing the restriction GovDAO voted for.
+! gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Revoke -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'only GovDAO may remove it'
+
+# Re-adding an address that is already listed must not launder a grant for it:
+# the parameter write dedupes, so nothing was added and nothing may be removed.
+gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Grant -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Revoke -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'only GovDAO may remove it'
+
+# test1 still runs, so the allowlist was never emptied.
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1 $WORK/run/hello.gno
+stdout 'OK!'
+
+# Re-grant the stranger, so the revocation section below still has something to
+# show surviving.
+gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Grant -args g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Revocation takes effect immediately ----------------------------------
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_revoke.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote2.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec2.gno
+stdout 'OK!'
+
+gnokey query vm/qeval --data 'gno.land/r/sys/params.RunSubmittersManager()'
+stdout '""'
+
+# The former delegate is refused again. The slot is consulted on every call, so
+# no cached authority survives.
+! gnokey maketx call -pkgpath gno.land/r/test/paramsgate -func Grant -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'no delegate is configured'
+
+# But what it already granted REMAINS -- revocation does not sweep, by design,
+# because a sweep's effect is invisible at vote time. The stranger can still run.
+input test123
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/run/hello.gno
+stdout 'OK!'
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}
+
+-- paramsgate/gnomod.toml --
+module = "gno.land/r/test/paramsgate"
+gno = "0.9"
+
+-- paramsgate/paramsgate.gno --
+// paramsgate stands in for the policy realm a DAO would deploy: something that
+// holds the delegated capability and exposes a narrow way to exercise it.
+//
+// A real one would gate Grant behind its own governance -- a CommonDAO
+// execution proposal, say -- so that the DAO's council votes on the values. This
+// one is deliberately ungated: the subject under test is the params-side gate,
+// and adding a second gate here would only obscure which one refused.
+package paramsgate
+
+import "gno.land/r/sys/params"
+
+func Grant(cur realm, addr string) {
+	params.AddRunSubmitters(cross(cur), []string{addr})
+}
+
+func Revoke(cur realm, addr string) {
+	params.RemoveRunSubmitters(cross(cur), []string{addr})
+}
+
+-- rogue/gnomod.toml --
+module = "gno.land/r/test/rogue"
+gno = "0.9"
+
+-- rogue/rogue.gno --
+// rogue is shaped exactly like paramsgate but was never delegated to. It exists
+// so the refusal it earns is about WHICH realm is calling, not about the call
+// being malformed or the slot being empty.
+package rogue
+
+import "gno.land/r/sys/params"
+
+func Grant(cur realm, addr string) {
+	params.AddRunSubmitters(cross(cur), []string{addr})
+}
+
+-- run/submit_seed.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	// The dedicated setter, not the generic factory: vm:p:run_submitters is
+	// reserved so every whole-list write carries the proposer rule. test1 signs
+	// this and is the address being listed, which is what that rule requires.
+	prop := params.ProposeSetRunSubmitters(cross(cur),
+		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/submit_delegate.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.ProposeSetRunSubmittersManager(cross(cur), "gno.land/r/test/paramsgate")
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/submit_revoke.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.ProposeClearRunSubmittersManager(cross(cur))
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/vote0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+}
+
+-- run/exec0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+}
+
+-- run/vote1.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+}
+
+-- run/exec1.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(1))
+}
+
+-- run/vote2.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(2)))
+}
+
+-- run/exec2.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(2))
+}
+
+-- run/hello.gno --
+package main
+
+func main() {
+	println("hello from a delegated submitter")
+}

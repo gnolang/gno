@@ -58,6 +58,15 @@ type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
 }
 
+// ImmutableQueryer is the optional capability of serving a store query from a
+// frozen post-commit snapshot, so queries running concurrently with commits
+// (the query ABCI connection has its own mutex) never read live mutable store
+// state. A non-nil error means no snapshot view exists for req.Height (e.g.
+// pre-first-commit, pruned height); callers fall back to Queryable.
+type ImmutableQueryer interface {
+	QueryImmutable(req abci.RequestQuery) (abci.ResponseQuery, error)
+}
+
 // Useful for debugging.
 type Printer interface {
 	Print()
@@ -148,6 +157,10 @@ type CommitMultiStore interface {
 
 	// Mount a store of type using the given db.
 	// If db == nil, the new store will use the CommitMultiStore db.
+	// A non-nil db MUST be the same physical DB as the CommitMultiStore's —
+	// ENFORCED (MountStoreWithDB panics otherwise): query snapshots cover only
+	// that DB, so a separate one would be invisible to snapshot-isolated reads
+	// (see rootmulti constructStore).
 	MountStoreWithDB(key StoreKey, cons CommitStoreConstructor, db dbm.DB)
 
 	// Panics on a nil key.

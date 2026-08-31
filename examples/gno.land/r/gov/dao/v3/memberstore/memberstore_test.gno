@@ -122,3 +122,13 @@ func addMembers(ms MembersByTier, c int, tier string) {
 		}
 	}
 }
+
+func TestRenderMembersToleratesMalformedPath(t *testing.T) {
+	ms := NewMembersByTier()
+	addMembers(ms, 3, T1)
+	// A control byte makes url.Parse reject the path; RenderMembers must
+	// degrade to the first page rather than nil-deref / panic (Render is an
+	// unauthenticated, read-only path).
+	out := RenderMembers("?\x01", ms)
+	urequire.True(t, len(out) > 0, "malformed path must render, not panic")
+}

@@ -484,13 +484,6 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 
 func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	// "/store" prefix for store queries
-	queryable, ok := app.cms.(store.Queryable)
-	if !ok {
-		msg := "multistore doesn't support queries"
-		res.Error = ABCIError(std.ErrUnknownRequest(msg))
-		return
-	}
-
 	req.Path = "/" + strings.Join(path[1:], "/")
 
 	// when a client did not provide a query height, manually inject the latest
@@ -500,6 +493,31 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 
 	if req.Height <= 1 && req.Prove {
 		res.Error = ABCIError(std.ErrInternal("cannot query with proof when height <= 1; please provide a valid height"))
+		return
+	}
+
+	// Prefer the snapshot-isolated path: store queries run on the query ABCI
+	// connection, CONCURRENTLY with consensus commits, so they must not read
+	// live mutable store state when a snapshot view is available. On error
+	// (no committed state yet, pruned height, backend without a view at that
+	// height) fall through to the legacy live-query path, preserving its
+	// response surface for those corners — safe there because either nothing
+	// has been committed or the live path answers with its own
+	// version-existence handling, as today.
+	if iq, ok := app.cms.(store.ImmutableQueryer); ok {
+		resp, err := iq.QueryImmutable(req)
+		if err == nil {
+			resp.Height = req.Height
+			return resp
+		}
+		app.logger.Debug("store query snapshot path unavailable; using live path",
+			"height", req.Height, "err", err)
+	}
+
+	queryable, ok := app.cms.(store.Queryable)
+	if !ok {
+		msg := "multistore doesn't support queries"
+		res.Error = ABCIError(std.ErrUnknownRequest(msg))
 		return
 	}
 

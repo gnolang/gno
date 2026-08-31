@@ -1,0 +1,51 @@
+# Council mutation on a real node: add a member, remove a member, and prove
+# the change takes effect — the removed member can no longer vote (it is not
+# in a later proposal's electorate) while the added member can. Exercises the
+# CapExempt council-update path (supermajority) through real multi-key txs.
+
+loadpkg gno.land/r/nt/commondao/v0
+
+adduser test2
+adduser test3
+
+# Genesis council = {test1, test2}.
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test2_user_addr
+
+gnoland start
+
+# --- Add test3 (council-update proposal 1, supermajority of two) ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateCouncilUpdateProposal -args 1 -args $test3_user_addr -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Remove test2 (council-update proposal 2). Electorate is now the three
+# members; test1 + test3 YES is a supermajority (3*2 >= 2*3). ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateCouncilUpdateProposal -args 1 -args '' -args $test2_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 2 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 2 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Prove the new membership: a fresh proposal's electorate is {test1, test3} ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTextProposal -args 1 -args 'Title' -args 'Body' -args 0 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# test2 was removed: it is not in this proposal's electorate and cannot vote.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 3 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stderr 'not a member of the proposal'
+
+# test3 was added: it can vote.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 3 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stdout 'OK!'

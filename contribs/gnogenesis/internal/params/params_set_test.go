@@ -287,3 +287,56 @@ func Test_saveStringToValue_noValues(t *testing.T) {
 	err := saveStringToValue([]string{}, val)
 	assert.ErrorContains(t, err, "no value(s) to set")
 }
+
+// TestParamsSetCmd_Validation covers the validation added after the field is
+// set, including the bank branch.
+//
+// The command writes the field by reflection and consults nothing else, so
+// without this a bad value reached the genesis file and surfaced as a node
+// panic at boot. Validation is scoped to the module named by the key, so an
+// unrelated half-filled section cannot block an edit.
+func TestParamsSetCmd_Validation(t *testing.T) {
+	t.Parallel()
+
+	// run writes genesis, applies mutate, then runs `params set key vals...`.
+	run := func(t *testing.T, mutate func(*gnoland.GnoGenesisState), args ...string) error {
+		t.Helper()
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := common.DefaultGenesis()
+		appState := genesis.AppState.(gnoland.GnoGenesisState)
+		if mutate != nil {
+			mutate(&appState)
+		}
+		genesis.AppState = appState
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		cfg := &paramsCfg{}
+		cfg.GenesisPath = tempGenesis.Name()
+		cmd := newParamsSetCmd(cfg, commands.NewTestIO())
+		return cmd.ParseAndRun(context.Background(), args)
+	}
+
+	t.Run("bank rejects an invalid restricted denom", func(t *testing.T) {
+		t.Parallel()
+		err := run(t, nil, "bank.restricted_denoms", "!!!not-a-denom")
+		require.Error(t, err, "an invalid denom must not reach the genesis file")
+		assert.ErrorContains(t, err, "invalid restricted denom")
+	})
+
+	t.Run("bank accepts a valid restricted denom", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, run(t, nil, "bank.restricted_denoms", "ugnot"))
+	})
+
+	t.Run("an unrelated invalid module does not block the edit", func(t *testing.T) {
+		t.Parallel()
+		// vm is left invalid on purpose; the key being set is a bank one, so
+		// validating all three modules would refuse a genesis still being built.
+		err := run(t, func(gs *gnoland.GnoGenesisState) {
+			gs.VM.Params.StoragePrice = ""
+		}, "bank.restricted_denoms", "ugnot")
+		assert.NoError(t, err, "validation must be scoped to the module named by the key")
+	})
+}

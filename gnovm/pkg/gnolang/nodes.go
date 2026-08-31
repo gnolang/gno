@@ -1467,7 +1467,10 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			}
 		}
 		alloc.AllocateBlockItems(int64(len(nvs)))
-		block.Values = append(block.Values, nvs...)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		block.Values = growBlockValues(block.Values, pvl+len(nvs))
+		copy(block.Values[pvl:], nvs)
 		return block.Values[pvl:]
 	} else if pvl > pnl {
 		panic("package size error")
@@ -2310,6 +2313,11 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+	if tv.T == nil {
+		panic(fmt.Sprintf(
+			"StaticBlock.Define(%s) requires non-nil tv.T; use Reserve() for placeholder slots",
+			n))
+	}
 	sb.Define2(false, n, tv.T, tv, NameSource{})
 }
 
@@ -2422,7 +2430,10 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 			sb.Consts = append(sb.Consts, n)
 		}
 		sb.NumNames++
-		sb.Block.Values = append(sb.Block.Values, tv)
+		// Deterministic growth: cap(Block.Values) is charged by
+		// GetShallowSize, so it must not come from Go's growslice.
+		sb.Block.Values = growBlockValues(sb.Block.Values, len(sb.Block.Values)+1)
+		sb.Block.Values[len(sb.Block.Values)-1] = tv
 		sb.Types = append(sb.Types, st)
 		sb.NameSources = append(sb.NameSources, nsrc)
 		// Maintain nameIndex consistent with Names: build at threshold-cross,

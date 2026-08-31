@@ -67,7 +67,8 @@ func (m *Machine) doOpPrecall() {
 		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
 			"unexpected function value type %s %v",
-			reflect.TypeOf(v).String(), v))
+			reflect.TypeOf(v).String(), v,
+		))
 	}
 }
 
@@ -280,7 +281,7 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fs, pb)
+	b := m.acquireBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -620,7 +621,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	// Create new block scope for defer.
 	pb := fv.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	b := m.acquireBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
@@ -709,7 +710,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 }
 
 func (m *Machine) doOpDefer() {
-	lb := m.LastBlock()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	numArgs := len(ds.Call.Args)
@@ -722,8 +722,9 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			TypedValue{})
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
+			TypedValue{},
+		)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
 		// statement. For a lazy interface bind, dispatch is resolved at the
@@ -733,11 +734,12 @@ func (m *Machine) doOpDefer() {
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			cv.Receiver)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds, Parent: lb})
+			cv.Receiver,
+		)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
-		cfr.PushDefer(Defer{Source: ds, Parent: lb})
+		cfr.PushDefer(Defer{Source: ds})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return

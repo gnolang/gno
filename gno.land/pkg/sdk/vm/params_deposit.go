@@ -16,9 +16,11 @@ import (
 // stdlibs.ExecContext literal that captures ctx into NewSDKParams.
 // During execution, every SDKParams.Set* records a byte delta. At
 // message end, processStorageDeposit merges these deltas into the
-// per-realm storage diff stream and calls FlushParamsRealmAccum AFTER
-// the deposit lock/refund succeeds, keeping bank state and the
-// persistent meta-key consistent on partial failure.
+// aggregate per-realm storage settlement and calls FlushParamsRealmAccum
+// after the deposit lock/refund succeeds. A dirty params accumulator is
+// also flushed when its delta cancels the VM delta: the retained realm
+// deposit already backs those params bytes, but losing their baseline
+// would make a later delete hit the floor/clamp and suppress its refund.
 //
 // Scope:
 //   - User realm writes (chain/params via SDKParams) ARE tracked.

@@ -352,3 +352,63 @@ func generateKeyFromSeed(seed []byte, index uint32) crypto.PrivKey {
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }
+
+// Coins.String joins denoms with commas, so a multi-denom vesting schedule used to
+// serialise to a line its own parser could not read back — which meant a
+// gnogenesis export of such state produced an unbootable file.
+func TestBalanceRoundTripsMultiDenomVesting(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("vester"))
+	vesting := std.Coins{
+		{Denom: "atom", Amount: 100},
+		{Denom: "ugnot", Amount: 200},
+	}
+	vesting.Sort()
+
+	for _, vt := range []std.VestingScheduleType{std.VestingContinuous, std.VestingDelayed} {
+		original := Balance{
+			Address: addr,
+			Amount:  vesting,
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: vesting, StartTime: 1000, EndTime: 2000, Type: vt,
+			},
+		}
+
+		var got Balance
+		require.NoError(t, got.Parse(original.String()),
+			"a balance must parse back from its own String()")
+		require.Equal(t, original.String(), got.String())
+		require.Equal(t, vesting.String(), got.Vesting.OriginalVesting.String())
+		require.Equal(t, int64(1000), got.Vesting.StartTime)
+		require.Equal(t, int64(2000), got.Vesting.EndTime)
+		require.Equal(t, vt, got.Vesting.Type)
+	}
+
+	// Single-denom lines, the only shape that worked before, must be unchanged.
+	var single Balance
+	require.NoError(t, single.Parse(addr.String()+"=200ugnot;vesting=200ugnot,1000,2000"))
+	require.Equal(t, int64(1000), single.Vesting.StartTime)
+	require.Equal(t, "200ugnot", single.Vesting.OriginalVesting.String())
+
+	// And a genuinely malformed schedule is rejected rather than panicking. Taking
+	// the times from the right means slicing off the last two fields, so fewer than
+	// two is a negative bound — the field-count check is what stands between a
+	// hand-edited genesis line and a node that cannot report why it will not boot.
+	for _, bad := range []string{
+		"vesting=200ugnot,1000", // two fields: no end time
+		"vesting=1000",          // one field: fields[:-1] without the check
+		"vesting=",              // none at all
+	} {
+		var b Balance
+		require.NotPanics(t, func() {
+			err := b.Parse(addr.String() + "=200ugnot;" + bad)
+			require.Error(t, err, "%q must be rejected", bad)
+			// The field count must be what rejects it. Downstream ParseInt happens to
+			// reject the two-field case too, so asserting only that an error came back
+			// cannot tell whether the check is still there.
+			require.Contains(t, err.Error(), "malformed vesting schedule",
+				"%q must be rejected by the field-count check", bad)
+		}, "%q must not panic", bad)
+	}
+}

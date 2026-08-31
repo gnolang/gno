@@ -23,6 +23,17 @@ func Render(cur realm, in string) string {
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
 func AddMember(cur realm, addr address) {
+	// AGENTS.md: check IsCurrent() before cur.Previous() in a crossing function.
+	if !cur.IsCurrent() {
+		panic("AddMember: realm value is not the caller's live cur")
+	}
+	// address args are not VM-validated (the raw MsgCall string is stored), so
+	// reject a non-bech32 addr here — matching InitWithUsers. This keeps the
+	// member store free of unauthenticable keys and of markdown/pipe/HTML
+	// metachars that would otherwise inject into the members render table.
+	if !addr.IsValid() {
+		panic("invalid member address: " + addr.String())
+	}
 	caller := cur.Previous()
 	if !caller.IsUser() {
 		panic("this function must be called by an EOA through msg call or msg run")

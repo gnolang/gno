@@ -1,0 +1,14 @@
+{
+  "reason": "genesis names module enable: turn on namespace enforcement from the start. Enable is gated on the admin hardcoded in r/sys/names/verifier.gno; the caller field is patched to that admin post-sign (trusted under --skip-genesis-sig-verification).",
+  "kind": "MsgCall",
+  "caller_key": "GenesisDeployer",
+  "caller_override": "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh",
+  "pkgpath": "gno.land/r/sys/names",
+  "func": "Enable",
+  "args": [],
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "block_height": "0"
+}

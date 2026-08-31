@@ -31,6 +31,8 @@ Explore Gno through our comprehensive documentation:
   understand the Gno language, and deploy your applications  
 - **[Reference](./docs#reference)** - Technical specifications, best 
   practices, and advanced topics
+- **[Running a node](./docs/builders/running-a-node.md)** - Start here if you were 
+  about to run one — most use cases don't need it
 
 Visit [gno.land](https://gno.land) to see live smart contracts in action.
 

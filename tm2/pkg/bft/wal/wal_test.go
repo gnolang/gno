@@ -218,6 +218,41 @@ func TestWALPeriodicSync(t *testing.T) {
 	}
 }
 
+// Regression: non-existent height search drove the backwards search below minVal and
+// panicked, so the node crashed on startup.
+func TestSearchForHeightNonExistentHeightNoPanic(t *testing.T) {
+	t.Parallel()
+
+	const walChunkSize = 100000
+	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
+
+	require.NoError(t, wal.WriteMetaSync(MetaMessage{Height: 0}))
+	require.NoError(t, wal.WriteMetaSync(MetaMessage{Height: 1}))
+
+	const dataSize = 40000
+	targetFiles := 9
+	for i := 0; ; i++ {
+		require.Less(t, i, 1000, "rotation never reached %d files; group rotation may be broken", targetFiles)
+		err := wal.Write(TestMessage{Height: 1, Round: 1, Data: random.RandBytes(dataSize)})
+		require.NoError(t, err)
+		require.NoError(t, wal.FlushAndSync())
+		info := wal.Group().ReadGroupInfo()
+		if info.MaxIndex-info.MinIndex+1 >= targetFiles {
+			break
+		}
+	}
+	info := wal.Group().ReadGroupInfo()
+	require.GreaterOrEqual(t, info.MaxIndex-info.MinIndex+1, targetFiles,
+		"expected at least %d rotated files", targetFiles)
+
+	gr, found, err := wal.SearchForHeight(2, &WALSearchOptions{
+		IgnoreDataCorruptionErrors: true,
+	})
+	require.NoError(t, err, "searching for a non-existent height must not error")
+	assert.False(t, found, "non-existent height must not be found")
+	require.Nil(t, gr, "reader must be nil when height is not found")
+}
+
 /*
 var initOnce sync.Once
 

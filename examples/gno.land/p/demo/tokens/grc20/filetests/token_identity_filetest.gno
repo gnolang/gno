@@ -37,6 +37,50 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 // Events:
 // [
 //   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
 //     "type": "Transfer",
 //     "attrs": [
 //       {

@@ -209,3 +209,90 @@ func TestCompactBitArrayGetSetIndex(t *testing.T) {
 		}
 	}
 }
+
+// A CompactBitArray is decoded straight out of an untrusted transaction
+// signature, so neither of the two properties ValidateBasic establishes holds
+// for free: Size() is computed from ExtraBitsStored without reference to how
+// many bytes Elems actually holds, and the bits past Size() are never read.
+func TestValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		bA      *CompactBitArray
+		wantErr string
+	}{
+		{"nil", nil, ""},
+		{"empty", &CompactBitArray{}, ""},
+		{"full final byte", &CompactBitArray{ExtraBitsStored: 0, Elems: []byte{0xff}}, ""},
+		{"partial final byte", &CompactBitArray{ExtraBitsStored: 3, Elems: []byte{0b1110_0000}}, ""},
+		{
+			// Size() would be 8 here, the same as ExtraBitsStored 0 over the
+			// same byte: a second encoding of one bit array.
+			"extra bits stored a full byte",
+			&CompactBitArray{ExtraBitsStored: 8, Elems: []byte{0x00}},
+			"extra bits stored is 8, want less than 8",
+		},
+		{
+			// Size() would be 9, over the single byte stored.
+			"extra bits stored past the elements",
+			&CompactBitArray{ExtraBitsStored: 9, Elems: []byte{0x00}},
+			"extra bits stored is 9, want less than 8",
+		},
+		{
+			// Size() would be 1-8 == -7.
+			"extra bits stored with no elements",
+			&CompactBitArray{ExtraBitsStored: 1},
+			"1 extra bits stored with no elements",
+		},
+		{
+			"bits set past the end",
+			&CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1000_0001}},
+			"bits set past the end of the array",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tt.bA.ValidateBasic()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+// Everything NewCompactBitArray and SetIndex produce validates, whatever the
+// size: rejecting a bit array a signer can actually build would reject the
+// signature carrying it.
+func TestValidateBasicAcceptsConstructedArrays(t *testing.T) {
+	t.Parallel()
+
+	for bits := 1; bits <= 64; bits++ {
+		bA := NewCompactBitArray(bits)
+		for i := range bits {
+			bA.SetIndex(i, i%3 == 0)
+		}
+		require.NoError(t, bA.ValidateBasic(), "%d bits", bits)
+	}
+}
+
+// The invariant the ExtraBitsStored clauses exist for: an array that validates
+// can be walked all the way to Size() without GetIndex indexing past Elems.
+func TestValidateBasicBoundsTheWalk(t *testing.T) {
+	t.Parallel()
+
+	for extra := range byte(16) {
+		for elems := range 3 {
+			bA := &CompactBitArray{ExtraBitsStored: extra, Elems: make([]byte, elems)}
+			if bA.ValidateBasic() != nil {
+				continue
+			}
+			require.NotPanics(t, func() { bA.NumTrueBitsBefore(bA.Size()) },
+				"extra bits stored %d over %d elements reports size %d", extra, elems, bA.Size())
+		}
+	}
+}

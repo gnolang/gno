@@ -316,3 +316,39 @@ func srcGenesisWithParams(p vm.Params) *bftypes.GenesisDoc {
 		},
 	}
 }
+
+// TestBuildHardforkGenesis_LeavesTheSubmissionChargeUnset guards a property the
+// inert submission charge depends on: a fork must not levy a charge the source
+// chain never collected.
+//
+// The charge is a coin transfer taken at MsgAddPackage. Replay re-executes the
+// source chain's history, so if a fork's genesis carried a charge that the
+// source did not, every replayed submission would be billed for something that
+// never happened -- and a creator who cannot cover it fails a transaction that
+// succeeded originally. Balances would then differ from the source chain with
+// nothing to show why.
+//
+// Empty-by-default is what prevents that, and it only holds while nothing fills
+// the field in. This test exists because the obvious change is to add one: the
+// gas params right above it are defaulted here, and doing the same for a new
+// field looks like consistency rather than a balance bug.
+func TestBuildHardforkGenesis_LeavesTheSubmissionChargeUnset(t *testing.T) {
+	t.Parallel()
+
+	// A source chain that predates the charge: the field simply is not there.
+	src := srcGenesisWithParams(vm.Params{
+		SysNamesPkgPath:     "gno.land/r/sys/names",
+		ChainDomain:         "gno.land",
+		DefaultDeposit:      "600000000ugnot",
+		StoragePrice:        "100ugnot",
+		StorageFeeCollector: crypto.AddressFromPreimage([]byte("storage_fee_collector")),
+	})
+
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	require.NotNil(t, appState)
+
+	assert.Empty(t, appState.VM.Params.InertSubmissionCharge,
+		"a fork must inherit no charge from a source chain that had none; "+
+			"filling it here bills replayed history for something it never paid")
+}

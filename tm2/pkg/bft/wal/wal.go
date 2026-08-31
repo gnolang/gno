@@ -312,7 +312,12 @@ OUTER_LOOP:
 				continue OUTER_LOOP
 			}
 			if index < minVal {
-				panic("should not happen")
+				wal.Logger.Info("Converting to binary search (index < min)",
+					"height", height, "min", minVal, "max", maxVal, "backoff", backoff)
+				idxoff = 0
+				backoff = 0
+				mode = WALSearchModeBinary
+				continue OUTER_LOOP
 			}
 		case WALSearchModeBinary:
 			index = (minVal+maxVal+1)/2 + idxoff

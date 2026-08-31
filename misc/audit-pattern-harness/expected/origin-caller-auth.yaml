@@ -1,0 +1,12 @@
+id: origin-caller-auth
+title: OriginCaller used as authorization identity
+rule: origin_caller_auth
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/origin-caller-auth/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/origin-caller-auth/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0

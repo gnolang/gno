@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -395,5 +396,149 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)
 		})
+	}
+}
+
+// TestMapKeyGasContract pins the two-sided ComputeMapKey gas contract
+// around map keys, against an explicit reference cost:
+//
+//	reference = Σ ComputeMapKey(key_i)  — the pure key-hash cost of the
+//	            keys, by definition (measured once, directly).
+//
+//	1. Restore: rebuilding a decoded map's vmap (loadObjectSafe →
+//	   fillTypesOfValue) must charge exactly the reference — one
+//	   ComputeMapKey per entry, and nothing else. A stray charge
+//	   creeping into the fill walk fails here.
+//	2. Write: inserting the same keys via GetPointerForKey (nil alloc,
+//	   so allocation gas is deliberately out of scope) must also charge
+//	   exactly the reference. An extra charge on the write path fails
+//	   here.
+//
+// If a future (deliberate, symmetric) charge is added to these paths,
+// update the reference computation; the final write==restore assertion
+// is the durable invariant and must never need touching.
+//
+// Scope notes: keys are in-memory primitives, so neither side touches
+// the store (no amino gas can leak in). The VM-level write path above
+// GetPointerForKey (GetPointerAtIndex, i.e. `m[k] = v` in gno code) is
+// pinned end-to-end by the compute_map_key_restore_gas txtar; the
+// nil-meter case (genesis, tools) must not panic and must still
+// rebuild.
+func TestMapKeyGasContract(t *testing.T) {
+	const n = 5
+	ds := NewStore(NewAllocator(1<<30), nil, nil)
+
+	// A MapValue as it looks right after amino decode: entries present
+	// in List, vmap not yet rebuilt.
+	newDecodedMap := func() *MapValue {
+		mv := &MapValue{List: &MapList{}}
+		for i := range n {
+			item := mv.List.Append(nil, typedInt(i))
+			item.Value = typedString("v")
+		}
+		return mv
+	}
+
+	// Reference: the pure key-hash cost of the n keys.
+	//
+	// If you deliberately added a new charge to the restore or write
+	// path and the reference assertions below went red: extend THIS
+	// block so the reference includes the new charge. Leave the final
+	// write==restore symmetry assertion untouched — if that one is red,
+	// the two paths diverged, which is a bug.
+	gmRef := storetypes.NewGasMeter(1 << 30)
+	for i := range n {
+		k := typedInt(i)
+		_, isNaN := k.ComputeMapKey(gmRef, ds, false)
+		require.False(t, isNaN)
+	}
+	reference := gmRef.GasConsumed()
+	require.GreaterOrEqual(t, reference, int64(n*OpCPUComputeMapKey),
+		"sanity: the per-call constant must fire for each key")
+
+	// Contract 1: the restore rebuild charges exactly the reference.
+	gmRestore := storetypes.NewGasMeter(1 << 30)
+	mv := newDecodedMap()
+	fillTypesOfValue(gmRestore, ds, mv)
+	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
+	require.Equal(t, reference, gmRestore.GasConsumed(),
+		"restore must charge one ComputeMapKey per entry and nothing else")
+
+	// Contract 2: the write path charges exactly the reference.
+	gmWrite := storetypes.NewGasMeter(1 << 30)
+	mvWrite := &MapValue{}
+	mvWrite.MakeMap()
+	for i := range n {
+		ptr := mvWrite.GetPointerForKey(nil, gmWrite, ds, typedInt(i))
+		*ptr.TV = typedString("v")
+	}
+	require.Equal(t, reference, gmWrite.GasConsumed(),
+		"write must charge one ComputeMapKey per key and nothing else")
+
+	// The durable invariant: write and restore charge the same, whatever
+	// the composition. Redundant while both equal the reference above;
+	// load-bearing if a future (deliberate, symmetric) charge is added
+	// and the reference pins are updated.
+	require.Equal(t, gmRestore.GasConsumed(), gmWrite.GasConsumed(),
+		"write/restore symmetry must hold regardless of charge composition")
+
+	// nil meter: must not panic and must still rebuild.
+	mv2 := newDecodedMap()
+	fillTypesOfValue(nil, ds, mv2)
+	require.Len(t, mv2.vmap, n)
+}
+
+// cap(Block.Values) is charged by (*Block).GetShallowSize, so the growth
+// policy is consensus-visible: it must stay a pure function of the requested
+// size, never Go's growslice. Pin the exact capacities.
+func TestGrowBlockValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		oldCap   int
+		numNames int
+		wantCap  int
+	}{
+		{"empty to zero", 0, 0, 0},
+		{"empty to one", 0, 1, 1},
+		{"doubling from nil", 0, 3, 4},
+		{"doubling to pool cap", 0, 14, 16},
+		{"grow within capacity", 32, 20, 32},
+		{"exact fit is not grown", 8, 8, 8},
+		{"doubling stops at threshold", 0, 512, 512},
+		// Past the threshold: fixed increments, not another doubling.
+		{"first step past threshold", 0, 513, 768},
+		{"one step covers 600", 0, 600, 768},
+		{"two steps cover 800", 0, 800, 1024},
+		{"stepping from a large cap", 1024, 1100, 1280},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			old := make([]TypedValue, tt.oldCap)
+			got := growBlockValues(old, tt.numNames)
+			assert.Len(t, got, tt.numNames, "length")
+			assert.Equal(t, tt.wantCap, cap(got), "capacity")
+		})
+	}
+}
+
+// Growing must preserve existing slots and zero the new ones.
+func TestGrowBlockValuesPreservesContents(t *testing.T) {
+	t.Parallel()
+
+	old := make([]TypedValue, 3)
+	for i := range old {
+		old[i] = TypedValue{T: IntType}
+		old[i].SetInt(int64(i + 1))
+	}
+	got := growBlockValues(old, 10)
+	require.Len(t, got, 10)
+	for i := range 3 {
+		assert.Equal(t, int64(i+1), got[i].GetInt(), "slot %d preserved", i)
+	}
+	for i := 3; i < 10; i++ {
+		assert.Zero(t, got[i], "slot %d zeroed", i)
 	}
 }

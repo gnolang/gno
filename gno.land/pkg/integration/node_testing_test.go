@@ -1,8 +1,12 @@
 package integration
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
@@ -71,4 +75,71 @@ func TestGenerateTestingGenesisState(t *testing.T) {
 			assert.Equal(t, expectedPkg, *msg.Package, "package mismatch in tx %d", i)
 		}
 	})
+}
+
+// TestGenesisParamsReachTheHarness guards a silent trap in the txtar harness.
+//
+// gnolandCmd merges a script's genesis into the base config by copying named
+// fields. LoadGenesisParamsFile writes vm params in from
+// gno.land/genesis/genesis_params.toml, so a field the loader sets but the merge
+// does not copy is silently replaced by the default -- a txtar test would pass
+// while a real chain, which reads the file directly, used a different value.
+//
+// The loader rejects an unknown key, so the file cannot drift ahead of the
+// loader. This closes the other half: the loader cannot drift ahead of the
+// merge. Written by diffing a loaded state against a pristine default, so a
+// newly handled param shows up here on its own rather than needing to be
+// remembered.
+func TestGenesisParamsReachTheHarness(t *testing.T) {
+	t.Parallel()
+
+	// Fields gnolandCmd copies out of the script genesis into the base config.
+	// Keep in step with the merge in testscript_gnoland.go.
+	carried := map[string]bool{
+		"ChainDomain":     true,
+		"SysNamesPkgPath": true,
+		"RunSubmitters":   true,
+	}
+
+	// A params file whose vm values are deliberately NOT the defaults. Diffing
+	// against the defaults then names exactly the fields the loader writes --
+	// which a file that happens to match the defaults could never reveal.
+	dir := t.TempDir()
+	paramFile := filepath.Join(dir, "genesis_params.toml")
+	require.NoError(t, os.WriteFile(paramFile, []byte(`["vm"]
+  chain_domain = "example.test"
+  sysnames_pkgpath = "gno.land/r/sys/othernames"
+`), 0o600))
+
+	loaded := gnoland.DefaultGenState()
+	require.NoError(t, gnoland.LoadGenesisParamsFile(paramFile, &loaded))
+
+	base := gnoland.DefaultGenState()
+	for _, name := range changedParamFields(t, base.VM.Params, loaded.VM.Params) {
+		assert.True(t, carried[name],
+			"genesis_params.toml can set VM.Params.%s, but gnolandCmd does not "+
+				"carry it into the harness genesis -- txtar tests would silently "+
+				"use the default while a real chain used the file's value", name)
+	}
+}
+
+// changedParamFields names the exported fields that differ between two Params.
+func changedParamFields(t *testing.T, a, b vm.Params) []string {
+	t.Helper()
+
+	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	var out []string
+	for i := 0; i < va.NumField(); i++ {
+		name := va.Type().Field(i).Name
+		if !va.Field(i).CanInterface() {
+			continue
+		}
+		if !reflect.DeepEqual(va.Field(i).Interface(), vb.Field(i).Interface()) {
+			out = append(out, name)
+		}
+	}
+	require.NotEmpty(t, out,
+		"the fixture must set something different from the defaults, or this "+
+			"test proves nothing")
+	return out
 }

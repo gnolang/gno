@@ -108,7 +108,7 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 			if len(archive.Files) == 1 {
 				// Nothing expected, log generated output and
 				// mark the test as fail
-				require.Fail(t, "file need to be updated with `go test -update-golden-files`")
+				require.Fail(t, "file needs to be updated with `go test -update-golden-tests`")
 			}
 
 			// Ultimatly compare generated output with expected output

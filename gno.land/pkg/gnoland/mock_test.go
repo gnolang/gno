@@ -137,7 +137,15 @@ func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
-type mockBankKeeper struct{}
+type mockBankKeeper struct {
+	recomputeSupplyCalls int
+	setCoinsCalls        int
+	// setCoinsAtRecompute is how many balances had been written when the supply was
+	// recomputed. SetCoins does not maintain the counter, so a recompute that runs
+	// before the balance loop leaves a fresh chain with balances and no supply
+	// record — a call count alone cannot tell the two orders apart.
+	setCoinsAtRecompute int
+}
 
 func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
 	return nil
@@ -151,23 +159,45 @@ func (m *mockBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.
 	return nil
 }
 
-func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
-func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
 func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
 func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
 func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
 func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.setCoinsCalls++
 	return nil
 }
 
 func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	return true
+}
+
+func (m *mockBankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {
+	m.recomputeSupplyCalls++
+	m.setCoinsAtRecompute = m.setCoinsCalls
+}
+
+func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
+	return 0
+}
+
+func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	return 0
 }
 
 type mockAuthKeeper struct{}

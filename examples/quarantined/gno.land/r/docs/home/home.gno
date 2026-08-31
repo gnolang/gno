@@ -47,6 +47,7 @@ Explore various examples to learn more about Gno functionality and usage.
 ## Advanced Topics
 - [Emitting Gno Events](/r/docs/events) - Emit Gno Events to make life off-chain easier.
 - [Private Realms](/r/docs/private) - Documentation for private realms in Gno.
+- [Security Patterns](/r/docs/security_patterns) - Compact examples for authenticated mutators and safe Render output.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
 
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->

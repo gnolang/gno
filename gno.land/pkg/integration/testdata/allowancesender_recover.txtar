@@ -110,6 +110,9 @@ import (
 
 // GrantAndStoreWithRecover wraps defer Close() in a recover.
 func GrantAndStoreWithRecover(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
@@ -133,6 +136,9 @@ func GrantAndStoreWithRecover(cur realm) {
 // no recover wrapper. Used to isolate whether the closure-wrap is what
 // changes behavior.
 func GrantAndStoreDirect(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),

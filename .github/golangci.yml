@@ -91,6 +91,9 @@ linters:
       - builtin$
       - examples$
       - gnovm/pkg/parser/
+      # Fork of go-toml v1, kept close to upstream so it stays diffable
+      # against it. Same rationale as gnovm/pkg/parser above.
+      - tm2/pkg/toml/
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -111,3 +114,5 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      # See the note on this path under linters.exclusions.paths.
+      - tm2/pkg/toml/

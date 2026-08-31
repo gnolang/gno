@@ -28,7 +28,10 @@ stdout OK!
 
 # Check that proposal was rejected
 gnokey query vm/qeval --data "gno.land/r/gov/dao.Render(\"0\")"
-stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: Boom!'
+# The reason is rendered through sanitize.InlineText, so markdown punctuation
+# arrives backslash-escaped ("Boom\!"). A backslash-escaped punctuation mark
+# displays as the bare character, so a reader still sees "Boom!".
+stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: Boom\\\\!'
 
 -- run/init_govdao_members.gno --
 package main

@@ -6,4 +6,4 @@ https://safe.com\r\nattack
 -- output.md --
 https://safe.com%0D%0Aattack
 -- output.html --
-<p><!-- invalid link --></p>
+<p><!-- invalid link -->click</p>

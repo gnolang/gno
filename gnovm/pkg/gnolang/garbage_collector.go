@@ -97,6 +97,17 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Account for blocks parked in the per-machine pool. They are dead from
+	// the program's perspective, but the machine pins each one for reuse — a
+	// Block plus its capacity-retained Values backing array — so the alloc
+	// tally must include them; otherwise recycling a block would appear to
+	// free memory that is in fact still held. Pooled blocks are zeroed and
+	// reference nothing else, so count them directly (by capacity, the real
+	// retained footprint) rather than walking them.
+	for _, b := range m.blockPool {
+		m.Alloc.Recount(allocBlock + allocBlockItem*int64(cap(b.Values)))
+	}
+
 	// Visit frames
 	for _, frame := range m.Frames {
 		stop := frame.Visit(m.Alloc, vis)
@@ -142,6 +153,21 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 				return -1, false
 			}
 			e = e.Next
+		}
+	}
+
+	if debugAssert {
+		// Recycle-safety invariant: a pooled (released) block must be
+		// unreachable, so this recount must never visit one. Released blocks
+		// are zeroed (LastGCCycle == 0); the visitor stamps the current cycle
+		// on every object it reaches. So a pooled block carrying the current
+		// cycle was reached — i.e. some live reference outlived its pop (the
+		// hazard that removing Defer.Parent eliminated). Reference-path
+		// agnostic: fires for any future regression that re-pins a dead block.
+		for _, b := range m.blockPool {
+			if b.GetLastGCCycle() == m.GCCycle {
+				panic("GarbageCollect: recount reached a pooled block — a popped block is still GC-reachable (recycle-safety invariant violated)")
+			}
 		}
 	}
 
@@ -494,13 +520,6 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 			if stop {
 				return
 			}
-		}
-
-		if dfr.Parent != nil {
-			stop = vis(dfr.Parent)
-		}
-		if stop {
-			return
 		}
 	}
 

@@ -3,12 +3,24 @@
 name: deploy / pages
 
 on:
+  # No path filter on push: this is what actually publishes gh-pages.
   push:
     branches:
       - master
+  # On pull requests the `deploy` job and the artifact upload are skipped
+  # (see the `if:` conditions below), so `build` only proves the generators
+  # still work. Restrict it to what they read.
   pull_request:
     branches:
       - master
+    paths:
+      - .github/workflows/deploy-pages.yml
+      - misc/gendocs/**
+      - misc/stdlib_diff/**
+      - gnovm/stdlibs/**
+      - '**/*.go'
+      - go.mod
+      - go.sum
   workflow_dispatch:
 
 permissions:

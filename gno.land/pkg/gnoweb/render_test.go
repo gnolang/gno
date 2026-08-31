@@ -95,6 +95,21 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	assert.NotNil(t, toc)
 }
 
+func TestRenderRealm_ForeignBudgetResetsPerCall(t *testing.T) {
+	r := newTestRenderer()
+	var src strings.Builder
+	for range md.MaxGnoForeignBlocksPerConvert {
+		src.WriteString("\n\n<gno-foreign>\nok\n</gno-foreign>\n")
+	}
+	u := &weburl.GnoURL{Path: "/r/test"}
+	for i := range 2 {
+		var out bytes.Buffer
+		_, err := r.RenderRealm(&out, u, []byte(src.String()), RealmRenderContext{})
+		require.NoError(t, err)
+		assert.Equal(t, md.MaxGnoForeignBlocksPerConvert, strings.Count(out.String(), `class="gno-foreign"`), "render %d", i+1)
+	}
+}
+
 func TestRenderRealm_OverSizeCapServesEscapedPlainText(t *testing.T) {
 	r := newTestRenderer()
 	// > 1 MiB. If goldmark ran, output would contain <h1>; if the raw bytes were

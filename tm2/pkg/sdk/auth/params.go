@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -99,6 +100,18 @@ func (p Params) Validate() error {
 	}
 	if p.TxSigLimit <= 0 {
 		return fmt.Errorf("invalid tx signature limit: %d", p.TxSigLimit)
+	}
+	// TxSigLimit bounds the leaves a transaction may present; multisig's
+	// MaxTotalKeys bounds the whole key, and is a compile-time constant this
+	// parameter cannot raise. A key spending L leaves and branching at every
+	// level is L leaves plus at most L-1 threshold keys above them, so a limit
+	// past that admits keys the signature check then rejects with
+	// ErrInvalidPubKey — a shape the chain's own limit permits and its verifier
+	// refuses. Reject the desynchronised parameter rather than the keys.
+	if maxLeaves := int64((multisig.MaxTotalKeys + 1) / 2); p.TxSigLimit > maxLeaves {
+		return fmt.Errorf(
+			"invalid tx signature limit: %d exceeds %d, the most leaves multisig.MaxTotalKeys (%d) admits",
+			p.TxSigLimit, maxLeaves, multisig.MaxTotalKeys)
 	}
 	if p.SigVerifyCostED25519 <= 0 {
 		return fmt.Errorf("invalid ED25519 signature verification cost: %d", p.SigVerifyCostED25519)

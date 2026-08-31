@@ -1,0 +1,14 @@
+{
+  "reason": "post-replay T1 rotation: swap sole T1 from manfred (gnoland1 inherit) to the test-13 T1 multisig via the single-use rotate realm; Rotate self-ejects from AllowedDAOs after the swap.",
+  "kind": "MsgCall",
+  "caller_key": "GenesisDeployer",
+  "caller_override": "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh",
+  "pkgpath": "gno.land/r/test13/rotate",
+  "func": "Rotate",
+  "args": [],
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "block_height": "0"
+}

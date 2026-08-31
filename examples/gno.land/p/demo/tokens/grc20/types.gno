@@ -91,6 +91,9 @@ type Token struct {
 	decimals int
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
+	// origRealm is the PkgPath of the realm that created the token, captured
+	// unforgeably in NewToken. A frame-relative teller only works there.
+	origRealm string
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the
@@ -121,6 +124,7 @@ var (
 	ErrMintOverflow          = errors.New("mint overflow")
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
+	ErrForeignCallerTeller   = errors.New("caller teller is confined to the token's own realm")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -140,6 +144,7 @@ const (
 )
 
 const (
+	NewTokenEvent = "NewToken"
 	MintEvent     = "Mint"
 	BurnEvent     = "Burn"
 	TransferEvent = "Transfer"
@@ -148,6 +153,11 @@ const (
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
+	// homeGuard marks a frame-relative teller (PrivateLedger.CallerTeller),
+	// whose actor is resolved from the invoking frame. Such a teller is only
+	// meaningful in the token's own realm and is refused anywhere else, so
+	// exporting the value cannot hand out a spend capability.
+	homeGuard bool
 	*Token
 }
 

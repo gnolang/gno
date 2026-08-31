@@ -1,0 +1,278 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+// verifyOneCmdName is the subcommand the daemon re-invokes itself with to
+// verify a single package.
+//
+// The indirection buys the one thing a goroutine cannot give: a budget that is
+// ENFORCED rather than merely observed. Go cannot kill a goroutine, so an
+// in-process deadline can only abandon the work — which leaves it running,
+// still consuming the CPU the budget was meant to bound, and still mutating
+// stores the next attempt reads. A process can be killed.
+//
+// Three further properties come from the boundary rather than from code:
+// per-attempt isolation (each child builds its own stores, so nothing survives
+// to be raced), crash containment (the typechecker and preprocessor report
+// errors by panicking, and a native-code crash or OOM would otherwise take the
+// daemon with it), and responsive shutdown.
+//
+// The cost is a process spawn plus a store build per candidate. For a daemon
+// whose entire job is deciding whether a package compiles quickly, that is the
+// right trade.
+const verifyOneCmdName = "verify-one"
+
+// verifyOneConfig is the child's configuration: only what verification needs.
+// No signer, no keystore — a child cannot approve anything, so the approver key
+// never enters the process that compiles untrusted code.
+type verifyOneConfig struct {
+	gnoRoot string
+	remote  string
+}
+
+func (c *verifyOneConfig) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(&c.gnoRoot, "gno-root", "", "gno repository root")
+	fs.StringVar(&c.remote, "remote", "", "RPC address, for resolving on-chain-only imports")
+}
+
+func newVerifyOneCmd(io commands.IO) *commands.Command {
+	cfg := &verifyOneConfig{}
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       verifyOneCmdName,
+			ShortUsage: verifyOneCmdName + " [flags]",
+			ShortHelp:  "verify one package read from stdin (used internally)",
+			// Inherit nothing. AddSubCommands copies the parent's flags onto a
+			// subcommand by default, which both collides with the two declared
+			// below and would drag in the signing flags — and a verifier must
+			// not have those: it handles untrusted input and cannot approve
+			// anything, so the approver key has no business in its process.
+			NoParentFlags: true,
+			LongHelp: "Reads an amino-JSON MemPackage from stdin, type-checks and preprocesses " +
+				"it, and exits zero if it passes or non-zero with the reason on stderr. gpao " +
+				"invokes this on itself so that the verification budget can be enforced by " +
+				"killing the process; it is not meant to be run by hand.",
+		},
+		cfg,
+		func(ctx context.Context, _ []string) error {
+			return execVerifyOne(ctx, cfg, io)
+		},
+	)
+}
+
+func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) error {
+	raw, err := io.ReadAll(cio.In())
+	if err != nil {
+		return fmt.Errorf("read stdin: %w", err)
+	}
+	var mpkg std.MemPackage
+	if err := amino.UnmarshalJSON(raw, &mpkg); err != nil {
+		return fmt.Errorf("decode mempackage: %w", err)
+	}
+	// Restate Type, which arrives nil — and load-bearing, not defensive.
+	//
+	// Not a codec problem: amino JSON does carry Type, as a typed Any. It is
+	// nil because NewMsgAddPackage never sets it, so it was never in the tx;
+	// the keeper restates it server-side for the same reason. And it IS read —
+	// GoParseMemPackage asserts on it unchecked, so nil panics rather than
+	// defaulting.
+	//
+	// MPUserAll, matching what AddPackage stamps on the stored package and
+	// therefore what EnablePackage reads back. Not MPUserProd: a submitted
+	// package legitimately contains _test.gno files, and MPUserProd rejects
+	// them outright in AddMemPackage's validation — which would make this
+	// oracle refuse nearly every real package and report it to the operator as
+	// bad code. Restricting to production files is the type-check's job below
+	// (ProdOnly), not the package type's.
+	mpkg.Type = gno.MPUserAll
+
+	v, err := newVerifier(cfg.gnoRoot, cfg.remote, cio.Err())
+	if err != nil {
+		return err
+	}
+	return v.verifyPackage(&mpkg)
+}
+
+// verify runs one verification in a child process, killed if it outlasts the
+// budget.
+//
+// This is the oracle's actual job. The chain re-runs both the type-check and
+// the preprocess at MsgEnablePackage time and cannot bound how long they take —
+// wall-clock is not a consensus quantity — so a correctness-only oracle
+// contributes nothing the chain does not already do for itself. "This finishes
+// quickly" is the claim only an off-chain actor can make, and it is what gates
+// approval here.
+//
+// Exit status is the verdict: clean exit passes, non-zero exit is a rejection
+// carrying the child's stderr as the reason, and a deadline is errVerifyBudget,
+// which upstream treats as "no verdict yet" rather than as a rejection. That
+// distinction matters — a rejected package is settled, a slow one may just have
+// lost a race with whatever else the machine was doing.
+func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot locate own binary to spawn a verifier: %w", err)
+	}
+	payload, err := amino.MarshalJSON(mpkg)
+	if err != nil {
+		return fmt.Errorf("encode mempackage: %w", err)
+	}
+
+	// The timeout is on the CHILD's context, so expiry kills the process rather
+	// than merely returning from the wait and leaving it running.
+	runCtx, cancel := context.WithTimeout(ctx, o.cfg.verifyBudget)
+	defer cancel()
+
+	args := []string{verifyOneCmdName, "-gno-root", o.cfg.gnoRoot}
+	if o.cfg.remote != "" {
+		args = append(args, "-remote", o.cfg.remote)
+	}
+	cmd := exec.CommandContext(runCtx, self, args...)
+	cmd.Stdin = bytes.NewReader(payload)
+	// Tee, don't capture. The buffer supplies the rejection reason on a
+	// non-zero exit, but the child also writes advisory notes on the SUCCESS
+	// path -- notably "preprocess NOT measured" when an import cannot be
+	// resolved -- and capturing alone silently dropped every one of those.
+	// Bounded. Volume here is attacker-influenced: go/types is given an error
+	// handler with no cap, so a package crafted to emit many errors would
+	// otherwise be buffered in full and mirrored verbatim into the operator's
+	// log. The reason for a rejection is in the first few KB.
+	stderr := &boundedBuffer{limit: maxChildStderr}
+	cmd.Stderr = io.Writer(stderr)
+	if w := o.io.Err(); w != nil {
+		// Guarded: commands.NewTestIO leaves Err nil, and MultiWriter over a
+		// nil writer segfaults inside exec's copier goroutine rather than
+		// anywhere near here.
+		cmd.Stderr = io.MultiWriter(stderr, w)
+	}
+	// Stdout left nil on purpose: exec wires nil to os.DevNull, whereas any
+	// non-*os.File writer costs a pipe and a copying goroutine per candidate.
+
+	// Explicit env, so the invariant this file claims is actually true: the
+	// process that compiles untrusted code does not hold the approver's key
+	// material. Inheriting the parent's environment handed it $GPAO_MNEMONIC and
+	// $GPAO_PASSWORD. Nothing in the child reads them, so this is
+	// defence-in-depth -- but the comment above promised it and the code did not
+	// deliver it. GNOROOT and HOME are kept because the type-checker resolves
+	// stdlib paths through them.
+	cmd.Env = childEnv()
+
+	// If the parent's stderr is a blocked pipe -- `gpao | head`, a full
+	// supervisor log -- Run waits on the copier goroutine as well as the
+	// process, so the call could outlast the budget even though the child was
+	// already killed. WaitDelay bounds that tail.
+	cmd.WaitDelay = 5 * time.Second
+
+	runErr := cmd.Run()
+
+	// A clean exit is unambiguous, so it is checked first. Checking the deadline
+	// ahead of it would report a pass that landed just as the timer fired as an
+	// overrun, and count it against the per-path budget allowance.
+	if runErr == nil {
+		return nil
+	}
+
+	// Then the deadline: a killed child also exits non-zero, and reading that as
+	// a rejection would permanently settle a package that was only slow.
+	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("%w: exceeded %s and was killed",
+			errVerifyBudget, o.cfg.verifyBudget)
+	}
+	if ctx.Err() != nil {
+		// Parent shutdown, not a verdict about this package.
+		return fmt.Errorf("%w: shutting down", errVerifyBudget)
+	}
+
+	// Only a child that RAN and chose to exit non-zero has judged the package.
+	// Everything else is our own infrastructure failing -- fork hitting EAGAIN or
+	// ENOMEM, the binary having been replaced under us, the OOM killer, a
+	// SIGSEGV inside the type checker -- and treating those as a verdict marks a
+	// perfectly good package permanently rejected, with no path that re-offers
+	// it. Under a brief memory squeeze that condemns a whole queue.
+	// ExitCode() is -1 when the process did not exit normally (signal death),
+	// which is portable where ProcessState.Sys() is not.
+	var ee *exec.ExitError
+	if errors.As(runErr, &ee) && ee.ExitCode() >= 0 {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = runErr.Error()
+		}
+		return errors.New(msg)
+	}
+	return fmt.Errorf("%w: the verifier could not complete, this is not a "+
+		"verdict about the package: %v", errVerifyUnavailable, runErr)
+}
+
+// maxChildStderr bounds what we retain and mirror from a child.
+const maxChildStderr = 16 << 10
+
+// boundedBuffer keeps at most limit bytes and records that it truncated.
+type boundedBuffer struct {
+	buf       bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func (b *boundedBuffer) Write(p []byte) (int, error) {
+	if room := b.limit - b.buf.Len(); room > 0 {
+		if len(p) <= room {
+			b.buf.Write(p)
+		} else {
+			b.buf.Write(p[:room])
+			b.truncated = true
+		}
+	} else if len(p) > 0 {
+		b.truncated = true
+	}
+	// Report the full length: a short write would make exec's copier report an
+	// error, which would then be misread as the child failing.
+	return len(p), nil
+}
+
+func (b *boundedBuffer) String() string {
+	if b.truncated {
+		return b.buf.String() + "\n[truncated]"
+	}
+	return b.buf.String()
+}
+
+// childEnv is the environment the verifier runs with: enough to resolve stdlib
+// paths, and none of the approver's credentials.
+func childEnv() []string {
+	var out []string
+	for _, k := range childEnvAllowed {
+		if v := os.Getenv(k); v != "" {
+			out = append(out, k+"="+v)
+		}
+	}
+	return out
+}
+
+// childEnvAllowed is everything the verifier is given. Notably absent:
+// GPAO_MNEMONIC and GPAO_PASSWORD.
+//
+// GPAO_TEST_SPIN_HEARTBEAT is a test hook -- it puts a child into an endless
+// heartbeat loop so the budget test can prove the process is actually killed
+// rather than merely abandoned. It is listed here rather than left to
+// inheritance so that the allow-list is the single, readable statement of what
+// crosses into the process that compiles untrusted code.
+var childEnvAllowed = []string{
+	"HOME", "GNOROOT", "PATH", "TMPDIR",
+	"GPAO_TEST_SPIN_HEARTBEAT",
+}

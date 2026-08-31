@@ -21,6 +21,17 @@ func BenchmarkCreateNewMachine(b *testing.B) {
 	}
 }
 
+func TestMachineReleaseClearsBlockPool(t *testing.T) {
+	// Gas charging in acquireBlock differs between pool hits and misses, so
+	// consensus safety requires the pool to start empty on every run: a warm
+	// pool carried across Release (machines are reused via machinePool) would
+	// make gas depend on prior machine use.
+	m := NewMachineWithOptions(MachineOptions{})
+	m.blockPool = append(m.blockPool, &Block{Values: make([]TypedValue, 0, blockPoolValueCap)})
+	m.Release()
+	assert.Empty(t, m.blockPool, "Machine.Release must not preserve blockPool")
+}
+
 func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	// A test to check revertToOld is correctly putting back an old value,
 	// after preprocessing fails.

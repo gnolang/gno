@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -18,6 +19,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// The genesis validators below are keyed with mock keys, which have to be
+// encodable for the genesis doc to marshal.
+func init() {
+	mock.UnsafeRegisterAminoPackage()
+}
 
 func TestGenesis_Verify(t *testing.T) {
 	t.Parallel()
@@ -636,4 +643,124 @@ func TestGenesis_Verify(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.Error(t, cmdErr)
 	})
+}
+
+func TestWarnOnImplausibleVestingTimes(t *testing.T) {
+	t.Parallel()
+
+	// A round genesis time keeps the expected dates in the cases readable.
+	genesisTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	addr := crypto.AddressFromPreimage([]byte("vesting-holder"))
+
+	vesting := func(endTime int64) gnoland.Balance {
+		return gnoland.Balance{
+			Address: addr,
+			Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+				StartTime:       genesisTime.Unix(),
+				EndTime:         endTime,
+			},
+		}
+	}
+
+	oneYear := int64(365 * 24 * 60 * 60)
+
+	tests := []struct {
+		name    string
+		balance gnoland.Balance
+		want    string // empty means the balance must produce no warning
+	}{
+		{
+			name:    "a schedule ending a year after genesis is fine",
+			balance: vesting(genesisTime.Unix() + oneYear),
+		},
+		{
+			name:    "a schedule that already ended",
+			balance: vesting(genesisTime.Unix() - 1),
+			want:    "vests fully at genesis",
+		},
+		{
+			name:    "a schedule ending exactly at genesis",
+			balance: vesting(genesisTime.Unix()),
+			want:    "vests fully at genesis",
+		},
+		{
+			// The boundary belongs to the quiet side, so a schedule sitting
+			// exactly on the horizon is not called out.
+			name:    "a schedule ending exactly on the horizon",
+			balance: vesting(genesisTime.Unix() + vestingHorizonSecs),
+		},
+		{
+			name:    "a schedule one second past the horizon",
+			balance: vesting(genesisTime.Unix() + vestingHorizonSecs + 1),
+			want:    "more than 100 years after genesis",
+		},
+		{
+			// Unix seconds written as milliseconds: the shape the horizon exists
+			// to catch. Lands roughly 60,000 years out.
+			name:    "an end time given in milliseconds",
+			balance: vesting((genesisTime.Unix() + oneYear) * 1000),
+			want:    "milliseconds instead of seconds",
+		},
+		{
+			name: "a balance with no vesting schedule is ignored",
+			balance: gnoland.Balance{
+				Address: addr,
+				Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var out bytes.Buffer
+			cio := commands.NewTestIO()
+			cio.SetOut(commands.WriteNopCloser(&out))
+
+			warnOnImplausibleVestingTimes(cio, genesisTime, []gnoland.Balance{tt.balance})
+
+			if tt.want == "" {
+				assert.Empty(t, out.String(), "this schedule must not be called out")
+				return
+			}
+			assert.Contains(t, out.String(), tt.want)
+			assert.Contains(t, out.String(), addr.String(), "the warning must name the address")
+		})
+	}
+}
+
+// Every offending balance is reported, not just the first.
+func TestWarnOnImplausibleVestingTimesReportsEveryBalance(t *testing.T) {
+	t.Parallel()
+
+	genesisTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	first := crypto.AddressFromPreimage([]byte("first-holder"))
+	second := crypto.AddressFromPreimage([]byte("second-holder"))
+
+	balance := func(addr crypto.Address, endTime int64) gnoland.Balance {
+		return gnoland.Balance{
+			Address: addr,
+			Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+				StartTime:       0,
+				EndTime:         endTime,
+			},
+		}
+	}
+
+	var out bytes.Buffer
+	cio := commands.NewTestIO()
+	cio.SetOut(commands.WriteNopCloser(&out))
+
+	warnOnImplausibleVestingTimes(cio, genesisTime, []gnoland.Balance{
+		balance(first, genesisTime.Unix()-1),
+		balance(second, genesisTime.Unix()+vestingHorizonSecs+1),
+	})
+
+	assert.Contains(t, out.String(), first.String())
+	assert.Contains(t, out.String(), second.String())
 }

@@ -279,6 +279,32 @@ func SignAndBroadcastHandler(
 
 	maxGas := resolveMaxGas(maxGasCh, io)
 
+	// Simulation raises GasWanted to consensus maxGas so the estimate is not
+	// clipped by whatever the caller guessed. That changes the sign bytes,
+	// and the chain verifies signatures on the simulate path for some message
+	// types (see auth.AnteOptions.RequireSigForSimulate), so the rewritten tx
+	// gets its own signature rather than carrying one that no longer matches.
+	var simTxBytes []byte
+	if cfg.Simulate != SimulateSkip && txNeedsSimulationSignature(tx) {
+		if simTx, rewritten := txWithGasWanted(&tx, maxGas); rewritten {
+			simTx.Signatures = nil
+			simSig, err := generateSignature(simTx, kb, sOpts, kOpts)
+			if err != nil {
+				return nil, fmt.Errorf("unable to sign simulation transaction: %w", err)
+			}
+			if cfg.Master != "" {
+				simSig.SessionAddr = info.GetAddress()
+			}
+			if err = addSignature(simTx, simSig); err != nil {
+				return nil, fmt.Errorf("unable to add simulation signature: %w", err)
+			}
+			simTxBytes, err = amino.Marshal(simTx)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal simulation transaction: %w", err)
+			}
+		}
+	}
+
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
@@ -287,6 +313,7 @@ func SignAndBroadcastHandler(
 		DryRun:         cfg.Simulate == SimulateOnly,
 		testSimulate:   cfg.Simulate == SimulateTest,
 		simulateMaxGas: maxGas,
+		simTxBytes:     simTxBytes,
 		GasFeeMargin:   cfg.GasFeeMargin,
 	}
 
@@ -353,6 +380,40 @@ func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxC
 type consensusMaxGasResult struct {
 	maxGas int64
 	err    error
+}
+
+// txNeedsSimulationSignature reports whether the chain will verify a signature
+// when this transaction is simulated.
+//
+// Simulating rewrites GasWanted, which invalidates the original signature, so a
+// rewritten transaction needs its own. But signing it is not free: the result is
+// a second, fully valid, broadcastable transaction, and on a hardware wallet it
+// is a second prompt showing a different GasWanted -- which is exactly what
+// trains people to approve without reading. So it is only worth doing when the
+// chain is actually going to check it.
+//
+// gno.land verifies simulate signatures only for messages that hand it source
+// to compile, because those are authorized from a field the caller supplies. For
+// everything else -- a send, an ordinary call -- an unverified simulation is
+// harmless and the extra signature buys nothing.
+//
+// This duplicates a decision that lives on the chain (gno.land wires the
+// predicate into auth.AnteOptions.RequireSigForSimulate), so the two can drift.
+// Matching on route and type rather than importing the message types keeps the
+// coupling to two strings, and drift fails loudly: simulation of a newly-gated
+// message would be refused with a signature error rather than silently doing
+// the wrong thing.
+func txNeedsSimulationSignature(tx std.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		if msg.Route() != "vm" {
+			continue
+		}
+		switch msg.Type() {
+		case "add_package", "run", "enable_package", "disable_package":
+			return true
+		}
+	}
+	return false
 }
 
 func resolveMaxGas(ch chan consensusMaxGasResult, io commands.IO) int64 {

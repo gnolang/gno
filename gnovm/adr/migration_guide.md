@@ -199,7 +199,7 @@ package."* This is true even though the path lives under `/r/`.
 package z_0_a
 ```
 
-This is the pattern used in `r/gnoland/boards2/v1/hub/filetests/`.
+This is the pattern used in `r/gnoland/boards2/v1/filetests/`.
 
 ---
 
