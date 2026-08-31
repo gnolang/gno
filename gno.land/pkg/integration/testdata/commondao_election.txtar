@@ -1,0 +1,73 @@
+# End-to-end contested election against a real node with THREE distinct
+# signing keys. The treasury txtar collapses the council to a single member
+# (one YES = supermajority), so the real node has never seen a genuine
+# multi-key vote. This drives:
+#   - a council-update that adds a third member (supermajority of two),
+#   - a spend DISMISSED by a real majority of NO votes (early termination),
+#   - a spend PASSED by a real supermajority (2 of 3), then executed,
+# with the bank keeper proving the treasury moved only when governance said so.
+
+loadpkg gno.land/r/nt/commondao/v0
+
+# Two extra funded signing keys.
+adduser test2
+adduser test3
+
+# Make the genesis council a real two-member set {test1, test2} (the two
+# hardcoded genesis members map to two distinct accounts).
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test2_user_addr
+
+gnoland start
+
+# --- Grow the council to three via a real council-update (proposal 1) ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateCouncilUpdateProposal -args 1 -args $test3_user_addr -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Both current members vote YES: 2 of 2 is a supermajority, so it passes.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 1 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Fund the genesis DAO treasury (dao/1 derived address) ---
+
+gnokey maketx send -send 1000000ugnot -to g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# --- Contested DISMISSAL: a majority of NO kills the spend (proposal 2) ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 1 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 400000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Two of the three council members vote NO: 2*2 > 3 dismisses immediately.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 2 -args NO -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 2 -args NO -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stdout 'OK!'
+
+# A dismissed proposal cannot be executed, and the treasury is untouched.
+! gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+gnokey query bank/balances/g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62
+stdout '1000000ugnot'
+
+# --- Contested PASS: a real supermajority (2 of 3) carries the spend (proposal 3) ---
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func CreateTreasurySpendProposal -args 1 -args g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2 -args ugnot -args 400000 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 3 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Vote -args 1 -args 3 -args YES -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test2
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Execute -args 1 -args 3 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The bank keeper moved exactly the passed amount.
+gnokey query bank/balances/g1ga5crhl6ttkv8d8wjkrj4qm4f7gskdfeza4d62
+stdout '600000ugnot'
+gnokey query bank/balances/g1qjnm0dpkcze233rljaqffny3eel3wt6wn4lql2
+stdout '400000ugnot'

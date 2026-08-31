@@ -30,6 +30,14 @@ import (
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
+//
+// Every successful call emits a NewToken event carrying the resulting
+// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
+// Token can come into existence, so this event makes token creation fully
+// observable: an indexer that sees the same Token.ID() announced twice knows the
+// realm built two independent ledgers behind one identifier, and that every
+// later Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm
+// is emitting untrustworthy events and should be flagged or ignored wholesale.
 func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -47,15 +55,30 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
+	// origRealm drops any realm.Sub subpath: a token created while its realm
+	// operates under a sub identity still belongs to the host realm. guardHome
+	// resolves the invoking host the same way, so storing the raw path here
+	// would pin the token to that sub and lock its own realm out for good.
+	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:       pkgPath + "." + symbol + "." + id.String(),
-		name:     name,
-		symbol:   symbol,
-		decimals: decimals,
-		ledger:   ledger,
+		id:        pkgPath + "." + symbol + "." + id.String(),
+		name:      name,
+		symbol:    symbol,
+		decimals:  decimals,
+		ledger:    ledger,
+		origRealm: origRealm,
 	}
 	ledger.token = token
+
+	chain.Emit(
+		NewTokenEvent,
+		"token", token.id,
+		"name", name,
+		"symbol", symbol,
+		"decimals", strconv.Itoa(decimals),
+	)
+
 	return token, ledger
 }
 
