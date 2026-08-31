@@ -112,17 +112,14 @@ func AccountTierInvariant(view ViewKeeper) sdk.Invariant {
 				extra := ""
 				// Only on the failure path, so it costs nothing when healthy.
 				if stor.Has(nil, BalanceKey(e.Addr, coin.Denom)) {
-					extra = " (it also has a split-tier key: double-homed, so GetCoins would sum both)"
+					extra = " (it also has a split-tier key: double-homed, so GetCoins panics for this address)"
 				}
 				rep.Addf("address %s account object holds %q, which %s%s", e.Addr, coin.Denom, what, extra)
 			}
-			// Vesting schedules are read from the concrete type: the interface's
-			// GetStartTime returns a hardcoded zero for delayed accounts, so a
-			// schedule rebuilt from the getters would be wrong for them.
-			if sched, ok := vestingScheduleOf(e.Account); ok {
-				if err := sched.Validate(); err != nil {
-					rep.Addf("address %s has an invalid vesting schedule: %v", e.Addr, err)
-				}
+			// Every account carries a schedule and almost every one is the zero
+			// value, which Validate accepts and which locks nothing.
+			if err := e.Account.GetVesting().Validate(); err != nil {
+				rep.Addf("address %s has an invalid vesting schedule: %v", e.Addr, err)
 			}
 			return false
 		})
@@ -130,20 +127,6 @@ func AccountTierInvariant(view ViewKeeper) sdk.Invariant {
 			rep.Addf("iteration over accounts failed, so the sweep is incomplete: %v", err)
 		}
 	})
-}
-
-// vestingScheduleOf returns the stored schedule, reading the concrete type rather
-// than the std.VestingAccount interface.
-func vestingScheduleOf(acc std.Account) (std.VestingSchedule, bool) {
-	switch a := acc.(type) {
-	case *std.ContinuousVestingAccount:
-		return a.VestingSchedule, true
-	case *std.DelayedVestingAccount:
-		return a.VestingSchedule, true
-	case *std.BaseVestingAccount:
-		return a.VestingSchedule, true
-	}
-	return std.VestingSchedule{}, false
 }
 
 // SupplyInvariant checks the recorded supply against the balances actually held.
