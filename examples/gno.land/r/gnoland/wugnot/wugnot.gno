@@ -87,17 +87,17 @@ func Allowance(owner, spender address) int64 {
 }
 
 func Transfer(cur realm, to address, amount int64) {
-	userTeller := Token.CallerTeller()
+	userTeller := adm.CallerTeller()
 	checkErr(userTeller.Transfer(0, cur, to, amount))
 }
 
 func Approve(cur realm, spender address, amount int64) {
-	userTeller := Token.CallerTeller()
+	userTeller := adm.CallerTeller()
 	checkErr(userTeller.Approve(0, cur, spender, amount))
 }
 
 func TransferFrom(cur realm, from, to address, amount int64) {
-	userTeller := Token.CallerTeller()
+	userTeller := adm.CallerTeller()
 	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
 }
 

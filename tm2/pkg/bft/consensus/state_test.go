@@ -293,6 +293,53 @@ func TestStateSignAddVoteRefusesConflictingSelfVote(t *testing.T) {
 	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
 }
 
+func TestNilLastCommitWindow(t *testing.T) {
+	cs, _ := randConsensusState(1)
+	require.Nil(t, cs.LastCommit)
+	require.Equal(t, -1, cs.CommitRound)
+
+	// Advance once so the node sits above the initial height.
+	first := cs.state.Copy()
+	first.LastBlockHeight = cs.state.LastBlockHeight + 1
+	cs.updateToState(first)
+	require.Equal(t, int64(2), cs.Height)
+
+	// Stand in for what reconstructLastCommit puts there just before
+	// SwitchToConsensus calls updateToState.
+	cs.LastCommit = types.NewVoteSet(cs.state.ChainID, cs.Height-1, 0, types.PrecommitType, cs.Validators)
+	require.NotNil(t, cs.LastCommit)
+
+	advanced := cs.state.Copy()
+	advanced.LastBlockHeight = cs.state.LastBlockHeight + 1
+	cs.updateToState(advanced)
+
+	assert.Nil(t, cs.LastCommit)
+	assert.Equal(t, cstypes.RoundStepNewHeight, cs.Step)
+	assert.Equal(t, int64(3), cs.Height)
+}
+
+func TestAddVoteRejectsPreviousHeightPrecommitWithoutLastCommit(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	require.Nil(t, cs.LastCommit)
+	require.Equal(t, cstypes.RoundStepNewHeight, cs.Step)
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           cs.Height - 1,
+		Round:            0,
+		ValidatorAddress: cs.Validators.GetProposer().Address,
+		ValidatorIndex:   0,
+		Signature:        []byte("signature"),
+	}
+	require.NoError(t, vote.ValidateBasic())
+
+	added, err := cs.addVote(vote, "test-peer")
+	assert.False(t, added)
+	assert.Equal(t, ErrVoteHeightMismatch, err)
+}
+
 func TestStateBadProposal(t *testing.T) {
 	t.Parallel()
 

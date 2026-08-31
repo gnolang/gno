@@ -2115,9 +2115,14 @@ func Grow(cur realm, s string) {
 	// many orders of magnitude above 1 ugnot.
 	longStr := strings.Repeat("x", 256)
 	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Grow", []string{longStr})
-	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(8000))
+	// Comfortably above the ~29_400ugnot the growth costs. A ceiling below
+	// that refuses the call for want of deposit before the session is ever
+	// consulted, which would leave the spend limit untested.
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
 	_, err := env.vmk.Call(sessionCtx, msg)
 	require.Error(t, err, "storage deposit exceeding session SpendLimit must be rejected")
+	require.Contains(t, err.Error(), "session",
+		"the refusal must come from the spend limit, not the deposit ceiling")
 
 	// Session's SpendUsed unchanged — the check rejected before persisting.
 	reloadedSA := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)
@@ -3475,7 +3480,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, st, 0)
+	marshalTypeJSON(&buf, st, 0, 0)
 	var v any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
 		"output must be valid JSON; got %q", buf.String())
@@ -3487,7 +3492,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	marshalTypeJSON(&buf, gnolang.IntType, 0, 0)
 	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
 	var v any
 	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
