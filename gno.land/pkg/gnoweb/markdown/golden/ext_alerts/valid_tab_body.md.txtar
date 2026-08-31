@@ -1,0 +1,29 @@
+-- input.md --
+> [!NOTE]
+>	tab body
+
+> [!TIP]
+>		indented code in alert
+
+>	plain blockquote tab
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>tab body</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-tip" open>
+<summary>
+<svg><use href="#ico-tip"></use></svg>Tip<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<pre><code>  indented code in alert
+</code></pre>
+</div>
+</details>
+<blockquote>
+<p>plain blockquote tab</p>
+</blockquote>
