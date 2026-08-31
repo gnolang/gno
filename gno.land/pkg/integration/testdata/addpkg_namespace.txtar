@@ -8,7 +8,7 @@ adduser admin
 adduserfrom gui 'relax garment load shy garden video prepare edge churn noodle frequent grass priority half merge honey cousin industry panda forward brand taste village verb'
 stdout 'g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen'
 
-patchpkg "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p" $admin_user_addr # use our custom admin
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $admin_user_addr # use our custom admin
 
 gnoland start
 
