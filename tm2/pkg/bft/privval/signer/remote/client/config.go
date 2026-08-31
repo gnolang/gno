@@ -115,6 +115,7 @@ func NewRemoteSignerClientFromConfig(
 		WithDialRetryInterval(config.DialRetryInterval),
 		WithDialTimeout(config.DialTimeout),
 		WithRequestTimeout(config.RequestTimeout),
+		WithKeepAlivePeriod(config.KeepAlivePeriod),
 	}
 
 	// If authorized keys are set in the config, add them to the options.
