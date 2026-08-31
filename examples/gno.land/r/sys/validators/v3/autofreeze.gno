@@ -33,9 +33,13 @@
 // an operator who rotates while auto-frozen is never restored under a
 // retired pubkey.
 //
-// Still open (see the PR description): N-of-M monitor attestation
-// before a freeze fires, per-monitor rate limiting, and whether
-// evidence should be a structured proof rather than a free-form string.
+// Still open (see the PR description and gno.land/adr/pr5887_*.md):
+// N-of-M monitor attestation before a freeze fires, per-monitor rate
+// limiting, whether evidence should be a structured proof rather than a
+// free-form string, and the absence of a count floor on this path —
+// both bounds here are on POWER, so a skewed roster lets a monitor walk
+// the valset down by count while staying inside the cap
+// (TestAutoFreeze_NoCountFloorOnTheMonitorPath pins that gap).
 package validators
 
 import (
@@ -129,18 +133,16 @@ func AutoFreezeValidator(cur realm, op address, reason, evidence string) {
 		panic("operator is not in the effective valset: " + key)
 	}
 
-	// NOTE: both bounds below are on POWER. There is deliberately no
-	// count backstop here yet, unlike Phase A's assertLivenessFloor —
-	// see the ADR's "Open: no count floor on the monitor path". Adding
-	// Phase A's 2/3-by-count floor collides with the cap on small
-	// rosters, because the only rosters where an auto-freeze fits under
-	// 12% at all are skewed ones, and there the count floor fires first.
-	//
 	// effective already excludes everything held out, so put the roster
 	// back together before measuring against it. Measuring against
 	// livePower alone would let the denominator shrink with every
 	// freeze, eroding the floor one validator at a time.
-	rosterPower := livePower + heldOutPower()
+	//
+	// autoPower is read once: heldOutPower walks autoFrozenSet too, and
+	// the cap below needs the same sum, so recomputing it would walk the
+	// tree three times on the consensus path.
+	autoPower := autoFrozenPower()
+	rosterPower := livePower + frozenPower() + autoPower
 
 	// Invariant 1: power floor.
 	postFreezePower := livePower - power
@@ -152,10 +154,10 @@ func AutoFreezeValidator(cur realm, op address, reason, evidence string) {
 	}
 
 	// Invariant 2: auto-frozen cap.
-	if (autoFrozenPower()+power)*100 > rosterPower*autoCapPct {
+	if (autoPower+power)*100 > rosterPower*autoCapPct {
 		panic(ufmt.Sprintf(
 			"auto-freeze would put %d of %d voting power in auto-freeze, above the %d%% cap",
-			autoFrozenPower()+power, rosterPower, autoCapPct,
+			autoPower+power, rosterPower, autoCapPct,
 		))
 	}
 
@@ -422,9 +424,8 @@ func renderAutoFreeze() string {
 		sb.WriteString("|----------|---------|-------|--------|-----------|------------|\n")
 		autoFrozenSet.Iterate("", "", func(_ string, raw any) bool {
 			e := raw.(autoFrozenEntry)
-			// Reason comes straight from a monitor — an unattended hot key
-			// this realm assumes is stolen. It reaches the table escaped or
-			// a monitor gets to write markdown into r/sys/validators' page.
+			// Escape or a stolen monitor key writes markdown into this
+			// page — the sharpest case of the file-header rule.
 			sb.WriteString(ufmt.Sprintf("| %s | %s | %d | %s | %d | %d |\n",
 				e.Op.String(), e.Monitor.String(), e.Power,
 				sanitize.TableCell(e.Reason), e.FrozenAt, e.ExpiresAt))

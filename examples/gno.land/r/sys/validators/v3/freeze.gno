@@ -445,14 +445,24 @@ func heldOutCount() int {
 	return frozenSet.Size() + autoFrozenSet.Size()
 }
 
-// heldOutPower is the voting power of everything heldOutCount covers.
-func heldOutPower() uint64 {
+// frozenPower is the voting power held out by the manual path.
+//
+// Split out from heldOutPower because AutoFreezeValidator needs the two
+// addends separately: it uses the auto-frozen sum twice, and walking
+// autoFrozenSet once instead of three times is real gas on a consensus
+// path.
+func frozenPower() uint64 {
 	total := uint64(0)
 	frozenSet.Iterate("", "", func(_ string, raw any) bool {
 		total += raw.(frozenEntry).VotingPower
 		return false
 	})
-	return total + autoFrozenPower()
+	return total
+}
+
+// heldOutPower is the voting power of everything heldOutCount covers.
+func heldOutPower() uint64 {
+	return frozenPower() + autoFrozenPower()
 }
 
 // assertLivenessFloor panics unless at least freezeFloorNum/freezeFloorDen

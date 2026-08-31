@@ -438,11 +438,9 @@ func TestRenderAutoFreeze_SanitizesMonitorReason(cur realm, t *testing.T) {
 	})
 	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
 
-	AutoFreezeValidator(cross(cur), opA, "evil | # heading [link](x)", "evidence")
+	AutoFreezeValidator(cross(cur), opA, sanitizeProbe, "evidence")
 
-	out := Render("")
-	uassert.False(t, strings.Contains(out, "evil | #"), "raw reason must not reach the table")
-	uassert.True(t, strings.Contains(out, `evil \| \# heading`), "reason escaped for a table cell")
+	assertProbeEscaped(t, Render(""))
 }
 
 // expireNow rewinds an auto-frozen entry's ExpiresAt to the current
