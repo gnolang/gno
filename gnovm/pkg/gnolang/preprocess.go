@@ -40,6 +40,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	for _, fn := range fset.Files {
 		setNodeLines(fn)
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
+		checkNodeLinesLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
 	index := newPredefineDeclIndex(pn.FileSet)
@@ -762,8 +763,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
 
-	// XXX check node lines and locations
-	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
+	// Verify BlockNode.Location uniqueness (and path match when known).
+	checkPkg, checkFile := "XXXpkgPath", "XXXfileName"
+	if fn, ok := n.(*FileNode); ok {
+		checkPkg = packageOf(ctx).PkgPath
+		checkFile = fn.FileName
+	}
+	checkNodeLinesLocations(checkPkg, checkFile, n)
 
 	// Record package-level initialization order dependencies.
 	// Must run before codaPackageSelectors replaces NameExprs.
@@ -6431,16 +6437,34 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
+	// BlockNode.Location is keyed by (PkgPath, File, Span). Spans that
+	// share Pos+End must differ in Num, otherwise SetBlockNode silently
+	// overwrites and #6060-style TypeIDs collide. nextNum tracks the
+	// next free Num for each Pos+End key in transcription order.
+	type spanKey struct {
+		Pos Pos
+		End Pos
+	}
+	nextNum := map[spanKey]int{}
 	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
 		if bn, ok := n.(BlockNode); ok {
-			// ensure unique location of blocknode.
+			span := bn.GetSpan()
+			key := spanKey{span.Pos, span.End}
+			num := nextNum[key]
+			if span.Num > num {
+				// Node already carries a distinguishing Num (e.g. the
+				// else-if wrapper in Go2Gno); keep it and advance past.
+				num = span.Num
+			}
+			span.Num = num
+			nextNum[key] = num + 1
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
-				Span:    bn.GetSpan(),
+				Span:    span,
 			}
 			bn.SetLocation(loc)
 		}
@@ -6448,11 +6472,39 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 	})
 }
 
-// XXX check node lines, uniqueness of locations,
-// and also check location pkgpath and filename.
-// Even after this is implemented, locations should not be used for logic.
+// checkNodeLinesLocations verifies BlockNode.Location uniqueness (and,
+// when real pkgPath/fileName are supplied, that they match). Callers that
+// still pass the "XXX*" placeholders skip the path checks. Locations
+// should still not be used for logic.
 func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
-	// TODO: XXX
+	seen := map[Location]Node{}
+	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		bn, ok := n.(BlockNode)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		loc := bn.GetLocation()
+		if loc.IsZero() {
+			return n, TRANS_CONTINUE
+		}
+		if pkgPath != "" && pkgPath != "XXXpkgPath" && loc.PkgPath != "" && loc.PkgPath != pkgPath {
+			panic(fmt.Sprintf("unexpected location pkg path: want %q got %q at %T",
+				pkgPath, loc.PkgPath, bn))
+		}
+		if fileName != "" && fileName != "XXXfileName" && loc.File != "" && loc.File != fileName {
+			panic(fmt.Sprintf("unexpected location file: want %q got %q at %T",
+				fileName, loc.File, bn))
+		}
+		if prev, ok := seen[loc]; ok {
+			panic(fmt.Sprintf("duplicate BlockNode.Location %s: %T and %T",
+				loc, prev, bn))
+		}
+		seen[loc] = bn
+		return n, TRANS_CONTINUE
+	})
 }
 
 // ----------------------------------------
