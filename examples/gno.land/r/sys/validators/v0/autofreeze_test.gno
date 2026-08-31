@@ -303,6 +303,71 @@ func TestManualFreeze_FloorCountsAutoFrozenValidators(cur realm, t *testing.T) {
 	})
 }
 
+// An auto-frozen operator is held out by autofreeze.gno, so a valoper
+// proposal must refuse them for exactly the reason it refuses a
+// manually frozen one. Without the guard the add succeeds, the entry
+// survives in autoFrozenSet, and ExpireAutoFrozen later republishes the
+// stale pre-freeze power over whatever GovDAO decided.
+func TestValoperProposal_RejectsAutoFrozenOperator(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":5", pubKeyB + ":50", pubKeyC + ":50",
+	})
+	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
+	AutoFreezeValidator(cross(cur), opA, "auto", "evidence")
+	urequire.True(t, IsAutoFrozen(opA))
+
+	uassert.PanicsContains(t, cur, "is auto-frozen; release the hold", func() {
+		_ = NewValidatorProposalRequest(cur,
+			[]ValoperChange{{OperatorAddress: opA, Power: 42}},
+			"resurrect opA", "")
+	})
+}
+
+func TestValoperProposal_RejectsOperatorAutoFrozenAfterProposalCreated(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":5", pubKeyB + ":50", pubKeyC + ":50",
+	})
+
+	// Proposal created while opA is healthy...
+	executor := newValoperChangeExecutor(cur,
+		[]ValoperChange{{OperatorAddress: opA, Power: 42}})
+
+	// ...a monitor freezes opA before the vote lands.
+	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
+	AutoFreezeValidator(cross(cur), opA, "auto", "evidence")
+
+	uassert.AbortsContains(t, cur, "is auto-frozen at execution", func() {
+		_ = executor.Execute(cross(cur))
+	})
+	uassert.Equal(t, uint64(0), powerByPubKey()[pubKeyA], "opA stays held out")
+}
+
+// Documents the gap the ADR calls out: both monitor-path bounds are on
+// POWER, so a skewed roster lets a monitor walk the valset down by
+// COUNT while staying inside the 12% cap the whole way. Asserted as
+// current behaviour, not as desired behaviour — if a count backstop
+// lands on this path, this test is the one that should flip.
+func TestAutoFreeze_NoCountFloorOnTheMonitorPath(cur realm, t *testing.T) {
+	opA, opB, _ := seedThreeValidators(t)
+	// opC holds almost everything; A and B are dust, so both fit under
+	// the 12% cap together.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":1", pubKeyB + ":1", pubKeyC + ":98",
+	})
+	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
+
+	AutoFreezeValidator(cross(cur), opA, "dust 1", "evidence")
+	AutoFreezeValidator(cross(cur), opB, "dust 2", "evidence")
+
+	// 1 of 3 validators live — a state Phase A's manual path refuses.
+	uassert.Equal(t, 1, len(sysparams.GetValsetEffective()),
+		"monitor walked the valset down to one member, inside both power bounds")
+	uassert.True(t, IsAutoFrozen(opA))
+	uassert.True(t, IsAutoFrozen(opB))
+}
+
 // ---- auth ---------------------------------------------------------------------------------
 
 func TestAutoFreeze_RejectsUnregisteredCaller(cur realm, t *testing.T) {
@@ -361,6 +426,23 @@ func TestRenderAutoFreeze_SilentUntilUsed(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(out, m.String()), "monitor listed")
 	uassert.True(t, strings.Contains(out, "## Auto-Frozen Validators"), "auto-frozen section present")
 	uassert.True(t, strings.Contains(out, "missed blocks"), "reason listed")
+}
+
+// The monitor is assumed compromised, so its reason string is the one
+// place in this realm where a stolen key gets to write text a human
+// reads. It must not get to write markup.
+func TestRenderAutoFreeze_SanitizesMonitorReason(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":10", pubKeyB + ":100", pubKeyC + ":100",
+	})
+	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
+
+	AutoFreezeValidator(cross(cur), opA, "evil | # heading [link](x)", "evidence")
+
+	out := Render("")
+	uassert.False(t, strings.Contains(out, "evil | #"), "raw reason must not reach the table")
+	uassert.True(t, strings.Contains(out, `evil \| \# heading`), "reason escaped for a table cell")
 }
 
 // expireNow rewinds an auto-frozen entry's ExpiresAt to the current
