@@ -411,18 +411,21 @@ func doDropFrozen(op address, reason string) {
 // ---- invariants -------------------------------------------------------------
 
 // heldOutBy names the mechanism currently holding op out of the
-// effective valset, or "" if nothing is. Phase B (autofreeze.gno)
-// widens it to cover auto-frozen entries too.
+// effective valset, or "" if nothing is.
 //
 // Valset-membership changes must refuse a held-out operator. An add
 // would put them back while the held-out entry survives, so the slot
 // has two owners, and the later restore would silently overwrite the
 // power the add set. Exits from a hold go through that hold's own
-// release path (unfreeze, drop, or — in Phase B — expiry), never
-// through a valset proposal.
+// release path (unfreeze, drop, or expiry), never through a valset
+// proposal.
 func heldOutBy(op address) string {
-	if frozenSet.Has(op.String()) {
+	key := op.String()
+	if frozenSet.Has(key) {
 		return "frozen"
+	}
+	if autoFrozenSet.Has(key) {
+		return "auto-frozen"
 	}
 	return ""
 }

@@ -46,6 +46,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
@@ -128,6 +129,13 @@ func AutoFreezeValidator(cur realm, op address, reason, evidence string) {
 		panic("operator is not in the effective valset: " + key)
 	}
 
+	// NOTE: both bounds below are on POWER. There is deliberately no
+	// count backstop here yet, unlike Phase A's assertLivenessFloor —
+	// see the ADR's "Open: no count floor on the monitor path". Adding
+	// Phase A's 2/3-by-count floor collides with the cap on small
+	// rosters, because the only rosters where an auto-freeze fits under
+	// 12% at all are skewed ones, and there the count floor fires first.
+	//
 	// effective already excludes everything held out, so put the roster
 	// back together before measuring against it. Measuring against
 	// livePower alone would let the denominator shrink with every
@@ -414,8 +422,12 @@ func renderAutoFreeze() string {
 		sb.WriteString("|----------|---------|-------|--------|-----------|------------|\n")
 		autoFrozenSet.Iterate("", "", func(_ string, raw any) bool {
 			e := raw.(autoFrozenEntry)
+			// Reason comes straight from a monitor — an unattended hot key
+			// this realm assumes is stolen. It reaches the table escaped or
+			// a monitor gets to write markdown into r/sys/validators' page.
 			sb.WriteString(ufmt.Sprintf("| %s | %s | %d | %s | %d | %d |\n",
-				e.Op.String(), e.Monitor.String(), e.Power, e.Reason, e.FrozenAt, e.ExpiresAt))
+				e.Op.String(), e.Monitor.String(), e.Power,
+				sanitize.TableCell(e.Reason), e.FrozenAt, e.ExpiresAt))
 			return false
 		})
 	}
