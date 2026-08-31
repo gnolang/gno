@@ -1,10 +1,10 @@
 package main
 
-import . "bytes"
+import . "strings"
 
 func main() {
-	println("x")
+	println(HasPrefix("ab", "a"))
 }
 
 // Error:
-// main/import2.gno:3:8-15: dot imports not allowed in gnj
+// main/import2.gno:3:8-19: dot imports not allowed in gno
