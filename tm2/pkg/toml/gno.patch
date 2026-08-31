@@ -1,0 +1,230 @@
+--- doc_test.go
++++ doc_test.go
+@@ -7,7 +7,7 @@
+ 	"log"
+ 	"os"
+ 
+-	toml "github.com/pelletier/go-toml"
++	toml "github.com/gnolang/gno/tm2/pkg/toml"
+ )
+ 
+ func Example_tree() {
+--- keysparsing.go
++++ keysparsing.go
+@@ -104,6 +104,12 @@
+ 	if len(groups) == 0 {
+ 		return nil, fmt.Errorf("empty key")
+ 	}
++	// Exact bound on key-path depth: groups is the parsed path, so a dotted key,
++	// adjacent quoted segments (["a""b""c"] is a.b.c) and a quoted segment
++	// spanning newlines are all counted alike. See maxKeyDepth in parser.go.
++	if len(groups) > maxKeyDepth {
++		return nil, fmt.Errorf("key path depth %d exceeds limit %d", len(groups), maxKeyDepth)
++	}
+ 	return groups, nil
+ }
+ 
+--- lexer.go
++++ lexer.go
+@@ -560,7 +560,7 @@
+ 			l.next()
+ 			str, err := l.lexStringAsString(`"`, false, true)
+ 			if err != nil {
+-				return l.errorf(err.Error())
++				return l.errorf("%s", err.Error())
+ 			}
+ 			sb.WriteString("\"")
+ 			sb.WriteString(str)
+@@ -571,7 +571,7 @@
+ 			l.next()
+ 			str, err := l.lexLiteralStringAsString(`'`, false)
+ 			if err != nil {
+-				return l.errorf(err.Error())
++				return l.errorf("%s", err.Error())
+ 			}
+ 			sb.WriteString("'")
+ 			sb.WriteString(str)
+@@ -678,7 +678,7 @@
+ 
+ 	str, err := l.lexLiteralStringAsString(terminator, discardLeadingNewLine)
+ 	if err != nil {
+-		return l.errorf(err.Error())
++		return l.errorf("%s", err.Error())
+ 	}
+ 
+ 	l.emitWithValue(tokenString, str)
+@@ -815,7 +815,7 @@
+ 
+ 	str, err := l.lexStringAsString(terminator, discardLeadingNewLine, acceptNewLines)
+ 	if err != nil {
+-		return l.errorf(err.Error())
++		return l.errorf("%s", err.Error())
+ 	}
+ 
+ 	l.emitWithValue(tokenString, str)
+--- marshal_test.go
++++ marshal_test.go
+@@ -2976,23 +2976,20 @@
+ 				t.Fatal(err)
+ 			}
+ 
+-			if obj.Date.Year() != example.out.Date.Year {
+-				t.Errorf("expected year %d, got %d", example.out.Date.Year, obj.Date.Year())
+-			}
+-			if obj.Date.Month() != example.out.Date.Month {
+-				t.Errorf("expected month %d, got %d", example.out.Date.Month, obj.Date.Month())
+-			}
+-			if obj.Date.Day() != example.out.Date.Day {
+-				t.Errorf("expected day %d, got %d", example.out.Date.Day, obj.Date.Day())
+-			}
+-			if obj.Date.Hour() != example.out.Time.Hour {
+-				t.Errorf("expected hour %d, got %d", example.out.Time.Hour, obj.Date.Hour())
+-			}
+-			if obj.Date.Minute() != example.out.Time.Minute {
+-				t.Errorf("expected minute %d, got %d", example.out.Time.Minute, obj.Date.Minute())
+-			}
+-			if obj.Date.Second() != example.out.Time.Second {
+-				t.Errorf("expected second %d, got %d", example.out.Time.Second, obj.Date.Second())
++			// Compare against the same wall-clock components run through the
++			// same zone normalization, rather than against raw component
++			// values. A local date-time decodes in time.Local, so where the
++			// machine's zone puts one of these instants in a historical DST gap
++			// (1979-05-27T00:32 is in one on some zones) Go normalizes it and
++			// the component-by-component assertions upstream used here fail --
++			// on the zone, not on anything go-toml did.
++			want := time.Date(
++				example.out.Date.Year, time.Month(example.out.Date.Month), example.out.Date.Day,
++				example.out.Time.Hour, example.out.Time.Minute, example.out.Time.Second,
++				example.out.Time.Nanosecond, time.Local,
++			)
++			if !obj.Date.Equal(want) {
++				t.Errorf("expected '%s', got '%s'", want, obj.Date)
+ 			}
+ 			if obj.Date.Nanosecond() != example.out.Time.Nanosecond {
+ 				t.Errorf("expected nanoseconds %d, got %d", example.out.Time.Nanosecond, obj.Date.Nanosecond())
+--- parser.go
++++ parser.go
+@@ -13,12 +13,49 @@
+ )
+ 
+ type tomlParser struct {
+-	flowIdx       int
+-	flow          []token
+-	tree          *Tree
+-	currentTable  []string
+-	seenTableKeys []string
+-}
++	flowIdx         int
++	flow            []token
++	tree            *Tree
++	currentTable    []string
++	seenTableKeys   []string
++	seenTableKeySet map[string]struct{}
++	depth           int
++}
++
++// Resource bounds on a decode. Upstream go-toml v1 has none, so a decode of an
++// untrusted document is unbounded in stack, in CPU and in allocation. Both
++// bounds below are checked against the parser's own state -- its recursion
++// counter and its own parsed key paths -- so they are exact, and a caller does
++// not have to approximate the lexer from raw bytes to stay safe.
++//
++//   - maxNestingDepth bounds parseRvalue/parseArray/parseInlineTable, which are
++//     mutually recursive with one frame pair per level. Closing brackets are not
++//     needed to descend, so `a = [[[[...` recurses to EOF: ~400,000 openers
++//     exhaust Go's 1GB goroutine stack. A stack overflow is a fatal runtime
++//     error that no recover() can catch, so it takes the whole process down.
++//     256 is far above any real document (a config's arrays nest 1-3 deep) and
++//     costs ~90us at the cap for a 4KB body.
++//
++//   - maxKeyDepth bounds the length of one key path: a dotted key (a.b.c), a
++//     table header ([a.b.c]), and adjacent quoted segments (["a""b""c"], which
++//     parseKey also reads as a.b.c) all count the same, because the check reads
++//     the parsed path rather than the bytes behind it. Nothing recurses on key
++//     depth, but parseAssign re-walks the current table path for every
++//     assignment under it, so depth x assignments is quadratic in the document.
++//     16 is well above real documents (a gnomod.toml is depth 1; a tm2 config
++//     .toml is at most 2) and low enough that a deep path is no longer the most
++//     expensive shape a size-capped document can hold -- at 16 the worst 4KB
++//     body is an ordinary flat one, so cost is linear in length with no shape
++//     premium. At 64 the quadratic shape costs more than a caller charging
++//     PreprocessGasPerByte over the same bytes collects.
++//
++// The third unbounded axis, the O(n^2) rescan of seenTableKeys in parseGroup,
++// needs no limit: it is fixed outright below by keeping a set alongside the
++// slice, which makes the duplicate check O(1) and the table count linear.
++const (
++	maxNestingDepth = 256
++	maxKeyDepth     = 16
++)
+ 
+ type tomlParserStateFn func() tomlParserStateFn
+ 
+@@ -120,6 +157,7 @@
+ 	for ii := 0; ii < len(p.seenTableKeys); {
+ 		tableKey := p.seenTableKeys[ii]
+ 		if strings.HasPrefix(tableKey, prefix) {
++			delete(p.seenTableKeySet, tableKey)
+ 			p.seenTableKeys = append(p.seenTableKeys[:ii], p.seenTableKeys[ii+1:]...)
+ 		} else {
+ 			found = (tableKey == key.val)
+@@ -130,6 +168,7 @@
+ 	// keep this key name from use by other kinds of assignments
+ 	if !found {
+ 		p.seenTableKeys = append(p.seenTableKeys, key.val)
++		p.seenTableKeySet[key.val] = struct{}{}
+ 	}
+ 
+ 	// move to next parser state
+@@ -143,13 +182,14 @@
+ 	if key.typ != tokenKeyGroup {
+ 		p.raiseError(key, "unexpected token %s, was expecting a table key", key)
+ 	}
+-	for _, item := range p.seenTableKeys {
+-		if item == key.val {
+-			p.raiseError(key, "duplicated tables")
+-		}
++	// O(1) via seenTableKeySet. The linear scan this replaces made a decode
++	// O(n^2) in the table count: 1MB of [tNNNNNN] headers took ~9s.
++	if _, ok := p.seenTableKeySet[key.val]; ok {
++		p.raiseError(key, "duplicated tables")
+ 	}
+ 
+ 	p.seenTableKeys = append(p.seenTableKeys, key.val)
++	p.seenTableKeySet[key.val] = struct{}{}
+ 	keys, err := parseKey(key.val)
+ 	if err != nil {
+ 		p.raiseError(key, "invalid table array key: %s", err)
+@@ -272,6 +312,14 @@
+ }
+ 
+ func (p *tomlParser) parseRvalue() any {
++	// Every level of array and inline-table nesting passes through here, so this
++	// is the one place the mutual recursion below has to be bounded.
++	p.depth++
++	if p.depth > maxNestingDepth {
++		p.raiseError(p.peek(), "nesting depth exceeds limit %d", maxNestingDepth)
++	}
++	defer func() { p.depth-- }()
++
+ 	tok := p.getToken()
+ 	if tok == nil || tok.typ == tokenEOF {
+ 		p.raiseError(tok, "expecting a value")
+@@ -496,11 +544,12 @@
+ 	result := newTree()
+ 	result.position = Position{1, 1}
+ 	parser := &tomlParser{
+-		flowIdx:       0,
+-		flow:          flow,
+-		tree:          result,
+-		currentTable:  make([]string, 0),
+-		seenTableKeys: make([]string, 0),
++		flowIdx:         0,
++		flow:            flow,
++		tree:            result,
++		currentTable:    make([]string, 0),
++		seenTableKeys:   make([]string, 0),
++		seenTableKeySet: make(map[string]struct{}),
+ 	}
+ 	parser.run()
+ 	return result

@@ -217,6 +217,21 @@ type SafeExecutor struct {
 }
 
 func (e *SafeExecutor) Execute(cur realm) error {
+	// IsCurrent first, matching every other allowlist gate in this tree
+	// (proxy.go's UpdateImpl, treasury, memberstore). Without it this method
+	// trusts whatever realm value it is handed, so a caller threading a stale
+	// or sibling-frame cur would have its Previous() read from that value
+	// rather than from the live frame.
+	//
+	// Note what this does NOT gate: NewSafeExecutor has no call sites, so this
+	// type is currently dead code. Live proposal execution goes through the
+	// Executor interface to SimpleExecutor.Execute below, which has no
+	// InAllowedDAOs check -- it is contained instead by the executor being
+	// unexported inside ProposalRequest/Proposal with no accessor. Do not read
+	// this method as evidence that executor invocation is allowlist-gated.
+	if !cur.IsCurrent() {
+		return errors.New("execution denied: cur is not the caller's live realm")
+	}
 	// Verify the caller is an adequate Realm
 	if !InAllowedDAOs(cur.Previous().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
