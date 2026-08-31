@@ -201,7 +201,7 @@ func persistedStructObjectIDs(t *testing.T, baseStore storetypes.Store, pkgID Pk
 	return ids
 }
 
-func TestObjectID_RealmTimeReservationNeverCollides(t *testing.T) {
+func TestObjectID_SharedRealmTimeModelNeverCollides(t *testing.T) {
 	rlm := NewRealm("gno.land/r/demo/objid_reservation")
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.currentRealmID = rlm.ID
@@ -241,4 +241,17 @@ func TestObjectID_RealmTimeReservationNeverCollides(t *testing.T) {
 	for v := range used {
 		require.NotEqual(t, v, next, "a later object must not reuse a reserved value")
 	}
+}
+
+func TestObjectID_RealmTimeOverflowGuard(t *testing.T) {
+	t.Skip("assignNewObjectID has no overflow guard; enable when the production guard is added")
+
+	rlm := NewRealm("gno.land/r/demo/objid_reservation")
+	rlm.Time = math.MaxUint64
+	alloc := NewAllocator(math.MaxInt64)
+	alloc.currentRealmID = rlm.ID
+	alloc.currentRealmPath = rlm.Path
+	object := alloc.NewStruct(nil, nil)
+
+	require.Panics(t, func() { rlm.assignNewObjectID(nil, object) })
 }
