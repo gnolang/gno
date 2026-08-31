@@ -81,6 +81,26 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Content negotiation: a client that asks for markdown gets the source
+	// bytes, not the rendered page. This is the shape agents, `curl`, and
+	// llms.txt-style consumers want, and it costs nothing here because the
+	// markdown is what we already hold. Link rewriting still runs, so the
+	// targets in the response resolve against this server rather than against
+	// the repository checkout; admonitions are left in their Docusaurus form,
+	// which is the source of truth.
+	if wantsMarkdown(r.Header.Get("Accept")) {
+		out := rewriteDocsLinks(src, resolvedRel)
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusOK)
+		if r.Method != http.MethodHead {
+			if _, err := w.Write(out); err != nil {
+				h.Logger.Debug("docs markdown write failed", "path", r.URL.Path, "error", err)
+			}
+		}
+		return
+	}
+
 	// Transform Docusaurus-style :::kind admonitions into the GitHub
 	// `> [!KIND]` blockquote syntax already handled by markdown/ext_alert.go,
 	// then rewrite relative .md links to clean /docs/... URLs. Both passes
@@ -278,6 +298,30 @@ func rewriteDocsLinks(src []byte, currentRel string) []byte {
 	})
 }
 
+// wantsMarkdown reports whether an Accept header asks for markdown in
+// preference to HTML.
+//
+// It deliberately does not implement full RFC 9110 q-value negotiation: the
+// only case that matters is a client that names a markdown type explicitly,
+// and browsers never do (they send text/html and */*). So markdown wins only
+// when it is named and HTML is not — `Accept: text/markdown` and
+// `Accept: text/markdown, */*` serve markdown, while a browser's
+// `text/html,...,*/*;q=0.8` and a bare `*/*` keep serving the rendered page.
+func wantsMarkdown(accept string) bool {
+	var namedMarkdown, namedHTML bool
+	for _, part := range strings.Split(accept, ",") {
+		// Drop parameters (";q=0.9", ";charset=...") and normalize.
+		mediaType, _, _ := strings.Cut(part, ";")
+		switch strings.ToLower(strings.TrimSpace(mediaType)) {
+		case "text/markdown", "text/x-markdown":
+			namedMarkdown = true
+		case "text/html", "application/xhtml+xml":
+			namedHTML = true
+		}
+	}
+	return namedMarkdown && !namedHTML
+}
+
 func shouldSkipLink(target string) bool {
 	switch {
 	case target == "":
@@ -328,6 +372,22 @@ func buildSidebar(currentRel string) []components.DocsSidebarSection {
 		}
 		out = append(out, viewSec)
 	}
+
+	// /docs and /r/docs are two different things with near-identical names, and
+	// a newcomer landing on one has no way to discover the other. Cross-link
+	// them from the navigation and say what each one is, rather than renaming
+	// either — the two names are established and a rename is a separate call.
+	// /r/docs is on-chain, so it is flagged External to get the leaving-the-tree
+	// chrome even though it is the same host.
+	out = append(out, components.DocsSidebarSection{
+		Title: "Elsewhere",
+		Items: []components.DocsSidebarItem{{
+			Title:    "Live example realms (r/docs)",
+			Href:     "/r/docs",
+			External: true,
+		}},
+	})
+
 	return out
 }
 

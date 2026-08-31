@@ -134,6 +134,68 @@ func TestDocsHandlerRoutes(t *testing.T) {
 	}
 }
 
+func TestWantsMarkdown(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]bool{
+		// Named explicitly, HTML not named.
+		"text/markdown":                  true,
+		"text/markdown; charset=utf-8":   true,
+		"text/markdown, */*":             true,
+		"text/x-markdown":                true,
+		"TEXT/MARKDOWN":                  true,
+		"  text/markdown  ,  text/plain": true,
+		// A browser names text/html, so it keeps the rendered page even
+		// though its */* would otherwise match anything.
+		"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8": false,
+		"text/markdown, text/html":                                        false,
+		"text/html":                                                       false,
+		// Nothing named: default to the rendered page.
+		"*/*":              false,
+		"":                 false,
+		"application/json": false,
+	}
+	for accept, want := range cases {
+		t.Run(accept, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, want, wantsMarkdown(accept), "Accept: %q", accept)
+		})
+	}
+}
+
+// A client asking for markdown gets the source bytes with links rewritten to
+// this server's URLs — not the rendered HTML page.
+func TestDocsHandlerServesMarkdown(t *testing.T) {
+	t.Parallel()
+
+	logger := log.NewTestingLogger(t)
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
+	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
+	t.Cleanup(func() { node.Stop() })
+
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = remoteAddr
+	router, err := NewRouter(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
+	req.Header.Set("Accept", "text/markdown")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "text/markdown; charset=utf-8", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+
+	body := rec.Body.String()
+	assert.NotContains(t, body, "<html", "must be markdown source, not the rendered page")
+	assert.Contains(t, body, "# ", "markdown heading syntax should survive verbatim")
+	// Links are rewritten so they resolve against this server, not a checkout.
+	assert.Contains(t, body, "](/docs/builders/getting-started)")
+}
+
 func TestRewriteDocsLinks(t *testing.T) {
 	t.Parallel()
 
