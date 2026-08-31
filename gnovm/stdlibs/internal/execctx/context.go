@@ -43,6 +43,7 @@ type ExecContext struct {
 	Height          int64
 	Timestamp       int64 // seconds
 	TimestampNano   int64 // nanoseconds, only used for testing.
+	RealmIDEnabled  bool
 	OriginCaller    crypto.Bech32Address
 	OriginSend      std.Coins
 	OriginSendSpent *std.Coins // mutable

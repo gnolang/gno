@@ -10,6 +10,9 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
+// NewRealmID returns a deterministic ID scoped to the current persistent realm.
+func NewRealmID() string // injected
+
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.
 //

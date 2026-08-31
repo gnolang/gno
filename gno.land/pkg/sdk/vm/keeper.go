@@ -1178,6 +1178,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		ChainDomain:        chainDomain,
 		Height:             ctx.BlockHeight(),
 		Timestamp:          ctx.BlockTime().Unix(),
+		RealmIDEnabled:     true,
 		OriginCaller:       caller.Bech32(),
 		OriginSend:         send,
 		OriginSendSpent:    new(std.Coins),

@@ -971,6 +971,50 @@ func GetAdmin(cur realm) string { // XXX: remove crossing call ?
 	assert.Equal(t, addrString, res)
 }
 
+func TestVMKeeperNewRealmIDGate(t *testing.T) {
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-id-gate"))
+	pkgPath := "gno.land/r/test/realmidgate"
+
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	realmFiles := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "realmidgate.gno", Body: `package realmidgate
+
+import "chain/runtime"
+
+func New(cur realm) string {
+	return runtime.NewRealmID()
+}`},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, realmFiles)))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, pkgPath, "New", nil))
+	require.NoError(t, err)
+	require.Contains(t, res, `("gno:realm-id:`)
+
+	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "New()")
+	require.ErrorContains(t, err, "realm ID issuance is disabled")
+
+	runCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	runFiles := []*std.MemFile{
+		{Name: "main.gno", Body: `package main
+
+import "gno.land/r/test/realmidgate"
+
+func main(cur realm) {
+	realmidgate.New(cross(cur))
+}`},
+	}
+	_, err = env.vmk.Run(runCtx, NewMsgRun(addr, nil, runFiles))
+	require.ErrorContains(t, err, "realm ID issuance is disabled")
+}
+
 // Call Run without imports, without variables.
 func TestVMKeeperRunSimple(t *testing.T) {
 	env := setupTestEnv()

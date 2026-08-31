@@ -2,15 +2,96 @@ package runtime
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
+
+func TestNewRealmID(t *testing.T) {
+	baseStore := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
+	iavlStore := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
+	store := gno.NewStore(gno.NewAllocator(math.MaxInt64), baseStore, iavlStore)
+	pkgPath := "gno.land/r/demo/realm_id"
+	store.SetPackageRealm(gno.NewRealm(pkgPath))
+
+	baseTx := baseStore.CacheWrap()
+	iavlTx := iavlStore.CacheWrap()
+	tx := store.BeginTransaction(baseTx, iavlTx, nil, nil)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		Store:   tx,
+		Context: execctx.ExecContext{RealmIDEnabled: true},
+	})
+	m.Realm = tx.GetPackageRealm(pkgPath)
+
+	first := NewRealmID(m)
+	second := NewRealmID(m)
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:1", first)
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:2", second)
+	require.NotEqual(t, first, second)
+	var oid gno.ObjectID
+	require.Error(t, oid.UnmarshalAmino(first))
+
+	tx.Write()
+	baseTx.Write()
+	iavlTx.Write()
+
+	fresh := gno.NewStore(gno.NewAllocator(math.MaxInt64), baseStore, iavlStore)
+	require.Equal(t, uint64(2), fresh.GetPackageRealm(pkgPath).Time)
+
+	baseTx = baseStore.CacheWrap()
+	iavlTx = iavlStore.CacheWrap()
+	tx = fresh.BeginTransaction(baseTx, iavlTx, nil, nil)
+	m = gno.NewMachineWithOptions(gno.MachineOptions{
+		Store:   tx,
+		Context: execctx.ExecContext{RealmIDEnabled: true},
+	})
+	m.Realm = tx.GetPackageRealm(pkgPath)
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:3", NewRealmID(m))
+}
+
+func TestNewRealmIDPanicsInQueryContext(t *testing.T) {
+	pkgPath := "gno.land/r/demo/realm_id"
+	m := &gno.Machine{
+		Realm:   gno.NewRealm(pkgPath),
+		Context: execctx.ExecContext{},
+	}
+	require.Panics(t, func() { NewRealmID(m) })
+}
+
+func TestNewRealmIDRejectsInvalidRealm(t *testing.T) {
+	tests := []struct {
+		name     string
+		realm    *gno.Realm
+		wantTime uint64
+	}{
+		{name: "nil realm"},
+		{name: "package", realm: gno.NewRealm("gno.land/p/demo/realm_id")},
+		{name: "ephemeral", realm: gno.NewRealm("gno.land/e/g1user/run")},
+		{name: "overflow", realm: &gno.Realm{Path: "gno.land/r/demo/realm_id", Time: math.MaxUint64}, wantTime: math.MaxUint64},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &gno.Machine{
+				Realm:   tt.realm,
+				Context: execctx.ExecContext{RealmIDEnabled: true},
+			}
+			require.Panics(t, func() { NewRealmID(m) })
+			if tt.realm != nil {
+				require.Equal(t, tt.wantTime, tt.realm.Time)
+			}
+		})
+	}
+}
 
 func TestPreviousRealmIsOrigin(t *testing.T) {
 	var (
