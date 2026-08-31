@@ -380,14 +380,39 @@ func TestRenderFrozen_ListsFrozenOperatorsAndAdmins(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(out, admin.String()), "admin listed")
 }
 
+// sanitizeProbe carries one payload per markdown construct that would
+// change the page's structure if it reached a table cell unescaped.
+const sanitizeProbe = "evil | # heading [link](x)"
+
+// assertProbeEscaped checks that sanitizeProbe survived a Render table
+// cell as text rather than markup. Shared with autofreeze_test.gno so
+// the expected escaping lives in one place.
+func assertProbeEscaped(t *testing.T, out string) {
+	t.Helper()
+	uassert.False(t, strings.Contains(out, "evil | #"), "raw reason must not reach the table")
+	uassert.True(t, strings.Contains(out, `evil \| \# heading`), "reason escaped for a table cell")
+}
+
 // A bare `|` in the reason would otherwise reshape the table it is
 // rendered into, and markdown syntax would render as markup.
 func TestRenderFrozen_SanitizesReason(cur realm, t *testing.T) {
 	opA, _, _ := seedThreeValidators(t)
 
-	doFreeze(cur, opA, "evil | # heading [link](x)")
+	doFreeze(cur, opA, sanitizeProbe)
 
-	out := Render("")
-	uassert.False(t, strings.Contains(out, "evil | #"), "raw reason must not reach the table")
-	uassert.True(t, strings.Contains(out, `evil \| \# heading`), "reason escaped for a table cell")
+	assertProbeEscaped(t, Render(""))
+}
+
+// The same reason also reaches GovDAO proposal descriptions, which
+// GovDAO renders raw — a different sink needing a different escaper.
+func TestFreezeProposal_SanitizesReasonInDescription(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+
+	req := NewFreezeProposalRequest(cur, opA, sanitizeProbe)
+
+	// InlineText escapes the heading marker and the link brackets; it
+	// leaves `|` alone, which is correct for a prose slot.
+	desc := req.Description()
+	uassert.True(t, strings.Contains(desc, `\# heading`), "heading marker escaped")
+	uassert.True(t, strings.Contains(desc, `\[link\]`), "link brackets escaped")
 }
