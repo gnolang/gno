@@ -52,6 +52,10 @@ func (b *Balance) Verify() error {
 func (b *Balance) Parse(entry string) error {
 	// Format: <address>=<coins> [;vesting=<coins>,<start>,<end> [;type=delayed]]
 	// The vesting suffix is optional.
+	//
+	// A delayed schedule vests everything at <end> and never reads <start>, but
+	// the field is still required here so that every entry has the same shape.
+	// Write 0 for it.
 	parts := strings.SplitN(strings.TrimSpace(entry), ";", 3)
 	balancePart := parts[0]
 
@@ -81,23 +85,31 @@ func (b *Balance) Parse(entry string) error {
 		vestingValue := strings.TrimPrefix(vestingPart, "vesting=")
 
 		// vesting=<coins>,<start_time>,<end_time>
-		fields := strings.SplitN(vestingValue, ",", 3)
-		if len(fields) != 3 {
+		//
+		// The times are taken from the right, because <coins> is Coins.String(), which
+		// joins multiple denoms with commas — so a two-denom schedule writes
+		// "100atom,200ugnot,1000,2000" and splitting left-to-right would read
+		// "200ugnot" as the start time. Anything a left-to-right split accepted still
+		// parses identically, since a single-denom schedule has exactly three fields.
+		fields := strings.Split(vestingValue, ",")
+		if len(fields) < 3 {
 			return fmt.Errorf("malformed vesting schedule: expected <coins>,<start>,<end>, got %q", vestingValue)
 		}
+		coinsField := strings.Join(fields[:len(fields)-2], ",")
+		startField, endField := fields[len(fields)-2], fields[len(fields)-1]
 
 		var schedule std.VestingSchedule
-		schedule.OriginalVesting, err = std.ParseCoins(fields[0])
+		schedule.OriginalVesting, err = std.ParseCoins(coinsField)
 		if err != nil {
-			return fmt.Errorf("invalid vesting amount %q: %w", fields[0], err)
+			return fmt.Errorf("invalid vesting amount %q: %w", coinsField, err)
 		}
-		schedule.StartTime, err = strconv.ParseInt(fields[1], 10, 64)
+		schedule.StartTime, err = strconv.ParseInt(startField, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid vesting start time %q: %w", fields[1], err)
+			return fmt.Errorf("invalid vesting start time %q: %w", startField, err)
 		}
-		schedule.EndTime, err = strconv.ParseInt(fields[2], 10, 64)
+		schedule.EndTime, err = strconv.ParseInt(endField, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid vesting end time %q: %w", fields[2], err)
+			return fmt.Errorf("invalid vesting end time %q: %w", endField, err)
 		}
 
 		// Parse optional type discriminator.

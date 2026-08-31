@@ -94,6 +94,34 @@ func (*GnoLink) Kind() ast.NodeKind {
 	return KindGnoLink
 }
 
+// resolveDestination resolves a raw markdown link destination the same way
+// goldmark's util.URLEscape(dst, true) does before an href is emitted:
+// backslash-escaped punctuation, then numeric references, then named
+// entities.
+//
+// Every consumer that inspects a destination must run it through this
+// first. Deciding anything from the raw bytes is a security bug: goldmark
+// resolves `&#x6a;avascript:` to `javascript:` on the way out, so a raw
+// check sees a harmless relative path where the browser will see a
+// dangerous scheme. That applies to the dangerous-scheme check, to the
+// link classifier (which drives rel="noopener nofollow ugc" and the
+// external-link icon), and to the image validator.
+func resolveDestination(dst []byte) []byte {
+	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(dst)))
+}
+
+// trimLeadingControlAndSpace drops the bytes a URL parser strips before it
+// reads the scheme: leading C0 controls and space (WHATWG URL, "remove any
+// leading and trailing C0 control or space"). Any check that compares a
+// scheme or a media type against a prefix has to trim first, or a single
+// leading byte shifts the prefix and the check sees nothing to match.
+func trimLeadingControlAndSpace[T string | []byte](s T) T {
+	for len(s) > 0 && s[0] <= ' ' {
+		s = s[1:]
+	}
+	return s
+}
+
 // linkTransformer implements ASTTransformer
 type linkTransformer struct{}
 
@@ -160,8 +188,10 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		parent.RemoveChild(parent, node)
 		parent.InsertBefore(parent, next, gnoLink)
 
-		// Parse destination URL and check for validity.
-		dest, err := url.Parse(string(rawDest))
+		// Parse destination URL and check for validity. The classifier
+		// must see the same bytes the renderer will emit — see
+		// resolveDestination.
+		dest, err := url.Parse(string(resolveDestination(rawDest)))
 		if err != nil {
 			gnoLink.LinkType = GnoLinkTypeInvalid
 			return ast.WalkContinue, nil
@@ -287,16 +317,24 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	}
 
 	if n.LinkType == GnoLinkTypeInvalid {
+		// No <a> is emitted — the destination is unusable, and with no href
+		// there is nothing for a dangerous scheme to reach. The link TEXT is
+		// still realm content, so keep walking children and render it as
+		// plain inline text. Dropping it would delete author-visible copy
+		// for inputs that merely resolve to something net/url rejects
+		// (`&percnt;` in an absolute path, an entity-encoded C0 control),
+		// not just for attacks.
 		if entering {
 			w.WriteString("<!-- invalid link -->")
 		}
-		return ast.WalkSkipChildren, nil
+		return ast.WalkContinue, nil
 	}
 
 	if entering {
 		w.WriteString(`<a href="`)
-		if !html.IsDangerousURL(n.Destination) {
-			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+		dest := resolveDestination(n.Destination)
+		if !html.IsDangerousURL(trimLeadingControlAndSpace(dest)) {
+			w.Write(util.EscapeHTML(util.URLEscape(dest, false)))
 		}
 		w.WriteByte('"')
 
