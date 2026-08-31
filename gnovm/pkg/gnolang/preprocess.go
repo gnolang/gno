@@ -6453,12 +6453,9 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 		if bn, ok := n.(BlockNode); ok {
 			span := bn.GetSpan()
 			key := spanKey{span.Pos, span.End}
-			num := nextNum[key]
-			if span.Num > num {
-				// Node already carries a distinguishing Num (e.g. the
-				// else-if wrapper in Go2Gno); keep it and advance past.
-				num = span.Num
-			}
+			// Prefer a Num already on the node (e.g. else-if wrapper
+			// from Go2Gno) over the next free counter value.
+			num := max(nextNum[key], span.Num)
 			span.Num = num
 			nextNum[key] = num + 1
 			loc := Location{
