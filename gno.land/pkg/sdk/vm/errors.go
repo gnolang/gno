@@ -24,6 +24,16 @@ type (
 	InvalidPackageError   struct{ abciError }
 	InvalidFileError      struct{ abciError }
 	ObjectNotFoundError   struct{ abciError }
+	// ExportSizeExceededError is returned when a query result's estimated
+	// serialized size exceeds maxQueryExportBytes. It exists so clients see a
+	// stable ABCI code for "response too large" rather than an untyped
+	// internal error; the VM-level cause is gno.ErrExportSizeExceeded.
+	ExportSizeExceededError struct{ abciError }
+	// ExportDepthExceededError is the depth counterpart to
+	// ExportSizeExceededError: it is returned when a query result nests deeper
+	// than the export walk allows, whatever its size. The VM-level cause is
+	// gno.ErrExportDepthExceeded.
+	ExportDepthExceededError struct{ abciError }
 	// TypeCheckError deliberately carries no diagnostic strings: it is
 	// amino-encoded into ABCIResult.Error, which is merkle-hashed into the
 	// block's LastResultsHash, and raw go/types (and go/parser) messages
@@ -63,6 +73,9 @@ func (e UnspendableSendError) Error() string {
 	return "coins cannot be sent to a pure package; nothing could ever spend them"
 }
 
+func (e ExportSizeExceededError) Error() string  { return "export size limit exceeded" }
+func (e ExportDepthExceededError) Error() string { return "export depth limit exceeded" }
+
 func ErrPkgAlreadyExists(msg string) error {
 	return errors.Wrap(PkgExistError{}, msg)
 }
@@ -93,6 +106,14 @@ func ErrInvalidPackage(msg string) error {
 
 func ErrObjectNotFound(msg string) error {
 	return errors.Wrap(ObjectNotFoundError{}, msg)
+}
+
+func ErrExportSizeExceeded(msg string) error {
+	return errors.Wrap(ExportSizeExceededError{}, msg)
+}
+
+func ErrExportDepthExceeded(msg string) error {
+	return errors.Wrap(ExportDepthExceededError{}, msg)
 }
 
 func ErrUnobservedSend(msg string) error {
