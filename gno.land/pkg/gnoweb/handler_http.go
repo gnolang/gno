@@ -258,20 +258,22 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Head metadata names the URL the client asked for, not the alias
-	// target: /about and /r/gnoland/pages:p/about serve one page, and
-	// /about is the address to publish.
-	headURL := gnourl
-	if u, err := weburl.ParseFromURL(&requested); err == nil {
-		headURL = u
-	}
-	h.setHeadMetadata(&indexData, headURL)
-
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
 		return
 	}
+
+	// Head metadata names the URL the client asked for, not the alias
+	// target: /about and /r/gnoland/pages:p/about serve one page, and
+	// /about is the address to publish.
+	headURL := gnourl
+	if requested.Path != r.URL.Path {
+		if u, err := weburl.ParseFromURL(&requested); err == nil {
+			headURL = u
+		}
+	}
+	h.setHeadMetadata(&indexData, headURL)
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:

@@ -2044,6 +2044,10 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 			// settles which realm content gnoweb may repeat.
 			assert.NotContains(t, body, `<meta name="description"`, "an unsourced slot must be dropped, not rendered empty")
 			assert.NotContains(t, body, `<meta property="og:image"`, "an unsourced slot must be dropped, not rendered empty")
+			// The card type follows the image. A large-image card with no
+			// image is a preview with a hole in it.
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`,
+				"the card must not claim a large image the page does not carry")
 		})
 	}
 }

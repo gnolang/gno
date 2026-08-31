@@ -41,7 +41,9 @@ rather than the alias target, so `/about` names `/about` and not
 `/r/gnoland/pages:p/about`. `setHeaderForRealm` keeps `HeaderData` only.
 
 `head.html` wraps `description`, `og:description`, `og:image`,
-`og:url` and `twitter:*` in `{{ if }}`, so an unfilled slot emits nothing.
+`og:url` and `twitter:*` in `{{ if }}`, so an unfilled slot emits nothing,
+and `twitter:card` falls back from `summary_large_image` to `summary` when
+there is no image, rather than announcing a picture the page has not got.
 
 ## Alternatives considered
 

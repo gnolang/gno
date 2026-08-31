@@ -34,7 +34,7 @@
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card metadata -->
-  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:card" content="{{ if .Image }}summary_large_image{{ else }}summary{{ end }}" />
   <meta name="twitter:title" content="{{ .Title }}" />
   {{ if .Description }}
   <meta name="twitter:description" content="{{ .Description }}" />
