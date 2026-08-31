@@ -1,0 +1,53 @@
+# A .txtar sitting next to the package it exercises must be fixed when the
+# directory is the target, not only when the .txtar is named explicitly.
+# Otherwise a migration sweep (`gno fix ./...`) rewrites the .gno files beside
+# the script and walks past the .gno files inside it.
+
+gno fix -fix stdsplit .
+cmp main.gno main.gno.golden
+cmp local.txtar local.txtar.golden
+
+-- main.gno --
+package main
+
+import "std"
+
+func main() {
+	_ = std.Coin{}
+}
+-- main.gno.golden --
+package main
+
+import "chain"
+
+func main() {
+	_ = chain.Coin{}
+}
+-- local.txtar --
+# package-local integration script
+
+gnoland start
+
+-- gnomod.toml --
+module = "gno.land/r/demo/local"
+gno = "0.9"
+-- local.gno --
+package local
+
+import "std"
+
+func Take() std.Coin { return std.Coin{} }
+-- local.txtar.golden --
+# package-local integration script
+
+gnoland start
+
+-- gnomod.toml --
+module = "gno.land/r/demo/local"
+gno = "0.9"
+-- local.gno --
+package local
+
+import "chain"
+
+func Take() chain.Coin { return chain.Coin{} }

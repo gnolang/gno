@@ -53,8 +53,14 @@ OUTPUT="$(mktemp -t update_gas_wanted_output.XXXXXX)"
 # root missing here silently keeps its stale gas numbers. Base names are unique
 # across the roots (FindTestScripts enforces it), which is what lets Step 4 map
 # captured gas back to a file by base name.
+#
+# -prune on dot-directories mirrors FindTestScripts, which skips them. Without
+# it a script under e.g. examples/.foo/ would get its gas numbers rewritten here
+# and never be run to check the result.
 FILELIST="$(mktemp -t update_gas_wanted_files.XXXXXX)"
-find gno.land/pkg/integration/testdata examples -type f -name '*.txtar' | sort > "$FILELIST"
+find gno.land/pkg/integration/testdata examples \
+    -name '.?*' -prune -o \
+    -type f -name '*.txtar' -print | sort > "$FILELIST"
 INFLATION_FACTOR=10
 
 # Always restore originals from snapshot, even on Ctrl-C / kill / error.

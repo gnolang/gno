@@ -45,7 +45,15 @@ Concretely:
   alone and would otherwise silently emit `render` and `render#1`. Scripts are
   therefore prefixed with the package name (`commondao_council.txtar`).
 - **`NewTestingParamsFromRoots`** wraps it, so the `Dir`-must-be-empty-for-`Files`
-  quirk of `testscript.Params` stays inside the package that owns the params.
+  quirk of `testscript.Params` stays inside the package that owns the params. It
+  requires **every** root to contribute at least one script. An aggregate
+  "at least one script total" check is not enough once the roots are spread
+  across the repository: `<GNOROOT>/examples` comes from an environment
+  variable, and a `GNOROOT` pointing at an unrelated or stale checkout would
+  contribute nothing while `testdata/`'s 175 scripts satisfied the total on their
+  own — the suite would report `ok` having silently dropped every package-local
+  script. Under the flat layout a wrong `GNOROOT` failed loudly instead, and that
+  property is restored here rather than lost.
 - **`TestTestdata`** now passes two roots: `testdata` and `<GNOROOT>/examples`.
   One test function, so `-run TestTestdata/wugnot` selects a script wherever it
   lives, `-run TestTestdata` still means "all integration tests", and the base
@@ -54,7 +62,7 @@ Concretely:
 
   | script | new home |
   |---|---|
-  | `commondao_{ancestor,council,dao_member,election,governance,treasury}.txtar` | `examples/quarantined/gno.land/r/nt/commondao/v0/` |
+  | `commondao_{ancestor,council,dao_member,election,governance,treasury}.txtar` | `examples/gno.land/r/nt/commondao/v0/` |
   | `atomicswap.txtar` | `examples/gno.land/r/demo/defi/atomicswap/` |
   | `ghverify.txtar` | `examples/gno.land/r/gnoland/ghverify/` |
   | `wugnot.txtar` | `examples/gno.land/r/gnoland/wugnot/` |
@@ -69,14 +77,28 @@ Concretely:
   file and `ValidateMemPackage` rejecting one that got in another way — with
   `TestMemPackage_TxtarIsNotPackageSource`.
 
-Two consumers outside the Go test had to follow:
+Four consumers outside the Go test had to follow:
 
 - `update_gas_wanted.sh` globbed `testdata/*.txtar`; it now snapshots and
   rewrites a `find`-generated list over both roots. It maps captured gas back to
   a file by base name, which is exactly the invariant `FindTestScripts`
-  enforces — noted in the script so the coupling is visible.
+  enforces — noted in the script so the coupling is visible. The `find` prunes
+  dot-directories, matching the walker: otherwise a script under one would get
+  its gas numbers rewritten by this tool and never be run to check the result.
 - `gno.land/Makefile`'s failing-test summary grepped for `FAIL: testdata/`; the
   moved scripts print an absolute path, so the pattern is now `FAIL: .*\.txtar:`.
+- **`gno fix`** took a `.txtar` only as an explicit file target. `make -C
+  examples fix` and `gno fix ./...` pass directories, so a migration sweep would
+  have rewritten a package's `.gno` files and walked past the script now beside
+  them — leaving the `.gno` *inside* the archive on the old language version. A
+  directory target now also covers the `.txtar` files in that directory, at the
+  same (non-recursive) scope as its `.gno` files. Pinned by
+  `testdata/fix/fix_dir_txtar.txtar`.
+- **CI path filters.** A script under `examples/` matches the filters of
+  `ci-dir-gnovm` and `ci-dir-examples` as well as `ci-dir-gnoland`, so a
+  one-line gas-number refresh would have started paying for two suites that
+  never read the file. Both now carry `'!examples/**/*.txtar'`. `ci-dir-gnoland`,
+  which owns `TestTestdata`, still matches.
 
 ## Alternatives considered
 
@@ -104,8 +126,15 @@ and deposit of every existing realm that gained a script.
 Rejected: `-run TestTestdata/render` would then select an arbitrary one of them,
 and which one depends on walk order.
 
-**Also match `*.txt`, which `testscript`'s directory mode accepts.** Rejected: a
-bare `.txt` next to real code is far more likely to be a fixture than a script.
+**Also match `*.txt`, which `testscript`'s directory mode accepts.** Rejected. A
+bare `.txt` next to real code is far more likely to be a fixture than a script,
+and that argument is about `examples/` rather than `testdata/` — where the old
+directory mode did glob `.txt`. The narrower rule was still kept, for both roots:
+matching by root would mean the same file name runs or does not run depending on
+where it sits, which is a worse trap than one uniform rule. No `.txt` script
+exists in either root, so nothing is dropped today; `FindTestScripts` has a case
+pinning that `.txt` is ignored, so the choice is visible rather than incidental,
+and `docs/resources/gno-testing.md` states the extension.
 
 ## Consequences
 

@@ -23,8 +23,13 @@ audited or modernized to the current interrealm spec.
 
 A package can keep its own end-to-end integration script next to its source:
 every `*.txtar` under `examples/` is run by `TestTestdata` in
-[gno.land/pkg/integration](../gno.land/pkg/integration). Base names must be
-unique across the whole tree — prefix them with the package name
+[gno.land/pkg/integration](../gno.land/pkg/integration).
+
+Base names must be unique across **both** locations `TestTestdata` reads — this
+tree and `gno.land/pkg/integration/testdata/` — because the subtest is named
+after the base name alone. A name that is unique here but collides with, say,
+[`testdata/params.txtar`](../gno.land/pkg/integration/testdata/params.txtar)
+fails discovery for the whole suite. Prefix with the package name
 (`commondao_council.txtar`, not `council.txtar`).
 
 ```bash

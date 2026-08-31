@@ -186,3 +186,5 @@ Two things to know:
   (`commondao_council.txtar`). A collision fails the suite.
 - A `.txtar` is not part of the package. It is skipped when the directory is
   read into a mem-package, so it never ends up on-chain.
+- The extension must be `.txtar`. Discovery matches nothing else, in either
+  location.
