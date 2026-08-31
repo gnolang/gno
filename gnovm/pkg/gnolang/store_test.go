@@ -465,6 +465,44 @@ func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
 	}
 }
 
+// TestFindByPrefixSameStoreBackend covers the tooling shape NewStore(_, one,
+// one), where baseStore and iavlStore are the same underlying store. The other
+// FindPathsByPrefix tests all build two distinct backends, so the merge loop's
+// "both iterators see the same key" branch never runs in them: every key
+// compares equal and each one is offered to the de-dup twice.
+func TestFindByPrefixSameStoreBackend(t *testing.T) {
+	db := memdb.NewMemDB()
+	one := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, one, one)
+
+	add := func(name string, files ...*std.MemFile) {
+		store.AddMemPackage(&std.MemPackage{
+			Type:  MPUserAll,
+			Name:  name,
+			Path:  "gno.land/r/demo/" + name,
+			Files: files,
+		}, MPUserAll)
+	}
+	// Production file plus test file: a prod blob and an #allbutprod blob.
+	add("alpha", &std.MemFile{Name: "alpha.gno", Body: "package alpha\n"},
+		&std.MemFile{Name: "alpha_test.gno", Body: "package alpha\n"})
+	// Test file only: an #allbutprod blob and no prod blob.
+	add("beta", &std.MemFile{Name: "beta_test.gno", Body: "package beta\n"})
+	// Production file only: a prod blob and no #allbutprod blob.
+	add("gamma", &std.MemFile{Name: "gamma.gno", Body: "package gamma\n"})
+
+	var got []string
+	store.FindPathsByPrefix("gno.land")(func(p string) bool {
+		got = append(got, p)
+		return true
+	})
+	require.Equal(t, []string{
+		"gno.land/r/demo/alpha",
+		"gno.land/r/demo/beta",
+		"gno.land/r/demo/gamma",
+	}, got, "each package must be listed exactly once")
+}
+
 // TestMemPackageTestBlobExcludedFromConsensusStore asserts that a package's
 // test/filetest files (#allbutprod sibling) are written to the non-merkleized
 // baseStore and NOT to the merkleized iavlStore, so they never enter the

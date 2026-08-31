@@ -88,8 +88,39 @@ only.
   from a state snapshot (rather than replaying blocks) may lack historical test
   blobs; since they are read only on query/tooling paths and never during
   execution, this cannot cause consensus divergence.
-- **Encode gas is still charged** for writing the sibling (deterministic in the
-  blob length), so per-tx gas accounting is unchanged.
+- **Encode gas is still charged** for writing the sibling, and is unchanged: it
+  is length-driven (`GasAminoEncode * len(bz)` in `setMemPackageBlob`) and does
+  not depend on the destination store.
+- **Per-tx gas does change**, by a flat amount, for a deploy that ships a test
+  file. Encode gas is not the only charge on the path: `cacheStore.Set` also
+  prices the write by its destination, and `baseStore` (`dbadapter`) charges flat
+  where `iavlStore` (bptree) charges depth-scaled. With `ReadCostFlat` 59,000 and
+  `WriteCostFlat` 24,000:
+
+  ```
+  depth (bptree)    = 2.0×59,000 + 5.4×24,000 + 14×len = 247,600 + 14×len
+  flat  (dbadapter) =              1.0×24,000 + 14×len =  24,000 + 14×len
+  delta                                                = 223,600, for any len
+  ```
+
+  Measured on this branch with a two-file `addpkg` (`hello.gno` alone vs. plus
+  `hello_test.gno`), routing the sibling back to `iavlStore` as the only change:
+  4,711,956 → 4,935,556 gas with the test file, and 4,535,653 either way without
+  one. So a deploy carrying a test file gets exactly 223,600 gas cheaper,
+  independent of blob length, and a deploy without one is untouched. The
+  repricing is a consequence of the destination change and is accepted, not a
+  goal: the sibling is not merkleized, so charging it a Merkle-depth write price
+  was the anomaly.
+
+  One integration pin moves with it: `addpkg_testfile_restart_gas.txtar`, whose
+  package ships a `_test.gno`, drops from 2,895,971 to 2,672,371 — the same flat
+  223,600. What that script actually guards is the *equality* of its two
+  assertions (AddPackage gas must not depend on node process history — the
+  property whose violation forked topaz-1), and that still holds: both deploys
+  report the new value. Checked against master, where the same three deploys
+  report 2,893,625 / 2,895,971 / 2,895,971, so the 2,346 gap between the
+  pre-restart and post-restart package is tree growth and predates this change.
+  No other `testdata/` script both ships a test file and pins gas.
 
 ## Alternatives considered
 
