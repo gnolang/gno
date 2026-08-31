@@ -31,6 +31,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
@@ -275,8 +276,12 @@ func renderFrozen() string {
 		sb.WriteString("|----------|-----------------|-------|--------|----------|\n")
 		frozenSet.Iterate("", "", func(_ string, raw any) bool {
 			e := raw.(frozenEntry)
+			// Reason is free-form text chosen by whoever froze. Even from
+			// a privileged caller it must not reach markdown raw: a bare
+			// `|` alone silently reshapes the table.
 			sb.WriteString(ufmt.Sprintf("| %s | %s | %d | %s | %d |\n",
-				e.Op.String(), e.SigningAddress.String(), e.VotingPower, e.Reason, e.FrozenAt))
+				e.Op.String(), e.SigningAddress.String(), e.VotingPower,
+				sanitize.TableCell(e.Reason), e.FrozenAt))
 			return false
 		})
 	}
@@ -404,6 +409,23 @@ func doDropFrozen(op address, reason string) {
 }
 
 // ---- invariants -------------------------------------------------------------
+
+// heldOutBy names the mechanism currently holding op out of the
+// effective valset, or "" if nothing is. Phase B (autofreeze.gno)
+// widens it to cover auto-frozen entries too.
+//
+// Valset-membership changes must refuse a held-out operator. An add
+// would put them back while the held-out entry survives, so the slot
+// has two owners, and the later restore would silently overwrite the
+// power the add set. Exits from a hold go through that hold's own
+// release path (unfreeze, drop, or — in Phase B — expiry), never
+// through a valset proposal.
+func heldOutBy(op address) string {
+	if frozenSet.Has(op.String()) {
+		return "frozen"
+	}
+	return ""
+}
 
 // heldOutCount is how many validators this realm is currently holding
 // out of the effective valset. Phase B (autofreeze.gno) widens it to

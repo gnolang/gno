@@ -285,7 +285,7 @@ func TestValoperProposal_RejectsFrozenOperator(cur realm, t *testing.T) {
 	opA, _, _ := seedThreeValidators(t)
 	doFreeze(cur, opA, "frozen")
 
-	uassert.PanicsContains(t, cur, "is frozen; unfreeze or drop", func() {
+	uassert.PanicsContains(t, cur, "is frozen; release the hold", func() {
 		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{{OperatorAddress: opA, Power: 5}},
 			"resurrect opA", "")
@@ -378,4 +378,16 @@ func TestRenderFrozen_ListsFrozenOperatorsAndAdmins(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(out, opA.String()), "frozen operator listed")
 	uassert.True(t, strings.Contains(out, "double sign"), "reason listed")
 	uassert.True(t, strings.Contains(out, admin.String()), "admin listed")
+}
+
+// A bare `|` in the reason would otherwise reshape the table it is
+// rendered into, and markdown syntax would render as markup.
+func TestRenderFrozen_SanitizesReason(cur realm, t *testing.T) {
+	opA, _, _ := seedThreeValidators(t)
+
+	doFreeze(cur, opA, "evil | # heading [link](x)")
+
+	out := Render("")
+	uassert.False(t, strings.Contains(out, "evil | #"), "raw reason must not reach the table")
+	uassert.True(t, strings.Contains(out, `evil \| \# heading`), "reason escaped for a table cell")
 }
