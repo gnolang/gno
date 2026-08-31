@@ -87,13 +87,29 @@ operator is otherwise stuck: they are absent from the effective valset, so a
 unfreeze would be the only exit. Dropping leaves the operator out for good;
 re-admission goes through the normal add path.
 
-### Render output is sanitized
+### Free-form strings are escaped at every markdown sink
 
-Freeze reasons are free-form strings rendered into a markdown table.
-`sanitize.TableCell` is applied even though the writer is privileged: a bare `|`
-alone silently reshapes the table, which is a correctness problem before it is a
-security one. Phase B makes this load-bearing — there the reason comes from an
-untrusted monitor key.
+Freeze reasons are free-form and reach two different markdown sinks, each
+needing a different escaper:
+
+- `Render`'s table cells → `sanitize.TableCell`. Applied even though the writer
+  is privileged: a bare `|` alone silently reshapes the table, which is a
+  correctness problem before it is a security one.
+- GovDAO proposal descriptions → `sanitize.InlineText`. GovDAO renders
+  descriptions completely raw (no clamp), so a leading `#` or `>` in a reason
+  restructures the proposal page voters read.
+
+Escaping happens at the sink, never on the way into state: stored values and
+`chain.Emit` payloads must stay verbatim, and `sanitize` is explicitly **not
+idempotent**, so any scheme where a value could be escaped twice is wrong by
+construction. The rule is stated once in `freeze.gno`'s header so a new sink has
+somewhere to look. This is also why the tables are not routed through
+`p/moul/mdtable`: it escapes `|` as `&#124;` with no `#`/`[]()` handling, so
+`TableCell` would still be needed on top and the two escapes would compose
+badly.
+
+Phase B makes all of this load-bearing — there the reason comes from a key the
+design assumes is stolen.
 
 ## Alternatives considered
 

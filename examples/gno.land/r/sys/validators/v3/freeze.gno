@@ -20,6 +20,15 @@
 // address instead would restore an operator who rotated while frozen
 // under their retired pubkey — exactly the stale-key hazard
 // newValoperChangeExecutor documents and defends against.
+//
+// FREE-FORM STRINGS: every caller-supplied reason (and, in Phase B,
+// evidence) is escaped at each markdown sink it reaches — TableCell for
+// Render's table cells, InlineText for GovDAO proposal descriptions,
+// which GovDAO renders raw. Escaping happens at the sink, never on the
+// way into state: stored values and chain.Emit payloads must stay
+// verbatim, and sanitize is not idempotent, so a value that could be
+// escaped twice is wrong by construction. Any new sink for one of these
+// fields needs its own escape.
 package validators
 
 import (
@@ -112,7 +121,7 @@ func NewFreezeProposalRequest(cur realm, op address, reason string) dao.Proposal
 	desc.WriteString("- **Signing address:** ")
 	desc.WriteString(entry.SigningAddress.String())
 	desc.WriteString("\n- **Reason:** ")
-	desc.WriteString(reason)
+	desc.WriteString(sanitize.InlineText(reason))
 	desc.WriteString("\n")
 
 	callback := func(cur realm) error {
@@ -137,9 +146,9 @@ func NewUnfreezeProposalRequest(cur realm, op address, reason string) dao.Propos
 	desc.WriteString("- **Frozen at height:** ")
 	desc.WriteString(strconv.FormatInt(e.FrozenAt, 10))
 	desc.WriteString("\n- **Freeze reason:** ")
-	desc.WriteString(e.Reason)
+	desc.WriteString(sanitize.InlineText(e.Reason))
 	desc.WriteString("\n- **Unfreeze reason:** ")
-	desc.WriteString(reason)
+	desc.WriteString(sanitize.InlineText(reason))
 	desc.WriteString("\n\nThe operator's signing key is re-resolved at execution time, ")
 	desc.WriteString("so a key rotated during the freeze is honoured.\n")
 
@@ -171,9 +180,9 @@ func NewDropFrozenProposalRequest(cur realm, op address, reason string) dao.Prop
 	desc.WriteString("- **Frozen at height:** ")
 	desc.WriteString(strconv.FormatInt(e.FrozenAt, 10))
 	desc.WriteString("\n- **Freeze reason:** ")
-	desc.WriteString(e.Reason)
+	desc.WriteString(sanitize.InlineText(e.Reason))
 	desc.WriteString("\n- **Drop reason:** ")
-	desc.WriteString(reason)
+	desc.WriteString(sanitize.InlineText(reason))
 	desc.WriteString("\n")
 
 	callback := func(cur realm) error {
@@ -276,9 +285,8 @@ func renderFrozen() string {
 		sb.WriteString("|----------|-----------------|-------|--------|----------|\n")
 		frozenSet.Iterate("", "", func(_ string, raw any) bool {
 			e := raw.(frozenEntry)
-			// Reason is free-form text chosen by whoever froze. Even from
-			// a privileged caller it must not reach markdown raw: a bare
-			// `|` alone silently reshapes the table.
+			// Escaped even though the writer is privileged: a bare `|`
+			// alone silently reshapes the table. See the file header.
 			sb.WriteString(ufmt.Sprintf("| %s | %s | %d | %s | %d |\n",
 				e.Op.String(), e.SigningAddress.String(), e.VotingPower,
 				sanitize.TableCell(e.Reason), e.FrozenAt))
@@ -326,12 +334,13 @@ func doFreeze(cur realm, op address, reason string) {
 
 	assertLivenessFloor(effective, power)
 
+	now := runtime.ChainHeight()
 	frozenSet.Set(key, frozenEntry{
 		Op:             op,
 		SigningAddress: entry.SigningAddress,
 		VotingPower:    power,
 		Reason:         reason,
-		FrozenAt:       runtime.ChainHeight(),
+		FrozenAt:       now,
 	})
 
 	publishValsetWithout(cur, entry.SigningAddress)
@@ -342,7 +351,7 @@ func doFreeze(cur realm, op address, reason string) {
 		"signingAddr", entry.SigningAddress.String(),
 		"power", strconv.FormatUint(power, 10),
 		"reason", reason,
-		"height", strconv.FormatInt(runtime.ChainHeight(), 10),
+		"height", strconv.FormatInt(now, 10),
 	)
 }
 
@@ -554,12 +563,12 @@ func publishValsetWithout(cur realm, signingAddr address) {
 // Every call site read-modify-writes against GetValsetEffective, so
 // same-block writers accumulate instead of clobbering each other.
 func publishValset(cur realm, set map[address]validators.Validator) {
-	// The liveness floor already makes this unreachable, but both other
-	// publishers guard it too: an empty publish is silently swallowed by
-	// the EndBlocker, so a future refactor that produced one would fail
-	// invisibly.
+	// The liveness floor already makes this unreachable, and the restore
+	// paths only ever add power — but both other publishers guard it too:
+	// an empty publish is silently swallowed by the EndBlocker, so a
+	// future refactor that produced one would fail invisibly.
 	if len(set) == 0 {
-		panic("freeze would empty the validator set; refused to keep consensus liveness")
+		panic("refusing to publish an empty validator set; consensus liveness")
 	}
 
 	entries := make([]string, 0, len(set))
