@@ -18,7 +18,7 @@ type GRC1155TokenInfo struct {
 
 var (
 	registeredTokens = avl.NewTree() // rlmPath[.slug] -> *grc20.Token
-	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
+	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> *grc721.Token
 	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 )
 
@@ -36,16 +36,14 @@ func RegisterToken(cur realm, token *grc20.Token, slug string) string {
 	return grc20reg.Register(cross(cur), token, slug)
 }
 
-// RegisterNFT is a function that registers an NFT in an avl.Tree
-func RegisterNFT(cur realm, nftGetter grc721.NFTGetter, collection string, tokenId string) error {
-	nft := nftGetter()
-	_, ok := nft.(grc721.IGRC721CollectionMetadata)
-	if !ok {
-		return ErrNFTNotMetadata
+// RegisterNFT stores the concrete *grc721.Token (not an interface getter), so
+// an entry cannot be a lying reader implementation.
+func RegisterNFT(cur realm, token *grc721.Token, collection string, tokenId string) error {
+	if token == nil {
+		return ErrNFTNotFound
 	}
 
-	nftOwner, err := nft.OwnerOf(grc721.TokenID(tokenId))
-
+	nftOwner, err := token.OwnerOf(grc721.TokenID(tokenId))
 	if err != nil {
 		return err
 	}
@@ -60,7 +58,7 @@ func RegisterNFT(cur realm, nftGetter grc721.NFTGetter, collection string, token
 		return ErrNFTAlreadyRegistered
 	}
 
-	registeredNFTs.Set(key, nftGetter)
+	registeredNFTs.Set(key, token)
 	return nil
 }
 

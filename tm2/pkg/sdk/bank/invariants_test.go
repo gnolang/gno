@@ -295,21 +295,28 @@ func TestAccountTierInvariantReportsStrandedDenoms(t *testing.T) {
 	t.Run("invalid vesting schedule", func(t *testing.T) {
 		t.Parallel()
 		env := setupTestEnv()
-		// Bypass the constructors, which reject this. Read from the concrete type:
-		// the interface's GetStartTime is hardcoded to 0 for delayed accounts.
-		env.acck.SetAccount(env.ctx, &std.DelayedVestingAccount{
-			BaseVestingAccount: std.BaseVestingAccount{
-				BaseAccount: *std.NewBaseAccount(addr, nil, nil, 0, 0),
-				VestingSchedule: std.VestingSchedule{
-					OriginalVesting: std.Coins{{Denom: testAccountDenom, Amount: 1}},
-					StartTime:       300,
-					EndTime:         100,
-					Type:            std.VestingDelayed,
-				},
-			},
-		})
+		// Set the field directly: genesis validates before storing, so this state
+		// is only reachable through corruption, which is what the sweep is for.
+		// Linear vesting that starts after it ends.
+		acc := std.NewBaseAccount(addr, nil, nil, 0, 0)
+		acc.Vesting = std.VestingSchedule{
+			OriginalVesting: std.Coins{{Denom: testAccountDenom, Amount: 1}},
+			StartTime:       300,
+			EndTime:         100,
+		}
+		env.acck.SetAccount(env.ctx, acc)
 		msg, broken := AccountTierInvariant(env.bankk.ViewKeeper)(env.ctx)
 		require.True(t, broken)
 		require.Contains(t, msg, "invalid vesting schedule")
+	})
+
+	t.Run("an account with no schedule is healthy", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		// The zero schedule every account now carries must not read as invalid,
+		// or the sweep would report every address on the chain.
+		fundHealthy(t, env, addr)
+		_, broken := AccountTierInvariant(env.bankk.ViewKeeper)(env.ctx)
+		require.False(t, broken, "the zero schedule must be valid")
 	})
 }
