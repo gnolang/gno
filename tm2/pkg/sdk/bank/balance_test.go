@@ -603,20 +603,19 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 
 	locked := std.Coins{{Denom: "ugnot", Amount: 1000}}
 	baseAcc := std.NewBaseAccount(addr, locked, nil, 0, 0)
-	cva, err := std.NewContinuousVestingAccount(baseAcc, std.VestingSchedule{
+	baseAcc.Vesting = std.VestingSchedule{
 		OriginalVesting: locked,
 		StartTime:       100,
 		EndTime:         200,
-	})
-	require.NoError(t, err)
-	env.acck.SetAccount(env.ctx, cva)
+	}
+	env.acck.SetAccount(env.ctx, baseAcc)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
 	env.bankk.setSplitBalance(env.ctx, addr, testRealmDenom, 50)
 
 	// At t=100 nothing has vested. The realm coin is spendable and sorts first;
 	// the ugnot is fully locked. The mixed transfer must still be refused.
 	ctx := atTime(env, 100)
-	err = env.bankk.SubtractCoins(ctx, addr, std.Coins{
+	err := env.bankk.SubtractCoins(ctx, addr, std.Coins{
 		{Denom: testRealmDenom, Amount: 1},
 		{Denom: "ugnot", Amount: 1000},
 	})
@@ -628,16 +627,16 @@ func TestVestingChecksEveryDenom(t *testing.T) {
 // A vesting schedule can lock a SPLIT-tier denom, and the spendable calculation must
 // read the denom from wherever it lives. Every other vesting test locks the gas denom,
 // so the whole suite passes with that calculation reading acc.GetCoins() instead of
-// bank.GetCoin — which is what master did, and what std.SpendableCoins still does.
+// bank.GetCoin.
 //
 // The failure mode is over-strictness, not a bypass: an account-tier read reports zero
 // held, so spendable clamps to zero and every spend is refused while anything is
 // locked. That only shows up mid-schedule, which is why the partial-vesting spend
 // below is the assertion that matters — a fully-locked case is refused either way.
 //
-// The state is reachable exactly as genesis builds it: applyBalance writes the
-// account object with the full pre-split amount so the vesting constructor can
-// validate OriginalVesting against it, then SetCoins routes the denom to its own key.
+// The state is reachable exactly as genesis builds it: applyBalance checks
+// OriginalVesting against the whole genesis amount, which spans both tiers, then
+// SetCoins routes the denom to its own key.
 func TestVestingBindsOnASplitTierDenom(t *testing.T) {
 	t.Parallel()
 
@@ -645,11 +644,8 @@ func TestVestingBindsOnASplitTierDenom(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("realm-vester"))
 	locked := std.Coins{{Denom: testRealmDenom, Amount: 1000}}
 
-	cva, err := std.NewContinuousVestingAccount(
-		std.NewBaseAccount(addr, locked, nil, 0, 0),
-		std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200},
-	)
-	require.NoError(t, err)
+	cva := std.NewBaseAccount(addr, locked, nil, 0, 0)
+	cva.Vesting = std.VestingSchedule{OriginalVesting: locked, StartTime: 100, EndTime: 200}
 	env.acck.SetAccount(env.ctx, cva)
 	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, locked))
 
@@ -834,18 +830,14 @@ func TestConservation(t *testing.T) {
 	}
 
 	vesting := std.Coins{{Denom: testAccountDenom, Amount: vesterFunded}}
-	dva, err := std.NewDelayedVestingAccount(
-		// Draw a real account number: hardcoding 0 collides with the first
-		// auto-allocated account and leaves the global counter behind the state.
-		std.NewBaseAccount(vester, vesting, nil, env.acck.GetNextAccountNumber(ctx), 0),
-		std.VestingSchedule{
-			OriginalVesting: vesting,
-			StartTime:       100,
-			EndTime:         200,
-			Type:            std.VestingDelayed,
-		},
-	)
-	require.NoError(t, err)
+	// Draw a real account number: hardcoding 0 collides with the first
+	// auto-allocated account and leaves the global counter behind the state.
+	dva := std.NewBaseAccount(vester, vesting, nil, env.acck.GetNextAccountNumber(ctx), 0)
+	dva.Vesting = std.VestingSchedule{
+		OriginalVesting: vesting,
+		EndTime:         200,
+		Type:            std.VestingDelayed,
+	}
 	env.acck.SetAccount(ctx, dva)
 	require.NoError(t, env.bankk.SetCoins(ctx, vester, vesting))
 	model[vester][testAccountDenom] = vesterFunded
@@ -1283,7 +1275,7 @@ func TestNoPathAdmitsANonPositiveDebit(t *testing.T) {
 		acc := env.acck.GetAccount(ctx, from)
 		require.NotPanics(t, func() {
 			require.Error(t, env.bankk.subtract(ctx, acc, from,
-				std.Coins{{Denom: testRealmDenom, Amount: bad}}, false),
+				std.Coins{{Denom: testRealmDenom, Amount: bad}}),
 				"subtract must reject a %d debit on its own", bad)
 		})
 		require.Equal(t, int64(1000), env.bankk.GetCoin(ctx, from, testRealmDenom),
@@ -1339,7 +1331,7 @@ func TestNeitherTierInvertsOnANonPositiveAmount(t *testing.T) {
 			amt := std.Coins{{Denom: tier.denom, Amount: bad}}
 
 			require.NotPanics(t, func() {
-				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt, false),
+				require.Error(t, env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, amt),
 					"%s tier: debit of %d must be refused", tier.name, bad)
 			})
 			require.NotPanics(t, func() {
@@ -1418,7 +1410,7 @@ func TestSubtractWritesNothingWhenTheAccountWriteFails(t *testing.T) {
 	err := env.bankk.subtract(ctx, refusingAccount{env.acck.GetAccount(ctx, addr)}, addr, std.Coins{
 		{Denom: testRealmDenom, Amount: 40},
 		{Denom: testAccountDenom, Amount: 40},
-	}, false)
+	})
 	require.Error(t, err, "the account write must fail")
 	require.Equal(t, int64(100), env.bankk.getSplitBalance(ctx, addr, testRealmDenom),
 		"a failed subtract must not have debited the split tier")
@@ -1598,4 +1590,115 @@ func TestSecondGasDenomInAccountTier(t *testing.T) {
 	require.NoError(t, k.SendCoins(ctx, addr, to, std.Coins{{Denom: voucher, Amount: 3}}))
 	require.Equal(t, int64(17), k.GetCoin(ctx, addr, voucher))
 	require.Equal(t, int64(3), k.GetCoin(ctx, to, voucher))
+}
+
+// subtract's acc parameter is an optimisation, not a declaration that the
+// address has no account: its doc says to pass nil if you do not have it. The
+// read half used to treat nil as an account holding nothing while the write half
+// read it from the store, so a nil caller was refused every account-tier debit
+// while its split-tier debits went through.
+func TestSubtractWithANilAccountStillDebitsBothTiers(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("nil-acc-holder"))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 100},
+		{Denom: testAccountDenom, Amount: 100},
+	}))
+
+	// Both tiers in one debit, so an account-tier failure cannot hide behind a
+	// working split-tier one.
+	require.NoError(t, env.bankk.subtract(env.ctx, nil, addr, std.Coins{
+		{Denom: testRealmDenom, Amount: 40},
+		{Denom: testAccountDenom, Amount: 40},
+	}), "a nil account must be read, not assumed empty")
+
+	require.Equal(t, int64(60), env.bankk.GetCoin(env.ctx, addr, testAccountDenom),
+		"the account tier must have been debited")
+	require.Equal(t, int64(60), env.bankk.GetCoin(env.ctx, addr, testRealmDenom),
+		"the split tier must have been debited")
+}
+
+// A denom in both tiers at once is corrupt state, reachable only by changing the
+// account-tier allowlist without migrating the balances it moves. The readers
+// disagree about it on purpose: GetCoin answers from the tier the current
+// allowlist names, while GetCoins refuses to answer at all rather than return a
+// figure that is either a sum of two homes or silently missing one.
+//
+// Pinned because the alternative -- summing them -- would report a balance larger
+// than the address can spend, and the account-tier invariant's report says which
+// of the two happens.
+func TestADoubleHomedDenomIsRefusedByGetCoinsNotSummed(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("double-homed"))
+
+	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+	require.NoError(t, acc.SetCoins(std.Coins{{Denom: testAccountDenom, Amount: 5}}))
+	env.acck.SetAccount(env.ctx, acc)
+
+	// Straight to the store: every keeper write routes by the allowlist, so this
+	// state has no reachable construction under a fixed one.
+	rawSet(t, env, BalanceKey(addr, testAccountDenom), encodeBalance(7))
+
+	require.Equal(t, int64(5), env.bankk.GetCoin(env.ctx, addr, testAccountDenom),
+		"GetCoin answers from the tier the allowlist names, and reads no other")
+
+	require.PanicsWithValue(t,
+		`denom "`+testAccountDenom+`" has a split-tier key but is in the account tier: `+
+			"the allowlist changed without migrating existing balances",
+		func() { env.bankk.GetCoins(env.ctx, addr) },
+		"GetCoins must refuse rather than report 12")
+
+	// An invariant names the state, so an operator is told before a query hits it.
+	// This direction -- a split key for a denom the allowlist now covers -- belongs
+	// to the keyspace sweep; the opposite direction, where the allowlist shrank
+	// and left the denom in the account object, is what AccountTierInvariant
+	// reports.
+	msg, broken := BalanceKeysInvariant(env.bankk.ViewKeeper)(env.ctx)
+	require.True(t, broken)
+	require.Contains(t, msg, "the allowlist grew without migrating existing balances")
+}
+
+// The keeper's GetCoin and std.Coins.AmountOf are the mirror image of the
+// realm-facing pair in chain/banker, and the two are easy to mix up.
+//
+//	keeper GetCoin      absorbs a malformed denom, returns zero
+//	std.Coins.AmountOf  validates first and panics
+//
+//	banker.GetCoin      validates first and panics  (SDKBanker.GetCoin)
+//	chain.Coins.AmountOf  scans linearly, returns zero
+//
+// AGENTS.md documents the realm-facing pair, which is the one realm authors
+// call. This pins the keeper pair, so a measurement taken here is not carried
+// over to guidance about the other one.
+func TestKeeperGetCoinAbsorbsAMalformedDenomButStdAmountOfPanics(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("holder"))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, addr,
+		std.Coins{{Denom: testAccountDenom, Amount: 100}}))
+
+	for _, denom := range []string{
+		"A!",                     // uppercase and punctuation
+		"",                       // empty
+		"ab",                     // under the minimum length
+		strings.Repeat("z", 500), // past MaxDenomLength
+	} {
+		require.NotPanics(t, func() {
+			require.Zero(t, env.bankk.GetCoin(env.ctx, addr, denom),
+				"a denom that cannot exist must read as zero: %q", denom)
+		}, "GetCoin must absorb %q", denom)
+
+		require.Panics(t, func() {
+			_ = env.bankk.GetCoins(env.ctx, addr).AmountOf(denom)
+		}, "AmountOf must refuse %q", denom)
+	}
+
+	// The control: a real denom still reads through both.
+	require.Equal(t, int64(100), env.bankk.GetCoin(env.ctx, addr, testAccountDenom))
+	require.Equal(t, int64(100), env.bankk.GetCoins(env.ctx, addr).AmountOf(testAccountDenom))
 }

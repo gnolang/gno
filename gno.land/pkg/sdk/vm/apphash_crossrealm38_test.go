@@ -190,7 +190,20 @@ import (
 // the root. The crossrealm38 scenario calls none of them; the shift is the
 // stdlib source change alone. Re-derived after merging master, whose own
 // encode/decode work moved the root too, so neither side's value survives.
-const expectedCrossrealm38Hash = "12c7ca4d567e5e5a6d3c5572c0631a284c62b6c745faee94e9b38b617509584c"
+//
+// Bumped 2026-08-26 by the chain.NewCoins copy fix: it edits coins.gno and
+// coins_test.gno, and stdlib MemPackages carry both files' source bytes into
+// genesis state. The scenario never calls NewCoins, and the
+// zrealm_crossrealm38.gno filetest still passes, so behavior is unchanged.
+// Checked that the source bytes are the whole cause and not the copy the fix
+// adds: starting from the pre-fix file, one comment line moves the root on its
+// own.
+//
+// Bumped 2026-08-27 by a doc fix on Coin.Add and Coin.Sub in coins.gno. Both
+// claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
+// (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
+// calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
+const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
