@@ -84,7 +84,13 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
+	// Inert package storage: packages pending activation, stored without
+	// typechecking or execution and invisible to the normal package resolver.
+	AddInertPackage(mpkg *std.MemPackage)
+	GetInertPackage(path string) *std.MemPackage
+	DelInertPackage(path string)
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	FindInertPathsByPrefix(prefix string) iter.Seq[string]
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
@@ -554,6 +560,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
 		amino.MustUnmarshal(bz, &oo)
+		// Must precede GetShallowSize below: it charges by capacity.
+		normalizeDecodedCap(oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -590,7 +598,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
-		_ = fillTypesOfValue(ds, oo)
+		// Restore-path gas (e.g. ComputeMapKey rebuilding a map's vmap):
+		// metered against this store's tx meter. See ComputeMapKey's doc.
+		_ = fillTypesOfValue(ds.gasMeter, ds, oo)
 		return oo
 	}
 	return nil
@@ -744,6 +754,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
+	normalizeDecodedCap(oo)
 	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
@@ -1202,6 +1213,64 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
+// AddInertPackage stores a MemPackage in the inert key space without
+// typechecking or execution. The package is invisible to the normal resolver
+// until activated via EnablePackage.
+func (ds *defaultStore) AddInertPackage(mpkg *std.MemPackage) {
+	bz := amino.MustMarshal(mpkg)
+	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoEncodeDesc)
+	pathkey := []byte(backendInertPackagePathKey(mpkg.Path))
+	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+}
+
+// GetInertPackage retrieves the MemPackage from the inert key space.
+// Returns nil if no inert package exists at path.
+func (ds *defaultStore) GetInertPackage(path string) *std.MemPackage {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	bz := ds.iavlStore.Get(ds.gctx, pathkey)
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// DelInertPackage removes a package from the inert key space.
+func (ds *defaultStore) DelInertPackage(path string) {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	ds.iavlStore.Delete(ds.gctx, pathkey)
+}
+
+// FindInertPathsByPrefix lists packages parked awaiting an approver, under an
+// optional path prefix. An empty prefix lists all of them.
+//
+// Simpler than FindPathsByPrefix because this key space has no #allbutprod
+// sibling: a parked package is one blob under one key, so there is nothing to
+// de-duplicate.
+func (ds *defaultStore) FindInertPathsByPrefix(prefix string) iter.Seq[string] {
+	// An empty prefix needs no special case: the end key increments the ":" of
+	// the bare prefix, which bounds every key in the space.
+	startKey := []byte(backendInertPackagePathKey(prefix))
+	endKey := slices.Clone(startKey)
+	endKey[len(endKey)-1]++
+
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
+		defer iter.Close()
+
+		for ; iter.Valid(); iter.Next() {
+			path := strings.TrimPrefix(string(iter.Key()), inertPackagePrefix)
+			if !yield(path) {
+				return
+			}
+		}
+	}
+}
+
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
@@ -1477,6 +1546,13 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+// inertPackagePrefix is the key space for packages awaiting an approver. It
+// sorts outside backendPackageGlobalPath's range, which is why a parked package
+// is invisible to FindPathsByPrefix and needs its own listing.
+const inertPackagePrefix = "inert_pkg:"
+
+func backendInertPackagePathKey(path string) string { return inertPackagePrefix + path }
 
 // backendPackageAllButProdKey returns the sibling key holding a package's
 // test/filetest files (everything in an MP*All package but its production
