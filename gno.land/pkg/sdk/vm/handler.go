@@ -126,6 +126,17 @@ const (
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// Every query here is read-only, and its answer is fixed by the state it
+	// reads and the context it runs in. Both are pinned by the chain tip, so a
+	// repeat of the same query before the next block can be answered from the
+	// last one. Without this a node redoes the whole evaluation every time,
+	// which is what makes a page view cost the same on its thousandth hit as
+	// its first.
+	tip := ctx.BlockHeight()
+	if hit, ok := vh.vm.queryCache.get(tip, req); ok {
+		return hit
+	}
+
 	path := secondPart(req.Path)
 	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
 		path = path[:i]
@@ -167,6 +178,11 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 				secondPart(req.Path), req.Path)))
 	}
 
+	// Stored here rather than in a defer, so a panicking query stores nothing.
+	// A defer runs while panicking too, and res is still the zero value then,
+	// so the next identical query would be answered with an empty success in
+	// place of the panic.
+	vh.vm.queryCache.put(tip, req, res)
 	return res
 }
 

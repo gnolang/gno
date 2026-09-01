@@ -147,6 +147,8 @@ type VMKeeper struct {
 	gnoStore gno.Store
 	// committed typecheck cache
 	typeCheckCache gno.TypeCheckCache
+	// read-only query results, valid only for the current chain tip
+	queryCache *queryCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -166,6 +168,7 @@ func NewVMKeeper(
 		bank:           bank,
 		prmk:           prmk,
 		typeCheckCache: gno.TypeCheckCache{},
+		queryCache:     newQueryCache(),
 	}
 
 	return vmk
