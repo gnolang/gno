@@ -140,6 +140,44 @@ func TestBankKeeper(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSendCoinsEmitsTransferEvent(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("event-from"))
+	to := crypto.AddressFromPreimage([]byte("event-to"))
+	amount := std.NewCoins(std.NewCoin("ugnot", 5))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
+
+	require.NoError(t, env.bankk.SendCoins(env.ctx, from, to, amount))
+	require.Equal(t, []sdk.Event{TransferEvent{
+		From:   from.String(),
+		To:     to.String(),
+		Amount: amount,
+	}}, env.ctx.EventLogger().Events())
+}
+
+func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("multisend-from"))
+	to1 := crypto.AddressFromPreimage([]byte("multisend-to-1"))
+	to2 := crypto.AddressFromPreimage([]byte("multisend-to-2"))
+	amount1 := std.NewCoins(std.NewCoin("ugnot", 2))
+	amount2 := std.NewCoins(std.NewCoin("ugnot", 3))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount1.Add(amount2)))
+
+	require.NoError(t, env.bankk.InputOutputCoins(env.ctx,
+		[]Input{NewInput(from, amount1.Add(amount2))},
+		[]Output{NewOutput(to1, amount1), NewOutput(to2, amount2)},
+	))
+	require.Equal(t, []sdk.Event{
+		TransferEvent{To: to1.String(), Amount: amount1},
+		TransferEvent{To: to2.String(), Amount: amount2},
+	}, env.ctx.EventLogger().Events())
+}
+
 func TestViewKeeper(t *testing.T) {
 	t.Parallel()
 
@@ -742,6 +780,7 @@ func TestBankKeeperSendCoinsZero(t *testing.T) {
 		bankk.SendCoins(ctx, from, to, std.NewCoins(std.NewCoin("rstr", 1))),
 		std.RestrictedTransferError{},
 	)
+	require.Empty(t, ctx.EventLogger().Events())
 }
 
 // Test SetRestrictedDenoms

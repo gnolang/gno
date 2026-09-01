@@ -102,30 +102,16 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if err := bank.SubtractCoins(ctx, in.Address, in.Coins); err != nil {
 			return err
 		}
-
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					sdk.EventTypeMessage,
-					sdk.NewAttribute(types.AttributeKeySender, in.Address.String()),
-				),
-			)
-		*/
 	}
 
 	for _, out := range outputs {
 		if err := bank.AddCoins(ctx, out.Address, out.Coins); err != nil {
 			return err
 		}
-
-		/*
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					types.EventTypeTransfer,
-					sdk.NewAttribute(types.AttributeKeyRecipient, out.Address.String()),
-				),
-			)
-		*/
+		ctx.EventLogger().EmitEvent(TransferEvent{
+			To:     out.Address.String(),
+			Amount: out.Coins,
+		})
 	}
 
 	return nil
@@ -201,19 +187,11 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	/*
-		ctx.EventManager().EmitEvents(sdk.Events{
-			sdk.NewEvent(
-				types.EventTypeTransfer,
-				sdk.NewAttribute(types.AttributeKeyRecipient, toAddr.String()),
-				sdk.NewAttribute(sdk.AttributeKeyAmount, amt.String()),
-			),
-			sdk.NewEvent(
-				sdk.EventTypeMessage,
-				sdk.NewAttribute(types.AttributeKeySender, fromAddr.String()),
-			),
-		})
-	*/
+	ctx.EventLogger().EmitEvent(TransferEvent{
+		From:   fromAddr.String(),
+		To:     toAddr.String(),
+		Amount: amt,
+	})
 
 	return nil
 }
