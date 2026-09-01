@@ -1154,7 +1154,7 @@ func makeUverseNode() {
 				} else {
 					for i := range minl {
 						dstev := dstv.GetElementPointer(m.Store, i, bdt.Elt)
-						srcev := src.TV.GetPointerAtIndexInt(m, m.Store, i)
+						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
 						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 				}
@@ -1245,14 +1245,14 @@ func makeUverseNode() {
 					m.Panic(typedString("cannot delete from readonly tainted map"))
 				}
 
-				val, ok := mv.GetValueForKey(m, m.Store, &itv)
+				val, ok := mv.GetValueForKey(m.GasMeter, m.Store, &itv)
 				if !ok {
 					return
 				}
 				// delete; capture the STORED key that was removed. Detaching
 				// the argument key (itv) instead orphaned the stored key object
 				// in the store — it was never DecRef'd nor marked deleted.
-				delKey := mv.DeleteForKey(m, m.Store, &itv)
+				delKey := mv.DeleteForKey(m.GasMeter, m.Store, &itv)
 
 				// mark the STORED key object as deleted (not the argument key)
 				if delKey != nil {
@@ -1311,7 +1311,7 @@ func makeUverseNode() {
 				et := bt.Elem()
 				switch vargsl {
 				case 1:
-					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
+					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if li < 0 {
 						m.Panic(typedRuntimeError("runtime error: makeslice: len out of range"))
@@ -1343,9 +1343,9 @@ func makeUverseNode() {
 						return
 					}
 				case 2:
-					lv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
+					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
-					cv := vargs.TV.GetPointerAtIndexInt(m, m.Store, 1).Deref()
+					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := int(cv.ConvertGetInt())
 
 					if li < 0 {
@@ -2071,7 +2071,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 		if i != 0 {
 			mw.WriteByte(' ')
 		}
-		ev := xv.TV.GetPointerAtIndexInt(m, m.Store, i).Deref()
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 		ev.Fprint(mw, m)
 	}
 	if newline {
@@ -2109,7 +2109,7 @@ func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 			return bNewline
 		}
 	case 1:
-		ev := xv.TV.GetPointerAtIndexInt(m, m.Store, 0).Deref()
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 		res := ev.Sprint(m)
 		if newline {
 			res += "\n"
@@ -2122,7 +2122,7 @@ func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
-			ev := xv.TV.GetPointerAtIndexInt(m, m.Store, i).Deref()
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 			res := ev.Sprint(m)
 			buf.WriteString(res)
 		}

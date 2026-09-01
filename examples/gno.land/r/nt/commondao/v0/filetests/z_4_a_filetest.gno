@@ -1,0 +1,43 @@
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_4_a_filetest
+
+package z_4_a_filetest
+
+import (
+	"testing"
+
+	"gno.land/r/nt/commondao/v0"
+)
+
+const (
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	name  = "B"
+)
+
+var daoID uint64
+
+func init(cur realm) {
+	// Invite a user to be able to start creating DAOs
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross(cur), user)
+
+	// Create a couple of DAOs
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
+	commondao.New(cross(cur), "A", "Purpose", "", "")
+	daoID = commondao.New(cross(cur), name, "Purpose", "", "")
+	commondao.New(cross(cur), "C", "Purpose", "", "")
+}
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
+
+	view := commondao.GetView(daoID)
+
+	println(view.Name() == name)
+	println(view.ID() == daoID)
+}
+
+// Output:
+// true
+// true

@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
@@ -52,6 +55,74 @@ func TestApplyBlock(t *testing.T) {
 
 	// TODO check state and mempool
 	_ = state
+}
+
+// TestApplyBlockFlushesABCIResponsesBeforeAppCommit pins that the responses for
+// a height are on disk by the time the application commits that height.
+func TestApplyBlockFlushesABCIResponsesBeforeAppCommit(t *testing.T) {
+	t.Parallel()
+
+	state, _, _ := makeState(1, 1)
+	stateDB := newUnsyncedWriteDB()
+	sm.SaveState(stateDB, state)
+
+	var atAppCommit dbm.DB
+	app := &commitHookApp{onCommit: func() { atAppCommit = stateDB.Durable() }}
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec.SetEventSwitch(events.NewEventSwitch())
+
+	block := makeBlock(state, 1)
+	require.NotEmpty(t, block.Txs)
+	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
+	_, err := blockExec.ApplyBlock(state, blockID, block)
+	require.NoError(t, err)
+	require.NotNil(t, atAppCommit)
+
+	// The state for the block is saved after the commit, so the snapshot was
+	// taken inside the window the responses have to cover.
+	require.Equal(t, block.Height-1, sm.LoadState(atAppCommit).LastBlockHeight)
+
+	loaded, err := sm.LoadABCIResponses(atAppCommit, block.Height)
+	require.NoError(t, err)
+	require.Len(t, loaded.DeliverTxs, len(block.Txs))
+	assert.Equal(t, []byte(block.Txs[0]), loaded.DeliverTxs[0].Data)
+}
+
+// TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError pins that a failed
+// write of the crash-recovery record stops the block before the application
+// commits it: committing anyway would leave the app ahead of a record that was
+// never stored, the exact skew the record exists to cover.
+func TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError(t *testing.T) {
+	t.Parallel()
+
+	state, _, _ := makeState(1, 1)
+	writeErr := errors.New("injected responses write failure")
+	stateDB := &failingWriteDB{
+		DB:      memdb.NewMemDB(),
+		failKey: sm.CalcABCIResponsesKey(1),
+		failErr: writeErr,
+	}
+	sm.SaveState(stateDB, state)
+
+	committed := false
+	app := &commitHookApp{onCommit: func() { committed = true }}
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec.SetEventSwitch(events.NewEventSwitch())
+
+	block := makeBlock(state, 1)
+	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
+	_, err := blockExec.ApplyBlock(state, blockID, block)
+
+	require.ErrorIs(t, err, writeErr)
+	assert.False(t, committed, "the application committed a height whose recovery record was never stored")
 }
 
 // TestBeginBlockValidators ensures we send absent validators list.

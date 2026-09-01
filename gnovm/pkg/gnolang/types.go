@@ -1038,9 +1038,27 @@ func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type
 		// method's origin package (its stamp when flattened out of another
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
-		_, hp, rt, ft, status := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
+		trail, hp, rt, ft, status := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
 		mname := im.stampedName()
 		if status != embedLookupFound {
+			return fmt.Errorf("missing method %s", mname)
+		}
+		// Seal enforcement: a dot-named marker method (e.g. `.seal` on the
+		// uverse `realm` interface) is undeclarable in user source — the
+		// parser rejects identifiers beginning with `.` — so the only types
+		// that legitimately carry it are the runtime types that natively
+		// declare it (`.grealm`). It must therefore be satisfied by a method
+		// declared directly on the concrete type, never one PROMOTED through
+		// an embedded field. Embedding a live `realm` value would otherwise
+		// inherit `.seal` (satisfying the interface) while the embedder
+		// overrides identity methods such as Address()/PkgPath() — splitting
+		// liveness (from the embedded realm) from identity (from the
+		// overrides) and defeating the seal's guarantee that both originate
+		// from the same concrete `.grealm`. See gnovm/adr/realm_seal_embedding.md.
+		// A directly-declared method resolves as a lone method value-path; a
+		// promoted one prepends at least one embedded-field hop, so its trail
+		// is longer than a single element. Reject the latter for markers.
+		if isSealedMarkerName(im.Name) && trailPromotedThroughField(trail) {
 			return fmt.Errorf("missing method %s", mname)
 		}
 		if mt, ok := ft.(*FuncType); ok {
@@ -1059,6 +1077,27 @@ func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type
 		}
 	}
 	return nil
+}
+
+// isSealedMarkerName reports whether n is a runtime seal marker: a
+// dot-prefixed method name. The Gno parser rejects identifiers beginning
+// with `.`, so such names cannot originate from user source and only the
+// runtime declares them (e.g. `.seal`). See verifyImplementedBy.
+func isSealedMarkerName(n Name) bool {
+	return len(n) > 0 && n[0] == '.'
+}
+
+// trailPromotedThroughField reports whether the method-resolution trail
+// reaches its target by descending through one or more embedded fields, i.e.
+// the method is promoted rather than declared directly on the concrete type.
+// A directly-declared method resolves as a lone method value-path (a trail of
+// length one); a promoted one prepends at least one field hop, so any trail
+// longer than a single element is a promotion. Using the length rather than
+// matching the head's VPType also covers the VPSubrefField / deref-method head
+// forms that applyPointerDeref produces for a pointer method reached through
+// fields. See verifyImplementedBy.
+func trailPromotedThroughField(trail []ValuePath) bool {
+	return len(trail) > 1
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -1587,7 +1626,7 @@ func (dt *DeclaredType) Seal() {
 // named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
 // types). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
-// for adversarial source-level embed chains. 8 is well above any observed
+// for deeply nested source-level embed chains. 8 is well above any observed
 // legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
 // can be raised in a future release without invalidating existing programs.
 const MaxEmbedDepth = 8
