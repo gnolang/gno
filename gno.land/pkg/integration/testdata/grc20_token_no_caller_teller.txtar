@@ -1,0 +1,23 @@
+# A published *Token cannot create a caller-relative teller. The accessor is
+# deliberately available only on the private ledger retained by the token realm.
+
+loadpkg gno.land/p/demo/tokens/grc20
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/publictoken -pkgpath gno.land/r/test/publictoken -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+stderr 'CallerTeller undefined \(type \*grc20.Token has no field or method CallerTeller\)'
+
+-- publictoken/gnomod.toml --
+module = "gno.land/r/test/publictoken"
+gno = "0.9"
+
+-- publictoken/publictoken.gno --
+package publictoken
+
+import "gno.land/p/demo/tokens/grc20"
+
+var Token *grc20.Token
+
+func Try(cur realm) {
+	Token.CallerTeller()
+}

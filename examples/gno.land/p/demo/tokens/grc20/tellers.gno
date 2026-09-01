@@ -19,7 +19,7 @@ import (
 //
 // Construction privacy alone is not enough: a realm may legally build a teller
 // and then export the VALUE. The write methods therefore also verify that the
-// invoking realm is the token's own (see guardHome), which makes a leaked
+// invoking realm is the token's own (see guardWrite), which makes a leaked
 // teller inert everywhere but home.
 func (ledger *PrivateLedger) CallerTeller() Teller {
 	if ledger == nil {
@@ -31,6 +31,25 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 			return rlm.Previous().Address()
 		},
 		homeGuard: true,
+		Token:     ledger.token,
+	}
+}
+
+// UserTeller returns a Teller that acts on behalf of the immediate EOA caller.
+//
+// It is home-guarded and rejects non-user calls, limiting writes to MsgCall
+// interactions originating from a signing user.
+func (ledger *PrivateLedger) UserTeller() Teller {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+		homeGuard: true,
+		userOnly:  true,
 		Token:     ledger.token,
 	}
 }
@@ -126,7 +145,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-// guardHome confines a frame-relative (homeGuard) teller to the token's own
+// guardWrite confines a frame-relative (homeGuard) teller to the token's own
 // realm. Construction privacy stops a foreign realm from minting one;
 // this stops a minted one from travelling, which is what happens when a realm
 // legally builds a teller and then exports the value.
@@ -148,8 +167,15 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // Approve, then RealmTeller().TransferFrom, which is eagerly bound to that
 // realm's own address and allowance-gated.
 //
+// A userOnly teller adds one further condition: the immediate caller must be an
+// EOA reached through MsgCall, so a realm that cross-calls the surface function
+// is refused rather than served as itself.
+//
 // The leading int keeps this a plain method.
-func (ft *fnTeller) guardHome(_ int, rlm realm) error {
+func (ft *fnTeller) guardWrite(_ int, rlm realm) error {
+	if ft.userOnly && !rlm.Previous().IsUserCall() {
+		return ErrNotUserCall
+	}
 	if !ft.homeGuard {
 		return nil
 	}
@@ -167,7 +193,7 @@ func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -181,7 +207,7 @@ func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) err
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -195,7 +221,7 @@ func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	spender := ft.accountFn(0, rlm)

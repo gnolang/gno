@@ -16,7 +16,7 @@ func TestCallerTellerImpl(cur realm, t *testing.T) {
 	var _ Teller = teller
 }
 
-// The sub-realm case (guardHome must not lock out the token's own realm when it
+// The sub-realm case (guardWrite must not lock out the token's own realm when it
 // operates under an identity minted by its own cur.Sub()) needs a real realm
 // frame, since cur.Sub() refuses to mint from a p/ package. It lives in
 // filetests/caller_teller_sub_realm_filetest.gno.
@@ -150,4 +150,17 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
+}
+
+func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	token, ledger := newTestToken("Home Guard", "HOME", 6, 0, cur)
+	teller := ledger.CallerTeller()
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foreign"))
+	urequire.ErrorIs(t, teller.Transfer(0, cur, bob, 100), ErrForeignCallerTeller)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(0), token.BalanceOf(bob))
 }

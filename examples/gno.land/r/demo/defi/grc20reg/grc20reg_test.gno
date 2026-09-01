@@ -314,3 +314,30 @@ func TestTransferFromSpendsAllowanceGrantedToCallingRealm(cur realm, t *testing.
 	uassert.Equal(t, int64(900), MustGet(tokenKey).BalanceOf(alice))
 	uassert.Equal(t, int64(100), MustGet(tokenKey).BalanceOf(bob))
 }
+
+func TestWrappersProvideRealmTransferApproveAndTransferFrom(cur realm, t *testing.T) {
+	const (
+		tokenPath   = "gno.land/r/demo/token_wrapper_surface"
+		ownerPath   = "gno.land/r/demo/wrapper_owner"
+		spenderPath = "gno.land/r/demo/wrapper_spender"
+	)
+	owner := chain.PackageAddress(ownerPath)
+	spender := chain.PackageAddress(spenderPath)
+	recipient := testutils.TestAddress("recipient")
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("Wrapper Surface", "WRPS", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(owner, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewCodeRealm(ownerPath))
+	Transfer(0, cur, tokenKey, recipient, 100)
+	Approve(0, cur, tokenKey, spender, 300)
+
+	testing.SetRealm(testing.NewCodeRealm(spenderPath))
+	TransferFrom(0, cur, tokenKey, owner, recipient, 200)
+
+	uassert.Equal(t, int64(700), token.BalanceOf(owner))
+	uassert.Equal(t, int64(300), token.BalanceOf(recipient))
+	uassert.Equal(t, int64(100), token.Allowance(owner, spender))
+}
