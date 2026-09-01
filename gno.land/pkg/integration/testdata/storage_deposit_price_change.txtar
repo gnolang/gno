@@ -38,7 +38,7 @@ stdout 'storage: 503690, deposit: 50369000'
 # be re-derived. The assertion that actually tests this file's subject is the
 # storage/deposit pair above.
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999813596400ugnot"'
+stdout '"coins": "9999813676200ugnot"'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -73,7 +73,7 @@ stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999851239900ugnot"'
+stdout '"coins": "9999851319700ugnot"'
 
 -- loader/load_govdao.gno --
 package loader

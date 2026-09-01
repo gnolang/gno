@@ -1001,6 +1001,8 @@ func New(cur realm) string {
 	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "New()")
 	require.ErrorContains(t, err, "realm ID issuance is disabled")
 
+	// A run script is ephemeral, but the persistent realm it cross-calls
+	// commits the issued ID, so Run may issue IDs just as Call does.
 	runCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
 	runFiles := []*std.MemFile{
 		{Name: "main.gno", Body: `package main
@@ -1008,11 +1010,12 @@ func New(cur realm) string {
 import "gno.land/r/test/realmidgate"
 
 func main(cur realm) {
-	realmidgate.New(cross(cur))
+	println(realmidgate.New(cross(cur)))
 }`},
 	}
-	_, err = env.vmk.Run(runCtx, NewMsgRun(addr, nil, runFiles))
-	require.ErrorContains(t, err, "realm ID issuance is disabled")
+	runRes, err := env.vmk.Run(runCtx, NewMsgRun(addr, nil, runFiles))
+	require.NoError(t, err)
+	require.Contains(t, runRes, "gno:realm-id:")
 }
 
 func TestVMKeeperNewRealmIDInInit(t *testing.T) {
@@ -1035,6 +1038,7 @@ func New(cur realm) string {
 }`
 
 	run := func(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath string) {
+		t.Helper()
 		env.vmk.CommitGnoTransactionStore(ctx)
 
 		call := func(fn string) string {

@@ -91,7 +91,8 @@ func main() {
 
 	previousTime := st.BeginTransaction(nil, nil, nil, nil).GetPackageRealm(pkgPath).Time
 	seen := map[ObjectID]bool{}
-	for i := 0; i < 3; i++ {
+	const rounds = 3
+	for range rounds {
 		baseTx = baseStore.CacheWrap()
 		iavlTx = iavlStore.CacheWrap()
 		tx = st.BeginTransaction(baseTx, iavlTx, nil, nil)
