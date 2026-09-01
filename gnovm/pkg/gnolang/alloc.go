@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -38,7 +39,19 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
+
+	// mintedStrings counts NewString mints, an upper bound on distinct
+	// live IDs; sizes the GC's per-run dedup set (GCVisitorFn).
+	mintedStrings int
 }
+
+// nextStringID issues StringValue.ID mint serials. Process-global and
+// atomic: the numeric value never reaches consensus (amino persists Str
+// alone) — only the partition "which values share one mint" matters, and
+// that is a pure function of VM execution. A global counter keeps IDs
+// unique across allocators, so a preprocess-minted literal can never
+// collide with a runtime mint.
+var nextStringID atomic.Uint64
 
 // Allocation size constants for gas metering.
 //
@@ -276,6 +289,7 @@ func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
 	return alloc.maxBytes, alloc.bytes
 }
 
+// Reset zeroes the byte count.
 func (alloc *Allocator) Reset() *Allocator {
 	if alloc == nil {
 		return nil
@@ -508,7 +522,15 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	if len(s) == 0 {
+		return StringValue{} // "" carries no backing; untracked
+	}
+	// Fresh mint serial: all copies/slices of this value share it, so the
+	// GC recount charges Extent once per mint per cycle (see StringValue).
+	if alloc != nil {
+		alloc.mintedStrings++
+	}
+	return StringValue{Str: s, ID: nextStringID.Add(1), Extent: int64(len(s))}
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
@@ -807,7 +829,10 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// Header only: backing bytes are charged once per backing per GC
+	// cycle via CountStringBytes (a per-value count would double-charge
+	// shared backings).
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {

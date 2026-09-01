@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = StringValue{}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -82,7 +82,39 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+// StringValue carries the string plus VM-assigned backing identity.
+//
+// ID is a mint-event serial (newStringID): every NewString gets a fresh
+// one, and value copies and slices (GetSlice) inherit it, so all values
+// over one backing share an ID. The GC recount charges Extent — the full
+// backing length — once per distinct ID per cycle: shared backings dedup,
+// and a slice outliving its source keeps the backing counted. ID zero is
+// untracked (VM-internal text: panic values, uverse init); it recounts as
+// header only.
+//
+// The numeric ID never reaches consensus (amino persists Str alone; loads
+// re-mint via fillTypesOfValue) — only the partition "which values came
+// from the same mint" matters, and that is a pure function of VM
+// execution, identical on every node.
+//
+// NOTE: compare strings by Str, never by struct equality — equal strings
+// from different mints differ in ID.
+type StringValue struct {
+	Str    string
+	ID     uint64
+	Extent int64
+}
+
+// MarshalAmino keeps the persisted format identical to the pre-struct
+// representation: the string alone. ID/Extent are runtime accounting
+// state, re-minted on load by fillTypesOfValue.
+func (sv StringValue) MarshalAmino() (string, error) { return sv.Str, nil }
+
+// UnmarshalAmino restores content only; the load path re-mints identity.
+func (sv *StringValue) UnmarshalAmino(s string) error {
+	*sv = StringValue{Str: s}
+	return nil
+}
 
 // ----------------------------------------
 // BigintValue
@@ -1477,7 +1509,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return tv.V.(StringValue).Str
 }
 
 func (tv *TypedValue) SetInt(n int64) {
@@ -2586,7 +2618,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case StringValue:
-		return len(cv)
+		return len(cv.Str)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2666,9 +2698,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			))})
 		}
 		if t == StringType || t == UntypedStringType {
+			// Header only: the slice shares the source's backing and
+			// inherits its mint ID/Extent, so the GC recount still
+			// charges the full backing once even if the source dies.
+			alloc.Allocate(allocString)
+			src, _ := tv.V.(StringValue) // zero value for nil ("")
 			return TypedValue{
 				T: tv.T,
-				V: alloc.NewString(tv.GetString()[low:high]),
+				V: StringValue{Str: src.Str[low:high], ID: src.ID, Extent: src.Extent},
 			}
 		}
 		panic(&Exception{Value: typedString(
@@ -3305,10 +3342,11 @@ func typedRune(r rune) TypedValue {
 	return tv
 }
 
-// NOTE: does not allocate; used for panics.
+// NOTE: does not allocate; used for panics. ID zero: untracked, the GC
+// recounts it as header only (see StringValue).
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = StringValue{Str: s}
 	return tv
 }
 
@@ -3318,7 +3356,7 @@ func typedString(s string) TypedValue {
 func typedRuntimeError(msg string) TypedValue {
 	return TypedValue{
 		T: gRuntimeErrorType,
-		V: StringValue(msg),
+		V: StringValue{Str: msg},
 	}
 }
 

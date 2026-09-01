@@ -1253,7 +1253,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			argType = ft.Params[paramIndex].Type
 		}
 		cx.Args[paramIndex] = &gno.ConstExpr{
-			TypedValue: convertArgToGno(arg, argType),
+			TypedValue: convertArgToGno(m.Alloc, arg, argType),
 		}
 	}
 	defer m.Release()

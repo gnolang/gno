@@ -263,9 +263,13 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	// form (see newSubRealmHIVPointer). This keeps the per-crossing
 	// mint lean, and readers of fields ≥3 go through
 	// realmSubpathOf/realmParentOf, which treat missing fields as zero.
+	// Mint the string fields through NewString so they are charged and
+	// tracked; a raw StringValue would be invisible to the GC's byte
+	// recount. pkgPath usually shares the realm path's backing, so
+	// NewString clones it to keep ranges disjoint.
 	return newRealmHIVFromFields(alloc, []TypedValue{
-		{T: gAddressType, V: StringValue(addr)},
-		{T: StringType, V: StringValue(pkgPath)},
+		{T: gAddressType, V: alloc.NewString(addr)},
+		{T: StringType, V: alloc.NewString(pkgPath)},
 		prevField,
 	})
 }
@@ -276,10 +280,10 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 // the parent HIV).
 func newSubRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue, subpath string, parentField TypedValue) TypedValue {
 	return newRealmHIVFromFields(alloc, []TypedValue{
-		{T: gAddressType, V: StringValue(addr)},
-		{T: StringType, V: StringValue(pkgPath)},
+		{T: gAddressType, V: alloc.NewString(addr)},
+		{T: StringType, V: alloc.NewString(pkgPath)},
 		prevField,
-		{T: StringType, V: StringValue(subpath)},
+		{T: StringType, V: alloc.NewString(subpath)},
 		parentField,
 	})
 }
@@ -1575,7 +1579,11 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
 			addr := sv.Fields[0].GetString()
-			m.PushValue(TypedValue{T: gAddressType, V: StringValue(addr)})
+			// Reuse the field's StringValue so the result shares the
+			// realm handle's mint ID (GC dedups them as one backing).
+			_ = addr
+			fv, _ := sv.Fields[0].V.(StringValue)
+			m.PushValue(TypedValue{T: gAddressType, V: fv})
 		},
 	)
 	defNativePtrMethod(".grealm", "PkgPath",
@@ -1797,7 +1805,9 @@ func makeUverseNode() {
 			sv := derefRealmStruct(arg0.TV)
 			addr := sv.Fields[0].GetString()
 			path := sv.Fields[1].GetString()
-			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
+			// Fresh backing: charge and track it (typedString is for
+			// panic text only and neither charges nor tracks).
+			m.PushValue(TypedValue{T: StringType, V: m.Alloc.NewString("realm{" + path + ":" + addr + "}")})
 		},
 	)
 	// Seal marker; see gRealmType for rationale.

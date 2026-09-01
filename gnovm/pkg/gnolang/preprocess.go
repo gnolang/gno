@@ -2506,10 +2506,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
-							if _, ok := kset[cx.TypedValue]; ok {
+							ktv := cx.TypedValue
+							if sv, ok := ktv.V.(StringValue); ok {
+								// Compare strings by content: mint
+								// identity (ID/Extent) must not
+								// distinguish equal keys.
+								ktv.V = StringValue{Str: sv.Str}
+							}
+							if _, ok := kset[ktv]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
-							kset[cx.TypedValue] = struct{}{}
+							kset[ktv] = struct{}{}
 						}
 					}
 				default:
