@@ -783,6 +783,7 @@ func init() {
 func Echo(cur realm, msg string) string {
 	addr := unsafe.OriginCaller()
 	pkgAddr := unsafe.CurrentRealm().Address()
+	_ = unsafe.OriginSend() // acknowledge the envelope; MsgCall rejects unobserved sends
 	send := chain.Coins{{"ugnot", 1000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
@@ -893,9 +894,10 @@ func Do(cur realm) string {
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
-	// Run Echo function.
-	coins := std.MustParseCoins(ugnot.ValueString(8_000_000))
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Do", []string{})
+	// Run Do function. No send-envelope: Do only writes params and has no
+	// notion of payment, and MsgCall rejects an envelope no code reads.
+	// This test asserts nothing about balances, so the send was incidental.
+	msg2 := NewMsgCall(addr, nil, pkgPath, "Do", []string{})
 
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
@@ -2008,13 +2010,18 @@ func TestSessionMsgCallSendCountsAgainstSpendLimit(t *testing.T) {
 	env.acck.SetAccount(ctx, masterAcc)
 	env.bankk.SetCoins(ctx, master, initialBalance)
 
-	// Deploy a simple realm that accepts coins (no-op on them).
+	// Deploy a simple realm that accepts coins and keeps them. It must
+	// read the envelope: this test's whole point is that a MsgCall send
+	// counts against the session spend limit, and MsgCall rejects an
+	// envelope no executing code observes.
 	const pkgPath = "gno.land/r/absorb"
 	files := []*std.MemFile{
 		{Name: "absorb.gno", Body: `
 package absorb
 
-func Absorb(cur realm) {}`},
+import "chain/runtime/unsafe"
+
+func Absorb(cur realm) { _ = unsafe.OriginSend() }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 	}
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(master, pkgPath, files)))
@@ -2108,9 +2115,14 @@ func Grow(cur realm, s string) {
 	// many orders of magnitude above 1 ugnot.
 	longStr := strings.Repeat("x", 256)
 	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Grow", []string{longStr})
-	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(8000))
+	// Comfortably above the ~29_400ugnot the growth costs. A ceiling below
+	// that refuses the call for want of deposit before the session is ever
+	// consulted, which would leave the spend limit untested.
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
 	_, err := env.vmk.Call(sessionCtx, msg)
 	require.Error(t, err, "storage deposit exceeding session SpendLimit must be rejected")
+	require.Contains(t, err.Error(), "session",
+		"the refusal must come from the spend limit, not the deposit ceiling")
 
 	// Session's SpendUsed unchanged — the check rejected before persisting.
 	reloadedSA := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)
@@ -3468,7 +3480,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, st, 0)
+	marshalTypeJSON(&buf, st, 0, 0)
 	var v any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
 		"output must be valid JSON; got %q", buf.String())
@@ -3480,7 +3492,7 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
 	var buf bytes.Buffer
-	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	marshalTypeJSON(&buf, gnolang.IntType, 0, 0)
 	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
 	var v any
 	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
