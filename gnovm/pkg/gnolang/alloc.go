@@ -416,10 +416,6 @@ func (alloc *Allocator) AllocateBoundMethod() {
 	alloc.Allocate(allocBoundMethod)
 }
 
-func (alloc *Allocator) AllocatePackageValue() {
-	alloc.Allocate(allocPackage)
-}
-
 func (alloc *Allocator) AllocateBlock(items int64) {
 	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
@@ -650,7 +646,7 @@ func (alloc *Allocator) NewMap(t Type) *MapValue {
 // and its top-level Block share the package's own PkgID — they live
 // in the package's authority.
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	alloc.AllocatePackageValue()
+	alloc.Allocate(packageValueSize(pn.PkgName, pn.PkgPath))
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pkgID := pn.GetPkgID()
 	blk := &Block{
@@ -715,13 +711,19 @@ func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 // Utilities for obtaining shallow size
 
+// The PkgName and PkgPath headers are already inside allocPackage, so only
+// their characters are added here.
+func packageValueSize(pkgName Name, pkgPath string) int64 {
+	return allocPackage + allocStringByte*int64(len(pkgName)+len(pkgPath))
+}
+
 func (pv *PackageValue) GetShallowSize() int64 {
 	// .uverse is preloaded
 	if pv.PkgPath == ".uverse" {
 		return 0
 	}
 
-	return allocPackage
+	return packageValueSize(pv.PkgName, pv.PkgPath)
 }
 
 func (b *Block) GetShallowSize() int64 {
