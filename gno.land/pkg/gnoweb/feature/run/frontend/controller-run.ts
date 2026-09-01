@@ -50,6 +50,16 @@ export class RunController extends BaseController {
 			onChange: () => this._updateCommand(),
 		});
 
+		// Pin the editor to the height of the initial script, once. The feature
+		// CSS leaves the height `auto` so the first paint already fits the
+		// template rather than the shared 60vh; measuring that layout and
+		// writing it back as an inline px height freezes it, so the editor no
+		// longer grows and shrinks with every line typed.
+		requestAnimationFrame(() => {
+			const { height } = this.editorEl.getBoundingClientRect();
+			if (height > 0) this.editorEl.style.height = `${Math.ceil(height)}px`;
+		});
+
 		this.on("theme:changed", () => {
 			this.editor.changeTheme(isDarkMode());
 		});

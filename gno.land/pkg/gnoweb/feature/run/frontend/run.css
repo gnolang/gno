@@ -9,6 +9,14 @@
 	margin-block-end: var(--g-space-8);
 }
 
+/* Set the height of the code editor to the size of the initial script.
+   `auto` only holds for the first paint — the run controller measures that
+   layout and pins it as an inline height. */
+.b-run .b-code-editor {
+	height: auto;
+	max-height: 60vh;
+}
+
 .b-run-settings,
 .b-run-commands {
 	background-color: var(--s-color-bg-surface-secondary);
