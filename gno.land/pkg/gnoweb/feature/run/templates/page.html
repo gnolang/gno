@@ -51,55 +51,63 @@ run.TemplatesFS(), so "ui/copy" and friends resolve here.
       data-run-target="result"><span class="u-color-muted">// Press Dry Run to simulate the script above</span></pre>
   </div>
 
-  <!-- Command settings -->
-  <div class="b-run-settings">
-    <h2 class="b-content-h2">Command Settings</h2>
-    <div class="b-run-settings-grid">
-      <div class="b-input">
-        <label for="run-gas-wanted">Gas wanted</label>
-        <input type="text" id="run-gas-wanted" data-run-target="gasWanted"
-          value="1_000_000_000" class="u-font-mono"
-          autocomplete="off" />
-      </div>
-      <div class="b-input">
-        <label for="run-gas-fee">Gas fee</label>
-        <input type="text" id="run-gas-fee" data-run-target="gasFee"
-          value="1000000ugnot" class="u-font-mono"
-          autocomplete="off" />
-      </div>
-      <div class="b-input">
-        <label for="run-send">Send coins (optional)</label>
-        <input type="text" id="run-send" data-run-target="send"
-          placeholder="0ugnot" class="u-font-mono"
-          autocomplete="off" />
-      </div>
-    </div>
-  </div>
+  <!-- Run script in terminal -->
+  <details class="b-run-accordion">
+    <summary>
+      <svg class="c-icon"><use href="#ico-arrow"></use></svg>
+      <h2 class="b-content-h2">Run Script in Terminal</h2>
+    </summary>
 
-  <!-- Generated command -->
-  <div class="b-run-commands">
-    <h3 class="b-content-h3">Generated Command</h3>
-
-    <div class="b-run-command-block">
-      <div class="b-run-command-header">
-        <div class="b-run-command-toggle">
-          <input type="checkbox" id="run-include-script" data-run-target="includeScript" checked />
-          <label for="run-include-script" class="b-run-command-label">Include script</label>
-          {{/* Only one of these is shown; see .b-run-command-hint-* in run.css. */}}
-          <span class="u-color-muted u-text-sm b-run-command-hint-on">(writes script.gno and runs the command)</span>
-          <span class="u-color-muted u-text-sm b-run-command-hint-off">(save the code above as script.gno using the Download link, then run this command)</span>
+    <!-- Command settings -->
+    <div class="b-run-settings">
+      <h3 class="b-content-h3">Command Settings</h3>
+      <div class="b-run-settings-grid">
+        <div class="b-input">
+          <label for="run-gas-wanted">Gas wanted</label>
+          <input type="text" id="run-gas-wanted" data-run-target="gasWanted"
+            value="1_000_000_000" class="u-font-mono"
+            autocomplete="off" />
+        </div>
+        <div class="b-input">
+          <label for="run-gas-fee">Gas fee</label>
+          <input type="text" id="run-gas-fee" data-run-target="gasFee"
+            value="1000000ugnot" class="u-font-mono"
+            autocomplete="off" />
+        </div>
+        <div class="b-input">
+          <label for="run-send">Send coins (optional)</label>
+          <input type="text" id="run-send" data-run-target="send"
+            placeholder="0ugnot" class="u-font-mono"
+            autocomplete="off" />
         </div>
       </div>
-      <div class="b-code u-mb-2">
-        <button data-controller="copy" data-action="click->copy#copy"
-          data-copy-remote-value="run-cmd" class="btn-copy"
-          aria-label="Copy Command">
-          {{ template "ui/copy" }}
-        </button>
-        <pre><code><span class="u-font-mono" data-copy-target="run-cmd" data-run-target="cmd"></span></code></pre>
+    </div>
+
+    <!-- Generated command -->
+    <div class="b-run-commands">
+      <h3 class="b-content-h3">Generated Command</h3>
+
+      <div class="b-run-command-block">
+        <div class="b-run-command-header">
+          <div class="b-run-command-toggle">
+            <input type="checkbox" id="run-include-script" data-run-target="includeScript" checked />
+            <label for="run-include-script" class="b-run-command-label">Include script</label>
+            {{/* Only one of these is shown; see .b-run-command-hint-* in run.css. */}}
+            <span class="u-color-muted u-text-sm b-run-command-hint-on">(writes script.gno and runs the command)</span>
+            <span class="u-color-muted u-text-sm b-run-command-hint-off">(save the code above as script.gno using the Download link, then run this command)</span>
+          </div>
+        </div>
+        <div class="b-code u-mb-2">
+          <button data-controller="copy" data-action="click->copy#copy"
+            data-copy-remote-value="run-cmd" class="btn-copy"
+            aria-label="Copy Command">
+            {{ template "ui/copy" }}
+          </button>
+          <pre><code><span class="u-font-mono" data-copy-target="run-cmd" data-run-target="cmd"></span></code></pre>
+        </div>
       </div>
     </div>
-  </div>
+  </details>
 
 </div>
 {{ end }}

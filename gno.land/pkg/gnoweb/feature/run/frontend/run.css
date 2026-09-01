@@ -9,23 +9,58 @@
 	margin-block-end: var(--g-space-8);
 }
 
-.b-run-settings {
-	background-color: var(--s-color-bg-surface-secondary);
-	border-radius: var(--s-rounded);
-	padding: var(--g-space-4);
-}
-
+.b-run-settings,
 .b-run-commands {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-3);
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
 }
 
+.b-run-settings + .b-run-commands {
+	margin-block-start: var(--g-space-2);
+}
+
+.b-run-settings h3,
 .b-run-commands h3 {
 	font-size: var(--g-font-size-400);
+	margin-block-end: var(--g-space-4);
+}
+
+.b-run-accordion {
+	/* The summary is bare text, not a card — keep it off the result above. */
+	margin-block-start: var(--g-space-4);
+}
+
+.b-run-accordion > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	cursor: pointer;
+
+	& > .c-icon {
+		width: var(--g-space-4);
+		height: var(--g-space-4);
+		flex-shrink: 0;
+		/* Chevron points right while closed, down while open. */
+		transform: rotate(-90deg);
+	}
+
+	& > h2,
+	& > h3 {
+		margin-block-end: 0;
+	}
+
+	&:hover {
+		color: var(--s-color-text-link-hover);
+	}
+}
+
+.b-run-accordion[open] > summary {
+	margin-block-end: var(--g-space-4);
+
+	& > .c-icon {
+		transform: rotate(0deg);
+	}
 }
 
 .b-run-settings-grid {
@@ -34,7 +69,6 @@
 	gap: var(--g-space-1);
 	align-items: stretch;
 	width: 100%;
-	margin-block-start: var(--g-space-4);
 
 	label {
 		background-color: var(--s-color-bg-surface-primary);
