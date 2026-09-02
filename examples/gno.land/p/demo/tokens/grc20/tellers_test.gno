@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -163,4 +164,28 @@ func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
 	urequire.ErrorIs(t, teller.Transfer(0, cur, bob, 100), ErrForeignCallerTeller)
 	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
 	uassert.Equal(t, int64(0), token.BalanceOf(bob))
+}
+
+// TestUserTellerHomeGuardIsLoadBearing fixes homeGuard as the field that keeps a
+// UserTeller confined to its token's realm, even when the immediate caller is a
+// real EOA that userOnly alone would admit.
+func TestUserTellerHomeGuardIsLoadBearing(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
+
+	// A foreign realm whose immediate caller is the EOA alice: the empty prev
+	// pkgPath makes IsUserCall true, so userOnly passes and only homeGuard objects.
+	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
+	foreign := testing.MakeRealm(
+		chain.PackageAddress("gno.land/r/demo/foreign"),
+		"gno.land/r/demo/foreign",
+		eoa,
+	)
+
+	teller := ledger.UserTeller().(*fnTeller)
+	uassert.ErrorIs(t, teller.guardWrite(0, foreign), ErrForeignCallerTeller)
+
+	noHome := *teller
+	noHome.homeGuard = false
+	uassert.NoError(t, noHome.guardWrite(0, foreign))
 }
