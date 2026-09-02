@@ -189,3 +189,43 @@ func TestUserTellerHomeGuardIsLoadBearing(cur realm, t *testing.T) {
 	noHome.homeGuard = false
 	uassert.NoError(t, noHome.guardWrite(0, foreign))
 }
+
+// TestUserTellerTrustedHostOptIn pins opting in, normalization, revocation, and
+// the userOnly scope of the trusted host widening.
+func TestUserTellerTrustedHostOptIn(cur realm, t *testing.T) {
+	const (
+		relay = "gno.land/r/demo/defi/grc20reg"
+		other = "gno.land/r/demo/other"
+	)
+	alice := testutils.TestAddress("alice")
+	tok, ledger := newTestToken("Trust", "TRUST", 6, 0, cur)
+
+	// Use an EOA caller so only the host guard decides.
+	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
+	relayFrame := testing.MakeRealm(chain.PackageAddress(relay), relay, eoa)
+	relaySubFrame := testing.MakeRealm(chain.DerivePkgSubAddr(relay, "dao/42"), relay+"#dao/42", eoa)
+	otherFrame := testing.MakeRealm(chain.PackageAddress(other), other, eoa)
+
+	userTeller := tok.UserTellerTrusted().(*fnTeller)
+
+	// Untrusted: refused even with an EOA previous.
+	uassert.ErrorIs(t, userTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+
+	// Trusting a realm under a sub identity stores its normalized host, so both match.
+	ledger.TrustHost(relay + "#dao/42")
+	uassert.NoError(t, userTeller.guardWrite(0, relayFrame))
+	uassert.NoError(t, userTeller.guardWrite(0, relaySubFrame))
+
+	// Hosts are independent entries.
+	ledger.TrustHost(other)
+	uassert.NoError(t, userTeller.guardWrite(0, otherFrame))
+
+	// A leaked plain CallerTeller cannot use the trusted set.
+	callerTeller := ledger.CallerTeller().(*fnTeller)
+	uassert.ErrorIs(t, callerTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+
+	// Removing through another subpath removes the normalized host only.
+	ledger.UntrustHost(relay + "#ops")
+	uassert.ErrorIs(t, userTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+	uassert.NoError(t, userTeller.guardWrite(0, otherFrame))
+}

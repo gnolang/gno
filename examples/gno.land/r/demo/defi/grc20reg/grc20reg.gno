@@ -138,6 +138,34 @@ func TransferFrom(_ int, rlm realm, tokenKey string, from, to address, amount in
 	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).TransferFrom(0, rlm, from, to, amount))
 }
 
+// User helpers: crossing functions that let a signing user drive a token's
+// Transfer/Approve/TransferFrom through the registry, acting as themselves.
+// Being crossing, an EOA reaching them via MsgCall is the immediate caller,
+// unlike the realm wrappers above.
+//
+// They use UserTellerTrusted, which serves this registry only if the token
+// trusted it via grc20.PrivateLedger.TrustHost("gno.land/r/demo/defi/grc20reg").
+// A token that did not opt in is refused with ErrForeignCallerTeller. A caller
+// that is not an EOA is refused with ErrNotUserCall. So a token must consent,
+// and only a real end user is ever served.
+
+// UserTransfer moves `amount` from the SIGNING USER's own balance to `to`.
+func UserTransfer(cur realm, tokenKey string, to address, amount int64) {
+	checkErr(MustGet(tokenKey).UserTellerTrusted().Transfer(0, cur, to, amount))
+}
+
+// UserApprove sets an allowance owned by the SIGNING USER, letting `spender`
+// draw on the user's own balance.
+func UserApprove(cur realm, tokenKey string, spender address, amount int64) {
+	checkErr(MustGet(tokenKey).UserTellerTrusted().Approve(0, cur, spender, amount))
+}
+
+// UserTransferFrom spends an allowance with the SIGNING USER as the spender.
+// `from` must have approved the user.
+func UserTransferFrom(cur realm, tokenKey string, from, to address, amount int64) {
+	checkErr(MustGet(tokenKey).UserTellerTrusted().TransferFrom(0, cur, from, to, amount))
+}
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)

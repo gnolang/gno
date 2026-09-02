@@ -94,6 +94,11 @@ type Token struct {
 	// origRealm is the PkgPath of the realm that created the token, captured
 	// unforgeably in NewToken. A frame-relative teller only works there.
 	origRealm string
+	// trustedHosts contains additional realm hosts accepted by guardWrite for
+	// userOnly tellers. It is created by the token's creating realm and can only be
+	// modified by the private ledger, preventing foreign realms from trusting
+	// themselves.
+	trustedHosts avl.Tree
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the

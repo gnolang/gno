@@ -6,6 +6,7 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -62,12 +63,13 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:        pkgPath + "." + symbol + "." + id.String(),
-		name:      name,
-		symbol:    symbol,
-		decimals:  decimals,
-		ledger:    ledger,
-		origRealm: origRealm,
+		id:           pkgPath + "." + symbol + "." + id.String(),
+		name:         name,
+		symbol:       symbol,
+		decimals:     decimals,
+		ledger:       ledger,
+		origRealm:    origRealm,
+		trustedHosts: avl.Tree{},
 	}
 	ledger.token = token
 
