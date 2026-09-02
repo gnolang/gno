@@ -7,6 +7,8 @@ option go_package = "github.com/gnolang/gno/gno.land/pkg/gnoland/pb";
 import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
 import "github.com/gnolang/gno/tm2/pkg/sdk/auth/auth.proto";
 import "github.com/gnolang/gno/tm2/pkg/sdk/bank/bank.proto";
+import "github.com/gnolang/gno/tm2/pkg/bft/abci/types/abci.proto";
+import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
 import "github.com/gnolang/gno/gno.land/pkg/sdk/vm/vm.proto";
 import "github.com/gnolang/gno/tm2/pkg/sdk/params/params.proto";
 
