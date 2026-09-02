@@ -6,6 +6,7 @@ import (
 
 	// for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 const HelpViewType ViewType = "help-view"
@@ -32,6 +33,13 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+}
+
+// PkgAlias returns the name a Gno file would import this package under.
+// Consumed by the "ui/run_script" section, which seeds its script template
+// with the alias.
+func (d HelpData) PkgAlias() string {
+	return gno.LastPathElement(d.PkgPath)
 }
 
 type HelpTocData struct {

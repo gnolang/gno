@@ -2896,7 +2896,7 @@ main.dev-mode .b-toc a {
 .b-code-editor {
 	display: flex;
 	height: 60vh;
-	min-height: 300px;
+	min-height: 150px;
 	resize: vertical;
 	overflow: hidden;
 
