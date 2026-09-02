@@ -56,3 +56,6 @@ node_modules/
 # root (e.g. config/addrbook.json). Root-anchored so nested config/
 # package directories are never hidden.
 /config/
+
+# Local docs preview checkout (docs.gno.land), not part of the repo.
+/docs/.preview/
