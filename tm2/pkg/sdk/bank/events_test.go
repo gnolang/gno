@@ -13,19 +13,35 @@ import (
 func TestTransferEventAminoRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	want := TransferEvent{
-		From:   "g1sender",
-		To:     "g1recipient",
-		Amount: std.NewCoins(std.NewCoin("ugnot", 5)),
+	tests := []struct {
+		name string
+		want TransferEvent
+		json string
+	}{
+		{
+			name: "transfer",
+			want: TransferEvent{From: "g1sender", To: "g1recipient", Amount: std.NewCoins(std.NewCoin("ugnot", 5))},
+			json: `{"@type":"/bank.TransferEvent","from":"g1sender","to":"g1recipient","amount":"5ugnot"}`,
+		},
+		{
+			name: "mint-shaped",
+			want: TransferEvent{To: "g1recipient", Amount: std.NewCoins(std.NewCoin("ugnot", 5))},
+			json: `{"@type":"/bank.TransferEvent","from":"","to":"g1recipient","amount":"5ugnot"}`,
+		},
 	}
-	bz, err := amino.Marshal(abci.ResponseDeliverTx{
-		ResponseBase: abci.ResponseBase{Events: []abci.Event{want}},
-	})
-	require.NoError(t, err)
 
-	var got abci.ResponseDeliverTx
-	require.NoError(t, amino.Unmarshal(bz, &got))
-	require.Equal(t, []abci.Event{want}, got.Events)
-	require.Contains(t, string(amino.MustMarshalJSON(got)),
-		`{"@type":"/bank.TransferEvent","from":"g1sender","to":"g1recipient","amount":"5ugnot"}`)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bz, err := amino.Marshal(abci.ResponseDeliverTx{
+				ResponseBase: abci.ResponseBase{Events: []abci.Event{tc.want}},
+			})
+			require.NoError(t, err)
+
+			var got abci.ResponseDeliverTx
+			require.NoError(t, amino.Unmarshal(bz, &got))
+			require.Equal(t, []abci.Event{tc.want}, got.Events)
+			require.Contains(t, string(amino.MustMarshalJSON(got)), tc.json)
+		})
+	}
 }

@@ -29,17 +29,21 @@ type TransferEvent struct {
 }
 ```
 
-Addresses are bech32 strings. In amino JSON the public event shape is
-`{"@type":"/bank.TransferEvent","from":"...","to":"...","amount":"5ugnot"}`.
+Addresses are bech32 strings. The event carries no custom marshaler, so it
+serializes like the other struct events already returned in transaction results
+(for example `StorageDepositEvent`). In `ResponseBase.EncodeEvents` the
+indexer-facing shape is
+`{"from":"...","to":"...","amount":[{"denom":"ugnot","amount":7}]}`, and the amino
+wire encoding tags it with its registered type `/bank.TransferEvent`.
 
 `sendCoins` emits one event after both the debit and credit succeed. This one
 point covers `MsgSend`, realm banker sends, and VM message send envelopes.
 
-`InputOutputCoins` emits one event after each successful output credit. A
-multisend may have several inputs with no truthful one-to-one mapping to an
-output, so these events leave `From` empty. Indexers can obtain multisend inputs
-from the transaction and use the events to observe credited outputs. Event order
-matches output order.
+`InputOutputCoins` emits a debit event with only `From` after each successful
+input subtraction, followed by a credit event with only `To` after each
+successful output addition. This matches the GRC20 burn and mint convention, so
+an indexer can update both sides using events alone without inventing a
+one-to-one mapping. Inputs and outputs each retain their slice order.
 
 The dead handler-level module-marker comments are removed. Unrestricted sends
 used for gas and storage accounting remain outside this event: the requested
@@ -53,11 +57,12 @@ nor those event and attribute constants. It would introduce a second event model
 
 **Emit one multisend event containing every input and output.** This preserves
 the complete relation but creates another public event type and makes ordinary
-output tracking different from `MsgSend`. The transaction already contains the
-inputs.
+transfer tracking different from `MsgSend`.
 
 **Assign each output the first input as sender.** Rejected because it records
-false provenance for N:M multisends.
+false provenance for N:M multisends. Separate from-only debit and to-only credit
+events preserve every balance change without claiming a relationship between
+individual inputs and outputs.
 
 **Emit in handlers.** Rejected because realm banker sends and VM send envelopes
 do not pass through bank message handlers. Keeper emission covers all requested

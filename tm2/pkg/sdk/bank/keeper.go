@@ -102,6 +102,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if err := bank.SubtractCoins(ctx, in.Address, in.Coins); err != nil {
 			return err
 		}
+		ctx.EventLogger().EmitEvent(TransferEvent{
+			From:   in.Address.String(),
+			Amount: in.Coins,
+		})
 	}
 
 	for _, out := range outputs {

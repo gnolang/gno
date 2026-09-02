@@ -55,9 +55,10 @@ func TestHandlerEmitsTransferEvents(t *testing.T) {
 			[]Input{NewInput(from, amount)}, []Output{NewOutput(to, amount)},
 		))
 		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, []sdk.Event{TransferEvent{
-			To: to.String(), Amount: amount,
-		}}, env.ctx.EventLogger().Events())
+		require.Equal(t, []sdk.Event{
+			TransferEvent{From: from.String(), Amount: amount},
+			TransferEvent{To: to.String(), Amount: amount},
+		}, env.ctx.EventLogger().Events())
 	})
 }
 

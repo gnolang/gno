@@ -6,8 +6,7 @@ import (
 
 // TransferEvent records a successful bank transfer.
 type TransferEvent struct {
-	// From is empty for multisends, whose inputs cannot be mapped one-to-one
-	// to their outputs.
+	// From is empty for multisend credits; To is empty for multisend debits.
 	From   string    `json:"from"`
 	To     string    `json:"to"`
 	Amount std.Coins `json:"amount"`
