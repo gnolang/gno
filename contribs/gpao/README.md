@@ -123,6 +123,14 @@ budget be *enforced* — a goroutine cannot be killed, but a process can. It als
 means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
 
+The budget starts once the child has everything the compile needs: the standard
+library and examples from disk, and every chain package the candidate imports,
+fetched from the node. Fetching is the oracle's cost, not the package's, so a
+slow node cannot turn a fast package into an overrun. That phase has a ceiling
+of its own, one minute, and each request to the node is given the budget as its
+timeout; either expiring leaves the package pending as unavailable rather than
+counting against it.
+
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what
 the validator will do — any divergence is a way to approve something the chain

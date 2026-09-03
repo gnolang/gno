@@ -32,7 +32,8 @@ const testMnemonic = "source bonus chronic canvas draft south burst lottery vaca
 // test binary's own arguments are all -test.* flags, so the only way to see
 // "verify-one" there is to have been spawned as one.
 // spinEnv puts a spawned child into an endless loop that appends a byte to the
-// named file every 20ms, instead of verifying. Only TestOracleVerifyBudgetKills
+// named file every 20ms, instead of verifying, after reporting ready the way a
+// real child does once its sources are local. Only TestOracleVerifyBudgetKills
 // sets it; production never does. It is the only way to observe whether the
 // budget actually STOPPED the work, as opposed to returning while it continued.
 const spinEnv = "GPAO_TEST_SPIN_HEARTBEAT"
@@ -63,6 +64,9 @@ func spinForever(path string) {
 	if err != nil {
 		os.Exit(2)
 	}
+	// Report ready first: the spin stands in for a compile that never ends,
+	// and the budget only starts once the child says it is compiling.
+	fmt.Println(childReadyMarker)
 	for {
 		if _, err := f.WriteString("x"); err != nil {
 			os.Exit(2)

@@ -45,7 +45,9 @@ const (
 	// daemon does not refuse slow packages it only repeats a correctness
 	// check the chain already does. Generous on purpose -- a real package
 	// takes milliseconds, and borderline ones should pass rather than be
-	// rejected for losing a race with CPU contention.
+	// rejected for losing a race with CPU contention. It starts once the
+	// sources the compile needs are local, so a slow node is not the
+	// package's problem.
 	defaultVerifyBudget = 10 * time.Second
 )
 

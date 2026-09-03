@@ -7,7 +7,9 @@ import (
 	"path"
 	"strings"
 
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -77,14 +79,40 @@ func newRPCGetter(client rpcclient.Client) *rpcGetter {
 	qfile := func(filepath string) ([]byte, error) {
 		qres, err := client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
 		if err != nil {
+			// The node could not be reached at all.
 			return nil, fmt.Errorf("%w: %w", errResolverUnavailable, err)
 		}
-		if qres.Response.Error != nil {
-			return nil, qres.Response.Error
+		if qerr := qres.Response.Error; qerr != nil {
+			if absence(qerr) {
+				return nil, qerr
+			}
+			// The node was reached and answered about itself, not the path.
+			return nil, fmt.Errorf("%w: %w", errResolverUnavailable, qerr)
 		}
 		return qres.Response.Data, nil
 	}
 	return &rpcGetter{qfile: qfile, cache: make(map[string]*std.MemPackage)}
+}
+
+// absence reports whether an answered query said "nothing is stored at this
+// path", as opposed to saying something about the node.
+//
+// vm/qfile reports a genuine miss as exactly two types (VMKeeper.QueryFile).
+// Anything else the node answers with -- an internal error from a node that is
+// pruned, restarting or replaying and cannot load state at the height; an
+// unknown request from a build without the route -- is the node describing
+// itself, and is no more evidence about the import than an unreachable node is.
+//
+// Keyed on the type, not the text: the ABCI layer unwraps to the cause before
+// the answer leaves the node, so what arrives carries only the static "file is
+// not available" / "invalid package" and no path.
+func absence(err abci.Error) bool {
+	switch err.(type) {
+	case vm.InvalidFileError, *vm.InvalidFileError,
+		vm.InvalidPackageError, *vm.InvalidPackageError:
+		return true
+	}
+	return false
 }
 
 func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
