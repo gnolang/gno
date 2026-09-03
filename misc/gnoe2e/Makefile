@@ -23,6 +23,16 @@ lint:
 test:
 	go test $(GOTEST_FLAGS) ./...
 
+# test-master runs the same suite against gnoland and gpao built from master,
+# so a scenario written for a fix can be shown red before the fix lands. The
+# ref is unpacked with git archive into a temp dir the trap removes, so a
+# Ctrl-C leaves nothing registered in .git.
+.PHONY: test-master
+test-master:
+	tmp="$$(mktemp -d)" && trap 'rm -rf "$$tmp"' EXIT && \
+	git -C ../.. archive master | tar -x -C "$$tmp" && \
+	GNOROOT="$$tmp" go test $(GOTEST_FLAGS) ./...
+
 .PHONY: test-short
 test-short:
 	go test -short ./...
