@@ -29,7 +29,7 @@ match the path used in the `addpkg` transaction during deployment.
 
 Specifies the **Gno language version**. Currently, only version `"0.9"` is supported.
 
-#### `replace`
+#### `replace` (coming soon)
 
 Declares that an import should resolve somewhere else, for local development.
 The field is parsed and nothing acts on it yet: `gno test` still resolves the
