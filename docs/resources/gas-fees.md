@@ -162,18 +162,14 @@ PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 That is why `HEIGHT` is 0 and `TX HASH` is empty. `STORAGE FEE` is the
-[storage deposit](storage-deposit.md), locked against the bytes the transaction
-would add rather than spent. `TOTAL TX COST` is the gas fee plus that deposit,
-one of them gone and one of them locked.
+[storage deposit](storage-deposit.md), locked rather than spent, and
+`TOTAL TX COST` adds it to the gas fee.
 
-Set `-gas-wanted` to the suggested figure, 2719570 here, not the raw estimate:
-gas usage shifts between the simulation and the broadcast, and the 5% margin
-absorbs the shift.
-
-Do not copy the printed `gas fee` beside it. That figure prices the raw
-estimate, not the limit you are about to set, so the pair can land a ugnot under
-what the chain requires. Price the limit yourself, rounding up: at 1ugnot per
-1000 gas, 2719570 gas needs 2720ugnot.
+Take the suggested figure, 2719570 here, not the raw estimate: gas shifts
+between the simulation and the broadcast, and the 5% margin absorbs it. Do not
+take the printed `gas fee` with it, which prices the raw estimate and can leave
+the pair under what the chain requires. Price the limit yourself and round up:
+at 1ugnot per 1000 gas, 2719570 gas needs 2720ugnot.
 
 ## Gas Optimization Tips
 
