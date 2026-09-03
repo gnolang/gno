@@ -2,6 +2,10 @@
 
 Single-validator manual test plan for the governance-based chain halt mechanism.
 
+For where this fits in a chain upgrade, see [Chain upgrades](chain-upgrades.md).
+For how the mechanism works internally (params, arming, the two startup checks),
+see [`gno.land/adr/pr5368_govdao_halt_height.md`](../../gno.land/adr/pr5368_govdao_halt_height.md).
+
 ## Cleanup / Starting Fresh
 
 To reset and start the test from scratch:
@@ -19,8 +23,11 @@ will regenerate everything from scratch.
 ### Build two gnoland binaries with distinct versions
 
 The startup checks compare `tm2/pkg/version.Version` against the governance
-`halt_min_version` param. The `gnoland` Makefile target does **not** inject
-the version via ldflags by default, so you must pass it explicitly.
+`halt_min_version` param. Comparison only understands the
+`chain/gnoland<major>.<minor>` format; anything else falls back to exact string
+equality. The `gno.land/Makefile` build targets *do* inject a version, but it is
+derived from `git describe` (e.g. `master.12345+abc1234`), which never parses as
+a chain version — so you must pass the version explicitly.
 
 ```bash
 # "Old" binary — simulates the currently running chain software.
@@ -64,9 +71,10 @@ Verify the address matches the funded genesis account:
     --skip-genesis-sig-verification
 ```
 
-The default GovDAO loader creates tiers but adds **no members** and leaves
-`AllowedDAOs` empty. When `AllowedDAOs` is empty, any caller can interact with
-the DAO. We exploit this to bootstrap `test1` as a T1 member via MsgRun.
+The default GovDAO loader creates tiers and sets the DAO impl, but adds **no
+members** and leaves `AllowedDAOs` empty. When `AllowedDAOs` is empty, any
+caller can interact with the DAO. We exploit this to bootstrap `test1` as a T1
+member via MsgRun.
 
 Write a bootstrap script (`/tmp/bootstrap_govdao.gno`):
 
@@ -77,14 +85,17 @@ import (
     "gno.land/r/gov/dao/v3/memberstore"
 )
 
-func main() {
+func main(cur realm) {
     // Add test1 as a T1 member (supermajority power).
     // The loader already set the DAO impl; AllowedDAOs is empty so any
     // caller is permitted. We just need to register the member.
-    memberstore.Get().SetMember(memberstore.T1,
+    err := memberstore.Get(0, cur).SetMember(memberstore.T1,
         address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-        &memberstore.Member{InvitationPoints: 3},
+        memberstore.NewMember(3),
     )
+    if err != nil {
+        panic(err)
+    }
 }
 ```
 
@@ -100,7 +111,10 @@ Submit it (in a second terminal while the node is running):
 **Expected**: `OK!` — test1 is now a T1 GovDAO member.
 
 Note the current block height from the node logs and choose a **halt height**
-comfortably in the future (e.g. current height + 40).
+comfortably in the future (e.g. current height + 40). `WillSetParam` rejects a
+halt height that is not strictly greater than the height at which the proposal
+executes, so leave room for the vote and execution txs. The examples below use
+`50`; substitute your own value consistently.
 
 ## Propose and execute a halt via GovDAO
 
@@ -118,9 +132,9 @@ import (
     "gno.land/r/sys/params"
 )
 
-func main() {
-    preq := params.NewSetHaltRequest(50, "chain/gnoland1.1")
-    dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+    preq := params.NewSetHaltRequest(cross(cur), 50, "chain/gnoland1.1")
+    dao.MustCreateProposal(cross(cur), preq)
 }
 ```
 
@@ -178,18 +192,74 @@ description mentioning block 50 and version `chain/gnoland1.1`.
 # Expected: data: "chain/gnoland1.1"
 ```
 
+### The new binary is refused before the halt
+
+**Goal**: Verify the pre-halt startup check (`checkNodeStartupParams`, check 2):
+a binary that already meets `halt_min_version` must not run before the chain
+has reached `halt_height`.
+
+Stop the node (Ctrl-C) while the chain is still below block 50 and try the new
+binary:
+
+```bash
+./build/gnoland-v1.1 start --data-dir ./testnode --genesis ./testnode/genesis.json
+```
+
+**Expected**: startup fails with
+
+```
+binary version "chain/gnoland1.1" is an upgrade intended for halt height 50,
+but the chain is at height <N>; please use the previous binary until the halt,
+or set skip_upgrade_height = 50 in config.toml if you have already migrated
+```
+
+Restart the old binary and let it run to the halt:
+
+```bash
+./build/gnoland-v1.0 start --data-dir ./testnode --genesis ./testnode/genesis.json
+```
+
 ### Observe the halt
 
-The node should panic at BeginBlock of block 50 (the halt height). The block
-at halt_height is **never committed** — the last committed block is 49.
+Block 50 — the halt height — **is committed**. The EndBlocker of block 50 arms
+the halt, and `BaseApp.BeginBlock` panics when the *next* block (51) begins.
+The last committed block is therefore 50, not 49.
 
-Watch the logs for:
+Watch the logs for the EndBlocker arming the halt at block 50:
 
 ```
-halt height 50 reached, node shutting down
+GovDAO halt height reached, will halt after this block  height=50  halt_height=50
 ```
 
-**Result**: The node process exits. Block 49 is the last committed block.
+then, as block 51 begins, the panic surfacing through the consensus routine's
+recover:
+
+```
+CONSENSUS FAILURE!!!  err="halt height 50 reached, node shutting down"  stack=...
+```
+
+**Result**: the consensus routine stops and the node produces no further
+blocks. Note the **process does not exit** — `gnoland start` blocks on its
+signal context, not on consensus health, so the RPC server stays up and the
+process idles. Stop it with Ctrl-C.
+
+### The old binary is refused after the halt
+
+**Goal**: Verify the post-halt startup check (`checkNodeStartupParams`, check 1):
+once the chain has reached `halt_height`, a binary below `halt_min_version`
+must not resume it.
+
+```bash
+./build/gnoland-v1.0 start --data-dir ./testnode --genesis ./testnode/genesis.json
+```
+
+**Expected**: startup fails with
+
+```
+binary version "chain/gnoland1.0" does not meet the minimum version
+"chain/gnoland1.1" required by governance; please upgrade to a compatible
+binary before restarting
+```
 
 ### New binary resumes after halt
 
@@ -200,19 +270,22 @@ the startup check and resumes the chain.
 ./build/gnoland-v1.1 start --data-dir ./testnode --genesis ./testnode/genesis.json
 ```
 
-**Expected**: The node starts, replays block 50 (the halt height), and the
-EndBlocker detects the binary meets the min version. It clears the halt params
-from state. The chain continues normally from block 51 onward.
+**Expected**: The node starts and the chain continues from block 51 onward.
+The EndBlocker arms the halt only on `req.Height == halt_height`, so at height
+51 and above it never re-fires and the node does not halt again.
 
-Watch the logs for:
-
-```
-binary meets halt min version, clearing halt params  height=50  halt_height=50  ...
-```
-
-Verify the halt params have been cleared:
+The halt params are **not** cleared on resume — nothing in the node clears
+them, by design:
 
 ```bash
 ./build/gnokey query params/node:p:halt_height
-# Expected: data: "0"
+# Expected: still data: "50"
+
+./build/gnokey query params/node:p:halt_min_version
+# Expected: still data: "chain/gnoland1.1"
 ```
+
+`halt_min_version` therefore stays in force as a permanent minimum-version
+floor: every subsequent restart re-runs check 1 and keeps binaries below
+`chain/gnoland1.1` off the chain. To lift the requirement, pass a new GovDAO
+proposal with `NewSetHaltRequest(cross(cur), 0, "")`.
