@@ -46,8 +46,8 @@ added. It is not intended for manual use off-chain.
   the address that initiated the `addpkg` transaction.
 - **`height`**: the block height at which the module was added.
 - **`max_deposit`**: the [storage deposit](storage-deposit.md) ceiling the
-  submitter declared, or the chain default at the time. Written only where a
-  chain parks a package before activating it, so the public networks leave it
+  submitter declared, or the chain default at the time. Written only on a chain
+  that stores a package first and runs it later, so the public networks leave it
   empty.
 
 #### `draft`  
