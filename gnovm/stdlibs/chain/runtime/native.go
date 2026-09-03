@@ -56,8 +56,7 @@ func NewRealmID(m *gno.Machine) string {
 	// Persist the counter here because realm finalization may have nothing else to
 	// save. Without this write, a later transaction could issue the same ID.
 	m.Store.SetPackageRealm(m.Realm)
-	pkgID, _ := m.Realm.ID.MarshalAmino()
-	return "gno:realm-id:" + pkgID + ":" + strconv.FormatUint(m.Realm.Time, 10)
+	return m.Realm.Path + ":" + strconv.FormatUint(m.Realm.Time, 10)
 }
 
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.

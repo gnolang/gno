@@ -37,8 +37,8 @@ func TestNewRealmID(t *testing.T) {
 
 	first := NewRealmID(m)
 	second := NewRealmID(m)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:2", first)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:3", second)
+	require.Equal(t, "gno.land/r/demo/realm_id:2", first)
+	require.Equal(t, "gno.land/r/demo/realm_id:3", second)
 	require.NotEqual(t, first, second)
 	require.Equal(t, uint64(3), m.Realm.Time)
 	var oid gno.ObjectID
@@ -73,7 +73,7 @@ func TestNewRealmID(t *testing.T) {
 		Context: execctx.ExecContext{RealmIDEnabled: true},
 	})
 	m.Realm = tx.GetPackageRealm(pkgPath)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:5", NewRealmID(m))
+	require.Equal(t, "gno.land/r/demo/realm_id:5", NewRealmID(m))
 }
 
 func TestNewRealmIDPanicsInQueryContext(t *testing.T) {

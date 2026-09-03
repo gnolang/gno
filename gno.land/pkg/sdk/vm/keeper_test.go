@@ -996,7 +996,7 @@ func New(cur realm) string {
 	callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
 	res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, pkgPath, "New", nil))
 	require.NoError(t, err)
-	require.Contains(t, res, `("gno:realm-id:`)
+	require.Contains(t, res, `("gno.land/r/test/realmidgate:`)
 
 	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "New()")
 	require.ErrorContains(t, err, "realm ID issuance is disabled")
@@ -1015,7 +1015,7 @@ func main(cur realm) {
 	}
 	runRes, err := env.vmk.Run(runCtx, NewMsgRun(addr, nil, runFiles))
 	require.NoError(t, err)
-	require.Contains(t, runRes, "gno:realm-id:")
+	require.Contains(t, runRes, "gno.land/r/test/realmidgate:")
 }
 
 func TestVMKeeperNewRealmIDInInit(t *testing.T) {
@@ -1053,9 +1053,7 @@ func New(cur realm) string {
 		initID := call("InitID")
 		first := call("New")
 		second := call("New")
-		pkgID, err := gnolang.PkgIDFromPkgPath(pkgPath).MarshalAmino()
-		require.NoError(t, err)
-		prefix := fmt.Sprintf(`("gno:realm-id:%s:`, pkgID)
+		prefix := fmt.Sprintf(`("%s:`, pkgPath)
 		require.Contains(t, initID, prefix)
 		require.Contains(t, first, prefix)
 		require.Contains(t, second, prefix)
@@ -1155,14 +1153,12 @@ func NewFromHelper(cur realm) string {
 	}
 	for _, tt := range tests {
 		t.Run(tt.fn, func(t *testing.T) {
-			pkgID, err := gnolang.PkgIDFromPkgPath(tt.realmPath).MarshalAmino()
-			require.NoError(t, err)
 			for range 2 {
 				callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
 				before := env.vmk.getGnoTransactionStore(callCtx).GetPackageRealm(tt.realmPath).Time
 				res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, callerPath, tt.fn, nil))
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("(\"gno:realm-id:%s:%d\" string)\n\n", pkgID, before+1), res)
+				require.Equal(t, fmt.Sprintf("(\"%s:%d\" string)\n\n", tt.realmPath, before+1), res)
 				env.vmk.CommitGnoTransactionStore(callCtx)
 
 				freshCtx := env.vmk.MakeGnoTransactionStore(env.ctx)

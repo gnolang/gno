@@ -28,11 +28,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:5"
-//       },
-//       {
-//         "key": "realm",
-//         "value": "gno.land/r/demo/grc20dupsignal"
+//         "value": "gno.land/r/demo/grc20dupsignal:5"
 //       },
 //       {
 //         "key": "name",
@@ -54,11 +50,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:6"
-//       },
-//       {
-//         "key": "realm",
-//         "value": "gno.land/r/demo/grc20dupsignal"
+//         "value": "gno.land/r/demo/grc20dupsignal:6"
 //       },
 //       {
 //         "key": "name",
@@ -80,7 +72,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:5"
+//         "value": "gno.land/r/demo/grc20dupsignal:5"
 //       },
 //       {
 //         "key": "from",
@@ -102,7 +94,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:083acbcef4b740a693cac246bf49a6128be52c82:6"
+//         "value": "gno.land/r/demo/grc20dupsignal:6"
 //       },
 //       {
 //         "key": "from",

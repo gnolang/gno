@@ -35,11 +35,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:6"
-//       },
-//       {
-//         "key": "realm",
-//         "value": "gno.land/r/demo/grc20identity"
+//         "value": "gno.land/r/demo/grc20identity:6"
 //       },
 //       {
 //         "key": "name",
@@ -61,11 +57,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:7"
-//       },
-//       {
-//         "key": "realm",
-//         "value": "gno.land/r/demo/grc20identity"
+//         "value": "gno.land/r/demo/grc20identity:7"
 //       },
 //       {
 //         "key": "name",
@@ -87,7 +79,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:6"
+//         "value": "gno.land/r/demo/grc20identity:6"
 //       },
 //       {
 //         "key": "from",
@@ -109,7 +101,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:6"
+//         "value": "gno.land/r/demo/grc20identity:6"
 //       },
 //       {
 //         "key": "owner",
@@ -131,7 +123,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:7"
+//         "value": "gno.land/r/demo/grc20identity:7"
 //       },
 //       {
 //         "key": "from",
@@ -153,7 +145,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:054f7b1709e31b44b2e39810b7be83378b0c25b7:7"
+//         "value": "gno.land/r/demo/grc20identity:7"
 //       },
 //       {
 //         "key": "owner",

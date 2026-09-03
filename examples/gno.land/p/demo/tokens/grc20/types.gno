@@ -81,7 +81,7 @@ type Teller interface {
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
-	// Identifier precomputed in NewToken to make ID() a cheap field read.
+	// VM-assigned identifier precomputed in NewToken to make ID() a cheap field read.
 	id string
 	// Name of the token (e.g., "Dummy Token").
 	name string

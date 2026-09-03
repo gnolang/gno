@@ -8,15 +8,12 @@
 //     chain.Emit. Every genuine grc20 event therefore carries
 //     gno.land/p/demo/tokens/grc20 — a constant, so it identifies the library
 //     but never the token.
-//   - the "token" attribute carries Token.ID(). The VM creates this opaque ID
-//     from the issuing realm's package identifier and a persistent counter.
-//   - the NewToken "realm" attribute carries Token.GetOriginRealm(), captured
-//     only after IsCurrent verifies the issuing realm.
+//   - the "token" attribute carries Token.ID(). The VM builds it from the
+//     current realm path and its persistent time after IsCurrent verifies it.
 //
-// Together they prove that grc20 emitted NewToken, that the VM assigned its ID,
-// and that its realm attribute is authentic. An indexer can bind token ID to
-// realm there, then attribute later grc20 events through that mapping. Callers
-// cannot forge the grc20 package identity or supply a non-current origin realm.
+// Together they make every genuine grc20 event independently attributable to
+// its origin realm. Callers cannot forge the grc20 package identity or supply a
+// non-current origin realm.
 //
 // The realm below is an impostor trying to pass its own transfers off as
 // another realm's token, by both routes available to it, and failing at both.
@@ -28,7 +25,7 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 )
 
-const canonical = "gno:realm-id:unforgeable-package-id:1"
+const canonical = "gno.land/r/demo/defi/foo20:1"
 
 func main(cur realm) {
 	println("canonical id:", canonical)
@@ -49,8 +46,8 @@ func main(cur realm) {
 }
 
 // Output:
-// canonical id: gno:realm-id:unforgeable-package-id:1
-// impostor id:  gno:realm-id:08f54204e7bb748ba312daa76fd11641ce50906d:5
+// canonical id: gno.land/r/demo/defi/foo20:1
+// impostor id:  gno.land/r/demo/grc20provenance:5
 // impostor claims canonical id: false
 
 // Events:
@@ -60,11 +57,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:08f54204e7bb748ba312daa76fd11641ce50906d:5"
-//       },
-//       {
-//         "key": "realm",
-//         "value": "gno.land/r/demo/grc20provenance"
+//         "value": "gno.land/r/demo/grc20provenance:5"
 //       },
 //       {
 //         "key": "name",
@@ -86,7 +79,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:08f54204e7bb748ba312daa76fd11641ce50906d:5"
+//         "value": "gno.land/r/demo/grc20provenance:5"
 //       },
 //       {
 //         "key": "from",
@@ -108,7 +101,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno:realm-id:unforgeable-package-id:1"
+//         "value": "gno.land/r/demo/defi/foo20:1"
 //       },
 //       {
 //         "key": "from",

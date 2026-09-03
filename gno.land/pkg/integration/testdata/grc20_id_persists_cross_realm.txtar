@@ -14,30 +14,30 @@ cp $GNOROOT/examples/gno.land/r/demo/tests/grc20xfer/grc20xfer.gno $WORK/grc20xf
 cp $GNOROOT/examples/gno.land/r/demo/tests/grc20xfer/gnomod.toml $WORK/grc20xfer/gnomod.toml
 
 gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/demo/defi/foo20 -gas-fee 2000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
-stdout '"type":"NewToken","attrs":\[{"key":"token","value":"gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:24"},{"key":"realm","value":"gno.land/r/demo/defi/foo20"}'
+stdout '"type":"NewToken","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20:24"}'
 
 gnokey maketx addpkg -pkgdir $WORK/grc20xfer -pkgpath gno.land/r/demo/tests/grc20xfer -gas-fee 2000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey query vm/qeval --data 'gno.land/r/demo/tests/grc20xfer.TokenID()'
-stdout '"gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:24" string'
+stdout '"gno.land/r/demo/defi/foo20:24" string'
 
 gnokey maketx call -pkgpath gno.land/r/demo/tests/grc20xfer -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func NewID -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
-stdout 'gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:[0-9]+'
+stdout 'gno.land/r/demo/defi/foo20:[0-9]+'
 
 gnokey maketx call -pkgpath gno.land/r/demo/tests/grc20xfer -func Transfer -args 'g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp' -args '250000' -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout OK!
-stdout '"type":"Transfer","attrs":\[{"key":"token","value":"gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:24"},{"key":"from","value":"g1xe3hgeurhdejuzpvfy9ntalhea5wxq2ln4psft"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"250000"}'
+stdout '"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20:24"},{"key":"from","value":"g1xe3hgeurhdejuzpvfy9ntalhea5wxq2ln4psft"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"250000"}'
 ! stdout '"type":"NewToken"'
 
 gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func NewID -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
-stdout 'gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:[0-9]+'
+stdout 'gno.land/r/demo/defi/foo20:[0-9]+'
 
 gnokey query vm/qeval --data 'gno.land/r/demo/tests/grc20xfer.TokenID()'
-stdout '"gno:realm-id:09228f741a31eb49ece0316589810182dd642d85:24" string'
+stdout '"gno.land/r/demo/defi/foo20:24" string'
 
 -- idprobe.gno --
 package foo20

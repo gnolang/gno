@@ -11,16 +11,14 @@ import (
 )
 
 // NewToken creates a Token bound to the calling realm.
-// rlm must be the caller's current realm. The VM assigns Token.ID() and
-// guarantees that every token created by the realm receives a unique value.
-// The ID is opaque and safe to use directly as an event attribute or key.
-// Its package identifier is assigned by the VM and cannot be forged by a caller.
+// rlm must be the caller's current realm. Token.ID() is assigned by the VM as
+// "<origin-realm>:<realm-time>", so every event remains attributable without
+// first observing its NewToken event.
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug).
 //
-// Every successful call emits a NewToken event carrying the resulting ID and
-// origin realm.
+// Every successful call emits a NewToken event carrying the resulting ID.
 func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -57,7 +55,6 @@ func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLed
 	chain.Emit(
 		NewTokenEvent,
 		"token", token.id,
-		"realm", token.origRealm,
 		"name", name,
 		"symbol", symbol,
 		"decimals", strconv.Itoa(decimals),
@@ -115,7 +112,7 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-// ID returns the VM assigned identifier of the token.
+// ID returns the VM-assigned "<origin-realm>:<realm-time>" identifier.
 func (tok *Token) ID() string {
 	return tok.id
 }
