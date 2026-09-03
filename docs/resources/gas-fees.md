@@ -166,10 +166,10 @@ That is why `HEIGHT` is 0 and `TX HASH` is empty. `STORAGE FEE` is the
 `TOTAL TX COST` adds it to the gas fee.
 
 Take the suggested figure, 2719570 here, not the raw estimate: gas shifts
-between the simulation and the broadcast, and the 5% margin absorbs it. Do not
-take the printed `gas fee` with it, which prices the raw estimate and can leave
-the pair under what the chain requires. Price the limit yourself and round up:
-at 1ugnot per 1000 gas, 2719570 gas needs 2720ugnot.
+between the simulation and the broadcast, and the 5% margin absorbs it. Take the
+printed `gas fee` plus one ugnot, so 2721 here. Rounding inside `gnokey` can
+leave the printed figure one ugnot under the ratio the chain wants, and never
+more than one.
 
 ## Gas Optimization Tips
 
@@ -198,7 +198,7 @@ insufficient fees; got: {Gas-Wanted: 2000000, Gas-Fee 1000ugnot}, fee required: 
 
 **Out of gas:**
 ```
-gas used (2597634) exceeds tx's gas wanted (1000000) during operation: simulation
+gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulation
 ```
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
   then increase.
