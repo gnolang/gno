@@ -2508,10 +2508,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
 							ktv := cx.TypedValue
 							if sv, ok := ktv.V.(StringValue); ok {
-								// Compare strings by content: mint
-								// identity (ID/Extent) must not
-								// distinguish equal keys.
-								ktv.V = StringValue{Str: sv.Str}
+								ktv.V = sv.contentKey()
 							}
 							if _, ok := kset[ktv]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))

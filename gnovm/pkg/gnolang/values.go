@@ -110,6 +110,11 @@ type StringValue struct {
 // state, re-minted on load by fillTypesOfValue.
 func (sv StringValue) MarshalAmino() (string, error) { return sv.Str, nil }
 
+// contentKey returns sv with its mint identity (ID/Extent) cleared, so
+// two StringValues with equal content compare equal under Go ==. Use it
+// wherever a StringValue is a Go map key or compared structurally.
+func (sv StringValue) contentKey() StringValue { return StringValue{Str: sv.Str} }
+
 // UnmarshalAmino restores content only; the load path re-mints identity.
 func (sv *StringValue) UnmarshalAmino(s string) error {
 	*sv = StringValue{Str: s}
