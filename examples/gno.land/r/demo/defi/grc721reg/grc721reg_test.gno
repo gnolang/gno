@@ -24,8 +24,11 @@ var (
 // the registry accepts from any realm it does not import.
 type stubView struct{ kind, tokenID string }
 
-func (v *stubView) ExtensionKind() string { return v.kind }
-func (v *stubView) TokenID() string       { return v.tokenID }
+func (v *stubView) ExtensionKind() string                       { return v.kind }
+func (v *stubView) TokenID() string                             { return v.tokenID }
+func (v *stubView) OnMint(address, grc721.TokenID)              {}
+func (v *stubView) OnTransfer(address, address, grc721.TokenID) {}
+func (v *stubView) OnBurn(grc721.TokenID)                       {}
 
 // Must run before any Register in this file (shared registry; empty home path).
 func TestRenderEmptyRegistry(cur realm, t *testing.T) {
@@ -53,8 +56,8 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			tokenName: "Core Only",
 			slug:      "",
 			build: func(cur realm) *collection.Collection {
-				token, _ := grc721.NewToken("Core Only", "CORE", 0, cur)
-				return collection.NewCollection(token)
+				nft, _ := collection.New("Core Only", "CORE", 0, cur)
+				return nft.Collection()
 			},
 			wantKinds: []string{},
 		},
@@ -65,11 +68,11 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			tokenName: "Royalty Only",
 			slug:      "My-Cool_Slug123",
 			build: func(cur realm) *collection.Collection {
-				token, ledger := grc721.NewToken("Royalty Only", "ROY", 0, cur)
-				roy, royLed := royalty.NewRoyalty(ledger, 1000)
+				nft, ledger := collection.New("Royalty Only", "ROY", 0, cur)
+				_, royLed := royalty.NewRoyalty(ledger, 1000)
 				urequire.NoError(t, ledger.Mint(alice, "1"))
 				urequire.NoError(t, royLed.SetTokenRoyalty("1", artist, 250))
-				return collection.NewCollection(token, roy)
+				return nft.Collection()
 			},
 			wantKinds: []string{royalty.Kind},
 			verify: func(t *testing.T, key string) {
@@ -87,14 +90,14 @@ func TestRegisterAndLookup(cur realm, t *testing.T) {
 			tokenName: "Full Stack",
 			slug:      "full",
 			build: func(cur realm) *collection.Collection {
-				token, ledger := grc721.NewToken("Full Stack", "FULL", 0, cur)
-				meta, metaLed := metadata.NewMetadata(ledger)
-				roy, royLed := royalty.NewRoyalty(ledger, 1000)
-				enum, _ := enumerable.NewEnumerable(ledger)
+				nft, ledger := collection.New("Full Stack", "FULL", 0, cur)
+				_, metaLed := metadata.NewMetadata(ledger)
+				_, royLed := royalty.NewRoyalty(ledger, 1000)
+				enumerable.NewEnumerable(ledger)
 				urequire.NoError(t, ledger.Mint(alice, "1"))
 				urequire.NoError(t, metaLed.SetTokenURI("1", "ipfs://uri-1"))
 				urequire.NoError(t, royLed.SetDefaultRoyalty(artist, 500))
-				return collection.NewCollection(token, meta, roy, enum)
+				return nft.Collection()
 			},
 			wantKinds: []string{enumerable.Kind, metadata.Kind, royalty.Kind},
 			verify: func(t *testing.T, key string) {
@@ -237,8 +240,8 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			substr: "must be registered from its own realm",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_src"))
-				token, _ := grc721.NewToken("Mismatch", "MIS", 0, cur)
-				col := collection.NewCollection(token)
+				_, ledger := grc721.NewToken("Mismatch", "MIS", 0, cur)
+				col := collection.NewCollection(ledger)
 
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dst"))
 				urequire.AbortsContains(t, cur, "must be registered from its own realm", func() {
@@ -251,10 +254,10 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			substr: "collection already registered",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dupe"))
-				token, _ := grc721.NewToken("Bar", "BAR", 0, cur)
-				Register(cross(cur), collection.NewCollection(token), "dup")
+				_, ledger := grc721.NewToken("Bar", "BAR", 0, cur)
+				Register(cross(cur), collection.NewCollection(ledger), "dup")
 
-				replacement, _ := grc721.NewToken("Replacement", "BAR", 1, cur)
+				_, replacement := grc721.NewToken("Replacement", "BAR", 1, cur)
 				urequire.AbortsContains(t, cur, "collection already registered", func() {
 					Register(cross(cur), collection.NewCollection(replacement), "other")
 				})
@@ -265,10 +268,11 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			substr: "extension kind too long",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_kind_long"))
-				token, _ := grc721.NewToken("Kind", "KIND", 0, cur)
+				token, ledger := grc721.NewToken("Kind", "KIND", 0, cur)
 				view := &stubView{strings.Repeat("k", maxKindLen+1), token.ID()}
+				ledger.RegisterExtension(view, view)
 				urequire.AbortsContains(t, cur, "extension kind too long", func() {
-					Register(cross(cur), collection.NewCollection(token, view), "")
+					Register(cross(cur), collection.NewCollection(ledger), "")
 				})
 			},
 		},
@@ -277,10 +281,10 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			substr: "slug too long",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_slug_long"))
-				token, _ := grc721.NewToken("Long", "LONG", 0, cur)
+				_, ledger := grc721.NewToken("Long", "LONG", 0, cur)
 				longSlug := strings.Repeat("a", maxSlugLen+1)
 				urequire.AbortsContains(t, cur, "slug too long", func() {
-					Register(cross(cur), collection.NewCollection(token), longSlug)
+					Register(cross(cur), collection.NewCollection(ledger), longSlug)
 				})
 			},
 		},
@@ -289,18 +293,17 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			substr: "invalid slug character",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_slug_bad"))
-				token, _ := grc721.NewToken("Bad", "BAD", 0, cur)
+				_, ledger := grc721.NewToken("Bad", "BAD", 0, cur)
 				urequire.AbortsContains(t, cur, "invalid slug character: /", func() {
-					Register(cross(cur), collection.NewCollection(token), "bad/slug")
+					Register(cross(cur), collection.NewCollection(ledger), "bad/slug")
 				})
 			},
 		},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.run(cur, t)
-		})
+		t.Log(tc.name)
+		tc.run(cur, t)
 	}
 }
 
@@ -365,62 +368,16 @@ func TestIsAlphanumeric(cur realm, t *testing.T) {
 	}
 }
 
-func TestNewCollectionRejects(cur realm, t *testing.T) {
-	type ncCase struct {
-		name  string
-		msg   string
-		build func(cur realm)
-	}
-
-	cases := []ncCase{
-		{
-			name: "nil token rejected",
-			msg:  "collection: nil token",
-			build: func(cur realm) {
-				collection.NewCollection(nil)
-			},
-		},
-		{
-			name: "view from a different token rejected",
-			msg:  "collection: view does not belong to this token",
-			build: func(cur realm) {
-				tokenX, _ := grc721.NewToken("X", "X", 0, cur)
-				_, ledgerY := grc721.NewToken("Y", "Y", 1, cur)
-				royY, _ := royalty.NewRoyalty(ledgerY, 1000)
-				collection.NewCollection(tokenX, royY)
-			},
-		},
-		{
-			name: "duplicate extension kind rejected",
-			msg:  "collection: duplicate extension kind: royalty",
-			build: func(cur realm) {
-				token, ledger := grc721.NewToken("Dup", "DUP", 0, cur)
-				roy, _ := royalty.NewRoyalty(ledger, 1000)
-				collection.NewCollection(token, roy, roy)
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_newcoll"))
-			uassert.PanicsWithMessage(t, cur, tc.msg, func() {
-				tc.build(cur)
-			})
-		})
-	}
-}
-
 func TestRenderCollections(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/render_core"))
-	coreTok, _ := grc721.NewToken("Render Core", "RCORE", 0, cur)
-	coreKey := Register(cross(cur), collection.NewCollection(coreTok), "core")
+	_, coreLed := grc721.NewToken("Render Core", "RCORE", 0, cur)
+	coreKey := Register(cross(cur), collection.NewCollection(coreLed), "core")
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/render_ext"))
-	extTok, extLed := grc721.NewToken("Render Ext", "REXT", 0, cur)
-	enum, _ := enumerable.NewEnumerable(extLed)
+	_, extLed := grc721.NewToken("Render Ext", "REXT", 0, cur)
+	enumerable.NewEnumerable(extLed)
 	urequire.NoError(t, extLed.Mint(alice, "1"))
-	extKey := Register(cross(cur), collection.NewCollection(extTok, enum), "ext")
+	extKey := Register(cross(cur), collection.NewCollection(extLed), "ext")
 
 	type renderCase struct {
 		name     string
@@ -459,9 +416,10 @@ func TestRenderCollections(cur realm, t *testing.T) {
 
 func TestRenderEscapesExtensionKind(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_escape"))
-	token, _ := grc721.NewToken("Esc", "ESC", 0, cur)
+	token, ledger := grc721.NewToken("Esc", "ESC", 0, cur)
 	view := &stubView{"a`\n# H\n`b", token.ID()}
-	key := Register(cross(cur), collection.NewCollection(token, view), "esc")
+	ledger.RegisterExtension(view, view)
+	key := Register(cross(cur), collection.NewCollection(ledger), "esc")
 
 	urequire.False(t, strings.Contains(Render(""), "\n# H"),
 		"a registrant-chosen kind cannot write a heading into the index")
@@ -471,11 +429,11 @@ func TestRenderEscapesExtensionKind(cur realm, t *testing.T) {
 
 func TestOneTokenTakesOneKey(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_alias"))
-	token, _ := grc721.NewToken("Alias", "ALIAS", 0, cur)
-	Register(cross(cur), collection.NewCollection(token), "a")
+	_, ledger := grc721.NewToken("Alias", "ALIAS", 0, cur)
+	Register(cross(cur), collection.NewCollection(ledger), "a")
 
 	urequire.AbortsContains(t, cur, "already registered", func() {
-		Register(cross(cur), collection.NewCollection(token), "b")
+		Register(cross(cur), collection.NewCollection(ledger), "b")
 	})
 }
 
@@ -485,18 +443,17 @@ func TestRegisteredCollectionStaysLive(cur realm, t *testing.T) {
 	key := Register(cross(cur), nft.Collection(), "")
 	urequire.Equal(t, 0, len(MustGet(key).Kinds()), "no extension at registration")
 
-	roy, _ := royalty.NewRoyalty(ledger, 1000)
-	nft.Attach(roy)
+	royalty.NewRoyalty(ledger, 1000)
 
-	urequire.Equal(t, 1, len(MustGet(key).Kinds()), "a later Attach reaches the registry")
+	urequire.Equal(t, 1, len(MustGet(key).Kinds()), "a later extension reaches the registry")
 	_, ok := GetExtension(key, royalty.Kind)
 	urequire.True(t, ok, "and the view is readable through the registry")
 }
 
 func TestUnregister(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_drop"))
-	token, _ := grc721.NewToken("Drop", "DROP", 0, cur)
-	key := Register(cross(cur), collection.NewCollection(token), "")
+	_, ledger := grc721.NewToken("Drop", "DROP", 0, cur)
+	key := Register(cross(cur), collection.NewCollection(ledger), "")
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_thief"))
 	urequire.AbortsContains(t, cur, "collection not registered", func() {
@@ -511,7 +468,7 @@ func TestUnregister(cur realm, t *testing.T) {
 		Unregister(cross(cur), "DROP")
 	})
 
-	urequire.Equal(t, key, Register(cross(cur), collection.NewCollection(token), ""),
+	urequire.Equal(t, key, Register(cross(cur), collection.NewCollection(ledger), ""),
 		"the freed key can be taken again")
 }
 
@@ -520,8 +477,8 @@ func TestRenderIndexPaginates(cur realm, t *testing.T) {
 
 	for i := 0; i < pageSize+5; i++ {
 		testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/zpage" + strconv.Itoa(i)))
-		token, _ := grc721.NewToken("Page", "PAGE", 0, cur)
-		Register(cross(cur), collection.NewCollection(token), "")
+		_, ledger := grc721.NewToken("Page", "PAGE", 0, cur)
+		Register(cross(cur), collection.NewCollection(ledger), "")
 	}
 
 	first := Render("")

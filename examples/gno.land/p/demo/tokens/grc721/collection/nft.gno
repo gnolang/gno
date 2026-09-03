@@ -36,11 +36,15 @@ func Wrap(token *grc721.Token, ledger *grc721.PrivateLedger) *NFT {
 		panic("collection: nil token or ledger")
 	}
 
+	if ledger.ReadToken() != token {
+		panic("collection: ledger does not belong to this token")
+	}
+
 	return &NFT{col: &Collection{token: token}, ledger: ledger}
 }
 
-// Collection returns the read-only model. It is the same object the NFT manages,
-// so attach every extension before registering it — a later Attach mutates it too.
+// Collection returns the read-only model. It answers through the token, so a
+// registry that stored it also sees extensions registered later.
 func (n *NFT) Collection() *Collection { return n.col }
 
 func (n *NFT) Token() *grc721.Token { return n.col.token }
@@ -50,15 +54,7 @@ func (n *NFT) Token() *grc721.Token { return n.col.token }
 // that created the collection — see grc721's guardHome.
 func (n *NFT) CallerTeller() grc721.Teller { return n.ledger.CallerTeller() }
 
-// Attach records an extension read-view for discovery;
-// the view must already be wired to this NFT's ledger via its own constructor.
-// Returns the NFT for chaining.
-func (n *NFT) Attach(view grc721.ExtensionView) *NFT {
-	n.col.attach(view)
-	return n
-}
-
-func (n *NFT) Extension(kind string) (grc721.ExtensionView, bool) {
+func (n *NFT) Extension(kind string) grc721.ExtensionView {
 	return n.col.Extension(kind)
 }
 

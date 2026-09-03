@@ -154,7 +154,8 @@ func GetExtension(key, kind string) (grc721.ExtensionView, bool) {
 		return nil, false
 	}
 
-	return v.Extension(kind)
+	ext := v.Extension(kind)
+	return ext, ext != nil
 }
 
 func GetRegistry() *rotree.ReadOnlyTree {

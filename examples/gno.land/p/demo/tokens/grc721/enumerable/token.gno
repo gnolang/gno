@@ -16,9 +16,10 @@ func NewEnumerable(coreLedger *grc721.PrivateLedger) (*Enumerable, *Ledger) {
 	st := &storage{}
 	core := coreLedger.ReadToken()
 	led := &Ledger{core: core, st: st}
-	coreLedger.RegisterExtension(led)
+	view := &Enumerable{core: core, st: st}
+	coreLedger.RegisterExtension(led, view)
 
-	return &Enumerable{core: core, st: st}, led
+	return view, led
 }
 
 func (e *Enumerable) ExtensionKind() string {

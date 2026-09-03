@@ -27,7 +27,7 @@ func (e *vetoExtension) OnBurn(tid grc721.TokenID) {}
 
 func main(cur realm) {
 	_, ledger := grc721.NewToken("Veto", "VETO", 0, cur)
-	ledger.RegisterExtension(&vetoExtension{refuse: "1"})
+	ledger.RegisterExtension(&vetoExtension{refuse: "1"}, nil)
 
 	func() {
 		defer func() { println("recovered:", recover()) }()

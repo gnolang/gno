@@ -54,6 +54,14 @@ func TestNewConstructors(cur realm, t *testing.T) {
 		uassert.Equal(t, tok.ID(), nft.Collection().Token().ID())
 	})
 
+	t.Run("Wrap rejects a mismatched token/ledger pair", func(t *testing.T) {
+		tokA, _ := newTokenLedger("A", "AAA", 3, cur)
+		_, ledB := newTokenLedger("B", "BBB", 4, cur)
+		uassert.PanicsWithMessage(t, cur, "collection: ledger does not belong to this token", func() {
+			Wrap(tokA, ledB)
+		})
+	})
+
 	panics := []struct {
 		name string
 		run  func()
@@ -72,90 +80,87 @@ func TestNewConstructors(cur realm, t *testing.T) {
 }
 
 func TestNewCollection(cur realm, t *testing.T) {
-	t.Run("NewCollection nil token panics", func(t *testing.T) {
-		uassert.PanicsWithMessage(t, cur, "collection: nil token", func() {
+	t.Run("NewCollection nil ledger panics", func(t *testing.T) {
+		uassert.PanicsWithMessage(t, cur, "collection: nil ledger", func() {
 			NewCollection(nil)
 		})
 	})
 
-	t.Run("NewCollection with no views builds an empty collection", func(t *testing.T) {
-		tok, _ := newTokenLedger("Foo", "FOO", 0, cur)
-		c := NewCollection(tok)
+	t.Run("NewCollection rejects a ledger with no token", func(t *testing.T) {
+		uassert.PanicsWithMessage(t, cur, "collection: ledger has no token", func() {
+			NewCollection(&grc721.PrivateLedger{})
+		})
+	})
+
+	t.Run("NewCollection with no extensions builds an empty collection", func(t *testing.T) {
+		tok, led := newTokenLedger("Foo", "FOO", 0, cur)
+		c := NewCollection(led)
 		uassert.Equal(t, tok.ID(), c.Token().ID())
 		uassert.Equal(t, 0, len(c.Kinds()))
 	})
 
-	t.Run("NewCollection skips a nil view", func(t *testing.T) {
-		tok, _ := newTokenLedger("Foo", "FOO", 0, cur)
-		var nilView grc721.ExtensionView
-		c := NewCollection(tok, nilView)
-		uassert.Equal(t, 0, len(c.Kinds()))
-	})
-
-	t.Run("NewCollection attaches matching views", func(t *testing.T) {
-		tok, led := newTokenLedger("Foo", "FOO", 0, cur)
-		meta, _ := metadata.NewMetadata(led)
-		roy, _ := royalty.NewRoyalty(led, 1000)
-		c := NewCollection(tok, meta, roy)
+	t.Run("NewCollection takes every registered view", func(t *testing.T) {
+		_, led := newTokenLedger("Foo", "FOO", 0, cur)
+		metadata.NewMetadata(led)
+		royalty.NewRoyalty(led, 1000)
+		c := NewCollection(led)
 		uassert.Equal(t, 2, len(c.Kinds()))
 		uassert.True(t, c.HasExtension(metadata.Kind))
 		uassert.True(t, c.HasExtension(royalty.Kind))
 	})
 
-	t.Run("NewCollection rejects a view from a different token", func(t *testing.T) {
-		tok, _ := newTokenLedger("Foo", "FOO", 0, cur)
-		_, otherLed := newTokenLedger("Other", "OTH", 1, cur)
-		royOther, _ := royalty.NewRoyalty(otherLed, 1000)
-		uassert.PanicsWithMessage(t, cur, "collection: view does not belong to this token", func() {
-			NewCollection(tok, royOther)
-		})
-	})
-
-	t.Run("NewCollection rejects a duplicate kind", func(t *testing.T) {
-		tok, led := newTokenLedger("Foo", "FOO", 0, cur)
-		roy, _ := royalty.NewRoyalty(led, 1000)
-		uassert.PanicsWithMessage(t, cur, "collection: duplicate extension kind: royalty", func() {
-			NewCollection(tok, roy, roy)
-		})
+	t.Run("NewCollection skips a kind registered without a view", func(t *testing.T) {
+		_, led := newTokenLedger("Foo", "FOO", 0, cur)
+		led.RegisterExtension(&viewlessExtension{}, nil)
+		c := NewCollection(led)
+		uassert.Equal(t, 0, len(c.Kinds()))
 	})
 }
 
+// viewlessExtension has hooks but publishes nothing.
+type viewlessExtension struct{}
+
+func (v *viewlessExtension) ExtensionKind() string { return "viewless" }
+
+func (v *viewlessExtension) OnMint(to address, tid grc721.TokenID) {}
+
+func (v *viewlessExtension) OnTransfer(from, to address, tid grc721.TokenID) {}
+
+func (v *viewlessExtension) OnBurn(tid grc721.TokenID) {}
+
 func TestExtensionAccessors(cur realm, t *testing.T) {
 	nft := newNFT("Foo NFT", "FNFT", 0, cur)
-	meta, _ := metadata.NewMetadata(nft.ledger)
-	roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
-	nft.Attach(meta).Attach(roy)
+	metadata.NewMetadata(nft.ledger)
+	royalty.NewRoyalty(nft.ledger, 1000)
 
 	tests := []struct {
 		name string
 		run  func(t *testing.T)
 	}{
-		{"Kinds returns sorted attached kinds", func(t *testing.T) {
+		{"Kinds returns sorted registered kinds", func(t *testing.T) {
 			ks := nft.Collection().Kinds()
 			urequire.Equal(t, 2, len(ks))
 			uassert.Equal(t, metadata.Kind, ks[0])
 			uassert.Equal(t, royalty.Kind, ks[1])
 		}},
-		{"HasExtension true for attached kind", func(t *testing.T) {
+		{"HasExtension true for registered kind", func(t *testing.T) {
 			uassert.True(t, nft.Collection().HasExtension(metadata.Kind))
 		}},
 		{"HasExtension false for absent kind", func(t *testing.T) {
 			uassert.False(t, nft.Collection().HasExtension("enumerable"))
 		}},
-		{"NFT.Extension returns attached typed view", func(t *testing.T) {
-			v, ok := nft.Extension(metadata.Kind)
-			urequire.True(t, ok, "metadata found")
+		{"NFT.Extension returns the registered typed view", func(t *testing.T) {
+			v := nft.Extension(metadata.Kind)
+			urequire.True(t, v != nil, "metadata found")
 			uassert.Equal(t, metadata.Kind, v.(*metadata.Metadata).ExtensionKind())
 		}},
-		{"Collection.Extension returns attached typed view", func(t *testing.T) {
-			v, ok := nft.Collection().Extension(royalty.Kind)
-			urequire.True(t, ok, "royalty found")
+		{"Collection.Extension returns the registered typed view", func(t *testing.T) {
+			v := nft.Collection().Extension(royalty.Kind)
+			urequire.True(t, v != nil, "royalty found")
 			uassert.Equal(t, royalty.Kind, v.(*royalty.Royalty).ExtensionKind())
 		}},
-		{"Extension absent kind returns (nil,false)", func(t *testing.T) {
-			v, ok := nft.Extension("enumerable")
-			uassert.False(t, ok)
-			urequire.True(t, v == nil, "nil view")
+		{"Extension absent kind returns nil", func(t *testing.T) {
+			urequire.True(t, nft.Extension("enumerable") == nil, "nil view")
 		}},
 	}
 	for _, tt := range tests {
@@ -163,39 +168,61 @@ func TestExtensionAccessors(cur realm, t *testing.T) {
 	}
 }
 
-func TestAttach(cur realm, t *testing.T) {
-	t.Run("Attach chains and records the view", func(t *testing.T) {
-		nft := newNFT("Foo", "FOO", 0, cur)
-		roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
-		got := nft.Attach(roy)
-		urequire.True(t, got == nft, "Attach returns the NFT for chaining")
-		uassert.True(t, nft.Collection().HasExtension(royalty.Kind))
-	})
+func TestExtensionViewsComeFromTheLedger(cur realm, t *testing.T) {
+	nft := newNFT("Foo", "FOO", 0, cur)
+	roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
 
-	t.Run("Attach skips a nil view", func(t *testing.T) {
-		nft := newNFT("Foo", "FOO", 0, cur)
-		var nilView grc721.ExtensionView
-		nft.Attach(nilView)
-		uassert.Equal(t, 0, len(nft.Collection().Kinds()))
-	})
+	v := nft.Collection().Extension(royalty.Kind)
+	urequire.True(t, v != nil, "royalty found")
+	uassert.True(t, v.(*royalty.Royalty) == roy, "the ledger's own view, not a caller's")
 
-	t.Run("Attach rejects a view from a different token", func(t *testing.T) {
-		nft := newNFT("Foo", "FOO", 0, cur)
-		other := newNFT("Other", "OTH", 1, cur)
-		royOther, _ := royalty.NewRoyalty(other.ledger, 1000)
-		uassert.PanicsWithMessage(t, cur, "collection: view does not belong to this token", func() {
-			nft.Attach(royOther)
-		})
-	})
+	// a view built on another ledger cannot reach this collection: there is no
+	// parameter to pass it through, and this token's ledger never saw it
+	other := newNFT("Other", "OTH", 1, cur)
+	royOther, _ := royalty.NewRoyalty(other.ledger, 1000)
+	v = nft.Collection().Extension(royalty.Kind)
+	uassert.False(t, v.(*royalty.Royalty) == royOther)
+}
 
-	t.Run("Attach rejects a duplicate kind", func(t *testing.T) {
-		nft := newNFT("Foo", "FOO", 0, cur)
-		roy, _ := royalty.NewRoyalty(nft.ledger, 1000)
-		nft.Attach(roy)
-		uassert.PanicsWithMessage(t, cur, "collection: duplicate extension kind: royalty", func() {
-			nft.Attach(roy)
-		})
-	})
+func TestKindsOrderIsIndependentOfRegistrationOrder(cur realm, t *testing.T) {
+	nft := newNFT("Foo NFT", "FNFT", 0, cur)
+	royalty.NewRoyalty(nft.ledger, 1000) // registered first, sorts second
+	metadata.NewMetadata(nft.ledger)
+
+	kinds := nft.Token().ExtensionKinds()
+	urequire.Equal(t, 2, len(kinds))
+	uassert.Equal(t, royalty.Kind, kinds[0], "the token keeps registration order")
+
+	ks := nft.Collection().Kinds()
+	urequire.Equal(t, 2, len(ks))
+	uassert.Equal(t, metadata.Kind, ks[0], "Collection.Kinds is sorted")
+	uassert.Equal(t, royalty.Kind, ks[1])
+}
+
+func TestPublishedCollectionsTrackTheirLedger(cur realm, t *testing.T) {
+	tok, led := newTokenLedger("Foo", "FOO", 0, cur)
+	standalone := NewCollection(led)
+	published := Wrap(tok, led).Collection() // what a registry stores
+
+	metadata.NewMetadata(led) // a later transaction
+
+	rewrapped := Wrap(tok, led).Collection() // the issuer re-wraps its persisted pair
+	uassert.False(t, published == rewrapped, "re-wrapping builds a new handle")
+	uassert.Equal(t, 1, len(standalone.Kinds()))
+	uassert.Equal(t, 1, len(published.Kinds()))
+	uassert.Equal(t, 1, len(rewrapped.Kinds()))
+}
+
+func TestLateRegistrationReachesAPublishedCollection(cur realm, t *testing.T) {
+	nft := newNFT("Foo", "FOO", 0, cur)
+	published := nft.Collection() // the pointer a registry would already hold
+	urequire.Equal(t, 0, len(published.Kinds()))
+
+	metadata.NewMetadata(nft.ledger)
+
+	uassert.True(t, published == nft.Collection())
+	urequire.Equal(t, 1, len(published.Kinds()))
+	uassert.True(t, published.HasExtension(metadata.Kind))
 }
 
 func TestMintBurn(cur realm, t *testing.T) {
@@ -204,8 +231,7 @@ func TestMintBurn(cur realm, t *testing.T) {
 
 	nft := newNFT("Foo NFT", "FNFT", 0, cur)
 	meta, metaLedger := metadata.NewMetadata(nft.ledger)
-	roy, royLedger := royalty.NewRoyalty(nft.ledger, 1000)
-	nft.Attach(meta).Attach(roy)
+	_, royLedger := royalty.NewRoyalty(nft.ledger, 1000)
 
 	tests := []struct {
 		name string

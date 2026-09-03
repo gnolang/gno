@@ -1,64 +1,45 @@
 package collection
 
 import (
+	"sort"
+
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/avl/v0"
 )
 
 // Collection is the read-only model (core token + extension read-views, no admin surface),
 // safe to store in a registry or hand across realms.
 type Collection struct {
 	token *grc721.Token
-	exts  avl.Tree // kind -> grc721.ExtensionView
 }
 
-// NewCollection builds a Collection from a core token and its extension read-views.
-func NewCollection(token *grc721.Token, views ...grc721.ExtensionView) *Collection {
+// NewCollection builds a Collection over a ledger's token. Views are answered from
+// the token, so a stored Collection also reports extensions registered later.
+func NewCollection(ledger *grc721.PrivateLedger) *Collection {
+	if ledger == nil {
+		panic("collection: nil ledger")
+	}
+
+	token := ledger.ReadToken()
 	if token == nil {
-		panic("collection: nil token")
+		panic("collection: ledger has no token")
 	}
 
-	c := &Collection{token: token}
-
-	for _, ev := range views {
-		c.attach(ev)
-	}
-
-	return c
-}
-
-func (c *Collection) attach(ev grc721.ExtensionView) {
-	if ev == nil {
-		return
-	}
-
-	if ev.TokenID() != c.token.ID() {
-		panic("collection: view does not belong to this token")
-	}
-
-	kind := ev.ExtensionKind()
-	if c.exts.Has(kind) {
-		panic("collection: duplicate extension kind: " + kind)
-	}
-
-	c.exts.Set(kind, ev)
+	return &Collection{token: token}
 }
 
 func (c *Collection) Token() *grc721.Token { return c.token }
 
-// Extension returns the attached read-view of the given kind, or (nil, false).
+// Extension returns the published read-view of the given kind, or nil.
 // Callers type-assert it to the concrete type they expect (e.g. *royalty.Royalty).
-func (c *Collection) Extension(kind string) (grc721.ExtensionView, bool) {
-	x := c.exts.Get(kind)
-	if x == nil {
-		return nil, false
-	}
-
-	return x.(grc721.ExtensionView), true
+func (c *Collection) Extension(kind string) grc721.ExtensionView {
+	return c.token.ExtensionView(kind)
 }
 
-func (c *Collection) HasExtension(kind string) bool { return c.exts.Has(kind) }
+func (c *Collection) HasExtension(kind string) bool {
+	return c.token.ExtensionView(kind) != nil
+}
 
+// Kinds returns the published kinds, sorted; a kind registered without a view is omitted.
 func (c *Collection) Kinds() []string {
 	return c.KindsUpTo(0)
 }
@@ -67,10 +48,13 @@ func (c *Collection) Kinds() []string {
 func (c *Collection) KindsUpTo(limit int) []string {
 	ks := []string{}
 
-	c.exts.Iterate("", "", func(k string, _ any) bool {
-		ks = append(ks, k)
-		return limit > 0 && len(ks) == limit
-	})
+	for _, kind := range c.token.ExtensionKindsUpTo(limit) {
+		if c.token.ExtensionView(kind) != nil {
+			ks = append(ks, kind)
+		}
+	}
+
+	sort.Strings(ks)
 
 	return ks
 }
