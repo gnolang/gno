@@ -230,17 +230,28 @@ gnokey maketx call \
 `-pkgpath` is the realm's on-chain path, the same one you passed to
 `gno mod init`.
 
-`-gas-wanted` is a ceiling on work, in gas units. `-gas-fee` is what you pay,
-one flat amount in `ugnot`; one GNOT is a million of them. The chain accepts the
-transaction when `gas-fee` divided by `gas-wanted` is at least the network's gas
-price, then takes the whole fee. The command above asks for 2000000 gas, and at
-today's price of 1ugnot per 1000 gas the least it may pay is 2000ugnot, which is
-what it sets. Raise `-gas-wanted` and the fee has to rise with it.
+Three flags decide what a transaction costs you:
 
-Neither is filled in for you. The values here fit this counter, and
-[`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes your own.
-`gnokey` runs the transaction against the node first, so one that would fail
-never reaches a block.
+- **`-gas-wanted`** is a ceiling on work, counted in gas units. Run past it and
+  the transaction fails and is rolled back. It caps work, not money.
+- **`-gas-fee`** is what you pay, one flat amount in `ugnot`, where one GNOT is
+  a million of them. Once the transaction is in a block the chain takes all of
+  it, whatever the work turned out to cost.
+- **`-max-deposit`** is a ceiling on the
+  [storage deposit](../resources/storage-deposit.md), the GNOT locked against
+  bytes your transaction adds. Locked rather than spent, but it leaves your
+  balance the same way. Omit the flag and the chain caps it at `100000000ugnot`.
+
+The first two are tied together: the chain accepts the transaction when
+`gas-fee` divided by `gas-wanted` is at least the network's gas price. The
+command above asks for 2000000 gas, and at today's price of 1ugnot per 1000 gas
+the least it may pay is 2000ugnot, which is what it sets. Raise `-gas-wanted`
+and the fee has to rise with it.
+
+None of the three is filled in for you.
+[`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes the first two,
+and `gnokey` runs the transaction against the node before sending it, so one
+that would fail never reaches a block.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
@@ -263,8 +274,8 @@ TX HASH:    yBwJPI1anzP44QZMLV6Sae6SZsrLqK8UhZWUOyd5T48=
 
 `TOTAL TX COST` is the fee plus the [storage deposit](../resources/storage-deposit.md)
 the chain locked for the few bytes `count` grew by. Despite its label, `STORAGE
-FEE` is that deposit: delete the state and it comes back. The gas fee never
-does.
+FEE` is that deposit: locked against those bytes, not spent, and released if the
+realm ever frees them. The gas fee is spent.
 
 The leading `(1 int)` is `Increment`'s return value. Reload the realm
 page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep

@@ -163,9 +163,9 @@ PKGPATH:    gno.land/p/examplenamespace/hello_world
 
 `HEIGHT: 0` and the empty `TX HASH` are how you tell a simulation from a
 broadcast: nothing reached a block. `STORAGE FEE` is not a gas fee: it is the
-[storage deposit](storage-deposit.md) locked for the bytes the transaction
-would add, and it comes back when that state is deleted. `TOTAL TX COST` is the
-gas fee plus that deposit.
+[storage deposit](storage-deposit.md) locked against the bytes the transaction
+would add, rather than spent. `TOTAL TX COST` is the gas fee plus that deposit,
+one of them gone and one of them locked.
 
 Set `-gas-wanted` to the suggested figure, 2719570 here, not the raw estimate:
 gas usage shifts between the simulation and the broadcast, and the 5% margin

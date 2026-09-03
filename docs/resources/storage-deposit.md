@@ -16,6 +16,11 @@ message (e.g., `MsgCall`, `MsgRun`, `AddPkg`).
 Storing data → GNOT locked
 Deleting data → GNOT refunded
 
+Deleting means a realm freeing data it holds, which only its own code can do. A
+deployed package's source is not deletable: `MsgDisablePackage` returns
+`disable_package is not yet implemented`, so the deposit an `AddPkg` locks for
+the code itself has nothing that could release it today.
+
 ### Purpose
 
 - Paying for persistent storage: Storing objects or primitives in realms costs GNOT.

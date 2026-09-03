@@ -165,8 +165,8 @@ INFO:
 TX HASH:    MpJoHvAHfFhKRfLANopZl4N5w59Vi7+IzT86IeT+uCY=
 ```
 
-`STORAGE FEE` is the [storage deposit](storage-deposit.md) locked for the ten
-bytes the counter grew by, and it comes back if that state is deleted;
+`STORAGE FEE` is the [storage deposit](storage-deposit.md) locked against the
+ten bytes the counter grew by, released if the realm ever frees them;
 `TOTAL TX COST` is the gas fee plus that deposit.
 
 Refresh `http://localhost:8888` to see the updated `Render()` output. The

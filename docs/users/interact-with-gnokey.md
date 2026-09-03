@@ -229,7 +229,8 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
 - `STORAGE FEE:    174800ugnot` - despite the label, a
   [storage deposit](../resources/storage-deposit.md) and not a fee: it is locked
-  for those bytes and comes back when the state is deleted
+  against those bytes rather than spent. A deployed package's code cannot be
+  removed today, so this one stays locked
 - `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
 - `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted
   by the transaction, here the storage event that the added bytes produce. Every
@@ -724,7 +725,7 @@ The multisig is defined by the **ordered list of member keys**.
 All participants must use the **exact same order** when running:
 
 - `gnokey add multisig ...`
-- later, `gnokey multisign ...` expects signatures that correspond to that same ordering
+- later, `gnokey multisign ...` uses that key, so a keybase built in a different order holds a different multisig and will not verify
 
 If the order differs between participants, you will *not* end up with the same multisig public key/address, and signing
 will fail.
@@ -882,15 +883,7 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 **The second most important rule: every signature must come from a member of that multisig**
 
-`gnokey multisign` reads the public key inside each signature and puts it in that member's slot, so the order you pass `--signature` in does not matter.
-
-If your multisig was defined as: `alice, bob, charlie`, then:
-
-- Alice's signature lands in slot 1
-- Bob's signature lands in slot 2
-- Charlie's signature lands in slot 3
-
-whichever order you list them on the command line. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
+`gnokey multisign` reads the public key inside each signature and puts it in that member's slot, so the order you pass `--signature` in does not matter. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
 
 #### Multisign (Alice + Bob example)
 
