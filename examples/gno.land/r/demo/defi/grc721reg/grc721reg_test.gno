@@ -235,6 +235,15 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
+			name: "register collection without token aborts",
+			run: func(cur realm, t *testing.T) {
+				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_nil_token"))
+				urequire.AbortsContains(t, cur, "grc721reg: nil token", func() {
+					Register(cross(cur), &collection.Collection{}, "")
+				})
+			},
+		},
+		{
 			name: "register token from a different realm aborts",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_src"))

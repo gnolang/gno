@@ -36,6 +36,9 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	}
 
 	token := col.Token()
+	if token == nil {
+		panic("grc721reg: nil token")
+	}
 
 	if slug != "" {
 		validateSlug(slug)
