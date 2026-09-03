@@ -39,10 +39,9 @@ Gas wanted turns that fee into a rate, and the rate is what the network checks:
 Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-`gnokey` simulates first, so a transaction that would fail there never reaches a
-block and costs nothing. One that passes simulation can still fail on chain, if
-the chain moves in between. Once it is in a block you pay the whole fee, whether
-it used less gas than it asked for or failed outright.
+`gnokey` simulates first, and a transaction that fails there costs nothing. It
+can still fail on chain afterwards, and once it is in a block you pay the whole
+fee, whether it used less gas than it asked for or failed outright.
 
 ### Calculating Your Gas Fee
 
@@ -172,13 +171,10 @@ Set `-gas-wanted` to the suggested figure, 2719570 here, not the raw estimate:
 gas usage shifts between the simulation and the broadcast, and the 5% margin
 absorbs the shift.
 
-Do not simply copy the printed `gas fee` beside it. The two numbers are computed
-from different bases: `suggested` is the raw estimate plus 5%, while `gas fee`
-prices the raw estimate and adds 5% to that. The fee is therefore sized for the
-raw estimate, not for the limit you are about to set, and the pair can leave you
-a ugnot short of the ratio the chain requires. Price the suggested limit
-yourself instead, rounding up: at 1ugnot per 1000 gas, 2719570 gas needs
-2720ugnot.
+Do not copy the printed `gas fee` beside it. That figure prices the raw
+estimate, not the limit you are about to set, so the pair can land a ugnot under
+what the chain requires. Price the limit yourself, rounding up: at 1ugnot per
+1000 gas, 2719570 gas needs 2720ugnot.
 
 ## Gas Optimization Tips
 

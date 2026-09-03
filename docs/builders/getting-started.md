@@ -248,11 +248,10 @@ command above asks for 2000000 gas, and at today's price of 1ugnot per 1000 gas
 the least it may pay is 2000ugnot, which is what it sets. Raise `-gas-wanted`
 and the fee has to rise with it.
 
-None of the three is filled in for you.
-[`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes the first two,
-and `gnokey` runs the transaction against the node before sending it, so one
-that fails there never reaches a block. One that passes can still fail on chain,
-and then the fee is charged.
+None of the three is filled in for you;
+[`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes the first two.
+`gnokey` also simulates before sending, so a transaction that fails there never
+reaches a block and costs nothing.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
