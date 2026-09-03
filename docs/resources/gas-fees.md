@@ -190,12 +190,16 @@ To minimize gas costs, consider these optimization strategies:
 
 ## Common Errors
 
-**Insufficient fees:** `insufficient fees; got: {Gas-Wanted: 2000000, Gas-Fee
-1000ugnot}, fee required: 1ugnot/1000gas as block gas price`
+**Insufficient fees:**
+```
+insufficient fees; got: {Gas-Wanted: 2000000, Gas-Fee 1000ugnot}, fee required: 1ugnot/1000gas as block gas price
+```
 - Your `--gas-fee` is too low. Increase it to meet the minimum required.
 
-**Out of gas:** `gas used (2597634) exceeds tx's gas wanted (1000000) during
-operation: simulation`
+**Out of gas:**
+```
+gas used (2597634) exceeds tx's gas wanted (1000000) during operation: simulation
+```
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
   then increase.
 - Nothing was charged. `operation: simulation` means it never reached a block,
