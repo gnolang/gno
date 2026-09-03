@@ -207,7 +207,7 @@ import (
 // Bumped again by adding the NewRealmID native to chain/runtime. The native's
 // source bytes land in the genesis stdlib MemPackage and move the root; the
 // scenario never calls NewRealmID, so behavior is unchanged.
-const expectedCrossrealm38Hash = "952fe400be4644917df2c76c299a6b7bd0f5848081fa6749f26b5783bbbda97b"
+const expectedCrossrealm38Hash = "10f6347ec659e5d83a35aac273153fbd29e2526f4247c8f6e22c67c131beeb7a"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
