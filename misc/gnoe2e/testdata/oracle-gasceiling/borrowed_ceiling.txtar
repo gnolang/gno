@@ -1,0 +1,70 @@
+# Three numbers are the same everywhere else, and that is why nothing has ever
+# tested this. tm2's MaxBlockMaxGas (params.go:52), gpao's defaultBlockMaxGas
+# (oracle.go:672) and gnoe2e's own cluster default (cluster.go:59) are all
+# 3000000000. On such a chain an oracle that read the ceiling correctly and an
+# oracle that fell back to its default are indistinguishable.
+#
+# This suite runs at 20000000 instead, where they are not.
+#
+# What breaks if the read is wrong: the simulate probe is signed at EXACTLY
+# std.NewFee(o.blockMaxGas, gasFee) (oracle.go:772-774). A probe asking for
+# 3000000000 gas on a chain whose blocks cap at 20000000 is refused by the
+# ante, which rejects rather than clamps (ante.go:67-79), so classifySimulate
+# grades it verdictWillFail and enable() returns without broadcasting. Every
+# approval would fail, on a chain that is otherwise perfectly healthy.
+#
+# The second thing this pins is the operator's escape hatch. -gas-wanted is
+# operator input and can exceed what the chain will accept, so gasWantedFor
+# clamps it to the ceiling (oracle.go:732-738). The value below is deliberately
+# absurd -- 150x the chain's limit, and above gpao's own default of 20000000,
+# which happens to equal this chain's ceiling and so would prove nothing.
+# Without the clamp the ante refuses every enable on exactly the chains the
+# fallback exists to keep working on.
+
+gpao start -start-height 1 -gas-wanted 3000000000
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 15000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/fits -pkgpath gno.land/r/ceiling/fits $USER_NAME
+
+# Live. On a 20000000 chain that is only reachable if gpao asked the node for
+# its ceiling and believed the answer -- and if it then clamped an operator's
+# oversized -gas-wanted down to it rather than passing it through.
+#
+# If this ever fails, the oracle's own log says which half broke, and it says
+# it by omission: queryBlockMaxGas logs "using N for block max gas" ONLY when
+# it falls back (oracle.go:571-573). That line appearing here means the read
+# failed. Its absence, together with an "estimated ... sending with ..." line,
+# means the read worked and the probe was accepted.
+eventually gnokey query vm/qrender -data 'gno.land/r/ceiling/fits:x'
+stdout 'fits'
+
+# Approved on its own account, not merely live: the oracle's typed verdict
+# rules out the package having reached the chain by any route but an approval.
+#
+# Gated rather than one-shot: status.record for an approval runs after enable()
+# returns, and enable() broadcasts with BroadcastTxCommit, so the package is
+# renderable before the board says so. http_get's second argument is checked per
+# attempt, which is what makes waiting on it mean anything.
+eventually http_get $GPAO_STATUS/status/gno.land/r/ceiling/fits '"status":"approved"'
+stdout '"status":"approved"'
+
+# Nothing left behind.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/ceiling/fits'
+
+gpao stop
+
+-- cluster --
+validators: 1
+oracle: true
+code-submission-policy: inert
+block-max-gas: 20000000
+-- fits/gnomod.toml --
+module = "gno.land/r/ceiling/fits"
+gno = "0.9"
+
+-- fits/fits.gno --
+package fits
+
+func Render(path string) string {
+	return "fits"
+}

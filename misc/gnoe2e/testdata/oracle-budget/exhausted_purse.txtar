@@ -1,0 +1,110 @@
+# The oracle signs every approval with one hot key, and -max-spend is the only
+# thing standing between a misbehaving run and that key's whole balance. What
+# the bound does when the packages are all well formed and the fees are all
+# really paid has never been exercised: wouldExceedSpend is arithmetic over two
+# int64 fields, and the tests that cover it build the oracle struct by hand,
+# with no chain, no ante handler and no money.
+#
+# So every number below is read off the chain. The approver starts a run with
+# 1000000000ugnot, an approval costs the gas fee whole -- the ante deducts
+# tx.Fee.GasFee rather than metering it -- and the default fee is 1000000ugnot.
+# Two approvals therefore leave exactly 998000000ugnot, and that figure is the
+# scenario: it is the difference between a bound that counts and a bound that
+# bills.
+#
+# Its sibling in this directory holds the opposite case. There the counter moves
+# three times and the balance never does, because a package whose init() panics
+# is refused at simulate before anything is broadcast. Read together they say
+# the counter and the balance are two different things, and only one of them is
+# what -max-spend is nominally about.
+
+gpao start -start-height 1 -max-spend 2000000ugnot
+
+# The opening balance is asserted rather than assumed, because every figure
+# after it is this one minus a known number of fees. If provisioning ever funds
+# the approver differently, this line says so instead of the later ones failing
+# with arithmetic that looks wrong.
+gnokey query bank/balances/$GPAO_ADDR
+stdout 'data: "1000000000ugnot"'
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/one -pkgpath gno.land/r/purse/one $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/two -pkgpath gno.land/r/purse/two $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/three -pkgpath gno.land/r/purse/three $USER_NAME
+
+# The wait goes on "two" and "one" is then a one-shot read. runVerifier drains
+# one candidate queue one package at a time, in the order the blocks committed,
+# so "two" being live proves "one" was decided before it.
+eventually gnokey query vm/qrender -data 'gno.land/r/purse/two:x'
+stdout 'two'
+gnokey query vm/qrender -data 'gno.land/r/purse/one:x'
+stdout 'one'
+
+# Nothing is wrong with the third package. It is refused because the bound is
+# checked before the approval is attempted, and two debits of the fee have
+# already landed on it exactly.
+eventually http_get $GPAO_STATUS/status/gno.land/r/purse/three '"status":"blocked"'
+
+# The bound billed. Two approvals reached the chain, the ante charged each of
+# them a whole gas fee, and the approver is down by precisely that.
+gnokey query bank/balances/$GPAO_ADDR
+stdout 'data: "998000000ugnot"'
+
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/purse/three'
+
+# ---- The remedy. A blocked package is never recorded as seen, so a run
+# ---- started again over the same heights reaches it a second time; nothing
+# ---- has to be resubmitted and no height has to be worked out by hand.
+gpao stop
+gpao start -start-height 1 -max-spend 9000000ugnot
+
+eventually gnokey query vm/qrender -data 'gno.land/r/purse/three:x'
+stdout 'three'
+
+# Exactly one more fee. The rescan passed back over two live packages and
+# isActive skipped both without spending, which is what keeps restarting an
+# oracle from costing a fee per package it has already approved.
+gnokey query bank/balances/$GPAO_ADDR
+stdout 'data: "997000000ugnot"'
+
+http_get $GPAO_STATUS/status/gno.land/r/purse/one
+stdout '"reason":"already active on-chain"'
+
+gpao stop
+
+-- cluster --
+validators: 1
+oracle: true
+code-submission-policy: inert
+-- one/gnomod.toml --
+module = "gno.land/r/purse/one"
+gno = "0.9"
+
+-- one/one.gno --
+package one
+
+func Render(path string) string {
+	return "one"
+}
+
+-- two/gnomod.toml --
+module = "gno.land/r/purse/two"
+gno = "0.9"
+
+-- two/two.gno --
+package two
+
+func Render(path string) string {
+	return "two"
+}
+
+-- three/gnomod.toml --
+module = "gno.land/r/purse/three"
+gno = "0.9"
+
+-- three/three.gno --
+package three
+
+func Render(path string) string {
+	return "three"
+}

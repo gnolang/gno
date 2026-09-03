@@ -1,0 +1,94 @@
+# A dependent submitted before its dependency is rejected permanently.
+#
+# rpcGetter.fetch returns nil on any qfile error (contribs/gpao/getter.go:94-98).
+# The typechecker then reports an unresolved import, the verification child
+# exits 1, verifyone.go:210-217 reads any exit code >= 0 as a verdict, and
+# handleCandidate records statusRejected and adds the content hash to seen
+# (oracle.go:493-498, :645-648). Resubmitting identical bytes is a silent
+# no-op from then on: handleCandidate returns before touching the status
+# board once the hash is already in seen. A parked dependency is invisible to
+# vm/qfile (keeper_inert.go), so this fires on exactly the composability the
+# inert policy exists to allow.
+#
+# Ordering is guaranteed by construction, not timing: submissions are
+# sequential, so the dependent lands in a strictly earlier block than its
+# dependency, and gpao drains one candidate queue on one verifier goroutine
+# (oracle.go:405), so the dependency provably cannot be live when the
+# dependent is verified.
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/user -pkgpath gno.land/r/probe/user $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/dep -pkgpath gno.land/p/probe/dep $USER_NAME
+
+# -start-height 1 makes the oracle scan from the chain's start: both
+# submissions above already committed before this line runs, so the default
+# (watch from here on) would never see either of them.
+gpao start -start-height 1
+
+# The dependency going live establishes that the oracle reached both queue
+# entries, so the negative that follows is a decision rather than a timeout.
+# This is the actual poll: vm/qfile genuinely fails while a package is
+# parked, unlike a bare http_get, which "succeeds" on any HTTP 200 regardless
+# of the JSON body underneath.
+eventually gnokey query vm/qfile -data gno.land/p/probe/dep
+
+# Gated rather than one-shot: status.record for an approval runs after enable()
+# returns, and enable() broadcasts with BroadcastTxCommit, so the package is
+# renderable before the board says so. http_get's second argument is checked per
+# attempt, which is what makes waiting on it mean anything.
+eventually http_get $GPAO_STATUS/status/gno.land/p/probe/dep '"status":"approved"'
+stdout '"status":"approved"'
+
+# The dependent's own typed verdict is rejected, not unknown or pending --
+# the distinction that separates "the oracle refused this" from "the oracle
+# never saw it". By construction the dependent (first in the FIFO) was
+# already handled by the time the dependency (second) went live above, so
+# this needs no wait of its own.
+http_get $GPAO_STATUS/status/gno.land/r/probe/user
+stdout '"status":"rejected"'
+! gnokey query vm/qfile -data gno.land/r/probe/user
+
+# Identical bytes are never reconsidered: handleCandidate's seen-by-hash
+# check returns before touching the status board, so resubmitting changes
+# nothing.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/user -pkgpath gno.land/r/probe/user $USER_NAME
+http_get $GPAO_STATUS/status/gno.land/r/probe/user
+stdout '"status":"rejected"'
+
+gpao stop
+
+# The chain would have accepted what the oracle declined. $GPAO_KEY_NAME is a
+# funded, approver-listed key; enablepkg -pkgdir hashes the same $WORK/user
+# bytes both addpkg calls above sent, so the hash it names still matches what
+# is parked. This is what converts "the oracle skipped something" into "the
+# chain would have accepted what the oracle declined".
+gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/user -pkgpath gno.land/r/probe/user $GPAO_KEY_NAME
+gnokey query vm/qrender -data 'gno.land/r/probe/user:x'
+stdout 'dep'
+
+-- cluster --
+validators: 3
+oracle: true
+code-submission-policy: inert
+-- dep/gnomod.toml --
+module = "gno.land/p/probe/dep"
+gno = "0.9"
+
+-- dep/dep.gno --
+package dep
+
+func Name() string {
+	return "dep"
+}
+
+-- user/gnomod.toml --
+module = "gno.land/r/probe/user"
+gno = "0.9"
+
+-- user/user.gno --
+package user
+
+import "gno.land/p/probe/dep"
+
+func Render(path string) string {
+	return dep.Name()
+}

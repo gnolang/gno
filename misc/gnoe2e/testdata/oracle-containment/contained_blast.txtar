@@ -1,0 +1,84 @@
+# A package can be built to break the thing that inspects it. gpao's answer is
+# that inspection happens in a child process: verifyOne is spawned per candidate
+# so the verification budget can be enforced by killing it, and the same
+# boundary means a package that kills the verifier kills only the child.
+#
+# Nothing tested that boundary. The budget scenario proves the child is killed
+# on time; this proves the parent lives when the child dies for a reason nobody
+# chose.
+#
+# Two verdicts are acceptable and the difference is a fact about Go, not about
+# gpao. A block depth over MaxUint8 is a deliberate panic in preprocess and a
+# scope depth over maxScopeDepth is one in the parser resolver: both are
+# recovered, the child exits non-zero with a reason, and the candidate is
+# rejected. A genuine stack overflow is not recoverable -- the child dies by a
+# signal, its exit code reads -1, and that is read as the verifier being
+# unavailable rather than the package being bad, which records pending.
+#
+# This depth reaches the first of those and is deterministic about it. The wait
+# below accepts either anyway, so that a change in where Go's stack gives out
+# moves this scenario between two correct answers instead of breaking it.
+#
+# The budget is left at its default. At 1ms every candidate overruns and this
+# would prove nothing about containment.
+
+gpao start -start-height 1
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/nest -pkgpath gno.land/r/deep/nest $USER_NAME
+
+# Decided, and decided against. Naming both acceptable verdicts in the gate is
+# also how approved is ruled out: a body matching neither keeps the wait going.
+# The waiting is not decoration -- the first read of this path answers
+# "unknown", and a bare negation would have taken that for success.
+eventually http_get $GPAO_STATUS/status/gno.land/r/deep/nest '"status":"(rejected|pending)"'
+
+# Which of the two, and by which route. "verification panicked" is gpao's own
+# wording for the recovered case, so it separates a package that broke the
+# verifier from one that merely failed to typecheck -- and the latter would say
+# nothing about containment.
+stdout '"reason":"verification panicked'
+
+# Nothing reached the chain, and the package is still parked rather than gone.
+! gnokey query vm/qfile -data gno.land/r/deep/nest
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/deep/nest'
+
+# The load-bearing claim. A well-formed package submitted after the hostile one
+# goes live, which proves the oracle is still running, still reading blocks and
+# still approving -- not merely that it failed to approve something.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/echo -pkgpath gno.land/r/deep/echo $USER_NAME
+eventually gnokey query vm/qrender -data 'gno.land/r/deep/echo:x'
+stdout 'echo'
+
+gpao stop
+
+-- cluster --
+validators: 1
+oracle: true
+code-submission-policy: inert
+-- nest/gnomod.toml --
+module = "gno.land/r/deep/nest"
+gno = "0.9"
+
+-- nest/nest.gno --
+package nest
+
+// 260 nested blocks, past the MaxUint8 ceiling preprocess enforces on block
+// depth. Written on two lines rather than 260 indented ones so the shape
+// stays readable: what matters here is the count, not the layout.
+func Render(path string) string {
+{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{
+}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+	return "deep"
+}
+
+-- echo/gnomod.toml --
+module = "gno.land/r/deep/echo"
+gno = "0.9"
+
+-- echo/echo.gno --
+package echo
+
+func Render(path string) string {
+	return "echo"
+}

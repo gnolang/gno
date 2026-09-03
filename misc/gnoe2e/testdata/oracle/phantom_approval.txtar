@@ -1,0 +1,123 @@
+# A private realm redeployed at its own path is live AND has a submission
+# parked over it: AddPackage refuses to park over a live PUBLIC package but
+# allows it for a PRIVATE one (keeper.go:730), and checkGnomodConstraints
+# requires the redeploy to also be private (keeper.go:643,646) -- the chain
+# permits exactly the state this scenario builds. gpao pre-flights every
+# candidate with isActive, which queries vm/qfile (oracle.go:631-640), and
+# qfile answers for the LIVE blob only -- it cannot see a redeploy sitting in
+# the inert key space. handleCandidate then records statusApproved with
+# reason "already active on-chain" (oracle.go:504-510) and never sends
+# MsgEnablePackage. The status board affirmatively reports success for a
+# redeploy it never enabled.
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/v1 -pkgpath gno.land/r/probe/answer $USER_NAME
+
+# -start-height 1 makes the oracle scan from the chain's start rather than
+# from its own tip at startup: v1's submission above already committed before
+# this line runs, so the default (watch from here on) would never see it.
+gpao start -start-height 1
+
+# v1 live and enabled, established before v2 exists -- so the redeploy below
+# is provably parked over an already-live package, not racing its own first
+# approval.
+eventually gnokey query vm/qeval -data 'gno.land/r/probe/answer.Answer()'
+stdout 'original'
+
+# v2 at the SAME path, from the SAME creator, also private -- the one
+# combination AddPackage allows a redeploy for. v1 is live on that path by
+# now, and it is pv.Private that lets this addpkg through at all
+# (keeper.go:730).
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/v2 -pkgpath gno.land/r/probe/answer $USER_NAME
+
+# The parked redeploy is real and the chain can see it: qpkgmeta_json reads
+# both key spaces (keeper_inert.go:530-533), so it reports the path live with
+# a submission pending over it -- the case its own Pending field doc names.
+# The other fields (creator, height) describe the LIVE package, not the
+# parked one. This is a plain settled chain-state read, not one waiting on
+# the oracle, so a short wait only covers the cluster's own transient blips.
+gnokey query vm/qpkgmeta_json -data gno.land/r/probe/answer
+stdout '"status":"live"'
+stdout '"pending":true'
+
+# handleCandidate's isActive branch (oracle.go:504-510) leaves no chain trace
+# of its own -- it never sends a message, so nothing on-chain distinguishes
+# "not yet decided" from "silently approved". The oracle's own verdict is the
+# only place that shows up, so poll it directly: http_get's optional second
+# argument gates on the body per attempt (HTTPGetCmd's own doc explains why),
+# so eventually keeps waiting for gpao to actually reach this candidate
+# instead of stopping on the first still-200 response.
+#
+# The literal "already active on-chain" identifies the BRANCH that wrote it --
+# oracle.go:506 is its sole occurrence in gpao -- not by itself which
+# candidate. What makes it provably v2's is the ordering established above
+# (v1 proven live and approved before v2 is ever submitted) plus
+# handleCandidate's seen-by-hash guard (oracle.go:453-455), which rules out a
+# resubmission of v1's own bytes reaching this branch a second time.
+#
+# An earlier version of this scenario proved the same thing with a trailing
+# sentinel package instead, using gpao's single-goroutine FIFO drain
+# (oracle.go:405) as a happens-before argument. That coupled the scenario's
+# soundness to an undocumented internal invariant of the system under test --
+# if gpao ever parallelised verification, the sentinel version would silently
+# become racy. Polling the verdict itself has no such coupling, and it is one
+# less package for every later scenario's -start-height rescan to redo.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/answer '"reason":"already active on-chain"'
+
+# The reason and the status are two different claims from the same record
+# call (oracle.go:506), so both are worth stating. This read is a plain
+# one-shot -- http_get succeeds on any HTTP 200 regardless of body, but the
+# poll above already proved the record settled, so there is nothing left here
+# to wait for.
+http_get $GPAO_STATUS/status/gno.land/r/probe/answer
+stdout '"status":"approved"'
+
+# Nothing was actually enabled: v1's answer, not v2's.
+gnokey query vm/qeval -data 'gno.land/r/probe/answer.Answer()'
+stdout 'original'
+
+gpao stop
+
+# CONTROL ARM, issued only after gpao stop so its success cannot be
+# attributed to the oracle's own pipeline. EnablePackage applies exactly the
+# rule AddPackage applies -- a public package may not replace a live one, a
+# private one may (keeper_inert.go:127-129) -- and $GPAO_KEY_NAME is a
+# funded, approver-listed key. -pkgdir hashes the same $WORK/v2 bytes the
+# addpkg above sent, so the hash it names still matches what is parked.
+gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/v2 -pkgpath gno.land/r/probe/answer $GPAO_KEY_NAME
+
+# The chain would have accepted what gpao declined: v2's answer appears. The
+# wait here is for the cluster's own transient blips, not to wait for the
+# enable to land -- vm/qeval exits 0 whichever answer it returns, so eventually
+# stops on the first attempt; BroadcastTxCommit above already waited for the
+# enable's block to commit. Contrast poisoned_dependent.txtar, where the same
+# shape IS a real poll because the path is still parked when it runs.
+gnokey query vm/qeval -data 'gno.land/r/probe/answer.Answer()'
+stdout 'redeployed'
+
+-- cluster --
+validators: 3
+oracle: true
+code-submission-policy: inert
+-- v1/gnomod.toml --
+module = "gno.land/r/probe/answer"
+gno = "0.9"
+private = true
+
+-- v1/answer.gno --
+package answer
+
+func Answer() string {
+	return "original"
+}
+
+-- v2/gnomod.toml --
+module = "gno.land/r/probe/answer"
+gno = "0.9"
+private = true
+
+-- v2/answer.gno --
+package answer
+
+func Answer() string {
+	return "redeployed"
+}

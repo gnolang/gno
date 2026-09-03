@@ -1,0 +1,179 @@
+# Parked packages are committed chain state and survive anything a node does.
+# The oracle's place in the chain is not stored anywhere at all. That asymmetry
+# is what this scenario is about, and it has teeth: an oracle restarted during
+# a deploy window silently strands every submission made while it was away.
+#
+# With no -start-height, gpao asks the node for its tip and resumes at
+# LatestBlockHeight + 1 (oracle.go:263-270). Not at the tip -- PAST it. So a
+# restart skips the block it restarted in as well as every block it missed,
+# and nothing in gpao ever revisits them: there is no cursor on disk, and
+# nothing reconciles against what the chain still holds parked.
+#
+# The chain publishes exactly the query that would close this -- vm/qinertpaths
+# lists everything awaiting an approver -- and gpao never calls it.
+#
+# Four validators, not three: BFT needs more than two thirds, so a three-node
+# cluster tolerates no loss at all and would simply stop making blocks when one
+# is stopped. With four, three is a quorum, and the chain going on without the
+# stopped node is itself part of what this proves.
+
+# ---- A package approved before anything goes wrong, so "the oracle works
+# ---- here" is established rather than assumed.
+gpao start -start-height 1
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/early -pkgpath gno.land/r/out/early $USER_NAME
+
+# Parked first, live second, as two assertions rather than one. A submission
+# is only accepted into the mempool by the time the write above returns, so
+# "it committed" and "the oracle approved it" are separate claims with
+# separate causes -- and a single render check that fails cannot say which of
+# them went wrong.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/out/early'
+eventually gnokey query vm/qrender -data 'gno.land/r/out/early:x'
+stdout 'early'
+
+# ---- The outage. Everything submitted from here until the oracle returns is
+# ---- submitted to a chain nobody is watching.
+gpao stop
+
+# One shot, like every write here: -broadcast=true is BroadcastTxCommit,
+# which returns once the transaction is in a committed block. A resubmission
+# would send bytes the node already holds and be refused as a duplicate until
+# the first copy commits, so there is nothing a second attempt could achieve.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/during -pkgpath gno.land/r/out/during $USER_NAME
+
+# One validator goes down mid-outage. The submission that follows proves the
+# cluster kept committing blocks without it -- which is the whole point of
+# stopping one node rather than halting the cluster.
+validator stop 1
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/blind -pkgpath gno.land/r/out/blind $USER_NAME
+
+# ---- The node comes back and has to agree with the chain it left.
+validator restart 1
+
+# Asked of the RESTARTED node specifically, not of one that stayed up. It has
+# to have kept what it already had AND caught up on the block it never saw, so
+# this is both "parked state is durable" and "the node resynced".
+#
+# Catching up is not instant: restart returns once RPC answers, which is
+# earlier than being current. Gated on the path itself, because qinertpaths
+# answers an empty list rather than failing -- waiting on the exit status
+# alone would return against a node that is still behind.
+eventually -stdout 'gno.land/r/out/during' gnokey -remote $RPC_ADDR_1 query vm/qinertpaths -data ''
+stdout 'gno.land/r/out/during'
+eventually -stdout 'gno.land/r/out/blind' gnokey -remote $RPC_ADDR_1 query vm/qinertpaths -data ''
+stdout 'gno.land/r/out/blind'
+
+# ---- The oracle returns the way an operator would restart it: with no
+# ---- -start-height, which resumes past the tip.
+gpao start
+
+# "Nothing was approved" has no positive signal of its own, so this package
+# supplies one: it is submitted AFTER the oracle is back, so it is inside the
+# range the oracle is watching. Its going live proves the oracle is running,
+# current, and approving -- which is what makes the two assertions below mean
+# "it will not approve these" rather than "it has not got to them yet".
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/after -pkgpath gno.land/r/out/after $USER_NAME
+eventually gnokey query vm/qrender -data 'gno.land/r/out/after:x'
+stdout 'after'
+
+# Stranded. A running, healthy, caught-up oracle, and these two are invisible
+# to it -- not rejected, not pending, never seen. "unknown" is the status board
+# saying it has no record of the path at all.
+http_get $GPAO_STATUS/status/gno.land/r/out/during
+stdout '"status":"unknown"'
+http_get $GPAO_STATUS/status/gno.land/r/out/blind
+stdout '"status":"unknown"'
+
+# And still parked on-chain, which is what makes them recoverable at all.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/out/during'
+! gnokey query vm/qfile -data gno.land/r/out/during
+
+# ---- The recovery an operator has to know to perform: restart below the
+# ---- first missed submission. Nothing in gpao suggests this, and nothing
+# ---- makes it discoverable -- vm/qinertpaths would, and gpao never asks.
+gpao stop
+gpao start -start-height 1
+
+# The wait goes on "blind", the LATER of the two, and "during" is then a
+# one-shot read. runVerifier drains one candidate queue one package at a time,
+# and the rescan walks heights upward, so "during" -- committed in an earlier
+# block -- is enqueued and enabled strictly before "blind". "blind" being live
+# therefore proves "during" already is; waiting on "during" instead would say
+# nothing about a package the oracle had not reached yet.
+eventually gnokey query vm/qrender -data 'gno.land/r/out/blind:x'
+stdout 'blind'
+gnokey query vm/qrender -data 'gno.land/r/out/during:x'
+stdout 'during'
+
+# Nothing enabled twice: the rescan passed back over two packages that were
+# already live, and skipped both. isActive is what makes the rescan safe to
+# perform at all, and its reason is the only place that choice is visible -- a
+# genuine approval records an empty reason, which pkgStatus omits entirely.
+#
+# "after" is gated and "early" is not, for the same reason the two reads above
+# are ordered the way they are: the rescan walks heights upward and "after" was
+# submitted last, so it is the last entry rewritten, and "early" is long settled
+# by the time it is.
+http_get $GPAO_STATUS/status/gno.land/r/out/early
+stdout '"reason":"already active on-chain"'
+eventually http_get $GPAO_STATUS/status/gno.land/r/out/after '"reason":"already active on-chain"'
+stdout '"reason":"already active on-chain"'
+
+# Nothing lost: every package submitted in this scenario is live, and the
+# oracle drained the queue rather than leaving work behind.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/out/'
+
+gpao stop
+
+-- cluster --
+validators: 4
+oracle: true
+code-submission-policy: inert
+-- early/gnomod.toml --
+module = "gno.land/r/out/early"
+gno = "0.9"
+
+-- early/early.gno --
+package early
+
+func Render(path string) string {
+	return "early"
+}
+
+-- during/gnomod.toml --
+module = "gno.land/r/out/during"
+gno = "0.9"
+
+-- during/during.gno --
+package during
+
+func Render(path string) string {
+	return "during"
+}
+
+-- blind/gnomod.toml --
+module = "gno.land/r/out/blind"
+gno = "0.9"
+
+-- blind/blind.gno --
+package blind
+
+func Render(path string) string {
+	return "blind"
+}
+
+-- after/gnomod.toml --
+module = "gno.land/r/out/after"
+gno = "0.9"
+
+-- after/after.gno --
+package after
+
+func Render(path string) string {
+	return "after"
+}

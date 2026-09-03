@@ -1,0 +1,129 @@
+# The oracle's key is not in the chain's PkgApprovers. This is what an
+# approver rotation that forgot the oracle looks like from the outside, and it
+# is the one misconfiguration that leaves gpao fully operational: it starts,
+# follows blocks, verifies packages, and reports on them. Nothing it approves
+# ever goes live.
+#
+# Genesis names the test user as the sole approver (see the Makefile target),
+# so the oracle's own key is deliberately absent from that set while still
+# being funded and held in the keybase -- exactly the state a rotation leaves
+# behind.
+#
+# The result worth having is what does NOT happen. gpao pre-flights every
+# enable with a simulate, and an unauthorized one comes back carrying an
+# error, so classifySimulate grades it verdictWillFail (oracle.go:712-720) and
+# enable() returns at :787 without ever reaching BroadcastTxCommit at :806. No
+# transaction exists, so the ante handler never charges the fee. A
+# misconfigured oracle does NOT bleed its hot key one gas fee per package --
+# the simulate pre-flight is what saves it.
+#
+# What it does spend is its own budget: oracle.go:533 debits -max-spend before
+# the call that returns early, so the run counts money it never paid. With
+# -max-spend at twice the default -gas-fee, two packages exhaust it and a
+# third is refused outright.
+
+gpao start -start-height 1 -max-spend 2000000ugnot
+
+# Captured before anything is submitted, and compared against the same read at
+# the end.
+gnokey query bank/balances/$GPAO_ADDR
+cp stdout balance-before.txt
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/one -pkgpath gno.land/r/rot/one $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/two -pkgpath gno.land/r/rot/two $USER_NAME
+
+# Both reach a verdict, and both are polled on their own path rather than one
+# inferred from the other. One is submitted first, so a serial verifier decides
+# it first: gating on one and then reading two once would assert that the later
+# package is ready because the earlier one is. http_get's body gate is checked
+# per attempt, which is what makes waiting on it mean anything. "pending" is
+# where a failed enable leaves a package -- the oracle is not refusing these,
+# it cannot land them.
+eventually http_get $GPAO_STATUS/status/gno.land/r/rot/one '"status":"pending"'
+eventually http_get $GPAO_STATUS/status/gno.land/r/rot/two '"status":"pending"'
+
+# The reason, pinned on the winning attempt -- eventually keeps only that
+# attempt's output, so these read the body that satisfied the gate above.
+#
+# It also records a gap worth knowing about. The chain says exactly what is
+# wrong: EnablePackage builds "address %s is not a pkg approver"
+# (keeper_inert.go:78). gpao surfaces none of it. The abci error's own Error()
+# is the bare kind, so an operator whose oracle was rotated out of the
+# approver set is told "unauthorized error" and nothing about which
+# authorization failed or how to fix it. The actionable half lives in the
+# response Log, which gpao does not read.
+stdout '"reason":"simulate says the enable would fail: unauthorized error"'
+
+# Two debits of 1000000 land exactly on the 2000000 bound, so a third
+# well-formed package is refused before any enable is attempted:
+# wouldExceedSpend is spent+enableFee > maxSpend (oracle.go:617). Nothing is
+# wrong with this package, and nothing was ever paid for the two before it.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/three -pkgpath gno.land/r/rot/three $USER_NAME
+eventually http_get $GPAO_STATUS/status/gno.land/r/rot/three '"status":"blocked"'
+
+# "blocked" says nothing is wrong with the package, only that the oracle
+# cannot proceed -- the distinction that separates "your code was refused"
+# from "ask the operator to raise the bound". Pinned because it is the whole
+# point of this arm: the budget it reports spending was never paid.
+stdout '"reason":"the oracle has reached its spending limit for this run"'
+
+# Parked, not live. The negated read runs once: eventually refuses negation.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/rot/one'
+! gnokey query vm/qfile -data gno.land/r/rot/one
+
+# The proof: the oracle's balance never moved. Three packages verified, two
+# approvals attempted and debited, and not one gas fee paid -- because not one
+# transaction was ever broadcast.
+gnokey query bank/balances/$GPAO_ADDR
+cp stdout balance-after.txt
+cmp balance-before.txt balance-after.txt
+
+gpao stop
+
+# CONTROL ARM, issued only after gpao stop so its success cannot be attributed
+# to the oracle. $USER_NAME is this chain's actual approver, and enablepkg
+# -pkgdir hashes the same $WORK/one bytes the addpkg above sent, so the hash
+# it names still matches what is parked. This is what separates "the oracle
+# could not activate these" from "these packages were never activatable".
+gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/one -pkgpath gno.land/r/rot/one $USER_NAME
+gnokey query vm/qrender -data 'gno.land/r/rot/one:x'
+stdout 'live'
+
+-- cluster --
+validators: 1
+oracle: true
+code-submission-policy: inert
+pkg-approver: user
+-- one/gnomod.toml --
+module = "gno.land/r/rot/one"
+gno = "0.9"
+
+-- one/one.gno --
+package one
+
+func Render(path string) string {
+	return "live"
+}
+
+-- two/gnomod.toml --
+module = "gno.land/r/rot/two"
+gno = "0.9"
+
+-- two/two.gno --
+package two
+
+func Render(path string) string {
+	return "live"
+}
+
+-- three/gnomod.toml --
+module = "gno.land/r/rot/three"
+gno = "0.9"
+
+-- three/three.gno --
+package three
+
+func Render(path string) string {
+	return "live"
+}
