@@ -88,7 +88,7 @@ func (c *runCfg) clusterOverrides() integ.ClusterOverrides {
 
 func (c *runCfg) validate() error {
 	if c.mnemonic == "" {
-		return fmt.Errorf("-mnemonic is required")
+		return errors.New("-mnemonic is required")
 	}
 	return c.cluster.Validate()
 }

@@ -23,11 +23,6 @@ type BuildOpts struct {
 	OutDir string // output directory for the binary. Caller owns cleanup.
 }
 
-// Builder produces gnoland binaries.
-type Builder interface {
-	Build(ctx context.Context, opts BuildOpts) (binaryPath string, err error)
-}
-
 // LocalBuilder builds gnoland from the local gno checkout.
 type LocalBuilder struct{}
 

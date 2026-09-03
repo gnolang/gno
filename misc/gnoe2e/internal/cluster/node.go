@@ -345,8 +345,8 @@ func WaitForNodeReady(ctx context.Context, node *Node) error {
 
 // StartNode starts a gnoland node process.
 // If teeNodeLogs is true, node stdout/stderr is also copied to os.Stderr.
-// If extraWriter is non-nil, stdout/stderr are also copied to it (used
-// by Cluster.bootLog capture for hardfork-replay summary scraping).
+// If extraWriter is non-nil, stdout/stderr are also copied to it, which is
+// how Cluster captures a node's boot log for a caller to read back.
 func StartNode(ctx context.Context, binaryPath string, node *Node, args []string, teeNodeLogs bool, extraWriter io.Writer) error {
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.Dir = node.DataDir
@@ -432,16 +432,14 @@ type GnolandStartOpts struct {
 	TeeNodeLogs bool
 
 	// ExtraWriter receives a copy of stdout+stderr alongside the per-node
-	// log files. Cluster.BootFromGenesis sets this to the cluster-level
-	// bootLog buffer so hardfork-replay can scrape the structured
-	// "Genesis replay report" line via ParseReplayReport. Nil disables
-	// capture (existing behavior for restart and StartCluster paths).
+	// log files. Cluster.BootFromGenesis points this at the cluster's boot
+	// log buffer, which is what BootLogReader hands back. Nil captures
+	// nothing beyond the per-node files.
 	ExtraWriter io.Writer
 
-	// LogFormatJSON appends `--log-format json` to gnoland start. Required
-	// for hardfork-replay (so the replay summary lands as one JSON object
-	// per line); false for other paths to preserve human-readable console
-	// output in stdout.log.
+	// LogFormatJSON appends `--log-format json` to gnoland start, so each
+	// line the node logs is one JSON object a caller can parse out of the
+	// boot log. False keeps stdout.log human-readable.
 	LogFormatJSON bool
 }
 
@@ -453,8 +451,8 @@ func StartGnolandNode(ctx context.Context, binaryPath string, node *Node, teeNod
 }
 
 // StartGnolandNodeWithOpts starts a gnoland node honoring the supplied
-// options. Used by BootFromGenesis to enable JSON logs and bootLog
-// capture for the hardfork-replay summary scraper.
+// options. BootFromGenesis is the caller that needs them: JSON logs, and
+// a copy of the node's output in the cluster's boot log.
 func StartGnolandNodeWithOpts(ctx context.Context, binaryPath string, node *Node, opts GnolandStartOpts) error {
 	args := []string{
 		"start",

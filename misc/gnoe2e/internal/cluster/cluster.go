@@ -92,10 +92,10 @@ func (g *GenesisConfig) RegisterFlags(fs *flag.FlagSet) {
 
 func (g *GenesisConfig) Validate() error {
 	if g.ChainID == "" {
-		return fmt.Errorf("--chain-id is required")
+		return errors.New("--chain-id is required")
 	}
 	if g.MaxGas < 1 {
-		return fmt.Errorf("--block-max-gas must be positive")
+		return errors.New("--block-max-gas must be positive")
 	}
 	switch g.CodeSubmissionPolicy {
 	case "",
@@ -108,7 +108,7 @@ func (g *GenesisConfig) Validate() error {
 	// An inert chain with nobody able to enable is a chain where no package
 	// submitted after genesis can ever become live.
 	if g.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert && len(g.PkgApprovers) == 0 {
-		return fmt.Errorf("--code-submission-policy=inert requires at least one --pkg-approver")
+		return errors.New("--code-submission-policy=inert requires at least one --pkg-approver")
 	}
 	return nil
 }
@@ -143,7 +143,7 @@ func (c *ClusterConfig) RegisterFlags(fs *flag.FlagSet) {
 
 func (c *ClusterConfig) Validate() error {
 	if c.NumValidators < 1 {
-		return fmt.Errorf("at least 1 validator required")
+		return errors.New("at least 1 validator required")
 	}
 	return c.Genesis.Validate()
 }
@@ -162,18 +162,17 @@ type Cluster struct {
 	// Cluster that was not built by StartCluster.
 	logger *slog.Logger
 
-	// bootLog captures stdout+stderr of the gnoland process(es) started
-	// by Boot/BootFromExistingDataDir/BootFromGenesis. nil before any
-	// boot. See BootLogReader for read access semantics.
+	// bootLog captures stdout+stderr of the gnoland process started by
+	// BootFromExistingDataDir or BootFromGenesis. nil before any boot. See
+	// BootLogReader for read access semantics.
 	bootLog *bootLogBuffer
 }
 
 // bootLogBuffer is a mutex-protected byte buffer used to capture
 // stdout+stderr from gnoland subprocesses. Writes happen on whatever
-// goroutine the os/exec pipe drains on; reads happen via Cluster's
-// BootLogReader accessor on the orchestrator goroutine. Snapshot
-// returns a slices.Clone so callers can read independently of further
-// writes.
+// goroutine the os/exec pipe drains on; reads happen on the caller's,
+// through BootLogReader. Snapshot returns a slices.Clone so callers can
+// read independently of further writes.
 type bootLogBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
@@ -193,20 +192,17 @@ func (b *bootLogBuffer) Snapshot() []byte {
 	return slices.Clone(b.buf.Bytes())
 }
 
-// BootLogReader returns an io.Reader over a snapshot of the captured
-// stdout+stderr from the most recent Boot/BootFromExistingDataDir/
-// BootFromGenesis call. Used by the transition orchestrator's
-// hardfork-replay mode to scrape replay outcomes via
-// ParseReplayReport, which requires gnoland to have been started with
-// --log-format json (BootFromGenesis enables this; other boot paths
-// do not).
+// BootLogReader exposes the node's boot log so a caller can scrape what
+// gnoland said as it came up: a snapshot of the stdout+stderr captured by
+// the most recent BootFromExistingDataDir or BootFromGenesis call. Only
+// BootFromGenesis starts gnoland with --log-format json, so a caller after
+// machine-readable lines has to boot through that one.
 //
-// The returned reader is independent of the underlying buffer
-// (slices.Clone snapshot), so it remains valid after Halt/Stop and is
-// safe to read even while gnoland is still running.
+// The reader holds a copy, so it stays valid after Halt or Cleanup and is
+// safe to read while gnoland is still running.
 //
-// Returns nil if no boot has occurred yet (bootLog is unset). Callers
-// must nil-check.
+// Returns nil when no boot has captured anything yet. Callers must
+// nil-check.
 func (c *Cluster) BootLogReader() io.Reader {
 	if c.bootLog == nil {
 		return nil
@@ -245,11 +241,10 @@ const firstBlockTimeout = 60 * time.Second
 // delivered, if any process fails to exit within haltTimeout, or if
 // ctx is cancelled before all processes exit.
 //
-// For multi-validator clusters this signals all validators in parallel
-// and waits for all to exit; state consistency across validators is
-// only guaranteed if they halt at the same height. Phase 2a single-
-// validator scope does not require height coordination; multi-
-// validator coordinated halts are a Phase 3 concern.
+// For multi-validator clusters this signals every validator at once and
+// waits for all of them. Nothing coordinates the height they stop at, so
+// their data dirs agree with each other only if they happened to halt on
+// the same block.
 func (c *Cluster) Halt(ctx context.Context) error {
 	running := make([]*Node, 0, len(c.Validators))
 	for _, n := range c.Validators {
@@ -395,11 +390,10 @@ func (c *Cluster) RestartValidator(ctx context.Context, index int) error {
 	return nil
 }
 
-// BootFromExistingDataDir starts gnoland against an existing data dir
-// (typically one halted from a prior cluster run), skipping genesis
-// construction. Used by transition restart mode to validate cross-version
-// data-format compatibility: the source cluster halts, the target cluster
-// boots against the source's data dir using a different binary.
+// BootFromExistingDataDir starts gnoland against an existing data dir,
+// typically one a halted cluster left behind, skipping genesis
+// construction. Writing a data dir with one binary and booting it with
+// another is what makes a cross-version data-format check possible.
 //
 // Preconditions: the cluster must not already be running, the data dir
 // must exist, and the binary path must exist. Validator keys, genesis,
@@ -408,8 +402,7 @@ func (c *Cluster) RestartValidator(ctx context.Context, index int) error {
 //
 // On success the cluster's Validators, RPCAddr, and BinaryPath are
 // populated and the node is RPC-ready. The caller owns subsequent
-// Halt/Cleanup. Phase 2a single-validator scope; multi-validator restart
-// is a Phase 3 concern.
+// Halt/Cleanup. One node only: a data dir belongs to one validator.
 func (c *Cluster) BootFromExistingDataDir(ctx context.Context, dataDir, binary string) error {
 	for _, n := range c.Validators {
 		if n != nil && n.Process != nil {
@@ -459,11 +452,9 @@ func (c *Cluster) BootFromExistingDataDir(ctx context.Context, dataDir, binary s
 }
 
 // BootFromGenesis starts gnoland against a fresh data dir using the
-// caller-supplied genesis file. Used by transition hardfork-replay
-// mode: the orchestrator generates a fork genesis from the halted
-// source's state and boots the target with that genesis. Replay of
-// historical txs happens during InitChain when gnoland processes the
-// genesis-mode txs.
+// caller-supplied genesis file. A genesis carrying a halted chain's state
+// is how a caller replays that history onto a new binary: the historical
+// txs are genesis-mode txs, so gnoland runs them during InitChain.
 //
 // Preconditions: the cluster must not already be running, the genesis
 // path must exist, and the binary path must exist. A fresh validator
@@ -481,16 +472,15 @@ func (c *Cluster) BootFromExistingDataDir(ctx context.Context, dataDir, binary s
 // target produces no blocks. Pass "" when the genesis substitutes a
 // fresh validator set (e.g. the `gnogenesis fork test` flow).
 //
-// gnoland is started with `--log-format json` so the structured
-// "Genesis replay report" slog line emitted by replayReport.emit lands
-// in the captured boot log as a parseable JSON object — the format
-// ParseReplayReport (modes/replay_report.go) requires. The cluster's
-// bootLog buffer captures stdout+stderr; access via BootLogReader.
+// gnoland is started with `--log-format json`, so every line it logs
+// while booting lands in the captured boot log as one JSON object a
+// caller can parse. The capture covers stdout and stderr both; read it
+// back through BootLogReader.
 //
 // On success the cluster's Validators, RPCAddr, and BinaryPath are
 // populated and the node is RPC-ready. The caller owns subsequent
-// Halt/Cleanup. Phase 2b single-validator scope; multi-validator
-// hardfork-replay is a Phase 3 concern.
+// Halt/Cleanup. One node only: the genesis is installed for a single
+// validator.
 func (c *Cluster) BootFromGenesis(ctx context.Context, genesisPath, binary, validatorSecretsSrc string) (retErr error) {
 	for _, n := range c.Validators {
 		if n != nil && n.Process != nil {
@@ -613,8 +603,7 @@ func copyFileSynced(src, dst string) (retErr error) {
 // normal exit triggered by SIGTERM. gnoland's signal handler returns
 // nil from cmd.Execute on a clean shutdown, so a nil err is the common
 // case. Some platforms surface the signal as *exec.ExitError; treat any
-// ExitError as expected here because the orchestrator initiated the
-// signal itself.
+// ExitError as expected here, because Halt sent the signal itself.
 func isExpectedHaltExit(err error) bool {
 	if err == nil {
 		return true
