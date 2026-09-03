@@ -1,0 +1,148 @@
+package integration
+
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
+)
+
+// TestMain lets the compiled test binary impersonate gpao when
+// GNOE2E_FAKE_GPAO is set, the same trick internal/daemon's tests use to
+// exercise a real child process without building the actual oracle binary.
+func TestMain(m *testing.M) {
+	// Stands in for a gnoland that dies during boot, the way a node does when
+	// VMKeeper.Initialize panics over its own data dir: one line on stderr,
+	// non-zero exit, never opens RPC.
+	if os.Getenv("GNOE2E_FAKE_GNOLAND") == "die" {
+		fmt.Fprintln(os.Stderr, "fake gnoland: refusing to boot")
+		os.Exit(1)
+	}
+	switch os.Getenv("GNOE2E_FAKE_GPAO") {
+	case "":
+		os.Exit(m.Run())
+	case "die":
+		// Stands in for the real oracle's fatal path (oracle.go:265-269): dies
+		// immediately, the way daemon.Start sees a -start-height 0 run against
+		// a dead endpoint, without needing that endpoint to exist at all.
+		fmt.Fprintln(os.Stderr, "failed to query node status: dial tcp: connection refused")
+		os.Exit(1)
+	case "serve":
+		// Stands in for the survivable path (oracle.go:303-306): opens the
+		// -status-listen address gpaoArgs always injects and then blocks --
+		// the negation test needs a daemon that survives, not one that races
+		// to exit before the probe can see it.
+		serveFakeGpaoStatus()
+	default:
+		os.Exit(9)
+	}
+}
+
+func serveFakeGpaoStatus() {
+	listen := flagValue(os.Args[1:], "-status-listen")
+	if listen == "" {
+		fmt.Fprintln(os.Stderr, "fake gpao: no -status-listen given")
+		os.Exit(9)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	ln, err := net.Listen("tcp", listen)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fake gpao: listen: %v\n", err)
+		os.Exit(9)
+	}
+	go http.Serve(ln, mux)
+	time.Sleep(time.Hour)
+}
+
+func flagValue(args []string, name string) string {
+	for i, a := range args {
+		if a == name && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// TestGpaoStartNegationSucceedsWhenStartFails is the harness-level half of
+// this task: gpao.go used to refuse negation outright, which meant a script
+// had no way to assert that "gpao start" failed. A daemon that dies before
+// becoming ready must let "! gpao start" pass instead of aborting the script.
+func TestGpaoStartNegationSucceedsWhenStartFails(t *testing.T) {
+	t.Setenv("GNOE2E_FAKE_GPAO", "die")
+
+	adapter := NewTestscriptT(testLogger(t), false)
+	cfg := GpaoConfig{BinaryPath: os.Args[0], ChainID: "test-e2e"}
+	cmds := map[string]func(*testscript.TestScript, bool, []string){
+		"gpao": GpaoTSCmd(cfg),
+	}
+
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, "! gpao start\n")},
+		Cmds:  cmds,
+	})
+
+	require.False(t, adapter.Failed, "! gpao start must pass when the daemon fails to become ready")
+}
+
+// TestGpaoStartNegationFailsWhenTheStartUnexpectedlySucceeds guards the same
+// hazard TestGnokeyNegationFailsWhenTheCommandUnexpectedlySucceeds guards for
+// gnokey: a negated command whose underlying operation succeeds must fail the
+// script, not silently pass it. A negation that can never fail is worse than
+// no negation.
+func TestGpaoStartNegationFailsWhenTheStartUnexpectedlySucceeds(t *testing.T) {
+	t.Setenv("GNOE2E_FAKE_GPAO", "serve")
+
+	adapter := NewTestscriptT(testLogger(t), false)
+	cfg := GpaoConfig{BinaryPath: os.Args[0], ChainID: "test-e2e"}
+	cmds := map[string]func(*testscript.TestScript, bool, []string){
+		"gpao": GpaoTSCmd(cfg),
+	}
+
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, "! gpao start\n")},
+		Cmds:  cmds,
+	})
+
+	require.True(t, adapter.Failed, "! gpao start must fail the script when the start unexpectedly succeeds")
+}
+
+func TestGpaoArgsInjectDefaults(t *testing.T) {
+	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://127.0.0.1:26657", GnoRoot: "/gno"}
+
+	args := gpaoArgs(cfg, "127.0.0.1:9999", nil)
+
+	require.Contains(t, args, "-chain-id")
+	require.Contains(t, args, "test-e2e")
+	require.Contains(t, args, "-status-listen")
+	require.Contains(t, args, "127.0.0.1:9999")
+	require.Contains(t, args, "-remote")
+	require.Contains(t, args, "tcp://127.0.0.1:26657")
+}
+
+func TestGpaoScriptRemoteWins(t *testing.T) {
+	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://default:26657"}
+
+	args := gpaoArgs(cfg, "127.0.0.1:9999", []string{"-remote", "tcp://chosen:26657"})
+
+	require.NotContains(t, args, "tcp://default:26657",
+		"a script that names a node must not also get the default")
+	require.Contains(t, args, "tcp://chosen:26657")
+}
+
+func TestGpaoScriptRemoteEqualsFormWins(t *testing.T) {
+	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://default:26657"}
+
+	args := gpaoArgs(cfg, "127.0.0.1:9999", []string{"-remote=tcp://chosen:26657"})
+
+	require.NotContains(t, args, "tcp://default:26657",
+		"the -flag=value form must also suppress the injected default")
+	require.Contains(t, args, "-remote=tcp://chosen:26657")
+}
