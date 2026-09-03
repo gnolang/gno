@@ -1,22 +1,18 @@
 # Gas Fees in gno.land
 
-This document explains how gas works in the gno.land ecosystem, including gas
-pricing, estimation, and optimization.
+Every transaction carries two flags: `--gas-wanted`, the most gas it may use,
+and `--gas-fee`, one flat amount it pays in full. Get both by running your
+command with `-simulate only` first, as [Gas Estimation](#gas-estimation) shows.
+If a transaction was rejected, start at [Common Errors](#common-errors).
 
 ## What is Gas?
 
-Gas is a measure of computational and storage resources required to execute
-operations on the blockchain. Every transaction on gno.land consumes gas based
-on:
+Gas measures the computational and storage work a transaction performs. Every
+operation has a fixed cost, so the same transaction against the same state uses
+the same gas every time. Demand moves the price of that gas, never the amount.
 
-1. The complexity of the operation being performed
-2. The amount of data being stored
-3. The current network conditions
-
-Gas serves several important purposes:
-- Prevents spam and denial-of-service attacks
-- Allocates network resources fairly among users
-- Compensates validators for the computational resources they provide
+Charging for work keeps spam off the network and pays validators for the
+resources they provide.
 
 ## Gas Parameters
 
@@ -57,7 +53,7 @@ The network dynamically adjusts the minimum required gas price after each block
 based on demand. This ensures the network responds to congestion by increasing
 prices when usage is high and decreasing them when usage is low.
 
-### How Gas Price Works
+### The Gas Price is a Rate
 
 The gas price is returned as a `GasPrice` object with two fields:
 - `gas` - the gas units (e.g., 1000)
@@ -169,23 +165,20 @@ Take the suggested figure, 2719570 here, not the raw estimate: gas shifts
 between the simulation and the broadcast, and the 5% margin absorbs it. Take the
 printed `gas fee` plus one ugnot, so 2721 here. Rounding inside `gnokey` can
 leave the printed figure one ugnot under the ratio the chain wants, and never
-more than one.
+more than one. The broadcast then carries
+`-gas-wanted 2719570 -gas-fee 2721ugnot`.
 
 ## Gas Optimization Tips
 
-To minimize gas costs, consider these optimization strategies:
+To minimize what a transaction costs:
 
-1. **Minimize on-chain storage**: Storage writes are the most expensive operations
-   (2,000 gas flat + 30 gas/byte for writes vs. 1,000 gas flat + 3 gas/byte for
-   reads). Only store essential data on-chain.
-2. **Batch operations**: Combine multiple operations into a single transaction
-   when possible, reducing the overhead of per-transaction costs (signature
-   verification, etc.).
-3. **Use efficient data structures**: Well-optimized code consumes less gas.
-   Avoid unnecessary iterations — each iterator step costs gas.
-4. **Precompute values off-chain**: Do as much computation as possible before
-   submitting to the blockchain.
-5. **Test locally first**: Use `gnodev` to test and optimize your code before
+1. **Store less**: every byte a transaction adds to state locks a
+   [storage deposit](storage-deposit.md) of 100ugnot on top of its gas. The
+   deposit is most of what storing data costs, so keep only what the realm
+   needs on chain.
+2. **Bound iteration**: each iterator step over stored data costs gas, so keep
+   loops over collections short and paginate where a caller sets the size.
+3. **Test locally first**: use `gnodev` to measure and tune gas before
    deploying to a network.
 
 ## Common Errors
@@ -204,8 +197,20 @@ gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulatio
   then increase.
 - Nothing was charged. `operation: simulation` means it never reached a block,
   because `gnokey maketx -broadcast` simulates before sending.
-- ⚠️ **A transaction that reaches a block and then fails pays the whole
-  `--gas-fee`.** Its error names the real operation instead, like
-  `operation: CPUCycles`. You get there with `-simulate skip`, or when the chain
-  moves between the simulation and the real run.
+
+**Failed on chain, fee kept:**
+- A transaction that reaches a block and then fails pays the whole `--gas-fee`,
+  and its effects are rolled back. An out-of-gas error there names the real
+  operation, like `operation: CPUCycles`.
+- You get there with `-simulate skip`, or when the chain moves between the
+  simulation and the real run. Re-run `-simulate only` and raise `--gas-wanted`
+  before sending again.
+
+**Not enough deposit:**
+```
+not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
+```
+- The message stores more bytes than your deposit cap covers at 100ugnot per
+  byte. Raise it with `-max-deposit`, or store less. The chain's own cap is
+  100000000ugnot.
 
