@@ -33,6 +33,11 @@ message MsgSend {
 	string amount = 3;
 }
 
+message MsgMultiSend {
+	repeated Input inputs = 1;
+	repeated Output outputs = 2;
+}
+
 message GenesisState {
 	Params params = 1;
 }

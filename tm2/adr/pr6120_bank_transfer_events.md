@@ -47,6 +47,9 @@ succeed. The event carries the original `Inputs` and `Outputs`, preserving the
 complete N:M transfer without inventing a one-to-one mapping. Inputs and outputs
 each retain their slice order.
 
+`MsgMultiSend`, `Input`, and `Output` are registered with the bank Amino package
+so multisends and their events can cross the transaction encoding boundary.
+
 The dead handler-level module-marker comments are removed. Unrestricted sends
 used for gas and storage accounting remain outside this event: the requested
 public transfer paths use `SendCoins`, while `SendCoinsUnrestricted` deliberately

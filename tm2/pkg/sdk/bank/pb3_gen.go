@@ -22,6 +22,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Input)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Output)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgSend)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgMultiSend)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GenesisState)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Params)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*TransferEvent)(nil)).Elem())
@@ -502,6 +503,152 @@ func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for MsgSend", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo MsgMultiSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Outputs) - 1; i >= 0; i-- {
+		elem := goo.Outputs[i]
+		before := offset
+		offset, err = elem.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+	}
+	for i := len(goo.Inputs) - 1; i >= 0; i-- {
+		elem := goo.Inputs[i]
+		before := offset
+		offset, err = elem.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo MsgMultiSend) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	for _, elem := range goo.Inputs {
+		cs, err := elem.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	for _, elem := range goo.Outputs {
+		cs, err := elem.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	return s, nil
+}
+
+func (goo *MsgMultiSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MsgMultiSend{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev Input
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+			goo.Inputs = append(goo.Inputs, ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev Input
+				fbz, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+					return err
+				}
+				goo.Inputs = append(goo.Inputs, ev)
+			}
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev Output
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+			goo.Outputs = append(goo.Outputs, ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 2 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev Output
+				fbz, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+					return err
+				}
+				goo.Outputs = append(goo.Outputs, ev)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for MsgMultiSend", fnum)
 		}
 	}
 	return nil
