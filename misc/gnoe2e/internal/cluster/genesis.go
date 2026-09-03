@@ -87,7 +87,8 @@ func applyGenesisParams(genState *gnoland.GnoGenesisState, overrides []Override)
 	root := reflect.ValueOf(&params).Elem()
 
 	for _, o := range overrides {
-		if err := applyOverride(root, o); err != nil {
+		// "json", the selector `gnogenesis params set` resolves with.
+		if err := applyOverride(root, "json", o); err != nil {
 			// The key is named the way the scenario wrote it, prefix included,
 			// rather than as the path the params were traversed by.
 			return fmt.Errorf("genesis.%w", err)

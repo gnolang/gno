@@ -145,7 +145,10 @@ func applyNodeConfig(node *Node, overrides []Override) error {
 
 	root := reflect.ValueOf(cfg).Elem()
 	for _, o := range overrides {
-		if err := applyOverride(root, o); err != nil {
+		// "toml", the selector `gnoland config set` resolves with: it is the
+		// only one that names the top-level section's keys the way an operator
+		// spells them, because config.BaseConfig carries no json tags.
+		if err := applyOverride(root, "toml", o); err != nil {
 			// The key is named the way the scenario wrote it, prefix included,
 			// rather than as the path the config was traversed by.
 			return fmt.Errorf("config.%w", err)

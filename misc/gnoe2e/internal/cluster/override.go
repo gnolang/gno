@@ -17,11 +17,12 @@ import (
 type Override struct{ Key, Value string }
 
 // applyOverride sets the field at o.Key on root to o.Value. The key is a path
-// of json tags, which is the vocabulary `gnoland config set` and `gnogenesis
-// params set` already take, so a scenario spells an option the way the CLI
-// does.
-func applyOverride(root reflect.Value, o Override) error {
-	field, err := commands.GetFieldByPath(root, "json", strings.Split(o.Key, "."))
+// of struct tags named by selTag, so a scenario spells an option the way the
+// CLI that owns the same target spells it: "toml" for the node config, which is
+// what `gnoland config set` resolves, and "json" for the genesis params, which
+// is what `gnogenesis params set` resolves.
+func applyOverride(root reflect.Value, selTag string, o Override) error {
+	field, err := resolveField(root, selTag, o.Key)
 	if err != nil {
 		return fmt.Errorf("%s: %w", o.Key, err)
 	}
@@ -29,6 +30,36 @@ func applyOverride(root reflect.Value, o Override) error {
 		return fmt.Errorf("%s: %w", o.Key, err)
 	}
 	return nil
+}
+
+// resolveField walks key one segment at a time, refusing to descend into
+// anything but a struct.
+//
+// GetFieldByPath cannot be handed the whole path: past a scalar leaf it asks a
+// non-struct for its fields and panics ("reflect: NumField of non-struct type
+// int"), and a scenario file is where the extra segment comes from. One segment
+// at a time keeps the tag matching upstream's and makes the overrun an error.
+func resolveField(root reflect.Value, selTag, key string) (*reflect.Value, error) {
+	segments := strings.Split(key, ".")
+	current := root
+	for i, segment := range segments {
+		// A nil pointer section dereferences to the zero Value, which cannot
+		// even be asked for its type.
+		if !current.IsValid() {
+			return nil, fmt.Errorf("%s is not set, so it has no field %q",
+				strings.Join(segments[:i], "."), segment)
+		}
+		if current.Kind() != reflect.Struct {
+			return nil, fmt.Errorf("%s has type %s, not a section, so it has no field %q",
+				strings.Join(segments[:i], "."), current.Type(), segment)
+		}
+		field, err := commands.GetFieldByPath(current, selTag, []string{segment})
+		if err != nil {
+			return nil, err
+		}
+		current = *field
+	}
+	return &current, nil
 }
 
 // setFromString converts value to the destination field's type and stores it.

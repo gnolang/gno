@@ -13,13 +13,16 @@ import (
 // timing it asks for is the timing the node boots with. Read back with the
 // loader the node itself uses rather than by matching the written toml.
 func TestApplyNodeConfigOutlastsTheConsensusPass(t *testing.T) {
-	node := &Node{Index: 0, NodeID: "node0", DataDir: t.TempDir(), P2PPort: 30000}
-	require.NoError(t, initializeNodeConfig(node.DataDir, "tcp://127.0.0.1:30001", node.P2PPort))
+	node := &Node{Index: 0, NodeID: "node0", DataDir: t.TempDir(), RPCAddr: "tcp://127.0.0.1:30001", P2PPort: 30000}
+	require.NoError(t, initializeNodeConfig(node.DataDir, node.RPCAddr, node.P2PPort))
 	require.NoError(t, ConfigureConsensusForSync(node))
 
 	require.NoError(t, applyNodeConfig(node, []Override{
 		{Key: "consensus.timeout_commit", Value: "2s"},
 		{Key: "consensus.skip_timeout_commit", Value: "false"},
+		// A key of the top-level section, which only the toml tags name the
+		// way an operator spells it.
+		{Key: "moniker", Value: "scenario-node"},
 	}))
 
 	written, err := config.LoadConfigFile(filepath.Join(node.DataDir, "config", "config.toml"))
@@ -27,6 +30,7 @@ func TestApplyNodeConfigOutlastsTheConsensusPass(t *testing.T) {
 	require.Equal(t, 2*time.Second, written.Consensus.TimeoutCommit,
 		"the consensus pass sets 10ms, so this is only 2s if the override ran last")
 	require.False(t, written.Consensus.SkipTimeoutCommit)
+	require.Equal(t, "scenario-node", written.Moniker)
 	require.Equal(t, node.RPCAddr, written.RPC.ListenAddress, "the pass must leave the harness's own settings alone")
 }
 

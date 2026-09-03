@@ -76,7 +76,7 @@ func TestApplyOverrideOnNodeConfig(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			cfg := config.DefaultConfig()
-			require.NoError(t, applyOverride(reflect.ValueOf(cfg).Elem(), tt.override))
+			require.NoError(t, applyOverride(reflect.ValueOf(cfg).Elem(), "toml", tt.override))
 			tt.check(t, cfg)
 		})
 	}
@@ -151,10 +151,36 @@ func TestApplyOverrideOnGenesisParams(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			authP, vmP, bankP := auth.DefaultParams(), vm.DefaultParams(), bank.DefaultParams()
 			root := genesisParams{Auth: &authP, VM: &vmP, Bank: &bankP}
-			require.NoError(t, applyOverride(reflect.ValueOf(&root).Elem(), tt.override))
+			require.NoError(t, applyOverride(reflect.ValueOf(&root).Elem(), "json", tt.override))
 			tt.check(t, &authP, &vmP, &bankP)
 		})
 	}
+}
+
+// A path that runs past a leaf comes straight out of a scenario file, and
+// nothing between here and the boot recovers a panic, so it has to be an error
+// on both targets.
+func TestApplyOverrideRefusesAPathPastALeaf(t *testing.T) {
+	t.Run("node config", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		var err error
+		require.NotPanics(t, func() {
+			err = applyOverride(reflect.ValueOf(cfg).Elem(), "toml", Override{Key: "mempool.size.max", Value: "1"})
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mempool.size.max")
+	})
+
+	t.Run("genesis params", func(t *testing.T) {
+		authP, vmP, bankP := auth.DefaultParams(), vm.DefaultParams(), bank.DefaultParams()
+		root := genesisParams{Auth: &authP, VM: &vmP, Bank: &bankP}
+		var err error
+		require.NotPanics(t, func() {
+			err = applyOverride(reflect.ValueOf(&root).Elem(), "json", Override{Key: "vm.chain_domain.tld", Value: "gno"})
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "vm.chain_domain.tld")
+	})
 }
 
 // A key that does not resolve, or a value the field cannot hold, is the
@@ -166,7 +192,7 @@ func TestApplyOverrideRefusesWhatItCannotSet(t *testing.T) {
 	}{
 		"an unknown leaf names the key": {
 			override: Override{Key: "p2p.nope", Value: "1"},
-			wantErr:  []string{"p2p.nope", "nope"},
+			wantErr:  []string{"p2p.nope"},
 		},
 		"an unknown section names the key": {
 			override: Override{Key: "nope.nope", Value: "1"},
@@ -184,12 +210,20 @@ func TestApplyOverrideRefusesWhatItCannotSet(t *testing.T) {
 			override: Override{Key: "tx_event_store.event_store_params", Value: "a=b"},
 			wantErr:  []string{"tx_event_store.event_store_params", "EventStoreParams"},
 		},
+		"a segment past a scalar leaf names the key": {
+			override: Override{Key: "mempool.size.max", Value: "1"},
+			wantErr:  []string{"mempool.size.max", "not a section"},
+		},
+		"a segment past a duration leaf names the key": {
+			override: Override{Key: "consensus.timeout_commit.foo", Value: "1s"},
+			wantErr:  []string{"consensus.timeout_commit.foo", "not a section"},
+		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			cfg := config.DefaultConfig()
-			err := applyOverride(reflect.ValueOf(cfg).Elem(), tt.override)
+			err := applyOverride(reflect.ValueOf(cfg).Elem(), "toml", tt.override)
 			require.Error(t, err)
 			for _, want := range tt.wantErr {
 				assert.Contains(t, err.Error(), want)
