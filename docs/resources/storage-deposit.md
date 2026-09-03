@@ -16,9 +16,9 @@ message (e.g., `MsgCall`, `MsgRun`, `AddPkg`).
 Storing data → GNOT locked
 Deleting data → GNOT refunded
 
-Deleting means a realm freeing data it holds, which only its own code can do. A
-package's source cannot be deleted at all, so the deposit an `AddPkg` locks for
-the code stays locked. The exception is a
+Deleting means the realm's code freeing data it holds, through whatever
+functions it exposes. A package's source cannot be deleted at all, so the
+deposit an `AddPkg` locks for the code stays locked. The exception is a
 [private](configuring-gno-projects.md) package, which can be re-uploaded: a
 smaller version releases the difference.
 

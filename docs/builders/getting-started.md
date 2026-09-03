@@ -239,8 +239,9 @@ Three flags decide what a transaction costs you:
   it, whatever the work turned out to cost.
 - **`-max-deposit`** is a ceiling on the
   [storage deposit](../resources/storage-deposit.md), the GNOT locked against
-  bytes your transaction adds. Locked rather than spent, but it leaves your
-  balance the same way. Omit the flag and the chain caps it at `100000000ugnot`.
+  bytes your transaction adds. The deposit is locked rather than spent, but it
+  comes out of your balance just like the fee does. Omit the flag and the chain
+  caps it at `100000000ugnot`.
 
 The first two are tied together: the chain accepts the transaction when
 `gas-fee` divided by `gas-wanted` is at least the network's gas price. The
@@ -382,7 +383,8 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The deposit is far bigger than the fee here, and that is normal for a deploy:
-you pay to keep the realm's own code and state on chain.
+every byte of code and state your package adds locks 100ugnot, 318700ugnot for
+the 3187 bytes above.
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
@@ -391,8 +393,9 @@ testnet the URL is `https://pearl.testnets.gno.land/r/...` instead.
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
 - `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
-  the chain may lock. This deploy locked 318700ugnot, so `-max-deposit
-  400000ugnot` bounds it with room to spare.
+  the chain may lock; a transaction needing more than the cap is refused. This
+  deploy locked 318700ugnot, so `-max-deposit 400000ugnot` leaves room to
+  spare.
 
 For the full flag list, see
 [`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).

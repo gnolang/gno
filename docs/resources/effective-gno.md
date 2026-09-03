@@ -634,17 +634,15 @@ reliable way to manage access to your contract.
 
 ### Choose storage types by access pattern
 
-Gno persists ordinary variables, but not every Go-shaped data structure is a
-good storage shape for a realm. A slice or map is often fine for small,
-bounded state. It becomes ineffective when the collection grows over time,
-changes frequently, or needs range queries, pagination, membership tests, or
-stable iteration.
+Gno persists ordinary variables, so a plain slice or map works as realm
+storage, and for small, bounded state it is fine. It becomes a poor fit once
+the collection grows over time, changes often, or needs range queries,
+pagination, membership tests, or stable iteration.
 
-The reason is storage locality. A `map` or `slice` is stored as one logical
-object graph. Updating or reading one element can force the VM to load or write
-more state than the operation conceptually needs. Tree-backed packages store
-items as separate nodes, so touching one key mostly touches the search path,
-leaf page, or changed node.
+The reason is how state is loaded. A `map` or `slice` is stored as one object:
+reading or updating one element loads or rewrites the whole thing. A tree
+stores each entry as its own node, so touching one key loads only the nodes on
+the path to it.
 
 Use this rule of thumb:
 
@@ -670,31 +668,15 @@ It is a warning against making them the default persistent index for things
 that will grow with users, posts, votes, orders, balances, messages, claims,
 positions, or game objects.
 
-#### Choose the simplest storage shape that matches the access pattern
-
-Pick the storage type that matches the operations your realm promises to
-support. Keep storage private, expose typed methods, and page or range over
-large collections.
-
-Use this short decision model:
-
-- fields or small maps for tiny bounded configuration;
-- maps for small direct lookups where iteration order is irrelevant;
-- tree-backed indexes for growing key/value state, ordering, range queries, or
-  pagination;
-- list or queue helpers for append-only feeds and queues;
-- explicit secondary indexes for every query path users depend on.
-
-For detailed examples and package tradeoffs, see
+Whatever the shape, keep storage private, expose typed methods, and page or
+range over large collections. For detailed examples and package tradeoffs, see
 [Gno Data Structures](./gno-data-structures.md). For non-official community
 helpers, see [Community Packages](./community-packages.md).
 
 #### Prefer tree-backed indexes over maps for scalable key/value storage
 
-Tree-backed indexes work like a `map` for storing key-value pairs. Maps store
-all entries in one object graph, while tree implementations store nodes or leaf
-pages separately. This usually makes a tree-backed index more efficient in gas
-usage and runtime performance for large or growing datasets.
+Tree-backed indexes work like a `map` for storing key-value pairs, and for
+large or growing datasets they usually cost less gas and run faster.
 
 **Key differences**:
 
@@ -717,10 +699,10 @@ usage and runtime performance for large or growing datasets.
 - Type safety (tree values are usually `any` and require type assertions)
 
 Do not make map iteration order part of a public API or `Render` output.
-Gno's current map iteration is deterministic, but map order is still the wrong
-contract for leaderboards, member lists, tables, feeds, and pagination. If
-users can observe or link to an order, store explicit sortable keys and iterate
-through a tree-backed index or an explicit ordered list.
+Map iteration in Gno is deterministic today, but an order users can see or link
+to is a promise you then have to keep. For leaderboards, member lists, tables,
+feeds, and pagination, store explicit sortable keys and iterate through a
+tree-backed index or an ordered list.
 
 ```go
 // Small, bounded lookup: a map can be fine.
@@ -738,7 +720,7 @@ For a higher-fanout alternative with the same core interface, see
 
 #### Avoid slice-as-database patterns
 
-The most common ineffective realm pattern is a package-level slice that grows
+The most common storage mistake in a realm is a package-level slice that grows
 forever:
 
 ```go
@@ -772,7 +754,7 @@ tree-backed index:
 ```go
 id := ids.Next().String()
 posts.Set(id, post)
-var postsByAuthor avl.Tree // author + "/" + id -> id
+postsByAuthor.Set(author+"/"+id, id) // one extra index per query path
 ```
 
 The storage model should match the operations you expect the realm to support.

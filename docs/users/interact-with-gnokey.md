@@ -311,10 +311,9 @@ In this case, we can see that the `Deposit()` function emitted an
 happened during the transaction.
 
 After broadcasting the transaction, we can verify that we have the amount of
-`wugnot` we expect. `BalanceOf` reads state without changing it, so it is not
-callable with `maketx call`: a non-crossing function reached that way fails with
-`function BalanceOf is non-crossing and cannot be called with MsgCall; query
-with vm/qeval or use MsgRun`. Query it instead:
+`wugnot` we expect. `BalanceOf` only reads state, and `maketx call` refuses it
+with `function BalanceOf is non-crossing and cannot be called with MsgCall;
+query with vm/qeval or use MsgRun`. Query it instead:
 
 ```bash
 gnokey query vm/qeval \
@@ -725,7 +724,7 @@ The multisig is defined by the **ordered list of member keys**.
 All participants must use the **exact same order** when running:
 
 - `gnokey add multisig ...`
-- later, `gnokey multisign ...` uses that key, so a keybase built in a different order holds a different multisig and will not verify
+- later, `gnokey multisign ...` verifies against the key that order produced
 
 If the order differs between participants, you will *not* end up with the same multisig public key/address, and signing
 will fail.
@@ -883,7 +882,7 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 **The second most important rule: every signature must come from a member of that multisig**
 
-`gnokey multisign` reads the public key inside each signature and puts it in that member's slot, so the order you pass `--signature` in does not matter. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
+`gnokey multisign` reads the public key inside each signature and matches it to the member it belongs to, so the order you pass `--signature` in does not matter. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
 
 #### Multisign (Alice + Bob example)
 

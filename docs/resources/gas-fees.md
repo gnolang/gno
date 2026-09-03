@@ -107,7 +107,7 @@ Changes are gradual to avoid sudden price spikes.
 `min_gas_prices` configuration parameter in their `config.toml` file. A fee that
 meets the network price but not a given validator's own minimum is simply left
 out of that validator's blocks, so a transaction priced at the bare minimum can
-wait longer. The 5% buffer from `-simulate only` covers the usual case.
+wait longer. If yours sits unconfirmed, raise `--gas-fee` and resend.
 
 ## Typical Gas Values
 
@@ -202,15 +202,15 @@ gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulatio
 - A transaction that reaches a block and then fails pays the whole `--gas-fee`,
   and its effects are rolled back. An out-of-gas error there names the real
   operation, like `operation: CPUCycles`.
-- You get there with `-simulate skip`, or when the chain moves between the
-  simulation and the real run. Re-run `-simulate only` and raise `--gas-wanted`
-  before sending again.
+- You get there with `-simulate skip`, or when the chain's state changes between
+  the simulation and the real run. Re-run `-simulate only` and raise
+  `--gas-wanted` before sending again.
 
 **Not enough deposit:**
 ```
 not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
 ```
 - The message stores more bytes than your deposit cap covers at 100ugnot per
-  byte. Raise it with `-max-deposit`, or store less. The chain's own cap is
-  100000000ugnot.
+  byte. Raise it with `-max-deposit`, or store less. The cap is the chain
+  default, `100000000ugnot`, unless `-max-deposit` set it lower.
 

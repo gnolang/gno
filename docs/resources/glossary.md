@@ -127,8 +127,8 @@ current
 
 ### Gas Wanted
 The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails and its effects are rolled back, except the gas
-fee, which is charged in full once the transaction is in a block.
+exceeds this limit fails and its effects are rolled back; the gas fee is still
+charged in full once the transaction is in a block.
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.
