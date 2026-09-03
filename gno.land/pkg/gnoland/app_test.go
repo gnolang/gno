@@ -4061,7 +4061,6 @@ func TestTxCarriesCode(t *testing.T) {
 		// work done for free. Its omission here was a live hole, reproduced end
 		// to end against a running app.
 		{"enable_package alone", []std.Msg{vm.MsgEnablePackage{Approver: addr}}, true},
-		{"disable_package alone", []std.Msg{vm.MsgDisablePackage{Approver: addr}}, true},
 		{"enable_package behind a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgEnablePackage{Approver: addr}}, true},
 	}
 	for _, tt := range tests {

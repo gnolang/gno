@@ -1274,18 +1274,18 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 // The cost: keyless gas estimation no longer works for either message. gnokey
 // signs a second transaction for simulation and is unaffected; other clients
 // that estimate before signing must supply a real signature.
-// MsgEnablePackage and MsgDisablePackage are covered too, and are NOT part of
-// txCodeMsgSigners: that function feeds the code_submitters/run_submitters
-// allowlists, which have no authority over enabling. Their gate is
-// params.PkgApprovers, checked in the keeper against msg.Approver -- a
-// caller-supplied field, exactly like the signers above. So the same reasoning
-// applies: on an unverified simulate, anyone may name the real approver, attach
-// arbitrary bytes as a signature, and have the chain type-check and init() an
-// already-parked package for free. That the bytes are already stored makes it
-// worse rather than better, since under "inert" anyone may park them.
+// MsgEnablePackage is covered too, and is NOT part of txCodeMsgSigners: that
+// function feeds the code_submitters/run_submitters allowlists, which have no
+// authority over enabling. Its gate is params.PkgApprovers, checked in the
+// keeper against msg.Approver -- a caller-supplied field, exactly like the
+// signers above. So the same reasoning applies: on an unverified simulate,
+// anyone may name the real approver, attach arbitrary bytes as a signature, and
+// have the chain type-check and init() an already-parked package for free. That
+// the bytes are already stored makes it worse rather than better, since under
+// "inert" anyone may park them.
 //
 // MsgRejectPackage is deliberately NOT covered. It is authorized from its own
-// payload like the two above, but it executes nothing: it reads the parked
+// payload like the ones above, but it executes nothing: it reads the parked
 // blob, parses its gnomod.toml and deletes it. The harm the others invite --
 // driving a free type-check and init() per query -- has no analogue, and the
 // blob decode it does do is already reachable anonymously through
@@ -1298,7 +1298,7 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 func txCarriesCode(tx std.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		switch msg.(type) {
-		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage, vm.MsgDisablePackage:
+		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage:
 			return true
 		}
 	}
@@ -1548,7 +1548,7 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 		switch msg.Type() {
 		case "add_package":
 			return true
-		case "enable_package", "disable_package", "reject_package":
+		case "enable_package", "reject_package":
 			// Approver authority, and it cannot be scoped down. A session's
 			// AllowPaths are matched via GetPkgPath(), which only MsgCall
 			// implements -- so no path-scoped entry can ever match these, and
