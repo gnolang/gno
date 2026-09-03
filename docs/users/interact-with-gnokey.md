@@ -167,7 +167,7 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
-- `-gas-fee` - the whole fee for the transaction, charged in full whatever it uses
+- `-gas-fee` - the whole fee for the transaction, not a price per unit of gas
 - `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
@@ -313,7 +313,7 @@ After broadcasting the transaction, we can verify that we have the amount of
 `wugnot` we expect. `BalanceOf` reads state without changing it, so it is not
 callable with `maketx call`: a non-crossing function reached that way fails with
 `function BalanceOf is non-crossing and cannot be called with MsgCall`. Query it
-instead, which costs no gas:
+instead:
 
 ```bash
 gnokey query vm/qeval \
@@ -880,17 +880,17 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 ### 3. Combine signatures with the multisig
 
-**The second most important rule: signature order must match multisig member order**
+**The second most important rule: every signature must come from a member of that multisig**
 
-When you call `gnokey multisign`, the signatures must correspond to the multisig's **ordered members**.
+`gnokey multisign` reads the public key inside each signature and puts it in that member's slot, so the order you pass `--signature` in does not matter.
 
 If your multisig was defined as: `alice, bob, charlie`, then:
 
-- Alice's signature corresponds to slot 1
-- Bob's signature corresponds to slot 2
-- Charlie's signature corresponds to slot 3
+- Alice's signature lands in slot 1
+- Bob's signature lands in slot 2
+- Charlie's signature lands in slot 3
 
-You can provide signatures in any CLI order, but they must be valid for members of that multisig.
+whichever order you list them on the command line. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
 
 #### Multisign (Alice + Bob example)
 

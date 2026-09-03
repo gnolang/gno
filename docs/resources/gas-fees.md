@@ -26,14 +26,12 @@ When submitting transactions to gno.land, you need to specify two gas-related pa
 
 `--gas-wanted` specifies the maximum amount of gas your transaction is allowed
 to consume. If your transaction requires more gas than this limit, it fails
-with an "out of gas" error and changes nothing, and the whole `--gas-fee` is
-still charged.
+with an "out of gas" error and its effects are rolled back.
 
 ### Gas Fee
 
 `--gas-fee` is the whole fee for the transaction, not a price per unit. It is
-expressed in `ugnot` (micro-GNOT), so `1000000ugnot` is one GNOT for the
-transaction, whatever it ends up using.
+expressed in `ugnot` (micro-GNOT), so `1000000ugnot` is one GNOT.
 
 Gas wanted turns that fee into a rate, and the rate is what the network checks:
 
@@ -41,8 +39,10 @@ Gas wanted turns that fee into a rate, and the rate is what the network checks:
 Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-You are charged the whole gas fee you specified, even when the transaction uses
-less gas than it asked for, and even when it fails.
+`gnokey` runs your transaction against the node before sending it, so one that
+would fail never reaches a block and costs you nothing. Once a transaction is in
+a block you are charged the whole gas fee you specified, whether it used less
+gas than it asked for or failed outright.
 
 ### Calculating Your Gas Fee
 
@@ -196,17 +196,15 @@ To minimize gas costs, consider these optimization strategies:
 1000ugnot}, fee required: 1ugnot/1000gas as block gas price`
 - Your `--gas-fee` is too low. Increase it to meet the minimum required.
 
-**Out of gas:** `gas used (150000) exceeds tx's gas wanted (100000) during
-operation: CPUCycles; simulate with consensus maximum (3000000000) to get real
-transaction usage`
-- Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas, then increase.
-- ⚠️ **You're still charged for failed transactions!** The whole `--gas-fee` is
-  deducted before execution, so even if your transaction runs out of gas, you
-  pay the full fee.
-
-> **Note:** By default, `gnokey maketx -broadcast` uses `-simulate test`, which
-> simulates the transaction before submitting it. If the simulation fails (e.g.,
-> out of gas), the transaction won't be submitted and you won't be charged.
-> However, a transaction that passes simulation can still fail on-chain, in
-> which case you will be charged.
+**Out of gas:** `gas used (2597634) exceeds tx's gas wanted (1000000) during
+operation: simulation`
+- Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
+  then increase.
+- Nothing was charged. `gnokey maketx -broadcast` defaults to `-simulate test`,
+  which runs the transaction against the node first and does not send one that
+  fails. `operation: simulation` is how you know it never reached a block.
+- ⚠️ **A transaction that does reach a block and then fails is charged the
+  whole `--gas-fee`.** Its message names the operation that ran out, such as
+  `operation: CPUCycles`. You get there with `-simulate skip`, or when the
+  simulation passed and the chain moved before the real run.
 

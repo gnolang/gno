@@ -29,11 +29,11 @@ match the path used in the `addpkg` transaction during deployment.
 
 Specifies the **Gno language version**. Currently, only version `"0.9"` is supported.
 
-#### `replace` (coming soon)
+#### `replace`
 
-Used for **local development and testing**. When set, this field allows local
-replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
-for overriding dependencies during local testing.
+Used for **local development and testing**. When set, this field redirects an
+import to another package path or to a local directory, and it makes the module
+undeployable: `addpkg` refuses it with `development packages are not allowed`.
 
 #### `addpkg`
 

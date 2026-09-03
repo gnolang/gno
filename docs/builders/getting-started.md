@@ -230,21 +230,25 @@ gnokey maketx call \
 `-pkgpath` is the realm's on-chain path, the same one you passed to
 `gno mod init`.
 
-The two gas flags do different jobs. `-gas-wanted` is a ceiling on work, counted
-in gas units: a transaction that runs past it fails and changes nothing.
-`-gas-fee` is the payment, one flat amount in `ugnot`, where 1000000ugnot is one
-GNOT. The chain deducts the whole fee whatever the transaction ends up using,
-including when it runs out of gas, and accepts the transaction when `gas-fee`
-divided by `gas-wanted` is at least the network's gas price. Raising
-`-gas-wanted` on its own lowers that ratio, so the fee has to rise with it. The
-values here fit this counter; size your own with
-[`-simulate only`](../resources/gas-fees.md#gas-estimation).
+The two gas flags do different jobs, and `gnokey` checks both for you before
+anything is sent: it runs the transaction against the node first, so one that
+would fail never reaches a block and costs you nothing.
+
+`-gas-wanted` is a ceiling on work, counted in gas units: a transaction that
+runs past it fails and its effects are rolled back. `-gas-fee` is the payment,
+one flat amount in `ugnot`, where 1000000ugnot is one GNOT. Once a transaction
+is in a block the chain deducts the whole fee whatever it ends up using, and
+accepts it when `gas-fee` divided by `gas-wanted` is at least the network's gas
+price.
+Raising `-gas-wanted` on its own lowers that ratio, so the fee has to rise with
+it. Neither number is filled in for you: the values here fit this counter, and
+[`-simulate only`](../resources/gas-fees.md#gas-estimation) works out both for
+one of your own.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
 
-On success you'll see output like this. Your height, hash and exact gas will
-differ:
+On success you'll see:
 
 ```text
 (1 int)
@@ -370,8 +374,7 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The deposit is far bigger than the fee here, and that is normal for a deploy:
-you pay to keep the realm's own code and state on chain, and the deposit comes
-back when they are deleted.
+you pay to keep the realm's own code and state on chain.
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
