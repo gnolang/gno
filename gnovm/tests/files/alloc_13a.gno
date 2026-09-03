@@ -6,8 +6,8 @@
 //
 // s1 := s shares the backing. In the GC recount:
 //   - s counts header (48B) + backing (1052B) = 1100B
-//   - s1 counts header (48B) only, because CountStringBytes returned
-//     true for s and false for s1 (same backing, same cycle)
+//   - s1 counts header (48B) only, because the GC visitor had already
+//     seen s's backing ID in this cycle (same backing, same cycle)
 //
 // If GC double-counted, s1's backing would add another 1052B to the
 // recount (after ≈ 10024).
