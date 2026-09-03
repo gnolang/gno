@@ -248,8 +248,9 @@ Three flags decide what a transaction costs you:
 The first two are tied together: the chain accepts the transaction when
 `gas-fee` divided by `gas-wanted` is at least the network's gas price. That
 price is the network's, not yours: demand moves it, never the gas your
-transaction uses. The command above asks for 2000000 gas, and at today's price
-of 1ugnot per 1000 gas the least it may pay is 2000ugnot, which is what it sets.
+transaction uses. The command above asks for 2000000 gas, and at the default
+price of 1ugnot per 1000 gas the least it may pay is 2000ugnot, which is what it
+sets.
 Raise `-gas-wanted` and the fee has to rise with it.
 
 None of the three is filled in for you;
