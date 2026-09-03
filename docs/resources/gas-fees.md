@@ -145,7 +145,7 @@ gnokey maketx addpkg \
   YOUR_KEY_NAME
 ```
 
-Output:
+Simulation output, so nothing reached a block:
 ```
 OK!
 GAS WANTED: 4000000
@@ -161,8 +161,7 @@ TX HASH:
 PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
-`HEIGHT: 0` and the empty `TX HASH` are how you tell a simulation from a
-broadcast: nothing reached a block. `STORAGE FEE` is the
+That is why `HEIGHT` is 0 and `TX HASH` is empty. `STORAGE FEE` is the
 [storage deposit](storage-deposit.md), locked against the bytes the transaction
 would add rather than spent. `TOTAL TX COST` is the gas fee plus that deposit,
 one of them gone and one of them locked.
