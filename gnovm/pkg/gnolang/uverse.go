@@ -1578,10 +1578,8 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			addr := sv.Fields[0].GetString()
 			// Reuse the field's StringValue so the result shares the
 			// realm handle's mint ID (GC dedups them as one backing).
-			_ = addr
 			fv, _ := sv.Fields[0].V.(StringValue)
 			m.PushValue(TypedValue{T: gAddressType, V: fv})
 		},
@@ -1594,8 +1592,10 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			path := sv.Fields[1].GetString()
-			m.PushValue(typedString(path))
+			// Reuse the field's StringValue, as Address does above; a
+			// typedString would be an untracked (ID 0) copy.
+			fv, _ := sv.Fields[1].V.(StringValue)
+			m.PushValue(TypedValue{T: StringType, V: fv})
 		},
 	)
 	defNativePtrMethod(".grealm", "Previous",
