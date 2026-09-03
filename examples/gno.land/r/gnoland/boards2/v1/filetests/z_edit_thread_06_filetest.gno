@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
 	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	title         = "Test Thread"
 	body          = "Test body"
@@ -44,7 +44,7 @@ func main(cur realm) {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Test Thread
 //
-// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>

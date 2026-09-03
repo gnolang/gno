@@ -12,7 +12,7 @@ import (
 var board boards2.Board
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
+	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
 	boardID := boards2.CreateBoard(cross(cur), "test123", false, false)
 
 	// Invite board members
@@ -33,5 +33,5 @@ func main(cur realm) {
 
 // Output:
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 slice[("owner" string)]
-// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh slice[("owner" string)]
+// g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf slice[("owner" string)]
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj slice[("admin" string)]
