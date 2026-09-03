@@ -102,21 +102,14 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if err := bank.SubtractCoins(ctx, in.Address, in.Coins); err != nil {
 			return err
 		}
-		ctx.EventLogger().EmitEvent(TransferEvent{
-			From:   in.Address.String(),
-			Amount: in.Coins,
-		})
 	}
 
 	for _, out := range outputs {
 		if err := bank.AddCoins(ctx, out.Address, out.Coins); err != nil {
 			return err
 		}
-		ctx.EventLogger().EmitEvent(TransferEvent{
-			To:     out.Address.String(),
-			Amount: out.Coins,
-		})
 	}
+	ctx.EventLogger().EmitEvent(MultiTransferEvent{Inputs: inputs, Outputs: outputs})
 
 	return nil
 }
@@ -192,9 +185,9 @@ func (bank BankKeeper) sendCoins(
 	}
 
 	ctx.EventLogger().EmitEvent(TransferEvent{
-		From:   fromAddr.String(),
-		To:     toAddr.String(),
-		Amount: amt,
+		From:  fromAddr.String(),
+		To:    toAddr.String(),
+		Coins: amt,
 	})
 
 	return nil

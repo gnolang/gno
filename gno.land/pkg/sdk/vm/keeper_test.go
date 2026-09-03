@@ -645,8 +645,8 @@ func Echo(cur realm, msg string) string {
 	assert.True(t, pkgBalance.IsZero())
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(userAcctBalance))
 	require.Equal(t, []sdk.Event{
-		bankm.TransferEvent{From: addr.String(), To: pkgAddr.String(), Amount: coinsToSend},
-		bankm.TransferEvent{From: pkgAddr.String(), To: addr.String(), Amount: coinsToSend},
+		bankm.TransferEvent{From: addr.String(), To: pkgAddr.String(), Coins: coinsToSend},
+		bankm.TransferEvent{From: pkgAddr.String(), To: addr.String(), Coins: coinsToSend},
 	}, ctx.EventLogger().Events())
 }
 

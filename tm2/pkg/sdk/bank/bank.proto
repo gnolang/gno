@@ -17,6 +17,16 @@ message NoOutputsError {
 message InputOutputMismatchError {
 }
 
+message Input {
+	string address = 1;
+	string coins = 2;
+}
+
+message Output {
+	string address = 1;
+	string coins = 2;
+}
+
 message MsgSend {
 	string from_address = 1;
 	string to_address = 2;
@@ -34,5 +44,10 @@ message Params {
 message TransferEvent {
 	string from = 1;
 	string to = 2;
-	string amount = 3;
+	string coins = 3;
+}
+
+message MultiTransferEvent {
+	repeated Input inputs = 1;
+	repeated Output outputs = 2;
 }

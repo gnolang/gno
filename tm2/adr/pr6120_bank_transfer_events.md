@@ -19,31 +19,33 @@ this path and are returned in `ResponseDeliverTx.Events`.
 
 ## Decision
 
-Register and emit `bank.TransferEvent`:
+Register and emit `bank.TransferEvent` for one-to-one sends:
 
 ```go
 type TransferEvent struct {
-    From   string    `json:"from"`
-    To     string    `json:"to"`
-    Amount std.Coins `json:"amount"`
+    From  string    `json:"from"`
+    To    string    `json:"to"`
+    Coins std.Coins `json:"coins"`
 }
 ```
+
+Register and emit `bank.MultiTransferEvent` with the original `[]Input` and
+`[]Output` for multisends.
 
 Addresses are bech32 strings. The event carries no custom marshaler, so it
 serializes like the other struct events already returned in transaction results
 (for example `StorageDepositEvent`). In `ResponseBase.EncodeEvents` the
 indexer-facing shape is
-`{"from":"...","to":"...","amount":[{"denom":"ugnot","amount":7}]}`, and the amino
+`{"from":"...","to":"...","coins":[{"denom":"ugnot","amount":7}]}`, and the amino
 wire encoding tags it with its registered type `/bank.TransferEvent`.
 
 `sendCoins` emits one event after both the debit and credit succeed. This one
 point covers `MsgSend`, realm banker sends, and VM message send envelopes.
 
-`InputOutputCoins` emits a debit event with only `From` after each successful
-input subtraction, followed by a credit event with only `To` after each
-successful output addition. This matches the GRC20 burn and mint convention, so
-an indexer can update both sides using events alone without inventing a
-one-to-one mapping. Inputs and outputs each retain their slice order.
+`InputOutputCoins` emits one `MultiTransferEvent` after all debits and credits
+succeed. The event carries the original `Inputs` and `Outputs`, preserving the
+complete N:M transfer without inventing a one-to-one mapping. Inputs and outputs
+each retain their slice order.
 
 The dead handler-level module-marker comments are removed. Unrestricted sends
 used for gas and storage accounting remain outside this event: the requested
@@ -55,14 +57,10 @@ bypasses transfer policy.
 **Restore Cosmos string-keyed events.** Rejected because tm2 has neither the API
 nor those event and attribute constants. It would introduce a second event model.
 
-**Emit one multisend event containing every input and output.** This preserves
-the complete relation but creates another public event type and makes ordinary
-transfer tracking different from `MsgSend`.
-
 **Assign each output the first input as sender.** Rejected because it records
 false provenance for N:M multisends. Separate from-only debit and to-only credit
-events preserve every balance change without claiming a relationship between
-individual inputs and outputs.
+events would avoid that false provenance, but look like unrelated burns and
+mints. A batch event preserves both sides and makes their relationship explicit.
 
 **Emit in handlers.** Rejected because realm banker sends and VM send envelopes
 do not pass through bank message handlers. Keeper emission covers all requested
@@ -70,8 +68,8 @@ paths once.
 
 ## Consequences
 
-The event type name and its three JSON fields are an indexer-facing compatibility
-contract. Adding the event is consensus-visible in transaction results but does
+The event type names and JSON fields are an indexer-facing compatibility
+contract. Adding the events is consensus-visible in transaction results but does
 not change balances or app state.
 
 `EventLogger.EmitEvent` appends to an in-memory slice and charges no gas. The

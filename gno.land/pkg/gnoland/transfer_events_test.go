@@ -27,6 +27,6 @@ func TestDeliverTxIncludesMsgRunSendEvent(t *testing.T) {
 
 	require.True(t, res.IsOK(), res.Log)
 	require.Equal(t, []abci.Event{bank.TransferEvent{
-		From: addr.String(), To: addr.String(), Amount: send,
+		From: addr.String(), To: addr.String(), Coins: send,
 	}}, res.Events)
 }

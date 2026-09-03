@@ -15,8 +15,11 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	NoInputsError{}, "NoInputsError",
 	NoOutputsError{}, "NoOutputsError",
 	InputOutputMismatchError{}, "InputOutputMismatchError",
+	Input{}, "Input",
+	Output{}, "Output",
 	MsgSend{}, "MsgSend",
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
 	TransferEvent{}, "TransferEvent",
+	MultiTransferEvent{}, "MultiTransferEvent",
 ))

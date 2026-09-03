@@ -151,9 +151,9 @@ func TestSendCoinsEmitsTransferEvent(t *testing.T) {
 
 	require.NoError(t, env.bankk.SendCoins(env.ctx, from, to, amount))
 	require.Equal(t, []sdk.Event{TransferEvent{
-		From:   from.String(),
-		To:     to.String(),
-		Amount: amount,
+		From:  from.String(),
+		To:    to.String(),
+		Coins: amount,
 	}}, env.ctx.EventLogger().Events())
 }
 
@@ -174,12 +174,10 @@ func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
 		[]Input{NewInput(from1, amount1), NewInput(from2, amount2)},
 		[]Output{NewOutput(to1, amount1), NewOutput(to2, amount2)},
 	))
-	require.Equal(t, []sdk.Event{
-		TransferEvent{From: from1.String(), Amount: amount1},
-		TransferEvent{From: from2.String(), Amount: amount2},
-		TransferEvent{To: to1.String(), Amount: amount1},
-		TransferEvent{To: to2.String(), Amount: amount2},
-	}, env.ctx.EventLogger().Events())
+	require.Equal(t, []sdk.Event{MultiTransferEvent{
+		Inputs:  []Input{NewInput(from1, amount1), NewInput(from2, amount2)},
+		Outputs: []Output{NewOutput(to1, amount1), NewOutput(to2, amount2)},
+	}}, env.ctx.EventLogger().Events())
 }
 
 func TestViewKeeper(t *testing.T) {

@@ -4,11 +4,11 @@ gnoland start
 
 # MsgSend exposes one complete transfer event.
 gnokey maketx send -send 7ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","amount":\[{"denom":"ugnot","amount":7}\]}\]'
+stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","coins":\[{"denom":"ugnot","amount":7}\]}\]'
 
 # MsgCall's send envelope and the realm's banker.SendCoins are both exposed.
 gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Forward -args 3 -send 11ugnot -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","amount":\[{"denom":"ugnot","amount":11}\]},{"from":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","to":"'$test1_user_addr'","amount":\[{"denom":"ugnot","amount":3}\]}\]'
+stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","coins":\[{"denom":"ugnot","amount":11}\]},{"from":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","to":"'$test1_user_addr'","coins":\[{"denom":"ugnot","amount":3}\]}\]'
 
 -- realm/realm.gno --
 package call_realm

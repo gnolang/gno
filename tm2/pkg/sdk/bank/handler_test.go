@@ -39,7 +39,7 @@ func TestHandlerEmitsTransferEvents(t *testing.T) {
 		res := NewHandler(env.bankk).Process(env.ctx, NewMsgSend(from, to, amount))
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, []sdk.Event{TransferEvent{
-			From: from.String(), To: to.String(), Amount: amount,
+			From: from.String(), To: to.String(), Coins: amount,
 		}}, env.ctx.EventLogger().Events())
 	})
 
@@ -55,10 +55,10 @@ func TestHandlerEmitsTransferEvents(t *testing.T) {
 			[]Input{NewInput(from, amount)}, []Output{NewOutput(to, amount)},
 		))
 		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, []sdk.Event{
-			TransferEvent{From: from.String(), Amount: amount},
-			TransferEvent{To: to.String(), Amount: amount},
-		}, env.ctx.EventLogger().Events())
+		require.Equal(t, []sdk.Event{MultiTransferEvent{
+			Inputs:  []Input{NewInput(from, amount)},
+			Outputs: []Output{NewOutput(to, amount)},
+		}}, env.ctx.EventLogger().Events())
 	})
 }
 

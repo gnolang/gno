@@ -1,32 +1,41 @@
 package bank
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func TestTransferEventAminoRoundTrip(t *testing.T) {
 	t.Parallel()
 
+	from := crypto.AddressFromPreimage([]byte("sender"))
+	to := crypto.AddressFromPreimage([]byte("recipient"))
+	coins := std.NewCoins(std.NewCoin("ugnot", 5))
 	tests := []struct {
 		name string
-		want TransferEvent
+		want abci.Event
 		json string
 	}{
 		{
 			name: "transfer",
-			want: TransferEvent{From: "g1sender", To: "g1recipient", Amount: std.NewCoins(std.NewCoin("ugnot", 5))},
-			json: `{"@type":"/bank.TransferEvent","from":"g1sender","to":"g1recipient","amount":"5ugnot"}`,
+			want: TransferEvent{From: "g1sender", To: "g1recipient", Coins: coins},
+			json: `{"@type":"/bank.TransferEvent","from":"g1sender","to":"g1recipient","coins":"5ugnot"}`,
 		},
 		{
-			name: "mint-shaped",
-			want: TransferEvent{To: "g1recipient", Amount: std.NewCoins(std.NewCoin("ugnot", 5))},
-			json: `{"@type":"/bank.TransferEvent","from":"","to":"g1recipient","amount":"5ugnot"}`,
+			name: "multisend",
+			want: MultiTransferEvent{
+				Inputs:  []Input{{Address: from, Coins: coins}},
+				Outputs: []Output{{Address: to, Coins: coins}},
+			},
+			json: fmt.Sprintf(`{"@type":"/bank.MultiTransferEvent","inputs":[{"address":"%s","coins":"5ugnot"}],"outputs":[{"address":"%s","coins":"5ugnot"}]}`,
+				from, to),
 		},
 	}
 

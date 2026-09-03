@@ -6,10 +6,18 @@ import (
 
 // TransferEvent records a successful bank transfer.
 type TransferEvent struct {
-	// From is empty for multisend credits; To is empty for multisend debits.
-	From   string    `json:"from"`
-	To     string    `json:"to"`
-	Amount std.Coins `json:"amount"`
+	From  string    `json:"from"`
+	To    string    `json:"to"`
+	Coins std.Coins `json:"coins"`
 }
 
 func (TransferEvent) AssertABCIEvent() {}
+
+// MultiTransferEvent records a successful bank multisend without inventing an
+// input-to-output mapping.
+type MultiTransferEvent struct {
+	Inputs  []Input  `json:"inputs"`
+	Outputs []Output `json:"outputs"`
+}
+
+func (MultiTransferEvent) AssertABCIEvent() {}
