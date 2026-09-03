@@ -39,10 +39,9 @@ Gas wanted turns that fee into a rate, and the rate is what the network checks:
 Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-`gnokey` runs your transaction against the node before sending it, so one that
-would fail never reaches a block and costs you nothing. Once a transaction is in
-a block you are charged the whole gas fee you specified, whether it used less
-gas than it asked for or failed outright.
+`gnokey` simulates first, so a transaction that would fail never reaches a
+block and costs nothing. Once it is in a block you pay the whole fee, whether it
+used less gas than it asked for or failed outright.
 
 ### Calculating Your Gas Fee
 
@@ -200,11 +199,10 @@ To minimize gas costs, consider these optimization strategies:
 operation: simulation`
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
   then increase.
-- Nothing was charged. `gnokey maketx -broadcast` defaults to `-simulate test`,
-  which runs the transaction against the node first and does not send one that
-  fails. `operation: simulation` is how you know it never reached a block.
-- ⚠️ **A transaction that does reach a block and then fails is charged the
-  whole `--gas-fee`.** Its message names the operation that ran out, such as
-  `operation: CPUCycles`. You get there with `-simulate skip`, or when the
-  simulation passed and the chain moved before the real run.
+- Nothing was charged. `operation: simulation` means it never reached a block,
+  because `gnokey maketx -broadcast` simulates before sending.
+- ⚠️ **A transaction that reaches a block and then fails pays the whole
+  `--gas-fee`.** Its error names the real operation instead, like
+  `operation: CPUCycles`. You get there with `-simulate skip`, or when the chain
+  moves between the simulation and the real run.
 

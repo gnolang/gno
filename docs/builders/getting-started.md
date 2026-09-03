@@ -230,20 +230,16 @@ gnokey maketx call \
 `-pkgpath` is the realm's on-chain path, the same one you passed to
 `gno mod init`.
 
-The two gas flags do different jobs, and `gnokey` checks both for you before
-anything is sent: it runs the transaction against the node first, so one that
-would fail never reaches a block and costs you nothing.
+`-gas-wanted` is a ceiling on work, in gas units. `-gas-fee` is what you pay,
+one flat amount in `ugnot`, where 1000000ugnot is one GNOT. The chain accepts
+the transaction when `gas-fee` divided by `gas-wanted` is at least the network's
+gas price, then takes the whole fee. Raise `-gas-wanted` and the fee has to rise
+with it.
 
-`-gas-wanted` is a ceiling on work, counted in gas units: a transaction that
-runs past it fails and its effects are rolled back. `-gas-fee` is the payment,
-one flat amount in `ugnot`, where 1000000ugnot is one GNOT. Once a transaction
-is in a block the chain deducts the whole fee whatever it ends up using, and
-accepts it when `gas-fee` divided by `gas-wanted` is at least the network's gas
-price.
-Raising `-gas-wanted` on its own lowers that ratio, so the fee has to rise with
-it. Neither number is filled in for you: the values here fit this counter, and
-[`-simulate only`](../resources/gas-fees.md#gas-estimation) works out both for
-one of your own.
+Neither is filled in for you. The values here fit this counter, and
+[`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes your own.
+`gnokey` runs the transaction against the node first, so one that would fail
+never reaches a block.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
