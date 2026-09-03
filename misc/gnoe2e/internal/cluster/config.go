@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -120,5 +121,41 @@ func ConfigureConsensusForSync(node *Node) error {
 	}
 
 	slog.Debug("consensus configured for sync", "node_index", node.Index)
+	return nil
+}
+
+// applyNodeConfig applies a scenario's node config overrides to a node's
+// config.toml.
+//
+// Last of the configuration passes, so a scenario can have the timing and
+// limits it asks for rather than the ones the harness picked for its own
+// convenience. The listen addresses are not reachable this way: the harness
+// assigns each node a free port and hands the addresses to the scripts, so the
+// section refuses those keys before they arrive here.
+func applyNodeConfig(node *Node, overrides []Override) error {
+	if len(overrides) == 0 {
+		return nil
+	}
+
+	configPath := filepath.Join(node.DataDir, "config", "config.toml")
+	cfg, err := config.LoadConfigFile(configPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	root := reflect.ValueOf(cfg).Elem()
+	for _, o := range overrides {
+		if err := applyOverride(root, o); err != nil {
+			// The key is named the way the scenario wrote it, prefix included,
+			// rather than as the path the config was traversed by.
+			return fmt.Errorf("config.%w", err)
+		}
+	}
+
+	if err := config.WriteConfigFile(configPath, cfg); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	slog.Debug("node config overridden", "node_index", node.Index, "overrides", len(overrides))
 	return nil
 }

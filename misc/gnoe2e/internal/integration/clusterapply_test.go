@@ -48,6 +48,25 @@ func TestClusterSpecApplyTo(t *testing.T) {
 		assert.Equal(t, int64(20_000_000), cfg.Genesis.MaxGas)
 	})
 
+	// The generic keys are the one part of the spec the runner does not resolve
+	// further: they reach the cluster as the text a scenario wrote, in order,
+	// for the cluster to apply to the node config and to genesis.
+	t.Run("the generic keys reach the cluster as declared", func(t *testing.T) {
+		cfg := cluster.DefaultClusterConfig()
+		spec := ClusterSpec{
+			Validators: 1,
+			NodeConfig: []cluster.Override{
+				{Key: "consensus.timeout_commit", Value: "2s"},
+				{Key: "mempool.size", Value: "200"},
+			},
+			GenesisParams: []cluster.Override{{Key: "vm.chain_domain", Value: "example.gno.land"}},
+		}
+		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
+
+		assert.Equal(t, spec.NodeConfig, cfg.NodeConfig)
+		assert.Equal(t, spec.GenesisParams, cfg.Genesis.Params)
+	})
+
 	t.Run("the oracle approves when no other role is named", func(t *testing.T) {
 		cfg := cluster.DefaultClusterConfig()
 		spec := ClusterSpec{Validators: 1, Oracle: true, CodeSubmissionPolicy: "inert"}

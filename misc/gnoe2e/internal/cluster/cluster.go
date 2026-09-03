@@ -50,6 +50,10 @@ type GenesisConfig struct {
 	CodeSubmissionPolicy vm.CodeSubmissionPolicy
 	// PkgApprovers may send MsgEnablePackage. Required under "inert".
 	PkgApprovers []crypto.Address
+	// Params sets auth, vm and bank genesis params by `gnogenesis params set`
+	// key. Applied after the policy and approver fields above, so an explicit
+	// path wins over them.
+	Params []Override
 }
 
 // DefaultGenesisConfig returns genesis defaults matching mainnet parameters.
@@ -117,6 +121,11 @@ type ClusterConfig struct {
 	TeeNodeLogs   bool // tee node stdout/stderr to os.Stderr
 	Genesis       GenesisConfig
 	Logger        *slog.Logger // if nil, uses slog.Default()
+	// NodeConfig sets node config options by `gnoland config set` key. Applied
+	// to every validator after the harness's own configuration, so it can
+	// override consensus timing -- but never the listen addresses, which the
+	// harness assigns and hands to the scripts.
+	NodeConfig []Override
 }
 
 // DefaultClusterConfig returns cluster defaults.
@@ -674,6 +683,14 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		}
 	}
 
+	// After the harness's own passes and before any node starts, so what a
+	// scenario asked for is what every node boots with.
+	for _, node := range validators {
+		if err := applyNodeConfig(node, cfg.NodeConfig); err != nil {
+			return nil, fmt.Errorf("configure node %d: %w", node.Index, err)
+		}
+	}
+
 	// Start validators
 	for i, val := range validators {
 		logger.Info("starting validator", "index", i+1)
@@ -785,6 +802,11 @@ func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
 	}
 	if len(cfg.PkgApprovers) > 0 {
 		defaultGenState.VM.Params.PkgApprovers = cfg.PkgApprovers
+	}
+	// Last, so a scenario that spells out a path overrides the named setting
+	// covering the same field rather than losing to it.
+	if err := applyGenesisParams(&defaultGenState, cfg.Params); err != nil {
+		return err
 	}
 	var allTxs []gnoland.TxWithMetadata
 

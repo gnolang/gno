@@ -1,9 +1,9 @@
 package integration
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +50,57 @@ func TestParseClusterSpec(t *testing.T) {
 			name:    "oracle defaults off, so it must be opted into",
 			section: "validators: 1\noracle: false\n",
 			want:    ClusterSpec{Validators: 1, Oracle: false},
+		},
+		{
+			name:    "a config key reaches the node config with its prefix stripped",
+			section: "validators: 1\nconfig.consensus.timeout_commit: 500ms\nconfig.mempool.size: 200\n",
+			want: ClusterSpec{
+				Validators: 1,
+				NodeConfig: []cluster.Override{
+					{Key: "consensus.timeout_commit", Value: "500ms"},
+					{Key: "mempool.size", Value: "200"},
+				},
+			},
+		},
+		{
+			name:    "a genesis key reaches the genesis params with its prefix stripped",
+			section: "validators: 1\ngenesis.vm.chain_domain: test.gno.land\ngenesis.auth.max_memo_bytes: 128\n",
+			want: ClusterSpec{
+				Validators: 1,
+				GenesisParams: []cluster.Override{
+					{Key: "vm.chain_domain", Value: "test.gno.land"},
+					{Key: "auth.max_memo_bytes", Value: "128"},
+				},
+			},
+		},
+		{
+			// Kept rather than deduplicated: the later line wins because it is
+			// applied last, and that is only true if both survive parsing in
+			// the order they were written.
+			name:    "a repeated key keeps both entries in declaration order",
+			section: "validators: 1\nconfig.mempool.size: 200\nconfig.mempool.size: 300\n",
+			want: ClusterSpec{
+				Validators: 1,
+				NodeConfig: []cluster.Override{
+					{Key: "mempool.size", Value: "200"},
+					{Key: "mempool.size", Value: "300"},
+				},
+			},
+		},
+		{
+			name:    "the RPC listen address belongs to the harness",
+			section: "validators: 1\nconfig.rpc.laddr: tcp://0.0.0.0:26657\n",
+			wantErr: `cluster section: config.rpc.laddr cannot be set: the harness assigns each node its listen ports`,
+		},
+		{
+			name:    "the P2P listen address belongs to the harness",
+			section: "validators: 1\nconfig.p2p.laddr: tcp://0.0.0.0:26656\n",
+			wantErr: `cluster section: config.p2p.laddr cannot be set: the harness assigns each node its listen ports`,
+		},
+		{
+			name:    "a prefix with no path after it names nothing",
+			section: "validators: 1\nconfig.: 200\n",
+			wantErr: `cluster section: unknown key "config."`,
 		},
 		{
 			name:    "validators is the one key with no usable zero value",
@@ -108,24 +159,4 @@ func TestParseClusterSpecRequiresTheSection(t *testing.T) {
 	_, err := ParseClusterSpec([]byte("# a scenario\ngnokey query auth/accounts\n"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `no "cluster" section`)
-}
-
-// Grouping scripts by cluster is what lets one boot serve several scenarios,
-// so two scripts asking for the same thing must compare equal, and the spec
-// has to be usable as a map key at all.
-func TestClusterSpecIsComparable(t *testing.T) {
-	a, err := ParseClusterSpec(script("validators: 3\noracle: true\n"))
-	require.NoError(t, err)
-	b, err := ParseClusterSpec(script("oracle: true\nvalidators: 3\n"))
-	require.NoError(t, err)
-	c, err := ParseClusterSpec(script("validators: 4\noracle: true\n"))
-	require.NoError(t, err)
-
-	counts := map[ClusterSpec]int{}
-	counts[a]++
-	counts[b]++
-	counts[c]++
-
-	assert.Equal(t, 2, counts[a], "key order must not change the spec")
-	assert.Len(t, counts, 2, fmt.Sprintf("differing validator counts are different clusters: %v", counts))
 }

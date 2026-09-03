@@ -18,11 +18,8 @@ type ClusterOverrides struct {
 }
 
 // Apply returns the cluster a script will actually run against, leaving the
-// declaration itself untouched.
-//
-// The runner groups scripts by this result rather than by what they declare, so
-// two scenarios differing only in an overridden setting share one boot instead
-// of paying for two identical ones.
+// declaration itself untouched. A setting named on the command line wins over
+// the one the script declared.
 func (o ClusterOverrides) Apply(spec ClusterSpec) ClusterSpec {
 	if o.Validators != nil {
 		spec.Validators = *o.Validators

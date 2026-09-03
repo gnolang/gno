@@ -23,12 +23,18 @@ const clusterSection = "cluster"
 // packages, which is what leaves the oracle unauthorized.
 const approverRoleUser = "user"
 
+// The two generic key families, one per typed target they are applied to.
+const (
+	nodeConfigPrefix    = "config."
+	genesisParamsPrefix = "genesis."
+)
+
 // ClusterSpec is the cluster one scenario declares it needs.
 //
-// Every field is a scalar so the spec is comparable, which is what lets the
-// runner group scripts by cluster and boot one per group. cluster.ClusterConfig
-// cannot serve that purpose: it carries maps and slices. This is a projection
-// of the part of that config a scenario is allowed to choose, not a copy of it.
+// It is the projection of cluster.ClusterConfig a scenario is allowed to
+// choose, not a copy of it: the settings a script may state, in the vocabulary
+// a script states them in, before the runner resolves them against the keys and
+// binaries it owns.
 type ClusterSpec struct {
 	// Validators is the only setting with no usable zero value, so it is the
 	// only one a scenario must state.
@@ -46,6 +52,12 @@ type ClusterSpec struct {
 	PkgApprover string
 	// BlockMaxGas is zero for the chain default.
 	BlockMaxGas int64
+	// NodeConfig holds the "config." keys, prefix stripped, in declaration
+	// order. Each is a `gnoland config set` key set on every node.
+	NodeConfig []cluster.Override
+	// GenesisParams holds the "genesis." keys, prefix stripped, in declaration
+	// order. Each is a `gnogenesis params set` key set on the genesis params.
+	GenesisParams []cluster.Override
 }
 
 // ApplyTo settles the spec onto a cluster config, leaving every option the
@@ -62,6 +74,8 @@ func (s ClusterSpec) ApplyTo(cfg *cluster.ClusterConfig, user, oracle crypto.Add
 	if s.BlockMaxGas != 0 {
 		cfg.Genesis.MaxGas = s.BlockMaxGas
 	}
+	cfg.NodeConfig = s.NodeConfig
+	cfg.Genesis.Params = s.GenesisParams
 
 	switch s.PkgApprover {
 	case "":
@@ -125,6 +139,26 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 			return ClusterSpec{}, fmt.Errorf("expected %q, got %q", "key: value", line)
 		}
 		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+
+		// The two generic families are handled ahead of the named keys: they
+		// are a path rather than a key, so the switch below cannot match them.
+		// A prefix with nothing after it falls through to the unknown-key
+		// error, because it names no path at all.
+		if path, ok := strings.CutPrefix(key, nodeConfigPrefix); ok && path != "" {
+			// The listen addresses are the harness's: it picks a free port per
+			// node and hands the addresses to the scripts, so a scenario
+			// setting one would take the cluster away from its own commands.
+			switch path {
+			case "rpc.laddr", "p2p.laddr":
+				return ClusterSpec{}, fmt.Errorf("%s cannot be set: the harness assigns each node its listen ports", key)
+			}
+			spec.NodeConfig = append(spec.NodeConfig, cluster.Override{Key: path, Value: value})
+			continue
+		}
+		if path, ok := strings.CutPrefix(key, genesisParamsPrefix); ok && path != "" {
+			spec.GenesisParams = append(spec.GenesisParams, cluster.Override{Key: path, Value: value})
+			continue
+		}
 
 		switch key {
 		case "validators":

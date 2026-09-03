@@ -5,11 +5,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 )
 
 // CreateEnhancedBalanceFile creates a balance file with validator + extra accounts.
@@ -55,6 +59,54 @@ func CreateEnhancedBalanceFile(tempDir string, validatorKeys []*signer.FileKey, 
 
 	slog.Debug("created balance file", "accounts", len(balanceLines), "path", balanceFile)
 	return balanceFile, nil
+}
+
+// applyGenesisParams sets a scenario's genesis param overrides on the genesis
+// state, then validates the module each key touched.
+//
+// The validation is what keeps a bad value a harness error rather than a node
+// that dies at boot for no stated reason: applyOverride parses the value into
+// the field's type but consults neither Validate nor WillSetParam, and all of
+// these params are consensus state.
+//
+// Only the module the key names, and only after the legacy defaulting the node
+// itself applies -- validating all three would refuse a genesis the node boots
+// fine, the way `gnogenesis params set` found.
+func applyGenesisParams(genState *gnoland.GnoGenesisState, overrides []Override) error {
+	if len(overrides) == 0 {
+		return nil
+	}
+
+	// The three settable modules, keyed the way `gnogenesis params set` keys
+	// them, so "vm.chain_domain" means the same thing in both.
+	params := struct {
+		Auth *auth.Params `json:"auth"`
+		VM   *vm.Params   `json:"vm"`
+		Bank *bank.Params `json:"bank"`
+	}{&genState.Auth.Params, &genState.VM.Params, &genState.Bank.Params}
+	root := reflect.ValueOf(&params).Elem()
+
+	for _, o := range overrides {
+		if err := applyOverride(root, o); err != nil {
+			// The key is named the way the scenario wrote it, prefix included,
+			// rather than as the path the params were traversed by.
+			return fmt.Errorf("genesis.%w", err)
+		}
+
+		var verr error
+		switch {
+		case strings.HasPrefix(o.Key, "vm."):
+			verr = genState.VM.Params.ApplyLegacyDefaults().Validate()
+		case strings.HasPrefix(o.Key, "auth."):
+			verr = genState.Auth.Params.Validate()
+		case strings.HasPrefix(o.Key, "bank."):
+			verr = genState.Bank.Params.Validate()
+		}
+		if verr != nil {
+			return fmt.Errorf("invalid params after setting genesis.%s: %w", o.Key, verr)
+		}
+	}
+	return nil
 }
 
 // CopySharedGenesis copies the shared genesis file to each node's directory.

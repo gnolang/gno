@@ -3,10 +3,44 @@ package cluster
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/stretchr/testify/require"
 )
+
+// A scenario's node config is applied after the harness's own passes, so the
+// timing it asks for is the timing the node boots with. Read back with the
+// loader the node itself uses rather than by matching the written toml.
+func TestApplyNodeConfigOutlastsTheConsensusPass(t *testing.T) {
+	node := &Node{Index: 0, NodeID: "node0", DataDir: t.TempDir(), P2PPort: 30000}
+	require.NoError(t, initializeNodeConfig(node.DataDir, "tcp://127.0.0.1:30001", node.P2PPort))
+	require.NoError(t, ConfigureConsensusForSync(node))
+
+	require.NoError(t, applyNodeConfig(node, []Override{
+		{Key: "consensus.timeout_commit", Value: "2s"},
+		{Key: "consensus.skip_timeout_commit", Value: "false"},
+	}))
+
+	written, err := config.LoadConfigFile(filepath.Join(node.DataDir, "config", "config.toml"))
+	require.NoError(t, err)
+	require.Equal(t, 2*time.Second, written.Consensus.TimeoutCommit,
+		"the consensus pass sets 10ms, so this is only 2s if the override ran last")
+	require.False(t, written.Consensus.SkipTimeoutCommit)
+	require.Equal(t, node.RPCAddr, written.RPC.ListenAddress, "the pass must leave the harness's own settings alone")
+}
+
+// A key the config has no field for is the scenario author's typo, and the
+// cluster must not boot on a setting nobody applied.
+func TestApplyNodeConfigRefusesAnUnknownKey(t *testing.T) {
+	node := &Node{Index: 0, NodeID: "node0", DataDir: t.TempDir(), P2PPort: 30000}
+	require.NoError(t, initializeNodeConfig(node.DataDir, "tcp://127.0.0.1:30001", node.P2PPort))
+
+	err := applyNodeConfig(node, []Override{{Key: "p2p.nope", Value: "1"}})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "config.p2p.nope")
+}
 
 // Every node in a local cluster answers on the same loopback address, so
 // tm2's one-peer-per-IP guard refuses every peer past the first, and the
