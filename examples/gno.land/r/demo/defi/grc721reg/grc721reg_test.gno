@@ -531,6 +531,18 @@ func TestUnregister(cur realm, t *testing.T) {
 		"the freed key can be taken again")
 }
 
+func TestUnregisterFromUserRealm(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_user_drop"))
+	_, ledger := grc721.NewToken("User Drop", "UDROP", 0, cur)
+	key := Register(cross(cur), collection.NewCollection(ledger), "")
+
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("non-registrant")))
+	urequire.AbortsContains(t, cur, "collection not registered", func() {
+		Unregister(cross(cur), "UDROP")
+	})
+	urequire.True(t, Get(key) != nil, "a user caller cannot remove another realm's entry")
+}
+
 func TestRenderIndexPaginates(cur realm, t *testing.T) {
 	const infoPrefix = "/r/demo/defi/grc721reg:"
 
