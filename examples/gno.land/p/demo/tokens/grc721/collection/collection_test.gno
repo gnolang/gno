@@ -143,6 +143,11 @@ func TestExtensionAccessors(cur realm, t *testing.T) {
 			uassert.Equal(t, metadata.Kind, ks[0])
 			uassert.Equal(t, royalty.Kind, ks[1])
 		}},
+		{"KindsUpTo limits the extension scan", func(t *testing.T) {
+			ks := nft.Collection().KindsUpTo(1)
+			urequire.Equal(t, 1, len(ks))
+			uassert.Equal(t, metadata.Kind, ks[0])
+		}},
 		{"HasExtension true for registered kind", func(t *testing.T) {
 			uassert.True(t, nft.Collection().HasExtension(metadata.Kind))
 		}},

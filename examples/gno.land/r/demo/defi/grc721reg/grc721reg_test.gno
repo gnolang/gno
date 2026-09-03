@@ -1,6 +1,7 @@
 package grc721reg
 
 import (
+	"chain"
 	"strconv"
 	"strings"
 	"testing"
@@ -219,15 +220,13 @@ func TestGettersOnAbsentKey(cur realm, t *testing.T) {
 // Register panics surface as cross-realm aborts (AbortsContains, not PanicsWithMessage).
 func TestRegisterAborts(cur realm, t *testing.T) {
 	type abortCase struct {
-		name   string
-		substr string
-		run    func(cur realm, t *testing.T)
+		name string
+		run  func(cur realm, t *testing.T)
 	}
 
 	cases := []abortCase{
 		{
-			name:   "register nil collection aborts",
-			substr: "nil collection",
+			name: "register nil collection aborts",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_nil"))
 				urequire.AbortsContains(t, cur, "nil collection", func() {
@@ -236,8 +235,7 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name:   "register token from a different realm aborts",
-			substr: "must be registered from its own realm",
+			name: "register token from a different realm aborts",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_src"))
 				_, ledger := grc721.NewToken("Mismatch", "MIS", 0, cur)
@@ -250,8 +248,20 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name:   "duplicate key (same realm and symbol) aborts",
-			substr: "collection already registered",
+			name: "registration requires a persistent realm",
+			run: func(cur realm, t *testing.T) {
+				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_persistent"))
+				_, ledger := grc721.NewToken("Persistent", "PERSIST", 0, cur)
+				col := collection.NewCollection(ledger)
+
+				testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("runner")))
+				urequire.AbortsContains(t, cur, "registration requires a persistent realm", func() {
+					Register(cross(cur), col, "")
+				})
+			},
+		},
+		{
+			name: "duplicate key (same realm and symbol) aborts",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_dupe"))
 				_, ledger := grc721.NewToken("Bar", "BAR", 0, cur)
@@ -264,8 +274,7 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name:   "extension kind longer than the event allows aborts",
-			substr: "extension kind too long",
+			name: "extension kind longer than the event allows aborts",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_kind_long"))
 				token, ledger := grc721.NewToken("Kind", "KIND", 0, cur)
@@ -274,11 +283,12 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 				urequire.AbortsContains(t, cur, "extension kind too long", func() {
 					Register(cross(cur), collection.NewCollection(ledger), "")
 				})
+				urequire.True(t, Get("gno.land/r/demo/reg_kind_long.KIND") == nil,
+					"a rejected collection is not registered")
 			},
 		},
 		{
-			name:   "validateSlug rejects a too-long slug",
-			substr: "slug too long",
+			name: "validateSlug rejects a too-long slug",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_slug_long"))
 				_, ledger := grc721.NewToken("Long", "LONG", 0, cur)
@@ -289,8 +299,7 @@ func TestRegisterAborts(cur realm, t *testing.T) {
 			},
 		},
 		{
-			name:   "validateSlug rejects an invalid slug character",
-			substr: "invalid slug character",
+			name: "validateSlug rejects an invalid slug character",
 			run: func(cur realm, t *testing.T) {
 				testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_slug_bad"))
 				_, ledger := grc721.NewToken("Bad", "BAD", 0, cur)
@@ -437,6 +446,34 @@ func TestOneTokenTakesOneKey(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegistryLookupGrantsNoTransferAuthority(cur realm, t *testing.T) {
+	const (
+		issuerPath   = "gno.land/r/demo/reg_auth_issuer"
+		consumerPath = "gno.land/r/demo/reg_auth_consumer"
+	)
+	consumer := chain.PackageAddress(consumerPath)
+
+	testing.SetRealm(testing.NewCodeRealm(issuerPath))
+	_, ledger := grc721.NewToken("Authority", "AUTH", 0, cur)
+	urequire.NoError(t, ledger.Mint(alice, "1"))
+	urequire.NoError(t, ledger.Mint(alice, "2"))
+	key := Register(cross(cur), collection.NewCollection(ledger), "")
+	urequire.NoError(t, ledger.ImpersonateTeller(alice).Approve(0, cur, consumer, "1"))
+
+	testing.SetRealm(testing.NewCodeRealm(consumerPath))
+	teller := GetToken(key).RealmTeller(0, cur)
+	urequire.NoError(t, teller.TransferFrom(0, cur, alice, artist, "1"))
+	owner, err := MustGet(key).Token().OwnerOf("1")
+	urequire.NoError(t, err)
+	uassert.Equal(t, artist, owner)
+
+	uassert.ErrorContains(t, teller.TransferFrom(0, cur, alice, artist, "2"),
+		"caller is not token owner or approved")
+	owner, err = MustGet(key).Token().OwnerOf("2")
+	urequire.NoError(t, err)
+	uassert.Equal(t, alice, owner)
+}
+
 func TestRegisteredCollectionStaysLive(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_live"))
 	nft, ledger := collection.New("Live", "LIVE", 0, cur)
@@ -492,4 +529,5 @@ func TestRenderIndexPaginates(cur realm, t *testing.T) {
 
 	// A visitor cannot widen a page, so ?size= changes nothing.
 	urequire.Equal(t, first, Render("?size=1000"), "the page size is not the visitor's to set")
+	urequire.Equal(t, first, Render("?page=999"), "an unavailable page falls back to page 1")
 }
