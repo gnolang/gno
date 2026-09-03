@@ -26,48 +26,56 @@ func TestApplyOverrideOnNodeConfig(t *testing.T) {
 		"a duration in a nested section": {
 			override: Override{Key: "consensus.timeout_commit", Value: "2s"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, 2*time.Second, cfg.Consensus.TimeoutCommit)
 			},
 		},
 		"an int": {
 			override: Override{Key: "mempool.size", Value: "200"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, 200, cfg.Mempool.Size)
 			},
 		},
 		"an int64": {
 			override: Override{Key: "p2p.send_rate", Value: "1024"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, int64(1024), cfg.P2P.SendRate)
 			},
 		},
 		"a uint64": {
 			override: Override{Key: "p2p.max_num_inbound_peers", Value: "5"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, uint64(5), cfg.P2P.MaxNumInboundPeers)
 			},
 		},
 		"a bool the default leaves off": {
 			override: Override{Key: "consensus.skip_timeout_commit", Value: "true"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.True(t, cfg.Consensus.SkipTimeoutCommit)
 			},
 		},
 		"a string": {
 			override: Override{Key: "p2p.seeds", Value: "abc@1.2.3.4:26656"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, "abc@1.2.3.4:26656", cfg.P2P.Seeds)
 			},
 		},
 		"a list, split on commas": {
 			override: Override{Key: "rpc.cors_allowed_origins", Value: "a.example,b.example"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, []string{"a.example", "b.example"}, cfg.RPC.CORSAllowedOrigins)
 			},
 		},
 		"a list drops the empty items rather than keeping blanks": {
 			override: Override{Key: "rpc.cors_allowed_origins", Value: "a.example,,b.example,"},
 			check: func(t *testing.T, cfg *config.Config) {
+				t.Helper()
 				assert.Equal(t, []string{"a.example", "b.example"}, cfg.RPC.CORSAllowedOrigins)
 			},
 		},
@@ -103,30 +111,35 @@ func TestApplyOverrideOnGenesisParams(t *testing.T) {
 		"a named string type": {
 			override: Override{Key: "vm.code_submission_policy", Value: "inert"},
 			check: func(t *testing.T, _ *auth.Params, vmP *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, vm.CodeSubmissionPolicyInert, vmP.CodeSubmissionPolicy)
 			},
 		},
 		"a plain string": {
 			override: Override{Key: "vm.chain_domain", Value: "example.gno.land"},
 			check: func(t *testing.T, _ *auth.Params, vmP *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, "example.gno.land", vmP.ChainDomain)
 			},
 		},
 		"an int64": {
 			override: Override{Key: "auth.max_memo_bytes", Value: "128"},
 			check: func(t *testing.T, authP *auth.Params, _ *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, int64(128), authP.MaxMemoBytes)
 			},
 		},
 		"an address": {
 			override: Override{Key: "vm.storage_fee_collector", Value: addrA},
 			check: func(t *testing.T, _ *auth.Params, vmP *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, crypto.MustAddressFromString(addrA), vmP.StorageFeeCollector)
 			},
 		},
 		"a list of addresses": {
 			override: Override{Key: "vm.pkg_approvers", Value: addrA + "," + addrB},
 			check: func(t *testing.T, _ *auth.Params, vmP *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, []crypto.Address{
 					crypto.MustAddressFromString(addrA),
 					crypto.MustAddressFromString(addrB),
@@ -136,12 +149,14 @@ func TestApplyOverrideOnGenesisParams(t *testing.T) {
 		"a gas price": {
 			override: Override{Key: "auth.initial_gasprice", Value: "10ugnot/1gas"},
 			check: func(t *testing.T, authP *auth.Params, _ *vm.Params, _ *bank.Params) {
+				t.Helper()
 				assert.Equal(t, std.GasPrice{Gas: 1, Price: std.MustParseCoin("10ugnot")}, authP.InitialGasPrice)
 			},
 		},
 		"a list of strings": {
 			override: Override{Key: "bank.restricted_denoms", Value: "ugnot,foo"},
 			check: func(t *testing.T, _ *auth.Params, _ *vm.Params, bankP *bank.Params) {
+				t.Helper()
 				assert.Equal(t, []string{"ugnot", "foo"}, bankP.RestrictedDenoms)
 			},
 		},

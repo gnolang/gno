@@ -11,10 +11,10 @@ import (
 // callers must recover it. This is distinct from testscript.T which uses
 // runtime.Goexit().
 type TestingT interface {
-	Errorf(format string, args ...interface{})
-	Fatalf(format string, args ...interface{})
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
+	Errorf(format string, args ...any)
+	Fatalf(format string, args ...any)
+	Log(args ...any)
+	Logf(format string, args ...any)
 	TempDir() string
 	Cleanup(func())
 	FailNow()
@@ -56,7 +56,7 @@ func (s *SlogTestingT) runCleanups() {
 	}
 }
 
-func (s *SlogTestingT) Errorf(format string, args ...interface{}) {
+func (s *SlogTestingT) Errorf(format string, args ...any) {
 	s.logger.Error(fmt.Sprintf(format, args...))
 }
 
@@ -70,15 +70,15 @@ func (s *SlogTestingT) FailNow() {
 
 func (s *SlogTestingT) Helper() {}
 
-func (s *SlogTestingT) Log(args ...interface{}) {
+func (s *SlogTestingT) Log(args ...any) {
 	s.logger.Info(fmt.Sprint(args...))
 }
 
-func (s *SlogTestingT) Logf(format string, args ...interface{}) {
+func (s *SlogTestingT) Logf(format string, args ...any) {
 	s.logger.Info(fmt.Sprintf(format, args...))
 }
 
-func (s *SlogTestingT) Fatalf(format string, args ...interface{}) {
+func (s *SlogTestingT) Fatalf(format string, args ...any) {
 	s.logger.Error(fmt.Sprintf(format, args...))
 	s.FailNow()
 }

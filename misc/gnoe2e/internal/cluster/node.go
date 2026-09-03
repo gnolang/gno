@@ -329,7 +329,7 @@ func WaitForNodeReady(ctx context.Context, node *Node) error {
 			// boot from a dead one. Saying which it was is the difference
 			// between waiting longer and reading the node's stderr.
 			return fmt.Errorf("node %d exited before it was ready (%v)\n%s",
-				node.Index, node.WaitErr(), nodeStderrTail(node))
+				node.Index, node.WaitErr(), nodeStderrTail(node)) //nolint:errorlint // WaitErr is nil on a normal exit; %w prints %!w(<nil>)
 		case <-ticker.C:
 			info, err := rpcClient.ABCIInfo(ctx)
 			if err != nil {

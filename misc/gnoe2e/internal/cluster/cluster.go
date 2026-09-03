@@ -738,7 +738,7 @@ func WaitForFirstBlock(ctx context.Context, node *Node) error {
 			return fmt.Errorf("timeout waiting for the chain to commit its first block")
 		case <-node.Exited():
 			return fmt.Errorf("node %d exited before the chain produced a block (%v)\n%s",
-				node.Index, node.WaitErr(), nodeStderrTail(node))
+				node.Index, node.WaitErr(), nodeStderrTail(node)) //nolint:errorlint // WaitErr is nil on a normal exit; %w prints %!w(<nil>)
 		case <-ticker.C:
 			info, err := rpcClient.ABCIInfo(ctx)
 			if err != nil || info.Response.Error != nil {

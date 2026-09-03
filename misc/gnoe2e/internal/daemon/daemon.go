@@ -129,7 +129,7 @@ func (d *Daemon) waitReady(ctx context.Context, probe Probe, wait time.Duration)
 	ticker := time.NewTicker(readyPollInterval)
 	defer ticker.Stop()
 
-	lastErr := errors.New("probe never ran")
+	var lastErr error
 	for {
 		if err := probe(ctx); err == nil {
 			return nil
@@ -141,7 +141,7 @@ func (d *Daemon) waitReady(ctx context.Context, probe Probe, wait time.Duration)
 		case <-d.exited:
 			return d.exitedError()
 		case <-ctx.Done():
-			return fmt.Errorf("daemon %s: not ready after %s: %v\n%s",
+			return fmt.Errorf("daemon %s: not ready after %s: %w\n%s",
 				d.name, wait, lastErr, d.Output())
 		case <-ticker.C:
 		}
@@ -149,12 +149,12 @@ func (d *Daemon) waitReady(ctx context.Context, probe Probe, wait time.Duration)
 }
 
 func (d *Daemon) exitedError() error {
-	return fmt.Errorf("daemon %s: exited before it was ready (%v)\n%s",
+	return fmt.Errorf("daemon %s: exited before it was ready (%w)\n%s",
 		d.name, d.waitErr, d.Output())
 }
 
 func (d *Daemon) exitedAfterReadyError() error {
-	return fmt.Errorf("daemon %s: became ready, then exited (%v)\n%s",
+	return fmt.Errorf("daemon %s: became ready, then exited (%w)\n%s",
 		d.name, d.waitErr, d.Output())
 }
 

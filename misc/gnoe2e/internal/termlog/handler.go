@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -83,21 +84,22 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		if component != "" {
 			comp = colorCyan + "[" + component + "]" + colorReset + " "
 		}
-		line := fmt.Sprintf("%s %s%s", levelStr, comp, r.Message)
+		var line strings.Builder
+		line.WriteString(fmt.Sprintf("%s %s%s", levelStr, comp, r.Message))
 
 		// Append attrs from pre-resolved + record
 		r.Attrs(func(a slog.Attr) bool {
-			line += " " + colorGray + a.Key + "=" + colorReset + a.Value.String()
+			line.WriteString(" " + colorGray + a.Key + "=" + colorReset + a.Value.String())
 			return true
 		})
 		for _, a := range h.attrs {
 			if a.Key == "component" {
 				continue
 			}
-			line += " " + colorGray + a.Key + "=" + colorReset + a.Value.String()
+			line.WriteString(" " + colorGray + a.Key + "=" + colorReset + a.Value.String())
 		}
 
-		fmt.Fprintln(h.w, line)
+		fmt.Fprintln(h.w, line.String())
 	} else {
 		// Non-verbose: clean output focused on user-relevant info.
 		// Component prefix for context, then message + key attrs inline.

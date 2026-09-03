@@ -73,7 +73,7 @@ func RepeatCmd(cmds map[string]func(*testscript.TestScript, bool, []string)) fun
 		passed, failed := 0, 0
 		firstFailAt := -1
 
-		for i := 0; i < count; i++ {
+		for i := range count {
 			iterFailed := runCmdIteration(ts, cmdFn, false, subArgs)
 			if iterFailed {
 				failed++
@@ -180,7 +180,7 @@ func parseEventuallyArgs(args []string) (eventuallyArgs, error) {
 		// Compiled here so a malformed pattern is a usage error rather than a
 		// wait that quietly never matches.
 		if _, err := regexp.Compile(args[1]); err != nil {
-			return eventuallyArgs{}, fmt.Errorf("invalid %s pattern %q: %v", stdoutGateFlag, args[1], err)
+			return eventuallyArgs{}, fmt.Errorf("invalid %s pattern %q: %w", stdoutGateFlag, args[1], err)
 		}
 		p.stdout, args = args[1], args[2:]
 	}
