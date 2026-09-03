@@ -423,17 +423,39 @@ func TestRenderCollections(cur realm, t *testing.T) {
 	}
 }
 
-func TestRenderEscapesExtensionKind(cur realm, t *testing.T) {
+func TestRenderEscapesExtensionKinds(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/reg_escape"))
 	token, ledger := grc721.NewToken("Esc", "ESC", 0, cur)
-	view := &stubView{"a`\n# H\n`b", token.ID()}
-	ledger.RegisterExtension(view, view)
 	key := Register(cross(cur), collection.NewCollection(ledger), "esc")
 
-	urequire.False(t, strings.Contains(Render(""), "\n# H"),
-		"a registrant-chosen kind cannot write a heading into the index")
-	urequire.False(t, strings.Contains(Render(key), "\n# H"),
-		"nor into the collection's own page")
+	cases := []struct {
+		kind string
+		want string
+	}{
+		{"a`b", "``a`b``"},
+		{"```", "```` ``` ````"},
+		{"line\n# heading", "`line # heading`"},
+		{"line\rreturn", "`line return`"},
+		{"](http://evil)", "`](http://evil)`"},
+		{"# heading", "`# heading`"},
+		{"*bold*", "`*bold*`"},
+	}
+
+	for _, tc := range cases {
+		view := &stubView{tc.kind, token.ID()}
+		ledger.RegisterExtension(view, view)
+	}
+
+	for _, out := range []string{Render(""), Render(key)} {
+		for _, tc := range cases {
+			urequire.True(t, strings.Contains(out, tc.want),
+				"rendered kind should stay inside its code span: "+tc.kind)
+		}
+		urequire.False(t, strings.Contains(out, "\n# heading"),
+			"a kind cannot open a heading")
+		urequire.False(t, strings.Contains(out, "\r"),
+			"a kind cannot retain a carriage return")
+	}
 }
 
 func TestOneTokenTakesOneKey(cur realm, t *testing.T) {
