@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
@@ -90,6 +92,31 @@ func TestOracleKeyFollowsWhatTheScenariosAskFor(t *testing.T) {
 		imported, err := kb.GetByName(gpaoKeyName)
 		require.NoError(t, err)
 		assert.Equal(t, ids.gpaoAddr, imported.GetAddress())
+	})
+}
+
+// A run with -timeout 0 is a run with no deadline, the way `go test -timeout 0`
+// is. Handing zero to context.WithTimeout instead yields a context that is
+// already past its deadline, which takes every node process down before the
+// first scenario boots.
+func TestRunContextTreatsZeroTimeoutAsNoLimit(t *testing.T) {
+	t.Run("zero means no deadline", func(t *testing.T) {
+		ctx, cancel := runContext(context.Background(), 0)
+		defer cancel()
+
+		require.NoError(t, ctx.Err())
+		_, ok := ctx.Deadline()
+		assert.False(t, ok, "zero must not set a deadline at all")
+	})
+
+	t.Run("the default is bounded", func(t *testing.T) {
+		ctx, cancel := runContext(context.Background(), defaultRunCfg().timeout)
+		defer cancel()
+
+		require.NoError(t, ctx.Err())
+		deadline, ok := ctx.Deadline()
+		require.True(t, ok)
+		assert.WithinDuration(t, time.Now().Add(10*time.Minute), deadline, time.Minute)
 	})
 }
 

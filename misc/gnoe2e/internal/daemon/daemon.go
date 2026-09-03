@@ -148,14 +148,16 @@ func (d *Daemon) waitReady(ctx context.Context, probe Probe, wait time.Duration)
 	}
 }
 
+// The wait error is nil when the process exits cleanly, and %w on nil prints
+// %!w(<nil>) in place of the exit status.
 func (d *Daemon) exitedError() error {
-	return fmt.Errorf("daemon %s: exited before it was ready (%w)\n%s",
-		d.name, d.waitErr, d.Output())
+	return fmt.Errorf("daemon %s: exited before it was ready (%v)\n%s",
+		d.name, d.waitErr, d.Output()) //nolint:errorlint // nil on a clean exit; %w prints %!w(<nil>)
 }
 
 func (d *Daemon) exitedAfterReadyError() error {
-	return fmt.Errorf("daemon %s: became ready, then exited (%w)\n%s",
-		d.name, d.waitErr, d.Output())
+	return fmt.Errorf("daemon %s: became ready, then exited (%v)\n%s",
+		d.name, d.waitErr, d.Output()) //nolint:errorlint // nil on a clean exit; %w prints %!w(<nil>)
 }
 
 // Stop terminates the process and waits for it to be reaped. Safe to call more

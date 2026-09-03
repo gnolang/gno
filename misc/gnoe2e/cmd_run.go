@@ -88,7 +88,7 @@ func (c *runCfg) clusterOverrides() integ.ClusterOverrides {
 
 func (c *runCfg) validate() error {
 	if c.mnemonic == "" {
-		return fmt.Errorf("--mnemonic is required")
+		return fmt.Errorf("-mnemonic is required")
 	}
 	return c.cluster.Validate()
 }
@@ -104,7 +104,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.keyName, "keyname", c.keyName, "key name for test account")
 	fs.StringVar(&c.mnemonic, "mnemonic", c.mnemonic, "mnemonic for key derivation")
 	fs.StringVar(&c.gpaoMnemonic, "gpao-mnemonic", c.gpaoMnemonic, "mnemonic for the package-approver oracle key")
-	fs.DurationVar(&c.timeout, "timeout", c.timeout, "maximum test duration")
+	fs.DurationVar(&c.timeout, "timeout", c.timeout, "maximum duration of the whole run; 0 for no limit")
 	fs.BoolVar(&c.verbose, "verbose", false, "verbose output")
 	c.cluster.RegisterFlags(fs)
 }
@@ -140,15 +140,29 @@ func newRunCmd(_ commands.IO) *commands.Command {
 			ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 			defer cancel()
 
-			// The whole run is bounded, not each scenario: a suite that hangs
-			// has to end by itself, and a scenario booting its own cluster has
-			// no deadline of its own to hit.
-			ctx, cancel = context.WithTimeout(ctx, cfg.timeout)
+			ctx, cancel = runContext(ctx, cfg.timeout)
 			defer cancel()
 
 			return execRun(ctx, cfg, args)
 		},
 	)
+}
+
+// runContext bounds the whole run rather than each scenario: a suite that
+// hangs has to end by itself, and a scenario booting its own cluster has no
+// deadline of its own to hit.
+//
+// The node processes are started from this context, so reaching the deadline
+// kills them and the scenario they were serving fails. It does not reach the
+// script itself: one parked in sleep, or waiting inside a gnokey call, runs to
+// its own end and fails on the cluster that went away under it.
+//
+// A timeout of zero means no limit, as it does for `go test -timeout`.
+func runContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 // deriveGpaoKey derives the oracle's signing key from the run's oracle
@@ -405,7 +419,7 @@ func prepareScenario(
 		ScriptPath:  scen.Path,
 		RPCAddr:     cl.RPCAddr,
 		RPCAddrs:    rpcAddrs,
-		ChainID:     cfg.cluster.Genesis.ChainID,
+		ChainID:     clusterCfg.Genesis.ChainID,
 		GnoHome:     ids.gnoHome,
 		UserAddr:    ids.userAddr.String(),
 		KeyName:     ids.keyName,

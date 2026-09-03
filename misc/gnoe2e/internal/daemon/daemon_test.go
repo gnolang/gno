@@ -42,6 +42,11 @@ func TestMain(m *testing.M) {
 		time.Sleep(100 * time.Millisecond)
 		fmt.Fprintln(os.Stderr, "fake: ready, then the node vanished")
 		os.Exit(3)
+	case "exit_clean":
+		// Exits 0, so cmd.Wait reports nil and the supervisor has no exit
+		// status to quote.
+		fmt.Fprintln(os.Stderr, "fake: nothing to serve")
+		os.Exit(0)
 	case "silent":
 		time.Sleep(time.Hour)
 	default:
@@ -105,6 +110,22 @@ func TestStartFailsWhenProcessExitsAfterReady(t *testing.T) {
 	require.NotContains(t, err.Error(), "exited before it was ready",
 		"the process WAS ready before it died; that message would send a reader looking for the wrong fault")
 	require.Contains(t, err.Error(), "fake: ready, then the node vanished",
+		"the error must carry the process output, or a dead daemon is undiagnosable")
+}
+
+// A process that exits 0 gives cmd.Wait a nil error, and %w on nil renders
+// %!w(<nil>) -- in the middle of the one message an author reads to find out
+// why the daemon never came up.
+func TestStartErrorSurvivesACleanExit(t *testing.T) {
+	readyFile := filepath.Join(t.TempDir(), "never")
+
+	_, err := Start(context.Background(), fakeConfig(t, "exit_clean", fileProbe(readyFile)))
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exited before it was ready")
+	require.NotContains(t, err.Error(), "%!w",
+		"a nil wait error must not leave a broken format verb where the exit status goes")
+	require.Contains(t, err.Error(), "fake: nothing to serve",
 		"the error must carry the process output, or a dead daemon is undiagnosable")
 }
 

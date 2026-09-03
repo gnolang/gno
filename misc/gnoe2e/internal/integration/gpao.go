@@ -81,7 +81,7 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 		ts.Fatalf("gpao: already running; stop it first")
 	}
 	if r.cfg.BinaryPath == "" {
-		ts.Fatalf("gpao: no binary available; the scenario's cluster section must declare oracle: true, with an inert code-submission policy, for one to be provisioned")
+		ts.Fatalf("gpao: no binary available; the scenario's cluster section must declare oracle: true for one to be provisioned")
 	}
 
 	port, err := cluster.FindAvailablePort()

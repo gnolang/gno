@@ -13,7 +13,7 @@ import (
 )
 
 // GnokeyTSCmd returns a testscript command handler for gnokey.
-// It auto-injects --home, --remote, --chain-id, and --insecure-password-stdin.
+// It auto-injects -home, -insecure-password-stdin and -remote.
 func GnokeyTSCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		gnoHomeDir := ts.Getenv("GNOHOME")

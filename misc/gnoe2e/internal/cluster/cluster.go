@@ -80,7 +80,7 @@ func (g *GenesisConfig) RegisterFlags(fs *flag.FlagSet) {
 		g.CodeSubmissionPolicy = vm.CodeSubmissionPolicy(v)
 		return nil
 	})
-	fs.Func("pkg-approver", "address allowed to enable inert packages (repeatable)", func(v string) error {
+	fs.Func("pkg-approver", "address allowed to enable inert packages (repeatable; run keeps only the last)", func(v string) error {
 		addr, err := crypto.AddressFromBech32(v)
 		if err != nil {
 			return fmt.Errorf("invalid -pkg-approver %q: %w", v, err)
@@ -157,6 +157,11 @@ type Cluster struct {
 	BinaryPath string
 	TempDir    string
 
+	// logger is the one ClusterConfig supplied, kept so teardown reports
+	// through the run's own handler rather than slog.Default(). nil on a
+	// Cluster that was not built by StartCluster.
+	logger *slog.Logger
+
 	// bootLog captures stdout+stderr of the gnoland process(es) started
 	// by Boot/BootFromExistingDataDir/BootFromGenesis. nil before any
 	// boot. See BootLogReader for read access semantics.
@@ -212,7 +217,7 @@ func (c *Cluster) BootLogReader() io.Reader {
 // Cleanup stops all nodes and cleans up resources.
 // Node logs remain in TempDir/validator_N/{stdout,stderr}.log until TempDir is removed.
 func (c *Cluster) Cleanup() {
-	CleanupNodes(c.Validators)
+	CleanupNodes(c.logger, c.Validators)
 	if c.TempDir != "" {
 		os.RemoveAll(c.TempDir)
 	}
@@ -443,7 +448,7 @@ func (c *Cluster) BootFromExistingDataDir(ctx context.Context, dataDir, binary s
 		// failing (e.g. WaitForNodeReady timed out). Tear down the node
 		// so the process and open log files don't leak past this failed
 		// boot. CleanupNodes is safe on a node whose Process is nil.
-		CleanupNodes([]*Node{node})
+		CleanupNodes(c.logger, []*Node{node})
 		return fmt.Errorf("start gnoland: %w", err)
 	}
 
@@ -563,7 +568,7 @@ func (c *Cluster) BootFromGenesis(ctx context.Context, genesisPath, binary, vali
 		// before failing (e.g. WaitForNodeReady timed out). Tear down the
 		// node so the process and open log files don't leak past this
 		// failed boot. CleanupNodes is safe on a node whose Process is nil.
-		CleanupNodes([]*Node{node})
+		CleanupNodes(c.logger, []*Node{node})
 		return fmt.Errorf("start gnoland: %w", err)
 	}
 
@@ -650,7 +655,7 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 	validators := make([]*Node, cfg.NumValidators)
 	defer func() {
 		if retErr != nil {
-			CleanupNodes(validators)
+			CleanupNodes(logger, validators)
 		}
 	}()
 
@@ -709,6 +714,7 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		RPCAddr:    validators[0].RPCAddr,
 		BinaryPath: binaryPath,
 		TempDir:    tempDir,
+		logger:     logger,
 	}, nil
 }
 

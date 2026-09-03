@@ -4,10 +4,10 @@
 # follows blocks, verifies packages, and reports on them. Nothing it approves
 # ever goes live.
 #
-# Genesis names the test user as the sole approver (see the Makefile target),
-# so the oracle's own key is deliberately absent from that set while still
-# being funded and held in the keybase -- exactly the state a rotation leaves
-# behind.
+# Genesis names the test user as the sole approver, from this file's own
+# "pkg-approver: user", so the oracle's own key is deliberately absent from
+# that set while still being funded and held in the keybase -- exactly the
+# state a rotation leaves behind.
 #
 # The result worth having is what does NOT happen. gpao pre-flights every
 # enable with a simulate, and an unauthorized one comes back carrying an

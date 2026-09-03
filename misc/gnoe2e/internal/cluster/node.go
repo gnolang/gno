@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -394,17 +395,27 @@ func StartNode(ctx context.Context, binaryPath string, node *Node, args []string
 	return nil
 }
 
-// CleanupNodes terminates all node processes.
+// CleanupNodes terminates all node processes. A nil logger reports through
+// slog.Default().
 //
 // Waits through Node.Exited rather than Process.Wait: since readiness polling
 // began reaping, every started node already has a waiter, and a second
 // concurrent wait on the same process is not something os.Process supports.
-func CleanupNodes(nodes []*Node) {
+func CleanupNodes(logger *slog.Logger, nodes []*Node) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	for _, node := range nodes {
 		if node.Process != nil {
-			if err := node.Process.Signal(os.Interrupt); err != nil {
-				if err := node.Process.Kill(); err != nil {
-					slog.Error("failed to kill node process", "node_index", node.Index, "error", err)
+			// A node that has already been reaped -- one the scenario halted,
+			// or one the run's context took down -- answers os.ErrProcessDone
+			// to both the signal and the kill. Killing it again and reporting
+			// the second refusal would make every deliberate stop look like a
+			// teardown failure.
+			err := node.Process.Signal(os.Interrupt)
+			if err != nil && !errors.Is(err, os.ErrProcessDone) {
+				if err := node.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+					logger.Error("failed to kill node process", "node_index", node.Index, "error", err)
 				}
 			}
 			<-node.Exited()

@@ -36,7 +36,7 @@ func NewLocalBuilder() *LocalBuilder {
 	return &LocalBuilder{}
 }
 
-func (b *LocalBuilder) Build(ctx context.Context, opts BuildOpts) (string, error) {
+func (b *LocalBuilder) Build(ctx context.Context, opts BuildOpts) (_ string, retErr error) {
 	goos := opts.GOOS
 	if goos == "" {
 		goos = runtime.GOOS
@@ -52,11 +52,18 @@ func (b *LocalBuilder) Build(ctx context.Context, opts BuildOpts) (string, error
 
 	outDir := opts.OutDir
 	if outDir == "" {
-		var err error
-		outDir, err = os.MkdirTemp("", "gnoe2e-build-*")
+		dir, err := os.MkdirTemp("", "gnoe2e-build-*")
 		if err != nil {
 			return "", fmt.Errorf("create build dir: %w", err)
 		}
+		// A failed build returns no path, so nothing can ever name this
+		// directory again. Whoever created it owns removing it.
+		defer func() {
+			if retErr != nil {
+				os.RemoveAll(dir)
+			}
+		}()
+		outDir = dir
 	}
 	return b.buildFromCheckout(ctx, outDir, goos, goarch, binary)
 }

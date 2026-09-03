@@ -1,7 +1,9 @@
 package cluster
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"os/exec"
 	"runtime"
 	"testing"
@@ -41,6 +43,31 @@ func TestWaitForNodeReadyAbortsWhenTheProcessHasExited(t *testing.T) {
 		"the error has to name the process death, not a timeout")
 	require.Less(t, elapsed, 30*time.Second,
 		"must abort on process death rather than waiting out the readiness budget")
+}
+
+// TestCleanupNodesIsSilentWhenTheProcessAlreadyExited pins that tearing down a
+// node whose process is already gone reports nothing.
+//
+// Signal and Kill both answer os.ErrProcessDone once a process has been
+// reaped. Reading a failed signal as a reason to kill, and a failed kill as a
+// fault worth logging, turns every already-stopped node into an ERROR line:
+// a scenario that halts its own cluster then ends by printing failures it
+// caused on purpose, and a reader learns to skip that line.
+func TestCleanupNodesIsSilentWhenTheProcessAlreadyExited(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process signals not supported on windows")
+	}
+
+	cmd := exec.Command("true")
+	require.NoError(t, cmd.Start())
+	require.NoError(t, cmd.Wait())
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	CleanupNodes(logger, []*Node{{Index: 0, DataDir: t.TempDir(), Process: cmd.Process}})
+
+	assert.Empty(t, logs.String(), "a node that has already stopped is not a failure")
 }
 
 // TestNodeSetup tests the basic node setup functionality

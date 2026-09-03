@@ -54,8 +54,16 @@ func execServe(ctx context.Context, cfg *serveCfg) error {
 	logger := slog.New(termlog.NewHandler(os.Stderr, cfg.verbose))
 	cfg.ClusterConfig.Logger = logger.With("component", "cluster")
 
+	// The binary's directory is this command's, so the ~100 MB gnoland it
+	// builds goes away with the cluster it was built for.
+	binDir, err := os.MkdirTemp("", "gnoe2e-bin-*")
+	if err != nil {
+		return fmt.Errorf("create binary dir: %w", err)
+	}
+	defer os.RemoveAll(binDir)
+
 	bldr := builder.NewLocalBuilder()
-	gnolandBin, err := bldr.Build(ctx, builder.BuildOpts{})
+	gnolandBin, err := bldr.Build(ctx, builder.BuildOpts{OutDir: binDir})
 	if err != nil {
 		return fmt.Errorf("build gnoland: %w", err)
 	}

@@ -28,13 +28,18 @@ func TestLocalBuilder_BuildFromCheckout(t *testing.T) {
 	assert.NotZero(t, info.Mode()&0111, "binary should be executable")
 }
 
-func TestLocalBuilder_UnknownBinaryError(t *testing.T) {
-	b := builder.NewLocalBuilder()
+// A build with no OutDir allocates its own temp directory, and the caller
+// never learns its name. A failure that leaves it behind therefore leaves a
+// directory nothing can ever find again, one per failed build.
+func TestBuildWithoutOutDirLeavesNothingBehindOnFailure(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
 
-	ctx := context.Background()
-	_, err := b.Build(ctx, builder.BuildOpts{Binary: "bogus"})
+	_, err := builder.NewLocalBuilder().Build(context.Background(), builder.BuildOpts{Binary: "bogus"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown binary")
+
+	left, err := filepath.Glob(filepath.Join(os.TempDir(), "gnoe2e-build-*"))
+	require.NoError(t, err)
+	assert.Empty(t, left, "the build directory it created is its own to remove")
 }
 
 func TestBuildGpaoFromCheckout(t *testing.T) {
