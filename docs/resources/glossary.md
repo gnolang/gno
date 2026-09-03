@@ -126,8 +126,8 @@ current
 [gas price](./gas-fees.md#gas-price).
 
 ### Gas Wanted
-The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit fails and its effects are rolled back; the gas fee is still
+The maximum amount of gas a transaction is allowed to consume. A transaction
+that exceeds it fails and its effects are rolled back. The gas fee is still
 charged in full once the transaction is in a block.
 
 ### Gno

@@ -214,5 +214,5 @@ gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulatio
 not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
 ```
 - The message stores more bytes than your deposit cap covers at 100ugnot per
-  byte. Raise it with `-max-deposit`, or store less. The cap is the chain
-  default, `100000000ugnot`, unless `-max-deposit` set it lower.
+  byte. Raise it with `-max-deposit`, or store less. Without the flag the cap
+  is the chain's own ceiling, `600000000ugnot` on staging and mainnet today.

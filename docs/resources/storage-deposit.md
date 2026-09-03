@@ -17,8 +17,10 @@ Storing data → GNOT locked
 Deleting data → GNOT refunded
 
 Deleting means the realm's code freeing data it holds, through whatever
-functions it exposes. A package's source cannot be deleted at all, so the
-deposit an `AddPkg` locks for the code stays locked. The exception is a
+functions it exposes. On a network where GNOT is locked against transfers,
+mainnet today, the refund goes to the chain's storage fee collector instead of
+to the sender. A package's source cannot be deleted at all, so the deposit an
+`AddPkg` locks for the code stays locked. The exception is a
 [private](configuring-gno-projects.md) package, which can be re-uploaded: a
 smaller version releases the difference.
 
@@ -34,10 +36,12 @@ Below is an example of how the storage fee settlement flow works:
 
 1. Start with a message call (e.g. `AddPkg`)
 2. Specify optional `-max-deposit` to limit the GNOT that can be locked for storage.
-   Leaving it out does not remove the ceiling: the chain applies its own default,
-   `100000000ugnot`, which buys one megabyte of state at the default price of
-   `100ugnot` per byte. A message
-   that would store more is refused, and `-max-deposit` is how you raise the cap.
+   Leaving it out does not remove the ceiling: the chain applies its own, the
+   `default_deposit` parameter. The code ships it as `100000000ugnot`, one
+   megabyte of state at `100ugnot` per byte, and staging and mainnet both set
+   `600000000ugnot` today. A message that would store more is refused, and
+   `-max-deposit` is how you raise the cap. Read a network's value with
+   `gnokey query params/vm:p:default_deposit -remote <rpc>`.
 3. The storage delta is calculated by the GnoVM (how much it grew or shrunk).
 4. The system locks or refunds GNOT accordingly.
 

@@ -243,7 +243,8 @@ Three flags decide what a transaction costs you:
   [storage deposit](../resources/storage-deposit.md), the GNOT locked against
   bytes your transaction adds. The deposit is locked rather than spent, but it
   comes out of your balance just like the fee does. Omit the flag and the chain
-  caps it at `100000000ugnot`.
+  applies its own ceiling: `100000000ugnot` on a local chain, `600000000ugnot`
+  on staging and mainnet today.
 
 The first two are tied together: the chain accepts the transaction when
 `gas-fee` divided by `gas-wanted` is at least the network's gas price. That
@@ -279,8 +280,8 @@ TX HASH:    yBwJPI1anzP44QZMLV6Sae6SZsrLqK8UhZWUOyd5T48=
 
 `TOTAL TX COST` is the fee plus the [storage deposit](../resources/storage-deposit.md)
 the chain locked for the few bytes `count` grew by. Despite its label, `STORAGE
-FEE` is that deposit: locked against those bytes, not spent, and released if the
-realm ever frees them. The gas fee is spent.
+FEE` is that deposit: locked against those bytes, not spent. The gas fee is
+spent.
 
 The leading `(1 int)` is `Increment`'s return value. Reload the realm
 page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep

@@ -166,8 +166,8 @@ TX HASH:    MpJoHvAHfFhKRfLANopZl4N5w59Vi7+IzT86IeT+uCY=
 ```
 
 `STORAGE FEE` is the [storage deposit](storage-deposit.md) locked against the
-ten bytes the counter grew by, released if the realm ever frees them;
-`TOTAL TX COST` is the gas fee plus that deposit.
+ten bytes the counter grew by, and `TOTAL TX COST` is the gas fee plus that
+deposit.
 
 Refresh `http://localhost:8888` to see the updated `Render()` output. The
 `devtest` key works out of the box because it's premined (see above); swap it
