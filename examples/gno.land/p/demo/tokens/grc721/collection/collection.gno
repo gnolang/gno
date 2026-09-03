@@ -60,11 +60,16 @@ func (c *Collection) Extension(kind string) (grc721.ExtensionView, bool) {
 func (c *Collection) HasExtension(kind string) bool { return c.exts.Has(kind) }
 
 func (c *Collection) Kinds() []string {
+	return c.KindsUpTo(0)
+}
+
+// KindsUpTo returns at most limit sorted kinds. A non-positive limit returns all kinds.
+func (c *Collection) KindsUpTo(limit int) []string {
 	ks := []string{}
 
 	c.exts.Iterate("", "", func(k string, _ any) bool {
 		ks = append(ks, k)
-		return false
+		return limit > 0 && len(ks) == limit
 	})
 
 	return ks

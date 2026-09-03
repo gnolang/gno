@@ -49,7 +49,12 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 		panic(grc721.ErrSpoofedRealm)
 	}
 
-	rlmPath := cur.Previous().PkgPath()
+	prev := cur.Previous()
+	if prev.IsUser() {
+		panic("grc721reg: registration requires a persistent realm")
+	}
+
+	rlmPath := prev.PkgPath()
 	// Token.ID() == key + "." + <id>. Keying on the token's own symbol instead
 	// of the caller-chosen slug verifies realm and symbol in one check, and
 	// holds a collection to a single entry whose suffix is the real symbol.
@@ -62,8 +67,6 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 		panic("grc721reg: collection already registered")
 	}
 
-	registry.Set(key, col)
-
 	attrs := []string{
 		"token_path", key,
 		"token_id", token.ID(),
@@ -75,7 +78,7 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	// One attribute per kind: a joined list splits wrongly on a kind that
 	// carries the separator. Both bounds are checked here so an oversized set
 	// fails with the registry's name on it rather than the event's.
-	kinds := col.Kinds()
+	kinds := col.KindsUpTo(maxEventKinds + 1)
 	if len(kinds) > maxEventKinds {
 		panic("grc721reg: too many extensions")
 	}
@@ -88,6 +91,7 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 		attrs = append(attrs, "extension", k)
 	}
 
+	registry.Set(key, col)
 	chain.Emit(RegisterEvent, attrs...)
 
 	return key
@@ -182,7 +186,11 @@ func renderIndex(path string) string {
 		page = p.GetPage(1)
 	}
 
-	if page.TotalItems == 0 {
+	if len(page.Items) == 0 && page.TotalItems > 0 {
+		page = p.GetPage(1)
+	}
+
+	if len(page.Items) == 0 {
 		return "No registered collection."
 	}
 
@@ -234,7 +242,7 @@ func renderCollection(key string) string {
 // delimiter wide enough to outscan the content, which hand-escaping cannot do
 // inside a code span.
 func extensionBadges(v *collection.Collection) string {
-	kinds := v.Kinds()
+	kinds := v.KindsUpTo(maxBadges + 1)
 	if len(kinds) == 0 {
 		return "_core only_"
 	}
