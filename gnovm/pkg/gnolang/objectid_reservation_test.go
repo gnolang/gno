@@ -245,8 +245,6 @@ func TestObjectID_SharedRealmTimeModelNeverCollides(t *testing.T) {
 }
 
 func TestObjectID_RealmTimeOverflowGuard(t *testing.T) {
-	t.Skip("assignNewObjectID has no overflow guard; enable when the production guard is added")
-
 	rlm := NewRealm("gno.land/r/demo/objid_reservation")
 	rlm.Time = math.MaxUint64
 	alloc := NewAllocator(math.MaxInt64)
@@ -254,5 +252,8 @@ func TestObjectID_RealmTimeOverflowGuard(t *testing.T) {
 	alloc.currentRealmPath = rlm.Path
 	object := alloc.NewStruct(nil, nil)
 
+	// Exhausted realm time must fail without wrapping or finalizing the object ID.
 	require.Panics(t, func() { rlm.assignNewObjectID(nil, object) })
+	require.Equal(t, uint64(math.MaxUint64), rlm.Time)
+	require.False(t, object.GetObjectID().IsFinalized())
 }

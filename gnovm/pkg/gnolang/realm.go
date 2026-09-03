@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"sync"
 
@@ -2025,6 +2026,9 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {
 		targetRlm = rlm.touchForeignRealm(store, oid.PkgID)
+	}
+	if targetRlm.Time == math.MaxUint64 {
+		panic("realm time overflow")
 	}
 	targetRlm.Time++
 	oo.SetNewTime(targetRlm.Time)

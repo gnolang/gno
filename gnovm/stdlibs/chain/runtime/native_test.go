@@ -22,7 +22,9 @@ func TestNewRealmID(t *testing.T) {
 	iavlStore := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
 	store := gno.NewStore(gno.NewAllocator(math.MaxInt64), baseStore, iavlStore)
 	pkgPath := "gno.land/r/demo/realm_id"
-	store.SetPackageRealm(gno.NewRealm(pkgPath))
+	rlm := gno.NewRealm(pkgPath)
+	rlm.Time = 1 // An existing owner was finalized at time 1.
+	store.SetPackageRealm(rlm)
 
 	baseTx := baseStore.CacheWrap()
 	iavlTx := iavlStore.CacheWrap()
@@ -35,18 +37,33 @@ func TestNewRealmID(t *testing.T) {
 
 	first := NewRealmID(m)
 	second := NewRealmID(m)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:1", first)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:2", second)
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:2", first)
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:3", second)
 	require.NotEqual(t, first, second)
+	require.Equal(t, uint64(3), m.Realm.Time)
 	var oid gno.ObjectID
 	require.Error(t, oid.UnmarshalAmino(first))
+
+	// Object finalization consumes the next value from the same realm clock.
+	alloc := gno.NewAllocator(math.MaxInt64)
+	owner := alloc.NewStruct(nil, nil)
+	owner.SetPkgID(m.Realm.ID)
+	owner.SetNewTime(1)
+	object := alloc.NewStruct(nil, nil)
+	object.SetPkgID(m.Realm.ID)
+	object.SetOwner(owner)
+	object.IncRefCount()
+	m.Realm.MarkNewReal(object)
+	m.Realm.FinalizeRealmTransaction(tx)
+	require.Equal(t, uint64(4), m.Realm.Time)
+	require.Equal(t, uint64(4), object.GetObjectID().NewTime)
 
 	tx.Write()
 	baseTx.Write()
 	iavlTx.Write()
 
 	fresh := gno.NewStore(gno.NewAllocator(math.MaxInt64), baseStore, iavlStore)
-	require.Equal(t, uint64(2), fresh.GetPackageRealm(pkgPath).Time)
+	require.Equal(t, uint64(4), fresh.GetPackageRealm(pkgPath).Time)
 
 	baseTx = baseStore.CacheWrap()
 	iavlTx = iavlStore.CacheWrap()
@@ -56,7 +73,7 @@ func TestNewRealmID(t *testing.T) {
 		Context: execctx.ExecContext{RealmIDEnabled: true},
 	})
 	m.Realm = tx.GetPackageRealm(pkgPath)
-	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:3", NewRealmID(m))
+	require.Equal(t, "gno:realm-id:0510954b76375c303d02cacf694f6135b1adc474:5", NewRealmID(m))
 }
 
 func TestNewRealmIDPanicsInQueryContext(t *testing.T) {
