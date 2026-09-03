@@ -1,0 +1,103 @@
+# A CallerTeller obtained through the collection facade (NFT.CallerTeller) is
+# confined to the token's own realm, same as one taken from the raw ledger.
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/p/demo/tokens/grc721/collection
+loadpkg gno.land/r/test/leakycol $WORK/leakycol
+loadpkg gno.land/r/test/ncolattack $WORK/ncolattack
+
+gnoland start
+
+# The collection mints token "1" to the signing user.
+gnokey maketx call -pkgpath gno.land/r/test/leakycol -func MintTo -args $test1_user_addr -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/leakycol -func OwnerOf -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout $test1_user_addr
+
+## The leaked teller is refused from a foreign realm.
+! gnokey maketx call -pkgpath gno.land/r/test/ncolattack -func Pull -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'frame-relative teller used outside the token.s realm'
+
+! gnokey maketx call -pkgpath gno.land/r/test/ncolattack -func GrabAll -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'frame-relative teller used outside the token.s realm'
+
+## Ownership is unchanged.
+gnokey maketx call -pkgpath gno.land/r/test/leakycol -func OwnerOf -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout $test1_user_addr
+
+## The same teller still works at home.
+gnokey maketx call -pkgpath gno.land/r/test/leakycol -func ApproveHome -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- leakycol/gnomod.toml --
+module = "gno.land/r/test/leakycol"
+gno = "0.9"
+-- leakycol/leakycol.gno --
+package leakycol
+
+import (
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/collection"
+)
+
+var (
+	nft *collection.NFT
+
+	// Exported on purpose to model the value leak, via NFT.CallerTeller.
+	Teller grc721.Teller
+)
+
+func init(cur realm) {
+	nft, _ = collection.New("Leaky", "LEAK", 0, cur)
+	Teller = nft.CallerTeller()
+}
+
+func MintTo(cur realm, to address, tid string) {
+	if err := nft.Mint(to, grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+func OwnerOf(cur realm, tid string) string {
+	owner, err := nft.Token().OwnerOf(grc721.TokenID(tid))
+	if err != nil {
+		panic(err)
+	}
+	return owner.String()
+}
+
+func ApproveHome(cur realm, tid string) {
+	if err := Teller.Approve(0, cur, chainAddr(), grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+func chainAddr() address { return address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") }
+
+-- ncolattack/gnomod.toml --
+module = "gno.land/r/test/ncolattack"
+gno = "0.9"
+-- ncolattack/ncolattack.gno --
+package ncolattack
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/r/test/leakycol"
+)
+
+func Pull(cur realm, tid string) {
+	victim := cur.Previous().Address()
+	me := chain.PackageAddress("gno.land/r/test/ncolattack")
+	if err := leakycol.Teller.TransferFrom(0, cur, victim, me, grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+func GrabAll(cur realm) {
+	me := chain.PackageAddress("gno.land/r/test/ncolattack")
+	if err := leakycol.Teller.SetApprovalForAll(0, cur, me, true); err != nil {
+		panic(err)
+	}
+}
