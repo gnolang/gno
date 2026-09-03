@@ -790,7 +790,10 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			m.PushValue(typedString(arg0.TV.GetString()))
+			// The receiver's text is untracked VM-internal (ID 0); the
+			// moment user code materializes it as a string, mint it so it
+			// is charged and tracked like any other user-visible string.
+			m.PushValue(TypedValue{T: StringType, V: m.Alloc.NewString(arg0.TV.GetString())})
 		},
 	)
 
