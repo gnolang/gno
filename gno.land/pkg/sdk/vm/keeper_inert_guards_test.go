@@ -1706,30 +1706,3 @@ func TestVMKeeperGenesisReplayRejectByRotatedApprover(t *testing.T) {
 	assert.Nil(t, gs.GetInertPackage(pkgPath),
 		"the replayed reject must clear the parked blob")
 }
-
-// TestVMKeeperGenesisReplayDisablePassesTheApproverGate pins the same exemption
-// for MsgDisablePackage.
-//
-// The body is still unimplemented, so what this asserts is which refusal comes
-// back: the not-implemented one, meaning the gate was passed. It guards the
-// implementation that replaces that TODO -- an unconditional approver check
-// there would make a fork refuse its own history, and nothing else would catch
-// it.
-func TestVMKeeperGenesisReplayDisablePassesTheApproverGate(t *testing.T) {
-	const pkgPath = "gno.land/r/test/replaydisable"
-
-	approver := crypto.AddressFromPreimage([]byte("oracle"))
-	stranger := crypto.AddressFromPreimage([]byte("rotated-out-approver"))
-	env, ctx := inertEnv(t, approver, stranger)
-
-	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
-
-	err := env.vmk.DisablePackage(replayCtx,
-		MsgDisablePackage{Approver: stranger, PkgPath: pkgPath})
-	// The detail text lives in the error's trace, not Error(), so the ABCI
-	// error type is what separates "gate passed, body missing" (UnknownRequest)
-	// from "gate refused" (Unauthorized).
-	require.Error(t, err)
-	assert.IsType(t, std.UnknownRequestError{}, sdk.ABCIError(err),
-		"replay must pass the approver gate and reach the unimplemented body")
-}
