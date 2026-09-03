@@ -469,7 +469,7 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 // VisitAssociated is a no-op: the backing bytes are raw data, not a
-// Value. GCVisitorFn counts them via the allocator's string ranges.
+// Value. GCVisitorFn counts them once per mint ID.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }

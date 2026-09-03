@@ -110,11 +110,6 @@ type StringValue struct {
 // state, re-minted on load by fillTypesOfValue.
 func (sv StringValue) MarshalAmino() (string, error) { return sv.Str, nil }
 
-// contentKey returns sv with its mint identity (ID/Extent) cleared, so
-// two StringValues with equal content compare equal under Go ==. Use it
-// wherever a StringValue is a Go map key or compared structurally.
-func (sv StringValue) contentKey() StringValue { return StringValue{Str: sv.Str} }
-
 // UnmarshalAmino restores content only; the load path re-mints identity.
 func (sv *StringValue) UnmarshalAmino(s string) error {
 	*sv = StringValue{Str: s}
@@ -3353,6 +3348,13 @@ func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue{Str: s}
 	return tv
+}
+
+// newTypedString is the tracked counterpart of typedString: the string is
+// minted through alloc so it is charged and carries an ID for the GC's
+// byte recount. Use it for any string that user code can hold.
+func newTypedString(alloc *Allocator, s string) TypedValue {
+	return TypedValue{T: StringType, V: alloc.NewString(s)}
 }
 
 // typedRuntimeError creates a Gno value of type .runtimeError that implements

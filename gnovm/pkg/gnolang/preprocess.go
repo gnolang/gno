@@ -2498,22 +2498,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
 					}
 
-					// kset tracks seen const keys for duplicate detection.
-					// checkOrConvertType must be called before the check so that
-					// values are stored in N (not V), making TypedValue comparable.
-					kset := make(map[TypedValue]struct{})
+					// kset tracks seen const keys for duplicate detection,
+					// keyed the way the runtime map keys them (by content,
+					// not Go == on TypedValue). checkOrConvertType runs first
+					// so each key already has its final type.
+					kset := make(map[MapKey]struct{})
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
-							ktv := cx.TypedValue
-							if sv, ok := ktv.V.(StringValue); ok {
-								ktv.V = sv.contentKey()
+							mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
+							if isNaN {
+								continue // NaN never equals itself
 							}
-							if _, ok := kset[ktv]; ok {
+							if _, ok := kset[mk]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
-							kset[ktv] = struct{}{}
+							kset[mk] = struct{}{}
 						}
 					}
 				default:

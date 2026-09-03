@@ -1,10 +1,9 @@
 // MAXALLOC: 50000
 // PKGPATH: gno.land/r/demo/a/very/long/package/path/so/the/backing/bytes/stand/out/alloc14
 
-// Companion to alloc_14: the same program, but the held strings are fresh
-// copies minted by concatenation, so they carry their own backing IDs and
-// the GC recount charges their bytes: 40 + 79 = 119 bytes more than
-// alloc_14, which holds the handle's field values directly.
+// Companion to alloc_14 (see its header): the held strings are fresh
+// copies minted by concatenation, so the recount lands len(a)+len(p)
+// bytes above alloc_14.
 package alloc14
 
 import (

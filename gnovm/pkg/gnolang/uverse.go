@@ -790,10 +790,9 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			// The receiver's text is untracked VM-internal (ID 0); the
-			// moment user code materializes it as a string, mint it so it
-			// is charged and tracked like any other user-visible string.
-			m.PushValue(TypedValue{T: StringType, V: m.Alloc.NewString(arg0.TV.GetString())})
+			// The receiver's text is untracked VM-internal (ID 0); mint
+			// the copy user code gets to hold.
+			m.PushValue(newTypedString(m.Alloc, arg0.TV.GetString()))
 		},
 	)
 
@@ -1550,8 +1549,9 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			res0 := typedString(arg0.TV.GetString())
-			m.PushValue(res0)
+			// Pass the receiver's StringValue through: same backing, same
+			// mint ID, no untracked copy.
+			m.PushValue(TypedValue{T: StringType, V: arg0.TV.V})
 		},
 	)
 	defNativeMethod("address", "IsValid",
@@ -1581,10 +1581,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			// Reuse the field's StringValue so the result shares the
-			// realm handle's mint ID (GC dedups them as one backing).
-			fv, _ := sv.Fields[0].V.(StringValue)
-			m.PushValue(TypedValue{T: gAddressType, V: fv})
+			// Push the field itself: the result shares the handle's mint
+			// ID, so the GC counts one backing (also PkgPath below).
+			m.PushValue(sv.Fields[realmFieldAddr])
 		},
 	)
 	defNativePtrMethod(".grealm", "PkgPath",
@@ -1595,10 +1594,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			// Reuse the field's StringValue, as Address does above; a
-			// typedString would be an untracked (ID 0) copy.
-			fv, _ := sv.Fields[1].V.(StringValue)
-			m.PushValue(TypedValue{T: StringType, V: fv})
+			m.PushValue(sv.Fields[realmFieldPkgPath])
 		},
 	)
 	defNativePtrMethod(".grealm", "Previous",
@@ -1795,7 +1791,7 @@ func makeUverseNode() {
 			sv := derefRealmStruct(arg0.TV)
 			path := sv.Fields[realmFieldPkgPath].GetString()
 			_, sub, _ := strings.Cut(path, subRealmSep)
-			m.PushValue(typedString(sub))
+			m.PushValue(newTypedString(m.Alloc, sub))
 		},
 	)
 	defNativePtrMethod(".grealm", "String",
@@ -1806,11 +1802,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			addr := sv.Fields[0].GetString()
-			path := sv.Fields[1].GetString()
-			// Fresh backing: charge and track it (typedString is for
-			// panic text only and neither charges nor tracks).
-			m.PushValue(TypedValue{T: StringType, V: m.Alloc.NewString("realm{" + path + ":" + addr + "}")})
+			addr := sv.Fields[realmFieldAddr].GetString()
+			path := sv.Fields[realmFieldPkgPath].GetString()
+			m.PushValue(newTypedString(m.Alloc, "realm{"+path+":"+addr+"}"))
 		},
 	)
 	// Seal marker; see gRealmType for rationale.

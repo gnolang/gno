@@ -822,9 +822,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	// Header only: backing bytes are charged once per backing per GC
-	// cycle by GCVisitorFn, keyed on sv.ID (a per-value count would
-	// double-charge shared backings).
+	// Header only; GCVisitorFn counts the backing bytes once per mint ID.
 	return allocString
 }
 

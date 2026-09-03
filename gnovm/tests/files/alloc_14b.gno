@@ -1,12 +1,9 @@
 // MAXALLOC: 50000
 // PKGPATH: gno.land/r/demo/a/very/long/package/path/so/the/backing/bytes/stand/out/alloc14
 
-// Companion to alloc_14: the realm handle whose fields Address()/PkgPath()
-// return dies before the GC (grab's cur is gone once it returns), and only
-// the results survive in globals. Because the results carry the handle's
-// mint IDs the recount still charges their backing bytes (40 + 79 = 119).
-// An untracked (ID 0) copy would drop out of the recount and the golden
-// would fall by the missing bytes.
+// Companion to alloc_14 (see its header): the handle dies before the GC
+// (grab's cur is gone once it returns) and only the results survive, so
+// their bytes stay in the recount only if they are tracked.
 package alloc14
 
 import (
