@@ -349,7 +349,7 @@ sub.Address()  // the address derived from that path
 ```
 
 The [interrealm specification](gno-interrealm-v2.md#55-sub-realm-identities--cursubsubpath)
-covers what the identity does to the crossing chain.
+covers how the identity behaves in crossing calls.
 
 ---
 
@@ -888,13 +888,17 @@ banker.RemoveCoin(addr, denom, amount)
 
 ### OriginSend
 ```go
-func OriginSend() Coins
+func OriginSend() chain.Coins
 ```
-Returns the `Coins` that were sent along with the calling transaction.
+Returns the coins attached to the calling transaction. It lives in
+`chain/runtime/unsafe`, not in the banker, and reads the transaction's stated
+intent rather than anything the realm received, so pair it with
+`runtime.AssertOriginCall()` before you trust it for payment.
 
 ##### Usage
 ```go
-coinsSent := banker.OriginSend()
+sent := unsafe.OriginSend()
+amount := sent.AmountOf("ugnot")
 ```
 ---
 

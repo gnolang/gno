@@ -1,9 +1,13 @@
 # Gas Fees in gno.land
 
-Every transaction carries two flags: `--gas-wanted`, the most gas it may use,
-and `--gas-fee`, one flat amount it pays in full. Get both by running your
-command with `-simulate only` first, as [Gas Estimation](#gas-estimation) shows.
-If a transaction was rejected, start at [Common Errors](#common-errors).
+Every transaction carries two flags:
+
+- `--gas-wanted`: the most gas it may use.
+- `--gas-fee`: one flat amount it pays in full.
+
+Get both by running your command with `-simulate only` first, as
+[Gas Estimation](#gas-estimation) shows. If a transaction was rejected, start at
+[Common Errors](#common-errors).
 
 ## What is Gas?
 
@@ -29,7 +33,8 @@ with an "out of gas" error and its effects are rolled back.
 `--gas-fee` is the whole fee for the transaction, one flat amount. It is
 expressed in `ugnot` (micro-GNOT), so `1000000ugnot` is one GNOT.
 
-Gas wanted turns that fee into a rate, and the rate is what the network checks:
+`--gas-wanted` turns that fee into a rate, and the rate is what the network
+checks:
 
 ```
 Gas Price = Gas Fee ÷ Gas Wanted
@@ -178,8 +183,12 @@ To minimize what a transaction costs:
    needs on chain.
 2. **Bound iteration**: each iterator step over stored data costs gas, so keep
    loops over collections short and paginate where a caller sets the size.
-3. **Test locally first**: use `gnodev` to measure and tune gas before
-   deploying to a network.
+3. **Batch operations**: fold several changes into one transaction where you
+   can, so a signature is verified once instead of once per transaction.
+4. **Precompute off chain**: do work in your client and send the result, rather
+   than having the realm compute it on every call.
+5. **Test locally first**: use `gnodev` to measure and tune gas before deploying
+   to a network.
 
 ## Common Errors
 
@@ -191,26 +200,24 @@ insufficient fees; got: {Gas-Wanted: 2000000, Gas-Fee 1000ugnot}, fee required: 
 
 **Out of gas:**
 ```
-gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulation
+gas used (2600000) exceeds tx's gas wanted (1000000) during operation: CPUCycles
 ```
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
   then increase.
-- Nothing was charged. `operation: simulation` means it never reached a block,
-  because `gnokey maketx -broadcast` simulates before sending.
-
-**Failed on chain, fee kept:**
-- A transaction that reaches a block and then fails pays the whole `--gas-fee`,
-  and its effects are rolled back. An out-of-gas error there names the real
-  operation, like `operation: CPUCycles`.
-- You get there with `-simulate skip`, or when the chain's state changes between
-  the simulation and the real run. Re-run `-simulate only` and raise
-  `--gas-wanted` before sending again.
+- ⚠️ **Out of gas in a block still pays the whole `--gas-fee`.** The flat fee is
+  charged, not the gas used, and the transaction's effects are rolled back.
 
 **Not enough deposit:**
 ```
 not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
 ```
-- The message stores more bytes than your deposit cap covers at 100ugnot per
+- The transaction stores more bytes than your deposit cap covers at 100ugnot per
   byte. Raise it with `-max-deposit`, or store less. The cap is the chain
   default, `100000000ugnot`, unless `-max-deposit` set it lower.
+
+> **Note:** By default, `gnokey maketx -broadcast` uses `-simulate test`, which
+> simulates the transaction before submitting it. If the simulation fails (for
+> example, out of gas), the transaction is not submitted and you are not
+> charged. A transaction that passes simulation can still fail once it is in a
+> block, and then you are charged.
 
