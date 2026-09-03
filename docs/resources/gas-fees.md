@@ -216,9 +216,3 @@ not enough deposit to cover the storage usage: requires 206900ugnot for 2069 byt
 - The message stores more bytes than your deposit cap covers at 100ugnot per
   byte. Raise it with `-max-deposit`, or store less. The cap is the chain
   default, `100000000ugnot`, unless `-max-deposit` set it lower.
-
-> **Note:** By default, `gnokey maketx -broadcast` uses `-simulate test`, which
-> simulates the transaction before submitting it. If the simulation fails (for
-> example, out of gas), the transaction is not submitted and you are not
-> charged. A transaction that passes simulation can still fail once it is in a
-> block, and then you are charged.
