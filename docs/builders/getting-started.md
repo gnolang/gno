@@ -231,10 +231,11 @@ gnokey maketx call \
 `gno mod init`.
 
 `-gas-wanted` is a ceiling on work, in gas units. `-gas-fee` is what you pay,
-one flat amount in `ugnot`, where 1000000ugnot is one GNOT. The chain accepts
-the transaction when `gas-fee` divided by `gas-wanted` is at least the network's
-gas price, then takes the whole fee. Raise `-gas-wanted` and the fee has to rise
-with it.
+one flat amount in `ugnot`; one GNOT is a million of them. The chain accepts the
+transaction when `gas-fee` divided by `gas-wanted` is at least the network's gas
+price, then takes the whole fee. The command above asks for 2000000 gas, and at
+today's price of 1ugnot per 1000 gas the least it may pay is 2000ugnot, which is
+what it sets. Raise `-gas-wanted` and the fee has to rise with it.
 
 Neither is filled in for you. The values here fit this counter, and
 [`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes your own.
