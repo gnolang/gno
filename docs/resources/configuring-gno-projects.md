@@ -31,9 +31,11 @@ Specifies the **Gno language version**. Currently, only version `"0.9"` is suppo
 
 #### `replace`
 
-Used for **local development and testing**. When set, this field redirects an
-import to another package path or to a local directory, and it makes the module
-undeployable: `addpkg` refuses it with `development packages are not allowed`.
+Declares that an import should resolve somewhere else, for local development.
+The field is parsed and nothing acts on it yet: `gno test` still resolves the
+original path, so a replacement directory is not picked up. Its one working
+effect is that a module carrying any `replace` cannot be deployed, and `addpkg`
+refuses it with `development packages are not allowed`.
 
 #### `addpkg`
 

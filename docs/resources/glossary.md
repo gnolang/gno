@@ -120,9 +120,9 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The whole fee paid for a transaction, denominated in ugnot, not a price per
-unit of gas. The network accepts the transaction when the fee divided by gas
-wanted is at least the current
+The whole fee paid for a transaction, one flat amount in ugnot. The network
+accepts the transaction when the fee divided by gas wanted is at least the
+current
 [gas price](./gas-fees.md#gas-price).
 
 ### Gas Wanted

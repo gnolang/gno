@@ -167,7 +167,7 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
-- `-gas-fee` - the whole fee for the transaction, not a price per unit of gas
+- `-gas-fee` - the whole fee for the transaction, one flat amount in `ugnot`
 - `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
@@ -313,8 +313,8 @@ happened during the transaction.
 After broadcasting the transaction, we can verify that we have the amount of
 `wugnot` we expect. `BalanceOf` reads state without changing it, so it is not
 callable with `maketx call`: a non-crossing function reached that way fails with
-`function BalanceOf is non-crossing and cannot be called with MsgCall`. Query it
-instead:
+`function BalanceOf is non-crossing and cannot be called with MsgCall; query
+with vm/qeval or use MsgRun`. Query it instead:
 
 ```bash
 gnokey query vm/qeval \

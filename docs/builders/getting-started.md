@@ -251,7 +251,8 @@ and the fee has to rise with it.
 None of the three is filled in for you.
 [`-simulate only`](../resources/gas-fees.md#gas-estimation) sizes the first two,
 and `gnokey` runs the transaction against the node before sending it, so one
-that would fail never reaches a block.
+that fails there never reaches a block. One that passes can still fail on chain,
+and then the fee is charged.
 
 The signer at the end is the `alice` key you just created. You'll
 reuse it in the staging and testnet sections below.
@@ -391,7 +392,10 @@ testnet the URL is `https://pearl.testnets.gno.land/r/...` instead.
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
 - `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
-  the chain may lock; the transaction fails if the cap is exceeded.
+  the chain may lock. This deploy locked 318700ugnot, so `-max-deposit
+  400000ugnot` bounds it with room to spare. Set it below what the package needs
+  and the deploy fails, naming the figure: `not enough deposit to cover the
+  storage usage: requires 318700ugnot for 3187 bytes`.
 
 For the full flag list, see
 [`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).

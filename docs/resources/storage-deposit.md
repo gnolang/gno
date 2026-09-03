@@ -16,10 +16,12 @@ message (e.g., `MsgCall`, `MsgRun`, `AddPkg`).
 Storing data → GNOT locked
 Deleting data → GNOT refunded
 
-Deleting means a realm freeing data it holds, which only its own code can do. A
-deployed package's source is not deletable: `MsgDisablePackage` returns
+Deleting means a realm freeing data it holds, which only its own code can do. An
+ordinary package's source is not deletable at all: `MsgDisablePackage` returns
 `disable_package is not yet implemented`, so the deposit an `AddPkg` locks for
-the code itself has nothing that could release it today.
+the code itself has nothing that could release it. A
+[private](configuring-gno-projects.md) package is the exception, since it can be
+re-uploaded, and redeploying a smaller version releases the difference.
 
 ### Purpose
 

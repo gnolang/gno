@@ -30,7 +30,7 @@ with an "out of gas" error and its effects are rolled back.
 
 ### Gas Fee
 
-`--gas-fee` is the whole fee for the transaction, not a price per unit. It is
+`--gas-fee` is the whole fee for the transaction, one flat amount. It is
 expressed in `ugnot` (micro-GNOT), so `1000000ugnot` is one GNOT.
 
 Gas wanted turns that fee into a rate, and the rate is what the network checks:
@@ -39,9 +39,10 @@ Gas wanted turns that fee into a rate, and the rate is what the network checks:
 Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-`gnokey` simulates first, so a transaction that would fail never reaches a
-block and costs nothing. Once it is in a block you pay the whole fee, whether it
-used less gas than it asked for or failed outright.
+`gnokey` simulates first, so a transaction that would fail there never reaches a
+block and costs nothing. One that passes simulation can still fail on chain, if
+the chain moves in between. Once it is in a block you pay the whole fee, whether
+it used less gas than it asked for or failed outright.
 
 ### Calculating Your Gas Fee
 
@@ -162,15 +163,22 @@ PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 `HEIGHT: 0` and the empty `TX HASH` are how you tell a simulation from a
-broadcast: nothing reached a block. `STORAGE FEE` is not a gas fee: it is the
-[storage deposit](storage-deposit.md) locked against the bytes the transaction
-would add, rather than spent. `TOTAL TX COST` is the gas fee plus that deposit,
+broadcast: nothing reached a block. `STORAGE FEE` is the
+[storage deposit](storage-deposit.md), locked against the bytes the transaction
+would add rather than spent. `TOTAL TX COST` is the gas fee plus that deposit,
 one of them gone and one of them locked.
 
 Set `-gas-wanted` to the suggested figure, 2719570 here, not the raw estimate:
 gas usage shifts between the simulation and the broadcast, and the 5% margin
-absorbs the shift. Set `-gas-fee` to the printed `gas fee`, 2720ugnot here,
-which was computed for that suggested limit. Take both or neither.
+absorbs the shift.
+
+Do not simply copy the printed `gas fee` beside it. The two numbers are computed
+from different bases: `suggested` is the raw estimate plus 5%, while `gas fee`
+prices the raw estimate and adds 5% to that. The fee is therefore sized for the
+raw estimate, not for the limit you are about to set, and the pair can leave you
+a ugnot short of the ratio the chain requires. Price the suggested limit
+yourself instead, rounding up: at 1ugnot per 1000 gas, 2719570 gas needs
+2720ugnot.
 
 ## Gas Optimization Tips
 
