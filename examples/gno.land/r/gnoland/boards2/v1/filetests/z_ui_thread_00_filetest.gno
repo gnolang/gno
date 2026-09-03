@@ -50,7 +50,7 @@ func main() {
 //
 //
 //
-// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [2] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [2] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:test-board/1?order=desc)
@@ -65,7 +65,7 @@ func main() {
 // >
 // >
 // >
-// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/2/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/2/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/2/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=2&threadID=1)
+// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/2/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/2/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/2/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=2&threadID=1)
 //
 // >
 // > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
@@ -77,7 +77,7 @@ func main() {
 // >
 // >
 // >
-// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=3&threadID=1)
+// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=3&threadID=1)
 // >
 // > >
 // > > **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
@@ -89,4 +89,4 @@ func main() {
 // > >
 // > >
 // > >
-// > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=4&threadID=1)
+// > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=4&threadID=1)

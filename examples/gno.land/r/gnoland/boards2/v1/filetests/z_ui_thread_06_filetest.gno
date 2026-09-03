@@ -55,4 +55,4 @@ func main() {
 //
 // > ⚠ Source post has been flagged as inappropriate
 //
-// ↳ [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=3&threadID=1)

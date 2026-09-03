@@ -29,9 +29,9 @@ func main() {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
-// ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • **Manage Board**
-// └─ [Invite Member](/r/gnoland/boards2/v1:TestBoard/invite-member) • [List Invite Requests](/r/gnoland/boards2/v1:TestBoard/invites) • [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [List Banned Users](/r/gnoland/boards2/v1:TestBoard/banned-users) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=1)
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #2
+// ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=2) • **Manage Board**
+// └─ [Invite Member](/r/gnoland/boards2/v1:TestBoard/invite-member) • [List Invite Requests](/r/gnoland/boards2/v1:TestBoard/invites) • [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [List Banned Users](/r/gnoland/boards2/v1:TestBoard/banned-users) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=2)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?menu=manageBoard&order=desc)

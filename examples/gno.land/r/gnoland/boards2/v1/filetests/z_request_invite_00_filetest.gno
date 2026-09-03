@@ -32,4 +32,4 @@ func main(cur realm) {
 // ### These users have requested to be invited to the board
 // | User | Request Date | Actions |
 // | --- | --- | --- |
-// | [g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5](/u/g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) | 2009-02-13 11:31pm UTC | [accept](/r/gnoland/boards2/v1$help&func=AcceptInvite&boardID=1&user=g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) • [revoke](/r/gnoland/boards2/v1$help&func=RevokeInvite&boardID=1&user=g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) |
+// | [g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5](/u/g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) | 2009-02-13 11:31pm UTC | [accept](/r/gnoland/boards2/v1$help&func=AcceptInvite&boardID=2&user=g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) • [revoke](/r/gnoland/boards2/v1$help&func=RevokeInvite&boardID=2&user=g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5) |

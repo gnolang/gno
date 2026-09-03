@@ -32,8 +32,8 @@ func main() {
 // > [!WARNING] Info
 // > Creating new threads and commenting are disabled within this board
 //
-// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
-// [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #2
+// [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=2&replyID=&threadID=)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=desc)

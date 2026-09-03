@@ -52,7 +52,7 @@ func main() {
 //
 //
 //
-// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [2] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
+// ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) [2] • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
 //
 //
 // >
@@ -65,7 +65,7 @@ func main() {
 // >
 // >
 // >
-// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=3&threadID=1)
+// > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=3&threadID=1)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:test-board/1/3?order=desc)
@@ -80,4 +80,4 @@ func main() {
 // > >
 // > >
 // > >
-// > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=4&threadID=1)
+// > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=4&threadID=1)

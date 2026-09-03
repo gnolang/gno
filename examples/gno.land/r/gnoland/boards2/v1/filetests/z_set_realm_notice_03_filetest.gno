@@ -27,5 +27,8 @@ func main(cur realm) {
 // [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
-// ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board)!
+// Sort by: [newest first](/r/gnoland/boards2/v1:?order=desc)
+//
+// ###### [OpenDiscussions](/r/gnoland/boards2/v1:OpenDiscussions)
+// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
+// **0 threads**
