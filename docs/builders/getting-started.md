@@ -393,9 +393,7 @@ Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
 - `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
   the chain may lock. This deploy locked 318700ugnot, so `-max-deposit
-  400000ugnot` bounds it with room to spare. Set it below what the package needs
-  and the deploy fails, naming the figure: `not enough deposit to cover the
-  storage usage: requires 318700ugnot for 3187 bytes`.
+  400000ugnot` bounds it with room to spare.
 
 For the full flag list, see
 [`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).
