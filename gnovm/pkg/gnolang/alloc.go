@@ -39,10 +39,6 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
-
-	// mintedStrings counts NewString mints, an upper bound on distinct
-	// live IDs; sizes the GC's per-run dedup set (GCVisitorFn).
-	mintedStrings int
 }
 
 // nextStringID issues StringValue.ID mint serials. Process-global and
@@ -527,9 +523,6 @@ func (alloc *Allocator) NewString(s string) StringValue {
 	}
 	// Fresh mint serial: all copies/slices of this value share it, so the
 	// GC recount charges Extent once per mint per cycle (see StringValue).
-	if alloc != nil {
-		alloc.mintedStrings++
-	}
 	return StringValue{Str: s, ID: nextStringID.Add(1), Extent: int64(len(s))}
 }
 

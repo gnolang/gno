@@ -197,12 +197,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 	// Backings counted this run, by mint ID (see StringValue). Scoped to
 	// the visitor: no allocator state, nothing to prune or reset.
-	// Pre-sized by the allocator's mint count to avoid growth rehashing.
-	sizeHint := 0
-	if alloc != nil {
-		sizeHint = alloc.mintedStrings
-	}
-	countedStrings := make(map[uint64]struct{}, sizeHint)
+	countedStrings := make(map[uint64]struct{})
 
 	vis = func(v Value) bool {
 		if debug {
