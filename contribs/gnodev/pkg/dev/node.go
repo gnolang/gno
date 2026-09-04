@@ -118,6 +118,18 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	}
 }
 
+// devGenState returns the base genesis state for a dev node: the production
+// defaults plus this node's configured dev balances.
+//
+// run_submitters is left empty, which means the MsgRun allowlist is off and any
+// account may run code — what gnodev wants, since it exists to run arbitrary
+// local code against local packages.
+func (n *Node) devGenState() gnoland.GnoGenesisState {
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	return genesis
+}
+
 // Node is not thread safe
 type Node struct {
 	*node.Node
@@ -338,8 +350,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	pkgsTxs = append(pkgsTxs, n.bootstrapTxs(pkgs)...)
 	txs := append(pkgsTxs, n.initialState...)
 
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
@@ -532,8 +543,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 			return fmt.Errorf("reload packages: %w", err)
 		}
 
-		genesis := gnoland.DefaultGenState()
-		genesis.Balances = n.config.BalancesList
+		genesis := n.devGenState()
 		genesis.Txs = append(n.generateTxs(DefaultFee, pkgs), n.bootstrapTxs(pkgs)...)
 		return n.rebuildNode(ctx, genesis)
 	}
@@ -550,8 +560,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 
 	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)

@@ -6,7 +6,7 @@ with resource bounds on decoding.
 ## Why this exists
 
 `gnomod.toml` rides inside the `MemPackage` of a `MsgAddPackage` or `MsgRun`, so
-its body is attacker-controlled, and upstream go-toml v1 has no resource bounds
+its body is caller-controlled, and upstream go-toml v1 has no resource bounds
 of any kind. Three axes were unbounded:
 
 | axis | upstream behaviour |

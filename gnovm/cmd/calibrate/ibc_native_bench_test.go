@@ -173,7 +173,7 @@ func BenchmarkNative_Merkle_LeafHash_4096(b *testing.B) { benchMerkleLeafHash(b,
 // single-slope fit over n yields the cost per byte of one operand — which is
 // what the table charges on each of the two. Merkle tree use only ever passes
 // 32-byte hashes, but nothing enforces that, so the sweep has to reach the
-// sizes an adversary can actually pass (see the innerHash comment in
+// sizes an caller can actually pass (see the innerHash comment in
 // gnovm/stdlibs/native_gas.go).
 func benchMerkleInnerHash(b *testing.B, n int) {
 	b.Helper()

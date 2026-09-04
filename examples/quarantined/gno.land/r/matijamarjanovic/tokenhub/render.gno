@@ -64,7 +64,7 @@ import (
 
 var nextTokenID seqid.ID
 
-// grc20.NewToken and grc721.NewBasicNFT must be constructed from a realm
+// grc20.NewToken and grc721.NewToken must be constructed from a realm
 // context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
 	// GRC20 token
@@ -72,9 +72,9 @@ func init(cur realm) {
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT
-	myNFT := grc721.NewBasicNFT(0, cur, "My NFT Collection", "MNFT")
-	myNFT.Mint("g1your_address_here", "1")
-	nftErr := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
+	myNFT, myNFTLedger := grc721.NewToken("My NFT Collection", "MNFT", 0, cur)
+	myNFTLedger.Mint("g1your_address_here", "1")
+	nftErr := tokenhub.RegisterNFT(myNFT, "my_collection", "1")
 
 	// GRC1155 multi-token
 	myMultiToken := grc1155.NewBasicGRC1155Token("https://metadata.example.com/")
@@ -135,19 +135,14 @@ func renderNFT(path string) string {
 	page := nftPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
-		nftGetter := item.Value.(grc721.NFTGetter)
-		nft := nftGetter()
-		metadata, ok := nft.(grc721.IGRC721CollectionMetadata)
-		if !ok {
-			continue
-		}
+		nft := item.Value.(*grc721.Token)
 
 		pkgPath, _ := fqname.Parse(item.Key)
 		linkURL := formatLinkURL(pkgPath, 2)
 
 		nftItems = append(nftItems, ufmt.Sprintf("%s (%s) - %s",
-			md.Link(metadata.Name(), linkURL),
-			md.InlineCode(metadata.Symbol()),
+			md.Link(nft.GetName(), linkURL),
+			md.InlineCode(nft.GetSymbol()),
 			md.InlineCode(item.Key)))
 	}
 

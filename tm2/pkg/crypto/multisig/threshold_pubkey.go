@@ -103,7 +103,7 @@ func NewPubKeyMultisigThresholdChecked(k int, pubkeys []crypto.PubKey) (crypto.P
 //
 // NewPubKeyMultisigThreshold is not the only way a PubKeyMultisigThreshold
 // comes into existence: amino decodes one straight from the bytes of an
-// untrusted, attacker-chosen transaction signature, populating K and PubKeys
+// untrusted, caller-chosen transaction signature, populating K and PubKeys
 // without going through the constructor. Anything using those fields to make
 // an authorization decision must check them first.
 func (pk PubKeyMultisigThreshold) validate() error {

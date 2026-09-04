@@ -23,8 +23,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # fixed list because we have some non go programs on that misc folder
+        # Fixed list, because misc/ also holds non-Go directories that a glob
+        # would pick up. ci-dir-contribs.yml can glob contribs/* for that
+        # reason and this one cannot.
+        #
+        # The cost is silence: a Go program under misc/ that is not listed here
+        # is simply never built, with nothing to say so. Some are covered
+        # elsewhere instead — genproto2 by a job in ci-codegen-verify,
+        # multiarch-determinism by its own workflow, and stdlib_diff by
+        # deploy-pages, which runs its generator on pull requests touching it.
+        # A new one with neither is untested from its first commit.
         program:
+          - audit-pattern-harness
           - autocounterd
           - genproto
           - genstd

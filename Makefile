@@ -91,7 +91,13 @@ GO_FIX_FLAGS ?= -omitzero=false
 # flagged by the CI check. Requires a C compiler.
 fix:
 	CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
-	@for d in $(wildcard contribs/*/) misc/autocounterd/ misc/loop/; do \
+	@# The misc/ entries must track the ci-dir-misc.yml matrix, which lints
+	@# each of them as its own module. Only those with their own go.mod need
+	@# listing -- genproto, genstd and goscan have none, so the root `go fix
+	@# ./...` above already covers them. audit-pattern-harness was linted by CI
+	@# and missing here, so its CI failure told the reader to run a target that
+	@# could not fix it.
+	@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/loop/; do \
 		echo "==> go fix $$d"; \
 		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
 	done

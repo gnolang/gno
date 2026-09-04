@@ -72,8 +72,8 @@ func TestRecvAssemblyTimeout(t *testing.T) {
 }
 
 // TestRecvAssemblyTimeoutNotResetByDribble is the key regression test: an
-// attacker keeps sending partial packets (here, empty ones — the exact dribble
-// the earlier proposed fix was vulnerable to) to try to keep resetting the
+// caller keeps sending partial packets (here, empty ones — the exact dribble
+// the earlier proposed fix was affected by) to try to keep resetting the
 // deadline. The deadline is anchored to the first partial packet and must fire
 // regardless, tearing the connection down.
 func TestRecvAssemblyTimeoutNotResetByDribble(t *testing.T) {
@@ -170,7 +170,7 @@ func TestRecvAssemblyTimeoutClearedOnCompletion(t *testing.T) {
 	// Send several two-packet messages, each spaced well beyond the deadline.
 	// Because each message completes, the deadline is cleared every time and the
 	// connection must survive.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		writePacketMsg(t, server, 0x01, 0x00, []byte("part-"))
 		writePacketMsg(t, server, 0x01, 0x01, []byte("end"))
 		select {

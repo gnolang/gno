@@ -299,7 +299,7 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
 	}()
 
 	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-	// The realm's Error() output is attacker-controlled and is assembled into
+	// The realm's Error() output is caller-controlled and is assembled into
 	// the @error field outside the export size guard (which only bounds
 	// jres.Results). Bound it like every other diagnostic string in this module
 	// (see boundedString): otherwise a realm whose Error() builds a huge string

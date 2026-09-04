@@ -1566,7 +1566,7 @@ func (dt *DeclaredType) Seal() {
 // named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
 // types). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
-// for adversarial source-level embed chains. 8 is well above any observed
+// for deeply nested source-level embed chains. 8 is well above any observed
 // legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
 // can be raised in a future release without invalidating existing programs.
 const MaxEmbedDepth = 8

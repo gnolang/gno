@@ -75,7 +75,7 @@ func TestAnteHandlerMultisigUnrecognizedSubkey(t *testing.T) {
 }
 
 // The multisig gas consumer indexes both the constituent keys and the signature
-// list by the bit array of the attacker-supplied Multisignature, which is only
+// list by the bit array of the caller-supplied Multisignature, which is only
 // checked for consistency later, in VerifyBytes. Mismatched shapes must be
 // rejected rather than run off the end of either slice.
 func TestConsumeMultisignatureVerificationGasShapeMismatch(t *testing.T) {
@@ -142,7 +142,7 @@ func TestConsumeMultisignatureVerificationGasShapeMismatch(t *testing.T) {
 	}
 }
 
-// The signature carried by a transaction is attacker-supplied bytes, so
+// The signature carried by a transaction is caller-supplied bytes, so
 // decoding it as a Multisignature has to be able to fail. It used to be a
 // MustUnmarshal, which panicked past the ante handler's own recover — that
 // only handles OutOfGasError — and landed in runTx's blanket recover as an
@@ -288,7 +288,7 @@ func TestAnteHandlerMultisigTotalKeys(t *testing.T) {
 	require.Equal(t, 0, std.CountSubKeys(pub), "counts no subkeys, so TxSigLimit never fires")
 
 	tx, _ := newFundedTx(t, env, pub)
-	// Not one bit of the bit array is set: the attacker needs no signature at
+	// Not one bit of the bit array is set: the caller needs no signature at
 	// all, valid or otherwise, for the key itself to be walked.
 	tx.Signatures = []std.Signature{{PubKey: pub, Signature: multisig.NewMultisig(len(subs)).Marshal()}}
 
@@ -300,7 +300,7 @@ func TestAnteHandlerMultisigTotalKeys(t *testing.T) {
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.InvalidPubKeyError{})
 }
 
-// The other half of "the signature field is attacker bytes", and the half a
+// The other half of "the signature field is untrusted bytes", and the half a
 // failed amino decode does not cover: a bit array whose ExtraBitsStored runs
 // past its Elems decodes perfectly well, and only then makes Size() claim more
 // bits than are stored — which the gas consumer walks, indexing off the end of
@@ -340,7 +340,7 @@ func TestAnteHandlerMultisigMalformedBitArray(t *testing.T) {
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.UnauthorizedError{})
 }
 
-// The third half of "the key field is attacker bytes", and the one neither the
+// The third half of "the key field is untrusted bytes", and the one neither the
 // structural bounds nor the bit array checks cover: validate nil-checked its own
 // constituents, but Equals recurses into the constituents of the keys it
 // compares, so a nil nested one level below the top was reached by the duplicate

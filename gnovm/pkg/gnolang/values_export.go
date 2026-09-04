@@ -11,7 +11,7 @@ import (
 // estimated serialized size of the value tree exceeds the caller's budget.
 // The chain's value-returning query endpoints surface this to the client
 // instead of walking and then serializing a multi-gigabyte structure; see
-// gno.land/adr/prxxxx_query_export_size_guard.md.
+// gno.land/adr/query_export_size_guard.md.
 var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 
 // ErrExportDepthExceeded is returned by ExportValues / ExportObject when the
@@ -19,7 +19,7 @@ var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 // thin, deeply nested graph stays cheap per node, so tens of thousands of levels
 // fit under the byte budget while the walk recurses toward a fatal stack
 // overflow and amino.MarshalJSON runs superlinearly. See maxExportDepth and
-// gno.land/adr/prxxxx_query_export_size_guard.md.
+// gno.land/adr/query_export_size_guard.md.
 var ErrExportDepthExceeded = errors.New("export depth limit exceeded")
 
 // exportNodeEst is charged once per exported value/type node to account for
@@ -31,7 +31,7 @@ var ErrExportDepthExceeded = errors.New("export depth limit exceeded")
 // Every variable-length string the walk *emits* must be charged on top of this,
 // at its own length: not just value content (StringValue, []byte Data) but also
 // the node-attached names the walk copies out of types — field names, struct
-// tags, pkg paths, type IDs. Those are attacker-controlled (a deployed package
+// tags, pkg paths, type IDs. Those are caller-controlled (a deployed package
 // may declare a struct tag of arbitrary length) and, for a non-declared struct
 // type, are re-emitted once per element of a slice of that type. Charging only
 // per node there made the effective bound nodeCount × maxTagLen: measured, a
@@ -366,7 +366,7 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 	case *ArrayValue:
 		if cv.Data == nil {
 			// Pre-charge the element count before allocating the backing
-			// slice: cv.List length is attacker-controllable (e.g. make([]T,
+			// slice: cv.List length is caller-controllable (e.g. make([]T,
 			// n)), so charging only inside the loop would let the full
 			// len(cv.List)*sizeof(TypedValue) allocation happen first. Each
 			// element is then charged again as it is walked; the resulting
@@ -460,7 +460,7 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 		// Method / MethodPkg are emitted verbatim per node, and for a lazy
 		// interface bind (Func == nil) the *FuncValue name charge above never
 		// runs — so charge them here for the same reason field names/tags are
-		// charged in exportCopyFieldsWithRefs. Method is an attacker-controlled
+		// charged in exportCopyFieldsWithRefs. Method is an caller-controlled
 		// identifier re-emitted once per element of a slice of method values;
 		// without this a long method name bypasses the budget (see
 		// TestExportValuesLimit_BoundMethodNameCharged).
@@ -637,7 +637,7 @@ func exportCopyTypeWithRefs(typ Type, seen map[Object]int, lim *exportLimiter) T
 func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int, lim *exportLimiter) []FieldType {
 	// Pre-charge the field count before allocating the backing slice, then
 	// charge each field's emitted strings: Name/Tag/PkgPath are copied out
-	// verbatim and are attacker-controlled. This is the site of the bypass
+	// verbatim and are caller-controlled. This is the site of the bypass
 	// described in exportNodeEst's doc comment — do not reduce these to a
 	// per-node charge.
 	lim.add(int64(len(fields)) * exportNodeEst)

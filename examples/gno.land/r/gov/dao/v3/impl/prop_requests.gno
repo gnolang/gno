@@ -106,10 +106,24 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 	}
 
 	cb := func(cur realm) error {
+		// Add the member first, spend the proposer's invitation point second.
+		//
+		// SetMember RETURNS an error when the address is already a member --
+		// easy to reach, since AddMember enrols T3 members directly. A returned
+		// executor error does not revert: ExecuteOrRejectProposal marks the
+		// proposal rejected and the transaction still commits. So with the old
+		// order the point was spent and the member was not added.
+		//
+		// RemoveInvitationPoint can still fail, despite the build-time check
+		// above: it panics at zero, and AddMember spends points from this same
+		// captured member, so a proposer can drain their own between creation
+		// and execution. That panics and reverts, which loses nothing.
+		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
+			return err
+		}
 		member.RemoveInvitationPoint()
-		err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier))
 
-		return err
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
@@ -150,7 +164,34 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 
 func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(cur realm) error {
-		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
+		// Fail on an unknown destination tier before touching the member.
+		//
+		// Everything that can be checked before a write is checked here, and
+		// RETURNS. A returned executor error rejects the proposal and closes it,
+		// and since nothing has been mutated yet that commits nothing.
+		//
+		// After RemoveMember the policy inverts: a return would commit a member
+		// who was removed and not re-added, so everything below panics instead,
+		// which reverts the whole transaction.
+		// A tier dropped from the global table. NewChangeTiersRequest replaces
+		// that table wholesale, so a proposal listing only T1 and T2 removes T3
+		// for good. memberByTier would not notice: it switches on the constant
+		// and ignores GetTier's ok, so the promotion would succeed and hand the
+		// member zero invitation points. Untested -- reaching it needs a passed
+		// tier-change proposal, which rewrites state every other test shares.
+		if _, ok := memberstore.GetTier(toTier); !ok {
+			return ufmt.Errorf("unknown destination tier: %s", toTier)
+		}
+
+		mbt := memberstore.Get(0, cur)
+
+		// SetMember consults the store's own index, not the global tier table
+		// above: DeleteAll empties the buckets and leaves the definitions.
+		if !mbt.Has(toTier) {
+			return ufmt.Errorf("destination tier is missing from the member store: %s", toTier)
+		}
+
+		prevTier := mbt.RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -159,9 +200,13 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		err := memberstore.Get(0, cur).SetMember(toTier, addr, memberByTier(toTier))
+		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
+			// Unreachable: both of SetMember's failures are ruled out above.
+			// Panicking is what makes it safe to be wrong about that.
+			panic("promotion failed after removal: " + err.Error())
+		}
 
-		return err
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))

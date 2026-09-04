@@ -7,7 +7,7 @@
 # — under 400KB, well inside MaxTxBytes — exhausted Go's 1GB goroutine stack,
 # and a stack overflow is a fatal runtime error that no recover() can catch:
 # every node processing the block died. tm2/pkg/toml bounds it at
-# maxNestingDepth. See adr/prxxxx_gnomod_toml_bounds.md.
+# maxNestingDepth. See adr/gnomod_toml_bounds.md.
 #
 # 513 levels is past that bound but well under gnomod.maxFileSize, so this
 # exercises the decoder's own limit rather than the size cap, and a rejection

@@ -204,7 +204,7 @@ func TestEscapeBlockHazards(t *testing.T) {
 	}{
 		{"plain", "hello world\n", "hello world\n"},
 		{"atx-heading", "# evil heading\n", "\\# evil heading\n"},
-		{"blockquote", "> attacker\n", "\\> attacker\n"},
+		{"blockquote", "> caller\n", "\\> caller\n"},
 		{"bullet-list", "- item\n", "\\- item\n"},
 		{"ordered-list", "1. item\n", "1\\. item\n"},
 		{"fence-open-autoclose", "```\nuser code\n", "```\nuser code\n```\n"},
@@ -219,7 +219,7 @@ func TestEscapeBlockHazards(t *testing.T) {
 		// Bracket walker MUST also reject the backtick-info-string
 		// "fence" — otherwise it treats lines below as opaque fence
 		// interior and skips LRD strip + bracket escape, letting an
-		// attacker smuggle realm-targeted ref-link definitions past
+		// caller smuggle realm-targeted ref-link definitions past
 		// the walker.
 		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
@@ -348,7 +348,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 	}
 }
 
-// BenchmarkEscapeBlockHazardsAdversarial exercises bracket-walker
+// BenchmarkEscapeBlockHazardsPathological exercises bracket-walker
 // inputs that maximize backtrack work in pass 1: repeated well-formed
 // links (linear path), repeated unclosed-link prefixes terminated by a
 // blank line (current super-linear path; see note), and a multi-line
@@ -360,7 +360,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 // the per-op cost grows ~3x per 2x input. Acceptable for realistic
 // realm input sizes (a few KB) but flagged here for follow-up if a
 // caller needs to defend against pathological inputs.
-func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
+func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
@@ -383,8 +383,8 @@ func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
 	}
 }
 
-// BenchmarkEscapeBlockHazardsRichAdversarial mirrors the strict
-// variant's adversarial guard for EscapeBlockHazardsRich. The
+// BenchmarkEscapeBlockHazardsRichPathological mirrors the strict
+// variant's pathological-input guard for EscapeBlockHazardsRich. The
 // bracket walker, scan-budget cap, and fence state machine are
 // shared with EscapeBlockHazards — Rich mode only skips two
 // per-line escapes — so the same pathological inputs are the
@@ -392,7 +392,7 @@ func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
 // catches regressions specific to the Rich code path (e.g. if a
 // future refactor breaks the bracket walker's budget enforcement
 // for mode=0 only).
-func BenchmarkEscapeBlockHazardsRichAdversarial(b *testing.B) {
+func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"

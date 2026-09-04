@@ -1,0 +1,167 @@
+# The vm run_submitters param gates MsgRun -- once it is populated.
+#
+# Two properties, in the order a chain actually meets them:
+#
+#   1. Empty means OFF. A chain that has never touched the param runs MsgRun
+#      from any funded account, which is the behaviour that predates the param.
+#      Nothing else in the suite asserts this, and it is exactly what a
+#      fail-closed regression would break: every other txtar would still pass,
+#      because they all sign as test1, and the failure would surface only on a
+#      real chain that upgraded without editing genesis.
+#   2. Populated means ON. An account not on the list is refused.
+#
+# The transition between them is done here through governance, which also
+# demonstrates the bootstrap order: proposal creation is MsgRun-only, so the
+# param has to start open for the proposal that closes it to be creatable at
+# all.
+#
+# This is a wiring test too: it fails if the checkCodePolicy call is removed
+# from the ante closure in app.go.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/foobar/bar $WORK/bar
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# The list starts empty, and the harness does not seed it.
+gnokey query params/vm:p:run_submitters
+! stdout 'g1'
+
+# --- Property 1: empty means anyone may run -------------------------------
+
+# Create an account the chain has never heard of. Fixed mnemonic, so the address
+# below is deterministic. It cannot come from adduser/adduserfrom, because those
+# write a genesis balance and the point below is an account genesis never named.
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
+gnokey add stranger --recover --insecure-password-stdin
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+# Fund it, so the outcome below is about authorization and not about an unfunded
+# account or a missing pubkey.
+gnokey maketx send -send 10000000ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Never named anywhere, and it runs.
+input test123
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/script/script.gno
+stdout 'main: --- hello from foo ---'
+stdout 'OK!'
+
+# --- Turn the gate on, by vote --------------------------------------------
+#
+# Only test1 is listed. Every maketx run below this line is therefore also an
+# assertion that governance did not lock itself out.
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_runners.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote0.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/exec0.gno
+stdout 'OK!'
+
+gnokey query params/vm:p:run_submitters
+stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+
+# --- Property 2: populated means only the listed may run ------------------
+
+# test1 is on the list, so it still runs.
+gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1 $WORK/script/script.gno
+stdout 'main: --- hello from foo ---'
+stdout 'OK!'
+
+# The stranger ran a moment ago and is refused now: funded, valid signature,
+# simply not on the list.
+input test123
+! gnokey maketx run -gas-fee 150001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test -insecure-password-stdin stranger $WORK/script/script.gno
+stderr 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 is not authorized to send MsgRun'
+stderr 'run_submitters'
+
+# But the account itself still works: the gate is specific to MsgRun and must
+# not have become a blanket ban on an unlisted signer. Same key, same password,
+# a message that carries no source.
+input test123
+gnokey maketx send -send 1000ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -insecure-password-stdin stranger
+stdout 'OK!'
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}
+
+-- run/submit_runners.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	// The dedicated setter, not the generic factory: vm:p:run_submitters is
+	// reserved so every whole-list write carries the proposer rule. test1 signs
+	// this and is the address being listed, which is what that rule requires.
+	prop := params.ProposeSetRunSubmitters(cross(cur),
+		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/vote0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+}
+
+-- run/exec0.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+}
+
+-- bar/gnomod.toml --
+module = "gno.land/r/foobar/bar"
+gno = "0.9"
+
+-- bar/bar.gno --
+package bar
+
+func Render(path string) string {
+	return "hello from foo"
+}
+
+-- script/script.gno --
+package main
+
+import "gno.land/r/foobar/bar"
+
+func main() {
+	println("main: ---", bar.Render(""), "---")
+}

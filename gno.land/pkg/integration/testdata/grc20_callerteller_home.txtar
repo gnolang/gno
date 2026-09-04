@@ -3,7 +3,7 @@
 # The direct drain — a foreign realm building a teller off a published *Token
 # pointer — is closed by construction and has no runtime test here: the
 # accessor hangs off *PrivateLedger, which never leaves the token's realm, so
-# an attacker realm attempting it does not compile.
+# a caller realm attempting it does not compile.
 #
 # What remains testable is the value-leak path: `leaky` legally builds a teller
 # from its own ledger and then exports it. The write-time home check makes that
@@ -15,11 +15,11 @@
 #   (c) transferFrom                 — actor is a REALM (a hub), and the debited
 #                                      owner is a parameter. This is the case an
 #                                      actor-shaped guard cannot see: without
-#                                      the home check the attacker spends the
+#                                      the home check the caller spends the
 #                                      hub's allowance against alice, who
 #                                      approved the hub and nobody else.
 #
-# Each attacker surfaces the error rather than swallowing it, so these assert
+# Each caller surfaces the error rather than swallowing it, so these assert
 # the specific refusal and not merely that no balance happened to move.
 
 loadpkg gno.land/p/demo/tokens/grc20

@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"testing"
@@ -1052,4 +1053,84 @@ func TestParseCoinRejectsAnOverlongExpressionCheaply(t *testing.T) {
 	c, err := ParseCoin(longest)
 	require.NoError(t, err, "a maximal legal coin expression must still parse")
 	require.Equal(t, int64(9223372036854775807), c.Amount)
+}
+
+// MinInt64 has no positive counterpart, so negating it returns MinInt64 again.
+// Subtraction is implemented as adding the negation, so without a check a
+// subtraction of MinInt64 quietly becomes an addition of it: the overflow the
+// caller actually hit is reported as an ordinary, plausible, wrong number.
+func TestCoinsSubUnsafeRejectsAnUnnegatableAmount(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() {
+		Coins{{"ugnot", 100}}.SubUnsafe(Coins{{"ugnot", math.MinInt64}})
+	}, "subtracting MinInt64 overflows and must not return a value")
+
+	// MaxInt64 negates fine and the sum is in range, so the guard is refusing the
+	// one unnegatable value rather than large amounts generally.
+	got := Coins{{"ugnot", math.MaxInt64}}.SubUnsafe(Coins{{"ugnot", math.MaxInt64}})
+	require.True(t, got.IsZero(), "MaxInt64 - MaxInt64 must still compute")
+}
+
+// Coins cross the wire as their String(): MarshalAmino returns it and
+// UnmarshalAmino runs it back through ParseCoins. So the writer and the reader
+// are two separate implementations of one format, and nothing pinned them to
+// agree. This does.
+//
+// Only valid coin sets are swept, because those are the only ones the bank can
+// write -- SetCoins and subtract both check IsValid before storing. An invalid
+// set does render to a string ParseCoins refuses, which is why keeping those
+// checks in front of storage matters.
+func TestCoinsSurviveTheirOwnWireFormat(t *testing.T) {
+	t.Parallel()
+
+	maxDenom := strings.Repeat("z", MaxDenomLength)
+
+	cases := []struct {
+		name  string
+		coins Coins
+	}{
+		{"empty", Coins{}},
+		{"nil", nil},
+		{"one", Coins{{"ugnot", 1}}},
+		{"largest amount", Coins{{"ugnot", math.MaxInt64}}},
+		{"smallest amount", Coins{{"ugnot", 1}}},
+		{"longest denom", Coins{{maxDenom, math.MaxInt64}}},
+		{"shortest denom", Coins{{"abc", 1}}},
+		{"realm denom", Coins{{"/gno.land/r/demo/foo:gold", 7}}},
+		{"realm and gas denom", Coins{{"/gno.land/r/demo/foo:gold", 7}, {"ugnot", 1}}},
+		{"several, sorted", Coins{{"aaa", 1}, {"bbb", math.MaxInt64}, {"ccc", 2}}},
+		{"denoms differing only in length", Coins{{"aaa", 1}, {"aaaa", 2}}},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Guards the sweep: an invalid set renders to a string ParseCoins
+			// refuses, so a bad case here would look like a round-trip fault.
+			require.True(t, len(tt.coins) == 0 || tt.coins.IsValid(),
+				"test input must be a valid coin set")
+
+			// The wire value is exactly what MarshalAmino hands the codec.
+			wire, err := tt.coins.MarshalAmino()
+			require.NoError(t, err)
+
+			var back Coins
+			require.NoError(t, back.UnmarshalAmino(wire),
+				"the reader must accept what the writer produced: %q", wire)
+
+			// Same coins, and the same bytes if written again -- a set that came
+			// back reordered or merged would still re-marshal, so comparing only
+			// the strings would miss it.
+			require.Equal(t, len(tt.coins), len(back), "denom count must survive")
+			for _, want := range tt.coins {
+				require.Equal(t, want.Amount, back.AmountOf(want.Denom),
+					"amount of %q must survive", want.Denom)
+			}
+			again, err := back.MarshalAmino()
+			require.NoError(t, err)
+			require.Equal(t, wire, again, "re-marshalling must be identical")
+		})
+	}
 }

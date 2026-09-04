@@ -233,7 +233,7 @@ func TestChargeNativeGas_PreCallTwoSlopesOnDistinctParams(t *testing.T) {
 	// Mimic crypto/merkle.innerHash: two independent unbounded byte params,
 	// each carrying the same per-byte rate so the charge tracks the sum of
 	// their lengths. Metering only one would leave the other free — an
-	// attacker just moves the payload into the unmetered operand.
+	// caller just moves the payload into the unmetered operand.
 	cleanup := registerTestNative(t, &NativeGasInfo{
 		Base:  100,
 		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeLenBytes,

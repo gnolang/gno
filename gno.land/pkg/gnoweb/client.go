@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -104,6 +105,12 @@ type ClientAdapter interface {
 	// StateType retrieves a type definition by TypeID at the given
 	// block height (0 for latest).
 	StateType(ctx context.Context, typeId string, height int64) ([]byte, error)
+
+	// PackageMeta reports whether a path holds a live package, one parked
+	// awaiting an approver, or nothing. An absent path is a nil error with
+	// status "absent", not ErrClientPackageNotFound: the caller needs to tell
+	// "nothing here" from "the node did not answer".
+	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
 }
 
 type rpcClient struct {
@@ -243,6 +250,25 @@ func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]
 	return c.query(ctx, qpath, []byte(data), height)
 }
 
+// PackageMeta queries vm/qpkgmeta_json. Always at the latest height: the
+// question is whether the package is live *now*, and a historical answer would
+// say nothing about whether it still needs approving.
+func (c *rpcClient) PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error) {
+	const qpath = "vm/qpkgmeta_json"
+
+	path = strings.Trim(path, "/")
+	data := fmt.Sprintf("%s/%s", c.domain, path)
+	raw, err := c.query(ctx, qpath, []byte(data), 0)
+	if err != nil {
+		return nil, err
+	}
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return nil, fmt.Errorf("unable to decode package meta: %w", err)
+	}
+	return &meta, nil
+}
+
 // StateObject retrieves an object by ObjectID via vm/qobject_json
 // at the given block height (0 for latest).
 func (c *rpcClient) StateObject(ctx context.Context, oid string, height int64) ([]byte, error) {
@@ -263,7 +289,7 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
-	// Debug, not Info: `data` carries attacker-supplied OID/TID/file —
+	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
 	c.logger.Debug("querying node", "path", qpath, "data", string(data), "height", height)

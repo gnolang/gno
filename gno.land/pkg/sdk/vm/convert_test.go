@@ -15,7 +15,7 @@ import (
 )
 
 // mustStringifyJSONResults is a test-only unbounded wrapper: the size bound has
-// its own coverage in keeper_dos_test.go, and these cases assert on the encoded
+// its own coverage in keeper_large_input_test.go, and these cases assert on the encoded
 // shape of small hand-built values. Deliberately test-only — production code
 // must never gain an unbounded variant; query paths pass maxQueryExportBytes.
 func mustStringifyJSONResults(t *testing.T, m *gnolang.Machine, tvs []gnolang.TypedValue, ft *gnolang.FuncType) string {

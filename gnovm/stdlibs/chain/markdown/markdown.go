@@ -754,7 +754,7 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 		// treat the line as a fence open while goldmark treats subsequent
 		// lines as paragraph content where line-leader / extension /
 		// HTML-block defenses normally apply. Without the check, an
-		// attacker can write "```a`b" to make the sanitizer believe a
+		// caller can write "```a`b" to make the sanitizer believe a
 		// fence opened and skip defenses on `<gno-…>`, `<!--`, `===`,
 		// `#`, `|---|`, etc. on the following lines, while goldmark
 		// happily opens those blocks. Tilde fences are NOT subject to
@@ -877,7 +877,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// nextClose is the byte index of the next `]` at or after i, or
 	// len(s) if no `]` remains. Maintained lazily — we only need to
 	// recompute it when i catches up. Used to short-circuit
-	// scanLinkText on adversarial input like `[[[[…` with no closer,
+	// scanLinkText on pathological input like `[[[[…` with no closer,
 	// where every `[` would otherwise force a fresh forward walk to
 	// the next blank line or EOF (O(n²) total). With this check,
 	// each `[` either has a `]` ahead and we run the real scan, or
@@ -891,7 +891,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// every `[` could otherwise force a depth-balanced walk across most
 	// of the input. 8×len(s) leaves plenty of headroom for legitimate
 	// content (real links are short and rare relative to input size)
-	// while capping adversarial work at O(n).
+	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
 	for i < len(s) {
 		// Advance nextClose past i if needed.
@@ -922,7 +922,7 @@ func findBracketSpans(s string) []bracketSpan {
 					// walker treats subsequent lines as fence interior
 					// (skipping LRD strip + bracket escape) while
 					// goldmark treats them as paragraph — letting an
-					// attacker smuggle a ref-link definition past the
+					// caller smuggle a ref-link definition past the
 					// walker.
 					if fenceChar == '`' && hasBacktickBeforeNewline(s, k) {
 						i = k
@@ -962,7 +962,7 @@ func findBracketSpans(s string) []bracketSpan {
 			if nextClose >= len(s) {
 				// No `]` remains anywhere ahead; scanLinkText will fail.
 				// Skip the scan to keep the walker linear-time even on
-				// adversarial unclosed-bracket input.
+				// pathological unclosed-bracket input.
 				i++
 				atLineStart = false
 				continue
@@ -1077,7 +1077,7 @@ func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
 // true on success. `budget` is a shared work counter — each byte
 // inspected decrements it, and the scan aborts (returns false) when
 // it hits zero. This caps total pass-1 scan work at O(budget) across
-// all calls, defending against adversarial inputs like
+// all calls, bounding pathological inputs like
 // `[[[[…]]]]` where every `[` would otherwise force a fresh
 // depth-balanced walk across most of the input (O(n²)).
 func scanLinkText(s string, i int, budget *int) (int, bool) {
@@ -1117,7 +1117,7 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
 // Returns the span end and destination bounds on success.
-// Shares the pass-1 scan budget with scanLinkText so an attacker can't
+// Shares the pass-1 scan budget with scanLinkText so a caller can't
 // chain `[a]([a]([a](…` (which would otherwise let scanLinkURL walk to
 // EOF on every `[`, O(n²)).
 func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
@@ -1235,7 +1235,7 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 // `i` is the byte index right after the closing `]` of the label.
 // Returns the byte index of the LRD region's end (after the URL or after
 // the title, including a trailing newline if present) and true on success.
-// Shares the pass-1 scan budget so an attacker can't chain
+// Shares the pass-1 scan budget so a caller can't chain
 // `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
 // LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
 func scanLRDTail(s string, i int, budget *int) (int, bool) {

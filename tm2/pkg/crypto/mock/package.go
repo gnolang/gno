@@ -27,7 +27,7 @@ var registerOnce sync.Once
 // Do NOT call this on any production path. These types stand in for real
 // crypto, and PubKeyMock in particular verifies any signature that can be
 // derived from the message and the public key alone — which is to say, by
-// anyone. Registering it lets an attacker-chosen type URL in untrusted bytes
+// anyone. Registering it lets an caller-chosen type URL in untrusted bytes
 // resolve to PubKeyMock, so any crypto.PubKey decoded from the wire may hold a
 // key whose signatures are forgeable. That reaches further than it first looks:
 // a key type needs only to be accepted somewhere a crypto.PubKey is decoded,

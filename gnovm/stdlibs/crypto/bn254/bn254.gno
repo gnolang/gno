@@ -40,7 +40,7 @@ func G1Add(input []byte) []byte {
 	// only gets to do that after the dispatcher has already copied the whole
 	// slice into Go memory. g1Add is priced flat, so that copy is work nobody
 	// pays for. Truncating first keeps the flat price honest; see
-	// adr/prxxxx_native_input_bounds.md.
+	// adr/native_input_bounds.md.
 	if len(input) > G1AddInputSize {
 		input = input[:G1AddInputSize]
 	}
@@ -56,7 +56,7 @@ func G1Add(input []byte) []byte {
 func G1Mul(input []byte) []byte {
 	// Same length check the native performs, moved ahead of the native call
 	// so a wrong-length input is rejected before the dispatcher copies it.
-	// See G1Add above and adr/prxxxx_native_input_bounds.md.
+	// See G1Add above and adr/native_input_bounds.md.
 	if len(input) != G1MulInputSize {
 		return nil
 	}

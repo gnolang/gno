@@ -8,7 +8,7 @@
 //
 // Three sections:
 //
-//	-- input.md --     user-supplied content (the attacker input)
+//	-- input.md --     user-supplied content (the caller input)
 //	-- output.md --    sanitize.X(input)  (skip-on-update generated)
 //	-- output.html --  optional: rendered via goldmark+gnoweb when CONTEXT
 //	                   is declared. Validators (no CONTEXT) omit this.
@@ -401,7 +401,7 @@ func TestSanitizeIntegration(t *testing.T) {
 
 			// txtar appends a trailing newline to every section; strip
 			// that one newline before sanitizing (it's a fixture artifact,
-			// not part of the attacker input). If INPUT_ESCAPED is set,
+			// not part of the caller input). If INPUT_ESCAPED is set,
 			// also decode Go-string escapes so the case can author CR,
 			// NUL, or other bytes that editors normalize.
 			input := strings.TrimSuffix(string(inputData), "\n")
@@ -468,31 +468,31 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 		{
 			name:        "realm-with-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm\n",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h2",
 			realmChrome: "Realm Banner",
-			userInput:   "---\nattacker text\n",
+			userInput:   "---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-leading-blank-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\n===\nattacker text\n",
+			userInput:   "\n===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-indented-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "   ===\nattacker text\n",
+			userInput:   "   ===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
@@ -500,21 +500,21 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 			// the qualifying-setext pre-pass must also recognize it.
 			name:        "realm-no-trailing-newline-plus-u2028-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u2028===\nattacker text\n",
+			userInput:   "\u2028===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			// U+2029 paragraph separator — same concern.
 			name:        "realm-no-trailing-newline-plus-u2029-prefix-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\u2029---\nattacker text\n",
+			userInput:   "\u2029---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			// U+0085 NEL — same concern.
 			name:        "realm-no-trailing-newline-plus-nel-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u0085===\nattacker text\n",
+			userInput:   "\u0085===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{

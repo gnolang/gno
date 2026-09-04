@@ -127,6 +127,36 @@ import (
 // root. This one does change behavior, and is intentionally
 // consensus-breaking.
 //
+// Hash bumped by the phase-2 inert-packages PR (#5888): new vm params
+// (code_submission_policy, code_submitters, pkg_approvers) plus inert-storage
+// keying serialize additional defaults into the genesis vm params state,
+// shifting the committed multistore root. Behavior is unchanged (policy
+// defaults to permissionless). Re-derived after merging master.
+//
+// Re-derived once more for the merge of master into #5888: both sides moved
+// the root, so neither side's value survives the combination.
+//
+// Bumped by the run_submitters vm param (MsgRun allowlist). A new Params field
+// moves this root even though its default is an empty list: params.SetStruct
+// goes through encodeStructFields (tm2/pkg/sdk/params/amino_helper.go), which
+// writes one store key per field unconditionally and does not skip zero values.
+// So the genesis vm params state gains a `vm:p:run_submitters` key holding
+// `null`. Behavior at this hash is unchanged — the scenario sends no MsgRun.
+//
+// Bumped again by lowering the DefaultDeposit param from 600000000ugnot to
+// 100000000ugnot. Unlike the bumps above this is a value change, not a new
+// key: `vm:p:default_deposit` is genesis state, so its contents are in the
+// root. It does change behavior at the margin — the param is the fallback
+// CEILING on a storage deposit when a message declares no MaxDeposit, so a
+// single message may now add at most 1 MB of realm state rather than 6 MB
+// before it is refused. Measured against all 321 genesis packages the largest
+// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// new ceiling clears the worst real case by 3.6x.
+// Bumped again by the two inert-charge vm params, for the same reason as
+// run_submitters above: two more keys, written unconditionally. Behavior at
+// this hash is unchanged — inert_submission_charge defaults to empty, which
+// means off, and the scenario submits nothing under the "inert" policy anyway.
+//
 // Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
 // their length checks moved into the .gno wrapper (ahead of the native call, so
 // an oversized input is not copied into Go memory for a flat fee), plus a test
@@ -149,7 +179,31 @@ import (
 // doc comment (the `&amp;` round-trip note from review). Still comment-only,
 // still consensus-breaking for the reason above; the merge commit pins
 // 0e8e8714 without it.
-const expectedCrossrealm38Hash = "d476a03d49d13121a900baa4a86cc5709183cd49b8798806875d348191dba137"
+//
+// Re-derived for the combination: master's params/deposit bumps and this
+// branch's stdlib source bumps both move the root, so neither side's value
+// survives the merge.
+//
+// Bumped again by the chain/params reader API: params.gno gains six GetXxx
+// declarations and the doc describing what a wrong-type read does. Stdlib .gno
+// source bytes are genesis state, so both the declarations and the comment move
+// the root. The crossrealm38 scenario calls none of them; the shift is the
+// stdlib source change alone. Re-derived after merging master, whose own
+// encode/decode work moved the root too, so neither side's value survives.
+//
+// Bumped 2026-08-26 by the chain.NewCoins copy fix: it edits coins.gno and
+// coins_test.gno, and stdlib MemPackages carry both files' source bytes into
+// genesis state. The scenario never calls NewCoins, and the
+// zrealm_crossrealm38.gno filetest still passes, so behavior is unchanged.
+// Checked that the source bytes are the whole cause and not the copy the fix
+// adds: starting from the pre-fix file, one comment line moves the root on its
+// own.
+//
+// Bumped 2026-08-27 by a doc fix on Coin.Add and Coin.Sub in coins.gno. Both
+// claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
+// (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
+// calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
+const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

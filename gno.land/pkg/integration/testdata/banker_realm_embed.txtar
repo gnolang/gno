@@ -5,7 +5,7 @@
 # does not control, and balances stay untouched.
 # See gnovm/adr/realm_seal_embedding.md.
 
-adduser attacker
+adduser caller
 adduser victim
 
 gnoland start
@@ -13,17 +13,17 @@ gnoland start
 ## Genesis balances
 gnokey query bank/balances/${victim_user_addr}
 stdout '1000000000ugnot'
-gnokey query bank/balances/${attacker_user_addr}
+gnokey query bank/balances/${caller_user_addr}
 stdout '1000000000ugnot'
 
 ## Deploying the embedding realm is rejected at type-check.
-! gnokey maketx addpkg -pkgdir $WORK/realmembed -pkgpath gno.land/r/test/realmembed -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test attacker
+! gnokey maketx addpkg -pkgdir $WORK/realmembed -pkgpath gno.land/r/test/realmembed -gas-fee 400001ugnot -gas-wanted 4_000_000 -chainid=tendermint_test caller
 stderr 'fooRealm does not implement .uverse.realm \(missing method \.seal\)'
 
 ## Balances are untouched.
 gnokey query bank/balances/${victim_user_addr}
 stdout '1000000000ugnot'
-gnokey query bank/balances/${attacker_user_addr}
+gnokey query bank/balances/${caller_user_addr}
 stdout '1000000000ugnot'
 
 -- realmembed/gnomod.toml --

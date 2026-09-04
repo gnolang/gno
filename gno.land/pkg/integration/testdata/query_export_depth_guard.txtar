@@ -1,5 +1,5 @@
-# Regression test for the deep-recursion DoS on the value-returning query
-# endpoints (dora da2da886), the depth counterpart to
+# Regression test for the deep-recursion blowup on the value-returning query
+# endpoints, the depth counterpart to
 # query_export_size_guard.txtar. A thin, deeply nested ephemeral value (a linked
 # list) stays cheap per node, so it slips under the export byte budget — but
 # exporting and amino-marshaling it recurses on the goroutine stack (a fatal,

@@ -18,14 +18,12 @@ const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
 
 var nextGRC20ID seqid.ID
 
-// newTestNFT constructs an NFT through a same-realm cross so NewBasicNFT's
-// IsCurrent + non-empty PkgPath checks pass.
-func newTestNFT(_ int, rlm realm, name, symbol string) *grc721.BasicNFT {
-	var nft *grc721.BasicNFT
+// Same-realm cross so NewToken's IsCurrent + non-empty PkgPath checks pass.
+func newTestNFT(name, symbol string, rlm realm) (tok *grc721.Token, led *grc721.PrivateLedger) {
 	func(cur realm) {
-		nft = grc721.NewBasicNFT(0, cur, name, symbol)
+		tok, led = grc721.NewToken(name, symbol, 0, cur)
 	}(cross(rlm))
-	return nft
+	return
 }
 
 func TestTokenRegistration(cur realm, t *testing.T) {
@@ -34,8 +32,6 @@ func TestTokenRegistration(cur realm, t *testing.T) {
 	token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next(), cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
-	// The registry key is the token's rlmPath.symbol; Token.ID() extends it
-	// with a trailing sequence id.
 	uassert.True(t, strings.HasPrefix(token.ID(), key+"."), "registry key should be the token's rlmPath.symbol prefix")
 
 	retrievedToken := GetToken(key)
@@ -49,9 +45,9 @@ func TestNFTRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
-	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
-	err := RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
+	nft, nftLedger := newTestNFT("Test NFT", "TNFT", cur)
+	nftLedger.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
+	err := RegisterNFT(cross(cur), nft, "test_nft", "1")
 
 	urequire.NoError(t, err, "Should register NFT without error")
 
@@ -59,10 +55,8 @@ func TestNFTRegistration(cur realm, t *testing.T) {
 
 	urequire.True(t, retrievedNFT != nil, "Should retrieve registered NFT")
 
-	metadata, ok := retrievedNFT.(grc721.IGRC721CollectionMetadata)
-	urequire.True(t, ok, "NFT should implement IGRC721CollectionMetadata")
-	uassert.Equal(t, "Test NFT", metadata.Name(), "NFT name should match")
-	uassert.Equal(t, "TNFT", metadata.Symbol(), "NFT symbol should match")
+	uassert.Equal(t, "Test NFT", retrievedNFT.GetName(), "NFT name should match")
+	uassert.Equal(t, "TNFT", retrievedNFT.GetSymbol(), "NFT symbol should match")
 }
 
 func TestGRC1155Registration(cur realm, t *testing.T) {
@@ -96,9 +90,9 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
-	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
-	uassert.NoError(t, RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1"))
+	nft, nftLedger := newTestNFT("Test NFT", "TNFT", cur)
+	nftLedger.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
+	uassert.NoError(t, RegisterNFT(cross(cur), nft, "test_nft", "1"))
 
 	balances = GetUserNFTBalances(unsafe.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances, "NFT:"+testRealmPkgPath+".test_nft.1"), "Should show correct NFT balance")
@@ -119,17 +113,20 @@ func TestErrorCases(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Test NFT", "TNFT")
-	err := RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
+	nft, nftLedger := newTestNFT("Test NFT", "TNFT", cur)
+	nftLedger.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
+	err := RegisterNFT(cross(cur), nft, "test_nft", "1")
+	uassert.NoError(t, err, "First registration should succeed")
 
-	err = RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
+	err = RegisterNFT(cross(cur), nft, "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err = RegisterMultiToken(cross(cur), mt.Getter(), "1")
+	uassert.NoError(t, err, "First multi-token registration should succeed")
 
 	err = RegisterMultiToken(cross(cur), mt.Getter(), "1")
-	uassert.True(t, err != nil, "Should not allow duplicate registrasdasdation")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
 func TestTokenListingFunctions(cur realm, t *testing.T) {
@@ -144,9 +141,9 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nftToken := newTestNFT(0, cur, "Listing NFT", "LNFT")
-	nftToken.Mint(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
-	RegisterNFT(cross(cur), nftToken.Getter(), "listing_nft", "1")
+	nftToken, nftLedger := newTestNFT("Listing NFT", "LNFT", cur)
+	nftLedger.Mint(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
+	RegisterNFT(cross(cur), nftToken, "listing_nft", "1")
 
 	nftList := GetAllNFTs()
 	uassert.True(t, strings.Contains(nftList, "NFT:"+testRealmPkgPath+".listing_nft.1"),
@@ -177,29 +174,22 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 	retrievedToken := MustGetToken(key)
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
 
-	// Under the unified declaring-realm borrow, calling MustGetToken
-	// (which dispatches to grc20reg.MustGet in /r/demo/defi/grc20reg)
-	// crosses a soft realm boundary. Panics across borrows are aborts
-	// not catchable by plain defer/recover — use revive() to capture.
+	// MustGetToken dispatches into grc20reg across a borrow; that abort is not
+	// catchable by defer/recover, so capture it with revive().
 	r := revive(func() { MustGetToken("non_existent_token") })
 	uassert.True(t, r != nil, "MustGetToken should panic for non-existent token")
 	uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
 
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	nft := newTestNFT(0, cur, "Must NFT", "MNFT")
-	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
-	RegisterNFT(cross(cur), nft.Getter(), "must_nft", "1")
+	nft, nftLedger := newTestNFT("Must NFT", "MNFT", cur)
+	nftLedger.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
+	RegisterNFT(cross(cur), nft, "must_nft", "1")
 
-	// NFT registration key is cur.Previous().PkgPath() + "." + collection + "." + tokenId
-	// where cur.Previous() at the cross-call site is the realm set via SetRealm above (testRealmPkgPath).
 	retrievedNFT := MustGetNFT(testRealmPkgPath + ".must_nft.1")
-	metadata, ok := retrievedNFT.(grc721.IGRC721CollectionMetadata)
-	urequire.True(t, ok, "NFT should implement IGRC721CollectionMetadata")
-	uassert.Equal(t, "Must NFT", metadata.Name(), "NFT name should match")
+	uassert.Equal(t, "Must NFT", retrievedNFT.GetName(), "NFT name should match")
 
-	// MustGetNFT's panic is local (panic site is in this package, no foreign
-	// realm call), so defer/recover catches it without crossing any borrow.
+	// MustGetNFT's panic is local (no borrow crossed), so defer/recover catches it.
 	func() {
 		defer func() {
 			r := recover()
@@ -212,9 +202,8 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 	mt := grc1155.NewBasicGRC1155Token("must-uri")
 	RegisterMultiToken(cross(cur), mt.Getter(), "must_mt")
 
-	// MultiToken registration key is cur.Previous().PkgPath() + "." + tokenID.
 	retrievedMT := MustGetMultiToken(testRealmPkgPath + ".must_mt")
-	_, ok = retrievedMT.(grc1155.IGRC1155)
+	_, ok := retrievedMT.(grc1155.IGRC1155)
 	urequire.True(t, ok, "Retrieved multi-token should implement IGRC1155")
 
 	// Local panic, same as MustGetNFT above.

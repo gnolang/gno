@@ -11,7 +11,7 @@ import (
 
 // TestExportValuesLimit_BoundMethodNameCharged is the regression test for the
 // BoundMethodValue.Method / MethodPkg bypass: a slice of lazy interface-bound
-// method values (Func == nil) re-emits the attacker-controlled method-name
+// method values (Func == nil) re-emits the caller-controlled method-name
 // identifier once per element, so the walk must charge it or a long method name
 // slips past the budget — the same field-name/tag bypass class as
 // TestExportValuesLimit_FieldNamesAndTagsCharged, on a different node.
@@ -280,7 +280,7 @@ func Build(depth int) *Node {
 }
 
 // TestExportValuesLimit_DepthGuard is the regression test for the deep-recursion
-// DoS: a thin, deeply nested value tree stays under the byte budget (its per-node
+// Note: a thin, deeply nested value tree stays under the byte budget (its per-node
 // charge is tiny), so the size guard never fires — but exporting and then
 // amino-marshaling it recurses on the goroutine stack (fatal, unrecoverable
 // overflow) and the marshal is ~O(depth^2). The depth guard must reject it with

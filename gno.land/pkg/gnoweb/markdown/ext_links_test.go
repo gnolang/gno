@@ -32,7 +32,7 @@ func TestExtLinksRejectsObfuscatedDangerousURLs(t *testing.T) {
 		`[x](&#10;data:text/html,x)`,
 		// Backslash-escaped punctuation. UnescapePunctuations turns `\:`
 		// into `:`, so these are dangerous only after resolution — exactly
-		// like the entity forms above, and vulnerable to the same
+		// like the entity forms above, and affected by the same
 		// check-the-raw-bytes mistake.
 		`[x](javascript\:alert(1))`,
 		`[x](javascript\:alert\(1\))`,

@@ -183,7 +183,7 @@ func TestVerifyBytesRejectsMalformedPubKey(t *testing.T) {
 		t.Parallel()
 
 		// K is omitted from the encoding when it is zero, so this key costs an
-		// attacker nothing to produce and its address is fixed and public.
+		// caller nothing to produce and its address is fixed and public.
 		var pk crypto.PubKey
 		amino.MustUnmarshalAny(amino.MustMarshalAny(PubKeyMultisigThreshold{}), &pk)
 		require.Equal(t, uint(0), pk.(PubKeyMultisigThreshold).K)

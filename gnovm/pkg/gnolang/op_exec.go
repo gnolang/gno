@@ -728,6 +728,12 @@ EXEC_SWITCH:
 			nextClause := cs.BodyIndex + 1
 			// expand block size
 			cl := &ss.Clauses[nextClause]
+			// All clauses share the switch's block: the switch's own names
+			// come first (copied by copyFromFauxBlock during preprocess) and
+			// the running clause's names are appended by ExpandWith. Drop the
+			// falling-through clause's names first; they are out of scope in
+			// the next clause, which gets fresh slots of its own.
+			b.Values = b.Values[:ss.GetNumNames()]
 			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{

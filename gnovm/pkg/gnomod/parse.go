@@ -56,7 +56,7 @@ func MustParseBytes(fname string, data []byte) *File {
 }
 
 // maxFileSize bounds a gnomod.toml (or deprecated gno.mod) body. The body is
-// attacker-controlled on the MsgAddPackage/MsgRun path — it rides along in the
+// caller-controlled on the MsgAddPackage/MsgRun path — it rides along in the
 // MemPackage, where MemFile.ValidateBasic bounds the file name and nothing else.
 //
 // The shape of what the decoder will accept is bounded in the decoder itself

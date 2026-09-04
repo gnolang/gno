@@ -95,7 +95,7 @@ func (mSig *Multisignature) AddSignatureFromPubKey(sig []byte, pubkey crypto.Pub
 // not disagree about which shapes are walkable, and the equality below is a
 // consensus rule.
 func (mSig Multisignature) ValidateBasic(nKeys int) error {
-	// The bit array is as attacker-chosen as the rest of the signature, and it
+	// The bit array is as caller-chosen as the rest of the signature, and it
 	// decides both how far the walk runs and which signatures it indexes, so its
 	// own shape has to hold before Size() is trusted for either: an
 	// ExtraBitsStored past the end of Elems would make the walk index off the end

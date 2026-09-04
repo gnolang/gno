@@ -208,7 +208,7 @@ func TestParseBytesSizeBound(t *testing.T) {
 			expectedError: "size 4097 exceeds limit 4096",
 		},
 		{
-			// The dora-1b774a7a payload: ~840KB of nested arrays. Fed straight to
+			// The reported payload: ~840KB of nested arrays. Fed straight to
 			// upstream go-toml this recursed past Go's 1GB stack and killed the
 			// process with an unrecoverable fatal error. The size bound rejects it
 			// here; tm2/pkg/toml's maxNestingDepth is what makes it safe at any size.
