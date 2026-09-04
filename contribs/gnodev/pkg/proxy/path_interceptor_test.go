@@ -310,6 +310,11 @@ func Render(_ string) string { return "foo" }
 		// Stop the current node — this kills the RPC server
 		require.NoError(t, node.Stop())
 
+		// Start() rewrote this with the port the stopped node got, so ask for a
+		// free one again. The RPC address is the one the restart has to keep,
+		// since the proxy forwards there.
+		cfg.TMConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
+
 		// Start a fresh node on the same address (same cfg)
 		newNode, err := gnoland.NewInMemoryNode(logger, cfg)
 		require.NoError(t, err)

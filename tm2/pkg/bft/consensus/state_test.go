@@ -217,6 +217,45 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 	ensureNoNewTimeout(timeoutCh, cs.config.TimeoutPropose.Nanoseconds())
 }
 
+// a validator should not time out on the proposal it made itself. One height
+// would lose that race about half the time, hence eight at a microsecond.
+func TestStateEnterProposeNoTimeoutOnOwnProposal(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	cs.config.TimeoutPropose = time.Microsecond
+	height, round := cs.Height, cs.Round
+
+	newRoundCh := subscribe(cs.evsw, cstypes.EventNewRound{})
+	proposalCh := subscribe(cs.evsw, cstypes.EventCompleteProposal{})
+	timeoutCh := subscribe(cs.evsw, cstypes.EventTimeoutPropose{})
+
+	startFrom(cs, height, round)
+	defer func() {
+		cs.Stop()
+		cs.Wait()
+	}()
+	defer ensureDrainedChannels(t, newRoundCh, proposalCh, timeoutCh)
+
+	for range 8 {
+		ensureNewRound(newRoundCh, height, round)
+
+		select {
+		case <-time.After(ensureTimeout):
+			t.Fatalf("timeout waiting for the proposal of height %v", height)
+		case msg := <-timeoutCh:
+			t.Fatalf("proposer timed out on its own proposal: %v", msg)
+		case msg := <-proposalCh:
+			proposalEvent, ok := msg.(cstypes.EventCompleteProposal)
+			require.True(t, ok, "expected a EventCompleteProposal, got %T", msg)
+			require.Equal(t, height, proposalEvent.Height)
+			require.Equal(t, round, proposalEvent.Round)
+		}
+
+		height++
+	}
+}
+
 func TestStateSignAddVoteReusesExistingSelfVote(t *testing.T) {
 	t.Parallel()
 
