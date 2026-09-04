@@ -790,7 +790,7 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			// The receiver's text is untracked VM-internal (ID 0); mint
+			// The receiver's text is untracked VM-internal (nil backing); mint
 			// the copy user code gets to hold.
 			m.PushValue(newTypedString(m.Alloc, arg0.TV.GetString()))
 		},
@@ -1550,7 +1550,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			// Pass the receiver's StringValue through: same backing, same
-			// mint ID, no untracked copy.
+			// backing, no untracked copy.
 			m.PushValue(TypedValue{T: StringType, V: arg0.TV.V})
 		},
 	)

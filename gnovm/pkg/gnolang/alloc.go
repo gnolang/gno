@@ -814,7 +814,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	// Header only; GCVisitorFn counts the backing bytes once per mint ID.
+	// Header only; GCVisitorFn counts the backing bytes once per backing.
 	return allocString
 }
 
