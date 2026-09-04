@@ -67,7 +67,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	//
 	// This makes parked packages unactivatable once the policy moves, which is
 	// the intended outcome; returning to "inert" makes them activatable again.
-	// Note that nothing evicts them in the meantime — see DisablePackage.
+	// MsgRejectPackage clears them under any policy, on the creator's or an
+	// approver's request.
 	if !replay && params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"code_submission_policy is %q, not %q: packages cannot be enabled",
@@ -368,15 +369,12 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	return nil
 }
 
-// DisablePackage moves an active package back to inert state.
-// NOTE: full disable requires evicting executed objects from the base store,
-// which is not yet implemented. This stub is provided for interface completeness.
 // RejectPackage deletes a package that is parked awaiting approval.
 //
 // Nothing else could remove one. DelInertPackage ran only after a successful
-// enable and DisablePackage is unimplemented, so a submission an approver
-// declined occupied the store forever -- and so did one parked under a policy
-// that has since moved off "inert", which no enable can ever activate.
+// enable, so a submission an approver declined occupied the store forever --
+// and so did one parked under a policy that has since moved off "inert", which
+// no enable can ever activate.
 //
 // Either the creator or an approver may send it. Both have standing: the bytes
 // are the creator's, and declining them is the approver's job. Anyone else is
@@ -409,17 +407,6 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 
 	gnostore.DelInertPackage(msg.PkgPath)
 	return nil
-}
-
-func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error {
-	params := vm.GetParams(ctx)
-	if !approverGateSatisfied(ctx, params, msg.Approver) {
-		return std.ErrUnauthorized(fmt.Sprintf(
-			"address %s is not a pkg approver", msg.Approver))
-	}
-	// TODO: evict executed package objects from baseStore and move source back
-	// to inert_pkg key. Tracked in a follow-up PR.
-	return std.ErrUnknownRequest("disable_package is not yet implemented")
 }
 
 // QueryPaths returns public facing function signatures.
