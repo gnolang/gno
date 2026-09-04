@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,234 +15,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMain dispatches to the SIGTERM-ignoring helper subprocess when
-// invoked with the GNOE2E_TEST_IGNORE_SIGTERM env var. Used by
-// TestCluster_Halt_CtxCancelled to obtain a process that reliably
-// refuses to exit on SIGTERM.
+// TestMain dispatches to the signal-ignoring helper subprocess when invoked
+// with the GNOE2E_TEST_IGNORE_SIGNALS env var, so the tests that need a process
+// which refuses to stop have one.
 func TestMain(m *testing.M) {
-	if os.Getenv("GNOE2E_TEST_IGNORE_SIGTERM") == "1" {
-		signal.Ignore(syscall.SIGTERM)
-		time.Sleep(30 * time.Second)
-		os.Exit(0)
+	if os.Getenv("GNOE2E_TEST_IGNORE_SIGNALS") == "1" {
+		runUnstoppableHelper()
+		return
 	}
 	os.Exit(m.Run())
 }
 
-// ---- Halt tests
-
-// TestCluster_Halt_NoValidators verifies Halt errors when the cluster has
-// no running processes.
-func TestCluster_Halt_NoValidators(t *testing.T) {
-	c := &Cluster{}
-	err := c.Halt(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not running")
-}
-
-// TestCluster_Halt_SignalsAndWaits spawns a real subprocess that traps
-// SIGTERM, registers it as a Node.Process, and verifies Halt sends
-// SIGTERM and waits for the process to exit cleanly.
-func TestCluster_Halt_SignalsAndWaits(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("SIGTERM not supported on windows")
+// runUnstoppableHelper is the child half of spawnUnstoppable: it ignores both
+// signals the harness stops a node with, announces that the handlers are
+// installed by creating the file named in GNOE2E_TEST_READY_FILE, and then
+// blocks until it is killed.
+func runUnstoppableHelper() {
+	signal.Ignore(syscall.SIGTERM, syscall.SIGINT)
+	if path := os.Getenv("GNOE2E_TEST_READY_FILE"); path != "" {
+		if err := os.WriteFile(path, []byte("ready"), FilePermissions); err != nil {
+			os.Exit(1)
+		}
 	}
-
-	// `sleep 30` exits cleanly on SIGTERM (default disposition: terminate).
-	// Halt sends SIGTERM and waits for Process.Wait, which is exactly the
-	// behavior we want to verify without depending on a real gnoland binary.
-	cmd := exec.Command("sleep", "30")
-	require.NoError(t, cmd.Start())
-	t.Cleanup(func() {
-		// Belt-and-braces in case the test fails before Halt runs.
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
-	})
-
-	node := &Node{Index: 0, Process: cmd.Process}
-	c := &Cluster{Validators: []*Node{node}}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	start := time.Now()
-	require.NoError(t, c.Halt(ctx))
-	elapsed := time.Since(start)
-
-	// Halt should return promptly once the child exits, well below the
-	// 30-second sleep duration.
-	assert.Less(t, elapsed, 5*time.Second, "Halt should return quickly after SIGTERM")
+	time.Sleep(30 * time.Second)
+	os.Exit(0)
 }
 
-// TestCluster_BootFromExistingDataDir_RejectsAlreadyRunning verifies
-// the precondition check: a cluster with running validators must not be
-// re-booted. Reusing a cluster value while its existing process is
-// still alive risks leaking the old process and double-binding ports.
-func TestCluster_BootFromExistingDataDir_RejectsAlreadyRunning(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("subprocess semantics differ on windows")
-	}
+// spawnUnstoppable starts a helper subprocess that ignores SIGINT and SIGTERM,
+// and returns only once its handlers are installed.
+//
+// Waiting for the handshake rather than sleeping is what keeps these tests
+// honest: a helper still in runtime startup takes the default disposition and
+// dies to the very signal the test needs it to survive, which turns the test
+// green for the opposite of the reason it was written.
+func spawnUnstoppable(t *testing.T) *exec.Cmd {
+	t.Helper()
 
-	cmd := exec.Command("sleep", "30")
-	require.NoError(t, cmd.Start())
-	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
-	})
-
-	c := &Cluster{Validators: []*Node{{Index: 0, Process: cmd.Process}}}
-	err := c.BootFromExistingDataDir(context.Background(), t.TempDir(), "/bin/echo")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already running")
-}
-
-// TestCluster_BootFromExistingDataDir_RejectsMissingDataDir verifies
-// the precondition check on the data dir path.
-func TestCluster_BootFromExistingDataDir_RejectsMissingDataDir(t *testing.T) {
-	c := &Cluster{}
-	err := c.BootFromExistingDataDir(context.Background(), "/nonexistent/data/dir", "/bin/echo")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "data dir")
-}
-
-// TestCluster_BootFromExistingDataDir_RejectsMissingBinary verifies
-// the precondition check on the binary path.
-func TestCluster_BootFromExistingDataDir_RejectsMissingBinary(t *testing.T) {
-	c := &Cluster{}
-	err := c.BootFromExistingDataDir(context.Background(), t.TempDir(), "/nonexistent/binary")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "binary")
-}
-
-// ---- BootFromGenesis tests
-
-// TestCluster_BootFromGenesis_RejectsAlreadyRunning verifies the
-// precondition check: a cluster with running validators must not be
-// re-booted, even with a fresh genesis. Reusing a cluster value while
-// its existing process is still alive risks leaking the old process.
-func TestCluster_BootFromGenesis_RejectsAlreadyRunning(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("subprocess semantics differ on windows")
-	}
-
-	cmd := exec.Command("sleep", "30")
-	require.NoError(t, cmd.Start())
-	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
-	})
-
-	tmp := t.TempDir()
-	genesisPath := filepath.Join(tmp, "genesis.json")
-	require.NoError(t, os.WriteFile(genesisPath, []byte("{}"), 0o644))
-
-	c := &Cluster{Validators: []*Node{{Index: 0, Process: cmd.Process}}}
-	err := c.BootFromGenesis(context.Background(), genesisPath, "/bin/echo", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already running")
-}
-
-// TestCluster_BootFromGenesis_RejectsMissingGenesis verifies the
-// precondition check on the supplied genesis file path.
-func TestCluster_BootFromGenesis_RejectsMissingGenesis(t *testing.T) {
-	c := &Cluster{}
-	tmp := t.TempDir()
-	missingPath := filepath.Join(tmp, "missing.json")
-
-	err := c.BootFromGenesis(context.Background(), missingPath, "/bin/echo", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "genesis")
-}
-
-// TestCluster_BootFromGenesis_RejectsMissingBinary verifies the
-// precondition check on the binary path.
-func TestCluster_BootFromGenesis_RejectsMissingBinary(t *testing.T) {
-	c := &Cluster{}
-
-	tmp := t.TempDir()
-	genesisPath := filepath.Join(tmp, "genesis.json")
-	require.NoError(t, os.WriteFile(genesisPath, []byte("{}"), 0o644))
-
-	err := c.BootFromGenesis(context.Background(), genesisPath, "/nonexistent/binary", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "binary")
-}
-
-// ---- BootLogReader tests
-
-// TestCluster_BootLogReader_NilBeforeBoot verifies the accessor returns
-// nil when no boot has occurred. HardforkReplayMode.AssertPostTransition
-// distinguishes "boot did not capture logs" from "logs captured but no
-// replay summary" by checking for nil first.
-func TestCluster_BootLogReader_NilBeforeBoot(t *testing.T) {
-	c := &Cluster{}
-	assert.Nil(t, c.BootLogReader())
-}
-
-// TestCluster_BootLogReader_ReturnsSnapshot verifies the reader exposes
-// captured bytes after manual writes to the buffer. Snapshots are
-// independent of subsequent writes, so reading an old reader after a
-// later write must not yield the new bytes.
-func TestCluster_BootLogReader_ReturnsSnapshot(t *testing.T) {
-	c := &Cluster{bootLog: newBootLogBuffer()}
-	_, err := c.bootLog.Write([]byte("hello\n"))
-	require.NoError(t, err)
-
-	r := c.BootLogReader()
-	require.NotNil(t, r)
-
-	// First read sees the captured byte.
-	got, err := io.ReadAll(r)
-	require.NoError(t, err)
-	assert.Equal(t, "hello\n", string(got))
-
-	// Subsequent writes don't bleed into already-handed-out readers.
-	_, err = c.bootLog.Write([]byte("world\n"))
-	require.NoError(t, err)
-	got2, err := io.ReadAll(r)
-	require.NoError(t, err)
-	assert.Empty(t, got2, "previously-handed-out reader must be a snapshot")
-
-	// A fresh reader sees the cumulative bytes.
-	r2 := c.BootLogReader()
-	got3, err := io.ReadAll(r2)
-	require.NoError(t, err)
-	assert.Equal(t, "hello\nworld\n", string(got3))
-}
-
-// TestCluster_Halt_CtxCancelled verifies Halt returns an error when ctx
-// expires before the process exits. The helper subprocess (see
-// TestMain) ignores SIGTERM via signal.Ignore so the wait blocks until
-// ctx fires.
-func TestCluster_Halt_CtxCancelled(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("signal semantics differ on windows")
-	}
-
-	// Re-invoke the test binary as a helper subprocess that ignores
-	// SIGTERM via signal.Ignore (see TestMain). This guarantees the
-	// child stays alive after Halt sends SIGTERM, forcing Halt to hit
-	// the ctx.Done branch.
+	ready := filepath.Join(t.TempDir(), "ready")
 	cmd := exec.Command(os.Args[0])
-	cmd.Env = append(os.Environ(), "GNOE2E_TEST_IGNORE_SIGTERM=1")
+	cmd.Env = append(os.Environ(),
+		"GNOE2E_TEST_IGNORE_SIGNALS=1",
+		"GNOE2E_TEST_READY_FILE="+ready,
+	)
 	require.NoError(t, cmd.Start())
-	// Wait for the helper to install signal.Ignore before sending SIGTERM,
-	// otherwise the early SIGTERM uses the default disposition (terminate).
-	time.Sleep(200 * time.Millisecond)
 	t.Cleanup(func() {
 		_ = cmd.Process.Kill()
 		_, _ = cmd.Process.Wait()
 	})
 
-	node := &Node{Index: 0, Process: cmd.Process}
-	c := &Cluster{Validators: []*Node{node}}
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(ready)
+		return err == nil
+	}, 30*time.Second, 5*time.Millisecond, "helper never installed its signal handlers")
 
-	// Tight ctx so the test doesn't take 30s.
-	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-	defer cancel()
-
-	err := c.Halt(ctx)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "halt cancelled")
+	return cmd
 }
 
 // ---- Per-validator lifecycle
@@ -329,4 +154,85 @@ func TestRestartValidatorRejectsARunningNode(t *testing.T) {
 	require.Contains(t, err.Error(), "running")
 
 	require.Error(t, c.RestartValidator(context.Background(), 9), "index past the end")
+}
+
+// TestStopValidatorReportsAValidatorThatHadAlreadyDied pins that stop does not
+// claim a node it never stopped.
+//
+// Nothing watches liveness between boot and a "validator stop" line, and a
+// validator that died on its own still holds its *os.Process. Reporting success
+// tells a scenario it caused an outage that had in fact started earlier, and
+// the reason the node went down is never reported at all.
+func TestStopValidatorReportsAValidatorThatHadAlreadyDied(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process signals not supported on windows")
+	}
+	c := spawnFakeValidators(t, 2)
+
+	// Killed behind the cluster's back, which is what a crash looks like from
+	// here: no bookkeeping is updated and the node keeps its process.
+	require.NoError(t, c.Validators[1].Process.Kill())
+	<-c.Validators[1].Exited()
+
+	err := c.StopValidator(context.Background(), 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exited")
+	assert.Nil(t, c.Validators[1].Process, "a validator that is gone holds no process")
+
+	// The stop failed, but the cluster still describes itself correctly.
+	require.Len(t, c.Validators, 2)
+	assert.NotNil(t, c.Validators[0].Process, "the other validator is untouched")
+}
+
+// TestWaitForFirstBlockNamesWhatItPolled pins that the one deadline a cluster
+// which cannot reach quorum actually hits says something usable.
+//
+// Every node can be up and answering while the chain commits nothing, so this
+// timeout is the normal report of a broken validator set. Without the node, the
+// address and the height it got to, it names no suspect at all.
+func TestWaitForFirstBlockNamesWhatItPolled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process signals not supported on windows")
+	}
+
+	cmd := exec.Command("sleep", "30")
+	require.NoError(t, cmd.Start())
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+	})
+
+	node := &Node{Index: 1, DataDir: t.TempDir(), RPCAddr: "tcp://127.0.0.1:1", Process: cmd.Process}
+	err := waitForFirstBlock(t.Context(), node, 50*time.Millisecond)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "node 1", "the error has to name the node it polled")
+	assert.Contains(t, err.Error(), "127.0.0.1:1", "and the address it polled")
+}
+
+// TestNodeLogTailsQuotesEveryNodeThatWroteSomething pins the aggregate the
+// first-block failure reports.
+//
+// The polled node is the one node that is usually fine: it is waiting for a
+// quorum the others never joined, so their logs hold the reason and the
+// cluster's directory is removed as soon as the boot is reported failed.
+func TestNodeLogTailsQuotesEveryNodeThatWroteSomething(t *testing.T) {
+	withStderr := func(content string) string {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "stderr.log"), []byte(content), FilePermissions))
+		return dir
+	}
+
+	got := nodeLogTails([]*Node{
+		{Index: 0, DataDir: withStderr("WHY_ZERO_DIED\n")},
+		{Index: 1, DataDir: t.TempDir()}, // never wrote anything
+		nil,                              // never set up
+		{Index: 3, DataDir: withStderr("WHY_THREE_DIED\n")},
+	})
+
+	assert.Contains(t, got, "WHY_ZERO_DIED")
+	assert.Contains(t, got, "WHY_THREE_DIED")
+	assert.Contains(t, got, "validator 0")
+	assert.Contains(t, got, "validator 3")
+	assert.NotContains(t, got, "validator 1", "a node with an empty log adds nothing but noise")
 }

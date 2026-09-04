@@ -18,9 +18,25 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// validatorBalance is the ugnot every validator holds at genesis. Enough to
-// sign the genesis package transactions, which is all a validator key spends.
-const validatorBalance = 100_000_000
+const (
+	// validatorBalance is the ugnot every validator holds at genesis. Enough to
+	// sign the genesis package transactions, which is all a validator key
+	// spends.
+	validatorBalance = 100_000_000
+
+	// genesisDeployBudget is what one package deployed at genesis costs its
+	// sender, at the fee BuildGenesis signs those transactions with.
+	genesisDeployBudget = 50_000_000
+)
+
+// fundDeployer adds what deploying packages costs to whatever addr already
+// holds. Added rather than set, because the deployer is validator 0 and
+// clusterBalances funded it first.
+func fundDeployer(balances gnoland.Balances, addr crypto.Address, packages int) {
+	held, _ := balances.Get(addr)
+	balances.Set(addr, held.Amount.Add(
+		std.NewCoins(std.NewCoin("ugnot", int64(packages)*genesisDeployBudget))))
+}
 
 // clusterBalances funds every validator plus the accounts the caller named.
 // That is the whole of a cluster's money: no other address has a key here.
@@ -132,7 +148,20 @@ func PrintGenesisConfig(gen *bft.GenesisDoc) {
 		slog.Debug("genesis validator", "index", i, "address", val.Address, "power", val.Power, "name", val.Name)
 	}
 
-	if genState, ok := gen.AppState.(*gnoland.GnoGenesisState); ok {
+	// BuildGenesis assigns the state by value, which is also what
+	// bft.GenesisDocFromFile decodes it back to.
+	if genState, ok := gen.AppState.(gnoland.GnoGenesisState); ok {
 		slog.Debug("genesis state", "balances", len(genState.Balances), "txs", len(genState.Txs))
 	}
+}
+
+// ValidateGenesisParams reports whether overrides resolve, parse and leave the
+// modules they touch valid, checked against the genesis a cluster starts from.
+//
+// The counterpart to ValidateNodeConfig, and there for the same reason: a
+// misspelled key fails when the scenario is read rather than when its own
+// cluster is built.
+func ValidateGenesisParams(overrides []Override) error {
+	_, err := ResolveGenesisState(GenesisConfig{Params: overrides})
+	return err
 }

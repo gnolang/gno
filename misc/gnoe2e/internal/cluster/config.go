@@ -55,11 +55,11 @@ func ConfigDefaults() []Override {
 	return fieldDefaults(reflect.ValueOf(DefaultNodeConfig()).Elem(), nodeConfigSelector)
 }
 
-// ConfigureP2PTopology sets up the P2P connections between nodes
-func ConfigureP2PTopology(validators, nonValidators []*Node) error {
-	slog.Debug("configuring P2P topology", "validators", len(validators), "non_validators", len(nonValidators))
+// ConfigureP2PTopology gives every validator a peer list naming the others, so
+// the set is a full mesh.
+func ConfigureP2PTopology(validators []*Node) error {
+	slog.Debug("configuring P2P topology", "validators", len(validators))
 
-	// Configure validator mesh topology (all validators connect to each other)
 	for i, validator := range validators {
 		var peerAddrs []string
 		for j, otherValidator := range validators {
@@ -72,27 +72,6 @@ func ConfigureP2PTopology(validators, nonValidators []*Node) error {
 			return fmt.Errorf("configure validator %d peers: %w", i, err)
 		}
 		slog.Debug("validator peers configured", "index", i+1, "peer_count", len(peerAddrs))
-	}
-
-	// Configure non-validator chain topology
-	if len(nonValidators) > 0 {
-		// First non-validator connects to first validator
-		if len(validators) > 0 {
-			peerAddr := fmt.Sprintf("%s@localhost:%d", validators[0].NodeID, validators[0].P2PPort)
-			if err := configurePersistentPeers(nonValidators[0], []string{peerAddr}); err != nil {
-				return fmt.Errorf("configure non-validator 0 peers: %w", err)
-			}
-			slog.Debug("non-validator 1 connects to validator 1")
-		}
-
-		// Each subsequent non-validator connects to the previous one (chain topology)
-		for i := 1; i < len(nonValidators); i++ {
-			peerAddr := fmt.Sprintf("%s@localhost:%d", nonValidators[i-1].NodeID, nonValidators[i-1].P2PPort)
-			if err := configurePersistentPeers(nonValidators[i], []string{peerAddr}); err != nil {
-				return fmt.Errorf("configure non-validator %d peers: %w", i, err)
-			}
-			slog.Debug("non-validator connected", "index", i+1, "connects_to", i)
-		}
 	}
 
 	slog.Debug("P2P topology configuration completed")
@@ -168,13 +147,8 @@ func applyNodeConfig(node *Node, overrides []Override) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	root := reflect.ValueOf(cfg).Elem()
-	for _, o := range overrides {
-		if err := applyOverride(root, nodeConfigSelector, o); err != nil {
-			// The key is named the way the scenario wrote it, prefix included,
-			// rather than as the path the config was traversed by.
-			return fmt.Errorf("config.%w", err)
-		}
+	if err := applyConfigOverrides(cfg, overrides); err != nil {
+		return err
 	}
 
 	if err := config.WriteConfigFile(configPath, cfg); err != nil {
@@ -183,4 +157,27 @@ func applyNodeConfig(node *Node, overrides []Override) error {
 
 	slog.Debug("node config overridden", "node_index", node.Index, "overrides", len(overrides))
 	return nil
+}
+
+// applyConfigOverrides sets a scenario's overrides on a node config in memory.
+func applyConfigOverrides(cfg *config.Config, overrides []Override) error {
+	root := reflect.ValueOf(cfg).Elem()
+	for _, o := range overrides {
+		if err := applyOverride(root, nodeConfigSelector, o); err != nil {
+			// The key is named the way the scenario wrote it, prefix included,
+			// rather than as the path the config was traversed by.
+			return fmt.Errorf("config.%w", err)
+		}
+	}
+	return nil
+}
+
+// ValidateNodeConfig reports whether overrides resolve and parse against the
+// config a validator boots with, writing nothing.
+//
+// This is what lets a misspelled key fail when the scenario is read rather than
+// when its own cluster is built, which in a run is after every scenario ahead
+// of it has already booted one.
+func ValidateNodeConfig(overrides []Override) error {
+	return applyConfigOverrides(DefaultNodeConfig(), overrides)
 }
