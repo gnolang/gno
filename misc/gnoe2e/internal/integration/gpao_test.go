@@ -172,3 +172,22 @@ func TestGpaoScriptRemoteEqualsFormWins(t *testing.T) {
 		"the -flag=value form must also suppress the injected default")
 	require.Contains(t, args, "-remote=tcp://chosen:26657")
 }
+
+// A GpaoConfig with no way to obtain the binary is a fault in the run's
+// wiring, not in the scenario, so it fails the script with a message that
+// names the gap rather than panicking on a nil func.
+func TestGpaoStartFailsTheScriptWhenNoBinaryProviderIsConfigured(t *testing.T) {
+	logger, logged := bufferedTestLogger(t)
+	adapter := NewTestscriptT(logger, false)
+	cfg := GpaoConfig{ChainID: "test-e2e"}
+
+	require.NotPanics(t, func() {
+		testscript.RunT(adapter, testscript.Params{
+			Files: []string{writeScript(t, "gpao start\n")},
+			Cmds:  map[string]func(*testscript.TestScript, bool, []string){"gpao": GpaoTSCmd(cfg)},
+		})
+	})
+
+	require.True(t, adapter.Failed, "a run with no binary provider fails the script")
+	require.Contains(t, logged.String(), "gpao: no binary provider")
+}

@@ -84,6 +84,9 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 	if r.d != nil {
 		ts.Fatalf("gpao: already running; stop it first")
 	}
+	if r.cfg.Binary == nil {
+		ts.Fatalf("gpao: no binary provider configured for this run")
+	}
 	binary, err := r.cfg.Binary()
 	if err != nil {
 		ts.Fatalf("gpao: build: %v", err)
