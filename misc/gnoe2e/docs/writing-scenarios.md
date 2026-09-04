@@ -15,7 +15,7 @@ construct on this page; `docs/dialect.md` is the reference for the verbs and key
 | `-- cluster --` | the smallest chain the claim needs; comments allowed, keys documented in `docs/dialect.md` |
 | package sections | the `.gno` files the script deploys, minimal, under the chain's domain |
 
-Name the file for the claim, not the mechanism: `amnesiac_oracle.txtar` says what goes wrong; `restart_test.txtar`
+Name the file for the claim, not the mechanism: `patient_oracle.txtar` says what the oracle does; `restart_test.txtar`
 would not. Put it in the directory for its subject, and add one line to the index in `README.md`.
 
 ## The cluster

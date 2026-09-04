@@ -7,8 +7,8 @@
 # Everything the harness offers appears at least once: every verb, every
 # "-- cluster --" key, and every exported variable a script can name. $GNOHOME
 # is used implicitly on each gnokey line (it is gnokey's -home); $GNOROOT is
-# for scenarios that deploy out of the checkout's examples, which
-# oracle/serialized_closure.txtar does.
+# for a scenario that deploys a package out of the checkout's examples rather
+# than one of its own sections.
 #
 # The cluster: four validators, so one can be stopped while the other three
 # keep a quorum; an inert code-submission policy, so a submitted package parks

@@ -107,33 +107,10 @@ back, and last an enable by hand with no oracle running.
 
 `testdata/oracle`
 
-- `amnesiac_oracle.txtar`: an oracle restarted with no `-start-height` resumes past the node's tip, so it strands
-  every submission made while it was away and nothing ever revisits them.
-- `borrowed_ceiling.txtar`: on a chain whose block gas ceiling is not the usual 3000000000, the oracle has to read
-  the ceiling rather than fall back to its default, and has to clamp an operator's `-gas-wanted` to it.
-- `contained_blast.txtar`: a package built to kill the thing that inspects it kills only the verification child,
-  and the oracle carries on.
-- `exhausted_purse.txtar`: `-max-spend` measured against fees the chain really charged: two approvals leave the
-  approver exactly two fees down, and the third is refused.
-- `false_start.txtar`: a dead RPC endpoint is fatal at startup under the default `-start-height`, and merely
-  retried inside the poll loop under `-start-height 1`. Same call, same endpoint, two outcomes.
 - `first_light.txtar`: a package submitted after genesis parks, the oracle activates it, and all three nodes serve
   the result. Submission enters through one node and the oracle works through another.
 - `patient_oracle.txtar`: losing two validators of four halts consensus while the survivors keep serving RPC. The
   oracle waits on a frozen tip without spinning, exiting or losing its place.
-- `phantom_approval.txtar`: a private realm redeployed over its own live version is reported approved though no
-  enable was ever sent, because the check for "already active" cannot see a redeploy in the inert key space.
-- `poisoned_dependent.txtar`: a dependent submitted before its dependency is rejected permanently by content hash,
-  and resubmitting the same bytes is a silent no-op.
-- `rotated_out.txtar`: the oracle's key is not in the chain's approver set. It verifies everything and activates
-  nothing, pays no gas fee because the simulate pre-flight stops each enable before it is broadcast, and still
-  spends its own run budget.
-- `serialized_closure.txtar`: a real 26-package dependency chain where each link cannot be verified until the one
-  before it has committed. Waiting on the last package is the whole proof.
-- `starved_verifier.txtar`: a 1ms verification budget kills every child before it can finish, and what it leaves
-  behind is the point: the packages stay parked.
-- `uncollected_toll.txtar`: the run budget is debited before an approval is attempted, so approvals that never
-  reach the chain still cost the run its allowance.
 
 ## Limits
 
@@ -141,7 +118,7 @@ Scenarios run one at a time, on both routes. Every script in a run shares one ke
 plus the oracle already fills a four-vCPU runner.
 
 The timeouts are sized for a workstation: 60s for the cluster's first block, 90s for a node to answer RPC, 30s for
-the oracle's status board, 30s for a default `eventually`. The whole suite takes about two and a half minutes. A
+the oracle's status board, 30s for a default `eventually`. The whole suite takes about a minute. A
 machine slow enough to miss one of these fails the scenario rather than waiting longer.
 
 `run -timeout` bounds the whole run rather than each scenario, and defaults to 10 minutes. The validator processes
