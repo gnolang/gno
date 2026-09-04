@@ -881,6 +881,11 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
+	// Save function-local declared types before the realm finalization
+	// below: a file-level var initializer may already hold a value of one,
+	// and FinalizeRealmTransaction persists such values (SetObject asserts
+	// resolvability of their type refs under -tags debugAssert).
+	m.saveFuncLocalTypes(pv)
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
@@ -908,6 +913,57 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		}
 	}
 	return
+}
+
+// saveFuncLocalTypes persists every function-local declared type in the
+// package (`type S ...` inside a function or closure body, DeclaredType
+// with ParentLoc set). A value of such a type can be persisted by any
+// later transaction — assigned to an interface-typed package var, captured
+// by a closure — and its serialized RefType ("pkg[loc].Name") must resolve
+// on reload. Persisting the types here, like package-level types, puts the
+// entire cost at addpkg with the deployer and keeps transaction saves free
+// of type writes.
+//
+// Local DeclaredTypes are materialized at preprocess time (declareWith),
+// so walking the fileset AST enumerates them completely; no recursion
+// through Base is needed because any local type reachable from another's
+// Base is itself declared by a *TypeDecl in the same package.
+func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
+	// At addpkg-save time the package was just constructed by this machine:
+	// its block is a live *Block sourced from a *PackageNode with its
+	// fileset attached. Anything else would silently skip type persistence
+	// — the dangling-ref corruption this fix exists to prevent — so the
+	// assertions fail loudly (the tx aborts and rolls back) rather than
+	// return.
+	bv := pv.Block.(*Block)
+	pn := bv.GetSource(m.Store).(*PackageNode)
+	if pn.FileSet == nil {
+		panic("saveFuncLocalTypes: package node has no fileset at addpkg save")
+	}
+	save := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		td, ok := n.(*TypeDecl)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		// A type expression contains no further declarations, so the
+		// subtree is pruned on every path below. After preprocessing a
+		// non-alias td.Type is a *constTypeExpr holding the declared type
+		// (blank decls are skipped by the assertions).
+		cte, ok := td.Type.(*constTypeExpr)
+		if td.IsAlias || !ok {
+			return n, TRANS_SKIP
+		}
+		if dt, ok := cte.Type.(*DeclaredType); ok && dt.IsFuncLocal() {
+			m.Store.SetType(dt)
+		}
+		return n, TRANS_SKIP
+	}
+	for _, fn := range pn.FileSet.Files {
+		Transcribe(fn, save)
+	}
 }
 
 // Resave any changes to realm after init calls.
