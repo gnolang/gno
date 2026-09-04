@@ -91,8 +91,10 @@ restate the command. The existing scenarios set the register; read two before wr
 - A limit or size the claim depends on is measured against the scenario's own transactions, and the comment says
   how.
 - A validator that is stopped is one nothing earlier read from, so the stop cannot be blamed for a stale read.
-- State the scenario disturbs is restored where a later step depends on it: a stopped validator restarts, a started
-  oracle stops.
+- State the scenario disturbs is restored where a later step depends on it: a stopped validator restarts before the
+  line that needs its vote again.
+- Nothing is restored for tidiness. Every scenario boots a cluster of its own, and a started oracle is stopped when
+  the script ends whether the script says so or not, so a `gpao stop` line means the claim needs the oracle gone.
 
 ## Running while writing
 

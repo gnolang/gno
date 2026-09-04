@@ -77,16 +77,12 @@ stdout 'stalled'
 eventually http_get $GPAO_STATUS/status/gno.land/r/quorum/stalled '"status":"approved"'
 stdout '"status":"approved"'
 
-# ---- Validator 2 comes back before the file ends. Leaving it down would
-# ---- leave the next scenario in this directory one stopped validator away
-# ---- from a halt of its own, and make its failure look like its own bug.
-validator restart 2
-
+# ---- Validator 2 stays down. A submission that arrives now, is verified,
+# ---- approved and rendered proves the chain took new work on three nodes of
+# ---- four, which is the quorum arithmetic above read from the other side.
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/after -pkgpath gno.land/r/quorum/after $USER_NAME
 eventually gnokey query vm/qrender -data 'gno.land/r/quorum/after:x'
 stdout 'after'
-
-gpao stop
 
 -- cluster --
 validators: 4

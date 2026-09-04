@@ -121,7 +121,8 @@ port for the status board, exports `GPAO_STATUS`, and returns once that board an
 `-chain-id`, `-status-listen` and `-gno-root` are supplied by the harness; everything on the line is passed through
 to the binary, and `-remote` there replaces the run's default node. `! gpao start` is allowed, for a scenario
 asserting the oracle refuses to come up. `stop` and `restart` are not negatable, and `restart` is a stop followed by
-a start that takes the flags on its own line. Whatever the oracle wrote is logged when it stops, so a failed
+a start that takes the flags on its own line. A started oracle is stopped when the script ends, so a `stop` line
+means the claim needs the oracle gone rather than the run tidied. Whatever the oracle wrote is logged when it stops, so a failed
 assertion still comes with the oracle's own account of events.
 
 **`validator`** indexes the same way the scripts already do, so `validator stop 3` stops the node behind

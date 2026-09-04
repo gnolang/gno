@@ -56,8 +56,6 @@ gnokey query vm/qinertpaths -data ''
 eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approved"'
 stdout '"status":"approved"'
 
-gpao stop
-
 -- cluster --
 validators: 3
 code-submission-policy: inert
