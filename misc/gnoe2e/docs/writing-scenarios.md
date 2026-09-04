@@ -59,6 +59,13 @@ different failure than the one the claim is about:
 stderr 'block-max-gas: 200000000'
 ```
 
+A query for a parked or missing package prints `package "..." is not available` on stdout; pin that:
+
+```
+! gnokey query vm/qfile -data gno.land/r/probe/echo
+stdout 'is not available'
+```
+
 Only `gnokey`, `http_get`, `gpao start` and `validator restart` are negatable. A `! validator restart N` asserts the
 node cannot come back, and its error carries the node's stderr tail so the scenario can match the reason it died.
 

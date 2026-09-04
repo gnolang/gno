@@ -19,14 +19,21 @@
 # ---- Every node answers for itself.
 
 # $RPC_ADDR is the first validator and the node gnokey uses when a line names
-# none. -remote is a root flag and precedes the subcommand.
+# none. The cluster is handed over once that node has committed a block, so a
+# one-shot read of it is sound.
 gnokey query auth/accounts/$USER_ADDR
 stdout 'coins'
-gnokey -remote $RPC_ADDR_0 query auth/accounts/$USER_ADDR
+
+# The other validators are asked for themselves, and waited on: a node may
+# still be applying genesis when the first one has already committed. An
+# account query answers empty and exits 0 on such a node, so the exit status
+# is not a gate here and -stdout carries the wait. -remote is a root flag and
+# precedes the subcommand.
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_1 query auth/accounts/$USER_ADDR
 stdout 'coins'
-gnokey -remote $RPC_ADDR_1 query auth/accounts/$USER_ADDR
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_2 query auth/accounts/$USER_ADDR
 stdout 'coins'
-gnokey -remote $RPC_ADDR_2 query auth/accounts/$USER_ADDR
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_3 query auth/accounts/$USER_ADDR
 stdout 'coins'
 
 # The oracle's own account. It is funded in every cluster whether or not the
@@ -68,8 +75,10 @@ gnokey query vm/qinertpaths -data ''
 stdout 'tour.gno.land/r/tour/hello'
 
 # Parked means unreadable as well as uncallable: the files sit outside the live
-# key space until an approver enables them.
+# key space until an approver enables them. The refusal is pinned on its
+# reason, so this line cannot pass for a query that failed some other way.
 ! gnokey query vm/qfile -data tour.gno.land/r/tour/hello
+stdout 'is not available'
 
 # ---- The oracle enables what parked.
 
