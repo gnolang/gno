@@ -24,6 +24,7 @@ type BankKeeperI interface {
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+	InitCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 
 	InitGenesis(ctx sdk.Context, data GenesisState)
@@ -475,10 +476,48 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	for _, coin := range bank.splitCoins(ctx, addr) {
 		bank.setSplitBalance(ctx, addr, coin.Denom, 0)
 	}
+	bank.writeSplitCoins(ctx, addr, split)
+	return nil
+}
+
+// InitCoins is SetCoins for an address that provably holds no split-tier balance
+// yet. Same result, without the stale-key enumeration.
+//
+// SetCoins enumerates the address's existing split-tier keys so it can delete the
+// ones the new amount does not cover. That enumeration is a store range iteration,
+// and its cost is not the O(denoms held) the call site expects: cacheStore answers
+// any range query by scanning every dirty key written so far (dirtyItems, in
+// tm2/pkg/store/cache/store.go), so a genesis loop of n SetCoins calls costs
+// O(n^2) regardless of how few denoms each address holds.
+//
+// The caller must guarantee addr holds no split-tier balance. Genesis can: the
+// bank store is empty when InitChainer runs -- InitGenesis writes params only --
+// and the balance loop is the only writer, so any address it has not already
+// processed is untouched.
+//
+// Sits next to SetCoins on BankKeeperI and inherits the same structural
+// protection: neither is on vm.BankKeeperI or auth.BankKeeperI, so no realm and
+// no ante handler can reach either of them.
+func (bank BankKeeper) InitCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	if !amt.IsValid() {
+		return std.ErrInvalidCoins(amt.String())
+	}
+	split, account := bank.splitByTier(amt)
+
+	// Account tier first, as in SetCoins: it is the only step that can fail.
+	if err := bank.setAccountTierCoins(ctx, nil, addr, account); err != nil {
+		return err
+	}
+	bank.writeSplitCoins(ctx, addr, split)
+	return nil
+}
+
+// writeSplitCoins writes the split tier of an already-tiered amount. Shared by
+// SetCoins and InitCoins so the two cannot drift in how they persist.
+func (bank BankKeeper) writeSplitCoins(ctx sdk.Context, addr crypto.Address, split std.Coins) {
 	for _, coin := range split {
 		bank.setSplitBalance(ctx, addr, coin.Denom, coin.Amount)
 	}
-	return nil
 }
 
 // ----------------------------------------

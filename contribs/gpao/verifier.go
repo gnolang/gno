@@ -80,6 +80,11 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("verification panicked: %v", r)
 		}
+		// A failure reached while the resolver under it was failing is not a
+		// verdict: the unresolved import may exist and be unfetchable.
+		if err != nil && v.rpc != nil && v.rpc.transportErr != nil {
+			err = fmt.Errorf("%w (verification said: %w)", v.rpc.transportErr, err)
+		}
 	}()
 
 	// Best-effort preload of imports resolvable from disk (stdlibs, examples).
@@ -174,13 +179,54 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 	return nil
 }
 
+// prepare does the work verification needs that is not the package's cost:
+// the disk imports, and the chain-domain import closure fetched into the RPC
+// cache so that neither stage below asks the network again. The validator pays
+// for the typecheck and the preprocess; it never pays for the oracle's node
+// being slow. So this runs before the budget starts, and the budget then
+// measures only what the validator will.
+//
+// A transport fault is returned as such: no verdict was possible. An import
+// that nothing serves is not an error here; the typecheck judges that.
+func (v *verifier) prepare(mpkg *std.MemPackage) error {
+	_ = test.LoadImports(v.prodgs, mpkg, false)
+	if v.rpc == nil {
+		return nil
+	}
+	v.walkChainImports(mpkg, v.rpc.GetMemPackage)
+	if v.rpc.transportErr != nil {
+		return v.rpc.transportErr
+	}
+	return nil
+}
+
 // seedChainImports loads mpkg's chain-domain imports into st, transitively,
 // fetching over RPC whatever the disk store lacks. It returns the first import
 // path it could not resolve, or "" if everything resolved.
-//
-// Transitive because a fetched dependency has imports of its own, and the
-// preprocessor needs the whole graph present, not just the first level.
 func (v *verifier) seedChainImports(st gno.Store, mpkg *std.MemPackage) string {
+	return v.walkChainImports(mpkg, func(path string) *std.MemPackage {
+		if dep := v.prodgs.GetMemPackage(path); dep != nil {
+			return dep
+		}
+		if v.rpc == nil {
+			return nil
+		}
+		dep := v.rpc.GetMemPackage(path)
+		if dep != nil {
+			st.AddMemPackage(dep, gno.MPUserProd)
+		}
+		return dep
+	})
+}
+
+// walkChainImports visits mpkg's chain-domain imports transitively, resolving
+// each through resolve, and returns the first path resolve could not supply, or
+// "" if everything resolved.
+//
+// Transitive because a fetched dependency has imports of its own, and both the
+// typechecker and the preprocessor need the whole graph present, not just the
+// first level.
+func (v *verifier) walkChainImports(mpkg *std.MemPackage, resolve func(path string) *std.MemPackage) string {
 	seen := map[string]bool{mpkg.Path: true}
 	queue := []*std.MemPackage{mpkg}
 
@@ -202,15 +248,9 @@ func (v *verifier) seedChainImports(st gno.Store, mpkg *std.MemPackage) string {
 			}
 			seen[path] = true
 
-			dep := v.prodgs.GetMemPackage(path)
+			dep := resolve(path)
 			if dep == nil {
-				if v.rpc == nil {
-					return path
-				}
-				if dep = v.rpc.GetMemPackage(path); dep == nil {
-					return path
-				}
-				st.AddMemPackage(dep, gno.MPUserProd)
+				return path
 			}
 			queue = append(queue, dep)
 		}
