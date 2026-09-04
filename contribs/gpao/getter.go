@@ -155,11 +155,18 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		return nil
 	}
 
+	// MPUserAll, matching what AddPackage stamps on the stored package and
+	// therefore what a node serves here. Not MPUserProd: qfile lists every
+	// stored file, _test.gno and flattened _filetest.gno included (see
+	// TestRPCGetterNamesReconstructedPackage), and MPUserProd's validation
+	// rejects those outright -- so stamping it made AddMemPackage panic on any
+	// dependency that ships tests, which is most of them. Restricting to
+	// production files is the fileset's job at each point of use.
 	return &std.MemPackage{
 		Name:  packageName(files),
 		Path:  pkgPath,
 		Files: files,
-		Type:  gno.MPUserProd,
+		Type:  gno.MPUserAll,
 	}
 }
 
