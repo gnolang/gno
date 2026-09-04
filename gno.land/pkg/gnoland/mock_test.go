@@ -175,6 +175,14 @@ func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return nil
 }
 
+// InitCoins is the fresh-address form of SetCoins and counts the same. What
+// setCoinsAtRecompute pins is how many balances had been written by the time the
+// supply was recomputed, and a balance written either way counts.
+func (m *mockBankKeeper) InitCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.setCoinsCalls++
+	return nil
+}
+
 func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	return true
 }
