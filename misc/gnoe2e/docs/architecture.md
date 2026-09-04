@@ -28,6 +28,15 @@ Both routes call the same two functions, so a scenario behaves the same under `g
    everything, remove the cluster directory.
 5. **Report** every scenario's result; one failure does not stop the others.
 
+The consensus pass sets every timeout to 10ms and keeps empty blocks coming on a 10ms interval, so a cluster
+commits continuously rather than only when a transaction arrives. A restarted validator catches up almost at once,
+and a `sleep` window runs on a chain that is demonstrably live. The price is paid in determinism: height becomes a
+function of how long the cluster has been up, and so does block time, which runs ahead of the wall clock because
+each vote time is at least the previous block's plus `TimeIotaMS`, 100ms, while commits are 10ms apart
+(`consensus/state.go:1761`). A scenario that needs either to be a function of its own transactions declares
+`config.consensus.create_empty_blocks: false` and pays for liveness explicitly, with a transaction rather than a
+wait.
+
 `gpao` is built on the first `gpao start` of the run and reused by every later one, so a run whose scenarios never
 start the oracle never pays for the build.
 

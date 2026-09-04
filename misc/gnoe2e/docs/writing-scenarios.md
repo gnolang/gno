@@ -49,6 +49,13 @@ The dialect has two kinds of read, and choosing wrong produces a scenario that p
 `sleep` is never synchronization for something that will happen. `eventually` cannot be negated and cannot wrap a
 testscript builtin.
 
+An absence is only evidence if the chain had the chance to act. Every validator boots with
+`config.consensus.create_empty_blocks: true` on a 10ms interval, so heights advance through a `sleep` window
+whether or not the script sent anything. That is also why no scenario asserts a height: with the heartbeat running,
+the height at a given moment is a property of the machine rather than of the script. Where a claim needs more than
+elapsed time, the deterministic form is a transaction that commits after the window, which proves the chain was
+still accepting work and proves it the same way on every machine.
+
 ## Negation
 
 Every `!` line is followed by a `stderr` or `stdout` match that pins the reason, so the line cannot pass for a
