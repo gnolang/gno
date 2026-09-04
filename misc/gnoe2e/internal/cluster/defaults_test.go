@@ -69,3 +69,26 @@ func TestFieldDefaultsPrintListsCommaSeparated(t *testing.T) {
 
 	require.Equal(t, []Override{{Key: "names", Value: "first,second"}}, defaults)
 }
+
+// Every listed default is a line a scenario can paste back, so each one has to
+// convert into the field it was read from as well as resolve to it.
+func TestConfigDefaultsConvertBackIntoTheirFields(t *testing.T) {
+	root := reflect.ValueOf(DefaultNodeConfig()).Elem()
+
+	for _, o := range ConfigDefaults() {
+		field, err := resolveField(root, nodeConfigSelector, o.Key)
+		require.NoError(t, err, "config.%s", o.Key)
+		require.NoError(t, setFromString(*field, o.Value), "config.%s", o.Key)
+	}
+}
+
+func TestGenesisDefaultsConvertBackIntoTheirFields(t *testing.T) {
+	genState := gnoland.DefaultGenState()
+	root := reflect.ValueOf(newSettableParams(&genState)).Elem()
+
+	for _, o := range GenesisDefaults() {
+		field, err := resolveField(root, genesisParamsSelector, o.Key)
+		require.NoError(t, err, "genesis.%s", o.Key)
+		require.NoError(t, setFromString(*field, o.Value), "genesis.%s", o.Key)
+	}
+}

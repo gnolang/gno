@@ -95,3 +95,20 @@ func TestHandlerEnabled(t *testing.T) {
 	assert.False(t, quiet.Enabled(context.Background(), slog.LevelDebug))
 	assert.True(t, quiet.Enabled(context.Background(), slog.LevelInfo))
 }
+
+// A run redirected to a file, or reported through go test, is text somebody
+// reads later. Escape sequences in it are noise nobody asked for.
+func TestHandlerLeavesColourToTerminals(t *testing.T) {
+	var out bytes.Buffer
+	slog.New(NewHandler(&out, false)).Info("cluster ready")
+
+	require.NotContains(t, out.String(), "\033[")
+	require.Contains(t, out.String(), "cluster ready")
+}
+
+func TestHandlerColoursALineForATerminal(t *testing.T) {
+	var out bytes.Buffer
+	slog.New(newHandler(&out, false, true)).Info("cluster ready")
+
+	require.Contains(t, out.String(), colorGreen+"INF"+colorReset)
+}

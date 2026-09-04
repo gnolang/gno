@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -33,9 +34,17 @@ type Handler struct {
 	attrs   []slog.Attr // pre-resolved group attrs (component, etc.)
 	mu      *sync.Mutex
 	verbose bool
+	color   bool
 }
 
+// NewHandler renders to w, in colour only where colour is read as colour: a
+// run redirected to a file, or reported through go test, would otherwise carry
+// escape sequences into text somebody reads later.
 func NewHandler(w io.Writer, verbose bool) *Handler {
+	return newHandler(w, verbose, isTerminal(w))
+}
+
+func newHandler(w io.Writer, verbose, color bool) *Handler {
 	level := slog.LevelInfo
 	if verbose {
 		level = slog.LevelDebug
@@ -45,7 +54,35 @@ func NewHandler(w io.Writer, verbose bool) *Handler {
 		level:   level,
 		mu:      &sync.Mutex{},
 		verbose: verbose,
+		color:   color,
 	}
+}
+
+// isTerminal reports whether w is a character device. A pipe, a file and an
+// in-memory buffer are all not, which is the whole test.
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+// plain strips the codes this package writes, for a sink that reads them as
+// text. Applied to the composed line rather than at each site, so a colour
+// added to the renderer cannot forget to answer to it.
+var plain = strings.NewReplacer(
+	colorReset, "", colorRed, "", colorGreen, "", colorYellow, "",
+	colorCyan, "", colorGray, "", colorBold, "",
+)
+
+// write emits one composed line.
+func (h *Handler) write(line string) {
+	if !h.color {
+		line = plain.Replace(line)
+	}
+	fmt.Fprintln(h.w, line)
 }
 
 func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
@@ -99,7 +136,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 			line.WriteString(attrText(a))
 		}
 
-		fmt.Fprintln(h.w, line.String())
+		h.write(line.String())
 	} else {
 		// Non-verbose: clean output focused on user-relevant info.
 		// Component prefix for context, then message + key attrs inline.
@@ -114,7 +151,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 			return true
 		})
 
-		fmt.Fprintln(h.w, line)
+		h.write(line)
 	}
 
 	return nil

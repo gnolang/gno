@@ -109,6 +109,12 @@ func appendFieldDefaults(dst []Override, value reflect.Value, selTag, prefix str
 			// path through it is an error rather than a default.
 			continue
 		}
+		if !settableFromText(value.Field(i).Type()) {
+			// Listing it would advertise a key that fails the moment a
+			// scenario writes it: the unknown-key error sends authors here for
+			// the keys they can set.
+			continue
+		}
 		dst = append(dst, Override{Key: prefix + name, Value: fieldText(value.Field(i))})
 	}
 	return dst
@@ -128,6 +134,26 @@ func sectionValue(value reflect.Value) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 	return value, true
+}
+
+// settableFromText reports whether setFromString has a conversion for this
+// type. Kept beside it, because the two answer the same question and a type
+// added to one without the other either loses a key from the listing or
+// advertises one that cannot be set.
+func settableFromText(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return true
+	}
+	switch t {
+	case reflect.TypeFor[[]string](), reflect.TypeFor[crypto.Address](),
+		reflect.TypeFor[[]crypto.Address](), reflect.TypeFor[std.GasPrice]():
+		return true
+	}
+	return false
 }
 
 // fieldText renders a field the way a scenario states it, so a listed default

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	integ "github.com/gnolang/gno/misc/gnoe2e/internal/integration"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
 )
@@ -53,4 +54,15 @@ func TestDefaultsRefusesAnUnknownFamily(t *testing.T) {
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `"nodes"`)
+}
+
+// The listing is what the unknown-key error sends an author to, so a key the
+// section accepts and the listing omits sends them away believing it does not
+// exist.
+func TestDefaultsListsEveryNamedKey(t *testing.T) {
+	out := defaultsOutput(t, nil)
+
+	for _, key := range integ.NamedClusterKeys {
+		require.Contains(t, out, key+":", "the listing omits a key the cluster section accepts")
+	}
 }

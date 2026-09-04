@@ -62,10 +62,13 @@ func printNamedKeys(io commands.IO) {
 	io.Println("# validators is required and has no default: a scenario states the cluster it")
 	io.Println("# needs. Left unset, code-submission-policy leaves the chain's own policy and")
 	io.Println("# pkg-approver leaves the oracle, which is the approver an inert chain gets.")
-	io.Println("validators:")
-	io.Println("code-submission-policy:")
-	io.Println("pkg-approver:")
-	io.Printfln("block-max-gas: %d", cluster.DefaultGenesisConfig().MaxGas)
+	for _, key := range integ.NamedClusterKeys {
+		if key == "block-max-gas" {
+			io.Printfln("%s: %d", key, cluster.DefaultGenesisConfig().MaxGas)
+			continue
+		}
+		io.Println(key + ":")
+	}
 }
 
 func printGenesisDefaults(io commands.IO) {

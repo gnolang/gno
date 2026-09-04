@@ -39,7 +39,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "verbose", false, "verbose output")
 }
 
-func newServeCmd(_ commands.IO) *commands.Command {
+func newServeCmd(io commands.IO) *commands.Command {
 	clusterCfg := cluster.DefaultClusterConfig()
 	clusterCfg.Genesis.LoadExamples = false // opt-in via --load-examples
 	cfg := &serveCfg{ClusterConfig: clusterCfg}
@@ -56,12 +56,12 @@ func newServeCmd(_ commands.IO) *commands.Command {
 			ctx, cancel := signal.NotifyContext(ctx, runSignals...)
 			defer cancel()
 
-			return execServe(ctx, cfg)
+			return execServe(ctx, io, cfg)
 		},
 	)
 }
 
-func execServe(ctx context.Context, cfg *serveCfg) error {
+func execServe(ctx context.Context, io commands.IO, cfg *serveCfg) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
@@ -93,9 +93,8 @@ func execServe(ctx context.Context, cfg *serveCfg) error {
 		"chain_id", cfg.Genesis.ChainID,
 		"validators", cfg.NumValidators,
 	)
-	fmt.Fprintf(os.Stderr, "\nCluster running. RPC address: %s\nPress Ctrl+C to stop.\n\n", cl.RPCAddr)
+	io.Printfln("\nCluster running. RPC address: %s\nPress Ctrl+C to stop.\n", cl.RPCAddr)
 
-	// Block until interrupted
 	<-ctx.Done()
 
 	logger.Info("shutting down...")

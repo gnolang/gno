@@ -353,24 +353,24 @@ func failureSummary(failures []error, attempted int) error {
 func setupIdentities(cfg *runCfg, logger *slog.Logger) (runIdentities, func(), error) {
 	gnoHomeDir, err := os.MkdirTemp("", "gnoe2e-home-*")
 	if err != nil {
-		return runIdentities{}, nil, fmt.Errorf("failed to create gnohome dir: %w", err)
+		return runIdentities{}, nil, fmt.Errorf("create gnohome dir: %w", err)
 	}
 	cleanup := func() { os.RemoveAll(gnoHomeDir) }
 
 	privKey, err := integration.GeneratePrivKeyFromMnemonic(cfg.mnemonic, "", 0, 0)
 	if err != nil {
 		cleanup()
-		return runIdentities{}, nil, fmt.Errorf("failed to derive key from mnemonic: %w", err)
+		return runIdentities{}, nil, fmt.Errorf("derive key from mnemonic: %w", err)
 	}
 
 	kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
 	if err != nil {
 		cleanup()
-		return runIdentities{}, nil, fmt.Errorf("failed to create keybase: %w", err)
+		return runIdentities{}, nil, fmt.Errorf("create keybase: %w", err)
 	}
 	if err := kb.ImportPrivKey(cfg.keyName, privKey, ""); err != nil {
 		cleanup()
-		return runIdentities{}, nil, fmt.Errorf("failed to import key: %w", err)
+		return runIdentities{}, nil, fmt.Errorf("import key: %w", err)
 	}
 
 	ids := runIdentities{

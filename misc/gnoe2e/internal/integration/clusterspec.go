@@ -35,6 +35,12 @@ const (
 	GenesisParamsPrefix = "genesis."
 )
 
+// NamedClusterKeys are the keys with a name of their own, as opposed to the
+// two prefixed families. The switch in parseClusterSection is what accepts
+// them; this is what the listing reads, so the two cannot drift apart without
+// the test that compares them going red.
+var NamedClusterKeys = []string{"validators", "code-submission-policy", "pkg-approver", "block-max-gas"}
+
 // HarnessAssignedConfigKeys are the node config paths a scenario cannot set,
 // and HarnessAssignedReason says why.
 //
