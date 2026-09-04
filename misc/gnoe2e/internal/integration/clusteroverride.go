@@ -9,7 +9,6 @@ package integration
 // allowed, and that scenario may go red. That is the point of an override.
 type ClusterOverrides struct {
 	Validators           *int
-	Oracle               *bool
 	CodeSubmissionPolicy *string
 	// PkgApprover is a bech32 address here, where a script names a role.
 	// ClusterSpec.ApplyTo accepts either.
@@ -23,9 +22,6 @@ type ClusterOverrides struct {
 func (o ClusterOverrides) Apply(spec ClusterSpec) ClusterSpec {
 	if o.Validators != nil {
 		spec.Validators = *o.Validators
-	}
-	if o.Oracle != nil {
-		spec.Oracle = *o.Oracle
 	}
 	if o.CodeSubmissionPolicy != nil {
 		spec.CodeSubmissionPolicy = *o.CodeSubmissionPolicy

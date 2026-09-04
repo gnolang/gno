@@ -67,7 +67,6 @@ stdout 'dep'
 
 -- cluster --
 validators: 3
-oracle: true
 code-submission-policy: inert
 -- dep/gnomod.toml --
 module = "gno.land/p/probe/dep"

@@ -54,7 +54,6 @@ gpao stop
 
 -- cluster --
 validators: 1
-oracle: true
 code-submission-policy: inert
 -- nest/gnomod.toml --
 module = "gno.land/r/deep/nest"

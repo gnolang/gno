@@ -12,7 +12,6 @@ import (
 func TestClusterOverridesApply(t *testing.T) {
 	declared := ClusterSpec{
 		Validators:           3,
-		Oracle:               true,
 		CodeSubmissionPolicy: "inert",
 		BlockMaxGas:          20_000_000,
 	}
@@ -31,16 +30,6 @@ func TestClusterOverridesApply(t *testing.T) {
 			overrides: ClusterOverrides{Validators: ptr(2)},
 			want: ClusterSpec{
 				Validators:           2,
-				Oracle:               true,
-				CodeSubmissionPolicy: "inert",
-				BlockMaxGas:          20_000_000,
-			},
-		},
-		{
-			name:      "the oracle can be turned off as well as on",
-			overrides: ClusterOverrides{Oracle: ptr(false)},
-			want: ClusterSpec{
-				Validators:           3,
 				CodeSubmissionPolicy: "inert",
 				BlockMaxGas:          20_000_000,
 			},
@@ -52,7 +41,6 @@ func TestClusterOverridesApply(t *testing.T) {
 			},
 			want: ClusterSpec{
 				Validators:           3,
-				Oracle:               true,
 				CodeSubmissionPolicy: "inert",
 				PkgApprover:          "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				BlockMaxGas:          20_000_000,
@@ -62,7 +50,6 @@ func TestClusterOverridesApply(t *testing.T) {
 			name: "every setting at once",
 			overrides: ClusterOverrides{
 				Validators:           ptr(1),
-				Oracle:               ptr(false),
 				CodeSubmissionPolicy: ptr("permissionless"),
 				BlockMaxGas:          ptr(int64(3_000_000_000)),
 			},
@@ -79,7 +66,6 @@ func TestClusterOverridesApply(t *testing.T) {
 			assert.Equal(t, tt.want, tt.overrides.Apply(declared))
 			assert.Equal(t, ClusterSpec{
 				Validators:           3,
-				Oracle:               true,
 				CodeSubmissionPolicy: "inert",
 				BlockMaxGas:          20_000_000,
 			}, declared, "the declaration itself is not modified")
@@ -90,8 +76,8 @@ func TestClusterOverridesApply(t *testing.T) {
 // Grouping keys on the effective cluster, so two scenarios differing only in an
 // overridden setting share one boot instead of paying for two identical ones.
 func TestClusterOverridesCollapseGroups(t *testing.T) {
-	three := ClusterSpec{Validators: 3, Oracle: true}
-	one := ClusterSpec{Validators: 1, Oracle: true}
+	three := ClusterSpec{Validators: 3, CodeSubmissionPolicy: "inert"}
+	one := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert"}
 	overrides := ClusterOverrides{Validators: ptr(2)}
 
 	assert.Equal(t, overrides.Apply(three), overrides.Apply(one),

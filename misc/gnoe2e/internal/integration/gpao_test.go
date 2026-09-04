@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -62,6 +63,11 @@ func serveFakeGpaoStatus() {
 	time.Sleep(time.Hour)
 }
 
+// fakeGpaoBinary stands in for the run's lazy build. The compiled test binary
+// impersonates gpao under GNOE2E_FAKE_GPAO, so no oracle has to be built to
+// exercise a real child process.
+func fakeGpaoBinary() (string, error) { return os.Args[0], nil }
+
 func flagValue(args []string, name string) string {
 	for i, a := range args {
 		if a == name && i+1 < len(args) {
@@ -79,7 +85,7 @@ func TestGpaoStartNegationSucceedsWhenStartFails(t *testing.T) {
 	t.Setenv("GNOE2E_FAKE_GPAO", "die")
 
 	adapter := NewTestscriptT(testLogger(t), false)
-	cfg := GpaoConfig{BinaryPath: os.Args[0], ChainID: "test-e2e"}
+	cfg := GpaoConfig{Binary: fakeGpaoBinary, ChainID: "test-e2e"}
 	cmds := map[string]func(*testscript.TestScript, bool, []string){
 		"gpao": GpaoTSCmd(cfg),
 	}
@@ -101,7 +107,7 @@ func TestGpaoStartNegationFailsWhenTheStartUnexpectedlySucceeds(t *testing.T) {
 	t.Setenv("GNOE2E_FAKE_GPAO", "serve")
 
 	adapter := NewTestscriptT(testLogger(t), false)
-	cfg := GpaoConfig{BinaryPath: os.Args[0], ChainID: "test-e2e"}
+	cfg := GpaoConfig{Binary: fakeGpaoBinary, ChainID: "test-e2e"}
 	cmds := map[string]func(*testscript.TestScript, bool, []string){
 		"gpao": GpaoTSCmd(cfg),
 	}
@@ -112,6 +118,26 @@ func TestGpaoStartNegationFailsWhenTheStartUnexpectedlySucceeds(t *testing.T) {
 	})
 
 	require.True(t, adapter.Failed, "! gpao start must fail the script when the start unexpectedly succeeds")
+}
+
+// A binary that will not build is a fault in the checkout rather than the
+// failure a script meant to observe, so it fails the script whatever the
+// negation on the line says, and it says which build failed.
+func TestGpaoStartFailsTheScriptWhenTheBuildFails(t *testing.T) {
+	logger, logged := bufferedTestLogger(t)
+	adapter := NewTestscriptT(logger, false)
+	cfg := GpaoConfig{
+		Binary:  func() (string, error) { return "", errors.New("build gpao: exit status 1") },
+		ChainID: "test-e2e",
+	}
+
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, "! gpao start\n")},
+		Cmds:  map[string]func(*testscript.TestScript, bool, []string){"gpao": GpaoTSCmd(cfg)},
+	})
+
+	require.True(t, adapter.Failed, "a build that fails fails the script, negation or not")
+	require.Contains(t, logged.String(), "gpao: build: build gpao: exit status 1")
 }
 
 func TestGpaoArgsInjectDefaults(t *testing.T) {

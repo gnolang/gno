@@ -37,7 +37,6 @@ func TestClusterSpecApplyTo(t *testing.T) {
 		cfg := cluster.DefaultClusterConfig()
 		spec := ClusterSpec{
 			Validators:           1,
-			Oracle:               true,
 			CodeSubmissionPolicy: "inert",
 			BlockMaxGas:          20_000_000,
 		}
@@ -67,32 +66,34 @@ func TestClusterSpecApplyTo(t *testing.T) {
 		assert.Equal(t, spec.GenesisParams, cfg.Genesis.Params)
 	})
 
+	// The oracle's key is provisioned for every run, so an inert chain that
+	// names no approver is one the oracle can enable on rather than one where
+	// nothing submitted after genesis could ever go live.
 	t.Run("the oracle approves when no other role is named", func(t *testing.T) {
 		cfg := cluster.DefaultClusterConfig()
-		spec := ClusterSpec{Validators: 1, Oracle: true, CodeSubmissionPolicy: "inert"}
+		spec := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert"}
 		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
 
 		assert.Equal(t, []crypto.Address{oracle}, cfg.Genesis.PkgApprovers)
 	})
 
+	// Only an inert chain reads the approver set, so a chain that is not inert
+	// is left without one rather than handed an approver it has no use for.
+	t.Run("a chain that is not inert gets no approver of its own", func(t *testing.T) {
+		cfg := cluster.DefaultClusterConfig()
+		spec := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "permissionless"}
+		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
+
+		assert.Empty(t, cfg.Genesis.PkgApprovers)
+	})
+
 	t.Run("naming the user as approver is what leaves the oracle unauthorized", func(t *testing.T) {
 		cfg := cluster.DefaultClusterConfig()
-		spec := ClusterSpec{Validators: 1, Oracle: true, CodeSubmissionPolicy: "inert", PkgApprover: "user"}
+		spec := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert", PkgApprover: "user"}
 		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
 
 		assert.Equal(t, []crypto.Address{user}, cfg.Genesis.PkgApprovers,
 			"the oracle must be absent, or the scenario cannot separate refusal from inability")
-	})
-
-	// An inert chain nobody can enable on is a chain where nothing submitted
-	// after genesis can ever go live, so it is refused rather than booted.
-	t.Run("inert without an oracle needs an approver named", func(t *testing.T) {
-		cfg := cluster.DefaultClusterConfig()
-		spec := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert"}
-		err := spec.ApplyTo(&cfg, user, oracle)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "inert")
-		assert.Contains(t, err.Error(), "pkg-approver")
 	})
 
 	// A command-line override names an address where a script names a role, so
@@ -118,7 +119,7 @@ func TestClusterSpecApplyTo(t *testing.T) {
 
 	t.Run("the resulting config is one the cluster will accept", func(t *testing.T) {
 		cfg := cluster.DefaultClusterConfig()
-		spec := ClusterSpec{Validators: 4, Oracle: true, CodeSubmissionPolicy: "inert"}
+		spec := ClusterSpec{Validators: 4, CodeSubmissionPolicy: "inert"}
 		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
 		assert.NoError(t, cfg.Validate())
 	})

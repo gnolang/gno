@@ -24,8 +24,8 @@ two of the exported variables, with a comment on each line saying why that line 
 
 ## Running
 
-A run needs the `go` toolchain: `gnoland`, and `gpao` when a scenario asks for the oracle, are built on demand from
-the enclosing checkout. That checkout is found through `go list`, so `GNOROOT` must not be set in the environment
+A run needs the `go` toolchain: `gnoland` is built on demand from the enclosing checkout, and `gpao` on the first
+`gpao start` of the run. That checkout is found through `go list`, so `GNOROOT` must not be set in the environment
 unless it deliberately points at another tree.
 
 ```bash
@@ -69,12 +69,11 @@ through `go run` each time.
 one case where setting `GNOROOT` is the point. `GOTEST_FLAGS` defaults to `-v -timeout 30m`, and giving it replaces
 both.
 
-Five `run` flags override what a scenario declared:
+Four `run` flags override what a scenario declared:
 
 | Flag | Overrides |
 | --- | --- |
 | `-validators N` | `validators` |
-| `-oracle` | `oracle` |
 | `-code-submission-policy <policy>` | `code-submission-policy` |
 | `-pkg-approver <address>` | `pkg-approver` |
 | `-block-max-gas N` | `block-max-gas` |
@@ -94,15 +93,14 @@ naming the key, so a typo fails before anything boots.
 | Key | Value | Effect |
 | --- | --- | --- |
 | `validators` | integer, at least 1 | Required. Number of validator processes. |
-| `oracle` | `true` or `false` | Builds `gpao`, derives its key and funds it. Default `false`. |
 | `code-submission-policy` | `permissionless`, `permissioned` or `inert` | Empty leaves the chain default. |
-| `pkg-approver` | empty, `user`, or a bech32 address | Who may send `MsgEnablePackage`. Empty means the oracle when one is declared, `user` means the test account, which is what leaves the oracle unauthorized. |
+| `pkg-approver` | empty, `user`, or a bech32 address | Who may send `MsgEnablePackage`. Empty means the oracle, `user` means the test account, which is what leaves the oracle unauthorized. |
 | `block-max-gas` | integer | Per-block gas limit. Default 3000000000. |
 
-An inert chain needs somebody who can enable, so `code-submission-policy: inert` is refused when `pkg-approver` is
-left unset and no oracle is declared: nothing submitted after genesis on such a chain could ever go live. Any one
-of `oracle: true`, `pkg-approver: user` and `pkg-approver: <address>` satisfies it, though the refusal message
-names only the first two.
+An inert chain needs somebody who can enable, and `pkg-approver` left unset names the oracle: its key is
+provisioned for every run, so an inert chain always boots with an approver rather than as a chain where nothing
+submitted after genesis could ever go live. `pkg-approver: user` and `pkg-approver: <address>` name somebody else
+instead, and naming the user is what leaves the oracle unauthorized.
 
 Two generic families reach the settings that have no key of their own.
 
@@ -209,7 +207,7 @@ stderr so the scenario can name the reason it died.
 | `GNOHOME` | the run's keybase directory, which `gnokey` reads as its `-home` | always |
 | `GNOROOT` | the checkout the binaries were built from | always |
 | `GPAO_KEY_NAME` | the keybase name of the oracle's key, `gpao` | always |
-| `GPAO_ADDR` | the oracle's address, or the zero address when no scenario in the run declared `oracle: true` | always |
+| `GPAO_ADDR` | the oracle's address | always |
 | `GPAO_STATUS` | base URL of the running oracle's status board | after `gpao start` |
 | `WORK` | testscript's own working directory, where the script's file sections are unpacked | always |
 
@@ -223,18 +221,21 @@ those clusters.
 | test user | `test1` | derived at account 0 index 0 from the test1 seed `gno.land/pkg/integration` uses, the `-mnemonic` default | signs everything a script submits |
 | oracle | `gpao` | derived at account 0 index 0 from the BIP39 test vector (`abandon` eleven times, then `about`), the `-gpao-mnemonic` default | signs the oracle's approvals |
 
-The oracle's key exists only when some scenario in the run declared `oracle: true`, since deriving it means building
-`gpao` and funding an account. It is derived once and used twice, for the genesis approver entry and for the keybase
-import, so the chain cannot end up with an approver nobody can sign for. Being in the keybase is what lets a script
-do by hand what the oracle does, with `gnokey maketx enablepkg ... $GPAO_KEY_NAME`.
+The oracle's key exists for every run, whether or not a script starts the oracle: what shapes a chain is its
+submission policy and its approver set, and running `gpao` is a decision the script makes. The binary is the part
+that is deferred, built on the first `gpao start` of a run and shared by every later one. The key is derived once
+and used twice, for the genesis approver entry and for the keybase import, so the chain cannot end up with an
+approver nobody can sign for. Being in the keybase is what lets a script do by hand what the oracle does, with
+`gnokey maketx enablepkg ... $GPAO_KEY_NAME`.
 
 The oracle needs a separate mnemonic rather than another index in the test user's, because it derives its signer at
 account 0 index 0 with no way to change that.
 
 An oracle that is not an approver is the one misconfiguration that leaves it looking healthy. It starts, follows
 blocks, verifies packages and reports on them, and every package it approves stays inert. The run logs a warning
-per scenario where the oracle's key is absent from the chain's approver set, because nothing else about the run will
-say so: the only symptom is deploys that never activate.
+per scenario whose chain is inert and whose approver set does not hold the oracle's key, because nothing else about
+the run will say so: the only symptom is deploys that never activate. A chain that is not inert parks nothing, so
+its approver set says nothing about the oracle and no warning is due.
 
 ## Scenarios
 

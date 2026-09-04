@@ -39,16 +39,13 @@ type ClusterSpec struct {
 	// Validators is the only setting with no usable zero value, so it is the
 	// only one a scenario must state.
 	Validators int
-	// Oracle provisions the approver key and builds gpao. Off unless asked
-	// for, so a scenario that never mentions the oracle does not pay to build
-	// it.
-	Oracle bool
 	// CodeSubmissionPolicy is empty for the chain default.
 	CodeSubmissionPolicy string
 	// PkgApprover names who may enable inert packages, as a role rather than
 	// an address, because the addresses are derived from mnemonics the runner
-	// owns. Empty means the oracle. "user" means the test user, which is what
-	// leaves the oracle unauthorized.
+	// owns. Empty means the oracle, which is provisioned for every run.
+	// "user" means the test user, which is what leaves the oracle
+	// unauthorized.
 	PkgApprover string
 	// BlockMaxGas is zero for the chain default.
 	BlockMaxGas int64
@@ -79,12 +76,12 @@ func (s ClusterSpec) ApplyTo(cfg *cluster.ClusterConfig, user, oracle crypto.Add
 
 	switch s.PkgApprover {
 	case "":
-		// An inert chain with no approver is one where nothing submitted after
-		// genesis can ever go live, so it is refused rather than booted.
-		if !s.Oracle && cfg.Genesis.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert {
-			return fmt.Errorf("cluster section: an inert chain needs an approver: set %q or %q", "oracle: true", "pkg-approver: user")
-		}
-		if s.Oracle {
+		// The oracle's key is provisioned for every run, so it is the approver
+		// an inert chain gets when the scenario names nobody: an inert chain
+		// with no approver is one where nothing submitted after genesis could
+		// ever go live. Only an inert chain reads the set, so a chain that is
+		// not inert is left without one.
+		if cfg.Genesis.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert {
 			cfg.Genesis.PkgApprovers = []crypto.Address{oracle}
 		}
 	case approverRoleUser:
@@ -176,12 +173,6 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 				return ClusterSpec{}, err
 			}
 			spec.BlockMaxGas = n
-		case "oracle":
-			b, err := strconv.ParseBool(value)
-			if err != nil {
-				return ClusterSpec{}, fmt.Errorf("%s %q: %w", key, value, unwrapSyntax(err))
-			}
-			spec.Oracle = b
 		case "code-submission-policy":
 			spec.CodeSubmissionPolicy = value
 		case "pkg-approver":

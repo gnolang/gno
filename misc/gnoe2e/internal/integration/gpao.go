@@ -19,11 +19,14 @@ const gpaoReadyWait = 30 * time.Second
 // GpaoConfig carries what stays fixed for a whole run. Per-invocation flags
 // come from the script.
 type GpaoConfig struct {
-	BinaryPath string
-	Mnemonic   string
-	ChainID    string
-	Remote     string // -remote used when the script names no node
-	GnoRoot    string
+	// Binary yields the oracle binary, building it if the run has not needed
+	// one yet. A provider rather than a path, because a run whose scripts
+	// never start the oracle must not pay to build it.
+	Binary   func() (string, error)
+	Mnemonic string
+	ChainID  string
+	Remote   string // -remote used when the script names no node
+	GnoRoot  string
 }
 
 // GpaoTSCmd returns the "gpao" testscript command, which accepts start, stop
@@ -68,11 +71,12 @@ func (r *gpaoRunner) command(ts *testscript.TestScript, neg bool, args []string)
 	}
 }
 
-// start launches the oracle. Under neg the script is asserting that the oracle
-// itself refuses to come up, so only the launch is negatable: the three guards
-// below fail the script whatever neg says, because a script that is already
-// running an oracle, or a run with no oracle binary at all, is a fault in the
-// scenario or its provisioning rather than the failure it meant to observe.
+// start launches the oracle, building the binary if this is the run's first
+// start. Under neg the script is asserting that the oracle itself refuses to
+// come up, so only the launch is negatable: the guards below fail the script
+// whatever neg says, because a script that is already running an oracle, or a
+// binary that will not compile, is a fault in the scenario or the checkout
+// rather than the failure it meant to observe.
 func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -80,8 +84,9 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 	if r.d != nil {
 		ts.Fatalf("gpao: already running; stop it first")
 	}
-	if r.cfg.BinaryPath == "" {
-		ts.Fatalf("gpao: no binary available; the scenario's cluster section must declare oracle: true for one to be provisioned")
+	binary, err := r.cfg.Binary()
+	if err != nil {
+		ts.Fatalf("gpao: build: %v", err)
 	}
 
 	port, err := cluster.FindAvailablePort()
@@ -92,7 +97,7 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 
 	d, err := daemon.Start(context.Background(), daemon.Config{
 		Name:       "gpao",
-		BinaryPath: r.cfg.BinaryPath,
+		BinaryPath: binary,
 		Args:       gpaoArgs(r.cfg, listen, flags),
 		Env:        []string{"GPAO_MNEMONIC=" + r.cfg.Mnemonic},
 		Ready:      statusProbe(statusURL(listen)),

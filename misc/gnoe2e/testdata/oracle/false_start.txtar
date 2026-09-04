@@ -70,5 +70,4 @@ eventually http_get $GPAO_STATUS/status
 gpao stop
 -- cluster --
 validators: 3
-oracle: true
 code-submission-policy: inert

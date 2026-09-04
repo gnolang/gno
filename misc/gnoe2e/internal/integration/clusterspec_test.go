@@ -27,10 +27,9 @@ func TestParseClusterSpec(t *testing.T) {
 		},
 		{
 			name:    "every option set",
-			section: "validators: 1\noracle: true\ncode-submission-policy: inert\npkg-approver: user\nblock-max-gas: 20000000\n",
+			section: "validators: 1\ncode-submission-policy: inert\npkg-approver: user\nblock-max-gas: 20000000\n",
 			want: ClusterSpec{
 				Validators:           1,
-				Oracle:               true,
 				CodeSubmissionPolicy: "inert",
 				PkgApprover:          "user",
 				BlockMaxGas:          20_000_000,
@@ -38,18 +37,13 @@ func TestParseClusterSpec(t *testing.T) {
 		},
 		{
 			name:    "blank lines and comments are ignored",
-			section: "\n# how many\nvalidators: 4\n\n# and the oracle\noracle: true\n",
-			want:    ClusterSpec{Validators: 4, Oracle: true},
+			section: "\n# how many\nvalidators: 4\n\n# and the policy\ncode-submission-policy: inert\n",
+			want:    ClusterSpec{Validators: 4, CodeSubmissionPolicy: "inert"},
 		},
 		{
 			name:    "surrounding space is not part of the value",
-			section: "  validators :  2  \n  oracle :  true  \n",
-			want:    ClusterSpec{Validators: 2, Oracle: true},
-		},
-		{
-			name:    "oracle defaults off, so it must be opted into",
-			section: "validators: 1\noracle: false\n",
-			want:    ClusterSpec{Validators: 1, Oracle: false},
+			section: "  validators :  2  \n  pkg-approver :  user  \n",
+			want:    ClusterSpec{Validators: 2, PkgApprover: "user"},
 		},
 		{
 			name:    "a config key reaches the node config with its prefix stripped",
@@ -104,7 +98,7 @@ func TestParseClusterSpec(t *testing.T) {
 		},
 		{
 			name:    "validators is the one key with no usable zero value",
-			section: "oracle: true\n",
+			section: "code-submission-policy: inert\n",
 			wantErr: `cluster section: "validators" is required`,
 		},
 		{
@@ -123,19 +117,23 @@ func TestParseClusterSpec(t *testing.T) {
 			wantErr: `cluster section: unknown key "validatorz"`,
 		},
 		{
+			// The oracle identity is provisioned for every run and gpao is
+			// started by the script, so a section still declaring it is a
+			// scenario written against the older harness. Loudly refused
+			// rather than accepted as a no-op.
+			name:    "the retired oracle key is refused like any other unknown one",
+			section: "validators: 1\noracle: true\n",
+			wantErr: `cluster section: unknown key "oracle"`,
+		},
+		{
 			name:    "a non-numeric count names the offending value",
 			section: "validators: three\n",
 			wantErr: `cluster section: validators "three": invalid syntax`,
 		},
 		{
-			name:    "a non-boolean flag names the offending value",
-			section: "validators: 1\noracle: yes please\n",
-			wantErr: `cluster section: oracle "yes please": invalid syntax`,
-		},
-		{
 			name:    "a line with no separator cannot be a setting",
-			section: "validators: 1\noracle\n",
-			wantErr: `cluster section: expected "key: value", got "oracle"`,
+			section: "validators: 1\ninert\n",
+			wantErr: `cluster section: expected "key: value", got "inert"`,
 		},
 	}
 

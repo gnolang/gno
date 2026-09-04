@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"io"
 	"log/slog"
@@ -9,8 +10,10 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
 	integ "github.com/gnolang/gno/misc/gnoe2e/internal/integration"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +40,7 @@ func TestGpaoApproverAddressMatchesImportedKey(t *testing.T) {
 	// Through the call execRun actually makes, so this covers the path it
 	// names rather than a hand-rolled stand-in for it.
 	cfg := cluster.DefaultClusterConfig()
-	spec := integ.ClusterSpec{Validators: 1, Oracle: true, CodeSubmissionPolicy: "inert"}
+	spec := integ.ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert"}
 	require.NoError(t, spec.ApplyTo(&cfg, userKey.PubKey().Address(), genesisAddr))
 
 	kb, err := keys.NewKeyBaseFromDir(t.TempDir())
@@ -51,10 +54,11 @@ func TestGpaoApproverAddressMatchesImportedKey(t *testing.T) {
 	require.Contains(t, cfg.Genesis.PkgApprovers, imported.GetAddress())
 }
 
-// Whether an oracle is provisioned follows what the scenarios ask for, not a
-// flag: deriving a key nobody wants funds an account and builds a binary for
-// nothing.
-func TestOracleKeyFollowsWhatTheScenariosAskFor(t *testing.T) {
+// The oracle's identity belongs to the run rather than to the scenarios that
+// happen to start gpao: what shapes a chain is its submission policy and its
+// approver set, and every script reads the address out of GPAO_ADDR whether it
+// runs the oracle or enables by hand.
+func TestOracleIdentityIsAlwaysProvisioned(t *testing.T) {
 	cfg := &runCfg{
 		keyName:      defaultKeyName,
 		mnemonic:     defaultMnemonic,
@@ -62,37 +66,115 @@ func TestOracleKeyFollowsWhatTheScenariosAskFor(t *testing.T) {
 		cluster:      cluster.DefaultClusterConfig(),
 	}
 
-	t.Run("no scenario asking for one leaves it unprovisioned", func(t *testing.T) {
-		scenarios := []integ.Scenario{{Spec: integ.ClusterSpec{Validators: 1}}}
-		ids, cleanup, err := setupIdentities(cfg, scenarios, discardLogger())
-		require.NoError(t, err)
-		defer cleanup()
+	ids, cleanup, err := setupIdentities(cfg, discardLogger())
+	require.NoError(t, err)
+	defer cleanup()
 
-		assert.Nil(t, ids.gpaoKey)
-		assert.True(t, ids.gpaoAddr.IsZero())
-		assert.False(t, ids.userAddr.IsZero(), "the run's own key is provisioned regardless")
+	assert.False(t, ids.userAddr.IsZero(), "the run's own key is provisioned too")
+	require.False(t, ids.gpaoAddr.IsZero(), "no scenario has to ask for the oracle's address")
+
+	// Usable as a signer, not merely present in genesis: the control arm of an
+	// oracle scenario enables a package with this key directly.
+	kb, err := keys.NewKeyBaseFromDir(ids.gnoHome)
+	require.NoError(t, err)
+	imported, err := kb.GetByName(gpaoKeyName)
+	require.NoError(t, err)
+	assert.Equal(t, ids.gpaoAddr, imported.GetAddress())
+}
+
+// gpao is built by the first "gpao start" of a run and every later start uses
+// that binary: a run whose scripts never start the oracle pays nothing for it,
+// and a run of fifteen scenarios does not pay fifteen compilations.
+func TestGpaoIsBuiltOncePerRun(t *testing.T) {
+	t.Run("the second start reuses what the first built", func(t *testing.T) {
+		builds := 0
+		binary := buildOnce(func() (string, error) {
+			builds++
+			return "/bin/gpao", nil
+		})
+
+		first, err := binary()
+		require.NoError(t, err)
+		second, err := binary()
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, builds)
+		assert.Equal(t, first, second)
 	})
 
-	t.Run("one scenario asking for one is enough", func(t *testing.T) {
-		scenarios := []integ.Scenario{
-			{Spec: integ.ClusterSpec{Validators: 1}},
-			{Spec: integ.ClusterSpec{Validators: 3, Oracle: true}},
-		}
-		ids, cleanup, err := setupIdentities(cfg, scenarios, discardLogger())
-		require.NoError(t, err)
-		defer cleanup()
+	t.Run("a build nobody asks for never runs", func(t *testing.T) {
+		builds := 0
+		buildOnce(func() (string, error) {
+			builds++
+			return "/bin/gpao", nil
+		})
 
-		require.NotNil(t, ids.gpaoKey)
-		assert.Equal(t, ids.gpaoKey.PubKey().Address(), ids.gpaoAddr)
-
-		// Usable as a signer, not merely present in genesis: the control arm
-		// of an oracle scenario enables a package with this key directly.
-		kb, err := keys.NewKeyBaseFromDir(ids.gnoHome)
-		require.NoError(t, err)
-		imported, err := kb.GetByName(gpaoKeyName)
-		require.NoError(t, err)
-		assert.Equal(t, ids.gpaoAddr, imported.GetAddress())
+		assert.Zero(t, builds, "a run whose scripts never start the oracle must not build it")
 	})
+
+	// A build fails over the toolchain or over the code it compiles, and both
+	// answer the same on the next attempt, so every later start is told what
+	// the first one found rather than compiling again to find it out.
+	t.Run("a failure is remembered rather than retried", func(t *testing.T) {
+		builds := 0
+		binary := buildOnce(func() (string, error) {
+			builds++
+			return "", errors.New("build gpao: exit status 1")
+		})
+
+		_, err := binary()
+		require.EqualError(t, err, "build gpao: exit status 1")
+		_, err = binary()
+		require.EqualError(t, err, "build gpao: exit status 1")
+		assert.Equal(t, 1, builds)
+	})
+}
+
+// An oracle whose key is absent from an inert chain's approver set looks
+// healthy: it starts, follows blocks, verifies and reports, and every package
+// it approves stays inert. The run's warning is the only symptom, so it has to
+// fire where that holds and stay silent everywhere else -- the oracle's key is
+// provisioned for every run now, and most runs are on chains that read no
+// approver set at all.
+func TestOracleWarningFiresOnlyWhereItCannotActivate(t *testing.T) {
+	oracle, err := crypto.AddressFromBech32("g19rl4cm2hmr8afy4kldpxz3fka4jguq0a0u3773")
+	require.NoError(t, err)
+	user, err := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	require.NoError(t, err)
+
+	tests := map[string]struct {
+		genesis cluster.GenesisConfig
+		want    bool
+	}{
+		"an inert chain the oracle approves on": {
+			genesis: cluster.GenesisConfig{
+				CodeSubmissionPolicy: vm.CodeSubmissionPolicyInert,
+				PkgApprovers:         []crypto.Address{oracle},
+			},
+			want: false,
+		},
+		"an inert chain somebody else approves on": {
+			genesis: cluster.GenesisConfig{
+				CodeSubmissionPolicy: vm.CodeSubmissionPolicyInert,
+				PkgApprovers:         []crypto.Address{user},
+			},
+			want: true,
+		},
+		"a chain that parks nothing to activate": {
+			genesis: cluster.GenesisConfig{CodeSubmissionPolicy: vm.CodeSubmissionPolicyPermissionless},
+			want:    false,
+		},
+		"the chain default, which is not inert either": {
+			genesis: cluster.GenesisConfig{},
+			want:    false,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.want, oracleCannotActivate(tt.genesis, oracle))
+		})
+	}
 }
 
 // A run with -timeout 0 is a run with no deadline, the way `go test -timeout 0`
@@ -154,16 +236,13 @@ func TestClusterOverridesReadsOnlyTheFlagsGiven(t *testing.T) {
 	t.Run("each cluster flag reaches its own setting", func(t *testing.T) {
 		o := parse(
 			"-validators", "4",
-			"-oracle",
 			"-code-submission-policy", "inert",
 			"-block-max-gas", "20000000",
 		)
 		require.NotNil(t, o.Validators)
-		require.NotNil(t, o.Oracle)
 		require.NotNil(t, o.CodeSubmissionPolicy)
 		require.NotNil(t, o.BlockMaxGas)
 		assert.Equal(t, 4, *o.Validators)
-		assert.True(t, *o.Oracle)
 		assert.Equal(t, "inert", *o.CodeSubmissionPolicy)
 		assert.Equal(t, int64(20_000_000), *o.BlockMaxGas)
 	})

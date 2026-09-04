@@ -90,7 +90,6 @@ gpao stop
 
 -- cluster --
 validators: 4
-oracle: true
 code-submission-policy: inert
 -- before/gnomod.toml --
 module = "gno.land/r/quorum/before"

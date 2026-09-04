@@ -212,10 +212,11 @@ stdout 'late'
 
 -- cluster --
 validators: 4
-oracle: true
 code-submission-policy: inert
-# Empty means the oracle is the approver; "user" would name the test user
-# instead, which is what leaves the oracle unauthorized.
+# Empty means the oracle is the approver. Its key is provisioned for every run
+# whether or not a script starts gpao, so the section names no oracle: "user"
+# here would name the test user instead, which is what leaves the oracle
+# unauthorized.
 pkg-approver:
 # Not the 3000000000 chain default, so the refusal above reads a value back that
 # only this line could have set.

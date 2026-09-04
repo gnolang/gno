@@ -92,7 +92,6 @@ stdout 'live'
 
 -- cluster --
 validators: 1
-oracle: true
 code-submission-policy: inert
 pkg-approver: user
 -- one/gnomod.toml --

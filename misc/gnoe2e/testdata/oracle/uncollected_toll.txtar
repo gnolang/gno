@@ -81,7 +81,6 @@ gpao stop
 
 -- cluster --
 validators: 3
-oracle: true
 code-submission-policy: inert
 -- boom1/gnomod.toml --
 module = "gno.land/r/probe/boom1"

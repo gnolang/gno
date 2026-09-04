@@ -96,7 +96,6 @@ stdout 'redeployed'
 
 -- cluster --
 validators: 3
-oracle: true
 code-submission-policy: inert
 -- v1/gnomod.toml --
 module = "gno.land/r/probe/answer"

@@ -21,8 +21,8 @@ func writeScriptFile(t *testing.T, dir, name, clusterSection string) string {
 // into the next, making a result depend on its neighbours.
 func TestResolveScenariosGivesEachScriptItsOwnCluster(t *testing.T) {
 	dir := t.TempDir()
-	a := writeScriptFile(t, dir, "a.txtar", "validators: 3\noracle: true\n")
-	b := writeScriptFile(t, dir, "b.txtar", "validators: 3\noracle: true\n")
+	a := writeScriptFile(t, dir, "a.txtar", "validators: 3\ncode-submission-policy: inert\n")
+	b := writeScriptFile(t, dir, "b.txtar", "validators: 3\ncode-submission-policy: inert\n")
 	c := writeScriptFile(t, dir, "c.txtar", "validators: 1\n")
 
 	scenarios, err := ResolveScenarios([]string{a, b, c}, ClusterOverrides{})
@@ -30,8 +30,8 @@ func TestResolveScenariosGivesEachScriptItsOwnCluster(t *testing.T) {
 	require.Len(t, scenarios, 3)
 
 	assert.Equal(t, []Scenario{
-		{Path: a, Spec: ClusterSpec{Validators: 3, Oracle: true}},
-		{Path: b, Spec: ClusterSpec{Validators: 3, Oracle: true}},
+		{Path: a, Spec: ClusterSpec{Validators: 3, CodeSubmissionPolicy: "inert"}},
+		{Path: b, Spec: ClusterSpec{Validators: 3, CodeSubmissionPolicy: "inert"}},
 		{Path: c, Spec: ClusterSpec{Validators: 1}},
 	}, scenarios)
 }
@@ -57,8 +57,8 @@ func TestResolveScenariosKeepsTheCallersOrder(t *testing.T) {
 // its own.
 func TestResolveScenariosAppliesOverridesPerScenario(t *testing.T) {
 	dir := t.TempDir()
-	three := writeScriptFile(t, dir, "a_three.txtar", "validators: 3\noracle: true\n")
-	one := writeScriptFile(t, dir, "b_one.txtar", "validators: 1\noracle: true\n")
+	three := writeScriptFile(t, dir, "a_three.txtar", "validators: 3\n")
+	one := writeScriptFile(t, dir, "b_one.txtar", "validators: 1\n")
 
 	scenarios, err := ResolveScenarios([]string{three, one}, ClusterOverrides{Validators: ptr(2)})
 	require.NoError(t, err)

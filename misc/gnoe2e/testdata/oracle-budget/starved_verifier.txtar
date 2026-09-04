@@ -85,7 +85,6 @@ gpao stop
 
 -- cluster --
 validators: 1
-oracle: true
 code-submission-policy: inert
 -- slow/gnomod.toml --
 module = "gno.land/r/slow/one"

@@ -74,7 +74,6 @@ gpao stop
 
 -- cluster --
 validators: 1
-oracle: true
 code-submission-policy: inert
 -- one/gnomod.toml --
 module = "gno.land/r/purse/one"

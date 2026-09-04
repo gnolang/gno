@@ -11,9 +11,11 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/misc/gnoe2e/internal/builder"
 	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
@@ -44,7 +46,6 @@ type runCfg struct {
 	gpaoMnemonic string
 	timeout      time.Duration
 	verbose      bool
-	oracle       bool
 	cluster      cluster.ClusterConfig
 
 	// flags is the set the command was parsed with, so clusterOverrides can
@@ -69,8 +70,6 @@ func (c *runCfg) clusterOverrides() integ.ClusterOverrides {
 		switch f.Name {
 		case "validators":
 			o.Validators = &c.cluster.NumValidators
-		case "oracle":
-			o.Oracle = &c.oracle
 		case "code-submission-policy":
 			policy := string(c.cluster.Genesis.CodeSubmissionPolicy)
 			o.CodeSubmissionPolicy = &policy
@@ -100,7 +99,6 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	// difference between unset and set to the default value.
 	c.flags = fs
 
-	fs.BoolVar(&c.oracle, "oracle", false, "provision the package-approver oracle, overriding what scripts declare")
 	fs.StringVar(&c.keyName, "keyname", c.keyName, "key name for test account")
 	fs.StringVar(&c.mnemonic, "mnemonic", c.mnemonic, "mnemonic for key derivation")
 	fs.StringVar(&c.gpaoMnemonic, "gpao-mnemonic", c.gpaoMnemonic, "mnemonic for the package-approver oracle key")
@@ -183,17 +181,20 @@ type runIdentities struct {
 	gnoHome  string
 	keyName  string
 	userAddr crypto.Address
-	// gpaoKey is nil when no scenario asked for an oracle. gpaoAddr is then
-	// the zero address.
-	gpaoKey  crypto.PrivKey
+	// gpaoAddr is the oracle's approver address, provisioned for every run
+	// whether or not a script starts the oracle.
 	gpaoAddr crypto.Address
 }
 
 // suite is what every scenario in a run shares: identities and binaries.
 type suite struct {
-	ids                 runIdentities
-	gnolandBin, gpaoBin string
-	cleanup             func()
+	ids        runIdentities
+	gnolandBin string
+	// gpaoBin yields the oracle binary. Deferred rather than built with
+	// gnoland, because whether the oracle runs at all is a decision the
+	// scripts make with "gpao start".
+	gpaoBin func() (string, error)
+	cleanup func()
 }
 
 func execRun(ctx context.Context, cfg *runCfg, args []string) error {
@@ -213,7 +214,7 @@ func execRun(ctx context.Context, cfg *runCfg, args []string) error {
 		return err
 	}
 
-	s, err := prepareSuite(ctx, cfg, scenarios, logger)
+	s, err := prepareSuite(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -226,7 +227,7 @@ func execRun(ctx context.Context, cfg *runCfg, args []string) error {
 	for i, scen := range scenarios {
 		logger.Info("scenario", "index", i+1, "of", len(scenarios),
 			"script", filepath.Base(scen.Path),
-			"validators", scen.Spec.Validators, "oracle", scen.Spec.Oracle)
+			"validators", scen.Spec.Validators)
 		rc, teardown, err := prepareScenario(ctx, cfg, s, scen, logger)
 		if err == nil {
 			err = integ.Run(rc)
@@ -247,15 +248,15 @@ func execRun(ctx context.Context, cfg *runCfg, args []string) error {
 
 // prepareSuite provisions everything the scenarios share, before any of them
 // runs. Its cleanup discards the keybase and the binaries together.
-func prepareSuite(ctx context.Context, cfg *runCfg, scenarios []integ.Scenario, logger *slog.Logger) (*suite, error) {
-	ids, cleanupIDs, err := setupIdentities(cfg, scenarios, logger)
+func prepareSuite(ctx context.Context, cfg *runCfg, logger *slog.Logger) (*suite, error) {
+	ids, cleanupIDs, err := setupIdentities(cfg, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// Both binaries are built once for the whole run: a scenario differs from
-	// its neighbours in the chain it declares, never in the code that serves
-	// it. Their own directory, not the keybase one -- gnokey reads keys out of
+	// A binary is built once for the whole run: a scenario differs from its
+	// neighbours in the chain it declares, never in the code that serves it.
+	// Their own directory, not the keybase one -- gnokey reads keys out of
 	// that.
 	binDir, err := os.MkdirTemp("", "gnoe2e-bin-*")
 	if err != nil {
@@ -274,16 +275,31 @@ func prepareSuite(ctx context.Context, cfg *runCfg, scenarios []integ.Scenario, 
 		return nil, fmt.Errorf("build gnoland: %w", err)
 	}
 
-	var gpaoBin string
-	if ids.gpaoKey != nil {
-		gpaoBin, err = bldr.Build(ctx, builder.BuildOpts{Binary: "gpao", OutDir: binDir})
+	gpaoBin := buildOnce(func() (string, error) {
+		path, err := bldr.Build(ctx, builder.BuildOpts{Binary: "gpao", OutDir: binDir})
 		if err != nil {
-			cleanup()
-			return nil, fmt.Errorf("build gpao: %w", err)
+			return "", fmt.Errorf("build gpao: %w", err)
 		}
-	}
+		return path, nil
+	})
 
 	return &suite{ids: ids, gnolandBin: gnolandBin, gpaoBin: gpaoBin, cleanup: cleanup}, nil
+}
+
+// buildOnce defers build to the first caller that needs its result and hands
+// every later caller the same answer, failure included: a build fails over the
+// toolchain or over the code it compiles, and neither changes between two
+// starts of the same run.
+func buildOnce(build func() (string, error)) func() (string, error) {
+	var (
+		once sync.Once
+		path string
+		err  error
+	)
+	return func() (string, error) {
+		once.Do(func() { path, err = build() })
+		return path, err
+	}
 }
 
 // joinFailures reports every scenario that failed rather than only the first,
@@ -297,7 +313,7 @@ func joinFailures(failures []error, total int) error {
 
 // setupIdentities imports the run's keys once, since every cluster signs with
 // the same accounts.
-func setupIdentities(cfg *runCfg, scenarios []integ.Scenario, logger *slog.Logger) (runIdentities, func(), error) {
+func setupIdentities(cfg *runCfg, logger *slog.Logger) (runIdentities, func(), error) {
 	gnoHomeDir, err := os.MkdirTemp("", "gnoe2e-home-*")
 	if err != nil {
 		return runIdentities{}, nil, fmt.Errorf("failed to create gnohome dir: %w", err)
@@ -327,14 +343,6 @@ func setupIdentities(cfg *runCfg, scenarios []integ.Scenario, logger *slog.Logge
 	}
 	logger.Info("key imported", "name", cfg.keyName, "address", ids.userAddr.String())
 
-	// Driven by what the scenarios ask for rather than by a flag: deriving a
-	// key nobody asked for would fund an account and build a binary for
-	// nothing.
-	wantsOracle := slices.ContainsFunc(scenarios, func(s integ.Scenario) bool { return s.Spec.Oracle })
-	if !wantsOracle {
-		return ids, cleanup, nil
-	}
-
 	gpaoKey, err := deriveGpaoKey(cfg.gpaoMnemonic)
 	if err != nil {
 		cleanup()
@@ -347,11 +355,20 @@ func setupIdentities(cfg *runCfg, scenarios []integ.Scenario, logger *slog.Logge
 		cleanup()
 		return runIdentities{}, nil, fmt.Errorf("import gpao key: %w", err)
 	}
-	ids.gpaoKey = gpaoKey
 	ids.gpaoAddr = gpaoKey.PubKey().Address()
 	logger.Info("gpao approver provisioned", "address", ids.gpaoAddr.String(), "key", gpaoKeyName)
 
 	return ids, cleanup, nil
+}
+
+// oracleCannotActivate reports the one misconfiguration that leaves the oracle
+// looking healthy: an inert chain whose approver set does not hold its key.
+// The oracle starts, follows blocks and verifies normally, and every package it
+// approves stays inert. A chain that is not inert parks nothing, so its
+// approver set says nothing about the oracle.
+func oracleCannotActivate(genesis cluster.GenesisConfig, oracle crypto.Address) bool {
+	return genesis.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert &&
+		!slices.Contains(genesis.PkgApprovers, oracle)
 }
 
 // prepareScenario boots the cluster one scenario declared and assembles the
@@ -371,9 +388,7 @@ func prepareScenario(
 	clusterCfg := cfg.cluster
 	clusterCfg.Genesis.Balances = maps.Clone(cfg.cluster.Genesis.Balances)
 	clusterCfg.Genesis.Balances[ids.userAddr.String()] = 1_000_000_000 // 1000 GNOT
-	if ids.gpaoKey != nil {
-		clusterCfg.Genesis.Balances[ids.gpaoAddr.String()] = 1_000_000_000
-	}
+	clusterCfg.Genesis.Balances[ids.gpaoAddr.String()] = 1_000_000_000
 	if err := scen.Spec.ApplyTo(&clusterCfg, ids.userAddr, ids.gpaoAddr); err != nil {
 		return integ.RunConfig{}, nil, err
 	}
@@ -381,13 +396,11 @@ func prepareScenario(
 		return integ.RunConfig{}, nil, err
 	}
 
-	// Said once per scenario, because nothing else about the run will say it:
-	// an oracle that is not an approver starts, follows blocks and verifies
-	// normally, and every package it approves stays inert. The status board
-	// does record the refusal per package, so an operator who already suspects
-	// something can find it -- but they have to suspect it first, and the only
-	// symptom is deploys that never activate.
-	if ids.gpaoKey != nil && !slices.Contains(clusterCfg.Genesis.PkgApprovers, ids.gpaoAddr) {
+	// Said once per scenario, because nothing else about the run will say it.
+	// The status board does record the refusal per package, so an operator who
+	// already suspects something can find it -- but they have to suspect it
+	// first, and the only symptom is deploys that never activate.
+	if oracleCannotActivate(clusterCfg.Genesis, ids.gpaoAddr) {
 		logger.Warn("oracle key is not a package approver; it will verify packages but never activate them",
 			"oracle", ids.gpaoAddr.String())
 	}
@@ -404,15 +417,12 @@ func prepareScenario(
 	}
 	logger.Info("cluster ready", "rpc_addr", cl.RPCAddr, "validators", len(cl.Validators))
 
-	var gpao integ.GpaoConfig
-	if scen.Spec.Oracle && s.gpaoBin != "" {
-		gpao = integ.GpaoConfig{
-			BinaryPath: s.gpaoBin,
-			Mnemonic:   cfg.gpaoMnemonic,
-			ChainID:    clusterCfg.Genesis.ChainID,
-			Remote:     cl.RPCAddr,
-			GnoRoot:    gnoenv.RootDir(),
-		}
+	gpao := integ.GpaoConfig{
+		Binary:   s.gpaoBin,
+		Mnemonic: cfg.gpaoMnemonic,
+		ChainID:  clusterCfg.Genesis.ChainID,
+		Remote:   cl.RPCAddr,
+		GnoRoot:  gnoenv.RootDir(),
 	}
 
 	return integ.RunConfig{

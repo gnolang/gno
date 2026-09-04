@@ -79,5 +79,4 @@ gnokey query vm/qinertpaths -data ''
 gpao stop
 -- cluster --
 validators: 1
-oracle: true
 code-submission-policy: inert

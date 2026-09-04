@@ -62,7 +62,7 @@ func TestScenarios(t *testing.T) {
 
 	logger := slog.New(termlog.NewHandler(testLogWriter{t: t}, testing.Verbose()))
 
-	s, err := prepareSuite(t.Context(), cfg, scenarios, logger) // builds the binaries once
+	s, err := prepareSuite(t.Context(), cfg, logger) // builds gnoland once
 
 	require.NoError(t, err)
 	t.Cleanup(s.cleanup)

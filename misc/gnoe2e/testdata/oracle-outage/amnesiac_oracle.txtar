@@ -132,7 +132,6 @@ gpao stop
 
 -- cluster --
 validators: 4
-oracle: true
 code-submission-policy: inert
 -- early/gnomod.toml --
 module = "gno.land/r/out/early"
