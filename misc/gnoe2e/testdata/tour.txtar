@@ -8,7 +8,7 @@
 # "-- cluster --" key, and every exported variable a script can name. $GNOHOME
 # is used implicitly on each gnokey line (it is gnokey's -home); $GNOROOT is
 # for scenarios that deploy out of the checkout's examples, which
-# oracle-closure/serialized_closure.txtar does.
+# oracle/serialized_closure.txtar does.
 #
 # The cluster: four validators, so one can be stopped while the other three
 # keep a quorum; an inert code-submission policy, so a submitted package parks
