@@ -27,11 +27,13 @@ func TestEventuallySucceedsAfterTransientFailures(t *testing.T) {
 	}
 	cmds["eventually"] = EventuallyCmd(cmds)
 
-	testscript.RunT(NewTestscriptT(testLogger(t), false), testscript.Params{
+	adapter := NewTestscriptT(testLogger(t), false)
+	testscript.RunT(adapter, testscript.Params{
 		Files: []string{writeScript(t, "eventually 5s 10ms flaky\n")},
 		Cmds:  cmds,
 	})
 
+	require.False(t, adapter.Failed)
 	require.Equal(t, 3, calls)
 }
 

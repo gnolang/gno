@@ -41,8 +41,8 @@ func TestMain(m *testing.M) {
 		// tell whether the harness read its output before or after stopping it.
 		serveFakeGpaoUntilSignalled()
 	case "serve":
-		// Stands in for the survivable path (oracle.go:303-306): opens the
-		// -status-listen address gpaoArgs always injects and then blocks --
+		// Stands in for a gpao that comes up and stays up: serves the
+		// -status-listen address gpaoArgs always injects, then blocks --
 		// the negation test needs a daemon that survives, not one that races
 		// to exit before the probe can see it.
 		serveFakeGpaoStatus()
@@ -99,10 +99,9 @@ func flagValue(args []string, name string) string {
 	return ""
 }
 
-// TestGpaoStartNegationSucceedsWhenStartFails is the harness-level half of
-// this task: gpao.go used to refuse negation outright, which meant a script
-// had no way to assert that "gpao start" failed. A daemon that dies before
-// becoming ready must let "! gpao start" pass instead of aborting the script.
+// A daemon that dies before becoming ready lets "! gpao start" pass rather
+// than aborting the script, which is the only way a scenario can assert that
+// the oracle refuses to come up.
 func TestGpaoStartNegationSucceedsWhenStartFails(t *testing.T) {
 	t.Setenv("GNOE2E_FAKE_GPAO", "die")
 
@@ -167,12 +166,12 @@ func TestGpaoArgsInjectDefaults(t *testing.T) {
 
 	args := gpaoArgs(cfg, "127.0.0.1:9999", nil)
 
-	require.Contains(t, args, "-chain-id")
-	require.Contains(t, args, "test-e2e")
-	require.Contains(t, args, "-status-listen")
-	require.Contains(t, args, "127.0.0.1:9999")
-	require.Contains(t, args, "-remote")
-	require.Contains(t, args, "tcp://127.0.0.1:26657")
+	require.Equal(t, []string{
+		"-chain-id", "test-e2e",
+		"-status-listen", "127.0.0.1:9999",
+		"-gno-root", "/gno",
+		"-remote", "tcp://127.0.0.1:26657",
+	}, args)
 }
 
 func TestGpaoScriptRemoteWins(t *testing.T) {

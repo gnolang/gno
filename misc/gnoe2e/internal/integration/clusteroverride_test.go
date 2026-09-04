@@ -3,6 +3,7 @@ package integration
 import (
 	"testing"
 
+	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,10 +11,14 @@ import (
 // the caller owns the consequence: asking for two validators runs a scenario
 // that declared three, and that scenario may well go red.
 func TestClusterOverridesApply(t *testing.T) {
+	// NodeConfig carries the one field an Apply could reach the caller through:
+	// the scalars are copied by the value receiver whatever it does, a slice is
+	// only copied as a header.
 	declared := ClusterSpec{
 		Validators:           3,
 		CodeSubmissionPolicy: "inert",
 		BlockMaxGas:          20_000_000,
+		NodeConfig:           []cluster.Override{{Key: "moniker", Value: "tour"}},
 	}
 
 	tests := []struct {
@@ -32,6 +37,7 @@ func TestClusterOverridesApply(t *testing.T) {
 				Validators:           2,
 				CodeSubmissionPolicy: "inert",
 				BlockMaxGas:          20_000_000,
+				NodeConfig:           []cluster.Override{{Key: "moniker", Value: "tour"}},
 			},
 		},
 		{
@@ -44,6 +50,7 @@ func TestClusterOverridesApply(t *testing.T) {
 				CodeSubmissionPolicy: "inert",
 				PkgApprover:          "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				BlockMaxGas:          20_000_000,
+				NodeConfig:           []cluster.Override{{Key: "moniker", Value: "tour"}},
 			},
 		},
 		{
@@ -57,6 +64,7 @@ func TestClusterOverridesApply(t *testing.T) {
 				Validators:           1,
 				CodeSubmissionPolicy: "permissionless",
 				BlockMaxGas:          3_000_000_000,
+				NodeConfig:           []cluster.Override{{Key: "moniker", Value: "tour"}},
 			},
 		},
 	}
@@ -68,6 +76,7 @@ func TestClusterOverridesApply(t *testing.T) {
 				Validators:           3,
 				CodeSubmissionPolicy: "inert",
 				BlockMaxGas:          20_000_000,
+				NodeConfig:           []cluster.Override{{Key: "moniker", Value: "tour"}},
 			}, declared, "the declaration itself is not modified")
 		})
 	}

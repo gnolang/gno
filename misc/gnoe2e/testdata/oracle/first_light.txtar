@@ -18,6 +18,7 @@ gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot 
 gnokey query vm/qinertpaths -data ''
 stdout 'gno.land/r/probe/echo'
 ! gnokey query vm/qfile -data gno.land/r/probe/echo
+stdout 'is not available'
 
 # -start-height 1 makes the oracle scan from the chain's start rather than
 # from its own tip at startup: the submission above already committed before

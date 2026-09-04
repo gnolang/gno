@@ -5,10 +5,10 @@
 # an exported variable and this is the file that fails first.
 #
 # Everything the harness offers appears at least once: every verb, every
-# "-- cluster --" key, and every exported variable a script can name. $GNOHOME
-# is used implicitly on each gnokey line (it is gnokey's -home); $GNOROOT is
-# for a scenario that deploys a package out of the checkout's examples rather
-# than one of its own sections.
+# "-- cluster --" key, and every exported variable except $GNOROOT, which this
+# file has no reason to name because every package it deploys comes from one of
+# its own sections rather than the checkout's examples. $GNOHOME is used
+# implicitly on each gnokey line: it is gnokey's -home.
 #
 # The cluster: four validators, so one can be stopped while the other three
 # keep a quorum; an inert code-submission policy, so a submitted package parks
@@ -165,6 +165,7 @@ sleep 2s
 gnokey query vm/qinertpaths -data ''
 stdout 'tour.gno.land/r/tour/late'
 ! gnokey query vm/qrender -data 'tour.gno.land/r/tour/late:x'
+stdout 'package not found'
 
 # Parked state is chain state, not something the receiving node holds alone.
 # Gated on the path rather than the exit status: qinertpaths answers an empty

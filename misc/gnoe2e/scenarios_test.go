@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,12 +48,25 @@ func TestScenarios(t *testing.T) {
 	}
 
 	// go test sets the working directory to the module root. The tour sits at
-	// the root of testdata, the feature lanes one level down.
+	// the root of testdata, the feature lanes one level down. Walked rather
+	// than globbed at both depths: a lane that stops matching a glob -- renamed,
+	// or nested one level deeper -- would leave the suite running the tour
+	// alone and reporting success.
+	entries, err := os.ReadDir("testdata")
+	require.NoError(t, err)
+
 	var paths []string
-	for _, pattern := range []string{"testdata/*.txtar", "testdata/*/*.txtar"} {
-		matches, err := filepath.Glob(pattern)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			if filepath.Ext(entry.Name()) == ".txtar" {
+				paths = append(paths, filepath.Join("testdata", entry.Name()))
+			}
+			continue
+		}
+		lane, err := filepath.Glob(filepath.Join("testdata", entry.Name(), "*.txtar"))
 		require.NoError(t, err)
-		paths = append(paths, matches...)
+		require.NotEmpty(t, lane, "lane %s holds no scenario", entry.Name())
+		paths = append(paths, lane...)
 	}
 	require.NotEmpty(t, paths)
 
@@ -63,6 +78,11 @@ func TestScenarios(t *testing.T) {
 	scenarios, err := integ.ResolveScenarios(paths, integ.ClusterOverrides{})
 	require.NoError(t, err)
 
+	// newRunLogger installs its logger as the slog default, which outlives this
+	// test unless it is put back: a later test in this package logging through
+	// slog would write into a *testing.T that has finished.
+	previous := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(previous) })
 	logger := newRunLogger(testLogWriter{t: t}, testing.Verbose())
 
 	s, err := prepareSuite(t.Context(), cfg, logger) // builds gnoland once

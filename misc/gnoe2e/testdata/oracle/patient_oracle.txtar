@@ -26,8 +26,10 @@ gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot 
 eventually gnokey query vm/qrender -data 'gno.land/r/quorum/before:x'
 stdout 'before'
 
-# ---- Quorum goes. Two of four is not a majority of two thirds, so no
-# ---- proposal can be committed by anybody.
+# ---- Quorum goes.
+
+# Two of four is not a majority of two thirds, so no proposal can be committed
+# by anybody.
 validator stop 1
 validator stop 2
 
@@ -57,8 +59,10 @@ gnokey query vm/qinertpaths -data ''
 http_get $GPAO_STATUS/status/gno.land/r/quorum/stalled
 stdout '"status":"unknown"'
 
-# ---- One validator back is enough. Three of four clears two thirds, so
-# ---- consensus resumes with validator 2 still down.
+# ---- One validator back is enough.
+
+# Three of four clears two thirds, so consensus resumes with validator 2 still
+# down.
 validator restart 1
 
 # Nothing resubmitted this package and nothing restarted the oracle. The
@@ -77,9 +81,11 @@ stdout 'stalled'
 eventually http_get $GPAO_STATUS/status/gno.land/r/quorum/stalled '"status":"approved"'
 stdout '"status":"approved"'
 
-# ---- Validator 2 stays down. A submission that arrives now, is verified,
-# ---- approved and rendered proves the chain took new work on three nodes of
-# ---- four, which is the quorum arithmetic above read from the other side.
+# ---- Validator 2 stays down.
+
+# A submission that arrives now, is verified, approved and rendered proves the
+# chain took new work on three nodes of four, which is the quorum arithmetic
+# above read from the other side.
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/after -pkgpath gno.land/r/quorum/after $USER_NAME
 eventually gnokey query vm/qrender -data 'gno.land/r/quorum/after:x'
 stdout 'after'

@@ -115,11 +115,8 @@ func TestHTTPGetPatternNegationFailsWhenBodyMatches(t *testing.T) {
 		"http_get": HTTPGetCmd(),
 	}
 
-	// Round 1 found a Critical defect where "! gnokey" could never fail
-	// because a recover() swallowed the panic reporting unexpected success.
-	// http_get has no such recover, but that is exactly the kind of
-	// assumption that hid the last defect, so verify it directly: a negated
-	// call must still fail when the body actually matches the pattern.
+	// http_get has no recover to swallow the panic that reports unexpected
+	// success, so a negated call must still fail when the body matches.
 	adapter := NewTestscriptT(testLogger(t), false)
 	script := fmt.Sprintf(`! http_get %s/status '"status":"approved"'`+"\n", srv.URL)
 	testscript.RunT(adapter, testscript.Params{
@@ -181,7 +178,7 @@ func TestHTTPGetEventuallyPollsUntilBodyMatches(t *testing.T) {
 	}
 	cmds["eventually"] = EventuallyCmd(cmds)
 
-	// This is the capability TASK-4 needs: eventually must keep polling past
+	// eventually must keep polling past
 	// early non-matching bodies and only return once the body matches, not
 	// on the first (still-200) response.
 	adapter := NewTestscriptT(testLogger(t), false)

@@ -63,10 +63,9 @@ func TestGnokeyArgsPutCallerFlagsLast(t *testing.T) {
 	}, args)
 }
 
-// testscriptCmds is what the previous round's Run/runWithAdapter split came
-// within one instruction of shrinking: it dropped eventually and http_get, and
-// nothing would have caught it until a scenario hit "unknown command" three
-// tasks later. Pinning the exact set here, rather than deriving it from the
+// testscriptCmds' registration set is one instruction from silently
+// shrinking, and a command dropped from it surfaces only when a scenario hits
+// "unknown command". Pinning the exact set here, rather than deriving it from the
 // same call under test, makes a dropped -- or silently added -- registration
 // fail immediately instead of surfacing as an unrelated-looking bug downstream.
 func TestTestscriptCmdsRegistersExpectedCommands(t *testing.T) {

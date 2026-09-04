@@ -25,6 +25,10 @@ func TestMain(m *testing.M) {
 		os.Exit(m.Run())
 	case "serve":
 		if path := os.Getenv("GNOE2E_FAKE_READY_FILE"); path != "" {
+			// Late on purpose, past several readyPollInterval ticks: a Start
+			// that returned without waiting on the probe would find no file,
+			// which is the only thing separating a probe from a sleep.
+			time.Sleep(150 * time.Millisecond)
 			_ = os.WriteFile(path, []byte("ready"), 0o644)
 		}
 		time.Sleep(time.Hour)

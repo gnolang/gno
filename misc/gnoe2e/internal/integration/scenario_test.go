@@ -37,7 +37,7 @@ func TestResolveScenariosGivesEachScriptItsOwnCluster(t *testing.T) {
 }
 
 // The caller's order is the run order, and it does not vary between runs.
-// Nothing carries between scenarios now, so this is about a readable log and a
+// Nothing carries between scenarios, so this is about a readable log and a
 // reproducible report rather than about what any assertion sees.
 func TestResolveScenariosKeepsTheCallersOrder(t *testing.T) {
 	dir := t.TempDir()
