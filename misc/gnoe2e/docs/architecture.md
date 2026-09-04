@@ -1,6 +1,6 @@
 # How a run works
 
-gnoe2e is a Go module with one binary and four internal packages. A run turns a list of txtar files into one
+gnoe2e is a Go module with one binary and five internal packages. A run turns a list of txtar files into one
 booted cluster per scenario, drives each script through testscript, and tears the cluster down again.
 
 | Package | Owns |
@@ -18,7 +18,8 @@ Both routes call the same two functions, so a scenario behaves the same under `g
 ## One run
 
 1. **Resolve** the arguments to scenario files, in the order given; a directory contributes its files sorted.
-2. **Parse** every file's `-- cluster --` section up front, so a typo fails before anything boots.
+2. **Parse** every file's `-- cluster --` section up front, resolving the `config.` and `genesis.` paths
+   against the defaults, so a misspelled key or a value its field cannot hold fails before anything boots.
 3. **Prepare the suite**, once: a keybase in a temp directory holding the test user and the oracle key, and a
    `gnoland` binary built from the checkout `gnoenv.RootDir()` names. `gpao` is not built here.
 4. **Per scenario**: apply the section onto a cluster config (validators, policy, approver, gas ceiling, overrides),
@@ -50,6 +51,12 @@ tree genesis packages come from, the `GNOROOT` exported to scripts, and gpao's `
 That single knob is what `make test-master` uses: it unpacks `master` with `git archive` into a temp directory and
 runs the suite with `GNOROOT` pointing there, so the scenarios and the harness come from the working tree while
 `gnoland` and `gpao` come from master.
+
+`GNOROOT` reaches the two spawned binaries and the `examples/` tree, and nothing else. The module's
+`replace github.com/gnolang/gno => ../..` links the harness against the working tree's own gno packages, so
+in-process `gnokey`, the genesis document `BuildGenesis` assembles, and the packages `LoadPackagesFromDir` reads
+are the working tree's under `test-master` as well. A claim that lives in one of those is green either way, and
+proving it red needs a checkout of master rather than this knob.
 
 ## Ports, addresses, processes
 

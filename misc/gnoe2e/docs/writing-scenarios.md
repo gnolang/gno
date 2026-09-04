@@ -73,8 +73,10 @@ A query for a parked or missing package prints `package "..." is not available` 
 stdout 'is not available'
 ```
 
-Only `gnokey`, `http_get`, `gpao start` and `validator restart` are negatable. A `! validator restart N` asserts the
-node cannot come back, and its error carries the node's stderr tail so the scenario can match the reason it died.
+Only `gnokey`, `http_get`, `gpao start`, `repeat` and `validator restart` are negatable. A `! validator restart N`
+asserts the node cannot come back, and its error carries the node's stderr tail so the scenario can match the
+reason it died. It asserts that alone: naming a validator the cluster does not have, or one the script never
+stopped, fails the scenario in either mode.
 
 ## Comments
 

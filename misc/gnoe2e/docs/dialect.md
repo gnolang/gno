@@ -51,15 +51,18 @@ because the top-level section of the node config carries no json tags at all: `c
 json tag, matching `gnogenesis params set`: `genesis.vm.chain_domain`, `genesis.auth.max_memo_bytes`,
 `genesis.bank.restricted_denoms`.
 
-Two `config.` keys are refused outright, with an error saying so:
+Three `config.` keys are refused outright, with an error saying so:
 
 ```
 config.rpc.laddr
 config.p2p.laddr
+config.p2p.persistent_peers
 ```
 
 The harness picks a free port per node and hands the resulting addresses to the script as `RPC_ADDR_N`. A scenario
-that set a listen address would take the cluster away from its own commands.
+that set a listen address would take the cluster away from its own commands. It also writes each validator a peer
+list naming the others, and a section is applied once to every node: a scenario that set the peer list would hand
+all of them the same peers, and a validator set that cannot reach quorum commits no block at all.
 
 A path that runs past a leaf is an error naming the key and the type it ran into, so
 `config.consensus.timeout_commit.seconds` reports that `config.consensus.timeout_commit` is a
@@ -98,7 +101,8 @@ validator. `-chainid` is a `maketx` flag rather than a root one and is not injec
 
 **`repeat`** stops at the first failing iteration and reports which one it was. With `-all` it runs the full count
 and prints a pass/fail summary. Iterations share testscript's output buffers, so a following `! stdout <pattern>`
-checks the pattern against every iteration's output at once, which is stricter than one read.
+checks the pattern against every iteration's output at once, which is stricter than one read. `! repeat` asserts
+that at least one iteration failed.
 
 **`eventually`** defaults to a 30s budget and a 1s interval; a leading duration sets the budget and a second sets
 the interval. The deadline is checked between attempts, so a sub-command that hangs can overrun it. Each attempt
@@ -122,9 +126,16 @@ assertion still comes with the oracle's own account of events.
 
 **`validator`** indexes the same way the scripts already do, so `validator stop 3` stops the node behind
 `RPC_ADDR_3`. A stopped node keeps its data directory and its identity, and `restart` brings the same validator
-back to the same chain and returns once its RPC answers, which is earlier than it having caught up. Only `restart`
-is negatable: `! validator restart N` asserts the node cannot come back, and the error carries a tail of the node's
-stderr so the scenario can name the reason it died.
+back to the same chain and returns once its RPC answers, which is earlier than it having caught up. A restarted
+node appends to the log of the run that stopped rather than replacing it, so `validator_N/stderr.log` holds both.
+
+Only `restart` is negatable, and only for the node itself: `! validator restart N` asserts the node cannot come
+back, and the error carries a tail of the node's stderr so the scenario can name the reason it died. Naming a
+validator the cluster does not have, or one the script never stopped, fails the scenario in either mode -- a
+negation standing on either would pass a scenario in which no node ever went away.
+
+`validator stop N` fails the scenario when the node had already exited on its own, rather than reporting a stop it
+did not perform.
 
 ## Environment
 

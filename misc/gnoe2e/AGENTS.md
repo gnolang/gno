@@ -16,9 +16,10 @@ workflow, `.github/workflows/ci-gnoe2e.yml`. The repository-wide guide at the ro
 
 ```bash
 cd misc/gnoe2e
-make test                                             # unit tests, seconds
+make test                                             # unit tests under -race, seconds
 make test-scenarios                                   # every scenario, a few minutes
-make test-all                                         # both lanes
+make test-all                                         # both lanes, one after the other
+make help                                             # every target
 go run . run -verbose testdata/oracle/<file>.txtar    # one scenario with every line echoed
 make defaults                                         # every -- cluster -- key and the value a cluster boots with
 make test-master                                      # the scenarios against gnoland and gpao built from master

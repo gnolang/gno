@@ -44,10 +44,10 @@ make scenarios
 # Every -- cluster -- key with the value a cluster boots with
 make defaults
 
-# The unit tests, in seconds, booting nothing
+# The unit tests, in seconds, under the race detector, booting nothing
 make test
 
-# The scenarios through go test, then both lanes at once
+# The scenarios through go test, then both lanes one after the other
 make test-scenarios
 make test-all
 
@@ -70,8 +70,9 @@ make lint
 through `go run` each time.
 
 `make test-master` unpacks master with `git archive` into a temp directory and points `GNOROOT` at it, which is the
-one case where setting `GNOROOT` is the point. `GOTEST_FLAGS` (`-v`) carries the unit lane and `SCENARIO_FLAGS`
-(`-v -timeout 30m -run TestScenarios`) the scenario lane; giving either replaces the whole value, timeout included.
+one case where setting `GNOROOT` is the point. `GOTEST_FLAGS` (`-v -race`) carries the unit lane and
+`SCENARIO_FLAGS` (`-v -timeout 30m -run TestScenarios`) the scenario lane; giving either replaces the whole value,
+timeout included. `make help` lists every target.
 
 Four `run` flags override what a scenario declared:
 
@@ -85,7 +86,8 @@ Four `run` flags override what a scenario declared:
 A flag counts as an override only when it is actually given, so leaving `-validators` alone is not the same as
 passing `-validators 2`. A given flag beats every scenario's declaration, including scenarios that cannot pass
 without theirs: running a four-validator outage scenario with `-validators 2` turns it red, and that is what an
-override is for. The remaining flags (`-chain-id`, `-max-tx-bytes`, `-max-data-bytes`, `-block-time-iota`,
+override is for. `-code-submission-policy inert` needs no approver on the command line: every cluster in a run gets
+the oracle as its approver unless the scenario names somebody else. The remaining flags (`-chain-id`, `-max-tx-bytes`, `-max-data-bytes`, `-block-time-iota`,
 `-load-examples`) set the base every cluster in the run starts from; no scenario declares them.
 
 ## Documentation
@@ -144,12 +146,15 @@ machine slow enough to miss one of these fails the scenario rather than waiting 
 
 `run -timeout` bounds the whole run rather than each scenario, and defaults to 10 minutes. The validator processes
 are started from that deadline's context, so reaching it takes the nodes out from under whichever scenario is
-running and the run ends reporting that scenario as failed. The `go test` route has no such flag and is bounded by
-`go test -timeout` instead, which is why the scenario targets pass `-timeout 30m`.
+running and the run ends reporting that scenario as failed. The scenarios that had not started are not attempted,
+and the count that ends the run is out of what it got to. Ctrl-C ends it the same way. The `go test` route has no
+such flag and is bounded by `go test -timeout` instead, which is why the scenario targets pass `-timeout 30m`.
 
-A run that unwinds normally removes what it made. A run killed outright does not, and leaves directories named
-`e2e-cluster-*`, `gnoe2e-bin-*` and `gnoe2e-home-*` in `TMPDIR`. Node logs live in the cluster directory as
-`validator_N/stdout.log` and `validator_N/stderr.log`, which is where to look after a kill.
+A run removes what it made when it unwinds, and Ctrl-C, `kill` and a cancelled CI job all unwind it. `kill -9` does
+not: it leaves the temp directories named `e2e-cluster-*`, `gnoe2e-bin-*`, `gnoe2e-home-*` and `go-test-script*` in
+`TMPDIR`, together with the processes of whichever scenario was in flight, up to four gnoland validators and one
+gpao. `pkill -f e2e-cluster` clears those nodes. Node logs live in the cluster directory as
+`validator_N/stdout.log` and `validator_N/stderr.log`, which is where to look afterwards.
 
 Port allocation binds an ephemeral port, reads its number and closes the listener before the node binds it, so two
 clusters starting at the same moment can be handed the same port. The window is small and the failure is a node
