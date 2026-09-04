@@ -15,7 +15,7 @@ naming the key, so a typo fails before anything boots.
 
 | Key | Value | Effect |
 | --- | --- | --- |
-| `validators` | integer, at least 1 | Required. Number of validator processes. |
+| `validators` | integer, 1 to 16 | Required. Number of validator processes. |
 | `code-submission-policy` | `permissionless`, `permissioned` or `inert` | Empty leaves the chain default. |
 | `pkg-approver` | empty, `user`, or a bech32 address | Who may send `MsgEnablePackage`. Empty means the oracle, `user` means the test account, which is what leaves the oracle unauthorized. |
 | `block-max-gas` | integer | Per-block gas limit. Default 3000000000. |

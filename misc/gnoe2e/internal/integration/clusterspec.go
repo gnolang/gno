@@ -24,6 +24,11 @@ const clusterSection = "cluster"
 // packages, which is what leaves the oracle unauthorized.
 const approverRoleUser = "user"
 
+// maxValidators bounds what one scenario can ask the harness to start. Every
+// validator is a gnoland process with its own data directory, ports and share
+// of the machine, and the scenarios here need four at most.
+const maxValidators = 16
+
 // The two generic key families, one per typed target they are applied to.
 const (
 	NodeConfigPrefix    = "config."
@@ -188,14 +193,17 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 
 		switch key {
 		case "validators":
-			n, err := parseInt(key, value)
+			n, err := parseCount(key, value)
 			if err != nil {
 				return ClusterSpec{}, err
 			}
 			if n < 1 {
 				return ClusterSpec{}, fmt.Errorf("validators must be at least 1, got %d", n)
 			}
-			spec.Validators, sawValidators = int(n), true
+			if n > maxValidators {
+				return ClusterSpec{}, fmt.Errorf("validators must be at most %d, got %d", maxValidators, n)
+			}
+			spec.Validators, sawValidators = n, true
 		case "block-max-gas":
 			n, err := parseInt(key, value)
 			if err != nil {
@@ -217,6 +225,17 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 		return ClusterSpec{}, fmt.Errorf("%q is required", "validators")
 	}
 	return spec, nil
+}
+
+// parseCount reads a value counting something the harness will start, so it
+// yields an int rather than an int64: a count that would not survive the
+// conversion is a typo, not a cluster.
+func parseCount(key, value string) (int, error) {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s %q: %w", key, value, unwrapSyntax(err))
+	}
+	return n, nil
 }
 
 func parseInt(key, value string) (int64, error) {

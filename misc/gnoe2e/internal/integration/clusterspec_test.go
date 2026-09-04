@@ -122,6 +122,11 @@ func TestParseClusterSpec(t *testing.T) {
 			wantErr: `cluster section: validators must be at least 1, got -1`,
 		},
 		{
+			name:    "a count past what the harness will start is a typo",
+			section: "validators: 17\n",
+			wantErr: `cluster section: validators must be at most 16, got 17`,
+		},
+		{
 			name:    "an unknown key is a typo, not something to ignore",
 			section: "validators: 1\nvalidatorz: 2\n",
 			wantErr: `cluster section: unknown key "validatorz"`,
