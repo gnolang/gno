@@ -195,3 +195,28 @@ func TestHTTPGetEventuallyPollsUntilBodyMatches(t *testing.T) {
 	require.GreaterOrEqual(t, atomic.LoadInt32(&calls), int32(3),
 		"eventually must poll past the first non-matching response before succeeding")
 }
+
+// TestHTTPGetSpeaksHTTPToATCPAddress pins that the RPC address the harness
+// exports, which gnoland prints with a tcp:// scheme, works as an http_get
+// target: a scenario reads the node's own /status with the same verb it uses
+// on the oracle's board.
+func TestHTTPGetSpeaksHTTPToATCPAddress(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"node_info":{"moniker":"tour"}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	adapter := NewTestscriptT(testLogger(t), false)
+	cmds := map[string]func(*testscript.TestScript, bool, []string){
+		"http_get": HTTPGetCmd(),
+	}
+
+	tcpAddr := "tcp://" + srv.Listener.Addr().String()
+	script := fmt.Sprintf("http_get %s/status\nstdout '\"moniker\":\"tour\"'\n", tcpAddr)
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, script)},
+		Cmds:  cmds,
+	})
+
+	require.False(t, adapter.Failed, "http_get must accept the tcp:// address the harness exports for RPC")
+}

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -49,7 +50,14 @@ func HTTPGetCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), httpGetTimeout)
 		defer cancel()
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, args[0], nil)
+		// gnoland prints its RPC listen address with a tcp:// scheme, and that
+		// is what the harness exports as RPC_ADDR; the endpoint speaks HTTP.
+		target := args[0]
+		if rest, ok := strings.CutPrefix(target, "tcp://"); ok {
+			target = "http://" + rest
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 		if err != nil {
 			TSValidateError(ts, "http_get", neg, err)
 			return
