@@ -4,19 +4,34 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 
 	"github.com/gnolang/gno/misc/gnoe2e/internal/builder"
 	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
-	"github.com/gnolang/gno/misc/gnoe2e/internal/termlog"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type serveCfg struct {
 	cluster.ClusterConfig
 	verbose bool
+}
+
+// Validate refuses a genesis the node would refuse, before the command builds
+// the binary that would boot it.
+//
+// serve has no scenario to fill anything in, so the flags describe the chain
+// completely: unlike the run template, whose approver set is filled per
+// scenario, what is here is what starts.
+func (c *serveCfg) Validate() error {
+	if err := c.ClusterConfig.Validate(); err != nil {
+		return err
+	}
+	state, err := cluster.ResolveGenesisState(c.Genesis)
+	if err != nil {
+		return err
+	}
+	return cluster.ValidateGenesisState(state)
 }
 
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -38,7 +53,7 @@ func newServeCmd(_ commands.IO) *commands.Command {
 		},
 		cfg,
 		func(ctx context.Context, _ []string) error {
-			ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+			ctx, cancel := signal.NotifyContext(ctx, runSignals...)
 			defer cancel()
 
 			return execServe(ctx, cfg)
@@ -51,7 +66,7 @@ func execServe(ctx context.Context, cfg *serveCfg) error {
 		return err
 	}
 
-	logger := slog.New(termlog.NewHandler(os.Stderr, cfg.verbose))
+	logger := newRunLogger(os.Stderr, cfg.verbose)
 	cfg.ClusterConfig.Logger = logger.With("component", "cluster")
 
 	// The binary's directory is this command's, so the ~100 MB gnoland it

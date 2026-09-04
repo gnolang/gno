@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"io"
 	"log/slog"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -119,6 +123,30 @@ func TestOracleWarningFiresOnlyWhereItCannotActivate(t *testing.T) {
 			genesis: cluster.GenesisConfig{},
 			want:    false,
 		},
+		"an inert chain reached through a path, somebody else approving": {
+			genesis: cluster.GenesisConfig{
+				PkgApprovers: []crypto.Address{user},
+				Params:       []cluster.Override{{Key: "vm.code_submission_policy", Value: "inert"}},
+			},
+			want: true,
+		},
+		"an inert chain reached through a path, the oracle approving": {
+			genesis: cluster.GenesisConfig{
+				PkgApprovers: []crypto.Address{oracle},
+				Params:       []cluster.Override{{Key: "vm.code_submission_policy", Value: "inert"}},
+			},
+			want: false,
+		},
+		"an approver set replaced through a path": {
+			genesis: cluster.GenesisConfig{
+				CodeSubmissionPolicy: vm.CodeSubmissionPolicyInert,
+				PkgApprovers:         []crypto.Address{oracle},
+				Params: []cluster.Override{
+					{Key: "vm.pkg_approvers", Value: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+				},
+			},
+			want: true,
+		},
 	}
 
 	for name, tt := range tests {
@@ -229,4 +257,102 @@ func TestGpaoApproverIsDistinctFromTheTestUser(t *testing.T) {
 	require.NotEqual(t,
 		userKey.PubKey().Address().String(),
 		gpaoKey.PubKey().Address().String())
+}
+
+// A run parses its flags into one template and fills the approver set per
+// scenario, from the oracle key it provisions. Validating the cross-field rule
+// against that template refuses `-code-submission-policy inert` before it can
+// ever be satisfied: nothing on the command line names the oracle, and
+// -pkg-approver takes a bech32 address rather than a role.
+func TestValidateAcceptsAnInertRunTemplate(t *testing.T) {
+	cfg := defaultRunCfg()
+	cfg.cluster.Genesis.CodeSubmissionPolicy = vm.CodeSubmissionPolicyInert
+
+	require.NoError(t, cfg.validate())
+}
+
+// The cluster package reports through package-level slog calls, so the run's
+// handler has to be the default one as well as the injected one. Without that,
+// every diagnostic those calls make is dropped by the handler slog starts with,
+// -verbose included.
+func TestNewRunLoggerInstallsTheDefault(t *testing.T) {
+	previous := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	var out bytes.Buffer
+	newRunLogger(&out, true)
+
+	slog.Debug("a package-level diagnostic")
+
+	assert.Contains(t, out.String(), "a package-level diagnostic")
+}
+
+// TestRunScenariosStopsWhenTheRunIsCancelled pins what a run reports once its
+// deadline has passed or Ctrl-C has been pressed.
+//
+// Every scenario after that point still builds a temp dir, validator keys and a
+// genesis before os/exec refuses to start a process under a dead context, and
+// each is then reported as a failure. Interrupting a fourteen-scenario run at
+// the second prints twelve failures for scenarios that never ran, which is the
+// opposite of what the run promises.
+//
+// The detail of a failure is logged where it happens, so the error that ends
+// the run counts rather than repeats them: a scenario reported twice reads as
+// two different failures.
+func TestRunScenariosStopsWhenTheRunIsCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	scenarios := []integ.Scenario{{Path: "first"}, {Path: "second"}, {Path: "third"}}
+
+	var attempted []string
+	err := runScenarios(ctx, scenarios, discardLogger(), func(scen integ.Scenario) error {
+		attempted = append(attempted, scen.Path)
+		cancel() // the run's deadline passes while the first scenario is running
+		return errors.New("the cluster went away under it")
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, []string{"first"}, attempted,
+		"a cancelled run must not attempt the scenarios it has no time for")
+	assert.Contains(t, err.Error(), "after 1 of 3 scenarios",
+		"the count is what was attempted, out of what was listed")
+	assert.ErrorIs(t, err, context.Canceled,
+		"a run cut off partway has not answered the question it was asked")
+	assert.NotContains(t, err.Error(), "the cluster went away under it",
+		"the detail was already reported where it happened")
+}
+
+// A run that is not cancelled attempts every scenario, whatever the ones before
+// it did: each owns its cluster, so one failure says nothing about the rest.
+func TestRunScenariosRunsThemAllWhenOneFails(t *testing.T) {
+	scenarios := []integ.Scenario{{Path: "first"}, {Path: "second"}, {Path: "third"}}
+
+	attempted := 0
+	err := runScenarios(t.Context(), scenarios, discardLogger(), func(scen integ.Scenario) error {
+		attempted++
+		if scen.Path == "first" {
+			return errors.New("failed")
+		}
+		return nil
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, 3, attempted)
+	assert.Contains(t, err.Error(), "1 of 3")
+}
+
+// A run has to unwind on the signal a CI runner cancels a job with, not only on
+// the one a terminal sends. Left to the default disposition, SIGTERM kills the
+// run where it stands: the validators of the scenario in flight keep running
+// and every temp directory it made stays behind.
+func TestRunSignalsCoverACancelledJob(t *testing.T) {
+	ctx, stop := signal.NotifyContext(t.Context(), runSignals...)
+	defer stop()
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGTERM))
+
+	select {
+	case <-ctx.Done():
+	case <-time.After(10 * time.Second):
+		t.Fatal("SIGTERM did not end the run")
+	}
 }

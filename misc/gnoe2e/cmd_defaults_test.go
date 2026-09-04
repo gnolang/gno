@@ -37,6 +37,7 @@ func TestDefaultsMarksTheAddressesTheHarnessAssigns(t *testing.T) {
 
 	require.Regexp(t, `config\.rpc\.laddr:.*cannot be set`, out)
 	require.Regexp(t, `config\.p2p\.laddr:.*cannot be set`, out)
+	require.Regexp(t, `config\.p2p\.persistent_peers:.*cannot be set`, out)
 }
 
 func TestDefaultsPrintsOneFamilyOnRequest(t *testing.T) {

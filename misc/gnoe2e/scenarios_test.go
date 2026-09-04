@@ -1,13 +1,11 @@
 package main
 
 import (
-	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	integ "github.com/gnolang/gno/misc/gnoe2e/internal/integration"
-	"github.com/gnolang/gno/misc/gnoe2e/internal/termlog"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +63,7 @@ func TestScenarios(t *testing.T) {
 	scenarios, err := integ.ResolveScenarios(paths, integ.ClusterOverrides{})
 	require.NoError(t, err)
 
-	logger := slog.New(termlog.NewHandler(testLogWriter{t: t}, testing.Verbose()))
+	logger := newRunLogger(testLogWriter{t: t}, testing.Verbose())
 
 	s, err := prepareSuite(t.Context(), cfg, logger) // builds gnoland once
 

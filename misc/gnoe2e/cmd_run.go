@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -135,7 +137,7 @@ func newRunCmd(_ commands.IO) *commands.Command {
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+			ctx, cancel := signal.NotifyContext(ctx, runSignals...)
 			defer cancel()
 
 			ctx, cancel = runContext(ctx, cfg.timeout)
@@ -145,6 +147,24 @@ func newRunCmd(_ commands.IO) *commands.Command {
 		},
 	)
 }
+
+// newRunLogger builds the logger a run reports through and installs it as the
+// slog default.
+//
+// The default is where internal/cluster's own diagnostics go: they are
+// package-level slog calls, and left to the handler slog starts with they are
+// dropped below Info and formatted like nothing else in the run.
+func newRunLogger(w io.Writer, verbose bool) *slog.Logger {
+	logger := slog.New(termlog.NewHandler(w, verbose))
+	slog.SetDefault(logger)
+	return logger
+}
+
+// runSignals end a run: the interrupt a terminal sends, and the SIGTERM a CI
+// runner sends when it cancels a job or a user sends with a bare kill. Both
+// have to reach the run's own teardown, because the validators and the temp
+// directories are its to remove and nothing else will.
+var runSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
 // runContext bounds the whole run rather than each scenario: a suite that
 // hangs has to end by itself, and a scenario booting its own cluster has no
@@ -207,7 +227,7 @@ func execRun(ctx context.Context, cfg *runCfg, args []string) error {
 		return err
 	}
 
-	logger := slog.New(termlog.NewHandler(os.Stderr, cfg.verbose))
+	logger := newRunLogger(os.Stderr, cfg.verbose)
 
 	scenarios, err := integ.ResolveScenarios(scripts, cfg.clusterOverrides())
 	if err != nil {
@@ -220,30 +240,58 @@ func execRun(ctx context.Context, cfg *runCfg, args []string) error {
 	}
 	defer s.cleanup()
 
-	// Every scenario runs even after one fails. Each owns its cluster, so a
-	// failure tells you nothing about the ones after it, and stopping there
-	// would hide them.
-	var failures []error
-	for i, scen := range scenarios {
-		logger.Info("scenario", "index", i+1, "of", len(scenarios),
-			"script", filepath.Base(scen.Path),
-			"validators", scen.Spec.Validators)
+	err = runScenarios(ctx, scenarios, logger, func(scen integ.Scenario) error {
 		rc, teardown, err := prepareScenario(ctx, cfg, s, scen, logger)
-		if err == nil {
-			err = integ.Run(rc)
-			teardown()
-		}
 		if err != nil {
-			logger.Error("scenario failed", "script", filepath.Base(scen.Path), "err", err)
-			failures = append(failures, err)
+			return err
 		}
-	}
-	if err := joinFailures(failures, len(scenarios)); err != nil {
+		defer teardown()
+		return integ.Run(rc)
+	})
+	if err != nil {
 		return err
 	}
 
 	logger.Info("all scenarios passed")
 	return nil
+}
+
+// runScenarios drives each scenario in turn and reports how many failed.
+//
+// Every scenario runs even after one fails. Each owns its cluster, so a failure
+// tells you nothing about the ones after it, and stopping there would hide
+// them. A cancelled run is the exception: past its deadline, or past a Ctrl-C,
+// every remaining scenario would boot a temp dir, keys and a genesis before
+// os/exec refused to start a process under a dead context, and would be
+// reported as a failure it never had the chance to have.
+func runScenarios(
+	ctx context.Context,
+	scenarios []integ.Scenario,
+	logger *slog.Logger,
+	run func(integ.Scenario) error,
+) error {
+	var failures []error
+	attempted := 0
+	for i, scen := range scenarios {
+		if err := ctx.Err(); err != nil {
+			// Reported as a failure of the run whether or not the scenarios it
+			// got through passed: a suite cut off partway has not answered the
+			// question it was asked, and exiting 0 says it has.
+			logger.Warn("run cancelled; the remaining scenarios were not attempted",
+				"remaining", len(scenarios)-i, "err", err)
+			return fmt.Errorf("run cancelled after %d of %d scenarios, %d of them failed: %w",
+				attempted, len(scenarios), len(failures), err)
+		}
+		attempted++
+		logger.Info("scenario", "index", i+1, "of", len(scenarios),
+			"script", filepath.Base(scen.Path),
+			"validators", scen.Spec.Validators)
+		if err := run(scen); err != nil {
+			logger.Error("scenario failed", "script", filepath.Base(scen.Path), "err", err)
+			failures = append(failures, err)
+		}
+	}
+	return failureSummary(failures, attempted)
 }
 
 // prepareSuite provisions everything the scenarios share, before any of them
@@ -286,13 +334,18 @@ func prepareSuite(ctx context.Context, cfg *runCfg, logger *slog.Logger) (*suite
 	return &suite{ids: ids, gnolandBin: gnolandBin, gpaoBin: gpaoBin, cleanup: cleanup}, nil
 }
 
-// joinFailures reports every scenario that failed rather than only the first,
-// so one run answers for the whole suite.
-func joinFailures(failures []error, total int) error {
+// failureSummary reports how much of the suite failed.
+//
+// Counted against what was attempted rather than what was listed, because a run
+// cut short by its deadline stops partway and the scenarios it never reached
+// failed nothing. The failures themselves are not repeated here: each was
+// reported where it happened, with the script that caused it, and a failure
+// printed twice reads as two.
+func failureSummary(failures []error, attempted int) error {
 	if len(failures) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d of %d scenarios failed: %w", len(failures), total, errors.Join(failures...))
+	return fmt.Errorf("%d of %d scenarios failed", len(failures), attempted)
 }
 
 // setupIdentities imports the run's keys once, since every cluster signs with
@@ -351,8 +404,19 @@ func setupIdentities(cfg *runCfg, logger *slog.Logger) (runIdentities, func(), e
 // approves stays inert. A chain that is not inert parks nothing, so its
 // approver set says nothing about the oracle.
 func oracleCannotActivate(genesis cluster.GenesisConfig, oracle crypto.Address) bool {
-	return genesis.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert &&
-		!slices.Contains(genesis.PkgApprovers, oracle)
+	// Read from the resolved params rather than the named fields: the genesis.
+	// family is applied after them, so a scenario can set both the policy and
+	// the approver set through a path without either field changing.
+	//
+	// A genesis that will not resolve is not this function's to report. The
+	// same resolution runs again inside StartCluster, where the key that broke
+	// it is named.
+	state, err := cluster.ResolveGenesisState(genesis)
+	if err != nil {
+		return false
+	}
+	return state.VM.Params.CodeSubmissionPolicy == vm.CodeSubmissionPolicyInert &&
+		!slices.Contains(state.VM.Params.PkgApprovers, oracle)
 }
 
 // prepareScenario boots the cluster one scenario declared and assembles the
