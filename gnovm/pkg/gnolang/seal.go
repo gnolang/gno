@@ -118,11 +118,12 @@ func (s *sealer) sealType(t Type) {
 			s.sealType(ct.Methods[i].T)
 		}
 	case *tupleType:
-		// Only reachable through an expression's ATTR_TYPEOF_VALUE, which is
-		// why sealExprTypes has to exist for this case to fire at all.
-		// tupleType.TypeID() recurses into Elts[i].TypeID(), but that fills
-		// nothing else on the elements — their pkgID, comparable, bound and
-		// effective counts still need the element walk below.
+		// Only reachable through an expression's ATTR_TYPEOF_VALUE, so this
+		// case fires only once sealExprTypes is walking. Both lines are
+		// needed: TypeID() fills the tuple's only memo, which the walk never
+		// writes, and the walk fills the elements' pkgID, comparable and
+		// bound, which TypeID() leaves cold even though it fills their
+		// typeids on its way past.
 		ct.TypeID()
 		for _, elt := range ct.Elts {
 			s.sealType(elt)
