@@ -358,15 +358,19 @@ the address inside:
 
 ```go
 func DoThing(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     addr := cur.Previous().Address()
     log[addr] = ...
 }
 ```
 
 This is class **2 (designation-forgery)** from `gno-security.md`.
+
+A plain crossing function's frame adopts the first `cur realm` it is handed, so
+`cur.IsCurrent()` there is always true and proves nothing (see
+[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno),
+which exercises plain functions only). A crossing method's frame does not adopt
+it, so guard that one. The check is required on any *other* realm value a
+function receives, such as a secondary `rlm realm` parameter.
 
 ### 5.7 Stored `realm`-typed values
 
@@ -383,22 +387,21 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
 obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
-verification that makes `cur.Previous()` safe, and silently ignores the
-`cur` capability token the runtime minted for exactly this purpose.
+receives `cur realm` is always wrong: it silently ignores the `cur` capability
+token the runtime minted for exactly this purpose, the per-frame guarantee
+that makes `cur.Previous()` safe.
 
 ```go
-// WRONG: cur is accepted but never used; no IsCurrent() guard
+// WRONG: cur is accepted but never used; identity comes from a stack walk
 import "chain/runtime/unsafe"
 
 func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    caller := unsafe.PreviousRealm().Address()  // ignores the cur token
     ...
 }
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -410,8 +413,8 @@ crossing functions (`func F(cur realm, ...)`) is a red flag. The
 in realms that have not yet been migrated to the `cur realm` API.
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
-`chain/runtime/unsafe` import.
+`cur.Previous()`, guarding it with `cur.IsCurrent()` first in a method. Delete
+the `chain/runtime/unsafe` import.
 
 ---
 
@@ -499,7 +502,10 @@ Before deploying a realm:
 
 - [ ] Every exported function/method I expose does one of:
   - Pure read (returns primitives or values, no internal pointers).
-  - Takes `cur realm` and authenticates via `cur.IsCurrent()`.
+  - Takes `cur realm` and derives the caller from `cur.Previous()`;
+    a method's `cur`, and any secondary `rlm realm` parameter, is
+    checked with `rlm.IsCurrent()` first. Only a plain function's
+    first `cur` is exempt, because its frame adopts the value.
   - Documented intentionally permissive (faucet, public mint).
 
 - [ ] No exported var or function returns a pointer aliasing
@@ -558,19 +564,14 @@ func Value() int {
     return gCounter.value
 }
 
-// Authenticated mutator. cur realm + IsCurrent() check.
+// Public mutator. The crossing entrypoint's cur is minted per frame
+// by the runtime, so no IsCurrent() check is needed on it.
 func Increment(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     gCounter.value++
 }
 
 // Authenticated owner-gated mutator.
 func SetOwner(cur realm, newOwner address) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     if gCounter.owner != "" && cur.Previous().Address() != gCounter.owner {
         panic("not the owner")
     }
@@ -600,7 +601,9 @@ Attackers cannot:
 - Write `gCounter.value` directly (unexported field).
 - Get `gCounter` and Apply-launder it (no Apply method, no exported
   pointer).
-- Forge a `cur realm` (the `IsCurrent()` check fails).
+- Forge a `cur realm` (`Increment` and `SetOwner` are plain functions,
+  so each frame adopts the `cur` it is handed; a stale or forwarded
+  realm value fails `IsCurrent()` wherever it is checked).
 - Spoof `cur.Previous().Address()` (it's the live crossing frame).
 
 ---
@@ -614,6 +617,9 @@ Attackers cannot:
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
-- `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
+- [`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md) —
+  audit pattern harness fixtures, expected records, and run instructions that
+  keep recurring audit lessons executable.
+- `examples/quarantined/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno`:
   the four bypass tests demonstrating why seal is documentation, not
   defense.

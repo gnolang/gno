@@ -2,6 +2,7 @@ package auditpattern
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,7 +54,7 @@ func TestCurrentGuardRule(t *testing.T) {
 	if len(hits) != 1 {
 		t.Fatalf("expected 1 hit, got %d", len(hits))
 	}
-	if hits[0].File != "admin.gno" || hits[0].Line != 7 {
+	if hits[0].File != "admin.gno" || hits[0].Line != 12 {
 		t.Fatalf("unexpected hit: %+v", hits[0])
 	}
 
@@ -63,6 +64,146 @@ func TestCurrentGuardRule(t *testing.T) {
 	}
 	if len(hits) != 0 {
 		t.Fatalf("expected no hits, got %d", len(hits))
+	}
+}
+
+func TestCurrentGuardFlagsEveryRealmAccessor(t *testing.T) {
+	// Every selector on a secondary realm value derives identity or authority
+	// from it: Sub() mints a sub-realm identity and the Is* predicates answer
+	// authorization questions, so none of them is safe to read unguarded.
+	const tmpl = `package x
+
+func f(_ int, rlm realm) {
+	_ = rlm.%s
+}
+`
+
+	for _, accessor := range []string{
+		"Previous()", "Address()", "PkgPath()", "String()",
+		`Sub("treasury")`, "Subpath()",
+		"IsUser()", "IsUserCall()", "IsUserRun()", "IsCode()",
+	} {
+		dir := t.TempDir()
+		src := fmt.Sprintf(tmpl, accessor)
+		if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		hits, err := RunRule("current_guard", dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(hits) != 1 {
+			t.Errorf("unguarded rlm.%s: expected 1 hit, got %d", accessor, len(hits))
+		}
+	}
+}
+
+func TestCurrentGuardAcceptsGuardedAccessor(t *testing.T) {
+	const src = `package x
+
+func f(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("invalid realm")
+	}
+	_ = rlm.String()
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("read after an IsCurrent() guard was flagged: %+v", hits)
+	}
+}
+
+func TestCurrentGuardFlagsFuncLiteralParams(t *testing.T) {
+	// A non-crossing callback is forced into literal form, because a
+	// realm-typed first parameter would make it a crossing function.
+	const src = `package x
+
+func teller() *fnTeller {
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("realm parameter on a func literal not checked: expected 1 hit, got %d", len(hits))
+	}
+}
+
+func TestCurrentGuardFlagsCrossingMethodCur(t *testing.T) {
+	// A method's first cur realm is NOT current by construction: the frame
+	// never adopts it, so the guard is load-bearing here even though the same
+	// parameter on a plain func would be redundant.
+	const src = `package x
+
+type T struct{ n int }
+
+func (t *T) Mutate(cur realm) {
+	if cur.Previous().Address() != owner {
+		panic("owner only")
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("unguarded cur on a crossing method: expected 1 hit, got %d", len(hits))
+	}
+}
+
+func TestCurrentGuardExemptsPlainFuncCur(t *testing.T) {
+	// On a plain crossing function the frame adopts whatever cur it is handed,
+	// so IsCurrent() cannot fail and the guard would prove nothing.
+	const src = `package x
+
+func Mutate(cur realm) {
+	if cur.Previous().Address() != owner {
+		panic("owner only")
+	}
+}
+`
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := RunRule("current_guard", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("plain func first cur should stay exempt: %+v", hits)
 	}
 }
 
@@ -170,17 +311,15 @@ func TestRuleNormalizesFormatting(t *testing.T) {
 	}
 }
 
-// TestBraceInStringNoFalsePositive ensures a "}" inside a string literal does
-// not flip brace-depth tracking and flag a correctly guarded function.
-func TestBraceInStringNoFalsePositive(t *testing.T) {
+// TestBraceInStringTracksFunctionBody ensures a "}" inside a string literal
+// does not flip brace-depth tracking and end the function body early, which
+// would hide the unguarded realm read that follows it.
+func TestBraceInStringTracksFunctionBody(t *testing.T) {
 	dir := t.TempDir()
 	src := "package x\n\n" +
-		"func F(cur realm) {\n" +
-		"\tif !cur.IsCurrent() {\n" +
-		"\t\tpanic(\"no\")\n" +
-		"\t}\n" +
+		"func F(_ int, rlm realm) {\n" +
 		"\tmsg := \"}\"\n" +
-		"\t_ = cur.Previous()\n" +
+		"\t_ = rlm.Previous()\n" +
 		"\t_ = msg\n" +
 		"}\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
@@ -191,8 +330,8 @@ func TestBraceInStringNoFalsePositive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 0 {
-		t.Fatalf("guarded function flagged due to brace in string: %+v", hits)
+	if len(hits) != 1 {
+		t.Fatalf("brace in string ended the function body early: %+v", hits)
 	}
 }
 
@@ -290,9 +429,9 @@ func TestRenderMapIterationWordBoundary(t *testing.T) {
 func TestHitReportsOriginalSourceLine(t *testing.T) {
 	dir := t.TempDir()
 	src := "package x\n\n" + // 1, 2
-		"func F(cur realm) {\n" + // 3
+		"func F(_ int, rlm realm) {\n" + // 3
 		"\n\n\n" + // 4, 5, 6 (collapsed to one by gofmt)
-		"\t_ = cur.Previous()\n" + // 7
+		"\t_ = rlm.Previous()\n" + // 7
 		"}\n" // 8
 	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -308,7 +447,7 @@ func TestHitReportsOriginalSourceLine(t *testing.T) {
 	if hits[0].Line != 7 {
 		t.Fatalf("hit line %d does not match on-disk line 7: %+v", hits[0].Line, hits[0])
 	}
-	if hits[0].Text != "_ = cur.Previous()" {
+	if hits[0].Text != "_ = rlm.Previous()" {
 		t.Fatalf("hit text %q does not match on-disk source", hits[0].Text)
 	}
 }
