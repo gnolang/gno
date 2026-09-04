@@ -234,10 +234,11 @@ func TestClusterOverridesReadsOnlyTheFlagsGiven(t *testing.T) {
 }
 
 // TestDefaultMnemonicDerivesTheDocumentedApprover pins the test user's
-// address, which the unauthorized-oracle suite depends on as the one approver
-// its chain has. Nothing at runtime couples the two, so without this a change
-// to defaultMnemonic would leave that suite with an approver nobody holds --
-// failing far from the cause, inside a multi-minute scenario.
+// address: it is what "pkg-approver: user" resolves to in ClusterSpec.ApplyTo,
+// and what docs/dialect.md names as the account a script signs with. Nothing
+// at runtime couples the derivation to either, so without this a change to
+// defaultMnemonic would leave a scenario naming that role with an approver
+// nobody holds -- failing far from the cause, inside a multi-minute run.
 func TestDefaultMnemonicDerivesTheDocumentedApprover(t *testing.T) {
 	userKey, err := integration.GeneratePrivKeyFromMnemonic(defaultMnemonic, "", 0, 0)
 	require.NoError(t, err)

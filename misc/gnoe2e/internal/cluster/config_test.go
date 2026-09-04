@@ -48,8 +48,9 @@ func TestApplyNodeConfigRefusesAnUnknownKey(t *testing.T) {
 
 // Every node in a local cluster answers on the same loopback address, so
 // tm2's one-peer-per-IP guard refuses every peer past the first, and the
-// refused side redials with no backoff. Under it, three validators hold ~4800
-// sockets in TIME_WAIT and unrelated RPC connects stall for seconds; with the
+// refused side redials with no backoff. Under it, three validators hold
+// thousands of sockets in TIME_WAIT and unrelated RPC connects stall for
+// seconds; with the
 // guard off, no validator reports a peer error at all.
 func TestConfigurePersistentPeersAllowsPeersSharingAnIP(t *testing.T) {
 	node := &Node{Index: 0, NodeID: "node0", DataDir: t.TempDir(), P2PPort: 30000}

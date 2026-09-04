@@ -78,11 +78,9 @@ func ConfigureP2PTopology(validators []*Node) error {
 	return nil
 }
 
-// configurePersistentPeers configures a node to use persistent_peers
 func configurePersistentPeers(node *Node, peerAddrs []string) error {
 	configPath := filepath.Join(node.DataDir, "config", "config.toml")
 
-	// Load current config
 	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -92,10 +90,8 @@ func configurePersistentPeers(node *Node, peerAddrs []string) error {
 
 	clusterPeering(cfg)
 
-	// Set P2P listen address
 	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", node.P2PPort)
 
-	// Write config back
 	if err := config.WriteConfigFile(configPath, cfg); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
@@ -104,11 +100,11 @@ func configurePersistentPeers(node *Node, peerAddrs []string) error {
 	return nil
 }
 
-// ConfigureConsensusForSync configures consensus parameters for fast synchronization
+// ConfigureConsensusForSync writes the cluster's own consensus and gossip
+// timings into a node's config.toml, with the RPC address it answers on.
 func ConfigureConsensusForSync(node *Node) error {
 	configPath := filepath.Join(node.DataDir, "config", "config.toml")
 
-	// Load current config
 	cfg, err := config.LoadConfigFile(configPath)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -116,10 +112,8 @@ func ConfigureConsensusForSync(node *Node) error {
 
 	clusterTimings(cfg)
 
-	// Configure RPC listen address
 	cfg.RPC.ListenAddress = node.RPCAddr
 
-	// Write updated config
 	if err := config.WriteConfigFile(configPath, cfg); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}

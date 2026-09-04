@@ -229,7 +229,7 @@ func parseEventuallyArgs(args []string) (eventuallyArgs, error) {
 // "-stdout <regex>" is the answer to that: the pattern is checked inside the
 // attempt, so an exit 0 whose output does not match is not yet an answer and
 // the wait runs the command again. HTTPGetCmd's second argument gates its own
-// body the same way (httpget.go:78).
+// body the same way (httpget.go:86).
 func EventuallyCmd(cmds map[string]func(*testscript.TestScript, bool, []string)) func(*testscript.TestScript, bool, []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		if neg {

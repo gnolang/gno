@@ -32,4 +32,4 @@ takes and the value a cluster boots with, so a key is checked rather than guesse
 
 Write the scenario so it is red on `master` and green with the fix (`make test-master` runs the working tree's
 scenarios against binaries built from master). It lands in the same change as the fix, asserting the fixed
-behaviour, with a header that says what used to fail.
+behaviour, with a header stating that it is red on master and green on the branch.

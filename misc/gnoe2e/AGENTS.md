@@ -17,7 +17,7 @@ workflow, `.github/workflows/ci-gnoe2e.yml`. The repository-wide guide at the ro
 ```bash
 cd misc/gnoe2e
 make test                                             # unit tests under -race, seconds
-make test-scenarios                                   # every scenario, a few minutes
+make test-scenarios                                   # every scenario, about a minute
 make test-all                                         # both lanes, one after the other
 make help                                             # every target
 go run . run -verbose testdata/oracle/<file>.txtar    # one scenario with every line echoed

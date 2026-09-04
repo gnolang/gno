@@ -73,7 +73,6 @@ func TestCleanupNodesIsSilentWhenTheProcessAlreadyExited(t *testing.T) {
 	assert.Empty(t, logs.String(), "a node that has already stopped is not a failure")
 }
 
-// TestNodeSetup tests the basic node setup functionality
 func TestNodeSetup(t *testing.T) {
 	tempDir := t.TempDir()
 

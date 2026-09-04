@@ -68,6 +68,6 @@ cluster's temp directory, and the tail of a node's stderr is attached to the err
 
 ## Where things run in CI
 
-`.github/workflows/ci-gnoe2e.yml` runs lint, the `go fix` check and `go test -timeout 30m ./...` for this module on
+`.github/workflows/ci-gnoe2e.yml` runs lint, the `go fix` check and `go test -timeout 25m -p 1 ./...` for this module on
 every pull request that touches it or the code it exercises: `contribs/gpao`, `examples`, `gno.land`, `gnovm`, `tm2`.
-The suite runs sequentially and takes a few minutes.
+The suite runs sequentially and takes about a minute.

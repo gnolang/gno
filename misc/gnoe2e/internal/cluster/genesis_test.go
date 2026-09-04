@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGenesisCreation tests the genesis file creation process
 func TestGenesisCreation(t *testing.T) {
 	tempDir := t.TempDir()
 

@@ -2,7 +2,7 @@
 
 gnoe2e runs txtar scenarios against real gnoland clusters. Each scenario declares the chain it needs in a
 `-- cluster --` section, and the harness boots that chain from genesis, runs the script against it, and throws it
-away: one cluster per scenario, one to four gnoland processes running a binary built from the enclosing checkout,
+away: one cluster per scenario, up to sixteen gnoland processes running a binary built from the enclosing checkout,
 with an off-chain daemon the script can start, stop and restart alongside them. That is what the lane is for. A
 scenario can stop a validator mid-run, watch the chain carry on without it, and bring it back; it can watch the
 package-approver oracle activate a parked package and then take the oracle away.

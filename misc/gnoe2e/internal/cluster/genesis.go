@@ -24,8 +24,9 @@ const (
 	// spends.
 	validatorBalance = 100_000_000
 
-	// genesisDeployBudget is what one package deployed at genesis costs its
-	// sender, at the fee BuildGenesis signs those transactions with.
+	// genesisDeployBudget is added to the deployer's balance for each package
+	// deployed at genesis: the 1000000ugnot fee BuildGenesis signs those
+	// transactions with, and margin above it.
 	genesisDeployBudget = 50_000_000
 )
 
