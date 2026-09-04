@@ -1038,7 +1038,10 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			shouldPanic = false
 		} else if clx.Path.Type == VPUverse {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
-		} else if last.GetIsConst(store, clx.Name) {
+		} else if last.GetIsConstAt(store, clx.Path) {
+			// Path-based rather than name-based: an assignment before
+			// a shadowing const declaration in the same block targets
+			// the outer name, which may not be const.
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
 		} else {
 			shouldPanic = false
