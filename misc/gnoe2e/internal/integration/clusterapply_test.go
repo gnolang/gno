@@ -84,7 +84,7 @@ func TestClusterSpecApplyTo(t *testing.T) {
 		spec := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "permissionless"}
 		require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
 
-		assert.Empty(t, cfg.Genesis.PkgApprovers)
+		assert.Nil(t, cfg.Genesis.PkgApprovers)
 	})
 
 	t.Run("naming the user as approver is what leaves the oracle unauthorized", func(t *testing.T) {

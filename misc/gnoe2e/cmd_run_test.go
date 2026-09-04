@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"io"
 	"log/slog"
@@ -80,54 +79,6 @@ func TestOracleIdentityIsAlwaysProvisioned(t *testing.T) {
 	imported, err := kb.GetByName(gpaoKeyName)
 	require.NoError(t, err)
 	assert.Equal(t, ids.gpaoAddr, imported.GetAddress())
-}
-
-// gpao is built by the first "gpao start" of a run and every later start uses
-// that binary: a run whose scripts never start the oracle pays nothing for it,
-// and a run of fifteen scenarios does not pay fifteen compilations.
-func TestGpaoIsBuiltOncePerRun(t *testing.T) {
-	t.Run("the second start reuses what the first built", func(t *testing.T) {
-		builds := 0
-		binary := buildOnce(func() (string, error) {
-			builds++
-			return "/bin/gpao", nil
-		})
-
-		first, err := binary()
-		require.NoError(t, err)
-		second, err := binary()
-		require.NoError(t, err)
-
-		assert.Equal(t, 1, builds)
-		assert.Equal(t, first, second)
-	})
-
-	t.Run("a build nobody asks for never runs", func(t *testing.T) {
-		builds := 0
-		buildOnce(func() (string, error) {
-			builds++
-			return "/bin/gpao", nil
-		})
-
-		assert.Zero(t, builds, "a run whose scripts never start the oracle must not build it")
-	})
-
-	// A build fails over the toolchain or over the code it compiles, and both
-	// answer the same on the next attempt, so every later start is told what
-	// the first one found rather than compiling again to find it out.
-	t.Run("a failure is remembered rather than retried", func(t *testing.T) {
-		builds := 0
-		binary := buildOnce(func() (string, error) {
-			builds++
-			return "", errors.New("build gpao: exit status 1")
-		})
-
-		_, err := binary()
-		require.EqualError(t, err, "build gpao: exit status 1")
-		_, err = binary()
-		require.EqualError(t, err, "build gpao: exit status 1")
-		assert.Equal(t, 1, builds)
-	})
 }
 
 // An oracle whose key is absent from an inert chain's approver set looks

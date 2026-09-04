@@ -88,8 +88,8 @@ func TestEventuallyOutputIsOnlyTheSucceedingAttempt(t *testing.T) {
 		for scriptName, script := range scripts {
 			t.Run(abortName+", "+scriptName, func(t *testing.T) {
 				logger, logBuf := bufferedTestLogger(t)
-				// verbose: true, matching make test-oracle's own -verbose run
-				// (Makefile:23, cmd_run.go:245). testscript rewinds (discards)
+				// verbose: true, matching the -verbose run `make scenarios` does.
+				// testscript rewinds (discards)
 				// a passing phase's log detail when its T is not verbose
 				// (testscript.go:541), which would erase the eventually diagnostic
 				// below before it ever reached this buffer.

@@ -275,7 +275,7 @@ func prepareSuite(ctx context.Context, cfg *runCfg, logger *slog.Logger) (*suite
 		return nil, fmt.Errorf("build gnoland: %w", err)
 	}
 
-	gpaoBin := buildOnce(func() (string, error) {
+	gpaoBin := sync.OnceValues(func() (string, error) {
 		path, err := bldr.Build(ctx, builder.BuildOpts{Binary: "gpao", OutDir: binDir})
 		if err != nil {
 			return "", fmt.Errorf("build gpao: %w", err)
@@ -284,22 +284,6 @@ func prepareSuite(ctx context.Context, cfg *runCfg, logger *slog.Logger) (*suite
 	})
 
 	return &suite{ids: ids, gnolandBin: gnolandBin, gpaoBin: gpaoBin, cleanup: cleanup}, nil
-}
-
-// buildOnce defers build to the first caller that needs its result and hands
-// every later caller the same answer, failure included: a build fails over the
-// toolchain or over the code it compiles, and neither changes between two
-// starts of the same run.
-func buildOnce(build func() (string, error)) func() (string, error) {
-	var (
-		once sync.Once
-		path string
-		err  error
-	)
-	return func() (string, error) {
-		once.Do(func() { path, err = build() })
-		return path, err
-	}
 }
 
 // joinFailures reports every scenario that failed rather than only the first,
