@@ -1,30 +1,26 @@
-# The tour: one scenario that uses every verb, every "-- cluster --" key and all
-# but two of the environment variables the harness exports. It is the worked
-# example the README points at, and it is the dialect's own smoke test -- rename
-# a verb, a key or one of the variables it names and this is the file that
-# fails. The two it leaves out are $GNOHOME, which gnokey already reads as its
-# -home on every line below, and $GNOROOT, which is there for scenarios that
-# deploy out of the checkout's own examples -- oracle-closure/serialized_closure.txtar
-# is the one that does.
+# The tour is the executable reference for the gnoe2e dialect. Each block below
+# demonstrates one capability of the harness and reads back what it did from
+# the chain, so a reader learns the verbs from lines that are also assertions.
+# It doubles as the dialect's regression test: rename a verb, a cluster key or
+# an exported variable and this is the file that fails first.
 #
-# The cluster below is deliberately over-specified. Four validators, so one can
-# be stopped without halting consensus; an inert code-submission policy with
-# the oracle as the only approver; a per-block gas ceiling; one node-config
-# override and one genesis-params override. The two overrides are not
-# decoration: the mempool byte limit is what refuses the oversized package, and
-# the chain domain is why every path here reads "tour.gno.land/..." rather than
-# the "gno.land/..." the rest of the suite uses.
+# Everything the harness offers appears at least once: every verb, every
+# "-- cluster --" key, and every exported variable a script can name. $GNOHOME
+# is used implicitly on each gnokey line (it is gnokey's -home); $GNOROOT is
+# for scenarios that deploy out of the checkout's examples, which
+# oracle-closure/serialized_closure.txtar does.
 #
-# The blocks run in order: the cluster answers on every node, each override is
-# read back rather than assumed, a package parks and the oracle enables it, a
-# validator goes down and comes back, the oracle goes down and comes back, and
-# last the oracle's key enables a package by hand with no oracle running.
+# The cluster: four validators, so one can be stopped while the other three
+# keep a quorum; an inert code-submission policy, so a submitted package parks
+# until an approver enables it; a per-block gas ceiling; one node-config
+# override and one genesis-params override. Each of those five settings is
+# read back below rather than assumed.
 
-# ---- The cluster answers, and every node answers for itself.
+# ---- Every node answers for itself.
 
-# -remote is a root flag and must precede the subcommand. $RPC_ADDR is the
-# first validator, which is also the node gnokey uses when a script names none.
-gnokey -remote $RPC_ADDR query auth/accounts/$USER_ADDR
+# $RPC_ADDR is the first validator and the node gnokey uses when a line names
+# none. -remote is a root flag and precedes the subcommand.
+gnokey query auth/accounts/$USER_ADDR
 stdout 'coins'
 gnokey -remote $RPC_ADDR_0 query auth/accounts/$USER_ADDR
 stdout 'coins'
@@ -33,161 +29,128 @@ stdout 'coins'
 gnokey -remote $RPC_ADDR_2 query auth/accounts/$USER_ADDR
 stdout 'coins'
 
-# The approver's own account, which is what lets the oracle pay for the enable
-# transactions it broadcasts further down. $GPAO_ADDR is the address; the
-# keybase entry holding its key is $GPAO_KEY_NAME, used in the last block.
+# The oracle's own account. It is funded in every cluster whether or not the
+# script starts the oracle, so an enable it broadcasts later has fees to pay.
 gnokey query auth/accounts/$GPAO_ADDR
 stdout 'coins'
 
-# ---- The three settings the chain will state back.
+# ---- Every cluster setting is read back from the chain.
 
-# genesis.vm.chain_domain, read straight out of the vm module's params. It is
-# also the premise of every package path below: the chain refuses any path not
-# under its own domain (keeper.go:726, keeper_inert.go:234), which is why they
-# all start with "tour.gno.land/" rather than "gno.land/".
+# genesis.vm.chain_domain, straight out of the vm params. It is also why every
+# package path in this file starts with tour.gno.land/ rather than gno.land/:
+# the chain refuses a path outside its own domain.
 gnokey query params/vm:p:chain_domain
 stdout 'tour.gno.land'
 
-# block-max-gas. The ante rejects rather than clamps a gas-wanted above the
-# block ceiling (ante.go:66-78), and it names both numbers, so a refusal here
-# reads the setting back out of the chain. Refused in CheckTx, so nothing is
-# committed and the tour's state is untouched.
+# config.moniker, read from the node's own RPC. http_get takes the tcp://
+# address the harness exports and speaks HTTP to it, so the same verb that
+# polls the oracle's status board also reads the chain's.
+http_get $RPC_ADDR/status
+stdout '"moniker": *"tour"'
+
+# block-max-gas. The ante handler refuses a gas-wanted above the block ceiling
+# and names both numbers, so a refusal reads the ceiling back. Refused in
+# CheckTx: nothing is committed and the tour's state is untouched.
 #
-# Not eventually-wrapped: eventually refuses negation, and it would be wrong
-# here anyway -- a comparison against a consensus parameter gives the same
-# answer on every attempt.
+# One shot, not eventually: a comparison against a consensus parameter gives
+# the same answer on every attempt, and eventually refuses negation anyway.
 ! gnokey maketx addpkg -broadcast=true -gas-wanted 300000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/hello -pkgpath tour.gno.land/r/tour/hello $USER_NAME
 stderr 'block-max-gas: 200000000'
 
-# config.mempool.max_pending_txs_bytes. The node refuses outright a transaction
-# it could not fit in an empty pending pool. $WORK/oversized carries ~6KB of
-# filler comment, which puts its transaction well past the 4096-byte limit.
-#
-# 4096 was measured against this tour rather than picked: every transaction it
-# does commit, its own and the oracle's, still fits with the limit set to 512,
-# so 4096 leaves eight times the room a single submission needs and the limit
-# can never be what refuses one of them.
-#
-# Deterministic on the first attempt for the same reason as the line above: the
-# limit is a size comparison made before the transaction is checked at all
-# (clist_mempool.go:228-234), and it compares the limit against this
-# transaction's size plus whatever is already pending, so a busier pool can
-# only make the refusal more certain.
-! gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/oversized -pkgpath tour.gno.land/r/tour/oversized $USER_NAME
-stderr 'mempool is full'
-
-# Refused means never submitted: the oversized package is not parked waiting
-# for an approver either, which is the state a merely failed verification would
-# have left it in.
-gnokey query vm/qinertpaths -data ''
-! stdout 'tour.gno.land/r/tour/oversized'
-
-# ---- A package parks, and only the approver can move it.
+# ---- Under the inert policy a package parks until an approver enables it.
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/hello -pkgpath tour.gno.land/r/tour/hello $USER_NAME
 
-# One shot, not a poll: -broadcast=true is BroadcastTxCommit, which returns only
-# once the transaction is in a committed block, so the parked state it produced
-# is already readable on the node that answered.
+# One shot: -broadcast=true is BroadcastTxCommit, which returns once the
+# transaction is in a committed block, so the parked state is already readable
+# on the node that answered.
 gnokey query vm/qinertpaths -data ''
 stdout 'tour.gno.land/r/tour/hello'
 
-# Parked is unreadable as well as uncallable: the files are held outside the
-# live key space until an approver enables them.
+# Parked means unreadable as well as uncallable: the files sit outside the live
+# key space until an approver enables them.
 ! gnokey query vm/qfile -data tour.gno.land/r/tour/hello
 
-# ---- The oracle, the one address genesis let enable anything.
+# ---- The oracle enables what parked.
 
-# -start-height 1 scans from the chain's start rather than from the node's tip
-# at startup: hello committed before this line ran, so the default -- watch from
-# here on -- would never see it.
+# Genesis named the oracle's key as the approver because the cluster section
+# named nobody else. -start-height 1 scans from the chain's start rather than
+# from the node's tip at startup: hello committed before this line ran, and the
+# default (watch from here on) would never see it.
 gpao start -start-height 1
 
-# Two nodes asked separately rather than the cluster asked once. Committing a
-# block takes a quorum rather than the whole set, so node 0 serving hello says
-# nothing about whether node 2 has applied that height yet.
-#
+# Two nodes asked separately. A block commits on a quorum, not the whole set,
+# so node 0 serving hello says nothing about node 2 having applied that height.
 # A render of a package that is not live fails rather than answering empty, so
-# the exit status is the whole gate here and no -stdout is needed.
+# the exit status is the whole gate and no -stdout is needed.
 eventually gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'tour.gno.land/r/tour/hello:x'
 stdout 'hello'
 eventually gnokey -remote $RPC_ADDR_2 query vm/qrender -data 'tour.gno.land/r/tour/hello:x'
 stdout 'hello'
 
-# The oracle's own typed verdict, a separate claim from the on-chain effect
-# above. Gated rather than one-shot: status.record for an approval runs after
-# enable() returns, and enable() broadcasts with BroadcastTxCommit, so the
-# package is renderable before the board says so. http_get's second argument is
-# checked per attempt, which is what makes waiting on it mean anything.
+# The oracle's own verdict, a separate claim from the on-chain effect. Gated
+# rather than one shot: the board records an approval after the enable has
+# committed, so the package renders before the board says so. http_get checks
+# its pattern on every attempt, which is what makes waiting on it meaningful.
 eventually http_get $GPAO_STATUS/status/tour.gno.land/r/tour/hello '"status":"approved"'
 stdout '"status":"approved"'
 
-# ---- A validator goes down while the chain carries on.
+# ---- A validator goes down and the chain carries on.
 
-# Four validators, not three: consensus needs more than two thirds of the voting
-# power, so a three-node cluster tolerates no loss at all and would simply stop
-# making blocks here. With four, three is a quorum, and the chain going on
-# without the stopped node is part of what this block proves. Node 3 is the one
-# stopped because nothing above reads from it.
+# Four validators, not three: consensus needs more than two thirds of the
+# voting power, so a three-node cluster tolerates no loss and would stop making
+# blocks here. Node 3 is stopped because nothing above read from it.
 validator stop 3
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/outage -pkgpath tour.gno.land/r/tour/outage $USER_NAME
 
-# Committed and approved with node 3 absent, which is what stopping one node
-# rather than the cluster was for.
-#
-# A wait, not a one-shot read: the addpkg above returned once its own
-# transaction was committed, and that only parked the package. Going live takes
-# a second transaction the oracle has not sent yet -- there is no chain event
-# announcing it, so the only way to see it arrive is to keep asking.
+# Committed and approved with node 3 absent. A wait, not a read: the addpkg
+# returned once its own transaction committed, and that only parked the
+# package. Going live is a second transaction the oracle has not sent yet, and
+# no chain event announces it, so the only way to see it is to keep asking.
 eventually gnokey query vm/qrender -data 'tour.gno.land/r/tour/outage:x'
 stdout 'outage'
 
 validator restart 3
 
-# Asked of the restarted node specifically. restart returns once that node's RPC
-# answers, which is earlier than it being current, so this wait covers catching
-# up on every block it missed -- and a render is the right thing to wait on,
-# because a node that is still behind fails it rather than answering stale.
+# Asked of the restarted node. restart returns once its RPC answers, which is
+# earlier than it being current, so this wait covers catching up on every
+# block it missed. A render is the right thing to wait on: a node still behind
+# fails it rather than answering stale.
 eventually gnokey -remote $RPC_ADDR_3 query vm/qrender -data 'tour.gno.land/r/tour/outage:x'
 stdout 'outage'
 
-# ---- The oracle goes down and comes back.
+# ---- The oracle restarts and resumes from the tip.
 
 # restart is stop then start, and the flags belong to the new start. No
-# -start-height this time: with none, gpao asks the node for its tip and resumes
-# PAST it, which is sound here only because the package below is submitted after
-# this line has returned.
+# -start-height: with none, gpao asks the node for its tip and resumes past it,
+# which is sound here only because the package below is submitted after this
+# line has returned.
 gpao restart
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/rescan -pkgpath tour.gno.land/r/tour/rescan $USER_NAME
 
-# The same wait as in the block above, and for the same reason: the submission
-# is committed by the time it returns, but the approval that makes rescan
-# renderable is a later transaction, sent when the restarted oracle next polls.
-# A one-shot read here would race the poll interval rather than the chain.
+# The same wait as above, for the same reason: the approval is a later
+# transaction, sent when the restarted oracle next polls.
 eventually gnokey query vm/qrender -data 'tour.gno.land/r/tour/rescan:x'
 stdout 'rescan'
 
-# Nothing left parked: the oracle drained its queue rather than leaving work
-# behind. Read three times rather than once, with the negation checked once
-# over all three answers -- repeat leaves every iteration's output in the
-# buffer, so the path has to be absent from all three. That is stricter than
-# one read: it also rules out a list that flickers, which is what a re-park or
-# a second enable attempt would look like from out here.
+# Nothing left parked. Read three times with the negation checked once over all
+# three answers: repeat leaves every iteration's output in the buffer, so the
+# path has to be absent from each read.
 repeat 3 gnokey query vm/qinertpaths -data ''
 ! stdout 'tour.gno.land/r/tour/'
 
-# ---- No oracle at all, and the approver's key used by hand.
+# ---- No oracle running, and the approver's key used by hand.
 
 gpao stop
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/late -pkgpath tour.gno.land/r/tour/late $USER_NAME
 
 # An absence has no event to wait on, so a window is the only way to observe
-# one. Two seconds is two of gpao's default 1s poll ticks (main.go:40): an
-# oracle that had survived the stop above would have had both of them to act,
-# so what follows says "nothing will enable this" rather than "nothing has yet".
+# one. Two seconds is two of gpao's default 1s poll ticks: an oracle that had
+# survived the stop above would have had both of them to act, so what follows
+# says "nothing will enable this" rather than "nothing has yet".
 sleep 2s
 
 gnokey query vm/qinertpaths -data ''
@@ -195,17 +158,15 @@ stdout 'tour.gno.land/r/tour/late'
 ! gnokey query vm/qrender -data 'tour.gno.land/r/tour/late:x'
 
 # Parked state is chain state, not something the receiving node holds alone.
-# Gated on the path rather than on the exit status: qinertpaths answers an empty
-# list and exits 0 on a node that has not applied that height yet, so waiting on
-# the status alone would return against a node that is still behind.
+# Gated on the path rather than the exit status: qinertpaths answers an empty
+# list and exits 0 on a node that has not applied that height yet, so the exit
+# status alone would return against a node still behind.
 eventually -stdout 'tour.gno.land/r/tour/late' gnokey -remote $RPC_ADDR_1 query vm/qinertpaths -data ''
 stdout 'tour.gno.land/r/tour/late'
 
-# $GPAO_KEY_NAME is the oracle's approver key in the harness keybase, so an
-# operator can do by hand exactly what the oracle does: genesis named that
-# address as the approver, and an enablepkg from any other signer is refused.
-# One shot, because enablepkg broadcasts with BroadcastTxCommit too, so the
-# package is live by the time it returns.
+# $GPAO_KEY_NAME is the approver key in the harness keybase, so a script can do
+# by hand exactly what the oracle does. One shot: enablepkg broadcasts with
+# BroadcastTxCommit too, so the package is live when it returns.
 gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/late -pkgpath tour.gno.land/r/tour/late $GPAO_KEY_NAME
 gnokey query vm/qrender -data 'tour.gno.land/r/tour/late:x'
 stdout 'late'
@@ -213,17 +174,13 @@ stdout 'late'
 -- cluster --
 validators: 4
 code-submission-policy: inert
-# Empty means the oracle is the approver. Its key is provisioned for every run
-# whether or not a script starts gpao, so the section names no oracle: "user"
-# here would name the test user instead, which is what leaves the oracle
-# unauthorized.
-pkg-approver:
-# Not the 3000000000 chain default, so the refusal above reads a value back that
-# only this line could have set.
+# pkg-approver is left unset on purpose: under inert that names the oracle.
+# "user" would name the test account instead, which is how a scenario makes
+# the oracle an outsider.
 block-max-gas: 200000000
-# Sized against the tour's own transactions, which all still fit at 512, while
-# the ~6KB oversized package cannot fit here at all.
-config.mempool.max_pending_txs_bytes: 4096
+# The two generic families: a node setting by its config.toml spelling, a
+# genesis param by the spelling gnogenesis params set takes.
+config.moniker: tour
 genesis.vm.chain_domain: tour.gno.land
 
 -- hello/gnomod.toml --
@@ -269,24 +226,3 @@ package late
 func Render(path string) string {
 	return "late"
 }
-
--- oversized/gnomod.toml --
-module = "tour.gno.land/r/tour/oversized"
-gno = "0.9"
-
--- oversized/oversized.gno --
-package oversized
-
-func Render(path string) string {
-	return "oversized"
-}
-
-// The filler below is the whole point of this package: it makes the
-// transaction carrying it larger than the mempool's pending-bytes limit, and
-// nothing else about it matters.
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
-// filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler filler
