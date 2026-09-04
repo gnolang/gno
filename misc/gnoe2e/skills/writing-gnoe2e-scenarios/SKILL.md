@@ -13,7 +13,7 @@ Read them from the module root, `misc/gnoe2e/`.
    comments, determinism, the pre-commit checklist. Read it whole before writing a line.
 2. `docs/dialect.md`: the reference. Every verb's usage, every `-- cluster --` key, every exported variable, the two
    accounts. Read the row for each verb you use.
-3. `testdata/tour/every_verb.txtar`: the worked example. Copy its shape, not its content.
+3. `testdata/tour.txtar`: the worked example. Copy its shape, not its content.
 4. `docs/architecture.md`: only when the scenario needs something the harness does not offer yet.
 
 ## Non-negotiable
@@ -22,7 +22,7 @@ Read them from the module root, `misc/gnoe2e/`.
 - Anything the oracle does is an `eventually`; a read of a write this script committed, on the same node, is one
   shot; `sleep` only observes an absence, and the comment says why the window is long enough.
 - Every `!` line is pinned by the `stderr` or `stdout` match that follows it.
-- Three consecutive passes with `go run . run -verbose testdata/<dir>/<file>.txtar` before committing, and one line
+- Three consecutive passes with `go run . run -verbose testdata/oracle/<file>.txtar` before committing, and one line
   added to the index in `README.md`.
 
 ## When the claim is a chain bug

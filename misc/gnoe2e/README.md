@@ -19,7 +19,7 @@ Two other lanes in this repository test gnoland, and they answer different quest
 lane. What it cannot express is a second node, a node dying, or a process outside the chain reacting to what the
 chain committed. Those are what gnoe2e is here for.
 
-`testdata/tour/every_verb.txtar` is the worked example: every verb, every `-- cluster --` key and every variable a
+`testdata/tour.txtar` is the worked example: every verb, every `-- cluster --` key and every variable a
 script can name, each read back from the chain, with a comment per line saying what the line proves.
 
 ## Running
@@ -29,31 +29,32 @@ A run needs the `go` toolchain: `gnoland` is built on demand from the enclosing 
 unless it deliberately points at another tree.
 
 ```bash
-# One directory of scenarios through the CLI
+# One lane of scenarios through the CLI
 cd misc/gnoe2e && go run . run testdata/oracle
 
 # Named files and directories mix, and the argument order is the run order
-go run . run testdata/oracle/first_light.txtar testdata/tour
+go run . run testdata/oracle/first_light.txtar testdata/tour.txtar
 
-# No argument runs testdata/integration, the suite that ships with the checkout
+# No argument runs the tour
 go run . run
 
-# Every scenario directory, coloured, verbose
+# Every scenario, coloured, verbose
 make scenarios
 
-# The whole suite through go test
-go test -timeout 30m ./...
+# The unit tests, in seconds, booting nothing
+make test
 
-# Unit tests only: TestScenarios skips under -short
-go test -short ./...
+# The scenarios through go test, then both lanes at once
+make test-scenarios
+make test-all
 
 # One scenario, named by its path under testdata/ without the extension
 go test -timeout 30m -run 'TestScenarios/oracle/first_light' .
 
-# The suite against gnoland and gpao built from master, so a scenario written
-# for a fix can be shown red before the fix lands
+# The scenarios against gnoland and gpao built from master, so a scenario
+# written for a fix can be shown red before the fix lands
 make test-master
-GOTEST_FLAGS='-timeout 30m -run TestScenarios/oracle/first_light' make test-master
+SCENARIO_FLAGS='-timeout 30m -run TestScenarios/oracle/first_light' make test-master
 
 # A cluster to poke at by hand: prints its RPC address and blocks until Ctrl-C
 go run . serve -validators 3 -verbose
@@ -66,8 +67,8 @@ make lint
 through `go run` each time.
 
 `make test-master` unpacks master with `git archive` into a temp directory and points `GNOROOT` at it, which is the
-one case where setting `GNOROOT` is the point. `GOTEST_FLAGS` defaults to `-v -timeout 30m`, and giving it replaces
-both.
+one case where setting `GNOROOT` is the point. `GOTEST_FLAGS` (`-v`) carries the unit lane and `SCENARIO_FLAGS`
+(`-v -timeout 30m -run TestScenarios`) the scenario lane; giving either replaces the whole value, timeout included.
 
 Four `run` flags override what a scenario declared:
 
@@ -95,63 +96,39 @@ override is for. The remaining flags (`-chain-id`, `-max-tx-bytes`, `-max-data-b
 
 ## Scenarios
 
-`testdata/integration`
-
-- `smoke.txtar`: the node is up and gnokey can reach it. One validator.
+`testdata/tour.txtar`: the worked example. Every verb, every cluster key, one four-validator inert chain: every
+setting read back out of the chain, a package parked and enabled, a validator down and back, the oracle down and
+back, and last an enable by hand with no oracle running.
 
 `testdata/oracle`
 
+- `amnesiac_oracle.txtar`: an oracle restarted with no `-start-height` resumes past the node's tip, so it strands
+  every submission made while it was away and nothing ever revisits them.
+- `borrowed_ceiling.txtar`: on a chain whose block gas ceiling is not the usual 3000000000, the oracle has to read
+  the ceiling rather than fall back to its default, and has to clamp an operator's `-gas-wanted` to it.
+- `contained_blast.txtar`: a package built to kill the thing that inspects it kills only the verification child,
+  and the oracle carries on.
+- `exhausted_purse.txtar`: `-max-spend` measured against fees the chain really charged: two approvals leave the
+  approver exactly two fees down, and the third is refused.
 - `false_start.txtar`: a dead RPC endpoint is fatal at startup under the default `-start-height`, and merely
   retried inside the poll loop under `-start-height 1`. Same call, same endpoint, two outcomes.
 - `first_light.txtar`: a package submitted after genesis parks, the oracle activates it, and all three nodes serve
   the result. Submission enters through one node and the oracle works through another.
+- `patient_oracle.txtar`: losing two validators of four halts consensus while the survivors keep serving RPC. The
+  oracle waits on a frozen tip without spinning, exiting or losing its place.
 - `phantom_approval.txtar`: a private realm redeployed over its own live version is reported approved though no
   enable was ever sent, because the check for "already active" cannot see a redeploy in the inert key space.
 - `poisoned_dependent.txtar`: a dependent submitted before its dependency is rejected permanently by content hash,
   and resubmitting the same bytes is a silent no-op.
-- `uncollected_toll.txtar`: the run budget is debited before an approval is attempted, so approvals that never
-  reach the chain still cost the run its allowance.
-
-`testdata/oracle-budget`
-
-- `exhausted_purse.txtar`: `-max-spend` measured against fees the chain really charged: two approvals leave the
-  approver exactly two fees down, and the third is refused.
-- `starved_verifier.txtar`: a 1ms verification budget kills every child before it can finish, and what it leaves
-  behind is the point: the packages stay parked.
-
-`testdata/oracle-closure`
-
-- `serialized_closure.txtar`: a real 26-package dependency chain where each link cannot be verified until the one
-  before it has committed. Waiting on the last package is the whole proof.
-
-`testdata/oracle-containment`
-
-- `contained_blast.txtar`: a package built to kill the thing that inspects it kills only the verification child,
-  and the oracle carries on.
-
-`testdata/oracle-gasceiling`
-
-- `borrowed_ceiling.txtar`: on a chain whose block gas ceiling is not the usual 3000000000, the oracle has to read
-  the ceiling rather than fall back to its default, and has to clamp an operator's `-gas-wanted` to it.
-
-`testdata/oracle-outage`
-
-- `amnesiac_oracle.txtar`: an oracle restarted with no `-start-height` resumes past the node's tip, so it strands
-  every submission made while it was away and nothing ever revisits them.
-- `patient_oracle.txtar`: losing two validators of four halts consensus while the survivors keep serving RPC. The
-  oracle waits on a frozen tip without spinning, exiting or losing its place.
-
-`testdata/oracle-unauthorized`
-
 - `rotated_out.txtar`: the oracle's key is not in the chain's approver set. It verifies everything and activates
   nothing, pays no gas fee because the simulate pre-flight stops each enable before it is broadcast, and still
   spends its own run budget.
-
-`testdata/tour`
-
-- `every_verb.txtar`: the worked example. Every verb, every cluster key, one four-validator inert chain: every
-  setting read back out of the chain, a package parked and enabled, a validator down and back, the oracle down and
-  back, and last an enable by hand with no oracle running.
+- `serialized_closure.txtar`: a real 26-package dependency chain where each link cannot be verified until the one
+  before it has committed. Waiting on the last package is the whole proof.
+- `starved_verifier.txtar`: a 1ms verification budget kills every child before it can finish, and what it leaves
+  behind is the point: the packages stay parked.
+- `uncollected_toll.txtar`: the run budget is debited before an approval is attempted, so approvals that never
+  reach the chain still cost the run its allowance.
 
 ## Limits
 
@@ -165,7 +142,7 @@ machine slow enough to miss one of these fails the scenario rather than waiting 
 `run -timeout` bounds the whole run rather than each scenario, and defaults to 10 minutes. The validator processes
 are started from that deadline's context, so reaching it takes the nodes out from under whichever scenario is
 running and the run ends reporting that scenario as failed. The `go test` route has no such flag and is bounded by
-`go test -timeout` instead, which is why the Makefile passes `-timeout 30m`.
+`go test -timeout` instead, which is why the scenario targets pass `-timeout 30m`.
 
 A run that unwinds normally removes what it made. A run killed outright does not, and leaves directories named
 `e2e-cluster-*`, `gnoe2e-bin-*` and `gnoe2e-home-*` in `TMPDIR`. Node logs live in the cluster directory as

@@ -5,7 +5,7 @@ A scenario is a [txtar](https://pkg.go.dev/github.com/rogpeppe/go-internal/txtar
 script, the file sections below it are unpacked into `$WORK`. One section, `-- cluster --`, is not a file for the
 script but the declaration of the chain the harness boots for it. This page is the reference for that section, for
 the verbs the harness adds to testscript's builtins, for the variables a script can name, and for the two accounts
-every cluster carries. `testdata/tour/every_verb.txtar` uses all of it, with a comment per line.
+every cluster carries. `testdata/tour.txtar` uses all of it, with a comment per line.
 
 ## The cluster section
 

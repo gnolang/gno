@@ -9,19 +9,21 @@ import (
 )
 
 // ResolveScriptFiles turns command arguments into the scripts to run. Accepts
-// no arguments (the suite that ships with the checkout), directories, .txtar
-// files, or a mix.
+// no arguments (the tour), directories, .txtar files, or a mix.
 //
-// A directory contributes its scripts in filename order and a named file
-// contributes itself, so the caller's order survives as the run order.
+// A directory contributes its own scripts in filename order and never its
+// subdirectories, and a named file contributes itself, so the caller's order
+// survives as the run order.
 func ResolveScriptFiles(args []string) ([]string, error) {
 	if len(args) == 0 {
-		// Anchored on the checkout rather than the working directory: the
-		// scripts belong to the harness, so where the binary was invoked from
-		// must not decide which suite runs. Resolved here because
-		// gnoenv.RootDir panics when it cannot find a checkout, which a
-		// caller naming its own scripts should never pay for.
-		args = []string{filepath.Join(gnoenv.RootDir(), "misc", "gnoe2e", "testdata", "integration")}
+		// The root of testdata holds the tour and nothing else, so a bare run
+		// exercises every verb without paying for a feature lane. Anchored on
+		// the checkout rather than the working directory: the scripts belong
+		// to the harness, so where the binary was invoked from must not decide
+		// which suite runs. Resolved here because gnoenv.RootDir panics when
+		// it cannot find a checkout, which a caller naming its own scripts
+		// should never pay for.
+		args = []string{filepath.Join(gnoenv.RootDir(), "misc", "gnoe2e", "testdata")}
 	}
 
 	var scripts []string

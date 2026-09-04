@@ -47,9 +47,14 @@ func TestScenarios(t *testing.T) {
 		t.Skip("boots real gnoland clusters; run without -short")
 	}
 
-	// go test sets the working directory to the module root.
-	paths, err := filepath.Glob("testdata/*/*.txtar")
-	require.NoError(t, err)
+	// go test sets the working directory to the module root. The tour sits at
+	// the root of testdata, the feature lanes one level down.
+	var paths []string
+	for _, pattern := range []string{"testdata/*.txtar", "testdata/*/*.txtar"} {
+		matches, err := filepath.Glob(pattern)
+		require.NoError(t, err)
+		paths = append(paths, matches...)
+	}
 	require.NotEmpty(t, paths)
 
 	cfg := defaultRunCfg()

@@ -2,7 +2,7 @@
 
 A scenario is one claim about the chain, the oracle, or the harness, written so that the file fails when the claim
 stops being true. Everything in it serves that claim: the cluster it asks for, the order of its lines, the reason
-each wait waits, and the comment that says what a line proves. `testdata/tour/every_verb.txtar` shows every
+each wait waits, and the comment that says what a line proves. `testdata/tour.txtar` shows every
 construct on this page; `docs/dialect.md` is the reference for the verbs and keys it uses.
 
 ## Shape
@@ -89,9 +89,9 @@ restate the command. The existing scenarios set the register; read two before wr
 
 ```bash
 cd misc/gnoe2e
-go run . run -verbose testdata/<dir>/<file>.txtar     # one scenario, every line echoed
-go run . run testdata/<dir>                            # the directory, quiet
-make test-master GOTEST_FLAGS='-timeout 30m -run TestScenarios/<dir>/<name>'
+go run . run -verbose testdata/oracle/<file>.txtar    # one scenario, every line echoed
+go run . run testdata/oracle                          # the lane, quiet
+make test-master SCENARIO_FLAGS='-v -timeout 30m -run TestScenarios/oracle/<name>'
 ```
 
 Run a new scenario three times in a row before committing it. A scenario that fails once in three is a timing

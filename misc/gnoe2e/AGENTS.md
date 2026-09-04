@@ -16,10 +16,11 @@ workflow, `.github/workflows/ci-gnoe2e.yml`. The repository-wide guide at the ro
 
 ```bash
 cd misc/gnoe2e
-go test -short ./...                                  # unit tests, seconds
-go test -timeout 30m ./...                            # everything, including all scenarios, a few minutes
-go run . run -verbose testdata/<dir>/<file>.txtar     # one scenario with every line echoed
-make test-master                                      # the suite against gnoland and gpao built from master
+make test                                             # unit tests, seconds
+make test-scenarios                                   # every scenario, a few minutes
+make test-all                                         # both lanes
+go run . run -verbose testdata/oracle/<file>.txtar    # one scenario with every line echoed
+make test-master                                      # the scenarios against gnoland and gpao built from master
 make lint                                             # the repository's linter on this module
 ```
 
@@ -29,14 +30,14 @@ what `make test-master` does for you.
 ## Rules for this module
 
 - A new verb, key or exported variable is not done until `docs/dialect.md` documents it and
-  `testdata/tour/every_verb.txtar` uses it. The tour is the dialect's regression test.
+  `testdata/tour.txtar` uses it. The tour is the dialect's regression test.
 - Harness changes follow test-first: a failing test in the package before the code. Scenario changes are proven by
   running the scenario three times.
 - A scenario never uses `sleep` to wait for something that will happen; see `docs/writing-scenarios.md`.
 - Scenarios read back every setting they declare. A `config.` or `genesis.` override that nothing reads is not
   accepted.
-- Every scenario has one line in the index in `README.md`, in the section for its directory.
+- Every scenario has one line in the index in `README.md`.
 - Comments in scenarios and Go say what a line proves or why it is shaped that way. No change history, no
   references to plans or tasks, no descriptions of neighbouring code.
 - Do not commit scratch scenarios or files under `testdata/` that are not part of the suite; the `go test` driver
-  runs every `testdata/*/*.txtar`.
+  runs every `testdata/*.txtar` and `testdata/*/*.txtar`.
