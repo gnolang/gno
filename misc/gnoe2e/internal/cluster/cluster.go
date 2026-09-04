@@ -784,10 +784,9 @@ func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
 		}
 	}
 
-	// Build balances: validators + extra accounts
-	balances, err := buildBalances(tempDir, validatorKeys, cfg.Balances)
+	balances, err := clusterBalances(validatorKeys, cfg.Balances)
 	if err != nil {
-		return fmt.Errorf("build balances: %w", err)
+		return err
 	}
 
 	// Optionally load example packages
@@ -895,19 +894,6 @@ func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
 
 	PrintGenesisConfig(gen)
 	return nil
-}
-
-// buildBalances creates a GenesisBalances object with validator + extra balances.
-func buildBalances(tempDir string, validatorKeys []*signer.FileKey, extraBalances map[string]int64) (gnoland.Balances, error) {
-	balanceFile, err := CreateEnhancedBalanceFile(tempDir, validatorKeys, extraBalances)
-	if err != nil {
-		return nil, fmt.Errorf("create balance file: %w", err)
-	}
-	balances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
-	if err != nil {
-		return nil, fmt.Errorf("load genesis balances: %w", err)
-	}
-	return balances, nil
 }
 
 // findExamplesDir locates the examples directory using gnoenv.RootDir()

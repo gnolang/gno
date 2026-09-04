@@ -12,53 +12,34 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// CreateEnhancedBalanceFile creates a balance file with validator + extra accounts.
-func CreateEnhancedBalanceFile(tempDir string, validatorKeys []*signer.FileKey, extraBalances map[string]int64) (string, error) {
-	balanceFile := filepath.Join(tempDir, "enhanced_genesis_balances.txt")
+// validatorBalance is the ugnot every validator holds at genesis. Enough to
+// sign the genesis package transactions, which is all a validator key spends.
+const validatorBalance = 100_000_000
 
-	balanceLines := make([]string, 0, len(validatorKeys)+5)
+// clusterBalances funds every validator plus the accounts the caller named.
+// That is the whole of a cluster's money: no other address has a key here.
+func clusterBalances(validatorKeys []*signer.FileKey, extra map[string]int64) (gnoland.Balances, error) {
+	balances := gnoland.NewBalances()
 
-	// Validator accounts
-	for i, key := range validatorKeys {
-		balance := fmt.Sprintf("%s=100000000ugnot", key.Address.String())
-		balanceLines = append(balanceLines, balance)
-		slog.Debug("validator balance", "index", i+1, "balance", balance)
+	for _, key := range validatorKeys {
+		balances.Set(key.Address, std.NewCoins(std.NewCoin("ugnot", validatorBalance)))
 	}
 
-	// Hardcoded test accounts from official genesis
-	testAccounts := []struct {
-		addr    string
-		balance int64
-	}{
-		{"g1sj0p2u3u3ptdhxxgrntw2ylgpywnxcx0hxeejf", 39902556},
-		{"g1htpr653j6q356wza4zvj2usghuhmtdqjdq7gl3", 9066},
-		{"g1esgv6w2ya3hrxa5rhcyummh2al8w5snv535e2f", 14667793},
-		{"g1tp63hd67kcg6zcvpn87mj58z59hr6suw5gjykt", 48239067},
-		{"g1hh9zcupzrcaspgs8al3chaumhkskq5d02frg48", 12232135},
-	}
-	for _, account := range testAccounts {
-		balance := fmt.Sprintf("%s=%dugnot", account.addr, account.balance)
-		balanceLines = append(balanceLines, balance)
+	for addr, amount := range extra {
+		address, err := crypto.AddressFromBech32(addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid balance address %q: %w", addr, err)
+		}
+		balances.Set(address, std.NewCoins(std.NewCoin("ugnot", amount)))
 	}
 
-	// Extra balances (test user, etc.)
-	for addr, amount := range extraBalances {
-		balance := fmt.Sprintf("%s=%dugnot", addr, amount)
-		balanceLines = append(balanceLines, balance)
-		slog.Debug("extra balance", "balance", balance)
-	}
-
-	content := strings.Join(balanceLines, "\n") + "\n"
-	if err := os.WriteFile(balanceFile, []byte(content), 0644); err != nil {
-		return "", fmt.Errorf("write balance file: %w", err)
-	}
-
-	slog.Debug("created balance file", "accounts", len(balanceLines), "path", balanceFile)
-	return balanceFile, nil
+	return balances, nil
 }
 
 // applyGenesisParams sets a scenario's genesis param overrides on the genesis

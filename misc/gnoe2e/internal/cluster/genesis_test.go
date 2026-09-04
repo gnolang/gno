@@ -172,3 +172,35 @@ func TestValidateRejectsUnknownPolicy(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "sometimes")
 }
+
+// A cluster funds the accounts it runs with and nothing else, so a scenario
+// that reads a balance sees only what the harness put there.
+func TestBuildGenesisFundsOnlyTheClusterAccounts(t *testing.T) {
+	tempDir := t.TempDir()
+
+	validator, err := SetupValidatorNode(tempDir, 0)
+	require.NoError(t, err)
+	defer validator.Cleanup()
+
+	user := crypto.MustAddressFromString("g19rl4cm2hmr8afy4kldpxz3fka4jguq0a0u3773")
+
+	cfg := DefaultGenesisConfig()
+	cfg.LoadExamples = false
+	cfg.Balances = map[string]int64{user.String(): 1_000_000_000}
+
+	require.NoError(t, BuildGenesis(tempDir, cfg, []*Node{validator}))
+
+	doc, err := bft.GenesisDocFromFile(filepath.Join(tempDir, "shared_genesis.json"))
+	require.NoError(t, err)
+	genState, ok := doc.AppState.(gnoland.GnoGenesisState)
+	require.True(t, ok, "expected AppState to decode as gnoland.GnoGenesisState, got %T", doc.AppState)
+
+	funded := make(map[string]int64, len(genState.Balances))
+	for _, balance := range genState.Balances {
+		funded[balance.Address.String()] = balance.Amount.AmountOf("ugnot")
+	}
+
+	require.Len(t, funded, 2)
+	require.Equal(t, int64(1_000_000_000), funded[user.String()])
+	require.Contains(t, funded, doc.Validators[0].Address.String())
+}
