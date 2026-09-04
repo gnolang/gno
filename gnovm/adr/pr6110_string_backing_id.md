@@ -1,4 +1,4 @@
-# VM-owned string backing identity: mint IDs in StringValue
+# VM-owned string backing identity: a shared backing pointer in StringValue
 
 > **Status: experimental.** Standalone alternative to #4885 — same
 > accounting semantics (charge each live backing once per GC cycle;
@@ -22,50 +22,57 @@ full alternatives catalog.
 Move identity into the value. `StringValue` becomes:
 
 ```go
+type stringBacking struct {
+	Extent int64 // full backing byte length
+}
+
 type StringValue struct {
-	Str    string
-	ID     uint64 // mint-event serial; 0 = untracked
-	Extent int64  // full backing byte length
+	Str string
+	B   *stringBacking // one per NewString mint; nil = untracked
 }
 ```
 
-- `NewString` assigns a fresh `ID` (global atomic counter) and
-  `Extent = len(s)`. Value copies and `GetSlice` inherit both, so every
-  value over one backing shares the ID; `GetSlice` still charges
-  header-only at creation.
-- The GC visitor charges `allocStringByte * Extent` once per distinct
-  nonzero ID per run, from a **visitor-local** `map[uint64]struct{}`
-  (pre-sized by the allocator's mint count). Dedup never writes into the
-  value — deliberately unlike object `LastGCCycle` stamping, which is
-  unsafe on values shared across machines (see the `.uverse` carve-out in
-  `GCVisitorFn`); cached literals are exactly such shared values.
-- `ID == 0` (VM panic text via `typedString`/`typedRuntimeError`, uverse
+- `NewString` allocates a fresh `stringBacking{Extent: len(s)}`. Value
+  copies and `GetSlice` copy the pointer, so every value over one backing
+  shares it; `GetSlice` still charges header-only at creation.
+- Identity is the pointer itself. Go's GC cannot free or reuse a
+  `stringBacking` while any `StringValue` still points at it, so two live
+  mints can never compare equal: uniqueness holds by construction, with no
+  counter, no wrap-around and no lifetime argument.
+- The GC visitor charges `allocStringByte * B.Extent` once per distinct
+  backing per run, from a **visitor-local** `map[*stringBacking]struct{}`.
+  Dedup never writes into the value — deliberately unlike object
+  `LastGCCycle` stamping, which is unsafe on values shared across machines
+  (see the `.uverse` carve-out in `GCVisitorFn`); cached literals are
+  exactly such shared values.
+- `B == nil` (VM panic text via `typedString`/`typedRuntimeError`, uverse
   init) recounts as header only: a deterministic, bounded undercount —
   never a misattribution, since accounting never consults addresses.
-- The numeric ID never reaches consensus: amino/pb3 persist `Str` alone
+- The pointer never reaches consensus: amino/pb3 persist `Str` alone
   (`MarshalAmino` repr keeps the wire format byte-identical), and loads
   re-mint through `fillTypesOfValue`. Only the partition "which values
   came from the same mint" matters, and that is a pure function of VM
-  execution — identical on every node regardless of counter values.
+  execution — identical on every node regardless of pointer values.
 - The allocator keeps **no string state**: the treap
   (`string_ranges.go`), `trackString` clone-on-overlap, the pin,
   `CleanupTrackedStrings`, and the between-messages `clearStringTracking`
   are deleted. `Fork`/`Reset`/`ClearObjectCache` need no string handling.
 
 Both #4885 hazard classes are unrepresentable here: toolchain backing
-sharing is irrelevant (two mints get two IDs even if Go shares the
+sharing is irrelevant (two mints get two backings even if Go shares the
 bytes), and address recycling cannot misattribute (there are no
 addresses).
 
 ### Struct-equality hazard
 
 `StringValue` was an alias with value equality; as a struct, `==`
-compares ID, so equal strings from different mints differ. String
-comparison paths were audited: `isEql` and `ComputeMapKey`/`MapKeyBytes`
-go through `GetString()` (safe); the one direct-equality site —
-map-literal duplicate-key detection in `preprocess.go` (`kset`) — now
-normalizes string keys by content. New direct `==` on `TypedValue`/`.V`
-holding strings must not be introduced; compare `Str`.
+compares the backing pointer, so equal strings from different mints
+differ. String comparison paths were audited: `isEql` and
+`ComputeMapKey`/`MapKeyBytes` go through `GetString()` (safe); the one
+direct-equality site — map-literal duplicate-key detection in
+`preprocess.go` (`kset`) — now keys by `ComputeMapKey`, the runtime map's
+own notion of key equality. New direct `==` on `TypedValue`/`.V` holding
+strings must not be introduced; compare `Str`.
 
 ### Behavior deltas vs #4885
 
@@ -75,8 +82,11 @@ holding strings must not be introduced; compare `Str`.
   headers; here identity travels in the value, so live literal bytes are
   counted once wherever the mint happened. `alloc_13`/`alloc_13a`
   (shared-backing dedup, slice-outlives-source) are unchanged.
-- `.grealm.Address()` returns the handle field's own StringValue (shares
-  its mint) instead of a raw untracked value.
+- `.grealm.Address()`/`.PkgPath()` and `address.String()` return the
+  receiver's own StringValue (sharing its mint) instead of an untracked
+  copy; `.grealm.String()`/`.Subpath()` and `.runtimeError.Error()` mint
+  their fresh text through `newTypedString`, the tracked counterpart of
+  `typedString`.
 
 ## Alternatives considered
 
@@ -94,20 +104,37 @@ The full catalog lives in #4885's ADR; deltas here:
    `LastGCCycle` onto backings shared across machines (cached literals)
    reintroduces the `.uverse`-class nondeterminism this design avoids by
    keeping dedup visitor-local.
-3. **Registry (ID → extent) in the allocator** instead of carrying
-   `Extent` in the value — reintroduces allocator state, pruning, and
+3. **Registry (identity → extent) in the allocator** instead of carrying
+   the backing in the value — reintroduces allocator state, pruning, and
    cross-message lifecycle for no benefit.
+4. **`ID uint64` from a process-global atomic counter, plus `Extent` in
+   the value** — the first shape of this PR. Cheaper per mint (one atomic
+   add, no allocation: 1.7 ns vs 5.1 ns to re-mint an existing string,
+   12.9 vs 17.4 ns on a 32-byte concat+mint, 2.63 vs 2.87 ms for a 100k
+   live-string GC dedup pass) but correct only by argument: uniqueness
+   rests on "no live string outlives 2^64 mints", which is true by physics
+   (centuries at a mint per nanosecond) yet is an assumption, not an
+   invariant. A panic on wrap would turn it into a checked invariant but
+   halts every tx on that node for the rest of its uptime; a silent wrap
+   risks a single-node undercount and app-hash divergence. Neither
+   failure is reachable in practice, but a review of consensus-adjacent
+   accounting should not need a lifetime argument. The pointer removes
+   the argument for a per-mint cost well below the surrounding VM op, and
+   shrinks `StringValue` from 32 to 24 bytes.
 
 ## Consequences
 
-- `StringValue` grows 16 → 32 bytes and is a representation change:
+- `StringValue` grows 16 → 24 bytes and is a representation change:
   every raw `StringValue(...)` conversion site was migrated (~21 in
-  production code); `pb3_gen.go` was hand-adjusted to the repr form the
-  generator emits for `MarshalAmino` types (regenerate to verify).
+  production code); `pb3_gen.go` is regenerated by `misc/genproto2` (the
+  repr form for `MarshalAmino` types; the backing pointer is not on the
+  wire).
 - Persisted format unchanged (plain string); no store migration.
 - CPU (median of 3, matched pre-boxed harnesses, vs #4885's pin):
   GC string pass 1k/10k/100k live: 31.5 µs/448 µs/6.0 ms →
-  17.3 µs/182 µs/2.2 ms; `NewString` faster at every size (one atomic
-  add, no treap insert, no clone).
+  17.3 µs/182 µs/2.2 ms (measured with the counter shape; the pointer
+  shape adds ~9% to the dedup pass and one 8-byte allocation per
+  `NewString`, see alternative 4); `NewString` still cheaper than #4885's
+  treap insert and clone at every size.
 - Three alloc filetest goldens updated (+11…26 B, literals); gas txtars
   unchanged; full gnolang, sdk/vm, integration, and examples suites pass.

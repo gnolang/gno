@@ -195,9 +195,9 @@ func isUverseValue(v Value) bool {
 func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
-	// Backings counted this run, by mint ID (see StringValue). Scoped to
-	// the visitor: no allocator state, nothing to prune or reset.
-	countedStrings := make(map[uint64]struct{})
+	// Backings counted this run (see stringBacking). Scoped to the
+	// visitor: no allocator state, nothing to prune or reset.
+	countedStrings := make(map[*stringBacking]struct{})
 
 	vis = func(v Value) bool {
 		if debug {
@@ -233,14 +233,14 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		size := v.GetShallowSize()
 
 		// Strings: the backing bytes are raw data, invisible to
-		// VisitAssociated — count them here, once per mint ID per run
+		// VisitAssociated — count them here, once per backing per run
 		// (dedup for shared backings; Extent, not len(Str), so a slice
-		// outliving its source keeps the backing counted). ID zero is
-		// untracked VM-internal text: header only.
-		if sv, ok := v.(StringValue); ok && sv.ID != 0 {
-			if _, counted := countedStrings[sv.ID]; !counted {
-				countedStrings[sv.ID] = struct{}{}
-				size += allocStringByte * sv.Extent
+		// outliving its source keeps the backing counted). A nil backing
+		// is untracked VM-internal text: header only.
+		if sv, ok := v.(StringValue); ok && sv.B != nil {
+			if _, counted := countedStrings[sv.B]; !counted {
+				countedStrings[sv.B] = struct{}{}
+				size += allocStringByte * sv.B.Extent
 			}
 		}
 
@@ -469,7 +469,7 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 // VisitAssociated is a no-op: the backing bytes are raw data, not a
-// Value. GCVisitorFn counts them once per mint ID.
+// Value. GCVisitorFn counts them once per backing.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }

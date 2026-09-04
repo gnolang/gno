@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
-	"sync/atomic"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -40,14 +39,6 @@ type Allocator struct {
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
 }
-
-// nextStringID issues StringValue.ID mint serials. Process-global and
-// atomic: the numeric value never reaches consensus (amino persists Str
-// alone) — only the partition "which values share one mint" matters, and
-// that is a pure function of VM execution. A global counter keeps IDs
-// unique across allocators, so a preprocess-minted literal can never
-// collide with a runtime mint.
-var nextStringID atomic.Uint64
 
 // Allocation size constants for gas metering.
 //
@@ -521,9 +512,10 @@ func (alloc *Allocator) NewString(s string) StringValue {
 	if len(s) == 0 {
 		return StringValue{} // "" carries no backing; untracked
 	}
-	// Fresh mint serial: all copies/slices of this value share it, so the
-	// GC recount charges Extent once per mint per cycle (see StringValue).
-	return StringValue{Str: s, ID: nextStringID.Add(1), Extent: int64(len(s))}
+	// Fresh backing identity: all copies/slices of this value point at
+	// it, so the GC recount charges Extent once per mint per cycle (see
+	// stringBacking).
+	return StringValue{Str: s, B: &stringBacking{Extent: int64(len(s))}}
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {

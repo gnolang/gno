@@ -44,24 +44,24 @@ func visitStrings(alloc *Allocator, vals ...Value) int64 {
 	return bytes
 }
 
-// TestStringGCRecount: shared backings (s1 := s copies the ID) are
+// TestStringGCRecount: shared backings (s1 := s copies the pointer) are
 // counted once per GC run; a fresh run recounts in full.
 func TestStringGCRecount(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 	sv := alloc.NewString("hello world, this is a test string")
-	if sv.ID == 0 || sv.Extent != int64(len(sv.Str)) {
-		t.Fatalf("NewString: ID=%d Extent=%d, want nonzero ID and Extent=%d", sv.ID, sv.Extent, len(sv.Str))
+	if sv.B == nil || sv.B.Extent != int64(len(sv.Str)) {
+		t.Fatalf("NewString: B=%v, want backing with Extent=%d", sv.B, len(sv.Str))
 	}
-	full := int64(allocString) + allocStringByte*sv.Extent
+	full := int64(allocString) + allocStringByte*sv.B.Extent
 
 	// One value: header + backing.
 	if got := visitStrings(alloc, sv); got != full {
 		t.Errorf("single visit: got %d, want %d", got, full)
 	}
-	// s1 := sv shares the ID: second visit is header-only (dedup).
+	// s1 := sv shares the backing: second visit is header-only (dedup).
 	s1 := sv
 	if got, want := visitStrings(alloc, sv, s1), full+int64(allocString); got != want {
-		t.Errorf("shared-ID visits: got %d, want %d", got, want)
+		t.Errorf("shared-backing visits: got %d, want %d", got, want)
 	}
 	// A fresh GC run recounts in full (per-run dedup set, no carryover).
 	if got := visitStrings(alloc, sv); got != full {
@@ -69,7 +69,7 @@ func TestStringGCRecount(t *testing.T) {
 	}
 }
 
-// TestStringSliceGCRecount: GetSlice inherits ID/Extent, so source and
+// TestStringSliceGCRecount: GetSlice inherits the backing, so source and
 // slice dedup to one full-backing charge.
 func TestStringSliceGCRecount(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
@@ -80,18 +80,17 @@ func TestStringSliceGCRecount(t *testing.T) {
 	if sliced.Str != "cde" {
 		t.Fatalf("slice content: got %q", sliced.Str)
 	}
-	if sliced.ID != src.ID || sliced.Extent != src.Extent {
-		t.Fatalf("slice identity: got (ID=%d, Extent=%d), want source's (%d, %d)",
-			sliced.ID, sliced.Extent, src.ID, src.Extent)
+	if sliced.B != src.B {
+		t.Fatalf("slice identity: got %p, want source's %p", sliced.B, src.B)
 	}
-	full := int64(allocString) + allocStringByte*src.Extent
+	full := int64(allocString) + allocStringByte*src.B.Extent
 	if got, want := visitStrings(alloc, src, sliced), full+int64(allocString); got != want {
 		t.Errorf("source+slice: got %d, want %d (one backing, two headers)", got, want)
 	}
 }
 
 // TestStringSliceOutlivesSource: with only the slice visited, the full
-// source backing is still charged — the slice carries ID and Extent, so
+// source backing is still charged — the slice carries the backing, so
 // nothing depends on the source value surviving.
 func TestStringSliceOutlivesSource(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
@@ -99,14 +98,14 @@ func TestStringSliceOutlivesSource(t *testing.T) {
 	tv := TypedValue{T: StringType, V: src}
 	sliced := tv.GetSlice(alloc, 1, 30).V.(StringValue)
 
-	want := int64(allocString) + allocStringByte*src.Extent
+	want := int64(allocString) + allocStringByte*src.B.Extent
 	if got := visitStrings(alloc, sliced); got != want {
 		t.Errorf("slice-only visit: got %d, want %d (header + full source backing)", got, want)
 	}
 }
 
-// TestFillTypesOfValue_StringTracking: a loaded StringValue (ID zero on
-// the wire) is re-minted through the store's allocator.
+// TestFillTypesOfValue_StringTracking: a loaded StringValue (no backing
+// on the wire) is re-minted through the store's allocator.
 func TestFillTypesOfValue_StringTracking(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
@@ -123,33 +122,33 @@ func TestFillTypesOfValue_StringTracking(t *testing.T) {
 	if sv.Str != body {
 		t.Fatalf("content changed: got %q, want %q", sv.Str, body)
 	}
-	if sv.ID == 0 || sv.Extent != int64(len(body)) {
-		t.Errorf("loaded string not minted: ID=%d Extent=%d", sv.ID, sv.Extent)
+	if sv.B == nil || sv.B.Extent != int64(len(body)) {
+		t.Errorf("loaded string not minted: B=%v", sv.B)
 	}
 	if _, bytes := st.GetAllocator().Status(); bytes == 0 {
 		t.Error("loaded string was not charged")
 	}
 }
 
-// TestNewString_Empty: "" carries no backing — no ID, header-only charge.
+// TestNewString_Empty: "" carries no backing — header-only charge.
 func TestNewString_Empty(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 	sv := alloc.NewString("")
-	if sv.ID != 0 || sv.Extent != 0 {
-		t.Errorf("empty string: ID=%d Extent=%d, want 0,0", sv.ID, sv.Extent)
+	if sv.B != nil {
+		t.Errorf("empty string: B=%v, want nil", sv.B)
 	}
 }
 
-// TestNewString_DistinctIDs: identity is the mint event, never the Go
+// TestNewString_DistinctBackings: identity is the mint event, never the Go
 // backing. Equal content, toolchain sharing (lit+\"\" returning its
 // operand), or address reuse cannot merge two mints.
-func TestNewString_DistinctIDs(t *testing.T) {
+func TestNewString_DistinctBackings(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 	lit := "the quick brown fox"
 	a := alloc.NewString(lit)
 	b := alloc.NewString(lit + "") // may share lit's backing; irrelevant
-	if a.ID == b.ID {
-		t.Fatal("two mints share an ID")
+	if a.B == b.B {
+		t.Fatal("two mints share a backing")
 	}
 	full := 2*int64(allocString) + 2*allocStringByte*int64(len(lit))
 	if got := visitStrings(alloc, a, b); got != full {
@@ -157,10 +156,11 @@ func TestNewString_DistinctIDs(t *testing.T) {
 	}
 }
 
-// TestUntrackedString_HeaderOnly: VM-internal text (panic values) has ID
-// zero and recounts as header only — a deterministic undercount. The
+// TestUntrackedString_HeaderOnly: VM-internal text (panic values) has no
+// backing and recounts as header only — a deterministic undercount. The
 // misattribution class the pin design had to defend against (address
-// recycling) is unrepresentable here: identity is an ID, not an address.
+// recycling) is unrepresentable here: identity is a live pointer, which
+// Go cannot recycle while any holder exists.
 func TestUntrackedString_HeaderOnly(t *testing.T) {
 	alloc := NewAllocator(1_000_000)
 	long := StringValue{Str: strings.Repeat("x", 4096)} // e.g. panic text

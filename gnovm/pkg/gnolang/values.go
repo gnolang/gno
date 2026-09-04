@@ -82,32 +82,40 @@ var (
 // ----------------------------------------
 // StringValue
 
+// stringBacking is the identity of one NewString mint. Every value copy
+// and slice of that mint points at the same stringBacking, so "same
+// backing" is pointer equality: Go's GC cannot free or reuse it while any
+// holder is alive, which makes collisions impossible by construction (no
+// counter, no wrap-around, no address arithmetic). Extent is the full
+// backing length, charged once per backing per GC cycle.
+type stringBacking struct {
+	Extent int64
+}
+
 // StringValue carries the string plus VM-assigned backing identity.
 //
-// ID is a mint-event serial (newStringID): every NewString gets a fresh
-// one, and value copies and slices (GetSlice) inherit it, so all values
-// over one backing share an ID. The GC recount charges Extent — the full
-// backing length — once per distinct ID per cycle: shared backings dedup,
-// and a slice outliving its source keeps the backing counted. ID zero is
-// untracked (VM-internal text: panic values, uverse init); it recounts as
-// header only.
+// B is set by NewString and inherited by value copies and slices
+// (GetSlice), so all values over one backing share it. The GC recount
+// charges B.Extent once per distinct backing per cycle: shared backings
+// dedup, and a slice outliving its source keeps the backing counted. A nil
+// B is untracked (VM-internal text: panic values, uverse init); it
+// recounts as header only.
 //
-// The numeric ID never reaches consensus (amino persists Str alone; loads
+// The pointer never reaches consensus (amino persists Str alone; loads
 // re-mint via fillTypesOfValue) — only the partition "which values came
 // from the same mint" matters, and that is a pure function of VM
 // execution, identical on every node.
 //
 // NOTE: compare strings by Str, never by struct equality — equal strings
-// from different mints differ in ID.
+// from different mints differ in B.
 type StringValue struct {
-	Str    string
-	ID     uint64
-	Extent int64
+	Str string
+	B   *stringBacking
 }
 
 // MarshalAmino keeps the persisted format identical to the pre-struct
-// representation: the string alone. ID/Extent are runtime accounting
-// state, re-minted on load by fillTypesOfValue.
+// representation: the string alone. B is runtime accounting state,
+// re-minted on load by fillTypesOfValue.
 func (sv StringValue) MarshalAmino() (string, error) { return sv.Str, nil }
 
 // UnmarshalAmino restores content only; the load path re-mints identity.
@@ -2698,14 +2706,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			))})
 		}
 		if t == StringType || t == UntypedStringType {
-			// Header only: the slice shares the source's backing and
-			// inherits its mint ID/Extent, so the GC recount still
-			// charges the full backing once even if the source dies.
+			// Header only: the slice shares the source's backing, so
+			// the GC recount still charges the full backing once even if
+			// the source dies.
 			alloc.Allocate(allocString)
 			src, _ := tv.V.(StringValue) // zero value for nil ("")
 			return TypedValue{
 				T: tv.T,
-				V: StringValue{Str: src.Str[low:high], ID: src.ID, Extent: src.Extent},
+				V: StringValue{Str: src.Str[low:high], B: src.B},
 			}
 		}
 		panic(&Exception{Value: typedString(

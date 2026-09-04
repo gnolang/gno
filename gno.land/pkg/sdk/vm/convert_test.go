@@ -1412,8 +1412,8 @@ func TestConvertArgToGno_StringArgIsCharged(t *testing.T) {
 	// backing length.
 	sv, ok := tv.V.(gnolang.StringValue)
 	require.True(t, ok)
-	require.NotZero(t, sv.ID, "string arg must be minted (tracked for GC recount)")
-	require.Equal(t, int64(1000), sv.Extent)
+	require.NotNil(t, sv.B, "string arg must be minted (tracked for GC recount)")
+	require.Equal(t, int64(1000), sv.B.Extent)
 
 	// nil allocator (tests, no budget) stays valid.
 	tv = convertArgToGno(nil, arg, gnolang.StringType)
