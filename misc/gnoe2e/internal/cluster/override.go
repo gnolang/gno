@@ -16,6 +16,16 @@ import (
 // genesis params, kept as text until it is applied to the typed target.
 type Override struct{ Key, Value string }
 
+// The struct tag each family of keys is resolved by, so a scenario spells an
+// option the way the CLI that owns the same target spells it. "toml" is what
+// `gnoland config set` resolves, and the only selector that names the
+// top-level config section's keys, because config.BaseConfig carries no json
+// tags; "json" is what `gnogenesis params set` resolves.
+const (
+	nodeConfigSelector    = "toml"
+	genesisParamsSelector = "json"
+)
+
 // applyOverride sets the field at o.Key on root to o.Value. The key is a path
 // of struct tags named by selTag, so a scenario spells an option the way the
 // CLI that owns the same target spells it: "toml" for the node config, which is
@@ -60,6 +70,81 @@ func resolveField(root reflect.Value, selTag, key string) (*reflect.Value, error
 		current = *field
 	}
 	return &current, nil
+}
+
+// fieldDefaults lists every path under root that a scenario can set, keyed by
+// selTag, with the value the field currently holds. Declaration order, which
+// is the order the same keys appear in config.toml.
+func fieldDefaults(root reflect.Value, selTag string) []Override {
+	return appendFieldDefaults(nil, root, selTag, "")
+}
+
+func appendFieldDefaults(dst []Override, value reflect.Value, selTag, prefix string) []Override {
+	structType := value.Type()
+	for i := range structType.NumField() {
+		field := structType.Field(i)
+		name, _, _ := strings.Cut(field.Tag.Get(selTag), ",")
+		if !field.IsExported() || name == "-" {
+			continue
+		}
+
+		// An embedded section with no tag of its own contributes its fields
+		// under the enclosing path, the way the tag readers treat it.
+		if field.Anonymous && name == "" {
+			if section, ok := sectionValue(value.Field(i)); ok {
+				dst = appendFieldDefaults(dst, section, selTag, prefix)
+				continue
+			}
+		}
+		if name == "" {
+			name = field.Name
+		}
+
+		if section, ok := sectionValue(value.Field(i)); ok {
+			dst = appendFieldDefaults(dst, section, selTag, prefix+name+".")
+			continue
+		}
+		if value.Field(i).Kind() == reflect.Pointer {
+			// A nil section has no fields to list and no field to set: the
+			// path through it is an error rather than a default.
+			continue
+		}
+		dst = append(dst, Override{Key: prefix + name, Value: fieldText(value.Field(i))})
+	}
+	return dst
+}
+
+// sectionValue reports whether value is a section to descend into rather than
+// a field to print. std.GasPrice is a struct and is still stated as one string
+// ("1ugnot/1000gas"), so it is a field.
+func sectionValue(value reflect.Value) (reflect.Value, bool) {
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return reflect.Value{}, false
+		}
+		value = value.Elem()
+	}
+	if value.Kind() != reflect.Struct || value.Type() == reflect.TypeFor[std.GasPrice]() {
+		return reflect.Value{}, false
+	}
+	return value, true
+}
+
+// fieldText renders a field the way a scenario states it, so a listed default
+// can be pasted back into a "-- cluster --" section.
+func fieldText(value reflect.Value) string {
+	switch typed := value.Interface().(type) {
+	case []string:
+		return strings.Join(typed, ",")
+	case []crypto.Address:
+		items := make([]string, len(typed))
+		for i, addr := range typed {
+			items[i] = addr.String()
+		}
+		return strings.Join(items, ",")
+	default:
+		return fmt.Sprint(typed)
+	}
 }
 
 // setFromString converts value to the destination field's type and stores it.

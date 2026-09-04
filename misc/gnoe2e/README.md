@@ -41,6 +41,9 @@ go run . run
 # Every scenario, coloured, verbose
 make scenarios
 
+# Every -- cluster -- key with the value a cluster boots with
+make defaults
+
 # The unit tests, in seconds, booting nothing
 make test
 

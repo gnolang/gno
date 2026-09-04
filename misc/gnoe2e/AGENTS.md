@@ -20,6 +20,7 @@ make test                                             # unit tests, seconds
 make test-scenarios                                   # every scenario, a few minutes
 make test-all                                         # both lanes
 go run . run -verbose testdata/oracle/<file>.txtar    # one scenario with every line echoed
+make defaults                                         # every -- cluster -- key and the value a cluster boots with
 make test-master                                      # the scenarios against gnoland and gpao built from master
 make lint                                             # the repository's linter on this module
 ```

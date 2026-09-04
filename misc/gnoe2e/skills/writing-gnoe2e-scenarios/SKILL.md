@@ -16,6 +16,9 @@ Read them from the module root, `misc/gnoe2e/`.
 3. `testdata/tour.txtar`: the worked example. Copy its shape, not its content.
 4. `docs/architecture.md`: only when the scenario needs something the harness does not offer yet.
 
+Before declaring a `config.` or `genesis.` key, run `make defaults`: it lists every key a `-- cluster --` section
+takes and the value a cluster boots with, so a key is checked rather than guessed.
+
 ## Non-negotiable
 
 - Every declared cluster setting is read back by a line in the script.

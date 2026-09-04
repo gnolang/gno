@@ -37,6 +37,14 @@ config.moniker: tour
 genesis.vm.chain_domain: tour.gno.land
 ```
 
+`make defaults` prints every key of both families with the value a cluster boots with, written in this section's
+own syntax; `go run . defaults config` and `go run . defaults genesis` print one family. The values are the
+harness's rather than the chain's, which is the point of reading them there: a local cluster commits on 10ms
+consensus timeouts, so `config.consensus.timeout_commit` starts at `10ms` and not at tm2's default.
+
+A setting that holds a list is stated as one comma-separated value with no spaces, the way the genesis and config
+CLIs read theirs: `genesis.bank.restricted_denoms: ugnot,gnot`.
+
 The two vocabularies spell things differently and neither is negotiable. `config.` paths are resolved by toml tag,
 because the top-level section of the node config carries no json tags at all: `config.moniker` and
 `config.consensus.timeout_commit` are the spellings, not their json equivalents. `genesis.` paths are resolved by

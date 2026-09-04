@@ -42,6 +42,25 @@ func clusterBalances(validatorKeys []*signer.FileKey, extra map[string]int64) (g
 	return balances, nil
 }
 
+// settableParams is the module set `gnogenesis params set` writes, keyed the
+// way it keys them, so "vm.chain_domain" means the same thing in both.
+type settableParams struct {
+	Auth *auth.Params `json:"auth"`
+	VM   *vm.Params   `json:"vm"`
+	Bank *bank.Params `json:"bank"`
+}
+
+func newSettableParams(genState *gnoland.GnoGenesisState) *settableParams {
+	return &settableParams{&genState.Auth.Params, &genState.VM.Params, &genState.Bank.Params}
+}
+
+// GenesisDefaults lists every "genesis." key a scenario can set in its
+// "-- cluster --" section, with the value the chain starts from.
+func GenesisDefaults() []Override {
+	genState := gnoland.DefaultGenState()
+	return fieldDefaults(reflect.ValueOf(newSettableParams(&genState)).Elem(), genesisParamsSelector)
+}
+
 // applyGenesisParams sets a scenario's genesis param overrides on the genesis
 // state, then validates the module each key touched.
 //
@@ -58,18 +77,10 @@ func applyGenesisParams(genState *gnoland.GnoGenesisState, overrides []Override)
 		return nil
 	}
 
-	// The three settable modules, keyed the way `gnogenesis params set` keys
-	// them, so "vm.chain_domain" means the same thing in both.
-	params := struct {
-		Auth *auth.Params `json:"auth"`
-		VM   *vm.Params   `json:"vm"`
-		Bank *bank.Params `json:"bank"`
-	}{&genState.Auth.Params, &genState.VM.Params, &genState.Bank.Params}
-	root := reflect.ValueOf(&params).Elem()
+	root := reflect.ValueOf(newSettableParams(genState)).Elem()
 
 	for _, o := range overrides {
-		// "json", the selector `gnogenesis params set` resolves with.
-		if err := applyOverride(root, "json", o); err != nil {
+		if err := applyOverride(root, genesisParamsSelector, o); err != nil {
 			// The key is named the way the scenario wrote it, prefix included,
 			// rather than as the path the params were traversed by.
 			return fmt.Errorf("genesis.%w", err)

@@ -26,6 +26,7 @@ func newRootCmd(io commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newRunCmd(io),
 		newServeCmd(io),
+		newDefaultsCmd(io),
 	)
 
 	return cmd

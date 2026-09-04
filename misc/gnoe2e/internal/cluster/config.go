@@ -11,6 +11,50 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 )
 
+// clusterTimings sets the consensus and gossip timings a local cluster commits
+// at. Block times are still floored by BlockTimeIotaMS, 100ms in
+// tm2/pkg/bft/types/params.go.
+func clusterTimings(cfg *config.Config) {
+	cfg.Consensus.TimeoutCommit = 10 * time.Millisecond
+	cfg.Consensus.SkipTimeoutCommit = true
+	cfg.Consensus.CreateEmptyBlocks = true
+	cfg.Consensus.CreateEmptyBlocksInterval = 10 * time.Millisecond
+	cfg.Consensus.TimeoutPropose = 10 * time.Millisecond
+	cfg.Consensus.TimeoutPrevote = 10 * time.Millisecond
+	cfg.Consensus.TimeoutPrecommit = 10 * time.Millisecond
+
+	cfg.P2P.FlushThrottleTimeout = 10 * time.Millisecond
+}
+
+// clusterPeering sets what a mesh of nodes sharing one loopback address needs.
+//
+// tm2 refuses a second inbound connection from an IP it already holds a peer on
+// (p2p/switch.go:841). Past two nodes that refusal is permanent, and the
+// refused side reads EOF then redials with no backoff, because StopPeerForError
+// goes straight to the dial queue (p2p/switch.go:235) instead of the redial loop
+// that owns the backoff. Without this, three validators hold thousands of
+// sockets in TIME_WAIT and unrelated RPC connects stall for seconds.
+func clusterPeering(cfg *config.Config) {
+	cfg.P2P.AllowDuplicateIP = true
+}
+
+// DefaultNodeConfig returns the config a validator boots with when a scenario
+// sets nothing of its own: tm2's defaults with the harness's passes applied.
+// The listen addresses are left as they come, since the harness assigns each
+// node its own at boot.
+func DefaultNodeConfig() *config.Config {
+	cfg := config.DefaultConfig()
+	clusterTimings(cfg)
+	clusterPeering(cfg)
+	return cfg
+}
+
+// ConfigDefaults lists every "config." key a scenario can set in its
+// "-- cluster --" section, with the value a validator boots with.
+func ConfigDefaults() []Override {
+	return fieldDefaults(reflect.ValueOf(DefaultNodeConfig()).Elem(), nodeConfigSelector)
+}
+
 // ConfigureP2PTopology sets up the P2P connections between nodes
 func ConfigureP2PTopology(validators, nonValidators []*Node) error {
 	slog.Debug("configuring P2P topology", "validators", len(validators), "non_validators", len(nonValidators))
@@ -67,15 +111,7 @@ func configurePersistentPeers(node *Node, peerAddrs []string) error {
 
 	cfg.P2P.PersistentPeers = strings.Join(peerAddrs, ",")
 
-	// Every node in a local cluster answers on one loopback address, and tm2
-	// refuses a second inbound connection from an IP it already holds a peer
-	// on (p2p/switch.go:841). Past two nodes that refusal is permanent, and
-	// the refused side reads EOF then redials with no backoff, because
-	// StopPeerForError goes straight to the dial queue (p2p/switch.go:235)
-	// instead of the redial loop that owns the backoff. Without this, three
-	// validators hold thousands of sockets in TIME_WAIT and unrelated RPC
-	// connects stall for seconds.
-	cfg.P2P.AllowDuplicateIP = true
+	clusterPeering(cfg)
 
 	// Set P2P listen address
 	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", node.P2PPort)
@@ -99,18 +135,7 @@ func ConfigureConsensusForSync(node *Node) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Set extremely fast consensus timeouts to reach target height quickly
-	// Note: Block times are limited by BlockTimeIotaMS (100ms) in tm2/pkg/bft/types/params.go
-	cfg.Consensus.TimeoutCommit = 10 * time.Millisecond             // Ultra fast commits
-	cfg.Consensus.SkipTimeoutCommit = true                          // Skip timeout for faster sync
-	cfg.Consensus.CreateEmptyBlocks = true                          // Keep creating blocks
-	cfg.Consensus.CreateEmptyBlocksInterval = 10 * time.Millisecond // Create empty blocks very frequently
-	cfg.Consensus.TimeoutPropose = 10 * time.Millisecond            // Ultra fast proposals
-	cfg.Consensus.TimeoutPrevote = 10 * time.Millisecond            // Ultra fast prevotes
-	cfg.Consensus.TimeoutPrecommit = 10 * time.Millisecond          // Ultra fast precommits
-
-	// Configure P2P for faster message propagation
-	cfg.P2P.FlushThrottleTimeout = 10 * time.Millisecond // Reduce P2P message batching delay
+	clusterTimings(cfg)
 
 	// Configure RPC listen address
 	cfg.RPC.ListenAddress = node.RPCAddr
@@ -145,10 +170,7 @@ func applyNodeConfig(node *Node, overrides []Override) error {
 
 	root := reflect.ValueOf(cfg).Elem()
 	for _, o := range overrides {
-		// "toml", the selector `gnoland config set` resolves with: it is the
-		// only one that names the top-level section's keys the way an operator
-		// spells them, because config.BaseConfig carries no json tags.
-		if err := applyOverride(root, "toml", o); err != nil {
+		if err := applyOverride(root, nodeConfigSelector, o); err != nil {
 			// The key is named the way the scenario wrote it, prefix included,
 			// rather than as the path the config was traversed by.
 			return fmt.Errorf("config.%w", err)

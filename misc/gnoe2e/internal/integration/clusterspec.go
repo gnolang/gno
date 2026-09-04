@@ -3,6 +3,7 @@ package integration
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -25,9 +26,15 @@ const approverRoleUser = "user"
 
 // The two generic key families, one per typed target they are applied to.
 const (
-	nodeConfigPrefix    = "config."
-	genesisParamsPrefix = "genesis."
+	NodeConfigPrefix    = "config."
+	GenesisParamsPrefix = "genesis."
 )
+
+// HarnessAssignedConfigKeys are the node config paths a scenario cannot set,
+// and HarnessAssignedReason says why.
+var HarnessAssignedConfigKeys = []string{"rpc.laddr", "p2p.laddr"}
+
+const HarnessAssignedReason = "the harness assigns each node its listen ports"
 
 // ClusterSpec is the cluster one scenario declares it needs.
 //
@@ -141,18 +148,14 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 		// are a path rather than a key, so the switch below cannot match them.
 		// A prefix with nothing after it falls through to the unknown-key
 		// error, because it names no path at all.
-		if path, ok := strings.CutPrefix(key, nodeConfigPrefix); ok && path != "" {
-			// The listen addresses are the harness's: it picks a free port per
-			// node and hands the addresses to the scripts, so a scenario
-			// setting one would take the cluster away from its own commands.
-			switch path {
-			case "rpc.laddr", "p2p.laddr":
-				return ClusterSpec{}, fmt.Errorf("%s cannot be set: the harness assigns each node its listen ports", key)
+		if path, ok := strings.CutPrefix(key, NodeConfigPrefix); ok && path != "" {
+			if slices.Contains(HarnessAssignedConfigKeys, path) {
+				return ClusterSpec{}, fmt.Errorf("%s cannot be set: %s", key, HarnessAssignedReason)
 			}
 			spec.NodeConfig = append(spec.NodeConfig, cluster.Override{Key: path, Value: value})
 			continue
 		}
-		if path, ok := strings.CutPrefix(key, genesisParamsPrefix); ok && path != "" {
+		if path, ok := strings.CutPrefix(key, GenesisParamsPrefix); ok && path != "" {
 			spec.GenesisParams = append(spec.GenesisParams, cluster.Override{Key: path, Value: value})
 			continue
 		}
@@ -178,7 +181,7 @@ func parseClusterSection(section []byte) (ClusterSpec, error) {
 		case "pkg-approver":
 			spec.PkgApprover = value
 		default:
-			return ClusterSpec{}, fmt.Errorf("unknown key %q", key)
+			return ClusterSpec{}, fmt.Errorf("unknown key %q: %q lists every key a scenario can set", key, "gnoe2e defaults")
 		}
 	}
 

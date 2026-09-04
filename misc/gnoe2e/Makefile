@@ -27,6 +27,12 @@ build:
 lint:
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...
 
+# Every "-- cluster --" key a scenario can declare, with the value a cluster
+# boots with. The values are the harness's, not the chain's.
+.PHONY: defaults
+defaults:
+	go run . defaults
+
 .PHONY: test
 test:
 	go test $(GOTEST_FLAGS) -short ./...
