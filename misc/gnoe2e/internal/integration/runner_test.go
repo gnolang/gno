@@ -3,6 +3,7 @@ package integration
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -88,4 +89,32 @@ func writeScriptIn(t *testing.T, dir, name, body string) string {
 	path := filepath.Join(dir, name)
 	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	return path
+}
+
+// docs/dialect.md lists the variables a scenario may name, and a scenario that
+// names one the setup stopped exporting reads an empty string: testscript
+// substitutes an unset variable rather than refusing the line, so the assertion
+// after it passes or fails for reasons unrelated to what it claims. The set is
+// pinned here as a whole, not one variable at a time.
+func TestScriptEnvironmentExportsTheDocumentedSet(t *testing.T) {
+	dir := t.TempDir()
+	script := writeScriptIn(t, dir, "env.txtar",
+		"exec echo $RPC_ADDR/$RPC_ADDR_0/$CHAIN_ID/$USER_ADDR/$USER_NAME/$GNOHOME/$GPAO_KEY_NAME/$GPAO_ADDR\n"+
+			"stdout 'node-zero/node-zero/test-chain/g1user/test1/"+regexp.QuoteMeta(dir)+"/gpao/g1oracle'\n"+
+			"exec sh -c 'test -n \"$GNOROOT\"'\n")
+
+	err := runWithAdapter(NewTestscriptT(testLogger(t), false), RunConfig{
+		ScriptPath:  script,
+		RPCAddr:     "node-zero",
+		RPCAddrs:    []string{"node-zero"},
+		ChainID:     "test-chain",
+		UserAddr:    "g1user",
+		KeyName:     "test1",
+		GnoHome:     dir,
+		GpaoKeyName: "gpao",
+		GpaoAddr:    "g1oracle",
+		Logger:      testLogger(t),
+	})
+
+	require.NoError(t, err)
 }

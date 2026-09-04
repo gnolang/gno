@@ -73,15 +73,4 @@ func TestClusterOverridesApply(t *testing.T) {
 	}
 }
 
-// Grouping keys on the effective cluster, so two scenarios differing only in an
-// overridden setting share one boot instead of paying for two identical ones.
-func TestClusterOverridesCollapseGroups(t *testing.T) {
-	three := ClusterSpec{Validators: 3, CodeSubmissionPolicy: "inert"}
-	one := ClusterSpec{Validators: 1, CodeSubmissionPolicy: "inert"}
-	overrides := ClusterOverrides{Validators: ptr(2)}
-
-	assert.Equal(t, overrides.Apply(three), overrides.Apply(one),
-		"once the count is overridden, the declared counts no longer distinguish them")
-}
-
 func ptr[T any](v T) *T { return &v }

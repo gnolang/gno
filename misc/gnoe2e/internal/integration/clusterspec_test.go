@@ -84,12 +84,22 @@ func TestParseClusterSpec(t *testing.T) {
 		{
 			name:    "the RPC listen address belongs to the harness",
 			section: "validators: 1\nconfig.rpc.laddr: tcp://0.0.0.0:26657\n",
-			wantErr: `cluster section: config.rpc.laddr cannot be set: the harness assigns each node its listen ports`,
+			wantErr: `cluster section: config.rpc.laddr cannot be set: the harness assigns each node its listen ports and its peers`,
 		},
 		{
 			name:    "the P2P listen address belongs to the harness",
 			section: "validators: 1\nconfig.p2p.laddr: tcp://0.0.0.0:26656\n",
-			wantErr: `cluster section: config.p2p.laddr cannot be set: the harness assigns each node its listen ports`,
+			wantErr: `cluster section: config.p2p.laddr cannot be set: the harness assigns each node its listen ports and its peers`,
+		},
+		{
+			// ConfigureP2PTopology writes each validator a peer list of its
+			// own, and the scenario's overrides are applied after it, once,
+			// identically to every node. A scenario that set this would hand
+			// all of them the same peers, and a set that cannot reach quorum
+			// commits no blocks at all.
+			name:    "the peer list belongs to the harness",
+			section: "validators: 2\nconfig.p2p.persistent_peers: node@localhost:26656\n",
+			wantErr: `cluster section: config.p2p.persistent_peers cannot be set: the harness assigns each node its listen ports and its peers`,
 		},
 		{
 			name:    "a prefix with no path after it names nothing",
@@ -134,6 +144,30 @@ func TestParseClusterSpec(t *testing.T) {
 			name:    "a line with no separator cannot be a setting",
 			section: "validators: 1\ninert\n",
 			wantErr: `cluster section: expected "key: value", got "inert"`,
+		},
+		{
+			// Both generic families are text until they are applied, which
+			// happens when this scenario's own cluster is built. Left to that,
+			// a typo in a fourteen-scenario run is reported after the thirteen
+			// before it have each booted a chain.
+			name:    "a config path that resolves to nothing is a typo",
+			section: "validators: 1\nconfig.mempool.sizz: 200\n",
+			wantErr: `cluster section: config.mempool.sizz`,
+		},
+		{
+			name:    "a config value the field cannot hold is caught at parse time",
+			section: "validators: 1\nconfig.mempool.size: plenty\n",
+			wantErr: `cluster section: config.mempool.size`,
+		},
+		{
+			name:    "a genesis path that resolves to nothing is a typo",
+			section: "validators: 1\ngenesis.vm.chain_domainn: tour.gno.land\n",
+			wantErr: `cluster section: genesis.vm.chain_domainn`,
+		},
+		{
+			name:    "a genesis value the module refuses is caught at parse time",
+			section: "validators: 1\ngenesis.auth.max_memo_bytes: -1\n",
+			wantErr: `cluster section: invalid params after setting genesis.auth.max_memo_bytes`,
 		},
 	}
 

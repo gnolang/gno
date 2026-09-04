@@ -37,7 +37,9 @@ func SleepCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 // It takes a reference to the full commands map for dispatching.
 func RepeatCmd(cmds map[string]func(*testscript.TestScript, bool, []string)) func(ts *testscript.TestScript, neg bool, args []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
-		if len(args) < 3 {
+		// The shortest form the usage describes is "repeat N cmd", so two.
+		// The bounds checks below reject a count with no command after it.
+		if len(args) < 2 {
 			ts.Fatalf("usage: repeat [-all] N <cmd> [args...]")
 		}
 
@@ -74,7 +76,7 @@ func RepeatCmd(cmds map[string]func(*testscript.TestScript, bool, []string)) fun
 		firstFailAt := -1
 
 		for i := range count {
-			iterFailed := runCmdIteration(ts, cmdFn, false, subArgs)
+			iterFailed := runCmdIteration(ts, "repeat", cmdFn, false, subArgs)
 			if iterFailed {
 				failed++
 				if firstFailAt < 0 {
@@ -110,10 +112,14 @@ func RepeatCmd(cmds map[string]func(*testscript.TestScript, bool, []string)) fun
 
 // runCmdIteration runs a testscript command function and catches any
 // fatal/panic from the command. Returns true if the iteration failed.
-func runCmdIteration(ts *testscript.TestScript, fn func(*testscript.TestScript, bool, []string), neg bool, args []string) (failed bool) {
+//
+// verb names the command doing the repeating, because both repeat and
+// eventually run their attempts through here and a script that used one must
+// not be told about the other.
+func runCmdIteration(ts *testscript.TestScript, verb string, fn func(*testscript.TestScript, bool, []string), neg bool, args []string) (failed bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(ts.Stderr(), "repeat: iteration error: %v\n", r)
+			fmt.Fprintf(ts.Stderr(), "%s: iteration error: %v\n", verb, r)
 			failed = true
 		}
 	}()
@@ -249,7 +255,7 @@ func EventuallyCmd(cmds map[string]func(*testscript.TestScript, bool, []string))
 		for {
 			attempts++
 			resetBuiltinOutput(ts)
-			failed := runCmdIteration(ts, cmdFn, false, p.cmdArgs)
+			failed := runCmdIteration(ts, "eventually", cmdFn, false, p.cmdArgs)
 			if !failed && gate == nil {
 				return
 			}

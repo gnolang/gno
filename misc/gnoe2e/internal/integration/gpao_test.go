@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,6 +35,11 @@ func TestMain(m *testing.M) {
 		// a dead endpoint, without needing that endpoint to exist at all.
 		fmt.Fprintln(os.Stderr, "failed to query node status: dial tcp: connection refused")
 		os.Exit(1)
+	case "farewell":
+		// Stands in for the oracle's own shutdown path, which writes its final
+		// tally as it goes: a fake that says nothing on the way down cannot
+		// tell whether the harness read its output before or after stopping it.
+		serveFakeGpaoUntilSignalled()
 	case "serve":
 		// Stands in for the survivable path (oracle.go:303-306): opens the
 		// -status-listen address gpaoArgs always injects and then blocks --
@@ -44,7 +51,23 @@ func TestMain(m *testing.M) {
 	}
 }
 
+// serveFakeGpaoUntilSignalled answers the status probe, then writes one last
+// line when it is asked to stop.
+func serveFakeGpaoUntilSignalled() {
+	startFakeGpaoStatus()
+	stopping := make(chan os.Signal, 1)
+	signal.Notify(stopping, syscall.SIGTERM, os.Interrupt)
+	<-stopping
+	fmt.Fprintln(os.Stderr, "fake gpao: FINAL_TALLY on the way down")
+	os.Exit(0)
+}
+
 func serveFakeGpaoStatus() {
+	startFakeGpaoStatus()
+	time.Sleep(time.Hour)
+}
+
+func startFakeGpaoStatus() {
 	listen := flagValue(os.Args[1:], "-status-listen")
 	if listen == "" {
 		fmt.Fprintln(os.Stderr, "fake gpao: no -status-listen given")
@@ -59,8 +82,7 @@ func serveFakeGpaoStatus() {
 		fmt.Fprintf(os.Stderr, "fake gpao: listen: %v\n", err)
 		os.Exit(9)
 	}
-	go http.Serve(ln, mux)
-	time.Sleep(time.Hour)
+	go http.Serve(ln, mux) //nolint:errcheck // the fake serves until the process exits
 }
 
 // fakeGpaoBinary stands in for the run's lazy build. The compiled test binary
@@ -190,4 +212,30 @@ func TestGpaoStartFailsTheScriptWhenNoBinaryProviderIsConfigured(t *testing.T) {
 
 	require.True(t, adapter.Failed, "a run with no binary provider fails the script")
 	require.Contains(t, logged.String(), "gpao: no binary provider")
+}
+
+// TestStopDaemonKeepsWhatTheOracleSaidOnItsWayDown pins the order teardown
+// reads in.
+//
+// The oracle writes its last words as it stops, and this log is the only reader
+// its output ever gets: taken before the stop, the tally, the final refusal and
+// any panic raised during shutdown are all still unwritten and go nowhere.
+func TestStopDaemonKeepsWhatTheOracleSaidOnItsWayDown(t *testing.T) {
+	t.Setenv("GNOE2E_FAKE_GPAO", "farewell")
+
+	logger, logged := bufferedTestLogger(t)
+	adapter := NewTestscriptT(logger, true)
+	cfg := GpaoConfig{Binary: fakeGpaoBinary, ChainID: "test-e2e"}
+
+	testscript.RunT(adapter, testscript.Params{
+		// No "gpao stop" line: the run's own teardown is the path every
+		// scenario takes, and the only one that reads the oracle's output.
+		Files: []string{writeScript(t, "gpao start\n")},
+		Cmds: map[string]func(*testscript.TestScript, bool, []string){
+			"gpao": GpaoTSCmd(cfg),
+		},
+	})
+
+	require.False(t, adapter.Failed)
+	require.Contains(t, logged.String(), "FINAL_TALLY")
 }

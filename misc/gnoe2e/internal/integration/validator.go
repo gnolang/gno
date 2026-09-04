@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	"github.com/gnolang/gno/misc/gnoe2e/internal/cluster"
@@ -21,8 +22,10 @@ import (
 //
 // Only restart is negatable: "! validator restart N" asserts that the node
 // cannot come back, and the error, which carries the node's stderr tail,
-// reaches the script's stderr so the scenario can name the reason it died.
-// A stop that fails is a harness fault, not something a scenario observes.
+// reaches the script's stderr so the scenario can name the reason it died. It
+// asserts that narrowly: a node the cluster does not have, or one that was
+// never stopped, fails the script in either mode. A stop that fails is a
+// harness fault, not something a scenario observes.
 func ValidatorTSCmd(cl *cluster.Cluster) func(ts *testscript.TestScript, neg bool, args []string) {
 	return func(ts *testscript.TestScript, neg bool, args []string) {
 		if len(args) != 2 {
@@ -57,6 +60,13 @@ func ValidatorTSCmd(cl *cluster.Cluster) func(ts *testscript.TestScript, neg boo
 			}
 		case "restart":
 			err := cl.RestartValidator(context.Background(), index)
+			// A script naming a node the cluster does not have, or one it never
+			// stopped, is the script's own mistake in either mode. Letting a
+			// negation stand on it would pass a scenario in which no node ever
+			// went away and none ever came back.
+			if errors.Is(err, cluster.ErrUnknownValidator) || errors.Is(err, cluster.ErrValidatorRunning) {
+				ts.Fatalf("validator restart %d: %v", index, err)
+			}
 			TSValidateError(ts, "validator restart", neg, err)
 		}
 	}

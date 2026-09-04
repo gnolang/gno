@@ -89,14 +89,14 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 
 		// Append attrs from pre-resolved + record
 		r.Attrs(func(a slog.Attr) bool {
-			line.WriteString(" " + colorGray + a.Key + "=" + colorReset + a.Value.String())
+			line.WriteString(attrText(a))
 			return true
 		})
 		for _, a := range h.attrs {
 			if a.Key == "component" {
 				continue
 			}
-			line.WriteString(" " + colorGray + a.Key + "=" + colorReset + a.Value.String())
+			line.WriteString(attrText(a))
 		}
 
 		fmt.Fprintln(h.w, line.String())
@@ -110,7 +110,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		line := fmt.Sprintf("%s %s%s", levelStr, prefix, r.Message)
 
 		r.Attrs(func(a slog.Attr) bool {
-			line += " " + colorGray + a.Key + "=" + colorReset + a.Value.String()
+			line += attrText(a)
 			return true
 		})
 
@@ -118,6 +118,13 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	}
 
 	return nil
+}
+
+// attrText renders one attribute, resolving a value that computes itself:
+// slog.Value.String on an unresolved LogValuer prints the thing that would have
+// computed the value rather than the value.
+func attrText(a slog.Attr) string {
+	return " " + colorGray + a.Key + "=" + colorReset + a.Value.Resolve().String()
 }
 
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -131,6 +138,11 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 func (h *Handler) WithGroup(name string) slog.Handler {
+	// slog requires an empty name to be a no-op. Left to the branch below it
+	// would label every later record with a group that was never opened.
+	if name == "" {
+		return h
+	}
 	// Not used in our codebase; treat as attr prefix.
 	return &Handler{
 		w:       h.w,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -65,6 +66,19 @@ func (t *TestscriptT) Run(name string, f func(testscript.T)) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		// testscript re-panics anything that is not its own failNow sentinel,
+		// and this goroutine is the last frame before the runtime. Letting a
+		// panic through takes the process down without unwinding the run: the
+		// cluster's validators and the oracle keep running, and the temp
+		// directories they were given stay behind. runtime.Goexit, which
+		// FailNow uses, still passes through -- recover reports nil for it.
+		defer func() {
+			if r := recover(); r != nil {
+				child.Failed = true
+				t.Logger.Error("script panicked", "name", name, "panic", r,
+					"stack", string(debug.Stack()))
+			}
+		}()
 		f(child)
 	}()
 	<-done

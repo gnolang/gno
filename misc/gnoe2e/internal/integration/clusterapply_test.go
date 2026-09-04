@@ -124,3 +124,40 @@ func TestClusterSpecApplyTo(t *testing.T) {
 		assert.NoError(t, cfg.Validate())
 	})
 }
+
+// TestApplyToInstallsTheOracleWhicheverSpellingMadeTheChainInert pins that the
+// approver default reads the policy the chain will really boot with.
+//
+// The `genesis.` family is applied after the named fields, so a scenario can
+// reach the policy through a path without the named field ever changing. Read
+// the field and the oracle is left out of the approver set on a chain that is
+// in fact inert: every package the scenario submits parks, and nothing on the
+// chain can enable it.
+func TestApplyToInstallsTheOracleWhicheverSpellingMadeTheChainInert(t *testing.T) {
+	user, oracle := testAddrs(t)
+
+	tests := map[string]ClusterSpec{
+		"the named key": {
+			Validators:           1,
+			CodeSubmissionPolicy: "inert",
+		},
+		"the path spelling": {
+			Validators:    1,
+			GenesisParams: []cluster.Override{{Key: "vm.code_submission_policy", Value: "inert"}},
+		},
+	}
+
+	for name, spec := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := cluster.DefaultClusterConfig()
+			require.NoError(t, spec.ApplyTo(&cfg, user, oracle))
+
+			state, err := cluster.ResolveGenesisState(cfg.Genesis)
+			require.NoError(t, err)
+			assert.Equal(t, vm.CodeSubmissionPolicyInert, state.VM.Params.CodeSubmissionPolicy)
+			assert.Equal(t, []crypto.Address{oracle}, state.VM.Params.PkgApprovers,
+				"an inert chain the scenario named nobody on gets the oracle")
+			require.NoError(t, cluster.ValidateGenesisState(state))
+		})
+	}
+}

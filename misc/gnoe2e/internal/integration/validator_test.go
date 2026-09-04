@@ -2,6 +2,7 @@ package integration
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -107,4 +108,61 @@ func TestValidatorRestartNegationSucceedsWhenTheNodeDies(t *testing.T) {
 	})
 
 	require.False(t, adapter.Failed, "! validator restart must pass when the node exits before it is ready, and its stderr must reach the script")
+}
+
+// TestValidatorRestartNegationRefusesAScriptFault pins that "!" cannot stand on
+// a mistake in the script itself.
+//
+// TSValidateError reads any error as the negation being met, so naming an index
+// the cluster does not have, or a node the script never stopped, would pass
+// having observed nothing at all: no node went away, none came back, and every
+// assertion after the line runs against a cluster that never changed.
+func TestValidatorRestartNegationRefusesAScriptFault(t *testing.T) {
+	tests := map[string]struct {
+		script string
+		want   string
+	}{
+		"an index the cluster does not have": {
+			script: "! validator restart 5\n",
+			want:   "no validator 5",
+		},
+		"a node the script never stopped": {
+			script: "! validator restart 0\n",
+			want:   "already running",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			cmd := exec.Command("sleep", "30")
+			require.NoError(t, cmd.Start())
+			t.Cleanup(func() {
+				_ = cmd.Process.Kill()
+				_, _ = cmd.Process.Wait()
+			})
+
+			cl := &cluster.Cluster{
+				BinaryPath: os.Args[0],
+				Validators: []*cluster.Node{{
+					Index:   0,
+					DataDir: t.TempDir(),
+					RPCAddr: "tcp://127.0.0.1:1",
+					Genesis: "unused",
+					Process: cmd.Process,
+				}},
+			}
+
+			logger, logBuf := bufferedTestLogger(t)
+			adapter := NewTestscriptT(logger, true)
+			testscript.RunT(adapter, testscript.Params{
+				Files: []string{writeScript(t, tt.script)},
+				Cmds: map[string]func(*testscript.TestScript, bool, []string){
+					"validator": ValidatorTSCmd(cl),
+				},
+			})
+
+			require.True(t, adapter.Failed, "the script must fail rather than let the negation stand")
+			require.Contains(t, logBuf.String(), tt.want)
+		})
+	}
 }

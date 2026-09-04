@@ -143,20 +143,25 @@ func (r *gpaoRunner) stop(ts *testscript.TestScript) {
 	stopDaemon(ts, d)
 }
 
-// stopDaemon terminates d, logging what it wrote first so a scenario that
-// fails an assertion still has the oracle's own evidence to go with the
-// diff -- Output() otherwise has no reader once the daemon starts cleanly.
+// stopDaemon terminates d and logs what it wrote, so a scenario that fails an
+// assertion still has the oracle's own evidence to go with the diff -- Output()
+// otherwise has no reader once the daemon starts cleanly.
+//
+// Stopped before its output is read, because the oracle writes as it goes down:
+// the run's tally, the refusal it was in the middle of, a panic raised during
+// shutdown. Read first, none of that has been written yet.
+//
 // Uses ts.Logf rather than ts.Stderr/Stdout: those panic outside a builtin
 // command's own execution, which the ts.Defer teardown path is.
 func stopDaemon(ts *testscript.TestScript, d *daemon.Daemon) {
 	if d == nil {
 		return
 	}
-	if out := d.Output(); out != "" {
-		ts.Logf("gpao output:\n%s", out)
-	}
 	if err := d.Stop(); err != nil {
 		ts.Logf("gpao: stop: %v", err)
+	}
+	if out := d.Output(); out != "" {
+		ts.Logf("gpao output:\n%s", out)
 	}
 }
 

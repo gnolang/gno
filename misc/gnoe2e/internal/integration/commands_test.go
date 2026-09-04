@@ -371,3 +371,47 @@ func TestEventuallyStdoutGateReportsTheUnmetPattern(t *testing.T) {
 	assert.Contains(t, logBuf.String(), "never-appears",
 		"the deadline message must name the pattern that never matched")
 }
+
+// repeat's own usage string documents "repeat [-all] N <cmd> [args...]", and a
+// sub-command that takes no arguments is the shortest form of it. Refusing that
+// form leaves the only repeatable commands the ones that happen to take an
+// argument, and reports the refusal with the very usage line being obeyed.
+func TestRepeatRunsASubCommandThatTakesNoArguments(t *testing.T) {
+	calls := 0
+	cmds := map[string]func(*testscript.TestScript, bool, []string){
+		"tick": func(ts *testscript.TestScript, neg bool, args []string) { calls++ },
+	}
+	cmds["repeat"] = RepeatCmd(cmds)
+
+	adapter := NewTestscriptT(testLogger(t), false)
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, "repeat 3 tick\n")},
+		Cmds:  cmds,
+	})
+
+	require.False(t, adapter.Failed, "the shortest documented form has to run")
+	assert.Equal(t, 3, calls)
+}
+
+// A wait that gives up has to name itself. Both verbs recover a failed attempt
+// through one helper, and a diagnostic hard-coding the other verb's name sends
+// the reader looking through their script for a line that is not there.
+func TestEventuallyNamesItselfWhenAnAttemptPanics(t *testing.T) {
+	logger, logBuf := bufferedTestLogger(t)
+	adapter := NewTestscriptT(logger, true)
+	cmds := map[string]func(*testscript.TestScript, bool, []string){
+		"exploding": func(ts *testscript.TestScript, neg bool, args []string) {
+			panic("boom")
+		},
+	}
+	cmds["eventually"] = EventuallyCmd(cmds)
+
+	testscript.RunT(adapter, testscript.Params{
+		Files: []string{writeScript(t, "eventually 50ms 10ms exploding\n")},
+		Cmds:  cmds,
+	})
+
+	require.True(t, adapter.Failed)
+	assert.Contains(t, logBuf.String(), "eventually: iteration error")
+	assert.NotContains(t, logBuf.String(), "repeat:", "the diagnostic must not name a verb the script never used")
+}
