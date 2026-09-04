@@ -1970,11 +1970,6 @@ func (dt *DeclaredType) checkSeal() {
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
 		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name)
-	} else {
-		// XXX delete this if tests pass.
-		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name) {
-			panic("should not happen")
-		}
 	}
 	return dt.typeid
 }
