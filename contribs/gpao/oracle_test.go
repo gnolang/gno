@@ -95,6 +95,10 @@ func newTestOracle(t *testing.T) *oracle {
 		gnoRoot:   gnoenv.RootDir(),
 		gasFee:    defaultGasFee,
 		gasWanted: defaultGasWanted,
+		// The prepare budget bounds every spawned child until it reports
+		// ready; the verify budget is set per test, since it is what most of
+		// them are about.
+		prepareBudget: defaultPrepareBudget,
 	}
 	// Real writers, not NewTestIO's nil ones: the parent tees a child's stderr
 	// through io.Err(), and a nil there is a crash the tests should surface

@@ -45,10 +45,10 @@ type verifier struct {
 // Deliberately no signer and no keystore: a verifier handles untrusted input
 // and cannot approve anything, so the approver key never enters the process
 // that compiles a stranger's code.
-func newVerifier(gnoRoot, remote string, errw io.Writer, rpcOpts ...rpcclient.Option) (*verifier, error) {
+func newVerifier(gnoRoot, remote string, errw io.Writer) (*verifier, error) {
 	var rpc *rpcGetter
 	if remote != "" {
-		c, err := rpcclient.NewHTTPClient(remote, rpcOpts...)
+		c, err := rpcclient.NewHTTPClient(remote)
 		if err != nil {
 			return nil, fmt.Errorf("build RPC client: %w", err)
 		}

@@ -15,7 +15,6 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -44,16 +43,13 @@ const verifyOneCmdName = "verify-one"
 // No signer, no keystore — a child cannot approve anything, so the approver key
 // never enters the process that compiles untrusted code.
 type verifyOneConfig struct {
-	gnoRoot    string
-	remote     string
-	rpcTimeout time.Duration
+	gnoRoot string
+	remote  string
 }
 
 func (c *verifyOneConfig) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.gnoRoot, "gno-root", "", "gno repository root")
 	fs.StringVar(&c.remote, "remote", "", "RPC address, for resolving on-chain-only imports")
-	fs.DurationVar(&c.rpcTimeout, "rpc-timeout", 0,
-		"per-request timeout on the RPC address; zero keeps the client's default")
 }
 
 func newVerifyOneCmd(io commands.IO) *commands.Command {
@@ -107,11 +103,7 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 	// (ProdOnly), not the package type's.
 	mpkg.Type = gno.MPUserAll
 
-	var rpcOpts []rpcclient.Option
-	if cfg.rpcTimeout > 0 {
-		rpcOpts = append(rpcOpts, rpcclient.WithRequestTimeout(cfg.rpcTimeout))
-	}
-	v, err := newVerifier(cfg.gnoRoot, cfg.remote, cio.Err(), rpcOpts...)
+	v, err := newVerifier(cfg.gnoRoot, cfg.remote, cio.Err())
 	if err != nil {
 		return err
 	}
@@ -152,14 +144,6 @@ const exitResolverUnavailable = 3
 // arrives, so what the budget measures is the compile and nothing else.
 const childReadyMarker = "gpao: ready"
 
-// prepareCeiling bounds the child from spawn until it reports ready: process
-// start, the disk imports, and fetching the import closure from the node. That
-// phase is the oracle's own cost and is not the budget, but it cannot be left
-// unbounded either. A minute is the RPC client's own default request timeout;
-// a node that has not delivered the sources in that long is not answering.
-// Expiry is unavailability, not a verdict.
-const prepareCeiling = time.Minute
-
 // verify runs one verification in a child process, killed if it outlasts the
 // budget.
 //
@@ -172,10 +156,11 @@ const prepareCeiling = time.Minute
 //
 // The child runs in two phases and the parent times them apart. Until the
 // child reports ready it is fetching what the compile needs, from disk and
-// from the node; that is bounded by prepareCeiling and its expiry is
+// from the node; that is bounded by the prepare budget and its expiry is
 // unavailability. From ready onward it is compiling, which is what the
-// validator will pay for; that is bounded by the budget and its expiry is an
-// overrun. Timing the two together made a slow node read as a slow package.
+// validator will pay for; that is bounded by the verify budget and its expiry
+// is an overrun. Timing the two together made a slow node read as a slow
+// package.
 //
 // Exit status is the verdict: a clean exit passes, and a non-zero exit from a
 // child that ran to completion is a rejection carrying the child's stderr as
@@ -199,17 +184,12 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	// rather than merely returning from the wait and leaving it running.
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	clock := newChildClock(cancel, o.cfg.verifyBudget)
+	clock := newChildClock(cancel, o.cfg.prepareBudget, o.cfg.verifyBudget)
 	defer clock.stop()
 
 	args := []string{verifyOneCmdName, "-gno-root", o.cfg.gnoRoot}
 	if o.cfg.remote != "" {
-		// One request to the node gets as long as the compile does. The RPC
-		// client's own default is a minute, so without this a node that
-		// accepts the connection and never answers would hold the child until
-		// prepareCeiling rather than being reported promptly.
-		args = append(args, "-remote", o.cfg.remote,
-			"-rpc-timeout", o.cfg.verifyBudget.String())
+		args = append(args, "-remote", o.cfg.remote)
 	}
 	cmd := exec.CommandContext(runCtx, self, args...)
 	cmd.Stdin = bytes.NewReader(payload)
@@ -293,27 +273,27 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 }
 
 // childClock times the child's two phases apart. From spawn until the child
-// reports ready it runs against prepareCeiling; from ready it runs against the
-// budget. Whichever expires cancels the child's context, which kills it, and
-// is remembered so the kill can be classified afterwards.
+// reports ready it runs against the prepare budget; from ready it runs against
+// the verify budget. Whichever expires cancels the child's context, which kills
+// it, and is remembered so the kill can be classified afterwards.
 type childClock struct {
 	mu      sync.Mutex
 	kill    context.CancelFunc
-	budget  time.Duration
+	verify  time.Duration
 	timer   *time.Timer
 	expired error
 }
 
-func newChildClock(kill context.CancelFunc, budget time.Duration) *childClock {
-	c := &childClock{kill: kill, budget: budget}
-	c.timer = time.AfterFunc(prepareCeiling, func() {
-		c.expire(fmt.Errorf("%w: the verifier did not have its sources within %s",
-			errVerifyUnavailable, prepareCeiling))
+func newChildClock(kill context.CancelFunc, prepare, verify time.Duration) *childClock {
+	c := &childClock{kill: kill, verify: verify}
+	c.timer = time.AfterFunc(prepare, func() {
+		c.expire(fmt.Errorf("%w: the verifier did not have its sources within the "+
+			"-prepare-budget of %s", errVerifyUnavailable, prepare))
 	})
 	return c
 }
 
-// ready switches from the prepare ceiling to the budget.
+// ready switches from the prepare budget to the verify budget.
 func (c *childClock) ready() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -321,8 +301,8 @@ func (c *childClock) ready() {
 		return
 	}
 	c.timer.Stop()
-	c.timer = time.AfterFunc(c.budget, func() {
-		c.expire(fmt.Errorf("%w: exceeded %s and was killed", errVerifyBudget, c.budget))
+	c.timer = time.AfterFunc(c.verify, func() {
+		c.expire(fmt.Errorf("%w: exceeded %s and was killed", errVerifyBudget, c.verify))
 	})
 }
 
@@ -343,33 +323,44 @@ func (c *childClock) stop() error {
 	return c.expired
 }
 
-// readyWatch is the child's stdout: it looks for the ready marker on the first
-// line and calls onReady once when it sees it. Nothing else is expected on
-// stdout, so anything after the first line, or a first line that is not the
-// marker, is dropped.
+// readyWatch is the child's stdout: it calls onReady once, on the first line
+// that is the ready marker, wherever that line lands. Nothing else is expected
+// on stdout, and whatever else arrives is dropped rather than read into.
 type readyWatch struct {
 	onReady func()
-	first   bytes.Buffer
-	decided bool
+	line    bytes.Buffer
+	ready   bool
 }
 
-// maxReadyLine bounds what is buffered while waiting for the first newline.
+// maxReadyLine bounds what is buffered of a line still waiting for its newline;
+// a longer one cannot be the marker and is dropped as it streams.
 const maxReadyLine = 256
 
 func (w *readyWatch) Write(p []byte) (int, error) {
-	if w.decided {
-		return len(p), nil
-	}
-	w.first.Write(p)
-	if i := bytes.IndexByte(w.first.Bytes(), '\n'); i >= 0 {
-		w.decided = true
-		if strings.TrimSpace(w.first.String()[:i]) == childReadyMarker {
+	// Report the full length whatever is consumed: a short write would make
+	// exec's copier report an error, which would be misread as the child
+	// failing.
+	n := len(p)
+	for !w.ready && len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			if w.line.Len()+len(p) <= maxReadyLine {
+				w.line.Write(p)
+			} else {
+				w.line.Reset()
+				w.line.WriteByte(0) // poison: this line is already too long
+			}
+			break
+		}
+		w.line.Write(p[:i])
+		if strings.TrimSpace(w.line.String()) == childReadyMarker {
+			w.ready = true
 			w.onReady()
 		}
-	} else if w.first.Len() > maxReadyLine {
-		w.decided = true
+		w.line.Reset()
+		p = p[i+1:]
 	}
-	return len(p), nil
+	return n, nil
 }
 
 // maxChildStderr bounds what we retain and mirror from a child.

@@ -108,7 +108,10 @@ func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
 
 	o := newTestOracle(t)
 	o.cfg.remote = srv.URL
-	o.cfg.verifyBudget = 3 * time.Second
+	// The stall is ended by the prepare budget alone: the child has no
+	// per-request timeout of its own.
+	o.cfg.prepareBudget = 3 * time.Second
+	o.cfg.verifyBudget = 10 * time.Second
 
 	err := o.verify(context.Background(), packageImportingChainOnly())
 	require.ErrorIs(t, err, errVerifyUnavailable,

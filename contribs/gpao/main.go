@@ -49,6 +49,14 @@ const (
 	// sources the compile needs are local, so a slow node is not the
 	// package's problem.
 	defaultVerifyBudget = 10 * time.Second
+	// defaultPrepareBudget bounds the verifier from spawn until it reports
+	// that every source the compile needs is local: process start, the disk
+	// imports, and the import closure fetched from the node. That phase is the
+	// oracle's own cost and is not the verify budget, but it cannot be left
+	// unbounded either. A minute is the RPC client's own default request
+	// timeout; a node that has not delivered the sources in that long is not
+	// answering. Expiry is unavailability, not a verdict.
+	defaultPrepareBudget = time.Minute
 )
 
 // newRootCmd builds the full command tree.
@@ -114,7 +122,9 @@ type config struct {
 	pollInterval time.Duration
 	// verifyBudget: see defaultVerifyBudget.
 	verifyBudget time.Duration
-	startHeight  int64
+	// prepareBudget: see defaultPrepareBudget.
+	prepareBudget time.Duration
+	startHeight   int64
 	// maxSpend bounds the total gas fees this run will pay for approvals. See
 	// defaultMaxSpend.
 	maxSpend string
@@ -146,6 +156,8 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 		"gas fee for approval transactions")
 	fs.DurationVar(&c.verifyBudget, "verify-budget", defaultVerifyBudget,
 		"withhold approval from a package whose verification exceeds this duration (it is left pending, not rejected)")
+	fs.DurationVar(&c.prepareBudget, "prepare-budget", defaultPrepareBudget,
+		"how long the verifier may take to fetch a package's imports from the node before verification starts; expiry leaves the package pending as unavailable, not as slow")
 	fs.Int64Var(&c.gasWanted, "gas-wanted", defaultGasWanted,
 		"fallback gas wanted for approval transactions, used only when the node will not simulate one (each approval is normally estimated, plus 20%, capped at the block limit)")
 	fs.DurationVar(&c.pollInterval, "poll-interval", defaultPollInterval,
@@ -166,6 +178,9 @@ func (c *config) validate() error {
 	}
 	if c.verifyBudget <= 0 {
 		return fmt.Errorf("verify-budget must be positive, got %s", c.verifyBudget)
+	}
+	if c.prepareBudget <= 0 {
+		return fmt.Errorf("prepare-budget must be positive, got %s", c.prepareBudget)
 	}
 	if c.gasWanted <= 0 {
 		return fmt.Errorf("--gas-wanted must be > 0")
