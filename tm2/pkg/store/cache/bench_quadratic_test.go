@@ -19,8 +19,8 @@ func benchAccountLoad(b *testing.B, n int) {
 		parent := dbadapter.Store{DB: memdb.NewMemDB()}
 		st := cache.New(parent)
 		var gctx *types.GasContext // nil is valid: GasContext methods are nil-safe
-		for a := 0; a < n; a++ {
-			pfx := []byte(fmt.Sprintf("bal/%08d/", a))
+		for a := range n {
+			pfx := fmt.Appendf(nil, "bal/%08d/", a)
 			// the splitCoins read: narrow prefix iteration
 			start, end := pfx, types.PrefixEndBytes(pfx)
 			it := st.Iterator(gctx, start, end)
@@ -47,8 +47,8 @@ func BenchmarkWritesOnly16000(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		st := cache.New(dbadapter.Store{DB: memdb.NewMemDB()})
 		var gctx *types.GasContext // nil is valid: GasContext methods are nil-safe
-		for a := 0; a < 16000; a++ {
-			st.Set(gctx, []byte(fmt.Sprintf("bal/%08d/ugnot", a)), []byte("1000"))
+		for a := range 16000 {
+			st.Set(gctx, fmt.Appendf(nil, "bal/%08d/ugnot", a), []byte("1000"))
 		}
 	}
 }
