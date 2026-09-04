@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"strings"
 
 	"github.com/rogpeppe/go-internal/testscript"
 )
@@ -46,7 +47,10 @@ func (t *TestscriptT) Skip(args ...any) {
 func (t *TestscriptT) Parallel() {} // no-op: run scripts sequentially
 
 func (t *TestscriptT) Log(args ...any) {
-	t.Logger.Info(fmt.Sprint(args...))
+	// testing.T.Log, which this stands in for, formats like Println: a space
+	// between every operand, where fmt.Sprint adds one only between operands
+	// that are not both strings.
+	t.Logger.Info(strings.TrimSuffix(fmt.Sprintln(args...), "\n"))
 }
 
 func (t *TestscriptT) Verbose() bool { return t.verbose }
