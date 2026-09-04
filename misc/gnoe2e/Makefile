@@ -77,7 +77,7 @@ test-all: test test-scenarios ## Run both lanes
 .PHONY: test-master
 test-master: ## Run the scenarios against gnoland and gpao built from master
 	tmp="$$(mktemp -d)" && trap 'rm -rf "$$tmp"' EXIT && \
-	git -C ../.. rev-parse --verify -q master >/dev/null && \
+	git -C ../.. rev-parse --verify master >/dev/null && \
 	git -C ../.. archive master | tar -x -C "$$tmp" && \
 	test -f "$$tmp/go.mod" && \
 	GNOROOT="$$tmp" go test $(SCENARIO_FLAGS) .

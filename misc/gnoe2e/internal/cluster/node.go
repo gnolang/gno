@@ -23,17 +23,18 @@ import (
 
 // Node represents a gnoland node instance
 type Node struct {
-	Index    int
-	NodeID   string
-	DataDir  string
-	P2PPort  int
-	RPCAddr  string
-	Genesis  string
-	Process  *os.Process
-	cleanups []func()
+	Index     int
+	NodeID    string
+	DataDir   string
+	P2PPort   int
+	RPCAddr   string
+	Genesis   string
+	Process   *os.Process
+	closeLogs func()
 
 	// Guards the reaper started by Exited. A process can be waited for
-	// exactly once, and both readiness polling and Halt need to know when it
+	// exactly once, and both readiness polling and the stop paths need to know
+	// when it
 	// is gone, so the wait is shared rather than duplicated.
 	mu sync.Mutex
 	// cmd is the command StartNode ran, kept so the reaper can wait through it
@@ -107,27 +108,51 @@ func (n *Node) WaitErr() error {
 	return n.waitErr
 }
 
-// adoptProcess takes ownership of a newly started process, discarding the
-// previous one's wait so a restarted node is not reported dead by the reaper
-// that watched the process it replaced.
+// adoptProcess takes ownership of a newly started process and of the closer
+// for the log files it writes to, discarding the previous one's wait so a
+// restarted node is not reported dead by the reaper that watched the process
+// it replaced.
 //
 // The discard and the assignment happen together under the lock. Split apart,
 // an Exited() landing between them starts a reaper on the OLD process, which
 // has already exited -- so a node that just started successfully reports
 // having exited before it was ready.
-func (n *Node) adoptProcess(cmd *exec.Cmd) {
+//
+// The generation before this one has already exited, so its log files are
+// closed here rather than at cleanup: a scenario that stops and restarts a
+// validator would otherwise hold two more descriptors per cycle until the
+// whole cluster goes.
+func (n *Node) adoptProcess(cmd *exec.Cmd, closeLogs func()) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	if n.closeLogs != nil {
+		n.closeLogs()
+	}
+	n.closeLogs = closeLogs
 	n.exited = nil
 	n.waitErr = nil
 	n.cmd = cmd
 	n.Process = cmd.Process
 }
 
-// Cleanup runs all registered cleanup functions in reverse order.
+// clearProcess forgets the process a node was running, so everything that
+// reads liveness through Exited sees a stopped node as gone.
+func (n *Node) clearProcess() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Process = nil
+}
+
+// Cleanup closes the node's log files. Idempotent, and safe on a node that
+// was never started.
 func (n *Node) Cleanup() {
-	for i := len(n.cleanups) - 1; i >= 0; i-- {
-		n.cleanups[i]()
+	n.mu.Lock()
+	closeLogs := n.closeLogs
+	n.closeLogs = nil
+	n.mu.Unlock()
+
+	if closeLogs != nil {
+		closeLogs()
 	}
 }
 
@@ -155,7 +180,6 @@ func SetupValidatorNode(tempDir string, index int) (*Node, error) {
 		Index: index,
 	}
 
-	// Create node directory
 	nodeDir := filepath.Join(tempDir, fmt.Sprintf("validator_%d", index))
 	if err := os.MkdirAll(nodeDir, DirPermissions); err != nil {
 		return nil, fmt.Errorf("create node directory: %w", err)
@@ -168,7 +192,6 @@ func SetupValidatorNode(tempDir string, index int) (*Node, error) {
 	}
 	node.NodeID = nodeID
 
-	// Set up network addresses with dynamic ports
 	p2pPort, err := FindAvailablePort()
 	if err != nil {
 		return nil, fmt.Errorf("find available port: %w", err)
@@ -182,7 +205,6 @@ func SetupValidatorNode(tempDir string, index int) (*Node, error) {
 	node.RPCAddr = fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 	node.Genesis = filepath.Join(nodeDir, "test_genesis.json")
 
-	// Initialize configuration
 	if err := initializeNodeConfig(nodeDir, node.RPCAddr, node.P2PPort); err != nil {
 		return nil, fmt.Errorf("initialize node config: %w", err)
 	}
@@ -191,7 +213,6 @@ func SetupValidatorNode(tempDir string, index int) (*Node, error) {
 	return node, nil
 }
 
-// createSecretsAndGenerateKeys generates cryptographic keys
 func createSecretsAndGenerateKeys(dataDir string) (string, error) {
 	secretsDir := filepath.Join(dataDir, config.DefaultSecretsDir)
 	if err := os.MkdirAll(secretsDir, DirPermissions); err != nil {
@@ -217,7 +238,6 @@ func createSecretsAndGenerateKeys(dataDir string) (string, error) {
 	return string(nodeKey.ID()), nil
 }
 
-// initializeNodeConfig creates node configuration file
 func initializeNodeConfig(dataDir string, rpcAddr string, p2pPort int) error {
 	configPath := filepath.Join(dataDir, "config", "config.toml")
 
@@ -400,12 +420,10 @@ func StartNode(ctx context.Context, binaryPath string, node *Node, args []string
 		return fmt.Errorf("failed to start node: %w", err)
 	}
 
-	node.cleanups = append(node.cleanups, func() {
+	node.adoptProcess(cmd, func() {
 		stdout.Close()
 		stderr.Close()
 	})
-
-	node.adoptProcess(cmd)
 	return nil
 }
 

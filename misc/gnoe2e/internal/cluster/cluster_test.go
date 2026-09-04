@@ -98,7 +98,7 @@ func spawnFakeValidators(t *testing.T, n int) *Cluster {
 }
 
 // TestStopValidatorLeavesTheRestOfTheClusterAlone is the property the outage
-// scenarios depend on: Halt takes the whole cluster down at once, so without
+// scenarios depend on: Cleanup takes the whole cluster down at once, so without
 // a per-node stop there is no way to express losing one validator while the
 // others keep producing blocks.
 func TestStopValidatorLeavesTheRestOfTheClusterAlone(t *testing.T) {
@@ -235,4 +235,16 @@ func TestNodeLogTailsQuotesEveryNodeThatWroteSomething(t *testing.T) {
 	assert.Contains(t, got, "validator 0")
 	assert.Contains(t, got, "validator 3")
 	assert.NotContains(t, got, "validator 1", "a node with an empty log adds nothing but noise")
+}
+
+// Cleanup is the teardown every scenario is handed, and the only thing that
+// removes a cluster's directory: four validators' data dirs, their leveldb and
+// their logs, per scenario.
+func TestClusterCleanupRemovesItsDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "e2e-cluster-probe")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "validator_0", "data"), DirPermissions))
+
+	(&Cluster{TempDir: dir}).Cleanup()
+
+	require.NoDirExists(t, dir)
 }

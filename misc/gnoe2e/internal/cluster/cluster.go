@@ -48,7 +48,8 @@ type GenesisConfig struct {
 	Params []Override
 }
 
-// DefaultGenesisConfig returns genesis defaults matching mainnet parameters.
+// DefaultGenesisConfig returns the genesis parameters a cluster starts from
+// when a scenario declares none of its own.
 func DefaultGenesisConfig() GenesisConfig {
 	return GenesisConfig{
 		ChainID:      DefaultChainID,
@@ -191,8 +192,18 @@ type Cluster struct {
 // Node logs remain in TempDir/validator_N/{stdout,stderr}.log until TempDir is removed.
 func (c *Cluster) Cleanup() {
 	CleanupNodes(c.logger, c.Validators)
-	if c.TempDir != "" {
-		os.RemoveAll(c.TempDir)
+	if c.TempDir == "" {
+		return
+	}
+
+	if err := os.RemoveAll(c.TempDir); err != nil {
+		// Hundreds of megabytes per validator, so a directory that stays has
+		// to be reported or nobody goes looking for it.
+		logger := c.logger
+		if logger == nil {
+			logger = slog.Default()
+		}
+		logger.Warn("cluster temp dir not removed", "dir", c.TempDir, "error", err)
 	}
 }
 
@@ -231,8 +242,8 @@ func (c *Cluster) validatorAt(index int) (*Node, error) {
 // StopValidator terminates one validator and leaves the rest of the cluster
 // running.
 //
-// Halt stops every validator at once, which is the whole cluster going away
-// rather than a node failing, so fault injection needs this instead: losing
+// Cleanup takes every validator down at once, which is the whole cluster going
+// away rather than a node failing, so fault injection needs this instead: losing
 // one validator of three is survivable and the chain should keep producing
 // blocks, and that is only observable if the others stay up.
 //
@@ -255,7 +266,7 @@ func (c *Cluster) StopValidator(ctx context.Context, index int) error {
 	// node went down would never be reported at all.
 	alreadyExited := func() error {
 		<-n.Exited()
-		n.Process = nil
+		n.clearProcess()
 		return fmt.Errorf("validator %d had already exited before it was stopped (%s)",
 			index, exitReason(n.WaitErr()))
 	}
@@ -287,7 +298,7 @@ func (c *Cluster) StopValidator(ctx context.Context, index int) error {
 	if err := n.WaitErr(); err != nil && !isExpectedStopExit(err) {
 		return fmt.Errorf("validator %d wait: %w", index, err)
 	}
-	n.Process = nil
+	n.clearProcess()
 	return nil
 }
 
@@ -338,9 +349,9 @@ func isExpectedStopExit(err error) bool {
 // StartCluster sets up validators from genesis and starts the cluster on the
 // gnoland at binaryPath.
 //
-// The binary is the caller's to produce, the way BootFromExistingDataDir takes
-// one: a run boots a cluster per scenario and the binary is the same for all of
-// them, so building here would repeat identical work per boot.
+// The binary is the caller's to produce: a run boots a cluster per scenario and
+// the binary is the same for all of them, so building here would repeat
+// identical work per boot.
 func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ *Cluster, retErr error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -361,7 +372,6 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		}
 	}()
 
-	// Setup validators
 	validators := make([]*Node, cfg.NumValidators)
 	defer func() {
 		if retErr != nil {
@@ -377,7 +387,6 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		validators[i] = node
 	}
 
-	// Create genesis
 	if err := BuildGenesis(tempDir, cfg.Genesis, validators); err != nil {
 		return nil, fmt.Errorf("build genesis: %w", err)
 	}
@@ -388,7 +397,6 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		}
 	}
 
-	// Configure P2P and consensus
 	if err := ConfigureP2PTopology(validators); err != nil {
 		return nil, fmt.Errorf("configure P2P topology: %w", err)
 	}
@@ -406,7 +414,6 @@ func StartCluster(ctx context.Context, cfg ClusterConfig, binaryPath string) (_ 
 		}
 	}
 
-	// Start validators
 	for i, val := range validators {
 		logger.Info("starting validator", "index", i+1)
 		if err := StartGnolandNode(ctx, binaryPath, val, GnolandStartOpts{TeeNodeLogs: cfg.TeeNodeLogs}); err != nil {
@@ -504,7 +511,6 @@ func waitForFirstBlock(ctx context.Context, node *Node, timeout time.Duration) e
 
 // BuildGenesis creates a shared genesis file in tempDir using the given config.
 func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
-	// Read validator keys
 	validatorKeys := make([]*signer.FileKey, len(validators))
 	for i, validator := range validators {
 		validatorKeyPath := filepath.Join(validator.DataDir, "secrets", DefaultValidatorKeyName)
@@ -527,7 +533,6 @@ func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
 		},
 	}
 
-	// Set up validators
 	gen.Validators = make([]bft.GenesisValidator, len(validators))
 	for i, key := range validatorKeys {
 		gen.Validators[i] = bft.GenesisValidator{
@@ -592,7 +597,6 @@ func BuildGenesis(tempDir string, cfg GenesisConfig, validators []*Node) error {
 	return nil
 }
 
-// findExamplesDir locates the examples directory using gnoenv.RootDir()
 func findExamplesDir() (string, error) {
 	gnoRoot := gnoenv.RootDir()
 	examplesPath := filepath.Join(gnoRoot, "examples")
