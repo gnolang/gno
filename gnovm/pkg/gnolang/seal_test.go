@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,11 @@ type batchRecorder struct {
 func (r *batchRecorder) SetBlockNodes(bns []BlockNode) {
 	r.batches = append(r.batches, bns)
 	r.Store.SetBlockNodes(bns)
+}
+
+// published returns every node the recorder saw, in publication order.
+func (r *batchRecorder) published() []BlockNode {
+	return slices.Concat(r.batches...)
 }
 
 func (r *batchRecorder) SetBlockNode(bn BlockNode) {
@@ -192,4 +198,167 @@ func TestSealFillsPackageNodePkgID(t *testing.T) {
 
 	require.Equal(t, PkgIDFromPkgPath(path), pn.pkgID,
 		"sealBlockNode left PackageNode.pkgID for a concurrent reader to fill")
+}
+
+// astTypes collects every type a published file node holds outside its static
+// block: on a constTypeExpr, or under ATTR_TYPE_VALUE / ATTR_TYPEOF_VALUE.
+// These are the types sealExprTypes exists for.
+//
+// It deliberately does not call sealExprTypes' own reader. Sharing it would
+// make the test circular: a source sealExprTypes forgets to read is a source
+// this probe would then forget to check.
+func astTypes(bns []BlockNode) []Type {
+	var out []Type
+	add := func(t Type) {
+		if t != nil {
+			out = append(out, t)
+		}
+	}
+	for _, bn := range bns {
+		fn, ok := bn.(*FileNode)
+		if !ok {
+			continue
+		}
+		Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if cte, ok := n.(*constTypeExpr); ok {
+				add(cte.Type)
+			}
+			if t, ok := n.GetAttribute(ATTR_TYPE_VALUE).(Type); ok {
+				add(t)
+			}
+			if t, ok := n.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+				add(t)
+			}
+			return n, TRANS_CONTINUE
+		})
+	}
+	return out
+}
+
+// anonStructsByField indexes every struct type reachable from ts by the names
+// of its fields, so one walk serves every field the test asserts on.
+func anonStructsByField(ts []Type) map[Name]*StructType {
+	out := map[Name]*StructType{}
+	seen := map[Type]bool{}
+	var walk func(t Type)
+	walk = func(t Type) {
+		if t == nil || seen[t] {
+			return
+		}
+		seen[t] = true
+		switch ct := t.(type) {
+		case *StructType:
+			for _, f := range ct.Fields {
+				out[f.Name] = ct
+				walk(f.Type)
+			}
+		case *PointerType:
+			walk(ct.Elt)
+		case *SliceType:
+			walk(ct.Elt)
+		case *ArrayType:
+			walk(ct.Elt)
+		case *MapType:
+			walk(ct.Key)
+			walk(ct.Value)
+		case *FuncType:
+			for i := range ct.Params {
+				walk(ct.Params[i].Type)
+			}
+			for i := range ct.Results {
+				walk(ct.Results[i].Type)
+			}
+		case *tupleType:
+			for _, e := range ct.Elts {
+				walk(e)
+			}
+		}
+	}
+	for _, t := range ts {
+		walk(t)
+	}
+	return out
+}
+
+// TestSealFillsExpressionOnlyTypes pins sealExprTypes. A composite type
+// written in expression position is defined under no name, so it appears in no
+// StaticBlock.Types and no Block.Values — the two places the static-block walk
+// looks. It lives on the expression instead, on a block node the defaultStore
+// shares with every store forked from it, with its memos cold.
+//
+// Removing the sealExprTypes call from SaveBlockNodes leaves every case below
+// unsealed.
+func TestSealFillsExpressionOnlyTypes(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+	rec := &batchRecorder{Store: st}
+
+	const path = "gno.vm/t/anonexpr"
+	m := NewMachineWithOptions(MachineOptions{PkgPath: path, Store: rec, Output: io.Discard})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
+		Name: "anonexpr",
+		Path: path,
+		Files: []*std.MemFile{{
+			Name: "anonexpr.gno",
+			Body: `package anonexpr
+
+func sink(a any) {}
+
+func Anon() {
+	sink(struct{ inLiteral int }{1})
+	sink(&struct{ inPointer int }{2})
+	sink(new(struct{ inNew bool }))
+	sink(map[struct{ inMapKey int }]bool{})
+	sink([]struct{ inSlice int }{})
+	sink(func(p struct{ inParam int }) struct{ inResult int } { return struct{ inResult int }{} })
+}
+
+func Assert(v any) {
+	if _, ok := v.(struct{ inAssert int }); ok {
+		sink(v)
+	}
+}
+`,
+		}},
+	}, true)
+
+	byField := anonStructsByField(astTypes(rec.published()))
+	require.NotEmpty(t, byField, "no AST-held types found; the probe itself is broken")
+
+	for _, field := range []Name{
+		"inLiteral", "inPointer", "inNew", "inMapKey",
+		"inSlice", "inParam", "inResult", "inAssert",
+	} {
+		stt := byField[field]
+		require.NotNilf(t, stt, "anonymous struct with field %s not found on the published AST", field)
+		require.Falsef(t, stt.typeid.IsZero(),
+			"struct{%s ...}: typeid left for a concurrent reader to fill", field)
+		require.NotEqualf(t, uint8(0), stt.comparable,
+			"struct{%s ...}: comparable left for a concurrent reader to fill", field)
+	}
+}
+
+// TestSealWalksTupleElements pins the *tupleType case in sealType. A tuple is
+// only ever reached through an expression's ATTR_TYPEOF_VALUE, so it arrives
+// here only once sealExprTypes is walking the AST. Falling through to the
+// default branch calls tupleType.TypeID(), which recurses into each element's
+// TypeID() and so hides the gap — every other memo on the elements stays cold.
+func TestSealWalksTupleElements(t *testing.T) {
+	elt := &StructType{
+		PkgPath: "gno.vm/t/tuple",
+		Fields:  []FieldType{{Name: "a", Type: IntType}},
+	}
+	tt := &tupleType{Elts: []Type{elt}}
+
+	newSealer().sealType(tt)
+
+	require.False(t, tt.typeid.IsZero(), "tupleType typeid left unsealed")
+	require.False(t, elt.typeid.IsZero(), "tuple element typeid left unsealed")
+	require.False(t, elt.pkgID.IsZero(), "tuple element pkgID left unsealed")
+	require.NotEqual(t, uint8(0), elt.comparable, "tuple element comparable left unsealed")
 }

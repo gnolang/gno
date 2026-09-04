@@ -21,6 +21,13 @@ package gnolang
 //     ever read them; now N concurrent queries do, and the first two to reach an
 //     unfilled cache race on it.
 //
+// A block node reaches its types two ways, and both are walked. Named types
+// hang off the static block (StaticBlock.Types and Block.Values); a composite
+// type written in expression position is defined under no name at all and hangs
+// off the expression instead, in ATTR_TYPE_VALUE, ATTR_TYPEOF_VALUE or a
+// constTypeExpr. Those are the same shared objects, reached through the same
+// shared node, so sealExprTypes walks them too.
+//
 // Sealing closes that by filling the caches once, on the single goroutine that
 // publishes the graph, so every later reader finds them already populated and
 // performs no write at all. It is pure cache warming: every value written here
@@ -110,9 +117,71 @@ func (s *sealer) sealType(t Type) {
 		for i := range ct.Methods {
 			s.sealType(ct.Methods[i].T)
 		}
+	case *tupleType:
+		// Only reachable through an expression's ATTR_TYPEOF_VALUE, which is
+		// why sealExprTypes has to exist for this case to fire at all.
+		// tupleType.TypeID() recurses into Elts[i].TypeID(), but that fills
+		// nothing else on the elements — their pkgID, comparable, bound and
+		// effective counts still need the element walk below.
+		ct.TypeID()
+		for _, elt := range ct.Elts {
+			s.sealType(elt)
+		}
 	default:
 		// PrimitiveType, PackageType, TypeType, etc.
 		ct.TypeID()
+	}
+}
+
+// sealExprTypes seals the types a node holds in its expressions rather than in
+// its static block.
+//
+// A composite type written in expression position — sink(struct{a int}{}),
+// v.(struct{a int}), map[struct{k int}]bool{} — is defined under no name, so it
+// appears in no StaticBlock.Types and no Block.Values, which is everything
+// sealBlockNode looks at. Preprocessing parks it on the expression instead, in
+// ATTR_TYPE_VALUE, ATTR_TYPEOF_VALUE or a constTypeExpr, and the expression
+// belongs to a block node the defaultStore shares with every store forked from
+// it.
+//
+// SaveBlockNodes calls this from the Transcribe it already performs, rather
+// than the store calling it at publication time like the rest of sealing.
+// Riding that walk is what makes it free: a second walk at publication measured
+// +10% on genesis per file and +12% per node, against +0.5% here, and the extra
+// was the traversal itself over a tree the preprocessor had just traversed.
+//
+// Publication is also the wrong place on its own terms. Transcribe cannot
+// re-walk a tree once the preprocessor is done with it — a composite literal
+// whose element value ends up nil is visited unguarded and panics, which
+// loadStdlibs reaches on the amino-decoded nodes in a transaction's dirty set.
+// Those nodes have nothing to seal anyway: Attributes.data is unexported, so
+// amino cannot persist it, and the types this walk is for exist only on nodes
+// preprocessed in-process. The SaveBlockNodes walk sees exactly that set, on
+// the goroutine that built it, before the store has it.
+func (s *sealer) sealExprTypes(n Node) {
+	// Transcribe visits a few optional children unguarded, so a nil can in
+	// principle arrive here. It never does on the walk this runs on — 162,498
+	// nodes over a full genesis, none nil — and Transcribe's own switch panics
+	// on one two statements later regardless. The check is only so that if it
+	// ever happens the failure reads as Transcribe's "node missing for X"
+	// rather than a nil dereference in here.
+	if n == nil {
+		return
+	}
+	switch x := n.(type) {
+	case *constTypeExpr:
+		s.sealType(x.Type)
+	case *ConstExpr:
+		s.sealTypedValue(&x.TypedValue)
+	}
+	if t, ok := n.GetAttribute(ATTR_TYPE_VALUE).(Type); ok {
+		s.sealType(t)
+	}
+	// Read raw. cachedStaticTypeOf unwraps a 1-element tupleType to its
+	// Elts[0], which would hand sealType the element and leave the tuple
+	// wrapper — the object the *tupleType case exists for — unsealed.
+	if t, ok := n.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+		s.sealType(t)
 	}
 }
 

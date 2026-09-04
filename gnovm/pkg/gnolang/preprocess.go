@@ -6471,11 +6471,15 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	// Collect first and publish as one batch: the store seals a batch under a
 	// single sealer, and sealing node by node would re-walk the package's type
 	// graph once per node.
+	// The same walk seals the types held on expressions rather than in a static
+	// block; see sealExprTypes for why it belongs here and not at publication.
+	sl := newSealer()
 	bns := []BlockNode{pn}
 	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
+		sl.sealExprTypes(n)
 		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
 			// Location must exist already.

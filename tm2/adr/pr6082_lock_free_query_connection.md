@@ -144,6 +144,41 @@ plus every block node in one file — now collects them and hands them to a new
 `Store.SetBlockNodes`, sealed as one batch. The per-node `SetBlockNode` remains
 for the callers that genuinely publish one node.
 
+A block node reaches its types two ways, and the static block is only one of
+them. A type declared under a name hangs off `StaticBlock.Types` or
+`Block.Values`, which is all `sealBlockNode` reads. A composite type written in
+expression position — `sink(struct{a int}{})`, `v.(struct{a int})`,
+`map[struct{k int}]bool{}` — is declared under no name at all, so preprocessing
+parks it on the expression instead, in `ATTR_TYPE_VALUE`, `ATTR_TYPEOF_VALUE` or
+a `constTypeExpr`. Same shared object, same shared node, unreachable from the
+static-block walk. `sealer.sealExprTypes` covers those, and `sealType` grew a
+`*tupleType` case for them: a tuple only ever arrives through a `CallExpr`'s
+`ATTR_TYPEOF_VALUE`, and `tupleType.TypeID()` recurses into each element's
+`TypeID()` while leaving every other memo on the elements cold, so the default
+branch would have hidden the gap rather than closed it.
+
+`sealExprTypes` is called from the `Transcribe` that `SaveBlockNodes` already
+performs, not from the store at publication time like the rest of sealing.
+Riding that walk is what makes it free — a second walk at publication measured
++10% on genesis per file and +12% per node against +0.5% here, and the extra was
+the traversal itself, over a tree the preprocessor had just traversed (numbers
+under Consequences).
+
+Publication is also the wrong place on its own terms. `Transcribe` cannot
+re-walk a tree once the preprocessor is done with it: the `*CompositeLitExpr`
+case visits `Elts[idx].Value` unguarded while guarding `Key` with `if k != nil`,
+and `loadStdlibs` reaches a nil `Value` on the amino-decoded nodes in a
+transaction's dirty set. Those nodes have nothing to seal anyway —
+`Attributes.data` is unexported, so amino cannot persist it, and the types this
+walk is for exist only on nodes preprocessed in-process. The `SaveBlockNodes`
+walk sees exactly that set, on the goroutine that built it, before the store has
+it.
+
+The asymmetry in `Transcribe`'s `*CompositeLitExpr` case is left alone. Guarding
+`Value` the way `Key` is guarded would make a publication-time walk possible,
+but it would not make it cheaper, and it widens this PR into the preprocessor's
+traversal for no gain here. Raised with the reviewer as a separate observation.
+
 Sealing is pure cache warming: every value it writes is the value the lazy path
 would have computed on first touch. It charges no gas, touches no allocator, and
 changes no struct layout or amino encoding, so it cannot move consensus. The
@@ -288,6 +323,17 @@ of them seen-set hits;
 batching is what keeps the cost proportional to the graph rather than to the
 graph times the nodes in it.
 
+Sealing the expression-held types costs nothing measurable on top of that,
+because it rides a walk that was already running. Same harness, same genesis
+state, one `InitChain` plus `Commit` per process, median of seven separate
+process runs interleaved on the same machine: 530.9 ms with `sealExprTypes`
+removed against 533.7 ms with it, a difference inside the run-to-run spread.
+Placing the walk in the store instead, one `Transcribe` per published block
+node, measured 595 ms (+12%); one `Transcribe` per file with the nested nodes
+marked done measured 586 ms (+10%). Neither is the walk's own work — it is the
+traversal and its per-call stack allocation, paid once per node over a tree the
+preprocessor had already just traversed.
+
 **Not addressed here.** Two items the review raised are deliberately left:
 
 - There is no in-flight query counter and no query-latency histogram, so the
@@ -353,6 +399,17 @@ asserts on the three caches this path provably leaves cold: a method's own
 `TypeID`, its bound form, and `DeclaredType.pkgID`. `DeclaredType`'s own
 `TypeID` is filled by preprocessing either way, so asserting it would pass with
 sealing removed.
+
+`TestSealFillsExpressionOnlyTypes` pins the expression walk. It deploys a
+package whose anonymous structs appear only in expression position — a composite
+literal, an address-of, a `new`, a map key, a slice element, a function
+literal's parameter and result, a type assertion — then reads the types back off
+the published AST rather than off a static block, and requires `typeid` and
+`comparable` filled on each. With `sealExprTypes` removed from `SaveBlockNodes`,
+all eight are cold. `TestSealWalksTupleElements` pins the `*tupleType` case
+against the default branch specifically: it asserts on the element's `pkgID` and
+`comparable`, which the default branch cannot fill, rather than on the element's
+`TypeID`, which `tupleType.TypeID()` fills on its way past.
 
 `gno.land/pkg/gnoland/app_concurrent_initchain_test.go`
 (`TestConcurrentInitChain`) boots 24 nodes in one process from a single barrier,
