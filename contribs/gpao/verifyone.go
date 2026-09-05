@@ -194,9 +194,8 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	cmd := exec.CommandContext(runCtx, self, args...)
 	cmd.Stdin = bytes.NewReader(payload)
 	// Tee, don't capture. The buffer supplies the rejection reason on a
-	// non-zero exit, but the child also writes advisory notes on the SUCCESS
-	// path -- notably "preprocess NOT measured" when an import cannot be
-	// resolved -- and capturing alone silently dropped every one of those.
+	// non-zero exit, but the child's stores also write diagnostics on the
+	// SUCCESS path, and capturing alone silently dropped every one of those.
 	// Bounded. Volume here is attacker-influenced: go/types is given an error
 	// handler with no cap, so a package crafted to emit many errors would
 	// otherwise be buffered in full and mirrored verbatim into the operator's
