@@ -466,21 +466,7 @@ func BenchmarkSourceUint64(b *testing.B) {
 	Sink = uint64(t)
 }
 
-func BenchmarkGlobalInt64(b *testing.B) {
-	var t int64
-	for n := b.N; n > 0; n-- {
-		t += rand.Int64()
-	}
-	Sink = uint64(t)
-}
 
-func BenchmarkGlobalUint64(b *testing.B) {
-	var t uint64
-	for n := b.N; n > 0; n-- {
-		t += rand.Uint64()
-	}
-	Sink = t
-}
 
 func BenchmarkInt64(b *testing.B) {
 	r := testRand()
@@ -500,14 +486,6 @@ func BenchmarkUint64(b *testing.B) {
 	Sink = t
 }
 
-func BenchmarkGlobalIntN1000(b *testing.B) {
-	var t int
-	arg := 1000
-	for n := b.N; n > 0; n-- {
-		t += rand.IntN(arg)
-	}
-	Sink = uint64(t)
-}
 
 func BenchmarkIntN1000(b *testing.B) {
 	r := testRand()

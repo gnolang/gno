@@ -555,7 +555,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		if i := strings.Index(authority, "/"); i >= 0 {
 			authority, rest = authority[:i], authority[i:]
 		}
-		url.User, url.Host, err = parseAuthority(authority)
+		url.User, url.Host, err = parseAuthority(url.Scheme, authority)
 		if err != nil {
 			return nil, err
 		}
@@ -575,12 +575,12 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 	return url, nil
 }
 
-func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+func parseAuthority(scheme, authority string) (user *Userinfo, host string, err error) {
 	i := strings.LastIndex(authority, "@")
 	if i < 0 {
-		host, err = parseHost(authority)
+		host, err = parseHost(scheme, authority)
 	} else {
-		host, err = parseHost(authority[i+1:])
+		host, err = parseHost(scheme, authority[i+1:])
 	}
 	if err != nil {
 		return nil, "", err
@@ -612,42 +612,83 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
-func parseHost(host string) (string, error) {
-	if strings.HasPrefix(host, "[") {
+func parseHost(scheme, host string) (string, error) {
+	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx > 0 {
+		return "", errors.New("invalid IP-literal")
+	} else if openBracketIdx == 0 {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
-		i := strings.LastIndex(host, "]")
-		if i < 0 {
+		closeBracketIdx := strings.LastIndex(host, "]")
+		if closeBracketIdx < 0 {
 			return "", errors.New("missing ']' in host")
 		}
-		colonPort := host[i+1:]
+
+		colonPort := host[closeBracketIdx+1:]
 		if !validOptionalPort(colonPort) {
 			return "", errors.New("invalid port \"" + colonPort + "\" after host")
 		}
+		unescapedColonPort, err := unescape(colonPort, encodeHost)
+		if err != nil {
+			return "", err
+		}
 
+		hostname := host[openBracketIdx+1 : closeBracketIdx]
+		var unescapedHostname string
 		// RFC 6874 defines that %25 (%-encoded percent) introduces
 		// the zone identifier, and the zone identifier can use basically
 		// any %-encoding it likes. That's different from the host, which
 		// can only %-encode non-ASCII bytes.
 		// We do impose some restrictions on the zone, to avoid stupidity
 		// like newlines.
-		zone := strings.Index(host[:i], "%25")
-		if zone >= 0 {
-			host1, err := unescape(host[:zone], encodeHost)
+		zoneIdx := strings.Index(hostname, "%25")
+		if zoneIdx >= 0 {
+			hostPart, err := unescape(hostname[:zoneIdx], encodeHost)
 			if err != nil {
 				return "", err
 			}
-			host2, err := unescape(host[zone:i], encodeZone)
+			zonePart, err := unescape(hostname[zoneIdx:], encodeZone)
 			if err != nil {
 				return "", err
 			}
-			host3, err := unescape(host[i:], encodeHost)
+			unescapedHostname = hostPart + zonePart
+		} else {
+			var err error
+			unescapedHostname, err = unescape(hostname, encodeHost)
 			if err != nil {
 				return "", err
 			}
-			return host1 + host2 + host3, nil
 		}
-	} else if i := strings.LastIndex(host, ":"); i != -1 {
+
+		// Per RFC 3986, only a host identified by a valid
+		// IPv6 address can be enclosed by square brackets.
+		// This excludes any IPv4, but notably not IPv4-mapped addresses.
+		//
+		// Custom code: Go calls netip.ParseAddr here; Gno has no net/netip,
+		// so isIPv6Literal (ip.gno) performs the equivalent validation.
+		if !isIPv6Literal(unescapedHostname) {
+			return "", errors.New("invalid host: " + unescapedHostname)
+		}
+		return "[" + unescapedHostname + "]" + unescapedColonPort, nil
+	} else if i := strings.Index(host, ":"); i != -1 {
+		lastColon := strings.LastIndex(host, ":")
+		if lastColon != i {
+			if scheme == "postgresql" || scheme == "postgres" {
+				// PostgreSQL relies on non-RFC-3986 parsing to accept
+				// a comma-separated list of hosts (with optional ports)
+				// in the host subcomponent:
+				// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS
+				//
+				// Since Go historically permitted colons to appear in the host,
+				// it continues to permit it for postgres:// URLs only.
+				// https://go.dev/issue/75223
+				//
+				// Custom code: Go gates the non-postgres case behind the
+				// urlstrictcolons GODEBUG, defaulting to strict from Go 1.26.
+				// Gno has no GODEBUG and no back-compatibility burden, so the
+				// strict behaviour is unconditional here.
+				i = lastColon
+			}
+		}
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
 			return "", errors.New("invalid port \"" + colonPort + "\" after host")
@@ -928,7 +969,18 @@ func ParseQuery(query string) (Values, error) {
 	return m, err
 }
 
+// defaultMaxParams bounds the number of query parameters ParseQuery will
+// accept, so that a caller-supplied query string cannot force an unbounded
+// number of map entries and slice appends.
+//
+// Custom code: Go makes this adjustable through the urlmaxqueryparams GODEBUG.
+// Gno has no GODEBUG, so the limit is fixed.
+const defaultMaxParams = 10000
+
 func parseQuery(m Values, query string) (err error) {
+	if strings.Count(query, "&")+1 > defaultMaxParams {
+		return errors.New("number of URL query parameters exceeded limit")
+	}
 	for query != "" {
 		var key string
 		key, query, _ = strings.Cut(query, "&")
@@ -1174,7 +1226,12 @@ func splitHostPort(hostPort string) (host, port string) {
 // Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
 
 func (u *URL) MarshalBinary() (text []byte, err error) {
-	return []byte(u.String()), nil
+	return u.AppendBinary(nil)
+}
+
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+func (u *URL) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, u.String()...), nil
 }
 
 func (u *URL) UnmarshalBinary(text []byte) error {
@@ -1190,6 +1247,11 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
 func (u *URL) JoinPath(elem ...string) *URL {
+	url, _ := u.joinPath(elem...)
+	return url
+}
+
+func (u *URL) joinPath(elem ...string) (*URL, error) {
 	elem = append([]string{u.EscapedPath()}, elem...)
 	var p string
 	if !strings.HasPrefix(elem[0], "/") {
@@ -1206,8 +1268,8 @@ func (u *URL) JoinPath(elem ...string) *URL {
 		p += "/"
 	}
 	url := *u
-	url.setPath(p)
-	return &url
+	err := url.setPath(p)
+	return &url, err
 }
 
 // validUserinfo reports whether s is a valid userinfo string per RFC 3986
