@@ -55,6 +55,12 @@ type Authorizable struct {
 // The owner is automatically added to the auth list.
 func New(o *ownable.Ownable) *Authorizable
 
+// Ownership lifecycle — overridden from *ownable.Ownable so the auth list
+// stays in sync: on transfer the deposed owner is removed and the new owner
+// added; on renounce the owner is removed.
+func (a *Authorizable) TransferOwnership(_ int, rlm realm, newOwner address) error
+func (a *Authorizable) DropOwnership(_ int, rlm realm) error
+
 // Superuser-only (previous caller must be the owner).
 func (a *Authorizable) AddToAuthList(_ int, rlm realm, addr address) error
 func (a *Authorizable) DeleteFromAuthList(_ int, rlm realm, addr address) error
@@ -73,6 +79,6 @@ func (a Authorizable) AssertPreviousOnAuthList(_ int, rlm realm)
 ## Notes
 
 - Every method takes the caller's own captured `cur` as `rlm` and asserts `rlm.IsCurrent()`, blocking the designation-forgery read where a non-crossing wrapper makes the realm walk return the wrong address. The first `_ int` argument is an unused placeholder: pass `0`.
-- The superuser is authenticated by `rlm.Previous().Address()` matching the underlying `Ownable` owner, so `AddToAuthList` / `DeleteFromAuthList` succeed only when the owner is the crossing caller. Ownership transfer, renouncing, etc. come from the embedded [`Ownable`](../..).
+- The superuser is authenticated by `rlm.Previous().Address()` matching the underlying `Ownable` owner, so `AddToAuthList` / `DeleteFromAuthList` succeed only when the owner is the crossing caller. `TransferOwnership` / `DropOwnership` are overridden (delegating the same superuser guard to the embedded [`Ownable`](../..)) so the auth list stays in sync: on transfer the deposed owner is removed and the new owner is added; on renounce the owner is removed.
 - `PreviousOnAuthList` / `AssertPreviousOnAuthList` are the user-facing gate: they check the address that crossed into your realm. `OnAuthList` checks the calling realm itself; use it only when a realm-to-realm caller should be listed directly.
 - The auth list is backed by a [`bptree`](../../../../bptree/v0), keyed by address string.
