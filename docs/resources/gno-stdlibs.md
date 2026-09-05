@@ -330,6 +330,28 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 
 ---
 
+### Sub
+
+Mints a sub-realm identity for one of the realm's internal actors, a DAO in a
+registry or an account in a ledger. The returned value is a `realm` like any
+other: cross with it, hand it to a banker, or pass it to a token-style API.
+
+#### Parameters
+- `subpath` **string** - the actor's identifier, appended to the realm's path
+  after `#`, the sub-realm separator. No deployed package path can contain `#`,
+  so a synthesized identity never collides with a real one.
+
+#### Usage
+```go
+sub := cur.Sub("dao/42")
+sub.PkgPath()  // gno.land/r/nt/commondao/v0#dao/42
+sub.Address()  // the address derived from that path
+```
+
+The [interrealm specification](gno-interrealm-v2.md#55-sub-realm-identities--cursubsubpath)
+covers how the identity behaves in crossing calls.
+
+---
 
 ## Package `chain`
 
@@ -866,13 +888,59 @@ banker.RemoveCoin(addr, denom, amount)
 
 ### OriginSend
 ```go
-func OriginSend() Coins
+func OriginSend() chain.Coins
 ```
-Returns the `Coins` that were sent along with the calling transaction.
+Returns the coins attached to the calling transaction. It lives in
+`chain/runtime/unsafe`, not in the banker, and reads the transaction's stated
+intent rather than anything the realm received, so pair it with
+`runtime.AssertOriginCall()` before you trust it for payment.
 
 ##### Usage
 ```go
-coinsSent := banker.OriginSend()
+sent := unsafe.OriginSend()
+amount := sent.AmountOf("ugnot")
+```
+---
+
+### IsCanonical
+```go
+func IsCanonical(b Banker) bool
+```
+Reports whether a `Banker` is one this package produced. A realm that accepts a
+`Banker` from its caller has no other way to tell a real one from a value that
+implements the interface and moves no coins, so check it before any state change
+depends on the transfer going through.
+
+##### Usage
+```go
+if !banker.IsCanonical(b) {
+    panic("banker is not canonical")
+}
+```
+---
+
+## `chain/params`
+
+Per-realm key-value storage. Any realm can use it, and each one sees only its
+own keys: every key is stored under the calling realm's path.
+
+```go
+func SetString(key string, val string)
+func GetString(key string) (string, bool)
+```
+There is a `Set`/`Get` pair per type: `String`, `Bool`, `Int64`, `Uint64`,
+`Bytes`, and `Strings`. `Get` returns `false` when the key holds nothing.
+
+Read a key with the getter matching the setter that wrote it. Stored values
+carry no type tag, so a mismatched getter either panics or returns `true` with a
+value that cannot be told apart from a correct read. `gno test` does not reproduce
+that: its param store keeps a Go value per key and type-asserts on read, so a
+mismatch returns `false` in a test and misbehaves on chain.
+
+### Usage
+```go
+params.SetInt64("threshold", 42)
+v, ok := params.GetInt64("threshold") // 42, true
 ```
 ---
 

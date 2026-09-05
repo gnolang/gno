@@ -40,7 +40,7 @@ The `gnokey add` command allows you to generate a new key pair locally. Simply
 run the command, while adding a name for your key pair:
 
 ```bash
-gnokey add MyKey
+gnokey add mykey
 ```
 
 After running the command, `gnokey` will ask you to enter a password that will be
@@ -167,7 +167,7 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit
+- `-gas-fee` - the whole fee for the transaction, one flat amount in `ugnot`
 - `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
@@ -184,8 +184,8 @@ the `example/p/` folder, the command will look like this:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
--gas-fee 10000000ugnot \
--gas-wanted 8000000 \
+-gas-fee 4000ugnot \
+-gas-wanted 4000000 \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443"
 ```
@@ -197,10 +197,10 @@ pair name to use to execute the transaction:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
--gas-fee 10000000ugnot \
--gas-wanted 200000 \
+-gas-fee 4000ugnot \
+-gas-wanted 4000000 \
 -chainid staging \
--remote "https://rpc.staging.gno.land:443"
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -209,21 +209,35 @@ similar to the following:
 
 ```console
 OK!
-GAS WANTED: 200000
-GAS USED:   117564
+GAS WANTED: 4000000
+GAS USED:   2590046
 HEIGHT:     3990
-EVENTS:     []
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+STORAGE DELTA:  1748 bytes
+STORAGE FEE:    174800ugnot
+TOTAL TX COST:  178800ugnot
+EVENTS:     [{"bytes_delta":1748,"fee_delta":{"denom":"ugnot","amount":174800},"pkg_path":"gno.land/p/examplenamespace/hello_world"}]
+INFO:
+TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=
 PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
 
-- `GAS WANTED: 200000` - the original amount of gas specified for the transaction
-- `GAS USED:   117564` - the gas used to execute the transaction
+- `GAS WANTED: 4000000` - the original amount of gas specified for the transaction
+- `GAS USED:   2590046` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
-- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
+- `STORAGE FEE:    174800ugnot` - despite the label, a
+  [storage deposit](../resources/storage-deposit.md) and not a fee: it is locked
+  against those bytes rather than spent. A deployed package's code cannot be
+  removed today, so this one stays locked
+- `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
+- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted
+  by the transaction, here the storage event that the added bytes produce. Every
+  message that changes a realm's storage emits one, and a negative `bytes_delta`
+  means bytes were freed
+- `INFO:` - anything the node reported alongside the result, empty on a plain broadcast
+- `TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=` - the hash of the transaction
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the Staging network.
@@ -261,8 +275,8 @@ gnokey maketx call \
 -pkgpath "gno.land/r/gnoland/wugnot" \
 -func "Deposit" \
 -send "1000ugnot" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
+-gas-fee 8000ugnot \
+-gas-wanted 8000000 \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -281,53 +295,42 @@ After running the command, we can expect an output similar to the following:
 
 ```bash
 OK!
-GAS WANTED: 2000000
-GAS USED:   489528
+GAS WANTED: 8000000
+GAS USED:   6997402
 HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/gnoland/wugnot","func":"Mint"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+STORAGE DELTA:  1043 bytes
+STORAGE FEE:    104300ugnot
+TOTAL TX COST:  112300ugnot
+EVENTS:     [{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/demo/tokens/grc20"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
+INFO:
+TX HASH:    YGEbzlB9hKEP/TaRCcZ8bvyuK3S30u24vcVeHn6UlKA=
 ```
 
 In this case, we can see that the `Deposit()` function emitted an
 [event](../resources/gno-stdlibs.md#events) that tells us more about what
 happened during the transaction.
 
-After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
-can call the `BalanceOf()` function in the same realm:
+After broadcasting the transaction, we can verify that we have the amount of
+`wugnot` we expect. `BalanceOf` only reads state, and `maketx call` refuses it
+with `function BalanceOf is non-crossing and cannot be called with MsgCall;
+query with vm/qeval or use MsgRun`. Query it instead:
 
 ```bash
-gnokey maketx call \
--pkgpath "gno.land/r/gnoland/wugnot" \
--func "BalanceOf" \
--args "<your_address>" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443" \
-mykey
+gnokey query vm/qeval \
+-data "gno.land/r/gnoland/wugnot.BalanceOf(\"<your_address>\")" \
+-remote "https://rpc.staging.gno.land:443"
 ```
 
 If everything was successful, we should get something similar to the following
 output:
 
 ```
-(1000 int64)
-
-OK!
-GAS WANTED: 2000000
-GAS USED:   396457
-HEIGHT:     64839
-EVENTS:     []
-TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+height: 0
+data: (1000 int64)
 ```
 
-At the top, you will see the output of the transaction, specifying the value and
-type of the return argument.
-
-In this case, we used `maketx call` to call a read-only function, which simply
-checks the `wugnot` balance of a specific address. This is discouraged, as
-`maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query section.
+The `data` line carries the value and type of the return argument. See
+[`vm/qeval`](#vmqeval) for the escaping rules and what expressions it accepts.
 
 ### Calling a variadic function
 Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
@@ -376,7 +379,7 @@ our `maketx send` subcommand:
 gnokey maketx send \
 -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
 -send 100ugnot \
--gas-fee 10000000ugnot \
+-gas-fee 2000ugnot \
 -gas-wanted 2000000 \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
@@ -436,7 +439,7 @@ Now we will be able to provide this to the `maketx run` subcommand:
 
 ```bash
 gnokey maketx run \
--gas-fee 1000000ugnot \
+-gas-fee 20000ugnot \
 -gas-wanted 20000000 \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
@@ -629,7 +632,7 @@ with `-broadcast=false`, while redirecting the output to a local file:
 gnokey maketx call \
 -pkgpath "gno.land/r/demo/counter" \
 -func "Increment" \
--gas-fee 1000000ugnot \
+-gas-fee 2000ugnot \
 -gas-wanted 2000000 \
 -broadcast=false \
 mykey > counter.tx
@@ -721,7 +724,7 @@ The multisig is defined by the **ordered list of member keys**.
 All participants must use the **exact same order** when running:
 
 - `gnokey add multisig ...`
-- later, `gnokey multisign ...` expects signatures that correspond to that same ordering
+- later, `gnokey multisign ...` verifies against the key that order produced
 
 If the order differs between participants, you will *not* end up with the same multisig public key/address, and signing
 will fail.
@@ -877,17 +880,9 @@ echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --accoun
 
 ### 3. Combine signatures with the multisig
 
-**The second most important rule: signature order must match multisig member order**
+**The second most important rule: every signature must come from a member of that multisig**
 
-When you call `gnokey multisign`, the signatures must correspond to the multisig's **ordered members**.
-
-If your multisig was defined as: `alice, bob, charlie`, then:
-
-- Alice's signature corresponds to slot 1
-- Bob's signature corresponds to slot 2
-- Charlie's signature corresponds to slot 3
-
-You can provide signatures in any CLI order, but they must be valid for members of that multisig.
+`gnokey multisign` reads the public key inside each signature and matches it to the member it belongs to, so the order you pass `--signature` in does not matter. A signature from a key outside the multisig is refused with `provided key ... doesn't exist in pubkeys`.
 
 #### Multisign (Alice + Bob example)
 
@@ -1181,8 +1176,8 @@ If everything went correctly, we should get an output similar to the following:
 ```bash
 height: 0
 data: {
-  "gas": 1000,
-  "price": "100ugnot"
+  "gas": "1000",
+  "price": "1ugnot"
 }
 ```
 
@@ -1499,7 +1494,7 @@ gnokey maketx call \
   -args "MyBoard" \
   -args "true" \
   -args "true" \
-  -gas-fee 1000000ugnot \
+  -gas-fee 2000ugnot \
   -gas-wanted 2000000 \
   -remote https://rpc.staging.gno.land:443 \
   -chainid staging \
