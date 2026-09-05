@@ -231,6 +231,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// path. Legacy did this inside prepareIndexBodyView, which the state
 	// branch below short-circuits, so an alias-mapped state URL would
 	// previously route to the unmapped path and 404.
+	requested := *r.URL
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -262,6 +263,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
 		return
 	}
+
+	// Head metadata names the URL the client asked for, not the alias
+	// target: /about and /r/gnoland/pages:p/about serve one page, and
+	// /about is the address to publish.
+	headURL := gnourl
+	if requested.Path != r.URL.Path {
+		if u, err := weburl.ParseFromURL(&requested); err == nil {
+			headURL = u
+		}
+	}
+	h.setHeadMetadata(&indexData, headURL)
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:
@@ -1042,13 +1054,57 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
-// from the parsed realm URL. Shared by the state-page wire-in and the
-// generic prepareIndexBodyView path so the global header (breadcrumb +
-// Content/State/Source/Actions tabs) always renders against the same
-// realm. Mode must be set on indexData before calling.
+// pageEncodeFlags selects the URL parts that identify one page: the path, the
+// arguments, the view marker and the query. Two URLs differing in any of them
+// render different content. weburl.GnoURL.EncodeWebURL covers the same parts.
+const pageEncodeFlags = weburl.EncodePath | weburl.EncodeArgs | weburl.EncodeWebQuery | weburl.EncodeQuery
+
+// pageTitle names the page before the domain, because a browser tab and a
+// search result both truncate the tail.
+func (h *HTTPHandler) pageTitle(gnourl *weburl.GnoURL) string {
+	page := strings.TrimSuffix(gnourl.Encode(pageEncodeFlags|weburl.EncodeNoEscape), "/")
+	switch {
+	case page == "":
+		return h.Static.Domain
+	case h.Static.Domain == "":
+		return page
+	default:
+		return page + " - " + h.Static.Domain
+	}
+}
+
+// canonicalURL addresses the page under the configured domain, through the
+// encoder gnoweb's own links use, so the canonical matches the URL a crawler
+// followed. The request host is deliberately unused: X-Forwarded-Host is
+// caller-supplied, so a canonical built from it sends crawlers wherever the
+// caller asked.
+func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
+	if h.Static.Domain == "" {
+		return ""
+	}
+	page := gnourl.EncodeWebURL()
+	if page == "" {
+		page = "/"
+	}
+	return "https://" + h.Static.Domain + page
+}
+
+// setHeadMetadata fills the <head> slots gnoweb declares, from the URL alone.
+// Description and the share image stay empty: their only source is realm
+// content, which is permissionless, and gno#3910 has not settled which of it
+// gnoweb may repeat.
+func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL) {
+	indexData.HeadData.Title = h.pageTitle(gnourl)
+	indexData.HeadData.Canonical = h.canonicalURL(gnourl)
+	indexData.HeadData.URL = indexData.HeadData.Canonical
+}
+
+// setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.
+// Shared by the state-page wire-in and the generic prepareIndexBodyView path
+// so the global header (breadcrumb + Content/State/Source/Actions tabs)
+// always renders against the same realm. Mode must be set on indexData
+// before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
 		Breadcrumb: generateBreadcrumbPaths(gnourl),
 		RealmURL:   *gnourl,
