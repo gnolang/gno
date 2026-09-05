@@ -12,12 +12,3 @@ type TransferEvent struct {
 }
 
 func (TransferEvent) AssertABCIEvent() {}
-
-// MultiTransferEvent records a successful bank multisend without inventing an
-// input-to-output mapping.
-type MultiTransferEvent struct {
-	Inputs  []Input  `json:"inputs"`
-	Outputs []Output `json:"outputs"`
-}
-
-func (MultiTransferEvent) AssertABCIEvent() {}

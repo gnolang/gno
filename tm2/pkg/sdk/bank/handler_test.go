@@ -28,38 +28,17 @@ func TestInvalidMsg(t *testing.T) {
 func TestHandlerEmitsTransferEvents(t *testing.T) {
 	t.Parallel()
 
-	t.Run("send", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		from := crypto.AddressFromPreimage([]byte("handler-send-from"))
-		to := crypto.AddressFromPreimage([]byte("handler-send-to"))
-		amount := std.NewCoins(std.NewCoin("ugnot", 5))
-		require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("handler-send-from"))
+	to := crypto.AddressFromPreimage([]byte("handler-send-to"))
+	amount := std.NewCoins(std.NewCoin("ugnot", 5))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
 
-		res := NewHandler(env.bankk).Process(env.ctx, NewMsgSend(from, to, amount))
-		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, []sdk.Event{TransferEvent{
-			From: from.String(), To: to.String(), Coins: amount,
-		}}, env.ctx.EventLogger().Events())
-	})
-
-	t.Run("multisend", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		from := crypto.AddressFromPreimage([]byte("handler-multisend-from"))
-		to := crypto.AddressFromPreimage([]byte("handler-multisend-to"))
-		amount := std.NewCoins(std.NewCoin("ugnot", 5))
-		require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
-
-		res := NewHandler(env.bankk).Process(env.ctx, NewMsgMultiSend(
-			[]Input{NewInput(from, amount)}, []Output{NewOutput(to, amount)},
-		))
-		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, []sdk.Event{MultiTransferEvent{
-			Inputs:  []Input{NewInput(from, amount)},
-			Outputs: []Output{NewOutput(to, amount)},
-		}}, env.ctx.EventLogger().Events())
-	})
+	res := NewHandler(env.bankk).Process(env.ctx, NewMsgSend(from, to, amount))
+	require.True(t, res.IsOK(), res.Log)
+	require.Equal(t, []sdk.Event{TransferEvent{
+		From: from.String(), To: to.String(), Coins: amount,
+	}}, env.ctx.EventLogger().Events())
 }
 
 func TestBalances(t *testing.T) {

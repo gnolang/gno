@@ -110,7 +110,6 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 			return err
 		}
 	}
-	ctx.EventLogger().EmitEvent(MultiTransferEvent{Inputs: inputs, Outputs: outputs})
 
 	return nil
 }

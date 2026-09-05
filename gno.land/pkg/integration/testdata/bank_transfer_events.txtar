@@ -2,12 +2,6 @@ loadpkg gno.land/r/foo/call_realm $WORK/realm
 
 gnoland start
 
-# MsgMultiSend keeps all inputs and outputs in one event.
-gnokey sign -tx-path $WORK/multisend.tx -chainid=tendermint_test -account-number $test1_account_num -account-sequence $test1_account_seq test1
-stdout 'Tx successfully signed and saved to '
-gnokey broadcast $WORK/multisend.tx -quiet=false
-stdout 'EVENTS:     \[{"inputs":\[{"address":"'$test1_user_addr'","coins":\[{"denom":"ugnot","amount":12}\]}\],"outputs":\[{"address":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","coins":\[{"denom":"ugnot","amount":5}\]},{"address":"g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49","coins":\[{"denom":"ugnot","amount":7}\]}\]}\]'
-
 # MsgSend exposes one complete transfer event.
 gnokey maketx send -send 7ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
 stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","coins":\[{"denom":"ugnot","amount":7}\]}\]'
@@ -30,19 +24,4 @@ func Forward(cur realm, amount int64) {
 	}
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	b.SendCoins(cur.Address(), cur.Previous().Address(), chain.Coins{{"ugnot", amount}})
-}
-
--- multisend.tx --
-{
-  "msg": [
-    {
-      "@type": "/bank.MsgMultiSend",
-      "inputs": [{"address":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","coins":"12ugnot"}],
-      "outputs": [
-        {"address":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","coins":"5ugnot"},
-        {"address":"g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49","coins":"7ugnot"}
-      ]
-    }
-  ],
-  "fee": {"gas_wanted":"2000000","gas_fee":"200001ugnot"}
 }

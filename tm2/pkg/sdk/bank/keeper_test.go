@@ -157,29 +157,6 @@ func TestSendCoinsEmitsTransferEvent(t *testing.T) {
 	}}, env.ctx.EventLogger().Events())
 }
 
-func TestInputOutputCoinsEmitsTransferEvents(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv()
-	from1 := crypto.AddressFromPreimage([]byte("multisend-from-1"))
-	from2 := crypto.AddressFromPreimage([]byte("multisend-from-2"))
-	to1 := crypto.AddressFromPreimage([]byte("multisend-to-1"))
-	to2 := crypto.AddressFromPreimage([]byte("multisend-to-2"))
-	amount1 := std.NewCoins(std.NewCoin("ugnot", 2))
-	amount2 := std.NewCoins(std.NewCoin("ugnot", 3))
-	require.NoError(t, env.bankk.SetCoins(env.ctx, from1, amount1))
-	require.NoError(t, env.bankk.SetCoins(env.ctx, from2, amount2))
-
-	require.NoError(t, env.bankk.InputOutputCoins(env.ctx,
-		[]Input{NewInput(from1, amount1), NewInput(from2, amount2)},
-		[]Output{NewOutput(to1, amount1), NewOutput(to2, amount2)},
-	))
-	require.Equal(t, []sdk.Event{MultiTransferEvent{
-		Inputs:  []Input{NewInput(from1, amount1), NewInput(from2, amount2)},
-		Outputs: []Output{NewOutput(to1, amount1), NewOutput(to2, amount2)},
-	}}, env.ctx.EventLogger().Events())
-}
-
 func TestViewKeeper(t *testing.T) {
 	t.Parallel()
 
