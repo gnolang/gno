@@ -84,7 +84,8 @@ func TestEstimateEnableAgainstARealChain(t *testing.T) {
 
 	// The ceiling gpao would use, read the way gpao reads it.
 	o := &oracle{client: client}
-	maxGas := o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered)
 	require.Positive(t, maxGas)
 
 	simulateEnable := func(t *testing.T, hash string) (*abci.ResponseDeliverTx, error) {

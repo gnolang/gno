@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -64,13 +65,12 @@ type oracle struct {
 	// blockMaxGas is the chain's Block.MaxGas. It bounds both the probe used for
 	// estimation and the resulting gas-wanted, because the ante refuses a
 	// transaction above it rather than clamping. Set to defaultBlockMaxGas when
-	// the chain reports no bound or cannot be asked.
+	// the chain reports no bound, and until the chain answers at all.
 	//
-	// Written once at the top of run(), before the verifier goroutine is
-	// started, and read only by that goroutine afterwards. Starting the
-	// goroutine is what publishes the value; there is no lock. Re-reading it
-	// per approval, or writing it anywhere else, needs one.
-	blockMaxGas int64
+	// Atomic because the two goroutines are on opposite ends of it: the block
+	// reader keeps asking for it until the chain answers, and the verifier
+	// reads it on every approval.
+	blockMaxGas atomic.Int64
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -255,20 +255,21 @@ func (o *oracle) serveStatus(ctx context.Context, addr string) {
 
 // run polls the node for new blocks and processes each one, until ctx is done.
 func (o *oracle) run(ctx context.Context) error {
-	o.blockMaxGas = o.queryBlockMaxGas(ctx)
+	// The chain's ceiling is asked for with the poll rather than once here,
+	// because a node that is not up yet would otherwise settle it for the whole
+	// process -- and settling for the fallback is not harmless: on a chain
+	// configured BELOW it, every probe is signed above Block.MaxGas, the ante
+	// refuses it rather than clamping, and the simulate comes back as a message
+	// the node ran and rejected. Nothing would ever be approved, and nothing
+	// would say why. The fallback stands until the chain answers.
+	o.blockMaxGas.Store(defaultBlockMaxGas)
+	ceilingKnown := false
 
 	if o.cfg.statusListen != "" {
 		o.serveStatus(ctx, o.cfg.statusListen)
 	}
 
 	height := o.cfg.startHeight
-	if height <= 0 {
-		status, err := o.client.RPCClient.Status(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("failed to query node status: %w", err)
-		}
-		height = status.SyncInfo.LatestBlockHeight + 1
-	}
 
 	// Verification runs on its own goroutine, never on the block reader.
 	//
@@ -300,12 +301,25 @@ func (o *oracle) run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 
+		if !ceilingKnown {
+			if maxGas, ok := o.queryBlockMaxGas(ctx); ok {
+				o.blockMaxGas.Store(maxGas)
+				ceilingKnown = true
+			}
+		}
+
 		status, err := o.client.RPCClient.Status(ctx, nil)
 		if err != nil {
 			o.errf("gpao: status query failed: %v", err)
 			continue
 		}
 		latest := status.SyncInfo.LatestBlockHeight
+		if height <= 0 {
+			// -start-height 0 means begin at the tip. Resolved on the first
+			// poll that answers, so a node that is not up yet costs a poll
+			// interval rather than the process.
+			height = latest + 1
+		}
 
 		for ; height <= latest; height++ {
 			// Catching up can span many blocks, and enqueue blocks when the
@@ -555,23 +569,32 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	o.logf("gpao: %q approved and enabled", path)
 }
 
-// queryBlockMaxGas reads the chain's Block.MaxGas, falling back to
-// defaultBlockMaxGas.
+// queryBlockMaxGas reads the chain's Block.MaxGas, and reports whether the
+// chain answered at all.
 //
-// Asked once at startup rather than per approval: it is a consensus param, so
-// it changes rarely, and a per-approval query would add a round trip to every
-// enable to learn something that almost never moves.
+// The two are separate the way classifySimulate separates them: a node that
+// could not be reached has said nothing about the ceiling and must be asked
+// again, while a chain that answered has settled it -- including when the
+// answer is unusable and the fallback stands in. Answered once, it is not
+// asked for again: it is a consensus param, so it changes rarely, and a
+// per-approval query would add a round trip to every enable to learn something
+// that almost never moves.
 //
 // A chain may set -1, meaning no bound. The fallback is used there too -- an
 // unbounded ceiling would let one absurd estimate ask for unbounded gas, and
 // nothing gpao approves should need more than a full block's worth anyway.
-func (o *oracle) queryBlockMaxGas(ctx context.Context) int64 {
+func (o *oracle) queryBlockMaxGas(ctx context.Context) (maxGas int64, answered bool) {
 	res, err := o.client.RPCClient.ConsensusParams(ctx, nil)
-	maxGas := blockMaxGasFrom(res, err)
-	if maxGas == defaultBlockMaxGas {
-		o.logf("gpao: using %d for block max gas: %v", defaultBlockMaxGas, err)
+	if err != nil {
+		o.errf("gpao: block max gas query failed, using %d until it answers: %v",
+			defaultBlockMaxGas, err)
+		return 0, false
 	}
-	return maxGas
+	maxGas = blockMaxGasFrom(res, nil)
+	if maxGas == defaultBlockMaxGas {
+		o.logf("gpao: using %d for block max gas", defaultBlockMaxGas)
+	}
+	return maxGas, true
 }
 
 // blockMaxGasFrom picks the ceiling from a consensus-params response, falling
@@ -669,8 +692,8 @@ var errVerifyUnavailable = errors.New("verifier unavailable")
 // The real value matters because the ante REFUSES a transaction whose
 // GasWanted exceeds Block.MaxGas rather than clamping it. So on a chain
 // configured below this fallback, a probe signed at the fallback is rejected
-// and every estimate fails -- which is why blockMaxGas is queried at startup
-// instead of assumed.
+// and every estimate fails -- which is why the chain is asked for blockMaxGas
+// on each poll until it answers, instead of assuming it.
 const defaultBlockMaxGas = int64(3_000_000_000)
 
 // gasHeadroomNum/Den add 20% to a measured estimate.
@@ -770,16 +793,20 @@ func (o *oracle) enable(pkgPath, pkgHash string) error {
 	// after verification cannot ride this approval.
 	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath, PkgHash: pkgHash}
 
+	// Read once, so the probe and the gas-wanted it sizes cannot straddle the
+	// block reader adopting the chain's ceiling.
+	ceiling := o.blockMaxGas.Load()
+
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{
 		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(o.blockMaxGas, gasFee),
+		Fee:  std.NewFee(ceiling, gasFee),
 	}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
 
-	gasWanted := gasWantedFor(0, o.cfg.gasWanted, o.blockMaxGas)
+	gasWanted := gasWantedFor(0, o.cfg.gasWanted, ceiling)
 	sim, simErr := o.client.SimulateResult(probe)
 	switch classifySimulate(sim, simErr) {
 	case verdictWillFail:
@@ -793,7 +820,7 @@ func (o *oracle) enable(pkgPath, pkgHash string) error {
 		// stall approvals chain-wide. Fall back to the configured value.
 		o.logf("estimate failed for %s, using %d: %v", pkgPath, gasWanted, simErr)
 	case verdictReady:
-		gasWanted = gasWantedFor(sim.GasUsed, o.cfg.gasWanted, o.blockMaxGas)
+		gasWanted = gasWantedFor(sim.GasUsed, o.cfg.gasWanted, ceiling)
 		o.logf("estimated %d gas for %s, sending with %d", sim.GasUsed, pkgPath, gasWanted)
 	}
 
