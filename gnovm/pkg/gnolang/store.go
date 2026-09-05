@@ -1425,6 +1425,9 @@ func (ds *defaultStore) RealmStorageDiffs() StorageDiffs {
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
+	// Nothing charged survives the reset, so no string may stay tracked
+	// (or pinned) either; the next machine restarts GC cycle numbering.
+	ds.alloc.clearStringTracking()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	// Lock-step reset cacheRealms.
 	ds.cacheRealms = make(map[PkgID]*Realm)

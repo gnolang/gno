@@ -1891,8 +1891,9 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
-	case StringValue: // do nothing
-		return cv
+	case StringValue:
+		cv2 := store.GetAllocator().NewString(string(cv))
+		return cv2
 	case BigintValue: // do nothing
 		return cv
 	case BigdecValue: // do nothing
@@ -1925,6 +1926,8 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 		return cv
 	case *FuncValue:
 		cv.Type = fillType(store, cv.Type)
+		// Captures are not walked: each is a *HeapItemValue persisted as
+		// its own object, filled (strings re-tracked) when loaded.
 		return cv
 	case *BoundMethodValue:
 		if cv.Func != nil { // nil for a lazy interface bind
