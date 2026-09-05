@@ -9,6 +9,7 @@ import (
 	"go/types"
 	goio "io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -58,6 +59,31 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
+}
+
+// isStdlibDir reports whether dir holds standard library source, which carries
+// Go's own directives and is not submitted to a chain.
+//
+// Decided by location: the package path cannot be trusted for this, because a
+// locally developed package may use a short module path that IsStdlib matches.
+func isStdlibDir(rootDir, dir string) bool {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	for _, parts := range [][]string{
+		{"gnovm", "stdlibs"},
+		{"gnovm", "tests", "stdlibs"},
+	} {
+		root, err := filepath.Abs(filepath.Join(rootDir, filepath.Join(parts...)))
+		if err != nil {
+			continue
+		}
+		if abs == root || strings.HasPrefix(abs, root+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
@@ -181,6 +207,56 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
+
+		// Directives are rejected for user packages in ValidateMemPackageAny;
+		// report them here too, so the rule surfaces at lint time instead of at
+		// the AddPackage that comes much later.
+		//
+		// Scanned from disk before ReadMemPackage, and the package is skipped
+		// on a hit, mirroring the validator: a line directive rewrites the
+		// positions the parser reports, so reading first would let a file that
+		// is about to be rejected choose the path printed in its own error.
+		// The directive is quoted because it is user text and reaches a
+		// terminal.
+		//
+		// Stdlibs are exempt by location rather than by path shape. A package
+		// developed locally may carry a short module path (module = "tagged")
+		// and be deployed with -pkgpath gno.land/r/.../tagged; IsStdlib reads
+		// that short path as a stdlib, so gating on it would let lint pass a
+		// package the chain rejects.
+		if !isStdlibDir(cmd.rootDir, dir) {
+			tagged := false
+			// The same list ReadMemPackage will read, from the same function,
+			// so lint cannot disagree with the package about which files are
+			// in it. An error here is left to ReadMemPackage to report.
+			gnofiles, _ := gno.MemPackageFilePaths(dir, pkgPath, gno.MPAnyAll)
+			for _, gnofile := range gnofiles {
+				if !strings.HasSuffix(gnofile, ".gno") {
+					continue
+				}
+				body, rerr := os.ReadFile(gnofile)
+				if rerr != nil {
+					continue // ReadMemPackage below reports the read error.
+				}
+				directive, ok, serr := gno.FindDirectiveComment(string(body))
+				if serr != nil || !ok {
+					// An unscannable file is reported by the parse below.
+					continue
+				}
+				io.ErrPrintln(gnoIssue{
+					Code:       gnoDirectiveError,
+					Confidence: 1,
+					Location:   gnofile,
+					Msg:        fmt.Sprintf("directives are not supported: %q", directive),
+				})
+				hasError = true
+				tagged = true
+			}
+			if tagged {
+				continue
+			}
+		}
+
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAnyAll)
 		if err != nil {
 			printError(io.Err(), dir, pkgPath, err)

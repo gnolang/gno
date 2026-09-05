@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	gofmt "go/format"
 	"go/parser"
+	goscanner "go/scanner"
 	"go/token"
 	"os"
 	"path"
@@ -775,7 +777,17 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // file must be consistent with others, or nil and an error is returned.
 //
 // Filtering, parsing, and validation is performed separately.
-func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+// MemPackageFilePaths lists the files ReadMemPackage would read from dir, in
+// the order it would read them: the eligible files in dir itself, followed by
+// the _filetest.gno files in a "filetests" subdirectory, which the package
+// flattens into itself.
+//
+// Exported so a caller that must act on a package before it is read -- `gno
+// lint` refuses directives before anything parses the source -- works from the
+// same list rather than re-deriving it. Re-derivation drifted twice: once
+// missing filetests/ entirely, once including plain .gno files there that are
+// never part of the package.
+func MemPackageFilePaths(dir string, pkgPath string, mptype MemPackageType) ([]string, error) {
 	mptype = mptype.Decide(pkgPath)
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -833,6 +845,16 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 				list = append(list, filepath.Join(filetestsDir, file.Name()))
 			}
 		}
+	}
+	return list, nil
+}
+
+// ReadMemPackage reads the file contents in the given directory.
+func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	mptype = mptype.Decide(pkgPath)
+	list, err := MemPackageFilePaths(dir, pkgPath, mptype)
+	if err != nil {
+		return nil, err
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
@@ -1242,6 +1264,32 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		// Validate .gno package names.
 		if strings.HasSuffix(fname, ".gno") {
 			numGnoFiles += 1
+			// Directives mean nothing in Gno, yet several are honoured by
+			// consumers of the stored source and all of them misread as
+			// significant to whoever audits it. Submitted packages only:
+			// stdlibs ship with the node and inherit Go's own directives, and
+			// the VM suite pins that constraints are inert
+			// (gnovm/tests/files/build0.gno). See
+			// adr/pr6078_forbid_directives.md.
+			//
+			// Checked before the file is parsed, and `continue` on a hit: a
+			// line directive rewrites the positions go/parser reports, so
+			// parsing first would let a rejected file choose the filename and
+			// line printed in its own error. The directive name is quoted
+			// because it is submitted text and may hold control bytes.
+			if mptype.IsUserlib() {
+				d, ok, serr := FindDirectiveComment(mfile.Body)
+				if serr != nil {
+					errs = multierr.Append(errs, fmt.Errorf(
+						"invalid file %q: %w", fname, serr))
+					continue
+				}
+				if ok {
+					errs = multierr.Append(errs, fmt.Errorf(
+						"invalid file %q: directives are not supported: %q", fname, d))
+					continue
+				}
+			}
 			pkgName, err := PackageNameFromFileBody(path.Join(mpkg.Path, fname), mfile.Body)
 			if err != nil {
 				errs = multierr.Append(errs, err)
@@ -1289,6 +1337,207 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		errs = multierr.Append(errs, fmt.Errorf("package name %q not found in files", mpkg.Name))
 	}
 	return errs
+}
+
+// hasRawGoGenerate reports whether any line begins with a go:generate
+// directive, matching cmd/go's isGoGenerate: the prefix must start the line and
+// be followed by a space or a tab. Line-based on purpose -- this mirrors a
+// consumer that never parses the file, so the token scan cannot stand in for it.
+func hasRawGoGenerate(body string) bool {
+	for off := 0; off < len(body); {
+		rest := body[off:]
+		if strings.HasPrefix(rest, "//go:generate ") ||
+			strings.HasPrefix(rest, "//go:generate\t") {
+			return true
+		}
+		nl := strings.IndexByte(rest, '\n')
+		if nl < 0 {
+			break
+		}
+		off += nl + 1
+	}
+	return false
+}
+
+// errCannotScan reports a file go/scanner cannot lex. Positionless on purpose;
+// see FindDirectiveComment.
+var errCannotScan = errors.New("file cannot be scanned")
+
+// FindDirectiveComment returns the first compiler or tooling directive in the
+// file body, if any: a build constraint ("//go:build", legacy "// +build"), a
+// line directive, or a pragma such as "//go:noinline".
+//
+// None of them means anything in Gno — there is a single target, no conditional
+// compilation, and gnomod.toml carries the language version — but several are
+// honoured by consumers of the stored source, and all of them misread as
+// significant to whoever audits it. See adr/pr6078_forbid_directives.md.
+//
+// The whole file is scanned, not just the header: build constraints must
+// precede the package clause, but pragmas attach to declarations anywhere.
+//
+// Scanning tokens rather than raw lines keeps that exact. It is the mechanism
+// go/parser itself uses, so this agrees with it on a leading BOM and on a
+// "package" line inside a block comment, both of which slip past a line scan;
+// and a string literal that merely spells a directive is never a comment token,
+// so it is not rejected.
+//
+// Exported so `gno lint` flags the same files ValidateMemPackageAny rejects.
+func FindDirectiveComment(body string) (string, bool, error) {
+	// `go generate` does not parse: it scans raw lines for a "//go:generate"
+	// prefix at column 1 followed by a space or tab (cmd/go isGoGenerate). A
+	// command can therefore hide from the token scan below inside a raw string
+	// or a block comment, survive transpilation verbatim, and still run. Checked
+	// end to end: such a package validated, `gno tool transpile` kept the line
+	// at column 1, and `go generate -tags gno -n` printed its command.
+	if hasRawGoGenerate(body) {
+		return "//go:generate", true, nil
+	}
+	var sc goscanner.Scanner
+	fset := token.NewFileSet()
+	sc.Init(fset.AddFile("", fset.Base(), len(body)), []byte(body), nil, goscanner.ScanComments)
+	for {
+		_, tok, lit := sc.Scan()
+		// The token is examined before the error check below, so a directive
+		// in a comment that also holds a bad byte is still found, as is any
+		// directive earlier in the file.
+		switch tok {
+		case token.EOF:
+			return "", false, nil
+		case token.COMMENT:
+			if name, ok := directiveName(lit); ok {
+				return name, true, nil
+			}
+		}
+		if sc.ErrorCount > 0 {
+			// A byte go/scanner cannot lex. Stopping is sound: the same bytes
+			// fail PackageNameFromFileBody a few lines below, so the file is
+			// refused either way -- for being unparseable rather than for a
+			// directive. It cannot be stored, so nothing hides behind this.
+			//
+			// Worth stopping for. go/scanner formats a message per bad byte:
+			// scanner.errorf calls fmt.Sprintf before consulting the handler,
+			// so a nil handler does not avoid the cost. A megabyte of them
+			// takes ~220ms and three million allocations, against ~13ms for
+			// ordinary source of the same size -- and this scan runs before
+			// chargePreprocessGas, so that time is unmetered.
+			//
+			// Reported rather than swallowed. Such a file cannot compile, so
+			// refusing it here costs nothing real, and it keeps this rule from
+			// depending on a later gate catching what the scan gave up on. The
+			// error carries no position: the file may hold a line directive
+			// before the bad bytes, and a rejected file does not get to choose
+			// the location printed in its own rejection.
+			return "", false, errCannotScan
+		}
+	}
+}
+
+// directiveName reports whether a comment token is a directive, and names it
+// for the error message. The name is the directive itself, without arguments
+// and length-capped, so an error stays short and quotes back only a fixed
+// vocabulary of the submitted bytes.
+func directiveName(lit string) (string, bool) {
+	// The legacy "// +build" form carries a space, so Go does not count it as a
+	// directive comment even though it is still honoured as a constraint.
+	if constraint.IsPlusBuild(lit) {
+		return "// +build", true
+	}
+	// Go recognises the block form of a line directive anywhere in a file, not
+	// only at the start of a line: go/scanner accepts a comment when
+	// `lit[1] == '*' || offs == s.lineOffset` and the text after the opener
+	// begins with "line ". Missing this form leaves the position-forging
+	// vector open, so match it explicitly. Only "line" has a block form; the
+	// //tool:name directives are line comments to Go.
+	if strings.HasPrefix(lit, "/*") {
+		if strings.HasPrefix(lit[2:], "line ") {
+			return "/*line", true
+		}
+		return "", false
+	}
+	if !strings.HasPrefix(lit, "//") || !isDirectiveText(lit[2:]) {
+		return "", false
+	}
+	if isAllowedDirective(lit[2:]) {
+		return "", false
+	}
+	name := lit[2:]
+	if i := strings.IndexAny(name, " \t"); i >= 0 {
+		name = name[:i]
+	}
+	if len(name) > 32 {
+		name = name[:32]
+	}
+	return "//" + name, true
+}
+
+// allowedDirectives names the directives a submitted package may carry despite
+// the rule. Adding an entry is backward-compatible, removing one is a consensus
+// break, so the list is short by construction. See
+// adr/pr6078_forbid_directives.md.
+//
+// It is policy and deliberately sits above isDirectiveText, which stays a
+// faithful mirror of go/ast: whether something *is* a directive is Go's
+// question, whether Gno accepts it is ours.
+var allowedDirectives = []string{
+	// Not inert downstream, despite meaning nothing to the VM: transpile
+	// preserves "//nolint:gosec", and where the transpiled package is valid Go
+	// (a pure /p/ helper, not anything importing a gno stdlib) golangci-lint
+	// honours it. The entry is kept anyway, for a reason that survives that.
+	//
+	// A directive needs a colon (see isDirectiveText), so bare "//nolint" is
+	// not one and is accepted whatever this list says. Removing the entry would
+	// therefore ban only the *targeted* form and keep the *blanket* form, while
+	// the error pushed authors from "//nolint:gosec" to "//nolint" -- trading a
+	// narrow suppression for a wider one. Banning both would mean diverging
+	// from go/ast, which this rule deliberately does not do.
+	"nolint",
+}
+
+// isAllowedDirective reports whether a directive is permitted, taking the text
+// of a "//" comment with the slashes removed.
+func isAllowedDirective(c string) bool {
+	for _, name := range allowedDirectives {
+		rest, ok := strings.CutPrefix(c, name)
+		if !ok {
+			continue
+		}
+		// The name must end at a boundary, so "//nolint", "//nolint:a,b" and
+		// "//nolint:a // why" are allowed but "//nolintfoo:x" is not.
+		if rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t' {
+			return true
+		}
+	}
+	return false
+}
+
+// isDirectiveText reports whether the text of a "//" comment (with the slashes
+// removed) is a directive: "line ", "extern ", "export ", or the "//tool:name"
+// form. A leading space disqualifies it, which is what keeps an ordinary
+// "// see: below" comment from counting.
+//
+// This mirrors the unexported go/ast.isDirective. It is copied rather than
+// called because the rule decides whether a package is accepted on chain, and
+// must therefore not shift when the toolchain's own copy evolves.
+func isDirectiveText(c string) bool {
+	if strings.HasPrefix(c, "line ") ||
+		strings.HasPrefix(c, "extern ") ||
+		strings.HasPrefix(c, "export ") {
+		return true
+	}
+	// "//[a-z0-9]+:[a-z0-9]"
+	colon := strings.Index(c, ":")
+	if colon <= 0 || colon+1 >= len(c) {
+		return false
+	}
+	for i := 0; i <= colon+1; i++ {
+		if i == colon {
+			continue
+		}
+		if b := c[i]; !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
