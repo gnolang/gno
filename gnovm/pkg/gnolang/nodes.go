@@ -2323,6 +2323,12 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	// iota is a non-shadowable builtin. A three-clause for init reaches here
+	// renamed to "iota.loopvar"; uverse's own registration goes through
+	// Define2, bypassing Reserve, so it is unaffected.
+	if name := Name(strings.TrimSuffix(string(nx.Name), ".loopvar")); name == iotaIdentifier {
+		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", name))
+	}
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
 		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
