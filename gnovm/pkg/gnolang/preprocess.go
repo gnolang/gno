@@ -483,6 +483,11 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 				nx := &n.NameExpr
 				nn := nx.Name
 				if nn == "." {
+					// Dot imports inject a dependency's full exported surface
+					// into file scope. Deployed importers are immutable while
+					// dependencies can gain exports, so a later export could
+					// shadow or collide with a name in an already-deployed
+					// package. See #6076.
 					panic("dot imports not allowed in gno")
 				}
 				if nn == "" { // use default
@@ -5597,8 +5602,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			d.Name = pv.PkgName
 		case blankIdentifier: // no definition
 			return
-		case ".": // dot import
-			panic("dot imports not allowed in Gno")
+		case ".": // see initStaticBlocks2 (+ #6076): dot imports not allowed
+			panic("dot imports not allowed in gno")
 		}
 		// NOTE imports usually must happen with a file,
 		// and so last is usually a *FileNode, but for
