@@ -585,3 +585,85 @@ func TestFastIndex_Has(t *testing.T) {
 		t.Fatal("imm.Has(absent) = true; want false")
 	}
 }
+
+// TestGetImmutable_StampGate: an immutable snapshot must not trust the fast
+// index when the on-disk stamp is BEHIND the snapshot's version (e.g. versions
+// committed with the feature off, or a rebuild not yet durable). getImmutable
+// gates imm.fast on stamp >= version. A doctored sentinel entry makes the
+// served-vs-walked path observable; the reader loads via LoadVersion (never
+// Load, which would rebuild and heal the stamp, erasing the scenario).
+func TestGetImmutable_StampGate(t *testing.T) {
+	db := memdb.NewMemDB()
+	key := []byte("key")
+
+	on := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
+	mustSet(t, on, key, []byte("a1"))
+	v1 := mustSave(t, on) // stamp := v1, 'F'[key] = a1@v1
+
+	off := NewMutableTreeWithDB(db, 256, NewNopLogger()) // feature off: no stamp/index maintenance
+	if _, err := off.Load(); err != nil {
+		t.Fatal(err)
+	}
+	mustSet(t, off, key, []byte("a2"))
+	v2 := mustSave(t, off) // tree at v2 has key=a2; stamp still v1
+
+	// Plant a distinct sentinel at v1 so a fast hit is distinguishable from a walk.
+	doctorFastEntry(t, off, db, key, v1, []byte("sentinel"))
+
+	reader := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
+	if _, err := reader.LoadVersion(v2); err != nil { // LoadVersion, not Load: no rebuild
+		t.Fatal(err)
+	}
+
+	// Snapshot at v2: stamp(v1) < v2 → gate OFF → authoritative walk → a2.
+	// Without the gate, fastGet would trust sentinel@v1 (v1 <= v2) and return it.
+	immV2, err := reader.GetImmutable(v2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer immV2.Close()
+	if got, _ := immV2.Get(key); string(got) != "a2" {
+		t.Fatalf("v2 snapshot Get = %q; want a2 (stamp gate must disable the too-old index)", got)
+	}
+
+	// Snapshot at v1: stamp(v1) >= v1 → gate ON → fast path serves the sentinel.
+	// Anti-vacuity: proves the gate does not blanket-disable the index.
+	immV1, err := reader.GetImmutable(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer immV1.Close()
+	if got, _ := immV1.Get(key); string(got) != "sentinel" {
+		t.Fatalf("v1 snapshot Get = %q; want sentinel (stamp covers v1 → fast path open)", got)
+	}
+}
+
+// TestFastIndex_OlderStampStillRebuildsLatestRoot ensures writer startup still
+// repairs an index whose stamp is behind the authoritative latest root.
+// Adopted from #6013.
+func TestFastIndex_OlderStampStillRebuildsLatestRoot(t *testing.T) {
+	db := memdb.NewMemDB()
+	tr := NewMutableTreeWithDB(db, 256, NewNopLogger(), FastIndexOption(true))
+	mustSet(t, tr, []byte("key"), []byte("v1"))
+	v1 := mustSave(t, tr)
+	mustSet(t, tr, []byte("key"), []byte("v2"))
+	v2 := mustSave(t, tr)
+
+	if err := tr.ndb.setFastIndexVersion(v1); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.ndb.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.ensureFastIndex(); err != nil {
+		t.Fatal(err)
+	}
+	stamp, ok, err := tr.ndb.getFastIndexVersion()
+	if err != nil || !ok || stamp != v2 {
+		t.Fatalf("stamp = (%d, %t, %v); want (%d, true, nil)", stamp, ok, err, v2)
+	}
+	got, err := tr.Get([]byte("key"))
+	if err != nil || string(got) != "v2" {
+		t.Fatalf("Get = %q, %v; want v2", got, err)
+	}
+}

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
+	"net"
 	"sync"
 	"time"
 
@@ -21,8 +23,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
-// defaultDialTimeout is the default wait time for a dial to succeed
-var defaultDialTimeout = 3 * time.Second
+var (
+	// defaultDialTimeout is the default wait time for a dial to succeed
+	defaultDialTimeout = 3 * time.Second
+
+	// seedDialInterval is the minimum wait time between two seed dial rounds
+	seedDialInterval = 30 * time.Second
+)
 
 type reactorPeerBehavior struct {
 	chDescs      []*conn.ChannelDescriptor
@@ -66,11 +73,16 @@ type MultiplexSwitch struct {
 	maxInboundPeers  uint64
 	maxOutboundPeers uint64
 
+	// allowDuplicateIP disables the guard that stops a single remote IP from
+	// occupying more than one inbound peer slot
+	allowDuplicateIP bool
+
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
 
 	peers           PeerSet  // currently active peer set (live connections)
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
+	seeds           sync.Map // ID -> *NetAddress; bootstrap peers, not kept alive
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
@@ -156,6 +168,11 @@ func (sw *MultiplexSwitch) OnStart() error {
 	// peer disconnects, and attempts to reconnect
 	// to them
 	go sw.runRedialLoop(sw.ctx)
+
+	// Run the seed dial routine.
+	// The seed dial routine falls back to the seed nodes
+	// whenever the switch has run out of peers to dial
+	go sw.runSeedDialLoop(sw.ctx)
 
 	return nil
 }
@@ -280,8 +297,10 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			// Check if the dial time is right
 			// for the item
-			if time.Now().Before(item.Time) {
-				// Nothing to dial
+			if wait := time.Until(item.Time); wait > 0 {
+				// Nothing to dial yet, wait until the item is due
+				sw.waitForDialTime(ctx, wait)
+
 				continue
 			}
 
@@ -301,48 +320,57 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				"address", item.Address.String(),
 			)
 
-			// Create a dial context
-			dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
-			defer cancelFn()
-
-			p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
-			if err != nil {
-				sw.Logger.Error(
-					"unable to dial peer",
-					"peer", peerAddr,
-					"err", err,
-				)
-
-				continue
-			}
-
-			// Register the peer with the switch
-			if err = sw.addPeer(p); err != nil {
-				sw.Logger.Error(
-					"unable to add peer",
-					"peer", p,
-					"err", err,
-				)
-
-				sw.transport.Remove(p)
-
-				if !p.IsRunning() {
-					continue
-				}
-
-				if stopErr := p.Stop(); stopErr != nil {
-					sw.Logger.Error(
-						"unable to gracefully stop peer",
-						"peer", p,
-						"err", stopErr,
-					)
-				}
-			}
-
-			// Log the telemetry
-			sw.logTelemetry()
+			sw.dialPeer(ctx, peerAddr)
 		}
 	}
+}
+
+// dialPeer dials the given peer address, and registers the resulting
+// connection with the switch.
+// It is a separate method so the dial context is released when the dial
+// completes. Deferring it inside the dial loop instead would pile every
+// dial's cancel onto the loop, to be released only at shutdown
+func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddress) {
+	// Create a dial context
+	dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)
+	defer cancelFn()
+
+	p, err := sw.transport.Dial(dialCtx, *peerAddr, sw.peerBehavior)
+	if err != nil {
+		sw.Logger.Error(
+			"unable to dial peer",
+			"peer", peerAddr,
+			"err", err,
+		)
+
+		return
+	}
+
+	// Register the peer with the switch
+	if err = sw.addPeer(p); err != nil {
+		sw.Logger.Error(
+			"unable to add peer",
+			"peer", p,
+			"err", err,
+		)
+
+		sw.transport.Remove(p)
+
+		if !p.IsRunning() {
+			return
+		}
+
+		if stopErr := p.Stop(); stopErr != nil {
+			sw.Logger.Error(
+				"unable to gracefully stop peer",
+				"peer", p,
+				"err", stopErr,
+			)
+		}
+	}
+
+	// Log the telemetry
+	sw.logTelemetry()
 }
 
 // runRedialLoop starts the persistent peer redial loop
@@ -497,6 +525,110 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	}
 }
 
+// runSeedDialLoop starts the seed node dial loop.
+// Seeds are bootstrap peers: they are dialed on node start, and afterwards
+// only when the switch has run out of peers to dial. The loop ticks on a fixed
+// interval, which doubles as the minimum delay between two dial rounds
+func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
+	ticker := time.NewTicker(seedDialInterval)
+	defer ticker.Stop()
+
+	// Run the initial seed dial round on start, so a fresh node has an entry
+	// point into the network. Bootstrap and fallback share a single path, and
+	// the same outbound slot accounting
+	sw.dialSeed()
+
+	for {
+		select {
+		case <-ctx.Done():
+			sw.Logger.Debug("seed dial context canceled")
+
+			return
+		case <-ticker.C:
+			sw.dialSeed()
+		}
+	}
+}
+
+// hasDialableItem returns a flag indicating if the dial queue holds an item
+// that can be dialed right now. The queue is time-sorted (ascending), so a head
+// item scheduled in the future means every queued item is currently backing off
+func (sw *MultiplexSwitch) hasDialableItem() bool {
+	item := sw.dialQueue.Peek()
+
+	return item != nil && !time.Now().Before(item.Time)
+}
+
+// dialSeed dials a single seed node, picked at random, if the switch has
+// nothing left to dial. Seeds go through the regular outbound dial path, so
+// they are subject to the maximum outbound peer limit like any other peer
+func (sw *MultiplexSwitch) dialSeed() {
+	peers := sw.Peers()
+
+	// Seeds exist to fill open outbound slots. With none available,
+	// there is nothing a seed could contribute
+	if peers.NumOutbound() >= sw.maxOutboundPeers {
+		return
+	}
+
+	// Check if there is anything left to dial.
+	// As long as the switch has dialable peers, the seeds are not needed
+	if sw.hasDialableItem() {
+		return
+	}
+
+	// Gather the seeds that are neither connected nor already queued
+	candidates := make([]*types.NetAddress, 0)
+
+	sw.seeds.Range(func(key, value any) bool {
+		var (
+			id   = key.(types.ID)
+			addr = value.(*types.NetAddress)
+		)
+
+		if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+			candidates = append(candidates, addr)
+		}
+
+		return true
+	})
+
+	if len(candidates) == 0 {
+		// No seed is worth dialing
+		return
+	}
+
+	// Dial a single seed. Queuing every seed at once would fill the outbound
+	// peer slots with bootstrap connections; if this one turns out to be
+	// unreachable, the next round picks another candidate
+	addr := candidates[randomIndex(len(candidates))]
+
+	sw.Logger.Info(
+		"dialing seed node",
+		"address", addr.String(),
+	)
+
+	sw.DialPeers(addr)
+}
+
+// randomIndex returns a random index within [0, n).
+// It falls back to the first index if the random source is unavailable
+func randomIndex(n int) int {
+	if n <= 1 {
+		return 0
+	}
+
+	index, err := rand.Int(
+		rand.Reader,
+		big.NewInt(int64(n)),
+	)
+	if err != nil {
+		return 0
+	}
+
+	return int(index.Int64())
+}
+
 // calculateBackoff calculates the backoff interval by exponentiating the base interval
 // by the number of attempts. The returned interval is capped at maxInterval and has a
 // jitter factor applied to it (+/- 10% of interval, max 10 sec).
@@ -621,6 +753,40 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 	return persistent
 }
 
+// hasPeerFromIP returns a flag indicating if the active peer set already
+// contains a peer connected from the given IP
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+
+	for _, p := range sw.peers.List() {
+		if ip.Equal(p.RemoteIP()) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// rejectInbound drops a connection the accept loop has decided not to keep.
+//
+// transport.Remove only forgets the connection; the socket the STS handshake
+// established has to be closed explicitly, or -- since a rejected peer was never
+// started, so no Stop() path runs -- it lingers until the netFD finalizer does
+// it. That lets a host open connections faster than the GC reclaims them.
+func (sw *MultiplexSwitch) rejectInbound(p PeerConn) {
+	sw.transport.Remove(p)
+
+	if err := p.CloseConn(); err != nil {
+		sw.Logger.Debug(
+			"unable to close rejected peer connection",
+			"peer", p,
+			"err", err,
+		)
+	}
+}
+
 // runAcceptLoop is the main powerhouse method
 // for accepting incoming peer connections, filtering them,
 // and persisting them
@@ -634,7 +800,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
 			return // exit
-		case errors.As(err, &errTransportClosed):
+		case errors.Is(err, errTransportClosed):
 			// Underlaying transport as been closed
 			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
 			return // exit
@@ -653,7 +819,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"max", sw.maxInboundPeers,
 			)
 
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
 			continue
 		}
 
@@ -665,13 +831,27 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
+			continue
+		}
+
+		// Reject a second connection from an IP that already holds a peer slot.
+		// Peer IDs are self-generated node keys, so without this a single host
+		// can mint fresh identities and occupy every inbound slot.
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+			sw.Logger.Info(
+				"Ignoring inbound connection: peer from this IP already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+			)
+
+			sw.rejectInbound(p)
 			continue
 		}
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			sw.transport.Remove(p)
+			sw.rejectInbound(p)
 
 			if p.IsRunning() {
 				_ = p.Stop()
@@ -730,6 +910,21 @@ func (sw *MultiplexSwitch) notifyAddPeerToDial() {
 	select {
 	case sw.dialNotify <- struct{}{}:
 	default:
+	}
+}
+
+// waitForDialTime waits for the given duration to elapse, for a new item to be
+// queued for dialing, or for the context to be canceled, whichever comes first.
+// The dial notification cannot be ignored, since a newly queued item can be due
+// before the one currently at the head of the queue
+func (sw *MultiplexSwitch) waitForDialTime(ctx context.Context, wait time.Duration) {
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	case <-sw.dialNotify:
 	}
 }
 

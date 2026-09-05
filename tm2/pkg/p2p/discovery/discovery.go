@@ -147,6 +147,19 @@ func (r *Reactor) OnStop() {
 	}
 }
 
+// AddPeer requests the peer set from newly dialed peers, so a fresh
+// connection contributes addresses immediately instead of waiting for
+// the random discovery tick to select it
+func (r *Reactor) AddPeer(peer p2p.PeerConn) {
+	if !peer.IsOutbound() {
+		// Inbound peers are not solicited: we did not choose them,
+		// and they are their own source
+		return
+	}
+
+	go r.requestPeers(peer)
+}
+
 // requestPeers requests the peer set from the given peer
 func (r *Reactor) requestPeers(peer p2p.PeerConn) {
 	// Initiate peer discovery

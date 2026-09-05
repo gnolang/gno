@@ -43,16 +43,16 @@ stdout '"grown" string'
 gnokey query bank/balances/g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu
 stdout '9959700ugnot'
 
-## gaspayer paid ONLY gas: 6000000 - 2144 (gas cost) = 5997856. Had it been
-## cross-charged the 40300 storage too, it would be 5957556 — so this proves the
+## gaspayer paid ONLY gas: 6000000 - 2261 (gas cost) = 5997739. Had it been
+## cross-charged the 40300 storage too, it would be 5957439 — so this proves the
 ## gas sponsor is NOT charged for storage.
 ## NOTE: the exact gas figure tracks the chain's gas schedule, so it moves when
-## master changes gas pricing (it did: 2582 -> 2144 over the last merge). What the
-## assertion actually pins is the *separation* — neither balance moves by the other
-## realm's cost — so re-derive the number on a gas-schedule change, but never
-## "fix" it by folding in the other realm's 40300.
+## master changes gas pricing (it did: 2582 -> 2144 -> 2261 over the last two
+## merges). What the assertion actually pins is the *separation* — neither balance
+## moves by the other realm's cost — so re-derive the number on a gas-schedule
+## change, but never "fix" it by folding in the other realm's 40300.
 gnokey query bank/balances/g164cs55tunylr9t455rk3lgkzlashyzkznxndcw
-stdout '5997856ugnot'
+stdout '5997739ugnot'
 
 -- gaspayer/gnomod.toml --
 module = "gaspayer"

@@ -785,6 +785,13 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
+store key, while `GetCoins(addr)` reads every denom the address holds. That
+distinction is not just an optimization. Anyone can send any address a new denom
+without its consent, so `GetCoins` on a caller-supplied address costs whatever a
+third party decided it should — enough of them and your function can no longer be
+called at all.
+
 #### Verifying inbound Coin payments
 
 A realm that wants to charge for a function typically attaches a payment check
@@ -893,17 +900,26 @@ import (
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
-	UserTeller    grc20.Teller
+	// Keep the teller unexported: it is a spend capability. It is built from
+	// the ledger, which never leaves this realm, and it only works here.
+	userTeller grc20.Teller
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, "token", cur)
-	UserTeller = Token.CallerTeller()
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
+	userTeller = privateLedger.CallerTeller()
+}
+
+// Transfer moves the caller's own tokens (userTeller debits cur.Previous()).
+func Transfer(cur realm, to address, amount int64) {
+	if err := userTeller.Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
 }
 
 func MyBalance(_ realm) int64 {
 	caller := runtime.PreviousRealm().Address()
-	return UserTeller.BalanceOf(caller)
+	return Token.BalanceOf(caller)
 }
 ```
 

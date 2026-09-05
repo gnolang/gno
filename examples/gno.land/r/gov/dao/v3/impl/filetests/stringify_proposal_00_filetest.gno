@@ -2,6 +2,7 @@
 package test
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -13,6 +14,24 @@ import (
 var (
 	testUser = testutils.TestAddress("test")
 )
+
+// StringifyProposal carries its own copy of the disclosure expression, separate
+// from the one in render.gno. It has no production caller today, but it is
+// exported, and an untested copy of a security-relevant expression is free to
+// drift from the tested one. This executor pins it: CreationRealm is reached
+// through the public interface, so it can return anything, and the run of two
+// backticks closes a narrower fence.
+type hostileExec struct{}
+
+func (e *hostileExec) Execute(cur realm) error { return nil }
+
+func (e *hostileExec) String() string { return "" }
+
+// Padded on both ends as well as fenced: without the TrimSpace, InlineCode
+// pads the fence to protect the leading and trailing spaces, and the expected
+// span below no longer matches. That makes one payload cover both the escaping
+// and the trim.
+func (e *hostileExec) CreationRealm() string { return "  gno.land/r/evil`` **INJECTED**  " }
 
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
@@ -65,6 +84,15 @@ func main(cur realm) {
 	// Stringify
 	println("----")
 	println(impl.StringifyProposal(prop))
+
+	// The same disclosure, through a hostile executor.
+	hpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Hostile", "creation realm attacks the code span", &hostileExec{}))
+	hout := impl.StringifyProposal(dao.MustGetProposal(hpid))
+
+	println("stringify widens the fence too:",
+		strings.Contains(hout, "```gno.land/r/evil`` **INJECTED**```"))
+	println("and no bold escapes it:", !strings.Contains(hout, "\n**INJECTED**"))
 }
 
 // Output:
@@ -82,4 +110,7 @@ func main(cur realm) {
 //
 // Test executor description
 //
-// Executor created in: gno.land/r/template/contract
+// Executor created in: `gno.land/r/template/contract`
+//
+// stringify widens the fence too: true
+// and no bold escapes it: true

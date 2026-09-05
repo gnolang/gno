@@ -104,9 +104,13 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// reset state
 	testing.SetRealm(testing.NewCodeRealm(v4))
 	UpdateImpl(cross(cur), UpdateRequest{
-		DAO:         &dummyDao{},
-		AllowedDAOs: []string{},
+		DAO: &dummyDao{},
 	})
+	// UpdateImpl deliberately ignores an empty AllowedDAOs, so it can no
+	// longer be used to restore the bootstrap-open state — that is the point
+	// of the guard. Reset the package var directly instead; we are in the
+	// same package.
+	allowedDAOs = nil
 }
 
 type dummyDao struct{}

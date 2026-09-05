@@ -228,12 +228,22 @@ hardcodes the gnoland1→gnoland-1 chain IDs and delegates to the CLI.
 ### `InitChainerConfig.StrictReplay` — opt-in fail-closed boot
 
 Defaults to `false` for backwards compatibility. Hardfork operators set
-it to `true` so any non-skipped genesis tx failure aborts `InitChain`
-with an error instead of letting the chain boot in a corrupted state
-(AppHash diverging from source under `GasReplayMode="strict"`). Skipped
-txs (`metadata.Failed = true`, intentional source-chain failures) do
-not count as failures. The `replayReport.FailedCount()` accessor exposes
-the underlying tally for tooling that wants to gate on it externally.
+it to `true` so any non-skipped genesis tx failure aborts the boot
+instead of letting the chain start in a corrupted state (AppHash
+diverging from source under `GasReplayMode="strict"`). Skipped txs
+(`metadata.Failed = true`, intentional source-chain failures) do not
+count as failures. The `replayReport.FailedCount()` accessor exposes the
+underlying tally for tooling that wants to gate on it externally.
+
+**It aborts by panicking, and it has to.** Returning an error is not
+enough: the error reaches `ResponseInitChain.Error` and stops there,
+because `localClient.InitChainSync` returns a nil Go error regardless
+and the handshake inspects only that. So the field was populated and
+never read, and the chain booted anyway — which is worse than not having
+the flag, since the failures were reported and then ignored. Panicking
+propagates up the boot goroutine and stops the process, which is what
+"refusing to boot" has to mean. The valoper coverage assertion in the
+same file aborts the same way, for the same reason.
 
 A complementary BaseApp fix surfaces the real `loadAppState` error
 through to the operator: when `InitChainer` returns

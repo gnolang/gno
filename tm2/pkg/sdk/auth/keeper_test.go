@@ -404,3 +404,51 @@ func TestIterateAccountsChargesGas(t *testing.T) {
 	require.Greater(t, used, store.Gas(0),
 		"IterateAccounts should consume gas through the threaded gctx")
 }
+
+// calcBlockGasPrice divides by targetGas = maxGas*ratio/100, and this runs in
+// EndBlocker, so a division by zero there halts the chain instead of failing one
+// transaction. Consensus params accept any Block.MaxGas at or above -1, and both
+// degenerate shapes are reachable from a valid configuration: a limit under 100
+// truncates the target to zero, and -1 means unlimited.
+func TestCalcBlockGasPriceSurvivesADegenerateGasLimit(t *testing.T) {
+	t.Parallel()
+
+	gk := GasPriceKeeper{}
+	last := std.GasPrice{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 10}}
+
+	params := DefaultParams()
+	params.InitialGasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}}
+
+	for _, tt := range []struct {
+		name          string
+		maxGas, ratio int64
+		gasUsed       int64
+	}{
+		{"block limit below 100 truncates the target to zero", 50, 1, 30},
+		{"the same, just under the boundary", 99, 1, 50},
+		{"unlimited block gas has no target to measure against", -1, 50, 1000},
+		{"unlimited at the maximum ratio", -1, 100, 1000},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := params
+			p.TargetGasRatio = tt.ratio
+
+			var got std.GasPrice
+			require.NotPanics(t, func() {
+				got = gk.calcBlockGasPrice(last, tt.gasUsed, tt.maxGas, p)
+			}, "EndBlocker must not panic on a configuration the params accept")
+			require.Equal(t, last.Price.Amount, got.Price.Amount,
+				"with no meaningful target the price must be left alone")
+		})
+	}
+
+	// The control: a real target still moves the price, so the guard above is not
+	// simply disabling the adjustment.
+	p := params
+	p.TargetGasRatio = 50
+	up := gk.calcBlockGasPrice(last, 2_000_000_000, 3_000_000_000, p)
+	require.Greater(t, up.Price.Amount, last.Price.Amount, "a full block must raise the price")
+	down := gk.calcBlockGasPrice(last, 100, 3_000_000_000, p)
+	require.Less(t, down.Price.Amount, last.Price.Amount, "an empty block must lower it")
+}

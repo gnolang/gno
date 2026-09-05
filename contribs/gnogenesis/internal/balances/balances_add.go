@@ -150,6 +150,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	// Merge the two balance sheets, with the input
 	// having precedence over the genesis balances
 	finalBalances.LeftMerge(genesisBalances)
+	carryOverVesting(finalBalances, genesisBalances)
 
 	// Save the balances
 	sortedBalances := finalBalances.List()
@@ -163,7 +164,9 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	}
 
 	for _, balance := range sortedBalances {
-		io.Printfln("%s=%s", balance.Address.String(), balance.Amount.String())
+		// The full entry, schedule included, so the printed line is the same
+		// format the sheet readers accept.
+		io.Printfln("%s", balance)
 	}
 
 	io.Println()
@@ -242,6 +245,11 @@ func getBalancesFromTransactions(
 				// causes an accounts balance to go < 0. In these cases,
 				// we initialize the account (it is present in the balance sheet), but
 				// with the balance of 0
+				//
+				// The recipient is still credited when that happens, so the error
+				// runs upward: one send from an address this sheet never saw funded
+				// leaves the sender at 0 and the recipient holding the whole amount.
+				// The derived total can therefore exceed what the chain held.
 
 				from := balances[msgSend.FromAddress].Amount
 				to := balances[msgSend.ToAddress].Amount
@@ -284,6 +292,44 @@ func getBalancesFromTransactions(
 	}
 
 	return balances, nil
+}
+
+// carryOverVesting stops a change of amount from unlocking someone's coins.
+//
+// An input entry replaces the whole genesis entry for its address, and an input
+// entry is an address and an amount -- nothing else. So overriding the amount of
+// an address that was vesting dropped its schedule:
+//
+//	genesis:  g1abc=1000ugnot;vesting=1000ugnot,100,200
+//	input:    g1abc=500ugnot
+//	result:   g1abc=500ugnot              <- unlocked, and nothing says so
+//
+// This copies the schedule back onto any address that had one and came out of the
+// merge without one. Changing what someone holds is the point of the command;
+// releasing it is not.
+//
+// Two cases it leaves alone. An input entry carrying its own schedule keeps it,
+// because there the operator said what they meant. And if the carried schedule
+// vests more than the new amount, the genesis is invalid and both `gnogenesis
+// verify` and the chain reject it -- the intended outcome, since a loud failure
+// beats a silent unlock.
+//
+// Worth the guard because the realistic way in is `--parse-export`, which rebuilds
+// balances from a transaction export. That names every address that ever sent or
+// received, so a vesting investor who made one transaction would come out fully
+// unlocked.
+func carryOverVesting(final, genesis gnoland.Balances) {
+	for addr, genBal := range genesis {
+		if !genBal.IsVesting() {
+			continue
+		}
+		cur, present := final[addr]
+		if !present || cur.IsVesting() {
+			continue
+		}
+		cur.Vesting = genBal.Vesting
+		final[addr] = cur
+	}
 }
 
 // mapGenesisBalancesFromState extracts the initial account balances from the

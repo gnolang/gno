@@ -36,7 +36,13 @@ stderr 'consensus pubkey type is not allowed for validators'
 # guard passes. chain.PubKeyAddress(pubKey) derives the signing address
 # g10ddhfxv47lhyhpj426u57ckxwl0qtrk6c9rs5v; v3's executor resolves operator
 # -> signing-key via valoperCache at proposal-execute time.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4000001ugnot -gas-wanted 55_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -chainid=tendermint_test test1
+#
+# No -send: GetValoperRegisterFee() defaults to 0, so Register never reaches
+# its unsafe.OriginSend() read (valopers.gno:148) and MsgCall would reject
+# the envelope as unobserved. Any fee attached while the fee is 0 would be
+# stranded in the valopers address. Restore -send here if a test ever raises
+# the fee first.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4000001ugnot -gas-wanted 55_000_000 -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render

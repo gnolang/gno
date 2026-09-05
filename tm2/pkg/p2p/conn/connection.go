@@ -42,6 +42,55 @@ const (
 	defaultSendTimeout         = 10 * time.Second
 	defaultPingInterval        = 60 * time.Second
 	defaultPongTimeout         = 45 * time.Second
+
+	// defaultRecvAssemblyTimeout bounds how long a single incomplete message
+	// may be assembled from partial PacketMsgs (EOF=0) in a channel's recving
+	// buffer. The deadline is anchored to the first partial packet of a message
+	// and is not extended by subsequent packets, so a peer cannot pin memory in
+	// the recving buffer indefinitely by dribbling partial packets while
+	// answering pings. At the default 5MB/s recv rate any legitimate message
+	// (blocks are bounded by MaxBlockDataBytes, ~2MB) completes in well under a
+	// second -- measured, 0.4s for 2MB and ~1.6s at the 8MB MaxDataBytes ceiling
+	// -- so this is orders of magnitude of headroom.
+	//
+	// It only measures time the *peer* had to make progress: time recvRoutine
+	// spends inside a reactor callback is credited back, since nothing on the
+	// connection is being read then and the delay is not the peer's doing.
+	defaultRecvAssemblyTimeout = 30 * time.Second
+
+	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
+	// connection's channels' recving buffers at any instant. Without it the
+	// exposure is the sum of every channel's RecvMessageCapacity (~38MB on a
+	// full node), letting a peer pin that much per connection.
+	//
+	// Because it is the only bound on that exposure, it is what determines a
+	// node's aggregate worst case (this budget times the number of peer slots),
+	// so it is sized against real traffic rather than against the channel caps.
+	// A connection assembles at most one incomplete message per channel, and the
+	// largest legitimate ones are:
+	//
+	//	blockchain      8MB   a committed block, bounded by MaxDataBytes,
+	//	                      which is capped at MaxBlockDataBytesLimit
+	//	consensus       4MB   4 channels x 1MB (the consensus maxMsgSize)
+	//	mempool      8MB-128K a single tx, bounded by MaxTxBytes, which
+	//	                      consensus-param validation requires to leave
+	//	                      MaxBlockOverheadBytes inside MaxDataBytes
+	//	discovery      ~KBs   at most maxPeersShared (30) addresses
+	//
+	// The worst case a *legal* chain configuration can reach is therefore
+	// 8MB + 4MB + (8MB - 128KB) ~= 19.9MB, so 20MB covers it -- but only just,
+	// and only because MaxTxBytes cannot reach MaxDataBytes. A chain at the 2MB
+	// default sits at ~7MB. Anything that raises MaxBlockDataBytesLimit, adds a
+	// channel, or loosens the MaxTxBytes bound has to raise this budget too.
+	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
+	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
+
+	// recvAssemblyStallGrace is how long recvRoutine may spend in a reactor
+	// callback before that time is credited back to the assembly deadlines. It
+	// only exists to keep the per-message path free of the channel walk; any
+	// stall long enough to matter against a 30s deadline is orders of magnitude
+	// above it.
+	recvAssemblyStallGrace = 50 * time.Millisecond
 )
 
 type (
@@ -114,6 +163,33 @@ type MConnection struct {
 
 	created time.Time // time of creation
 
+	// recvBufferBytes is the total number of bytes currently buffered across all
+	// channels' recving buffers (incomplete, partially-assembled messages). It
+	// is only ever read or written from recvRoutine, so it needs no locking.
+	recvBufferBytes int
+
+	// recvStallSince is the unix-nano time at which recvRoutine entered a
+	// reactor callback, or 0 when it is reading. Written by recvRoutine, read by
+	// the channels' assembly-timer goroutines and by sendRoutine, neither of
+	// which may charge a peer for time this end spent not reading.
+	recvStallSince atomic.Int64
+
+	// recvStalledTotal is the cumulative nanoseconds recvRoutine has spent in
+	// reactor callbacks over the life of the connection. sendRoutine diffs it
+	// across a ping/pong window to find how much of that window this end was
+	// not reading for. Written by recvRoutine.
+	recvStalledTotal atomic.Int64
+
+	// lastPongAt is the unix-nano time the most recent pong was read. Written by
+	// recvRoutine, read by sendRoutine to tell a genuinely unanswered ping from
+	// one whose pong lost the race for pongTimeoutCh.
+	lastPongAt atomic.Int64
+
+	// pingSentAt and stalledAtPing snapshot the start of the current pong
+	// window. Only touched from sendRoutine.
+	pingSentAt    time.Time
+	stalledAtPing int64
+
 	_maxPacketMsgSize int
 }
 
@@ -133,6 +209,18 @@ type MConnConfig struct {
 
 	// Maximum wait time for pongs
 	PongTimeout time.Duration `toml:"pong_timeout"`
+
+	// RecvAssemblyTimeout bounds how long a single incomplete message may be
+	// assembled from partial PacketMsgs in a channel's recving buffer. The
+	// deadline is anchored to the first partial packet of a message and is not
+	// extended by later packets, but time spent inside a reactor callback is
+	// credited back. When <= 0 no assembly deadline is enforced.
+	RecvAssemblyTimeout time.Duration `toml:"recv_assembly_timeout"`
+
+	// MaxRecvBufferBytes caps the total bytes buffered across all of the
+	// connection's channels' recving buffers at any instant. When <= 0 no total
+	// budget is enforced (only the per-channel RecvMessageCapacity applies).
+	MaxRecvBufferBytes int `toml:"max_recv_buffer_bytes"`
 }
 
 // DefaultMConnConfig returns the default config.
@@ -144,6 +232,8 @@ func DefaultMConnConfig() MConnConfig {
 		FlushThrottle:           defaultFlushThrottle,
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
+		RecvAssemblyTimeout:     defaultRecvAssemblyTimeout,
+		MaxRecvBufferBytes:      defaultMaxRecvBufferBytes,
 	}
 }
 
@@ -155,6 +245,8 @@ func MConfigFromP2P(cfg *config.P2PConfig) MConnConfig {
 	mConfig.SendRate = cfg.SendRate
 	mConfig.RecvRate = cfg.RecvRate
 	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
+	mConfig.RecvAssemblyTimeout = cfg.RecvAssemblyTimeout
+	mConfig.MaxRecvBufferBytes = cfg.MaxRecvBufferBytes
 
 	return mConfig
 }
@@ -437,19 +529,29 @@ FOR_LOOP:
 			}
 			c.sendMonitor.Update(int(_n))
 			c.Logger.Debug("Starting pong timer", "dur", c.config.PongTimeout)
-			c.pongTimer = time.AfterFunc(c.config.PongTimeout, func() {
-				select {
-				case c.pongTimeoutCh <- true:
-				default:
-				}
-			})
+			c.pingSentAt = time.Now()
+			c.stalledAtPing = c.recvStalledTotal.Load()
+			c.pongTimer = time.AfterFunc(c.config.PongTimeout, c.signalPongTimeout)
 			c.flush()
 		case timeout := <-c.pongTimeoutCh:
-			if timeout {
+			switch {
+			case !timeout:
+				c.stopPongTimer()
+			case c.lastPongAt.Load() > c.pingSentAt.UnixNano():
+				// The peer did answer this ping; its signal just lost the race
+				// for the single slot in pongTimeoutCh.
+				c.Logger.Debug("Pong timer fired for an answered ping")
+				c.stopPongTimer()
+			case c.pongRemaining() > 0:
+				// The pong may well be sitting in the socket unread: recvRoutine
+				// was parked in a reactor callback for part of this window, and
+				// that is our doing, not the peer's. Wait out the remainder.
+				c.Logger.Debug("Pong window extended past a local recv stall")
+				c.stopPongTimer()
+				c.pongTimer = time.AfterFunc(c.pongRemaining(), c.signalPongTimeout)
+			default:
 				c.Logger.Debug("Pong timeout")
 				err = errors.New("pong timeout")
-			} else {
-				c.stopPongTimer()
 			}
 		case <-c.pong:
 			c.Logger.Debug("Send Pong")
@@ -608,6 +710,11 @@ FOR_LOOP:
 			}
 		case PacketPong:
 			c.Logger.Debug("Receive Pong")
+			// Record the arrival as well as signalling it. pongTimeoutCh holds
+			// one value and both sends are non-blocking, so a timer firing first
+			// masks the pong that answered it; sendRoutine cross-checks this.
+			c.lastPongAt.Store(time.Now().UnixNano())
+
 			select {
 			case c.pongTimeoutCh <- false:
 			default:
@@ -632,7 +739,33 @@ FOR_LOOP:
 			}
 			if msgBytes != nil {
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
+				//
+				// Some of those reactors block for a long time -- the mempool's
+				// Receive waits on the mutex ApplyBlock holds across commit and
+				// recheck, and the consensus reactor's does a blocking send into
+				// peerMsgQueue. Nothing on this connection is read meanwhile, so
+				// any channel mid-assembly would have our stall counted against
+				// its deadline, and the peer's pong would sit unread in the
+				// socket past its own deadline -- dropping an innocent peer
+				// either way. Mark the stall for deadlines that expire during
+				// it, and credit it to them afterwards.
+				stallStart := time.Now()
+				c.recvStallSince.Store(stallStart.UnixNano())
+
 				c.onReceive(pkt.ChannelID, msgBytes)
+
+				// Accumulate before clearing: a reader in between over-credits
+				// this stall, which errs towards keeping the peer. The other
+				// order would under-credit and drop it.
+				stalled := time.Since(stallStart)
+				c.recvStalledTotal.Add(int64(stalled))
+				c.recvStallSince.Store(0)
+
+				if stalled >= recvAssemblyStallGrace {
+					for _, channel := range c.channels {
+						channel.extendRecvAssemblyDeadline(stalled)
+					}
+				}
 			}
 		default:
 			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
@@ -643,10 +776,41 @@ FOR_LOOP:
 	}
 
 	// Cleanup
+	// Stop any per-channel assembly timers still pending. recvRoutine owns the
+	// channels' recving state, so this is the safe place to release them.
+	for _, channel := range c.channels {
+		channel.stopRecvAssemblyTimer()
+	}
 	close(c.pong)
 	for range c.pong {
 		// Drain
 	}
+}
+
+// signalPongTimeout tells sendRoutine the pong window elapsed. sendRoutine
+// decides what that means; see pongRemaining.
+func (c *MConnection) signalPongTimeout() {
+	select {
+	case c.pongTimeoutCh <- true:
+	default:
+	}
+}
+
+// pongRemaining reports how much of the current pong window is left once time
+// recvRoutine spent inside reactor callbacks is discounted. A pong cannot be
+// read while recvRoutine is parked in one, so charging that time to the peer
+// drops a healthy connection for a stall on our side -- the same reasoning as
+// the recv assembly deadline, on the other end of the same read loop.
+// Only called from sendRoutine.
+func (c *MConnection) pongRemaining() time.Duration {
+	stalled := time.Duration(c.recvStalledTotal.Load() - c.stalledAtPing)
+
+	if since := c.recvStallSince.Load(); since != 0 {
+		// A stall in progress is not in recvStalledTotal yet.
+		stalled += time.Since(time.Unix(0, since))
+	}
+
+	return c.config.PongTimeout - (time.Since(c.pingSentAt) - stalled)
 }
 
 // not goroutine-safe
@@ -735,6 +899,22 @@ type Channel struct {
 	recving       []byte
 	sending       []byte
 	recentlySent  int64 // exponential moving average
+
+	// recvAssemblyMtx guards the assembly deadline for the message currently
+	// being built in recving. Unlike the rest of the recv state this cannot be
+	// recvRoutine-only: the timer callback runs on its own goroutine and re-arms
+	// itself when the deadline has moved.
+	recvAssemblyMtx sync.Mutex
+	// recvAssemblyTimer enforces RecvAssemblyTimeout for the message currently
+	// being assembled in recving. It is started on the first partial packet of a
+	// message and stopped on completion; it is deliberately never reset by
+	// subsequent partial packets.
+	recvAssemblyTimer *time.Timer
+	// recvAssemblyDeadline is when that message stops getting the benefit of the
+	// doubt. It is anchored to the first partial packet and only ever moves
+	// forward by time this end spent not reading -- never by anything the peer
+	// does. See extendRecvAssemblyDeadline.
+	recvAssemblyDeadline time.Time
 
 	maxPacketMsgPayloadSize int
 
@@ -844,18 +1024,149 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	if recvCap < recvReceived {
 		return nil, fmt.Errorf("received message exceeds available capacity: %v < %v", recvCap, recvReceived)
 	}
+
+	// Enforce the total per-connection recving budget across all channels. The
+	// per-channel RecvMessageCapacity check above only bounds a single channel;
+	// without this, a peer can fill every channel's buffer at once (the sum of
+	// all RecvMessageCapacity values, ~38MB on a full node -- it was ~130MB
+	// before the blockchain reactor's envelope was right-sized).
+	if budget := ch.conn.config.MaxRecvBufferBytes; budget > 0 {
+		if total := ch.conn.recvBufferBytes + len(packet.Bytes); total > budget {
+			return nil, fmt.Errorf("total recving buffer budget exceeded: %v > %v", total, budget)
+		}
+	}
+
 	ch.recving = append(ch.recving, packet.Bytes...)
+	ch.conn.recvBufferBytes += len(packet.Bytes)
+
 	if packet.EOF == byte(0x01) {
 		msgBytes := ch.recving
 
-		// clear the slice without re-allocating.
-		// http://stackoverflow.com/questions/16971741/how-do-you-clear-a-slice-in-go
-		//   suggests this could be a memory leak, but we might as well keep the memory for the channel until it closes,
-		//	at which point the recving slice stops being used and should be garbage collected
-		ch.recving = ch.recving[:0] // make([]byte, 0, ch.desc.RecvBufferCapacity)
+		// The message is complete: stop its assembly deadline and release the
+		// buffered bytes from the total budget.
+		ch.stopRecvAssemblyTimer()
+		ch.conn.recvBufferBytes -= len(msgBytes)
+
+		// Release the buffer. Reslicing (recving[:0]) alone would retain a grown
+		// backing array for the lifetime of the connection, so a single large
+		// message would pin that memory indefinitely. Re-allocating whenever the
+		// array merely grew past RecvBufferCapacity has the opposite problem: it
+		// puts a realloc-and-regrow on the path of *every* message larger than
+		// that capacity, which is the common case on the channels carrying the
+		// largest messages -- blockchain and consensus data configure 200KB
+		// against multi-MB blocks, and the mempool channel leaves it at the 4KB
+		// default against MaxTxBytes-sized txs. Measured on a 2MB message with a
+		// 200KB capacity that costs 2.50ms, 9.07MB and 10 allocs, against 47.6us
+		// and no allocations when the array is reused.
+		//
+		// So keep the array while the traffic on this channel is still using it,
+		// and hand it back on the first message that is not: a channel steadily
+		// carrying large messages stays allocation-free, while one that saw a
+		// single outsized message releases the memory on its next ordinary
+		// message. Reuse is safe: amino copies byte slices out while decoding, so
+		// nothing downstream aliases recving.
+		if cap(ch.recving) > ch.desc.RecvBufferCapacity && len(msgBytes)*2 < cap(ch.recving) {
+			ch.recving = make([]byte, 0, ch.desc.RecvBufferCapacity)
+		} else {
+			ch.recving = ch.recving[:0]
+		}
 		return msgBytes, nil
 	}
+
+	// Partial packet: this message is still being assembled. Start the assembly
+	// deadline on the first partial packet so a peer cannot pin the buffer
+	// indefinitely by never sending EOF (interleaving pongs to stay alive).
+	ch.startRecvAssemblyTimer()
 	return nil, nil
+}
+
+// startRecvAssemblyTimer starts the assembly deadline for the message currently
+// being assembled in recving, if it is not already running. The deadline is
+// anchored to the first partial packet and is intentionally NOT reset by later
+// partial packets, so a peer cannot keep an incomplete message buffered forever
+// by dribbling packets. On expiry the whole connection is torn down.
+func (ch *Channel) startRecvAssemblyTimer() {
+	timeout := ch.conn.config.RecvAssemblyTimeout
+	if timeout <= 0 {
+		return
+	}
+
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
+	if ch.recvAssemblyTimer != nil {
+		return
+	}
+
+	ch.recvAssemblyDeadline = time.Now().Add(timeout)
+	ch.recvAssemblyTimer = time.AfterFunc(timeout, ch.onRecvAssemblyTimeout)
+}
+
+// onRecvAssemblyTimeout runs on the timer goroutine when the assembly timer
+// fires. The timer is scheduled against the deadline as it stood when it was
+// armed, so it can fire early: extendRecvAssemblyDeadline moves the deadline
+// without rescheduling, and a stall still in progress has not been credited at
+// all yet. Either way the answer is to re-arm for what is left rather than tear
+// the connection down.
+func (ch *Channel) onRecvAssemblyTimeout() {
+	ch.recvAssemblyMtx.Lock()
+
+	if ch.recvAssemblyTimer == nil {
+		// The message completed between the timer firing and this lock.
+		ch.recvAssemblyMtx.Unlock()
+
+		return
+	}
+
+	deadline := ch.recvAssemblyDeadline
+	if stalledSince := ch.conn.recvStallSince.Load(); stalledSince != 0 {
+		// recvRoutine is parked in a reactor callback right now. Nothing has
+		// been read since -- from this peer or any other -- so that time is not
+		// the peer's to answer for.
+		deadline = deadline.Add(time.Since(time.Unix(0, stalledSince)))
+	}
+
+	if remaining := time.Until(deadline); remaining > 0 {
+		ch.recvAssemblyTimer.Reset(remaining)
+		ch.recvAssemblyMtx.Unlock()
+
+		return
+	}
+
+	ch.recvAssemblyMtx.Unlock()
+
+	// Outside the lock: stopForError tears the whole connection down, which ends
+	// up back in recvRoutine's cleanup calling stopRecvAssemblyTimer.
+	ch.conn.stopForError(fmt.Errorf(
+		"recv assembly timeout: channel %X did not complete message within %v",
+		ch.desc.ID, ch.conn.config.RecvAssemblyTimeout,
+	))
+}
+
+// extendRecvAssemblyDeadline pushes an in-progress assembly deadline back by
+// time recvRoutine spent inside a reactor callback. The timer is left scheduled
+// where it is; when it fires it notices the deadline moved and re-arms, which
+// costs one spurious wakeup and avoids racing Reset against the callback.
+func (ch *Channel) extendRecvAssemblyDeadline(by time.Duration) {
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
+	if ch.recvAssemblyTimer == nil {
+		return
+	}
+
+	ch.recvAssemblyDeadline = ch.recvAssemblyDeadline.Add(by)
+}
+
+// stopRecvAssemblyTimer stops and clears the assembly deadline if running.
+func (ch *Channel) stopRecvAssemblyTimer() {
+	ch.recvAssemblyMtx.Lock()
+	defer ch.recvAssemblyMtx.Unlock()
+
+	if ch.recvAssemblyTimer != nil {
+		ch.recvAssemblyTimer.Stop()
+		ch.recvAssemblyTimer = nil
+	}
 }
 
 // Call this periodically to update stats for throttling purposes.

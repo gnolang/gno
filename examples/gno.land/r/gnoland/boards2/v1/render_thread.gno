@@ -133,13 +133,14 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
+	byline := "Created by "
 	if boards.IsRepost(thread) {
 		summary += ` ⟳`
-		postURI += ` "This is a thread repost"`
+		byline = "Reposted by "
 	}
 
 	b.WriteString(md.H6(md.Link(summary, postURI)))
-	b.WriteString("Created by " + creatorLink + roleBadge + " on " + date + "  \n")
+	b.WriteString(byline + creatorLink + roleBadge + " on " + date + "  \n")
 
 	status := []string{
 		strconv.Itoa(thread.Replies.Size()) + " replies",

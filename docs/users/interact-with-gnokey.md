@@ -1068,6 +1068,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
 - `auth/gasprice` - returns the current minimum gas price required for transactions
 - `bank/balances/{ADDRESS}` - returns balances of an account
+- `bank/supply/{DENOM}` - returns the total supply of a denomination
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
@@ -1120,10 +1121,32 @@ The `data` field returns a `BaseAccount`, which is the main struct used in Tende
 to hold account data. It contains the following information:
 
 - `address` - the address of the account
-- `coins` - the list of coins the account owns
+- `coins` - the gas-denom coins the account owns. This is **not** the full
+  balance: every other denom — realm-issued coins, IBC vouchers, anything but the
+  gas denom — is stored separately and appears only under `bank/balances`. Use that
+  query for a complete balance.
 - `public_key` - the TM2 public key of the account, from which the address is derived
 - `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
+
+### `bank/supply`
+
+Returns the total supply of a single denomination — how much of it exists across all
+accounts. A denomination nobody holds reports `0`, which is also what an unknown
+denomination reports.
+
+```bash
+gnokey query bank/supply/ugnot
+```
+
+A realm-issued denomination is `/{PKGPATH}:{NAME}` and contains slashes, so it follows
+the route directly rather than being escaped:
+
+```bash
+gnokey query bank/supply//gno.land/r/demo/foo:gold
+```
+
+The amount comes back as a quoted string, which is how `int64` is rendered on the wire.
 
 ### `bank/balances`
 

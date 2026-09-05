@@ -32,3 +32,45 @@ func TestSubRealmGasMirrorsPackageAddress(t *testing.T) {
 		t.Fatal("chain/packageAddress row missing from calibratedNativeGas")
 	}
 }
+
+// crypto/merkle.innerHash hashes 0x01||left||right and nothing bounds either
+// operand, so both must be metered per byte. It shipped as a flat charge
+// calibrated on 32+32B inputs, which let 1MiB+1MiB run ~300x over its price;
+// a single slope would be no better, since the payload just moves to the
+// unmetered operand. Guard the shape against a recalibration or a hand edit
+// dropping either slope.
+func TestInnerHashGasMetersBothOperands(t *testing.T) {
+	t.Parallel()
+	var inner, leaf *nativeGasEntry
+	for i, e := range calibratedNativeGas {
+		if e.Pkg != "crypto/merkle" {
+			continue
+		}
+		switch e.Fn {
+		case "innerHash":
+			inner = &calibratedNativeGas[i]
+		case "leafHash":
+			leaf = &calibratedNativeGas[i]
+		}
+	}
+	if inner == nil || leaf == nil {
+		t.Fatal("crypto/merkle innerHash and/or leafHash row missing from calibratedNativeGas")
+	}
+
+	if inner.SlopeKind != SizeLenBytes || inner.SlopeIdx != 0 || inner.Slope == 0 {
+		t.Errorf("innerHash must meter left (param 0) per byte; got Slope=%d SlopeIdx=%d SlopeKind=%d",
+			inner.Slope, inner.SlopeIdx, inner.SlopeKind)
+	}
+	if inner.Slope2Kind != SizeLenBytes || inner.Slope2Idx != 1 || inner.Slope2 == 0 {
+		t.Errorf("innerHash must meter right (param 1) per byte; got Slope2=%d Slope2Idx=%d Slope2Kind=%d",
+			inner.Slope2, inner.Slope2Idx, inner.Slope2Kind)
+	}
+
+	// Both operands feed one SHA256 over their concatenation, so each byte
+	// costs what a leafHash byte costs. Charging less would undercharge the
+	// same work leafHash is already calibrated for.
+	if inner.Slope < leaf.Slope || inner.Slope2 < leaf.Slope {
+		t.Errorf("innerHash per-operand rates (%d, %d) below leafHash's %d — both hash their input at the same rate",
+			inner.Slope, inner.Slope2, leaf.Slope)
+	}
+}

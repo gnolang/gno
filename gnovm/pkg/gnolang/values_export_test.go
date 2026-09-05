@@ -9,13 +9,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// helper: export + amino marshal
+// helper: export + amino marshal. Unbounded (0): these are trusted, hand-built
+// inputs; the size bound has its own tests in values_export_limit_test.go.
 func exportAndMarshal(t *testing.T, tvs []TypedValue) []byte {
 	t.Helper()
-	exported := ExportValues(tvs)
+	exported, err := ExportValues(tvs, 0)
+	require.NoError(t, err)
 	bz, err := amino.MarshalJSON(exported)
 	require.NoError(t, err)
 	return bz
+}
+
+// helper: unbounded ExportObject for trusted test inputs.
+func exportObjectUnbounded(t *testing.T, obj Object) Value {
+	t.Helper()
+	exported, err := ExportObject(obj, 0)
+	require.NoError(t, err)
+	return exported
 }
 
 func TestExportValuesPrimitive(t *testing.T) {
@@ -344,7 +354,7 @@ var Value = &Item{Name: "widget", Count: 5}
 	require.True(t, ok)
 
 	// ExportObject should expand it inline
-	exported := ExportObject(obj)
+	exported := exportObjectUnbounded(t, obj)
 	require.NotNil(t, exported)
 
 	bz, err := amino.MarshalJSONAny(exported)
@@ -481,7 +491,7 @@ func TestExportCopyTypeWithRefs_InterfaceType(t *testing.T) {
 		},
 		Generic: "bar",
 	}
-	copied := exportCopyTypeWithRefs(iface, seen)
+	copied := exportCopyTypeWithRefs(iface, seen, nil)
 	ct, ok := copied.(*InterfaceType)
 	require.True(t, ok, "expected *InterfaceType, got %T", copied)
 	require.Equal(t, "test", ct.PkgPath)
@@ -498,7 +508,7 @@ func TestExportCopyTypeWithRefs_ChanType(t *testing.T) {
 		Dir: SEND | RECV,
 		Elt: IntType,
 	}
-	copied := exportCopyTypeWithRefs(ch, seen)
+	copied := exportCopyTypeWithRefs(ch, seen, nil)
 	ct, ok := copied.(*ChanType)
 	require.True(t, ok, "expected *ChanType, got %T", copied)
 	require.Equal(t, SEND|RECV, ct.Dir)
@@ -516,7 +526,7 @@ func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
 			BoolType,
 		},
 	}
-	copied := exportCopyTypeWithRefs(tt, seen)
+	copied := exportCopyTypeWithRefs(tt, seen, nil)
 	ct, ok := copied.(*tupleType)
 	require.True(t, ok, "expected *tupleType, got %T", copied)
 	require.Len(t, ct.Elts, 3)
@@ -530,7 +540,7 @@ func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
 func TestExportCopyValue_BigintValueNilV(t *testing.T) {
 	seen := make(map[Object]int)
 	biv := BigintValue{V: nil}
-	copied := exportCopyValue(biv, seen)
+	copied := exportCopyValue(biv, seen, nil)
 	cb, ok := copied.(BigintValue)
 	require.True(t, ok, "expected BigintValue, got %T", copied)
 	require.Nil(t, cb.V)
@@ -584,7 +594,7 @@ var Value = makeClosure()
 	}
 	require.NotNil(t, block, "could not find a *Block to test")
 
-	exported := ExportObject(block)
+	exported := exportObjectUnbounded(t, block)
 	require.NotNil(t, exported)
 	eb, ok := exported.(*Block)
 	require.True(t, ok, "expected *Block, got %T", exported)
@@ -593,7 +603,7 @@ var Value = makeClosure()
 
 // TestExportObjectToValue_Nil exercises the nil case in exportObjectToValue.
 func TestExportObjectToValue_Nil(t *testing.T) {
-	exported := ExportObject(nil)
+	exported := exportObjectUnbounded(t, nil)
 	require.Nil(t, exported)
 }
 

@@ -121,30 +121,29 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, d
 
 	for _, entry := range entries {
 		address := entry.Address.String()
-		qres, err := rpcClient.ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
+
+		// Query the bank rather than the account object: an account's Coins
+		// field holds only gas denoms, so a realm-issued coin minted during
+		// the dev session would silently not appear here.
+		qres, err := rpcClient.ABCIQuery(ctx, "bank/balances/"+address, []byte{})
 		if err != nil {
-			return fmt.Errorf("unable to query account %q: %w", address, err)
+			return fmt.Errorf("unable to query balances for %q: %w", address, err)
 		}
 
-		var qret struct {
-			BaseAccount std.BaseAccount
-			Attributes  uint64 `json:"attributes"` // GnoAccount extension
-		}
-		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+		var balance std.Coins
+		if err = amino.UnmarshalJSON(qres.Response.Data, &balance); err != nil {
 			return fmt.Errorf("unable to unmarshal query response: %w", err)
 		}
 
 		if len(entry.Names) == 0 {
 			// Insert row with name, address, and balance amount.
-			fmt.Fprintf(tabw, "%s\t%s\t%s\n", "_", address, qret.BaseAccount.GetCoins().String())
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", "_", address, balance.String())
 			continue
 		}
 
 		for _, name := range entry.Names {
 			// Insert row with name, address, and balance amount.
-			fmt.Fprintf(tabw, "%s\t%s\t%s\n", name,
-				address,
-				qret.BaseAccount.GetCoins().String())
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", name, address, balance.String())
 		}
 	}
 

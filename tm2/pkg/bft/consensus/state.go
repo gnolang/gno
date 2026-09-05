@@ -1593,6 +1593,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 			// fmt.Errorf("tryAddVote: Wrong height, not a LastCommit straggler commit.")
 			return added, ErrVoteHeightMismatch
 		}
+		if cs.LastCommit == nil {
+			return added, ErrVoteHeightMismatch
+		}
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
 			return added, err

@@ -58,13 +58,13 @@ cp stdout user1_balance_after
 stdout '"1000299500ugnot"'
 
 ## And the sponsor must be strictly POORER than its 10000000ugnot funding: it paid
-## gas (1605ugnot) and received nothing -> 9998395. Before the fix it also collected
-## the 299500ugnot refund and ended at 10297895, RICHER than it started.
-## NOTE: 1605 tracks the chain's gas schedule and 299500 the bytes freed, so
+## gas (1722ugnot) and received nothing -> 9998278. Before the fix it also collected
+## the 299500ugnot refund and ended at 10298278, RICHER than it started.
+## NOTE: 1722 tracks the chain's gas schedule and 299500 the bytes freed, so
 ## re-derive both if either moves. What the assertion pins is the direction — the
 ## sponsor must never end above its 10000000ugnot funding.
 gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
-stdout '9998395ugnot'
+stdout '9998278ugnot'
 
 -- store/gnomod.toml --
 module = "ss_store"

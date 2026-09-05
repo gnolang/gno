@@ -60,13 +60,16 @@ func main(cur realm) {
 //
 // This proposal always fails on execution
 //
+// Executor created in: `gno.land/r/test/govdao`
+//
+//
 //
 //
 // ---
 //
 // ### Stats
 // - **PROPOSAL HAS BEEN DENIED**
-// REASON: execution failed: Boom!
+// REASON: execution failed: Boom\!
 // - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%

@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	rss "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
@@ -26,7 +28,7 @@ func TestNewSignerServer(t *testing.T) {
 
 	t.Run("nil signer", func(t *testing.T) {
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
+			Listener: testUnixListener(t),
 		}
 
 		signerServer, err := NewSignerServer(
@@ -35,7 +37,7 @@ func TestNewSignerServer(t *testing.T) {
 			log.NewNoopLogger(),
 		)
 		require.Nil(t, signerServer)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, rss.ErrNilSigner)
 	})
 
 	t.Run("invalid auth keys file", func(t *testing.T) {
@@ -208,19 +210,30 @@ func TestRunSignerServer(t *testing.T) {
 		// Listen on the address to make it unavailable.
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
+		t.Cleanup(func() { listener.Close() })
+
+		authKeysPath := filepath.Join(t.TempDir(), "auth_keys.json")
+		authKeysFile, err := GeneratePersistedAuthKeysFile(authKeysPath)
+		require.NoError(t, err)
+		authKeysFile.ClientAuthorizedKeys = []string{ed25519.GenPrivKey().PubKey().String()}
+		require.NoError(t, authKeysFile.Save(authKeysPath))
 
 		// Use the address:port for the server flags.
 		serverFlags := &ServerFlags{
 			Listener: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
 			LogLevel: zapcore.ErrorLevel.String(),
+			AuthFlags: AuthFlags{
+				AuthKeysFile: authKeysPath,
+			},
 		}
 
-		assert.Error(t, RunSignerServer(
+		err = RunSignerServer(
 			ctx,
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),
-		))
+		)
+		assert.ErrorIs(t, err, rss.ErrListenFailed)
 	})
 
 	t.Run("signer fail on close", func(t *testing.T) {
@@ -230,16 +243,17 @@ func TestRunSignerServer(t *testing.T) {
 		defer cancel()
 
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
+			Listener: testUnixListener(t),
 			LogLevel: zapcore.ErrorLevel.String(),
 		}
 
-		assert.ErrorIs(t, RunSignerServer(
-			ctx,
-			serverFlags,
-			&mockSignerCloseFail{privKey: ed25519.GenPrivKey()},
-			commands.NewDefaultIO(),
-		),
+		assert.ErrorIs(
+			t, RunSignerServer(
+				ctx,
+				serverFlags,
+				&mockSignerCloseFail{privKey: ed25519.GenPrivKey()},
+				commands.NewDefaultIO(),
+			),
 			errMockSignerCloseFail,
 		)
 	})
@@ -251,7 +265,7 @@ func TestRunSignerServer(t *testing.T) {
 		defer cancel()
 
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
+			Listener: testUnixListener(t),
 			LogLevel: zapcore.ErrorLevel.String(),
 		}
 
@@ -262,4 +276,75 @@ func TestRunSignerServer(t *testing.T) {
 			commands.NewDefaultIO(),
 		))
 	})
+}
+
+func TestNewSignerServerAuthorizedKeys(t *testing.T) {
+	t.Parallel()
+
+	t.Run("TCP without auth keys file", func(t *testing.T) {
+		t.Parallel()
+
+		authKeysPath := filepath.Join(t.TempDir(), "missing.json")
+		server, err := NewSignerServer(
+			&ServerFlags{
+				Listener: "tcp://127.0.0.1:0",
+				AuthFlags: AuthFlags{
+					AuthKeysFile: authKeysPath,
+				},
+			},
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+
+		assert.Nil(t, server)
+		require.ErrorIs(t, err, ErrEmptyAuthorizedKeys)
+		assert.Contains(t, err.Error(), authKeysPath)
+		assert.Contains(t, err.Error(), "gnokms auth generate")
+	})
+
+	t.Run("TCP with empty authorized keys", func(t *testing.T) {
+		t.Parallel()
+
+		authKeysPath := filepath.Join(t.TempDir(), "auth_keys.json")
+		_, err := GeneratePersistedAuthKeysFile(authKeysPath)
+		require.NoError(t, err)
+
+		server, err := NewSignerServer(
+			&ServerFlags{
+				Listener: "tcp://127.0.0.1:0",
+				AuthFlags: AuthFlags{
+					AuthKeysFile: authKeysPath,
+				},
+			},
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+
+		assert.Nil(t, server)
+		require.ErrorIs(t, err, ErrEmptyAuthorizedKeys)
+		assert.Contains(t, err.Error(), authKeysPath)
+		assert.NotContains(t, err.Error(), "gnokms auth generate")
+		assert.Contains(t, err.Error(), "gnokms auth authorized add <public-key>")
+	})
+
+	t.Run("UDS without auth keys file", func(t *testing.T) {
+		t.Parallel()
+
+		server, err := NewSignerServer(
+			&ServerFlags{Listener: testUnixListener(t)},
+			types.NewMockSigner(),
+			log.NewNoopLogger(),
+		)
+
+		assert.NotNil(t, server)
+		assert.NoError(t, err)
+	})
+}
+
+func testUnixListener(t *testing.T) string {
+	t.Helper()
+
+	path := filepath.Join("/tmp", "gnokms-"+xid.New().String()+".sock")
+	t.Cleanup(func() { os.Remove(path) })
+	return "unix://" + path
 }

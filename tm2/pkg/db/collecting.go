@@ -4,9 +4,11 @@ import "sync"
 
 // BatchCollector accumulates Set/Delete operations in memory without touching
 // disk. It backs CollectingDB and lets rootmulti fuse multiple sub-store write
-// sites (dbadapter flush, IAVL SaveVersion, rootmulti metadata) into one
-// atomic disk write: each writer appends via a batchHandle, and the caller
-// drains the accumulated ops into a real Batch at the end of the commit.
+// sites (dbadapter flush, IAVL/bptree SaveVersion, rootmulti metadata) into
+// one atomic disk write: direct DB writes enter the collector immediately,
+// batch writes enter when their batch is Written (see batchHandle), and the
+// caller drains the accumulated ops into a real Batch at the end of the
+// commit.
 //
 // pending indexes the last op per key so CollectingDB can serve read-your-
 // writes without touching the underlying DB — required when a caller writes
@@ -84,12 +86,27 @@ func (c *BatchCollector) Len() int {
 	return len(c.ops)
 }
 
-// NewBatch returns a Batch that appends into this collector. Callers use it
-// to write into the same op-log as CollectingDB-wrapped sub-stores; it lets
-// rootmulti feed its own metadata (commitInfo, latestVersion) into the same
-// atomic drain as IAVL and dbadapter writes.
+// NewBatch returns a Batch that flushes into this collector on Write. Callers
+// use it to write into the same op-log as CollectingDB-wrapped sub-stores; it
+// lets rootmulti feed its own metadata (commitInfo, latestVersion) into the
+// same atomic drain as IAVL and dbadapter writes.
 func (c *BatchCollector) NewBatch() Batch {
 	return &batchHandle{collector: c}
+}
+
+// appendOps moves a batch's staged ops into the collector, preserving order.
+// Ownership of ops (and their key/val backing) transfers to the collector;
+// callers must not reuse them.
+func (c *BatchCollector) appendOps(ops []collectOp) {
+	if len(ops) == 0 {
+		return
+	}
+	c.mu.Lock()
+	for _, op := range ops {
+		c.ops = append(c.ops, op)
+		c.pending[string(op.key)] = len(c.ops) - 1
+	}
+	c.mu.Unlock()
 }
 
 func (c *BatchCollector) set(key, value []byte) {
@@ -110,29 +127,18 @@ func (c *BatchCollector) delete(key []byte) {
 	c.mu.Unlock()
 }
 
-func (c *BatchCollector) byteSize() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	n := 0
-	for _, op := range c.ops {
-		n += len(op.key) + len(op.val)
-	}
-	return n
-}
-
 // CollectingDB wraps a real DB and routes every write through a shared
-// BatchCollector while reads pass through untouched. It is installed under
-// rootmulti's sub-stores so that IAVL, dbadapter, and rootmulti's own metadata
-// writes accumulate in one place during CommitAll and get flushed as a single
-// atomic batch.
+// BatchCollector while iterators pass through untouched. It is installed under
+// rootmulti's sub-stores so that IAVL/bptree, dbadapter, and rootmulti's own
+// metadata writes accumulate in one place during CommitAll and get flushed as
+// a single atomic batch.
 //
-// Reads always hit the underlying real DB — the collector never serves reads.
-// This is safe because:
-//   - IAVL's SaveVersion never re-reads a node it just wrote in the same call
-//     (newly-created nodes live in ndb.nodeCache, which GetNode checks before
-//     falling through to db.Get).
-//   - dbadapter's cache flush uses NewBatch()/batch.Set/batch.Write and never
-//     reads back its own uncommitted writes.
+// Point reads (Get/Has) consult the collector first for read-your-writes over
+// ops already in it — direct Sets/Deletes land there immediately, batch ops
+// once their batch is Written. Iterators read the underlying DB ONLY (see
+// Iterator below); consumers that iterate over keys they stage must not
+// depend on pending ops being visible (bptree's clearFastIndex resumes by
+// key for exactly this reason).
 type CollectingDB struct {
 	real      DB
 	collector *BatchCollector
@@ -196,25 +202,63 @@ func (c *CollectingDB) SetSync(key, value []byte) error { c.collector.set(key, v
 func (c *CollectingDB) Delete(key []byte) error         { c.collector.delete(key); return nil }
 func (c *CollectingDB) DeleteSync(key []byte) error     { c.collector.delete(key); return nil }
 
-// NewBatch and NewBatchWithSize return a Batch whose Set/Delete route into the
-// same collector as direct writes. Write/WriteSync/Close are no-ops so IAVL's
-// BatchWithFlusher can auto-flush freely without losing ops or forcing early
-// disk writes — the collector is drained externally when the commit closes.
+// NewBatch and NewBatchWithSize return a Batch that buffers Set/Delete locally
+// and moves them into the collector on Write/WriteSync (no disk I/O — the
+// collector is drained externally when the commit closes). Close without Write
+// DISCARDS the buffered ops, honoring the standard dbm.Batch contract: callers
+// like bptree's DiscardBatch rely on Close dropping staged-but-uncommitted
+// writes (session rollback, error paths). IAVL's BatchWithFlusher auto-flush
+// (Write, Close, NewBatch cycles) works unchanged.
 func (c *CollectingDB) NewBatch() Batch            { return &batchHandle{collector: c.collector} }
 func (c *CollectingDB) NewBatchWithSize(int) Batch { return &batchHandle{collector: c.collector} }
 
-// batchHandle is a Batch that forwards Set/Delete into a shared BatchCollector.
-// Write/WriteSync/Close return nil without persisting anything — the collector
-// is drained externally at the end of the commit window.
+// batchHandle is a Batch buffering ops locally until Write/WriteSync moves
+// them into the shared BatchCollector (order preserved). Close discards the
+// buffer. Unlike real backends (whose contract allows only Close after
+// Write), the handle is reusable after Write or Close — leniency, not a
+// contract to depend on. Like every dbm.Batch, it is NOT safe for concurrent
+// use (the local buffer is unsynchronized).
 type batchHandle struct {
 	collector *BatchCollector
+	ops       []collectOp
+	size      int // running sum of buffered key+val bytes (O(1) GetByteSize)
 }
 
 var _ Batch = (*batchHandle)(nil)
 
-func (b *batchHandle) Set(key, value []byte) error { b.collector.set(key, value); return nil }
-func (b *batchHandle) Delete(key []byte) error     { b.collector.delete(key); return nil }
-func (b *batchHandle) Write() error                { return nil }
-func (b *batchHandle) WriteSync() error            { return nil }
-func (b *batchHandle) Close() error                { return nil }
-func (b *batchHandle) GetByteSize() (int, error)   { return b.collector.byteSize(), nil }
+func (b *batchHandle) Set(key, value []byte) error {
+	// Copy inputs — callers (BatchWithFlusher, cache flush) reuse buffers.
+	k, v := cp(key), cp(value)
+	b.ops = append(b.ops, collectOp{key: k, val: v})
+	b.size += len(k) + len(v)
+	return nil
+}
+
+func (b *batchHandle) Delete(key []byte) error {
+	k := cp(key)
+	b.ops = append(b.ops, collectOp{del: true, key: k})
+	b.size += len(k)
+	return nil
+}
+
+func (b *batchHandle) Write() error {
+	b.collector.appendOps(b.ops)
+	b.ops = nil
+	b.size = 0
+	return nil
+}
+
+func (b *batchHandle) WriteSync() error { return b.Write() }
+
+func (b *batchHandle) Close() error {
+	b.ops = nil
+	b.size = 0
+	return nil
+}
+
+// GetByteSize returns the size of THIS batch's buffered ops (not the whole
+// collector), so size-threshold flush loops (bptree prune, BatchWithFlusher)
+// measure their own staging. O(1): BatchWithFlusher calls it on every op.
+func (b *batchHandle) GetByteSize() (int, error) {
+	return b.size, nil
+}

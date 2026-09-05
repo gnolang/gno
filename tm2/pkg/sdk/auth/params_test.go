@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,7 @@ func TestValidate(t *testing.T) {
 			name: "Valid Params",
 			params: Params{
 				MaxMemoBytes:              256,
-				TxSigLimit:                10,
+				TxSigLimit:                7,
 				TxSizeCostPerByte:         1,
 				SigVerifyCostED25519:      100,
 				SigVerifyCostSecp256k1:    200,
@@ -31,6 +32,24 @@ func TestValidate(t *testing.T) {
 				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
 			},
 			expectsError: false,
+		},
+		{
+			// TxSigLimit counts leaves; multisig.MaxTotalKeys counts the whole
+			// key and is a compile-time constant this parameter cannot raise.
+			// A limit past the leaves that constant admits would let a chain
+			// permit keys its own signature check rejects.
+			name: "Invalid TxSigLimit above what multisig.MaxTotalKeys admits",
+			params: Params{
+				MaxMemoBytes:              256,
+				TxSigLimit:                int64((multisig.MaxTotalKeys+1)/2) + 1,
+				TxSizeCostPerByte:         1,
+				SigVerifyCostED25519:      100,
+				SigVerifyCostSecp256k1:    200,
+				GasPricesChangeCompressor: 1,
+				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
+			},
+			expectsError: true,
 		},
 		{
 			name: "Invalid TxSigLimit",
@@ -239,8 +258,17 @@ func TestWillSetParam(t *testing.T) {
 		{
 			name:        "valid tx_sig_limit",
 			key:         "p:tx_sig_limit",
-			value:       int64(10),
+			value:       int64((multisig.MaxTotalKeys + 1) / 2),
 			shouldPanic: false,
+		},
+		{
+			// Governance can raise this parameter; it cannot raise
+			// multisig.MaxTotalKeys, so a value past what that constant admits
+			// has to be refused here rather than desynchronising the two.
+			name:        "tx_sig_limit above what multisig.MaxTotalKeys admits panics",
+			key:         "p:tx_sig_limit",
+			value:       int64((multisig.MaxTotalKeys+1)/2) + 1,
+			shouldPanic: true,
 		},
 		{
 			name:        "wrong type for tx_sig_limit",

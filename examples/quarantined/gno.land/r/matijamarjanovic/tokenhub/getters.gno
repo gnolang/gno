@@ -54,17 +54,17 @@ func MustGetToken(key string) *grc20.Token {
 // data, not authority data — never gate a transfer or mint on these
 // values. Writes are concrete methods on the owning realm's *basicNFT;
 // to mutate an NFT, call the owning realm's wrapper directly.
-func GetNFT(key string) grc721.IGRC721Reader {
+func GetNFT(key string) *grc721.Token {
 	nftGetter := registeredNFTs.Get(key)
 	if nftGetter == nil {
 		return nil
 	}
-	return (nftGetter.(grc721.NFTGetter))()
+	return nftGetter.(*grc721.Token)
 }
 
 // MustGetNFT returns a reader-only view of an NFT for a given key,
 // panics if the NFT is not found. See GetNFT for data-trust notes.
-func MustGetNFT(key string) grc721.IGRC721Reader {
+func MustGetNFT(key string) *grc721.Token {
 	nftGetter := GetNFT(key)
 	if nftGetter == nil {
 		panic("unknown NFT: " + key)
@@ -146,11 +146,10 @@ func getNFTBalances(input string) string {
 	var out string
 
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		nftGetter := value.(grc721.NFTGetter)
-		nft := nftGetter()
+		nft := value.(*grc721.Token)
 		key_parts := strings.Split(key, ".")
 		owner, err := nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1]))
-		if err == nil && addr == owner { // show only the nfts owner owns
+		if err == nil && addr == owner {
 			out += "NFT:" + key + ","
 		}
 		return false

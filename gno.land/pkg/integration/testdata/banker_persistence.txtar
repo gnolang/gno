@@ -98,6 +98,10 @@ import (
 var saved banker.Banker
 
 func Save(cur realm) {
+	// The -send envelope provisions A's address so later txs have a
+	// balance to spend. Acknowledge it: MsgCall rejects an envelope no
+	// executing code ever observes.
+	_ = unsafe.OriginSend()
 	saved = banker.NewBanker(banker.BankerTypeRealmSend, cur)
 }
 
@@ -116,6 +120,8 @@ func UseSelfAmount(cur realm, amount int64) {
 // hands it to realm B. Any -send envelope on this call accrues to A's
 // address as additional funds B can later drain.
 func GiveBankerToB(cur realm) {
+	// Same as Save: the -send envelope funds A for B to later drain.
+	_ = unsafe.OriginSend()
 	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	bankerb.Receive(cross(cur), b)
 }

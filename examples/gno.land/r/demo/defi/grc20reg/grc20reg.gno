@@ -73,6 +73,77 @@ func MustGet(key string) *grc20.Token {
 	return token
 }
 
+// Write wrappers: a registered token can be moved through the registry without
+// importing the token's realm, which is the point of a registry. What makes
+// that safe is the calling convention, so it is worth stating once here rather
+// than three times below.
+//
+// These are NOT crossing functions. `_ int, rlm realm` is the only shape that
+// gives a non-crossing realm parameter — a realm parameter in first position
+// must be named `cur`, which makes the function crossing — and the distinction
+// is load-bearing, not stylistic:
+//
+//   - Crossing (`func Transfer(cur realm, …)`) mints a fresh `cur` for THIS
+//     realm. RealmTeller would then bind the actor to the registry's own
+//     address and the registry would spend its own balance. Useless at best.
+//   - Non-crossing (`func Transfer(_ int, rlm realm, …)`) declaring-borrows to
+//     the registry without a realm-context change, so `rlm` is still the
+//     caller's own live token and the actor is the caller.
+//
+// The safety comes from RealmTeller's IsCurrent() assertion. The actor is
+// rlm.Address() on a token that must be the live crossing frame, so it is
+// provably the immediate caller: a stale or foreign token is refused with
+// ErrSpoofedRealm. Debiting anyone else would mean holding their live `cur`,
+// which means executing inside their frame — authority they handed over
+// deliberately, and the same trust model RealmTeller already carries.
+//
+// This is deliberately not grc20.CallerTeller. "Act as whoever called me" is
+// the confused deputy: the debited account ends up chosen by whoever the hub
+// can be induced to serve, and an intermediate realm frame silently changes who
+// pays. CallerTeller is confined to the token's own realm for that reason and
+// is not reachable from a *Token. "Act as the realm that called me, verified
+// current" has nothing to induce — the caller cannot name a victim, only
+// itself.
+//
+// Realm-only by construction: MsgCall cannot build a realm argument
+// (convertArgToGno rejects non-primitive parameter types), so a signing user
+// cannot reach these at all and there is no in-band case to guard against.
+// Users move their own tokens through the token realm's own entry points
+// (wugnot.Transfer, foo20.Transfer, …).
+
+// Transfer moves `amount` out of the CALLING REALM's own balance.
+//
+// Call it non-crossing, forwarding your own `cur`:
+//
+//	grc20reg.Transfer(0, cur, "gno.land/r/demo/defi/foo20.FOO", to, 100)
+func Transfer(_ int, rlm realm, tokenKey string, to address, amount int64) {
+	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).Transfer(0, rlm, to, amount))
+}
+
+// Approve sets an allowance owned by the CALLING REALM, letting `spender` draw
+// on the calling realm's balance. It does not touch the signing user's
+// allowances.
+func Approve(_ int, rlm realm, tokenKey string, spender address, amount int64) {
+	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).Approve(0, rlm, spender, amount))
+}
+
+// TransferFrom spends an allowance with the CALLING REALM as the spender.
+//
+// Note the allowance direction this implies: `from` must have approved the
+// calling realm, not the signing user. That is the supported way for a realm to
+// move a user's funds — the user grants the realm an allowance, and the realm
+// draws on it as itself, so every debit is one the owner authorized against
+// that specific realm.
+func TransferFrom(_ int, rlm realm, tokenKey string, from, to address, amount int64) {
+	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).TransferFrom(0, rlm, from, to, amount))
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func Render(path string) string {
 	switch {
 	case path == "": // home

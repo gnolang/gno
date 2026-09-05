@@ -72,24 +72,34 @@ func SimpleProofsFromMap(m map[string][]byte) (rootHash []byte, proofs map[strin
 // Check sp.Index/sp.Total manually if needed
 func (sp *SimpleProof) Verify(rootHash []byte, leaf []byte) error {
 	leafHash := leafHash(leaf)
-	if sp.Total < 0 {
-		return errors.New("Proof total must be positive")
+	if sp.Total <= 0 {
+		return errors.New("Proof total must be positive, got %d", sp.Total)
 	}
-	if sp.Index < 0 {
-		return errors.New("Proof index cannot be negative")
+	if sp.Index < 0 || sp.Index >= sp.Total {
+		return errors.New("Proof index %d out of range for total %d", sp.Index, sp.Total)
 	}
 	if !bytes.Equal(sp.LeafHash, leafHash) {
 		return errors.New("invalid leaf hash: wanted %X got %X", leafHash, sp.LeafHash)
 	}
-	computedHash := sp.ComputeRootHash()
+	computedHash, err := sp.ComputeRootHash()
+	if err != nil {
+		return errors.Wrap(err, "cannot compute root hash")
+	}
 	if !bytes.Equal(computedHash, rootHash) {
 		return errors.New("invalid root hash: wanted %X got %X", rootHash, computedHash)
 	}
 	return nil
 }
 
-// Compute the root hash given a leaf hash.  Does not verify the result.
-func (sp *SimpleProof) ComputeRootHash() []byte {
+// ComputeRootHash computes the root hash implied by the proof's leaf hash and
+// sibling hashes. It does not verify the result against an expected root.
+//
+// It returns an error, rather than a nil hash, when the proof's shape does not
+// let a root be computed at all. Callers compare the returned hash against an
+// expected root, and bytes.Equal treats a nil hash as equal to an empty one —
+// so a nil return would make an unverifiable proof "match" an empty expected
+// root.
+func (sp *SimpleProof) ComputeRootHash() ([]byte, error) {
 	return computeHashFromAunts(
 		sp.Index,
 		sp.Total,
@@ -137,38 +147,40 @@ func (sp *SimpleProof) ValidateBasic() error {
 	return nil
 }
 
-// Use the leafHash and innerHashes to get the root merkle hash.
-// If the length of the innerHashes slice isn't exactly correct, the result is nil.
-// Recursive impl.
-func computeHashFromAunts(index int, total int, leafHash []byte, innerHashes [][]byte) []byte {
-	if index >= total || index < 0 || total <= 0 {
-		return nil
+// computeHashFromAunts walks the sibling hashes from leaf to root. Each way it
+// can fail returns a distinct error: a nil hash would be indistinguishable from
+// an empty one at the caller's bytes.Equal, which is what let malformed proofs
+// verify against an empty expected root.
+func computeHashFromAunts(index int, total int, leafHash []byte, innerHashes [][]byte) ([]byte, error) {
+	if total <= 0 {
+		return nil, errors.New("total must be positive, got %d", total)
+	}
+	if index < 0 || index >= total {
+		return nil, errors.New("index %d out of range for total %d", index, total)
 	}
 	switch total {
-	case 0:
-		panic("Cannot call computeHashFromAunts() with 0 total")
 	case 1:
 		if len(innerHashes) != 0 {
-			return nil
+			return nil, errors.New("single-leaf proof carries %d sibling hashes, want none", len(innerHashes))
 		}
-		return leafHash
+		return leafHash, nil
 	default:
 		if len(innerHashes) == 0 {
-			return nil
+			return nil, errors.New("proof over %d leaves carries no sibling hashes", total)
 		}
 		numLeft := getSplitPoint(total)
 		if index < numLeft {
-			leftHash := computeHashFromAunts(index, numLeft, leafHash, innerHashes[:len(innerHashes)-1])
-			if leftHash == nil {
-				return nil
+			leftHash, err := computeHashFromAunts(index, numLeft, leafHash, innerHashes[:len(innerHashes)-1])
+			if err != nil {
+				return nil, err
 			}
-			return innerHash(leftHash, innerHashes[len(innerHashes)-1])
+			return innerHash(leftHash, innerHashes[len(innerHashes)-1]), nil
 		}
-		rightHash := computeHashFromAunts(index-numLeft, total-numLeft, leafHash, innerHashes[:len(innerHashes)-1])
-		if rightHash == nil {
-			return nil
+		rightHash, err := computeHashFromAunts(index-numLeft, total-numLeft, leafHash, innerHashes[:len(innerHashes)-1])
+		if err != nil {
+			return nil, err
 		}
-		return innerHash(innerHashes[len(innerHashes)-1], rightHash)
+		return innerHash(innerHashes[len(innerHashes)-1], rightHash), nil
 	}
 }
 

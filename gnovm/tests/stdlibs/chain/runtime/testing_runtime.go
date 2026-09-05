@@ -7,6 +7,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -213,6 +214,14 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 	return tb.CoinTable[addr]
 }
 
+// GetCoin implements the Banker interface.
+func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
+	// AmountOf validates the denom before reading anything, so a malformed one
+	// panics here as it does on chain, where SDKBanker.GetCoin checks explicitly
+	// because the keeper reaches a store key without going through Coins.
+	return tb.CoinTable[addr].AmountOf(denom)
+}
+
 // SendCoins implements the Banker interface.
 func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
 	fcoins, fexists := tb.CoinTable[from]
@@ -238,10 +247,40 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 
 // TotalCoin implements the Banker interface.
 func (tb *TestBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	// Summed from the table rather than kept as a counter: the test banker has no
+	// mint/burn asymmetry, so the sum *is* the supply. Total, like the chain — a
+	// denom nobody holds has zero supply, and a malformed one panics as SDKBanker's
+	// does, so `gno test` and production agree.
+	//
+	// Checked up front rather than left to AmountOf below, which is only reached
+	// once per held denom: an empty table would skip the loop entirely and report
+	// a malformed denom as zero, where the chain panics.
+	if err := tm2std.ValidateDenom(denom); err != nil {
+		panic(err)
+	}
+	// Overflow-checked, so this cannot report a wrapped negative where the chain
+	// would refuse the mint outright — the supply cap is exactly what the chain's
+	// counter enforces, and `gno test` must not disagree with it.
+	var total int64
+	for _, coins := range tb.CoinTable {
+		sum, ok := overflow.Add(total, coins.AmountOf(denom))
+		if !ok {
+			panic("total supply of " + denom + " overflows int64")
+		}
+		total = sum
+	}
+	return total
 }
 
 // IssueCoin implements the Banker interface.
+//
+// Deliberately does not enforce the chain's per-denom supply cap: there is no counter
+// here, so an aggregate past MaxInt64 is reachable under `gno test` where MintCoins
+// would refuse the second mint. TotalCoin above panics rather than reporting a wrapped
+// total, so the state cannot be read as a number, and the divergence is in the
+// permissive direction. See the "Known limitation" note in
+// tm2/adr/pr6034_coin_supply.md before changing this — an overflow check here alone
+// refuses at the right point for the wrong reason and still does not model burn.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})

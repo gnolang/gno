@@ -1,6 +1,7 @@
 package std
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -153,4 +154,40 @@ func TestGasPriceGTE(t *testing.T) {
 			}
 		})
 	}
+}
+
+// IsGTE compares fee-per-gas by cross-multiplying, so a negative gas flips one
+// side's sign and inverts the result: paying nothing reports as sufficient. The
+// gas comes from the transaction, and Tx.ValidateBasic bounds gas_wanted only
+// from above.
+//
+// Reaching it needs a negative to survive as far as the fee check, which it does
+// not today -- SetGasMeter runs two lines later and NewGasMeter panics on a
+// negative limit. That guard is in another package, so this one does not rely on
+// it.
+func TestGasPriceIsGTERefusesNegativeGas(t *testing.T) {
+	t.Parallel()
+
+	// A node minimum of 1ugnot per 1000 gas.
+	nodeMin := GasPrice{Gas: 1000, Price: Coin{Denom: "ugnot", Amount: 1}}
+
+	// The control: paying nothing for real gas is correctly insufficient.
+	honest := GasPrice{Gas: 1000, Price: Coin{Denom: "ugnot", Amount: 0}}
+	ok, err := honest.IsGTE(nodeMin)
+	require.NoError(t, err)
+	require.False(t, ok, "a zero fee for positive gas must be insufficient")
+
+	// The same zero fee with the gas negated must not become sufficient.
+	for _, gas := range []int64{-1, -1000, math.MinInt64} {
+		free := GasPrice{Gas: gas, Price: Coin{Denom: "ugnot", Amount: 0}}
+		ok, err := free.IsGTE(nodeMin)
+		require.Error(t, err, "gas %d must be refused", gas)
+		require.Contains(t, err.Error(), "cannot be negative")
+		require.False(t, ok, "gas %d must never report a sufficient fee", gas)
+	}
+
+	// And a negative on the other side is refused too.
+	ok, err = nodeMin.IsGTE(GasPrice{Gas: -1000, Price: Coin{Denom: "ugnot", Amount: 1}})
+	require.Error(t, err)
+	require.False(t, ok)
 }

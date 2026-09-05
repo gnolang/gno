@@ -581,7 +581,6 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 	}
 
 	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
-	send := std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -635,7 +634,6 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Send:       send,
 		MaxDeposit: deposit,
 	}
 
@@ -674,16 +672,19 @@ func Hello(str string) string {
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177900}}, baseAcc.GetCoins())
 
-	// Verify the realm account balance received from the send
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
-	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1000000}}, baseAcc.GetCoins())
+	// This used to attach coins to the deploy and assert they landed in the
+	// package's address. That is no longer allowed: a pure package has no
+	// realm identity, so it can never obtain a banker and could never spend
+	// from that address — the coins were unrecoverable. MsgAddPackage now
+	// rejects it, so no account is created for the package address at all.
 
 	// Verify remaining balance of deployer's account
 	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
 	require.NoError(t, err)
 	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 176800 + Storage Deposit 177900 + Send 1000000)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996545300}}, baseAcc.GetCoins())
+	// 1_000_000 higher than before: that is the payment the deployer used to
+	// attach to the pure-package deploy and lose permanently.
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999997545300}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPath1B := "gno.land/p/demo/integration/test2/echo"

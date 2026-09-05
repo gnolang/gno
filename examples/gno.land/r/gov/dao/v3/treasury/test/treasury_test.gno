@@ -339,3 +339,66 @@ func TestSendCoinPayment(cur realm, t *testing.T) {
 		checkHistoryAndBalances()
 	}
 }
+
+// The allowlist is the only thing standing between an arbitrary realm and the
+// treasury: treasury.Send and treasury.SetTokenKeys gate on
+// dao.InAllowedDAOs, and that helper returns true for EVERY caller while the
+// list is empty (the genesis bootstrap window). UpdateImpl used to store an
+// empty list, so a single implementation-only upgrade — dao.UpdateImpl with
+// NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice —
+// silently reopened that window and handed the treasury to the whole chain.
+//
+// TestAllowedDAOs above proves the gate rejects an outsider in the normal
+// state. This proves the gate cannot be switched off, which is the property
+// that actually protects the funds.
+func TestTreasuryLockdownCannotBeReopened(cur realm, t *testing.T) {
+	savedDAOs := dao.AllowedDAOs()
+
+	// An allowlisted realm attempts the reopen. NewUpdateRequest(d, nil) is the
+	// production spelling — it copies nil into a non-nil empty slice, which is
+	// exactly what the old `!= nil` test accepted. (A bare UpdateRequest struct
+	// literal cannot be built here: allocating another realm's struct type from
+	// this realm is rejected by the VM. That path is covered by
+	// r/gov/dao/allowlist_test.gno, which lives in the same package.)
+	testing.SetRealm(allowedRealm)
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, nil))
+
+	// The outsider must still be refused at the treasury. Reaching
+	// "banker not found" would mean authorization had been cleared — that
+	// error comes from AFTER the InAllowedDAOs check.
+	testing.SetRealm(notAllowedRealm)
+	dummyP := &dummyPayment{bankerID: "Dummy"}
+
+	uassert.AbortsWithMessage(
+		t, cur,
+		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
+		func() { treasury.Send(cross(cur), dummyP) },
+	)
+
+	// SetTokenKeys reuses Send's message verbatim ("...to send payment...")
+	// rather than naming its own operation — a copy-paste slip in
+	// treasury.gno:65, asserted here as-is. Worth correcting separately; it is
+	// operator-visible text, not a security property, so it is not changed as
+	// part of this fix.
+	uassert.AbortsWithMessage(
+		t, cur,
+		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
+		func() { treasury.SetTokenKeys(cross(cur), []string{"evil/key"}) },
+	)
+
+	// Restore explicitly rather than via defer: the assertions above leave the
+	// current realm set to notAllowedRealm, and a deferred UpdateImpl would run
+	// under it and be refused. uassert.AbortsWithMessage recovers the abort, so
+	// control always reaches here.
+	testing.SetRealm(allowedRealm)
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, savedDAOs))
+	uassert.True(t, dao.InAllowedDAOs(allowedRealm.PkgPath()), "allowlist restored")
+}
+
+func TestRenderEscapesUnknownBankerID(t *testing.T) {
+	// The {banker} route reflects an unknown banker id into the page; a crafted
+	// id must be escaped so it cannot inject markdown/HTML.
+	out := treasury.Render("evil[x](y)")
+	uassert.True(t, strings.Contains(out, `\[x\]`), "reflected banker id must be escaped")
+	uassert.False(t, strings.Contains(out, "[x](y)"), "must not render a live link")
+}

@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+![i](&#x64;ata:text/html,<script>alert(1)</script>)
+-- output.md --
+
+
+![i](%26#x64;ata:text/html,<script>alert(1)</script>)
+
+-- output.html --
+<p><img src="%26#x64;ata:text/html,%3Cscript%3Ealert(1)%3C/script%3E" alt="i"></p>

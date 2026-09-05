@@ -1,0 +1,209 @@
+# Regression: a frame-relative CallerTeller only works in the token's own realm.
+#
+# The direct drain — a foreign realm building a teller off a published *Token
+# pointer — is closed by construction and has no runtime test here: the
+# accessor hangs off *PrivateLedger, which never leaves the token's realm, so
+# a caller realm attempting it does not compile.
+#
+# What remains testable is the value-leak path: `leaky` legally builds a teller
+# from its own ledger and then exports it. The write-time home check makes that
+# value inert in any other realm, so all three of the following are refused:
+#
+#   (a) transfer, via `maketx call`  — actor is the signing user
+#   (b) transfer, via `maketx run`   — actor is the /e/<addr>/run frame, whose
+#                                      Address() is still the signer's
+#   (c) transferFrom                 — actor is a REALM (a hub), and the debited
+#                                      owner is a parameter. This is the case an
+#                                      actor-shaped guard cannot see: without
+#                                      the home check the caller spends the
+#                                      hub's allowance against alice, who
+#                                      approved the hub and nobody else.
+#
+# Each caller surfaces the error rather than swallowing it, so these assert
+# the specific refusal and not merely that no balance happened to move.
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/leaky $WORK/leaky
+loadpkg gno.land/r/test/lattack $WORK/lattack
+loadpkg gno.land/r/test/tfattack $WORK/tfattack
+loadpkg gno.land/r/test/hubx $WORK/hubx
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/leaky -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# (a) transfer through the leaked teller, ordinary call.
+! gnokey maketx call -pkgpath gno.land/r/test/lattack -func Pull -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'caller teller is confined to the token'
+
+# (b) same, through a signed run.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/pull.gno
+stderr 'caller teller is confined to the token'
+
+# alice approves hubx, and ONLY hubx.
+gnokey maketx call -pkgpath gno.land/r/test/leaky -func Approve -args g1zzhugqyrrplf5la7tgstku8pe75uvcqyszkv2a -args 1000000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/leaky.Allowance(\"$alice_user_addr\",\"g1e52vef38vzyukch0j7wqauf3cff67nt63rff2d\")"
+stdout '0 int64'
+
+# (c) alice makes one ordinary call into hubx, which crosses into tfattack.
+# tfattack's actor resolves to hubx — a realm, not a user — so an actor-shaped
+# guard would let this through. The home check refuses it.
+! gnokey maketx call -pkgpath gno.land/r/test/hubx -func Run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'caller teller is confined to the token'
+
+# Nothing moved anywhere.
+gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+gnokey query vm/qeval --data 'gno.land/r/test/lattack.Loot()'
+stdout '0 int64'
+gnokey query vm/qeval --data 'gno.land/r/test/tfattack.Loot()'
+stdout '0 int64'
+
+# The token's own realm is unaffected: alice can still move her own funds.
+gnokey maketx call -pkgpath gno.land/r/test/leaky -func Transfer -args g1cq96a4hhj7w6ns8sykm8892cyemqv0f5n64zuk -args 250000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
+stdout '750000 int64'
+
+# And the supported route for a foreign realm still works: hubx spends the
+# allowance alice granted it, as itself, through a RealmTeller.
+gnokey maketx call -pkgpath gno.land/r/test/hubx -func Pull -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+-- run/pull.gno --
+package main
+
+import "gno.land/r/test/lattack"
+
+func main(cur realm) { lattack.Pull(cross(cur)) }
+
+-- leaky/gnomod.toml --
+module = "gno.land/r/test/leaky"
+gno = "0.9"
+
+-- leaky/leaky.gno --
+package leaky
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+	// Teller is exported ON PURPOSE — this is the mistake the home check
+	// defends against. Building it here is legal; letting the value travel is
+	// what must not grant a spend capability.
+	Teller grc20.Teller
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, 0, cur)
+	Teller = adm.CallerTeller()
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	if err := Teller.Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	if err := Teller.Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
+
+-- lattack/gnomod.toml --
+module = "gno.land/r/test/lattack"
+gno = "0.9"
+
+-- lattack/lattack.gno --
+package lattack
+
+import (
+	"chain"
+
+	"gno.land/r/test/leaky"
+)
+
+// Pull tries to drain its caller through leaky's exported teller value.
+func Pull(cur realm) {
+	victim := cur.Previous().Address()
+	if err := leaky.Teller.Transfer(0, cur, cur.Address(), leaky.BalanceOf(victim)); err != nil {
+		panic(err)
+	}
+}
+
+func Loot() int64 {
+	return leaky.BalanceOf(chain.PackageAddress("gno.land/r/test/lattack"))
+}
+
+-- hubx/gnomod.toml --
+module = "gno.land/r/test/hubx"
+gno = "0.9"
+
+-- hubx/hubx.gno --
+package hubx
+
+import (
+	"gno.land/r/test/leaky"
+	"gno.land/r/test/tfattack"
+)
+
+// Run is an honest hub that happens to cross into a plugin realm.
+func Run(cur realm) { tfattack.Pull(cross(cur), cur.Previous().Address()) }
+
+// Pull is the supported way for a non-owner realm to move a user's funds:
+// spend an allowance the user granted to THIS realm, as this realm.
+func Pull(cur realm, amount int64) {
+	owner := cur.Previous().Address()
+	if err := leaky.Token.RealmTeller(0, cur).TransferFrom(0, cur, owner, cur.Address(), amount); err != nil {
+		panic(err)
+	}
+}
+
+-- tfattack/gnomod.toml --
+module = "gno.land/r/test/tfattack"
+gno = "0.9"
+
+-- tfattack/tfattack.gno --
+package tfattack
+
+import (
+	"chain"
+
+	"gno.land/r/test/leaky"
+)
+
+// Pull rides the allowance of whichever realm called into it. Its own
+// allowance from the owner is zero.
+func Pull(cur realm, owner address) {
+	if err := leaky.Teller.TransferFrom(0, cur, owner, cur.Address(), leaky.BalanceOf(owner)); err != nil {
+		panic(err)
+	}
+}
+
+func Loot() int64 {
+	return leaky.BalanceOf(chain.PackageAddress("gno.land/r/test/tfattack"))
+}

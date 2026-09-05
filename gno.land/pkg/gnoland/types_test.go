@@ -144,14 +144,17 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.False(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Unrestricted
-	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
 	acck.SetAccount(ctx, fromAccount)
 	acck.SetAccount(ctx, toAccount)
+	// Fund via the bank: "foocoin" is not an account-tier denom, so writing the
+	// account object directly would put it where the bank does not read.
+	require.NoError(t, bankk.SetCoins(ctx, fromAddress, std.NewCoins(std.NewCoin("foocoin", 10))))
 
 	err := bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
 	require.NoError(t, err)
-	balance := acck.GetAccount(ctx, toAddress).GetCoins()
-	assert.Equal(t, balance.String(), "3foocoin")
+	// Read through the bank: the account object holds only account-tier denoms.
+	balance := bankk.GetCoins(ctx, toAddress)
+	assert.Equal(t, "3foocoin", balance.String())
 
 	// Send Restricted
 	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"})
@@ -432,4 +435,29 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 
 	// Verify AllowPaths round-trips correctly
 	assert.Equal(t, original.AllowPaths, result.AllowPaths)
+}
+
+// A vesting account's query JSON must decode into GnoAccount, because that is
+// the concrete type gnoclient.QueryAccount unmarshals every account into. When a
+// vesting account was its own type its JSON carried a "VestingSchedule" field
+// that GnoAccount had no place for, so querying one failed outright with
+// `unknown JSON field "VestingSchedule"` and no client could read it.
+func TestGnoAccountWithVestingRoundTripsAsQueryJSON(t *testing.T) {
+	t.Parallel()
+
+	acc := ProtoGnoAccount()
+	require.NoError(t, acc.SetAddress(crypto.AddressFromPreimage([]byte("vester"))))
+	require.NoError(t, acc.SetCoins(std.Coins{{Denom: "ugnot", Amount: 1000}}))
+	acc.SetVesting(std.VestingSchedule{
+		OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+		StartTime:       100,
+		EndTime:         200,
+	})
+
+	var back GnoAccount
+	require.NoError(t, amino.UnmarshalJSON(amino.MustMarshalJSON(acc), &back),
+		"a vesting account's JSON must decode into the type clients use")
+	assert.Equal(t, acc.GetVesting(), back.GetVesting())
+	assert.Equal(t, int64(500), back.LockedCoins(time.Unix(150, 0)).AmountOf("ugnot"),
+		"and the schedule must still work after the round trip")
 }

@@ -103,8 +103,13 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		})
 	}
 
-	// Construct the multisig public key to get the address
-	multiPubKey := multisig.NewPubKeyMultisigThreshold(cfg.MultisigThreshold, publicKeys)
+	// Construct the multisig public key to get the address. The checked form is
+	// what keeps a rejected key an error here rather than a panic out of the
+	// command, without this call site having to know what makes one valid.
+	multiPubKey, err := multisig.NewPubKeyMultisigThresholdChecked(cfg.MultisigThreshold, publicKeys)
+	if err != nil {
+		return fmt.Errorf("unable to construct multisig public key, %w", err)
+	}
 
 	// If not forcing, check for collisions with existing keys
 	if !cfg.RootCfg.Force {

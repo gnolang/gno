@@ -9,6 +9,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
 	htmlrenderer "github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 )
 
 // buildTestMarkdownWithForeign returns a goldmark instance with the
@@ -251,20 +252,47 @@ func TestForeign_DepthCapAt5_FifthRefused(t *testing.T) {
 	}
 }
 
+func TestForeign_BlockCapSharedAcrossNestedRenders(t *testing.T) {
+	const width = 16
+	var b strings.Builder
+	b.WriteString("\n\n")
+	var writeTree func(int)
+	writeTree = func(depth int) {
+		b.WriteString("<gno-foreign>\n")
+		if depth > 1 {
+			for range width {
+				writeTree(depth - 1)
+			}
+		}
+		b.WriteString("</gno-foreign>\n")
+	}
+	writeTree(3) // The tree has 273 openers, while every path remains within the depth cap.
+
+	got := renderForeignTestCase(t, b.String())
+	if n := strings.Count(got, `class="gno-foreign"`); n != MaxGnoForeignBlocksPerConvert {
+		t.Errorf("expected exactly %d rendered foreign divs, got %d", MaxGnoForeignBlocksPerConvert, n)
+	}
+}
+
 func TestForeign_OverCapBodyNotLeakedToOuterHTML(t *testing.T) {
-	// REGRESSION: a cap-refused (101st) block must NOT let its opener
-	// fall through to the outer raw-HTML block parser — under an UNSAFE
-	// outer renderer (gnoweb -html) that would render the unescaped body
-	// as live HTML, escaping the sandbox. The refused block must instead
-	// be captured opaquely and rendered as a budget marker.
+	// A refused block remains opaque when the outer renderer permits raw HTML.
 	m := goldmark.New(goldmark.WithRendererOptions(htmlrenderer.WithUnsafe()))
 	ExtForeign.Extend(m, nil)
 	var b strings.Builder
 	for i := 0; i < MaxGnoForeignBlocksPerConvert; i++ {
 		b.WriteString("\n\n<gno-foreign>\nok\n</gno-foreign>\n")
 	}
-	// The (cap+1)th block carries a raw-HTML XSS payload in its body.
-	b.WriteString("\n\n<gno-foreign>\n<img src=x onerror=alert(1)>\n</gno-foreign>\n\n")
+	// The refused block contains raw HTML and a nested foreign block.
+	// Neither may render.
+	b.WriteString("\n\n<gno-foreign>\n<img src=x onerror=parent-sentinel>\n<gno-foreign>\nchild-sentinel\n</gno-foreign>\n</gno-foreign>\n\n")
+	doc := m.Parser().Parse(text.NewReader([]byte(b.String())))
+	refused, ok := doc.LastChild().(*ForeignNode)
+	if !ok || !refused.stripped {
+		t.Fatal("last foreign block was not refused")
+	}
+	if len(refused.Body) != 0 {
+		t.Fatalf("refused block retained %d body bytes", len(refused.Body))
+	}
 	var buf bytes.Buffer
 	if err := m.Convert([]byte(b.String()), &buf); err != nil {
 		t.Fatal(err)
@@ -273,8 +301,11 @@ func TestForeign_OverCapBodyNotLeakedToOuterHTML(t *testing.T) {
 	if strings.Contains(got, "onerror") {
 		t.Errorf("over-cap body leaked as live raw HTML (sandbox escape):\n%s", got)
 	}
-	if !strings.Contains(got, "render budget exceeded") {
-		t.Errorf("expected budget-exceeded marker for the refused block:\n%s", got)
+	if strings.Contains(got, "child-sentinel") {
+		t.Errorf("nested child of over-cap parent was rendered:\n%s", got)
+	}
+	if n := strings.Count(got, "render budget exceeded"); n != 1 {
+		t.Errorf("expected exactly 1 budget-exceeded marker, got %d", n)
 	}
 	if n := strings.Count(got, `class="gno-foreign"`); n != MaxGnoForeignBlocksPerConvert {
 		t.Errorf("expected exactly %d rendered foreign divs, got %d", MaxGnoForeignBlocksPerConvert, n)
