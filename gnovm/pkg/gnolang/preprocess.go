@@ -3198,6 +3198,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("unexpected type declaration type %v",
 						reflect.TypeFor[*TypedValue]()))
 				}
+				// The declaration is complete here, so this is the
+				// first point at which a cycle passing through it can
+				// be seen whole, whatever order the names resolved in.
+				assertNoDirectTypeCycle(n.Name, dstT)
+				assertValidMapKeys(dstT)
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dstT)
@@ -5087,6 +5092,200 @@ func findUndefinedT(store Store, last BlockNode, x Expr, stack []Name, defining 
 	return findUndefinedAny(store, last, x, stack, defining, isalias, direct, true, nil)
 }
 
+// typeDeclForName returns the *TypeDecl that declares n, or nil if n is not
+// declared by a type declaration.
+func typeDeclForName(store Store, last BlockNode, n Name) *TypeDecl {
+	for bn := last; bn != nil; bn = bn.GetParentNode(store) {
+		idx, ok := bn.GetLocalIndex(n)
+		if !ok {
+			continue
+		}
+		td, _ := bn.GetNameSources()[idx].Origin.(*TypeDecl)
+		return td
+	}
+	return nil
+}
+
+// cycleThroughDefinedType reports whether the declaration cycle closing back
+// on name passes through a defined (non-alias) type. `stack` holds the names
+// currently being predefined, so the cycle is its suffix starting at name.
+func cycleThroughDefinedType(store Store, last BlockNode, stack []Name, name Name) bool {
+	start := slices.Index(stack, name)
+	if start < 0 {
+		return false
+	}
+	for _, n := range stack[start:] {
+		if td := typeDeclForName(store, last, n); td != nil && !td.IsAlias {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveAliasChain follows a chain of type aliases (`type a = b`) whose
+// names are not defined yet, looking for a type that an earlier tryPredefine
+// already constructed. Every alias in the chain denotes that same type, so
+// each one is defined with it; this is what lets a cyclic alias group close
+// on a name whose own declaration has not been reached yet.
+//
+// When the chain does not resolve, the name it stopped at is returned so
+// that the caller can report that name as the missing dependency. Reporting
+// the immediate target instead would walk what is left of the chain again
+// for every alias in it.
+func resolveAliasChain(store Store, last BlockNode, name Name) (t Type, un Name) {
+	var chain []*TypeDecl
+	// defineChain gives every alias walked over the type they all denote.
+	defineChain := func(t Type) {
+		last2 := skipFile(last)
+		for _, td := range chain {
+			last2.Define2(true, td.Name, t, asValue(t),
+				NameSource{&td.NameExpr, td, NSTypeDecl, -1})
+			td.Path = last.GetPathForName(store, td.Name)
+		}
+	}
+	seen := map[Name]struct{}{}
+	for {
+		if _, ok := seen[name]; ok {
+			// Alias-only cycle; findUndefinedAny rejects it.
+			return nil, name
+		}
+		seen[name] = struct{}{}
+		if tv := last.GetSlot(store, name, true); tv != nil {
+			t := tv.GetType()
+			if t == nil {
+				return nil, name
+			}
+			defineChain(t)
+			return t, ""
+		}
+		if idx, ok := UverseNode().GetLocalIndex(name); ok {
+			// Uverse types are not in the block chain, but an alias to
+			// one (`type MyErr = error`) resolves just as well.
+			utv := Uverse().GetValueAt(nil, NewValuePathUverse(idx, name))
+			t := utv.GetType()
+			defineChain(t)
+			return t, ""
+		}
+		td := typeDeclForName(store, last, name)
+		if td == nil || !td.IsAlias {
+			return nil, name
+		}
+		nx, ok := td.Type.(*NameExpr)
+		if !ok {
+			return nil, name
+		}
+		chain = append(chain, td)
+		name = nx.Name
+	}
+}
+
+// assertNoDirectTypeCycle panics if t contains itself through a chain of
+// direct containments -- a defined type's base, a struct field or an array
+// element -- which would give it an infinite size. Pointers, slices, maps,
+// channels, funcs and interfaces hold what they refer to behind a
+// reference, so they end the walk.
+//
+// This runs once t is fully constructed, which is what makes it independent
+// of the order names happen to be resolved in. The dependency walk in
+// findUndefinedAny cannot do this job: it only reports a cycle for a name it
+// is currently defining, so a direct reference is missed whenever an
+// indirect reference elsewhere in the same declaration has already caused
+// that name to be defined.
+func assertNoDirectTypeCycle(name Name, t Type) {
+	path := map[Type]struct{}{}
+	done := map[Type]struct{}{}
+
+	// walk returns the name of the defined type that closes a cycle, or
+	// "" when there is none. `named` is the innermost enclosing defined
+	// type, which is the one Go names in its error.
+	var walk func(t Type, named Name) Name
+	walk = func(t Type, named Name) Name {
+		if t == nil {
+			return ""
+		}
+		if _, ok := done[t]; ok {
+			return ""
+		}
+		if _, ok := path[t]; ok {
+			return named
+		}
+		path[t] = struct{}{}
+		defer func() {
+			delete(path, t)
+			done[t] = struct{}{}
+		}()
+		switch t := t.(type) {
+		case *DeclaredType:
+			return walk(t.Base, t.Name)
+		case *ArrayType:
+			return walk(t.Elt, named)
+		case *StructType:
+			for i := range t.Fields {
+				if n := walk(t.Fields[i].Type, named); n != "" {
+					return n
+				}
+			}
+		}
+		return ""
+	}
+
+	if n := walk(t, name); n != "" {
+		panic(fmt.Sprintf("invalid recursive type: %s refers to itself", n))
+	}
+}
+
+// typeIsSettled reports whether t's underlying type has been filled in.
+// While a declaration group is being processed, a type in it can still be a
+// shell: a nil element, or a defined type whose base is not constructed yet.
+func typeIsSettled(t Type) bool {
+	if dt, ok := t.(*DeclaredType); ok {
+		return dt.Base != nil
+	}
+	return t != nil
+}
+
+// assertValidMapKeys panics if t contains a map whose key type cannot be
+// compared with ==. Like assertNoDirectTypeCycle this runs on the finished
+// type: a key that is a defined type is only known to be uncomparable once
+// its underlying type has been filled in.
+func assertValidMapKeys(t Type) {
+	seen := map[Type]struct{}{}
+	var walk func(t Type)
+	walk = func(t Type) {
+		if t == nil {
+			return
+		}
+		if _, ok := seen[t]; ok {
+			return
+		}
+		seen[t] = struct{}{}
+		switch t := t.(type) {
+		case *DeclaredType:
+			walk(t.Base)
+		case *ArrayType:
+			walk(t.Elt)
+		case *SliceType:
+			walk(t.Elt)
+		case *PointerType:
+			walk(t.Elt)
+		case *StructType:
+			for i := range t.Fields {
+				walk(t.Fields[i].Type)
+			}
+		case *MapType:
+			// A key that is still a shell belongs to a declaration
+			// that has not been left yet, and that declaration runs
+			// this same check once it has been filled in.
+			if typeIsSettled(t.Key) && !isComparable(t.Key) {
+				panic(fmt.Sprintf("invalid map key type %s", t.Key.String()))
+			}
+			walk(t.Key)
+			walk(t.Value)
+		}
+	}
+	walk(t)
+}
+
 func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool, astype bool, elide Type) (un Name, directR bool) {
 	if debugFind {
 		fmt.Printf("findUndefinedAny(%v, %v, %v, isalias=%v, direct=%v, astype=%v, elide=%v\n", x, stack, defining, isalias, direct, astype, elide)
@@ -5117,26 +5316,26 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 					return
 				}
 		*/
-		// XXX simplify
-		if direct {
-			if astype {
-				if _, ok := defining[cx.Name]; ok {
+		if astype {
+			// Only a cycle among type declarations is a recursive type. A
+			// name being defined may merely shadow a type of the same name,
+			// as in `var csvReader Reader = &csvReader{}`, where the
+			// composite literal refers to the outer type.
+			if _, ok := defining[cx.Name]; ok && typeDeclForName(store, last, cx.Name) != nil {
+				// A type cycle is legal only when it passes through both an
+				// indirection (tracked by !direct) and a defined type, which
+				// gives the cycle something concrete to resolve to. A cycle
+				// of aliases alone, such as `type Int = []Int`, never
+				// resolves. See golang/go#25838.
+				if direct || !cycleThroughDefinedType(store, last, stack, cx.Name) {
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), cx.Name))
 				}
-				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-					return
-				}
-			} else {
-				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-					return
-				}
-				return cx.Name, direct
-			}
-		} else {
-			if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 				return
 			}
+		}
+		if tv := last.GetSlot(store, cx.Name, true); tv != nil {
+			return
 		}
 		return cx.Name, direct
 	case *BasicLitExpr:
@@ -5178,9 +5377,10 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *StarExpr: // POINTER & DEREF
 		// NOTE: *StarExpr can either mean dereference, or a pointer type.
 		// It's not only confusing for new developers, it causes complexity
-		// in type checking. A *StarExpr is indirect as a type unless alias.
+		// in type checking. A pointer is an indirection, so as a type it
+		// always breaks a cycle, even in an alias (see golang/go#25838).
 		if astype {
-			return findUndefinedT(store, last, cx.X, stack, defining, isalias, isalias)
+			return findUndefinedT(store, last, cx.X, stack, defining, isalias, false)
 		} else {
 			return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
 		}
@@ -5267,10 +5467,16 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		}
 		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, direct)
 	case *SliceTypeExpr:
-		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, astype && isalias)
+		// A slice is an indirection, so it always breaks a cycle, even in
+		// an alias (see golang/go#25838). Arrays, handled above, do not.
+		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, false)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
 			method := &cx.Methods[i]
+			// An embedded interface (a bare name) is a direct
+			// reference: its method set must be resolved to build
+			// this interface. A method signature is not; it only
+			// refers to its parameter and result types.
 			direct2 := false
 			if _, ok := method.Type.(*NameExpr); ok {
 				direct2 = true
@@ -5281,20 +5487,26 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			}
 		}
 	case *FuncTypeExpr:
+		// A function type refers to its parameter and result types
+		// without needing their sizes, so like a pointer it is an
+		// indirection that always breaks a cycle, even in an alias
+		// (see golang/go#25838).
 		for i := range cx.Params {
-			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, false)
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, false)
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr: // MAP
-		un, directR = findUndefinedT(store, last, cx.Key, stack, defining, isalias, astype && isalias)
+		// A map is an indirection, so it always breaks a cycle, even in an
+		// alias (see golang/go#25838).
+		un, directR = findUndefinedT(store, last, cx.Key, stack, defining, isalias, false)
 		if un != "" {
 			return
 		}
@@ -5302,7 +5514,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		// type Int = map[Int]IntIllegal;
 		// type Int = struct{Int};
 		// type Int = *Int;
-		un, directR = findUndefinedT(store, last, cx.Value, stack, defining, isalias, isalias)
+		un, directR = findUndefinedT(store, last, cx.Value, stack, defining, isalias, false)
 		if un != "" {
 			return
 		}
@@ -5682,6 +5894,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 							// already preprocessed dependent types!
 							panic("should not happen")
 						}
+					}
+				} else if d.IsAlias {
+					var un2 Name
+					t, un2 = resolveAliasChain(store, last, tx.Name)
+					if t == nil {
+						// Nothing for this alias to stand in for
+						// yet. Report the name the chain stopped
+						// at so that it is predefined first, and
+						// leave this alias reserved until then.
+						return un2, true, direct
 					}
 				}
 				// set t for proper type.
