@@ -10,7 +10,7 @@ gnoland start
 
 ## account should be available since it has an initial balance
 gnokey query auth/accounts/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0
-stdout 'height: 0'
+stdout 'height: [1-9][0-9]*'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "'${user1_user_addr}'",'

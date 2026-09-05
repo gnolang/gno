@@ -22,7 +22,7 @@ gnoland start
 # we can confirm the rejected MsgCall does not mutate any state.
 gnokey query params/node:valset:current
 stdout 'data:'
-cp stdout valset_before.txt
+querydata valset_before.txt
 
 # Post-boot MsgCall to AssertGenesisValopersConsistent. ChainHeight() > 0,
 # so the guard must reject with the documented panic.
@@ -30,5 +30,5 @@ cp stdout valset_before.txt
 stderr 'only callable during genesis-mode replay'
 
 gnokey query params/node:valset:current
-cp stdout valset_after.txt
+querydata valset_after.txt
 cmp valset_before.txt valset_after.txt
