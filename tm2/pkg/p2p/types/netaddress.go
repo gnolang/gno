@@ -32,9 +32,10 @@ var (
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port
 type NetAddress struct {
-	ID   ID     `json:"id"`   // unique peer identifier (public key address)
-	IP   net.IP `json:"ip"`   // the IP part of the dial address
-	Port uint16 `json:"port"` // the port part of the dial address
+	ID       ID     `json:"id"`                 // unique peer identifier (public key address)
+	IP       net.IP `json:"ip"`                 // the IP part of the dial address
+	Hostname string `json:"hostname,omitempty"` // original hostname, if any
+	Port     uint16 `json:"port"`               // the port part of the dial address
 }
 
 // NetAddressString returns id@addr. It strips the leading
@@ -79,6 +80,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	var (
 		prunedAddr = removeProtocolIfDefined(idaddr)
 		spl        = strings.Split(prunedAddr, "@")
+		hostname   = ""
 	)
 
 	if len(spl) != 2 {
@@ -107,6 +109,8 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 
 	ip := net.ParseIP(host)
 	if ip == nil {
+		hostname = host
+
 		ips, err := net.LookupIP(host)
 		if err != nil {
 			return nil, fmt.Errorf("unable to look up IP, %w", err)
@@ -121,6 +125,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	}
 
 	na := NewNetAddressFromIPPort(ip, uint16(port))
+	na.Hostname = hostname
 	na.ID = id
 
 	return na, nil
@@ -222,9 +227,40 @@ func (na *NetAddress) DialString() string {
 	)
 }
 
+// PrepareForDial resolves the hostname for the address (if any) and updates the
+// IP field with the latest lookup result before dialing.
+func (na *NetAddress) PrepareForDial(ctx context.Context) error {
+	if na == nil || na.Hostname == "" {
+		return nil
+	}
+
+	if ip := net.ParseIP(na.Hostname); ip != nil {
+		na.IP = ip
+
+		return nil
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, na.Hostname)
+	if err != nil {
+		return fmt.Errorf("unable to resolve host %s, %w", na.Hostname, err)
+	}
+
+	if len(addrs) == 0 {
+		return fmt.Errorf("unable to resolve host %s, no addresses found", na.Hostname)
+	}
+
+	na.IP = addrs[0].IP
+
+	return nil
+}
+
 // DialContext dials the given NetAddress with a context
 func (na *NetAddress) DialContext(ctx context.Context) (net.Conn, error) {
 	var d net.Dialer
+
+	if err := na.PrepareForDial(ctx); err != nil {
+		return nil, err
+	}
 
 	conn, err := d.DialContext(ctx, "tcp", na.DialString())
 	if err != nil {
