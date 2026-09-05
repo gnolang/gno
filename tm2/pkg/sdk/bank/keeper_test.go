@@ -140,6 +140,23 @@ func TestBankKeeper(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSendCoinsEmitsTransferEvent(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("event-from"))
+	to := crypto.AddressFromPreimage([]byte("event-to"))
+	amount := std.NewCoins(std.NewCoin("ugnot", 5))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
+
+	require.NoError(t, env.bankk.SendCoins(env.ctx, from, to, amount))
+	require.Equal(t, []sdk.Event{TransferEvent{
+		From:  from.String(),
+		To:    to.String(),
+		Coins: amount,
+	}}, env.ctx.EventLogger().Events())
+}
+
 func TestViewKeeper(t *testing.T) {
 	t.Parallel()
 
@@ -742,6 +759,7 @@ func TestBankKeeperSendCoinsZero(t *testing.T) {
 		bankk.SendCoins(ctx, from, to, std.NewCoins(std.NewCoin("rstr", 1))),
 		std.RestrictedTransferError{},
 	)
+	require.Empty(t, ctx.EventLogger().Events())
 }
 
 // Test SetRestrictedDenoms

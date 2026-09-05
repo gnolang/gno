@@ -1,0 +1,36 @@
+loadpkg gno.land/r/foo/call_realm $WORK/realm
+
+gnoland start
+
+# MsgSend exposes one complete transfer event.
+gnokey maketx send -send 7ugnot -to g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
+stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054","coins":\[{"denom":"ugnot","amount":7}\]}\]'
+
+# MsgCall's send envelope and the realm's banker.SendCoins are both exposed.
+gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Forward -args 3 -send 11ugnot -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test test1
+stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","coins":\[{"denom":"ugnot","amount":11}\]},{"from":"g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7","to":"'$test1_user_addr'","coins":\[{"denom":"ugnot","amount":3}\]}\]'
+
+# MsgRun's send envelope is a self-transfer and emits no event.
+gnokey maketx run -send 42ugnot -gas-fee 200001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1 $WORK/run/main.gno
+stdout 'EVENTS:     \[\]'
+
+-- realm/realm.gno --
+package call_realm
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func Forward(cur realm, amount int64) {
+	if !cur.IsCurrent() || !cur.Previous().IsUserCall() {
+		panic("direct user call required")
+	}
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	b.SendCoins(cur.Address(), cur.Previous().Address(), chain.Coins{{"ugnot", amount}})
+}
+
+-- run/main.gno --
+package main
+
+func main() {}
