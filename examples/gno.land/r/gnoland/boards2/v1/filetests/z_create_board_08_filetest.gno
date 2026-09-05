@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
 	name          = "TestBoard"
 )
 
@@ -31,13 +31,18 @@ func main(cur realm) {
 // [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
-// ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v1:create-board)!
+// Sort by: [newest first](/r/gnoland/boards2/v1:?order=desc)
+//
+// ###### [OpenDiscussions](/r/gnoland/boards2/v1:OpenDiscussions)
+// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC, #1
+// **0 threads**
+//
+//
 //
 // ==================
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
-// ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
+// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC, #2
+// ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=2) • [Manage Board](?menu=manageBoard)
 //
 // ---
 // ### This board doesn't have any threads

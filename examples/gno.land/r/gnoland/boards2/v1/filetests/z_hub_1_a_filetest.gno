@@ -17,7 +17,7 @@ var (
 )
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
+	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
 	boardID = boards2.CreateBoard(cross(cur), "origin123", false, false)
 	threadID = boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 }
@@ -48,7 +48,7 @@ func main(cur realm) {
 // 1
 // 0
 // 0
-// 1
+// 2
 // Title
 // Body
 // false
@@ -56,6 +56,6 @@ func main(cur realm) {
 // 0
 // 0
 // 0
-// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
+// g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf
 // 1234567890
 // 0

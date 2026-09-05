@@ -10,7 +10,7 @@ import (
 )
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
+	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
 
 	// Invite a realm member, which requires a zero board ID
 	boards2.InviteMember(cross(cur), 0, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
@@ -28,4 +28,4 @@ func main(cur realm) {
 
 // Output:
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 slice[("admin" string)]
-// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh slice[("owner" string)]
+// g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf slice[("owner" string)]

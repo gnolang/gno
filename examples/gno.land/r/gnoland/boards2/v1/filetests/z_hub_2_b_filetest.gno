@@ -10,7 +10,7 @@ import (
 )
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
+	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
 	boards2.CreateBoard(cross(cur), "aaa123", false, false)
 	boards2.CreateBoard(cross(cur), "bbb123", false, false)
 	boards2.CreateBoard(cross(cur), "ccc123", false, false)
@@ -25,6 +25,7 @@ func main(cur realm) {
 }
 
 // Output:
-// 1 aaa123
-// 2 bbb123
-// 3 ccc123
+// 1 OpenDiscussions
+// 2 aaa123
+// 3 bbb123
+// 4 ccc123

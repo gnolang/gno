@@ -146,36 +146,42 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
-
-		board.Name = name
-		board.Creator = caller
-		board.Meta = &BoardMeta{
-			HiddenThreads: boards.NewPostStorage(),
-		}
-
-		if open {
-			board.Permissions = createOpenBoardPermissions(caller)
-		} else {
-			board.Permissions = createBasicBoardPermissions(caller)
-		}
-
-		if err := gBoards.Add(board); err != nil {
-			panic(err)
-		}
-
-		// Listed boards are also indexed separately for easier iteration and pagination
-		if listed {
-			gListedBoardsByID.Set(board.ID.Key(), board)
-		}
-
-		chain.Emit(
-			"BoardCreated",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"name", name,
-		)
+		addBoard(board, caller, name, listed, open)
 	})
 	return board.ID
+}
+
+// addBoard initializes a board and adds it to the realm storage.
+// It performs no permission or validation checks, so callers are responsible
+// for doing their own.
+func addBoard(board *boards.Board, caller address, name string, listed, open bool) {
+	board.Name = name
+	board.Creator = caller
+	board.Meta = &BoardMeta{
+		HiddenThreads: boards.NewPostStorage(),
+	}
+
+	if open {
+		board.Permissions = createOpenBoardPermissions(caller)
+	} else {
+		board.Permissions = createBasicBoardPermissions(caller)
+	}
+
+	if err := gBoards.Add(board); err != nil {
+		panic(err)
+	}
+
+	// Listed boards are also indexed separately for easier iteration and pagination
+	if listed {
+		gListedBoardsByID.Set(board.ID.Key(), board)
+	}
+
+	chain.Emit(
+		"BoardCreated",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"name", name,
+	)
 }
 
 // RenameBoard changes the name of an existing board.
