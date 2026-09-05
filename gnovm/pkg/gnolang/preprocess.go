@@ -2392,8 +2392,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case SliceKind, StringKind:
 					// good.
+				case ArrayKind:
+					if !isAddressable(store, last, n.X) {
+						panic(fmt.Sprintf(
+							"invalid operation: %s (slice of unaddressable value)",
+							n.X.String()))
+					}
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
@@ -2582,6 +2588,25 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
 				}
+				if xt == nil {
+					// untyped nil has no static type; reported here so the
+					// checks below can format xt without a nil dereference.
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s",
+						n.X.String()))
+				}
+				// Go spec: "As an exception to the addressability requirement,
+				// x may also be a (possibly parenthesized) composite literal."
+				// The exception is the operand of & only, so it is applied
+				// here rather than inside isAddressable, which is also used
+				// for slicing. go2gno drops parentheses, so a parenthesized
+				// literal arrives as a bare *CompositeLitExpr.
+				_, isComposite := n.X.(*CompositeLitExpr)
+				if !isComposite && !isAddressable(store, last, n.X) {
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s (value of type %s)",
+						n.X.String(), xt.String()))
+				}
 				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -2641,6 +2666,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// automatically take the address of that
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
+						// The address taken here is synthesized rather
+						// than written, so it never reaches the RefExpr
+						// case above; the spec's addressability
+						// requirement has to be enforced where the
+						// address is built. Without it a pointer method
+						// on an unaddressable receiver either wrote
+						// through to state the caller cannot name
+						// (m["k"].Inc() mutated the stored map element),
+						// silently discarded the write (T{}.Inc()), or
+						// reached the runtime as an opaque "illegal
+						// assignment X expression" (mk().Inc()).
+						//
+						// Reported against xt, the type actually written
+						// as the receiver, rather than nxt2, which for a
+						// promoted method is the embedded type the trail
+						// resolved to.
+						if !isAddressable(store, last, n.X) {
+							panic(fmt.Sprintf(
+								"cannot call pointer method %s on %s",
+								n.Sel, xt.String()))
+						}
 						// convert to (&x).m, but leave xt as is.
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
@@ -2670,6 +2716,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
+						//
+						// No addressability guard here, unlike Case 1: this
+						// fires only when the trail already dereferences a
+						// pointer, so the value is reached through that
+						// indirection rather than by taking the address of
+						// an unaddressable operand. Instrumenting the branch
+						// over the filetest suite never reached it with an
+						// unaddressable n.X.
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
 						n.X = rx
@@ -4843,6 +4897,108 @@ func anyValue(t Type) TypedValue {
 func isConst(x Expr) bool {
 	_, ok := x.(*ConstExpr)
 	return ok
+}
+
+// isAddressable reports whether x is addressable, as the Go spec defines it:
+// "either a variable, pointer indirection, or slice indexing operation; or a
+// field selector of an addressable struct operand; or an array indexing
+// operation of an addressable array."
+//
+// The spec's composite literal exception ("As an exception to the
+// addressability requirement, x may also be a (possibly parenthesized)
+// composite literal") is deliberately not applied here. A composite literal is
+// addressable only as the direct operand of &, never as the base of a
+// selector, index, or slice expression. The RefExpr case applies the exception
+// at its own call site, which is what keeps &T{} legal while rejecting
+// &T{}.field, &[...]T{}[0], and [...]T{}[:].
+//
+// This is deliberately NOT assertValidAssignLhs: addressable and assignable
+// are different sets, and neither contains the other. A map index is
+// assignable but not addressable (`m[k] = v` is legal, `&m[k]` is not), so
+// reusing that predicate here would re-admit the cases this function exists to
+// reject. The converse direction is the useful one -- Go's assignability rule
+// is "addressable, or a map index expression" -- but that is a fix to the
+// assignment path, not to this one.
+func isAddressable(store Store, last BlockNode, x Expr) bool {
+	switch cx := x.(type) {
+	case *StarExpr:
+		// pointer indirection. Not every StarExpr is one: `*T` as a type
+		// expression survives preprocess as a StarExpr too (the *StarExpr
+		// case above admits a TypeKind operand), and it is the base of a
+		// method expression like (*T).M, which is a func value rather than
+		// an indirection of anything.
+		xt := evalStaticTypeOf(store, last, cx.X)
+		return xt != nil && xt.Kind() != TypeKind
+	case *NameExpr:
+		// a name is addressable only when it denotes a variable, and
+		// IsAssignable already records exactly that: a declared func is
+		// added to its block's UnassignableNames (see the *FuncDecl case in
+		// initStaticBlocks), and uverse names are refused outright. It
+		// resolves in the innermost block the name appears in, so a local
+		// shadowing a func keeps its own answer. Types and constants cannot
+		// reach here at all -- both are folded to a constTypeExpr or
+		// ConstExpr before this runs -- so a variable is all that is left.
+		return last.GetStaticBlock().IsAssignable(store, cx.Name)
+	case *IndexExpr:
+		xt := evalStaticTypeOf(store, last, cx.X)
+		if xt == nil {
+			return false
+		}
+		switch xt.Kind() {
+		case SliceKind:
+			return true
+		case PointerKind:
+			// p[i] on a pointer to array is shorthand for (*p)[i], so it is
+			// an indirection and always addressable.
+			return true
+		case ArrayKind:
+			// an array element is addressable iff the array is.
+			return isAddressable(store, last, cx.X)
+		default:
+			// map and string index expressions never are.
+			return false
+		}
+	case *SelectorExpr:
+		switch cx.Path.Type {
+		case VPValMethod, VPPtrMethod, VPInterface,
+			VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+			// a method value is a newly built func value, not a field.
+			return false
+		case VPField, VPSubrefField, VPDerefField:
+			// a field access; addressability follows the base, below.
+		case VPBlock:
+			// pkg.X: the same rule as the *NameExpr case, asked of the
+			// imported package's own block. A package can only be named by
+			// a *NameExpr, and its slot holds the *PackageValue, so no
+			// evaluation is needed to find it. UnassignableNames is
+			// serialized with the package node, so this holds for a package
+			// loaded from the store as well as one preprocessed here.
+			if nx, ok := cx.X.(*NameExpr); ok {
+				if tv := last.GetSlot(store, nx.Name, true); tv != nil {
+					if pv, ok := tv.V.(*PackageValue); ok {
+						return pv.GetPackageNode(store).GetStaticBlock().
+							IsAssignable(store, cx.Sel)
+					}
+				}
+			}
+			return isAddressable(store, last, cx.X)
+		default:
+			// VPUverse, and any path type added later: not a field
+			// access, so not addressable. Failing closed here matters --
+			// falling through would consult the base instead, and an
+			// addressable base would wrongly make the selection
+			// addressable.
+			return false
+		}
+		if bt := evalStaticTypeOf(store, last, cx.X); bt != nil &&
+			bt.Kind() == PointerKind {
+			// implicit indirection: (*p).field.
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	default:
+		return false
+	}
 }
 
 func isConstType(x Expr) bool {
