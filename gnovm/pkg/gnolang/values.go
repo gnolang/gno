@@ -3151,6 +3151,10 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 			len(b.Values), numNames,
 		))
 	}
+	// Update Source even when there is nothing to grow: otherwise new (or,
+	// after a fallthrough truncation, stale) variables would show in print
+	// or debugger.
+	b.Source = source
 	if numNames == len(b.Values) {
 		return // nothing to do
 	}
@@ -3174,7 +3178,6 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 		}
 	}
 	b.Values = bvalues
-	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
 // RefValue.PkgPath is set if the RefValue refers to a local package or an
