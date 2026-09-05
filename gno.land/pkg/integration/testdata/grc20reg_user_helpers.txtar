@@ -1,0 +1,210 @@
+# grc20reg's user-relative helpers (UserTransfer/UserApprove/UserTransferFrom)
+# allow a signing user to perform writes as that user, but only for tokens that
+#
+# trust the registry via ledger.TrustHost. Two negative cases verify the gate:
+#
+#  - a token that does not trust the registry is rejected with ErrForeignCallerTeller
+#  - an intermediate realm calling the helper is rejected with ErrNotUserCall
+#
+# because the immediate caller is a realm rather than an EOA.
+
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/test/trusttok $WORK/trusttok
+loadpkg gno.land/r/test/notrust $WORK/notrust
+loadpkg gno.land/r/test/midx $WORK/midx
+loadpkg gno.land/r/test/untrusted $WORK/untrusted
+
+adduser alice
+adduser bob
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# alice funds herself in the trusting token.
+gnokey maketx call -pkgpath gno.land/r/test/trusttok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# UserTransfer through the registry: the actor is the signing user, alice.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/trusttok.TRUST -args $bob_user_addr -args 250000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '750000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '250000 int64'
+
+# UserApprove through the registry: alice grants bob an allowance on her own funds.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/trusttok.TRUST -args $bob_user_addr -args 300000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300000 int64'
+
+# UserTransferFrom through the registry: bob spends the allowance, as himself.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args $bob_user_addr -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
+
+# alice cannot spend the allowance she granted bob: the direct signing EOA is
+# the spender, and the failed attempt leaves bob's allowance and balances intact.
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
+
+# Negative: a token that did NOT TrustHost the registry. The registry host is
+# foreign to it, so UserTransfer is refused with ErrForeignCallerTeller.
+gnokey maketx call -pkgpath gno.land/r/test/notrust -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/notrust.NOTR -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'caller teller is confined to the token'
+gnokey query vm/qeval --data "gno.land/r/test/notrust.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# Negative: a non-EOA intermediate realm cross-calls the helper. Its immediate
+# caller into the registry is a realm, not a user, so userOnly refuses it with
+# ErrNotUserCall even though the token DID trust the registry.
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func Relay -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+# A published UserTellerTrusted remains inert in an untrusted host.
+! gnokey maketx call -pkgpath gno.land/r/test/untrusted -func UseLeaked -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'caller teller is confined to the token'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/drain.gno
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args 999999999 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'insufficient balance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+
+-- trusttok/gnomod.toml --
+module = "gno.land/r/test/trusttok"
+gno = "0.9"
+
+-- trusttok/trusttok.gno --
+package trusttok
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	Token  *grc20.Token
+	adm    *grc20.PrivateLedger
+	Leaked grc20.Teller
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("TrustTok", "TRUST", 4, 0, cur)
+	// Opt the registry in so its user-relative helpers may relay this token's
+	// EOA-driven writes.
+	adm.TrustHost("gno.land/r/demo/defi/grc20reg")
+	Leaked = Token.UserTellerTrusted()
+	grc20reg.Register(cross(cur), Token, "")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
+
+-- notrust/gnomod.toml --
+module = "gno.land/r/test/notrust"
+gno = "0.9"
+
+-- notrust/notrust.gno --
+package notrust
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("NoTrust", "NOTR", 4, 0, cur)
+	// Deliberately does NOT TrustHost the registry.
+	grc20reg.Register(cross(cur), Token, "")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+-- midx/gnomod.toml --
+module = "gno.land/r/test/midx"
+gno = "0.9"
+
+-- midx/midx.gno --
+package midx
+
+import "gno.land/r/demo/defi/grc20reg"
+
+// Relay is a non-EOA intermediate realm: it cross-calls the registry helper, so
+// the registry's immediate caller is midx (a realm), not the signing user.
+func Relay(cur realm) {
+	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
+}
+
+-- untrusted/gnomod.toml --
+module = "gno.land/r/test/untrusted"
+gno = "0.9"
+
+-- untrusted/untrusted.gno --
+package untrusted
+
+import "gno.land/r/test/trusttok"
+
+func UseLeaked(cur realm, to address) {
+	if err := trusttok.Leaked.Transfer(0, cur, to, 1); err != nil {
+		panic(err)
+	}
+}
+
+-- run/drain.gno --
+package main
+
+import "gno.land/r/demo/defi/grc20reg"
+
+func main(cur realm) {
+	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
+}

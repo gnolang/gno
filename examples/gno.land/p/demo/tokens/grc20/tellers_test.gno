@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -16,7 +17,7 @@ func TestCallerTellerImpl(cur realm, t *testing.T) {
 	var _ Teller = teller
 }
 
-// The sub-realm case (guardHome must not lock out the token's own realm when it
+// The sub-realm case (guardWrite must not lock out the token's own realm when it
 // operates under an identity minted by its own cur.Sub()) needs a real realm
 // frame, since cur.Sub() refuses to mint from a p/ package. It lives in
 // filetests/caller_teller_sub_realm_filetest.gno.
@@ -150,4 +151,81 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
+}
+
+func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	token, ledger := newTestToken("Home Guard", "HOME", 6, 0, cur)
+	teller := ledger.CallerTeller()
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foreign"))
+	urequire.ErrorIs(t, teller.Transfer(0, cur, bob, 100), ErrForeignCallerTeller)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(0), token.BalanceOf(bob))
+}
+
+// TestUserTellerHomeGuardIsLoadBearing fixes homeGuard as the field that keeps a
+// UserTeller confined to its token's realm, even when the immediate caller is a
+// real EOA that userOnly alone would admit.
+func TestUserTellerHomeGuardIsLoadBearing(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
+
+	// A foreign realm whose immediate caller is the EOA alice: the empty prev
+	// pkgPath makes IsUserCall true, so userOnly passes and only homeGuard objects.
+	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
+	foreign := testing.MakeRealm(
+		chain.PackageAddress("gno.land/r/demo/foreign"),
+		"gno.land/r/demo/foreign",
+		eoa,
+	)
+
+	teller := ledger.UserTeller().(*fnTeller)
+	uassert.ErrorIs(t, teller.guardWrite(0, foreign), ErrForeignCallerTeller)
+
+	noHome := *teller
+	noHome.homeGuard = false
+	uassert.NoError(t, noHome.guardWrite(0, foreign))
+}
+
+// TestUserTellerTrustedHostOptIn pins opting in, normalization, revocation, and
+// the userOnly scope of the trusted host widening.
+func TestUserTellerTrustedHostOptIn(cur realm, t *testing.T) {
+	const (
+		relay = "gno.land/r/demo/defi/grc20reg"
+		other = "gno.land/r/demo/other"
+	)
+	alice := testutils.TestAddress("alice")
+	tok, ledger := newTestToken("Trust", "TRUST", 6, 0, cur)
+
+	// Use an EOA caller so only the host guard decides.
+	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
+	relayFrame := testing.MakeRealm(chain.PackageAddress(relay), relay, eoa)
+	relaySubFrame := testing.MakeRealm(chain.DerivePkgSubAddr(relay, "dao/42"), relay+"#dao/42", eoa)
+	otherFrame := testing.MakeRealm(chain.PackageAddress(other), other, eoa)
+
+	userTeller := tok.UserTellerTrusted().(*fnTeller)
+
+	// Untrusted: refused even with an EOA previous.
+	uassert.ErrorIs(t, userTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+
+	// Trusting a realm under a sub identity stores its normalized host, so both match.
+	ledger.TrustHost(relay + "#dao/42")
+	uassert.NoError(t, userTeller.guardWrite(0, relayFrame))
+	uassert.NoError(t, userTeller.guardWrite(0, relaySubFrame))
+
+	// Hosts are independent entries.
+	ledger.TrustHost(other)
+	uassert.NoError(t, userTeller.guardWrite(0, otherFrame))
+
+	// A leaked plain CallerTeller cannot use the trusted set.
+	callerTeller := ledger.CallerTeller().(*fnTeller)
+	uassert.ErrorIs(t, callerTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+
+	// Removing through another subpath removes the normalized host only.
+	ledger.UntrustHost(relay + "#ops")
+	uassert.ErrorIs(t, userTeller.guardWrite(0, relayFrame), ErrForeignCallerTeller)
+	uassert.NoError(t, userTeller.guardWrite(0, otherFrame))
 }

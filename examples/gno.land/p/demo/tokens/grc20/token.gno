@@ -6,6 +6,7 @@ import (
 	"math/overflow"
 	"strconv"
 
+	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -56,18 +57,19 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 		panic(ErrInvalidDecimals)
 	}
 	// origRealm drops any realm.Sub subpath: a token created while its realm
-	// operates under a sub identity still belongs to the host realm. guardHome
+	// operates under a sub identity still belongs to the host realm. guardWrite
 	// resolves the invoking host the same way, so storing the raw path here
 	// would pin the token to that sub and lock its own realm out for good.
 	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:        pkgPath + "." + symbol + "." + id.String(),
-		name:      name,
-		symbol:    symbol,
-		decimals:  decimals,
-		ledger:    ledger,
-		origRealm: origRealm,
+		id:           pkgPath + "." + symbol + "." + id.String(),
+		name:         name,
+		symbol:       symbol,
+		decimals:     decimals,
+		ledger:       ledger,
+		origRealm:    origRealm,
+		trustedHosts: avl.Tree{},
 	}
 	ledger.token = token
 

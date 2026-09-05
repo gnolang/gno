@@ -1,0 +1,43 @@
+# A published *Token cannot add itself to the token's trusted hosts. TrustHost
+# is available only through the private ledger retained by the token's creating
+# realm, so a foreign realm holding *Token cannot grant itself access to
+# UserTellerTrusted.
+
+loadpkg gno.land/p/demo/tokens/grc20
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/publictoken -pkgpath gno.land/r/test/publictoken -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+stderr 'TrustHost undefined \(type \*grc20.Token has no field or method TrustHost\)'
+
+! gnokey maketx addpkg -pkgdir $WORK/publictree -pkgpath gno.land/r/test/publictree -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+stderr 'trustedHosts undefined \(cannot refer to unexported field trustedHosts\)'
+
+-- publictoken/gnomod.toml --
+module = "gno.land/r/test/publictoken"
+gno = "0.9"
+
+-- publictoken/publictoken.gno --
+package publictoken
+
+import "gno.land/p/demo/tokens/grc20"
+
+var Token *grc20.Token
+
+func Try(cur realm) {
+	Token.TrustHost("gno.land/r/test/publictoken")
+}
+
+-- publictree/gnomod.toml --
+module = "gno.land/r/test/publictree"
+gno = "0.9"
+
+-- publictree/publictree.gno --
+package publictree
+
+import "gno.land/p/demo/tokens/grc20"
+
+var Token *grc20.Token
+
+func Try(cur realm) {
+	Token.trustedHosts.Set("gno.land/r/test/publictree", struct{}{})
+}

@@ -94,6 +94,11 @@ type Token struct {
 	// origRealm is the PkgPath of the realm that created the token, captured
 	// unforgeably in NewToken. A frame-relative teller only works there.
 	origRealm string
+	// trustedHosts contains additional realm hosts accepted by guardWrite for
+	// userOnly tellers. It is created by the token's creating realm and can only be
+	// modified by the private ledger, preventing foreign realms from trusting
+	// themselves.
+	trustedHosts avl.Tree
 }
 
 // PrivateLedger is a struct that holds the balances and allowances for the
@@ -125,6 +130,7 @@ var (
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
 	ErrForeignCallerTeller   = errors.New("caller teller is confined to the token's own realm")
+	ErrNotUserCall           = errors.New("user teller requires a direct EOA call (MsgCall)")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -158,13 +164,15 @@ type fnTeller struct {
 	// meaningful in the token's own realm and is refused anywhere else, so
 	// exporting the value cannot hand out a spend capability.
 	homeGuard bool
+	// userOnly restricts the teller to immediate EOA callers via MsgCall.
+	userOnly bool
 	*Token
 }
 
 var _ Teller = (*fnTeller)(nil)
 
 // IsCanonicalTeller reports whether t is the canonical *fnTeller produced by
-// Token.CallerTeller / RealmTeller / RealmSubTeller / ReadonlyTeller /
+// CallerTeller / UserTeller / RealmTeller / RealmSubTeller / ReadonlyTeller /
 // ImpersonateTeller. Use this at any public entry point that accepts a
 // Teller from an external caller before invoking its methods.
 //

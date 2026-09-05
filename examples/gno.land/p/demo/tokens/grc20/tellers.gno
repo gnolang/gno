@@ -19,7 +19,7 @@ import (
 //
 // Construction privacy alone is not enough: a realm may legally build a teller
 // and then export the VALUE. The write methods therefore also verify that the
-// invoking realm is the token's own (see guardHome), which makes a leaked
+// invoking realm is the token's own (see guardWrite), which makes a leaked
 // teller inert everywhere but home.
 func (ledger *PrivateLedger) CallerTeller() Teller {
 	if ledger == nil {
@@ -32,6 +32,67 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 		},
 		homeGuard: true,
 		Token:     ledger.token,
+	}
+}
+
+// UserTeller returns a Teller that acts on behalf of the immediate EOA caller.
+//
+// It is home-guarded and rejects non-user calls, limiting writes to MsgCall
+// interactions originating from a signing user.
+func (ledger *PrivateLedger) UserTeller() Teller {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+		homeGuard: true,
+		userOnly:  true,
+		Token:     ledger.token,
+	}
+}
+
+// TrustHost allows host to relay this token's user writes via UserTellerTrusted.
+// Trust can only be granted by the token's creating realm. host is normalized
+// consistently with guardWrite.
+func (ledger *PrivateLedger) TrustHost(host string) {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+	normalized, _, _ := chain.SplitPkgSubPath(host)
+	ledger.token.trustedHosts.Set(normalized, struct{}{})
+}
+
+// UntrustHost removes host from the trusted set. Only the ledger can call it,
+// like TrustHost.
+func (ledger *PrivateLedger) UntrustHost(host string) {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+	normalized, _, _ := chain.SplitPkgSubPath(host)
+	ledger.token.trustedHosts.Remove(normalized)
+}
+
+// UserTellerTrusted returns a user-only teller like UserTeller, but also allows
+// writes relayed through hosts trusted by the token's creating realm. guardWrite
+// still restricts execution to the originating realm or a trusted host, while
+// userOnly requires the immediate caller to be an EOA reached through MsgCall.
+//
+// A trusted host can relay a user's own write, but cannot act for another user.
+func (tok *Token) UserTellerTrusted() Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
+	}
+
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+		homeGuard: true,
+		userOnly:  true,
+		Token:     tok,
 	}
 }
 
@@ -126,7 +187,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-// guardHome confines a frame-relative (homeGuard) teller to the token's own
+// guardWrite confines a frame-relative (homeGuard) teller to the token's own
 // realm. Construction privacy stops a foreign realm from minting one;
 // this stops a minted one from travelling, which is what happens when a realm
 // legally builds a teller and then exports the value.
@@ -141,23 +202,39 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // whoever you call can act as you — and neither is reachable once the teller
 // only works at home.
 //
-// The host is compared after stripping any ":subpath" synthesized by
+// The host is compared after stripping any "#subpath" synthesized by
 // realm.Sub, so the token's own sub-realms are not falsely rejected.
 //
 // A foreign realm that needs to move a user's funds uses the ordinary route:
 // Approve, then RealmTeller().TransferFrom, which is eagerly bound to that
 // realm's own address and allowance-gated.
 //
+// A userOnly teller adds one further condition: the immediate caller must be an
+// EOA reached through MsgCall, so a realm that cross-calls the surface function
+// is refused rather than served as itself.
+//
+// A userOnly teller also accepts hosts in the token's trustedHosts, besides
+// origRealm. This lets a token opt a relay realm into forwarding its users'
+// writes. The widening is limited to userOnly tellers, so a leaked plain
+// CallerTeller stays confined to origRealm. The origRealm check is never
+// weakened. trustedHosts only adds.
+//
 // The leading int keeps this a plain method.
-func (ft *fnTeller) guardHome(_ int, rlm realm) error {
+func (ft *fnTeller) guardWrite(_ int, rlm realm) error {
+	if ft.userOnly && !rlm.Previous().IsUserCall() {
+		return ErrNotUserCall
+	}
 	if !ft.homeGuard {
 		return nil
 	}
 	host, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
-	if host != ft.Token.origRealm {
-		return ErrForeignCallerTeller
+	if host == ft.Token.origRealm {
+		return nil
 	}
-	return nil
+	if ft.userOnly && ft.Token.trustedHosts.Has(host) {
+		return nil
+	}
+	return ErrForeignCallerTeller
 }
 
 func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
@@ -167,7 +244,7 @@ func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -181,7 +258,7 @@ func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) err
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -195,7 +272,7 @@ func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	spender := ft.accountFn(0, rlm)
