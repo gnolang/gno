@@ -1654,15 +1654,15 @@ var (
 type StaticBlock struct {
 	Block
 	Location
-	Types             []Type
-	NumNames          uint16 // == len(Names); nameIndex is its O(1) co-invariant
-	Names             []Name
-	NameSources       []NameSource
-	HeapItems         []bool
-	UnassignableNames []Name
-	Consts            []Name   // TODO consider merging with Names.
-	_                 struct{} `amino:"reserved"` // was: Externs []Name
-	Parent            BlockNode
+	Types       []Type
+	NumNames    uint16 // == len(Names); nameIndex is its O(1) co-invariant
+	Names       []Name
+	NameSources []NameSource
+	HeapItems   []bool
+	_           struct{} `amino:"reserved"` // was: UnassignableNames []Name, now derived from NameSources
+	Consts      []Name   // TODO consider merging with Names.
+	_           struct{} `amino:"reserved"` // was: Externs []Name
+	Parent      BlockNode
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1920,17 +1920,21 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	return slices.Contains(sb.Consts, n)
 }
 
-func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
-	_, ok := sb.GetLocalIndex(n)
+// IsAssignableName returns false iff n denotes a package-level func decl
+// (per its NameSource in the block that declares it) or a uverse name,
+// i.e. a name that may not appear as an assignment LHS. Unlike
+// checkAssignableTo, this is about the name's object kind, not type
+// assignability. Constants and type names never reach this check: both
+// are folded to const expressions during preprocessing.
+func (sb *StaticBlock) IsAssignableName(store Store, n Name) bool {
+	idx, ok := sb.GetLocalIndex(n)
 	bp := sb.GetParentNode(store)
-	un := sb.UnassignableNames
-
 	for {
 		if ok {
-			return !slices.Contains(un, n)
+			return sb.NameSources[idx].Type != NSFuncDecl
 		} else if bp != nil {
-			_, ok = bp.GetLocalIndex(n)
-			un = bp.GetStaticBlock().UnassignableNames
+			idx, ok = bp.GetLocalIndex(n)
+			sb = bp.GetStaticBlock()
 			bp = bp.GetParentNode(store)
 		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
 			return false
