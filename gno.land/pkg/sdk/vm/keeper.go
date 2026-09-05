@@ -672,6 +672,32 @@ func hasProdGnoFile(mpkg *std.MemPackage) bool {
 	return false
 }
 
+// txTypeCheckOptions returns the TypeCheckOptions every TRANSACTION-path type
+// check must use. Centralised because the gas meter is the whole defence against
+// the go/types validType walk (see gnovm typeExpansionGasPerNode) and forgetting
+// it fails open: it already slipped once during development, and nothing but
+// TestVMKeeperAddPackage_TypeExpansionGasCharged noticed. A new message type that
+// type-checks should reach for this rather than assemble the fields again.
+//
+// The node-local stdlib init paths deliberately do NOT use it — they are not
+// metered and pass no meter.
+func (vm *VMKeeper) txTypeCheckOptions(ctx sdk.Context, gnostore gno.Store, mode gno.TypeCheckMode) gno.TypeCheckOptions {
+	return gno.TypeCheckOptions{
+		Getter:   gnostore,
+		Mode:     mode,
+		Cache:    vm.getTypeCheckCache(ctx),
+		GasMeter: ctx.GasMeter(),
+		// Type-check production files only. Test files are still stored and still
+		// parsed (a syntax error anywhere rejects the deploy), but the chain can
+		// never run them, so their type-check verdict has no on-chain meaning —
+		// while resolving their stdlib imports would read a test-stdlib overlay off
+		// the node's local filesystem, making consensus depend on node-local state.
+		// No TestGetter is supplied: with ProdOnly the passes that would consult it
+		// never run.
+		ProdOnly: true,
+	}
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Defense-in-depth spend check. MsgAddPackage is currently blocked
@@ -993,22 +1019,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		gnostore.DeleteMemPackage(pkgPath)
 	}
 
-	opts := gno.TypeCheckOptions{
-		Getter: gnostore,
-		Mode:   gno.TCLatestStrict,
-		Cache:  vm.getTypeCheckCache(ctx),
-		// Type-check production files only. Test files are still stored and
-		// still parsed (a syntax error anywhere rejects the deploy), but the
-		// chain can never run them, so their type-check verdict has no
-		// on-chain meaning — while resolving their stdlib imports would read
-		// a test-stdlib overlay off the node's local filesystem, making
-		// consensus depend on node-local state. No TestGetter is supplied:
-		// with ProdOnly the passes that would consult it never run.
-		ProdOnly: true,
-	}
+	mode := gno.TCLatestStrict
 	if ctx.BlockHeight() == 0 {
-		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+		mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
+	opts := vm.txTypeCheckOptions(ctx, gnostore, mode)
 	chargePreprocessGas(ctx, params, memPkg, "AddPackagePreprocess")
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, opts)
@@ -1408,15 +1423,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
-		Getter: gnostore,
-		Mode:   gno.TCLatestRelaxed,
-		Cache:  vm.getTypeCheckCache(ctx),
-		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
-		// test files, so there is nothing for the test passes to check; being
-		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly: true,
-	})
+	// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects test
+	// files, so ProdOnly costs nothing here beyond keeping the consensus path free
+	// of the test-stdlib overlay.
+	_, err = gno.TypeCheckMemPackage(memPkg,
+		vm.txTypeCheckOptions(ctx, gnostore, gno.TCLatestRelaxed))
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
@@ -1463,8 +1474,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	alloc := gnostore.GetAllocator()
 	// Per-tx preprocess allocator (see AddPackage for full rationale).
-	// Covers both the closure-local Machine that calls RunMemPackage and
-	// any subsequent Machine that re-Preprocesses; defer outlives both.
+	// Covers both the closure-local Machine that calls RunMemPackage and any
+	// subsequent Machine that re-Preprocesses; defer outlives both.
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)

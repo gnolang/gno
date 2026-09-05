@@ -1,0 +1,153 @@
+# The type-expansion charge is NOT deterministic for a value-containment cycle.
+#
+# namedCost returns 1 for a member it is already visiting and correctly does not
+# memoize that. But every ANCESTOR on the cycle memoizes a value derived from that
+# truncation into the shared c.memo, and which member gets truncated depends on
+# which root typeExpansionCost's `range c.declsFor(entryPath)` reaches first. So
+# the same source is priced at either 3076 or 6136 nodes -- 306000 gas apart.
+#
+# All six packages below are identical and all rejected by go/types for the same
+# invalid recursive type, but the charge lands BEFORE go/types runs, so each is
+# billed at random: GAS USED is 1636245 (1634985 on the last tx, which is 1260
+# cheaper for unrelated reasons) or 1942245.
+#
+# On a real chain that is a divergent DeliverTx result between validators, and
+# ABCIResult.Error is hashed into LastResultsHash.
+#
+# Fixture from @omarsy's review of #5826, kept as written. Six samples rather than
+# one because a single run cannot observe map order: unsorted it failed 6/6 runs
+# here, sorted it passes. TestTypeExpansionCostCyclicIsDeterministic covers the same
+# defect deterministically (300 iterations, one assertion) — this one covers the
+# real DeliverTx path and the actual gas figures.
+#
+# MAINTENANCE: the assertions pin a GAS USED prefix, so an unrelated gas change
+# will break them with a confusing message. If that happens, re-measure and update
+# the prefix; do not relax it to match both values, which is the bug it detects.
+
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc1 -pkgpath gno.land/r/foobar/cyc1 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc2 -pkgpath gno.land/r/foobar/cyc2 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc3 -pkgpath gno.land/r/foobar/cyc3 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc4 -pkgpath gno.land/r/foobar/cyc4 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc5 -pkgpath gno.land/r/foobar/cyc5 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+! gnokey maketx addpkg -pkgdir $WORK/cyc6 -pkgpath gno.land/r/foobar/cyc6 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+stdout 'GAS USED:\s+163'
+
+-- cyc1/gnomod.toml --
+module = "gno.land/r/foobar/cyc1"
+gno = "0.9"
+
+-- cyc1/cyc.gno --
+package cyc1
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
+
+-- cyc2/gnomod.toml --
+module = "gno.land/r/foobar/cyc2"
+gno = "0.9"
+
+-- cyc2/cyc.gno --
+package cyc2
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
+
+-- cyc3/gnomod.toml --
+module = "gno.land/r/foobar/cyc3"
+gno = "0.9"
+
+-- cyc3/cyc.gno --
+package cyc3
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
+
+-- cyc4/gnomod.toml --
+module = "gno.land/r/foobar/cyc4"
+gno = "0.9"
+
+-- cyc4/cyc.gno --
+package cyc4
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
+
+-- cyc5/gnomod.toml --
+module = "gno.land/r/foobar/cyc5"
+gno = "0.9"
+
+-- cyc5/cyc.gno --
+package cyc5
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
+
+-- cyc6/gnomod.toml --
+module = "gno.land/r/foobar/cyc6"
+gno = "0.9"
+
+-- cyc6/cyc.gno --
+package cyc6
+
+type A struct{ x, y B }
+type B struct{ x, y A }
+type Z1 struct{ p, q A }
+type Z2 struct{ p, q Z1 }
+type Z3 struct{ p, q Z2 }
+type Z4 struct{ p, q Z3 }
+type Z5 struct{ p, q Z4 }
+type Z6 struct{ p, q Z5 }
+type Z7 struct{ p, q Z6 }
+type Z8 struct{ p, q Z7 }
