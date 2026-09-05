@@ -10,10 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -42,6 +46,8 @@ const maxRPCResponseSize = 8 << 20 // 8 MiB
 // work to the node. Operators can tune via AppConfig when the chain
 // node has more headroom (or less).
 const defaultMaxConcurrentRPC = 32
+
+const simulatePath = ".app/simulate"
 
 // acquireRPCSlot blocks until a slot is free or ctx is cancelled, then
 // returns a release function that frees the slot. Always returns a
@@ -92,6 +98,13 @@ type ClientAdapter interface {
 	// specified package path. `height = 0` queries the latest block;
 	// any positive value pins the query to that historical height.
 	Doc(ctx context.Context, path string, height int64) (*doc.JSONDocumentation, error)
+
+	// Eval evaluates a Gno expression via vm/qeval query.
+	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
+	Eval(ctx context.Context, data string) ([]byte, error)
+
+	// Simulate simulates running the transaction with the address.
+	Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error)
 
 	// StatePkg retrieves the root state tree for a package. `height
 	// = 0` queries the latest block; positive values are forwarded
@@ -240,6 +253,60 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string, height int64) (*doc
 	return jdoc, nil
 }
 
+// Eval evaluates a Gno expression via the vm/qeval ABCI query.
+func (c *rpcClient) Eval(ctx context.Context, data string) ([]byte, error) {
+	const qpath = "vm/qeval"
+	return c.query(ctx, qpath, []byte(data), 0)
+}
+
+// Simulate simulates running the transaction with the address.
+// Query the account on the node to get the public key for the address, and
+// set tx.Signatures .
+func (c *rpcClient) Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error) {
+	// Query the account to confirm it is on chain, and to get its public key.
+	qpath := fmt.Sprintf("auth/accounts/%s", crypto.AddressToBech32(address))
+	qres, err := c.query(ctx, qpath, []byte{}, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(qres) == 0 || string(qres) == "null" {
+		return nil, fmt.Errorf("account %s does not exist, it must receive coins to be created", address)
+	}
+	var account gnoland.GnoAccount
+	err = amino.UnmarshalJSON(qres, &account)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the tx signature using the public key. No need to sign to get the actual signature bytes.
+	if account.PubKey == nil {
+		return nil, fmt.Errorf("account %s must have signed at least one transaction", address)
+	}
+	tx.Signatures = []std.Signature{
+		{PubKey: account.PubKey},
+	}
+
+	// Encode and simulate.
+	// The transaction needs to be amino-binary encoded in order to be estimated
+	encodedTx, err := amino.Marshal(tx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal tx: %w", err)
+	}
+	response, err := c.queryResponse(ctx, simulatePath, encodedTx, 0)
+	if err != nil {
+		return nil, err
+	}
+	deliverTx := new(abci.ResponseDeliverTx)
+	if err = amino.Unmarshal(response.Value, deliverTx); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal simulation response: %w", err)
+	}
+	if err = deliverTx.Error; err != nil {
+		return nil, fmt.Errorf("error encountered during simulation: %w", err)
+	}
+
+	return deliverTx, nil
+}
+
 // StatePkg retrieves root state tree for a package via vm/qpkg_json.
 // `height = 0` queries the latest block.
 func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]byte, error) {
@@ -285,10 +352,11 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 	return c.query(ctx, qpath, []byte(typeId), height)
 }
 
-// query sends a query to the RPC client and returns the response
+// queryResponse sends a query to the RPC client and returns the response
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
-func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
+// Check the response for errors and return the full ResponseQuery.
+func (c *rpcClient) queryResponse(ctx context.Context, qpath string, data []byte, height int64) (*abci.ResponseQuery, error) {
 	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
@@ -343,11 +411,16 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	qerr := qres.Response.Error
 	if qerr == nil {
 		if sizeErr := checkResponseSize(qres.Response.Data); sizeErr != nil {
-			c.logger.Error("RPC response exceeded size cap",
+			c.logger.Error("RPC Data response exceeded size cap",
 				"path", qpath, "size", len(qres.Response.Data))
 			return nil, sizeErr
 		}
-		return qres.Response.Data, nil
+		if sizeErr := checkResponseSize(qres.Response.Value); sizeErr != nil {
+			c.logger.Error("RPC Value response exceeded size cap",
+				"path", qpath, "size", len(qres.Response.Value))
+			return nil, sizeErr
+		}
+		return &qres.Response, nil
 	}
 
 	// Handle and log known error types
@@ -430,4 +503,13 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 		"error", qres.Response.Error,
 	)
 	return nil, fmt.Errorf("%w: %w", ErrClientResponse, qres.Response.Error)
+}
+
+// query calls queryResponse and just returns the response Data, which is the most common case.
+func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
+	res, err := c.queryResponse(ctx, qpath, data, height)
+	if err != nil {
+		return nil, err
+	}
+	return res.Data, nil
 }
