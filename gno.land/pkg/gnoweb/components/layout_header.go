@@ -36,7 +36,11 @@ type HeaderData struct {
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
 		{Label: "About", URL: "https://gno.land/about"},
-		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+		// Served by DocsHandler from the repository's docs/ tree. Was
+		// https://docs.gno.land/; the embedded pages are the same content and
+		// this is the only entry point to them, so nothing linked here before.
+		// No Outbound: the destination is first-party now.
+		{Label: "Docs", URL: "/docs"},
 		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}
 }
