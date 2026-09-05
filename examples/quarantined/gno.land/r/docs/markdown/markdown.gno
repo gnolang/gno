@@ -36,6 +36,21 @@ Headings are created using hash symbols (#). The number of hash symbols indicate
 ##### Heading 5
 ###### Heading 6
 
+±±±markdown
+## Heading with [inline link](https://example.com)
+
+### Section about [r/foo](/r/foo) and its API
+
+#### See <https://example.com>
+±±±
+
+## Heading with [inline link](https://example.com)
+
+### Section about [r/foo](/r/foo) and its API
+
+#### See <https://example.com>
+
+
 ### Text Formatting
 
 You can format text using the following syntax:
