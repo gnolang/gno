@@ -184,11 +184,13 @@ func (bank BankKeeper) sendCoins(
 		return err
 	}
 
-	ctx.EventLogger().EmitEvent(TransferEvent{
-		From:  fromAddr.String(),
-		To:    toAddr.String(),
-		Coins: amt,
-	})
+	if fromAddr != toAddr {
+		ctx.EventLogger().EmitEvent(TransferEvent{
+			From:  fromAddr.String(),
+			To:    toAddr.String(),
+			Coins: amt,
+		})
+	}
 
 	return nil
 }

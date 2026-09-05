@@ -42,8 +42,10 @@ indexer-facing shape is
 `{"from":"...","to":"...","coins":[{"denom":"ugnot","amount":7}]}`, and the amino
 wire encoding tags it with its registered type `/bank.TransferEvent`.
 
-`sendCoins` emits one event after both the debit and credit succeed. This one
-point covers `MsgSend`, realm banker sends, and VM message send envelopes.
+`sendCoins` emits one event after both the debit and credit succeed, unless the
+sender and recipient are identical. This one point covers `MsgSend`, realm
+banker sends, and VM message send envelopes without reporting `MsgRun`'s
+balance-neutral self-transfer.
 
 The dead handler-level module-marker comments are removed. Unrestricted sends
 used for gas and storage accounting remain outside this event: the requested
