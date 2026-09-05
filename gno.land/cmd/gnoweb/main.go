@@ -280,7 +280,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	secureHandler := newSecureHeadersMiddleware(app, !cfg.noStrict, appcfg)
 
 	// Setup server
 	server := &http.Server{
@@ -383,6 +383,10 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func newSecureHeadersMiddleware(next http.Handler, strict bool, cfg *gnoweb.AppConfig) http.Handler {
+	return SecureHeadersMiddleware(next, strict, cfg.RemoteHelp)
 }
 
 // normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
