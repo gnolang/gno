@@ -292,7 +292,9 @@ var (
 		".gno",
 		".toml",
 		".md",
-		// ".txtar", // XXX: to be considered
+		// NOTE: .txtar is deliberately absent. Integration test scripts may sit
+		// next to the code they exercise; they are test tooling, not package
+		// source, and must stay out of what gets uploaded on-chain.
 	}
 	badFileXtns = []string{
 		".gen.go",

@@ -19,6 +19,26 @@ the audited examples set. They remain here as integration test fodder and
 history but are not shipped to mainnet/testnet genesis and have not been
 audited or modernized to the current interrealm spec.
 
+## Integration tests (`.txtar`)
+
+A package can keep its own end-to-end integration script next to its source:
+every `*.txtar` under `examples/` is run by `TestTestdata` in
+[gno.land/pkg/integration](../gno.land/pkg/integration).
+
+Base names must be unique across **both** locations `TestTestdata` reads — this
+tree and `gno.land/pkg/integration/testdata/` — because the subtest is named
+after the base name alone. A name that is unique here but collides with, say,
+[`testdata/params.txtar`](../gno.land/pkg/integration/testdata/params.txtar)
+fails discovery for the whole suite. Prefix with the package name
+(`commondao_council.txtar`, not `council.txtar`).
+
+```bash
+go test ./gno.land/pkg/integration/ -run TestTestdata/commondao_council -v
+```
+
+See [Integration tests](../docs/resources/gno-testing.md#integration-tests) for
+when to reach for one.
+
 ## Personal Realms & Shared Content
 
 **Prioritizing Shared Content:** As we expand our examples and use-cases, it's
