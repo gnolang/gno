@@ -3124,8 +3124,9 @@ func (m *Machine) Panic(etv TypedValue) {
 	panic(ex)
 }
 
-// This function does not go-panic:
-// caller must return manually.
+// This function normally schedules VM panic unwinding rather than go-panicking.
+// If no call frame exists, there is nothing to unwind or recover through, so
+// it terminates through the existing unhandled-panic path.
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
@@ -3138,11 +3139,18 @@ func (m *Machine) pushPanic(etv TypedValue) {
 	fr := m.PopUntilLastCallFrame()
 	// Link ex.Previous.
 	if m.Exception == nil {
-		// Recall the last m.Exception before frame.
-		m.Exception = ex.WithPrevious(fr.LastException)
+		if fr == nil {
+			m.Exception = ex
+		} else {
+			// Recall the last m.Exception before frame.
+			m.Exception = ex.WithPrevious(fr.LastException)
+		}
 	} else {
 		// Replace existing m.Exception with new.
 		m.Exception = ex.WithPrevious(m.Exception)
+	}
+	if fr == nil {
+		panic(m.makeUnhandledPanicError())
 	}
 
 	m.PushOp(OpPanic2)
