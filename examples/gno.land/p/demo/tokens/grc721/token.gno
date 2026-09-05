@@ -133,6 +133,34 @@ func (tok *Token) GetApproved(tid TokenID) (address, error) {
 	return addr.(address), nil
 }
 
+// ExtensionKinds returns the registered kinds, in registration order.
+func (tok *Token) ExtensionKinds() []string {
+	return tok.ExtensionKindsUpTo(0)
+}
+
+// ExtensionKindsUpTo returns at most limit registered kinds. A non-positive limit returns all kinds.
+func (tok *Token) ExtensionKindsUpTo(limit int) []string {
+	kinds := []string{}
+	for _, e := range tok.ledger.extensions {
+		kinds = append(kinds, e.kind)
+		if limit > 0 && len(kinds) == limit {
+			break
+		}
+	}
+
+	return kinds
+}
+
+// ExtensionView returns the read-view registered for kind, or nil.
+func (tok *Token) ExtensionView(kind string) ExtensionView {
+	e, ok := tok.ledger.lookupExtension(kind)
+	if !ok {
+		return nil
+	}
+
+	return e.view
+}
+
 func (tok *Token) IsApprovedForAll(owner, operator address) bool {
 	return tok.ledger.isApprovedForAll(owner, operator)
 }
@@ -152,19 +180,42 @@ func (tok *Token) RenderHome() string {
 // transfers (a panic aborts the transaction before the Transfer event is emitted) and
 // adds gas to every movement.
 // One extension per kind; a second registration of an attached kind panics.
-func (led *PrivateLedger) RegisterExtension(ext Extension) {
+// view is the read-view the extension publishes, or nil when it has none.
+func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {
 	if ext == nil {
 		panic("grc721: nil extension")
 	}
 
+	if led.token == nil {
+		panic("grc721: ledger has no token")
+	}
+
 	kind := ext.ExtensionKind()
-	for _, e := range led.extensions {
-		if e.ExtensionKind() == kind {
-			panic("grc721: extension kind already registered: " + kind)
+	if _, ok := led.lookupExtension(kind); ok {
+		panic("grc721: extension kind already registered: " + kind)
+	}
+
+	if view != nil {
+		if vk := view.ExtensionKind(); vk != kind {
+			panic("grc721: view kind does not match the extension: " + vk)
+		}
+
+		if tid := view.TokenID(); tid != led.token.id {
+			panic("grc721: view belongs to another token: " + tid)
 		}
 	}
 
-	led.extensions = append(led.extensions, ext)
+	led.extensions = append(led.extensions, registeredExtension{kind: kind, hook: ext, view: view})
+}
+
+func (led *PrivateLedger) lookupExtension(kind string) (registeredExtension, bool) {
+	for _, e := range led.extensions {
+		if e.kind == kind {
+			return e, true
+		}
+	}
+
+	return registeredExtension{}, false
 }
 
 func (led *PrivateLedger) ReadToken() *Token { return led.token }
@@ -186,8 +237,8 @@ func (led *PrivateLedger) Mint(to address, tid TokenID) error {
 	led.owners.Set(tid.String(), to)
 	led.totalSupply = overflow.Add64p(led.totalSupply, 1)
 
-	for _, ext := range led.extensions {
-		ext.OnMint(to, tid)
+	for _, e := range led.extensions {
+		e.hook.OnMint(to, tid)
 	}
 
 	// Mint emits Transfer from the empty address (EIP-721); indexers reconstruct ownership from Transfer alone.
@@ -215,8 +266,8 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 	led.owners.Remove(tidStr)
 	led.totalSupply = overflow.Sub64p(led.totalSupply, 1)
 
-	for _, ext := range led.extensions {
-		ext.OnBurn(tid)
+	for _, e := range led.extensions {
+		e.hook.OnBurn(tid)
 	}
 
 	// Burn emits Transfer to the empty address (EIP-721).
@@ -329,8 +380,8 @@ func (led *PrivateLedger) transfer(from, to address, tid TokenID) error {
 	led.setBalance(to, overflow.Add64p(led.balanceOf(to), 1))
 	led.owners.Set(tidStr, to)
 
-	for _, ext := range led.extensions {
-		ext.OnTransfer(from, to, tid)
+	for _, e := range led.extensions {
+		e.hook.OnTransfer(from, to, tid)
 	}
 
 	chain.Emit(

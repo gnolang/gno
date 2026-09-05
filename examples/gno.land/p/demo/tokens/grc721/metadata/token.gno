@@ -18,9 +18,10 @@ func NewMetadata(coreLedger *grc721.PrivateLedger) (*Metadata, *Ledger) {
 	st := &storage{}
 	core := coreLedger.ReadToken()
 	led := &Ledger{core: core, st: st}
-	coreLedger.RegisterExtension(led)
+	view := &Metadata{core: core, st: st}
+	coreLedger.RegisterExtension(led, view)
 
-	return &Metadata{core: core, st: st}, led
+	return view, led
 }
 
 func (m *Metadata) ExtensionKind() string { return Kind }
