@@ -56,7 +56,7 @@ var (
 	// model should be replaced with a GovDAO T1 proposal flow that
 	// mirrors ProposeSetPaused. Until then, the hardcoded address is
 	// the smallest viable governance surface for the one-shot use case.
-	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin   = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
 	enabled = false
 	paused  = false
 )

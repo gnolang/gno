@@ -11,7 +11,7 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr          address = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	gAdminAddr          address = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") // govdao t1 multisig
 	gControllers                = bptree.NewBPTree32()
 	gControllersMaxSize         = 10 // limit it to 10
 	gInPause                    = false

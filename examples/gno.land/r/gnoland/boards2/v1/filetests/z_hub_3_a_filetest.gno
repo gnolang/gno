@@ -14,7 +14,7 @@ import (
 var boardID boards.ID
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
+	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
 	boardID = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 

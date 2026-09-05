@@ -21,7 +21,7 @@ loadpkg gno.land/r/sys/namereg/v1
 # Override the hardcoded admin in r/sys/names with test1 so the test can
 # call Enable() — necessary to actually exercise the verifier (pre-Enable
 # the verifier short-circuits to true and the bridge path is untested).
-patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
+patchpkg "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf" $test1_user_addr
 
 adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'

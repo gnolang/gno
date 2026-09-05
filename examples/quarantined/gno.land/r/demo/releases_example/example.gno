@@ -9,7 +9,7 @@ import (
 
 var (
 	changelog = releases.NewChangelog("example_app")
-	admin     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	admin     = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") // govdao t1 multisig
 )
 
 func init() {

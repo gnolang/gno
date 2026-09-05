@@ -90,7 +90,7 @@ func ApproveHome(cur realm, tid string) {
 	}
 }
 
-func chain_addr() address { return address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") }
+func chain_addr() address { return address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") }
 
 -- n721attack/gnomod.toml --
 module = "gno.land/r/test/n721attack"

@@ -24,7 +24,7 @@ loadpkg gno.land/r/sys/users
 # Enable() from the test. test1 also serves as the T1 GovDAO member via
 # the InitWithUsers() call in run/init_govdao.gno, so test1 plays both
 # the admin and the governance roles.
-patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
+patchpkg "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf" $test1_user_addr
 
 gnoland start
 

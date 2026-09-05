@@ -9,7 +9,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+const owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
 
 var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
 

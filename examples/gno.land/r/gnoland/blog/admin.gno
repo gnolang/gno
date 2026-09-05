@@ -17,7 +17,7 @@ var (
 )
 
 var (
-	adminAddr     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	adminAddr     = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") // govdao t1 multisig
 	moderatorList = bptree.NewBPTree32()
 	commenterList = bptree.NewBPTree32()
 	inPause       bool

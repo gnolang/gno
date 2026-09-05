@@ -129,12 +129,12 @@ DEPLOYER_KEY=GenesisDeployer
 DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 
 # r/sys/names admin: hardcoded in examples/gno.land/r/sys/names/verifier.gno
-# (the gnoland1 GovDAO T1 multisig). names.Enable's admin check reads
+# (the GovDAO T1 multisig). names.Enable's admin check reads
 # runtime.PreviousRealm().Address(); under --skip-genesis-sig-verification,
 # the chain trusts the MsgCall.Caller field as the EOA, so jq-patching
 # caller to this address makes Enable's gate pass. The private key is not
 # needed (and not held).
-NAMES_ADMIN=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
+NAMES_ADMIN=g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf
 
 # ---- Locked sha256 hashes.
 #

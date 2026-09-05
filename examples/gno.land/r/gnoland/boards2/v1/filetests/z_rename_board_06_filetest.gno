@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner   address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
 	member  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	member2 address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 	name            = "foo123"
