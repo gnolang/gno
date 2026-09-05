@@ -464,3 +464,91 @@ func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
 		})
 	}
 }
+
+// TestFindByPrefixSameStoreBackend covers the tooling shape NewStore(_, one,
+// one), where baseStore and iavlStore are the same underlying store. The other
+// FindPathsByPrefix tests all build two distinct backends, so the merge loop's
+// "both iterators see the same key" branch never runs in them: every key
+// compares equal and each one is offered to the de-dup twice.
+func TestFindByPrefixSameStoreBackend(t *testing.T) {
+	db := memdb.NewMemDB()
+	one := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, one, one)
+
+	add := func(name string, files ...*std.MemFile) {
+		store.AddMemPackage(&std.MemPackage{
+			Type:  MPUserAll,
+			Name:  name,
+			Path:  "gno.land/r/demo/" + name,
+			Files: files,
+		}, MPUserAll)
+	}
+	// Production file plus test file: a prod blob and an #allbutprod blob.
+	add("alpha", &std.MemFile{Name: "alpha.gno", Body: "package alpha\n"},
+		&std.MemFile{Name: "alpha_test.gno", Body: "package alpha\n"})
+	// Test file only: an #allbutprod blob and no prod blob.
+	add("beta", &std.MemFile{Name: "beta_test.gno", Body: "package beta\n"})
+	// Production file only: a prod blob and no #allbutprod blob.
+	add("gamma", &std.MemFile{Name: "gamma.gno", Body: "package gamma\n"})
+
+	var got []string
+	store.FindPathsByPrefix("gno.land")(func(p string) bool {
+		got = append(got, p)
+		return true
+	})
+	require.Equal(t, []string{
+		"gno.land/r/demo/alpha",
+		"gno.land/r/demo/beta",
+		"gno.land/r/demo/gamma",
+	}, got, "each package must be listed exactly once")
+}
+
+// TestMemPackageTestBlobExcludedFromConsensusStore asserts that a package's
+// test/filetest files (#allbutprod sibling) are written to the non-merkleized
+// baseStore and NOT to the merkleized iavlStore, so they never enter the
+// consensus AppHash — while the production blob stays in iavlStore and the full
+// package (prod + test) remains reconstructable via GetMemPackageAll.
+func TestMemPackageTestBlobExcludedFromConsensusStore(t *testing.T) {
+	baseDB, iavlDB := memdb.NewMemDB(), memdb.NewMemDB()
+	base := dbadapter.StoreConstructor(baseDB, storetypes.StoreOptions{})
+	iavl := dbadapter.StoreConstructor(iavlDB, storetypes.StoreOptions{})
+	store := NewStore(nil, base, iavl)
+
+	path := "gno.land/r/demo/split"
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPUserAll,
+		Name: "split",
+		Path: path,
+		Files: []*std.MemFile{
+			{Name: "split.gno", Body: "package split\n\nfunc Prod() int { return 1 }\n"},
+			{Name: "split_test.gno", Body: "package split\n\nfunc TestX() {}\n"},
+		},
+	}, MPUserAll)
+
+	prodKey := []byte(backendPackagePathKey(path))
+	testKey := []byte(backendPackageAllButProdKey(path))
+
+	// Prod blob: iavlStore only (consensus state).
+	require.True(t, iavl.Has(nil, prodKey), "prod blob must be in the merkleized iavlStore")
+	require.False(t, base.Has(nil, prodKey), "prod blob must not leak into baseStore")
+	// Test/filetest blob: baseStore only (excluded from consensus AppHash).
+	require.True(t, base.Has(nil, testKey), "test blob must be in the non-merkleized baseStore")
+	require.False(t, iavl.Has(nil, testKey), "test blob must NOT enter the merkleized iavlStore")
+
+	// Prod-only view excludes test files; full view includes them.
+	prod := store.GetMemPackage(path)
+	require.NotNil(t, prod)
+	require.Equal(t, []string{"split.gno"}, memFileNames(prod), "GetMemPackage must return prod files only")
+
+	all := store.GetMemPackageAll(path)
+	require.NotNil(t, all)
+	require.Equal(t, []string{"split.gno", "split_test.gno"}, memFileNames(all), "GetMemPackageAll must reconstruct prod + test files")
+}
+
+func memFileNames(mpkg *std.MemPackage) []string {
+	names := make([]string, len(mpkg.Files))
+	for i, f := range mpkg.Files {
+		names[i] = f.Name
+	}
+	return names
+}
