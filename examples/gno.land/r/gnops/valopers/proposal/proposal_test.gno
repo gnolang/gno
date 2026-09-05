@@ -205,6 +205,14 @@ func TestValopers_ProposeNewMinFee(cur realm, t *testing.T) {
 	urequire.Equal(t, description, proposal.Description())
 }
 
+func TestValopers_ProposeNewMinFee_RejectsNegative(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(g1user))
+
+	urequire.AbortsWithMessage(t, cur, ErrNegativeMinFee.Error(), func(cur realm) {
+		ProposeNewMinFeeProposalRequest(cur, int64(-1))
+	})
+}
+
 /* TODO fix this @moul
 func TestValopers_ProposeNewValidator2(cur realm, t *testing.T) {
 	const (
