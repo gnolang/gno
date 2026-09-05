@@ -226,10 +226,10 @@ daemon decides on its own when to send one, so anything that makes approvals
 fail repeatedly will drain the approver key. The bound stops that.
 
 Two things reduce how often it is reached. Before approving, the daemon checks
-whether the package is already deployed and skips it if so, which is the common
-case when catching up with `--start-height` over blocks that were already
-approved. And it ignores transactions that failed on chain, so a submission the
-chain rejected never leads to an approval.
+whether the package is already live with nothing waiting to be enabled, and
+skips it if so, which is the common case when catching up with `--start-height`
+over blocks that were already approved. And it ignores transactions that
+failed on chain, so a submission the chain rejected never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
 watching blocks. Raise the bound or restart to continue.
