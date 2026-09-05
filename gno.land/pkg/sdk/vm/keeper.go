@@ -1879,11 +1879,17 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 	// instead of the caller. MaxDeposit is a per-TRANSACTION cap: track the spend
 	// so far on the shared PayStorageInfo so that an N-message tx cannot charge
 	// the realm up to the full budget on every message.
+	//
+	// Only the PAYER is redirected; `caller` keeps refunds. See
+	// ProcessStorageDepositFromDiffs for why freed storage never belongs to the
+	// sponsor. Here the payer is this MESSAGE's caller rather than the tx's
+	// first signer, which is finer-grained than the deferred path by design.
 	var maxStorageBudget int64 = math.MaxInt64
 	psi := ctx.PayStorageInfo()
 	sponsored := psi != nil && psi.MaxDeposit > 0
+	payer := caller
 	if sponsored {
-		caller = psi.RealmAddr
+		payer = psi.RealmAddr
 		maxStorageBudget = psi.MaxDeposit - psi.SpentDeposit
 		if maxStorageBudget < 0 {
 			maxStorageBudget = 0
@@ -1948,7 +1954,7 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 					requiredDeposit, ugnot.Denom, diff))
 				continue
 			}
-			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
+			err := vm.lockStorageDeposit(ctx, payer, rlm, requiredDeposit, diff)
 			if err != nil {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"lockStorageDeposit failed for realm %s: %w",
@@ -2039,7 +2045,19 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 
 // ProcessStorageDepositFromDiffs processes storage deposits using pre-accumulated diffs
 // (for SponsorStorage=true txs where diffs are accumulated across all messages).
-func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypto.Address, diffs map[string]int64, maxBudget int64, gnostore gno.Store, params Params) error {
+//
+// payer is charged for storage growth. Refunds for freed storage always go to
+// ctx.TxCaller() instead, and deliberately are NOT a parameter: under
+// sponsorship the payer is a PayStorage realm, but the deposit released by freed
+// storage was locked by an EARLIER transaction — accumulateStorageDiffs nets each
+// realm's diff across the whole tx, so a negative diff can never be storage this
+// tx's sponsor funded. Paying it to the sponsor would let a realm commit
+// maxDeposit=1 and collect deposits someone else paid. Resolving the receiver
+// here rather than at the call site makes that true by construction.
+// ctx.TxCaller() is unambiguous here because the ante rejects SponsorStorage on
+// multi-signer txs.
+func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, payer crypto.Address, diffs map[string]int64, maxBudget int64, gnostore gno.Store, params Params) error {
+	refundReceiver := ctx.TxCaller()
 	price := std.MustParseCoin(params.StoragePrice)
 	// The deposit cap is the sponsor's committed budget (PayStorage maxDeposit),
 	// not DefaultDeposit. Using DefaultDeposit here would both reject legitimate
@@ -2088,7 +2106,7 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypt
 					requiredDeposit, ugnot.Denom, diff))
 				continue
 			}
-			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
+			err := vm.lockStorageDeposit(ctx, payer, rlm, requiredDeposit, diff)
 			if err != nil {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"lockStorageDeposit failed for realm %s: %w", rlmPath, err))
@@ -2123,7 +2141,7 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, caller crypt
 				panic(fmt.Sprintf("not enough deposit to be unlocked for realm %s", rlmPath))
 			}
 			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
-			receiver := caller
+			receiver := refundReceiver
 			if isRestricted {
 				receiver = params.StorageFeeCollector
 			}

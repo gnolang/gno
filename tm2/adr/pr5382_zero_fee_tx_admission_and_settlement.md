@@ -161,10 +161,29 @@ client-supplied value) so the mempool packs blocks against real worst-case gas.
 - **A `MaxGasCreditPerTx` change is latent** until node restart (memoized at
   InitChain), despite being governance-tunable.
 - **Open item:** sponsored-tx compute is charged to the block gas meter, which
-  feeds the dynamic gas-price update, so gasless-tx load raises the price normal
-  users pay while contributing nothing to the fee market. Whether that is
-  intended is unresolved and should be adjudicated before enabling on a live
-  chain.
+  feeds the dynamic gas-price update, so gasless-tx load can raise the price
+  normal users must clear. The asymmetry is confined to the FAILURE path. A
+  SUCCESSFUL sponsored tx is a full price-taker: settlement sends
+  `ceil(gasUsed × LastGasPrice)` from the realm to the same
+  `FeeCollectorAddress` the ante credits for normal fees, at the same dynamic
+  price, so it contributes to the fee market exactly as much as a perfectly
+  estimated fee-paying tx (a normal tx pays `GasFee` for `GasWanted` with no
+  refund, so it contributes that or more per gas actually burned). A FAILING
+  sponsored tx pays nothing — `EndTxHook` runs only on `result.IsOK()` —
+  while its gas is still charged to the block meter, where a failing normal tx
+  keeps its ante-deducted fee. That unpaid subset is the same residual as
+  "free execution on failure": bounded by the credit window, with the
+  deterministic routes closed at admission by the settlement dry run.
+  Magnitude is small at the shipped defaults (`Block.MaxGas` 3e9,
+  `TargetGasRatio` 70, `GasPricesChangeCompressor` 10, initial price
+  1ugnot/1000gas): the price does not move until a block exceeds the 2.1e9
+  target, which at a 10M credit window takes ~210 full-window txs in one
+  block, and any single under-target block decays the increment back. Whether
+  the failure-path subset should be excluded from the price signal is
+  unresolved and should be adjudicated before enabling on a live chain —
+  noting that excluding SUCCESSFUL sponsored gas would be wrong: it is real
+  congestion, and un-pricing it would let sponsored load crowd out normal txs
+  while the floor stays put.
 
 ## Alternatives considered
 

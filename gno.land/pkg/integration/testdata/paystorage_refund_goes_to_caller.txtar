@@ -1,0 +1,104 @@
+# Freed-storage refunds must go to the TX CALLER, never to the PayStorage sponsor.
+#
+# Regression test. Settlement used to pass the sponsoring realm's address as the
+# single "caller" for BOTH halves of ProcessStorageDepositFromDiffs, so the
+# refund branch (receiver := caller) paid released deposits to the sponsor. Diffs
+# are netted per realm across the tx, so a negative diff ALWAYS releases deposit
+# locked by an EARLIER tx — money the sponsor never contributed. A realm could
+# therefore commit PayStorage(1) and collect deposits funded by someone else.
+#
+# Here test1 funds the deposit, then user1 sends a 0-fee SponsorStorage tx that
+# frees that storage while ss_payer sponsors. The refund must land on user1.
+
+## load packages
+loadpkg gno.land/r/test/ss_store $WORK/store
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the payer realm
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## test1 (a THIRD PARTY, not the later tx caller and not the sponsor) grows
+## ss_store's storage in an ordinary fee-paying tx, locking its own deposit.
+gnokey maketx call -pkgpath gno.land/r/test/ss_store -func Grow -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'STORAGE DELTA:'
+
+## balances before the sponsored tx
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '10000000ugnot'
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## user1 sends a 0-fee SponsorStorage tx that FREES the storage test1 funded.
+## ss_payer sponsors gas and commits PayStorage(1) — a one-ugnot commitment is
+## enough to reach the sponsor settlement branch, since it is selected on
+## MaxDeposit > 0 before the "did storage grow" case.
+gnokey sign -tx-path $WORK/free.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+gnokey broadcast $WORK/free.tx -quiet=false
+stdout OK!
+stdout 'STORAGE DELTA:'
+
+## THE ASSERTION: user1 signed a 0-fee tx, so its balance can only move via the
+## storage refund. It MUST change. Before the fix the refund went to the sponsor
+## and this balance was byte-identical.
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+! cmp user1_balance_before user1_balance_after
+## Pinned exactly, so the test also fails if user1 ever LOSES money here rather
+## than gaining the 299500ugnot refund: 1000000000 + 299500.
+stdout '"1000299500ugnot"'
+
+## And the sponsor must be strictly POORER than its 10000000ugnot funding: it paid
+## gas (1605ugnot) and received nothing -> 9998395. Before the fix it also collected
+## the 299500ugnot refund and ended at 10297895, RICHER than it started.
+## NOTE: 1605 tracks the chain's gas schedule and 299500 the bytes freed, so
+## re-derive both if either moves. What the assertion pins is the direction — the
+## sponsor must never end above its 10000000ugnot funding.
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '9998395ugnot'
+
+-- store/gnomod.toml --
+module = "ss_store"
+gno = "0.9"
+
+-- store/store.gno --
+package ss_store
+
+var data []string
+
+func Grow(cur realm) {
+	for i := 0; i < 24; i++ {
+		data = append(data, "padding to make the storage deposit worth stealing")
+	}
+}
+
+func Free(cur realm) {
+	data = nil
+}
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(1)
+	return "paid"
+}
+
+-- free.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_store","func":"Free","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot","sponsor_storage":true},"signatures":null,"memo":""}

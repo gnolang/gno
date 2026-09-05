@@ -1,0 +1,96 @@
+# Companion to paystorage_refund_goes_to_caller.txtar, for the PER-MESSAGE path.
+#
+# PayStorage works with Fee.SponsorStorage OFF too: ProcessStorageDeposit
+# redirects the payer to psi.RealmAddr per message. That redirect used to apply
+# to the refund branch as well (receiver := caller), so freed storage paid the
+# sponsor here exactly as it did in deferred settlement. This pins the
+# per-message half of the fix, which is reachable without setting any tx flag.
+#
+# test1 funds the deposit; user1 then sends a plain 0-fee call whose realm
+# sponsors and frees that storage. The refund must land on user1.
+
+## load packages
+loadpkg gno.land/r/test/ss_store $WORK/store
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the payer realm
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## test1 (a THIRD PARTY) grows ss_store's storage in an ordinary fee-paying tx,
+## locking its own deposit.
+gnokey maketx call -pkgpath gno.land/r/test/ss_store -func Grow -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'STORAGE DELTA:'
+
+## balances before the sponsored tx
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '10000000ugnot'
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## user1 sends a plain 0-fee call — no SponsorStorage flag, so storage settles on
+## the per-message path. ss_payer sponsors gas + storage and frees what test1 paid for.
+gnokey maketx call -pkgpath gno.land/r/test/ss_payer -func PayAndFree -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+stdout 'STORAGE DELTA:'
+
+## THE ASSERTION: user1's 0-fee tx can only move its balance via the refund.
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+! cmp user1_balance_before user1_balance_after
+## Pinned exactly, so the test also fails if user1 ever LOSES money here rather
+## than gaining the 299500ugnot refund: 1000000000 + 299500.
+stdout '"1000299500ugnot"'
+
+## The sponsor paid gas (1943ugnot) and received nothing -> 9998057. Before the fix
+## it also collected the 299500ugnot refund and ended at 10297557, richer than it
+## started. Re-derive both figures on a gas-schedule or storage-price change; the
+## direction is what matters — the sponsor must never end above 10000000ugnot.
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '9998057ugnot'
+
+-- store/gnomod.toml --
+module = "ss_store"
+gno = "0.9"
+
+-- store/store.gno --
+package ss_store
+
+var data []string
+
+func Grow(cur realm) {
+	for i := 0; i < 24; i++ {
+		data = append(data, "padding to make the storage deposit worth stealing")
+	}
+}
+
+func Free(cur realm) {
+	data = nil
+}
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import (
+	"chain/runtime"
+
+	"gno.land/r/test/ss_store"
+)
+
+func PayAndFree(cur realm) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(1000000)
+	ss_store.Free(cross(cur))
+	return "paid"
+}

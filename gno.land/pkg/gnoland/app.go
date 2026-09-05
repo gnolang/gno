@@ -293,8 +293,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				}
 				switch {
 				case psi.MaxDeposit > 0:
-					// A realm sponsored: it pays for storage growth up to its
-					// committed budget (and receives any refunds for freed storage).
+					// A realm sponsored: it PAYS for storage growth up to its
+					// committed budget. It is only the payer — refunds for freed
+					// storage go to the tx caller, which the callee resolves
+					// itself (see ProcessStorageDepositFromDiffs).
 					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, psi.RealmAddr, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params); err != nil {
 						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
 					}
