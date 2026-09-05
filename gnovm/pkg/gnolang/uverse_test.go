@@ -308,8 +308,8 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 // exemption must keep covering them while never covering sub-tokens.
 func TestRealmLegacyThreeFieldShape(t *testing.T) {
 	sv := &StructValue{Fields: []TypedValue{
-		{T: gAddressType, V: StringValue("")},
-		{T: StringType, V: StringValue("")},
+		{T: gAddressType, V: StringValue{Str: ""}},
+		{T: StringType, V: StringValue{Str: ""}},
 		{}, // prev truly-nil: origin shape
 	}}
 	if got := realmSubpathOf(sv); got != "" {

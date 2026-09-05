@@ -195,6 +195,10 @@ func isUverseValue(v Value) bool {
 func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
+	// Backings counted this run (see stringBacking). Scoped to the
+	// visitor: no allocator state, nothing to prune or reset.
+	countedStrings := make(map[*stringBacking]struct{})
+
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
@@ -225,8 +229,20 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
-		// Add object size to alloc.
+		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
+
+		// Strings: the backing bytes are raw data, invisible to
+		// VisitAssociated — count them here, once per backing per run
+		// (dedup for shared backings; Extent, not len(Str), so a slice
+		// outliving its source keeps the backing counted). A nil backing
+		// is untracked VM-internal text: header only.
+		if sv, ok := v.(StringValue); ok && sv.B != nil {
+			if _, counted := countedStrings[sv.B]; !counted {
+				countedStrings[sv.B] = struct{}{}
+				size += allocStringByte * sv.B.Extent
+			}
+		}
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
@@ -452,6 +468,8 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
+// VisitAssociated is a no-op: the backing bytes are raw data, not a
+// Value. GCVisitorFn counts them once per backing.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }

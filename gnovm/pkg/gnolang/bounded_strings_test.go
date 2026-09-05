@@ -26,14 +26,14 @@ func TestBoundedBuf_NoTruncation(t *testing.T) {
 }
 
 func TestBoundedSprintTV_String_Small(t *testing.T) {
-	tv := TypedValue{T: StringType, V: StringValue("hello")}
+	tv := TypedValue{T: StringType, V: StringValue{Str: "hello"}}
 	out := BoundedSprintTV(tv, nil, 100)
 	assert.Equal(t, "hello", out)
 }
 
 func TestBoundedSprintTV_String_Huge(t *testing.T) {
 	huge := strings.Repeat("a", 10*1024*1024) // 10 MB
-	tv := TypedValue{T: StringType, V: StringValue(huge)}
+	tv := TypedValue{T: StringType, V: StringValue{Str: huge}}
 	out := BoundedSprintTV(tv, nil, 1024)
 	assert.LessOrEqual(t, len(out), 1024+3, // +3 for "..." suffix
 		"output must respect cap (got %d)", len(out))
@@ -46,7 +46,7 @@ func TestBoundedSprintTV_String_HugeNoTransientBlowup(t *testing.T) {
 	// output is bounded and the call returns quickly even for a
 	// 100 MB input.
 	huge := strings.Repeat("x", 100*1024*1024)
-	tv := TypedValue{T: StringType, V: StringValue(huge)}
+	tv := TypedValue{T: StringType, V: StringValue{Str: huge}}
 	out := BoundedSprintTV(tv, nil, 1024)
 	assert.LessOrEqual(t, len(out), 1027)
 }
@@ -115,7 +115,7 @@ func TestBoundedSprintTV_Array_OverChildrenCap(t *testing.T) {
 	// 100 elements of "x" — should cap at MaxCompositeChildren (32).
 	list := make([]TypedValue, 100)
 	for i := range list {
-		list[i] = TypedValue{T: StringType, V: StringValue("x")}
+		list[i] = TypedValue{T: StringType, V: StringValue{Str: "x"}}
 	}
 	av := &ArrayValue{List: list}
 	tv := TypedValue{V: av}
@@ -155,7 +155,7 @@ func TestBoundedSprintTV_NestedComposite_DepthCap(t *testing.T) {
 func TestBoundedSprintTV_Map(t *testing.T) {
 	mv := &MapValue{List: &MapList{}}
 	for i := range 5 {
-		key := TypedValue{T: StringType, V: StringValue("k")}
+		key := TypedValue{T: StringType, V: StringValue{Str: "k"}}
 		val := TypedValue{T: IntType}
 		val.SetInt(int64(i))
 		mli := &MapListItem{Key: key, Value: val}
@@ -202,16 +202,16 @@ func TestBoundedSprintException_Nil(t *testing.T) {
 }
 
 func TestBoundedSprintException_Small(t *testing.T) {
-	e := &Exception{Value: TypedValue{T: StringType, V: StringValue("oops")}}
+	e := &Exception{Value: TypedValue{T: StringType, V: StringValue{Str: "oops"}}}
 	out := BoundedSprintException(e, nil, 100)
 	assert.Equal(t, "oops", out)
 }
 
 func TestBoundedSprintException_HeadOnly(t *testing.T) {
 	// Verify Previous chain is NOT rendered.
-	older := &Exception{Value: TypedValue{T: StringType, V: StringValue("older")}}
+	older := &Exception{Value: TypedValue{T: StringType, V: StringValue{Str: "older"}}}
 	newer := &Exception{
-		Value:    TypedValue{T: StringType, V: StringValue("newer")},
+		Value:    TypedValue{T: StringType, V: StringValue{Str: "newer"}},
 		Previous: older,
 	}
 	out := BoundedSprintException(newer, nil, 100)

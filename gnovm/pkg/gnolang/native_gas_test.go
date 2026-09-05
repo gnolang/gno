@@ -49,7 +49,7 @@ func stubMachine(paramLens []int) *Machine {
 	m := &Machine{GasMeter: &recordingMeter{}}
 	blk := &Block{Values: make([]TypedValue, len(paramLens))}
 	for i, n := range paramLens {
-		blk.Values[i] = TypedValue{T: StringType, V: StringValue(string(make([]byte, n)))}
+		blk.Values[i] = TypedValue{T: StringType, V: StringValue{Str: string(make([]byte, n))}}
 	}
 	m.Blocks = []*Block{blk}
 	return m
@@ -121,8 +121,8 @@ func TestChargeNativeGas_PostCallReturnLen(t *testing.T) {
 	}
 	// Simulate nativeBody pushing returns: top of stack is "amounts" (any
 	// TV at offset 1), bottom is "denoms" (slice of len 1024 at offset 2).
-	denoms := TypedValue{T: StringType, V: StringValue(string(make([]byte, 1024)))}
-	amounts := TypedValue{T: StringType, V: StringValue("")}
+	denoms := TypedValue{T: StringType, V: StringValue{Str: string(make([]byte, 1024))}}
+	amounts := TypedValue{T: StringType, V: StringValue{Str: ""}}
 	m.PushValue(denoms)
 	m.PushValue(amounts)
 	m.chargeNativeGasPost(gi)
@@ -191,7 +191,7 @@ func stubMachineWithSliceParam(count, innerLen int) *Machine {
 	m := &Machine{GasMeter: &recordingMeter{}}
 	av := &ArrayValue{List: make([]TypedValue, count)}
 	for i := range av.List {
-		av.List[i] = TypedValue{T: StringType, V: StringValue(string(make([]byte, innerLen)))}
+		av.List[i] = TypedValue{T: StringType, V: StringValue{Str: string(make([]byte, innerLen))}}
 	}
 	sv := &SliceValue{Base: av, Offset: 0, Length: count, Maxcap: count}
 	blk := &Block{Values: []TypedValue{{T: &SliceType{Elt: StringType}, V: sv}}}
@@ -286,11 +286,11 @@ func TestChargeNativeGas_PostCallTwoSlopes(t *testing.T) {
 	count, innerLen := 8, 32
 	av := &ArrayValue{List: make([]TypedValue, count)}
 	for i := range av.List {
-		av.List[i] = TypedValue{T: StringType, V: StringValue(string(make([]byte, innerLen)))}
+		av.List[i] = TypedValue{T: StringType, V: StringValue{Str: string(make([]byte, innerLen))}}
 	}
 	sv := &SliceValue{Base: av, Offset: 0, Length: count, Maxcap: count}
 	returnSlice := TypedValue{T: &SliceType{Elt: StringType}, V: sv}
-	dummy := TypedValue{T: StringType, V: StringValue("")}
+	dummy := TypedValue{T: StringType, V: StringValue{Str: ""}}
 	m.PushValue(returnSlice)
 	m.PushValue(dummy)
 	m.chargeNativeGasPost(gi)
@@ -317,10 +317,10 @@ func TestChargeNativeGas_SliceTotalBytes_NilAndOffset(t *testing.T) {
 
 	// Sliced array with offset — only the [Offset:Length] window counts.
 	av := &ArrayValue{List: []TypedValue{
-		{T: StringType, V: StringValue("aa")},     // 2 — outside window
-		{T: StringType, V: StringValue("bbbbb")},  // 5 — in window
-		{T: StringType, V: StringValue("ccc")},    // 3 — in window
-		{T: StringType, V: StringValue("dddddd")}, // 6 — outside window
+		{T: StringType, V: StringValue{Str: "aa"}},     // 2 — outside window
+		{T: StringType, V: StringValue{Str: "bbbbb"}},  // 5 — in window
+		{T: StringType, V: StringValue{Str: "ccc"}},    // 3 — in window
+		{T: StringType, V: StringValue{Str: "dddddd"}}, // 6 — outside window
 	}}
 	sv := &SliceValue{Base: av, Offset: 1, Length: 2, Maxcap: 3}
 	m2 := &Machine{GasMeter: &recordingMeter{}}
@@ -337,7 +337,7 @@ func benchStubMachine(b *testing.B, gi *NativeGasInfo, paramLen int, registerKey
 	b.Helper()
 	m := &Machine{GasMeter: &recordingMeter{}}
 	blk := &Block{Values: []TypedValue{
-		{T: StringType, V: StringValue(string(make([]byte, paramLen)))},
+		{T: StringType, V: StringValue{Str: string(make([]byte, paramLen))}},
 	}}
 	m.Blocks = []*Block{blk}
 	fv := &FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn}

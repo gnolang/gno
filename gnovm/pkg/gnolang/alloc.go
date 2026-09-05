@@ -98,8 +98,15 @@ const (
 )
 
 const (
-	// StringValue is a Go string (16 bytes, by value).
-	// Bytes are counted separately via allocStringByte.
+	// StringValue is {Str string; B *stringBacking} (24 bytes, by value,
+	// boxed when stored in TypedValue.V) plus one 8-byte stringBacking per
+	// mint, shared by every copy and slice. The 16 dates from the plain
+	// Go-string representation; the real per-value footprint (24 + at most
+	// 8) still fits inside _allocHeap + 16 = 48, so the constant is kept:
+	// retuning it moves every string charge and alloc/gas golden, which is
+	// a deliberate consensus change to make separately, not a side effect
+	// of the representation. Bytes are counted separately via
+	// allocStringByte.
 	allocString     = _allocHeap + 16
 	allocStringByte = 1
 
@@ -276,6 +283,7 @@ func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
 	return alloc.maxBytes, alloc.bytes
 }
 
+// Reset zeroes the byte count.
 func (alloc *Allocator) Reset() *Allocator {
 	if alloc == nil {
 		return nil
@@ -508,7 +516,13 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	if len(s) == 0 {
+		return StringValue{} // "" carries no backing; untracked
+	}
+	// Fresh backing identity: all copies/slices of this value point at
+	// it, so the GC recount charges Extent once per mint per cycle (see
+	// stringBacking).
+	return StringValue{Str: s, B: &stringBacking{Extent: int64(len(s))}}
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
@@ -807,7 +821,8 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// Header only; GCVisitorFn counts the backing bytes once per backing.
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {

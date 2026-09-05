@@ -656,7 +656,7 @@ func BenchmarkProtectedString_Primitive_Int(b *testing.B) {
 }
 
 func BenchmarkProtectedString_Primitive_String(b *testing.B) {
-	tv := TypedValue{T: StringType, V: StringValue("hello world")}
+	tv := TypedValue{T: StringType, V: StringValue{Str: "hello world"}}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

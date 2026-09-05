@@ -70,7 +70,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	v := results[0]
 	assert.NotNil(t, v)
 	assert.Equal(t, StringKind, v.T.Kind())
-	assert.Equal(t, StringValue("1"), v.V)
+	assert.Equal(t, "1", v.GetString())
 }
 
 func TestMachineString(t *testing.T) {

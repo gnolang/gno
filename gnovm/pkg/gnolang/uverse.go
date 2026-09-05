@@ -263,9 +263,13 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	// form (see newSubRealmHIVPointer). This keeps the per-crossing
 	// mint lean, and readers of fields ≥3 go through
 	// realmSubpathOf/realmParentOf, which treat missing fields as zero.
+	// Mint the string fields through NewString so they are charged and
+	// tracked; a raw StringValue would be invisible to the GC's byte
+	// recount. pkgPath usually shares the realm path's backing, so
+	// NewString clones it to keep ranges disjoint.
 	return newRealmHIVFromFields(alloc, []TypedValue{
-		{T: gAddressType, V: StringValue(addr)},
-		{T: StringType, V: StringValue(pkgPath)},
+		{T: gAddressType, V: alloc.NewString(addr)},
+		{T: StringType, V: alloc.NewString(pkgPath)},
 		prevField,
 	})
 }
@@ -276,10 +280,10 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 // the parent HIV).
 func newSubRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue, subpath string, parentField TypedValue) TypedValue {
 	return newRealmHIVFromFields(alloc, []TypedValue{
-		{T: gAddressType, V: StringValue(addr)},
-		{T: StringType, V: StringValue(pkgPath)},
+		{T: gAddressType, V: alloc.NewString(addr)},
+		{T: StringType, V: alloc.NewString(pkgPath)},
 		prevField,
-		{T: StringType, V: StringValue(subpath)},
+		{T: StringType, V: alloc.NewString(subpath)},
 		parentField,
 	})
 }
@@ -786,7 +790,9 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			m.PushValue(typedString(arg0.TV.GetString()))
+			// The receiver's text is untracked VM-internal (nil backing); mint
+			// the copy user code gets to hold.
+			m.PushValue(newTypedString(m.Alloc, arg0.TV.GetString()))
 		},
 	)
 
@@ -1543,8 +1549,9 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			res0 := typedString(arg0.TV.GetString())
-			m.PushValue(res0)
+			// Pass the receiver's StringValue through: same backing, same
+			// backing, no untracked copy.
+			m.PushValue(TypedValue{T: StringType, V: arg0.TV.V})
 		},
 	)
 	defNativeMethod("address", "IsValid",
@@ -1574,8 +1581,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			addr := sv.Fields[0].GetString()
-			m.PushValue(TypedValue{T: gAddressType, V: StringValue(addr)})
+			// Push the field itself: the result shares the handle's mint
+			// ID, so the GC counts one backing (also PkgPath below).
+			m.PushValue(sv.Fields[realmFieldAddr])
 		},
 	)
 	defNativePtrMethod(".grealm", "PkgPath",
@@ -1586,8 +1594,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			path := sv.Fields[1].GetString()
-			m.PushValue(typedString(path))
+			m.PushValue(sv.Fields[realmFieldPkgPath])
 		},
 	)
 	defNativePtrMethod(".grealm", "Previous",
@@ -1784,7 +1791,7 @@ func makeUverseNode() {
 			sv := derefRealmStruct(arg0.TV)
 			path := sv.Fields[realmFieldPkgPath].GetString()
 			_, sub, _ := strings.Cut(path, subRealmSep)
-			m.PushValue(typedString(sub))
+			m.PushValue(newTypedString(m.Alloc, sub))
 		},
 	)
 	defNativePtrMethod(".grealm", "String",
@@ -1795,9 +1802,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
-			addr := sv.Fields[0].GetString()
-			path := sv.Fields[1].GetString()
-			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
+			addr := sv.Fields[realmFieldAddr].GetString()
+			path := sv.Fields[realmFieldPkgPath].GetString()
+			m.PushValue(newTypedString(m.Alloc, "realm{"+path+":"+addr+"}"))
 		},
 	)
 	// Seal marker; see gRealmType for rationale.
