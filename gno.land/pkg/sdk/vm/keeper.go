@@ -1069,6 +1069,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Params:              NewSDKParams(vm.prmk, ctx),
 		EventLogger:         ctx.EventLogger(),
 		SessionAccount:      getSessionAccount(ctx, creator),
+		// Successful package initialization commits realm state. The package
+		// object gets ID 1 before init, so token realms can issue later IDs.
+		RealmIDEnabled: true,
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -1174,10 +1177,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:            ctx.ChainID(),
-		ChainDomain:        chainDomain,
-		Height:             ctx.BlockHeight(),
-		Timestamp:          ctx.BlockTime().Unix(),
+		ChainID:     ctx.ChainID(),
+		ChainDomain: chainDomain,
+		Height:      ctx.BlockHeight(),
+		Timestamp:   ctx.BlockTime().Unix(),
+		// Successful calls commit realm state, so they may issue realm IDs.
+		// Queries and temporary executions leave this disabled.
+		RealmIDEnabled:     true,
 		OriginCaller:       caller.Bech32(),
 		OriginSend:         send,
 		OriginSendSpent:    new(std.Coins),
@@ -1445,9 +1451,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
 		// the recipient empty is fail-closed: nothing can spend against an
 		// envelope that never moved.
-		Banker:         NewSDKBanker(vm, ctx),
-		Params:         NewSDKParams(vm.prmk, ctx),
-		EventLogger:    ctx.EventLogger(),
+		Banker:      NewSDKBanker(vm, ctx),
+		Params:      NewSDKParams(vm.prmk, ctx),
+		EventLogger: ctx.EventLogger(),
+		// A run script is ephemeral, but the persistent realms it cross-calls
+		// commit their state, so they may issue realm IDs just as under Call.
+		RealmIDEnabled: true,
 		SessionAccount: getSessionAccount(ctx, caller),
 	}
 

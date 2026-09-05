@@ -108,7 +108,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, 0, cur)
+	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, cur)
 	Teller = adm.CallerTeller()
 }
 

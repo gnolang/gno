@@ -203,7 +203,11 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Bumped again by adding the NewRealmID native to chain/runtime. The native's
+// source bytes land in the genesis stdlib MemPackage and move the root; the
+// scenario never calls NewRealmID, so behavior is unchanged.
+const expectedCrossrealm38Hash = "10f6347ec659e5d83a35aac273153fbd29e2526f4247c8f6e22c67c131beeb7a"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

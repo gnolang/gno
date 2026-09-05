@@ -77,7 +77,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -140,6 +140,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 44.8ns
 	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 44.5ns
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
+	{Pkg: "chain/runtime", Fn: "NewRealmID", Base: 1772, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                    // POC: conservative chain/params.SetString base; SetPackageRealm charges store work separately
 	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 148.4ns
 	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 5.0ns
 	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.

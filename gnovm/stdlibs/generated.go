@@ -1276,6 +1276,26 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/runtime",
+		"NewRealmID",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_chain_runtime.NewRealmID(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"chain/runtime",
 		"getSessionInfo",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{

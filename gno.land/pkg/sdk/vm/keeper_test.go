@@ -971,6 +971,204 @@ func GetAdmin(cur realm) string { // XXX: remove crossing call ?
 	assert.Equal(t, addrString, res)
 }
 
+func TestVMKeeperNewRealmIDGate(t *testing.T) {
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-id-gate"))
+	pkgPath := "gno.land/r/test/realmidgate"
+
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	realmFiles := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "realmidgate.gno", Body: `package realmidgate
+
+import "chain/runtime"
+
+func New(cur realm) string {
+	return runtime.NewRealmID()
+}`},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, realmFiles)))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, pkgPath, "New", nil))
+	require.NoError(t, err)
+	require.Contains(t, res, `("gno.land/r/test/realmidgate:`)
+
+	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "New()")
+	require.ErrorContains(t, err, "realm ID issuance is disabled")
+
+	// A run script is ephemeral, but the persistent realm it cross-calls
+	// commits the issued ID, so Run may issue IDs just as Call does.
+	runCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	runFiles := []*std.MemFile{
+		{Name: "main.gno", Body: `package main
+
+import "gno.land/r/test/realmidgate"
+
+func main(cur realm) {
+	println(realmidgate.New(cross(cur)))
+}`},
+	}
+	runRes, err := env.vmk.Run(runCtx, NewMsgRun(addr, nil, runFiles))
+	require.NoError(t, err)
+	require.Contains(t, runRes, "gno.land/r/test/realmidgate:")
+}
+
+func TestVMKeeperNewRealmIDInInit(t *testing.T) {
+	const source = `package realmidinit
+
+import "chain/runtime"
+
+var initID string
+
+func init(cur realm) {
+	initID = runtime.NewRealmID()
+}
+
+func InitID(cur realm) string {
+	return initID
+}
+
+func New(cur realm) string {
+	return runtime.NewRealmID()
+}`
+
+	run := func(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath string) {
+		t.Helper()
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		call := func(fn string) string {
+			t.Helper()
+			callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, pkgPath, fn, nil))
+			require.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(callCtx)
+			return res
+		}
+
+		initID := call("InitID")
+		first := call("New")
+		second := call("New")
+		prefix := fmt.Sprintf(`("%s:`, pkgPath)
+		require.Contains(t, initID, prefix)
+		require.Contains(t, first, prefix)
+		require.Contains(t, second, prefix)
+		require.NotEqual(t, initID, first)
+		require.NotEqual(t, first, second)
+	}
+
+	t.Run("AddPackage", func(t *testing.T) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		addr := crypto.AddressFromPreimage([]byte("realm-id-init-add"))
+		pkgPath := "gno.land/r/test/realmidinit"
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "realmidinit.gno", Body: source},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		run(t, env, ctx, addr, pkgPath)
+	})
+
+	t.Run("EnablePackage", func(t *testing.T) {
+		approver := crypto.AddressFromPreimage([]byte("realm-id-init-approver"))
+		addr := crypto.AddressFromPreimage([]byte("realm-id-init-enable"))
+		env, ctx := inertEnv(t, approver, addr)
+		pkgPath := "gno.land/r/test/realmidinit"
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "realmidinit.gno", Body: source},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		require.NoError(t, env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath)))
+		run(t, env, ctx, addr, pkgPath)
+	})
+}
+
+func TestVMKeeperNewRealmIDProvenance(t *testing.T) {
+	env := setupTestEnv()
+	addr := crypto.AddressFromPreimage([]byte("realm-id-provenance"))
+	const (
+		helperPath = "gno.land/p/test/idhelper"
+		callerPath = "gno.land/r/test/acaller"
+		issuerPath = "gno.land/r/test/bissuer"
+	)
+
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, helperPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(helperPath)},
+		{Name: "idhelper.gno", Body: `package idhelper
+
+import "chain/runtime"
+
+func New() string {
+	return runtime.NewRealmID()
+}`},
+	})))
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, issuerPath, []*std.MemFile{
+		{Name: "bissuer.gno", Body: `package bissuer
+
+import "chain/runtime"
+
+func New(cur realm) string {
+	return runtime.NewRealmID()
+}`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(issuerPath)},
+	})))
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, callerPath, []*std.MemFile{
+		{Name: "acaller.gno", Body: `package acaller
+
+import (
+	"gno.land/p/test/idhelper"
+	"gno.land/r/test/bissuer"
+)
+
+func NewFromIssuer(cur realm) string {
+	return bissuer.New(cross(cur))
+}
+
+func NewFromHelper(cur realm) string {
+	return idhelper.New()
+}`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(callerPath)},
+	})))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	tests := []struct {
+		fn        string
+		realmPath string
+	}{
+		{fn: "NewFromIssuer", realmPath: issuerPath},
+		{fn: "NewFromHelper", realmPath: callerPath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.fn, func(t *testing.T) {
+			for range 2 {
+				callCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+				before := env.vmk.getGnoTransactionStore(callCtx).GetPackageRealm(tt.realmPath).Time
+				res, err := env.vmk.Call(callCtx, NewMsgCall(addr, nil, callerPath, tt.fn, nil))
+				require.NoError(t, err)
+				require.Equal(t, fmt.Sprintf("(\"%s:%d\" string)\n\n", tt.realmPath, before+1), res)
+				env.vmk.CommitGnoTransactionStore(callCtx)
+
+				freshCtx := env.vmk.MakeGnoTransactionStore(env.ctx)
+				persisted := env.vmk.getGnoTransactionStore(freshCtx).GetPackageRealm(tt.realmPath).Time
+				require.Equal(t, before+1, persisted)
+			}
+		})
+	}
+}
+
 // Call Run without imports, without variables.
 func TestVMKeeperRunSimple(t *testing.T) {
 	env := setupTestEnv()

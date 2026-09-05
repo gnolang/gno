@@ -10,6 +10,9 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
+// NewRealmID returns "<realm-path>:<realm-time>" for the current persistent realm.
+func NewRealmID() string // injected
+
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.
 //

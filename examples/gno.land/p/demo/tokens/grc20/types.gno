@@ -81,7 +81,7 @@ type Teller interface {
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
-	// Identifier precomputed in NewToken to make ID() a cheap field read.
+	// VM-assigned identifier precomputed in NewToken to make ID() a cheap field read.
 	id string
 	// Name of the token (e.g., "Dummy Token").
 	name string
@@ -132,11 +132,9 @@ var (
 )
 
 // Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because it is included in Token.ID(), which is
-// emitted in events and frequently used as a registry slug; banning `.` `/`
-// and whitespace here prevents downstream parsers from being fooled by
-// ambiguous IDs. Name is for display only and allows any valid UTF-8 except
-// control characters.
+// grc20reg.validateSlug because it is emitted in events and frequently used
+// as a registry slug. Name is for display only and allows any valid UTF-8
+// except control characters.
 const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11
