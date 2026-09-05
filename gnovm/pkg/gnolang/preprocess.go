@@ -5724,6 +5724,12 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				// create new declared type.
 				pn := packageOf(last)
 				dt := declareWith(pn.PkgPath, last, d.Name, t)
+				// Collect for persistence at addpkg (saveFuncLocalTypes).
+				// This is the single mint site of canonical local
+				// DeclaredTypes; blank names returned early above.
+				if dt.IsFuncLocal() {
+					pn.AddFuncLocalType(dt)
+				}
 				t = dt
 			}
 			// fill in later.

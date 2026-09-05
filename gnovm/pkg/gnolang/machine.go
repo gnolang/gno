@@ -881,6 +881,11 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
+	// Addpkg persists all of the package's declared types, in two steps.
+	// Step 1, before finalization: function-local types — their records
+	// embed no object hashes (locals cannot have methods), and saving early
+	// keeps the SetObject debugAssert exceptionless.
+	m.saveFuncLocalTypes(pv)
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
@@ -893,11 +898,10 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types — only those that belong to this package.
-	// Aliases to uverse types or to types from other packages have a
-	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
-	// be redundant (cross-pkg: the owning pkg already SetType'd them;
-	// uverse: lives in the in-memory VM registry, not in chain state).
+	// Step 2, after finalization: package-level types — their records embed
+	// method FuncValue hashes, which exist only once the objects are saved.
+	// Only this package's own: aliased uverse/cross-pkg types are persisted
+	// by their owners (uverse: in-memory registry, not chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
@@ -908,6 +912,77 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		}
 	}
 	return
+}
+
+// saveFuncLocalTypes persists the package's function-local declared types
+// (collected at predefine, see AddFuncLocalType) so that persisted values'
+// serialized RefType IDs ("pkg[loc].Name") resolve on reload.
+// Rationale and ordering: gnovm/adr/pr6084_local_type_persist.md.
+func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
+	// The package was just constructed by this machine: a live *Block
+	// sourced from a *PackageNode. Anything else must fail loudly rather
+	// than silently skip type persistence.
+	bv := pv.Block.(*Block)
+	pn := bv.GetSource(m.Store).(*PackageNode)
+	if debugAssert {
+		assertFuncLocalTypesComplete(pn)
+	}
+	for _, dt := range pn.FuncLocalTypes() {
+		m.Store.SetType(dt)
+	}
+}
+
+// assertFuncLocalTypesComplete (debugAssert only) audits the predefine-time
+// collection against an AST walk (every local type is a *TypeDecl in the
+// fileset); a mismatch means a mint path missed AddFuncLocalType.
+func assertFuncLocalTypesComplete(pn *PackageNode) {
+	fts := pn.FuncLocalTypes()
+	collected := make(map[TypeID]struct{}, len(fts))
+	for _, dt := range fts {
+		collected[dt.TypeID()] = struct{}{}
+	}
+	if len(collected) != len(fts) {
+		panic(fmt.Sprintf("duplicate entries in ATTR_FUNC_LOCAL_TYPES of %s", pn.PkgPath))
+	}
+	walked := make(map[TypeID]struct{})
+	audit := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		td, ok := n.(*TypeDecl)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		// A type expression contains no further declarations; prune. After
+		// preprocessing a non-alias td.Type is a *constTypeExpr holding the
+		// declared type (blank decls keep their raw type expr).
+		cte, ok := td.Type.(*constTypeExpr)
+		if td.IsAlias || !ok {
+			return n, TRANS_SKIP
+		}
+		if dt, ok := cte.Type.(*DeclaredType); ok && dt.IsFuncLocal() {
+			walked[dt.TypeID()] = struct{}{}
+		}
+		return n, TRANS_SKIP
+	}
+	if pn.FileSet != nil {
+		for _, fn := range pn.FileSet.Files {
+			Transcribe(fn, audit)
+		}
+	}
+	for tid := range walked {
+		if _, ok := collected[tid]; !ok {
+			panic(fmt.Sprintf(
+				"function-local type %s is in the AST but was not collected at predefine; "+
+					"a declareWith call path is missing the AddFuncLocalType append", tid))
+		}
+	}
+	for tid := range collected {
+		if _, ok := walked[tid]; !ok {
+			panic(fmt.Sprintf(
+				"function-local type %s was collected at predefine but has no TypeDecl in the fileset", tid))
+		}
+	}
 }
 
 // Resave any changes to realm after init calls.
