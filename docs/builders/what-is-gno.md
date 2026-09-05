@@ -89,4 +89,4 @@ its sustainable growth.
 
 Ready to write your first Gno program? Continue to:
 - [Getting started](./getting-started.md) - Build, run, and deploy your first realm
-- [Local development with `gnodev`](../resources/gnodev.md) - Local node features & flags
+- [Local development with `gnodev`](../resources/gnodev-reference.md) - Local node features & flags
