@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 )
 
@@ -46,8 +47,14 @@ func (h Hashlet) Bytes() []byte {
 	return h[:]
 }
 
+// IsZero reports whether h is all zeros. Hand-unrolled into word
+// loads: the generic comparison against a zero [20]byte lowers to a
+// runtime.memequal call, and IsZero sits on per-write VM hot paths
+// (ObjectID.IsZero in the readonly/cross-realm guards).
 func (h Hashlet) IsZero() bool {
-	return h == Hashlet{}
+	return binary.NativeEndian.Uint64(h[0:8])|
+		binary.NativeEndian.Uint64(h[8:16])|
+		uint64(binary.NativeEndian.Uint32(h[16:20])) == 0
 }
 
 func HashBytes(bz []byte) (res Hashlet) {
