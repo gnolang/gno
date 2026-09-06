@@ -1,0 +1,64 @@
+# Park 2 packages, one dependent to the other. Ensure the oracle is able to
+# enable a package which has chain-only (not present in examples initially)
+# dependent packages.
+
+# Nothing is parked yet.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/(echo|charlie)'
+
+# Submit the 2 packages
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/echo -pkgpath gno.land/r/probe/echo $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/charlie -pkgpath gno.land/r/probe/charlie $USER_NAME
+
+# Parked: listed as inert, and neither readable nor callable.
+gnokey query vm/qinertpaths -data ''
+stdout -count=2 'gno.land/r/probe/(echo|charlie)'
+! gnokey query vm/qfile -data gno.land/r/probe/echo
+stdout 'is not available'
+! gnokey query vm/qfile -data gno.land/r/probe/charlie
+stdout 'is not available'
+
+# -start-height 1 makes the oracle scan from the chain's start rather than
+# from its own tip at startup: the submission above already committed before
+# this line runs, so the default (watch from here on) would never see it.
+gpao start -remote $RPC_ADDR_0 -start-height 1
+
+# Assert the oracle has enabled both packages
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approved"'
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/charlie '"status":"approved"'
+
+# Assert package are live on-chain
+gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/probe/echo:hello'
+stdout 'hello'
+gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/probe/charlie:hello'
+stdout 'hello'
+
+# Assert packages are no longer inert
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/(echo|charlie)'
+
+-- cluster --
+validators: 1
+code-submission-policy: inert
+-- echo/gnomod.toml --
+module = "gno.land/r/probe/echo"
+gno = "0.9"
+
+-- echo/echo.gno --
+package echo
+
+func Render(path string) string {
+	return path
+}
+-- charlie/gnomod.toml --
+module = "gno.land/r/probe/charlie"
+gno = "0.9"
+
+-- charlie/charlie.gno --
+package charlie
+
+import "gno.land/r/probe/echo"
+
+func Render(path string) string {
+	return echo.Render(path)
+}
