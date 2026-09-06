@@ -774,6 +774,20 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	// only by the schedule set on it. Built through NewAccountWithAddress like
 	// every other account, which is what keeps it a *GnoAccount and so keeps the
 	// attributes -- the token-lock whitelist bit among them -- available on it.
+	// Probe before creating the account, to learn whether this address is a repeat
+	// (see the note above on repeated entries). A first sighting cannot hold a
+	// split-tier balance yet -- the bank store is empty when InitChainer starts,
+	// bank.InitGenesis writes params only, and this loop is its sole writer -- so
+	// there are no stale keys for SetCoins to drain, and InitCoins skips the
+	// enumeration that finds them. That enumeration is a store range iteration
+	// whose cost is O(all dirty keys), not O(denoms held), which made loading a
+	// large balance sheet quadratic. A repeat takes the SetCoins path unchanged.
+	firstSighting := cfg.acck.GetAccount(ctx, bal.Address) == nil
+
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
 	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
 		if err := bal.Vesting.Validate(); err != nil {
@@ -786,7 +800,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		acc.SetVesting(*bal.Vesting)
 	}
 	cfg.acck.SetAccount(ctx, acc)
-	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
+
+	setCoins := cfg.bankk.SetCoins
+	if firstSighting {
+		setCoins = cfg.bankk.InitCoins
+	}
+	if err := setCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a
 		// chain needs to know which entry to fix. std.ErrInvalidCoins carries the
