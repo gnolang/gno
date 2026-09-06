@@ -319,6 +319,16 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// hot key, so an attacker could submit large packages to bleed its balance
 	// and stall approvals for everyone.
 	//
+	// Everything from here to DelInertPackage describes the PER-MESSAGE arm.
+	// Under Fee.SponsorStorage the diffs are deferred to end-of-tx instead, and
+	// three things change: the payer is the PayStorage realm rather than the
+	// creator, the cap is that realm's committed MaxDeposit rather than the
+	// stamped ceiling below (so the submit-time pinning does not apply, though
+	// the creator is not the one exposed), and any freed storage refunds to
+	// ctx.TxCaller(), which for MsgEnablePackage is the APPROVER, not the
+	// creator. Enable's diffs are normally positive, so the refund case is
+	// contrived, but it is a real difference from the per-message arm.
+	//
 	// Capped by the ceiling recorded at submit, read back from the same stamped
 	// gnomod.toml the creator address came from.
 	//

@@ -250,11 +250,16 @@ func Set(cur realm, s string) { Greeting = s }`},
 //
 // EnablePackage settled storage unconditionally, so a sponsored multi-message
 // tx charged the sponsoring realm here AND again at end-of-tx: this message
-// consumed up to MaxDeposit and recorded it on SpentDeposit, then deferred
-// settlement received the full MaxDeposit again with its own running total
-// reset, exposing the realm to twice what it committed. The bug was invisible
-// to both merge parents, since one had no SponsorStorage and the other no
-// EnablePackage.
+// consumed up to MaxDeposit and recorded it on PayStorageInfo.SpentDeposit,
+// then deferred settlement received the full MaxDeposit again with its own
+// running total reset, exposing the realm to twice what it committed. The bug
+// was invisible to both merge parents, since one had no SponsorStorage and the
+// other no EnablePackage.
+//
+// The two subtests pin the branch on ctx.SponsorStorage() specifically. Keying
+// it on "a realm has already committed a budget" instead would pass the first
+// and fail the second, and would be wrong in production for any tx whose
+// enable precedes its PayStorage message.
 func TestVMKeeperEnableDefersStorageUnderSponsorStorage(t *testing.T) {
 	const pkgPath = "gno.land/r/test/deferdeposit"
 	files := []*std.MemFile{
@@ -266,68 +271,78 @@ func Set(cur realm, s string) { Greeting = s }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 	}
 
-	env := setupTestEnv()
-	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	// maxDeposit > 0 models PayStorage having run in an earlier message;
+	// maxDeposit == 0 models it running in a later one. Both are SponsorStorage
+	// txs, so both must defer.
+	run := func(t *testing.T, maxDeposit int64) {
+		t.Helper()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
-	approver := crypto.AddressFromPreimage([]byte("oracle"))
-	creator := crypto.AddressFromPreimage([]byte("sponsoredcreator"))
-	for _, addr := range []crypto.Address{approver, creator} {
-		acc := env.acck.NewAccountWithAddress(ctx, addr)
-		env.acck.SetAccount(ctx, acc)
-		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		approver := crypto.AddressFromPreimage([]byte("oracle"))
+		creator := crypto.AddressFromPreimage([]byte("sponsoredcreator"))
+		sponsor := crypto.AddressFromPreimage([]byte("sponsorrealm"))
+		for _, addr := range []crypto.Address{approver, creator, sponsor} {
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		}
+
+		params := DefaultParams()
+		params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+		params.PkgApprovers = []crypto.Address{approver}
+		env.vmk.SetParams(ctx, params)
+
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
+
+		psi := &sdk.PayStorageInfo{
+			RealmPkgPath:     "gno.land/r/test/sponsor",
+			RealmAddr:        sponsor,
+			MaxDeposit:       maxDeposit,
+			AccumulatedDiffs: map[string]int64{},
+			Eligible:         true,
+		}
+		// MsgEnablePackage.GetSigners returns the approver, so the approver is
+		// the tx caller here, not the creator. Using the production shape
+		// matters: ProcessStorageDepositFromDiffs refunds to ctx.TxCaller().
+		ctx = ctx.WithSponsorStorage(true).WithPayStorageInfo(psi).WithTxCaller(approver)
+
+		creatorBefore := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
+		sponsorBefore := env.bankk.GetCoins(ctx, sponsor).AmountOf(ugnot.Denom)
+		approverBefore := env.bankk.GetCoins(ctx, approver).AmountOf(ugnot.Denom)
+
+		require.NoError(t, env.vmk.EnablePackage(ctx,
+			approvalFor(t, env, ctx, approver, pkgPath)))
+
+		// Nobody is charged during the message: settlement is the endTxHook's job.
+		assert.Equal(t, creatorBefore, env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
+			"SponsorStorage defers settlement, so the creator must not be charged per-message")
+		assert.Equal(t, sponsorBefore, env.bankk.GetCoins(ctx, sponsor).AmountOf(ugnot.Denom),
+			"the sponsoring realm must not be charged per-message either")
+		assert.Equal(t, approverBefore, env.bankk.GetCoins(ctx, approver).AmountOf(ugnot.Denom),
+			"the approver must never pay for someone else's storage")
+
+		// The load-bearing assertion for the double-charge. A non-zero
+		// SpentDeposit means this message consumed budget that end-of-tx
+		// settlement will then hand out again from a running total of zero.
+		assert.Zero(t, psi.SpentDeposit,
+			"per-message spend must stay zero under SponsorStorage, or the committed budget re-arms at end-of-tx")
+
+		// Deferred, not dropped, and counted exactly once. Asserting the exact
+		// byte total rather than just "positive" also catches a double-accumulate.
+		total := int64(0)
+		for _, d := range psi.AccumulatedDiffs {
+			total += d
+		}
+		assert.Equal(t, int64(2152), total,
+			"enable's storage growth must be accumulated exactly once for deferred settlement")
 	}
 
-	params := DefaultParams()
-	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
-	params.PkgApprovers = []crypto.Address{approver}
-	env.vmk.SetParams(ctx, params)
+	t.Run("PayStorage already called", func(t *testing.T) { run(t, 1_000_000) })
 
-	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files)))
-
-	// A realm has sponsored storage for this tx, and the tx defers settlement
-	// to end-of-tx — the shape produced by Fee.SponsorStorage with PayStorage.
-	psi := &sdk.PayStorageInfo{
-		RealmPkgPath:     "gno.land/r/test/sponsor",
-		RealmAddr:        crypto.AddressFromPreimage([]byte("sponsorrealm")),
-		MaxDeposit:       1_000_000,
-		AccumulatedDiffs: map[string]int64{},
-		Eligible:         true,
-	}
-	ctx = ctx.WithSponsorStorage(true).WithPayStorageInfo(psi).WithTxCaller(creator)
-
-	// Fund the sponsoring realm deliberately. Without it, removing the guard
-	// fails this test merely because the redirected payer is broke, which would
-	// pass for the wrong reason. Funded, the unguarded path SUCCEEDS and quietly
-	// charges the realm, so the SpentDeposit assertion below is what catches it.
-	sponsorAcc := env.acck.NewAccountWithAddress(ctx, psi.RealmAddr)
-	env.acck.SetAccount(ctx, sponsorAcc)
-	require.NoError(t, env.bankk.SetCoins(ctx, psi.RealmAddr, initialBalance))
-
-	creatorBefore := env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom)
-	sponsorBefore := env.bankk.GetCoins(ctx, psi.RealmAddr).AmountOf(ugnot.Denom)
-
-	require.NoError(t, env.vmk.EnablePackage(ctx,
-		approvalFor(t, env, ctx, approver, pkgPath)))
-
-	// Nobody is charged during the message: settlement is the endTxHook's job.
-	assert.Equal(t, creatorBefore, env.bankk.GetCoins(ctx, creator).AmountOf(ugnot.Denom),
-		"SponsorStorage defers settlement, so the creator must not be charged per-message")
-	assert.Equal(t, sponsorBefore, env.bankk.GetCoins(ctx, psi.RealmAddr).AmountOf(ugnot.Denom),
-		"the sponsoring realm must not be charged per-message either")
-
-	// The load-bearing assertion. A non-zero SpentDeposit means this message
-	// consumed budget that end-of-tx settlement will then hand out again,
-	// because it restarts its own running total from zero.
-	assert.Zero(t, psi.SpentDeposit,
-		"per-message spend must stay zero under SponsorStorage, or the committed budget re-arms at end-of-tx")
-
-	// Deferred, not dropped: the growth enable produced must still be settled.
-	require.NotEmpty(t, psi.AccumulatedDiffs,
-		"enable's storage growth must be accumulated for deferred settlement")
-	total := int64(0)
-	for _, d := range psi.AccumulatedDiffs {
-		total += d
-	}
-	assert.Positive(t, total,
-		"activating a package grows storage, so the accumulated diff must be positive")
+	// Kills the "psi.MaxDeposit > 0" predicate: no budget is committed yet, but
+	// the tx is still a SponsorStorage tx, so the diffs must still be deferred.
+	// Settling per-message here would charge the creator for storage the
+	// sponsor is about to cover, and drop the diffs from the accumulator.
+	t.Run("PayStorage not called yet", func(t *testing.T) { run(t, 0) })
 }

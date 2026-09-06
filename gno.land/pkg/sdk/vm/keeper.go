@@ -2507,11 +2507,21 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, payer crypto
 	// to the chain default (100 GNOT today) against a realm that committed less.
 	// Refunds still settle, since releasing storage needs no budget.
 	if maxBudget <= 0 {
-		for _, d := range diffs {
+		// Report the first growing realm in sorted order. Ranging the map here
+		// would make the message depend on Go's randomized iteration order, so
+		// the one branch this guard exists to make safe would read differently
+		// on every node.
+		grown := make([]string, 0, len(diffs))
+		for path, d := range diffs {
 			if d > 0 {
-				return fmt.Errorf(
-					"storage deposit budget exhausted: %d bytes of growth with no remaining budget", d)
+				grown = append(grown, path)
 			}
+		}
+		if len(grown) > 0 {
+			slices.Sort(grown)
+			return fmt.Errorf(
+				"storage deposit budget exhausted: realm %s grew %d bytes with no remaining budget",
+				grown[0], diffs[grown[0]])
 		}
 	}
 	depositAmt := maxBudget
