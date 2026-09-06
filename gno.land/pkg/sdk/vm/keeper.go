@@ -2405,6 +2405,14 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 				// Persist the running spend so the next message in this tx
 				// sees the reduced remaining budget.
 				psi.SpentDeposit += requiredDeposit
+				// Remember that THIS tx's sponsor funded this realm's deposit,
+				// so a later message in the same tx that frees the bytes
+				// refunds the sponsor rather than handing its money to the
+				// signer. See PayStorageInfo.SponsorFunded.
+				if psi.SponsorFunded == nil {
+					psi.SponsorFunded = make(map[string]int64)
+				}
+				psi.SponsorFunded[rlmPath] += requiredDeposit
 			}
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
@@ -2459,10 +2467,38 @@ func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address
 				receiver = params.StorageFeeCollector
 			}
 
-			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
-			if err != nil {
+			// Unwind this tx's own sponsored lock first: whatever the sponsor
+			// funded a message ago is its money coming back, not the caller's
+			// to collect. Only the excess released deposit that an EARLIER
+			// transaction locked, and that excess is the caller's. Skipped for
+			// a restricted denom, where the refund is withheld from everyone.
+			totalUnlocked := depositUnlocked
+			sponsorShare := int64(0)
+			if !isRestricted && psi != nil && psi.SponsorFunded[rlmPath] > 0 {
+				sponsorShare = min(depositUnlocked, psi.SponsorFunded[rlmPath])
+			}
+			if sponsorShare > 0 {
+				// The byte release rides along with this transfer; the
+				// remainder below moves coins only. Splitting it the other way
+				// would double-decrement rlm.Storage.
+				if err := vm.refundStorageDeposit(
+					ctx, psi.RealmAddr, rlm, sponsorShare, released); err != nil {
+					return err
+				}
+				psi.SponsorFunded[rlmPath] -= sponsorShare
+				psi.SpentDeposit -= sponsorShare
+				depositUnlocked -= sponsorShare
+				if depositUnlocked > 0 {
+					if err := vm.refundStorageDeposit(
+						ctx, receiver, rlm, depositUnlocked, 0); err != nil {
+						return err
+					}
+				}
+			} else if err := vm.refundStorageDeposit(
+				ctx, receiver, rlm, depositUnlocked, released); err != nil {
 				return err
 			}
+			depositUnlocked = totalUnlocked
 			// Commit the per-realm meta-key only after the refund
 			// transfers — symmetry with the lock branch above.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
