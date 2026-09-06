@@ -50,6 +50,42 @@ SelectStmt ->
 // running this operation and any queued in the op stack following this
 // operation is that the value of the expression is pushed onto the stack.
 
+// rangeSubjectDepth reports how many value-stack entries sit ABOVE the range
+// subject X because of ASSIGN-form LHS pointer operands.
+//
+// In the ASSIGN form (`for k, m[i] = range x`, as opposed to `:= range`), the
+// RangeStmt setup pushes each LHS's pointer operands above X via
+// PushForPointer (op_exec.go, the RangeStmt case), then the range handler pops
+// them with PopAsPointer during the -1 (assign) phase. So the operands are on
+// the stack ABOVE X exactly while NextBodyIndex < 0 (the -2 init and -1 assign
+// phases); once body execution begins (NextBodyIndex >= 0) they are gone.
+// numStackValuesForPointer is the same per-LHS count PopAsPointer/doOpAssign
+// use: NameExpr 0, IndexExpr 2, Selector/Star/CompositeLit 1. A DEFINE-form or
+// name-only-ASSIGN range therefore has depth 0, which is why the historical
+// fixed PeekValue(1) read of X was correct only for those.
+//
+// Two consumers must agree on this depth:
+//   - the subject read (PeekValue(1+depth)) in each range handler, and
+//   - the bs.NumValues capture at -2, which the goto handler restores the value
+//     stack to. It must record the X-only length (len - depth), so a goto out
+//     of the loop body lands the stack on X the same way a continue does (see
+//     PeekFrameAndContinueRange, which restores to fr.NumValues+1); otherwise
+//     the post-goto subject read (NextBodyIndex >= 0, depth 0) would read a
+//     stale operand slot instead of X.
+func (bs *bodyStmt) rangeSubjectDepth() int {
+	if bs.Op != ASSIGN || bs.NextBodyIndex >= 0 {
+		return 0
+	}
+	n := 0
+	if bs.Key != nil {
+		n += numStackValuesForPointer(bs.Key)
+	}
+	if bs.Value != nil {
+		n += numStackValuesForPointer(bs.Value)
+	}
+	return n
+}
+
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if line := s.GetLine(); line != 0 {
@@ -158,7 +194,7 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIter, OpRangeIterArrayPtr:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		xv := m.PeekValue(1 + bs.rangeSubjectDepth())
 		// TODO check length.
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -189,7 +225,7 @@ func (m *Machine) doOpExec(op Op) {
 			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = len(m.Values) - bs.rangeSubjectDepth()
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -278,7 +314,7 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterString:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		xv := m.PeekValue(1 + bs.rangeSubjectDepth())
 		sv := xv.GetString()
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -294,7 +330,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextRune = r
 			bs.StrIndex += size
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = len(m.Values) - bs.rangeSubjectDepth()
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -376,7 +412,7 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		xv := m.PeekValue(1 + bs.rangeSubjectDepth())
 		var mv *MapValue
 		if xv.V != nil {
 			mv = xv.V.(*MapValue)
@@ -390,7 +426,7 @@ func (m *Machine) doOpExec(op Op) {
 			// initialize bs.
 			bs.NextItem = mv.List.Head
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = len(m.Values) - bs.rangeSubjectDepth()
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
