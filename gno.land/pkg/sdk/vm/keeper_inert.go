@@ -360,7 +360,13 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 				"invalid max_deposit %q in stored gnomod.toml: %v", gm.AddPkg.MaxDeposit, err))
 		}
 	}
-	if err := vm.ProcessStorageDeposit(ctx, creator, declaredDeposit, gnostore, params); err != nil {
+	// Storage deposit: per-message or deferred depending on SponsorStorage,
+	// mirroring AddPackage/Call/Run. Without the deferred branch a sponsored
+	// multi-message tx settles this message per-message AND again at end-of-tx,
+	// charging the sponsoring realm up to its committed budget twice.
+	if ctx.SponsorStorage() {
+		vm.accumulateStorageDiffs(ctx, gnostore)
+	} else if err := vm.ProcessStorageDeposit(ctx, creator, declaredDeposit, gnostore, params); err != nil {
 		return err
 	}
 

@@ -2501,14 +2501,20 @@ func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, payer crypto
 	refundReceiver := ctx.TxCaller()
 	price := std.MustParseCoin(params.StoragePrice)
 	// The deposit cap is the sponsor's committed budget (PayStorage maxDeposit),
-	// not DefaultDeposit. Using DefaultDeposit here would both reject legitimate
-	// sponsored writes larger than it and, when no budget was set, silently charge
-	// the payer up to DefaultDeposit. The endTxHook guarantees maxBudget > 0
-	// whenever there are diffs to settle; the fallback is purely defensive.
-	depositAmt := maxBudget
-	if depositAmt <= 0 {
-		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
+	// not DefaultDeposit. A non-positive budget means NOTHING may be charged, and
+	// must not fall back to DefaultDeposit: that made the failure mode of a
+	// defensive branch a LARGER charge than the invariant it defends allows, up
+	// to the chain default (100 GNOT today) against a realm that committed less.
+	// Refunds still settle, since releasing storage needs no budget.
+	if maxBudget <= 0 {
+		for _, d := range diffs {
+			if d > 0 {
+				return fmt.Errorf(
+					"storage deposit budget exhausted: %d bytes of growth with no remaining budget", d)
+			}
+		}
 	}
+	depositAmt := maxBudget
 
 	sortedRealm := make([]string, 0, len(diffs))
 	for path := range diffs {

@@ -348,7 +348,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 					// committed budget. It is only the payer — refunds for freed
 					// storage go to the tx caller, which the callee resolves
 					// itself (see ProcessStorageDepositFromDiffs).
-					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, psi.RealmAddr, psi.AccumulatedDiffs, psi.MaxDeposit, gnostore, params); err != nil {
+					// Fold out anything already debited on the per-message path,
+					// so the realm's committed budget is a per-TRANSACTION cap
+					// rather than one that re-arms at end-of-tx. Belt and braces
+					// now that every message path defers under SponsorStorage,
+					// but the cap must not depend on that staying true.
+					outstanding := psi.MaxDeposit - psi.SpentDeposit
+					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, psi.RealmAddr, psi.AccumulatedDiffs, outstanding, gnostore, params); err != nil {
 						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
 					}
 				case grewStorage:
