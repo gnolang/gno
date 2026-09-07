@@ -5,10 +5,11 @@ package runtime
 // is invoked by another method (even from the same realm or package).
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
-func AssertOriginCall()   // injected
-func ChainID() string     // injected
-func ChainDomain() string // injected
-func ChainHeight() int64  // injected
+func AssertOriginCall()             // injected
+func ChainID() string               // injected
+func ChainDomain() string           // injected
+func ChainHeight() int64            // injected
+func ObjectID(v interface{}) string // injected
 
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.

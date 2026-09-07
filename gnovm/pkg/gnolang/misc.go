@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unsafe"
@@ -196,6 +197,22 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 	}
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {
+	if objectID.IsZero() {
+		panic("objectID cannot be zero")
+	}
+
+	if objectID.PkgID.IsZero() {
+		panic("pkgID cannot be zero")
+	}
+
+	if objectID.NewTime == 0 {
+		panic("newTime cannot be zero")
+	}
+
+	return crypto.AddressFromPreimage([]byte("objectid:" + objectID.PkgID.String() + ":" + strconv.FormatUint(objectID.NewTime, 10)))
 }
 
 func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {

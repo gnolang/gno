@@ -1276,6 +1276,31 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/runtime",
+		"ObjectID",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.AnyT()},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0 := libs_chain_runtime.ObjectID(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"chain/runtime",
 		"getSessionInfo",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{

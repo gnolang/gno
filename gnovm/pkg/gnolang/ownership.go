@@ -71,6 +71,15 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+func (oid ObjectID) DerivePath() string {
+	// if the object is not finalized, return an empty string
+	if !oid.IsFinalized() {
+		return ""
+	}
+
+	return DeriveObjectIDCryptoAddr(oid).String()
+}
+
 func (oid ObjectID) IsPackageID() bool {
 	// all package objects have newtime 1.
 	return !oid.PkgID.IsZero() && oid.NewTime == 1

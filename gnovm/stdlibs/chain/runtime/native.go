@@ -39,6 +39,22 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
+// ObjectID returns the address derived from the token object's own VM object ID.
+// It is the stable, realm-scoped name of the object: the ObjectID behind it is minted from the owning realm's clock,
+// so the address is unique within the realm and persistent across transactions.
+func ObjectID(m *gno.Machine, v gno.TypedValue) string {
+	if v.V == nil {
+		m.PanicString("value has no object identity")
+	}
+
+	oo := v.GetFirstObject(m.Store)
+	if oo == nil {
+		m.PanicString("value has no object identity")
+	}
+
+	return oo.GetObjectID().DerivePath()
+}
+
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
 // Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
 // gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;
