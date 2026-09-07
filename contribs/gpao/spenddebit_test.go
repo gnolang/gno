@@ -99,13 +99,14 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 	park(t, good)
 
 	ocfg := config{
-		remote:       remote,
-		chainID:      cfg.Genesis.ChainID,
-		mnemonic:     integration.DefaultAccount_Seed,
-		gnoRoot:      gnoroot,
-		gasFee:       defaultGasFee,
-		gasWanted:    defaultGasWanted,
-		verifyBudget: time.Minute,
+		remote:        remote,
+		chainID:       cfg.Genesis.ChainID,
+		mnemonic:      integration.DefaultAccount_Seed,
+		gnoRoot:       gnoroot,
+		gasFee:        defaultGasFee,
+		gasWanted:     defaultGasWanted,
+		verifyBudget:  time.Minute,
+		prepareBudget: defaultPrepareBudget,
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
@@ -201,9 +202,10 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 		gnoRoot:  gnoroot,
 		// Underpriced on purpose: one ugnot for a whole enable, on a chain that
 		// asks one per 1000 gas.
-		gasFee:       "1ugnot",
-		gasWanted:    defaultGasWanted,
-		verifyBudget: time.Minute,
+		gasFee:        "1ugnot",
+		gasWanted:     defaultGasWanted,
+		verifyBudget:  time.Minute,
+		prepareBudget: defaultPrepareBudget,
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
