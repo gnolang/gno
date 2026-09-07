@@ -1,6 +1,9 @@
-# Park 2 packages, one dependent to the other. Ensure the oracle is able to
-# enable a package which has chain-only (not present in examples initially)
-# dependent packages.
+# A package importing a dependency that lives only on the chain, absent from the
+# oracle's examples/, is approved and goes live. The typecheck already resolved
+# such an import over RPC; a failure here means preprocess could not, and a
+# package the validator would enable was rejected for good, keyed on its bytes.
+#
+# **Red on master, green with the fix.**
 
 # Nothing is parked yet.
 gnokey query vm/qinertpaths -data ''
