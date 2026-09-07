@@ -11,6 +11,59 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+type fakeRelay struct{ grc20.Teller }
+
+func TestUserRelayRegistration(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaytoken"))
+	token, ledger := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	_, other := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	relay := ledger.UserTeller("gno.land/r/demo/defi/grc20reg")
+	for _, invalid := range []grc20.Teller{nil, &fakeRelay{relay}, other.UserTeller("gno.land/r/demo/defi/grc20reg"), ledger.UserTeller(cur.PkgPath()), ledger.CallerTeller(), token.ReadonlyTeller()} {
+		urequire.AbortsContains(t, cur, "invalid user relay", func() {
+			RegisterWithUserCalls(cross(cur), token, "", invalid)
+		})
+	}
+	key := RegisterWithUserCalls(cross(cur), token, "", relay)
+	uassert.True(t, Get(key) == token)
+	uassert.True(t, MustGet(key) == token)
+	ro := GetRegistry()
+	uassert.True(t, ro.Get(key).(*grc20.Token) == token)
+	for i := 0; i < ro.Size(); i++ {
+		k, v := ro.GetByIndex(i)
+		uassert.True(t, v.(*grc20.Token) == Get(k))
+	}
+	check := func(k string, v any) bool {
+		uassert.True(t, v.(*grc20.Token) == Get(k))
+		return false
+	}
+	ro.Iterate("", "", check)
+	ro.ReverseIterate("", "", check)
+	ro.IterateByOffset(0, ro.Size(), check)
+	ro.ReverseIterateByOffset(0, ro.Size(), check)
+	uassert.True(t, strings.Contains(Render(""), "Relay"))
+	urequire.AbortsContains(t, cur, "token already registered", func() {
+		RegisterWithUserCalls(cross(cur), token, "", relay)
+	})
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relayforeign"))
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
+		RegisterWithUserCalls(cross(cur), token, "", relay)
+	})
+}
+
+func TestUserRelayRejectsStaleFrame(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaystale"))
+	token, ledger := grc20.NewToken("Stale", "STALE", 4, 0, cur)
+	relay := ledger.UserTeller("gno.land/r/demo/defi/grc20reg")
+	stale := cur.Previous()
+	uassert.PanicsContains(t, cur, grc20.ErrSpoofedRealm.Error(), func() {
+		register(0, stale, token, "", relay)
+	})
+	to := testutils.TestAddress("bob")
+	uassert.ErrorIs(t, relay.Transfer(0, stale, to, 1), grc20.ErrSpoofedRealm)
+	uassert.ErrorIs(t, relay.Approve(0, stale, to, 1), grc20.ErrSpoofedRealm)
+	uassert.ErrorIs(t, relay.TransferFrom(0, stale, to, to, 1), grc20.ErrSpoofedRealm)
+}
+
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
 	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)

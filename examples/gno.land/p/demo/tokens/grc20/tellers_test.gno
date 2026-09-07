@@ -41,6 +41,27 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 		"foreign type embedding a canonical Teller must be rejected")
 }
 
+func TestIsCanonicalUserTeller(cur realm, t *testing.T) {
+	const host = "gno.land/r/demo/relay"
+	token, ledger := newTestToken("Relay", "RELAY", 4, 0, cur)
+	other, otherLedger := newTestToken("Relay", "RELAY", 4, 0, cur)
+	urequire.Equal(t, token.ID(), other.ID())
+	relay := ledger.UserTeller(host)
+	uassert.True(t, IsCanonicalUserTeller(relay, token, host))
+	var typedNil *fnTeller
+	for _, invalid := range []Teller{
+		nil, typedNil, &evilWrap{Teller: relay}, otherLedger.UserTeller(host),
+		ledger.UserTeller("gno.land/r/demo/other"), ledger.CallerTeller(), token.ReadonlyTeller(),
+		token.RealmTeller(0, cur), token.RealmSubTeller(0, cur, "sub"),
+		ledger.ImpersonateTeller(testutils.TestAddress("alice")),
+	} {
+		uassert.False(t, IsCanonicalUserTeller(invalid, token, host))
+	}
+	uassert.False(t, IsCanonicalUserTeller(relay, nil, host))
+	uassert.False(t, IsCanonicalUserTeller(relay, token, ""))
+	uassert.PanicsContains(t, cur, "host cannot be empty", func() { ledger.UserTeller("") })
+}
+
 func TestTeller(cur realm, t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
@@ -166,15 +187,13 @@ func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
 	uassert.Equal(t, int64(0), token.BalanceOf(bob))
 }
 
-// TestUserTellerHomeGuardIsLoadBearing fixes homeGuard as the field that keeps a
-// UserTeller confined to its token's realm, even when the immediate caller is a
-// real EOA that userOnly alone would admit.
-func TestUserTellerHomeGuardIsLoadBearing(cur realm, t *testing.T) {
+// EOA classification alone does not authorize a host holding a leaked teller.
+func TestUserTellerHostGuard(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
 
 	// A foreign realm whose immediate caller is the EOA alice: the empty prev
-	// pkgPath makes IsUserCall true, so userOnly passes and only homeGuard objects.
+	// pkgPath makes IsUserCall true, so only the host check objects.
 	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
 	foreign := testing.MakeRealm(
 		chain.PackageAddress("gno.land/r/demo/foreign"),
@@ -182,10 +201,14 @@ func TestUserTellerHomeGuardIsLoadBearing(cur realm, t *testing.T) {
 		eoa,
 	)
 
-	teller := ledger.UserTeller().(*fnTeller)
-	uassert.ErrorIs(t, teller.guardWrite(0, foreign), ErrForeignCallerTeller)
-
-	noHome := *teller
-	noHome.homeGuard = false
-	uassert.NoError(t, noHome.guardWrite(0, foreign))
+	teller := ledger.UserTeller("gno.land/r/demo/token").(*fnTeller)
+	uassert.ErrorIs(t, teller.guardWrite(0, foreign), ErrForeignUserTeller)
+	delegated := ledger.UserTeller(foreign.PkgPath()).(*fnTeller)
+	uassert.NoError(t, delegated.guardWrite(0, foreign))
+	for _, suffix := range []string{"evil", "/child"} {
+		wrongHost := testing.MakeRealm(foreign.Address(), foreign.PkgPath()+suffix, eoa)
+		uassert.ErrorIs(t, delegated.guardWrite(0, wrongHost), ErrForeignUserTeller)
+	}
+	sub := testing.MakeRealm(foreign.Address(), foreign.PkgPath()+"#sub", eoa)
+	uassert.NoError(t, delegated.guardWrite(0, sub))
 }

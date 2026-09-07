@@ -23,7 +23,7 @@ func init(cur realm) {
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4, 0, cur)
 	userTeller = privateLedger.CallerTeller()
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	grc20reg.Register(cross(cur), Token, "")
+	grc20reg.RegisterWithUserCalls(cross(cur), Token, "", privateLedger.UserTeller("gno.land/r/demo/defi/grc20reg"))
 }
 
 func TotalSupply() int64 {

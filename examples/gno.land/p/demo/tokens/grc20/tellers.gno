@@ -30,28 +30,41 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
-		homeGuard: true,
-		Token:     ledger.token,
+		host:  ledger.token.origRealm,
+		Token: ledger.token,
 	}
 }
 
-// UserTeller returns a Teller that acts on behalf of the immediate EOA caller.
-//
-// It is home-guarded and rejects non-user calls, limiting writes to MsgCall
-// interactions originating from a signing user.
-func (ledger *PrivateLedger) UserTeller() Teller {
+// UserTeller acts for direct EOA callers of hostPath. Use the token realm's
+// path for local entry points or a trusted relay's path to delegate to it.
+// The host is fixed at construction, includes its sub-realms, and cannot be
+// empty. A leaked teller cannot write from any other host.
+func (ledger *PrivateLedger) UserTeller(hostPath string) Teller {
 	if ledger == nil {
 		panic("Ledger cannot be nil")
+	}
+	host, _, _ := chain.SplitPkgSubPath(hostPath)
+	if host == "" {
+		panic("UserTeller host cannot be empty")
 	}
 
 	return &fnTeller{
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
-		homeGuard: true,
-		userOnly:  true,
-		Token:     ledger.token,
+		host:     host,
+		userOnly: true,
+		Token:    ledger.token,
 	}
+}
+
+// IsCanonicalUserTeller accepts only a UserTeller for this exact token and host.
+// Check before dispatching any methods on an externally supplied Teller.
+func IsCanonicalUserTeller(teller Teller, token *Token, hostPath string) bool {
+	ft, ok := teller.(*fnTeller)
+	host, _, _ := chain.SplitPkgSubPath(hostPath)
+	return ok && ft != nil && token != nil && ft.Token == token &&
+		ft.accountFn != nil && ft.userOnly && host != "" && ft.host == host
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
@@ -145,42 +158,23 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-// guardWrite confines a frame-relative (homeGuard) teller to the token's own
-// realm. Construction privacy stops a foreign realm from minting one;
-// this stops a minted one from travelling, which is what happens when a realm
-// legally builds a teller and then exports the value.
-//
-// The check is on the invoking realm's path alone — deliberately NOT on
-// whether the resolved actor is an end user. Keying on the actor only blocks
-// the case where the debited party is the signing user, which leaves two doors
-// open: a realm can be charged by a realm it calls, and TransferFrom resolves
-// the *spender* from the frame, so a realm reached from an honest hub spends
-// that hub's allowance against any owner who granted one. Both are the same
-// defect as the original one level up — frame-relative resolution means
-// whoever you call can act as you — and neither is reachable once the teller
-// only works at home.
-//
-// The host is compared after stripping any "#subpath" synthesized by
-// realm.Sub, so the token's own sub-realms are not falsely rejected.
-//
-// A foreign realm that needs to move a user's funds uses the ordinary route:
-// Approve, then RealmTeller().TransferFrom, which is eagerly bound to that
-// realm's own address and allowance-gated.
-//
-// A userOnly teller adds one further condition: the immediate caller must be an
-// EOA reached through MsgCall, so a realm that cross-calls the surface function
-// is refused rather than served as itself.
-//
-// The leading int keeps this a plain method.
+// guardWrite confines frame-relative tellers to their designated host and its
+// sub-realms. CallerTeller is bound to the token origin; UserTeller also rejects
+// callers other than direct MsgCall EOAs. Checking the host prevents a leaked
+// teller from debiting another host's callers or spending their allowances.
+// Transfer, Approve and TransferFrom verify IsCurrent before calling this.
 func (ft *fnTeller) guardWrite(_ int, rlm realm) error {
 	if ft.userOnly && !rlm.Previous().IsUserCall() {
 		return ErrNotUserCall
 	}
-	if !ft.homeGuard {
+	if ft.host == "" {
 		return nil
 	}
 	host, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
-	if host != ft.Token.origRealm {
+	if host != ft.host {
+		if ft.userOnly {
+			return ErrForeignUserTeller
+		}
 		return ErrForeignCallerTeller
 	}
 	return nil

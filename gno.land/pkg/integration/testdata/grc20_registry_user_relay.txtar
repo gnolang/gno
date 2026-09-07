@@ -1,0 +1,93 @@
+# Direct EOA relay uses the signer as owner/spender and persists across calls.
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/test/relaytoken $WORK/relaytoken
+loadpkg gno.land/r/test/relaymiddle $WORK/relaymiddle
+
+adduser alice
+adduser bob
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/relaytoken -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stdout OK
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/relaytoken.RELAY -args $bob_user_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/relaytoken.RELAY -args $bob_user_addr -args 300 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.RELAY -args $alice_user_addr -args $bob_user_addr -args 200 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$alice_user_addr\")"
+stdout '700 int64'
+gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$bob_user_addr\")"
+stdout '300 int64'
+gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '100 int64'
+
+# The remaining allowance, not the owner's balance, limits bob.
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.RELAY -args $alice_user_addr -args $bob_user_addr -args 101 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
+stderr 'insufficient allowance'
+
+# Ordinary registration does not delegate EOA authority.
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/relaytoken.PLAIN -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stderr 'token does not support user calls'
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/relaytoken.PLAIN -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stderr 'token does not support user calls'
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.PLAIN -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
+stderr 'token does not support user calls'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid tendermint_test alice $WORK/run.gno
+stderr 'user teller requires a direct EOA call'
+! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func Transfer -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func Approve -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func TransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$alice_user_addr\")"
+stdout '700 int64'
+gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '100 int64'
+
+-- run.gno --
+package main
+import "gno.land/r/demo/defi/grc20reg"
+func main(cur realm) {
+	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/relaytoken.RELAY", cur.Address(), 1)
+}
+
+-- relaytoken/gnomod.toml --
+module = "gno.land/r/test/relaytoken"
+gno = "0.9"
+
+-- relaytoken/relaytoken.gno --
+package relaytoken
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+var Token *grc20.Token
+var ledger *grc20.PrivateLedger
+func init(cur realm) {
+	Token, ledger = grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	grc20reg.RegisterWithUserCalls(cross(cur), Token, "", ledger.UserTeller("gno.land/r/demo/defi/grc20reg"))
+	plain, _ := grc20.NewToken("Plain", "PLAIN", 4, 1, cur)
+	grc20reg.Register(cross(cur), plain, "")
+}
+func Faucet(cur realm) {
+	if !cur.IsCurrent() { panic(grc20.ErrSpoofedRealm) }
+	if err := ledger.Mint(cur.Previous().Address(), 1000); err != nil { panic(err) }
+}
+
+-- relaymiddle/gnomod.toml --
+module = "gno.land/r/test/relaymiddle"
+gno = "0.9"
+
+-- relaymiddle/relaymiddle.gno --
+package relaymiddle
+import "gno.land/r/demo/defi/grc20reg"
+const key = "gno.land/r/test/relaytoken.RELAY"
+func Transfer(cur realm, to address) { grc20reg.UserTransfer(cross(cur), key, to, 1) }
+func Approve(cur realm, spender address) { grc20reg.UserApprove(cross(cur), key, spender, 1) }
+func TransferFrom(cur realm, owner, to address) { grc20reg.UserTransferFrom(cross(cur), key, owner, to, 1) }

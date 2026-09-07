@@ -19,5 +19,5 @@ import "gno.land/p/demo/tokens/grc20"
 var Token *grc20.Token
 
 func Try(cur realm) {
-	Token.UserTeller()
+	Token.UserTeller(cur.PkgPath())
 }
