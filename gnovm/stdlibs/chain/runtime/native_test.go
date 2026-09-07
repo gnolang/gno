@@ -288,8 +288,8 @@ func TestObjectID(t *testing.T) {
 				m.Realm.FinalizeRealmTransaction(tx)
 				timeBefore = m.Realm.Time
 			}
-			require.Equal(t, tt.want(), ObjectID(m, tv))
-			require.Equal(t, timeBefore, m.Realm.Time, "ObjectID must not advance the realm clock")
+			require.Equal(t, tt.want(), X_objectID(m, tv))
+			require.Equal(t, timeBefore, m.Realm.Time, "objectID must not advance the realm clock")
 		})
 	}
 }
@@ -310,7 +310,7 @@ func TestObjectIDIsUniquePerObject(t *testing.T) {
 
 	seen := make(map[string]int, len(objects))
 	for i, oo := range objects {
-		addr := ObjectID(m, gno.TypedValue{V: oo})
+		addr := X_objectID(m, gno.TypedValue{V: oo})
 		require.NotEmpty(t, addr)
 		require.NotContains(t, seen, addr, "objects %d and %d share an address", seen[addr], i)
 		seen[addr] = i
@@ -330,7 +330,7 @@ func TestObjectIDRejectsValuesWithoutIdentity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Panics(t, func() { ObjectID(m, tt.tv) })
+			require.Panics(t, func() { X_objectID(m, tt.tv) })
 		})
 	}
 }

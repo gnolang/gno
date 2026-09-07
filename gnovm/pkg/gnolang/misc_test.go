@@ -137,21 +137,28 @@ func TestObjectIDDerivePath(t *testing.T) {
 		},
 	}
 
+	// Both halves take part, so no two ids share an address, and none collides
+	// with the address its realm derives from its pkgpath. Checked here rather
+	// than in the subtests, which run in parallel and share nothing.
 	derived := make(map[string]string, len(tests))
 	for _, tt := range tests {
+		got := tt.oid.DerivePath()
+		if got == "" {
+			continue
+		}
+		require.NotContains(t, derived, got, "address collision with %q", derived[got])
+		require.NotEqual(t, DerivePkgBech32Addr("gno.land/r/demo/objectid").String(), got)
+		derived[got] = tt.name
+	}
+
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tt.oid.DerivePath()
 			require.Equal(t, tt.want, got)
 			// Deriving twice must not move.
 			require.Equal(t, got, tt.oid.DerivePath())
-			if got == "" {
-				return
-			}
-			// Both halves take part, so no two ids share an address, and none
-			// collides with the address its realm derives from its pkgpath.
-			require.NotContains(t, derived, got, "address collision with %q", derived[got])
-			derived[got] = tt.name
-			require.NotEqual(t, DerivePkgBech32Addr("gno.land/r/demo/objectid").String(), got)
 		})
 	}
 }
@@ -171,6 +178,8 @@ func TestDeriveObjectIDCryptoAddrRejectsIncompleteIDs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			require.Panics(t, func() { DeriveObjectIDCryptoAddr(tt.oid) })
 		})
 	}

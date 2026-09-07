@@ -140,7 +140,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 44.8ns
 	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 44.5ns
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
-	{Pkg: "chain/runtime", Fn: "ObjectID", Base: 200, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // not fitted: flat read + hex encode, priced above getSessionInfo's measured flat; a RefValue deref is charged by the store
+	{Pkg: "chain/runtime", Fn: "objectID", Base: 200, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // not fitted: flat read + hex encode, priced above getSessionInfo's measured flat; a RefValue deref is charged by the store
 	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 148.4ns
 	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 5.0ns
 	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.

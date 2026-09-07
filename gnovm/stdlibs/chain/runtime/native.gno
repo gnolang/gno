@@ -18,7 +18,9 @@ func ChainHeight() int64  // injected
 // Afterwards the address never changes. A copy is a different object with a
 // different address, so read it from the pointer you keep. It panics if v
 // carries no object, such as a plain int or a nil pointer.
-func ObjectID(v interface{}) string // injected
+func ObjectID(v interface{}) string { return objectID(v) }
+
+func objectID(v interface{}) string // injected
 
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.

@@ -210,7 +210,7 @@ import (
 // existing ID — it writes nothing and advances no realm clock — so the shift is
 // the stdlib source change alone; the zrealm_crossrealm38.gno filetest still
 // passes.
-const expectedCrossrealm38Hash = "8c67e4ed7036913f8d1d6dd2c2989f09139abf66c956dd036112f95ed4c03d07"
+const expectedCrossrealm38Hash = "0fbb1a00042f438be27f61798433c887bee8331310fcfc6bb2b02d1d88df979d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

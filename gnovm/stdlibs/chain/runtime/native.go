@@ -47,12 +47,17 @@ func ChainHeight(m *gno.Machine) int64 {
 // It reads that identity rather than issuing one — nothing here advances a
 // realm clock. An object is only stamped when the realm that owns it
 // finalizes, so a value the running call created reads "" until then.
-func ObjectID(m *gno.Machine, v gno.TypedValue) string {
-	if v.V == nil {
+// The parameter is an empty interface rather than a gno.TypedValue so that the
+// exported wrapper in native.gno still type-checks once transpiled to Go: there
+// the argument arrives as its own Go type. The binding hands the TypedValue
+// through untouched either way.
+func X_objectID(m *gno.Machine, v any) string {
+	tv, ok := v.(gno.TypedValue)
+	if !ok || tv.V == nil {
 		m.PanicString("value has no object identity")
 	}
 
-	oo := v.GetFirstObject(m.Store)
+	oo := tv.GetFirstObject(m.Store)
 	if oo == nil {
 		m.PanicString("value has no object identity")
 	}

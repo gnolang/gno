@@ -128,9 +128,25 @@ func (m *mapping) isGnoMachine(field *ast.Field) bool {
 	return m.isGnoType(field.Type, true, "Machine")
 }
 
-// isTypedValue checks whether e is type gno.TypedValue.
+// isTypedValue reports whether e is a Go type that receives the parameter's
+// gno.TypedValue as-is, with no Go2Gno/Gno2Go conversion: gno.TypedValue
+// itself, or an empty interface, which a TypedValue is assignable to.
+//
+// The empty-interface form exists for natives that need the object behind a
+// value rather than a copy of it (chain/runtime.objectID). It also keeps the
+// Go signature callable from transpiled Gno, which passes the argument as its
+// own Go type — a gno.TypedValue parameter cannot be written there.
 func (m *mapping) isTypedValue(e ast.Expr) bool {
-	return m.isGnoType(e, false, "TypedValue")
+	if m.isGnoType(e, false, "TypedValue") {
+		return true
+	}
+	switch t := e.(type) {
+	case *ast.InterfaceType:
+		return t.Methods == nil || len(t.Methods.List) == 0
+	case *ast.Ident:
+		return t.Name == "any"
+	}
+	return false
 }
 
 func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
