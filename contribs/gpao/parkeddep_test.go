@@ -140,13 +140,14 @@ func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 	tio.SetOut(commands.WriteNopCloser(io.Discard))
 	tio.SetErr(commands.WriteNopCloser(io.Discard))
 	ocfg := config{
-		remote:       remote,
-		chainID:      cfg.Genesis.ChainID,
-		mnemonic:     integration.DefaultAccount_Seed,
-		gnoRoot:      gnoroot,
-		gasFee:       defaultGasFee,
-		gasWanted:    defaultGasWanted,
-		verifyBudget: time.Minute,
+		remote:        remote,
+		chainID:       cfg.Genesis.ChainID,
+		mnemonic:      integration.DefaultAccount_Seed,
+		gnoRoot:       gnoroot,
+		gasFee:        defaultGasFee,
+		gasWanted:     defaultGasWanted,
+		verifyBudget:  time.Minute,
+		prepareBudget: defaultPrepareBudget,
 	}
 	o, err := newOracle(ocfg, tio)
 	require.NoError(t, err)
