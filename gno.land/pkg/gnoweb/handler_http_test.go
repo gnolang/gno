@@ -1994,6 +1994,29 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 }
 
+// newMetadataHandler serves one realm under the gno.land domain. The head
+// metadata tests below read what the page says about itself, so the domain
+// has to be set and the realm body does not matter.
+func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnoweb.AliasTarget) *gnoweb.HTTPHandler {
+	t.Helper()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(&gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   realmPath,
+		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+	}))
+	config.Meta.Domain = "gno.land"
+	if aliases != nil {
+		config.Aliases = aliases
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	return handler
+}
+
 // TestHTTPHandler_PageMetadata regresses the head metadata: every page
 // must carry a <title> and a canonical URL naming that page, so two
 // posts under one realm stop sharing one title, and the slots gnoweb
@@ -2001,16 +2024,7 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 func TestHTTPHandler_PageMetadata(t *testing.T) {
 	t.Parallel()
 
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
-	}
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	config.Meta.Domain = "gno.land"
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
+	handler := newMetadataHandler(t, "/r/mock/path", nil)
 
 	cases := []struct {
 		name string
@@ -2058,19 +2072,9 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 func TestHTTPHandler_AliasCanonical(t *testing.T) {
 	t.Parallel()
 
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/gnoland/pages",
-		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
-	}
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	config.Meta.Domain = "gno.land"
-	config.Aliases = map[string]gnoweb.AliasTarget{
+	handler := newMetadataHandler(t, "/r/gnoland/pages", map[string]gnoweb.AliasTarget{
 		"/about": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
-	}
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/about", nil)
 	rr := httptest.NewRecorder()
@@ -2089,16 +2093,7 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	t.Parallel()
 
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
-	}
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	config.Meta.Domain = "gno.land"
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
+	handler := newMetadataHandler(t, "/r/mock/path", nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
 	req.Header.Set("X-Forwarded-Host", "evil.example")
