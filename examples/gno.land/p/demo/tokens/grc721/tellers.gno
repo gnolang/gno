@@ -12,10 +12,9 @@ import (
 // holder, so it is only meaningful inside the token's own realm, where the
 // wrappers act for a caller who knowingly invoked the collection. Anywhere
 // else it is a confused deputy: a realm a user merely calls could move that
-// user's tokens. The *Token pointer is published — exported vars, the
-// collection facade, grc721reg — while the ledger is not, since NewToken hands
-// it to the creating realm and nowhere else. So a foreign realm cannot mint
-// one.
+// user's tokens. The *Token pointer is published — exported vars, grc721reg —
+// while the ledger is not, since NewToken hands it to the creating realm and
+// nowhere else. So a foreign realm cannot mint one.
 //
 // Construction privacy alone is not enough: a realm may legally build a teller
 // and then export the VALUE. The write methods therefore also verify that the

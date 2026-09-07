@@ -1,8 +1,8 @@
 // Package grc721reg discovers GRC721 collections by fqname (rlmPath.symbol).
 // Open to any extension via read-only ExtensionView; no concrete extension imports.
 //
-// Unlike grc20reg, which stores a concrete *grc20.Token, this registry stores the
-// caller's *collection.Collection and hands its ExtensionView values back out, so a
+// Like grc20reg, which stores a concrete *grc20.Token, this registry stores the
+// caller's *grc721.Token and hands its ExtensionView values back out, so a
 // consumer must type-assert an ExtensionView to a concrete view rather than trust the
 // interface. That is a deliberate trade: it keeps the registry open to extension kinds
 // it does not import, at the cost of moving the type check to the consumer.
@@ -10,10 +10,10 @@ package grc721reg
 
 import (
 	"chain"
+	"sort"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/demo/tokens/grc721/collection"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/avl/v0"
@@ -28,14 +28,9 @@ var registry = avl.NewTree() // fqname(rlmPath, symbol); one collection per real
 // Register keys the collection under rlmPath.symbol. Token must originate from
 // the registering realm (Token.ID prefix check).
 //
-// The caller's live *collection.Collection is stored rather than a copy, so an
+// The caller's live *grc721.Token is stored rather than a copy, so an
 // extension attached after registration still reaches consumers.
-func Register(cur realm, col *collection.Collection, slug string) string {
-	if col == nil {
-		panic("grc721reg: nil collection")
-	}
-
-	token := col.Token()
+func Register(cur realm, token *grc721.Token, slug string) string {
 	if token == nil {
 		panic("grc721reg: nil token")
 	}
@@ -81,7 +76,7 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 	// One attribute per kind: a joined list splits wrongly on a kind that
 	// carries the separator. Both bounds are checked here so an oversized set
 	// fails with the registry's name on it rather than the event's.
-	kinds := col.KindsUpTo(maxEventKinds + 1)
+	kinds := publishedKinds(token, maxEventKinds+1)
 	if len(kinds) > maxEventKinds {
 		panic("grc721reg: too many extensions")
 	}
@@ -94,7 +89,7 @@ func Register(cur realm, col *collection.Collection, slug string) string {
 		attrs = append(attrs, "extension", k)
 	}
 
-	registry.Set(key, col)
+	registry.Set(key, token)
 	chain.Emit(RegisterEvent, attrs...)
 
 	return key
@@ -124,16 +119,16 @@ func Unregister(cur realm, symbol string) string {
 	return key
 }
 
-func Get(key string) *collection.Collection {
+func Get(key string) *grc721.Token {
 	v := registry.Get(key)
 	if v == nil {
 		return nil
 	}
 
-	return v.(*collection.Collection)
+	return v.(*grc721.Token)
 }
 
-func MustGet(key string) *collection.Collection {
+func MustGet(key string) *grc721.Token {
 	v := Get(key)
 	if v == nil {
 		panic("grc721reg: unknown collection: " + key)
@@ -142,23 +137,25 @@ func MustGet(key string) *collection.Collection {
 	return v
 }
 
-func GetToken(key string) *grc721.Token {
-	v := Get(key)
-	if v == nil {
-		return nil
-	}
-
-	return v.Token()
-}
-
 func GetExtension(key, kind string) (grc721.ExtensionView, bool) {
 	v := Get(key)
 	if v == nil {
 		return nil, false
 	}
 
-	ext := v.Extension(kind)
+	ext := v.ExtensionView(kind)
 	return ext, ext != nil
+}
+
+// GetExtensionKinds lists the kinds the registered collection publishes a view
+// for, sorted. An unknown key yields an empty slice.
+func GetExtensionKinds(key string) []string {
+	v := Get(key)
+	if v == nil {
+		return []string{}
+	}
+
+	return publishedKinds(v, 0)
 }
 
 func GetRegistry() *rotree.ReadOnlyTree {
@@ -201,11 +198,11 @@ func renderIndex(path string) string {
 	s := ""
 
 	for _, item := range page.Items {
-		v := item.Value.(*collection.Collection)
+		v := item.Value.(*grc721.Token)
 		rlmPath, sym := fqname.Parse(item.Key)
 		rlmLink := fqname.RenderLink(rlmPath, sym)
 		infoLink := "/r/demo/defi/grc721reg:" + item.Key
-		s += "- " + md.Bold(md.EscapeText(v.Token().GetName())) + " - " + rlmLink +
+		s += "- " + md.Bold(md.EscapeText(v.GetName())) + " - " + rlmLink +
 			" - " + extensionBadges(v) + " - " + md.Link("info", infoLink) + "\n"
 	}
 
@@ -230,10 +227,10 @@ func renderCollection(key string) string {
 	rlmPath, sym := fqname.Parse(key)
 	rlmLink := fqname.RenderLink(rlmPath, sym)
 
-	s := ufmt.Sprintf("# %s\n", md.EscapeText(v.Token().GetName()))
-	s += "- symbol: " + md.Bold(md.EscapeText(v.Token().GetSymbol())) + "\n"
+	s := ufmt.Sprintf("# %s\n", md.EscapeText(v.GetName()))
+	s += "- symbol: " + md.Bold(md.EscapeText(v.GetSymbol())) + "\n"
 	s += ufmt.Sprintf("- realm: %s\n", rlmLink)
-	s += ufmt.Sprintf("- total supply: %d\n", v.Token().TotalSupply())
+	s += ufmt.Sprintf("- total supply: %d\n", v.TotalSupply())
 	s += "- extensions: " + extensionBadges(v) + "\n"
 
 	return s
@@ -245,8 +242,8 @@ func renderCollection(key string) string {
 // code span and inject markdown into the public index. InlineCode picks a
 // delimiter wide enough to outscan the content, which hand-escaping cannot do
 // inside a code span.
-func extensionBadges(v *collection.Collection) string {
-	kinds := v.KindsUpTo(maxBadges + 1)
+func extensionBadges(v *grc721.Token) string {
+	kinds := publishedKinds(v, maxBadges+1)
 	if len(kinds) == 0 {
 		return "_core only_"
 	}
@@ -269,6 +266,26 @@ func extensionBadges(v *collection.Collection) string {
 	}
 
 	return strings.TrimSpace(out)
+}
+
+// publishedKinds returns at most limit kinds that carry a read-view, sorted so
+// the output does not depend on the order the issuer registered them. The limit
+// bounds the walk before the filter, since the extension count is the issuer's
+// to choose. A non-positive limit walks every kind.
+func publishedKinds(token *grc721.Token, limit int) []string {
+	kinds := []string{}
+
+	for _, kind := range token.ExtensionKindsUpTo(limit) {
+		if token.ExtensionView(kind) == nil {
+			continue
+		}
+
+		kinds = append(kinds, kind)
+	}
+
+	sort.Strings(kinds)
+
+	return kinds
 }
 
 func validateSlug(slug string) {
