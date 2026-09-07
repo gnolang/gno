@@ -48,7 +48,7 @@ Give a Token two names, and let the VM own the one that has to be unique.
   keeps the readable `rlmPath.symbol` name, built from the IsCurrent-verified
   `rlm.PkgPath()`; `Token.ID()` returns `runtime.ObjectID(tok)`.
 - Every grc20 event carries both, as `token` and `id`. `grc20reg`'s `register`
-  event likewise carries `token_path` and `token_id`.
+  event likewise carries `token_key` (its own rlmPath.slug key) and `token_id`.
 
 Two tokens one realm issues under one symbol share a `token` and differ in
 `id`, which is exactly the ambiguity #6026 is about. Neither name is chosen by
@@ -102,8 +102,9 @@ registration, which is rare.
 
 - `grc20.NewToken`'s signature changes, `Token.ID()` changes from a path to a
   `g1` address, and every grc20 event gains an `id` attribute while `token`
-  becomes the path alone. `grc20reg` keys are untouched — still
-  `rlmPath.symbol`, now spelled `Token.TokenPath()`.
+  becomes the path alone. `grc20reg` keys move from `rlmPath.symbol` to
+  `rlmPath.slug` — the realm names its own entry, and a realm registering one
+  token can leave the slug empty and be found under its realm path.
 - `ID()` is a native call rather than a field read, and a copy of a `Token`
   struct is a different object with a different id. `ID()` keeps its pointer
   receiver for that reason.
