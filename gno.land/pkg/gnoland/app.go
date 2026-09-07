@@ -175,14 +175,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			// "Meters" means it does not nil the meter the way
-			// acck.GetParams does; the read still costs nothing here,
-			// because the ctx is on the infinite meter until
-			// auth.SetGasMeter runs. See checkCodePolicy.
+			// governed depth parameters.
+			//
+			// The read bypasses the gas meter, like acck.GetParams above
+			// and gpk.LastGasPrice. It runs before authAnteHandler calls
+			// auth.SetGasMeter, so on DeliverTx the ctx carries runTx's
+			// passthrough meter, not an infinite one: a charge here is
+			// dropped when SetGasMeter replaces the meter and runTx does
+			// ctx = newCtx, so it reaches neither the fee payer's
+			// GasWanted nor the block gas meter -- but it can still
+			// exhaust the passthrough's head limit (the gas remaining in
+			// the block) and burn the whole block tail. Bypassing only
+			// suppresses charging; the value read is identical.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three
@@ -192,7 +196,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx)
+			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
 			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
