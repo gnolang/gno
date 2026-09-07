@@ -53,6 +53,16 @@ package echo
 func Render(path string) string {
 	return path
 }
+-- echo/echo_test.gno --
+package echo
+
+import "testing"
+
+func TestRender(t *testing.T) {
+	if Render("hello") != "hello" {
+		t.Fatal("render")
+	}
+}
 -- charlie/gnomod.toml --
 module = "gno.land/r/probe/charlie"
 gno = "0.9"
