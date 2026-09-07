@@ -19,8 +19,14 @@ var (
 )
 
 func init(cur realm) {
-	// foo20 only ever creates this one token, so id 0 can't collide.
-	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4, 0, cur)
+	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4, cur)
+	userTeller = privateLedger.CallerTeller()
+	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
+	grc20reg.Register(cross(cur), Token, "")
+}
+
+func initToken(cur realm) {
+	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4, cur)
 	userTeller = privateLedger.CallerTeller()
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
 	grc20reg.Register(cross(cur), Token, "")
