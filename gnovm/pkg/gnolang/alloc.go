@@ -98,15 +98,11 @@ const (
 )
 
 const (
-	// StringValue is {Str string; B *stringBacking} (24 bytes, by value,
-	// boxed when stored in TypedValue.V) plus one 8-byte stringBacking per
-	// mint, shared by every copy and slice. The 16 dates from the plain
-	// Go-string representation; the real per-value footprint (24 + at most
-	// 8) still fits inside _allocHeap + 16 = 48, so the constant is kept:
-	// retuning it moves every string charge and alloc/gas golden, which is
-	// a deliberate consensus change to make separately, not a side effect
-	// of the representation. Bytes are counted separately via
-	// allocStringByte.
+	// StringValue: a 24-byte value boxed in TypedValue.V, plus one 8-byte
+	// stringBacking shared by all copies and slices of a mint. 48 covers
+	// the worst case (an uncopied string: 24 + 8) with _allocHeap's usual
+	// slack, so it is the intended charge. Bytes are counted separately
+	// via allocStringByte.
 	allocString     = _allocHeap + 16
 	allocStringByte = 1
 
