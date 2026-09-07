@@ -31,6 +31,15 @@ stdout '900 int64'
 gnokey query vm/qeval --data "gno.land/r/test/transfertok.BalanceOf(\"$bob_user_addr\")"
 stdout '100 int64'
 
+# A non-crossing callback has no fresh realm argument; its captured proxy frame
+# is stale after the token crossing and cannot authorize a user transfer.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func NonCrossingCallbackUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/transfertok.BalanceOf(\"$alice_user_addr\")"
+stdout '900 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transfertok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+
 # An intermediate realm cannot relay a public UserTeller Transfer call.
 ! gnokey maketx call -pkgpath gno.land/r/test/transfer_midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'user teller requires a direct EOA call'
@@ -85,6 +94,12 @@ func InvokeCallback(cur realm, callback func(cur realm) error) {
 	}
 }
 
+func InvokeNonCrossingCallback(cur realm, callback func() error) {
+	if err := callback(); err != nil {
+		panic(err)
+	}
+}
+
 func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
 
 -- proxy/gnomod.toml --
@@ -104,6 +119,12 @@ func UseUserTeller(cur realm, to address, amount int64) {
 
 func CallbackUserTeller(cur realm, to address) {
 	transfertok.InvokeCallback(cross(cur), func(cur realm) error {
+		return transfertok.Token.UserTeller().Transfer(0, cur, to, 1)
+	})
+}
+
+func NonCrossingCallbackUserTeller(cur realm, to address) {
+	transfertok.InvokeNonCrossingCallback(cross(cur), func() error {
 		return transfertok.Token.UserTeller().Transfer(0, cur, to, 1)
 	})
 }

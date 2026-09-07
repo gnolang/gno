@@ -33,6 +33,13 @@ stderr 'user teller requires a direct EOA call'
 gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
 stdout '300 int64'
 
+# A non-crossing callback has no fresh realm argument; its captured proxy frame
+# is stale after the token crossing and cannot authorize a user approval.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func NonCrossingCallbackUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
 # Alice cannot relay through another realm: the immediate previous frame is
 # approve_midx, not the direct MsgCall EOA.
 ! gnokey maketx call -pkgpath gno.land/r/test/approve_midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
@@ -75,6 +82,12 @@ func InvokeCallback(cur realm, callback func(cur realm) error) {
 	}
 }
 
+func InvokeNonCrossingCallback(cur realm, callback func() error) {
+	if err := callback(); err != nil {
+		panic(err)
+	}
+}
+
 -- proxy/gnomod.toml --
 module = "gno.land/r/test/proxy"
 gno = "0.9"
@@ -98,6 +111,12 @@ func StaleUserTeller(cur realm, spender address, amount int64) {
 
 func CallbackUserTeller(cur realm, spender address) {
 	approvetok.InvokeCallback(cross(cur), func(cur realm) error {
+		return approvetok.Token.UserTeller().Approve(0, cur, spender, 1)
+	})
+}
+
+func NonCrossingCallbackUserTeller(cur realm, spender address) {
+	approvetok.InvokeNonCrossingCallback(cross(cur), func() error {
 		return approvetok.Token.UserTeller().Approve(0, cur, spender, 1)
 	})
 }

@@ -40,6 +40,17 @@ stdout '100 int64'
 gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
 stdout '200 int64'
 
+# A non-crossing callback has no fresh realm argument; its captured proxy frame
+# is stale after the token crossing and cannot consume a user allowance.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func NonCrossingCallbackUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$alice_user_addr\")"
+stdout '900 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
 # Alice cannot use the identical relay to consume Bob's allowance: Alice becomes
 # the spender and Alice has no Alice->Alice allowance.
 ! gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
@@ -107,6 +118,12 @@ func InvokeCallback(cur realm, callback func(cur realm) error) {
 	}
 }
 
+func InvokeNonCrossingCallback(cur realm, callback func() error) {
+	if err := callback(); err != nil {
+		panic(err)
+	}
+}
+
 -- proxy/gnomod.toml --
 module = "gno.land/r/test/proxy"
 gno = "0.9"
@@ -130,6 +147,12 @@ func StaleUserTeller(cur realm, owner, to address, amount int64) {
 
 func CallbackUserTeller(cur realm, owner, to address, amount int64) {
 	transferfromtok.InvokeCallback(cross(cur), func(cur realm) error {
+		return transferfromtok.Token.UserTeller().TransferFrom(0, cur, owner, to, amount)
+	})
+}
+
+func NonCrossingCallbackUserTeller(cur realm, owner, to address, amount int64) {
+	transferfromtok.InvokeNonCrossingCallback(cross(cur), func() error {
 		return transferfromtok.Token.UserTeller().TransferFrom(0, cur, owner, to, amount)
 	})
 }
