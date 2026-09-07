@@ -35,7 +35,7 @@ func AssertOriginCall(m *gno.Machine) {
 
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(gno.StringValue{Str: s}) // panic text: untracked (ID zero)
+	tv.SetString(gno.StringValue{Str: s}) // panic text: untracked (nil backing)
 	return tv
 }
 

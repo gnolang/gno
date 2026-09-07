@@ -68,10 +68,13 @@ type StringValue struct {
   `CleanupTrackedStrings`, and the between-messages `clearStringTracking`
   are deleted. `Fork`/`Reset`/`ClearObjectCache` need no string handling.
 
-Both #4885 hazard classes are unrepresentable here: toolchain backing
-sharing is irrelevant (two mints get two backings even if Go shares the
-bytes), and address recycling cannot misattribute (there are no
-addresses).
+Both #4885 hazard classes are unrepresentable for *identity*: toolchain
+backing sharing is irrelevant (two mints get two backings even if Go
+shares the bytes), and address recycling cannot misattribute (there are
+no addresses). `Extent` is still `len(s)` at mint, not Go's retained
+array: `NewString` does not copy, so `sub + ""` (Go returns the operand)
+mints `Extent == len(sub)` while Go retains the whole source. Same as
+master, and a bounded undercount, not a misattribution.
 
 ### Struct-equality hazard
 
@@ -86,12 +89,20 @@ strings must not be introduced; compare `Str`.
 
 ### Behavior deltas vs #4885
 
-- Literal backings now recount post-GC (`alloc_0/1/7` +26/+16/+11 B).
-  Under #4885, literals minted by the *preprocess* allocator were tracked
-  in that allocator's ranges, so the runtime GC undercounted them as
-  headers; here identity travels in the value, so live literal bytes are
-  counted once wherever the mint happened. `alloc_13`/`alloc_13a`
-  (shared-backing dedup, slice-outlives-source) are unchanged.
+- Literal backings now recount post-GC. Under #4885, literals minted by
+  the *preprocess* allocator were tracked in that allocator's ranges, so
+  the runtime GC undercounted them as headers; here identity travels in
+  the value, so live literal bytes are counted once wherever the mint
+  happened. `alloc_0.gno` is the one pre-existing golden that moves
+  (+724 B, which includes two new vars added to the test); `alloc_13*`
+  and `alloc_14*` are new.
+- **Charges that go up, not just down.** Two consequences of faithful
+  retention accounting that realms near the alloc cap can feel: a slice
+  `s[i:j]` now keeps the source's full `Extent` in the recount even after
+  the source dies (a 32-byte slice of a 1 MB string recounts as
+  header + 1 MB, not header + 32 B; `alloc_13a`/`alloc_13b` pin this), and
+  a cold load now charges header + len for every string in the object,
+  where master charged nothing. Both match what Go actually retains.
 - `.grealm.Address()`/`.PkgPath()` and `address.String()` return the
   receiver's own StringValue (sharing its mint) instead of an untracked
   copy; `.grealm.String()`/`.Subpath()` and `.runtimeError.Error()` mint
@@ -146,5 +157,9 @@ The full catalog lives in #4885's ADR; deltas here:
   shape adds ~9% to the dedup pass and one 8-byte allocation per
   `NewString`, see alternative 4); `NewString` still cheaper than #4885's
   treap insert and clone at every size.
-- Three alloc filetest goldens updated (+11…26 B, literals); gas txtars
-  unchanged; full gnolang, sdk/vm, integration, and examples suites pass.
+- Goldens: `alloc_0.gno` (+724 B, see above) and six gas txtars move
+  (`compute_map_key_restore_gas`, `gc`, `gnokey_gasfee`, `simulate_gas`,
+  `stdlib_ibc_crypto_determinism`, `stdlib_restart_compare`), from string
+  charges on load and from folding those charges into one `Allocate`
+  call per object (allocation gas is a per-call table). Full gnolang,
+  sdk/vm, integration, and examples suites pass.

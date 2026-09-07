@@ -3350,8 +3350,8 @@ func typedRune(r rune) TypedValue {
 	return tv
 }
 
-// NOTE: does not allocate; used for panics. ID zero: untracked, the GC
-// recounts it as header only (see StringValue).
+// NOTE: does not allocate; used for panics. Nil backing: untracked, the
+// GC recounts it as header only (see StringValue).
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue{Str: s}

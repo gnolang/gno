@@ -265,8 +265,7 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	// realmSubpathOf/realmParentOf, which treat missing fields as zero.
 	// Mint the string fields through NewString so they are charged and
 	// tracked; a raw StringValue would be invisible to the GC's byte
-	// recount. pkgPath usually shares the realm path's backing, so
-	// NewString clones it to keep ranges disjoint.
+	// recount.
 	return newRealmHIVFromFields(alloc, []TypedValue{
 		{T: gAddressType, V: alloc.NewString(addr)},
 		{T: StringType, V: alloc.NewString(pkgPath)},
@@ -1549,8 +1548,8 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			// Pass the receiver's StringValue through: same backing, same
-			// backing, no untracked copy.
+			// Pass the receiver's StringValue through: same backing, no
+			// untracked copy.
 			m.PushValue(TypedValue{T: StringType, V: arg0.TV.V})
 		},
 	)
