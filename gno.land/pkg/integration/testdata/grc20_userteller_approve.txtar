@@ -26,6 +26,13 @@ stdout '300 int64'
 gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$bob_user_addr\",\"$alice_user_addr\")"
 stdout '200 int64'
 
+# A callback crossed from the token realm has a realm, rather than the signing
+# EOA, as its previous frame and cannot create a user-relative approval.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func CallbackUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
 # Alice cannot relay through another realm: the immediate previous frame is
 # approve_midx, not the direct MsgCall EOA.
 ! gnokey maketx call -pkgpath gno.land/r/test/approve_midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
@@ -62,6 +69,12 @@ func init(cur realm) {
 
 func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
 
+func InvokeCallback(cur realm, callback func(cur realm) error) {
+	if err := callback(cross(cur)); err != nil {
+		panic(err)
+	}
+}
+
 -- proxy/gnomod.toml --
 module = "gno.land/r/test/proxy"
 gno = "0.9"
@@ -81,6 +94,12 @@ func StaleUserTeller(cur realm, spender address, amount int64) {
 	if err := approvetok.Token.UserTeller().Approve(0, cur.Previous(), spender, amount); err != nil {
 		panic(err)
 	}
+}
+
+func CallbackUserTeller(cur realm, spender address) {
+	approvetok.InvokeCallback(cross(cur), func(cur realm) error {
+		return approvetok.Token.UserTeller().Approve(0, cur, spender, 1)
+	})
 }
 
 -- midx/gnomod.toml --

@@ -29,6 +29,17 @@ stdout '100 int64'
 gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
 stdout '200 int64'
 
+# A callback crossed from the token realm has a realm, rather than the signing
+# EOA, as its previous frame and cannot consume a user-relative allowance.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func CallbackUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$alice_user_addr\")"
+stdout '900 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
 # Alice cannot use the identical relay to consume Bob's allowance: Alice becomes
 # the spender and Alice has no Alice->Alice allowance.
 ! gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
@@ -90,6 +101,12 @@ func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
 
 func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
 
+func InvokeCallback(cur realm, callback func(cur realm) error) {
+	if err := callback(cross(cur)); err != nil {
+		panic(err)
+	}
+}
+
 -- proxy/gnomod.toml --
 module = "gno.land/r/test/proxy"
 gno = "0.9"
@@ -109,6 +126,12 @@ func StaleUserTeller(cur realm, owner, to address, amount int64) {
 	if err := transferfromtok.Token.UserTeller().TransferFrom(0, cur.Previous(), owner, to, amount); err != nil {
 		panic(err)
 	}
+}
+
+func CallbackUserTeller(cur realm, owner, to address, amount int64) {
+	transferfromtok.InvokeCallback(cross(cur), func(cur realm) error {
+		return transferfromtok.Token.UserTeller().TransferFrom(0, cur, owner, to, amount)
+	})
 }
 
 -- midx/gnomod.toml --
