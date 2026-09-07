@@ -21,7 +21,7 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))
@@ -34,21 +34,22 @@ func TestRegistry(cur realm, t *testing.T) {
 
 	expected = `# TestToken
 - symbol: **TST**
-- realm: [gno.land/r/demo/foo](/r/demo/foo).TST
+- realm: [gno.land/r/demo/foo](/r/demo/foo).mySlug
 - decimals: 4
 - total supply: 1234567
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)
 
-	// The registry keys by rlmPath.symbol, so a second token with the same
-	// symbol in the same realm is rejected even though its Token.ID() differs
-	// (the VM mints a distinct one). See TestRegisterRejectsOverwrite.
+	// The registry keys by rlmPath.slug, so a second token of the same realm
+	// gets its own entry under its own slug — the symbol plays no part in the
+	// key, and the two are told apart by Token.ID(). Reusing a slug is what is
+	// rejected; see TestRegisterRejectsOverwrite.
 	second, _ := grc20.NewToken("Second", "TST", 4, cur)
 	urequire.NotEqual(t, token.ID(), second.ID()) // ids are decoupled from symbol
-	urequire.AbortsContains(t, cur, "token already registered", func() {
-		Register(cross(cur), second, "")
-	})
+	secondKey := Register(cross(cur), second, "otherSlug")
+	urequire.NotEqual(t, key, secondKey)
+	urequire.Equal(t, "Second", Get(secondKey).GetName())
 }
 
 // TestRegistryLookupGrantsNoSpendAuthority pins the property that replaced the
@@ -146,14 +147,18 @@ func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	})
 }
 
-func TestRegisterRejectsAliasedTokenPaths(cur realm, t *testing.T) {
+// A slug names an entry, not a token, so a realm may list one token under
+// several slugs. The entries are distinct keys pointing at the same object,
+// which reports the same Token.ID() through each of them.
+func TestRegisterAllowsOneTokenUnderSeveralSlugs(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_alias"))
 	token, _ := grc20.NewToken("Aliased Token", "ALIAS", 4, cur)
-	Register(cross(cur), token, "first")
 
-	urequire.AbortsContains(t, cur, "token already registered", func() {
-		Register(cross(cur), token, "second")
-	})
+	first := Register(cross(cur), token, "first")
+	second := Register(cross(cur), token, "second")
+
+	urequire.NotEqual(t, first, second)
+	urequire.Equal(t, Get(first).ID(), Get(second).ID())
 }
 
 func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {

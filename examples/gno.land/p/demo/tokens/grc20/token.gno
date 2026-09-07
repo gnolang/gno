@@ -37,7 +37,7 @@ import (
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug). That registry keys by
-// rlmPath.symbol, which is exactly Token.TokenPath().
+// rlmPath.slug, which is neither of the names below.
 //
 // Every successful call emits a NewToken event carrying both names. Because
 // Token's fields are unexported, NewToken is the only way a Token can come into
@@ -157,6 +157,11 @@ func (tok *Token) TokenPath() string {
 // HasAddr checks if the specified address is a known account in the bank.
 func (tok Token) HasAddr(addr address) bool {
 	return tok.ledger.hasAddr(addr)
+}
+
+// OrigRealm returns the original realm of the token.
+func (tok Token) OrigRealm() string {
+	return tok.origRealm
 }
 
 // BalanceOf returns the balance of the specified address.

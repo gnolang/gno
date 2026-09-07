@@ -29,10 +29,12 @@ func TestTokenRegistration(cur realm, t *testing.T) {
 	token, _ := grc20.NewToken("Test Token", "TEST", 6, cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
-	// The registry keys by the token path. The token's own id is its object
-	// address, which RegisterToken's crossing has already stamped, and it is
-	// unrelated to that key.
-	uassert.Equal(t, token.TokenPath(), key, "registry key should be the token path")
+	// The registry keys by rlmPath.slug, so the key is the slug this hub passed
+	// on the caller's behalf — not the token path, and not the id. The id is
+	// the token's object address, which RegisterToken's crossing has already
+	// stamped.
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.test_token", key, "registry key should be rlmPath.slug")
+	uassert.NotEqual(t, token.TokenPath(), key, "the token path is not the registry key")
 	uassert.NotEqual(t, "", token.ID(), "token should be stamped once the crossing returned")
 	uassert.NotEqual(t, key, token.ID(), "the registry key is not the token id")
 
