@@ -1054,15 +1054,15 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// pageEncodeFlags selects the URL parts that identify one page: the path, the
-// arguments, the view marker and the query. Two URLs differing in any of them
-// render different content. weburl.GnoURL.EncodeWebURL covers the same parts.
-const pageEncodeFlags = weburl.EncodePath | weburl.EncodeArgs | weburl.EncodeWebQuery | weburl.EncodeQuery
-
 // pageTitle names the page before the domain, because a browser tab and a
-// search result both truncate the tail.
+// search result both truncate the tail. The parts encoded are the ones that
+// identify a page — path, arguments, view marker and query — so two URLs
+// rendering different content never produce one title. EncodeWebURL, which
+// canonicalURL uses, covers the same set.
 func (h *HTTPHandler) pageTitle(gnourl *weburl.GnoURL) string {
-	page := strings.TrimSuffix(gnourl.Encode(pageEncodeFlags|weburl.EncodeNoEscape), "/")
+	page := strings.TrimSuffix(gnourl.Encode(
+		weburl.EncodePath|weburl.EncodeArgs|weburl.EncodeWebQuery|weburl.EncodeQuery|weburl.EncodeNoEscape,
+	), "/")
 	switch {
 	case page == "":
 		return h.Static.Domain
@@ -1082,11 +1082,7 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if h.Static.Domain == "" {
 		return ""
 	}
-	page := gnourl.EncodeWebURL()
-	if page == "" {
-		page = "/"
-	}
-	return "https://" + h.Static.Domain + page
+	return "https://" + h.Static.Domain + gnourl.EncodeWebURL()
 }
 
 // setHeadMetadata fills the <head> slots gnoweb declares, from the URL alone.
@@ -1094,9 +1090,10 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 // content, which is permissionless, and gno#3910 has not settled which of it
 // gnoweb may repeat.
 func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL) {
+	canonical := h.canonicalURL(gnourl)
 	indexData.HeadData.Title = h.pageTitle(gnourl)
-	indexData.HeadData.Canonical = h.canonicalURL(gnourl)
-	indexData.HeadData.URL = indexData.HeadData.Canonical
+	indexData.HeadData.Canonical = canonical
+	indexData.HeadData.URL = canonical
 }
 
 // setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.
