@@ -71,6 +71,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
+| `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
 
 ### About `--status-listen`
@@ -122,6 +123,13 @@ process (`gpao verify-one`, invoked by gpao on itself), which is what lets the
 budget be *enforced* — a goroutine cannot be killed, but a process can. It also
 means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
+
+The budget starts once the child has everything the compile needs: the standard
+library and examples from disk, and every chain package the candidate imports,
+fetched from the node. Fetching is the oracle's cost, not the package's, so a
+slow node cannot turn a fast package into an overrun. That phase has a budget
+of its own, `--prepare-budget`, a minute by default; its expiry leaves the
+package pending as unavailable rather than counting against it.
 
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what

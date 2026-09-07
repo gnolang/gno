@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"testing"
 
@@ -156,4 +157,34 @@ func TestRPCGetterCaching(t *testing.T) {
 	callsAfterHit := calls
 	g.GetMemPackage(pkgPath)
 	assert.Equal(t, callsAfterHit, calls, "cached package must not be re-queried")
+}
+
+// TestRPCGetterSeparatesTransportFaultsFromAbsence pins the two kinds of
+// failure fetch used to collapse. "The chain answered: nothing at this path"
+// is evidence about the import; "the chain could not be asked" is evidence
+// about the operator's network -- and only the first may become a verdict.
+func TestRPCGetterSeparatesTransportFaultsFromAbsence(t *testing.T) {
+	t.Run("a fault the closure marked is remembered as no answer", func(t *testing.T) {
+		g := &rpcGetter{
+			cache: map[string]*std.MemPackage{},
+			qfile: func(string) ([]byte, error) {
+				return nil, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+			},
+		}
+		require.Nil(t, g.GetMemPackage("gno.land/p/x"))
+		require.ErrorIs(t, g.transportErr, errResolverUnavailable,
+			"the getter must remember that its answer was no answer at all")
+	})
+
+	t.Run("a chain that answered 'not found' is a miss, not a fault", func(t *testing.T) {
+		g := &rpcGetter{
+			cache: map[string]*std.MemPackage{},
+			qfile: func(string) ([]byte, error) {
+				return nil, errors.New("package is not available") // the node ran the query
+			},
+		}
+		require.Nil(t, g.GetMemPackage("gno.land/p/x"))
+		require.NoError(t, g.transportErr,
+			"an import the chain genuinely lacks IS evidence about the package")
+	})
 }

@@ -1,0 +1,72 @@
+# A package submitted after genesis parks, and only the oracle can activate it.
+# Submission enters through validator 0; the oracle reads and writes through
+# validator 2; the result must be visible on all three.
+#
+# One read waits: the first render of the enabled package, which cannot answer
+# until the oracle has verified, approved and broadcast it. Everything else
+# reads settled state. The writes are one-shot because -broadcast=true is
+# BroadcastTxCommit, which returns only once the transaction is in a committed
+# block, so there is nothing left to wait for afterwards.
+
+# Nothing is parked yet.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/echo'
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/echo -pkgpath gno.land/r/probe/echo $USER_NAME
+
+# Parked: listed as inert, and neither readable nor callable.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/probe/echo'
+! gnokey query vm/qfile -data gno.land/r/probe/echo
+stdout 'is not available'
+
+# -start-height 1 makes the oracle scan from the chain's start rather than
+# from its own tip at startup: the submission above already committed before
+# this line runs, so the default (watch from here on) would never see it.
+gpao start -remote $RPC_ADDR_2 -start-height 1
+
+# Live on every validator, not only the one the oracle talked to.
+# -remote is a root flag and must precede the subcommand. Each validator is
+# asked to answer for itself. Committing a block takes a quorum, not the whole
+# set, so validator 0 serving the enabled package says nothing about whether
+# validator 2 has applied that height yet -- and "live on every validator" is
+# the claim this scenario exists to make.
+#
+# A render of a package that is not live fails rather than answering empty, so
+# the exit status is enough to wait on and no output gate is needed.
+eventually gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/probe/echo:hello'
+stdout 'hello'
+eventually gnokey -remote $RPC_ADDR_1 query vm/qrender -data 'gno.land/r/probe/echo:hello'
+stdout 'hello'
+eventually gnokey -remote $RPC_ADDR_2 query vm/qrender -data 'gno.land/r/probe/echo:hello'
+stdout 'hello'
+
+# The oracle drained the queue rather than leaving work behind. Not a poll:
+# the renders above already proved the enabling tx committed, and that is what
+# moved echo out of the inert key space. The wait covers the transient blip
+# only, as everywhere else here.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/echo'
+
+# The oracle's own typed verdict, not just the on-chain effect.
+#
+# Gated rather than one-shot: status.record for an approval runs after enable()
+# returns, and enable() broadcasts with BroadcastTxCommit, so the package is
+# renderable before the board says so. http_get's second argument is checked per
+# attempt, which is what makes waiting on it mean anything.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approved"'
+stdout '"status":"approved"'
+
+-- cluster --
+validators: 3
+code-submission-policy: inert
+-- echo/gnomod.toml --
+module = "gno.land/r/probe/echo"
+gno = "0.9"
+
+-- echo/echo.gno --
+package echo
+
+func Render(path string) string {
+	return path
+}

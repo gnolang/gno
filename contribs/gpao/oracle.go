@@ -653,11 +653,13 @@ func candidateKey(mpkg *std.MemPackage) string {
 // simply have lost a race with whatever else the box was doing.
 var errVerifyBudget = errors.New("verify budget exceeded")
 
-// errVerifyUnavailable reports that the verifier itself could not run -- a fork
-// failure, a signal death, a missing binary. Distinguished from both a rejection
-// and an overrun: it says nothing about the package, and unlike an overrun it
-// does not count against the per-path allowance, because the operator's box
-// misbehaving is not the submitter's doing.
+// errVerifyUnavailable reports that verification could not produce evidence --
+// a fork failure, a signal death, a missing binary, or the child running fine
+// while the network under its import resolver failed. Distinguished from both
+// a rejection and an overrun: it says
+// nothing about the package, and unlike an overrun it does not count against
+// the per-path allowance, because the operator's box misbehaving is not the
+// submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
 // defaultBlockMaxGas is the fallback ceiling on a gas-wanted, used until the
