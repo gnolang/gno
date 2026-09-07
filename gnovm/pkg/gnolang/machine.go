@@ -1659,6 +1659,49 @@ const (
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
 
+	// Quadratic charge for the O(n^2) parse of a big numeric literal in
+	// doOpEval (INT big.Int.SetString; FLOAT parseBigdecLiteral), applied
+	// before the parse so a huge literal OOGs first:
+	// gas = (digits/10)^2 * slope / 10.
+	//
+	// Both values are local estimates, not reference-HW fits. Two-point fit of
+	// BenchmarkOpEval_BigIntLit_* / BigDecLit_* over 16000->64000 digits
+	// (M1 Pro, go1.25.9, ns/op(pure)) gives local slopes ~0.8-1.1 (INT) and
+	// ~1.6-1.9 (FLOAT); scaled by a measured M->Xeon factor of 1.8-1.95x that
+	// implies ~1.4-2.1 and ~2.9-3.7 on the reference box. So 4 sits above its
+	// estimate, while 2 sits at the top of its own: INT is priced at about its
+	// measured cost, not conservatively. Derivation, caveats and the basis
+	// rules are in the ADR -- read it before changing either number.
+	//
+	// TODO(calibration): these are the only two slopes in this block without a
+	// native reference-HW fit. On the gas-table reference box run:
+	//   for n in 1000 4000 16000 64000; do   # fitted series
+	//     for b in BigIntLit BigDecLit; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	//   for n in 16000 64000; do             # controls, these two sizes only
+	//     for b in BigIntLitHex BigDecLitInt; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	// One benchmark per process is not optional: run together, they inflated
+	// BigIntLit_64000 by ~2x. No build tag needed.
+	OpCPUSlopeBigIntSetString = 2 // INT big.Int.SetString
+	// FLOAT is 2x INT because parseBigdecLiteral does ~2x the work, measured.
+	// The MantExp > ratOverflowBits guard bounds the parsed value's
+	// *magnitude*, not the literal's length: a frac-shaped literal like
+	// 1.999...9 stays near 1 in magnitude however long it is, so the guard
+	// never fires and big.Rat.SetString runs on the full mantissa on top of
+	// big.ParseFloat. (Int-shaped 999...9 crosses the guard at 1234 digits and
+	// skips the Rat pass.) BenchmarkOpEval_BigDecLit_* vs BigDecLitInt_*
+	// isolates that second pass at ~2x, holding to the ~750K delivery ceiling.
+	// So 4 is the calibrated ratio, NOT headroom -- do not lower it to match
+	// big.ParseFloat timed on its own, which sees only half the op.
+	OpCPUSlopeBigDecParse = 4
+
 	// ComputeMapKey per-call constant: bookkeeping cost of one
 	// ComputeMapKey invocation (header bytes, type-ID append, switch
 	// dispatch). Recursive paths (array of element type, struct) charge
