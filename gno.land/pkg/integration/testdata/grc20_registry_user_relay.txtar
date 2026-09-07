@@ -6,7 +6,7 @@
 loadpkg gno.land/p/demo/tokens/grc20
 loadpkg gno.land/r/demo/defi/grc20reg
 loadpkg gno.land/r/test/trusttok $WORK/trusttok
-loadpkg gno.land/r/test/untrusted $WORK/untrusted
+loadpkg gno.land/r/test/proxy $WORK/proxy
 loadpkg gno.land/r/test/midx $WORK/midx
 
 adduser alice
@@ -61,7 +61,7 @@ stdout '200000 int64'
 
 # A public UserTeller permits any realm directly called by an EOA to construct
 # a user-relative teller. The caller, rather than the relay, is the actor.
-gnokey maketx call -pkgpath gno.land/r/test/untrusted -func UseUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stdout OK
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
 stdout '649999 int64'
@@ -69,7 +69,7 @@ gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_add
 stdout '350001 int64'
 
 # Bob reaches the same relay but can move only Bob's own balance, not Alice's.
-gnokey maketx call -pkgpath gno.land/r/test/untrusted -func UseUserTeller -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
 stdout OK
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
 stdout '650000 int64'
@@ -125,7 +125,7 @@ stderr 'user teller requires a direct EOA call'
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/public.gno
 stderr 'user teller requires a direct EOA call'
 
-! gnokey maketx call -pkgpath gno.land/r/test/untrusted -func StaleFrame -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func StaleFrame -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'rlm does not match the current crossing frame'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
 stdout '650000 int64'
@@ -177,7 +177,7 @@ package midx
 
 import (
 	"gno.land/r/demo/defi/grc20reg"
-	"gno.land/r/test/untrusted"
+	"gno.land/r/test/proxy"
 )
 
 // Relay is a non-EOA intermediate realm: it cross-calls the registry helper, so
@@ -189,7 +189,7 @@ func Relay(cur realm) {
 // RelayUserTeller exercises the same intermediate-frame attack against the
 // public Token.UserTeller path directly.
 func RelayUserTeller(cur realm) {
-	untrusted.UseUserTeller(cross(cur), cur.Address())
+	proxy.UseUserTeller(cross(cur), cur.Address())
 }
 
 func RelayApprove(cur realm, spender address) {
@@ -201,20 +201,19 @@ func RelayTransferFrom(cur realm, owner, to address) {
 }
 
 func RelayUserApprove(cur realm, spender address) {
-	untrusted.UserApprove(cross(cur), spender)
+	proxy.UserApprove(cross(cur), spender)
 }
 
 func RelayUserTransferFrom(cur realm, owner, to address) {
-	untrusted.UserTransferFrom(cross(cur), owner, to)
+	proxy.UserTransferFrom(cross(cur), owner, to)
 }
 
--- untrusted/gnomod.toml --
-module = "gno.land/r/test/untrusted"
+-- proxy/gnomod.toml --
+module = "gno.land/r/test/proxy"
 gno = "0.9"
 
--- untrusted/untrusted.gno --
-package untrusted
-
+-- proxy/proxy.gno --
+package proxy
 import "gno.land/r/test/trusttok"
 
 func UseUserTeller(cur realm, to address) {

@@ -1,0 +1,134 @@
+# Public Token.UserTeller TransferFrom scenarios. The immediate MsgCall EOA is
+# always the spender; a proxy cannot select a different spender or relay that
+# authority through another realm.
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/transferfromtok $WORK/transferfromtok
+loadpkg gno.land/r/test/proxy $WORK/proxy
+loadpkg gno.land/r/test/transferfrom_midx $WORK/midx
+
+adduser alice
+adduser bob
+
+gnoland start
+
+# Alice owns 1,000 tokens and grants Bob a 300-token allowance.
+gnokey maketx call -pkgpath gno.land/r/test/transferfromtok -func Seed -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
+# Bob can spend Alice's allowance through the proxy because Bob is the direct
+# EOA and therefore the resolved spender.
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -args $bob_user_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$alice_user_addr\")"
+stdout '900 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
+# Alice cannot use the identical relay to consume Bob's allowance: Alice becomes
+# the spender and Alice has no Alice->Alice allowance.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
+# An intermediate realm cannot relay a public UserTeller TransferFrom call.
+! gnokey maketx call -pkgpath gno.land/r/test/transferfrom_midx -func RelayUserTeller -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
+# A realm value from the prior frame is stale and cannot spend an allowance.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func StaleUserTeller -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$alice_user_addr\")"
+stdout '900 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
+# MsgRun is not a direct MsgCall EOA and cannot consume the allowance.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob $WORK/run/transferfrom.gno
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/transferfromtok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200 int64'
+
+-- transferfromtok/gnomod.toml --
+module = "gno.land/r/test/transferfromtok"
+gno = "0.9"
+
+-- transferfromtok/transferfromtok.gno --
+package transferfromtok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("TransferFrom Token", "TFM", 4, 0, cur)
+}
+
+func Seed(cur realm, spender address) {
+	owner := cur.Previous().Address()
+	if err := adm.Mint(owner, 1_000); err != nil {
+		panic(err)
+	}
+	if err := adm.Approve(owner, spender, 300); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
+
+-- proxy/gnomod.toml --
+module = "gno.land/r/test/proxy"
+gno = "0.9"
+
+-- proxy/proxy.gno --
+package proxy
+
+import "gno.land/r/test/transferfromtok"
+
+func UseUserTeller(cur realm, owner, to address, amount int64) {
+	if err := transferfromtok.Token.UserTeller().TransferFrom(0, cur, owner, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func StaleUserTeller(cur realm, owner, to address, amount int64) {
+	if err := transferfromtok.Token.UserTeller().TransferFrom(0, cur.Previous(), owner, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+-- midx/gnomod.toml --
+module = "gno.land/r/test/transferfrom_midx"
+gno = "0.9"
+
+-- midx/midx.gno --
+package transferfrom_midx
+
+import "gno.land/r/test/proxy"
+
+func RelayUserTeller(cur realm, owner address) {
+	proxy.UseUserTeller(cross(cur), owner, cur.Address(), 1)
+}
+
+-- run/transferfrom.gno --
+package main
+
+import "gno.land/r/test/proxy"
+
+func main(cur realm) {
+	proxy.UseUserTeller(cross(cur), cur.Address(), cur.Address(), 1)
+}

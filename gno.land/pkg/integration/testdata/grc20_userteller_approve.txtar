@@ -1,0 +1,106 @@
+# Public Token.UserTeller Approve scenarios. A direct MsgCall EOA may approve
+# from its own account through any realm, while an intermediate realm and MsgRun
+# cannot create an approval on the user's behalf.
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/approvetok $WORK/approvetok
+loadpkg gno.land/r/test/proxy $WORK/proxy
+loadpkg gno.land/r/test/approve_midx $WORK/midx
+
+adduser alice
+adduser bob
+
+gnoland start
+
+# Alice's direct call through the proxy approves Bob from Alice only.
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $bob_user_addr -args 300 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
+# Bob reaches the identical relay but creates Bob->Alice, not Alice->Bob.
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -args 200 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$bob_user_addr\",\"$alice_user_addr\")"
+stdout '200 int64'
+
+# Alice cannot relay through another realm: the immediate previous frame is
+# approve_midx, not the direct MsgCall EOA.
+! gnokey maketx call -pkgpath gno.land/r/test/approve_midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
+# A realm value from the prior frame is stale and cannot be used for approval.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func StaleUserTeller -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
+# MsgRun reaches the relay from an ephemeral realm and is rejected too.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/approve.gno
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/approvetok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300 int64'
+
+-- approvetok/gnomod.toml --
+module = "gno.land/r/test/approvetok"
+gno = "0.9"
+
+-- approvetok/approvetok.gno --
+package approvetok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var Token *grc20.Token
+
+func init(cur realm) {
+	Token, _ = grc20.NewToken("Approve Token", "APR", 4, 0, cur)
+}
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
+
+-- proxy/gnomod.toml --
+module = "gno.land/r/test/proxy"
+gno = "0.9"
+
+-- proxy/proxy.gno --
+package proxy
+
+import "gno.land/r/test/approvetok"
+
+func UseUserTeller(cur realm, spender address, amount int64) {
+	if err := approvetok.Token.UserTeller().Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func StaleUserTeller(cur realm, spender address, amount int64) {
+	if err := approvetok.Token.UserTeller().Approve(0, cur.Previous(), spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+-- midx/gnomod.toml --
+module = "gno.land/r/test/approve_midx"
+gno = "0.9"
+
+-- midx/midx.gno --
+package approve_midx
+
+import "gno.land/r/test/proxy"
+
+func RelayUserTeller(cur realm) {
+	proxy.UseUserTeller(cross(cur), cur.Address(), 1)
+}
+
+-- run/approve.gno --
+package main
+
+import "gno.land/r/test/proxy"
+
+func main(cur realm) {
+	proxy.UseUserTeller(cross(cur), cur.Address(), 1)
+}
