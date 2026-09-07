@@ -568,12 +568,17 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		// See copyValueWithRefs — child Objects become RefValue slots
 		// in the serialized amino bytes, and internalRefSize accounts
-		// for those slots.
+		// for those slots. internalStringSize accounts for the strings
+		// fillTypesOfValue re-mints below.
 		ss := oo.GetShallowSize()
 		rs := internalRefSize(oo)
+		strs := internalStringSize(oo)
 		// Allocate atomically: one Allocate call prevents GC from
-		// intercepting between shallow-size and RefValue-size accounting.
-		ds.alloc.Allocate(ss + rs)
+		// intercepting between the partial charges, and nothing after
+		// the cacheObjects insert below may allocate — a GC there would
+		// evict this not-yet-reachable object and a later GetObject
+		// would materialize a second copy of the same ObjectID.
+		ds.alloc.Allocate(ss + rs + strs)
 
 		if debugAssert {
 			if oo.GetObjectID() != oid {

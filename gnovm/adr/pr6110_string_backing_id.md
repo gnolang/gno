@@ -53,6 +53,16 @@ type StringValue struct {
   re-mint through `fillTypesOfValue`. Only the partition "which values
   came from the same mint" matters, and that is a pure function of VM
   execution — identical on every node regardless of pointer values.
+- **Loads charge strings atomically.** `fillTypesOfValue` re-mints each
+  loaded string's identity with `mintString` and allocates nothing; the
+  bytes are summed by `internalStringSize` (a walk that mirrors the fill)
+  and folded into `loadObjectSafe`'s single `Allocate(ss + rs + strs)`,
+  which runs before the object enters `cacheObjects`. An `Allocate` after
+  that insert can trigger GC while the object is cached but not yet
+  reachable; `GarbageCollectObjectCache` then evicts it and the next
+  `GetObject` for the same ObjectID decodes a second copy, breaking
+  one-object-per-ID. `gc_load_evicts_object.txtar` reproduces the
+  eviction on chain and pins the fix.
 - The allocator keeps **no string state**: the treap
   (`string_ranges.go`), `trackString` clone-on-overlap, the pin,
   `CleanupTrackedStrings`, and the between-messages `clearStringTracking`

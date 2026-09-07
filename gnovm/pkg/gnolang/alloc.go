@@ -516,6 +516,15 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
+	return mintString(s)
+}
+
+// mintString builds a tracked StringValue without charging. Only two
+// callers may use it: NewString (which charges first) and the load path,
+// where loadObjectSafe has already charged every string of the object via
+// internalStringSize in its single atomic Allocate — the fill must not
+// allocate, or a GC in mid-load evicts the half-registered object.
+func mintString(s string) StringValue {
 	if len(s) == 0 {
 		return StringValue{} // "" carries no backing; untracked
 	}
@@ -932,6 +941,62 @@ func internalRefSize(val Value) int64 {
 		// do nothing
 	case TypeValue:
 		// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val,
+		))
+	}
+	return size
+}
+
+// internalStringSize returns what NewString would charge for every string
+// fillTypesOfValue re-mints when val is loaded: allocString plus one
+// allocStringByte per byte, for each StringValue in the same slots the
+// fill walks (inline values only; child Objects are RefValue slots and
+// pay when they load). loadObjectSafe folds it into its single atomic
+// Allocate so the fill itself never allocates. Keep in step with
+// fillTypesOfValue.
+func internalStringSize(val Value) int64 {
+	var size int64
+	tv := func(tv *TypedValue) { size += internalStringSize(tv.V) }
+	switch v := val.(type) {
+	case StringValue:
+		size += allocString + allocStringByte*int64(len(v.Str))
+	case PointerValue:
+		if v.Base == nil {
+			tv(v.TV)
+		}
+	case *ArrayValue:
+		for i := range v.List {
+			tv(&v.List[i])
+		}
+	case *SliceValue:
+		size += internalStringSize(v.Base)
+	case *StructValue:
+		for i := range v.Fields {
+			tv(&v.Fields[i])
+		}
+	case *BoundMethodValue:
+		if v.Func != nil {
+			size += internalStringSize(v.Func)
+		}
+		tv(&v.Receiver)
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			tv(&cur.Key)
+			tv(&cur.Value)
+		}
+	case *PackageValue:
+		size += internalStringSize(v.Block)
+	case *Block:
+		for i := range v.Values {
+			tv(&v.Values[i])
+		}
+	case *HeapItemValue:
+		tv(&v.Value)
+	case nil, *FuncValue, RefValue, BigintValue, BigdecValue, DataByteValue, TypeValue:
+		// no inline strings walked by the fill
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %T",

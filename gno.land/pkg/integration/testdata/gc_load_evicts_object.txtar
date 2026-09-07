@@ -1,0 +1,71 @@
+# A GC fired inside loadObjectSafe's fillTypesOfValue must not evict the
+# object being loaded: that object is in cacheObjects but carries
+# lastGCCycle 0 and is not yet reachable from any root, so
+# GarbageCollectObjectCache drops it and a second RefValue to the same
+# ObjectID materializes a second, independent in-memory object.
+#
+# Shape: A and B are two distinct slices over ONE backing array object, so
+# each resolves that ObjectID through its own GetObject call. The array holds
+# many small strings, so fillTypesOfValue makes one Allocate per element:
+# that is what widens the window from ~200 bytes (a single big string) to the
+# sum of the element charges.
+#
+# Probe parks the allocator's gross byte counter just under maxAllocTx
+# (500 MB) with one large DEAD allocation, so a GC fires part-way through the
+# fill while the live set stays small enough for both copies to survive.
+# Healthy: &A[0] == &B[0]. Evicted: two arrays, so DUPLICATED.
+
+loadpkg gno.land/r/gcload $WORK/r/gcload
+
+gnoland start -no-parallel
+
+# Persist the shared array (200k single-char strings).
+gnokey maketx call -pkgpath gno.land/r/gcload -func Init -args 200000 -gas-fee 100000000ugnot -gas-wanted 3_000_000_000 -max-deposit 4000000000ugnot -simulate skip -chainid tendermint_test test1
+stdout OK!
+
+# Cold-load it with the heap parked just under the cap. One object per
+# ObjectID, so both slices must land on the same array.
+gnokey maketx call -pkgpath gno.land/r/gcload -func Probe -args 486000000 -gas-fee 100000000ugnot -gas-wanted 3_000_000_000 -simulate skip -chainid tendermint_test test1
+stdout SAME
+! stdout DUPLICATED
+
+-- r/gcload/gnomod.toml --
+module = "gno.land/r/gcload"
+gno = "0.9"
+
+-- r/gcload/gcload.gno --
+package gcload
+
+// A and B are separate slice headers over the same backing array object,
+// so each one resolves that object through its own store lookup.
+var (
+	A []string
+	B []string
+)
+
+func Init(cur realm, n int) {
+	s := make([]string, n)
+	for i := range s {
+		s[i] = "x"
+	}
+	A = s
+	B = s
+}
+
+// burn allocates and drops: it moves the allocator's gross counter without
+// adding to the live set, so the GC it provokes still has room to succeed.
+func burn(n int) {
+	_ = make([]byte, n)
+}
+
+// Probe returns SAME when both slices resolve to one array object, and
+// DUPLICATED when the load produced two.
+func Probe(cur realm, ballast int) string {
+	burn(ballast)
+	pa := &A[0]
+	pb := &B[0]
+	if pa == pb {
+		return "SAME"
+	}
+	return "DUPLICATED"
+}

@@ -105,7 +105,9 @@ func TestStringSliceOutlivesSource(t *testing.T) {
 }
 
 // TestFillTypesOfValue_StringTracking: a loaded StringValue (no backing
-// on the wire) is re-minted through the store's allocator.
+// on the wire) is re-minted with identity but charged nothing by the fill
+// itself — loadObjectSafe pays for it up front via internalStringSize, so
+// no GC can run while the object is cached but unreachable.
 func TestFillTypesOfValue_StringTracking(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
@@ -125,8 +127,38 @@ func TestFillTypesOfValue_StringTracking(t *testing.T) {
 	if sv.B == nil || sv.B.Extent != int64(len(body)) {
 		t.Errorf("loaded string not minted: B=%v", sv.B)
 	}
-	if _, bytes := st.GetAllocator().Status(); bytes == 0 {
-		t.Error("loaded string was not charged")
+	if _, bytes := st.GetAllocator().Status(); bytes != 0 {
+		t.Errorf("fill must not allocate (GC window): charged %d", bytes)
+	}
+}
+
+// TestInternalStringSize: the up-front charge equals what NewString would
+// have charged for every string the fill re-mints, across the inline slots
+// the fill walks; RefValue children and FuncValue captures are not counted.
+func TestInternalStringSize(t *testing.T) {
+	str := func(s string) TypedValue { return TypedValue{T: StringType, V: StringValue{Str: s}} }
+	charge := func(ss ...string) int64 {
+		var n int64
+		for _, s := range ss {
+			n += allocString + allocStringByte*int64(len(s))
+		}
+		return n
+	}
+	inner := &StructValue{Fields: []TypedValue{str("in-struct"), {T: IntType}}}
+	obj := &Block{Values: []TypedValue{
+		str("a"),
+		str(""), // empty still pays the header, as NewString does
+		{T: &PointerType{Elt: StringType}, V: PointerValue{TV: &TypedValue{T: StringType, V: StringValue{Str: "via-ptr"}}}},
+		{T: &SliceType{Elt: StringType}, V: &SliceValue{Base: &ArrayValue{List: []TypedValue{str("s0"), str("s1")}}}},
+		{T: &RefType{ID: "x"}, V: RefValue{}}, // child object: pays when it loads
+		{T: &RefType{ID: "y"}, V: inner},
+	}}
+	want := charge("a", "", "via-ptr", "s0", "s1", "in-struct")
+	if got := internalStringSize(obj); got != want {
+		t.Fatalf("internalStringSize: got %d, want %d", got, want)
+	}
+	if got := internalStringSize(&FuncValue{Captures: []TypedValue{str("captured")}}); got != 0 {
+		t.Errorf("captures must not be counted (own HeapItemValue objects): got %d", got)
 	}
 }
 

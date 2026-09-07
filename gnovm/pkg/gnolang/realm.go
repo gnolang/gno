@@ -1892,7 +1892,11 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	case nil: // do nothing
 		return cv
 	case StringValue:
-		return store.GetAllocator().NewString(cv.Str)
+		// Re-mint identity only. The bytes were charged up front by
+		// loadObjectSafe (internalStringSize); allocating here would let
+		// a GC run while the object sits in cacheObjects unreachable and
+		// evict it mid-load (see gc_load_evicts_object.txtar).
+		return mintString(cv.Str)
 	case BigintValue: // do nothing
 		return cv
 	case BigdecValue: // do nothing
