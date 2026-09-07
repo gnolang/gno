@@ -203,10 +203,12 @@ Two details, in case the numbers look odd in the logs. The probe transaction is
 signed at the chain's block ceiling rather than at the fallback, because a
 simulation executes under the transaction's own limit — sizing the probe at the
 fallback would run out of gas on exactly the packages worth measuring. And the
-ceiling is read from the chain rather than assumed — asked for with each poll
-until the chain answers — because the ante REFUSES a gas-wanted above
-`Block.MaxGas` instead of clamping it, so a chain configured below the tm2
-default would reject every probe.
+ceiling is read from the chain rather than assumed — asked for before any block
+is followed, and retried on the poll interval until the chain answers — because
+the ante REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a
+chain configured below the tm2 default would reject every probe. An unreachable
+node delays the first approval instead of settling the ceiling wrongly for the
+life of the process.
 
 A failed simulation does not withhold approval. It logs, falls back, and sends.
 Refusing to approve whenever the query path is unavailable would let anyone who
