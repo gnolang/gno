@@ -220,12 +220,17 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 	io.Println()
 	io.Println("Starting in-memory node for genesis replay...")
 
+	// Time from here, not from n.Start(): InitChain runs *inside*
+	// NewInMemoryNode, via node.NewNode -> doHandshake -> ReplayBlocks ->
+	// InitChainSync. Starting the clock after it returns reported 2s for a
+	// genesis that took 414s to load, which is how a quadratic in genesis
+	// balance loading went unnoticed. See gnolang/gno#6133.
+	start := time.Now()
+
 	n, err := gnoland.NewInMemoryNode(nodeLogger, nodeCfg)
 	if err != nil {
 		return fmt.Errorf("creating in-memory node: %w", err)
 	}
-
-	start := time.Now()
 
 	if err := n.Start(); err != nil {
 		return fmt.Errorf("starting node: %w", err)
