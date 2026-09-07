@@ -125,7 +125,6 @@ var (
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
 	ErrForeignCallerTeller   = errors.New("caller teller is confined to the token's own realm")
-	ErrForeignUserTeller     = errors.New("user teller is confined to its designated host")
 	ErrNotUserCall           = errors.New("user teller requires a direct EOA call (MsgCall)")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
@@ -155,9 +154,8 @@ const (
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
-	// host confines frame-relative tellers to one host and its sub-realms.
-	// Empty only for readonly and fixed-account tellers.
-	host string
+	// homeGuard confines CallerTeller to the token origin and its sub-realms.
+	homeGuard bool
 	// userOnly restricts the teller to immediate EOA callers via MsgCall.
 	userOnly bool
 	*Token

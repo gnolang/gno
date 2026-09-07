@@ -19,7 +19,7 @@ var (
 
 func init(cur realm) {
 	token, ledger = grc20.NewToken("UserToken", "USER", 4, 0, cur)
-	teller = ledger.UserTeller(cur.PkgPath())
+	teller = token.UserTeller()
 }
 
 func Transfer(cur realm, to address, amount int64) error {
@@ -44,8 +44,15 @@ func main(cur realm) {
 	grc20_user_teller_leak.Store(cross(cur), teller)
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	foreignErr := grc20_user_teller_leak.Transfer(cross(cur), bob, 1)
-	println("foreign teller:", foreignErr.Error())
+	if err := grc20_user_teller_leak.Transfer(cross(cur), bob, 1); err != nil {
+		panic(err)
+	}
+	// A stored teller resolves each call's EOA, not the first user who used it.
+	testing.SetRealm(testing.NewUserRealm(bob))
+	if err := grc20_user_teller_leak.Transfer(cross(cur), alice, 1); err != nil {
+		panic(err)
+	}
+	testing.SetRealm(testing.NewUserRealm(alice))
 	if err := Transfer(cross(cur), bob, 100); err != nil {
 		panic("direct EOA transfer rejected: " + err.Error())
 	}
@@ -69,31 +76,12 @@ func main(cur realm) {
 
 	println("final balances:", token.BalanceOf(alice), token.BalanceOf(bob), token.BalanceOf(carol))
 
-	// The same constructor delegates to a foreign host. Even the token's own
-	// realm cannot use that teller: the designated host, not possession, matters.
-	teller = ledger.UserTeller("gno.land/r/tests/grc20_user_teller_leak")
-	grc20_user_teller_leak.Store(cross(cur), teller)
-	testing.SetRealm(testing.NewUserRealm(alice))
-	println("wrong host transfer:", Transfer(cross(cur), bob, 1).Error())
-	println("wrong host approve:", Approve(cross(cur), spender, 1).Error())
-	println("wrong host transferFrom:", TransferFrom(cross(cur), alice, bob, 1).Error())
-	if err := grc20_user_teller_leak.Transfer(cross(cur), bob, 1); err != nil {
-		panic("designated host rejected: " + err.Error())
-	}
-	println("delegated balances:", token.BalanceOf(alice), token.BalanceOf(bob))
-	println("unchanged spender allowance:", token.Allowance(alice, spender))
 }
 
 // Output:
-// foreign teller: user teller is confined to its designated host
 // eoa balances: 775 100 125
 // remaining allowance: 175
 // realm approve: user teller requires a direct EOA call (MsgCall)
 // realm transferFrom: user teller requires a direct EOA call (MsgCall)
 // unchanged allowance: 175
 // final balances: 775 100 125
-// wrong host transfer: user teller is confined to its designated host
-// wrong host approve: user teller is confined to its designated host
-// wrong host transferFrom: user teller is confined to its designated host
-// delegated balances: 774 101
-// unchanged spender allowance: 175

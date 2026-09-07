@@ -11,19 +11,10 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-type fakeRelay struct{ grc20.Teller }
-
-func TestUserRelayRegistration(cur realm, t *testing.T) {
+func TestRegistryTokenViews(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaytoken"))
-	token, ledger := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
-	_, other := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
-	relay := ledger.UserTeller("gno.land/r/demo/defi/grc20reg")
-	for _, invalid := range []grc20.Teller{nil, &fakeRelay{relay}, other.UserTeller("gno.land/r/demo/defi/grc20reg"), ledger.UserTeller(cur.PkgPath()), ledger.CallerTeller(), token.ReadonlyTeller()} {
-		urequire.AbortsContains(t, cur, "invalid user relay", func() {
-			RegisterWithUserCalls(cross(cur), token, "", invalid)
-		})
-	}
-	key := RegisterWithUserCalls(cross(cur), token, "", relay)
+	token, _ := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	key := Register(cross(cur), token, "")
 	uassert.True(t, Get(key) == token)
 	uassert.True(t, MustGet(key) == token)
 	ro := GetRegistry()
@@ -41,27 +32,6 @@ func TestUserRelayRegistration(cur realm, t *testing.T) {
 	ro.IterateByOffset(0, ro.Size(), check)
 	ro.ReverseIterateByOffset(0, ro.Size(), check)
 	uassert.True(t, strings.Contains(Render(""), "Relay"))
-	urequire.AbortsContains(t, cur, "token already registered", func() {
-		RegisterWithUserCalls(cross(cur), token, "", relay)
-	})
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relayforeign"))
-	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
-		RegisterWithUserCalls(cross(cur), token, "", relay)
-	})
-}
-
-func TestUserRelayRejectsStaleFrame(cur realm, t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaystale"))
-	token, ledger := grc20.NewToken("Stale", "STALE", 4, 0, cur)
-	relay := ledger.UserTeller("gno.land/r/demo/defi/grc20reg")
-	stale := cur.Previous()
-	uassert.PanicsContains(t, cur, grc20.ErrSpoofedRealm.Error(), func() {
-		register(0, stale, token, "", relay)
-	})
-	to := testutils.TestAddress("bob")
-	uassert.ErrorIs(t, relay.Transfer(0, stale, to, 1), grc20.ErrSpoofedRealm)
-	uassert.ErrorIs(t, relay.Approve(0, stale, to, 1), grc20.ErrSpoofedRealm)
-	uassert.ErrorIs(t, relay.TransferFrom(0, stale, to, to, 1), grc20.ErrSpoofedRealm)
 }
 
 func TestRegistry(cur realm, t *testing.T) {
@@ -104,17 +74,9 @@ func TestRegistry(cur realm, t *testing.T) {
 	})
 }
 
-// TestRegistryLookupGrantsNoSpendAuthority pins the property that replaced the
-// former Transfer/Approve/TransferFrom wrappers: a registry lookup yields a
-// *Token, and a *Token alone carries no authority to debit anybody. The
-// frame-relative teller is reachable only from the ledger, which never leaves
-// the token's own realm, so this realm cannot act on behalf of its caller —
-// that shape was the confused deputy.
-//
-// The supported route for a realm that must move a user's funds is the one
-// exercised below: the user grants an allowance, and the realm spends it as
-// itself through a RealmTeller, which is eagerly bound to its own address.
-func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
+// RealmTeller uses the consuming realm's allowance; UserTeller is a separate
+// path for direct EOA callers, exercised by the integration tests.
+func TestRegistryRealmTellerSpendsAllowance(cur realm, t *testing.T) {
 	const (
 		tokenPath    = "gno.land/r/demo/token"
 		consumerPath = "gno.land/r/demo/grc20reg_consumer"

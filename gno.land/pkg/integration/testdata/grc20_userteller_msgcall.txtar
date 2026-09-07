@@ -89,19 +89,19 @@ func Faucet(cur realm) {
 }
 
 func Transfer(cur realm, to address, amount int64) {
-	if err := adm.UserTeller(cur.PkgPath()).Transfer(0, cur, to, amount); err != nil {
+	if err := Token.UserTeller().Transfer(0, cur, to, amount); err != nil {
 		panic(err)
 	}
 }
 
 func Approve(cur realm, spender address, amount int64) {
-	if err := adm.UserTeller(cur.PkgPath()).Approve(0, cur, spender, amount); err != nil {
+	if err := Token.UserTeller().Approve(0, cur, spender, amount); err != nil {
 		panic(err)
 	}
 }
 
 func TransferFrom(cur realm, owner, to address, amount int64) {
-	if err := adm.UserTeller(cur.PkgPath()).TransferFrom(0, cur, owner, to, amount); err != nil {
+	if err := Token.UserTeller().TransferFrom(0, cur, owner, to, amount); err != nil {
 		panic(err)
 	}
 }

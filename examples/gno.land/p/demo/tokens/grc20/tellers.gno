@@ -30,41 +30,29 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
-		host:  ledger.token.origRealm,
-		Token: ledger.token,
+		homeGuard: true,
+		Token:     ledger.token,
 	}
 }
 
-// UserTeller acts for direct EOA callers of hostPath. Use the token realm's
-// path for local entry points or a trusted relay's path to delegate to it.
-// The host is fixed at construction, includes its sub-realms, and cannot be
-// empty. A leaked teller cannot write from any other host.
-func (ledger *PrivateLedger) UserTeller(hostPath string) Teller {
-	if ledger == nil {
-		panic("Ledger cannot be nil")
-	}
-	host, _, _ := chain.SplitPkgSubPath(hostPath)
-	if host == "" {
-		panic("UserTeller host cannot be empty")
+// UserTeller acts for the immediate EOA caller of any realm, without a host
+// restriction. Every write verifies the live frame and requires a direct MsgCall.
+// Transfer and Approve use that EOA as owner; TransferFrom uses it as spender.
+//
+// Calling a realm directly therefore lets that realm transfer or approve the
+// user's tokens without a prior allowance. Users must trust the realm they call.
+func (tok *Token) UserTeller() Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
 	}
 
 	return &fnTeller{
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
-		host:     host,
 		userOnly: true,
-		Token:    ledger.token,
+		Token:    tok,
 	}
-}
-
-// IsCanonicalUserTeller accepts only a UserTeller for this exact token and host.
-// Check before dispatching any methods on an externally supplied Teller.
-func IsCanonicalUserTeller(teller Teller, token *Token, hostPath string) bool {
-	ft, ok := teller.(*fnTeller)
-	host, _, _ := chain.SplitPkgSubPath(hostPath)
-	return ok && ft != nil && token != nil && ft.Token == token &&
-		ft.accountFn != nil && ft.userOnly && host != "" && ft.host == host
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
@@ -158,24 +146,18 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-// guardWrite confines frame-relative tellers to their designated host and its
-// sub-realms. CallerTeller is bound to the token origin; UserTeller also rejects
-// callers other than direct MsgCall EOAs. Checking the host prevents a leaked
-// teller from debiting another host's callers or spending their allowances.
+// guardWrite requires direct MsgCall users for UserTeller and confines
+// CallerTeller to the token's own realm, including its sub-realms.
 // Transfer, Approve and TransferFrom verify IsCurrent before calling this.
 func (ft *fnTeller) guardWrite(_ int, rlm realm) error {
 	if ft.userOnly && !rlm.Previous().IsUserCall() {
 		return ErrNotUserCall
 	}
-	if ft.host == "" {
-		return nil
-	}
-	host, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
-	if host != ft.host {
-		if ft.userOnly {
-			return ErrForeignUserTeller
+	if ft.homeGuard {
+		origin, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
+		if origin != ft.Token.origRealm {
+			return ErrForeignCallerTeller
 		}
-		return ErrForeignCallerTeller
 	}
 	return nil
 }

@@ -1,93 +1,279 @@
-# Direct EOA relay uses the signer as owner/spender and persists across calls.
+# grc20reg's user-relative helpers (UserTransfer/UserApprove/UserTransferFrom)
+# let a signing user write against any registered token as that user. An
+# intermediate realm and MsgRun are rejected because the registry's immediate
+# caller must be a direct MsgCall EOA.
+
+loadpkg gno.land/p/demo/tokens/grc20
 loadpkg gno.land/r/demo/defi/grc20reg
-loadpkg gno.land/r/test/relaytoken $WORK/relaytoken
-loadpkg gno.land/r/test/relaymiddle $WORK/relaymiddle
+loadpkg gno.land/r/test/trusttok $WORK/trusttok
+loadpkg gno.land/r/test/untrusted $WORK/untrusted
+loadpkg gno.land/r/test/midx $WORK/midx
 
 adduser alice
 adduser bob
+
 gnoland start
 
 gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
 gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/test/relaytoken -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stdout OK
+stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/relaytoken.RELAY -args $bob_user_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
+# alice funds herself in the registered token.
+gnokey maketx call -pkgpath gno.land/r/test/trusttok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stdout OK
-gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/relaytoken.RELAY -args $bob_user_addr -args 300 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stdout OK
-gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.RELAY -args $alice_user_addr -args $bob_user_addr -args 200 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
-stdout OK
-gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$alice_user_addr\")"
-stdout '700 int64'
-gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$bob_user_addr\")"
-stdout '300 int64'
-gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
-stdout '100 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
 
-# The remaining allowance, not the owner's balance, limits bob.
-! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.RELAY -args $alice_user_addr -args $bob_user_addr -args 101 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
+# UserTransfer through the registry: the actor is the signing user, alice.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/trusttok.TRUST -args $bob_user_addr -args 250000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '750000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '250000 int64'
+
+# UserApprove through the registry: alice grants bob an allowance on her own funds.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/trusttok.TRUST -args $bob_user_addr -args 300000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300000 int64'
+
+# UserTransferFrom through the registry: bob spends the allowance, as himself.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args $bob_user_addr -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
+
+# alice cannot spend the allowance she granted bob: the direct signing EOA is
+# the spender, and the failed attempt leaves bob's allowance and balances intact.
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'insufficient allowance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
 
-# Ordinary registration does not delegate EOA authority.
-! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/relaytoken.PLAIN -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stderr 'token does not support user calls'
-! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/relaytoken.PLAIN -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stderr 'token does not support user calls'
-! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransferFrom -args gno.land/r/test/relaytoken.PLAIN -args $alice_user_addr -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
-stderr 'token does not support user calls'
 
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid tendermint_test alice $WORK/run.gno
-stderr 'user teller requires a direct EOA call'
-! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func Transfer -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stderr 'user teller requires a direct EOA call'
-! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func Approve -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test alice
-stderr 'user teller requires a direct EOA call'
-! gnokey maketx call -pkgpath gno.land/r/test/relaymiddle -func TransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test bob
-stderr 'user teller requires a direct EOA call'
-gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.BalanceOf(\"$alice_user_addr\")"
-stdout '700 int64'
-gnokey query vm/qeval --data "gno.land/r/test/relaytoken.Token.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
-stdout '100 int64'
+# A public UserTeller permits any realm directly called by an EOA to construct
+# a user-relative teller. The caller, rather than the relay, is the actor.
+gnokey maketx call -pkgpath gno.land/r/test/untrusted -func UseUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '649999 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350001 int64'
 
--- run.gno --
-package main
-import "gno.land/r/demo/defi/grc20reg"
-func main(cur realm) {
-	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/relaytoken.RELAY", cur.Address(), 1)
-}
+# Bob reaches the same relay but can move only Bob's own balance, not Alice's.
+gnokey maketx call -pkgpath gno.land/r/test/untrusted -func UseUserTeller -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
 
--- relaytoken/gnomod.toml --
-module = "gno.land/r/test/relaytoken"
+# An intermediate realm cannot relay a user write because the registry's
+# immediate caller is the realm rather than the signing EOA.
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func Relay -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+# The same public UserTeller is also rejected when an EOA first calls a realm
+# that cross-calls the foreign relay.
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/drain.gno
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/trusttok.TRUST -args $alice_user_addr -args 999999999 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stderr 'insufficient balance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+
+# Every user write rejects intermediate realms and MsgRun without changing state.
+
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayApprove -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayTransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserApprove -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserTransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/approve.gno
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/transferfrom.gno
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/public.gno
+stderr 'user teller requires a direct EOA call'
+
+! gnokey maketx call -pkgpath gno.land/r/test/untrusted -func StaleFrame -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'rlm does not match the current crossing frame'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
+
+-- trusttok/gnomod.toml --
+module = "gno.land/r/test/trusttok"
 gno = "0.9"
 
--- relaytoken/relaytoken.gno --
-package relaytoken
+-- trusttok/trusttok.gno --
+package trusttok
+
 import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/r/demo/defi/grc20reg"
 )
-var Token *grc20.Token
-var ledger *grc20.PrivateLedger
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
 func init(cur realm) {
-	Token, ledger = grc20.NewToken("Relay", "RELAY", 4, 0, cur)
-	grc20reg.RegisterWithUserCalls(cross(cur), Token, "", ledger.UserTeller("gno.land/r/demo/defi/grc20reg"))
-	plain, _ := grc20.NewToken("Plain", "PLAIN", 4, 1, cur)
-	grc20reg.Register(cross(cur), plain, "")
+	Token, adm = grc20.NewToken("TrustTok", "TRUST", 4, 0, cur)
+	grc20reg.Register(cross(cur), Token, "")
 }
+
 func Faucet(cur realm) {
 	if !cur.IsCurrent() { panic(grc20.ErrSpoofedRealm) }
-	if err := ledger.Mint(cur.Previous().Address(), 1000); err != nil { panic(err) }
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
 }
 
--- relaymiddle/gnomod.toml --
-module = "gno.land/r/test/relaymiddle"
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
+
+
+-- midx/gnomod.toml --
+module = "gno.land/r/test/midx"
 gno = "0.9"
 
--- relaymiddle/relaymiddle.gno --
-package relaymiddle
+-- midx/midx.gno --
+package midx
+
+import (
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/test/untrusted"
+)
+
+// Relay is a non-EOA intermediate realm: it cross-calls the registry helper, so
+// the registry's immediate caller is midx (a realm), not the signing user.
+func Relay(cur realm) {
+	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
+}
+
+// RelayUserTeller exercises the same intermediate-frame attack against the
+// public Token.UserTeller path directly.
+func RelayUserTeller(cur realm) {
+	untrusted.UseUserTeller(cross(cur), cur.Address())
+}
+
+func RelayApprove(cur realm, spender address) {
+	grc20reg.UserApprove(cross(cur), "gno.land/r/test/trusttok.TRUST", spender, 1)
+}
+
+func RelayTransferFrom(cur realm, owner, to address) {
+	grc20reg.UserTransferFrom(cross(cur), "gno.land/r/test/trusttok.TRUST", owner, to, 1)
+}
+
+func RelayUserApprove(cur realm, spender address) {
+	untrusted.UserApprove(cross(cur), spender)
+}
+
+func RelayUserTransferFrom(cur realm, owner, to address) {
+	untrusted.UserTransferFrom(cross(cur), owner, to)
+}
+
+-- untrusted/gnomod.toml --
+module = "gno.land/r/test/untrusted"
+gno = "0.9"
+
+-- untrusted/untrusted.gno --
+package untrusted
+
+import "gno.land/r/test/trusttok"
+
+func UseUserTeller(cur realm, to address) {
+	if err := trusttok.Token.UserTeller().Transfer(0, cur, to, 1); err != nil {
+		panic(err)
+	}
+}
+
+func UserApprove(cur realm, spender address) {
+	if err := trusttok.Token.UserTeller().Approve(0, cur, spender, 1); err != nil {
+		panic(err)
+	}
+}
+
+func UserTransferFrom(cur realm, owner, to address) {
+	if err := trusttok.Token.UserTeller().TransferFrom(0, cur, owner, to, 1); err != nil {
+		panic(err)
+	}
+}
+
+func StaleFrame(cur realm, to address) {
+	if !cur.IsCurrent() { panic("invalid test frame") }
+	if err := trusttok.Token.UserTeller().Transfer(0, cur.Previous(), to, 1); err != nil {
+		panic(err)
+	}
+}
+
+-- run/drain.gno --
+package main
+
 import "gno.land/r/demo/defi/grc20reg"
-const key = "gno.land/r/test/relaytoken.RELAY"
-func Transfer(cur realm, to address) { grc20reg.UserTransfer(cross(cur), key, to, 1) }
-func Approve(cur realm, spender address) { grc20reg.UserApprove(cross(cur), key, spender, 1) }
-func TransferFrom(cur realm, owner, to address) { grc20reg.UserTransferFrom(cross(cur), key, owner, to, 1) }
+
+func main(cur realm) {
+	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
+}
+
+-- run/approve.gno --
+package main
+
+import "gno.land/r/demo/defi/grc20reg"
+
+func main(cur realm) {
+	grc20reg.UserApprove(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
+}
+
+-- run/transferfrom.gno --
+package main
+
+import "gno.land/r/demo/defi/grc20reg"
+
+func main(cur realm) {
+	grc20reg.UserTransferFrom(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), cur.Address(), 1)
+}
+
+-- run/public.gno --
+package main
+
+import "gno.land/r/test/trusttok"
+
+func main(cur realm) {
+	if err := trusttok.Token.UserTeller().Transfer(0, cur, cur.Address(), 1); err != nil { panic(err) }
+}

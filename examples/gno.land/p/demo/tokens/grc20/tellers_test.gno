@@ -41,25 +41,11 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 		"foreign type embedding a canonical Teller must be rejected")
 }
 
-func TestIsCanonicalUserTeller(cur realm, t *testing.T) {
-	const host = "gno.land/r/demo/relay"
-	token, ledger := newTestToken("Relay", "RELAY", 4, 0, cur)
-	other, otherLedger := newTestToken("Relay", "RELAY", 4, 0, cur)
-	urequire.Equal(t, token.ID(), other.ID())
-	relay := ledger.UserTeller(host)
-	uassert.True(t, IsCanonicalUserTeller(relay, token, host))
-	var typedNil *fnTeller
-	for _, invalid := range []Teller{
-		nil, typedNil, &evilWrap{Teller: relay}, otherLedger.UserTeller(host),
-		ledger.UserTeller("gno.land/r/demo/other"), ledger.CallerTeller(), token.ReadonlyTeller(),
-		token.RealmTeller(0, cur), token.RealmSubTeller(0, cur, "sub"),
-		ledger.ImpersonateTeller(testutils.TestAddress("alice")),
-	} {
-		uassert.False(t, IsCanonicalUserTeller(invalid, token, host))
-	}
-	uassert.False(t, IsCanonicalUserTeller(relay, nil, host))
-	uassert.False(t, IsCanonicalUserTeller(relay, token, ""))
-	uassert.PanicsContains(t, cur, "host cannot be empty", func() { ledger.UserTeller("") })
+func TestUserTellerImpl(cur realm, t *testing.T) {
+	token, _ := newTestToken("User", "USER", 4, 0, cur)
+	uassert.True(t, IsCanonicalTeller(token.UserTeller()))
+	var nilToken *Token
+	uassert.PanicsContains(t, cur, "Token cannot be nil", func() { nilToken.UserTeller() })
 }
 
 func TestTeller(cur realm, t *testing.T) {
@@ -187,28 +173,24 @@ func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
 	uassert.Equal(t, int64(0), token.BalanceOf(bob))
 }
 
-// EOA classification alone does not authorize a host holding a leaked teller.
-func TestUserTellerHostGuard(cur realm, t *testing.T) {
+func TestUserTellerCallerGuard(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
-
-	// A foreign realm whose immediate caller is the EOA alice: the empty prev
-	// pkgPath makes IsUserCall true, so only the host check objects.
+	token, _ := newTestToken("Guard", "GUARD", 6, 0, cur)
+	teller := token.UserTeller().(*fnTeller)
 	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
-	foreign := testing.MakeRealm(
-		chain.PackageAddress("gno.land/r/demo/foreign"),
-		"gno.land/r/demo/foreign",
-		eoa,
-	)
+	foreign := testing.MakeRealm(chain.PackageAddress("gno.land/r/demo/foreign"), "gno.land/r/demo/foreign", eoa)
+	uassert.NoError(t, teller.guardWrite(0, foreign))
 
-	teller := ledger.UserTeller("gno.land/r/demo/token").(*fnTeller)
-	uassert.ErrorIs(t, teller.guardWrite(0, foreign), ErrForeignUserTeller)
-	delegated := ledger.UserTeller(foreign.PkgPath()).(*fnTeller)
-	uassert.NoError(t, delegated.guardWrite(0, foreign))
-	for _, suffix := range []string{"evil", "/child"} {
-		wrongHost := testing.MakeRealm(foreign.Address(), foreign.PkgPath()+suffix, eoa)
-		uassert.ErrorIs(t, delegated.guardWrite(0, wrongHost), ErrForeignUserTeller)
+	for _, caller := range []realm{
+		foreign,
+		testing.MakeRealm(alice, "gno.land/e/"+alice.String()+"/run", eoa),
+	} {
+		relay := testing.MakeRealm(foreign.Address(), foreign.PkgPath(), caller)
+		uassert.ErrorIs(t, teller.guardWrite(0, relay), ErrNotUserCall)
 	}
-	sub := testing.MakeRealm(foreign.Address(), foreign.PkgPath()+"#sub", eoa)
-	uassert.NoError(t, delegated.guardWrite(0, sub))
+
+	stale := foreign
+	uassert.ErrorIs(t, teller.Transfer(0, stale, alice, 1), ErrSpoofedRealm)
+	uassert.ErrorIs(t, teller.Approve(0, stale, alice, 1), ErrSpoofedRealm)
+	uassert.ErrorIs(t, teller.TransferFrom(0, stale, alice, alice, 1), ErrSpoofedRealm)
 }
