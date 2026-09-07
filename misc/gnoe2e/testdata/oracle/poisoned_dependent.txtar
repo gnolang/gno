@@ -1,0 +1,114 @@
+# **Red on master, and red on this branch: it states what should happen, and
+# picking the fix is a design decision this change does not make.**
+#
+# A dependency awaiting its own approval settles nothing about the package that
+# imports it. Submission order alone decides whether a valid set of packages can
+# ever deploy, and nothing tells the submitter why.
+#
+# The oracle holds a policy it does not apply here. Where preprocess meets an
+# import it cannot resolve, it skips the stage and approves on the typecheck
+# alone rather than refuse a package for a limit of the oracle. A parked
+# dependency never reaches that policy: the verifier resolves imports through
+# vm/qfile, which cannot see a parked package, so the import fails at typecheck,
+# and verifyPackage returns that error without ever calling preprocess.
+# handleCandidate then treats it as a verdict about the code, recording rejected
+# and marking the content hash seen, so resubmitting identical bytes is a silent
+# no-op for the life of the process.
+#
+# A failure here is a package that can never deploy again, decided by nothing
+# but the order it was sent in.
+
+# ---- The dependent goes in first, so its dependency is parked when it verifies
+# Sequential submissions land in strictly earlier blocks, and gpao drains one
+# candidate queue on one verifier goroutine, so the dependency provably cannot
+# be live when the dependent is verified. Ordering by construction, not timing.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/user -pkgpath gno.land/r/probe/user $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/dep -pkgpath gno.land/p/probe/dep $USER_NAME
+
+# A third package imports a path submitted nowhere. It is the control: an import
+# that exists in neither key space is the submitter's mistake, and it has to
+# stay rejected. vm/qfile answers "not found" for a parked path and an absent
+# path alike, so a fix that reads the error text and stops rejecting every
+# unresolved import would turn the dependent green and this arm red. Only
+# vm/qinertpaths tells the two apart.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/lost -pkgpath gno.land/r/probe/lost $USER_NAME
+
+# -start-height 1 scans from the chain's start: all three submissions committed
+# before this line runs, so the default would never see them.
+gpao start -start-height 1
+
+# ---- The dependency is approved, so the queue was drained past the dependent
+# This is also where the inert policy is read back: a pure package is unreadable
+# while parked, so qfile answers for it only once the oracle has enabled it. The
+# dependent was decided before this, being first in the queue, so the reads that
+# follow are decisions rather than timeouts.
+eventually gnokey query vm/qfile -data gno.land/p/probe/dep
+stdout 'dep.gno'
+
+# ---- The control: an import that exists nowhere stays the submitter's problem
+# Gated, because this package went in third: the library being live proves the
+# queue drained past the second entry, not past this one. Reaching a verdict
+# here proves every candidate was decided.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/lost '"status":"rejected"'
+! gnokey query vm/qfile -data gno.land/r/probe/lost
+stdout 'is not available'
+
+# ---- The claim: the dependent still deploys, with its bytes unchanged
+# Its dependency is live now, so nothing stands between these bytes and a clean
+# verification. Identical bytes are resubmitted rather than edited, because what
+# the queue order cost the submitter must not be a source change.
+#
+# A fix that re-queues the dependent on its own makes this submission a no-op
+# against a path that is already live, so the assertion below holds either way.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/user -pkgpath gno.land/r/probe/user $USER_NAME
+
+# The board first, because it names the verdict. A rejected package reports the
+# unresolved import as though the submitter wrote it, and that is the record
+# this claim is about.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/user '"status":"approved"'
+
+# Then the chain, so a pass cannot come from the board alone. qrender answers
+# InvalidPkgPathError for a path that is not live, the same answer it gives for
+# a path that was never submitted.
+eventually -stdout 'user of dep' gnokey query vm/qrender -data 'gno.land/r/probe/user:x'
+stdout 'user of dep'
+
+-- cluster --
+validators: 1
+code-submission-policy: inert
+-- dep/gnomod.toml --
+module = "gno.land/p/probe/dep"
+gno = "0.9"
+
+-- dep/dep.gno --
+package dep
+
+func Name() string {
+	return "dep"
+}
+
+-- user/gnomod.toml --
+module = "gno.land/r/probe/user"
+gno = "0.9"
+
+-- user/user.gno --
+package user
+
+import "gno.land/p/probe/dep"
+
+func Render(path string) string {
+	return "user of " + dep.Name()
+}
+
+-- lost/gnomod.toml --
+module = "gno.land/r/probe/lost"
+gno = "0.9"
+
+-- lost/lost.gno --
+package lost
+
+import "gno.land/p/probe/nowhere"
+
+func Render(path string) string {
+	return nowhere.Name()
+}

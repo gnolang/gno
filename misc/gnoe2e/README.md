@@ -115,6 +115,10 @@ back, and last an enable by hand with no oracle running.
   transaction reaches the chain, the run budget is untouched, and a fourth package still goes live.
 - `exhausted_purse.txtar`: `-max-spend` counts the fees the chain charges, refuses the approval that would cross the
   bound, and a run restarted with a larger bound reaches it without paying again for what is already live.
+- `poisoned_dependent.txtar`: a package whose dependency is still parked must keep its chance to deploy, while one
+  importing a path submitted nowhere stays rejected. Red: it states the boundary a fix has to meet.
+- `serialized_closure.txtar`: a 26-package closure submitted in dependency order, every link approved before the
+  next is verified. The head renders only if all twenty-five below it landed in order.
 
 ## Limits
 
