@@ -132,11 +132,11 @@ var (
 )
 
 // Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because it is frequently used as a registry slug, and
-// registry keys (rlmPath.symbol) are parsed by splitting on `.`; banning `.`
-// `/` and whitespace here prevents downstream parsers from being fooled by
-// ambiguous keys. Name is for display only and allows any valid UTF-8 except
-// control characters.
+// grc20reg.validateSlug because it is the trailing component of
+// Token.TokenPath(), which is emitted in events and used as the registry key;
+// banning `.` `/` and whitespace here prevents downstream parsers from being
+// fooled by ambiguous paths. Name is for display only and allows any valid
+// UTF-8 except control characters.
 const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11

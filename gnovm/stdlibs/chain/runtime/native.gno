@@ -5,10 +5,19 @@ package runtime
 // is invoked by another method (even from the same realm or package).
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
-func AssertOriginCall()             // injected
-func ChainID() string               // injected
-func ChainDomain() string           // injected
-func ChainHeight() int64            // injected
+func AssertOriginCall()   // injected
+func ChainID() string     // injected
+func ChainDomain() string // injected
+func ChainHeight() int64  // injected
+
+// ObjectID returns the address derived from v's own VM object ID: a stable,
+// realm-scoped name for that object, which the realm chooses no part of.
+//
+// An object is stamped the first time it is persisted, which happens when a
+// realm frame returns, so a value the running call created reads "" until then.
+// Afterwards the address never changes. A copy is a different object with a
+// different address, so read it from the pointer you keep. It panics if v
+// carries no object, such as a plain int or a nil pointer.
 func ObjectID(v interface{}) string // injected
 
 // GetSessionInfo returns session metadata if the current transaction was

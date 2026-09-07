@@ -199,6 +199,10 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }
 
+// Derives the address of an object from its ObjectID, the way
+// DerivePkgCryptoAddr derives one from a package path. The "objectid:" prefix
+// keeps the two preimage spaces apart. Both halves of the ID must be stamped:
+// an object that was never persisted has no address.
 func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {
 	if objectID.IsZero() {
 		panic("objectID cannot be zero")

@@ -203,7 +203,14 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Bumped by chain/runtime.ObjectID: native.gno gains the declaration and its
+// doc comment, and stdlib MemPackages carry those source bytes into genesis
+// state. The scenario never calls it, and the native only reads an object's
+// existing ID — it writes nothing and advances no realm clock — so the shift is
+// the stdlib source change alone; the zrealm_crossrealm38.gno filetest still
+// passes.
+const expectedCrossrealm38Hash = "8c67e4ed7036913f8d1d6dd2c2989f09139abf66c956dd036112f95ed4c03d07"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

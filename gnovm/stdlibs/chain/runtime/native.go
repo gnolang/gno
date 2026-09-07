@@ -39,9 +39,14 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
-// ObjectID returns the address derived from the token object's own VM object ID.
-// It is the stable, realm-scoped name of the object: the ObjectID behind it is minted from the owning realm's clock,
-// so the address is unique within the realm and persistent across transactions.
+// ObjectID returns the address derived from v's own VM object ID. It is the
+// stable, realm-scoped name of the object: the ObjectID behind it is minted
+// from the owning realm's clock, so the address is unique within the realm and
+// persistent across transactions.
+//
+// It reads that identity rather than issuing one — nothing here advances a
+// realm clock. An object is only stamped when the realm that owns it
+// finalizes, so a value the running call created reads "" until then.
 func ObjectID(m *gno.Machine, v gno.TypedValue) string {
 	if v.V == nil {
 		m.PanicString("value has no object identity")

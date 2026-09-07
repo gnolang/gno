@@ -19,31 +19,32 @@ import (
 // crossing frame, origRealm is unforgeable: an external realm cannot
 // fabricate a Token claiming to belong to a different package.
 //
-// Token.ID() is the address derived from the token object's own VM object ID
-// (preimage "objectid:<pkgid>:<newtime>"). The realm has no say in it, so two
-// tokens of one realm can no longer share an identifier. The symbol stays
-// metadata and is no longer part of the identifier.
+// A Token has two names, and every event carries both. Token.TokenPath() is
+// rlmPath.symbol, readable and unforgeable — it is built from rlm.PkgPath()
+// under the assertion above — but two tokens one realm issues under one symbol
+// share it. Token.ID() is the address derived from the token object's own VM
+// object ID (preimage "objectid:<pkgid>:<newtime>"); the realm has no say in
+// it, so it is what tells those two apart.
 //
 // An object ID is stamped the first time the object is persisted, which happens
 // when a realm frame returns. So a fresh token has no ID yet: the NewToken event
-// below carries an empty "token", as does any Mint/Transfer emitted before the
+// below carries an empty "id", as does any Mint/Transfer emitted before the
 // creating call returns — unless the token is handed to another realm first
 // (grc20reg.Register does exactly that), because that realm's finalize stamps it
 // too. Once stamped the ID never changes. Binding an ID back to its realm is a
-// lookup — GetOrigRealm(), or the registry entry — since the address is a hash,
+// lookup — TokenPath(), or the registry entry — since the address is a hash,
 // not a path.
 //
 // If the Token should be discoverable, follow up with
 // grc20reg.Register(cross(cur), Token, slug). That registry keys by
-// rlmPath.symbol, not by Token.ID().
+// rlmPath.symbol, which is exactly Token.TokenPath().
 //
-// Every successful call emits a NewToken event carrying the resulting
-// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
-// Token can come into existence, so every ledger that will ever emit is
-// announced here — subject to the window above: an announcement made in the
-// creating transaction names the issuing realm, not yet the instance. Once the
-// id is final, every Mint/Burn/Transfer/Approval carrying it refers to exactly
-// one ledger.
+// Every successful call emits a NewToken event carrying both names. Because
+// Token's fields are unexported, NewToken is the only way a Token can come into
+// existence, so every ledger that will ever emit is announced here — subject to
+// the window above: an announcement made before the token is persisted names
+// the issuing realm and symbol, not yet the instance. Once the id is final,
+// every Mint/Burn/Transfer/Approval carrying it refers to exactly one ledger.
 func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
@@ -138,13 +139,17 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-// ID returns the address derived from the token object's own VM object ID.
+// ID returns the address derived from the token object's own VM object ID. It
+// identifies this ledger and no other, but it is "" until the token has been
+// persisted — see NewToken.
 func (tok *Token) ID() string {
 	return runtime.ObjectID(tok)
 }
 
 // TokenPath returns the token path of the token.
-// It is the full path of the token, including the realm and symbol.
+// It is the full path of the token, including the realm and symbol, and is the
+// key grc20reg registers it under. Unlike ID() it is available immediately, and
+// it is shared by every token one realm issues under the same symbol.
 func (tok *Token) TokenPath() string {
 	return tok.tokenPath
 }
