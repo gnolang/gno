@@ -1,4 +1,4 @@
-# PRXXXX: Fix `doOpDefer` value-stack desync for `defer f(g())` multi-value arguments
+# PR6137: Fix `doOpDefer` value-stack desync for `defer f(g())` multi-value arguments
 
 ## Context
 
