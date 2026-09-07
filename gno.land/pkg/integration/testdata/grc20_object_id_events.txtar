@@ -30,15 +30,15 @@ gnokey maketx call -pkgpath gno.land/r/objecttoken -func Mint -args 'g1jg8mtutu9
 stdout OK!
 stdout 'EVENTS:     \[\{"type":"Transfer","attrs":\[\{"key":"id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token","value":"gno\.land/r/objecttoken\.OBJ"\},\{"key":"from","value":""\},\{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\},\{"key":"value","value":"1000000"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"bytes_delta":1043,"fee_delta":\{"denom":"ugnot","amount":104300\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
 
-## 3. register in grc20reg. The registry keys by the token path, so the event
-## carries both: token_path is the key, token_id is the token's own address.
-## This is where the (id -> path) binding is announced — the NewToken event
-## could not carry it, since the token had not been persisted when it fired.
-## grc20_object_id_events_init.txtar shows this still holding when all four
-## steps run inside one init.
+## 3. register in grc20reg with an empty slug, so the entry is keyed by the
+## realm path alone. The event carries token_key, the registry key, and
+## token_id, the token's own address. This is where the (id -> key) binding is
+## announced — the NewToken event could not carry it, since the token had not
+## been persisted when it fired. grc20_object_id_events_init.txtar shows this
+## still holding when all four steps run inside one init.
 gnokey maketx call -pkgpath gno.land/r/objecttoken -func Register -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[\{"type":"register","attrs":\[\{"key":"token_id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token_path","value":"gno\.land/r/objecttoken\.OBJ"\},\{"key":"pkgpath","value":"gno\.land/r/objecttoken"\},\{"key":"slug","value":""\},\{"key":"symbol","value":"OBJ"\}\],"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":1212,"fee_delta":\{"denom":"ugnot","amount":121200\},"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":5,"fee_delta":\{"denom":"ugnot","amount":500\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
+stdout 'EVENTS:     \[\{"type":"register","attrs":\[\{"key":"token_id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token_key","value":"gno\.land/r/objecttoken"\},\{"key":"pkgpath","value":"gno\.land/r/objecttoken"\},\{"key":"slug","value":""\},\{"key":"symbol","value":"OBJ"\}\],"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":1208,"fee_delta":\{"denom":"ugnot","amount":120800\},"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":5,"fee_delta":\{"denom":"ugnot","amount":500\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
 
 ## 4. transfer 250000 from test1 to another account.
 gnokey maketx call -pkgpath gno.land/r/objecttoken -func Transfer -args 'g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp' -args '250000' -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
@@ -91,7 +91,8 @@ func Mint(cur realm, addr address, amount int64) {
 	}
 }
 
-// Register publishes the token in grc20reg under its rlmPath.symbol key.
+// Register publishes the token in grc20reg. The empty slug keys the entry by
+// this realm path alone.
 func Register(cur realm) string {
 	return grc20reg.Register(cross(cur), token, "")
 }
