@@ -2,7 +2,6 @@ package grc20reg
 
 import (
 	"chain"
-	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -17,16 +16,15 @@ var registry = avl.NewTree() // rlmPath.symbol -> *Token
 // Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
 // The registry key is the canonical fqname rlmPath.symbol (one token per
-// realm+symbol), independent of Token.ID()'s trailing sequence id, so
-// callers can look a token up from the (realm, symbol) pair they already
-// know:
+// realm+symbol), which is Token.TokenPath(), so callers can look a token up
+// from the (realm, symbol) pair they already know:
 //
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, cur)
 //	key := grc20reg.Register(cross(cur), Token, "")
 
 // Register records token under its rlmPath.symbol key and returns that key.
-// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
-// token identities/events unique, but the registry deliberately keys by
+// Token.ID() is the token object's own address, which keeps token
+// identities/events unique, but the registry deliberately keys by
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
 // register two tokens under the same symbol (overwrite/alias guard).
 func Register(cur realm, token *grc20.Token, slug string) string {
@@ -38,17 +36,22 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	}
 	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
-	// Token.ID() == key + "." + <id>; verify the token originates from the
-	// registering realm and symbol.
-	if !strings.HasPrefix(token.ID(), key+".") {
+	// Token.TokenPath() is rlmPath.symbol as captured at construction; verify
+	// the token originates from the registering realm and symbol.
+	if token.TokenPath() != key {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
 	}
-	registry.Set(key, token)
+	// Cross the realm boundary to write the entry: coming back from the cross
+	// finalizes this realm, which stamps the object ID of the token the write
+	// just made reachable. Without it token_id below would be empty for every
+	// realm that registers a token it created in the same call.
+	setEntry(cross(cur), key, token)
 	chain.Emit(
 		registerEvent,
+		"token_id", token.ID(),
 		"token_path", key,
 		"pkgpath", rlmPath,
 		"slug", slug,
@@ -136,6 +139,18 @@ func Approve(_ int, rlm realm, tokenKey string, spender address, amount int64) {
 // that specific realm.
 func TransferFrom(_ int, rlm realm, tokenKey string, from, to address, amount int64) {
 	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).TransferFrom(0, rlm, from, to, amount))
+}
+
+// setEntry writes the registry entry. It exists as a separate crossing
+// function only for its return: an explicit cross is a realm boundary, so
+// coming back from it runs this realm's finalize, which stamps the object IDs
+// of everything the write made reachable.
+//
+// Unexported, so it is not an entry point: Register has already run every
+// check by the time this is called, and cur.Previous() in here is grc20reg
+// itself, not the registering realm.
+func setEntry(cur realm, key string, token *grc20.Token) {
+	registry.Set(key, token)
 }
 
 func checkErr(err error) {
