@@ -3,6 +3,8 @@ package gnolang
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -89,6 +91,87 @@ func TestDerivePkgBech32Addr(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("DerivePkgBech32Addr(%q) = %v, want %v", tt.pkgPath, result, tt.expected)
 			}
+		})
+	}
+}
+
+func TestObjectIDDerivePath(t *testing.T) {
+	t.Parallel()
+
+	var (
+		pkgID = PkgIDFromPkgPath("gno.land/r/demo/objectid")
+		other = PkgIDFromPkgPath("gno.land/r/demo/objectid_other")
+	)
+
+	tests := []struct {
+		name string
+		oid  ObjectID
+		want string
+	}{
+		{
+			name: "zero id has nothing to derive from",
+			oid:  ObjectID{},
+			want: "",
+		},
+		{
+			// PkgID is stamped at allocation, NewTime only at finalization:
+			// an object that was never persisted has no address.
+			name: "allocated but unfinalized",
+			oid:  ObjectID{PkgID: pkgID},
+			want: "",
+		},
+		{
+			name: "finalized",
+			oid:  ObjectID{PkgID: pkgID, NewTime: 7},
+			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: pkgID, NewTime: 7}).String(),
+		},
+		{
+			name: "another tick of the same realm",
+			oid:  ObjectID{PkgID: pkgID, NewTime: 8},
+			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: pkgID, NewTime: 8}).String(),
+		},
+		{
+			name: "same tick of another realm",
+			oid:  ObjectID{PkgID: other, NewTime: 7},
+			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: other, NewTime: 7}).String(),
+		},
+	}
+
+	derived := make(map[string]string, len(tests))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.oid.DerivePath()
+			require.Equal(t, tt.want, got)
+			// Deriving twice must not move.
+			require.Equal(t, got, tt.oid.DerivePath())
+			if got == "" {
+				return
+			}
+			// Both halves take part, so no two ids share an address, and none
+			// collides with the address its realm derives from its pkgpath.
+			require.NotContains(t, derived, got, "address collision with %q", derived[got])
+			derived[got] = tt.name
+			require.NotEqual(t, DerivePkgBech32Addr("gno.land/r/demo/objectid").String(), got)
+		})
+	}
+}
+
+func TestDeriveObjectIDCryptoAddrRejectsIncompleteIDs(t *testing.T) {
+	t.Parallel()
+
+	pkgID := PkgIDFromPkgPath("gno.land/r/demo/objectid")
+
+	tests := []struct {
+		name string
+		oid  ObjectID
+	}{
+		{name: "zero", oid: ObjectID{}},
+		{name: "no pkgID", oid: ObjectID{NewTime: 7}},
+		{name: "no newTime", oid: ObjectID{PkgID: pkgID}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Panics(t, func() { DeriveObjectIDCryptoAddr(tt.oid) })
 		})
 	}
 }
