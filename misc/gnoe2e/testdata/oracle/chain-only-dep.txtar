@@ -31,9 +31,9 @@ eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approve
 eventually http_get $GPAO_STATUS/status/gno.land/r/probe/charlie '"status":"approved"'
 
 # Assert package are live on-chain
-gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/probe/echo:hello'
+gnokey query vm/qrender -data 'gno.land/r/probe/echo:hello'
 stdout 'hello'
-gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/probe/charlie:hello'
+gnokey query vm/qrender -data 'gno.land/r/probe/charlie:hello'
 stdout 'hello'
 
 # Assert packages are no longer inert
