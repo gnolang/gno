@@ -24,7 +24,7 @@ stdout 'is not available'
 # -start-height 1 makes the oracle scan from the chain's start rather than
 # from its own tip at startup: the submission above already committed before
 # this line runs, so the default (watch from here on) would never see it.
-gpao start -remote $RPC_ADDR_0 -start-height 1
+gpao start -start-height 1
 
 # Assert the oracle has enabled both packages
 eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approved"'
