@@ -1,0 +1,110 @@
+# The same four steps as grc20_object_id_events.txtar — create, mint, register,
+# transfer — but all of them inside init(cur realm), so they run in one realm
+# frame during AddPackage. This is the worst case for object IDs: nothing this
+# realm creates is stamped until its frame returns, which is after every event
+# below has been emitted.
+#
+# The first two events show it. NewToken and the minting Transfer carry the
+# token path in "token" but an empty "id": the token object exists and is
+# already named, but it has never been persisted, so there is no object ID to
+# derive an address from.
+#
+# Registering is what persists it. grc20reg writes the entry through a
+# same-realm cross, and returning from that cross finalizes grc20reg — a
+# finalize that also stamps the objects the write made reachable, minting the
+# token's NewTime from its own realm's clock (assignNewObjectID's foreign-realm
+# branch). grc20reg does that before it emits, so its register event carries a
+# real token_id, and the Transfer that follows carries the same id.
+#
+# The lesson for a realm that creates and uses a token in one call: the id it
+# reads is empty until something persists the token. Registering it does. The
+# token path is unaffected — it is available from the moment NewToken returns.
+
+loadpkg gno.land/r/demo/defi/grc20reg
+
+## start a new node
+gnoland start
+
+## deploy. init() runs create -> mint -> register -> transfer in one frame.
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/objecttokeninit -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[\{"type":"NewToken","attrs":\[\{"key":"id","value":""\},\{"key":"token","value":"gno\.land/r/objecttokeninit\.OBJ"\},\{"key":"name","value":"Object"\},\{"key":"symbol","value":"OBJ"\},\{"key":"decimals","value":"4"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"type":"Transfer","attrs":\[\{"key":"id","value":""\},\{"key":"token","value":"gno\.land/r/objecttokeninit\.OBJ"\},\{"key":"from","value":""\},\{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\},\{"key":"value","value":"1000000"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"type":"register","attrs":\[\{"key":"token_id","value":"g1fppxyq8rzamcz7a5rk0mhtvcf23pxuv8krrmz2"\},\{"key":"token_path","value":"gno\.land/r/objecttokeninit\.OBJ"\},\{"key":"pkgpath","value":"gno\.land/r/objecttokeninit"\},\{"key":"slug","value":""\},\{"key":"symbol","value":"OBJ"\}\],"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"type":"Transfer","attrs":\[\{"key":"id","value":"g1fppxyq8rzamcz7a5rk0mhtvcf23pxuv8krrmz2"\},\{"key":"token","value":"gno\.land/r/objecttokeninit\.OBJ"\},\{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\},\{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"\},\{"key":"value","value":"250000"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"bytes_delta":1216,"fee_delta":\{"denom":"ugnot","amount":121600\},"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":12676,"fee_delta":\{"denom":"ugnot","amount":1267600\},"pkg_path":"gno\.land/r/objecttokeninit"\}\]'
+
+## The ID init() read right after NewToken, kept in a variable: still empty,
+## because the token had not been persisted at that point.
+gnokey query vm/qeval --data 'gno.land/r/objecttokeninit.IDAtInit()'
+stdout '"" string'
+
+## The same token, read after the deploy transaction. It matches the id the
+## register and Transfer events already carried — nothing restamped it.
+gnokey query vm/qeval --data 'gno.land/r/objecttokeninit.ID()'
+stdout '"g1fppxyq8rzamcz7a5rk0mhtvcf23pxuv8krrmz2" string'
+
+## The registry entry is the same object, so it reports the same ID — the one
+## the register event announced.
+gnokey query vm/qeval --data 'gno.land/r/objecttokeninit.RegisteredID()'
+stdout '"g1fppxyq8rzamcz7a5rk0mhtvcf23pxuv8krrmz2" string'
+
+## and the ledger moved as the two Transfer events said it did
+gnokey query vm/qeval --data "gno.land/r/objecttokeninit.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+stdout '750000 int64'
+gnokey query vm/qeval --data "gno.land/r/objecttokeninit.BalanceOf(\"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp\")"
+stdout '250000 int64'
+
+-- gnomod.toml --
+module = "gno.land/r/objecttokeninit"
+gno = "0.9"
+-- objecttokeninit.gno --
+package objecttokeninit
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+const (
+	alice = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	bob   = address("g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp")
+)
+
+var (
+	token    *grc20.Token
+	ledger   *grc20.PrivateLedger
+	key      string
+	idAtInit string
+)
+
+// init runs the whole flow in one frame. Registering crosses into grc20reg and
+// back, which finalizes grc20reg — not this realm — so the token stays unnamed
+// until init itself returns.
+func init(cur realm) {
+	token, ledger = grc20.NewToken("Object", "OBJ", 4, cur)
+	idAtInit = token.ID()
+	if err := ledger.Mint(alice, 1000000); err != nil {
+		panic(err)
+	}
+	key = grc20reg.Register(cross(cur), token, "")
+	if err := ledger.Transfer(alice, bob, 250000); err != nil {
+		panic(err)
+	}
+}
+
+// IDAtInit returns the id as init() saw it, right after NewToken.
+func IDAtInit() string {
+	return idAtInit
+}
+
+// ID returns the id the token carries now.
+func ID() string {
+	return token.ID()
+}
+
+// RegisteredID returns the id of the token the registry holds under key.
+func RegisteredID() string {
+	return grc20reg.MustGet(key).ID()
+}
+
+// BalanceOf reports what the Transfer events add up to.
+func BalanceOf(addr address) int64 {
+	return token.BalanceOf(addr)
+}
