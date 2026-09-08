@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -498,11 +499,11 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		return
 	}
 
-	// Already live? Then there is nothing to enable, and sending the message
-	// anyway costs the full fee to be told so. This is the common case when
-	// catching up with -start-height over blocks that were already approved.
-	// Terminal, so recorded.
-	if o.isActive(ctx, path) {
+	// Live with nothing waiting to be enabled? Then there is nothing to enable,
+	// and sending the message anyway costs the full fee to be told so. This is
+	// the common case when catching up with -start-height over blocks that were
+	// already approved. Terminal, so recorded.
+	if o.isSettled(ctx, path) {
 		o.status.record(path, statusApproved, "already active on-chain", 0)
 		o.seen[key] = struct{}{}
 		o.logf("gpao: %q is already active, nothing to approve", path)
@@ -619,24 +620,46 @@ func (o *oracle) wouldExceedSpend() bool {
 
 const ugnotDenom = "ugnot"
 
-// isActive reports whether a package is already deployed at this path.
+// isSettled reports whether a package is live at this path with nothing left to
+// enable.
 //
-// vm/qfile reads the active store, so a successful answer means the path is
-// live. A parked package is invisible to it, which is what makes this a useful
-// pre-flight: it distinguishes "waiting to be enabled" from "already enabled".
+// vm/qpkgmeta_json reads BOTH key spaces, unlike vm/qfile, which answers for
+// the live blob only. The difference is a redeploy parked over a live PRIVATE
+// realm -- a state the chain permits -- which qfile cannot see: a pre-flight
+// built on it records SUCCESS for an enable that was never sent, and the
+// redeploy is silently dropped.
+//
+// A PUBLIC path can be live-and-pending too, by a longer route: parked under
+// "inert", the policy moves to permissionless, someone deploys at the path, the
+// policy moves back. That enable can never succeed -- EnablePackage refuses to
+// activate over a live public package. The classifier needs no special case for
+// it: reporting "not settled" sends the enable, and maxEnableAttempts bounds
+// what the dead end costs.
 //
 // On a query error this returns false, so a node that cannot answer does not
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
-func (o *oracle) isActive(ctx context.Context, pkgPath string) bool {
+func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
 	res, err := o.client.Query(gnoclient.QueryCfg{
-		Path: "vm/qfile",
+		Path: "vm/qpkgmeta_json",
 		Data: []byte(pkgPath),
 	})
-	if err != nil || res == nil {
+	if err != nil || res == nil || res.Response.Error != nil {
 		return false
 	}
-	return res.Response.Error == nil
+	return pkgMetaSettled(res.Response.Data)
+}
+
+// pkgMetaSettled reads a vm/qpkgmeta_json response and reports "live with no
+// submission pending" -- the one state where an enable has nothing to do.
+// Split out from the query so it can be tested without a node, like
+// blockMaxGasFrom.
+func pkgMetaSettled(data []byte) bool {
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return false
+	}
+	return meta.Status == vm.PackageStatusLive && !meta.Pending
 }
 
 // candidateKey identifies what was verified: the path plus a hash of the
