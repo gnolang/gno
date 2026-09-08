@@ -1,4 +1,4 @@
-# PRxxxx: Structured bank transfer events
+# PR6120: Structured bank transfer events
 
 ## Status
 
