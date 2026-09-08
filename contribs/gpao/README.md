@@ -40,6 +40,26 @@ make install   # go install . — puts gpao on your $PATH
 make build     # go build -o build/gpao . — leaves it here instead
 ```
 
+### Docker
+
+`ghcr.io/gnolang/gno/gpao` ships the binary with the repo's stdlibs and
+examples at `/gnoroot` (the baked-in `--gno-root` default), built from the same
+`Dockerfile` targets as the other images. Mount a gnokey keystore and pass the
+key password through `GPAO_PASSWORD`:
+
+```sh
+docker run -d \
+  -v /path/to/gnokey-home:/keystore \
+  -e GPAO_PASSWORD=... \
+  -p 8546:8546 \
+  ghcr.io/gnolang/gno/gpao \
+  --remote http://node:26657 \
+  --chain-id dev \
+  --home /keystore \
+  --key approver \
+  --status-listen 0.0.0.0:8546
+```
+
 ## Usage
 
 The approver key lives in a local [gnokey](../../gno.land/cmd/gnokey) keystore.
@@ -211,9 +231,12 @@ Two details, in case the numbers look odd in the logs. The probe transaction is
 signed at the chain's block ceiling rather than at the fallback, because a
 simulation executes under the transaction's own limit — sizing the probe at the
 fallback would run out of gas on exactly the packages worth measuring. And the
-ceiling is read from the chain at startup rather than assumed, because the ante
-REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a chain
-configured below the tm2 default would reject every probe.
+ceiling is read from the chain rather than assumed — asked for before any block
+is followed, and retried on the poll interval until the chain answers — because
+the ante REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a
+chain configured below the tm2 default would reject every probe. An unreachable
+node delays the first approval instead of settling the ceiling wrongly for the
+life of the process.
 
 A failed simulation does not withhold approval. It logs, falls back, and sends.
 Refusing to approve whenever the query path is unavailable would let anyone who
@@ -227,10 +250,10 @@ that makes approvals fail repeatedly will drain the approver key. The bound
 stops that.
 
 Two things reduce how often it is reached. Before approving, the daemon checks
-whether the package is already deployed and skips it if so, which is the common
-case when catching up with `--start-height` over blocks that were already
-approved. And it ignores transactions that failed on chain, so a submission the
-chain rejected never leads to an approval.
+whether the package is already live with nothing waiting to be enabled, and
+skips it if so, which is the common case when catching up with `--start-height`
+over blocks that were already approved. And it ignores transactions that
+failed on chain, so a submission the chain rejected never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
 watching blocks. Raise the bound or restart to continue.
