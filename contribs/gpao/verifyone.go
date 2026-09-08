@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -106,8 +107,42 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 	if err != nil {
 		return err
 	}
-	return v.verifyPackage(&mpkg)
+	if err := v.prepare(&mpkg); err != nil {
+		// The network under the resolver failed before any verdict was
+		// possible; same channel as below.
+		fmt.Fprintln(cio.Err(), err)
+		os.Exit(exitResolverUnavailable)
+	}
+	// Everything the compile needs is local now. The parent starts the budget
+	// on this line.
+	fmt.Fprintln(cio.Out(), childReadyMarker)
+	if err := v.verifyPackage(&mpkg); err != nil {
+		if errors.Is(err, errResolverUnavailable) {
+			// Not a verdict; say so with the exit status, which is the only
+			// channel the parent classifies on. The reason still goes to
+			// stderr, which the parent tees and reports.
+			fmt.Fprintln(cio.Err(), err)
+			os.Exit(exitResolverUnavailable)
+		}
+		return err
+	}
+	return nil
 }
+
+// exitResolverUnavailable is the child's exit status when verification could
+// not obtain evidence -- the network under the import resolver failed -- as
+// opposed to exiting 1 with a verdict. 2 belongs to the Go runtime (panic).
+//
+// Exited directly rather than through commands.ExitCodeError: the test
+// harness drives the command through ParseAndRun, which returns that error
+// instead of translating it into a status, and the parent classifies on the
+// status alone.
+const exitResolverUnavailable = 3
+
+// childReadyMarker is the one line the child writes to stdout, once every
+// source the compile needs is local. The parent starts the budget when it
+// arrives, so what the budget measures is the compile and nothing else.
+const childReadyMarker = "gpao: ready"
 
 // verify runs one verification in a child process, killed if it outlasts the
 // budget.
@@ -119,11 +154,22 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 // quickly" is the claim only an off-chain actor can make, and it is what gates
 // approval here.
 //
-// Exit status is the verdict: clean exit passes, non-zero exit is a rejection
-// carrying the child's stderr as the reason, and a deadline is errVerifyBudget,
-// which upstream treats as "no verdict yet" rather than as a rejection. That
-// distinction matters — a rejected package is settled, a slow one may just have
-// lost a race with whatever else the machine was doing.
+// The child runs in two phases and the parent times them apart. Until the
+// child reports ready it is fetching what the compile needs, from disk and
+// from the node; that is bounded by the prepare budget and its expiry is
+// unavailability. From ready onward it is compiling, which is what the
+// validator will pay for; that is bounded by the verify budget and its expiry
+// is an overrun. Timing the two together made a slow node read as a slow
+// package.
+//
+// Exit status is the verdict: a clean exit passes, and a non-zero exit from a
+// child that ran to completion is a rejection carrying the child's stderr as
+// the reason. Two exits are not verdicts at all: exitResolverUnavailable, which
+// says verification could not obtain evidence and becomes errVerifyUnavailable,
+// and a deadline, which becomes errVerifyBudget. Upstream treats both as "no
+// verdict yet" rather than as a rejection, and that distinction matters — a
+// rejected package is settled, a slow one may just have lost a race with
+// whatever else the machine was doing.
 func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	self, err := os.Executable()
 	if err != nil {
@@ -134,10 +180,12 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		return fmt.Errorf("encode mempackage: %w", err)
 	}
 
-	// The timeout is on the CHILD's context, so expiry kills the process rather
-	// than merely returning from the wait and leaving it running.
-	runCtx, cancel := context.WithTimeout(ctx, o.cfg.verifyBudget)
+	// Both deadlines cancel the CHILD's context, so expiry kills the process
+	// rather than merely returning from the wait and leaving it running.
+	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	clock := newChildClock(cancel, o.cfg.prepareBudget, o.cfg.verifyBudget)
+	defer clock.stop()
 
 	args := []string{verifyOneCmdName, "-gno-root", o.cfg.gnoRoot}
 	if o.cfg.remote != "" {
@@ -161,8 +209,9 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		// anywhere near here.
 		cmd.Stderr = io.MultiWriter(stderr, w)
 	}
-	// Stdout left nil on purpose: exec wires nil to os.DevNull, whereas any
-	// non-*os.File writer costs a pipe and a copying goroutine per candidate.
+	// Stdout carries exactly one line, the ready marker, and starting the
+	// budget on it is worth the pipe and the copying goroutine it costs.
+	cmd.Stdout = &readyWatch{onReady: clock.ready}
 
 	// Explicit env, so the invariant this file claims is actually true: the
 	// process that compiles untrusted code does not hold the approver's key
@@ -181,22 +230,11 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 
 	runErr := cmd.Run()
 
-	// A clean exit is unambiguous, so it is checked first. Checking the deadline
-	// ahead of it would report a pass that landed just as the timer fired as an
-	// overrun, and count it against the per-path budget allowance.
+	// A clean exit is unambiguous, so it is checked first. Checking the
+	// deadlines ahead of it would report a pass that landed just as a timer
+	// fired as an overrun, and count it against the per-path budget allowance.
 	if runErr == nil {
 		return nil
-	}
-
-	// Then the deadline: a killed child also exits non-zero, and reading that as
-	// a rejection would permanently settle a package that was only slow.
-	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("%w: exceeded %s and was killed",
-			errVerifyBudget, o.cfg.verifyBudget)
-	}
-	if ctx.Err() != nil {
-		// Parent shutdown, not a verdict about this package.
-		return fmt.Errorf("%w: shutting down", errVerifyBudget)
 	}
 
 	// Only a child that RAN and chose to exit non-zero has judged the package.
@@ -213,10 +251,116 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		if msg == "" {
 			msg = runErr.Error()
 		}
+		if ee.ExitCode() == exitResolverUnavailable {
+			return fmt.Errorf("%w: %s", errVerifyUnavailable, msg)
+		}
 		return errors.New(msg)
+	}
+
+	// A killed child: one of the two deadlines, or the parent shutting down.
+	// Which deadline decides what it means, and reading either as a rejection
+	// would permanently settle a package that was only slow, or only unlucky
+	// in its node.
+	if expired := clock.stop(); expired != nil {
+		return expired
+	}
+	if ctx.Err() != nil {
+		// Parent shutdown, not a verdict about this package.
+		return fmt.Errorf("%w: shutting down", errVerifyBudget)
 	}
 	return fmt.Errorf("%w: the verifier could not complete, this is not a "+
 		"verdict about the package: %v", errVerifyUnavailable, runErr)
+}
+
+// childClock times the child's two phases apart. From spawn until the child
+// reports ready it runs against the prepare budget; from ready it runs against
+// the verify budget. Whichever expires cancels the child's context, which kills
+// it, and is remembered so the kill can be classified afterwards.
+type childClock struct {
+	mu      sync.Mutex
+	kill    context.CancelFunc
+	verify  time.Duration
+	timer   *time.Timer
+	expired error
+}
+
+func newChildClock(kill context.CancelFunc, prepare, verify time.Duration) *childClock {
+	c := &childClock{kill: kill, verify: verify}
+	c.timer = time.AfterFunc(prepare, func() {
+		c.expire(fmt.Errorf("%w: the verifier did not have its sources within the "+
+			"-prepare-budget of %s", errVerifyUnavailable, prepare))
+	})
+	return c
+}
+
+// ready switches from the prepare budget to the verify budget.
+func (c *childClock) ready() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.expired != nil {
+		return
+	}
+	c.timer.Stop()
+	c.timer = time.AfterFunc(c.verify, func() {
+		c.expire(fmt.Errorf("%w: exceeded %s and was killed", errVerifyBudget, c.verify))
+	})
+}
+
+func (c *childClock) expire(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.expired == nil {
+		c.expired = err
+		c.kill()
+	}
+}
+
+// stop disarms the running timer and reports which deadline expired, if any.
+func (c *childClock) stop() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.timer.Stop()
+	return c.expired
+}
+
+// readyWatch is the child's stdout: it calls onReady once, on the first line
+// that is the ready marker, wherever that line lands. Nothing else is expected
+// on stdout, and whatever else arrives is dropped rather than read into.
+type readyWatch struct {
+	onReady func()
+	line    bytes.Buffer
+	ready   bool
+}
+
+// maxReadyLine bounds what is buffered of a line still waiting for its newline;
+// a longer one cannot be the marker and is dropped as it streams.
+const maxReadyLine = 256
+
+func (w *readyWatch) Write(p []byte) (int, error) {
+	// Report the full length whatever is consumed: a short write would make
+	// exec's copier report an error, which would be misread as the child
+	// failing.
+	n := len(p)
+	for !w.ready && len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			if w.line.Len()+len(p) <= maxReadyLine {
+				w.line.Write(p)
+			} else {
+				w.line.Reset()
+				w.line.WriteByte(0) // poison: this line is already too long
+			}
+			break
+		}
+		w.line.Write(p[:i])
+		if strings.TrimSpace(w.line.String()) == childReadyMarker {
+			w.ready = true
+			w.onReady()
+		}
+		w.line.Reset()
+		p = p[i+1:]
+	}
+	return n, nil
 }
 
 // maxChildStderr bounds what we retain and mirror from a child.
