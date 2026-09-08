@@ -110,7 +110,9 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
-	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
+	o.blockMaxGas = maxGas
 
 	// Verified clean, refused at simulate, nothing broadcast: the counter must
 	// not move, because the money did not.
@@ -209,7 +211,9 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
-	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
+	o.blockMaxGas = maxGas
 
 	before, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
