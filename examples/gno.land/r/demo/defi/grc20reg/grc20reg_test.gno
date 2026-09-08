@@ -171,6 +171,28 @@ func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegisterAllowsSubCreatedTokenFromHost(cur realm, t *testing.T) {
+	const host = "gno.land/r/demo/defi/grc20reg"
+
+	sub := cur.Sub("created-as")
+	token, _ := grc20.NewToken("FromSub", "FSUB", 4, sub)
+	urequire.Equal(t, host, token.OrigRealm())
+
+	key := Register(cross(cur), token, "sub-created")
+	urequire.Equal(t, host+".sub-created", key)
+	urequire.Equal(t, "FromSub", Get(key).GetName())
+}
+
+func TestRegisterRejectsPathPrefixCollision(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo20"))
+	token, _ := grc20.NewToken("Foo", "FOO", 4, cur)
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
+		Register(cross(cur), token, "")
+	})
+}
+
 func TestValidateSlug(cur realm, t *testing.T) {
 	// Valid slugs — should not panic
 	valid := []string{"mytoken", "my-token", "my_token", "Token123", "a", "A-B_c", strings.Repeat("a", maxSlugLen)}

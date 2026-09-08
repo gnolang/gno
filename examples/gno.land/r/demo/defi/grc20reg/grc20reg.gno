@@ -2,7 +2,6 @@ package grc20reg
 
 import (
 	"chain"
-	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -38,9 +37,9 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	}
 
 	rlmPath := cur.Previous().PkgPath()
-	// OrigRealm() is rlmPath as captured at token construction;
-	// verify the token originates from the registering realm.
-	if !strings.HasPrefix(token.OrigRealm(), rlmPath) {
+	rlmOriginPath, _, _ := chain.SplitPkgSubPath(rlmPath)
+	// OrigRealm is the origin realm path by token construction
+	if rlmOriginPath != token.OrigRealm() {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 
