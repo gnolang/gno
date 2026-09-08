@@ -262,12 +262,28 @@ func (o *oracle) run(ctx context.Context) error {
 	ticker := time.NewTicker(o.cfg.pollInterval)
 	defer ticker.Stop()
 
-	// The chain's ceiling is settled before any work begins, because every
-	// approval's probe is signed at exactly this number and the ante refuses a
-	// gas-wanted above Block.MaxGas rather than clamping it. A candidate reached
-	// while a stand-in was held would be graded as a message the node ran and
-	// rejected, so it would fail for a reason that has nothing to do with the
-	// package.
+	// Heights only move forward from where this lands, so the start height is
+	// pinned before anything else is waited on.
+	height := o.cfg.startHeight
+	for height <= 0 {
+		if latest, answered := o.queryLatestHeight(ctx); answered {
+			height = latest + 1
+			break
+		}
+		select {
+		case <-ctx.Done():
+			o.logln("gpao: shutting down")
+			return nil
+		case <-ticker.C:
+		}
+	}
+	o.logf("gpao: following from height %d", height)
+
+	// The ceiling is settled before any work begins, because every approval's
+	// probe is signed at exactly this number and the ante refuses a gas-wanted
+	// above Block.MaxGas rather than clamping it. A candidate reached while a
+	// stand-in was held would be graded as a message the node ran and rejected,
+	// so it would fail for a reason that has nothing to do with the package.
 	//
 	// The status board is already listening, so the wait is visible rather than
 	// silent.
@@ -283,8 +299,6 @@ func (o *oracle) run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 	}
-
-	height := o.cfg.startHeight
 
 	// Verification runs on its own goroutine, never on the block reader.
 	//
@@ -313,17 +327,9 @@ func (o *oracle) run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 
-		status, err := o.client.RPCClient.Status(ctx, nil)
-		if err != nil {
-			o.errf("gpao: status query failed: %v", err)
+		latest, answered := o.queryLatestHeight(ctx)
+		if !answered {
 			continue
-		}
-		latest := status.SyncInfo.LatestBlockHeight
-		if height <= 0 {
-			// -start-height 0 means begin at the tip. Resolved on the first
-			// poll that answers, so a node that is not up yet costs a poll
-			// interval rather than the process.
-			height = latest + 1
 		}
 
 		for ; height <= latest; height++ {
@@ -572,6 +578,26 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	o.status.record(path, statusApproved, "", 0)
 	o.seen[key] = struct{}{}
 	o.logf("gpao: %q approved and enabled", path)
+}
+
+// queryLatestHeight reads the chain's latest committed height, and reports
+// whether the chain answered with one the oracle can start from.
+//
+// A negative height is not an answer. One past it is 0 or less, and no chain
+// has a block there, so a run anchored to it stalls on a height the node
+// refuses rather than starting: the caller must keep asking instead.
+func (o *oracle) queryLatestHeight(ctx context.Context) (latest int64, answered bool) {
+	status, err := o.client.RPCClient.Status(ctx, nil)
+	if err != nil {
+		o.errf("gpao: status query failed: %v", err)
+		return 0, false
+	}
+	if h := status.SyncInfo.LatestBlockHeight; h >= 0 {
+		return h, true
+	}
+	o.errf("gpao: node reported height %d, asking again",
+		status.SyncInfo.LatestBlockHeight)
+	return 0, false
 }
 
 // queryBlockMaxGas reads the chain's Block.MaxGas, and reports whether the

@@ -130,14 +130,13 @@ func (s *explicitStartRPC) Block(_ context.Context, height *int64) (*ctypes.Resu
 	return blockWith(), nil
 }
 
-// TestRunHonoursExplicitStartHeight pins that deferring the tip resolution did
-// not swallow -start-height.
+// TestRunHonoursExplicitStartHeight pins that resolving the tip does not
+// swallow -start-height.
 //
-// The guard that resolves the tip reads the loop-carried height, so a
-// configured start passes through it untouched and is the first block read.
-// A guard that also fired whenever the height lags the tip
-// (height <= 0 || height < latest) would start at the tip instead, and the
-// history the operator asked for would go unread with nothing said about it.
+// Only an unset height is resolved, so a configured one reaches the block
+// reader untouched and is the first block read. Resolving whenever the height
+// lags the tip would start at the tip instead, and the history the operator
+// asked for would go unread with nothing said about it.
 func TestRunHonoursExplicitStartHeight(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -214,16 +213,19 @@ func TestRunAdoptsTheCeilingOnceTheChainAnswers(t *testing.T) {
 }
 
 // ceilingFirstRPC is a node that will not answer ConsensusParams for the first
-// `failures` calls, and records any Status or Block call that arrives before it
-// does. Once it answers, one Status call ends the run. The embedded interface
-// is nil on purpose, as in stubRPC.
+// `failures` calls, and records any block read that arrives before it does.
+// Reading a block is the work the ceiling gates; pinning the start height is
+// not, so Status answers throughout and its tip advances a block per call.
+// The first block read ends the run. The embedded interface is nil on purpose,
+// as in stubRPC.
 type ceilingFirstRPC struct {
 	rpcclient.Client
-	mu        sync.Mutex
-	failures  int
-	answered  bool
-	beforeAny []string // work calls that arrived while the ceiling was unknown
-	cancel    context.CancelFunc
+	mu           sync.Mutex
+	failures     int
+	tip          int64
+	answered     bool
+	readTooEarly []int64 // heights read while the ceiling was still unknown
+	cancel       context.CancelFunc
 }
 
 func (c *ceilingFirstRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
@@ -242,12 +244,9 @@ func (c *ceilingFirstRPC) ConsensusParams(context.Context, *int64) (*ctypes.Resu
 func (c *ceilingFirstRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !c.answered {
-		c.beforeAny = append(c.beforeAny, "Status")
-	}
-	c.cancel() // the ceiling is settled and the loop is running; end the run
 	res := &ctypes.ResultStatus{}
-	res.SyncInfo.LatestBlockHeight = 1
+	res.SyncInfo.LatestBlockHeight = c.tip
+	c.tip++
 	return res, nil
 }
 
@@ -255,8 +254,9 @@ func (c *ceilingFirstRPC) Block(_ context.Context, height *int64) (*ctypes.Resul
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.answered {
-		c.beforeAny = append(c.beforeAny, "Block")
+		c.readTooEarly = append(c.readTooEarly, *height)
 	}
+	c.cancel() // a block is being read, so the work loop is running; end the run
 	return blockWith(), nil
 }
 
@@ -275,15 +275,233 @@ func TestRunWaitsForTheCeilingBeforeWorking(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	rpc := &ceilingFirstRPC{failures: 3, cancel: cancel}
+	rpc := &ceilingFirstRPC{failures: 3, tip: 1, cancel: cancel}
 	o := newStubOracle(rpc)
 	o.cfg.pollInterval = time.Millisecond
 
 	require.NoError(t, o.run(ctx))
 
-	require.True(t, rpc.answered, "the ceiling was never asked for until it answered")
-	require.Empty(t, rpc.beforeAny,
+	require.Empty(t, rpc.readTooEarly,
 		"no block may be read or verified while the ceiling is still the fallback: every approval in that window is signed against a number the chain did not give")
+	require.True(t, rpc.answered, "the ceiling was never asked for until it answered")
 	require.Equal(t, int64(500_000), o.blockMaxGas,
 		"the chain's own ceiling must be the one held once it has answered")
+}
+
+// startupTipRPC is a node that is up and answering. It records that the tip was
+// asked for, and answering ends the run. The embedded interface is nil on
+// purpose, as in stubRPC.
+type startupTipRPC struct {
+	rpcclient.Client
+	mu     sync.Mutex
+	asked  bool
+	cancel context.CancelFunc
+}
+
+// The ceiling answers at once: what this stub is about is the tip query, which
+// is asked before it.
+func (s *startupTipRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
+	return &ctypes.ResultConsensusParams{
+		ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 500_000}},
+	}, nil
+}
+
+func (s *startupTipRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.asked = true
+	s.cancel() // the tip has been asked for, which is the whole question
+	res := &ctypes.ResultStatus{}
+	res.SyncInfo.LatestBlockHeight = 41
+	return res, nil
+}
+
+func (s *startupTipRPC) tipAsked() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.asked
+}
+
+// TestRunResolvesTheTipBeforeTheFirstPollInterval pins that -start-height 0
+// begins at the tip as of startup rather than the tip a poll interval later.
+//
+// Heights only move forward from wherever the first answered poll lands, so a
+// tip resolved one interval late means every block committed in that interval
+// is never read and every package submitted in it is never seen. Nothing is
+// logged about them: the oracle reports itself healthy and approves nothing
+// that arrived while it was starting. A supervisor that restarts gpao while
+// submissions are in flight loses exactly that window.
+//
+// The poll interval here is far longer than the wait below, so a tick cannot
+// account for the query: the only way to ask this soon is to ask before
+// waiting for one.
+func TestRunResolvesTheTipBeforeTheFirstPollInterval(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rpc := &startupTipRPC{cancel: cancel}
+	o := newStubOracle(rpc)
+	o.cfg.pollInterval = time.Minute
+	o.cfg.startHeight = 0 // the flag under test: begin from the tip
+
+	errc := make(chan error, 1)
+	go func() { errc <- o.run(ctx) }()
+
+	require.Eventually(t, rpc.tipAsked, 5*time.Second, 10*time.Millisecond,
+		"the tip must be asked for at startup; every block committed before the first poll is one the oracle never reads")
+	require.NoError(t, <-errc)
+}
+
+// unusableTipRPC is a node that answers the tip query with a height no chain
+// has. It counts the calls, because what a nonsense answer must not do is turn
+// the retry into a spin. The embedded interface is nil on purpose, as in
+// stubRPC.
+type unusableTipRPC struct {
+	rpcclient.Client
+	mu           sync.Mutex
+	calls        int
+	ceilingAsked bool
+}
+
+// The ceiling is asked for only once the start height is settled, so a call
+// here is the oracle having moved on with a height it cannot use.
+func (s *unusableTipRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ceilingAsked = true
+	return &ctypes.ResultConsensusParams{
+		ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 500_000}},
+	}, nil
+}
+
+func (s *unusableTipRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.calls++
+	res := &ctypes.ResultStatus{}
+	res.SyncInfo.LatestBlockHeight = -1
+	return res, nil
+}
+
+func (s *unusableTipRPC) callCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.calls
+}
+
+func (s *unusableTipRPC) ceilingWasAsked() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ceilingAsked
+}
+
+// TestRunPacesAnUnusableTipAnswer pins that a height no chain has leaves the
+// start height unresolved, asked again on the poll interval, interruptible
+// throughout.
+//
+// Accepting such a height is worse than getting no answer. One less than the
+// first real block is 0, and no chain has a block 0: the node refuses every
+// request for it, and the work loop does not advance past a height it could
+// not read, so the daemon reports the same refusal every interval and approves
+// nothing for the life of the process.
+//
+// One tick cannot arrive inside the window below, so the count also prices the
+// pacing: asked once, then waiting.
+func TestRunPacesAnUnusableTipAnswer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rpc := &unusableTipRPC{}
+	o := newStubOracle(rpc)
+	o.cfg.pollInterval = time.Minute
+	o.cfg.startHeight = 0
+
+	errc := make(chan error, 1)
+	go func() { errc <- o.run(ctx) }()
+
+	require.Eventually(t, func() bool { return rpc.callCount() > 0 }, 5*time.Second, 10*time.Millisecond,
+		"the tip must be asked for at startup")
+	require.False(t, rpc.ceilingWasAsked(),
+		"a height no chain has must not settle the start height: starting at 0 stalls the run on a block the node refuses, every interval, forever")
+	require.Equal(t, 1, rpc.callCount(),
+		"an unresolved start height waits for the next tick before asking again")
+
+	cancel()
+	require.NoError(t, <-errc, "the wait must stay interruptible while the start height is unresolved")
+}
+
+// ceilingSlowRPC is a node whose ceiling is unavailable for the first
+// `failures` calls while its chain keeps committing: every RPC that answers or
+// fails advances the tip, the way a real chain does not stop for a daemon
+// waiting on it. The first height asked of Block says which tip the oracle
+// anchored to, so asking ends the run. The embedded interface is nil on
+// purpose, as in stubRPC.
+type ceilingSlowRPC struct {
+	rpcclient.Client
+	mu         sync.Mutex
+	failures   int
+	tip        int64
+	blockAsked *int64 // first height asked of Block, nil until then
+	cancel     context.CancelFunc
+}
+
+func (s *ceilingSlowRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failures > 0 {
+		s.failures--
+		s.tip++ // the chain committed another block while it could not answer
+		return nil, errors.New("connection refused: the node is still booting")
+	}
+	return &ctypes.ResultConsensusParams{
+		ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 500_000}},
+	}, nil
+}
+
+func (s *ceilingSlowRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	res := &ctypes.ResultStatus{}
+	res.SyncInfo.LatestBlockHeight = s.tip
+	s.tip++
+	return res, nil
+}
+
+func (s *ceilingSlowRPC) Block(_ context.Context, height *int64) (*ctypes.ResultBlock, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.blockAsked == nil {
+		h := *height
+		s.blockAsked = &h
+		s.cancel() // the first height asked is the whole question; end the run
+	}
+	return blockWith(), nil
+}
+
+// TestRunPinsTheTipBeforeWaitingOnTheCeiling pins that a ceiling the chain
+// cannot report yet does not cost the blocks committed while it is asked.
+//
+// The ceiling gates verification, because a probe signed against a stand-in is
+// refused by the ante rather than clamped. It does not gate reading the tip:
+// pinning a height approves nothing. Asked in the other order, every interval
+// spent retrying the ceiling is an interval whose blocks the oracle anchors
+// past and never reads, and the log cannot even name the range, because the
+// starting tip was never learned.
+//
+// Here the tip is 5 at startup and the chain reaches 9 while the ceiling is
+// unavailable, so the run must begin at 6 and catch up the rest.
+func TestRunPinsTheTipBeforeWaitingOnTheCeiling(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rpc := &ceilingSlowRPC{failures: 3, tip: 5, cancel: cancel}
+	o := newStubOracle(rpc)
+	o.cfg.pollInterval = time.Millisecond
+	o.cfg.startHeight = 0 // the flag under test: begin from the tip
+
+	require.NoError(t, o.run(ctx))
+
+	require.NotNil(t, rpc.blockAsked, "the oracle never started following blocks")
+	require.Equal(t, int64(6), *rpc.blockAsked,
+		"the tip must be pinned before the ceiling is waited on; anchoring after it skips every block committed during the wait")
 }
