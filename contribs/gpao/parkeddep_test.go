@@ -151,7 +151,9 @@ func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 	}
 	o, err := newOracle(ocfg, tio)
 	require.NoError(t, err)
-	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
+	o.blockMaxGas = maxGas
 
 	// The control runs first, because it is what stops the fix from being a
 	// string match on the typecheck error. C's import does not exist anywhere,
