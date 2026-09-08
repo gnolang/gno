@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +16,27 @@ import (
 )
 
 const gpaoReadyWait = 30 * time.Second
+
+// gpaoDataDirName is where the oracle's own state goes, under the script's
+// $WORK. A scenario can therefore read the cursor back the way it reads any
+// other file it owns.
+const gpaoDataDirName = "gpao-data"
+
+// dataDirAssignedReason says why a scenario may not name -data-dir. Rejected
+// rather than silently overridden: the harness could append its own value last
+// and win, but a flag that a scenario set and that did nothing is the worse of
+// the two failures.
+//
+// The first gpao flag the harness refuses outright. The others it injects
+// (-chain-id, -status-listen, -gno-root) a script can still override by naming
+// them last, which for -status-listen means a readiness probe watching a port
+// nobody serves -- so the general form of this guard is a table of assigned
+// flags, the way HarnessAssignedConfigKeys is one for cluster keys. Not built
+// here, because turning the other three into refusals changes behaviour the
+// dialect currently documents as pass-through.
+const dataDirAssignedReason = "-data-dir is assigned by the harness, which " +
+	"puts the oracle's state under $WORK/" + gpaoDataDirName + "; a scenario " +
+	"naming it would write outside the script's own directory"
 
 // GpaoConfig carries what stays fixed for a whole run. Per-invocation flags
 // come from the script.
@@ -87,10 +109,20 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 	if r.cfg.Binary == nil {
 		ts.Fatalf("gpao: no binary provider configured for this run")
 	}
+	if namesFlag(flags, "data-dir") {
+		ts.Fatalf("gpao: %s", dataDirAssignedReason)
+	}
 	binary, err := r.cfg.Binary()
 	if err != nil {
 		ts.Fatalf("gpao: build: %v", err)
 	}
+
+	// Under $WORK, so it is this script's alone: every scenario boots a fresh
+	// chain at height 1, and a cursor left by the previous scenario would name
+	// a height that chain has not reached. It is also stable across a stop and
+	// a start within one script, which is what makes a resume scenario
+	// expressible, and testscript removes it with the rest of $WORK.
+	dataDir := filepath.Join(ts.Getenv("WORK"), gpaoDataDirName)
 
 	port, err := cluster.FindAvailablePort()
 	if err != nil {
@@ -101,7 +133,7 @@ func (r *gpaoRunner) start(ts *testscript.TestScript, neg bool, flags []string) 
 	d, err := daemon.Start(context.Background(), daemon.Config{
 		Name:       "gpao",
 		BinaryPath: binary,
-		Args:       gpaoArgs(r.cfg, listen, flags),
+		Args:       gpaoArgs(r.cfg, listen, dataDir, flags),
 		Env:        []string{"GPAO_MNEMONIC=" + r.cfg.Mnemonic},
 		Ready:      statusProbe(statusURL(listen)),
 		ReadyWait:  gpaoReadyWait,
@@ -167,11 +199,13 @@ func stopDaemon(ts *testscript.TestScript, d *daemon.Daemon) {
 
 // gpaoArgs builds the oracle's argv. Script flags come last so that a script
 // naming a node overrides the run's default, and the default is left out
-// entirely when the script names one.
-func gpaoArgs(cfg GpaoConfig, statusListen string, flags []string) []string {
+// entirely when the script names one. The exception is -data-dir, which start
+// refuses to let a script name at all.
+func gpaoArgs(cfg GpaoConfig, statusListen, dataDir string, flags []string) []string {
 	args := []string{
 		"-chain-id", cfg.ChainID,
 		"-status-listen", statusListen,
+		"-data-dir", dataDir,
 	}
 	if cfg.GnoRoot != "" {
 		args = append(args, "-gno-root", cfg.GnoRoot)

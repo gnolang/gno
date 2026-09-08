@@ -111,6 +111,8 @@ back, and last an enable by hand with no oracle running.
   the result. Submission enters through one node and the oracle works through another.
 - `patient_oracle.txtar`: losing two validators of four halts consensus while the survivors keep serving RPC. The
   oracle waits on a frozen tip without spinning, exiting or losing its place.
+- `resume.txtar`: a package parks while the oracle is stopped, and an oracle restarted with no `-start-height`
+  activates it -- so the height it recorded, not the node's tip, is where a restart begins.
 
 ## Limits
 

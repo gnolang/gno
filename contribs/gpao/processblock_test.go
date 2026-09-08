@@ -43,16 +43,30 @@ func (s stubRPC) BlockResults(context.Context, *int64) (*ctypes.ResultBlockResul
 	return s.results, s.resultsErr
 }
 
-func addPkgTx(t *testing.T, path string) bfttypes.Tx {
+func txWith(t *testing.T, msgs ...std.Msg) bfttypes.Tx {
 	t.Helper()
-	raw, err := amino.Marshal(std.Tx{
-		Msgs: []std.Msg{vm.MsgAddPackage{
-			Creator: crypto.AddressFromPreimage([]byte("submitter")),
-			Package: &std.MemPackage{Name: "p", Path: path},
-		}},
-	})
+	raw, err := amino.Marshal(std.Tx{Msgs: msgs})
 	require.NoError(t, err)
 	return bfttypes.Tx(raw)
+}
+
+func addPkgTx(t *testing.T, path string) bfttypes.Tx {
+	t.Helper()
+	return txWith(t, vm.MsgAddPackage{
+		Creator: crypto.AddressFromPreimage([]byte("submitter")),
+		Package: &std.MemPackage{Name: "p", Path: path},
+	})
+}
+
+// nonAddPkgTx is a successful transaction that submits no package, which is
+// what almost every transaction on a real chain is.
+func nonAddPkgTx(t *testing.T) bfttypes.Tx {
+	t.Helper()
+	return txWith(t, vm.MsgCall{
+		Caller:  crypto.AddressFromPreimage([]byte("caller")),
+		PkgPath: "gno.land/r/test/other",
+		Func:    "Noop",
+	})
 }
 
 func blockWith(txs ...bfttypes.Tx) *ctypes.ResultBlock {
@@ -75,15 +89,27 @@ func resultsWith(oks ...bool) *ctypes.ResultBlockResults {
 
 var errStub = errors.New("rpc unavailable")
 
-func newStubOracle(rpc rpcclient.Client) *oracle {
+// newStubOracle builds the smallest oracle that can read a block and hand it
+// on. The state store is always present, even for tests that only look at the
+// channel: an oracle with a nil one cannot drive runVerifier, and that is a
+// nil dereference waiting for whoever writes the next test.
+func newStubOracle(t *testing.T, rpc rpcclient.Client) *oracle {
+	t.Helper()
+	st, err := openStateStore(t.TempDir(), stubChainID)
+	require.NoError(t, err)
 	return &oracle{
 		io:         commands.NewTestIO(),
 		client:     gnoclient.Client{RPCClient: rpc},
-		candidates: make(chan *std.MemPackage, 8),
+		state:      st,
+		candidates: make(chan blockWork, 8),
 		seen:       map[string]struct{}{},
 		overBudget: map[string]int{},
 	}
 }
+
+// stubChainID is the chain the stub fixtures' state belongs to. Named because
+// reopening a store has to pass the same one or the guard rejects it.
+const stubChainID = "test-chain"
 
 // TestProcessBlockIgnoresFailedTransactions pins the fix for a budget bypass.
 //
@@ -96,16 +122,17 @@ func TestProcessBlockIgnoresFailedTransactions(t *testing.T) {
 	good := addPkgTx(t, "gno.land/r/test/good")
 	bad := addPkgTx(t, "gno.land/r/test/decoy")
 
-	o := newStubOracle(stubRPC{
+	o := newStubOracle(t, stubRPC{
 		block:   blockWith(good, bad),
 		results: resultsWith(true, false),
 	})
 
 	require.NoError(t, o.processBlock(context.Background(), 1))
 
+	work := <-o.candidates
 	var queued []string
-	for len(o.candidates) > 0 {
-		queued = append(queued, (<-o.candidates).Path)
+	for _, pkg := range work.pkgs {
+		queued = append(queued, pkg.Path)
 	}
 	require.Equal(t, []string{"gno.land/r/test/good"}, queued,
 		"only the package from the transaction that SUCCEEDED may be queued")
@@ -117,22 +144,93 @@ func TestProcessBlockFailsClosedWithoutResults(t *testing.T) {
 	tx := addPkgTx(t, "gno.land/r/test/unknown")
 
 	t.Run("results unavailable", func(t *testing.T) {
-		o := newStubOracle(stubRPC{
+		o := newStubOracle(t, stubRPC{
 			block:      blockWith(tx),
 			resultsErr: errStub,
 		})
 		require.Error(t, o.processBlock(context.Background(), 1))
-		require.Empty(t, o.candidates, "nothing may be queued from a block whose outcomes are unknown")
+		require.Empty(t, o.candidates, "nothing may be queued from a block whose "+
+			"outcomes are unknown -- not even its height, which the cursor would "+
+			"read as a verified block and skip for good")
 	})
 
 	t.Run("results do not pair with transactions", func(t *testing.T) {
-		o := newStubOracle(stubRPC{
+		o := newStubOracle(t, stubRPC{
 			block:   blockWith(tx),
 			results: resultsWith(), // zero results, one tx
 		})
 		require.Error(t, o.processBlock(context.Background(), 1))
-		require.Empty(t, o.candidates)
+		require.Empty(t, o.candidates, "an unpairable block publishes nothing, its height included")
 	})
+}
+
+// TestProcessBlockPublishesEachHeightExactlyOnce guards the shape the retry in
+// run() depends on: a height that was read is published once, and a height that
+// could not be read is not published at all.
+//
+// A table over block shapes rather than one case, because the risk is a future
+// early return that skips the publish -- which stalls the cursor with no error
+// and no log, and is only visible much later as a restart that re-reads a lot.
+func TestProcessBlockPublishesEachHeightExactlyOnce(t *testing.T) {
+	good := addPkgTx(t, "gno.land/r/test/good")
+	other := addPkgTx(t, "gno.land/r/test/other")
+	plain := nonAddPkgTx(t)
+
+	tests := []struct {
+		name string
+		rpc  stubRPC
+		pkgs int
+	}{
+		{
+			name: "no transactions",
+			rpc:  stubRPC{block: blockWith(), results: resultsWith()},
+			pkgs: 0,
+		},
+		{
+			name: "no MsgAddPackage",
+			rpc:  stubRPC{block: blockWith(plain), results: resultsWith(true)},
+			pkgs: 0,
+		},
+		{
+			name: "every submission failed on chain",
+			rpc:  stubRPC{block: blockWith(good), results: resultsWith(false)},
+			pkgs: 0,
+		},
+		{
+			name: "one package",
+			rpc:  stubRPC{block: blockWith(good), results: resultsWith(true)},
+			pkgs: 1,
+		},
+		{
+			name: "two packages",
+			rpc:  stubRPC{block: blockWith(good, other), results: resultsWith(true, true)},
+			pkgs: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := newStubOracle(t, tt.rpc)
+
+			require.NoError(t, o.processBlock(context.Background(), 7))
+
+			require.Len(t, o.candidates, 1, "every block read publishes exactly one")
+			work := <-o.candidates
+			assert.Equal(t, int64(7), work.height)
+			assert.Len(t, work.pkgs, tt.pkgs)
+		})
+	}
+}
+
+// TestProcessBlockRefusesABlocklessAnswer: a conforming node errors on a height
+// it cannot describe rather than answering without a block, so this is a proxy
+// or something else non-conforming. Recording the height as verified would take
+// an anomalous answer as licence to skip the block for good.
+func TestProcessBlockRefusesABlocklessAnswer(t *testing.T) {
+	o := newStubOracle(t, stubRPC{block: &ctypes.ResultBlock{}})
+
+	require.Error(t, o.processBlock(context.Background(), 7))
+	require.Empty(t, o.candidates, "an unreadable height publishes nothing, its number included")
 }
 
 // TestChildEnvExcludesCredentials pins the invariant this daemon's comments
@@ -215,7 +313,13 @@ func TestWouldExceedSpend(t *testing.T) {
 // of. It carries more than newOracle reads, since the same config goes on to
 // sign, and it sets both child budgets: a zero one is unset rather than a
 // zero-length deadline, and it would expire the spawned child at once.
-func baseConfig() config {
+//
+// It takes t for the data directory, which is the same argument as the
+// budgets: newOracle validates it, so a config built in code has to carry one,
+// and it must be the test's own or the run would write to the developer's
+// $GNOHOME.
+func baseConfig(t *testing.T) config {
+	t.Helper()
 	return config{
 		remote:        "http://127.0.0.1:26657",
 		chainID:       "test",
@@ -223,6 +327,7 @@ func baseConfig() config {
 		gnoRoot:       gnoenv.RootDir(),
 		gasFee:        "1000000ugnot",
 		gasWanted:     defaultGasWanted,
+		dataDir:       t.TempDir(),
 		prepareBudget: defaultPrepareBudget,
 		verifyBudget:  defaultVerifyBudget,
 	}
@@ -237,7 +342,7 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	tio.SetErr(commands.WriteNopCloser(io.Discard))
 
 	t.Run("below one approval", func(t *testing.T) {
-		cfg := baseConfig()
+		cfg := baseConfig(t)
 		cfg.maxSpend = "999999ugnot"
 		_, err := newOracle(cfg, tio)
 		require.Error(t, err)
@@ -245,7 +350,7 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	})
 
 	t.Run("wrong denom", func(t *testing.T) {
-		cfg := baseConfig()
+		cfg := baseConfig(t)
 		cfg.maxSpend = "100foocoin"
 		_, err := newOracle(cfg, tio)
 		require.Error(t, err)
@@ -253,12 +358,24 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	})
 
 	t.Run("a usable bound is accepted", func(t *testing.T) {
-		cfg := baseConfig()
+		cfg := baseConfig(t)
 		cfg.maxSpend = defaultMaxSpend
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1000000), o.enableFee)
 		assert.Positive(t, o.maxSpend)
+	})
+
+	// newOracle validates rather than trusting its caller, so a fixture cannot
+	// quietly rely on a value the flags would never produce. Checked through a
+	// missing data dir because that is the field a caller is most likely to
+	// forget: a zero budget at least fails loudly at the first verification.
+	t.Run("an invalid config is refused", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.dataDir = ""
+		_, err := newOracle(cfg, tio)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--data-dir is required")
 	})
 }
 

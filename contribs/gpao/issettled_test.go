@@ -134,11 +134,12 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 		gasWanted:     defaultGasWanted,
 		verifyBudget:  time.Minute,
 		prepareBudget: defaultPrepareBudget,
+		dataDir:       t.TempDir(),
 	}, tio)
 	require.NoError(t, err)
 	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
 
-	o.handleCandidate(t.Context(), v2)
+	o.handleCandidate(t.Context(), 1, v2)
 
 	st := o.status.get(pkgPath)
 	require.NotEqual(t, "already active on-chain", st.Reason,
