@@ -126,13 +126,14 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 	tio.SetOut(commands.WriteNopCloser(io.Discard))
 	tio.SetErr(commands.WriteNopCloser(io.Discard))
 	o, err := newOracle(config{
-		remote:       remote,
-		chainID:      cfg.Genesis.ChainID,
-		mnemonic:     integration.DefaultAccount_Seed,
-		gnoRoot:      gnoroot,
-		gasFee:       defaultGasFee,
-		gasWanted:    defaultGasWanted,
-		verifyBudget: time.Minute,
+		remote:        remote,
+		chainID:       cfg.Genesis.ChainID,
+		mnemonic:      integration.DefaultAccount_Seed,
+		gnoRoot:       gnoroot,
+		gasFee:        defaultGasFee,
+		gasWanted:     defaultGasWanted,
+		verifyBudget:  time.Minute,
+		prepareBudget: defaultPrepareBudget,
 	}, tio)
 	require.NoError(t, err)
 	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
