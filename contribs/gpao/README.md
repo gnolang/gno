@@ -40,6 +40,26 @@ make install   # go install . — puts gpao on your $PATH
 make build     # go build -o build/gpao . — leaves it here instead
 ```
 
+### Docker
+
+`ghcr.io/gnolang/gno/gpao` ships the binary with the repo's stdlibs and
+examples at `/gnoroot` (the baked-in `--gno-root` default), built from the same
+`Dockerfile` targets as the other images. Mount a gnokey keystore and pass the
+key password through `GPAO_PASSWORD`:
+
+```sh
+docker run -d \
+  -v /path/to/gnokey-home:/keystore \
+  -e GPAO_PASSWORD=... \
+  -p 8546:8546 \
+  ghcr.io/gnolang/gno/gpao \
+  --remote http://node:26657 \
+  --chain-id dev \
+  --home /keystore \
+  --key approver \
+  --status-listen 0.0.0.0:8546
+```
+
 ## Usage
 
 The approver key lives in a local [gnokey](../../gno.land/cmd/gnokey) keystore.
