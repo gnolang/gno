@@ -136,7 +136,9 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 		prepareBudget: defaultPrepareBudget,
 	}, tio)
 	require.NoError(t, err)
-	o.blockMaxGas = o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
+	o.blockMaxGas = maxGas
 
 	o.handleCandidate(t.Context(), v2)
 
