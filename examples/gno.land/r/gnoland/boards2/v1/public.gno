@@ -3,12 +3,18 @@ package boards2
 import (
 	"chain"
 	"chain/runtime/unsafe"
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"gno.land/p/gnoland/boards"
+)
+
+var (
+	errRealmLocked     = errors.New("realm is locked")
+	errBoardNameExists = errors.New("board already exists")
 )
 
 const (
@@ -141,41 +147,58 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
 
 	caller := cur.Previous().Address()
 	id := gBoardsSequence.Next()
-	board := boards.New(id)
-	args := boards.Args{caller, name, board.ID, listed, open}
+	args := boards.Args{caller, name, id, listed, open}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
-		assertRealmIsNotLocked()
-		assertBoardNameNotExists(name)
-
-		board.Name = name
-		board.Creator = caller
-		board.Meta = &BoardMeta{
-			HiddenThreads: boards.NewPostStorage(),
+		if err := createBoard(id, caller, name, listed, open); err != nil {
+			panic(err.Error())
 		}
-
-		if open {
-			board.Permissions = createOpenBoardPermissions(caller)
-		} else {
-			board.Permissions = createBasicBoardPermissions(caller)
-		}
-
-		if err := gBoards.Add(board); err != nil {
-			panic(err)
-		}
-
-		// Listed boards are also indexed separately for easier iteration and pagination
-		if listed {
-			gListedBoardsByID.Set(board.ID.Key(), board)
-		}
-
-		chain.Emit(
-			"BoardCreated",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"name", name,
-		)
 	})
-	return board.ID
+	return id
+}
+
+// createBoard re-checks the preconditions that can change between validation
+// and creation, then registers the new board. This returns an error instead of
+// panicking so that it can be used in ProposeCreateBoard.
+func createBoard(id boards.ID, caller address, name string, listed, open bool) error {
+	if IsRealmLocked() {
+		return errRealmLocked
+	}
+	if boardNameExists(name) {
+		return errBoardNameExists
+	}
+	if err := checkBoardNameBelongsToAddress(caller, name); err != nil {
+		return err
+	}
+
+	board := boards.New(id)
+	board.Name = name
+	board.Creator = caller
+	board.Meta = &BoardMeta{
+		HiddenThreads: boards.NewPostStorage(),
+	}
+
+	if open {
+		board.Permissions = createOpenBoardPermissions(caller)
+	} else {
+		board.Permissions = createBasicBoardPermissions(caller)
+	}
+
+	if err := gBoards.Add(board); err != nil {
+		return err
+	}
+
+	// Listed boards are also indexed separately for easier iteration and pagination
+	if listed {
+		gListedBoardsByID.Set(board.ID.Key(), board)
+	}
+
+	chain.Emit(
+		"BoardCreated",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"name", name,
+	)
+	return nil
 }
 
 // RenameBoard changes the name of an existing board.
@@ -736,10 +759,15 @@ func assertBodyIsNotEmpty(body string) {
 }
 
 func assertBoardNameNotExists(name string) {
-	name = strings.ToLower(name)
-	if _, found := gBoards.GetByName(name); found {
-		panic("board already exists")
+	if boardNameExists(name) {
+		panic(errBoardNameExists.Error())
 	}
+}
+
+func boardNameExists(name string) bool {
+	name = strings.ToLower(name)
+	_, found := gBoards.GetByName(name)
+	return found
 }
 
 func assertThreadExists(b *boards.Board, threadID boards.ID) {
