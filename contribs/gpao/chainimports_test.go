@@ -1,15 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"errors"
+	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -174,28 +176,96 @@ func fakeQFile(pkgs ...*std.MemPackage) qfileFunc {
 	}
 }
 
-// A dependency that will not build must not take the prepare phase down.
+// A dependency that will not build ends prepare, and does NOT become a verdict
+// about the candidate.
 //
-// prodgs.GetPackage reaches the installed getter, and everything past that
-// point reports errors by panicking: AddMemPackage on a mempackage that fails
-// validation, ParseMemPackageAsType on a parse error, and the preprocessor
-// itself. A dependency live on chain has already passed all three on a
-// validator, so a panic here says something about this oracle's tree -- which
-// is exactly what NUL-carrying AppleDouble files in its gnovm/stdlibs did.
-func TestPrepareSurvivesADependencyThatWillNotBuild(t *testing.T) {
+// vm/qfile serves the normal package keyspace and a parked package lives in the
+// inert one, invisible to that resolver -- so everything reachable through the
+// getter is active on chain, and has already survived every panic buildOne
+// catches on a validator. One here therefore says something about this oracle's
+// tree, which is exactly what NUL-carrying AppleDouble files in its
+// gnovm/stdlibs did. Letting the verification trip over it instead would settle
+// a submitter's content hash on the operator's checkout, terminally.
+//
+// prepare returning non-nil is the whole mechanism: the child exits
+// exitResolverUnavailable on it, which the parent classifies as unavailability
+// and records pending, uncounted, for a restart or a resubmission to retry.
+func TestPrepareRefusesADependencyThatWillNotBuild(t *testing.T) {
 	dep := chainPackage("gno.land/p/test/broken", "package broken\n\nfunc Add(a, b int) int { return a + }\n")
 	mpkg := chainPackage("gno.land/p/test/user",
 		"package user\n\nimport \"gno.land/p/test/broken\"\n\nfunc Use() int { return broken.Add(1, 2) }\n")
 
 	v := newRPCVerifier(t, dep)
-	notes := &bytes.Buffer{}
-	v.errw = notes
+	err := v.prepare(mpkg)
 
-	require.NoError(t, v.prepare(mpkg), "a dependency that will not build is not a resolver fault")
-	assert.Contains(t, notes.String(), "could not prebuild")
-	assert.Contains(t, notes.String(), "gno.land/p/test/broken")
+	require.Error(t, err, "a dependency that will not build leaves no verdict to give")
+	assert.Contains(t, err.Error(), "could not prebuild")
+	assert.Contains(t, err.Error(), "gno.land/p/test/broken")
+	assert.Contains(t, err.Error(), "gno.land/p/test/user",
+		"the operator has to be told which candidate reached it")
+}
 
-	// And the verification still reaches a verdict about it, rather than the
-	// prepare phase having decided for it.
-	assert.Error(t, v.verifyPackage(mpkg), "the broken dependency must fail the typecheck")
+// A transport fault outranks a build failure it caused.
+//
+// The walk fetches before it builds, so a node that dies partway leaves the
+// getter unable to resolve a transitive import and the package importing it
+// unbuildable. Both leave the candidate pending, so what is at stake is only
+// which reason the operator and the status line get: "the node stopped
+// answering" is the diagnosis, "a dependency would not compile" is the symptom
+// of it, and reporting the symptom sends the operator to their gno checkout
+// over a network fault.
+func TestPrepareReportsTheTransportFaultUnderABuildFailure(t *testing.T) {
+	mid := chainPackage("gno.land/p/test/mid",
+		"package mid\n\nimport \"gno.land/p/test/low\"\n\nfunc Two() int { return low.One() + 1 }\n")
+	low := chainPackage("gno.land/p/test/low", "package low\n\nfunc One() int { return 1 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/mid\"\n\nfunc Use() int { return mid.Two() }\n")
+
+	v := newRPCVerifier(t, mid, low)
+	// Serve mid, then go down: low is never fetched, so building mid panics on
+	// an import the getter cannot resolve. Wrapped in errResolverUnavailable
+	// like newRPCGetter's own qfile wraps an unreachable node, which is what
+	// separates a transport fault from the node answering "nothing is there".
+	inner := v.rpc.qfile
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		if strings.HasPrefix(fpath, low.Path) {
+			return nil, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+		}
+		return inner(fpath)
+	}
+
+	err := v.prepare(mpkg)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errResolverUnavailable,
+		"the fault under the build failure is what the parent classifies on")
+}
+
+// Where the chain and the operator's examples/ have drifted, preprocess must
+// resolve the chain's copy -- the one the typecheck resolved.
+//
+// The getter used to try disk first and fall through only on a miss, so a
+// dependency present in both came from the operator's checkout while the
+// typecheck took the chain's -- injectChainGetter's doc has why that rejects
+// packages a validator would enable.
+//
+// Shadowing a real examples/ resident is the point: an invented path would miss
+// on disk and reach the chain either way, which is what the tests above cover.
+// The chain's copy carries a function the disk copy does not, so only the
+// routing can tell the two apart.
+func TestVerifierPrefersTheChainOverADivergentDiskCopy(t *testing.T) {
+	const shadowed = "gno.land/p/nt/ownable/v0"
+	require.DirExists(t, filepath.Join(gnoenv.RootDir(), "examples", shadowed),
+		"the fixture needs a path that really is on disk; examples/ paths move "+
+			"(p/demo -> p/nt did), so repoint the constant rather than reading "+
+			"this as a routing failure")
+
+	dep := chainPackage(shadowed, "package ownable\n\nfunc OnlyOnChain() int { return 42 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/nt/ownable/v0\"\n\nfunc Use() int { return ownable.OnlyOnChain() }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg),
+		"preprocess must resolve the dependency the typecheck resolved")
 }

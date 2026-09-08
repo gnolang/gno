@@ -108,8 +108,10 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 		return err
 	}
 	if err := v.prepare(&mpkg); err != nil {
-		// The network under the resolver failed before any verdict was
-		// possible; same channel as below.
+		// Setting up for the compile failed, so no verdict was possible: the
+		// network under the resolver, or a dependency the chain is already
+		// running that this tree cannot build. Neither is evidence about the
+		// candidate. Same channel as below.
 		fmt.Fprintln(cio.Err(), err)
 		os.Exit(exitResolverUnavailable)
 	}
@@ -130,7 +132,8 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 }
 
 // exitResolverUnavailable is the child's exit status when verification could
-// not obtain evidence -- the network under the import resolver failed -- as
+// not obtain evidence -- the network under the import resolver failed, or a
+// dependency the chain is already running would not build in this tree -- as
 // opposed to exiting 1 with a verdict. 2 belongs to the Go runtime (panic).
 //
 // Exited directly rather than through commands.ExitCodeError: the test
