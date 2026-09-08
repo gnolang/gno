@@ -1,0 +1,79 @@
+## Changing InitialGasPrice through governance must not halt EndBlock.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/params
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+gnokey query params/auth:p:initial_gasprice
+! stdout '1ugnot/1gas'
+
+gnokey query auth/gasprice
+stdout '"gas": "1000"'
+stdout '"price": "1ugnot"'
+
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2200001ugnot -gas-wanted 22_000_000 -args 0 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query params/auth:p:initial_gasprice
+stdout '1ugnot/1gas'
+
+gnoland restart
+
+gnokey query auth/gasprice
+stdout '"gas": "1"'
+stdout '"price": "1ugnot"'
+
+## CheckTx must enforce the new floor after cold store decoding.
+! gnokey maketx send -gas-fee 889999ugnot -gas-wanted 890_000 -send 1ugnot -to $test1_user_addr -chainid=tendermint_test test1
+stderr 'insufficient fees'
+
+## A transaction at the new floor still produces a block.
+gnokey maketx send -gas-fee 890000ugnot -gas-wanted 890_000 -send 1ugnot -to $test1_user_addr -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query params/auth:p:initial_gasprice
+stdout '1ugnot/1gas'
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}
+
+-- run/propose.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringPropRequest(cross(cur), "auth", "p", "initial_gasprice", "1ugnot/1gas")
+	dao.MustCreateProposal(cross(cur), prop)
+}

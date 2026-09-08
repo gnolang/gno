@@ -606,6 +606,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
+	assertAuthGenesis(state.Auth)
 	cfg.acck.InitGenesis(ctx, state.Auth)
 	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
@@ -690,6 +691,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		cfg.applyBalance(ctx, bal)
 	}
 	cfg.seedSupply(ctx)
+	assertAuthGenesis(authState)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -823,6 +825,33 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 // unrestricted address. Each address must already exist as a genesis
 // account (i.e. must have appeared in balances), otherwise the verifier
 // can't verify the chain's unrestricted set.
+// assertAuthGenesis checks the chain-specific parts of the auth genesis state
+// that tm2 cannot judge for itself.
+//
+// auth.Params.Validate only checks that the initial gas price's denomination is
+// well formed, because tm2 hosts whichever chain is built on it and does not
+// know which denom that chain collects fees in. gno.land does: fees are paid in
+// ugnot, and std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+// genesis quoting the gas price in anything else makes the ante handler reject
+// every transaction the chain will ever see.
+//
+// Panics to abort boot, like the genesis validator pubkey-type gate and
+// auth.InitGenesis itself. A chain that cannot accept a transaction should fail
+// to start rather than come up and look healthy: InitChainer's error return
+// lands in ResponseInitChain.Error, which tendermint's handshake does not
+// surface.
+func assertAuthGenesis(state auth.GenesisState) {
+	gp := state.Params.InitialGasPrice
+	// The unset price leaves pricing disabled and carries no denom to check.
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
+			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
 func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
 	for _, addr := range addrs {
 		acc := cfg.acck.GetAccount(ctx, addr)

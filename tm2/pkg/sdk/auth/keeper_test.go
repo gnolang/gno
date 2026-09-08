@@ -196,9 +196,7 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	})
 
 	t.Run("int64 overflow", func(t *testing.T) {
-		require.PanicsWithValue(t, "The min gas price is out of int64 range", func() {
-			gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params)
-		})
+		require.Equal(t, price(MaxGasPriceComponent), gk.calcBlockGasPrice(price(math.MaxInt64), targetGas+1, maxGas, params))
 	})
 }
 
@@ -451,4 +449,18 @@ func TestCalcBlockGasPriceSurvivesADegenerateGasLimit(t *testing.T) {
 	require.Greater(t, up.Price.Amount, last.Price.Amount, "a full block must raise the price")
 	down := gk.calcBlockGasPrice(last, 100, 3_000_000_000, p)
 	require.Less(t, down.Price.Amount, last.Price.Amount, "an empty block must lower it")
+}
+
+func TestEndBlockGasPriceCapped(t *testing.T) {
+	env := setupTestEnv()
+	p := DefaultParams()
+	p.InitialGasPrice = std.GasPrice{Gas: 1, Price: std.Coin{Denom: "ugnot", Amount: MaxGasPriceComponent}}
+	require.NoError(t, env.acck.SetParams(env.ctx, p))
+	env.gk.SetGasPrice(env.ctx, p.InitialGasPrice)
+	for range 500 {
+		ctx := env.ctx.WithValue(AuthParamsContextKey{}, p).WithBlockGasMeter(store.NewGasMeter(10_000_000))
+		ctx.BlockGasMeter().ConsumeGas(10_000_000, "full block")
+		require.NotPanics(t, func() { EndBlocker(ctx, env.gk) })
+		require.Equal(t, p.InitialGasPrice, env.gk.LastGasPrice(ctx))
+	}
 }
