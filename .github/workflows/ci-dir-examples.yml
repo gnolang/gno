@@ -11,6 +11,12 @@ on:
       - misc/deployments/**
       - contribs/gnogenesis/**
       - .github/workflows/ci-dir-examples.yml
+      # The reusable workflow this one calls does all the fmt/lint/test work.
+      # Without it here, a change to _ci-gno.yml runs none of the jobs that
+      # consume it, so the shared workflow can be broken with CI staying
+      # green. (Found while fixing the lint OOM: the fix touched only
+      # _ci-gno.yml and triggered nothing.)
+      - .github/workflows/_ci-gno.yml
       # *.md is prose, except in the gno source trees where it is valid
       # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns)
       # and is therefore linted/tested here.
