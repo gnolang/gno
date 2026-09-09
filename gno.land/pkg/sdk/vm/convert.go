@@ -213,6 +213,15 @@ func convertFloat(value string, precision int) float64 {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
 	}
 
+	// A Go source literal -0.0 is a constant that folds to +0, but ParseFloat
+	// keeps the sign bit, so a "-0.0"/"-0" argument arrives as negative zero.
+	// Clear the sign on zero so the argument matches Go. NaN and Inf are left
+	// untouched: Go accepts them as float arguments and the VM produces them,
+	// so rejecting them only at the maketx call boundary would diverge from Go.
+	if f64 == 0 {
+		f64 = math.Copysign(0, 1)
+	}
+
 	return f64
 }
 
