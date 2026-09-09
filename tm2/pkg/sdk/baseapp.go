@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -67,6 +68,11 @@ type BaseApp struct {
 	// Updated atomically in setCheckState().
 	// Used by Simulate and query handlers that run outside the consensus mutex.
 	lastBlockHeader atomic.Pointer[headerSnapshot]
+
+	// preCommitSimulateMu serialises Simulate's pre-commit path, the one case
+	// that has no committed version to snapshot and must read the mutable
+	// checkState. See BaseApp.Simulate.
+	preCommitSimulateMu sync.Mutex
 
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
