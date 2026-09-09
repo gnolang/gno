@@ -145,8 +145,7 @@ func TestStartHeightAcceptsACursorAtTheTip(t *testing.T) {
 func TestVerifierAdvancesTheCursorOverPackageFreeBlocks(t *testing.T) {
 	o := newCursorOracle(t, 500)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go o.runVerifier(ctx)
 
 	for h := int64(1); h <= 3; h++ {
@@ -167,8 +166,7 @@ func TestVerifierRecordsTheHeightAfterItsPackages(t *testing.T) {
 	mpkg := &std.MemPackage{Name: "p", Path: "gno.land/r/test/p"}
 	o.seen[candidateKey(mpkg)] = struct{}{}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go o.runVerifier(ctx)
 
 	require.NoError(t, o.enqueue(ctx, blockWork{height: 8, pkgs: []*std.MemPackage{mpkg}}))
