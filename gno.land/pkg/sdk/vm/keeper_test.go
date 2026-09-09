@@ -25,6 +25,7 @@ import (
 	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -631,6 +632,7 @@ func Echo(cur realm, msg string) string {
 	userAcctBalance := env.bankk.GetCoins(ctx, addr)
 	pkgStorageDeposit := env.bankk.GetCoins(ctx, storageDepositAddr)
 	assert.True(t, userAcctBalance.Add(pkgStorageDeposit).IsEqual(initialBalance))
+	ctx = ctx.WithEventLogger(sdk.NewEventLogger())
 
 	// Run Echo function.
 	msg2 := NewMsgCall(addr, coinsToSend, pkgPath, "Echo", []string{"hello world"})
@@ -642,6 +644,10 @@ func Echo(cur realm, msg string) string {
 	pkgBalance := env.bankk.GetCoins(ctx, pkgAddr)
 	assert.True(t, pkgBalance.IsZero())
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(userAcctBalance))
+	require.Equal(t, []sdk.Event{
+		bankm.TransferEvent{From: addr.String(), To: pkgAddr.String(), Coins: coinsToSend},
+		bankm.TransferEvent{From: pkgAddr.String(), To: addr.String(), Coins: coinsToSend},
+	}, ctx.EventLogger().Events())
 }
 
 // Sending too much fails
