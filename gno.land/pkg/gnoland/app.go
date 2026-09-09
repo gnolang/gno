@@ -774,6 +774,20 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	// only by the schedule set on it. Built through NewAccountWithAddress like
 	// every other account, which is what keeps it a *GnoAccount and so keeps the
 	// attributes -- the token-lock whitelist bit among them -- available on it.
+	// Probe before creating the account, to learn whether this address is a repeat
+	// (see the note above on repeated entries). A first sighting cannot hold a
+	// split-tier balance yet -- the bank store is empty when InitChainer starts,
+	// bank.InitGenesis writes params only, and this loop is its sole writer -- so
+	// there are no stale keys for SetCoins to drain, and InitCoins skips the
+	// enumeration that finds them. That enumeration is a store range iteration
+	// whose cost is O(all dirty keys), not O(denoms held), which made loading a
+	// large balance sheet quadratic. A repeat takes the SetCoins path unchanged.
+	firstSighting := cfg.acck.GetAccount(ctx, bal.Address) == nil
+
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
 	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
 		if err := bal.Vesting.Validate(); err != nil {
@@ -786,7 +800,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		acc.SetVesting(*bal.Vesting)
 	}
 	cfg.acck.SetAccount(ctx, acc)
-	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
+
+	setCoins := cfg.bankk.SetCoins
+	if firstSighting {
+		setCoins = cfg.bankk.InitCoins
+	}
+	if err := setCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a
 		// chain needs to know which entry to fix. std.ErrInvalidCoins carries the
@@ -1274,18 +1293,18 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 // The cost: keyless gas estimation no longer works for either message. gnokey
 // signs a second transaction for simulation and is unaffected; other clients
 // that estimate before signing must supply a real signature.
-// MsgEnablePackage and MsgDisablePackage are covered too, and are NOT part of
-// txCodeMsgSigners: that function feeds the code_submitters/run_submitters
-// allowlists, which have no authority over enabling. Their gate is
-// params.PkgApprovers, checked in the keeper against msg.Approver -- a
-// caller-supplied field, exactly like the signers above. So the same reasoning
-// applies: on an unverified simulate, anyone may name the real approver, attach
-// arbitrary bytes as a signature, and have the chain type-check and init() an
-// already-parked package for free. That the bytes are already stored makes it
-// worse rather than better, since under "inert" anyone may park them.
+// MsgEnablePackage is covered too, and is NOT part of txCodeMsgSigners: that
+// function feeds the code_submitters/run_submitters allowlists, which have no
+// authority over enabling. Its gate is params.PkgApprovers, checked in the
+// keeper against msg.Approver -- a caller-supplied field, exactly like the
+// signers above. So the same reasoning applies: on an unverified simulate,
+// anyone may name the real approver, attach arbitrary bytes as a signature, and
+// have the chain type-check and init() an already-parked package for free. That
+// the bytes are already stored makes it worse rather than better, since under
+// "inert" anyone may park them.
 //
 // MsgRejectPackage is deliberately NOT covered. It is authorized from its own
-// payload like the two above, but it executes nothing: it reads the parked
+// payload like the ones above, but it executes nothing: it reads the parked
 // blob, parses its gnomod.toml and deletes it. The harm the others invite --
 // driving a free type-check and init() per query -- has no analogue, and the
 // blob decode it does do is already reachable anonymously through
@@ -1298,7 +1317,7 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 func txCarriesCode(tx std.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		switch msg.(type) {
-		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage, vm.MsgDisablePackage:
+		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage:
 			return true
 		}
 	}
@@ -1548,7 +1567,7 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 		switch msg.Type() {
 		case "add_package":
 			return true
-		case "enable_package", "disable_package", "reject_package":
+		case "enable_package", "reject_package":
 			// Approver authority, and it cannot be scoped down. A session's
 			// AllowPaths are matched via GetPkgPath(), which only MsgCall
 			// implements -- so no path-scoped entry can ever match these, and
