@@ -9,7 +9,7 @@ Find the full app at [staging.gno.land/r/docs/minisocial/v1](https://staging.gno
 ## Prerequisites
 
 Complete [Getting started](./getting-started.md) first. See
-[`gnodev`](../resources/gnodev.md) for deeper local-node detail.
+[`gnodev`](../resources/gnodev-reference.md) for deeper local-node detail.
 
 ## Setup
 
@@ -22,7 +22,7 @@ touch types.gno posts.gno render.gno
 ```
 
 Swap `example` for your own namespace if you plan to deploy this realm. See
-[Namespaces](./getting-started.md#4-before-you-deploy).
+[Namespaces](./getting-started.md#3-before-you-deploy).
 
 While all code can be stored in a single file, separating types, business
 logic, and rendering makes a realm easier to read as it grows.
@@ -116,7 +116,7 @@ realm state directly from on-chain code, removing the need for a separate
 frontend framework. To learn more, see
 [Exploring Gno.land](../users/explore-with-gnoweb.md).
 
-Start [`gnodev`](./getting-started.md#run-a-local-chain) in the `minisocial/`
+Start [`gnodev`](./getting-started.md#5-run-a-local-chain) in the `minisocial/`
 folder and open [`127.0.0.1:8888`](http://127.0.0.1:8888). Since a `Render()`
 function is not defined yet, `gnoweb` returns an error. Let's fix that in
 `render.gno`:
