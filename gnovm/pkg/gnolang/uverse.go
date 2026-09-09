@@ -757,8 +757,8 @@ func makeUverseNode() {
 
 	// Primitive types
 	undefined := TypedValue{}
-	def("._", undefined)   // special, path is zero.
-	def("iota", undefined) // special
+	def("._", undefined)           // special, path is zero.
+	def(iotaIdentifier, undefined) // special
 	def("nil", undefined)
 	def("bool", asValue(BoolType))
 	def("byte", asValue(Uint8Type))
