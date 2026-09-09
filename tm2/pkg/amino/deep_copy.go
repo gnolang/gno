@@ -94,7 +94,7 @@ func _deepCopy(src, dst reflect.Value) {
 			cpy := reflect.MakeSlice(
 				src.Type(), src.Len(), src.Len())
 			reflect.Copy(cpy, src)
-			dst.Set(src)
+			dst.Set(cpy)
 			return
 		default:
 			cpy := reflect.MakeSlice(
@@ -104,7 +104,7 @@ func _deepCopy(src, dst reflect.Value) {
 				ecpy := cpy.Index(i)
 				deepCopy(esrc, ecpy)
 			}
-			dst.Set(src)
+			dst.Set(cpy)
 			return
 		}
 
