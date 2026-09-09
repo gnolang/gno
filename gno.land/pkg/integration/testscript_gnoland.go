@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +34,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +53,172 @@ const (
 	envKeyExecCommand
 	envKeyBase
 	envKeyStdinBuffer
+	envKeyNodeSlot
 )
+
+// nodeSlot records whether a script already holds a node budget token.
+// Only the script's own goroutine touches it.
+type nodeSlot struct{ held bool }
+
+// Constants governing how many nodes run at once; see [nodeBudget]. The memory
+// figures come from running the testdata suite at fixed node counts on a
+// 16-core host: peak RSS goes 3.9 GiB at two nodes, 7.2 at six, 12.0 at
+// sixteen, while wall time goes 145s, 54s, 43s.
+const (
+	// nodeMinParallel is the floor the allowance never shrinks below, so that a
+	// machine under memory pressure still makes progress. One node stretches
+	// the suite to ~240s against ~54s at six, and a machine that cannot hold
+	// two nodes cannot build this repo either.
+	nodeMinParallel = 2
+
+	// nodeMemCost is the peak RSS one more concurrent node adds: ~580 MiB
+	// measured over the range above, rounded up.
+	nodeMemCost = 640 << 20
+
+	// nodeMemReserveDiv makes the suite leave a quarter of the memory it may
+	// use — the machine's, or its cgroup's — to everything else. A fraction
+	// rather than a constant so the same rule holds for an 8 GiB laptop and a
+	// 128 GiB builder. It needs to be this generous because the ramp stops only
+	// once a further node would not fit, and the nodes already admitted are
+	// still growing into theirs: the reserve is what absorbs that overshoot.
+	nodeMemReserveDiv = 4
+
+	// nodeStartSettle paces changes of allowance, so that the memory claimed by
+	// the node the last change let in is reflected in the reading behind the
+	// next one — rather than a burst of scripts all deciding against the same
+	// stale figure. Node startup measures p50 320ms, p90 1.2s.
+	nodeStartSettle = time.Second
+
+	// nodeBudgetPoll is how often a blocked script re-checks. The conditions
+	// are time- and memory-based, so there is nothing to signal on.
+	nodeBudgetPoll = 200 * time.Millisecond
+)
+
+// traceNodeBudget logs every change of allowance to stderr. The budget tunes
+// itself, so this is the way to see what it decided and why on a given machine.
+var traceNodeBudget = os.Getenv("GNO_TEST_TRACE_BUDGET") != ""
+
+// nodeBudget decides how many nodes may run at once. testscript runs every
+// txtar as a parallel subtest, so left alone the node count is whatever
+// `go test -parallel` allows — GOMAXPROCS by default. Each node keeps its own
+// store, stdlib byte cache and genesis write batch alive, which makes peak
+// memory a function of the host's core count: ~6 GiB over four nodes, ~12 GiB
+// over sixteen, enough to take a workstation down while CI's four-core runners
+// never notice.
+//
+// Rather than pin a single number, start at the count CI validates and move
+// from there: up towards max while the machine reports room to spare, down
+// towards [nodeMinParallel] when it stops doing so. That spends the memory
+// actually going free, on the machine at hand, without anyone having to tune a
+// flag — and gives it back when something else needs it.
+type nodeBudget struct {
+	mu      sync.Mutex
+	running int
+
+	// limit is the current allowance, between min and max. It is a value that
+	// ratchets rather than a decision re-made per node: scripts finish
+	// constantly, so a rule phrased against the live count would keep falling
+	// back to the floor and never accumulate a ramp.
+	limit     int
+	lastCheck time.Time
+
+	min, max int
+
+	// reserve is the memory left to the rest of the system. Zero means this
+	// platform cannot report free memory, in which case min == max and the
+	// budget never ramps.
+	reserve uint64
+
+	// readMem is [testutils.ReadMemInfo], swapped out by tests.
+	readMem func() (testutils.MemInfo, bool)
+}
+
+func newNodeBudget() *nodeBudget {
+	// An explicit override pins the count, as does a platform whose free
+	// memory we cannot read.
+	if n, ok := testutils.MaxParallelOverride(); ok {
+		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
+	}
+	mi, ok := testutils.ReadMemInfo()
+	if !ok {
+		n := testutils.MaxParallel()
+		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
+	}
+	return &nodeBudget{
+		min: nodeMinParallel,
+		max: max(runtime.GOMAXPROCS(0), nodeMinParallel),
+		// Start where the static cap would have: the count CI validates, and
+		// therefore the one worth assuming before any reading has been taken.
+		// Starting at the floor instead would leave any platform with a
+		// pessimistic reading — darwin, counting only wholly free pages —
+		// permanently slower than the fixed cap it replaced.
+		limit:   max(testutils.MaxParallel(), nodeMinParallel),
+		reserve: mi.Total / nodeMemReserveDiv,
+		readMem: testutils.ReadMemInfo,
+	}
+}
+
+// acquire blocks until there is room for one more node.
+func (b *nodeBudget) acquire() {
+	for !b.tryAcquire() {
+		time.Sleep(nodeBudgetPoll)
+	}
+}
+
+func (b *nodeBudget) tryAcquire() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.resize()
+	if b.running >= b.limit {
+		return false
+	}
+	b.running++
+	return true
+}
+
+// resize moves the allowance one step towards what the machine can currently
+// take. Called with b.mu held.
+//
+// Growing and shrinking use different thresholds so the limit settles instead
+// of oscillating: room for a whole further node to grow, dipping into the
+// reserve to shrink, and nothing in between. Shrinking matters because the
+// memory being measured is shared — a second suite, or a browser, starting
+// midway through should cost this one its ramp rather than the machine.
+func (b *nodeBudget) resize() {
+	if b.reserve == 0 || time.Since(b.lastCheck) < nodeStartSettle {
+		return
+	}
+	mi, ok := b.readMem()
+	if !ok {
+		return
+	}
+	// Pace the reading itself and not merely changes to the limit: blocked
+	// scripts poll five times a second, and on darwin every reading costs a
+	// vm_stat subprocess. Sitting inside the hysteresis band must be cheap.
+	b.lastCheck = time.Now()
+	switch {
+	case mi.Available < b.reserve && b.limit > b.min:
+		b.limit--
+	case mi.Available >= b.reserve+nodeMemCost && b.limit < b.max && b.running >= b.limit:
+		// Only when the current allowance is actually saturated. Raising it
+		// while slots sit free buys nothing and overshoots, the nodes already
+		// admitted still being on their way up to full size.
+		b.limit++
+	default:
+		return
+	}
+	if traceNodeBudget {
+		fmt.Fprintf(os.Stderr, "nodeBudget: limit=%d running=%d max=%d avail=%.2fGiB reserve=%.2fGiB\n",
+			b.limit, b.running, b.max, float64(mi.Available)/(1<<30), float64(b.reserve)/(1<<30))
+	}
+}
+
+func (b *nodeBudget) release() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.running--
+}
 
 type commandkind int
 
@@ -74,13 +242,33 @@ type NodesManager struct {
 	mu    sync.RWMutex
 
 	sequentialMu sync.RWMutex
+
+	// budget bounds how many nodes exist at once. Nodes are the expensive part
+	// of a script, so cap those rather than overriding the user's -parallel.
+	budget *nodeBudget
 }
 
 // NewNodesManager creates a new instance of NodesManager.
 func NewNodesManager() *NodesManager {
 	return &NodesManager{
-		nodes: make(map[string]*tNodeProcess),
+		nodes:  make(map[string]*tNodeProcess),
+		budget: newNodeBudget(),
 	}
+}
+
+// acquireSlot reserves the right to run one node, blocking until the suite is
+// below its node budget. The token is held for the rest of the script rather
+// than released on `gnoland stop`, so that a script which stops and starts
+// again never waits on a second token — every holder waiting for one more
+// would deadlock once the budget is full.
+func (nm *NodesManager) acquireSlot(ts *testscript.TestScript) {
+	slot := ts.Value(envKeyNodeSlot).(*nodeSlot)
+	if slot.held {
+		return
+	}
+	nm.budget.acquire()
+	slot.held = true
+	ts.Defer(nm.budget.release)
 }
 
 func (nm *NodesManager) IsNodeRunning(sid string) bool {
@@ -182,6 +370,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		env.Values[envKeyGenesis] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
 		env.Values[envKeyStdinBuffer] = new(strings.Builder)
+		env.Values[envKeyNodeSlot] = new(nodeSlot)
 
 		env.Setenv("GNOROOT", gnoRootDir)
 		env.Setenv("GNOHOME", gnoHomeDir)
@@ -272,6 +461,11 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
+
+			// Before the genesis txs are built, which are themselves held in
+			// memory until the node has them. Always taken before
+			// sequentialMu, never the other way around.
+			nodesManager.acquireSlot(ts)
 
 			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
