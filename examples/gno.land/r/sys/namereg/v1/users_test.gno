@@ -251,6 +251,42 @@ func TestRegister_InvalidPayment(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegister_NoPaymentExpected(cur realm, t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
+	registerPrice = 0 // registration is free
+
+	addr := testutils.TestAddress("payment-payer")
+
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ufoo", 42))) // invalid: unexpected payment
+
+	uassert.AbortsContains(t, cur, ErrNoPaymentExpected.Error(), func() {
+		Register(cross(cur), "nym-yankee345")
+	})
+}
+
+func TestRegister_InvalidPaymentCoin(cur realm, t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
+	registerPrice = 42
+
+	addr := testutils.TestAddress("payment-payer")
+	coins := chain.NewCoins(
+		chain.NewCoin("ugnot", registerPrice),
+		chain.NewCoin("ufoo", registerPrice), // invalid: only ugnot should be sent
+	)
+
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(coins)
+
+	uassert.AbortsContains(t, cur, ErrInvalidPaymentCoin.Error(), func() {
+		Register(cross(cur), "nym-yankee345")
+	})
+}
+
 // Audit finding #11: the OriginSend() payment check is only trustworthy
 // when the direct caller is a pure EOA (IsUserCall). Any intermediate
 // code realm can attach -send to the tx, keep the coins, and call
