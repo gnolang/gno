@@ -26,10 +26,12 @@ run.TemplatesFS(), so "ui/copy" and friends resolve here.
           <svg class="c-icon"><use href="#ico-ddl"></use></svg>
           <span>Download</span>
         </button>
+        {{ if .DryRun }}
         <button class="b-inline-btn c-with-icon" data-action="click->run#dryRun" title="Simulate the script without broadcasting">
           <svg class="c-icon"><use href="#ico-rpc"></use></svg>
           <span>Dry Run</span>
         </button>
+        {{ end }}
       </div>
     </div>
   </header>
@@ -40,6 +42,7 @@ run.TemplatesFS(), so "ui/copy" and friends resolve here.
   </div>
 
   <!-- Dry run result -->
+  {{ if .DryRun }}
   <div class="b-run-result">
     <div class="b-run-result-header">
       <span class="b-run-result-title">Result</span>
@@ -50,6 +53,7 @@ run.TemplatesFS(), so "ui/copy" and friends resolve here.
     <pre class="b-run-result-content"
       data-run-target="result"><span class="u-color-muted">// Press Dry Run to simulate the script above</span></pre>
   </div>
+  {{ end }}
 
   <!-- Run script in terminal -->
   <details class="b-run-accordion">
