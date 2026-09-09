@@ -158,6 +158,44 @@ func Test_linkFunctions_noMatch(t *testing.T) {
 	linkFunctions(pkgs)
 }
 
+// Test_linkFunctions_anyParam pins the widened rule: an empty-interface Go
+// parameter links against any gno parameter type with no type check and reaches
+// the implementation as the raw TypedValue. "any" and "interface{}" are the
+// same type, so both must qualify.
+func Test_linkFunctions_anyParam(t *testing.T) {
+	chdir(t, "testdata/linkFunctions_anyParam")
+
+	pkgs, err := walkStdlibs(".")
+	require.NoError(t, err)
+
+	mappings := linkFunctions(pkgs)
+	require.Len(t, mappings, 2)
+
+	for _, m := range mappings {
+		require.Len(t, m.Params, 1, "%s", m.GoFunc)
+		assert.True(t, m.Params[0].IsTypedValue,
+			"%s: an empty-interface Go parameter must receive the TypedValue", m.GoFunc)
+	}
+}
+
+// Test_linkFunctions_namedIface pins the edge of that widening: only the empty
+// interface is exempt. A named interface parameter must still match the gno
+// declaration, so a mismatched one panics rather than linking unchecked.
+func Test_linkFunctions_namedIface(t *testing.T) {
+	chdir(t, "testdata/linkFunctions_namedIface")
+
+	pkgs, err := walkStdlibs(".")
+	require.NoError(t, err)
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "a named interface parameter linked without a type check")
+		assert.Contains(t, fmt.Sprint(r), "doesn't match signature of go function")
+	}()
+
+	linkFunctions(pkgs)
+}
+
 func Test_linkFunctions_noMatchSig(t *testing.T) {
 	chdir(t, "testdata/linkFunctions_noMatchSig")
 
