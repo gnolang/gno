@@ -32,6 +32,7 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
+	webDryRun            bool
 
 	// Loader
 	noExamples                 bool
@@ -141,6 +142,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-analytics-hostname",
 		defaultCfg.webAnalyticsHostname,
 		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
+	)
+
+	fs.BoolVar(
+		&c.webDryRun,
+		"web-dry-run",
+		defaultCfg.webDryRun,
+		"gnoweb: enable the dryrun endpoint and Dry Run screen",
 	)
 
 	fs.BoolVar(

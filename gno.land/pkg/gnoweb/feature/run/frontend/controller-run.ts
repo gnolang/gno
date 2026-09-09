@@ -10,28 +10,35 @@ export class RunController extends BaseController {
 	private declare remote: string;
 	private declare chainId: string;
 	private declare editorEl: HTMLElement;
-	private declare keyEl: HTMLInputElement;
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
 	private declare includeScriptEl: HTMLInputElement;
 	private declare cmdEl: HTMLElement;
 	private declare resultEl: HTMLElement;
+	private declare gasUsedEl: HTMLElement;
 	private declare editor: CodeEditor;
+	// Owned by the action-header controller (#action-user-address), which
+	// broadcasts it on "address:changed" — including once on startup when it
+	// restores the value from localStorage. `declare` + assignment in connect(),
+	// per the note on BaseController: a `= ""` initialiser here would run AFTER
+	// connect(), leaving it undefined for connect()'s own _updateCommand() call.
+	private declare address: string;
 
 	protected connect(): void {
+		this.address = "";
 		this.pkgPath = this.getValue("pkg-path");
 		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
 		this.editorEl = this.getTarget("editor") as HTMLElement;
-		this.keyEl = this.getTarget("key") as HTMLInputElement;
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
 		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
 		this.cmdEl = this.getTarget("cmd") as HTMLElement;
 		this.resultEl = this.getTarget("result") as HTMLElement;
+		this.gasUsedEl = this.getTarget("gasUsed") as HTMLElement;
 
 		if (!this.editorEl || !this.cmdEl) return;
 
@@ -43,8 +50,23 @@ export class RunController extends BaseController {
 			onChange: () => this._updateCommand(),
 		});
 
+		// Pin the editor to the height of the initial script, once. The feature
+		// CSS leaves the height `auto` so the first paint already fits the
+		// template rather than the shared 60vh; measuring that layout and
+		// writing it back as an inline px height freezes it, so the editor no
+		// longer grows and shrinks with every line typed.
+		requestAnimationFrame(() => {
+			const { height } = this.editorEl.getBoundingClientRect();
+			if (height > 0) this.editorEl.style.height = `${Math.ceil(height)}px`;
+		});
+
 		this.on("theme:changed", () => {
 			this.editor.changeTheme(isDarkMode());
+		});
+
+		this.on("address:changed", (event) => {
+			this.address = (event as CustomEvent).detail.address ?? "";
+			this._updateCommand();
 		});
 
 		this._setupInputListeners();
@@ -58,14 +80,13 @@ import "${this.pkgPath}"
 
 func main() {
 \t// Call ${this.pkgAlias} functions here, e.g.:
-\t// ${this.pkgAlias}.Render("")
+\tprintln(${this.pkgAlias}.Render(""))
 }
 `;
 	}
 
 	private _setupInputListeners(): void {
 		const update = (): void => this._updateCommand();
-		this.keyEl.addEventListener("input", update);
 		this.gasWantedEl.addEventListener("input", update);
 		this.gasFeeEl.addEventListener("input", update);
 		this.sendEl.addEventListener("input", update);
@@ -73,7 +94,7 @@ func main() {
 	}
 
 	private _buildCmd(): string {
-		const key = this.keyEl.value.trim() || "<key-name>";
+		const key = this.address.trim() || "<key-name>";
 		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
 		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
 		const send = this.sendEl.value.trim();
@@ -131,7 +152,7 @@ func main() {
 				body: JSON.stringify({
 					pkg_path: this.pkgPath,
 					script: this.editor.getCode(),
-					address: this.keyEl.value.trim(),
+					address: this.address.trim(),
 				}),
 			});
 
@@ -142,7 +163,7 @@ func main() {
 			if (json.error) {
 				this._setResult(`Error: ${json.error}`, true);
 			} else {
-				this._setResult(json.result || "(no output)", false);
+				this._setResult(json.result || "(no output)", false, json.gas_used);
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -150,9 +171,11 @@ func main() {
 		}
 	}
 
-	private _setResult(text: string, isError: boolean): void {
+	private _setResult(text: string, isError: boolean, gasUsed?: number): void {
 		this.resultEl.textContent = text;
 		this.resultEl.classList.toggle("u-color-danger", isError);
+		this.gasUsedEl.textContent =
+			gasUsed === undefined ? "" : `Gas Used: ${gasUsed}`;
 	}
 
 	public clearResult(): void {

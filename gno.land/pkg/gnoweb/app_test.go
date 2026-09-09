@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -321,6 +322,50 @@ func TestAnalytics(t *testing.T) {
 		assert.Contains(t, saPath, "func=Render", "exported func name should be preserved")
 		assert.Contains(t, saPath, "body=redacted", "user argument value should be masked")
 		assert.NotContains(t, saPath, "topsecret", "raw user argument value must not leak to analytics")
+	})
+}
+
+func TestDryRun(t *testing.T) {
+	const helpRoute = "/r/gnoland/blog$help"
+
+	remoteAddr := sharedNodeRemote(t)
+
+	newRouter := func(t *testing.T, enabled bool) http.Handler {
+		t.Helper()
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		cfg.DryRun = enabled
+		router, err := NewRouter(log.NewTestingLogger(t), cfg)
+		require.NoError(t, err)
+		return router
+	}
+
+	do := func(router http.Handler, request *http.Request) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		router := newRouter(t, true)
+
+		body := strings.NewReader(`{"pkg_path":"gno.land/r/gnoland/blog","script":""}`)
+		response := do(router, httptest.NewRequest(http.MethodPost, "/_/api/dryrun", body))
+		assert.NotEqual(t, http.StatusNotFound, response.Code, "the dryrun route must be registered")
+
+		assert.Contains(t, do(router, httptest.NewRequest(http.MethodGet, helpRoute, nil)).Body.String(),
+			"run#dryRun", "the Actions page must offer the Dry Run button")
+	})
+
+	t.Run("disabled", func(t *testing.T) {
+		router := newRouter(t, false)
+
+		body := strings.NewReader(`{"pkg_path":"gno.land/r/gnoland/blog","script":""}`)
+		response := do(router, httptest.NewRequest(http.MethodPost, "/_/api/dryrun", body))
+		assert.Equal(t, http.StatusNotFound, response.Code, "the dryrun route must not be registered")
+
+		assert.NotContains(t, do(router, httptest.NewRequest(http.MethodGet, helpRoute, nil)).Body.String(),
+			"run#dryRun", "the Actions page must not offer the Dry Run button")
 	})
 }
 
