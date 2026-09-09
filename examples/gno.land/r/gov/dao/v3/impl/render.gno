@@ -121,26 +121,25 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
-	// The proposer writes this one and the executor writes the section below.
-	// Heading them apart is the point: they used to run together as
-	// consecutive paragraphs, so nothing told a voter which of the two came
-	// from the code that will actually run.
+	// The DAO writes this section and the proposer writes the one under it.
+	// Heading them apart is half the point; the order is the other half.
+	// Nothing the proposer controls precedes this section: the title is
+	// escaped and folded to one line, and the author line is the page's. So a
+	// description imitating the disclosure can only appear below the real one,
+	// and a voter reading from the top meets the DAO's statement first.
 	//
-	// The rule between them is legibility and not a boundary: the description
-	// is rendered as the markdown the proposer wrote, so it can draw a rule and
-	// a heading of its own. What it cannot do is come after this one.
-	description := p.Description()
-	if description != "" {
+	// The rule between them is drawn by the page and by nothing else:
+	// escapeThematicBreaks takes the mark out of the description.
+	execution := renderExecution(p)
+	out += execution
+
+	if description := escapeThematicBreaks(p.Description()); description != "" {
+		if execution != "" {
+			out += "---\n\n"
+		}
 		out += "### Description\n\n"
 		out += description
 		out += "\n\n"
-	}
-
-	if execution := renderExecution(p); execution != "" {
-		if description != "" {
-			out += "---\n\n"
-		}
-		out += execution
 	}
 
 	out += "---\n\n"
@@ -152,6 +151,93 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
 	return out
+}
+
+// escapeThematicBreaks prefixes a backslash to every line of the proposer's
+// description that would render as a horizontal rule. The rule is the page's
+// own boundary between what the proposer wrote and what the DAO writes below
+// it, so a description able to draw one could draw the boundary too. A line
+// escaped here renders as its own dashes, in text.
+//
+// Nothing else is touched: headings, lists, emphasis and links render as
+// written, which is what the descriptions in this tree rely on. This does not
+// make the section unforgeable, and is not meant to: a description can still
+// write a line that reads like the disclosure. What it cannot do is put the
+// mark that separates the two above itself.
+//
+// Fenced blocks are skipped, since a rule inside one is already literal text
+// and escaping it would print the backslash.
+func escapeThematicBreaks(description string) string {
+	if !strings.ContainsAny(description, "-_*") {
+		return description
+	}
+
+	lines := strings.Split(description, "\n")
+	fenced := false
+	for i, line := range lines {
+		if isCodeFence(line) {
+			fenced = !fenced
+			continue
+		}
+		if !fenced && isThematicBreak(line) {
+			lines[i] = "\\" + line
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// isCodeFence reports whether the line opens or closes a fenced code block:
+// three or more backticks or tildes, after at most three spaces of indent.
+func isCodeFence(line string) bool {
+	line = trimIndent(line)
+	return strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")
+}
+
+// isThematicBreak reports whether the line renders as a horizontal rule, by
+// the CommonMark rule: three or more of "-", "_" or "*", all the same, spaces
+// and tabs allowed between them, after at most three spaces of indent. It also
+// catches the setext underline that would promote the line above into a
+// heading, which is the same run of dashes.
+func isThematicBreak(line string) bool {
+	line = trimIndent(line)
+	if line == "" {
+		return false
+	}
+
+	mark := line[0]
+	if mark != '-' && mark != '_' && mark != '*' {
+		return false
+	}
+
+	count := 0
+	for i := 0; i < len(line); i++ {
+		switch c := line[i]; {
+		case c == mark:
+			count++
+		case c == ' ' || c == '\t':
+		default:
+			return false
+		}
+	}
+
+	return count >= 3
+}
+
+// trimIndent drops the up-to-three leading spaces a block marker may carry.
+// A fourth space makes the line indented code, which renders literally, so the
+// line is left alone.
+func trimIndent(line string) string {
+	for i := 0; i < 3 && i < len(line); i++ {
+		if line[i] != ' ' {
+			return line[i:]
+		}
+	}
+	if len(line) >= 3 {
+		return line[3:]
+	}
+
+	return ""
 }
 
 // renderExecution returns the proposal's execution section: the realm the

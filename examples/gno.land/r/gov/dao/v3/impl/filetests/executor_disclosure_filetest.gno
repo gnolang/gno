@@ -131,11 +131,10 @@ func main(cur realm) {
 	// between it and the tally.
 	println("and the section holds the realm alone:",
 		strings.Contains(out, "### Execution\n\nExecutor created in: [`gno.land/r/template/silent`](/r/template/silent$source)\n\n---"))
-	// The rule between them is the page's, drawn only when both sections are
-	// there. It reads as a boundary and is not one: the description is markdown
-	// and can draw its own.
-	println("and a rule separates it from the description:",
-		strings.Contains(out, "### Description\n\nA proposal whose executor has no description\n\n---\n\n### Execution"))
+	// The DAO's section comes first, and the page's own rule separates it from
+	// the description under it. Nothing the proposer wrote precedes it.
+	println("and the description sits under it, past the rule:",
+		strings.Contains(out, "---\n\n### Description\n\nA proposal whose executor has no description"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -281,6 +280,22 @@ func main(cur realm) {
 				strings.Contains(lout, "Executor created in: `"+path+"`"))
 	}
 
+	// 4g. The rule is the page's mark and nothing else's. A description that
+	// draws one has it escaped, so it renders as its own dashes and the only
+	// rules on the page are the three the page drew. The forged heading still
+	// renders, below the real section: escaping the mark is not a claim that
+	// the imitation is gone.
+	rpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Rule",
+		"Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	rout := dao.Render(cross(cur), strconv.FormatInt(int64(rpid), 10))
+
+	println("a description cannot draw the page's rule:",
+		strings.Contains(rout, "\\---") && strings.Count(rout, "\n---\n") == 3)
+	println("and the real section is above the forged one:",
+		strings.Index(rout, "### Execution") < strings.Index(rout, "### Description"))
+
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
 	// proposals renderable but statusless. renderProposalPage took a
@@ -296,7 +311,7 @@ func main(cur realm) {
 // Output:
 // empty-description proposal discloses creation realm: true
 // and the section holds the realm alone: true
-// and a rule separates it from the description: true
+// and the description sits under it, past the rule: true
 // only the genuine Stats heading exists: true
 // no forged acceptance line: true
 // no forged tally line: true
@@ -321,4 +336,6 @@ func main(cur realm) {
 // unlinked, and confined to its code span: gno.land/r/a--b true
 // unlinked, and confined to its code span: gno.land/r/ true
 // unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
+// a description cannot draw the page's rule: true
+// and the real section is above the forged one: true
 // a proposal orphaned by an upgrade renders instead of panicking: true

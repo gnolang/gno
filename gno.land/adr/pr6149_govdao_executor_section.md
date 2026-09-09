@@ -20,15 +20,25 @@ into a link needs a rule about which values may become one.
 
 ## Decision
 
-Two sections on the proposal page, `### Description` for the proposer's prose
-and `### Execution` for everything the executor supplies, the creation realm
-first and the executor's own description under it. A proposal carrying neither
-renders no section, as before.
+Two sections on the proposal page. `### Execution` holds everything the
+executor supplies, the creation realm first and the executor's own description
+under it. `### Description` holds the proposer's prose. A proposal carrying no
+executor renders no Execution section, as before.
 
-A horizontal rule separates the two sections when both are present. It is
-legibility and not a boundary: the description is rendered as the markdown the
-proposer wrote, so it can draw a rule and a heading of its own. What it cannot
-do is come after the page's own section.
+Execution comes first, above the description. Nothing the proposer controls
+precedes it: the title is escaped and folded to one line, and the author line is
+the page's. A description imitating the disclosure therefore renders below the
+real one, and a voter reading from the top meets the DAO's statement first.
+
+A horizontal rule separates the two sections, and only the page may draw one:
+every line of the description that would render as a thematic break is escaped,
+so it prints its own dashes as text. Nothing else in the description is touched,
+which is what keeps the portfolio headings and the token lists that proposals
+already carry.
+
+That makes the rule a mark of the page's own chrome rather than a decoration.
+It does not make the section unforgeable: a description can still write a line
+that reads like the disclosure, and a heading above it.
 
 The creation realm keeps the escaping it has: `sanitize.InlineCode` still
 produces the code span, clamped first per `clamp.gno`. The span becomes the
@@ -61,6 +71,12 @@ same section helper rather than carrying its own copy of the disclosure.
 - **Put the grammar check in a shared package.** `r/sys/params` carries a looser
   copy (`assertDelegatePath`). Left where it is: one caller, and a package would
   fix the shape for callers that do not exist yet.
+- **Escape the whole description with `sanitize.Block`.** Rejected, and
+  measured before rejecting: it escapes the `####` portfolio heading a member
+  proposal renders and the `-` token list a treasury proposal renders, printing
+  both as literal text, and it still lets a forged `Executor created in:` line
+  through, because inline links survive by design. The cost is real and it does
+  not close the imitation.
 - **Verify that the named realm is the one whose code runs.** Out of scope, and
   not possible from the page: the proposal holds an `Executor` interface value,
   and the realm behind it is only recoverable for the built-in implementation.
@@ -76,8 +92,8 @@ same section helper rather than carrying its own copy of the disclosure.
   proposal can be created from one, and gnoweb serves no source for it.
 - The link is reachability, not trust. It does not assert the named realm is the
   one whose code runs, which the page has never asserted either.
-- The proposer's description is markdown and is not sanitized, so a proposal can
-  write a second `### Execution` section of its own above the real one. That
-  predates the section: the same description could already forge the
-  `Executor created in:` line. Sanitizing it would cost every existing proposal
-  its formatting, and belongs to whoever takes that decision.
+- A proposal can still write a second `### Execution` section of its own. It
+  renders below the real one, without the rule above it, and it cannot be moved
+  higher. Ending the imitation outright means the page stops rendering proposer
+  markdown, which is a decision about the proposal format rather than about
+  this page.
