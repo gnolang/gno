@@ -56,29 +56,17 @@ func main(cur realm) {
 // Boom!
 //
 // ## Prop #0 - Test
-// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-//
-// ### Execution
-//
-// Executor created in: [`gno.land/r/test/govdao`](/r/test/govdao$source)
+// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\
+// Executes: [`gno.land/r/test/govdao`](/r/test/govdao$source)\
+// Status: REJECTED, execution failed: Boom\!\
+// Eligible: T1, T2, T3\
+// Votes: YES 0.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao/v3/impl:0/votes))
 //
 // ---
 //
 // ### Description
 //
 // This proposal always fails on execution
-//
-// ---
-//
-// ### Stats
-// - **PROPOSAL HAS BEEN DENIED**
-// REASON: execution failed: Boom\!
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
-//
-// [Detailed voting list](/r/gov/dao/v3/impl:0/votes)
 //
 // ---
 //

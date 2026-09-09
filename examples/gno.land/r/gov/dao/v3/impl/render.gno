@@ -118,35 +118,35 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 		return ufmt.Sprintf("# Proposal #%v not available\n\nThis proposal was not created by the current govDAO implementation, so it has no voting status here.", pid)
 	}
 
+	// One metadata block, above everything a proposal supplies: who asked for
+	// the vote, which realm runs if it passes, where the vote stands, and who
+	// may cast one. A voter reads these five lines and knows whether to read
+	// further. The trailing backslashes are markdown hard breaks: gnoweb folds
+	// a plain newline into a space, so without them the block renders as one
+	// paragraph.
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
-	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
+	out += "Author: " + tryResolveAddr(p.Author()) + "\\\n"
+	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
+		out += "Executes: " + creationRealm + "\\\n"
+	}
+	out += ps.statusLine() + "\\\n"
+	out += "Eligible: " + strings.Join(ps.TiersAllowedToVote, ", ") + "\\\n"
+	out += ps.tally(0, rlm)
+	out += ufmt.Sprintf(" ([detail](%v:%v/votes))\n\n", ren.relativeRealmPath, pid)
 
-	// The DAO writes this section and the proposer writes the one under it.
-	// Heading them apart is half the point; the order is the other half.
-	// Nothing the proposer controls precedes this section: the title is
-	// escaped and folded to one line, and the author line is the page's. So a
-	// description imitating the disclosure can only appear below the real one,
-	// and a voter reading from the top meets the DAO's statement first.
-	//
-	// The rule between them is drawn by the page and by nothing else:
-	// escapeThematicBreaks takes the mark out of the description.
-	execution := renderExecution(p)
-	out += execution
+	// The executor writes this section and the proposer writes the one under
+	// the rule. Order and mark are the point: nothing the proposer controls
+	// precedes the block above, the rule is drawn by the page alone, since
+	// escapeThematicBreaks takes the mark out of the description, and a
+	// description imitating any of it can only render below the real thing.
+	out += renderExecution(p)
+	out += "---\n\n"
 
 	if description := escapeThematicBreaks(p.Description()); description != "" {
-		if execution != "" {
-			out += "---\n\n"
-		}
 		out += "### Description\n\n"
 		out += description
-		out += "\n\n"
+		out += "\n\n---\n\n"
 	}
-
-	out += "---\n\n"
-	out += ps.String(0, rlm)
-	out += "\n"
-	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
-	out += "\n\n---\n\n"
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
@@ -240,33 +240,20 @@ func trimIndent(line string) string {
 	return ""
 }
 
-// renderExecution returns the proposal's execution section: the realm the
-// executor was created in, and the executor's own description of what it does.
-// Both are written by the executor rather than by the proposer, which is why
-// they sit under one heading of their own.
+// renderExecution returns the executor's own account of what runs if the
+// proposal passes, under a heading of its own. The realm it was created in is
+// named in the page's metadata block instead, beside the author, since that is
+// the line a voter checks first.
 //
-// A proposal carrying neither renders nothing, as it did before the section
-// existed.
+// Empty for an executor with nothing to say, which is what it rendered before
+// the section existed.
 func renderExecution(p *dao.Proposal) string {
-	// Independent gates: the realm names the code that runs if the proposal
-	// passes, and sharing the description's gate once hid it for every proposal
-	// built with an empty executor description: 16 call sites across 7
-	// production realms, nearly all r/sys/* governance actions.
-	creationRealm := renderCreationRealm(p.ExecutorCreationRealm())
 	description := p.ExecutorString()
-	if creationRealm == "" && description == "" {
+	if description == "" {
 		return ""
 	}
 
-	out := "### Execution\n\n"
-	if creationRealm != "" {
-		out += "Executor created in: " + creationRealm + "\n\n"
-	}
-	if description != "" {
-		out += description + "\n\n"
-	}
-
-	return out
+	return "### Execution\n\n" + description + "\n\n"
 }
 
 // renderCreationRealm renders the realm an executor reports it was created in: the

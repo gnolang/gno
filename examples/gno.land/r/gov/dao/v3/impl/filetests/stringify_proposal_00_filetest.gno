@@ -106,9 +106,9 @@ func main(cur realm) {
 //
 // This is a test proposal description to verify StringifyProposal works correctly.
 //
-// ### Execution
+// Executes: [`gno.land/r/template/contract`](/r/template/contract$source)
 //
-// Executor created in: [`gno.land/r/template/contract`](/r/template/contract$source)
+// ### Execution
 //
 // Test executor description
 //

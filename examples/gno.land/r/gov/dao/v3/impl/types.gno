@@ -141,38 +141,30 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 }
 
 // XXX: can be optimized by passing down total power to Yes/No/Abstain percent fn to avoid re-computing
-func (ps *proposalStatus) String(_ int, rlm realm) string {
-	var sb strings.Builder
-	sb.WriteString("### Stats\n")
+// tally is the vote line of the page's metadata block: one line rather than a
+// list, since the numbers are read together or not at all. Percentages are
+// rounded to two places; the page is a summary and the exact ratio is in the
+// vote list it links.
+func (ps *proposalStatus) tally(_ int, rlm realm) string {
+	return ufmt.Sprintf("Votes: YES %.2f%%, NO %.2f%%, ABSTAIN %.2f%%",
+		ps.YesPercent(0, rlm), ps.NoPercent(0, rlm), ps.AbstainPercent(0, rlm))
+}
 
-	if ps.Accepted {
-		sb.WriteString("- **PROPOSAL HAS BEEN ACCEPTED**\n")
-	} else if ps.Denied {
-		sb.WriteString("- **PROPOSAL HAS BEEN DENIED**\n")
-		if ps.DeniedReason != "" {
-			sb.WriteString("REASON: ")
-			// DeniedReason is "execution failed: " + err.Error() from the
-			// proposal's executor callback, which any third-party realm can
-			// supply. Raw, it wrote attacker-controlled markdown directly beneath
-			// the "PROPOSAL HAS BEEN DENIED" line. InlineText folds newlines, so
-			// the reason cannot leave the REASON: line, and escapes emphasis and
-			// raw HTML.
-			sb.WriteString(sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason)))
-			sb.WriteString("\n")
-		}
-	} else {
-		sb.WriteString("- **Proposal is open for votes**\n")
+// statusLine names the state a voter needs before reading anything else, and
+// the reason with it when the proposal was rejected.
+//
+// DeniedReason is "execution failed: " plus the error the proposal's executor
+// returned, which any third-party realm supplies. Raw, it wrote
+// attacker-controlled markdown into the page's own metadata block. InlineText
+// folds newlines, so the reason cannot leave this line, and escapes emphasis
+// and raw HTML.
+func (ps *proposalStatus) statusLine() string {
+	line := "Status: " + getPropStatus(ps)
+	if ps.Denied && ps.DeniedReason != "" {
+		line += ", " + sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason))
 	}
 
-	sb.WriteString("- Tiers eligible to vote: ")
-	sb.WriteString(strings.Join(ps.TiersAllowedToVote, ", "))
-	sb.WriteString("\n")
-
-	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent(0, rlm)))
-	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent(0, rlm)))
-	sb.WriteString(ufmt.Sprintf("- ABSTAIN PERCENT: %v%%\n", ps.AbstainPercent(0, rlm)))
-
-	return sb.String()
+	return line
 }
 
 func StringifyVotes(_ int, rlm realm, ps *proposalStatus) string {
@@ -225,8 +217,11 @@ func StringifyProposal(p *dao.Proposal) string {
 
 `, p.Title(), p.Author(), p.Description())
 
-	// The same section the proposal page renders, so a realm printing a
-	// proposal as text names the executor the way gnoweb does.
+	// The same lines the proposal page renders, so a realm printing a proposal
+	// as text names the executor the way gnoweb does.
+	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
+		out += "Executes: " + creationRealm + "\n\n"
+	}
 	out += renderExecution(p)
 
 	return out

@@ -20,15 +20,24 @@ into a link needs a rule about which values may become one.
 
 ## Decision
 
-Two sections on the proposal page. `### Execution` holds everything the
-executor supplies, the creation realm first and the executor's own description
-under it. `### Description` holds the proposer's prose. A proposal carrying no
-executor renders no Execution section, as before.
+One metadata block under the title, then the executor's own words, then the
+proposer's.
 
-Execution comes first, above the description. Nothing the proposer controls
-precedes it: the title is escaped and folded to one line, and the author line is
-the page's. A description imitating the disclosure therefore renders below the
-real one, and a voter reading from the top meets the DAO's statement first.
+The block is five lines: the author, the realm that runs if the proposal passes,
+the status with the denial reason where there is one, the tiers that may vote,
+and the tally with a link to the vote list. It replaces the `### Stats` list at
+the foot of the page, which is where a voter had to go to learn whether the vote
+was still open. The tally is rounded to two places, since the page is a summary
+and the vote list carries the detail.
+
+`### Execution` holds the executor's own description of what it does.
+`### Description` holds the proposer's prose. A proposal whose executor
+describes nothing renders no Execution section.
+
+Everything the page writes comes first, and nothing the proposer controls
+precedes it: the title is escaped and folded to one line. A description
+imitating the disclosure therefore renders below the real one, and a voter
+reading from the top meets the DAO's statement first.
 
 A horizontal rule separates the two sections, and only the page may draw one:
 every line of the description that would render as a thematic break is escaped,
@@ -84,7 +93,12 @@ same section helper rather than carrying its own copy of the disclosure.
 ## Consequences
 
 - Every proposal page and every golden covering one changes shape. Filetests in
-  `r/gov/dao/v3/impl` and `r/sys/namereg/v1` move with it.
+  `r/gov/dao/v3/impl`, `r/sys/namereg/v1` and `r/gnops/valopers` move with it,
+  and so does the render assertion in
+  `gno.land/pkg/integration/testdata/govdao_execute_reject_proposal.txtar`.
+- `proposalStatus.String` is gone, replaced by `statusLine` and `tally`. The
+  page assembles its own block rather than taking a rendered one from the
+  status type.
 - A hostile creation realm renders exactly as it did: escaped, on one line,
   inside a code span, with no link.
 - A creation realm the check rejects renders with no link rather than with a

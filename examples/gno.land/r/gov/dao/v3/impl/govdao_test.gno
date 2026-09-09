@@ -130,8 +130,8 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	accepted := dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "NO PERCENT: 81.25%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "Status: REJECTED"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "NO 81.25%"))
 }
 
 func TestExecutorCreationRealm(cur realm, t *testing.T) {
@@ -170,7 +170,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	// naturally for a realm path. The span is the text of a link to that
 	// realm's source, because this value parses as a package path.
 	urequire.Equal(t, true, contains(individualRendered,
-		"Executor created in: [`gno.land/r/template/contract`](/r/template/contract$source)"))
+		"Executes: [`gno.land/r/template/contract`](/r/template/contract$source)"))
 	urequire.Equal(t, true, contains(individualRendered, "Test executor from template"))
 
 	// Also verify the main content is there
@@ -274,14 +274,14 @@ func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 	// })
 	dao.MustVoteOnProposalSimple(cross(cur), int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "**Proposal is open for votes**"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "68.42105263157895%"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "0%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "Status: ACTIVE"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "68.42%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "NO 0.00%"))
 
 	accepted := dao.ExecuteProposal(cross(cur), dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "Status: ACCEPTED"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "YES 68.42%"))
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {
@@ -319,14 +319,14 @@ func TestAbstainVote(cur realm, t *testing.T) {
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	// Verify render shows correct percentages
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "YES PERCENT: 81.25%"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "NO PERCENT: 0%"))
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "ABSTAIN PERCENT: 18.75%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "YES 81.25%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "NO 0.00%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "ABSTAIN 18.75%"))
 
 	// Supermajority reached despite one abstain voter
 	accepted := dao.ExecuteProposal(cross(cur), pid)
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "Status: ACCEPTED"))
 
 	// Abstain voter appears in vote list
 	urequire.Equal(t, true, contains(dao.Render(cross(cur), fmt.Sprintf("%v/votes", int64(pid))), "ABSTAIN"))

@@ -55,28 +55,17 @@ func main(cur realm) {
 // true
 //
 // ## Prop #0 - Test
-// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-//
-// ### Execution
-//
-// Executor created in: [`gno.land/r/test/govdao`](/r/test/govdao$source)
+// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\
+// Executes: [`gno.land/r/test/govdao`](/r/test/govdao$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 0.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao/v3/impl:0/votes))
 //
 // ---
 //
 // ### Description
 //
 // This proposal always pass on execution
-//
-// ---
-//
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
-//
-// [Detailed voting list](/r/gov/dao/v3/impl:0/votes)
 //
 // ---
 //
