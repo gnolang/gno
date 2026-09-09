@@ -40,6 +40,26 @@ make install   # go install . — puts gpao on your $PATH
 make build     # go build -o build/gpao . — leaves it here instead
 ```
 
+### Docker
+
+`ghcr.io/gnolang/gno/gpao` ships the binary with the repo's stdlibs and
+examples at `/gnoroot` (the baked-in `--gno-root` default), built from the same
+`Dockerfile` targets as the other images. Mount a gnokey keystore and pass the
+key password through `GPAO_PASSWORD`:
+
+```sh
+docker run -d \
+  -v /path/to/gnokey-home:/keystore \
+  -e GPAO_PASSWORD=... \
+  -p 8546:8546 \
+  ghcr.io/gnolang/gno/gpao \
+  --remote http://node:26657 \
+  --chain-id dev \
+  --home /keystore \
+  --key approver \
+  --status-listen 0.0.0.0:8546
+```
+
 ## Usage
 
 The approver key lives in a local [gnokey](../../gno.land/cmd/gnokey) keystore.
@@ -71,6 +91,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
+| `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
 
 ### About `--status-listen`
@@ -122,6 +143,13 @@ process (`gpao verify-one`, invoked by gpao on itself), which is what lets the
 budget be *enforced* — a goroutine cannot be killed, but a process can. It also
 means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
+
+The budget starts once the child has everything the compile needs: the standard
+library and examples from disk, and every chain package the candidate imports,
+fetched from the node. Fetching is the oracle's cost, not the package's, so a
+slow node cannot turn a fast package into an overrun. That phase has a budget
+of its own, `--prepare-budget`, a minute by default; its expiry leaves the
+package pending as unavailable rather than counting against it.
 
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what
@@ -203,9 +231,12 @@ Two details, in case the numbers look odd in the logs. The probe transaction is
 signed at the chain's block ceiling rather than at the fallback, because a
 simulation executes under the transaction's own limit — sizing the probe at the
 fallback would run out of gas on exactly the packages worth measuring. And the
-ceiling is read from the chain at startup rather than assumed, because the ante
-REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a chain
-configured below the tm2 default would reject every probe.
+ceiling is read from the chain rather than assumed — asked for before any block
+is followed, and retried on the poll interval until the chain answers — because
+the ante REFUSES a gas-wanted above `Block.MaxGas` instead of clamping it, so a
+chain configured below the tm2 default would reject every probe. An unreachable
+node delays the first approval instead of settling the ceiling wrongly for the
+life of the process.
 
 A failed simulation does not withhold approval. It logs, falls back, and sends.
 Refusing to approve whenever the query path is unavailable would let anyone who
@@ -213,15 +244,16 @@ can disturb it stall approvals for the whole chain.
 
 ### About `--max-spend`
 
-Every approval costs the full gas fee, whether or not the message succeeds. The
-daemon decides on its own when to send one, so anything that makes approvals
-fail repeatedly will drain the approver key. The bound stops that.
+Every approval that reaches a block costs the full gas fee, whether or not the
+message succeeds. The daemon decides on its own when to send one, so anything
+that makes approvals fail repeatedly will drain the approver key. The bound
+stops that.
 
 Two things reduce how often it is reached. Before approving, the daemon checks
-whether the package is already deployed and skips it if so, which is the common
-case when catching up with `--start-height` over blocks that were already
-approved. And it ignores transactions that failed on chain, so a submission the
-chain rejected never leads to an approval.
+whether the package is already live with nothing waiting to be enabled, and
+skips it if so, which is the common case when catching up with `--start-height`
+over blocks that were already approved. And it ignores transactions that
+failed on chain, so a submission the chain rejected never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
 watching blocks. Raise the bound or restart to continue.
