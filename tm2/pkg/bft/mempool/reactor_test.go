@@ -198,6 +198,13 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
 }
 
+// NOTE: still marked Flappy. The errTransportClosed data race fixed in
+// switch.go's runAcceptLoop (see the accompanying fix) was one real source
+// of flakiness here (confirmed via 200 isolated -race runs), but running
+// the full mempool package under -race still intermittently leaks a
+// goroutine (MConnection recvRoutine/sendRoutine not shutting down
+// promptly) that isolated -run reps didn't surface. Needs further
+// investigation before this can be safely deflapped.
 func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	t.Parallel()
 
@@ -226,6 +233,7 @@ func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	leaktest.CheckTimeout(t, 10*time.Second)()
 }
 
+// NOTE: still marked Flappy; see TestFlappyBroadcastTxForPeerStopsWhenPeerStops above.
 func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	t.Parallel()
 

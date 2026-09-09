@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1309,4 +1310,63 @@ func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
 	case <-done:
 		assert.True(t, transportClosed)
 	}
+}
+
+// TestSwitchAcceptLoopUnrelatedSentinel verifies the accept loop only exits
+// on errTransportClosed, not on a different sentinel from the same var
+// block (errDuplicateConnection). errors.Is and errors.As agree on
+// errTransportClosed itself (see TestSwitchAcceptLoopTransportClosed
+// above), so that test alone doesn't distinguish the two: this is the case
+// they disagree on -- errors.As matched (and mutated) the sentinel on any
+// same-underlying-type error, while errors.Is only matches the exact
+// value.
+func TestSwitchAcceptLoopUnrelatedSentinel(t *testing.T) {
+	// No t.Parallel: the assertions read the package-level sentinel.
+	original := errTransportClosed
+	t.Cleanup(func() { errTransportClosed = original })
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	var accepts atomic.Int64
+
+	mockTransport := &mockTransport{
+		acceptFn: func(ctx context.Context, _ PeerBehavior) (PeerConn, error) {
+			// Block once the loop has proven it survives the unrelated sentinel.
+			if accepts.Add(1) > 3 {
+				<-ctx.Done()
+
+				return nil, ctx.Err()
+			}
+
+			return nil, errDuplicateConnection
+		},
+	}
+
+	sw := NewMultiplexSwitch(mockTransport)
+
+	done := make(chan struct{})
+
+	go func() {
+		sw.runAcceptLoop(ctx)
+		close(done)
+	}()
+
+	require.Eventually(
+		t,
+		func() bool { return accepts.Load() > 3 },
+		2*time.Second,
+		10*time.Millisecond,
+		"accept loop exited on an error that is not errTransportClosed",
+	)
+
+	cancelFn()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "accept loop did not exit on context cancellation")
+	}
+
+	assert.Equal(t, "transport is closed", errTransportClosed.Error())
 }
