@@ -108,9 +108,11 @@ same section helper rather than carrying its own copy of the disclosure.
 - Rendering a description now scans it once, to escape the lines that would draw
   a rule. That is the same order of work as printing it, and descriptions carry
   no clamp: their length is bounded by what the proposer paid to store.
-- Growing a genesis realm shifts the balances asserted in
+- Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
-  its own note says to re-derive. Both lines move by 587300ugnot here.
+  its own note says to re-derive. Both lines move by 666100ugnot here. Comments
+  do not move them: 7001 bytes of them added to `render.gno` leave both
+  untouched.
 - A hostile creation realm renders exactly as it did: escaped, on one line,
   inside a code span, with no link.
 - A creation realm the check rejects renders with no link rather than with a

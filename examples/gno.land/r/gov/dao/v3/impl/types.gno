@@ -91,7 +91,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 //
 // Non-crossing: rlm is threaded into the crossing getMembers(cross(rlm))
 // call. The proposalStatus methods that compose this (votePowerPercent,
-// YesPercent etc., String) all take `_ int, rlm realm` for the same reason.
+// YesPercent etc., tally) all take `_ int, rlm realm` for the same reason.
 func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	members := getMembers(cross(rlm))
 	var tp float64

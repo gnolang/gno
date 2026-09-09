@@ -111,7 +111,7 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	// GetProposal can succeed for a proposal this implementation has no status
 	// for — the same post-upgrade case PreExecuteProposal guards (statuses live
 	// on the instance, so a fresh instance has none). Without this the page
-	// panics at ps.String below. renderProposalListItem needs no such guard:
+	// panics at ps.statusLine below. renderProposalListItem needs no such guard:
 	// its pids are iterated out of pss itself, so a status always exists.
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	if ps == nil {
