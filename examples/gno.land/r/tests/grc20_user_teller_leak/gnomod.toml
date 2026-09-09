@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/grc20_user_teller_leak"
+gno = "0.9"

@@ -1,0 +1,111 @@
+# A token realm can expose end-user surface functions backed by UserTeller, and
+# a signing user drives Transfer/Approve/TransferFrom directly through
+# `maketx call` (MsgCall). This is the path UserTeller exists to restore: the
+# writes stay callable by an EOA without a `maketx run`.
+#
+# The MsgRun contrast at the end confirms the flip side of that policy: the same
+# surface refuses an /e/<addr>/run frame with ErrNotUserCall, because UserTeller
+# is deliberately MsgCall-only.
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/usertok $WORK/usertok
+
+adduser alice
+adduser bob
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# alice funds herself.
+gnokey maketx call -pkgpath gno.land/r/test/usertok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# Transfer via MsgCall: the actor is the signing user, alice.
+gnokey maketx call -pkgpath gno.land/r/test/usertok -func Transfer -args $bob_user_addr -args 250000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$alice_user_addr\")"
+stdout '750000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$bob_user_addr\")"
+stdout '250000 int64'
+
+# Approve via MsgCall: alice grants bob an allowance.
+gnokey maketx call -pkgpath gno.land/r/test/usertok -func Approve -args $bob_user_addr -args 300000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/usertok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '300000 int64'
+
+# TransferFrom via MsgCall: bob spends the allowance, as himself.
+gnokey maketx call -pkgpath gno.land/r/test/usertok -func TransferFrom -args $alice_user_addr -args $bob_user_addr -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$bob_user_addr\")"
+stdout '350000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/usertok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
+stdout '200000 int64'
+
+# The same surface refuses MsgRun: the immediate caller is the /e/<addr>/run
+# frame, which is not a direct MsgCall EOA.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/transfer.gno
+stderr 'user teller requires a direct EOA call'
+gnokey query vm/qeval --data "gno.land/r/test/usertok.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+-- run/transfer.gno --
+package main
+
+import "gno.land/r/test/usertok"
+
+func main(cur realm) { usertok.Transfer(cross(cur), cur.Address(), 1) }
+
+-- usertok/gnomod.toml --
+module = "gno.land/r/test/usertok"
+gno = "0.9"
+
+-- usertok/usertok.gno --
+package usertok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("UserTok", "UTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	if err := adm.UserTeller().Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	if err := adm.UserTeller().Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func TransferFrom(cur realm, owner, to address, amount int64) {
+	if err := adm.UserTeller().TransferFrom(0, cur, owner, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }

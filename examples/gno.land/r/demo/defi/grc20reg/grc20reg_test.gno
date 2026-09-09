@@ -11,6 +11,29 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+func TestRegistryTokenViews(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaytoken"))
+	token, ledger := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	key := RegisterWithUserCalls(cross(cur), token, "", ledger.UserTeller())
+	uassert.True(t, Get(key) == token)
+	uassert.True(t, MustGet(key) == token)
+	ro := GetRegistry()
+	uassert.True(t, ro.Get(key).(*grc20.Token) == token)
+	for i := 0; i < ro.Size(); i++ {
+		k, v := ro.GetByIndex(i)
+		uassert.True(t, v.(*grc20.Token) == Get(k))
+	}
+	check := func(k string, v any) bool {
+		uassert.True(t, v.(*grc20.Token) == Get(k))
+		return false
+	}
+	ro.Iterate("", "", check)
+	ro.ReverseIterate("", "", check)
+	ro.IterateByOffset(0, ro.Size(), check)
+	ro.ReverseIterateByOffset(0, ro.Size(), check)
+	uassert.True(t, strings.Contains(Render(""), "Relay"))
+}
+
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
 	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
@@ -51,17 +74,9 @@ func TestRegistry(cur realm, t *testing.T) {
 	})
 }
 
-// TestRegistryLookupGrantsNoSpendAuthority pins the property that replaced the
-// former Transfer/Approve/TransferFrom wrappers: a registry lookup yields a
-// *Token, and a *Token alone carries no authority to debit anybody. The
-// frame-relative teller is reachable only from the ledger, which never leaves
-// the token's own realm, so this realm cannot act on behalf of its caller —
-// that shape was the confused deputy.
-//
-// The supported route for a realm that must move a user's funds is the one
-// exercised below: the user grants an allowance, and the realm spends it as
-// itself through a RealmTeller, which is eagerly bound to its own address.
-func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
+// RealmTeller uses the consuming realm's allowance; UserTeller is a separate
+// path for direct EOA callers, exercised by the integration tests.
+func TestRegistryRealmTellerSpendsAllowance(cur realm, t *testing.T) {
 	const (
 		tokenPath    = "gno.land/r/demo/token"
 		consumerPath = "gno.land/r/demo/grc20reg_consumer"
@@ -313,4 +328,64 @@ func TestTransferFromSpendsAllowanceGrantedToCallingRealm(cur realm, t *testing.
 	TransferFrom(0, cur, tokenKey, alice, bob, 100)
 	uassert.Equal(t, int64(900), MustGet(tokenKey).BalanceOf(alice))
 	uassert.Equal(t, int64(100), MustGet(tokenKey).BalanceOf(bob))
+}
+
+func TestWrappersProvideRealmTransferApproveAndTransferFrom(cur realm, t *testing.T) {
+	const (
+		tokenPath   = "gno.land/r/demo/token_wrapper_surface"
+		ownerPath   = "gno.land/r/demo/wrapper_owner"
+		spenderPath = "gno.land/r/demo/wrapper_spender"
+	)
+	owner := chain.PackageAddress(ownerPath)
+	spender := chain.PackageAddress(spenderPath)
+	recipient := testutils.TestAddress("recipient")
+
+	testing.SetRealm(testing.NewCodeRealm(tokenPath))
+	token, ledger := grc20.NewToken("Wrapper Surface", "WRPS", 4, 0, cur)
+	urequire.NoError(t, ledger.Mint(owner, 1_000))
+	tokenKey := Register(cross(cur), token, "")
+
+	testing.SetRealm(testing.NewCodeRealm(ownerPath))
+	Transfer(0, cur, tokenKey, recipient, 100)
+	Approve(0, cur, tokenKey, spender, 300)
+
+	testing.SetRealm(testing.NewCodeRealm(spenderPath))
+	TransferFrom(0, cur, tokenKey, owner, recipient, 200)
+
+	uassert.Equal(t, int64(700), token.BalanceOf(owner))
+	uassert.Equal(t, int64(300), token.BalanceOf(recipient))
+	uassert.Equal(t, int64(100), token.Allowance(owner, spender))
+}
+
+// Embedding the interface must not bypass registration's concrete-type check.
+type wrappedTeller struct{ grc20.Teller }
+
+func TestRegisterWithUserCallsRejectsInvalidCapabilities(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/delegation"))
+	token, ledger := grc20.NewToken("Delegated", "DEL", 4, 0, cur)
+	_, otherLedger := grc20.NewToken("Other", "OTHER", 4, 1, cur)
+	for _, teller := range []grc20.Teller{
+		nil,
+		&wrappedTeller{ledger.UserTeller()},
+		otherLedger.UserTeller(),
+		ledger.CallerTeller(),
+		ledger.ImpersonateTeller(cur.Address()),
+		token.ReadonlyTeller(),
+		token.RealmTeller(0, cur),
+	} {
+		urequire.AbortsContains(t, cur, "invalid user teller", func() {
+			RegisterWithUserCalls(cross(cur), token, "", teller)
+		})
+	}
+	teller := ledger.UserTeller()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/not_the_issuer"))
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
+		RegisterWithUserCalls(cross(cur), token, "", teller)
+	})
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/delegation"))
+	key := RegisterWithUserCalls(cross(cur), token, "", teller)
+	uassert.True(t, MustGet(key) == token)
+	urequire.AbortsContains(t, cur, "already registered", func() {
+		RegisterWithUserCalls(cross(cur), token, "", teller)
+	})
 }

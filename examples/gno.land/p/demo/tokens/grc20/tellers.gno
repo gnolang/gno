@@ -19,7 +19,7 @@ import (
 //
 // Construction privacy alone is not enough: a realm may legally build a teller
 // and then export the VALUE. The write methods therefore also verify that the
-// invoking realm is the token's own (see guardHome), which makes a leaked
+// invoking realm is the token's own (see guardWrite), which makes a leaked
 // teller inert everywhere but home.
 func (ledger *PrivateLedger) CallerTeller() Teller {
 	if ledger == nil {
@@ -33,6 +33,31 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 		homeGuard: true,
 		Token:     ledger.token,
 	}
+}
+
+// UserTeller creates a capability to act for the holder's direct MsgCall users.
+// Keep it private or explicitly delegate it to an audited registry. A leaked
+// teller works in other realms; no external host identity is stored or checked.
+// Each write verifies the live frame and resolves its immediate EOA anew.
+func (ledger *PrivateLedger) UserTeller() Teller {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+	return &fnTeller{
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
+		},
+		userOnly: true,
+		Token:    ledger.token,
+	}
+}
+
+// IsCanonicalUserTeller verifies a delegated capability without dispatching
+// caller-supplied methods. Embedding wrappers and tellers for other tokens fail.
+func IsCanonicalUserTeller(teller Teller, token *Token) bool {
+	ft, ok := teller.(*fnTeller)
+	return ok && ft != nil && token != nil && ft.Token == token &&
+		ft.accountFn != nil && ft.userOnly
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
@@ -126,36 +151,18 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-// guardHome confines a frame-relative (homeGuard) teller to the token's own
-// realm. Construction privacy stops a foreign realm from minting one;
-// this stops a minted one from travelling, which is what happens when a realm
-// legally builds a teller and then exports the value.
-//
-// The check is on the invoking realm's path alone — deliberately NOT on
-// whether the resolved actor is an end user. Keying on the actor only blocks
-// the case where the debited party is the signing user, which leaves two doors
-// open: a realm can be charged by a realm it calls, and TransferFrom resolves
-// the *spender* from the frame, so a realm reached from an honest hub spends
-// that hub's allowance against any owner who granted one. Both are the same
-// defect as the original one level up — frame-relative resolution means
-// whoever you call can act as you — and neither is reachable once the teller
-// only works at home.
-//
-// The host is compared after stripping any ":subpath" synthesized by
-// realm.Sub, so the token's own sub-realms are not falsely rejected.
-//
-// A foreign realm that needs to move a user's funds uses the ordinary route:
-// Approve, then RealmTeller().TransferFrom, which is eagerly bound to that
-// realm's own address and allowance-gated.
-//
-// The leading int keeps this a plain method.
-func (ft *fnTeller) guardHome(_ int, rlm realm) error {
-	if !ft.homeGuard {
-		return nil
+// guardWrite requires direct MsgCall users for UserTeller and confines
+// CallerTeller to the token's own realm, including its sub-realms.
+// Transfer, Approve and TransferFrom verify IsCurrent before calling this.
+func (ft *fnTeller) guardWrite(_ int, rlm realm) error {
+	if ft.userOnly && !rlm.Previous().IsUserCall() {
+		return ErrNotUserCall
 	}
-	host, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
-	if host != ft.Token.origRealm {
-		return ErrForeignCallerTeller
+	if ft.homeGuard {
+		origin, _, _ := chain.SplitPkgSubPath(rlm.PkgPath())
+		if origin != ft.Token.origRealm {
+			return ErrForeignCallerTeller
+		}
 	}
 	return nil
 }
@@ -167,7 +174,7 @@ func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -181,7 +188,7 @@ func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) err
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	caller := ft.accountFn(0, rlm)
@@ -195,7 +202,7 @@ func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int
 	if !rlm.IsCurrent() {
 		return ErrSpoofedRealm
 	}
-	if err := ft.guardHome(0, rlm); err != nil {
+	if err := ft.guardWrite(0, rlm); err != nil {
 		return err
 	}
 	spender := ft.accountFn(0, rlm)

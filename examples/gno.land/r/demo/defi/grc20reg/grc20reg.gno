@@ -12,7 +12,12 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath.symbol -> *Token
+type registration struct {
+	token      *grc20.Token
+	userTeller grc20.Teller // nil for tokens without direct EOA support
+}
+
+var registry = avl.NewTree() // rlmPath.symbol -> registration
 
 // Construction lives in grc20.NewToken — it takes rlm realm last
 // and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
@@ -30,13 +35,32 @@ var registry = avl.NewTree() // rlmPath.symbol -> *Token
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
 // register two tokens under the same symbol (overwrite/alias guard).
 func Register(cur realm, token *grc20.Token, slug string) string {
+	return register(0, cur, token, slug, nil)
+}
+
+// RegisterWithUserCalls opts a token into direct EOA writes through this registry.
+// The token realm explicitly delegates a user capability; it is kept private.
+func RegisterWithUserCalls(cur realm, token *grc20.Token, slug string, userTeller grc20.Teller) string {
+	if !cur.IsCurrent() {
+		panic(grc20.ErrSpoofedRealm)
+	}
+	if !grc20.IsCanonicalUserTeller(userTeller, token) {
+		panic("grc20reg: invalid user teller")
+	}
+	return register(0, cur, token, slug, userTeller)
+}
+
+func register(_ int, rlm realm, token *grc20.Token, slug string, userTeller grc20.Teller) string {
+	if !rlm.IsCurrent() {
+		panic(grc20.ErrSpoofedRealm)
+	}
 	if token == nil {
 		panic("grc20reg: nil token")
 	}
 	if slug != "" {
 		validateSlug(slug)
 	}
-	rlmPath := cur.Previous().PkgPath()
+	rlmPath := rlm.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
 	// Token.ID() == key + "." + <id>; verify the token originates from the
 	// registering realm and symbol.
@@ -46,7 +70,7 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
 	}
-	registry.Set(key, token)
+	registry.Set(key, registration{token: token, userTeller: userTeller})
 	chain.Emit(
 		registerEvent,
 		"token_path", key,
@@ -62,7 +86,7 @@ func Get(key string) *grc20.Token {
 	if token == nil {
 		return nil
 	}
-	return token.(*grc20.Token)
+	return token.(registration).token
 }
 
 func MustGet(key string) *grc20.Token {
@@ -108,8 +132,8 @@ func MustGet(key string) *grc20.Token {
 // Realm-only by construction: MsgCall cannot build a realm argument
 // (convertArgToGno rejects non-primitive parameter types), so a signing user
 // cannot reach these at all and there is no in-band case to guard against.
-// Users move their own tokens through the token realm's own entry points
-// (wugnot.Transfer, foo20.Transfer, …).
+// Users use the token realm's own entry points, or the User wrappers below
+// when the token realm has explicitly delegated a UserTeller to this registry.
 
 // Transfer moves `amount` out of the CALLING REALM's own balance.
 //
@@ -138,6 +162,35 @@ func TransferFrom(_ int, rlm realm, tokenKey string, from, to address, amount in
 	checkErr(MustGet(tokenKey).RealmTeller(0, rlm).TransferFrom(0, rlm, from, to, amount))
 }
 
+// UserTransfer moves the signing EOA's balance. MsgRun and realm callers are
+// rejected by the canonical teller's current-frame and IsUserCall checks.
+func UserTransfer(cur realm, tokenKey string, to address, amount int64) {
+	checkErr(mustUserTeller(tokenKey).Transfer(0, cur, to, amount))
+}
+
+// UserApprove grants an allowance owned by the signing EOA.
+func UserApprove(cur realm, tokenKey string, spender address, amount int64) {
+	checkErr(mustUserTeller(tokenKey).Approve(0, cur, spender, amount))
+}
+
+// UserTransferFrom spends an allowance granted to the signing EOA, not to
+// the registry. The owner must have approved that EOA as spender.
+func UserTransferFrom(cur realm, tokenKey string, owner, to address, amount int64) {
+	checkErr(mustUserTeller(tokenKey).TransferFrom(0, cur, owner, to, amount))
+}
+
+func mustUserTeller(key string) grc20.Teller {
+	value := registry.Get(key)
+	if value == nil {
+		panic("unknown token: " + key)
+	}
+	teller := value.(registration).userTeller
+	if teller == nil {
+		panic("grc20reg: token does not support user calls")
+	}
+	return teller
+}
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
@@ -152,7 +205,7 @@ func Render(path string) string {
 		count := 0
 		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
-			token := tokenI.(*grc20.Token)
+			token := tokenI.(registration).token
 			rlmPath, tokenID := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, tokenID)
 			infoLink := "/r/demo/grc20reg:" + key
@@ -183,7 +236,9 @@ const (
 )
 
 func GetRegistry() *rotree.ReadOnlyTree {
-	return rotree.Wrap(registry, nil)
+	return rotree.Wrap(registry, func(value any) any {
+		return value.(registration).token
+	})
 }
 
 // validateSlug panics if the slug is too long or contains non-alphanumeric characters.

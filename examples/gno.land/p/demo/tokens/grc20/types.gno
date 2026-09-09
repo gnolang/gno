@@ -92,7 +92,7 @@ type Token struct {
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 	// origRealm is the PkgPath of the realm that created the token, captured
-	// unforgeably in NewToken. A frame-relative teller only works there.
+	// unforgeably in NewToken. CallerTeller only works there.
 	origRealm string
 }
 
@@ -125,6 +125,7 @@ var (
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
 	ErrForeignCallerTeller   = errors.New("caller teller is confined to the token's own realm")
+	ErrNotUserCall           = errors.New("user teller requires a direct EOA call (MsgCall)")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
@@ -153,18 +154,17 @@ const (
 
 type fnTeller struct {
 	accountFn func(_ int, rlm realm) address
-	// homeGuard marks a frame-relative teller (PrivateLedger.CallerTeller),
-	// whose actor is resolved from the invoking frame. Such a teller is only
-	// meaningful in the token's own realm and is refused anywhere else, so
-	// exporting the value cannot hand out a spend capability.
+	// homeGuard confines CallerTeller to the token origin and its sub-realms.
 	homeGuard bool
+	// userOnly restricts the teller to immediate EOA callers via MsgCall.
+	userOnly bool
 	*Token
 }
 
 var _ Teller = (*fnTeller)(nil)
 
 // IsCanonicalTeller reports whether t is the canonical *fnTeller produced by
-// Token.CallerTeller / RealmTeller / RealmSubTeller / ReadonlyTeller /
+// CallerTeller / UserTeller / RealmTeller / RealmSubTeller / ReadonlyTeller /
 // ImpersonateTeller. Use this at any public entry point that accepts a
 // Teller from an external caller before invoking its methods.
 //

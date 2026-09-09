@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -16,7 +17,7 @@ func TestCallerTellerImpl(cur realm, t *testing.T) {
 	var _ Teller = teller
 }
 
-// The sub-realm case (guardHome must not lock out the token's own realm when it
+// The sub-realm case (guardWrite must not lock out the token's own realm when it
 // operates under an identity minted by its own cur.Sub()) needs a real realm
 // frame, since cur.Sub() refuses to mint from a p/ package. It lives in
 // filetests/caller_teller_sub_realm_filetest.gno.
@@ -38,6 +39,16 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 	evil := &evilWrap{Teller: legit}
 	uassert.False(t, IsCanonicalTeller(evil),
 		"foreign type embedding a canonical Teller must be rejected")
+}
+
+func TestUserTellerImpl(cur realm, t *testing.T) {
+	token, ledger := newTestToken("User", "USER", 4, 0, cur)
+	uassert.True(t, IsCanonicalTeller(ledger.UserTeller()))
+	var nilLedger *PrivateLedger
+	uassert.PanicsContains(t, cur, "Ledger cannot be nil", func() { nilLedger.UserTeller() })
+	uassert.True(t, IsCanonicalUserTeller(ledger.UserTeller(), token))
+	uassert.False(t, IsCanonicalUserTeller((*fnTeller)(nil), token))
+	uassert.False(t, IsCanonicalUserTeller(ledger.UserTeller(), nil))
 }
 
 func TestTeller(cur realm, t *testing.T) {
@@ -150,4 +161,39 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
+}
+
+func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	token, ledger := newTestToken("Home Guard", "HOME", 6, 0, cur)
+	teller := ledger.CallerTeller()
+	urequire.NoError(t, ledger.Mint(alice, 1_000))
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foreign"))
+	urequire.ErrorIs(t, teller.Transfer(0, cur, bob, 100), ErrForeignCallerTeller)
+	uassert.Equal(t, int64(1_000), token.BalanceOf(alice))
+	uassert.Equal(t, int64(0), token.BalanceOf(bob))
+}
+
+func TestUserTellerCallerGuard(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
+	teller := ledger.UserTeller().(*fnTeller)
+	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
+	foreign := testing.MakeRealm(chain.PackageAddress("gno.land/r/demo/foreign"), "gno.land/r/demo/foreign", eoa)
+	uassert.NoError(t, teller.guardWrite(0, foreign))
+
+	for _, caller := range []realm{
+		foreign,
+		testing.MakeRealm(alice, "gno.land/e/"+alice.String()+"/run", eoa),
+	} {
+		relay := testing.MakeRealm(foreign.Address(), foreign.PkgPath(), caller)
+		uassert.ErrorIs(t, teller.guardWrite(0, relay), ErrNotUserCall)
+	}
+
+	stale := foreign
+	uassert.ErrorIs(t, teller.Transfer(0, stale, alice, 1), ErrSpoofedRealm)
+	uassert.ErrorIs(t, teller.Approve(0, stale, alice, 1), ErrSpoofedRealm)
+	uassert.ErrorIs(t, teller.TransferFrom(0, stale, alice, alice, 1), ErrSpoofedRealm)
 }
