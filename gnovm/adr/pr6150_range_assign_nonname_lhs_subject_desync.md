@@ -55,9 +55,10 @@ gives the per-LHS count: `NameExpr` 0, `IndexExpr` 2, `SelectorExpr`/`StarExpr`/
 With a non-name LHS, `PeekValue(1)` is a pointer operand, not `X`. (The write
 *target* is resolved correctly — `PopAsPointer` pops from the top — so the
 type-confused value lands in the intended slot, which is what makes the
-corruption persist.) `doOpAssign` is the correctly-fixed sibling for tuple
-assignment (PR #5765): it sums `numStackValuesForPointer` over the LHS. The fix
-here brings the range handlers in line.
+corruption persist.) `doOpAssign` hit the same class of bug for tuple assignment
+and was fixed in PR #5765 by summing `numStackValuesForPointer` over the LHS; the
+range handlers, unlike `doOpAssign`, have a frame of their own to anchor to, so
+they are fixed differently — see Decision.
 
 A **second, coupled** offset appears on the `goto` path. `bs.NumValues` is
 captured at the `-2` init phase *while the LHS operands are still on the stack*,
@@ -73,38 +74,47 @@ worse — so both sites must be corrected together.
 
 ## Decision
 
-Introduce one helper that reports how many value-stack entries sit above `X`
-because of ASSIGN-form LHS pointer operands, gated so it is non-zero only while
-those operands are actually present (`NextBodyIndex < 0`, the `-2`/`-1` phases;
-they are popped in the `-1` phase):
+Address `X` by its **absolute** index in `m.Values` rather than by an offset from
+the top of the stack.
+
+The `RangeStmt` setup calls `PushFrameBasic` and only *then* evaluates `X`, so
+the value-stack length the frame recorded is exactly `X`'s slot. Everything above
+that slot belongs to the loop — the ASSIGN-form LHS pointer operands, and mid-body
+whatever the body is evaluating — and none of it can be mistaken for `X`.
+`PeekFrameAndContinueRange` already relies on this identity when `continue`
+restores the stack to `fr.NumValues+1` ("back to `X` only"):
 
 ```go
-func (bs *bodyStmt) rangeSubjectDepth() int {
-	if bs.Op != ASSIGN || bs.NextBodyIndex >= 0 {
-		return 0
+func (m *Machine) rangeFrame() *Frame {
+	fr := m.LastFrame()
+	if debugAssert {
+		if _, ok := fr.Source.(*RangeStmt); !ok {
+			panic(fmt.Sprintf(
+				"expected the last frame to be the range's own frame, got %T",
+				fr.Source,
+			))
+		}
 	}
-	n := 0
-	if bs.Key != nil {
-		n += numStackValuesForPointer(bs.Key)
-	}
-	if bs.Value != nil {
-		n += numStackValuesForPointer(bs.Value)
-	}
-	return n
+	return fr
 }
 ```
 
 Apply it at both consumers, in all three range handlers:
 
-- **Subject read**: `xv := m.PeekValue(1 + bs.rangeSubjectDepth())`.
-- **`bs.NumValues` capture** (the `-2` init, where `NextBodyIndex == -2` so the
-  depth is the true operand count): `bs.NumValues = len(m.Values) - bs.rangeSubjectDepth()`,
+- **Subject read**: `xv := &m.Values[fr.NumValues]`.
+- **`bs.NumValues` capture** (the `-2` init): `bs.NumValues = fr.NumValues + 1`,
   recording the X-only length so the `goto` restore agrees with the `continue`
   restore.
 
 This is a no-op for every previously-passing shape — DEFINE form, name-only or
-blank ASSIGN, and `for range x` all have depth 0 — and changes only the
-non-name-ASSIGN path.
+blank ASSIGN, and `for range x` push nothing above `X`, so `fr.NumValues` is the
+top of the stack and the read is identical to the historical `PeekValue(1)`.
+
+The point of taking the frame's index rather than computing the operand count is
+that the read stops depending on the LHS shape at all: there is no per-LHS
+arithmetic to keep in sync with `PushForPointer`/`PopAsPointer`, and no phase
+gate to get wrong. The bug class becomes unrepresentable instead of merely
+computed correctly.
 
 ## Alternatives considered
 
@@ -115,42 +125,82 @@ non-name-ASSIGN path.
   `fr.NumValues+1` like `continue`). Equivalent in effect, but pushes range-only
   knowledge into the generic branch handler; correcting `bs.NumValues` at the
   capture keeps the invariant local to the range handlers and leaves the generic
-  `GOTO`/for-loop path untouched (`OpBody`/`OpForLoop` captures have depth 0).
-- **Compute the offset unconditionally (no `NextBodyIndex` gate).** Rejected:
-  during body execution the operands have already been popped, so a non-zero
-  offset would read past the top of the stack (out-of-bounds) — and
-  `OpRangeIterString` re-reads the subject in that phase.
+  `GOTO`/for-loop path untouched (`OpBody`/`OpForLoop` capture nothing above X).
+- **Sum `numStackValuesForPointer` over the LHS and read at
+  `PeekValue(1+depth)`**, the way `doOpAssign` (PR #5765) does for tuple
+  assignment. This was the first form of the fix and it is correct — the two
+  formulations were run against each other, asserting equality at all six sites
+  over 2029 programs, with no disagreement. It was dropped because it is
+  strictly more fragile: the depth has to stay in sync with `PushForPointer`
+  and `PopAsPointer` for every pointer-LHS shape, and it needs an
+  `Op != ASSIGN || NextBodyIndex >= 0` gate encoding *when* the operands happen
+  to be on the stack. Both are invariants about other code, and if either drifts
+  the handlers silently go back to reading the wrong slot. `doOpAssign` has no
+  such choice — it runs in a single phase with no frame of its own — so the
+  duplication is not worth preserving for symmetry.
+- **Cache the operand count in a `bodyStmt` field** instead of recomputing it.
+  Not viable: `Block` embeds `bodyStmt` and `alloc.go` asserts
+  `_allocBlock = 536 == unsafe.Sizeof(Block{})`, so a new field shifts
+  allocation gas and forces a `pb3_gen.go` regeneration of a persisted type.
 
 ## Consequences
 
 - `for k, m[i]/s.F/*p = range x` over slice, array, array-pointer, string, and
   map subjects now matches Go, including with `break`, `continue`, `goto`, and
   nested loops.
-- No change to any previously-passing behavior (depth 0 everywhere else).
-- Scope caveat — one **pre-existing, unrelated** divergence is unchanged and
-  intentionally left out of this fix: when BOTH the key and value targets are
-  non-name lvalues AND each carries a side effect in its index/base (e.g.
-  `for a[f()], b[g()] = range x`), the VM evaluates the value target's operands
-  before the key target's, opposite to Go's left-to-right order. This predates
-  the fix (such programs previously panicked before reaching the assignment, so
-  the fix only makes them run) and is rooted in the unchanged `RangeStmt` setup
-  push order (Key pushed before Value; the LIFO op stack reverses them), not in
-  the offset logic changed here. It is deterministic (no consensus fork) and
-  affects only that two-non-name-target shape — the single-non-name-target
-  examples above match Go exactly. Correcting it means reworking the setup
-  push order together with the `-1`-phase pop order, a separate change.
-- Not a consensus/gas change: the edit only moves a read offset; no metering path
-  depends on it.
+- No change to any previously-passing behavior (nothing sits above `X` in any of
+  those shapes, so the frame index and the old `PeekValue(1)` coincide).
+- Scope caveat — two **pre-existing** divergences in the `RangeStmt` setup are
+  unchanged and intentionally left out of this fix. Both are rooted in the same
+  place: the setup evaluates the LHS pointer operands unconditionally, once,
+  before the loop starts (`PushForPointer(cs.Key)` then `PushForPointer(cs.Value)`),
+  where Go evaluates them as part of each iteration's assignment. Both predate
+  the fix — the base binary behaves identically — and both are deterministic (no
+  consensus fork), but this fix is what makes the affected programs run far
+  enough to observe them.
+  - **Order.** When BOTH targets are non-name lvalues AND each carries a side
+    effect in its index/base (`for a[f()], b[g()] = range x`), the value
+    target's operands evaluate before the key target's, opposite to Go's
+    left-to-right order — the ops are pushed Key-then-Value and the op stack is
+    LIFO. Go: `f g`; GnoVM: `g f`.
+  - **Count, on a zero-iteration range.** With even a SINGLE non-name target,
+    a subject that yields no iterations still evaluates that target's operands
+    once, where Go evaluates them zero times. `for i, m[f()] = range []string{}`
+    calls `f` once (Go: never); `var p *[3]int; for i, (*p)[0] = range []int{}`
+    panics with a nil pointer dereference (Go: runs clean).
+
+  Correcting either means reworking the setup push order and moving the pushes
+  inside the iteration, together with the `-1`-phase pop order — a separate
+  change.
+- **This is a state-machine change**, not a no-op. It is not a gas-*constant*
+  change — no metering constant is touched — but for the affected shape both the
+  result and the gas differ, because `m.incrCPU(OpCPUSlopeRangeIterArray * ll)`
+  is fed by the subject whose read this PR corrects, and the trip count changes
+  with it. The `range_assign_lhs_persist.txtar` `Corrupt` tx is identical either
+  side and burns 1,786,673 gas returning `(2 int)` before, 1,789,138 gas
+  returning `(4 int)` after. Any node replaying a block containing such a tx on
+  a different binary version computes a different AppHash, so this needs a
+  coordinated upgrade like any other VM semantics fix; there is no VM-level
+  version gate in the tree to hide it behind.
 - Regression coverage added:
-  - `gnovm/tests/files/types/assign_range_lhs_index.gno` (slice/string/map,
-    IndexExpr LHS),
+  - `gnovm/tests/files/types/assign_range_lhs_index.gno` (IndexExpr LHS over
+    slice, array, array-pointer, string and map subjects, plus the key-only
+    `for m[k] = range x` form where `bs.Value` is nil),
   - `gnovm/tests/files/types/assign_range_lhs_selector_star.gno`
     (SelectorExpr/StarExpr LHS),
-  - `gnovm/tests/files/types/assign_range_lhs_goto.gno` (the `goto` interaction,
-    plus a name-only control),
+  - `gnovm/tests/files/types/assign_range_lhs_goto.gno` (the `goto` interaction
+    against all three handlers — `OpRangeIter`, `OpRangeIterArrayPtr`,
+    `OpRangeIterString`, `OpRangeIterMap` — including IndexExpr targets so more
+    than one stack entry sits above `X`, plus a name-only control),
   - `gno.land/pkg/integration/testdata/range_assign_lhs_persist.txtar`
     (cross-transaction persistence: pre-fix tx1 returns `(2 int)` and a later
     `len(m[k])` fails; post-fix tx1 returns `(4 int)` and the value reads back).
+
+  The `goto` coverage is deliberately spread across all three handlers: with the
+  earlier slice-only test, reverting the `bs.NumValues` fix in the string and map
+  handlers left the entire `TestFiles` suite green while a two-line program
+  (`for k, m["k"] = range "XYZ" { goto L; L: }`) crashed with
+  `slice bounds out of range [1:0]`.
 
 ## Verification
 
@@ -160,9 +210,24 @@ non-name-ASSIGN path.
   array-pointer, string, map} × 3 key-LHS × 4–5 value-LHS {name, blank, index,
   selector, star} × 5 control-flow shapes {none, forward goto, continue, break,
   nested}): the fixed VM matches `go run` on all 375; the unpatched HEAD binary
-  diverges on 275 — exactly the non-depth-0 shapes (the 100 that agree are the
-  key∈{name,blank} ∧ value∈{name,blank} cases, where the historical fixed offset
-  was already correct).
+  diverges on 275 — exactly the shapes with operands above `X` (the 100 that
+  agree are the key∈{name,blank} ∧ value∈{name,blank} cases, where the
+  historical fixed offset was already correct).
+- Wider re-run on review — 2016 programs (7 subject kinds, adding empty-slice
+  and nil-map, × 6 key-LHS × 6 value-LHS {name, blank, slice-index, map-index,
+  selector, star} × 8 control-flow shapes, adding backward goto, goto out of a
+  nested block, and a body that leaves values on the stack): 0 divergences from
+  `go run`. Plus hand-written probes for nested `IndexExpr`/`SelectorExpr`,
+  `(*p).A.B`, `**pp`, `mm["a"]["b"]`, parenthesized lvalues, the key-only form,
+  panic/recover mid-range, labeled break/continue, goto from an inner range out
+  to an outer range's body label, `for i, sl[i] = range src` (the index depends
+  on the key being assigned), and an LHS aliasing the subject — all match `go
+  run`; the base binary panics on nearly all of them.
+- Equivalence of the two candidate formulations: a build asserting
+  `len(m.Values)-(1+depth) == m.LastFrame().NumValues` and
+  `bs.NumValues == m.LastFrame().NumValues+1` at all six sites ran the 2016 fuzz
+  programs plus the probes with zero assertion failures, i.e. the frame index
+  and the summed operand depth never disagree.
 - `gnovm/tests/files/types/assign_range_lhs_*.gno` panic/misbehave before the
   fix, pass after.
 - `range_assign_lhs_persist.txtar` fails before the fix (tx1 `no match for
