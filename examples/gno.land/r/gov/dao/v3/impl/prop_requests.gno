@@ -220,6 +220,12 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 }
 
 func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+	// A foreign impl renders a Payment line no Banker will process, so it would
+	// fail only at execution, after the vote. Rejected here so the proposer
+	// sees it, not the voters. See IsCanonicalPayment.
+	if !trs_pkg.IsCanonicalPayment(payment) {
+		panic("payment must be built by treasury.NewCoinsPayment or treasury.NewGRC20Payment")
+	}
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
@@ -235,12 +241,19 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 		})
 	}
 
+	// Both are caller-supplied and land in the same body as the Payment line a
+	// member votes on, which render.gno emits raw. InlineText folds newlines to
+	// spaces, so neither can start a line of its own and forge that label.
+	// Clamp before escaping, per clamp.gno.
+	safeReason := sanitize.InlineText(clampField(reason, maxRenderedReason))
+	safePayment := sanitize.InlineText(clampField(payment.String(), maxRenderedPayment))
+
 	e := dao.NewSimpleExecutor(0, cur,
 		cb,
 		ufmt.Sprintf(
 			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
-			reason,
-			payment.String(),
+			safeReason,
+			safePayment,
 		),
 	)
 
@@ -248,8 +261,8 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 		"Treasury Payment",
 		ufmt.Sprintf(
 			"This proposal is looking to send a payment using the treasury.\n\nReason: %s\n\nPayment: %s",
-			reason,
-			payment.String(),
+			safeReason,
+			safePayment,
 		),
 		e,
 	)
@@ -262,15 +275,22 @@ func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.Proposal
 		panic("the list of new tokens is empty")
 	}
 
+	// Copied for the same reason NewCoinsPayment copies its coins: the bullet
+	// list below is rendered once at creation, but the executor closure
+	// re-reads the slice at execution, so the caller could otherwise install a
+	// token set the board never saw.
+	keys := make([]string, len(newTokenKeys))
+	copy(keys, newTokenKeys)
+
 	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
-			// NOTE:: Consider checking if the newTokenKeys are already registered
+			// NOTE:: Consider checking if the keys are already registered
 			// in the grc20reg before updating the treasury tokens keys.
-			treasury.SetTokenKeys(cross(cur), newTokenKeys)
+			treasury.SetTokenKeys(cross(cur), keys)
 		})
 	}
 
-	bulletList := md.BulletList(newTokenKeys)
+	bulletList := md.BulletList(keys)
 
 	e := dao.NewSimpleExecutor(0, cur,
 		cb,
