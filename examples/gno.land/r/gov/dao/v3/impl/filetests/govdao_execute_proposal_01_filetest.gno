@@ -61,6 +61,8 @@ func main(cur realm) {
 //
 // This proposal always pass on execution
 //
+// ---
+//
 // ### Execution
 //
 // Executor created in: [`gno.land/r/test/govdao`](/r/test/govdao$source)

@@ -131,8 +131,11 @@ func main(cur realm) {
 	// between it and the tally.
 	println("and the section holds the realm alone:",
 		strings.Contains(out, "### Execution\n\nExecutor created in: [`gno.land/r/template/silent`](/r/template/silent$source)\n\n---"))
-	println("and the description keeps its own section:",
-		strings.Contains(out, "### Description\n\nA proposal whose executor has no description\n\n### Execution"))
+	// The rule between them is the page's, drawn only when both sections are
+	// there. It reads as a boundary and is not one: the description is markdown
+	// and can draw its own.
+	println("and a rule separates it from the description:",
+		strings.Contains(out, "### Description\n\nA proposal whose executor has no description\n\n---\n\n### Execution"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -293,7 +296,7 @@ func main(cur realm) {
 // Output:
 // empty-description proposal discloses creation realm: true
 // and the section holds the realm alone: true
-// and the description keeps its own section: true
+// and a rule separates it from the description: true
 // only the genuine Stats heading exists: true
 // no forged acceptance line: true
 // no forged tally line: true

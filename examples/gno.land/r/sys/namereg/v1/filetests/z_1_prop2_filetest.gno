@@ -89,6 +89,8 @@ func main(cur realm) {
 //
 // delete user test
 //
+// ---
+//
 // ### Execution
 //
 // Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
@@ -119,6 +121,8 @@ func main(cur realm) {
 //
 // delete user test
 //
+// ---
+//
 // ### Execution
 //
 // Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
@@ -148,6 +152,8 @@ func main(cur realm) {
 // ### Description
 //
 // delete user test
+//
+// ---
 //
 // ### Execution
 //

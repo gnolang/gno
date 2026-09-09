@@ -125,13 +125,23 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	// Heading them apart is the point: they used to run together as
 	// consecutive paragraphs, so nothing told a voter which of the two came
 	// from the code that will actually run.
-	if desc := p.Description(); desc != "" {
+	//
+	// The rule between them is legibility and not a boundary: the description
+	// is rendered as the markdown the proposer wrote, so it can draw a rule and
+	// a heading of its own. What it cannot do is come after this one.
+	description := p.Description()
+	if description != "" {
 		out += "### Description\n\n"
-		out += desc
+		out += description
 		out += "\n\n"
 	}
 
-	out += renderExecution(p)
+	if execution := renderExecution(p); execution != "" {
+		if description != "" {
+			out += "---\n\n"
+		}
+		out += execution
+	}
 
 	out += "---\n\n"
 	out += ps.String(0, rlm)

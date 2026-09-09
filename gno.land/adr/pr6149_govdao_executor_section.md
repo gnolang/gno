@@ -25,6 +25,11 @@ and `### Execution` for everything the executor supplies, the creation realm
 first and the executor's own description under it. A proposal carrying neither
 renders no section, as before.
 
+A horizontal rule separates the two sections when both are present. It is
+legibility and not a boundary: the description is rendered as the markdown the
+proposer wrote, so it can draw a rule and a heading of its own. What it cannot
+do is come after the page's own section.
+
 The creation realm keeps the escaping it has: `sanitize.InlineCode` still
 produces the code span, clamped first per `clamp.gno`. The span becomes the
 text of a link to `<path>$source` when, and only when, the value parses as a
