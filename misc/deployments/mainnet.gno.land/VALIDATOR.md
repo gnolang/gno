@@ -1,6 +1,6 @@
 # Joining mainnet as a validator
 
-> **WORK IN PROGRESS** — every chain-specific value below (genesis sha, peers, endpoints, chain-id) is a placeholder inherited from the pearl testnet until the mainnet launch values are final. Grep `TODO(mainnet)` across this folder.
+> **WORK IN PROGRESS** — the chain-id (`gnoland-1`) is final; the genesis sha, peers, and endpoints below are placeholders inherited from the pearl testnet until the mainnet launch values are final. Grep `TODO(mainnet)` across this folder.
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
@@ -91,7 +91,7 @@ Running a sentry-node setup instead of a standalone node? See the [Sentry-node a
 
 ```shell
 gnoland start \
-  --chainid mainnet-1 \
+  --chainid gnoland-1 \
   --genesis genesis.json \
   --skip-genesis-sig-verification
 ```
@@ -108,7 +108,7 @@ Get your node's consensus public key:
 gnoland secrets get validator_key   # note the validator public key (gpub1...)
 ```
 
-The registration transaction costs a gas fee, so your operator account needs GNOT. If it's empty, request a drip for your `g1...` address from the mainnet faucet at <https://mainnet.testnets.gno.land/faucet>.
+The registration transaction costs a gas fee, so your operator account needs GNOT. There is **no faucet on mainnet** — fund the operator address from your own holdings (e.g. your independence-day allocation). <!-- TODO(mainnet): confirm the recommended funding path for external operators. -->
 
 Register your profile on the valoper realm, **signed by your operator key** (the `gnokey` account whose `g1...` address you pass as the operator address — the realm rejects the call if the signer doesn't control that address):
 
@@ -122,7 +122,7 @@ gnokey maketx call \
   --args "<your operator g1... address>" \
   --args "<your gpub1... consensus pubkey>" \
   --gas-fee 1000000ugnot --gas-wanted 50000000 \
-  --chainid mainnet-1 \
+  --chainid gnoland-1 \
   --remote https://rpc.mainnet.testnets.gno.land \
   --broadcast \
   <your-key-name>

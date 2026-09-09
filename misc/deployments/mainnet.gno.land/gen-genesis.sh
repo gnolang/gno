@@ -50,8 +50,7 @@ set -eo pipefail
 # Launch parameters — review before each genesis generation.
 # =============================================================================
 
-# TODO(mainnet): chain-id undecided — "mainnet-1" is a working placeholder.
-CHAIN_ID=mainnet-1
+CHAIN_ID=gnoland-1 # decided 2026-09-09
 # TODO(mainnet): launch time undecided — placeholder is pearl's launch time.
 # Mainnet block 1 carries this timestamp forever: pin the ceremony time and
 # rebuild if it slips (topaz/sapphire/pearl all launched backdated; fine on
