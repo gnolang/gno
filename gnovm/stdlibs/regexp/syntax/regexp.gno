@@ -75,6 +75,14 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		}
 
 	case OpLiteral, OpCharClass:
+		// Custom code: Go compares the fold bit too (via slices.Equal plus a
+		// Flags check). Without it, parser.factor treats "(?i)1" and "1" as
+		// interchangeable when factoring alternation prefixes, and the
+		// surviving prefix inherits whichever fold bit came first - changing
+		// what the whole regexp matches.
+		if x.Flags&FoldCase != y.Flags&FoldCase {
+			return false
+		}
 		if len(x.Rune) != len(y.Rune) {
 			return false
 		}

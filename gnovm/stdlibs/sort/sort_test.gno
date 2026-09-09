@@ -12,6 +12,12 @@ import (
 	"testing"
 )
 
+// rng supplies the pseudo-random inputs these tests used to draw from
+// math/rand's package-level source. Gno has no such source (see the note at
+// the end of math/rand/rand.gno), so the generator is explicit and seeded,
+// which also makes these tests reproducible.
+var rng = rand.New(rand.NewPCG(1, 2))
+
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
 
 // var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
@@ -98,7 +104,7 @@ func TestSortLarge_Random(t *testing.T) {
 	}
 	data := make([]int, n)
 	for i := 0; i < len(data); i++ {
-		data[i] = rand.IntN(100)
+		data[i] = rng.IntN(100)
 	}
 	if sort.IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -377,13 +383,13 @@ func testBentleyMcIlroy(t *testing.T, sortFn func(sort.Interface), maxswap func(
 					case _Sawtooth:
 						data[i] = i % m
 					case _Rand:
-						data[i] = rand.IntN(m)
+						data[i] = rng.IntN(m)
 					case _Stagger:
 						data[i] = (i*m + i) % n
 					case _Plateau:
 						data[i] = min(i, m)
 					case _Shuffle:
-						if rand.IntN(m) != 0 {
+						if rng.IntN(m) != 0 {
 							j += 2
 							data[i] = j
 						} else {
@@ -587,7 +593,7 @@ func TestStability(t *testing.T) {
 
 	// random distribution
 	for i := 0; i < len(data); i++ {
-		data[i].a = rand.IntN(m)
+		data[i].a = rng.IntN(m)
 	}
 	if sort.IsSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -643,7 +649,7 @@ func countOps(t *testing.T, algo func(sort.Interface), name string) {
 			maxswap: 1<<31 - 1,
 		}
 		for i := 0; i < n; i++ {
-			td.data[i] = rand.IntN(n / 5)
+			td.data[i] = rng.IntN(n / 5)
 		}
 		algo(&td)
 		t.Logf("%s %8d elements: %11d Swap, %10d Less", name, n, td.nswap, td.ncmp)

@@ -98,6 +98,24 @@ func (t Time) Before(u Time) bool {
 	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
 }
 
+// Compare compares the time instant t with u. If t is before u, it returns -1;
+// if t is after u, it returns +1; if they're the same, it returns 0.
+func (t Time) Compare(u Time) int {
+	// Custom code: Gno's Time has no monotonic-clock/wall encoding, so the
+	// comparison works directly on the sec/nsec pair.
+	tc, uc := t.sec, u.sec
+	if tc == uc {
+		tc, uc = int64(t.nsec), int64(u.nsec)
+	}
+	switch {
+	case tc < uc:
+		return -1
+	case tc > uc:
+		return +1
+	}
+	return 0
+}
+
 // Equal reports whether t and u represent the same time instant.
 func (t Time) Equal(u Time) bool {
 	return t.sec == u.sec && t.nsec == u.nsec
@@ -975,7 +993,7 @@ const (
 )
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (t Time) MarshalBinary() ([]byte, error) {
+func (t Time) AppendBinary(b []byte) ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 	var offsetSec int8
 	version := timeBinaryVersionV1
@@ -1019,7 +1037,12 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		enc = append(enc, byte(offsetSec))
 	}
 
-	return enc, nil
+	return append(b, enc...), nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+func (t Time) MarshalBinary() ([]byte, error) {
+	return t.AppendBinary(nil)
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
@@ -1097,7 +1120,34 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	b = append(b, '"')
 	b = t.AppendFormat(b, RFC3339Nano)
 	b = append(b, '"')
+	// Not all valid Go timestamps can be serialized as valid RFC 3339;
+	// a zone offset outside [-23:59, +23:59] is one such case.
+	// See https://go.dev/issue/4556 and https://go.dev/issue/54580.
+	if err := checkRFC3339Zone(b[1 : len(b)-1]); err != nil {
+		return nil, errors.New("Time.MarshalJSON: " + err.Error())
+	}
 	return b, nil
+}
+
+// checkRFC3339Zone reports whether the RFC 3339 timestamp in b carries a
+// zone offset that RFC 3339 can actually represent.
+//
+// Custom code: Go performs this check inside appendStrictRFC3339 in
+// format_rfc3339.go, which Gno does not have.
+func checkRFC3339Zone(b []byte) error {
+	if len(b) == 0 || b[len(b)-1] == 'Z' {
+		return nil
+	}
+	if len(b) < len("Z07:00") {
+		return errors.New("timezone hour outside of range [0,23]")
+	}
+	c := b[len(b)-len("Z07:00")]
+	hh := b[len(b)-len("07:00"):]
+	num2 := 10*(hh[0]-'0') + (hh[1] - '0')
+	if ('0' <= c && c <= '9') || num2 >= 24 {
+		return errors.New("timezone hour outside of range [0,23]")
+	}
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -1116,12 +1166,24 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 // MarshalText implements the encoding.TextMarshaler interface.
 // The time is formatted in RFC 3339 format, with sub-second precision added if present.
 func (t Time) MarshalText() ([]byte, error) {
+	return t.AppendText(nil)
+}
+
+// AppendText implements the [encoding.TextAppender] interface.
+// The output matches that of calling the [Time.MarshalText] method.
+func (t Time) AppendText(b []byte) ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
-		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
+		return nil, errors.New("Time.AppendText: year outside of range [0,9999]")
 	}
 
-	b := make([]byte, 0, len(RFC3339Nano))
-	return t.AppendFormat(b, RFC3339Nano), nil
+	n := len(b)
+	b = t.AppendFormat(b, RFC3339Nano)
+	// A zone offset outside [-23:59, +23:59] is not representable in RFC 3339;
+	// see the note on checkRFC3339Zone.
+	if err := checkRFC3339Zone(b[n:]); err != nil {
+		return nil, errors.New("Time.AppendText: " + err.Error())
+	}
+	return b, nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

@@ -7,6 +7,7 @@
 package bytes
 
 import (
+	"math/bits"
 	"unicode"
 	"unicode/utf8"
 
@@ -31,7 +32,7 @@ func Compare(a, b []byte) int {
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
 // up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
-	if n <= 0 {
+	if n <= 0 || n > len(s) {
 		n = len(s)
 	}
 	a := make([][]byte, n)
@@ -85,6 +86,11 @@ func ContainsAny(b []byte, chars string) bool {
 // ContainsRune reports whether the rune is contained in the UTF-8-encoded byte slice b.
 func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
+}
+
+// ContainsFunc reports whether any of the UTF-8-encoded code points r within b satisfy f(r).
+func ContainsFunc(b []byte, f func(rune) bool) bool {
+	return IndexFunc(b, f) >= 0
 }
 
 // IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
@@ -349,6 +355,9 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if n < 0 {
 		n = Count(s, sep) + 1
 	}
+	if n > len(s)+1 {
+		n = len(s) + 1
+	}
 
 	a := make([][]byte, n)
 	n--
@@ -592,16 +601,22 @@ func Repeat(b []byte, count int) []byte {
 		return []byte{}
 	}
 	// Since we cannot return an error on overflow,
-	// we should panic if the repeat will generate
-	// an overflow.
-	// See Issue golang.org/issue/16237.
+	// we should panic if the repeat will generate an overflow.
+	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("bytes: negative Repeat count")
-	} else if len(b)*count/count != len(b) {
-		panic("bytes: Repeat count causes overflow")
+	}
+	hi, lo := bits.Mul(uint(len(b)), uint(count))
+	if hi > 0 || lo > uint(maxInt) {
+		panic("bytes: Repeat output length overflow")
+	}
+	n := int(lo) // lo = len(b) * count
+
+	if len(b) == 0 {
+		return []byte{}
 	}
 
-	nb := make([]byte, len(b)*count)
+	nb := make([]byte, n)
 	bp := copy(nb, b)
 	for bp < len(nb) {
 		copy(nb[bp:], nb[:bp])
@@ -748,6 +763,9 @@ func isSeparator(r rune) bool {
 
 // Title treats s as UTF-8-encoded bytes and returns a copy with all Unicode letters that begin
 // words mapped to their title case.
+//
+// Deprecated: The rule Title uses for word boundaries does not handle Unicode
+// punctuation properly. Use golang.org/x/text/cases instead.
 //
 // BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s []byte) []byte {
@@ -1176,4 +1194,53 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
+}
+
+// Cut slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, nil, false.
+//
+// Cut returns slices of the original slice s, not copies.
+func Cut(s, sep []byte) (before, after []byte, found bool) {
+	if i := Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
+}
+
+// Clone returns a copy of b[:len(b)].
+// The result may have additional unused capacity.
+// Clone(nil) returns nil.
+func Clone(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	return append([]byte{}, b...)
+}
+
+// CutPrefix returns s without the provided leading prefix byte slice
+// and reports whether it found the prefix.
+// If s doesn't start with prefix, CutPrefix returns s, false.
+// If prefix is the empty byte slice, CutPrefix returns s, true.
+//
+// CutPrefix returns slices of the original slice s, not copies.
+func CutPrefix(s, prefix []byte) (after []byte, found bool) {
+	if !HasPrefix(s, prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
+}
+
+// CutSuffix returns s without the provided ending suffix byte slice
+// and reports whether it found the suffix.
+// If s doesn't end with suffix, CutSuffix returns s, false.
+// If suffix is the empty byte slice, CutSuffix returns s, true.
+//
+// CutSuffix returns slices of the original slice s, not copies.
+func CutSuffix(s, suffix []byte) (before []byte, found bool) {
+	if !HasSuffix(s, suffix) {
+		return s, false
+	}
+	return s[:len(s)-len(suffix)], true
 }
