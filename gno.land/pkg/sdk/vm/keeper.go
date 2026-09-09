@@ -1104,7 +1104,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
-	m2.RunMemPackage(memPkg, true)
+	// A redeploy takes over the realm persisted at the path. Read only on the
+	// branch that has already established a package is live there: reading
+	// unconditionally would charge a first deployment for a key that cannot
+	// be there.
+	var priorRealm *gno.Realm
+	if pv != nil {
+		priorRealm = gnostore.GetPackageRealm(pkgPath)
+	}
+	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {

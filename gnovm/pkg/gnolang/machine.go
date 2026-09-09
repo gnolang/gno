@@ -376,13 +376,25 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.RunMemPackageOverRealm(mpkg, save, nil)
+}
+
+// RunMemPackageOverRealm works as [RunMemPackage], except that the package it
+// builds takes over prior rather than starting a realm of its own.
+//
+// prior is the realm record persisted at mpkg.Path, and nil for a path that
+// holds no realm yet. Handing it over is what keeps a redeployment's ObjectIDs
+// clear of the objects the path already holds, and its storage deposit
+// accounted against what those objects were charged. It must be that path's
+// own record, and save must be true.
+func (m *Machine) RunMemPackageOverRealm(mpkg *std.MemPackage, save bool, prior *Realm) (*PackageNode, *PackageValue) {
 	if bm.Enabled {
 		bm.InitMeasure()
 		if bm.StorageEnabled {
 			defer bm.FinishStore()
 		}
 	}
-	return m.runMemPackage(mpkg, save, false)
+	return m.runMemPackage(mpkg, save, false, prior)
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
@@ -395,14 +407,31 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // NOTE: Does not validate the mpkg, except when saving validates a mpkg with
 // its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(mpkg, save, true)
+	return m.runMemPackage(mpkg, save, true, nil)
 }
 
-func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prior *Realm) (*PackageNode, *PackageValue) {
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// An unsaved run must not touch a persisted realm: a finalize reached
+	// from init advances the live counter and saves objects for a package
+	// this run never stores. A record from another path would mint the
+	// package value off the wrong counter, then save itself over that
+	// path's record.
+	if prior != nil {
+		if !save {
+			panic(fmt.Sprintf(
+				"prior realm %s requires save: an unsaved run must not touch a persisted realm",
+				prior.Path))
+		}
+		if prior.Path != mpkg.Path {
+			panic(fmt.Sprintf(
+				"prior realm %s is not the realm of package %s",
+				prior.Path, mpkg.Path))
+		}
 	}
 	// If All, demote to Prod when parsing,
 	// if Test or Integration, keep it as is,
@@ -429,6 +458,11 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		pv.SetPrivate(private)
+		if prior != nil {
+			// NewPackage's blank realm counts ObjectIDs from zero, over the
+			// objects the path already holds, and drops their storage deposit.
+			pv.SetRealm(prior)
+		}
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
