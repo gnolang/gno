@@ -39,14 +39,14 @@ Give a Token two names, and let the VM own the one that has to be unique.
 - `DeriveObjectIDCryptoAddr(ObjectID)` hashes the preimage
   `objectid:<pkgid>:<newtime>`, mirroring `DerivePkgCryptoAddr`'s `pkgPath:`.
   It rejects an ID with either half missing: that names no object.
-- `ObjectID.DerivePath()` returns that address, or `""` for an ID with no
+- `ObjectID.DeriveAddress()` returns that address, or `""` for an ID with no
   `NewTime` yet.
-- `chain/runtime.ObjectID(v any) string` returns it for the object behind `v`
-  (`TypedValue.GetFirstObject`). It reads; it never writes. No realm clock
+- `chain/runtime.ObjectAddress(v any) string` returns it for the object behind
+  `v` (`TypedValue.GetFirstObject`). It reads; it never writes. No realm clock
   advances, no counter is kept, and the object lifecycle is untouched.
 - `grc20.NewToken` drops its `id seqid.ID` parameter. `Token.TokenPath()`
   keeps the readable `rlmPath.symbol` name, built from the IsCurrent-verified
-  `rlm.PkgPath()`; `Token.ID()` returns `runtime.ObjectID(tok)`.
+  `rlm.PkgPath()`; `Token.ID()` returns `runtime.ObjectAddress(tok)`.
 - Every grc20 event carries both, as `token` and `id`. `grc20reg`'s `register`
   event likewise carries `token_key` (its own rlmPath.slug key) and `token_id`.
 

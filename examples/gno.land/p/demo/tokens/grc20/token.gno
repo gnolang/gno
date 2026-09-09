@@ -143,7 +143,7 @@ func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 // identifies this ledger and no other, but it is "" until the token has been
 // persisted — see NewToken.
 func (tok *Token) ID() string {
-	return runtime.ObjectID(tok)
+	return runtime.ObjectAddress(tok)
 }
 
 // TokenPath returns the token path of the token.

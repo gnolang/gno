@@ -10,8 +10,8 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
-// ObjectID returns the address derived from v's own VM object ID: a stable,
-// realm-scoped name for that object, which the realm chooses no part of.
+// ObjectAddress returns the address derived from v's own VM object ID: a
+// stable, realm-scoped name for that object, which the realm chooses no part of.
 //
 // An object is stamped the first time it is persisted, which happens when a
 // realm frame returns, so a value the running call created reads "" until then.
@@ -22,9 +22,9 @@ func ChainHeight() int64  // injected
 //
 // The address has no signing key. Nothing on chain can spend coins sent to it,
 // so use it as an identifier, not as a payable account.
-func ObjectID(v interface{}) string { return objectID(v) }
+func ObjectAddress(v interface{}) string { return objectAddress(v) }
 
-func objectID(v interface{}) string // injected
+func objectAddress(v interface{}) string // injected
 
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.

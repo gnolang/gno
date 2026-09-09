@@ -39,7 +39,7 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
-// ObjectID returns the address derived from v's own VM object ID. It is the
+// ObjectAddress returns the address derived from v's own VM object ID. It is the
 // stable, realm-scoped name of the object: the ObjectID behind it is minted
 // from the owning realm's clock, so the address is unique within the realm and
 // persistent across transactions.
@@ -51,7 +51,7 @@ func ChainHeight(m *gno.Machine) int64 {
 // exported wrapper in native.gno still type-checks once transpiled to Go: there
 // the argument arrives as its own Go type. The binding hands the TypedValue
 // through untouched either way.
-func X_objectID(m *gno.Machine, v any) string {
+func X_objectAddress(m *gno.Machine, v any) string {
 	tv, _ := v.(gno.TypedValue)
 	oo := tv.GetFirstObject(m.Store)
 	if oo == nil {
@@ -70,7 +70,7 @@ func X_objectID(m *gno.Machine, v any) string {
 		return ""
 	}
 
-	return oo.GetObjectID().DerivePath()
+	return oo.GetObjectID().DeriveAddress()
 }
 
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.

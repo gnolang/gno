@@ -95,7 +95,7 @@ func TestDerivePkgBech32Addr(t *testing.T) {
 	}
 }
 
-func TestObjectIDDerivePath(t *testing.T) {
+func TestObjectIDDeriveAddress(t *testing.T) {
 	t.Parallel()
 
 	// PkgID is the first input to the address. Pin it as a literal so a change
@@ -156,7 +156,7 @@ func TestObjectIDDerivePath(t *testing.T) {
 	// than in the subtests, which run in parallel and share nothing.
 	derived := make(map[string]string, len(tests))
 	for _, tt := range tests {
-		got := tt.oid.DerivePath()
+		got := tt.oid.DeriveAddress()
 		if got == "" {
 			continue
 		}
@@ -169,10 +169,10 @@ func TestObjectIDDerivePath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tt.oid.DerivePath()
+			got := tt.oid.DeriveAddress()
 			require.Equal(t, tt.want, got)
 			// Deriving twice must not move.
-			require.Equal(t, got, tt.oid.DerivePath())
+			require.Equal(t, got, tt.oid.DeriveAddress())
 
 			if tt.preimage != "" {
 				require.Equal(t, tt.want, crypto.AddressFromPreimage([]byte(tt.preimage)).String())

@@ -246,7 +246,7 @@ func newOwnedObject(m *gno.Machine, alloc *gno.Allocator, owner gno.Object) gno.
 	return oo
 }
 
-func TestObjectID(t *testing.T) {
+func TestObjectAddress(t *testing.T) {
 	m, tx, alloc, owner := newObjectIDMachine(t, "gno.land/r/demo/objectid")
 	object := newOwnedObject(m, alloc, owner)
 	tv := gno.TypedValue{V: object}
@@ -288,8 +288,8 @@ func TestObjectID(t *testing.T) {
 				m.Realm.FinalizeRealmTransaction(tx)
 				timeBefore = m.Realm.Time
 			}
-			require.Equal(t, tt.want(), X_objectID(m, tv))
-			require.Equal(t, timeBefore, m.Realm.Time, "objectID must not advance the realm clock")
+			require.Equal(t, tt.want(), X_objectAddress(m, tv))
+			require.Equal(t, timeBefore, m.Realm.Time, "objectAddress must not advance the realm clock")
 		})
 	}
 }
@@ -297,7 +297,7 @@ func TestObjectID(t *testing.T) {
 // Two objects finalized by the same pass take distinct ticks of the realm
 // clock, so their addresses differ — which is what makes one usable as an
 // identifier for the object that carries it.
-func TestObjectIDIsUniquePerObject(t *testing.T) {
+func TestObjectAddressIsUniquePerObject(t *testing.T) {
 	m, tx, alloc, owner := newObjectIDMachine(t, "gno.land/r/demo/objectid_unique")
 
 	objects := make([]gno.Object, 0, 2)
@@ -310,14 +310,14 @@ func TestObjectIDIsUniquePerObject(t *testing.T) {
 
 	seen := make(map[string]int, len(objects))
 	for i, oo := range objects {
-		addr := X_objectID(m, gno.TypedValue{V: oo})
+		addr := X_objectAddress(m, gno.TypedValue{V: oo})
 		require.NotEmpty(t, addr)
 		require.NotContains(t, seen, addr, "objects %d and %d share an address", seen[addr], i)
 		seen[addr] = i
 	}
 }
 
-func TestObjectIDRejectsValuesWithoutIdentity(t *testing.T) {
+func TestObjectAddressRejectsValuesWithoutIdentity(t *testing.T) {
 	m := gno.NewMachineWithOptions(gno.MachineOptions{})
 
 	tests := []struct {
@@ -330,7 +330,7 @@ func TestObjectIDRejectsValuesWithoutIdentity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Panics(t, func() { X_objectID(m, tt.tv) })
+			require.Panics(t, func() { X_objectAddress(m, tt.tv) })
 		})
 	}
 }

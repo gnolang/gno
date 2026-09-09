@@ -670,9 +670,9 @@ height := runtime.ChainHeight()
 ```
 ---
 
-### ObjectID
+### ObjectAddress
 ```go
-func ObjectID(v interface{}) string
+func ObjectAddress(v interface{}) string
 ```
 Returns the address derived from `v`'s own VM object ID — the preimage is
 `objectid:<pkgid>:<newtime>`, mirroring the `pkgPath:` preimage a realm address
@@ -693,7 +693,7 @@ only a value with its own heap item has an address. Panics if `v` carries no obj
 
 ##### Usage
 ```go
-id := runtime.ObjectID(tok) // g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5
+id := runtime.ObjectAddress(tok) // g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5
 ```
 ---
 

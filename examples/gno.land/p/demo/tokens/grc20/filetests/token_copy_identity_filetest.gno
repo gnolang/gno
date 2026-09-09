@@ -3,7 +3,7 @@
 // A Token copied into a struct field or an array element has no object of its
 // own: a pointer to it resolves to the container, which every sibling shares,
 // and a slice resolves to its backing array. Rather than hand two ledgers one
-// address, ObjectID reads "" for such a value. Only the pointer NewToken returns, or a copy held in its own
+// address, ObjectAddress reads "" for such a value. Only the pointer NewToken returns, or a copy held in its own
 // variable, carries an id.
 package grc20copy
 
@@ -42,7 +42,7 @@ func main(cur realm) {
 	println("struct field id:", pair.A.ID() == "", pair.B.ID() == "")
 	println("array element id:", arr[0].ID() == "", arr[1].ID() == "")
 	println("slice element id:", sl[0].ID() == "", sl[1].ID() == "")
-	println("slice id:", runtime.ObjectID(sl) == "")
+	println("slice id:", runtime.ObjectAddress(sl) == "")
 }
 
 // Output:

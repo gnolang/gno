@@ -1276,7 +1276,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/runtime",
-		"objectID",
+		"objectAddress",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.AnyT()},
 		},
@@ -1288,7 +1288,7 @@ var nativeFuncs = [...]NativeFunc{
 			b := m.LastBlock()
 			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			r0 := libs_chain_runtime.X_objectID(
+			r0 := libs_chain_runtime.X_objectAddress(
 				m,
 				p0)
 
