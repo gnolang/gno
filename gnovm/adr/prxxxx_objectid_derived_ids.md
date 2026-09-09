@@ -105,9 +105,9 @@ registration, which is rare.
   becomes the path alone. `grc20reg` keys move from `rlmPath.symbol` to
   `rlmPath.slug` — the realm names its own entry, and a realm registering one
   token can leave the slug empty and be found under its realm path.
-- `ID()` is a native call rather than a field read, and a copy of a `Token`
-  struct is a different object with a different id. `ID()` keeps its pointer
-  receiver for that reason.
+- `ID()` is a native call rather than a field read. A `Token` copied into a
+  struct field or an array element has no id of its own and reads `""`, so a
+  token is addressed through the pointer `NewToken` returns.
 - Two tokens created by one call share the empty id until they are persisted,
   so unit tests can only assert id uniqueness after a crossing has returned;
   the cross-transaction case lives in `filetests/token_identity_filetest.gno`,

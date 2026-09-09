@@ -15,9 +15,10 @@ func ChainHeight() int64  // injected
 //
 // An object is stamped the first time it is persisted, which happens when a
 // realm frame returns, so a value the running call created reads "" until then.
-// Afterwards the address never changes. A copy is a different object with a
-// different address, so read it from the pointer you keep. It panics if v
-// carries no object, such as a plain int or a nil pointer.
+// Afterwards the address never changes. A pointer into a struct field or an
+// array element, or a slice, reads "" as well: only a value with its own heap
+// item has an address. It panics if v carries no object, such as a plain int
+// or a nil pointer.
 func ObjectID(v interface{}) string { return objectID(v) }
 
 func objectID(v interface{}) string // injected

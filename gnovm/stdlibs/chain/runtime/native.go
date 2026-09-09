@@ -58,6 +58,18 @@ func X_objectID(m *gno.Machine, v any) string {
 		m.PanicString("value has no object identity")
 	}
 
+	// A pointer into a struct field or an array element resolves to the container,
+	// which every sibling shares, and a slice resolves to its backing array,
+	// which every view of it shares. Only a value that owns its own heap item is addressable on its own.
+	switch cv := tv.V.(type) {
+	case gno.PointerValue:
+		if _, ok := cv.GetBase(m.Store).(*gno.HeapItemValue); !ok {
+			return ""
+		}
+	case *gno.SliceValue:
+		return ""
+	}
+
 	return oo.GetObjectID().DerivePath()
 }
 

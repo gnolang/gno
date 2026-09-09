@@ -687,9 +687,9 @@ object was handed across a boundary before then. Until that happens there is no
 ID to derive from and the result is `""`. Afterwards the value is final and
 never changes.
 
-A copy is a different object and has a different address, so take it from the
-pointer you keep rather than from a value receiver. Panics if `v` carries no
-object (a plain `int`, a nil pointer).
+A pointer into a struct field or an array element, or a slice, also reads `""`:
+only a value with its own heap item has an address. Panics if `v` carries no object 
+(a plain `int`, a nil pointer).
 
 ##### Usage
 ```go
