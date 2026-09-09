@@ -105,3 +105,52 @@ func TestAssertOnList(cur realm, t *testing.T) {
 		a.AssertOnAuthList(0, cur)
 	})
 }
+
+func TestTransferOwnershipReconcilesAuthList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
+
+	// alice (the owner) transfers ownership to charlie.
+	testing.SetRealm(testing.NewUserRealm(alice))
+	var err error
+	func(cur realm) { err = a.TransferOwnership(0, cur, charlie) }(cross(cur))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if got := a.Owner(); got != charlie {
+		t.Fatalf("Expected owner %s, got %s", charlie, got)
+	}
+	if !a.authorized.Has(charlie.String()) {
+		t.Fatalf("expected new owner charlie to be on the auth list")
+	}
+	if a.authorized.Has(alice.String()) {
+		t.Fatalf("expected deposed owner alice to be removed from the auth list")
+	}
+
+	// The new owner passes the user-facing gate; the deposed owner is rejected.
+	testing.SetRealm(testing.NewUserRealm(charlie))
+	func(cur realm) { err = a.PreviousOnAuthList(0, cur) }(cross(cur))
+	if err != nil {
+		t.Fatalf("expected new owner charlie on the auth list, got %v", err)
+	}
+	testing.SetRealm(testing.NewUserRealm(alice))
+	func(cur realm) { err = a.PreviousOnAuthList(0, cur) }(cross(cur))
+	if err != ErrNotInAuthList {
+		t.Fatalf("expected deposed owner alice rejected from the auth list, got %v", err)
+	}
+}
+
+func TestDropOwnershipRemovesOwnerFromAuthList(cur realm, t *testing.T) {
+	a := New(ownable.NewWithAddress(alice))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	var err error
+	func(cur realm) { err = a.DropOwnership(0, cur) }(cross(cur))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if a.authorized.Has(alice.String()) {
+		t.Fatalf("expected renounced owner alice to be removed from the auth list")
+	}
+}
