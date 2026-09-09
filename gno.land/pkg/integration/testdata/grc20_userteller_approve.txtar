@@ -1,5 +1,6 @@
-# Public Token.UserTeller Approve scenarios. A direct MsgCall EOA may approve
-# from its own account through any realm, while an intermediate realm and MsgRun
+# The token explicitly delegates a private UserTeller to the proxy fixture.
+# Delegated PrivateLedger.UserTeller Approve scenarios. A direct MsgCall EOA may approve
+# from its own account through the trusted proxy, while an intermediate realm and MsgRun
 # cannot create an approval on the user's behalf.
 
 loadpkg gno.land/p/demo/tokens/grc20
@@ -69,9 +70,17 @@ package approvetok
 import "gno.land/p/demo/tokens/grc20"
 
 var Token *grc20.Token
+var adm *grc20.PrivateLedger
 
 func init(cur realm) {
-	Token, _ = grc20.NewToken("Approve Token", "APR", 4, 0, cur)
+	Token, adm = grc20.NewToken("Approve Token", "APR", 4, 0, cur)
+}
+
+// Test-only delegation: only this fixture's proxy may obtain the capability.
+func Delegate(cur realm) grc20.Teller {
+	if !cur.IsCurrent() { panic(grc20.ErrSpoofedRealm) }
+	if cur.Previous().PkgPath() != "gno.land/r/test/proxy" { panic("not the delegate") }
+	return adm.UserTeller()
 }
 
 func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
@@ -95,29 +104,36 @@ gno = "0.9"
 -- proxy/proxy.gno --
 package proxy
 
-import "gno.land/r/test/approvetok"
+import (
+ "gno.land/r/test/approvetok"
+ "gno.land/p/demo/tokens/grc20"
+)
+
+var userTeller grc20.Teller
+
+func init(cur realm) { userTeller = approvetok.Delegate(cross(cur)) }
 
 func UseUserTeller(cur realm, spender address, amount int64) {
-	if err := approvetok.Token.UserTeller().Approve(0, cur, spender, amount); err != nil {
+	if err := userTeller.Approve(0, cur, spender, amount); err != nil {
 		panic(err)
 	}
 }
 
 func StaleUserTeller(cur realm, spender address, amount int64) {
-	if err := approvetok.Token.UserTeller().Approve(0, cur.Previous(), spender, amount); err != nil {
+	if err := userTeller.Approve(0, cur.Previous(), spender, amount); err != nil {
 		panic(err)
 	}
 }
 
 func CallbackUserTeller(cur realm, spender address) {
 	approvetok.InvokeCallback(cross(cur), func(cur realm) error {
-		return approvetok.Token.UserTeller().Approve(0, cur, spender, 1)
+		return userTeller.Approve(0, cur, spender, 1)
 	})
 }
 
 func NonCrossingCallbackUserTeller(cur realm, spender address) {
 	approvetok.InvokeNonCrossingCallback(cross(cur), func() error {
-		return approvetok.Token.UserTeller().Approve(0, cur, spender, 1)
+		return userTeller.Approve(0, cur, spender, 1)
 	})
 }
 

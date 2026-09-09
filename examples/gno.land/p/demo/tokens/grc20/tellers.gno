@@ -35,24 +35,29 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 	}
 }
 
-// UserTeller acts for the immediate EOA caller of any realm, without a host
-// restriction. Every write verifies the live frame and requires a direct MsgCall.
-// Transfer and Approve use that EOA as owner; TransferFrom uses it as spender.
-//
-// Calling a realm directly therefore lets that realm transfer or approve the
-// user's tokens without a prior allowance. Users must trust the realm they call.
-func (tok *Token) UserTeller() Teller {
-	if tok == nil {
-		panic("Token cannot be nil")
+// UserTeller creates a capability to act for the holder's direct MsgCall users.
+// Keep it private or explicitly delegate it to an audited registry. A leaked
+// teller works in other realms; no external host identity is stored or checked.
+// Each write verifies the live frame and resolves its immediate EOA anew.
+func (ledger *PrivateLedger) UserTeller() Teller {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
 	}
-
 	return &fnTeller{
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
 		userOnly: true,
-		Token:    tok,
+		Token:    ledger.token,
 	}
+}
+
+// IsCanonicalUserTeller verifies a delegated capability without dispatching
+// caller-supplied methods. Embedding wrappers and tellers for other tokens fail.
+func IsCanonicalUserTeller(teller Teller, token *Token) bool {
+	ft, ok := teller.(*fnTeller)
+	return ok && ft != nil && token != nil && ft.Token == token &&
+		ft.accountFn != nil && ft.userOnly
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.

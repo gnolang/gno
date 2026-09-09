@@ -1,5 +1,5 @@
 # grc20reg's user-relative helpers (UserTransfer/UserApprove/UserTransferFrom)
-# let a signing user write against any registered token as that user. An
+# let a signing user write against tokens that delegate a private UserTeller to the registry. An
 # intermediate realm and MsgRun are rejected because the registry's immediate
 # caller must be a direct MsgCall EOA.
 
@@ -18,6 +18,10 @@ gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugno
 stdout 'OK!'
 gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout 'OK!'
+
+# Persisted public views expose tokens, not the delegated capability.
+gnokey query vm/qeval --data 'gno.land/r/test/proxy.PublicViews()'
+stdout 'true bool'
 
 # alice funds herself in the registered token.
 gnokey maketx call -pkgpath gno.land/r/test/trusttok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
@@ -58,34 +62,9 @@ stdout '350000 int64'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
 stdout '200000 int64'
 
-
-# A public UserTeller permits any realm directly called by an EOA to construct
-# a user-relative teller. The caller, rather than the relay, is the actor.
-gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
-stdout OK
-gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
-stdout '649999 int64'
-gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
-stdout '350001 int64'
-
-# Bob reaches the same relay but can move only Bob's own balance, not Alice's.
-gnokey maketx call -pkgpath gno.land/r/test/proxy -func UseUserTeller -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
-stdout OK
-gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
-stdout '650000 int64'
-gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
-stdout '350000 int64'
-
 # An intermediate realm cannot relay a user write because the registry's
 # immediate caller is the realm rather than the signing EOA.
 ! gnokey maketx call -pkgpath gno.land/r/test/midx -func Relay -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
-stderr 'user teller requires a direct EOA call'
-gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
-stdout '650000 int64'
-
-# The same public UserTeller is also rejected when an EOA first calls a realm
-# that cross-calls the foreign relay.
-! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'user teller requires a direct EOA call'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
 stdout '650000 int64'
@@ -110,29 +89,74 @@ stderr 'user teller requires a direct EOA call'
 ! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayTransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'user teller requires a direct EOA call'
 
-! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserApprove -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
-stderr 'user teller requires a direct EOA call'
-
-! gnokey maketx call -pkgpath gno.land/r/test/midx -func RelayUserTransferFrom -args $alice_user_addr -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
-stderr 'user teller requires a direct EOA call'
-
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/approve.gno
 stderr 'user teller requires a direct EOA call'
 
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/transferfrom.gno
 stderr 'user teller requires a direct EOA call'
 
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/public.gno
-stderr 'user teller requires a direct EOA call'
-
-! gnokey maketx call -pkgpath gno.land/r/test/proxy -func StaleFrame -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
-stderr 'rlm does not match the current crossing frame'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
 stdout '650000 int64'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
 stdout '350000 int64'
 gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$bob_user_addr\")"
 stdout '200000 int64'
+
+# Registration alone does not authorize registry user operations.
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/trusttok.LOCAL -args $bob_user_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'grc20reg: token does not support user calls'
+
+# The review's flow: a structured token Approve, then a capped realm spend.
+# This is chain.PackageAddress("gno.land/r/test/proxy").
+env proxy_addr=g14epsp8xmky5dtczt78sawgaf5g7pe9t9xmu83u
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func Spend -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey maketx call -pkgpath gno.land/r/test/trusttok -func Approve -args $proxy_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func Spend -args $bob_user_addr -args 30 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$proxy_addr\")"
+stdout '70 int64'
+
+# Neither exceeding the cap nor self-approval or direct transfer can bypass it.
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func Spend -args $bob_user_addr -args 71 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func ApproveOwn -args $proxy_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func TransferOwn -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient balance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$proxy_addr\")"
+stdout '70 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '649970 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350030 int64'
+
+# The existing non-crossing registry wrapper spends the SAME realm allowance.
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func SpendViaRegistry -args $bob_user_addr -args 20 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$proxy_addr\")"
+stdout '50 int64'
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func SpendViaRegistry -args $bob_user_addr -args 51 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+
+# Registry MsgCall approval supports both revocation and a new explicit cap.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/trusttok.TRUST -args $proxy_addr -args 0 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func SpendViaRegistry -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/trusttok.TRUST -args $proxy_addr -args 40 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/test/proxy -func SpendViaRegistry -args $bob_user_addr -args 40 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+! gnokey maketx call -pkgpath gno.land/r/test/proxy -func Spend -args $bob_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient allowance'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.Allowance(\"$alice_user_addr\",\"$proxy_addr\")"
+stdout '0 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$alice_user_addr\")"
+stdout '649910 int64'
+gnokey query vm/qeval --data "gno.land/r/test/trusttok.BalanceOf(\"$bob_user_addr\")"
+stdout '350090 int64'
 
 -- trusttok/gnomod.toml --
 module = "gno.land/r/test/trusttok"
@@ -153,7 +177,9 @@ var (
 
 func init(cur realm) {
 	Token, adm = grc20.NewToken("TrustTok", "TRUST", 4, 0, cur)
-	grc20reg.Register(cross(cur), Token, "")
+	grc20reg.RegisterWithUserCalls(cross(cur), Token, "", adm.UserTeller())
+	local, _ := grc20.NewToken("Local Only", "LOCAL", 4, 1, cur)
+	grc20reg.Register(cross(cur), local, "")
 }
 
 func Faucet(cur realm) {
@@ -163,10 +189,15 @@ func Faucet(cur realm) {
 	}
 }
 
+func Approve(cur realm, spender address, amount int64) {
+	if err := adm.UserTeller().Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
 func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
 
 func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
-
 
 -- midx/gnomod.toml --
 module = "gno.land/r/test/midx"
@@ -177,19 +208,12 @@ package midx
 
 import (
 	"gno.land/r/demo/defi/grc20reg"
-	"gno.land/r/test/proxy"
 )
 
 // Relay is a non-EOA intermediate realm: it cross-calls the registry helper, so
 // the registry's immediate caller is midx (a realm), not the signing user.
 func Relay(cur realm) {
 	grc20reg.UserTransfer(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), 1)
-}
-
-// RelayUserTeller exercises the same intermediate-frame attack against the
-// public Token.UserTeller path directly.
-func RelayUserTeller(cur realm) {
-	proxy.UseUserTeller(cross(cur), cur.Address())
 }
 
 func RelayApprove(cur realm, spender address) {
@@ -200,45 +224,44 @@ func RelayTransferFrom(cur realm, owner, to address) {
 	grc20reg.UserTransferFrom(cross(cur), "gno.land/r/test/trusttok.TRUST", owner, to, 1)
 }
 
-func RelayUserApprove(cur realm, spender address) {
-	proxy.UserApprove(cross(cur), spender)
-}
-
-func RelayUserTransferFrom(cur realm, owner, to address) {
-	proxy.UserTransferFrom(cross(cur), owner, to)
-}
-
 -- proxy/gnomod.toml --
 module = "gno.land/r/test/proxy"
 gno = "0.9"
 
 -- proxy/proxy.gno --
 package proxy
-import "gno.land/r/test/trusttok"
+import (
+	"gno.land/r/test/trusttok"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
 
-func UseUserTeller(cur realm, to address) {
-	if err := trusttok.Token.UserTeller().Transfer(0, cur, to, 1); err != nil {
-		panic(err)
-	}
+func PublicViews() bool {
+	key := "gno.land/r/test/trusttok.TRUST"
+	view := grc20reg.GetRegistry()
+	return grc20reg.Get(key) == trusttok.Token &&
+		grc20reg.MustGet(key) == trusttok.Token &&
+		view.Get(key).(*grc20.Token) == trusttok.Token
 }
 
-func UserApprove(cur realm, spender address) {
-	if err := trusttok.Token.UserTeller().Approve(0, cur, spender, 1); err != nil {
-		panic(err)
-	}
-}
-
-func UserTransferFrom(cur realm, owner, to address) {
-	if err := trusttok.Token.UserTeller().TransferFrom(0, cur, owner, to, 1); err != nil {
-		panic(err)
-	}
-}
-
-func StaleFrame(cur realm, to address) {
+func Spend(cur realm, to address, amount int64) {
 	if !cur.IsCurrent() { panic("invalid test frame") }
-	if err := trusttok.Token.UserTeller().Transfer(0, cur.Previous(), to, 1); err != nil {
+	if err := trusttok.Token.RealmTeller(0, cur).TransferFrom(0, cur, cur.Previous().Address(), to, amount); err != nil {
 		panic(err)
 	}
+}
+
+func SpendViaRegistry(cur realm, to address, amount int64) {
+	if !cur.IsCurrent() { panic("invalid test frame") }
+	grc20reg.TransferFrom(0, cur, "gno.land/r/test/trusttok.TRUST", cur.Previous().Address(), to, amount)
+}
+
+func TransferOwn(cur realm, to address) {
+	if err := trusttok.Token.RealmTeller(0, cur).Transfer(0, cur, to, 1); err != nil { panic(err) }
+}
+
+func ApproveOwn(cur realm, spender address) {
+	if err := trusttok.Token.RealmTeller(0, cur).Approve(0, cur, spender, 1); err != nil { panic(err) }
 }
 
 -- run/drain.gno --
@@ -266,13 +289,4 @@ import "gno.land/r/demo/defi/grc20reg"
 
 func main(cur realm) {
 	grc20reg.UserTransferFrom(cross(cur), "gno.land/r/test/trusttok.TRUST", cur.Address(), cur.Address(), 1)
-}
-
--- run/public.gno --
-package main
-
-import "gno.land/r/test/trusttok"
-
-func main(cur realm) {
-	if err := trusttok.Token.UserTeller().Transfer(0, cur, cur.Address(), 1); err != nil { panic(err) }
 }

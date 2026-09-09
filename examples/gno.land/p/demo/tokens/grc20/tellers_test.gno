@@ -42,10 +42,13 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 }
 
 func TestUserTellerImpl(cur realm, t *testing.T) {
-	token, _ := newTestToken("User", "USER", 4, 0, cur)
-	uassert.True(t, IsCanonicalTeller(token.UserTeller()))
-	var nilToken *Token
-	uassert.PanicsContains(t, cur, "Token cannot be nil", func() { nilToken.UserTeller() })
+	token, ledger := newTestToken("User", "USER", 4, 0, cur)
+	uassert.True(t, IsCanonicalTeller(ledger.UserTeller()))
+	var nilLedger *PrivateLedger
+	uassert.PanicsContains(t, cur, "Ledger cannot be nil", func() { nilLedger.UserTeller() })
+	uassert.True(t, IsCanonicalUserTeller(ledger.UserTeller(), token))
+	uassert.False(t, IsCanonicalUserTeller((*fnTeller)(nil), token))
+	uassert.False(t, IsCanonicalUserTeller(ledger.UserTeller(), nil))
 }
 
 func TestTeller(cur realm, t *testing.T) {
@@ -175,8 +178,8 @@ func TestCallerTellerRejectsForeignRealm(cur realm, t *testing.T) {
 
 func TestUserTellerCallerGuard(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	token, _ := newTestToken("Guard", "GUARD", 6, 0, cur)
-	teller := token.UserTeller().(*fnTeller)
+	_, ledger := newTestToken("Guard", "GUARD", 6, 0, cur)
+	teller := ledger.UserTeller().(*fnTeller)
 	eoa := testing.MakeRealm(alice, "", testing.OriginRealm())
 	foreign := testing.MakeRealm(chain.PackageAddress("gno.land/r/demo/foreign"), "gno.land/r/demo/foreign", eoa)
 	uassert.NoError(t, teller.guardWrite(0, foreign))

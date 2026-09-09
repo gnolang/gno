@@ -13,8 +13,8 @@ import (
 
 func TestRegistryTokenViews(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/relaytoken"))
-	token, _ := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
-	key := Register(cross(cur), token, "")
+	token, ledger := grc20.NewToken("Relay", "RELAY", 4, 0, cur)
+	key := RegisterWithUserCalls(cross(cur), token, "", ledger.UserTeller())
 	uassert.True(t, Get(key) == token)
 	uassert.True(t, MustGet(key) == token)
 	ro := GetRegistry()
@@ -355,4 +355,37 @@ func TestWrappersProvideRealmTransferApproveAndTransferFrom(cur realm, t *testin
 	uassert.Equal(t, int64(700), token.BalanceOf(owner))
 	uassert.Equal(t, int64(300), token.BalanceOf(recipient))
 	uassert.Equal(t, int64(100), token.Allowance(owner, spender))
+}
+
+// Embedding the interface must not bypass registration's concrete-type check.
+type wrappedTeller struct{ grc20.Teller }
+
+func TestRegisterWithUserCallsRejectsInvalidCapabilities(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/delegation"))
+	token, ledger := grc20.NewToken("Delegated", "DEL", 4, 0, cur)
+	_, otherLedger := grc20.NewToken("Other", "OTHER", 4, 1, cur)
+	for _, teller := range []grc20.Teller{
+		nil,
+		&wrappedTeller{ledger.UserTeller()},
+		otherLedger.UserTeller(),
+		ledger.CallerTeller(),
+		ledger.ImpersonateTeller(cur.Address()),
+		token.ReadonlyTeller(),
+		token.RealmTeller(0, cur),
+	} {
+		urequire.AbortsContains(t, cur, "invalid user teller", func() {
+			RegisterWithUserCalls(cross(cur), token, "", teller)
+		})
+	}
+	teller := ledger.UserTeller()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/not_the_issuer"))
+	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
+		RegisterWithUserCalls(cross(cur), token, "", teller)
+	})
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/delegation"))
+	key := RegisterWithUserCalls(cross(cur), token, "", teller)
+	uassert.True(t, MustGet(key) == token)
+	urequire.AbortsContains(t, cur, "already registered", func() {
+		RegisterWithUserCalls(cross(cur), token, "", teller)
+	})
 }

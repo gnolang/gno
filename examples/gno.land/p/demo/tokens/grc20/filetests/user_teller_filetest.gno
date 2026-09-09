@@ -1,6 +1,7 @@
 // PKGPATH: gno.land/r/demo/grc20usertoken
 
-// UserTeller accepts direct MsgCall users and rejects realm callers.
+// A deliberately shared capability accepts direct MsgCall users in either realm.
+// Real registries must keep delegated tellers private.
 package grc20usertoken
 
 import (
@@ -19,7 +20,7 @@ var (
 
 func init(cur realm) {
 	token, ledger = grc20.NewToken("UserToken", "USER", 4, 0, cur)
-	teller = token.UserTeller()
+	teller = ledger.UserTeller()
 }
 
 func Transfer(cur realm, to address, amount int64) error {

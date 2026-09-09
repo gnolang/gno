@@ -1,4 +1,5 @@
-# Public Token.UserTeller Transfer scenarios. A direct MsgCall EOA may transfer
+# The token explicitly delegates a private UserTeller to the proxy fixture.
+# Delegated PrivateLedger.UserTeller Transfer scenarios. A direct MsgCall EOA may transfer
 # from its own account through a proxy, while an intermediate realm, a callback,
 # a stale realm value, and MsgRun cannot use that authority.
 
@@ -40,7 +41,7 @@ stdout '900 int64'
 gnokey query vm/qeval --data "gno.land/r/test/transfertok.BalanceOf(\"$bob_user_addr\")"
 stdout '100 int64'
 
-# An intermediate realm cannot relay a public UserTeller Transfer call.
+# An intermediate realm cannot relay a delegated UserTeller Transfer call.
 ! gnokey maketx call -pkgpath gno.land/r/test/transfer_midx -func RelayUserTeller -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stderr 'user teller requires a direct EOA call'
 gnokey query vm/qeval --data "gno.land/r/test/transfertok.BalanceOf(\"$alice_user_addr\")"
@@ -82,6 +83,13 @@ func init(cur realm) {
 	Token, adm = grc20.NewToken("Transfer Token", "TRF", 4, 0, cur)
 }
 
+// Test-only delegation: only this fixture's proxy may obtain the capability.
+func Delegate(cur realm) grc20.Teller {
+	if !cur.IsCurrent() { panic(grc20.ErrSpoofedRealm) }
+	if cur.Previous().PkgPath() != "gno.land/r/test/proxy" { panic("not the delegate") }
+	return adm.UserTeller()
+}
+
 func Faucet(cur realm) {
 	if err := adm.Mint(cur.Previous().Address(), 1_000); err != nil {
 		panic(err)
@@ -109,28 +117,35 @@ gno = "0.9"
 -- proxy/proxy.gno --
 package proxy
 
-import "gno.land/r/test/transfertok"
+import (
+ "gno.land/r/test/transfertok"
+ "gno.land/p/demo/tokens/grc20"
+)
+
+var userTeller grc20.Teller
+
+func init(cur realm) { userTeller = transfertok.Delegate(cross(cur)) }
 
 func UseUserTeller(cur realm, to address, amount int64) {
-	if err := transfertok.Token.UserTeller().Transfer(0, cur, to, amount); err != nil {
+	if err := userTeller.Transfer(0, cur, to, amount); err != nil {
 		panic(err)
 	}
 }
 
 func CallbackUserTeller(cur realm, to address) {
 	transfertok.InvokeCallback(cross(cur), func(cur realm) error {
-		return transfertok.Token.UserTeller().Transfer(0, cur, to, 1)
+		return userTeller.Transfer(0, cur, to, 1)
 	})
 }
 
 func NonCrossingCallbackUserTeller(cur realm, to address) {
 	transfertok.InvokeNonCrossingCallback(cross(cur), func() error {
-		return transfertok.Token.UserTeller().Transfer(0, cur, to, 1)
+		return userTeller.Transfer(0, cur, to, 1)
 	})
 }
 
 func StaleUserTeller(cur realm, to address, amount int64) {
-	if err := transfertok.Token.UserTeller().Transfer(0, cur.Previous(), to, amount); err != nil {
+	if err := userTeller.Transfer(0, cur.Previous(), to, amount); err != nil {
 		panic(err)
 	}
 }
