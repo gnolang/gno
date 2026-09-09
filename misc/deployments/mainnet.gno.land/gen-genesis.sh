@@ -97,7 +97,7 @@ FILTERED_PACKAGES=(
 # founders' voting power without fractional remainders.
 #
 # Four founding validators at equal power: one dark loses a quarter of the
-# voting power — above the one-third halt boundary, so any single failure
+# voting power — below the one-third halt boundary, so any single failure
 # keeps the chain live (unlike the 3-validator testnet bootstraps).
 #
 # TODO(mainnet): ALL FOUR ENTRIES ARE THROWAWAY PLACEHOLDER KEYS so the
@@ -326,8 +326,11 @@ require_tools() {
     python3)
       printf '      install:  brew install python3   |   apt-get install -y python3\n' >&2
       ;;
-    awk | sed | grep | sort | tr | mv | cp | ls | find | wc | head | tail | cut)
-      printf '      install:  comes with any POSIX userland (coreutils + findutils)\n' >&2
+    curl)
+      printf '      install:  brew install curl   |   apt-get install -y curl\n' >&2
+      ;;
+    awk | sed | grep | sort | tr | mv | cp | ls | find | wc | head | tail | cut | comm | uniq | gzip)
+      printf '      install:  comes with any POSIX userland (coreutils + findutils + gzip)\n' >&2
       ;;
     *)
       printf '      install:  consult your package manager\n' >&2
@@ -699,7 +702,7 @@ print_step_header 2 "$TOTAL_STEPS" "Verify required tools"
 
 require_tools \
   "shasum|sha256sum" \
-  go jq python3 \
+  go jq python3 curl gzip comm uniq \
   awk sed grep sort tr mv cp ls find wc head tail cut
 
 print_substep "2.1" "All required tools present"
@@ -712,6 +715,46 @@ else
   rm -rf "$WORK_DIR"
 fi
 mkdir -p "$WORK_DIR_BIN"
+
+# ---- Allocation sheet (independence-day) ----
+# Fetched, sha256-verified and shape-checked here — before the expensive
+# build and tx steps — so a network failure, a stale cache, or a re-pin
+# mistake fails in seconds instead of ten minutes in. The .gz is cached
+# next to the script (gitignored) across runs.
+ALLOCATION_GZ="$SCRIPT_DIR/allocation_balances.txt.gz"
+ALLOCATION_TXT="$WORK_DIR/allocation_balances.txt"
+if [ -f "$ALLOCATION_GZ" ] && [ "$(sha256_of "$ALLOCATION_GZ")" = "$ALLOCATION_SHA256" ]; then
+  print_substep "2.2" "Using cached allocation sheet"
+else
+  if [ -f "$ALLOCATION_GZ" ]; then
+    print_substep "2.2" "Cached allocation sheet does not match ALLOCATION_SHA256 (stale cache or re-pin) — re-downloading..."
+    rm -f "$ALLOCATION_GZ"
+  else
+    print_substep "2.2" "Downloading allocation sheet..."
+  fi
+  # Download to a temp path and move into place only after the sha check:
+  # a truncated download must never wedge the cache.
+  run curl -fsSL --retry 3 "$ALLOCATION_GZ_URL" -o "$ALLOCATION_GZ.part"
+  got_alloc_sha=$(sha256_of "$ALLOCATION_GZ.part")
+  if [ "$got_alloc_sha" != "$ALLOCATION_SHA256" ]; then
+    rm -f "$ALLOCATION_GZ.part"
+    die "downloaded allocation sheet sha256 mismatch: expected $ALLOCATION_SHA256, got $got_alloc_sha — check the ALLOCATION_GZ_URL pin"
+  fi
+  mv "$ALLOCATION_GZ.part" "$ALLOCATION_GZ"
+fi
+gzip -dc "$ALLOCATION_GZ" >"$ALLOCATION_TXT"
+alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
+# The sha proves "this is the pinned file"; these prove the file has the
+# shape the merge arithmetic in step 8 assumes (a re-pin could change
+# either): one `g1<38>=<digits>ugnot` line per account, no duplicates.
+if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot$' "$ALLOCATION_TXT"; then
+  die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot per line)"
+fi
+alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
+if [ -n "$alloc_dupes" ]; then
+  die "allocation sheet has duplicate addresses: $alloc_dupes"
+fi
+print_substep "2.3" "Allocation sheet: $alloc_count accounts (sha256 + format verified)"
 
 # ---- Step 3: Build binaries from source
 
@@ -961,31 +1004,12 @@ grep -oE '"(creator|caller)":"[^"]*"' "$GENESIS_TXS_JSONL" |
 addr_count=$(wc -l <"$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
 print_substep "8.2" "Found $addr_count unique creator/caller addresses"
 
-# ---- Allocation sheet (independence-day) ----
-# Downloaded by pinned-commit URL, sha256-verified, cached next to the
-# script (gitignored). The extracted address list drives the overlap
-# rules below.
-ALLOCATION_GZ="$SCRIPT_DIR/allocation_balances.txt.gz"
-ALLOCATION_TXT="$WORK_DIR/allocation_balances.txt"
-if [ -f "$ALLOCATION_GZ" ]; then
-  printf "  Using cached allocation sheet\n"
-else
-  printf "  Downloading allocation sheet...\n"
-  run curl -fsSL "$ALLOCATION_GZ_URL" -o "$ALLOCATION_GZ"
-fi
-got_alloc_sha=$(sha256_of "$ALLOCATION_GZ")
-if [ "$got_alloc_sha" != "$ALLOCATION_SHA256" ]; then
-  die "allocation sheet sha256 mismatch: expected $ALLOCATION_SHA256, got $got_alloc_sha"
-fi
-gzip -dc "$ALLOCATION_GZ" >"$ALLOCATION_TXT"
-alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
-printf "  Allocation sheet: %s accounts (sha256 verified)\n" "$alloc_count"
-
 # Overlap rules for mainnet (the final balance sheet keeps one entry per
-# address, last write wins, so every overlap must be resolved explicitly):
+# address, last write wins, so every overlap must be resolved explicitly;
+# the allocation sheet itself was fetched and verified at step 2):
 #   - a fee payer MAY also hold an allocation: its final entry becomes
-#     allocation + measured burn (summed at step 8.6), so it lands at
-#     exactly its allocation once the genesis txs execute;
+#     allocation + measured burn (summed during the measure run below),
+#     so it lands at exactly its allocation once the genesis txs execute;
 #   - a vested account may NOT hold an allocation yet — how a vesting
 #     schedule overrides an allocation line is undecided, so die loudly.
 #     TODO(mainnet): decide the override (likely: the vested entry
@@ -1014,7 +1038,7 @@ while IFS= read -r vested_addr; do
   if grep -qxF -- "$vested_addr" "$BALANCES_TMP_CREATOR_ADDRESSES"; then
     die "vested account $vested_addr is also a genesis-tx fee payer — its entry would be silently overwritten"
   fi
-  if grep -q "^${vested_addr}=" "$ALLOCATION_TXT"; then
+  if grep -q -- "^${vested_addr}=" "$ALLOCATION_TXT"; then
     die "vested account $vested_addr also holds an independence-day allocation — the override mechanism is undecided (see TODO(mainnet) above)"
   fi
 done <"$VESTED_ADDRS_FILE"
@@ -1190,6 +1214,10 @@ query_balance() {
 start_temp_node "run 1: measure gas costs"
 print_substep "8.4" "Querying remaining balances..."
 rm -f "$BALANCES_TMP_FILE"
+EXPECTED_REMAINDERS="$BALANCES_TMP_DIR/expected-remainders.txt"
+OVERLAP_ADDRS="$BALANCES_TMP_DIR/allocation-overlap-addrs.txt"
+: >"$EXPECTED_REMAINDERS"
+: >"$OVERLAP_ADDRS"
 while IFS= read -r addr; do
   remaining=$(query_balance "$addr")
   # A fee payer funded with the float and charged at least one fee must
@@ -1198,61 +1226,76 @@ while IFS= read -r addr; do
     die "fee payer $addr reads $remaining ugnot remaining in the measure run (float: $INITIAL_BALANCE) — node state not readable or fees not charged"
   fi
   final=$((INITIAL_BALANCE - remaining))
-  printf "    %s = %s ugnot\n" "$addr" "$final"
-  echo "${addr}=${final}ugnot" >>"$BALANCES_TMP_FILE"
+  # A fee payer that also holds an allocation gets ONE sheet entry of
+  # allocation + burn: post-genesis it lands at exactly its allocation
+  # instead of zero (the collision gnoland1 left as an open TODO). The
+  # merge happens HERE, before run 2, so the verify run replays the exact
+  # entries that ship and checks each expected remainder.
+  rc=0
+  alloc_line=$(grep -m1 -- "^${addr}=" "$ALLOCATION_TXT") || rc=$?
+  if [ "$rc" -gt 1 ]; then
+    die "grep failed reading the allocation sheet for $addr (exit $rc)"
+  fi
+  if [ "$rc" -eq 0 ]; then
+    fp_alloc="${alloc_line#*=}"
+    fp_alloc="${fp_alloc%ugnot}"
+    printf "    %s = %s ugnot (+ %s allocation)\n" "$addr" "$final" "$fp_alloc"
+    echo "${addr}=$((final + fp_alloc))ugnot" >>"$BALANCES_TMP_FILE"
+    echo "${addr} ${fp_alloc}" >>"$EXPECTED_REMAINDERS"
+    echo "$addr" >>"$OVERLAP_ADDRS"
+  else
+    printf "    %s = %s ugnot\n" "$addr" "$final"
+    echo "${addr}=${final}ugnot" >>"$BALANCES_TMP_FILE"
+    echo "${addr} 0" >>"$EXPECTED_REMAINDERS"
+  fi
 done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 append_vested_to_sheet
 stop_temp_node
 
-start_temp_node "run 2: verify zero balances"
-print_substep "8.5" "Verifying all balances are zero..."
-all_zero=true
-while IFS= read -r addr; do
+start_temp_node "run 2: verify expected remainders"
+print_substep "8.5" "Verifying fee payers land at their expected remainders..."
+all_expected=true
+while IFS=' ' read -r addr expected; do
   remaining=$(query_balance "$addr")
-  if [ "$remaining" -ne 0 ]; then
-    printf "    FAIL: %s has %sugnot remaining\n" "$addr" "$remaining"
-    all_zero=false
+  if [ "$remaining" -ne "$expected" ]; then
+    printf "    FAIL: %s has %sugnot remaining (expected %s)\n" "$addr" "$remaining" "$expected"
+    all_expected=false
   else
-    printf "    ok: %s\n" "$addr"
+    printf "    ok: %s (%s)\n" "$addr" "$expected"
   fi
-done <"$BALANCES_TMP_CREATOR_ADDRESSES"
+done <"$EXPECTED_REMAINDERS"
 stop_temp_node
 
-if [ "$all_zero" != true ]; then
-  die "Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
+if [ "$all_expected" != true ]; then
+  die "Some fee payers did not land at their expected remainder. Check $BALANCES_TMP_FILE."
 fi
-print_substep "8.6" "All balances zero — fee-payer costs verified"
+print_substep "8.6" "All fee payers land at their expected remainders — costs verified"
 # The temp sheet also carries the vested entries (so the measurement runs
 # exercise their creation); keep only the measured fee-payer lines here —
 # step 9 appends the vested entries itself.
 grep -vF -- ';vesting=' "$BALANCES_TMP_FILE" >"$DEPLOYER_BALANCES"
 
-# A fee payer that also holds an allocation gets ONE final entry of
-# allocation + measured burn — post-genesis it lands at exactly its
-# allocation instead of zero — and its line is stripped from the
-# allocation sheet so no entry is silently overwritten. (gnoland1 left
-# this collision as an open TODO; mainnet resolves it here.)
+# Strip the merged addresses from the allocation sheet in a single pass,
+# then assert the fee-payer and allocation sheets are disjoint — one
+# entry per address in the final genesis, and last-write-wins would
+# silently drop one side of any leftover overlap.
 ALLOCATION_STRIPPED="$WORK_DIR/allocation_stripped.txt"
-DEPLOYER_BALANCES_MERGED="$WORK_DIR/deployers_balances_merged.txt"
-cp "$ALLOCATION_TXT" "$ALLOCATION_STRIPPED"
-: >"$DEPLOYER_BALANCES_MERGED"
-while IFS= read -r fp_line; do
-  fp_addr="${fp_line%%=*}"
-  alloc_line=$(grep -m1 "^${fp_addr}=" "$ALLOCATION_STRIPPED" || true)
-  if [ -n "$alloc_line" ]; then
-    fp_burn="${fp_line#*=}"
-    fp_burn="${fp_burn%ugnot}"
-    fp_alloc="${alloc_line#*=}"
-    fp_alloc="${fp_alloc%ugnot}"
-    printf '%s=%sugnot\n' "$fp_addr" "$((fp_alloc + fp_burn))" >>"$DEPLOYER_BALANCES_MERGED"
-    grep -v "^${fp_addr}=" "$ALLOCATION_STRIPPED" >"$ALLOCATION_STRIPPED.tmp"
-    mv "$ALLOCATION_STRIPPED.tmp" "$ALLOCATION_STRIPPED"
-    printf "    %s also holds an allocation — final entry = allocation + burn\n" "$fp_addr"
-  else
-    printf '%s\n' "$fp_line" >>"$DEPLOYER_BALANCES_MERGED"
+merged_count=$(wc -l <"$OVERLAP_ADDRS" | tr -d ' ')
+if [ -s "$OVERLAP_ADDRS" ]; then
+  sed 's/^/^/; s/$/=/' "$OVERLAP_ADDRS" >"$OVERLAP_ADDRS.pat"
+  rc=0
+  grep -v -f "$OVERLAP_ADDRS.pat" "$ALLOCATION_TXT" >"$ALLOCATION_STRIPPED" || rc=$?
+  if [ "$rc" -gt 1 ]; then
+    die "grep failed stripping merged addresses from the allocation sheet (exit $rc)"
   fi
-done <"$DEPLOYER_BALANCES"
-mv "$DEPLOYER_BALANCES_MERGED" "$DEPLOYER_BALANCES"
+else
+  cp "$ALLOCATION_TXT" "$ALLOCATION_STRIPPED"
+fi
+sheet_overlap=$(comm -12 <(cut -d= -f1 "$ALLOCATION_STRIPPED" | sort) <(cut -d= -f1 "$DEPLOYER_BALANCES" | sort))
+if [ -n "$sheet_overlap" ]; then
+  die "fee-payer and allocation sheets are not disjoint after the merge: $sheet_overlap"
+fi
+rm -f "$ALLOCATION_TXT"
 
 # ---- Step 9: Add validators + balances, verify, move into place
 
@@ -1276,7 +1319,8 @@ for vested in "${VESTED_ACCOUNTS[@]}"; do
   echo "$vested" >>"$FULL_BALANCES_FILE"
 done
 balance_count=$(wc -l <"$FULL_BALANCES_FILE" | tr -d ' ')
-print_substep "9.2" "Adding $balance_count balances (fee payers + ${#VESTED_ACCOUNTS[@]} vested) + $alloc_count allocation accounts..."
+alloc_stripped_count=$(wc -l <"$ALLOCATION_STRIPPED" | tr -d ' ')
+print_substep "9.2" "Adding $balance_count balances (fee payers + ${#VESTED_ACCOUNTS[@]} vested; $merged_count hold allocations) + $alloc_stripped_count allocation accounts..."
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$FULL_BALANCES_FILE" --genesis-path "$GENESIS_FILE" >/dev/null
 # The allocation sheet goes in last, as its own `balances add` call: it
 # bloats the genesis and makes subsequent gnogenesis calls slow (the
