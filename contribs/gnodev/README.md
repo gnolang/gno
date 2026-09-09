@@ -62,6 +62,7 @@ For more information and flags usage description, use 'gnodev local -h'.
 SUBCOMMANDS
   local    Start gnodev in local development mode (default)
   staging  Start gnodev in staging mode
+  version  display installed gnodev version
 
 ```
 
