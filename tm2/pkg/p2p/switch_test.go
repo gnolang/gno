@@ -1045,6 +1045,51 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 			t.Fatal("the wait outlived the context")
 		}
 	})
+
+	t.Run("an item is dialed once its wait elapses", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := t.Context()
+
+		var (
+			dialed = make(chan types.NetAddress, 1)
+			addr   = generateNetAddr(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					a types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialed <- a
+
+					return nil, errors.New("unable to dial")
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		sw.peers = &mockSet{
+			hasFn: func(types.ID) bool { return false },
+		}
+
+		// Nothing else is queued and the context stays live, so the loop can
+		// only come back on the timer
+		sw.dialQueue.Push(dial.Item{
+			Time:    time.Now().Add(100 * time.Millisecond),
+			Address: addr,
+		})
+
+		go sw.runDialLoop(ctx)
+
+		select {
+		case got := <-dialed:
+			assert.Equal(t, *addr, got)
+		case <-time.After(5 * time.Second):
+			t.Fatal("the item was not dialed once it became due")
+		}
+	})
 }
 
 // TestMultiplexSwitch_DialLoop_DoesNotSpin guards against the dial loop busy
