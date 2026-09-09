@@ -183,3 +183,39 @@ func TestRPCResponse_UnmarshalJSON_NilID(t *testing.T) {
 		assert.Equal(t, "Invalid Request", response.Error.Message)
 	})
 }
+
+
+func TestParseID_OverflowRejected(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name string
+		raw  string
+		}{
+		{"too large (2^64-1)", `{"jsonrpc":"2.0","method":"status","id":18446744073709551615,"params":{}}`},
+		{"too large (1e300)", `{"jsonrpc":"2.0","method":"status","id":1e300,"params":{}}`},
+		{"too negative (-1e300)", `{"jsonrpc":"2.0","method":"status","id":-1e300,"params":{}}`},
+		}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var req RPCRequest
+			err := json.Unmarshal([]byte(testCase.raw), &req)
+			require.Error(t, err, "expected out-of-range numeric ID to be rejected")
+			})
+		}
+}
+
+func TestParseID_ValidLargeID(t *testing.T) {
+	t.Parallel()
+
+	// 2^53-1, the largest integer float64 can represent exactly.
+	raw := `{"jsonrpc":"2.0","method":"status","id":9007199254740991,"params":{}}`
+
+	var req RPCRequest
+	err := json.Unmarshal([]byte(raw), &req)
+	require.NoError(t, err)
+	assert.Equal(t, "9007199254740991", req.ID.String())
+}
