@@ -12,7 +12,7 @@ import (
 var thread boards2.Thread
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
+	testing.SetRealm(testing.NewUserRealm("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"))
 	boardID := boards2.CreateBoard(cross(cur), "aaa123", false, false)
 	threadID := boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 

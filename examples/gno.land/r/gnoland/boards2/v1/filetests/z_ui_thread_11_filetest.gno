@@ -13,7 +13,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))

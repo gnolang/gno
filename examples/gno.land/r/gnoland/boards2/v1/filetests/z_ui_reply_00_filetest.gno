@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	owner     address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner     address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	boardName         = "test-board"
 )
 
@@ -43,7 +43,7 @@ func main() {
 // Output:
 // ## Foo
 //
-// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>
@@ -56,7 +56,7 @@ func main() {
 //
 //
 // >
-// > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
+// > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
 // >
 // >
 // > <gno-foreign>
@@ -71,7 +71,7 @@ func main() {
 // Sort by: [newest first](/r/gnoland/boards2/v1:test-board/1/3?order=desc)
 // >
 // > >
-// > > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
+// > > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
 // > >
 // > >
 // > > <gno-foreign>

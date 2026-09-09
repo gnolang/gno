@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner     address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner     address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	boardName         = "TestBoard"
 )
 
@@ -29,7 +29,7 @@ func main() {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC, #2
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #2
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=2) • **Manage Board**
 // └─ [Invite Member](/r/gnoland/boards2/v1:TestBoard/invite-member) • [List Invite Requests](/r/gnoland/boards2/v1:TestBoard/invites) • [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [List Banned Users](/r/gnoland/boards2/v1:TestBoard/banned-users) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=2)
 //
@@ -37,5 +37,5 @@ func main() {
 // Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?menu=manageBoard&order=desc)
 //
 // ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
-// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) `owner` on 2009-02-13 11:31pm UTC
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**

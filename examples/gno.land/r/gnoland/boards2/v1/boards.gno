@@ -11,7 +11,7 @@ import (
 const (
 	realmPkgPath         = "gno.land/r/gnoland/boards2/v1"
 	gRealmPath           = "/r/gnoland/boards2/v1"
-	initialOwner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf" // GovDAO T1 multisig
+	initialOwner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // GovDAO T1 multisig
 )
 
 var (

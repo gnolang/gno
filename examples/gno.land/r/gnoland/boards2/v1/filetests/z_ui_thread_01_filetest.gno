@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	owner     address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner     address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	boardName         = "test-board"
 )
 
@@ -41,7 +41,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Foo
 //
-// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>
@@ -56,7 +56,7 @@ func main() {
 // Sort by: [oldest first](/r/gnoland/boards2/v1:test-board/1?order=asc)
 //
 // >
-// > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
+// > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#3](/r/gnoland/boards2/v1:test-board/1/3)
 // >
 // >
 // > <gno-foreign>
@@ -68,7 +68,7 @@ func main() {
 // > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) [1] • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=3&threadID=1)
 // >
 // > >
-// > > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
+// > > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#4](/r/gnoland/boards2/v1:test-board/1/4)
 // > >
 // > >
 // > > <gno-foreign>
@@ -80,7 +80,7 @@ func main() {
 // > > ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/4/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/4/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/4/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=2&replyID=4&threadID=1)
 //
 // >
-// > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#2](/r/gnoland/boards2/v1:test-board/1/2)
+// > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#2](/r/gnoland/boards2/v1:test-board/1/2)
 // >
 // >
 // > <gno-foreign>

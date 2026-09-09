@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	owner        address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner        address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
@@ -48,7 +48,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Foo
 //
-// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>
@@ -64,10 +64,10 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 // > [!INFO]- Thread Repost
 // > Original thread is [Foo](/r/gnoland/boards2/v1:test-board/1)
-// > Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC
+// > Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC
 //
 //
 //
