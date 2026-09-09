@@ -10,7 +10,7 @@ import (
 
 func TestPackage(cur realm, t *testing.T) {
 	var (
-		adminaddr        = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
+		adminaddr        = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 		faucetaddr       = chain.PackageAddress("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")

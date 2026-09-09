@@ -10,7 +10,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 var (
 	bid      boards.ID
@@ -36,7 +36,7 @@ func main(cur realm) {
 // Output:
 // ## Foo
 //
-// **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>
@@ -49,5 +49,5 @@ func main(cur realm) {
 //
 //
 // >
-// > **[g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf)** `owner` · 2009-02-13 11:31pm UTC [\#2](/r/gnoland/boards2/v1:test-board/1/2)
+// > **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC [\#2](/r/gnoland/boards2/v1:test-board/1/2)
 // > ⚠ Reply is hidden as it has been flagged as [inappropriate](/r/gnoland/boards2/v1:test-board/1/2/flagging-reasons)

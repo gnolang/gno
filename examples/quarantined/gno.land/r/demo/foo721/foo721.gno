@@ -6,7 +6,7 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-const admin address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf" // govdao t1 multisig
+const admin address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // govdao t1 multisig
 
 var (
 	token      *grc721.Token

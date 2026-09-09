@@ -17,7 +17,7 @@ var (
 )
 
 func init(cur realm) {
-	testing.SetRealm(testing.NewUserRealm("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"))
+	testing.SetRealm(testing.NewUserRealm("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"))
 	srcBoardID := boards2.CreateBoard(cross(cur), "origin123", false, false)
 
 	// Create two threads where the second is the one to repost
@@ -75,6 +75,6 @@ func main(cur realm) {
 // 1
 // 0
 // 1
-// g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf
+// g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 // 1234567890
 // 1234567890

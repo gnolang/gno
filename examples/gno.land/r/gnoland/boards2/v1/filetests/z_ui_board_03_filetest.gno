@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner     address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner     address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	boardName         = "TestBoard"
 )
 
@@ -32,12 +32,12 @@ func main() {
 // > [!WARNING] Info
 // > Creating new threads and commenting are disabled within this board
 //
-// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
 // [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:TestBoard?order=desc)
 //
 // ###### [A](/r/gnoland/boards2/v1:TestBoard/1)
-// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) `owner` on 2009-02-13 11:31pm UTC
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) `owner` on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**

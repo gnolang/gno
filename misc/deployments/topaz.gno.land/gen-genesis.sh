@@ -134,7 +134,7 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # the chain trusts the MsgCall.Caller field as the EOA, so jq-patching
 # caller to this address makes Enable's gate pass. The private key is not
 # needed (and not held).
-NAMES_ADMIN=g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf
+NAMES_ADMIN=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 
 # ---- Locked sha256 hashes.
 #

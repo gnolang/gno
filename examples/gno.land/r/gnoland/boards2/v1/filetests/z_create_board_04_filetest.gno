@@ -9,7 +9,7 @@ import (
 	uinit "gno.land/r/sys/users/init"
 )
 
-const owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 func init(cur realm) {
 	// uinit.RegisterUser is genesis-only since the security fix.

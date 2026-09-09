@@ -112,7 +112,7 @@ import (
 	"gno.land/r/test/wtoken"
 )
 
-const sink = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
+const sink = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 
 // SpendViaRegistry moves the consumer's OWN tokens through the registry
 // wrapper, without importing the token realm for the write. The wrapper is

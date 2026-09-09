@@ -15,7 +15,7 @@ var (
 
 func init() {
 	// adminAddr = unsafe.OriginCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf" // govdao t1 multisig
+	adminAddr = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // govdao t1 multisig
 }
 
 func AdminSetAdminAddr(_ realm, addr address) {

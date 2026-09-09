@@ -19,7 +19,7 @@ func init() {
 // assert render with empty path and 2 controllers
 func main(cur realm) {
 	var (
-		adminaddr       = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
+		adminaddr       = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
@@ -44,7 +44,7 @@ func main(cur realm) {
 //
 // Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
 //
-// Admin: g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf
+// Admin: g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 //
 //  Controllers:
 //

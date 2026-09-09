@@ -13,7 +13,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") // govdao t1 multisig
+	Admin    = ownable.NewWithAddress("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 )
 
 func Render(_ string) string {

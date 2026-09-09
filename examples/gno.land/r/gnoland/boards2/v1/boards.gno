@@ -44,7 +44,7 @@ var (
 var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
-	gPerms          = initRealmPermissions("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf") // GovDAO T1 multisig
+	gPerms          = initRealmPermissions("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // GovDAO T1 multisig
 )
 
 // initRealmPermissions returns the default realm permissions.

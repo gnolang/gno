@@ -10,7 +10,7 @@ import (
 )
 
 func main(cur realm) {
-	var admin = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
+	var admin = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	testing.SetOriginCaller(admin)
 	home.AdminSetOverride(cross(cur), "Hello World!")
 	println("---")

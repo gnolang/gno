@@ -7,7 +7,7 @@ import (
 )
 
 func TestFoo721(t *testing.T) {
-	admin := address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
+	admin := address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	bob := address("g1ze6et22ces5atv79y4xh38s4kuraey4y2fr6tw")
 	tid1 := grc1155.TokenID("1")
 

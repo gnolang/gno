@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner address = "g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf"
+	owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	name          = "TestBoard"
 )
 
@@ -36,7 +36,7 @@ func main(cur realm) {
 //
 // ==================
 // # [Boards](/r/gnoland/boards2/v1) › TestBoard
-// Created by [g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf](/u/g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---
