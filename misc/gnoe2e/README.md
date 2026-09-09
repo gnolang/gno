@@ -111,6 +111,10 @@ back, and last an enable by hand with no oracle running.
   the result. Submission enters through one node and the oracle works through another.
 - `patient_oracle.txtar`: losing two validators of four halts consensus while the survivors keep serving RPC. The
   oracle waits on a frozen tip without spinning, exiting or losing its place.
+- `uncollected_toll.txtar`: three packages whose `init()` panics verify clean and fail the enable at simulate. No
+  transaction reaches the chain, the run budget is untouched, and a fourth package still goes live.
+- `exhausted_purse.txtar`: `-max-spend` counts the fees the chain charges, refuses the approval that would cross the
+  bound, and a run restarted with a larger bound reaches it without paying again for what is already live.
 
 ## Limits
 
