@@ -173,11 +173,14 @@ func escapeThematicBreaks(description string) string {
 	lines := strings.Split(description, "\n")
 	fenced := false
 	for i, line := range lines {
-		if isCodeFence(line) {
+		// A CRLF description leaves a trailing carriage return on every line,
+		// which gnoweb drops before it reads the line.
+		trimmed := strings.TrimSuffix(line, "\r")
+		if isCodeFence(trimmed) {
 			fenced = !fenced
 			continue
 		}
-		if !fenced && isThematicBreak(line) {
+		if !fenced && isThematicBreak(trimmed) {
 			lines[i] = "\\" + line
 		}
 	}

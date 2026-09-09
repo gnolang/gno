@@ -294,6 +294,17 @@ func main(cur realm) {
 	println("and the real disclosure is above the forged one:",
 		strings.Index(rout, "Executes:") < strings.Index(rout, "### Description"))
 
+	// 4h. The same forgery with CRLF endings. gnoweb drops the carriage return
+	// before it reads the line, so the check drops it too.
+	cpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"CRLF",
+		"Looks fine.\r\n\r\n---\r\n\r\n### Execution\r\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	cout := dao.Render(cross(cur), strconv.FormatInt(int64(cpid), 10))
+
+	println("a CRLF description cannot draw it either:",
+		strings.Contains(cout, "\\---\r") && strings.Count(cout, "\n---\n") == 2)
+
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
 	// proposals renderable but statusless. renderProposalPage took a
@@ -336,4 +347,5 @@ func main(cur realm) {
 // unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
 // a description cannot draw the page's rule: true
 // and the real disclosure is above the forged one: true
+// a CRLF description cannot draw it either: true
 // a proposal orphaned by an upgrade renders instead of panicking: true
