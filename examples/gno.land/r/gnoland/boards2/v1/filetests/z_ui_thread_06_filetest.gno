@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	owner        address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner        address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
@@ -44,7 +44,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	user  address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )
 
