@@ -232,6 +232,19 @@ func TestSessionSendCoinsWithinSpendLimit(t *testing.T) {
 	assert.Equal(t, int64(100), da.GetSpendUsed().AmountOf("foo"))
 }
 
+func TestSessionSendCoinsSelfTransferDoesNotSpendLimit(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 50)))
+
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, masterAddr, std.NewCoins(std.NewCoin("foo", 100))))
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+	assert.Equal(t, int64(0), da.GetSpendUsed().AmountOf("foo"))
+}
+
 // TestSessionSendCoinsExceedingSpendLimit verifies SendCoins rejects when
 // the cumulative session spend would exceed SpendLimit, and no coins move.
 func TestSessionSendCoinsExceedingSpendLimit(t *testing.T) {

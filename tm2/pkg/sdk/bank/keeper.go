@@ -146,11 +146,13 @@ func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAdd
 	}
 
 	// If the tx is session-signed and fromAddr is the session's master,
-	// deduct from the session's SpendLimit. No-op otherwise.
+	// deduct non-self-transfers from the session's SpendLimit. No-op otherwise.
 	// SendCoinsUnrestricted deliberately bypasses this (gas collection,
 	// storage deposit refunds).
-	if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, fromAddr, amt); err != nil {
-		return err
+	if fromAddr != toAddr {
+		if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, fromAddr, amt); err != nil {
+			return err
+		}
 	}
 
 	return bank.sendCoins(ctx, fromAddr, toAddr, amt)

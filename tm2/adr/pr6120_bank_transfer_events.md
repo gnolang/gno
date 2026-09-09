@@ -37,10 +37,11 @@ type TransferEvent struct {
 
 Addresses are bech32 strings. The event carries no custom marshaler, so it
 serializes like the other struct events already returned in transaction results
-(for example `StorageDepositEvent`). In `ResponseBase.EncodeEvents` the
-indexer-facing shape is
-`{"from":"...","to":"...","coins":[{"denom":"ugnot","amount":7}]}`, and the amino
-wire encoding tags it with its registered type `/bank.TransferEvent`.
+(for example `StorageDepositEvent`). RPC responses serialize it through Amino
+JSON as
+`{"@type":"/bank.TransferEvent","from":"...","to":"...","coins":"7ugnot"}`.
+`ResponseBase.EncodeEvents`, used by CLI result printers, renders `coins` as
+`[{"denom":"ugnot","amount":7}]` instead.
 
 `sendCoins` emits one event after both the debit and credit succeed, unless the
 sender and recipient are identical. This one point covers `MsgSend`, realm
