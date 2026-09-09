@@ -140,24 +140,18 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 	return false
 }
 
+// tally is the vote line of the metadata block. Percentages are rounded to two
+// places; the vote list the page links carries the exact ratio.
+//
 // XXX: can be optimized by passing down total power to Yes/No/Abstain percent fn to avoid re-computing
-// tally is the vote line of the page's metadata block: one line rather than a
-// list, since the numbers are read together or not at all. Percentages are
-// rounded to two places; the page is a summary and the exact ratio is in the
-// vote list it links.
 func (ps *proposalStatus) tally(_ int, rlm realm) string {
 	return ufmt.Sprintf("Votes: YES %.2f%%, NO %.2f%%, ABSTAIN %.2f%%",
 		ps.YesPercent(0, rlm), ps.NoPercent(0, rlm), ps.AbstainPercent(0, rlm))
 }
 
-// statusLine names the state a voter needs before reading anything else, and
-// the reason with it when the proposal was rejected.
-//
-// DeniedReason is "execution failed: " plus the error the proposal's executor
-// returned, which any third-party realm supplies. Raw, it wrote
-// attacker-controlled markdown into the page's own metadata block. InlineText
-// folds newlines, so the reason cannot leave this line, and escapes emphasis
-// and raw HTML.
+// statusLine names the state a voter needs first, with the denial reason when
+// there is one. That reason is an error string a third-party executor gave:
+// InlineText folds its newlines, so it cannot leave the line.
 func (ps *proposalStatus) statusLine() string {
 	line := "Status: " + getPropStatus(ps)
 	if ps.Denied && ps.DeniedReason != "" {

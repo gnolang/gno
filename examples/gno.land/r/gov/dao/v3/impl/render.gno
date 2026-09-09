@@ -118,12 +118,8 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 		return ufmt.Sprintf("# Proposal #%v not available\n\nThis proposal was not created by the current govDAO implementation, so it has no voting status here.", pid)
 	}
 
-	// One metadata block, above everything a proposal supplies: who asked for
-	// the vote, which realm runs if it passes, where the vote stands, and who
-	// may cast one. A voter reads these five lines and knows whether to read
-	// further. The trailing backslashes are markdown hard breaks: gnoweb folds
-	// a plain newline into a space, so without them the block renders as one
-	// paragraph.
+	// The trailing backslashes are markdown hard breaks: gnoweb folds a plain
+	// newline into a space, and the block would render as one paragraph.
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\\\n"
 	out += "Executes: " + executesLine(p) + "\\\n"
@@ -132,11 +128,8 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += ps.tally(0, rlm)
 	out += ufmt.Sprintf(" ([detail](%v:%v/votes))\n\n", ren.relativeRealmPath, pid)
 
-	// The executor writes this section and the proposer writes the one under
-	// the rule. Order and mark are the point: nothing the proposer controls
-	// precedes the block above, the rule is drawn by the page alone, since
-	// escapeThematicBreaks takes the mark out of the description, and a
-	// description imitating any of it can only render below the real thing.
+	// The page draws every rule on it, and escapeThematicBreaks takes the mark
+	// out of the description, so an imitation can only render below this one.
 	out += renderExecution(p)
 	out += "---\n\n"
 
@@ -151,20 +144,9 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	return out
 }
 
-// escapeThematicBreaks prefixes a backslash to every line of the proposer's
-// description that would render as a horizontal rule. The rule is the page's
-// own boundary between what the proposer wrote and what the DAO writes below
-// it, so a description able to draw one could draw the boundary too. A line
-// escaped here renders as its own dashes, in text.
-//
-// Nothing else is touched: headings, lists, emphasis and links render as
-// written, which is what the descriptions in this tree rely on. This does not
-// make the section unforgeable, and is not meant to: a description can still
-// write a line that reads like the disclosure. What it cannot do is put the
-// mark that separates the two above itself.
-//
-// Fenced blocks are skipped, since a rule inside one is already literal text
-// and escaping it would print the backslash.
+// escapeThematicBreaks backslashes every line of the description that would
+// render as a horizontal rule, leaving the rule to the page. Fenced blocks are
+// skipped, where a rule is already literal text.
 func escapeThematicBreaks(description string) string {
 	if !strings.ContainsAny(description, "-_*") {
 		return description
@@ -188,18 +170,14 @@ func escapeThematicBreaks(description string) string {
 	return strings.Join(lines, "\n")
 }
 
-// isCodeFence reports whether the line opens or closes a fenced code block:
-// three or more backticks or tildes, after at most three spaces of indent.
+// isCodeFence reports whether the line opens or closes a fenced code block.
 func isCodeFence(line string) bool {
 	line = trimIndent(line)
 	return strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")
 }
 
 // isThematicBreak reports whether the line renders as a horizontal rule, by
-// the CommonMark rule: three or more of "-", "_" or "*", all the same, spaces
-// and tabs allowed between them, after at most three spaces of indent. It also
-// catches the setext underline that would promote the line above into a
-// heading, which is the same run of dashes.
+// the CommonMark rule. A setext underline is the same run of dashes.
 func isThematicBreak(line string) bool {
 	line = trimIndent(line)
 	if line == "" {
@@ -225,9 +203,8 @@ func isThematicBreak(line string) bool {
 	return count >= 3
 }
 
-// trimIndent drops the up-to-three leading spaces a block marker may carry.
-// A fourth space makes the line indented code, which renders literally, so the
-// line is left alone.
+// trimIndent drops the up-to-three leading spaces a block marker may carry. A
+// fourth space makes the line indented code, which renders literally.
 func trimIndent(line string) string {
 	for i := 0; i < 3 && i < len(line); i++ {
 		if line[i] != ' ' {
@@ -241,11 +218,8 @@ func trimIndent(line string) string {
 	return ""
 }
 
-// executesLine names the realm that runs if the proposal passes, and says so
-// when there is none to name. The line is never dropped: a proposal can carry
-// no executor at all, and a SimpleExecutor built outside a code realm captures
-// an empty path, so silence here would read as an ordinary page with one line
-// fewer rather than as a disclosure nobody made.
+// executesLine names the realm that runs if the proposal passes. The line is
+// never dropped: silence reads as a shorter page, not as a missing disclosure.
 func executesLine(p *dao.Proposal) string {
 	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
 		return creationRealm
@@ -254,13 +228,8 @@ func executesLine(p *dao.Proposal) string {
 	return "none reported"
 }
 
-// renderExecution returns the executor's own account of what runs if the
-// proposal passes, under a heading of its own. The realm it was created in is
-// named in the page's metadata block instead, beside the author, since that is
-// the line a voter checks first.
-//
-// Empty for an executor with nothing to say, which is what it rendered before
-// the section existed.
+// renderExecution returns the executor's own account of what runs, under a
+// heading of its own, and "" for an executor with nothing to say.
 func renderExecution(p *dao.Proposal) string {
 	description := p.ExecutorString()
 	if description == "" {
@@ -270,25 +239,10 @@ func renderExecution(p *dao.Proposal) string {
 	return "### Execution\n\n" + description + "\n\n"
 }
 
-// renderCreationRealm renders the realm an executor reports it was created in: the
-// escaped code span this value has always rendered as, linked to that realm's
-// source when the value is a package path this chain could hold. Returns "" for
-// a value carrying nothing to show.
-//
-// Escaped, not trusted: CreationRealm() is dispatched through the public
-// dao.Executor interface, so only SimpleExecutor's value is VM-captured; a
-// third-party executor returns any string it likes. Guarded on the sanitized
-// value, not the raw one: InlineCode returns "" for input that strips to
-// nothing (bidi/zero-width only), and TrimSpace catches plain whitespace, so
-// neither prints a label with nothing after it. This is tidiness, not a
-// boundary: a zero-width/space mixture still renders an empty-looking span, and
-// a hostile executor can always return a plausible-looking lie. The security
-// property is the escaping.
-//
-// The link adds no trust to that value and is not a claim the realm is the one
-// whose code runs. It is reachability: the path was already on the page, and a
-// voter had to retype it to read the code behind the proposal they are voting
-// on.
+// renderCreationRealm renders the realm an executor reports it was created in:
+// the escaped code span it has always rendered as, linked to that realm's
+// source when the value parses as a package path this chain serves. Any
+// executor returns any string it likes, so the escaping is the guard here.
 func renderCreationRealm(creationRealm string) string {
 	// Clamp before escaping, per clamp.gno: an escaped value cut afterwards can
 	// lose its closing fence.
@@ -303,17 +257,13 @@ func renderCreationRealm(creationRealm string) string {
 		return code
 	}
 
-	// The link text is that same escaped code span, and the destination is
-	// built from the value realmSourcePath just accepted, which holds no
-	// backtick to close the span, no bracket to close the label, and no
-	// parenthesis or colon to reach the destination.
+	// The destination is a value realmSourcePath accepted, which carries no
+	// backtick, bracket, parenthesis or colon to break out of the link.
 	return "[" + code + "](" + source + ")"
 }
 
-// realmSourcePath maps a package path served by this chain to the gnoweb path
-// of its source, reporting false for anything else. A path with no source page
-// behind it is left unlinked rather than pointed at a 404: /e/ run paths, other
-// domains, and anything the package-path grammar rejects.
+// realmSourcePath maps a package path this chain serves to its gnoweb source
+// path. Anything else renders unlinked rather than pointing at a 404.
 func realmSourcePath(pkgPath string) (string, bool) {
 	rel, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
 	if !found {
@@ -336,10 +286,8 @@ func realmSourcePath(pkgPath string) (string, bool) {
 }
 
 // isPkgPathSegment reports whether s is one segment of a package path, by the
-// grammar the VM enforces on every deployed path (Re_name in
-// gnovm/pkg/gnolang/mempackage.go): a leading letter, an alphanumeric body, and
-// single "_" or "-" separators between alphanumerics, never consecutive and
-// never at either end.
+// grammar the VM enforces on a deployed path: Re_name in
+// gnovm/pkg/gnolang/mempackage.go.
 func isPkgPathSegment(s string) bool {
 	if s == "" || s[0] < 'a' || s[0] > 'z' {
 		return false

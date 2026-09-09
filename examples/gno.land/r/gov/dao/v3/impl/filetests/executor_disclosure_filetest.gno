@@ -253,9 +253,8 @@ func main(cur realm) {
 		strings.Contains(dao.Render(cross(cur), strconv.FormatInt(int64(ppid), 10)),
 			"Executes: [`gno.land/p/nt/ufmt/v0`](/p/nt/ufmt/v0$source)"))
 
-	// 4f. The link is built only for a value that parses as a package path this
-	// chain serves, so a proposal cannot aim it. Everything else keeps the code
-	// span it has always rendered as.
+	// 4f. The link is built only for a package path this chain serves, so a
+	// proposal cannot aim it. Everything else keeps its code span.
 	for _, path := range []string{
 		"example.com/r/foo", // another chain
 		"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", // an ephemeral realm, which has no source page
@@ -270,19 +269,16 @@ func main(cur realm) {
 		// links, and a seqid past 9 carries letters that ParseInt rejects.
 		lout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
 
-		// No link, and the value still inside the code span it opens: the last
-		// case writes a link destination of its own, which stays literal text
-		// between the fences rather than becoming the page's link.
+		// The last case writes a link destination of its own, which stays
+		// literal text between the fences.
 		println("unlinked, and confined to its code span:", path,
 			!strings.Contains(lout, "$source") &&
 				strings.Contains(lout, "Executes: `"+path+"`"))
 	}
 
-	// 4g. The rule is the page's mark and nothing else's. A description that
-	// draws one has it escaped, so it renders as its own dashes and the only
-	// rules on the page are the three the page drew. The forged heading still
-	// renders, below the real section: escaping the mark is not a claim that
-	// the imitation is gone.
+	// 4g. A description that draws a rule has it escaped, so the only rules on
+	// the page are the page's own. The forged heading still renders, below the
+	// real section: escaping the mark does not end the imitation.
 	rpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Rule",
 		"Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
