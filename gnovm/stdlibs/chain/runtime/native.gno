@@ -10,6 +10,22 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
+// ObjectAddress returns the address derived from v's own VM object ID: a
+// stable, realm-scoped name for that object, which the realm chooses no part of.
+//
+// An object is stamped the first time it is persisted, which happens when a
+// realm frame returns, so a value the running call created reads "" until then.
+// Afterwards the address never changes. A pointer into a struct field or an
+// array element, or a slice, reads "" as well: only a value with its own heap
+// item has an address. It panics if v carries no object, such as a plain int
+// or a nil pointer.
+//
+// The address has no signing key. Nothing on chain can spend coins sent to it,
+// so use it as an identifier, not as a payable account.
+func ObjectAddress(v interface{}) string { return objectAddress(v) }
+
+func objectAddress(v interface{}) string // injected
+
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.
 //

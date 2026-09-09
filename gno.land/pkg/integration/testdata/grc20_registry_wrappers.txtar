@@ -82,7 +82,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, ledger = grc20.NewToken("WToken", "WTK", 4, 0, cur)
+	Token, ledger = grc20.NewToken("WToken", "WTK", 4, cur)
 	Key = grc20reg.Register(cross(cur), Token, "")
 }
 

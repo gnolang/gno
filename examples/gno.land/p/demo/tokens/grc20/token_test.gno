@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -17,25 +16,27 @@ import (
 // promotes the test's EOA-origin cur into a fresh /p/grc20
 // CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
 // checks pass.
-func newTestToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (tok *Token, adm *PrivateLedger) {
+func newTestToken(name, symbol string, decimals int, rlm realm) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
-		tok, adm = NewToken(name, symbol, decimals, id, cur)
+		tok, adm = NewToken(name, symbol, decimals, cur)
 	}(cross(rlm))
 	return
 }
 
 func TestTestImpl(cur realm, t *testing.T) {
-	bank, _ := newTestToken("Dummy", "DUMMY", 4, 0, cur)
+	bank, _ := newTestToken("Dummy", "DUMMY", 4, cur)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
+// Two tokens may share a symbol; they still keep separate ledgers. Their IDs
+// differ too, but only once they have been persisted — the VM stamps an object
+// ID at finalization, so both read "" here. See
+// filetests/token_identity_filetest.gno.
 func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 	holder := testutils.TestAddress("holder")
 
-	first, firstLedger := newTestToken("Same", "DUP", 6, 1, cur)
-	second, secondLedger := newTestToken("Same", "DUP", 6, 2, cur)
-
-	urequire.True(t, first.ID() != second.ID(), "duplicate symbols should not force duplicate IDs")
+	first, firstLedger := newTestToken("Same", "DUP", 6, cur)
+	second, secondLedger := newTestToken("Same", "DUP", 6, cur)
 
 	urequire.NoError(t, firstLedger.Mint(holder, 11))
 	urequire.NoError(t, secondLedger.Mint(holder, 22))
@@ -44,54 +45,57 @@ func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 }
 
 func TestNewTokenValidation(cur realm, t *testing.T) {
-	// Wrap NewToken to satisfy IsCurrent and pkgPath requirements,
-	// then validate name, symbol, and decimals.
-	mustPanic := func(name, sym string, dec int, want error, label string) {
-		t.Helper()
-		// newTestToken wraps NewToken in cross(...), so the panic from
-		// NewToken's validators crosses a realm boundary — use revive()
-		// (defer-recover doesn't see cross-realm panics).
-		r := revive(func() {
-			newTestToken(name, sym, dec, 0, cur)
-		})
-		if r == nil {
-			t.Errorf("%s: expected panic, got none", label)
-			return
-		}
-		if r != want {
-			t.Errorf("%s: expected %v, got %v", label, want, r)
-		}
+	tests := []struct {
+		label   string
+		name    string
+		symbol  string
+		decimal int
+		want    error
+	}{
+		{label: "empty name", name: "", symbol: "OK", decimal: 4, want: ErrInvalidName},
+		{label: "empty symbol", name: "Name", symbol: "", decimal: 4, want: ErrInvalidSymbol},
+		{label: "name too long", name: strings.Repeat("a", MaxNameLen+1), symbol: "OK", decimal: 4, want: ErrInvalidName},
+		{label: "symbol too long", name: "Name", symbol: strings.Repeat("A", MaxSymbolLen+1), decimal: 4, want: ErrInvalidSymbol},
+		{label: "name with control char", name: "bad\x01name", symbol: "OK", decimal: 4, want: ErrInvalidName},
+		{label: "name with newline", name: "bad\nname", symbol: "OK", decimal: 4, want: ErrInvalidName},
+		// Symbol charset — disallowed delimiters and whitespace. A symbol is
+		// the trailing component of TokenPath(), which downstream splits on
+		// `.`, so these must not get through.
+		{label: "symbol with dot", name: "Name", symbol: "BA.D", decimal: 4, want: ErrInvalidSymbol},
+		{label: "symbol with slash", name: "Name", symbol: "BA/D", decimal: 4, want: ErrInvalidSymbol},
+		{label: "symbol with space", name: "Name", symbol: "BA D", decimal: 4, want: ErrInvalidSymbol},
+		{label: "symbol with quote", name: "Name", symbol: "BA\"D", decimal: 4, want: ErrInvalidSymbol},
+		{label: "negative decimals", name: "Name", symbol: "OK", decimal: -1, want: ErrInvalidDecimals},
+		{label: "decimals over cap", name: "Name", symbol: "OK", decimal: MaxDecimals + 1, want: ErrInvalidDecimals},
+		// Boundary positives — these must construct.
+		{label: "boundary name+symbol+decimals", name: strings.Repeat("a", MaxNameLen), symbol: strings.Repeat("A", MaxSymbolLen), decimal: MaxDecimals},
+		{label: "UTF-8 name", name: "Доллар", symbol: "RUB", decimal: 2},
 	}
 
-	// Empty name / symbol.
-	mustPanic("", "OK", 4, ErrInvalidName, "empty name")
-	mustPanic("Name", "", 4, ErrInvalidSymbol, "empty symbol")
-
-	// Length caps.
-	mustPanic(strings.Repeat("a", MaxNameLen+1), "OK", 4, ErrInvalidName, "name too long")
-	mustPanic("Name", strings.Repeat("A", MaxSymbolLen+1), 4, ErrInvalidSymbol, "symbol too long")
-
-	// Name control characters.
-	mustPanic("bad\x01name", "OK", 4, ErrInvalidName, "name with control char")
-	mustPanic("bad\nname", "OK", 4, ErrInvalidName, "name with newline")
-
-	// Symbol charset — disallowed delimiters and whitespace.
-	mustPanic("Name", "BA.D", 4, ErrInvalidSymbol, "symbol with dot")
-	mustPanic("Name", "BA/D", 4, ErrInvalidSymbol, "symbol with slash")
-	mustPanic("Name", "BA D", 4, ErrInvalidSymbol, "symbol with space")
-	mustPanic("Name", "BA\"D", 4, ErrInvalidSymbol, "symbol with quote")
-
-	// Decimals out of range.
-	mustPanic("Name", "OK", -1, ErrInvalidDecimals, "negative decimals")
-	mustPanic("Name", "OK", MaxDecimals+1, ErrInvalidDecimals, "decimals over cap")
-
-	// Boundary positives — should NOT panic.
-	tok, _ := newTestToken(strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals, 0, cur)
-	urequire.True(t, tok != nil, "boundary name+symbol+decimals should succeed")
-
-	// UTF-8 name with non-ASCII is allowed.
-	tok2, _ := newTestToken("Доллар", "RUB", 2, 0, cur)
-	urequire.True(t, tok2 != nil, "UTF-8 name should be allowed")
+	for _, tt := range tests {
+		// newTestToken wraps NewToken in cross(...), so a panic from
+		// NewToken's validators crosses a realm boundary — use revive()
+		// (defer-recover doesn't see cross-realm panics).
+		var tok *Token
+		r := revive(func() {
+			tok, _ = newTestToken(tt.name, tt.symbol, tt.decimal, cur)
+		})
+		if tt.want == nil {
+			if r != nil {
+				t.Errorf("%s: expected no panic, got %v", tt.label, r)
+				continue
+			}
+			uassert.True(t, tok != nil, tt.label+": should construct")
+			continue
+		}
+		if r == nil {
+			t.Errorf("%s: expected panic, got none", tt.label)
+			continue
+		}
+		if r != tt.want {
+			t.Errorf("%s: expected %v, got %v", tt.label, tt.want, r)
+		}
+	}
 }
 
 func TestToken(cur realm, t *testing.T) {
@@ -101,7 +105,7 @@ func TestToken(cur realm, t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	bank, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
+	bank, adm := newTestToken("Dummy", "DUMMY", 6, cur)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -161,7 +165,7 @@ func TestToken(cur realm, t *testing.T) {
 func TestMintOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6, cur)
 
 	safeValue := int64(1 << 62)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
@@ -180,7 +184,7 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 		recipient        = testutils.TestAddress("to")
 	)
 
-	token, admin := newTestToken("Test", "TEST", 6, 0, cur)
+	token, admin := newTestToken("Test", "TEST", 6, cur)
 
 	// owner has 100 tokens, spender has 50 allowance
 	initialBalance := int64(100)
@@ -224,7 +228,7 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 func TestMintUntilOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken("Dummy", "DUMMY", 6, 0, cur)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6, cur)
 
 	tests := []struct {
 		name           string

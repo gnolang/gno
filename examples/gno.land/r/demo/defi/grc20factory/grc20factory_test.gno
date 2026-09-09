@@ -37,8 +37,12 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	testing.SetOriginCaller(admin)
 	NewWithAdmin(cross(cur), "Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
 	NewWithAdmin(cross(cur), "Bar", "BAR", 3, 2_222_000, 6_666, admin)
-	uassert.Equal(t, Bank("FOO").ID(), "gno.land/r/demo/defi/grc20factory.FOO.0000001")
-	uassert.Equal(t, Bank("BAR").ID(), "gno.land/r/demo/defi/grc20factory.BAR.0000002")
+	// Two tokens of one realm share nothing but their realm: the token path
+	// differs by symbol, and the id is each token object's own address. Each
+	// NewWithAdmin above crossed into this realm and returned, which finalized
+	// it, so both are stamped by now.
+	uassert.NotEqual(t, "", Bank("FOO").ID(), "token should be stamped once New returned")
+	uassert.NotEqual(t, Bank("FOO").ID(), Bank("BAR").ID(), "tokens of one realm should not share an id")
 	checkBalances("step1", 1_111_111_000, 1_111_111_000, 0, 0, 0)
 
 	// admin mints to bob.

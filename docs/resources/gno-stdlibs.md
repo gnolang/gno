@@ -670,6 +670,33 @@ height := runtime.ChainHeight()
 ```
 ---
 
+### ObjectAddress
+```go
+func ObjectAddress(v interface{}) string
+```
+Returns the address derived from `v`'s own VM object ID — the preimage is
+`objectid:<pkgid>:<newtime>`, mirroring the `pkgPath:` preimage a realm address
+is derived from. This reads the identity the VM already keeps for every object;
+it does not issue one and does not advance the realm clock.
+
+The ID is stamped in two steps. The `pkgid` half is set when the object is
+allocated and names the realm it belongs to. The `newtime` half is minted from
+that realm's clock the first time the object is persisted, which happens when a
+realm frame returns — the creating realm's own, or a foreign realm's if the
+object was handed across a boundary before then. Until that happens there is no
+ID to derive from and the result is `""`. Afterwards the value is final and
+never changes.
+
+A pointer into a struct field or an array element, or a slice, also reads `""`:
+only a value with its own heap item has an address. Panics if `v` carries no object 
+(a plain `int`, a nil pointer).
+
+##### Usage
+```go
+id := runtime.ObjectAddress(tok) // g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5
+```
+---
+
 ### OriginCaller
 ```go
 func OriginCaller() address

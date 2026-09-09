@@ -39,6 +39,40 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
+// ObjectAddress returns the address derived from v's own VM object ID. It is the
+// stable, realm-scoped name of the object: the ObjectID behind it is minted
+// from the owning realm's clock, so the address is unique within the realm and
+// persistent across transactions.
+//
+// It reads that identity rather than issuing one — nothing here advances a
+// realm clock. An object is only stamped when the realm that owns it
+// finalizes, so a value the running call created reads "" until then.
+// The parameter is an empty interface rather than a gno.TypedValue so that the
+// exported wrapper in native.gno still type-checks once transpiled to Go: there
+// the argument arrives as its own Go type. The binding hands the TypedValue
+// through untouched either way.
+func X_objectAddress(m *gno.Machine, v any) string {
+	tv, _ := v.(gno.TypedValue)
+	oo := tv.GetFirstObject(m.Store)
+	if oo == nil {
+		m.PanicString("value has no object identity")
+	}
+
+	// A pointer into a struct field or an array element resolves to the container,
+	// which every sibling shares, and a slice resolves to its backing array,
+	// which every view of it shares. Only a value that owns its own heap item is addressable on its own.
+	switch cv := tv.V.(type) {
+	case gno.PointerValue:
+		if _, ok := cv.GetBase(m.Store).(*gno.HeapItemValue); !ok {
+			return ""
+		}
+	case *gno.SliceValue:
+		return ""
+	}
+
+	return oo.GetObjectID().DeriveAddress()
+}
+
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
 // Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
 // gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;

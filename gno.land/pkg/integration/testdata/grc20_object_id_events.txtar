@@ -1,0 +1,105 @@
+# Every grc20 event through the life of a token: create, mint, register,
+# transfer. This file pins every event the four steps emit, in full.
+#
+# Each event carries two names. "token" is the token path, rlmPath.symbol,
+# readable and available immediately. "id" is the address derived from the
+# token object's own VM object ID (chain/runtime.ObjectID), which is what tells
+# two tokens of one realm apart — and which only exists once the object has
+# been persisted. Create's own NewToken event is emitted before that, so its
+# "id" is empty; from the next call on it is final and never changes again.
+
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/objecttoken $WORK
+
+## start a new node
+gnoland start
+
+## 1. create the token. Its NewToken event names the realm and symbol, but has
+## no id yet.
+gnokey maketx call -pkgpath gno.land/r/objecttoken -func Create -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[\{"type":"NewToken","attrs":\[\{"key":"id","value":""\},\{"key":"token","value":"gno\.land/r/objecttoken\.OBJ"\},\{"key":"name","value":"Object"\},\{"key":"symbol","value":"OBJ"\},\{"key":"decimals","value":"4"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"bytes_delta":3015,"fee_delta":\{"denom":"ugnot","amount":301500\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
+
+## the id exists from here on, and stays the same for the rest of the file
+gnokey query vm/qeval --data 'gno.land/r/objecttoken.ID()'
+stdout '"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5" string'
+
+## 2. mint 1000000 to test1. Transfer from the zero address, now carrying both
+## names.
+gnokey maketx call -pkgpath gno.land/r/objecttoken -func Mint -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -args '1000000' -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[\{"type":"Transfer","attrs":\[\{"key":"id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token","value":"gno\.land/r/objecttoken\.OBJ"\},\{"key":"from","value":""\},\{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\},\{"key":"value","value":"1000000"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"bytes_delta":1043,"fee_delta":\{"denom":"ugnot","amount":104300\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
+
+## 3. register in grc20reg with an empty slug, so the entry is keyed by the
+## realm path alone. The event carries token_key, the registry key, and
+## token_id, the token's own address. This is where the (id -> key) binding is
+## announced — the NewToken event could not carry it, since the token had not
+## been persisted when it fired. grc20_object_id_events_init.txtar shows this
+## still holding when all four steps run inside one init.
+gnokey maketx call -pkgpath gno.land/r/objecttoken -func Register -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[\{"type":"register","attrs":\[\{"key":"token_id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token_key","value":"gno\.land/r/objecttoken"\},\{"key":"pkgpath","value":"gno\.land/r/objecttoken"\},\{"key":"slug","value":""\},\{"key":"symbol","value":"OBJ"\}\],"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":1208,"fee_delta":\{"denom":"ugnot","amount":120800\},"pkg_path":"gno\.land/r/demo/defi/grc20reg"\},\{"bytes_delta":5,"fee_delta":\{"denom":"ugnot","amount":500\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
+
+## 4. transfer 250000 from test1 to another account.
+gnokey maketx call -pkgpath gno.land/r/objecttoken -func Transfer -args 'g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp' -args '250000' -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[\{"type":"Transfer","attrs":\[\{"key":"id","value":"g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5"\},\{"key":"token","value":"gno\.land/r/objecttoken\.OBJ"\},\{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\},\{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"\},\{"key":"value","value":"250000"\}\],"pkg_path":"gno\.land/p/demo/tokens/grc20"\},\{"bytes_delta":2029,"fee_delta":\{"denom":"ugnot","amount":202900\},"pkg_path":"gno\.land/r/objecttoken"\}\]'
+
+## the balances the two Transfer events describe
+gnokey query vm/qeval --data "gno.land/r/objecttoken.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+stdout '750000 int64'
+gnokey query vm/qeval --data "gno.land/r/objecttoken.BalanceOf(\"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp\")"
+stdout '250000 int64'
+
+-- gnomod.toml --
+module = "gno.land/r/objecttoken"
+gno = "0.9"
+-- objecttoken.gno --
+package objecttoken
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	token  *grc20.Token
+	ledger *grc20.PrivateLedger
+)
+
+// Create builds the token. Its object ID is stamped when this call returns, so
+// the NewToken event grc20 emits here carries an empty "id".
+func Create(cur realm) {
+	token, ledger = grc20.NewToken("Object", "OBJ", 4, cur)
+}
+
+// ID returns the token's identifier: the address derived from its object ID.
+// TokenPath, the readable name, is available from the moment it is created.
+func ID() string {
+	return token.ID()
+}
+
+// BalanceOf reports what the Transfer events add up to.
+func BalanceOf(addr address) int64 {
+	return token.BalanceOf(addr)
+}
+
+// Mint credits addr, emitting a Transfer from the zero address.
+func Mint(cur realm, addr address, amount int64) {
+	if err := ledger.Mint(addr, amount); err != nil {
+		panic(err)
+	}
+}
+
+// Register publishes the token in grc20reg. The empty slug keys the entry by
+// this realm path alone.
+func Register(cur realm) string {
+	return grc20reg.Register(cross(cur), token, "")
+}
+
+// Transfer moves amount from the caller to addr.
+func Transfer(cur realm, addr address, amount int64) {
+	if err := ledger.Transfer(cur.Previous().Address(), addr, amount); err != nil {
+		panic(err)
+	}
+}

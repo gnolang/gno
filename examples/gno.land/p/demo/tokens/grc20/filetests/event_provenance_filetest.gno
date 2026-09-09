@@ -1,26 +1,30 @@
 // PKGPATH: gno.land/r/demo/grc20provenance
 
 // This filetest is the reference for how an indexer attributes a grc20 event to
-// the realm that issued the token. It is the cross-realm counterpart to
-// newtoken_event_filetest.gno, which covers the within-realm duplicate signal.
+// the realm that issued the token.
 //
-// Two fields matter, and neither is sufficient alone:
+// Three fields matter, and none is sufficient alone:
 //
 //   - pkg_path is stamped by the VM from the package whose code calls
 //     chain.Emit. Every genuine grc20 event therefore carries
 //     gno.land/p/demo/tokens/grc20 — a constant, so it identifies the library
 //     but never the token.
-//   - the "token" attribute carries Token.ID(), whose leading component is
-//     rlm.PkgPath() captured under IsCurrent() in NewToken. A realm cannot
-//     produce a Token whose id claims a different realm.
+//   - the "token" attribute carries Token.TokenPath(), rlmPath.symbol as
+//     captured in NewToken from the live crossing frame under IsCurrent(). A
+//     realm cannot fabricate one naming a different realm. It is readable, but
+//     it does not separate two tokens one realm issued under one symbol.
+//   - the "id" attribute carries Token.ID(), the address derived from the token
+//     object's own VM object ID. The realm chooses no part of it, and it is
+//     unique per object — that is what separates those two tokens. It is empty
+//     until the token has been persisted.
 //
 // Chained, they are sufficient: pkg_path proves the event came from grc20's
-// code, and grc20's code only ever writes an IsCurrent-verified realm prefix
-// into "token". So for any event bearing grc20's pkg_path, the realm prefix in
-// "token" is unforgeable.
+// code, and grc20's code only ever writes an IsCurrent-verified path into
+// "token" and a VM-derived address into "id".
 //
-// The realm below is an impostor trying to pass its own transfers off as
-// another realm's token, by both routes available to it, and failing at both.
+// The impostor's token is created in init because an object has no id until it
+// is first persisted, which happens as the creating frame returns. Created in
+// main it would read "", which is the unstamped form, not a claim on anything.
 package grc20provenance
 
 import (
@@ -33,29 +37,39 @@ import (
 // literal rather than imported: a filetest under a /p/ package that imports an
 // /r/ realm which itself imports that /p/ package forms a genesis dependency
 // cycle (grc20 -> realm -> grc20), which breaks package loading chain-wide.
-const canonical = "gno.land/r/demo/canonicaltoken.FOO.0000000"
+const canonical = "gno.land/r/demo/canonicaltoken.FOO"
+
+var (
+	impostor       *grc20.Token
+	impostorLedger *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	// Route 1: ask grc20 for a token using the canonical token's own
+	// name/symbol/decimals. NewToken derives the token path from the live
+	// crossing frame, so it names *this* realm; the id is the token object's
+	// own, allocated under this realm. No argument changes either.
+	impostor, impostorLedger = grc20.NewToken("Foo", "FOO", 4, cur)
+}
 
 func main(cur realm) {
-	println("canonical id:", canonical)
-
-	// Route 1: ask grc20 for a token using the canonical token's own
-	// name/symbol/decimals/id. NewToken derives the id prefix from the live
-	// crossing frame, so the id names *this* realm. No argument changes that.
-	impostor, impostorLedger := grc20.NewToken("Foo", "FOO", 4, 0, cur)
-	println("impostor id: ", impostor.ID())
-	println("impostor claims canonical id:", impostor.ID() == canonical)
+	println("canonical token: ", canonical)
+	println("impostor token:  ", impostor.TokenPath())
+	println("impostor claims canonical token:", impostor.TokenPath() == canonical)
+	println("impostor has its own id:", impostor.ID() != "")
 
 	// A genuine grc20 event from the impostor. It carries grc20's pkg_path —
-	// identical to the canonical token's events — but the "token" prefix is
-	// this realm, so an indexer attributes it here.
+	// identical to the canonical token's events — but its own "token" and "id",
+	// so an indexer never confuses the two ledgers.
 	impostorLedger.Mint(cur.Address(), 999_999)
 
-	// Route 2: skip grc20 and hand-emit an event carrying the canonical id.
+	// Route 2: skip grc20 and hand-emit an event carrying the canonical name.
 	// The attributes are fully attacker-chosen, but pkg_path is not: the VM
 	// stamps this realm. An indexer that accepts Transfer only from grc20's
 	// pkg_path drops this event.
 	chain.Emit(
 		"Transfer",
+		"id", "",
 		"token", canonical,
 		"from", "",
 		"to", cur.Address().String(),
@@ -63,19 +77,18 @@ func main(cur realm) {
 	)
 }
 
-// Output:
-// canonical id: gno.land/r/demo/canonicaltoken.FOO.0000000
-// impostor id:  gno.land/r/demo/grc20provenance.FOO.0000000
-// impostor claims canonical id: false
-
 // Events:
 // [
 //   {
 //     "type": "NewToken",
 //     "attrs": [
 //       {
+//         "key": "id",
+//         "value": ""
+//       },
+//       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20provenance.FOO.0000000"
+//         "value": "gno.land/r/demo/grc20provenance.FOO"
 //       },
 //       {
 //         "key": "name",
@@ -96,8 +109,12 @@ func main(cur realm) {
 //     "type": "Transfer",
 //     "attrs": [
 //       {
+//         "key": "id",
+//         "value": "g1chj4jxyc9djsldazyhl6szgyquyuumgjaph42m"
+//       },
+//       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20provenance.FOO.0000000"
+//         "value": "gno.land/r/demo/grc20provenance.FOO"
 //       },
 //       {
 //         "key": "from",
@@ -118,8 +135,12 @@ func main(cur realm) {
 //     "type": "Transfer",
 //     "attrs": [
 //       {
+//         "key": "id",
+//         "value": ""
+//       },
+//       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/canonicaltoken.FOO.0000000"
+//         "value": "gno.land/r/demo/canonicaltoken.FOO"
 //       },
 //       {
 //         "key": "from",
@@ -137,3 +158,9 @@ func main(cur realm) {
 //     "pkg_path": "gno.land/r/demo/grc20provenance"
 //   }
 // ]
+
+// Output:
+// canonical token:  gno.land/r/demo/canonicaltoken.FOO
+// impostor token:   gno.land/r/demo/grc20provenance.FOO
+// impostor claims canonical token: false
+// impostor has its own id: true

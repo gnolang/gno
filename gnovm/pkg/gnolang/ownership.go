@@ -71,6 +71,18 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+// DeriveAddress returns the object's derived address, or "" if it has none yet.
+// NewTime is only stamped when the owning realm finalizes, so every object that
+// has not been persisted returns the same "", not a distinct address. Callers
+// must not use "" as an identity or a map key.
+func (oid ObjectID) DeriveAddress() string {
+	if !oid.IsFinalized() {
+		return ""
+	}
+
+	return DeriveObjectIDCryptoAddr(oid).String()
+}
+
 func (oid ObjectID) IsPackageID() bool {
 	// all package objects have newtime 1.
 	return !oid.PkgID.IsZero() && oid.NewTime == 1

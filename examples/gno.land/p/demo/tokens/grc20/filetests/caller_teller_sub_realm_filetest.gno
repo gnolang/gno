@@ -20,7 +20,7 @@ var (
 )
 
 func init(cur realm) {
-	token, ledger = grc20.NewToken("SubRealm", "SUBR", 4, 0, cur)
+	token, ledger = grc20.NewToken("SubRealm", "SUBR", 4, cur)
 	teller = ledger.CallerTeller()
 }
 
@@ -46,7 +46,7 @@ func main(cur realm) {
 	// The mirror image: a token CREATED from a sub frame must still be usable
 	// from its host realm. origRealm drops the subpath at construction, so the
 	// token belongs to the host rather than being stranded in the sub.
-	subTok, subLedger := grc20.NewToken("FromSub", "FSUB", 4, 1, cur.Sub("vault"))
+	subTok, subLedger := grc20.NewToken("FromSub", "FSUB", 4, cur.Sub("vault"))
 	subTeller := subLedger.CallerTeller()
 	subLedger.Mint(payer, 500)
 	if err := subTeller.Transfer(0, cur, bob, 50); err != nil {

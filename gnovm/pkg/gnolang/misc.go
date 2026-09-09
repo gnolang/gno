@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unsafe"
@@ -196,6 +197,18 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 	}
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+// Derives the address of an object from its ObjectID, the way
+// DerivePkgCryptoAddr derives one from a package path. The "objectid:" prefix
+// keeps the two preimage spaces apart. Both halves of the ID must be stamped:
+// an object that was never persisted has no address.
+func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {
+	if objectID.PkgID.IsZero() || objectID.NewTime == 0 {
+		panic("objectID is not fully stamped: " + objectID.String())
+	}
+
+	return crypto.AddressFromPreimage([]byte("objectid:" + objectID.PkgID.String() + ":" + strconv.FormatUint(objectID.NewTime, 10)))
 }
 
 func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {

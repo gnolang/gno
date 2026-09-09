@@ -9,14 +9,11 @@ import (
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
 const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
-
-var nextGRC20ID seqid.ID
 
 // Same-realm cross so NewToken's IsCurrent + non-empty PkgPath checks pass.
 func newTestNFT(name, symbol string, rlm realm) (tok *grc721.Token, led *grc721.PrivateLedger) {
@@ -29,10 +26,17 @@ func newTestNFT(name, symbol string, rlm realm) (tok *grc721.Token, led *grc721.
 func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken("Test Token", "TEST", 6, nextGRC20ID.Next(), cur)
+	token, _ := grc20.NewToken("Test Token", "TEST", 6, cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
-	uassert.True(t, strings.HasPrefix(token.ID(), key+"."), "registry key should be the token's rlmPath.symbol prefix")
+	// The registry keys by rlmPath.slug, so the key is the slug this hub passed
+	// on the caller's behalf — not the token path, and not the id. The id is
+	// the token's object address, which RegisterToken's crossing has already
+	// stamped.
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.test_token", key, "registry key should be rlmPath.slug")
+	uassert.NotEqual(t, token.TokenPath(), key, "the token path is not the registry key")
+	uassert.NotEqual(t, "", token.ID(), "token should be stamped once the crossing returned")
+	uassert.NotEqual(t, key, token.ID(), "the registry key is not the token id")
 
 	retrievedToken := GetToken(key)
 
@@ -79,7 +83,7 @@ func TestGRC1155Registration(cur realm, t *testing.T) {
 func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, ledger := grc20.NewToken("Balance Token", "BAL", 6, nextGRC20ID.Next(), cur)
+	token, ledger := grc20.NewToken("Balance Token", "BAL", 6, cur)
 	key := RegisterToken(cross(cur), token, "balance_token")
 	holder := unsafe.CurrentRealm().Address()
 	ledger.Mint(holder, 1000)
@@ -132,7 +136,7 @@ func TestErrorCases(cur realm, t *testing.T) {
 func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	grc20Token, _ := grc20.NewToken("Listing Token", "LST", 6, nextGRC20ID.Next(), cur)
+	grc20Token, _ := grc20.NewToken("Listing Token", "LST", 6, cur)
 	grc20Key := RegisterToken(cross(cur), grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
@@ -168,7 +172,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 func TestMustGetFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken("Must Token", "MUST", 6, nextGRC20ID.Next(), cur)
+	token, _ := grc20.NewToken("Must Token", "MUST", 6, cur)
 	key := RegisterToken(cross(cur), token, "must_token")
 
 	retrievedToken := MustGetToken(key)
