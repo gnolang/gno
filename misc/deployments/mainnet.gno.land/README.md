@@ -12,7 +12,7 @@ Builds the **gno.land mainnet** genesis. Mainnet is a **fresh chain** — not a 
 - **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1 (admin address confirmation pending — `TODO(mainnet)`).
 - **Vested accounts**: `TODO(mainnet)` — the §132 investors-vesting bucket (150M GNOT, 24 months) is the known candidate; the mechanism (balance-sheet vesting syntax, continuous or cliff) is inherited from the pearl builder and already exercised there.
 - **Inert packages**: to be ACTIVE at genesis (`code_submission_policy=inert`) — approvers, run-submitters, and the submission charge are `TODO(mainnet)`; genesis replay is exempt so the genesis deploys still execute.
-- **Transfers**: `TODO(mainnet)` — restricted vs open is undecided (gnoland1 launched locked; the fresh testnets launched open).
+- **Transfers**: **locked at genesis**, per Constitution §126 (*"$GNOT will not be transferrable initially except for whitelisted addresses"*). `bank.params.restricted_denoms=["ugnot"]` plus the 71-address exemption list fetched from `gnolang/independence-day` (`mkgenesis/unrestricted.txt`, same pinned commit and sha256 treatment as the balance sheet). Applied at step 9.3. Both knobs are required: with `restricted_denoms` empty the exemption list is inert.
 
 Not set at genesis (defaults apply; adjustable post-genesis via GovDAO proposals, see `misc/govdao-scripts/`): CLA (`TODO(mainnet)`: decide), minimum fee (`TODO(mainnet)`: mainnet likely wants a real minimum gas price at genesis).
 

@@ -11,7 +11,8 @@
 #      addpkg'd by the deterministic GenesisDeployer key.
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
 #      sole GovDAO T1 member and locks dao.UpdateImpl's AllowedDAOs to
-#      r/gov/dao/v3/impl. No transfer lock — mainnet is unrestricted.
+#      r/gov/dao/v3/impl. Transfers are locked at genesis per §126, with
+#      the independence-day exemption list applied (step 9.3).
 #   3. A names.Enable MsgCall (transactions/migration/names-enable/) so
 #      namespace enforcement is on from genesis. Enable is gated on the
 #      admin address hardcoded in r/sys/names/verifier.gno; the tx's
@@ -24,7 +25,8 @@
 #   5. The INITIAL_VALSET as GenesisDoc.Validators (InitChainer seeds
 #      valset:current from it, so v3/EndBlocker valset changes work).
 #   6. Balances: the independence-day allocation sheet (~3.26M accounts,
-#      downloaded by pinned URL + sha256-verified), the VESTED_ACCOUNTS
+#      downloaded by pinned URL + sha256-verified) and its §126
+#      unrestricted-address list (same commit, same treatment), the VESTED_ACCOUNTS
 #      entries (created as vesting accounts at genesis), plus exact-burn
 #      funding for every genesis-tx fee payer (measured on a temp node;
 #      fee payers land at zero — or at exactly their allocation if they
@@ -152,8 +154,32 @@ INITIAL_VALSET_OPERATORS=(
 # genesis cut (main moves as sale participants bind addresses; see its
 # docs/history.md convention of recording which commit produced which
 # chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/9ecf4d39124b9204ffb7cc0ab94783114485d33c/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="091109482ed30c8aa83679e28cf13a0c4e4b88901786b14f6ac2d96f738b723d"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/da5b76cba333db008cc0d357be7f588ef223778b/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="9fc5b6c53f9096327db6186c108745ddf4fd9a3eedb5c66b337b5e8b7a5e34b4"
+
+# Unrestricted addresses (Constitution §126-130). Same repo, same pinned
+# commit, same fetch-and-verify treatment as the allocation sheet.
+#
+#   §126  "$GNOT will not be transferrable initially except for whitelisted
+#          addresses. Whitelisted addresses include "Ecosystem" and "Investors"
+#          funds and any additional addresses needed for the operation of the
+#          chain, and funding needs or payment of investors. Whitelisted funds
+#          remain subject to the vesting schedule below."
+#
+# 71 addresses: the Ecosystem Treasury, both Investors tranches, and every
+# public-sale row. The list is GENERATED in independence-day from the same
+# publicsale.txt that produces the balance rows, so a sale participant cannot be
+# funded in the genesis but left unable to move it.
+#
+# Pin these two together with ALLOCATION_*: a sheet and an exemption list from
+# different commits is exactly the mismatch this is meant to prevent.
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/da5b76cba333db008cc0d357be7f588ef223778b/mkgenesis/unrestricted.txt"
+UNRESTRICTED_SHA256="9bc496a3fb3c6f6d14ac33e036fc6bcc61dd0541fde1c05b10f21cf8895c1706"
+
+# Denominations subject to the §126 transfer lock. Empty = no lock, and then
+# UNRESTRICTED_ADDRS is inert: bank.canSendCoins returns true before it ever
+# looks at the whitelist. Both knobs are required for §126 to mean anything.
+RESTRICTED_DENOMS=("ugnot")
 
 # Vested accounts. One entry per line, in the balance-sheet vesting syntax
 # (gno.land/pkg/gnoland/balance.go):
@@ -182,11 +208,20 @@ VESTED_ACCOUNTS=(
   # "g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3=150000000000000ugnot;vesting=150000000000000ugnot,<start>,<end>" # TODO(mainnet): §132 investors, 24 months
 )
 
-# TODO(mainnet): token-transfer policy is undecided (restricted mode vs
-# open — needs OnBloc/AiB alignment per the launch checklist). gnoland1
-# launched with a locked bank + unrestricted-accounts exemptions; the
-# fresh testnets launched open. If mainnet launches restricted, this
-# script needs the lock step and the exemption list wired back in.
+# Token-transfer policy: LOCKED at genesis, per Constitution §126 —
+# "$GNOT will not be transferrable initially except for whitelisted
+# addresses". That is a requirement, not a launch preference, so this is
+# no longer a TODO. gnoland1 launched the same way (locked bank +
+# unrestricted-accounts exemptions); only the fresh testnets launched
+# open, and they have no Constitution to answer to.
+#
+# Launching open would also make §132 vacuous: the vesting schedule is
+# anchored to "the day $GNOT becomes transferrable", which under an open
+# launch is block 1 — so 100% would be liquid where 96% should be locked.
+#
+# RESTRICTED_DENOMS + the fetched exemption list are applied in step 9.3.
+# TODO(mainnet): OnBloc/AiB still need to be told, since the launch
+# checklist recorded this as open.
 
 # TODO(mainnet): inert-package policy — direction is to ACTIVATE it (see
 # team discussion 2026-09): set in app_state.vm.params at genesis (genesis
@@ -747,14 +782,83 @@ alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
 # The sha proves "this is the pinned file"; these prove the file has the
 # shape the merge arithmetic in step 8 assumes (a re-pin could change
 # either): one `g1<38>=<digits>ugnot` line per account, no duplicates.
-if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot$' "$ALLOCATION_TXT"; then
-  die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot per line)"
+# A row may carry a declared vesting schedule -- independence-day emits one for
+# the public-sale participant under a mandatory forced lockup, and since
+# 2026-09-09 it emits it unconditionally rather than dropping it whenever the
+# §132 pass is off. A pattern that only accepts a bare balance rejects the
+# corrected sheet outright.
+if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot(;vesting=[0-9]+ugnot,[0-9]+,[0-9]+(;type=[a-z]+)?)?$' "$ALLOCATION_TXT"; then
+  die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot[;vesting=...] per line)"
 fi
 alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
 if [ -n "$alloc_dupes" ]; then
   die "allocation sheet has duplicate addresses: $alloc_dupes"
 fi
 print_substep "2.3" "Allocation sheet: $alloc_count accounts (sha256 + format verified)"
+
+# ---- Unrestricted addresses (independence-day, Constitution §126) ----
+# Same fetch-and-verify treatment as the allocation sheet, and checked here for
+# the same reason: a bad pin should fail in seconds, not ten minutes in.
+UNRESTRICTED_FILE="$SCRIPT_DIR/allocation_unrestricted.txt"
+if [ -f "$UNRESTRICTED_FILE" ] && [ "$(sha256_of "$UNRESTRICTED_FILE")" = "$UNRESTRICTED_SHA256" ]; then
+  print_substep "2.4" "Using cached unrestricted-address list"
+else
+  if [ -f "$UNRESTRICTED_FILE" ]; then
+    print_substep "2.4" "Cached unrestricted list does not match UNRESTRICTED_SHA256 (stale cache or re-pin) — re-downloading..."
+    rm -f "$UNRESTRICTED_FILE"
+  else
+    print_substep "2.4" "Downloading unrestricted-address list..."
+  fi
+  run curl -fsSL --retry 3 "$UNRESTRICTED_URL" -o "$UNRESTRICTED_FILE.part"
+  got_unres_sha=$(sha256_of "$UNRESTRICTED_FILE.part")
+  if [ "$got_unres_sha" != "$UNRESTRICTED_SHA256" ]; then
+    rm -f "$UNRESTRICTED_FILE.part"
+    die "downloaded unrestricted list sha256 mismatch: expected $UNRESTRICTED_SHA256, got $got_unres_sha — check the UNRESTRICTED_URL pin"
+  fi
+  mv "$UNRESTRICTED_FILE.part" "$UNRESTRICTED_FILE"
+fi
+
+# Strip comments and blanks (the non-airdrop.txt convention that file follows).
+UNRESTRICTED_ADDRS_TXT="$WORK_DIR/unrestricted_addrs.txt"
+sed 's/#.*//' "$UNRESTRICTED_FILE" | tr -d " \t" | grep -v '^$' >"$UNRESTRICTED_ADDRS_TXT" || true
+unrestricted_count=$(wc -l <"$UNRESTRICTED_ADDRS_TXT" | tr -d ' ')
+if [ "$unrestricted_count" -eq 0 ]; then
+  die "unrestricted list is empty after stripping comments — refusing to lock transfers with nobody exempt"
+fi
+if grep -qvE '^g1[0-9a-z]{38}$' "$UNRESTRICTED_ADDRS_TXT"; then
+  die "unrestricted list has malformed lines (expected one g1<38chars> per line)"
+fi
+unres_dupes=$(sort "$UNRESTRICTED_ADDRS_TXT" | uniq -d)
+if [ -n "$unres_dupes" ]; then
+  die "unrestricted list has duplicate addresses: $unres_dupes"
+fi
+
+# gnoland's InitChain PANICS on an unrestricted address that is not a genesis
+# account (gno.land/pkg/gnoland/app.go: "unrestricted address must be one of the
+# genesis accounts"). Catch it here rather than at chain start.
+missing_unres=$(cut -d= -f1 "$ALLOCATION_TXT" | sort -u | comm -13 - <(sort -u "$UNRESTRICTED_ADDRS_TXT"))
+if [ -n "$missing_unres" ]; then
+  die "unrestricted addresses absent from the allocation sheet (InitChain would panic): $missing_unres"
+fi
+
+# An address that BOTH carries a vesting schedule and is unrestricted needs the
+# *GnoAccount design from gno 331e17fc3 (#6095). Before it, InitChain's type
+# assertion in app.go panics. chain/pearl and chain/sapphire carry the vesting
+# grammar but not that fix.
+vested_and_unrestricted=$(grep ';vesting=' "$ALLOCATION_TXT" | cut -d= -f1 | sort -u \
+  | comm -12 - <(sort -u "$UNRESTRICTED_ADDRS_TXT") || true)
+if [ -n "$vested_and_unrestricted" ]; then
+  if ! git -C "$REPO_ROOT" merge-base --is-ancestor 331e17fc3 HEAD 2>/dev/null; then
+    die "$(printf '%s\n' \
+      "these addresses are both vested and unrestricted:" \
+      "$vested_and_unrestricted" \
+      "that combination needs gno commit 331e17fc3 (#6095), which this tree does not contain." \
+      "Building here would produce a genesis that panics at InitChain.")"
+  fi
+  print_substep "2.5" "Vested+unrestricted overlap present; 331e17fc3 is in tree (required)"
+fi
+
+print_substep "2.6" "Unrestricted addresses: $unrestricted_count (sha256 + format verified, all funded)"
 
 # ---- Step 3: Build binaries from source
 
@@ -839,9 +943,9 @@ print_substep "4.7" "Exporting txs..."
 run "$GNOGENESIS_BIN" txs export "$GENESIS_TXS_JSONL" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
 
 # ---- Step 5: Add the bootstrap MsgRun (transactions/base/bootstrap/)
-# Seeds the sole GovDAO T1 member (aeddi) and locks AllowedDAOs. No
-# transfer lock, no unrestricted-accounts proposals — mainnet transfers
-# are unrestricted.
+# Seeds the sole GovDAO T1 member (aeddi) and locks AllowedDAOs. The
+# §126 transfer lock is applied at step 9.3 as genesis params rather than
+# via r/sys/params proposals, so there is nothing to propose here.
 
 print_step_header 5 "$TOTAL_STEPS" "Add bootstrap MsgRun (GovDAO seed)"
 
@@ -1328,7 +1432,49 @@ run "$GNOGENESIS_BIN" balances add -balance-sheet "$FULL_BALANCES_FILE" --genesi
 # from it at step 8.6, so the two sheets are disjoint.
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$ALLOCATION_STRIPPED" --genesis-path "$GENESIS_FILE" >/dev/null
 
-print_substep "9.3" "Running gnogenesis verify..."
+# ---- §126 transfer lock + exemption list
+# Two independent knobs, and BOTH are required:
+#
+#   bank.params.restricted_denoms   turns the global lock on. Empty means
+#                                   canSendCoins() returns true before it ever
+#                                   looks at the whitelist.
+#   auth.params.unrestricted_addrs  the addresses exempt from it.
+#
+# Setting only the second is the quiet failure mode: the genesis looks like it
+# honours §126, and every address can transfer.
+#
+# This is applied AFTER the balance sheets are in, because InitChain requires
+# every unrestricted address to already be a genesis account (checked at step
+# 2.4, re-checked here against what actually shipped).
+print_substep "9.3" "Applying the §126 transfer lock and exemption list..."
+unrestricted_json=$(jq -R -s -c 'split("\n") | map(select(length > 0))' "$UNRESTRICTED_ADDRS_TXT")
+restricted_json=$(printf '%s\n' "${RESTRICTED_DENOMS[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+jq --argjson unres "$unrestricted_json" --argjson rd "$restricted_json" \
+  '.app_state.auth.params.unrestricted_addrs = $unres
+   | .app_state.bank.params.restricted_denoms = $rd' \
+  "$GENESIS_FILE" >"$GENESIS_FILE.locked"
+mv "$GENESIS_FILE.locked" "$GENESIS_FILE"
+
+# Prove it landed, and prove every exempt address is really in the sheet that
+# shipped -- not the one we downloaded. A mismatch here is an InitChain panic.
+applied_unres=$(jq -r '.app_state.auth.params.unrestricted_addrs | length' "$GENESIS_FILE")
+applied_rd=$(jq -r '.app_state.bank.params.restricted_denoms | join(",")' "$GENESIS_FILE")
+if [ "$applied_unres" != "$unrestricted_count" ]; then
+  die "unrestricted_addrs did not apply: expected $unrestricted_count, genesis has $applied_unres"
+fi
+if [ -z "$applied_rd" ]; then
+  die "restricted_denoms is empty — the exemption list would be inert and §126 unmet"
+fi
+genesis_addrs=$(jq -r '.app_state.auth.accounts[]?.address // empty' "$GENESIS_FILE" | sort -u)
+if [ -n "$genesis_addrs" ]; then
+  not_funded=$(printf '%s\n' "$genesis_addrs" | comm -13 - <(sort -u "$UNRESTRICTED_ADDRS_TXT"))
+  if [ -n "$not_funded" ]; then
+    die "unrestricted addresses missing from the shipped genesis accounts (InitChain would panic): $not_funded"
+  fi
+fi
+print_substep "9.4" "Transfer lock: restricted_denoms=[$applied_rd], $applied_unres addresses exempt"
+
+print_substep "9.5" "Running gnogenesis verify..."
 # -skip-signature-check: the names.Enable tx carries a post-sign caller
 # patch and the valoper Register txs carry placeholder signatures, so
 # per-tx signature verification cannot pass by design (nodes accept both
@@ -1341,7 +1487,7 @@ run "$GNOGENESIS_BIN" verify -genesis-path "$GENESIS_FILE" -skip-signature-check
 # Verify before moving: a mismatch must not clobber the previously-good
 # (gitignored, so invisible to git status) genesis.json at the root.
 verify_checksum "$GENESIS_FILE" genesis.json
-print_substep "9.4" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
+print_substep "9.6" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
 mv "$GENESIS_FILE" "$FINAL_GENESIS"
 
 # ---- Summary
