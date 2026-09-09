@@ -117,3 +117,11 @@ registration, which is rare.
 - GRC721 has the same caller-supplied `seqid.ID` parameter and the same
   duplicate-identity exposure. It is left alone here; the same change applies
   once this lands.
+- The address is fixed once it is referenced. Its inputs are the `"objectid:"`
+  preimage prefix and separators, the `PkgID` produced by `PkgIDFromPkgPath`
+  (whose flag nibble encodes IsStdlib/IsImmutable/IsInternal, so reclassifying a
+  path or claiming the reserved bit moves every object address in that realm),
+  and the object's `NewTime`. Once an address has been written into an event, a
+  registry entry, or a balance, changing any of these inputs is a state break:
+  the same object answers with a new address and whatever sat at the old one
+  becomes unreachable. Such a change needs a migration.

@@ -19,6 +19,9 @@ func ChainHeight() int64  // injected
 // array element, or a slice, reads "" as well: only a value with its own heap
 // item has an address. It panics if v carries no object, such as a plain int
 // or a nil pointer.
+//
+// The address has no signing key. Nothing on chain can spend coins sent to it,
+// so use it as an identifier, not as a payable account.
 func ObjectID(v interface{}) string { return objectID(v) }
 
 func objectID(v interface{}) string // injected

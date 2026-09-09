@@ -98,15 +98,26 @@ func TestDerivePkgBech32Addr(t *testing.T) {
 func TestObjectIDDerivePath(t *testing.T) {
 	t.Parallel()
 
-	var (
-		pkgID = PkgIDFromPkgPath("gno.land/r/demo/objectid")
-		other = PkgIDFromPkgPath("gno.land/r/demo/objectid_other")
+	// PkgID is the first input to the address. Pin it as a literal so a change
+	// to PkgIDFromPkgPath, which would move every object address in the realm,
+	// is reported here rather than passing silently.
+	const (
+		pkgIDStr   = "RID0096D59EE52BF51629778FC5525C67BE07EC5133"
+		otherIDStr = "RID009F60F0E677E06D78B4ECFDE9638F1A1000DD3F"
 	)
+	pkgID := PkgIDFromPkgPath("gno.land/r/demo/objectid")
+	other := PkgIDFromPkgPath("gno.land/r/demo/objectid_other")
+	require.Equal(t, pkgIDStr, pkgID.String())
+	require.Equal(t, otherIDStr, other.String())
 
 	tests := []struct {
 		name string
 		oid  ObjectID
-		want string
+		// preimage, when set, is spelled out independently of the code under
+		// test so a changed prefix or separator reports as a layout change
+		// rather than a hash miss.
+		preimage string
+		want     string
 	}{
 		{
 			name: "zero id has nothing to derive from",
@@ -121,19 +132,22 @@ func TestObjectIDDerivePath(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "finalized",
-			oid:  ObjectID{PkgID: pkgID, NewTime: 7},
-			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: pkgID, NewTime: 7}).String(),
+			name:     "finalized",
+			oid:      ObjectID{PkgID: pkgID, NewTime: 7},
+			preimage: "objectid:" + pkgIDStr + ":7",
+			want:     "g10qdrafyefex7t0nn9ru2sxge00hlm58p0mpvqd",
 		},
 		{
-			name: "another tick of the same realm",
-			oid:  ObjectID{PkgID: pkgID, NewTime: 8},
-			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: pkgID, NewTime: 8}).String(),
+			name:     "another tick of the same realm",
+			oid:      ObjectID{PkgID: pkgID, NewTime: 8},
+			preimage: "objectid:" + pkgIDStr + ":8",
+			want:     "g19qtnngqw7pjvfz9lpc4s464ptz8qtpnqr6wpkg",
 		},
 		{
-			name: "same tick of another realm",
-			oid:  ObjectID{PkgID: other, NewTime: 7},
-			want: DeriveObjectIDCryptoAddr(ObjectID{PkgID: other, NewTime: 7}).String(),
+			name:     "same tick of another realm",
+			oid:      ObjectID{PkgID: other, NewTime: 7},
+			preimage: "objectid:" + otherIDStr + ":7",
+			want:     "g1vfgnmjj62j2ge6c5en9w7kmat56nysd6nst27t",
 		},
 	}
 
@@ -159,6 +173,10 @@ func TestObjectIDDerivePath(t *testing.T) {
 			require.Equal(t, tt.want, got)
 			// Deriving twice must not move.
 			require.Equal(t, got, tt.oid.DerivePath())
+
+			if tt.preimage != "" {
+				require.Equal(t, tt.want, crypto.AddressFromPreimage([]byte(tt.preimage)).String())
+			}
 		})
 	}
 }

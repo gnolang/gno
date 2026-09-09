@@ -72,11 +72,10 @@ func (oid ObjectID) String() string {
 }
 
 // DerivePath returns the object's derived address, or "" if it has none yet.
-// NewTime is only stamped when the owning realm finalizes, so an object that
-// has not been persisted is unnamed rather than sharing an address with every
-// other unnamed object.
+// NewTime is only stamped when the owning realm finalizes, so every object that
+// has not been persisted returns the same "", not a distinct address. Callers
+// must not use "" as an identity or a map key.
 func (oid ObjectID) DerivePath() string {
-	// if the object is not finalized, return an empty string
 	if !oid.IsFinalized() {
 		return ""
 	}
