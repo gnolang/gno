@@ -52,11 +52,7 @@ func ChainHeight(m *gno.Machine) int64 {
 // the argument arrives as its own Go type. The binding hands the TypedValue
 // through untouched either way.
 func X_objectID(m *gno.Machine, v any) string {
-	tv, ok := v.(gno.TypedValue)
-	if !ok || tv.V == nil {
-		m.PanicString("value has no object identity")
-	}
-
+	tv, _ := v.(gno.TypedValue)
 	oo := tv.GetFirstObject(m.Store)
 	if oo == nil {
 		m.PanicString("value has no object identity")
