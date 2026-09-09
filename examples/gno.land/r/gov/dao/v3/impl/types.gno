@@ -219,9 +219,7 @@ func StringifyProposal(p *dao.Proposal) string {
 
 	// The same lines the proposal page renders, so a realm printing a proposal
 	// as text names the executor the way gnoweb does.
-	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
-		out += "Executes: " + creationRealm + "\n\n"
-	}
+	out += "Executes: " + executesLine(p) + "\n\n"
 	out += renderExecution(p)
 
 	return out

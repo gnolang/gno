@@ -126,9 +126,7 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	// paragraph.
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\\\n"
-	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
-		out += "Executes: " + creationRealm + "\\\n"
-	}
+	out += "Executes: " + executesLine(p) + "\\\n"
 	out += ps.statusLine() + "\\\n"
 	out += "Eligible: " + strings.Join(ps.TiersAllowedToVote, ", ") + "\\\n"
 	out += ps.tally(0, rlm)
@@ -238,6 +236,19 @@ func trimIndent(line string) string {
 	}
 
 	return ""
+}
+
+// executesLine names the realm that runs if the proposal passes, and says so
+// when there is none to name. The line is never dropped: a proposal can carry
+// no executor at all, and a SimpleExecutor built outside a code realm captures
+// an empty path, so silence here would read as an ordinary page with one line
+// fewer rather than as a disclosure nobody made.
+func executesLine(p *dao.Proposal) string {
+	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
+		return creationRealm
+	}
+
+	return "none reported"
 }
 
 // renderExecution returns the executor's own account of what runs if the

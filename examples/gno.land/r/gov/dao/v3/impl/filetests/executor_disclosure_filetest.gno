@@ -200,13 +200,13 @@ func main(cur realm) {
 		"Blank", "A proposal whose creation realm strips to nothing", &blankExecutor{}))
 	zout := dao.Render(cross(cur), zpid.String())
 
-	println("a creation realm that strips to nothing prints no bare label:",
-		!strings.Contains(zout, "Executes:"))
+	println("a creation realm that strips to nothing says so:",
+		strings.Contains(zout, "Executes: none reported"))
 
 	wpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Whitespace", "A proposal whose creation realm is only whitespace", &whitespaceExecutor{}))
-	println("a whitespace-only creation realm prints no bare label:",
-		!strings.Contains(dao.Render(cross(cur), wpid.String()), "Executes:"))
+	println("a whitespace-only creation realm says so too:",
+		strings.Contains(dao.Render(cross(cur), wpid.String()), "Executes: none reported"))
 
 	hupid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Huge", "A proposal whose creation realm is enormous", &hugeExecutor{}))
@@ -321,8 +321,8 @@ func main(cur realm) {
 // fence widened to contain the backtick: true
 // no forged acceptance line from the breakout attempt: true
 // no visible backslashes in the path: true
-// a creation realm that strips to nothing prints no bare label: true
-// a whitespace-only creation realm prints no bare label: true
+// a creation realm that strips to nothing says so: true
+// a whitespace-only creation realm says so too: true
 // an enormous creation realm is clamped before escaping: true
 // fence outscans the payload's backtick run: true
 // no bold text escapes the code span: true
