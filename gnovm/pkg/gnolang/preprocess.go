@@ -5234,20 +5234,58 @@ func assertNoDirectTypeCycle(name Name, t Type) {
 	}
 }
 
-// typeIsSettled reports whether t's underlying type has been filled in.
-// While a declaration group is being processed, a type in it can still be a
-// shell: a nil element, or a defined type whose base is not constructed yet.
+// typeIsSettled reports whether t and every type reachable from it along the
+// same edges isComparable walks has been filled in. A top-level *DeclaredType
+// can already have a Base while a nested field's *DeclaredType still has a
+// nil Base; isComparable treats that nil as uncomparable and memoizes the
+// result on *StructType, so calling it too early both false-rejects valid
+// map keys and poisons later == checks. Skip until the whole key graph is
+// settled; a later *TypeDecl:LEAVE re-runs assertValidMapKeys once it is.
 func typeIsSettled(t Type) bool {
-	if dt, ok := t.(*DeclaredType); ok {
-		return dt.Base != nil
+	seen := map[Type]struct{}{}
+	var walk func(Type) bool
+	walk = func(t Type) bool {
+		if t == nil {
+			return false
+		}
+		if _, ok := seen[t]; ok {
+			return true
+		}
+		seen[t] = struct{}{}
+		switch t := t.(type) {
+		case *DeclaredType:
+			if t.Base == nil {
+				return false
+			}
+			return walk(t.Base)
+		case *ArrayType:
+			return walk(t.Elt)
+		case *StructType:
+			for i := range t.Fields {
+				if !walk(t.Fields[i].Type) {
+					return false
+				}
+			}
+			return true
+		case PrimitiveType, *PointerType, *InterfaceType:
+			// isComparable returns true without walking further.
+			return true
+		default:
+			// Slices, maps, funcs, channels: isComparable returns false
+			// without reading nested DeclaredTypes, so they are settled
+			// for the purpose of the map-key check.
+			return true
+		}
 	}
-	return t != nil
+	return walk(t)
 }
 
 // assertValidMapKeys panics if t contains a map whose key type cannot be
 // compared with ==. Like assertNoDirectTypeCycle this runs on the finished
 // type: a key that is a defined type is only known to be uncomparable once
-// its underlying type has been filled in.
+// its underlying type has been filled in. Keys that are not yet fully
+// settled are skipped here and checked again when a later declaration in
+// the group leaves and walks back into this map.
 func assertValidMapKeys(t Type) {
 	seen := map[Type]struct{}{}
 	var walk func(t Type)
