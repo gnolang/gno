@@ -549,7 +549,6 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
 					pkg.Reserve(false, nx, n, NSFuncDecl, -1)
-					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
 				for i := range n.Params {
@@ -2807,7 +2806,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
 						if ne, ok := lh.(*NameExpr); ok {
-							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+							if !last.GetStaticBlock().IsAssignableName(store, ne.Name) {
 								panic("not assignable")
 							}
 						}
