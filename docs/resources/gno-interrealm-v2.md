@@ -382,17 +382,14 @@ per crossing frame, refuses to persist it, and validates each use.
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` is the authentication primitive for a realm value the
-caller supplies, `Send(_ int, rlm realm, ...)` in `p/nt/treasury/v0`
-for one: check `rlm.IsCurrent()` before using `rlm.Address()`,
-`rlm.PkgPath()` or `rlm.Previous()`. Without that check, a stale realm
-value's `Address()` and `PkgPath()` still resolve, to an identity that
-is no longer the live caller. This is class **2 (designation-forgery)**
-in `gno-security.md`. A guard on `cur` inside a crossing function
-cannot fire against anything another realm does: `cross(rlm)` mints
-`cur` fresh, and a non-crossing call from the same realm re-anchors
-the callee's frame on the value passed, so even a stale `cur` reads
-current there.
+`IsCurrent()` guards a realm value the caller supplies, such as the
+`rlm` of `Send(_ int, rlm realm, ...)` in `p/nt/treasury/v0`: check
+`rlm.IsCurrent()` before using `rlm.Address()`, `rlm.PkgPath()` or
+`rlm.Previous()`. Without it, a stale realm value still resolves to an
+identity that is no longer the live caller, class **2
+(designation-forgery)** in `gno-security.md`. A crossing function's own
+`cur` needs no such check: the runtime makes it current on entry, so a
+guard on `cur` cannot fire.
 
 ### 5.3 Realm values are ephemeral
 
@@ -682,8 +679,7 @@ For every exported function or method in your `/r/` realm:
 
 - Does it take a realm value from the caller, `(_ int, rlm realm, ...)`?
   If yes, does it check `rlm.IsCurrent()` before using `rlm.Previous()`,
-  `rlm.Address()`, or `rlm.PkgPath()`? A crossing function's own `cur`
-  needs no such check, per §5.2.
+  `rlm.Address()`, or `rlm.PkgPath()`? Its own `cur` needs no check.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
