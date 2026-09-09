@@ -3976,6 +3976,40 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
 }
 
+// TestApplyBalanceChoosesInitCoinsOrSetCoins pins the branch applyBalance takes
+// on cfg.acck.GetAccount, using mocks so the choice is asserted directly rather
+// than inferred from the resulting balance: a first sighting must go through
+// InitCoins, and a repeat must go through SetCoins, and neither may call the
+// other.
+func TestApplyBalanceChoosesInitCoinsOrSetCoins(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck := &mockAuthKeeper{}
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("applyBalance-branch"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 100}}
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.initCoinsCalls, "a first sighting must take the InitCoins branch")
+	require.Equal(t, 0, bankk.setCoinsCalls, "and must not also call SetCoins")
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.setCoinsCalls, "a repeat must take the SetCoins branch")
+	require.Equal(t, 1, bankk.initCoinsCalls, "and must not call InitCoins again")
+}
+
 // TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
 // outside the balances file: a genesis transaction whose signer has no account is
 // funded so it can pay for itself. That has to mint rather than credit. The supply
