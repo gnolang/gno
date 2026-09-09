@@ -895,9 +895,6 @@ func (m *Machine) doOpTypeSwitch() {
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
 	}
-	// perCheck is computed lazily on the first interface case (common
-	// type-switches over concrete types skip the walk entirely).
-	perCheck := int64(-1)
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
 	// iterating over all clauses and cases here.
@@ -912,6 +909,15 @@ matchLoop:
 			defaultIdx = i
 			continue
 		}
+		// Charge per clause and per case actually scanned, using the same
+		// constants the value switch charges for the same dispatch and
+		// comparison work. The previous flat OpCPUSlopeTypeSwitchCase per
+		// DECLARED clause billed clauses the loop breaks before reaching, and
+		// billed a grouped `case A, B, C:` as one comparison instead of three.
+		// TODO(calibration): cmd/calibrate still publishes the superseded
+		// "TypeSwitch (concrete) = 280.5 + 253.92*clauses" fit; its 254
+		// ns/clause is well above what a scanned clause measures today, so
+		// re-derive both when the reference-HW numbers are next refreshed.
 		m.incrCPU(OpCPUSwitchClause)
 		for _, cx := range cs.Cases {
 			m.incrCPU(OpCPUSwitchClauseCase)
@@ -928,10 +934,7 @@ matchLoop:
 			case ct == nil:
 				match = xv.IsUndefined()
 			case ct.Kind() == InterfaceKind:
-				if perCheck < 0 {
-					perCheck = perInterfaceMethodCheckCost(xv.T)
-				}
-				match = baseOf(ct).(*InterfaceType).verifyImplementedBy(m, perCheck, xv.T) == nil
+				match = baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T)
 			default:
 				match = xtid == ct.TypeID()
 			}

@@ -238,6 +238,7 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -251,7 +252,7 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			err := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt)
+			err := it.VerifyImplementedBy(xt)
 			if err != nil {
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
@@ -315,6 +316,7 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -325,7 +327,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt) == nil
+			impl := it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
