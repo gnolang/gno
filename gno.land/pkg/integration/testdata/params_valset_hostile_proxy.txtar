@@ -38,9 +38,13 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opMember -args 'member operator' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
 stdout OK!
 
-# Snapshot valoper render (we'll cmp after the failed rotation).
+# Snapshot the signing key the rotation would target. Pin the payload lines
+# rather than the whole stdout: the injected block height advances between the
+# two queries, so a byte-for-byte cmp would compare the 'height:' line too and
+# fail whenever a block ticks in between.
 gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
-cp stdout valoper_before.txt
+stdout '- Signing Address: g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9'
+stdout '- Signing PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
 
 # Attack: member (the legitimate operator!) calls rotateproxy's
 # wrapper. valopers.UpdateSigningKey sees PreviousRealm =
@@ -49,10 +53,10 @@ cp stdout valoper_before.txt
 ! gnokey maketx call -pkgpath gno.land/r/test/rotateproxy -func WrapRotate -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member
 stderr 'caller is not in authorized list'
 
-# State unchanged: valoper still bound to P.
+# State unchanged: valoper still bound to P, signing key not rotated.
 gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
-cp stdout valoper_after.txt
-cmp valoper_before.txt valoper_after.txt
+stdout '- Signing Address: g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9'
+stdout '- Signing PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
 
 -- rotateproxy/gnomod.toml --
 module = "gno.land/r/test/rotateproxy"

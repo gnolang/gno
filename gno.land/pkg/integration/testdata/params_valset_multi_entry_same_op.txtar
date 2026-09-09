@@ -24,8 +24,9 @@ gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 60
 stdout OK!
 
 # Snapshot valset:current — none of the rejected proposals can mutate it.
+# Assert the data line only; the height line advances with each block.
 gnokey query params/node:valset:current
-cp stdout valset_baseline.txt
+stdout 'data: \["gpub1[a-z0-9]+:10"\]'
 
 # (a) [{A,0},{A,2},{A,3}] — triple same-op: rejected at create.
 ! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/case_a.gno
@@ -39,11 +40,10 @@ stderr 'duplicate operator in proposal'
 ! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/case_c.gno
 stderr 'duplicate operator in proposal'
 
-# valset:current must still equal the baseline (no proposal reached
-# vote/execute, no state changed).
+# valset:current must still match the baseline data (no proposal reached
+# vote/execute, no state changed). Height advances and is not asserted.
 gnokey query params/node:valset:current
-cp stdout valset_after.txt
-cmp valset_baseline.txt valset_after.txt
+stdout 'data: \["gpub1[a-z0-9]+:10"\]'
 
 -- run/case_a.gno --
 package main
