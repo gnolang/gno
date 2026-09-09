@@ -1,0 +1,86 @@
+# Regression guard for the typeHasPrivateDep type-privacy cache (see
+# gnovm/adr/pr5923_type_privacy_dependency_cache.md): assertTypeIsPublic
+# short-circuits via a store-level, TypeID-keyed, process-lived cache
+# (defaultStore.typePrivacyCache). That cache is never part of consensus
+# state — it resets to cold on every node restart — so nothing that
+# depends on chain determinism may vary with its warm/cold state. Today
+# that's true because the whole check is unmetered (see realm.go's
+# assertTypeIsPublic/typeHasPrivateDep: no ConsumeGas/incrCPU calls
+# anywhere in that path). If a future change ever meters this walk
+# proportionally to nodes visited (mirroring gcVisitGas), a cold node
+# would charge more than a warm one for the identical tx — a consensus
+# split. Note: because the path is unmetered, this test also passes with
+# the cache disabled; its value is precisely to fail the day someone
+# meters it in a warm/cold-sensitive way.
+#
+# SaveItem mutates a FIELD of the existing `current` *Item in place (never
+# allocates a new Item), setting it to the value it already holds — a
+# genuine no-op write, matching stdlib_restart_compare.txtar's approach.
+# DidUpdate's equal-value dirty-mark skip (realm.go's commented-out
+# `co == xo` check) is disabled, so this still goes through the full
+# update/re-encode path, just with zero storage-byte delta.
+#
+# Call 1 changes Name from its init value ("init" -> "same-every-time"), a
+# real byte-size change; it also first populates the type-privacy cache
+# for Item/Coin. It's a warm-up, not gas-compared, same as
+# stdlib_restart_compare.txtar's first "setup" call. Call 2 (same process,
+# cache genuinely warm — the TypeID-keyed verdict persists across commits)
+# and call 3 (fresh process after restart, cache cold and recomputed) are
+# the identical no-op write and MUST report identical GAS USED — cache
+# warmth must never be visible in billed gas.
+#
+# EXACT_GAS is a regression pin, not a derivation — if a legitimate VM/gas-
+# model change shifts it, update this value (and re-verify calls 2 and 3
+# still match each other, which is the actual property under test).
+
+env EXACT_GAS=1677550
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/typecache -pkgpath gno.land/r/test/typecache -gas-fee 1000001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 1: warm-up (real value change, not gas-compared).
+gnokey maketx call -pkgpath gno.land/r/test/typecache -func SaveItem -gas-fee 1000001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 2: no-op write, same process (warm type-privacy cache). Must match
+# EXACT_GAS.
+gnokey maketx call -pkgpath gno.land/r/test/typecache -func SaveItem -gas-fee 1000001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+gnoland restart
+
+# Call 3: same no-op write, but a fresh process — Item/Coin's type-privacy
+# cache is cold again. Must STILL match EXACT_GAS.
+gnokey maketx call -pkgpath gno.land/r/test/typecache -func SaveItem -gas-fee 1000001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+-- typecache/gnomod.toml --
+module = "gno.land/r/test/typecache"
+gno = "0.9"
+
+-- typecache/typecache.gno --
+package typecache
+
+type Coin struct {
+	Denom  string
+	Amount int64
+}
+
+type Item struct {
+	Coin Coin
+	Name string
+	Tags []string
+}
+
+var current = &Item{
+	Coin: Coin{Denom: "ugnot", Amount: 100},
+	Name: "init",
+	Tags: []string{"a", "b", "c"},
+}
+
+func SaveItem(cur realm) string {
+	current.Name = "same-every-time"
+	return current.Name
+}
