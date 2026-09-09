@@ -204,16 +204,8 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 // keeps the two preimage spaces apart. Both halves of the ID must be stamped:
 // an object that was never persisted has no address.
 func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {
-	if objectID.IsZero() {
-		panic("objectID cannot be zero")
-	}
-
-	if objectID.PkgID.IsZero() {
-		panic("pkgID cannot be zero")
-	}
-
-	if objectID.NewTime == 0 {
-		panic("newTime cannot be zero")
+	if objectID.PkgID.IsZero() || objectID.NewTime == 0 {
+		panic("objectID is not fully stamped: " + objectID.String())
 	}
 
 	return crypto.AddressFromPreimage([]byte("objectid:" + objectID.PkgID.String() + ":" + strconv.FormatUint(objectID.NewTime, 10)))
