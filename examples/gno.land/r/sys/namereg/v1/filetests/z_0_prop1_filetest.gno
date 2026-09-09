@@ -83,12 +83,9 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Execution
 //
-//
-// Executor created in: `gno.land/r/sys/namereg/v1`
-//
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //
@@ -112,12 +109,9 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Execution
 //
-//
-// Executor created in: `gno.land/r/sys/namereg/v1`
-//
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //
@@ -141,12 +135,9 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Execution
 //
-//
-// Executor created in: `gno.land/r/sys/namereg/v1`
-//
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //

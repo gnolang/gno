@@ -222,21 +222,12 @@ func StringifyProposal(p *dao.Proposal) string {
 ### Proposed by: %s
 
 %s
+
 `, p.Title(), p.Author(), p.Description())
 
-	if p.ExecutorString() != "" {
-		out += ufmt.Sprintf(`
-This proposal contains the following metadata:
-
-%s
-`, p.ExecutorString())
-	}
-
-	// Disclosed independently of the metadata string, and escaped, for the
-	// same reasons as render.renderProposalPage.
-	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
-		out += ufmt.Sprintf("\nExecutor created in: %s\n", cr)
-	}
+	// The same section the proposal page renders, so a realm printing a
+	// proposal as text names the executor the way gnoweb does.
+	out += renderExecution(p)
 
 	return out
 }

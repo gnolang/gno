@@ -85,12 +85,13 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Description
+//
 // delete user test
 //
-// Executor created in: `gno.land/r/sys/namereg/v1`
+// ### Execution
 //
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //
@@ -114,12 +115,13 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Description
+//
 // delete user test
 //
-// Executor created in: `gno.land/r/sys/namereg/v1`
+// ### Execution
 //
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //
@@ -143,12 +145,13 @@ func main(cur realm) {
 // ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
+// ### Description
+//
 // delete user test
 //
-// Executor created in: `gno.land/r/sys/namereg/v1`
+// ### Execution
 //
-//
-//
+// Executor created in: [`gno.land/r/sys/namereg/v1`](/r/sys/namereg/v1$source)
 //
 // ---
 //

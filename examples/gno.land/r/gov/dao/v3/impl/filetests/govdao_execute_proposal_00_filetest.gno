@@ -58,12 +58,13 @@ func main(cur realm) {
 // ## Prop #0 - Test
 // Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
+// ### Description
+//
 // This proposal always fails on execution
 //
-// Executor created in: `gno.land/r/test/govdao`
+// ### Execution
 //
-//
-//
+// Executor created in: [`gno.land/r/test/govdao`](/r/test/govdao$source)
 //
 // ---
 //

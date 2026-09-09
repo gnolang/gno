@@ -7,6 +7,7 @@ package disclosure
 // live here instead.
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -96,6 +97,16 @@ func (e *wsExecutor) String() string { return "" }
 
 func (e *wsExecutor) CreationRealm() string { return strings.Repeat(" ", 20000) }
 
+// pathExecutor reports whatever creation realm it is handed, so one type covers
+// every shape the source link must refuse to build.
+type pathExecutor struct{ path string }
+
+func (e *pathExecutor) Execute(cur realm) error { return nil }
+
+func (e *pathExecutor) String() string { return "" }
+
+func (e *pathExecutor) CreationRealm() string { return e.path }
+
 func main(cur realm) {
 	testing.SetOriginCaller(user)
 
@@ -113,9 +124,15 @@ func main(cur realm) {
 	out := dao.Render(cross(cur), pid.String())
 
 	println("empty-description proposal discloses creation realm:",
-		strings.Contains(out, "Executor created in: `gno.land/r/template/silent`"))
-	println("and prints no empty metadata block:",
-		!strings.Contains(out, "This proposal contains the following metadata"))
+		strings.Contains(out, "Executor created in: [`gno.land/r/template/silent`](/r/template/silent$source)"))
+	// The executor's own account of the proposal sits under its own heading,
+	// away from the description the proposer wrote. An executor with nothing to
+	// say leaves the section holding the realm alone, with no empty paragraph
+	// between it and the tally.
+	println("and the section holds the realm alone:",
+		strings.Contains(out, "### Execution\n\nExecutor created in: [`gno.land/r/template/silent`](/r/template/silent$source)\n\n---"))
+	println("and the description keeps its own section:",
+		strings.Contains(out, "### Description\n\nA proposal whose executor has no description\n\n### Execution"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -141,6 +158,9 @@ func main(cur realm) {
 	// need to pad the fence.)
 	println("hostile value is confined to one code-span line:",
 		strings.Contains(hout, "Executor created in: `gno.land/r/sys/params  ### Stats"))
+	// It opens with a real realm path and is not one: the value carries the rest
+	// of the payload, so the grammar check rejects it and no link is built.
+	println("and carries no link:", !strings.Contains(hout, "$source"))
 
 	// 3. The upgrade proposal rewrites AllowedDAOs — the sole authorization for
 	// replacing the implementation, mutating the member store and moving
@@ -224,6 +244,40 @@ func main(cur realm) {
 	println("a huge whitespace creation realm is clamped before trimming:",
 		strings.Contains(wout2, "Executor created in: `… truncated`"))
 
+	// 4e. A pure package is linked too: an executor created in one reports that
+	// path, and gnoweb serves its source the same way.
+	ppid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Pure", "A proposal whose executor was created in a pure package",
+		&pathExecutor{path: "gno.land/p/nt/ufmt/v0"}))
+	println("a pure package links to its source too:",
+		strings.Contains(dao.Render(cross(cur), strconv.FormatInt(int64(ppid), 10)),
+			"Executor created in: [`gno.land/p/nt/ufmt/v0`](/p/nt/ufmt/v0$source)"))
+
+	// 4f. The link is built only for a value that parses as a package path this
+	// chain serves, so a proposal cannot aim it. Everything else keeps the code
+	// span it has always rendered as.
+	for _, path := range []string{
+		"example.com/r/foo", // another chain
+		"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", // an ephemeral realm, which has no source page
+		"gno.land/r/Evil",                     // uppercase, which no deployed path holds
+		"gno.land/r/a--b",                     // two separators in a row
+		"gno.land/r/",                         // nothing after the letter
+		"gno.land/r/x)](javascript:alert(1))", // a destination of the executor's choosing
+	} {
+		lpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+			"Path", "A proposal whose creation realm is not a package path", &pathExecutor{path: path}))
+		// Decimal, not ProposalID.String(): the router parses the page's own
+		// links, and a seqid past 9 carries letters that ParseInt rejects.
+		lout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
+
+		// No link, and the value still inside the code span it opens: the last
+		// case writes a link destination of its own, which stays literal text
+		// between the fences rather than becoming the page's link.
+		println("unlinked, and confined to its code span:", path,
+			!strings.Contains(lout, "$source") &&
+				strings.Contains(lout, "Executor created in: `"+path+"`"))
+	}
+
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
 	// proposals renderable but statusless. renderProposalPage took a
@@ -238,12 +292,14 @@ func main(cur realm) {
 
 // Output:
 // empty-description proposal discloses creation realm: true
-// and prints no empty metadata block: true
+// and the section holds the realm alone: true
+// and the description keeps its own section: true
 // only the genuine Stats heading exists: true
 // no forged acceptance line: true
 // no forged tally line: true
 // genuine tally and status still render: true
 // hostile value is confined to one code-span line: true
+// and carries no link: true
 // upgrade proposal states the grant: true
 // upgrade proposal names the granted realm: true
 // fence widened to contain the backtick: true
@@ -255,4 +311,11 @@ func main(cur realm) {
 // fence outscans the payload's backtick run: true
 // no bold text escapes the code span: true
 // a huge whitespace creation realm is clamped before trimming: true
+// a pure package links to its source too: true
+// unlinked, and confined to its code span: example.com/r/foo true
+// unlinked, and confined to its code span: gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run true
+// unlinked, and confined to its code span: gno.land/r/Evil true
+// unlinked, and confined to its code span: gno.land/r/a--b true
+// unlinked, and confined to its code span: gno.land/r/ true
+// unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
 // a proposal orphaned by an upgrade renders instead of panicking: true

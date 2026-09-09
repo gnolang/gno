@@ -55,7 +55,7 @@ const (
 // from the string they are handed — InlineCode picks a fence long enough to
 // outscan the backticks it can see. Cutting a value that has already been
 // escaped can slice the closing fence off and leave the span hanging open,
-// which is worse than not clamping at all. Both call sites read
+// which is worse than not clamping at all. renderCreationRealm reads
 // InlineCode(clampField(...)) for that reason, and the enormous-value case in
 // filetests/executor_disclosure_filetest.gno fails if the two are swapped.
 //

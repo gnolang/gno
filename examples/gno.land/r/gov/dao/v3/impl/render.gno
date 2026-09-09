@@ -121,38 +121,19 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
-	out += p.Description()
-	out += "\n\n"
-
-	// Add executor metadata if available
-	if p.ExecutorString() != "" {
-		out += ufmt.Sprintf(`This proposal contains the following metadata:
-
-%s
-
-`, p.ExecutorString())
-	}
-
-	// Disclosed independently of the description: this names the realm whose
-	// code runs if the proposal passes. Sharing the gate above hid it for every
-	// proposal built with an empty executor description — 16 call sites across
-	// 7 production realms, nearly all r/sys/* governance actions.
-	//
-	// Escaped, not trusted: CreationRealm() is dispatched through the public
-	// dao.Executor interface, so only SimpleExecutor's value is VM-captured;
-	// a third-party executor returns any string it likes.
-	// Guarded on the sanitized value, not the raw one: InlineCode returns ""
-	// for input that strips to nothing (bidi/zero-width only), and TrimSpace
-	// catches plain whitespace, so neither prints a label with nothing after
-	// it. This is tidiness, not a boundary: a zero-width/space mixture still
-	// renders an empty-looking span, and a hostile executor can always return
-	// a plausible-looking lie. The security property is the escaping below.
-	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
-		out += ufmt.Sprintf("Executor created in: %s\n", cr)
+	// The proposer writes this one and the executor writes the section below.
+	// Heading them apart is the point: they used to run together as
+	// consecutive paragraphs, so nothing told a voter which of the two came
+	// from the code that will actually run.
+	if desc := p.Description(); desc != "" {
+		out += "### Description\n\n"
+		out += desc
 		out += "\n\n"
 	}
 
-	out += "\n\n---\n\n"
+	out += renderExecution(p)
+
+	out += "---\n\n"
 	out += ps.String(0, rlm)
 	out += "\n"
 	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
@@ -161,6 +142,128 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
 	return out
+}
+
+// renderExecution returns the proposal's execution section: the realm the
+// executor was created in, and the executor's own description of what it does.
+// Both are written by the executor rather than by the proposer, which is why
+// they sit under one heading of their own.
+//
+// A proposal carrying neither renders nothing, as it did before the section
+// existed.
+func renderExecution(p *dao.Proposal) string {
+	// Independent gates: the realm names the code that runs if the proposal
+	// passes, and sharing the description's gate once hid it for every proposal
+	// built with an empty executor description: 16 call sites across 7
+	// production realms, nearly all r/sys/* governance actions.
+	creationRealm := renderCreationRealm(p.ExecutorCreationRealm())
+	description := p.ExecutorString()
+	if creationRealm == "" && description == "" {
+		return ""
+	}
+
+	out := "### Execution\n\n"
+	if creationRealm != "" {
+		out += "Executor created in: " + creationRealm + "\n\n"
+	}
+	if description != "" {
+		out += description + "\n\n"
+	}
+
+	return out
+}
+
+// renderCreationRealm renders the realm an executor reports it was created in: the
+// escaped code span this value has always rendered as, linked to that realm's
+// source when the value is a package path this chain could hold. Returns "" for
+// a value carrying nothing to show.
+//
+// Escaped, not trusted: CreationRealm() is dispatched through the public
+// dao.Executor interface, so only SimpleExecutor's value is VM-captured; a
+// third-party executor returns any string it likes. Guarded on the sanitized
+// value, not the raw one: InlineCode returns "" for input that strips to
+// nothing (bidi/zero-width only), and TrimSpace catches plain whitespace, so
+// neither prints a label with nothing after it. This is tidiness, not a
+// boundary: a zero-width/space mixture still renders an empty-looking span, and
+// a hostile executor can always return a plausible-looking lie. The security
+// property is the escaping.
+//
+// The link adds no trust to that value and is not a claim the realm is the one
+// whose code runs. It is reachability: the path was already on the page, and a
+// voter had to retype it to read the code behind the proposal they are voting
+// on.
+func renderCreationRealm(creationRealm string) string {
+	// Clamp before escaping, per clamp.gno: an escaped value cut afterwards can
+	// lose its closing fence.
+	pkgPath := strings.TrimSpace(clampField(creationRealm, maxRenderedRealm))
+	code := sanitize.InlineCode(pkgPath)
+	if code == "" {
+		return ""
+	}
+
+	source, ok := realmSourcePath(pkgPath)
+	if !ok {
+		return code
+	}
+
+	// The link text is that same escaped code span, and the destination is
+	// built from the value realmSourcePath just accepted, which holds no
+	// backtick to close the span, no bracket to close the label, and no
+	// parenthesis or colon to reach the destination.
+	return "[" + code + "](" + source + ")"
+}
+
+// realmSourcePath maps a package path served by this chain to the gnoweb path
+// of its source, reporting false for anything else. A path with no source page
+// behind it is left unlinked rather than pointed at a 404: /e/ run paths, other
+// domains, and anything the package-path grammar rejects.
+func realmSourcePath(pkgPath string) (string, bool) {
+	rel, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
+	if !found {
+		return "", false
+	}
+
+	// "/r/gov/dao/v3/impl": the letter directory, then one or more segments.
+	if len(rel) < len("/r/x") || rel[0] != '/' || rel[2] != '/' ||
+		(rel[1] != 'r' && rel[1] != 'p') {
+		return "", false
+	}
+	for _, segment := range strings.Split(rel[3:], "/") {
+		if !isPkgPathSegment(segment) {
+			return "", false
+		}
+	}
+
+	// The overview page, which is $source with no file selected.
+	return rel + "$source", true
+}
+
+// isPkgPathSegment reports whether s is one segment of a package path, by the
+// grammar the VM enforces on every deployed path (Re_name in
+// gnovm/pkg/gnolang/mempackage.go): a leading letter, an alphanumeric body, and
+// single "_" or "-" separators between alphanumerics, never consecutive and
+// never at either end.
+func isPkgPathSegment(s string) bool {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
+		return false
+	}
+
+	separator := false
+	for i := 1; i < len(s); i++ {
+		switch c := s[i]; {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+			separator = false
+		case c == '_' || c == '-':
+			if separator {
+				return false
+			}
+			separator = true
+		default:
+			return false
+		}
+	}
+
+	return !separator
 }
 
 func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovDAO) string {

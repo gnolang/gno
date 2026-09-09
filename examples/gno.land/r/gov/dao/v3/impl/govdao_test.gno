@@ -167,8 +167,10 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	individualRendered := dao.Render(cross(cur), pid.String())
 	// Rendered as a code span: CreationRealm() is interface-dispatched and so
 	// third-party controlled, and InlineCode neutralizes it while reading
-	// naturally for a realm path.
-	urequire.Equal(t, true, contains(individualRendered, "Executor created in: `gno.land/r/template/contract`"))
+	// naturally for a realm path. The span is the text of a link to that
+	// realm's source, because this value parses as a package path.
+	urequire.Equal(t, true, contains(individualRendered,
+		"Executor created in: [`gno.land/r/template/contract`](/r/template/contract$source)"))
 	urequire.Equal(t, true, contains(individualRendered, "Test executor from template"))
 
 	// Also verify the main content is there

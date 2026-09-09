@@ -106,11 +106,12 @@ func main(cur realm) {
 //
 // This is a test proposal description to verify StringifyProposal works correctly.
 //
-// This proposal contains the following metadata:
+// ### Execution
+//
+// Executor created in: [`gno.land/r/template/contract`](/r/template/contract$source)
 //
 // Test executor description
 //
-// Executor created in: `gno.land/r/template/contract`
 //
 // stringify widens the fence too: true
 // and no bold escapes it: true
