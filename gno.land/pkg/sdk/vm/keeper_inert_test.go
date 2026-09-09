@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // TestVMKeeperInertPackageLifecycle exercises the full "oracle activation"
@@ -242,4 +245,226 @@ func Set(cur realm, s string) { Greeting = s }`},
 		// store at this point. The returned error is the part this change
 		// controls; the rollback is pre-existing machinery tested elsewhere.
 	})
+}
+
+// TestVMKeeperEnablePackage_TypeExpansionGasCharged pins that the type-expansion
+// walk is priced on the ENABLE path, not just on AddPackage.
+//
+// This is the one that matters under the inert policy: AddPackage deliberately does
+// not type-check there ("the work is deferred, not avoided"), so MsgEnablePackage is
+// the message that actually walks the submitted bytes. An unmetered walk here is the
+// same consensus DoS the charge exists to stop, reached by a different message.
+//
+// The wiring has now slipped twice — once on AddPackage during development, and once
+// here, where EnablePackage assembled TypeCheckOptions by hand and omitted the meter
+// because it predated txTypeCheckOptions. Both times every other suite still passed.
+// This test and its AddPackage twin are the only things that notice.
+//
+// Same discriminator as the AddPackage twin: two chains with equal declaration
+// counts and equal source LENGTH, one through value containment ([0]tN, which
+// validType expands) and one through a pointer (*tN, which it does not). Holding
+// bytes equal keeps PreprocessGasPerByte from carrying the assertion.
+func TestVMKeeperEnablePackage_TypeExpansionGasCharged(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	submitter := crypto.AddressFromPreimage([]byte("submitter"))
+	for _, addr := range []crypto.Address{approver, submitter} {
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+	}
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+
+	src := func(pkgName, elem string) string {
+		var b strings.Builder
+		fmt.Fprintf(&b, "package %s\n\ntype t0 struct{ v int }\n", pkgName)
+		for i := 1; i <= 10; i++ {
+			fmt.Fprintf(&b, "type t%d struct{ a, b %st%d }\n", i, elem, i-1)
+		}
+		return b.String()
+	}
+	// Pad the pointer variant so both weigh the same in source bytes.
+	pad := func(body string, to int) string {
+		if d := to - len(body); d > 0 {
+			return body + "\n//" + strings.Repeat("x", d-3)
+		}
+		return body
+	}
+
+	// enable submits a package inert, then measures ONLY the gas the enable
+	// message consumes — which is where the walk happens under this policy.
+	enable := func(name, elem string) int64 {
+		t.Helper()
+		pkgPath := "gno.land/r/test/" + name
+		width := len(src(name, "[0]"))
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: name + ".gno", Body: pad(src(name, elem), width)},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(submitter, pkgPath, files)))
+
+		parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+		require.NotNil(t, parked, "package must be parked before enabling")
+
+		gm := types.NewInfiniteGasMeter()
+		ectx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.EnablePackage(ectx, MsgEnablePackage{
+			Approver: approver, PkgPath: pkgPath,
+			PkgHash: PackageContentHash(parked),
+		}))
+		return gm.GasConsumed()
+	}
+
+	ptrGas := enable("ptrchain", "*")
+	valGas := enable("valchain", "[0]")
+
+	t.Logf("enable: pointer %d gas, value %d gas, delta %d", ptrGas, valGas, valGas-ptrGas)
+	require.Greater(t, valGas, ptrGas+ptrGas/4,
+		"value containment (%d gas) must cost materially more to ENABLE than the "+
+			"same-length source through pointers (%d gas); bytes are equal, so if "+
+			"these match the expansion charge is not reaching EnablePackage",
+		valGas, ptrGas)
+}
+
+// TestVMKeeperEnablePackage_TypeExpansionGasAccumulatesPerTx pins that the walk
+// accumulates across MsgEnablePackage messages in one transaction.
+//
+// This is the cheapest form of the vector, and the one the approval oracle
+// structurally cannot see. gpao verifies one PACKAGE at a time against a budget
+// (-verify-budget, 10s by default); it has no notion of a transaction, so N
+// packages that each pass honestly can be enabled together and cost N times as
+// much. A per-package bound — the oracle's budget, or the per-package ceiling this
+// change removed — is blind to composition by construction.
+//
+// Enable is cheaper than AddPackage for this because it charges NO byte gas:
+// chargePreprocessGas runs at inert submit, at normal AddPackage and at Run, but
+// never here ("EnablePackage deliberately does not charge it a second time"). The
+// source bytes were paid for by an earlier transaction, so without the expansion
+// charge the only gas an enable pays is store traffic — a ~100-byte message
+// triggering an unbounded walk.
+//
+// The two shapes are byte-EQUAL (the pointer variant is padded with a comment) and
+// carry the same declaration count, differing only in [0]tN versus *tN. That is
+// what makes the expansion charge the discriminator: a first version of this test
+// sized the budget from a measured single enable, which scales with whatever that
+// enable costs, so it passed with the meter removed — proving only that SOMETHING
+// accumulates. Verified against a reverted wiring: this version fails, that one did
+// not.
+func TestVMKeeperEnablePackage_TypeExpansionGasAccumulatesPerTx(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	submitter := crypto.AddressFromPreimage([]byte("submitter"))
+	for _, addr := range []crypto.Address{approver, submitter} {
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		env.acck.SetAccount(ctx, acc)
+		env.bankk.SetCoins(ctx, addr, initialBalance)
+	}
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	env.vmk.SetParams(ctx, params)
+
+	const msgs = 4
+
+	src := func(pkgName, elem string) string {
+		var b strings.Builder
+		fmt.Fprintf(&b, "package %s\n\ntype t0 struct{ v int }\n", pkgName)
+		for i := 1; i <= 10; i++ {
+			fmt.Fprintf(&b, "type t%d struct{ a, b %st%d }\n", i, elem, i-1)
+		}
+		return b.String()
+	}
+	pad := func(body string, to int) string {
+		if d := to - len(body); d > 0 {
+			return body + "\n//" + strings.Repeat("x", d-3)
+		}
+		return body
+	}
+
+	type parked struct{ path, hash string }
+	// park submits a package inert. Names start with "pkg" so the .gno file sorts
+	// after gnomod.toml; a MemPackage with unsorted files is rejected outright.
+	park := func(ns, elem string, n int) parked {
+		t.Helper()
+		name := fmt.Sprintf("pkg%s%d", ns, n)
+		path := "gno.land/r/test/" + name
+		width := len(src(name, "[0]"))
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(submitter, path, []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: name + ".gno", Body: pad(src(name, elem), width)},
+		})))
+		mp := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(path)
+		require.NotNil(t, mp)
+		return parked{path: path, hash: PackageContentHash(mp)}
+	}
+	parkSet := func(ns, elem string) []parked {
+		out := make([]parked, 0, msgs)
+		for n := 1; n <= msgs; n++ {
+			out = append(out, park(ns, elem, n))
+		}
+		return out
+	}
+
+	// enableAll runs every enable through ONE ctx and ONE finite meter, which is
+	// what baseapp does for a multi-message tx.
+	enableAll := func(set []parked, limit int64) (delivered int, err error) {
+		gm := types.NewGasMeter(limit)
+		ectx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("%v", r)
+			}
+		}()
+		for _, p := range set {
+			if e := env.vmk.EnablePackage(ectx, MsgEnablePackage{
+				Approver: approver, PkgPath: p.path, PkgHash: p.hash,
+			}); e != nil {
+				return delivered, e
+			}
+			delivered++
+		}
+		return delivered, nil
+	}
+	costOne := func(p parked) int64 {
+		gm := types.NewInfiniteGasMeter()
+		ectx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(gm))
+		require.NoError(t, env.vmk.EnablePackage(ectx, MsgEnablePackage{
+			Approver: approver, PkgPath: p.path, PkgHash: p.hash,
+		}))
+		return gm.GasConsumed()
+	}
+
+	ptrOne := costOne(park("probeptr", "*", 0))
+	valOne := costOne(park("probeval", "[0]", 0))
+	require.Greater(t, valOne, ptrOne+ptrOne/4,
+		"value containment (%d gas) must cost materially more to enable than the "+
+			"same-length source through pointers (%d gas); bytes are equal, so if "+
+			"these match the expansion charge is not reaching EnablePackage",
+		valOne, ptrOne)
+
+	// A budget covering every pointer enable, and a single value enable with room
+	// to spare, but not all of them. The gap is expansion gas.
+	budget := int64(msgs)*ptrOne + (int64(msgs)*(valOne-ptrOne))/2
+	t.Logf("enable: pointer %d gas, value %d gas each; budget %d for %d messages",
+		ptrOne, valOne, budget, msgs)
+	require.Greater(t, budget, valOne, "each single enable must fit the budget")
+
+	got, err := enableAll(parkSet("txptr", "*"), budget)
+	require.NoError(t, err)
+	assert.Equal(t, msgs, got, "pointer chains must all fit a %d budget", budget)
+
+	got, err = enableAll(parkSet("txval", "[0]"), budget)
+	require.Error(t, err,
+		"%d value-containment enables shared a %d budget and all succeeded; the "+
+			"expansion charge is not accumulating across messages", msgs, budget)
+	assert.Contains(t, err.Error(), "out of gas")
+	assert.Less(t, got, msgs, "the tx must abort partway, not after every message")
+	t.Logf("value chains: %d/%d enables delivered before out of gas", got, msgs)
 }

@@ -332,6 +332,18 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
 	}
 
+	// TODO(#6059): reject go1.18 generics syntax in this traversal. The switch
+	// below never reads TypeSpec/FuncType.TypeParams, so a type parameter list is
+	// silently dropped, and a bare interface type-set term becomes a nameless
+	// method — both change semantics rather than erroring.
+	//
+	// checkNoUncountableGenerics (typecheck_cost.go) is not the gate: it runs
+	// only on the type-check path, and only as a cost guard for the shapes cost()
+	// cannot count. Paths that never invoke go/types (gno run, the REPL, direct
+	// ParseFile consumers) arrive here with generics intact, and bare type-set
+	// terms arrive here even on the type-check path, because the expansion cost model
+	// counts them rather than rejecting them. This traversal is the one funnel
+	// every consumer shares, so the rejection belongs here.
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)

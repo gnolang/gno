@@ -1,0 +1,66 @@
+# The type-expansion charge accumulates across MESSAGES, not just across a
+# dependency graph. Tx.Msgs is unbounded and ValidateBasic caps gas rather than the
+# message count, so N individually-affordable deploys in one transaction must be
+# able to exhaust that transaction's budget — which is why the charge goes to
+# ctx.GasMeter() and why nothing scoped to a single package could substitute.
+#
+# `maketx addpkg` only ever builds a single-msg tx, so the multi-msg half goes
+# through `gnokey sign` + `gnokey broadcast` on a hand-written tx, the same way
+# addpkg_multi_msg.txtar does.
+#
+# Both halves share ONE gas-wanted of 8,000,000, so the only variable is how many
+# messages share it. Measured:
+#
+#   3 depth-10 value chains in one tx : exceeds 8,000,000, aborts mid-tx
+#   1 identical package on its own    : 4,323,324 — comfortable
+#
+# This fixture does catch an unwired charge: with GasMeter removed from the keeper's
+# TypeCheckOptions the three messages cost 6,524,793 and the tx SUCCEEDS, failing
+# the assertion below. Keep the budget between those two figures if you retune it.
+#
+# TestVMKeeperAddPackage_TypeExpansionGasAccumulatesPerTx covers the same property
+# in-process, where source bytes can be held exactly equal so the expansion charge
+# is provably the only difference; this one covers the real path — ante handler,
+# GasWanted, one basicGasMeter across msgs.
+
+gnoland start
+
+# three messages, one budget: the accumulated expansion charge exhausts it
+gnokey sign -tx-path $WORK/multi.tx -chainid=tendermint_test -account-number $test1_account_num -account-sequence $test1_account_seq test1
+stdout 'Tx successfully signed'
+! gnokey broadcast $WORK/multi.tx -quiet=false
+stderr 'out of gas'
+
+# the same package alone fits the same budget, so it is the accumulation that
+# failed above, not the package. maketx looks up its own sequence, so it does not
+# care that the tx above consumed one.
+gnokey maketx addpkg -pkgdir $WORK/solo -pkgpath gno.land/r/foobar/solo -gas-fee 750001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test $test1_user_addr
+
+-- multi.tx --
+{
+  "msg": [
+    {"@type": "/vm.m_addpkg", "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "package": {"name": "acc1", "path": "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/acc1", "files": [{"name": "acc1.gno", "body": "package acc1\n\ntype t0 struct{ v int }\ntype t1 struct{ a, b [0]t0 }\ntype t2 struct{ a, b [0]t1 }\ntype t3 struct{ a, b [0]t2 }\ntype t4 struct{ a, b [0]t3 }\ntype t5 struct{ a, b [0]t4 }\ntype t6 struct{ a, b [0]t5 }\ntype t7 struct{ a, b [0]t6 }\ntype t8 struct{ a, b [0]t7 }\ntype t9 struct{ a, b [0]t8 }\ntype t10 struct{ a, b [0]t9 }\n"}, {"name": "gnomod.toml", "body": "module = \"acc1\"\ngno = \"0.9\"\n"}]}},
+    {"@type": "/vm.m_addpkg", "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "package": {"name": "acc2", "path": "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/acc2", "files": [{"name": "acc2.gno", "body": "package acc2\n\ntype t0 struct{ v int }\ntype t1 struct{ a, b [0]t0 }\ntype t2 struct{ a, b [0]t1 }\ntype t3 struct{ a, b [0]t2 }\ntype t4 struct{ a, b [0]t3 }\ntype t5 struct{ a, b [0]t4 }\ntype t6 struct{ a, b [0]t5 }\ntype t7 struct{ a, b [0]t6 }\ntype t8 struct{ a, b [0]t7 }\ntype t9 struct{ a, b [0]t8 }\ntype t10 struct{ a, b [0]t9 }\n"}, {"name": "gnomod.toml", "body": "module = \"acc2\"\ngno = \"0.9\"\n"}]}},
+    {"@type": "/vm.m_addpkg", "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "package": {"name": "acc3", "path": "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/acc3", "files": [{"name": "acc3.gno", "body": "package acc3\n\ntype t0 struct{ v int }\ntype t1 struct{ a, b [0]t0 }\ntype t2 struct{ a, b [0]t1 }\ntype t3 struct{ a, b [0]t2 }\ntype t4 struct{ a, b [0]t3 }\ntype t5 struct{ a, b [0]t4 }\ntype t6 struct{ a, b [0]t5 }\ntype t7 struct{ a, b [0]t6 }\ntype t8 struct{ a, b [0]t7 }\ntype t9 struct{ a, b [0]t8 }\ntype t10 struct{ a, b [0]t9 }\n"}, {"name": "gnomod.toml", "body": "module = \"acc3\"\ngno = \"0.9\"\n"}]}}
+  ],
+  "fee": {"gas_wanted": "8000000", "gas_fee": "750001ugnot"}
+}
+
+-- solo/gnomod.toml --
+module = "gno.land/r/foobar/solo"
+gno = "0.9"
+
+-- solo/solo.gno --
+package solo
+
+type t0 struct{ v int }
+type t1 struct{ a, b [0]t0 }
+type t2 struct{ a, b [0]t1 }
+type t3 struct{ a, b [0]t2 }
+type t4 struct{ a, b [0]t3 }
+type t5 struct{ a, b [0]t4 }
+type t6 struct{ a, b [0]t5 }
+type t7 struct{ a, b [0]t6 }
+type t8 struct{ a, b [0]t7 }
+type t9 struct{ a, b [0]t8 }
+type t10 struct{ a, b [0]t9 }

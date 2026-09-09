@@ -241,17 +241,12 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	if err := vm.checkCLASignature(ctx, params, creator); err != nil {
 		return err
 	}
-	// Typecheck the stored package.
-	opts := gno.TypeCheckOptions{
-		Getter: gnostore,
-		// No TestGetter, and ProdOnly: mirrors AddPackage. GetMemPackage
-		// returns the production blob only, and resolving test-stdlib imports
-		// would make this consensus path depend on node-local state. #5888
-		// predates that change on master and passed a test getter here.
-		ProdOnly: true,
-		Mode:     gno.TCLatestStrict,
-		Cache:    vm.getTypeCheckCache(ctx),
-	}
+	// Typecheck the stored package. Through txTypeCheckOptions, which mirrors
+	// AddPackage — including the GasMeter that prices the go/types validType walk.
+	// That matters most here: under the inert policy AddPackage deliberately does
+	// not type-check, so THIS is the message that walks the submitted bytes, and an
+	// unmetered walk here is the same consensus DoS the charge exists to stop.
+	opts := vm.txTypeCheckOptions(ctx, gnostore, gno.TCLatestStrict)
 	if _, err = gno.TypeCheckMemPackage(memPkg, opts); err != nil {
 		return ErrTypeCheck(err)
 	}
