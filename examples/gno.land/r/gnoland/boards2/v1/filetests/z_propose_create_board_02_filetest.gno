@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_propose_create_board_02_filetest
 
-// The failure for ProposeCreateBoard and GovDAO approval where the
+// Test the failure for ProposeCreateBoard and GovDAO approval where the
 // board name is taken between proposal creation and execution.
 
 package z_propose_create_board_02_filetest

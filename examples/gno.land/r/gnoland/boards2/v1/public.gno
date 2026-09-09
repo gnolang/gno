@@ -15,6 +15,7 @@ import (
 var (
 	errRealmLocked     = errors.New("realm is locked")
 	errBoardNameExists = errors.New("board already exists")
+	errBoardNotFound   = errors.New("board not found")
 )
 
 const (
@@ -67,6 +68,8 @@ func SetRequiredAccountAmount(cur realm, amount int64) {
 }
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
+// A boardID of zero updates the realm permissions. The permissions completely
+// replace the current ones, so p must include the members that should survive the change.
 func SetPermissions(cur realm, boardID boards.ID, p boards.Permissions) {
 	assertRealmIsNotLocked()
 	assertBoardExists(boardID)
@@ -78,29 +81,44 @@ func SetPermissions(cur realm, boardID boards.ID, p boards.Permissions) {
 	caller := cur.Previous().Address()
 	args := boards.Args{boardID}
 	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func() {
-		assertRealmIsNotLocked()
-
-		// When board ID is zero it means that realm permissions are being updated
-		if boardID == 0 {
-			gPerms = p
-
-			chain.Emit(
-				"RealmPermissionsChanged",
-				"caller", caller.String(),
-			)
-			return
+		if err := setPermissions(boardID, caller, p); err != nil {
+			panic(err.Error())
 		}
+	})
+}
 
-		// Otherwise update the permissions of a single board
-		board := mustGetBoard(boardID)
-		board.Permissions = p
+// setPermissions re-checks the preconditions that can change between validation
+// and assignment, then assigns the permissions. This returns an error instead of
+// panicking so that it can be used in ProposeSetPermissions.
+func setPermissions(boardID boards.ID, caller address, p boards.Permissions) error {
+	if IsRealmLocked() {
+		return errRealmLocked
+	}
+
+	// When board ID is zero it means that realm permissions are being updated
+	if boardID == 0 {
+		gPerms = p
 
 		chain.Emit(
-			"BoardPermissionsChanged",
+			"RealmPermissionsChanged",
 			"caller", caller.String(),
-			"boardID", board.ID.String(),
 		)
-	})
+		return nil
+	}
+
+	// Otherwise update the permissions of a single board
+	board, found := gBoards.Get(boardID)
+	if !found {
+		return errBoardNotFound
+	}
+	board.Permissions = p
+
+	chain.Emit(
+		"BoardPermissionsChanged",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+	)
+	return nil
 }
 
 // SetRealmNotice sets a notice to be displayed globally within the realm.
