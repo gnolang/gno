@@ -23,7 +23,7 @@ import (
 )
 
 func Forward(cur realm, amount int64) {
-	if !cur.IsCurrent() || !cur.Previous().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("direct user call required")
 	}
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
