@@ -74,7 +74,12 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 		t.Fatal("timeout waiting for node to produce first block")
 	}
 
-	height := n.BlockStore().Height()
-	require.Equal(t, initialHeight, height,
-		"first committed block should be at InitialHeight (%d), got %d", initialHeight, height)
+	// The node keeps producing blocks once Ready() fires, so Height() is a moving
+	// target: read it a commit late and it is 101. Assert on what the store holds.
+	bs := n.BlockStore()
+	require.NotNil(t, bs.LoadBlockMeta(initialHeight),
+		"no block committed at InitialHeight (%d)", initialHeight)
+	require.Nil(t, bs.LoadBlockMeta(initialHeight-1),
+		"committed a block below InitialHeight (%d)", initialHeight)
+	require.Nil(t, bs.LoadBlockMeta(1), "chain started at height 1")
 }
