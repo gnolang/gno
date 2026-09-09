@@ -1,0 +1,8 @@
+# Pipeline working dir.
+/work/
+
+# Final genesis (moved here from work/ on success).
+/genesis.json
+
+# Cached independence-day allocation sheet (downloaded, sha256-verified).
+/allocation_balances.txt.gz

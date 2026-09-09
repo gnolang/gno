@@ -1,0 +1,10 @@
+{
+  "reason": "mainnet bootstrap MsgRun: seeds the seven GovDAO T1 members (gnolang/multisigs [govdao] section; aeddi's operational key overrides accounts.csv) and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/v3/impl. TODO(mainnet): transfer-restriction policy undecided \u2014 no lock is applied here yet.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "govdao_prop1_mainnet.gno"
+}
