@@ -1927,9 +1927,11 @@ func makeUverseNode() {
 // StructType.pkgID, Interface/StructType effective counts, StructType.comparable
 // (filled at runtime via isEql) — none of which is safe to fill from multiple
 // goroutines. Computing them here once makes the shared type graph immutable.
-// Per-store types are unaffected (each is preprocessed by a single goroutine).
-// DeclaredType.methodIndex is not pre-filled: it builds only past
-// methodIndexThreshold, which no uverse singleton reaches.
+//
+// Per-store types are affected too, which this comment used to deny: a
+// defaultStore's cacheNodes map is shared by every store forked from it, and
+// concurrent queries read those nodes. They are sealed on publication instead,
+// by seal.go, whose walk this shares. Only the roots differ.
 //
 // The set of shared types is everything reachable from the uverse block — both
 // the named types installed via def() (any, error, the primitives, address,
@@ -1937,89 +1939,23 @@ func makeUverseNode() {
 // types include shared interfaces like `any`) — plus a few roots not bound to a
 // name in the block (gConcreteRealmPtrType, gByteSliceType).
 func sealUverseTypes() {
-	seen := make(map[Type]bool)
-	var seal func(t Type)
-	seal = func(t Type) {
-		if t == nil || seen[t] {
-			return
-		}
-		seen[t] = true
-		switch ct := t.(type) {
-		case *PointerType:
-			ct.TypeID()
-			seal(ct.Elt)
-		case *SliceType:
-			ct.TypeID()
-			seal(ct.Elt)
-		case *ArrayType:
-			ct.TypeID()
-			seal(ct.Elt)
-		case *ChanType:
-			ct.TypeID()
-			seal(ct.Elt)
-		case *MapType:
-			ct.TypeID()
-			seal(ct.Key)
-			seal(ct.Value)
-		case *FuncType:
-			ct.TypeID()
-			if len(ct.Params) > 0 {
-				// Method lookups (findEmbeddedFieldType) return
-				// the bound type and TypeID it at runtime (VerifyImplementedBy),
-				// so seal the bound's own typeid too, not just create it.
-				ct.BoundType().TypeID()
-			}
-			for i := range ct.Params {
-				seal(ct.Params[i].Type)
-			}
-			for i := range ct.Results {
-				seal(ct.Results[i].Type)
-			}
-		case *StructType:
-			ct.TypeID()
-			ct.GetPkgID()
-			isComparable(ct) // fill the comparable tristate
-			effectiveStructSurface(ct, map[Type]struct{}{})
-			for i := range ct.Fields {
-				seal(ct.Fields[i].Type)
-			}
-		case *InterfaceType:
-			if ct.Generic != "" {
-				return // generic uverse type: no TypeID, never concurrently filled
-			}
-			ct.TypeID()
-			effectiveInterfaceMethods(ct, map[Type]struct{}{})
-			for i := range ct.Methods {
-				seal(ct.Methods[i].Type)
-			}
-		case *DeclaredType:
-			ct.TypeID()
-			ct.GetPkgID()
-			seal(ct.Base)
-			for i := range ct.Methods {
-				seal(ct.Methods[i].T)
-			}
-		default:
-			// PrimitiveType, PackageType, TypeType, etc.
-			ct.TypeID()
-		}
-	}
+	s := newSealer()
 	for _, t := range []Type{
 		gErrorType, gStringerType, gAddressType, gRealmType,
 		gConcreteRealmType, gConcreteRealmPtrType, gByteSliceType,
 		gPackageType, gTypeType,
 	} {
-		seal(t)
+		s.sealType(t)
 	}
 	// Walk everything reachable from the uverse block: named types installed
 	// via def() (TypeValue) and the native builtin signatures (*FuncValue),
-	// whose parameter/result types include shared interfaces such as `any`.
+	// whose parameter/result types include shared interfaces like `any`.
 	for i := range uverseNode.Values {
 		switch v := uverseNode.Values[i].V.(type) {
 		case TypeValue:
-			seal(v.Type)
+			s.sealType(v.Type)
 		case *FuncValue:
-			seal(v.GetType(nil))
+			s.sealType(v.GetType(nil))
 		}
 	}
 }
