@@ -76,12 +76,26 @@ func spinForever(path string) {
 	}
 }
 
+// closedRemote is a remote nothing listens on. Refused rather than filtered is
+// the load-bearing part: a dropped connection would hang for the RPC client's
+// 60s timeout instead of failing in under a millisecond.
+const closedRemote = "http://127.0.0.1:1"
+
 // newTestVerifier builds the verification half directly, without a signer or a
 // chain. The pure typecheck/preprocess tests use this; only the budget tests
 // need a real oracle and a real child process.
+//
+// A remote is required, so one is given -- closedRemote, so that a fixture
+// which grew a /p/ or /r/ import fails on a refused connection rather than
+// quietly resolving against the operator's examples/. Every fixture here
+// imports stdlibs only, the one kind that still comes from disk. The chain-only
+// tests supply a served chain instead (newRPCVerifier).
 func newTestVerifier(t *testing.T) *verifier {
 	t.Helper()
-	v, err := newVerifier(gnoenv.RootDir(), "", os.Stderr)
+	v, err := newVerifier(verifyOneConfig{
+		gnoRoot: gnoenv.RootDir(),
+		remote:  closedRemote,
+	}, os.Stderr)
 	require.NoError(t, err)
 	return v
 }
@@ -317,39 +331,46 @@ func TestOracleVerifyBudgetKillsTheChild(t *testing.T) {
 			"the work instead of killing it")
 }
 
-// TestVerifierWithoutRemoteDoesNotPanic pins a regression from the subprocess
-// refactor.
+// TestVerifierRequiresARemote: a verifier with no node cannot resolve a /p/ or
+// /r/ import at all, because disk is not consulted for those -- so it is
+// refused at construction rather than built to answer half the questions.
 //
-// newVerifier leaves rpc nil when no remote is configured, and two call sites
-// dereferenced it unconditionally — so a package importing anything the disk
-// store cannot supply crashed the verifier instead of being reported. A crash
-// is not a verdict: it surfaces as a non-zero exit and would be recorded as a
-// rejection of a package that may be perfectly fine.
+// Through newVerifier rather than through validate directly: the constructor is
+// what every caller reaches, and validating inside it is what makes the check
+// unskippable. It replaces a test that pinned the old degradation, in which rpc
+// was left nil and dereferencing it crashed the verifier. That nil is now
+// unreachable, and so is the mode underneath it: see the ADR's rejected
+// alternative.
+func TestVerifierRequiresARemote(t *testing.T) {
+	v, err := newVerifier(verifyOneConfig{
+		gnoRoot: gnoenv.RootDir(), // no remote
+	}, io.Discard)
+	require.Error(t, err, "a verifier with no chain to ask must not be built")
+	assert.Nil(t, v)
+	assert.Contains(t, err.Error(), "--remote is required",
+		"the reason reaches an operator, so it must name the flag")
+}
+
+// TestChildWithoutARemoteIsNotAVerdict pins the child's half of the contract:
+// being unable to configure itself says nothing about the package it was
+// handed, so it exits with the no-verdict status and not 1.
 //
-// The import below is deliberately a chain path that does not exist locally, so
-// it reaches the RPC fallback that is absent.
-func TestVerifierWithoutRemoteDoesNotPanic(t *testing.T) {
-	v, err := newVerifier(gnoenv.RootDir(), "" /* no remote */, io.Discard)
-	require.NoError(t, err)
+// Reached by emptying the remote after newOracle, because a daemon started that
+// way never gets here -- run() waits for a height and a block gas limit first,
+// and neither answers. That is what makes this worth pinning rather than
+// leaving to the daemon's own guards: the classification has to hold at the
+// boundary, where the only signal is an exit status, and exiting 1 would settle
+// a submitter's bytes on our own misconfiguration.
+func TestChildWithoutARemoteIsNotAVerdict(t *testing.T) {
+	o := newTestOracle(t)
+	o.cfg.remote = "" // forwarded to the child regardless, so it reaches the refusal
+	o.cfg.verifyBudget = time.Minute
 
-	const path = "gno.land/r/test/needsremote"
-	mpkg := &std.MemPackage{
-		Name: "needsremote",
-		Path: path,
-		Type: gno.MPUserAll,
-		Files: []*std.MemFile{
-			{Name: "a.gno", Body: "package needsremote\n\nimport \"gno.land/r/nobody/nothing\"\n\nfunc F(cur realm) { _ = nothing.X }\n"},
-			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(path)},
-		},
-	}
-
-	// An unresolvable import must be reported, not panicked on. Either a plain
-	// typecheck error or the recovered form is acceptable; what is not
-	// acceptable is the nil-pointer message that the bug produced.
-	err = v.verifyPackage(mpkg)
-	require.Error(t, err, "an unresolvable import must be reported")
-	assert.NotContains(t, err.Error(), "nil pointer",
-		"a missing remote must degrade to an unresolved import, not a crash")
+	err := o.verify(context.Background(), validTestPackage())
+	require.Error(t, err)
+	require.ErrorIs(t, err, errVerifyUnavailable,
+		"a verifier that could not be built has judged nothing")
+	assert.ErrorContains(t, err, "--remote is required")
 }
 
 // TestUnreachableRemoteIsNotAVerdict draws the triage boundary at the
@@ -365,7 +386,7 @@ func TestVerifierWithoutRemoteDoesNotPanic(t *testing.T) {
 // No chain anywhere: an unreachable remote is the whole reproduction.
 func TestUnreachableRemoteIsNotAVerdict(t *testing.T) {
 	o := newTestOracle(t)
-	o.cfg.remote = "http://127.0.0.1:1" // nothing listens; connection refused, fast
+	o.cfg.remote = closedRemote
 	o.cfg.verifyBudget = time.Minute
 
 	mpkg := packageImportingChainOnly()

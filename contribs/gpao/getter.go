@@ -25,27 +25,22 @@ import (
 // see when it runs the enable, and the validator resolves imports from chain
 // state.
 //
-// Disk is NOT consulted for those, even as a fallback, when a remote is
-// configured. It used to be tried first, which meant a package importing
-// something present in the operator's examples/ but absent from the chain
-// verified clean and got approved -- and then failed its own type-check at enable
-// time, burning a fee and marking the path rejected for a fault that was the
-// operator's local tree, not the code. Where the two agree the answer is the
-// same; where they disagree the chain is the one that matters.
+// Disk is NOT consulted for those, even as a fallback. It used to be tried
+// first, which meant a package importing something present in the operator's
+// examples/ but absent from the chain verified clean and got approved -- and
+// then failed its own type-check at enable time, burning a fee and marking the
+// path rejected for a fault that was the operator's local tree, not the code.
+// Where the two agree the answer is the same; where they disagree the chain is
+// the one that matters.
 //
-// With no remote there is nothing to ask, so disk is used for everything. That
-// is a development mode, and the verdict then describes the operator's tree.
+// rpc is therefore never nil: a remote is required (see newVerifier), so there
+// is no configuration in which disk answers for a /p/ or /r/ path.
 type hybridGetter struct {
 	disk gno.MemPackageGetter
 	rpc  *rpcGetter
 }
 
 func (h hybridGetter) GetMemPackage(pkgPath string) *std.MemPackage {
-	// No remote: nothing to ask, so disk answers everything. Also guards the
-	// nil receiver below, which would panic -- a crash rather than a verdict.
-	if h.rpc == nil {
-		return h.disk.GetMemPackage(pkgPath)
-	}
 	if gno.IsUserlib(pkgPath) {
 		return h.rpc.GetMemPackage(pkgPath)
 	}

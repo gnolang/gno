@@ -143,8 +143,8 @@ func chainPackage(pkgPath, body string) *std.MemPackage {
 }
 
 // newRPCVerifier builds a verifier whose chain serves pkgs and nothing else, so
-// an import resolves only if it went to the chain: newTestVerifier configures no
-// remote, and the fake getter replaces it.
+// an import resolves only if it went to the chain: newTestVerifier points at a
+// closed port, and the fake getter replaces it.
 func newRPCVerifier(t *testing.T, pkgs ...*std.MemPackage) *verifier {
 	t.Helper()
 	v := newTestVerifier(t)

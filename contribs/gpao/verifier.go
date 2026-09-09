@@ -14,8 +14,8 @@ import (
 )
 
 // verifier holds everything one verification needs: stores that resolve stdlib
-// and examples/ imports from the local filesystem, and an RPC fallback for
-// packages that exist only on chain.
+// imports from the local filesystem, and an RPC resolver that every /p/ and /r/
+// import goes to -- the chain, not disk, is what the validator will see.
 //
 // "Local" rather than "persistent": the stores are backed by a memdb built at
 // construction (see test.StoreWithOptions), so every package they materialize
@@ -33,8 +33,9 @@ type verifier struct {
 	prodgs gno.Store
 
 	// rpc resolves userlib imports, over vm/qfile queries against the watched
-	// node. Nil when no remote is given, in which case disk answers everything
-	// -- see injectChainGetter, and hybridGetter for the typecheck's half.
+	// node. Never nil: a remote is required, so there is no configuration in
+	// which disk answers for a /p/ or /r/ path -- see injectChainGetter, and
+	// hybridGetter for the typecheck's half.
 	rpc *rpcGetter
 }
 
@@ -45,28 +46,27 @@ type verifier struct {
 // Deliberately no signer and no keystore: a verifier handles untrusted input
 // and cannot approve anything, so the approver key never enters the process
 // that compiles a stranger's code.
-func newVerifier(gnoRoot, remote string, errw io.Writer) (*verifier, error) {
-	var rpc *rpcGetter
-	if remote != "" {
-		c, err := rpcclient.NewHTTPClient(remote)
-		if err != nil {
-			return nil, fmt.Errorf("build RPC client: %w", err)
-		}
-		rpc = newRPCGetter(c)
+func newVerifier(cfg verifyOneConfig, errw io.Writer) (*verifier, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
-	// Production files against two directories under gnoRoot: gnovm/stdlibs
+	c, err := rpcclient.NewHTTPClient(cfg.remote)
+	if err != nil {
+		return nil, fmt.Errorf("build RPC client: %w", err)
+	}
+	// Production files against two directories under cfg.gnoRoot: gnovm/stdlibs
 	// and examples. No test-stdlib overlay and the production native resolver,
 	// which is right for this daemon -- the chain does not evaluate test files
 	// at enable, so a test-only definition must not resolve here either.
 	//
 	// PreprocessOnly so imported code is preprocessed rather than executed: we
 	// need type information, not side effects.
-	prodbs, prodgs := test.StoreWithOptions(gnoRoot, errw,
+	prodbs, prodgs := test.StoreWithOptions(cfg.gnoRoot, errw,
 		test.StoreOptions{PreprocessOnly: true, WithExamples: true})
 
 	v := &verifier{
 		prodbs: prodbs, prodgs: prodgs,
-		rpc: rpc,
+		rpc: newRPCGetter(c),
 	}
 	// On the base store, so every transaction begun from it inherits the
 	// getter: BeginTransaction copies pkgGetter. prepare materializes the chain
@@ -90,7 +90,7 @@ func (v *verifier) injectChainGetter(st gno.Store) {
 	st.SetPackageGetter(func(pkgPath string, store gno.Store) (
 		*gno.PackageNode, *gno.PackageValue,
 	) {
-		if v.rpc == nil || !gno.IsUserlib(pkgPath) {
+		if !gno.IsUserlib(pkgPath) {
 			return disk(pkgPath, store)
 		}
 		dep := v.rpc.GetMemPackage(pkgPath)
@@ -131,7 +131,7 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		}
 		// A failure reached while the resolver under it was failing is not a
 		// verdict: the unresolved import may exist and be unfetchable.
-		if err != nil && v.rpc != nil && v.rpc.transportErr != nil {
+		if err != nil && v.rpc.transportErr != nil {
 			err = fmt.Errorf("%w (verification said: %w)", v.rpc.transportErr, err)
 		}
 	}()
@@ -228,9 +228,6 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 // that.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
 	_ = test.LoadImports(v.prodgs, mpkg, false)
-	if v.rpc == nil {
-		return nil
-	}
 	buildErr := v.buildChainImports(mpkg)
 	// Transport first, even when a build also failed: an unfetchable
 	// transitive import makes the package importing it unbuildable, so the
