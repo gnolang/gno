@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/txlink/v0"
+	"gno.land/p/moul/txlink"
 )
 
 const baseLevel = 7
