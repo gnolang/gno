@@ -1,4 +1,4 @@
-module = "gno.land/p/leon/coinsort"
+module = "gno.land/p/leon/coinsort/v0"
 gno = "0.9"
 
 [addpkg]

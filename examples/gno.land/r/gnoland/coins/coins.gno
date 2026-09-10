@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/leon/coinsort"
+	"gno.land/p/leon/coinsort/v0"
 	"gno.land/p/leon/ctg"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
