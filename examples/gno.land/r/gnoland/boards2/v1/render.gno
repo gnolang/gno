@@ -11,7 +11,7 @@ import (
 	"gno.land/p/jeronimoalbi/pager/v0"
 	"gno.land/p/leon/svgbtn/v0"
 	"gno.land/p/moul/md/v0"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/nt/markdown/foreign/v0"
 	"gno.land/p/nt/mux/v0"
 )

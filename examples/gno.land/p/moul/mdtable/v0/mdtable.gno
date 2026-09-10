@@ -2,7 +2,7 @@
 //
 // Example usage:
 //
-//	import "gno.land/p/moul/mdtable"
+//	import "gno.land/p/moul/mdtable/v0"
 //
 //	func Render(path string) string {
 //	    table := mdtable.Table{

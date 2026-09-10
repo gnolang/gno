@@ -3,7 +3,7 @@ package mdtable_test
 import (
 	"testing"
 
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 

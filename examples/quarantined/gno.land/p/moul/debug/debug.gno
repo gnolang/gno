@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/md/v0"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/ufmt/v0"
 )

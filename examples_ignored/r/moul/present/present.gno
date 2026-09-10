@@ -13,7 +13,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/collection"
 	"gno.land/p/moul/md/v0"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )

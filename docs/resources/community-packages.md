@@ -47,12 +47,12 @@ know whether each helper sanitizes internally or expects sanitized input.
   }
   ```
 
-- [`gno.land/p/moul/mdtable`](../../examples/gno.land/p/moul/mdtable/mdtable.gno):
+- [`gno.land/p/moul/mdtable/v0`](../../examples/gno.land/p/moul/mdtable/mdtable.gno):
   helpers for markdown tables. Use this when your `Render` output is tabular
   and you want pipe escaping handled consistently.
 
   ```go
-  import "gno.land/p/moul/mdtable"
+  import "gno.land/p/moul/mdtable/v0"
 
   func Render(_ string) string {
       table := mdtable.Table{Headers: []string{"ID", "Status"}}
