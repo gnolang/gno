@@ -1,0 +1,105 @@
+# A node must boot after a private realm is redeployed onto a library
+# published since its first deploy.
+#
+# AddMemPackage writes one package index entry per call and DeleteMemPackage
+# leaves it alone, so the redeploy leaves the realm two entries: the original,
+# below the library, and the new one above it. The boot pass preprocesses in
+# index order, so reaching the realm at the original entry asks for a block
+# node of a library nothing has saved yet. VMKeeper.Initialize panics there,
+# under NewAppWithOptions, with no recover on the path.
+#
+# The control comes first: the same redeploy with the library published BEFORE
+# the realm's first deploy, where both entries sit above it and no order is
+# inverted. It has to keep restarting cleanly.
+#
+# Only the passing direction is asserted, because a failing restart is not
+# expressible here: RunInMemoryProcess runs the node in a goroutine with no
+# recover, so a boot panic aborts the whole test binary instead of failing this
+# script, and setupNode reports a start failure with ts.Fatalf, which the `!`
+# prefix does not reach. A regression therefore shows up as a panic naming
+# GetBlockNode and this file's library, taking the other txtars with it.
+
+gnoland start
+
+# Control: library first, then the realm, then the redeploy onto it.
+gnokey maketx addpkg -pkgdir $WORK/ctldep -pkgpath gno.land/p/demo/ctldep -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/ctl1 -pkgpath gno.land/r/$test1_user_addr/ctl -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/ctl2 -pkgpath gno.land/r/$test1_user_addr/ctl -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+
+gnoland restart
+stdout 'node restarted successfully'
+
+# The inversion: the realm first, the library after it, then the redeploy.
+gnokey maketx addpkg -pkgdir $WORK/inv1 -pkgpath gno.land/r/$test1_user_addr/inv -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/invdep -pkgpath gno.land/p/demo/invdep -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/inv2 -pkgpath gno.land/r/$test1_user_addr/inv -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+
+gnoland restart
+stdout 'node restarted successfully'
+
+# The redeployed realm answers out of the library it imports, so the boot pass
+# rebuilt it from the entry holding its current content.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/inv -func Which -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'invdep-v1'
+
+-- ctldep/gnomod.toml --
+module = "gno.land/p/demo/ctldep"
+gno = "0.9"
+
+-- ctldep/ctldep.gno --
+package ctldep
+
+func Tag() string { return "ctldep-v1" }
+
+-- ctl1/gnomod.toml --
+module = "ctl"
+gno = "0.9"
+private = true
+
+-- ctl1/ctl.gno --
+package ctl
+
+func Which(cur realm) string { return "v1" }
+
+-- ctl2/gnomod.toml --
+module = "ctl"
+gno = "0.9"
+private = true
+
+-- ctl2/ctl.gno --
+package ctl
+
+import "gno.land/p/demo/ctldep"
+
+func Which(cur realm) string { return ctldep.Tag() }
+
+-- invdep/gnomod.toml --
+module = "gno.land/p/demo/invdep"
+gno = "0.9"
+
+-- invdep/invdep.gno --
+package invdep
+
+func Tag() string { return "invdep-v1" }
+
+-- inv1/gnomod.toml --
+module = "inv"
+gno = "0.9"
+private = true
+
+-- inv1/inv.gno --
+package inv
+
+func Which(cur realm) string { return "v1" }
+
+-- inv2/gnomod.toml --
+module = "inv"
+gno = "0.9"
+private = true
+
+-- inv2/inv.gno --
+package inv
+
+import "gno.land/p/demo/invdep"
+
+func Which(cur realm) string { return invdep.Tag() }

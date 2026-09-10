@@ -1,0 +1,29 @@
+name: meta / require-class-label
+
+on:
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions: {}
+
+jobs:
+  check-label:
+    name: require class:* label
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check exactly one class:* label is present
+        env:
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          echo "$LABELS_JSON" | jq '
+            [ .[] | select(startswith("class:")) ] as $classes |
+            if ($classes | length) == 1 then
+              empty
+            elif ($classes | length) == 0 then
+              ("No class:* label found. Apply exactly one of: class:node, class:hardfork, class:migration, class:none." | halt_error(1))
+            else
+              ("Multiple class:* labels found (\($classes | join(", "))). Apply exactly one." | halt_error(1))
+            end
+          '
+        shell: bash

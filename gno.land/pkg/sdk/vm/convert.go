@@ -19,6 +19,11 @@ func assertNoPlusPrefix(s string) {
 	}
 }
 
+// maxFloatArgLen bounds a float argument before apd sees it. apd converts the
+// whole mantissa to a big.Int before it reads the exponent, work that grows
+// with the square of the digit count while nothing charges gas for it.
+const maxFloatArgLen = 1024
+
 // These convert string representations of public-facing arguments to GNO types.
 // The limited set of input types available should map 1:1 to types supported
 // in FunctionSignature{}.
@@ -158,6 +163,27 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 		}
 	case *gno.ArrayType:
 		if bt.Elt == gno.Uint8Type {
+			// Refuse before decoding. DecodeString allocates
+			// DecodedLen(len(arg)) up front, and the result is discarded
+			// below unless it is exactly bt.Len bytes, so an oversized
+			// argument must not get to size that allocation.
+			//
+			// This is an equality, not an upper bound: the decoder ignores
+			// \r and \n, so len(arg) bounds nothing on its own — a payload
+			// may carry arbitrarily many of them. Requiring the canonical
+			// encoded length also removes that padding as a source of
+			// malleability, which this file's header forbids: it otherwise
+			// spells one array value in unboundedly many ways.
+			//
+			// It does not subsume the decoded-length check below. Padding
+			// makes EncodedLen constant across three inputs (1, 2 and 3
+			// bytes all encode to 4 chars), so an argument of the right
+			// encoded length can still decode to bt.Len±2 bytes.
+			if want := base64.StdEncoding.EncodedLen(bt.Len); len(arg) != want {
+				panic(fmt.Sprintf(
+					"array length mismatch: declared [%d]byte, got a %d byte argument, want %d",
+					bt.Len, len(arg), want))
+			}
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -203,6 +229,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
+	if len(value) > maxFloatArgLen {
+		panic(fmt.Sprintf(
+			"error parsing float%d: argument is %d bytes, over the %d byte limit",
+			precision, len(value), maxFloatArgLen))
+	}
 	dec, _, err := apd.NewFromString(value)
 	if err != nil {
 		panic(fmt.Sprintf("error parsing float%d %q: %v", precision, value, err))
