@@ -493,9 +493,20 @@ func (m *Machine) doOpSliceLit() {
 	// construct element buf slice. SliceValue is anonymous (st is
 	// the SliceType); the inner ArrayValue.Base is allocated at
 	// currentRealmID. The construction-time check above already gated by st.
-	baseArray := m.Alloc.NewListArray(nil, el)
-	es := baseArray.List
-	m.PopCopyValues(es)
+	var baseArray *ArrayValue
+	if baseOf(st).(*SliceType).Elt.Kind() == Uint8Kind {
+		// Byte elements get a flat Data backing, matching
+		// defaultArrayValue, make([]byte,n) and append: 1 byte per
+		// element instead of a 40-byte TypedValue.
+		baseArray = m.Alloc.NewDataArray(nil, el)
+		ad := baseArray.Data
+		for i, v := range m.PopValues(el) {
+			ad[i] = v.GetUint8()
+		}
+	} else {
+		baseArray = m.Alloc.NewListArray(nil, el)
+		m.PopCopyValues(baseArray.List)
+	}
 	// construct and push value.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
@@ -531,24 +542,42 @@ func (m *Machine) doOpSliceLit2() {
 	// construct element buf slice.
 	// alloc before the underlying array constructed. Anonymous base
 	// array; nil t skips the construction-time check.
-	baseArray := m.Alloc.NewListArray(nil, int(maxVal+1))
-	es := baseArray.List
-
-	for i := range el {
-		itv := tvs[i*2+0]
-		vtv := tvs[i*2+1]
-		idx := itv.ConvertGetInt()
-		if es[idx].IsDefined() {
-			// slice index has already been assigned
-			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+	var baseArray *ArrayValue
+	if baseOf(st).(*SliceType).Elt.Kind() == Uint8Kind {
+		baseArray = m.Alloc.NewDataArray(nil, int(maxVal+1))
+		ad := baseArray.Data
+		// Data elements are already zero, so IsDefined() cannot spot a
+		// duplicate index; track the keys instead. el is bounded by the
+		// number of elements written in source.
+		seen := make(map[int64]struct{}, el)
+		for i := range el {
+			idx := tvs[i*2+0].ConvertGetInt()
+			if _, dup := seen[idx]; dup {
+				panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			}
+			seen[idx] = struct{}{}
+			ad[idx] = tvs[i*2+1].GetUint8()
 		}
-		es[idx] = vtv.Copy(m.Alloc)
-	}
-	// fill in empty values.
-	ste := st.Elem()
-	for i, etv := range es {
-		if etv.IsUndefined() {
-			es[i] = defaultTypedValue(m.Alloc, ste)
+	} else {
+		baseArray = m.Alloc.NewListArray(nil, int(maxVal+1))
+		es := baseArray.List
+
+		for i := range el {
+			itv := tvs[i*2+0]
+			vtv := tvs[i*2+1]
+			idx := itv.ConvertGetInt()
+			if es[idx].IsDefined() {
+				// slice index has already been assigned
+				panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			}
+			es[idx] = vtv.Copy(m.Alloc)
+		}
+		// fill in empty values.
+		ste := st.Elem()
+		for i, etv := range es {
+			if etv.IsUndefined() {
+				es[i] = defaultTypedValue(m.Alloc, ste)
+			}
 		}
 	}
 	// construct and push value.
@@ -729,8 +758,9 @@ func (m *Machine) doOpConvert() {
 	xv := m.PopValue().Copy(m.Alloc)
 	t := m.PopValue().GetType()
 
-	// Gas based on conversion variant.
-	// string<->[]byte both allocate and copy, so charge the same.
+	// Gas based on conversion variant. Both directions allocate and copy,
+	// so they share the same flat cost; []byte→string additionally pays a
+	// per-byte slope below (string→[]byte's copy is covered by alloc gas).
 	if xv.T != nil && xv.T.Kind() == StringKind && t.Kind() == SliceKind {
 		m.incrCPU(OpCPUConvertStrBytes) // string -> []byte
 	} else if xv.T != nil && xv.T.Kind() == SliceKind && t.Kind() == StringKind {
@@ -788,9 +818,13 @@ func (m *Machine) doOpConvert() {
 				m.incrCPU(OpCPUSlopeConvertStrRunes * int64(len(xv.GetString())))
 			}
 		} else if t.Kind() == StringKind {
-			// runes ([]int32) → string
-			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
-				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
+			if st, ok := baseOf(xv.T).(*SliceType); ok {
+				switch st.Elt.Kind() {
+				case Uint8Kind:
+					m.incrCPU(OpCPUSlopeConvertBytesStr * int64(xv.GetLength()))
+				case Int32Kind:
+					m.incrCPU(OpCPUSlopeConvertRunesStr * int64(xv.GetLength()))
+				}
 			}
 		}
 	}

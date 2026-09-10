@@ -203,7 +203,21 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Bumped 2026-09-10 by data-backing byte slices: doOpSliceLit now allocates a
+// flat Data-backed ArrayValue for []byte composite literals instead of one
+// TypedValue per element, so those arrays persist under a different amino
+// encoding and the iavl root moves. Attributed by bisection: reverting
+// op_expressions.go alone restores 1d05023c, while reverting gonative.go's
+// Go2GnoValue byte arm or doOpSliceLit2's indexed-literal path leaves the
+// value below unchanged, so doOpSliceLit's byte path is the whole cause.
+// Narrowed once more to the two 136-byte HMAC pads in crypto/cometblszk, the
+// only package-scope []byte literals in the stdlibs that setupTestEnv commits
+// wholesale: excluding len-136 literals from the Data path also restores
+// 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
+// []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
+// still passes.
+const expectedCrossrealm38Hash = "4beb454c4f1340d15c0864319533919a3c6506cc880eb0c5fbcbaebbd2f93a12"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

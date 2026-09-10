@@ -3788,6 +3788,44 @@ func BenchmarkOpConvert_RunesToString_10(b *testing.B)   { benchOpConvert_RunesT
 func BenchmarkOpConvert_RunesToString_100(b *testing.B)  { benchOpConvert_RunesToString(b, 100) }
 func BenchmarkOpConvert_RunesToString_1000(b *testing.B) { benchOpConvert_RunesToString(b, 1000) }
 
+// --- Convert []byte→String (O(len) copy) ---
+
+func benchOpConvert_BytesToString(b *testing.B, length int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Data-backed, the only backing a byte slice can have (doOpSliceLit,
+	// make, append and Go2GnoValue all produce NewDataArray).
+	sliceBase := m.Alloc.NewDataArray(nil, length)
+	for i := range sliceBase.Data {
+		sliceBase.Data[i] = byte('a' + i%26)
+	}
+	sv := m.Alloc.NewSlice(sliceBase, 0, length, length)
+	byteSliceType := &SliceType{Elt: Uint8Type}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(asValue(StringType))
+		m.PushValue(TypedValue{T: byteSliceType, V: sv})
+		bm.SwitchOpCode(bmTarget)
+		m.doOpConvert()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if len(res.GetString()) != length {
+			b.Fatalf("expected len %d, got %d", length, len(res.GetString()))
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpConvert_BytesToString_1(b *testing.B)    { benchOpConvert_BytesToString(b, 1) }
+func BenchmarkOpConvert_BytesToString_10(b *testing.B)   { benchOpConvert_BytesToString(b, 10) }
+func BenchmarkOpConvert_BytesToString_100(b *testing.B)  { benchOpConvert_BytesToString(b, 100) }
+func BenchmarkOpConvert_BytesToString_1000(b *testing.B) { benchOpConvert_BytesToString(b, 1000) }
+
 // --- doOpEval BasicLitExpr: literal parsing cost ---
 
 func benchOpEval_BasicLitInt(b *testing.B, value string) {
@@ -3817,6 +3855,7 @@ func BenchmarkOpEval_BasicLitInt_Small(b *testing.B) { benchOpEval_BasicLitInt(b
 func BenchmarkOpEval_BasicLitInt_Large(b *testing.B) {
 	benchOpEval_BasicLitInt(b, strings.Repeat("9", 100))
 }
+
 func BenchmarkOpEval_BasicLitInt_Hex(b *testing.B) {
 	benchOpEval_BasicLitInt(b, "0x"+strings.Repeat("FF", 50))
 }
@@ -4945,6 +4984,7 @@ func BenchmarkOpTypeAssert2_Interface_Hit_10(b *testing.B) { benchOpTypeAssert2_
 func BenchmarkOpTypeAssert2_Interface_Hit_100(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 100, true)
 }
+
 func BenchmarkOpTypeAssert2_Interface_Miss_10(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 10, false)
 }
