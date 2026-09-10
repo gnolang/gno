@@ -12,6 +12,8 @@
 # creator may silently replace from then on. The approver saw none of that.
 #
 # A failure here is an approver's signature naming source it never read.
+#
+# **Red on master, green with the fix.**
 
 # ---- The creator parks the package an approver will review
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/reviewed -pkgpath gno.land/r/probe/vault $USER_NAME

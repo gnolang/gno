@@ -205,8 +205,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	}
 	// AddPackage wrote the creator into gnomod.toml before storing (see the
 	// inert branch), so it round-trips; genesis.go reads it back the same way.
-	// gm was parsed above, before the liveness probe that needs it. Parsed here
-	// rather than lower down because the namespace check below needs it.
+	// Parsed here rather than lower down because the namespace check below
+	// needs it.
 	creator, err := crypto.AddressFromBech32(gm.AddPkg.Creator)
 	if err != nil {
 		return ErrInvalidPackage(fmt.Sprintf(
