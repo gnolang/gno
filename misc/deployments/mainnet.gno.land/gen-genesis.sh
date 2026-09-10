@@ -137,17 +137,19 @@ INITIAL_VALSET=(
 # valoper-seed` rejects duplicate operators, so all slots must be
 # distinct addresses.
 #
-# TODO(mainnet): slots 2 and 4 are THROWAWAY PLACEHOLDERS — collect
-# OnBloc's and Berty's operator addresses (must differ from their signing
-# address). Slot 1 reuses the gno-core operator pending the Gnocore
-# decision. Slot 3 (Samourai Crew) is REAL, received 2026-09-10. Berty's
-# consensus pair is in, but they have NOT yet provided an operator
-# address — it cannot be their consensus address g1l983yy… (valoper-seed
-# rejects operator==signing), so ask for a separate gnokey account.
+# TODO(mainnet): slot 2 is a THROWAWAY PLACEHOLDER — collect OnBloc's
+# operator address (must differ from their signing address). Slot 1
+# reuses the gno-core operator pending the Gnocore decision. Slots 3
+# (Samourai Crew) and 4 (Berty) are REAL, received 2026-09-10; Berty's
+# operator holds a 1,000 GNOT allocation, so it is the one operator the
+# funding TODO above does not apply to.
 #
-# TODO(mainnet): none of the four operators holds an independence-day
-# allocation, so each lands at exactly zero once its valopers.Register tx
-# burns the funding measured in step 8. An operator with no balance cannot
+# TODO(mainnet): apart from Berty's (1,000 GNOT allocation), no operator
+# holds an independence-day allocation, so each lands at exactly zero once
+# its valopers.Register tx burns the funding measured in step 8 — note the
+# operators are NOT genesis fee payers (the deployer pays the Register
+# txs), so an allocation-holding operator simply keeps its allocation.
+# An operator with no balance cannot
 # rotate its signing key, edit its valoper profile or signal opt-out —
 # every one of those is a paid tx, there is no faucet, and §126 leaves
 # only the exemption-listed treasuries able to send. Decide whether the
@@ -159,7 +161,7 @@ INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator — TODO(mainnet): confirm
   "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # onbloc-validator-1 operator — TODO(mainnet): placeholder
   "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4" # samourai-crew-validator-1 operator
-  "g18x40r2smn4telaps0cg9cw2znsjhnay9d353qh" # berty-validator-1 operator — TODO(mainnet): placeholder
+  "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm" # berty-validator-1 operator
 )
 
 # Genesis allocation (no faucets on mainnet): the gnolang/independence-day
