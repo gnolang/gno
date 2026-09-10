@@ -1,5 +1,5 @@
 {
-  "reason": "mainnet bootstrap MsgRun: seeds the seven GovDAO T1 members (gnolang/multisigs [govdao] section; aeddi's operational key overrides accounts.csv) and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/v3/impl. TODO(mainnet): transfer-restriction policy undecided \u2014 no lock is applied here yet.",
+  "reason": "mainnet bootstrap MsgRun: seeds the seven GovDAO T1 members (gnolang/multisigs [govdao] section; aeddi's operational key overrides accounts.csv) and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/v3/impl. Transfers are locked chain-wide per Constitution \u00a7126 by the genesis bank params, not by this tx.",
   "kind": "MsgRun",
   "caller_key": "GenesisDeployer",
   "gas_wanted": 100000000,
