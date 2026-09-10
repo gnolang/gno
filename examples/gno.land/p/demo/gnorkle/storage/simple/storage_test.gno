@@ -3,7 +3,7 @@ package simple_test
 import (
 	"testing"
 
-	"gno.land/p/demo/gnorkle/storage"
+	"gno.land/p/demo/gnorkle/storage/v0"
 	"gno.land/p/demo/gnorkle/storage/simple"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"

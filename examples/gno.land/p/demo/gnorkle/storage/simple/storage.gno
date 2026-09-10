@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/gnorkle/feed/v0"
-	"gno.land/p/demo/gnorkle/storage"
+	"gno.land/p/demo/gnorkle/storage/v0"
 )
 
 // Storage is simple, bounded storage for published feed values.
