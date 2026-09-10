@@ -2,7 +2,7 @@ package md
 
 import (
 	"gno.land/p/sunspirit/md/v0"
-	"gno.land/p/sunspirit/table"
+	"gno.land/p/sunspirit/table/v0"
 )
 
 func Render(path string) string {

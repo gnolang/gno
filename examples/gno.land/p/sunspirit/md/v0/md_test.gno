@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/uassert/v0"
-	"gno.land/p/sunspirit/table"
+	"gno.land/p/sunspirit/table/v0"
 )
 
 func TestNewBuilder(t *testing.T) {
