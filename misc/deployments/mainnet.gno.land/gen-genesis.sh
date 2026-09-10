@@ -137,6 +137,17 @@ INITIAL_VALSET=(
 # org's operator address (OnBloc, Samourai-Coop, Berty; must differ from
 # their signing address). Slot 1 reuses the gno-core operator pending the
 # Gnocore decision.
+#
+# TODO(mainnet): none of the four operators holds an independence-day
+# allocation, so each lands at exactly zero once its valopers.Register tx
+# burns the funding measured in step 8. An operator with no balance cannot
+# rotate its signing key, edit its valoper profile or signal opt-out —
+# every one of those is a paid tx, there is no faucet, and §126 leaves
+# only the exemption-listed treasuries able to send. Decide whether the
+# operators get a genesis balance (in the allocation, or as an entry here)
+# or whether the Ecosystem Treasury funds them right after launch, then
+# extend the step 2.7 guard to cover whichever addresses must be able to
+# act. The same question applies to NAMES_ADMIN below.
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator — TODO(mainnet): confirm
   "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # onbloc-validator-1 operator — TODO(mainnet): placeholder
@@ -273,7 +284,21 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # TODO(mainnet): before the package set is frozen, audit every other
 # hardcoded g1... literal in the deployed set the same way (hardcoded
 # addresses are unchangeable post-genesis without a realm upgrade — see
-# the launch checklist, authority-and-keys section).
+# the launch checklist, authority-and-keys section). Package CREATORS are a
+# second, separate mechanism to audit: `gnogenesis txs add packages` honours
+# an `[addpkg] creator` in each package's gnomod.toml over -key-name, and 35
+# packages in the current set declare one across 7 contributor addresses —
+# all of r/sys/* under one, all of r/gov/dao* under another. No realm in the
+# set captures its deployer as owner (checked: r/gnoland/blog hardcodes the
+# GovDAO multisig, r/gnops/valopers keys on the registering operator), so
+# this is about who appears as mainnet's deployer of record and who holds
+# the namespaces, not about hidden authority.
+#
+# TODO(mainnet): this address holds no allocation either, so it lands at
+# zero after its names.Enable tx burns its funding — the same question as
+# the valoper operators above. Enable is the only call it has to make at
+# genesis, so zero is survivable, but any later names administration is a
+# paid tx it cannot pay for.
 NAMES_ADMIN=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 
 # ---- Locked sha256 hashes.
