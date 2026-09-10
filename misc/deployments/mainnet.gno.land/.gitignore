@@ -4,6 +4,9 @@
 # Final genesis (moved here from work/ on success).
 /genesis.json
 
-# Cached independence-day sheets (downloaded, sha256-verified).
+# Cached independence-day sheets (downloaded, sha256-verified), and the
+# partial left behind by an aborted download — an unignored .part would make
+# the build summary's dirty-tree provenance flag cry wolf.
 /allocation_balances.txt.gz
 /allocation_unrestricted.txt
+*.part

@@ -26,7 +26,8 @@
 #      valset:current from it, so v3/EndBlocker valset changes work).
 #   6. Balances: the independence-day allocation sheet (~3.26M accounts,
 #      downloaded by pinned URL + sha256-verified) and its §126
-#      unrestricted-address list (same commit, same treatment), the VESTED_ACCOUNTS
+#      unrestricted-address list (same treatment; pins temporarily split
+#      across commits — see the TODO(mainnet) at UNRESTRICTED_URL), the VESTED_ACCOUNTS
 #      entries (created as vesting accounts at genesis), plus exact-burn
 #      funding for every genesis-tx fee payer (measured on a temp node;
 #      fee payers land at zero — or at exactly their allocation if they
@@ -46,6 +47,9 @@
 #
 # Cross-platform: bash 3.2 minimum (macOS default), no GNU-only features.
 
+# -u is deliberately absent: on bash 3.2 (macOS default, the floor this script
+# targets) expanding an EMPTY array with "${arr[@]}" errors under -u, and both
+# VESTED_ACCOUNTS and txn_dir_to_jsonl's args_array are legitimately empty.
 set -eo pipefail
 
 # =============================================================================
@@ -544,6 +548,7 @@ file_size() {
 # awk sums in doubles, so the result is exact while it stays under 2^53 ugnot
 # (9.007e15, ~6.8x the 1.333e9 GNOT supply). assert_exact_sum below refuses to
 # let a total cross that line unnoticed.
+# Pass "-" to sum stdin (POSIX awk reads stdin for the "-" file operand).
 sheet_total() {
   awk -F'[=;]' '{ a = $2; sub(/ugnot$/, "", a); s += a } END { printf "%d", s + 0 }' "$1"
 }
@@ -1384,6 +1389,11 @@ if grep -qvE '^g1[0-9a-z]{38}$' "$BALANCES_TMP_CREATOR_ADDRESSES"; then
   die "extracted a fee payer that is not a bech32 address: $(grep -vE '^g1[0-9a-z]{38}$' "$BALANCES_TMP_CREATOR_ADDRESSES" | tr '\n' ' ')"
 fi
 addr_count=$(wc -l <"$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
+# 91 txs cannot have zero signers: an empty extraction means the signer field
+# moved, and every downstream count check would compare zero against zero.
+if [ "$addr_count" -eq 0 ]; then
+  die "no creator/caller extracted from $GENESIS_TXS_JSONL — the signer field shape changed"
+fi
 print_substep "8.2" "Found $addr_count unique creator/caller addresses"
 
 # Overlap rules for mainnet (the final balance sheet keeps one entry per
@@ -1593,9 +1603,15 @@ query_balance() {
     fi
     local out
     out=$("$GNOKEY_BIN" query -remote "$NODE_RPC_ADDR" "bank/balances/$addr" 2>&1 || true)
-    if echo "$out" | grep -q '^data:'; then
+    # case instead of `echo | grep -q`, and no `| head -1` after the sed:
+    # early-exit consumers are the SIGPIPE-under-pipefail shape that
+    # account_in_state was rewritten to avoid. gnokey prints exactly one
+    # `data:` line; if that ever changes, the multi-line payload fails the
+    # exact-match parses below loudly instead of being truncated silently.
+    case "$out" in
+    'data:'* | *$'\n''data:'*)
       local payload
-      payload=$(echo "$out" | sed -n 's/^data: //p' | head -1)
+      payload=$(echo "$out" | sed -n 's/^data: //p')
       if [ "$payload" = '""' ]; then
         # Empty coins encode a zero balance — but an unreadable store
         # answers identically. Only trust the zero if the account
@@ -1612,7 +1628,8 @@ query_balance() {
       [ -n "$r" ] || die "unparseable balance for $addr: $payload (expected a single ugnot coin or empty)"
       echo "$r"
       return
-    fi
+      ;;
+    esac
     sleep 1
     retry=$((retry + 1))
   done
@@ -1701,6 +1718,10 @@ print_substep "8.6" "All fee payers land at their expected remainders — costs 
 # exercise their creation); keep only the measured fee-payer lines here —
 # step 9 appends the vested entries itself.
 grep -vF -- ';vesting=' "$BALANCES_TMP_FILE" >"$DEPLOYER_BALANCES"
+# This small sheet is where the MEASURED numbers live; locking it localises a
+# future genesis.json mismatch to "the burn changed" instead of "196MB of
+# bytes changed somewhere".
+verify_checksum "$DEPLOYER_BALANCES"
 
 # Strip the merged addresses from the allocation sheet in a single pass,
 # then assert the fee-payer and allocation sheets are disjoint — one
@@ -1841,8 +1862,7 @@ if [ "$genesis_time_shipped" != "$genesis_time_want" ]; then
 fi
 
 genesis_accounts=$(jq -r '.app_state.balances | length' "$GENESIS_FILE")
-genesis_supply=$(jq -r '.app_state.balances[]' "$GENESIS_FILE" |
-  awk -F'[=;]' '{ a = $2; sub(/ugnot$/, "", a); s += a } END { printf "%d", s + 0 }')
+genesis_supply=$(jq -r '.app_state.balances[]' "$GENESIS_FILE" | sheet_total -)
 assert_exact_sum "$genesis_supply" "the genesis supply"
 
 stripped_total=$(sheet_total "$ALLOCATION_STRIPPED")
