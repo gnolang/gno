@@ -180,7 +180,7 @@ func SetName(cur realm, name string) {
 
 ## Structured Data Helpers
 
-- [`gno.land/p/onbloc/json`](../../examples/gno.land/p/onbloc/json/README.md):
+- [`gno.land/p/onbloc/json/v0`](../../examples/gno.land/p/onbloc/json/v0/README.md):
   parse JSON into explicit nodes when a realm accepts structured text input.
 - [`gno.land/p/onbloc/int256/v0`](../../examples/gno.land/p/onbloc/int256/v0/doc.gno)
   and [`gno.land/p/onbloc/uint256/v0`](../../examples/gno.land/p/onbloc/uint256/v0/README.md):
@@ -193,7 +193,7 @@ Prefer explicit parsing over ad-hoc string splitting when the input format has
 nesting, quoting, or escaping rules:
 
 ```go
-import "gno.land/p/onbloc/json"
+import "gno.land/p/onbloc/json/v0"
 
 func DecodeTitle(input string) (string, bool) {
     root, err := json.Unmarshal([]byte(input))
