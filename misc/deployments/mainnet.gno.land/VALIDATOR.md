@@ -1,6 +1,6 @@
 # Joining mainnet as a validator
 
-> **WORK IN PROGRESS** — the chain-id (`gnoland-1`) is final; the genesis sha, peers, and endpoints below are placeholders inherited from the pearl testnet until the mainnet launch values are final. Grep `TODO(mainnet)` across this folder.
+> **WORK IN PROGRESS** — the chain-id (`gnoland-1`) and the endpoints (`gno.land`, `rpc.gno.land`, `seed-1.gno.land`/`seed-2.gno.land`) are final; the genesis sha and the seed node IDs are placeholders until launch. Grep `TODO(mainnet)` across this folder.
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
@@ -64,7 +64,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 
 | Key | Value |
 | --- | --- |
-| `p2p.persistent_peers` | `XXX_PLACEHOLDER` — TODO(mainnet): the mainnet seed node IDs and hostnames land here with the infra handoff (values above are pearl leftovers) |
+| `p2p.persistent_peers` | `<node-id>@seed-1.gno.land:26656,<node-id>@seed-2.gno.land:26656` — TODO(mainnet): the two seed node IDs land here with the infra handoff |
 | `application.prune_strategy` | `syncable` |
 | `consensus.timeout_commit` | `3s` |
 | `consensus.peer_gossip_sleep_duration` | `10ms` |
@@ -123,11 +123,11 @@ gnokey maketx call \
   --args "<your gpub1... consensus pubkey>" \
   --gas-fee 1000000ugnot --gas-wanted 50000000 \
   --chainid gnoland-1 \
-  --remote https://rpc.mainnet.testnets.gno.land \
+  --remote https://rpc.gno.land \
   --broadcast \
   <your-key-name>
 ```
 
 Registering only lists you as a **candidate**. A GovDAO member must then create and pass a proposal to add you to the active validator set (via `r/sys/validators/v3`). Once that proposal executes, your node joins the valset.
 
-You can review registered valopers and the current set at <https://mainnet.testnets.gno.land/r/gnops/valopers> and <https://mainnet.testnets.gno.land/r/sys/validators/v3>.
+You can review registered valopers and the current set at <https://gno.land/r/gnops/valopers> and <https://gno.land/r/sys/validators/v3>.
