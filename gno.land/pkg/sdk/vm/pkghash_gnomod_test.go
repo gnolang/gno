@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,11 +14,10 @@ import (
 )
 
 // An approval names a digest, and the digest has to name every byte that
-// decides what the chain does with the submission. gnomod.toml carries two
-// halves: the fields AddPackage stamps at submit (module, addpkg.creator,
-// addpkg.height, addpkg.max_deposit) and the five the submitter authors (gno,
-// ignore, draft, private, replace). PackageContentHash excludes the whole
-// file, so the authored half sits outside what an approver signs.
+// decides what the chain does with the submission. gnomod.toml carries the five
+// fields the submitter authors (gno, ignore, draft, private, replace) beside the
+// [addpkg] section AddPackage stamps at submit, so the digest covers the file as
+// submitted and AddPackage records it before the stamp.
 //
 // One of the five reaches enable on a live chain. `private` is read back by
 // checkGnomodConstraints, which governs whether a public submission may go live
@@ -28,20 +28,11 @@ import (
 // package runs, and a submission with no gnomod.toml has no module path to
 // park under. Their cases below pin the digest against a relaxation of those
 // checks rather than against a hole open today, and say so.
-//
-// These tests assert the property, not today's behaviour: they are red on
-// master. Canonicalizing the stamped fields before hashing, or hashing a
-// projection of the authored fields, would turn them green as they stand.
-// Refusing a re-park that moves an authored field closes the same hole at
-// submit instead, and would want the first test re-pointed at the second
-// AddPackage. Choosing between them is a design decision, so no fix is made
-// here.
 
-// storedGnomod renders a gnomod.toml in the shape the chain stores one: the
-// stamped section first, held byte-identical across every case below, then
-// whatever the submitter authored. Holding the stamp fixed is what makes a
-// moved digest attributable to the authored half alone.
-func storedGnomod(pkgPath, gnoVersion, authored string) string {
+// authoredGnomod renders a gnomod.toml whose bytes differ across the cases below
+// only in what the submitter authored. The hand-written [addpkg] section is one
+// a submitter is free to send and the stamp overwrites.
+func authoredGnomod(pkgPath, gnoVersion, authored string) string {
 	mod := "module = \"" + pkgPath + "\"\ngno = \"" + gnoVersion + "\"\n"
 	if authored != "" {
 		mod += authored + "\n"
@@ -52,13 +43,14 @@ func storedGnomod(pkgPath, gnoVersion, authored string) string {
 }
 
 // TestEnableRefusesBytesTheApproverDidNotReview drives the whole two-phase
-// deploy: a creator parks a public package, an approver digests what the chain
-// serves at that path, the creator re-parks the same .gno source with
-// `private = true`, and the approval of the public submission is presented.
+// deploy: a creator parks a public package, the creator re-parks the same .gno
+// source with `private = true`, and approvals digested from each submission are
+// presented.
 //
-// Activating it turns the reviewed public API into a realm no other package
-// may import and whose slot the creator may silently overwrite from then on --
-// none of which the approver saw or signed.
+// Activating the private one on an approval of the public one turns the
+// reviewed public API into a realm no other package may import and whose slot
+// the creator may silently overwrite from then on, none of which the approver
+// saw or signed.
 func TestEnableRefusesBytesTheApproverDidNotReview(t *testing.T) {
 	const (
 		pkgPath = "gno.land/r/test/privacyflip"
@@ -71,7 +63,7 @@ func TestEnableRefusesBytesTheApproverDidNotReview(t *testing.T) {
 			authored = "private = true"
 		}
 		return []*std.MemFile{
-			{Name: "gnomod.toml", Body: storedGnomod(pkgPath, "0.9", authored)},
+			{Name: "gnomod.toml", Body: authoredGnomod(pkgPath, "0.9", authored)},
 			{Name: srcName, Body: source},
 		}
 	}
@@ -81,11 +73,17 @@ func TestEnableRefusesBytesTheApproverDidNotReview(t *testing.T) {
 	env, ctx := inertEnv(t, approver, creator)
 	store := env.vmk.getGnoTransactionStore(ctx)
 
-	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files(false))))
+	// The approval an approver actually sends: digested from the submission, as
+	// gpao digests the MsgAddPackage in the block and gnokey -pkgdir a local copy.
+	approvalOf := func(private bool) MsgEnablePackage {
+		return MsgEnablePackage{
+			Approver: approver,
+			PkgPath:  pkgPath,
+			PkgHash:  PackageContentHash(NewMsgAddPackage(creator, pkgPath, files(private)).Package),
+		}
+	}
 
-	// The approval an approver would actually send: the digest is taken from
-	// the bytes the chain serves for this path, not from a package built here.
-	approval := approvalFor(t, env, ctx, approver, pkgPath)
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files(false))))
 	reviewed := store.GetInertPackage(pkgPath)
 	require.NotNil(t, reviewed, "premise: the public submission is parked")
 	require.NotContains(t, reviewed.GetFile("gnomod.toml").Body, "private",
@@ -102,31 +100,35 @@ func TestEnableRefusesBytesTheApproverDidNotReview(t *testing.T) {
 	require.Equal(t, reviewed.GetFile(srcName).Body, swapped.GetFile(srcName).Body,
 		"premise: the re-park moved gnomod.toml and nothing else")
 
-	err := env.vmk.EnablePackage(ctx, approval)
+	err := env.vmk.EnablePackage(ctx, approvalOf(false))
 	require.Error(t, err,
 		"an approval of the public submission activated the private one: the "+
 			"approver's signature named source it never saw")
-	// The class, not the message: a fix is free to reword the detail.
 	assert.Equal(t, InvalidPackageError{}, tmerrors.Cause(err),
-		"the refusal has to be about the submission's contents, so the approver "+
-			"is told their approval no longer names what is parked")
+		"the refusal has to be about the submission's contents")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "is not what was approved",
+		"the approver has to be told their approval no longer names what is parked")
 	assert.Nil(t, store.GetMemPackage(pkgPath),
 		"a refused enable must leave the path empty, not half-deployed")
+
+	// The replacement overwrote the recorded digest along with the bytes, so an
+	// approval of what is parked now still lands.
+	require.NoError(t, env.vmk.EnablePackage(ctx, approvalOf(true)),
+		"an approval digested from the bytes now parked has to activate them")
+	assert.NotNil(t, store.GetMemPackage(pkgPath))
 }
 
 // TestApprovalDigestSeparatesSubmitterAuthoredGnomodFields walks the fields a
 // submitter writes into gnomod.toml and pins that each one moves the digest.
 //
 // Every case differs from the base in exactly one authored field and in
-// nothing else -- same source file, same stamped section -- so a digest that
-// does not move is an approver signing for a package the chain reads as a
-// different module from the one they reviewed.
+// nothing else, so a digest that does not move is an approver signing for a
+// package the chain reads as a different module from the one they reviewed.
 //
-// The digest is blind to all four. Only the first two reach a live chain; the
-// other two are stopped by a submit-time check that the digest knows nothing
-// about, so they pin the digest against that check being relaxed rather than
-// against a hole open today. `reaches` records which is which, because the two
-// carry very different weight and a reader deserves to be told.
+// Only `private` reaches a live chain; the others are stopped by a submit-time
+// check that the digest knows nothing about, so they pin the digest against
+// that check being relaxed rather than against a hole open today. `reaches`
+// records which is which, because the two carry very different weight.
 func TestApprovalDigestSeparatesSubmitterAuthoredGnomodFields(t *testing.T) {
 	t.Parallel()
 
@@ -141,7 +143,7 @@ func TestApprovalDigestSeparatesSubmitterAuthoredGnomodFields(t *testing.T) {
 		}}
 	}
 
-	reviewed := pkgWith(storedGnomod(pkgPath, "0.9", ""))
+	reviewed := pkgWith(authoredGnomod(pkgPath, "0.9", ""))
 	reviewedMod, err := gnomod.ParseMemPackage(reviewed)
 	require.NoError(t, err, "premise: the reviewed gnomod.toml is one the chain accepts")
 
@@ -152,21 +154,21 @@ func TestApprovalDigestSeparatesSubmitterAuthoredGnomodFields(t *testing.T) {
 		reaches string
 	}{
 		"private": {
-			mod:     storedGnomod(pkgPath, "0.9", "private = true"),
+			mod:     authoredGnomod(pkgPath, "0.9", "private = true"),
 			reaches: "a realm no other package may import goes live over an approval of a public one",
 		},
 		"gno": {
-			mod: storedGnomod(pkgPath, "0.8", ""),
+			mod: authoredGnomod(pkgPath, "0.8", ""),
 			reaches: "nothing; ParseCheckGnoMod panics on any version but the current one before " +
 				"the package runs, so this pins the digest against that gate being relaxed",
 		},
 		"draft": {
-			mod: storedGnomod(pkgPath, "0.9", "draft = true"),
+			mod: authoredGnomod(pkgPath, "0.9", "draft = true"),
 			reaches: "nothing; checkGnomodConstraints refuses a post-genesis draft at submit, " +
 				"so this pins the digest against that rule being relaxed",
 		},
 		"replace": {
-			mod: storedGnomod(pkgPath, "0.9",
+			mod: authoredGnomod(pkgPath, "0.9",
 				"[[replace]]\nold = \"gno.land/p/demo/avl\"\nnew = \"gno.land/p/demo/avl/v2\""),
 			reaches: "nothing; checkGnomodConstraints refuses any replace at submit, " +
 				"so this pins the digest against that rule being relaxed",
@@ -197,10 +199,7 @@ func TestApprovalDigestSeparatesSubmitterAuthoredGnomodFields(t *testing.T) {
 //
 // Nothing reaches a live chain through this one. A package with no module
 // declaration has no path to park under, which the premise below is the proof
-// of. It pins the digest at the far end of the range the exclusion covers: the
-// whole file is outside the hash, so an approver's signature covers a package
-// whose module path, privacy, gno version and replaces were all dropped, and
-// only a check elsewhere stops that mattering.
+// of, so this pins the digest against that check being relaxed.
 func TestApprovalDigestSeparatesASubmissionMissingItsGnomod(t *testing.T) {
 	t.Parallel()
 
@@ -209,7 +208,7 @@ func TestApprovalDigestSeparatesASubmissionMissingItsGnomod(t *testing.T) {
 		source  = "package nomodfile\n\nfunc Who(cur realm) string { return \"reviewed\" }"
 	)
 	src := &std.MemFile{Name: "nomodfile.gno", Body: source}
-	mod := &std.MemFile{Name: "gnomod.toml", Body: storedGnomod(pkgPath, "0.9", "")}
+	mod := &std.MemFile{Name: "gnomod.toml", Body: authoredGnomod(pkgPath, "0.9", "")}
 
 	reviewed := &std.MemPackage{Name: "nomodfile", Path: pkgPath, Files: []*std.MemFile{mod, src}}
 	stripped := &std.MemPackage{Name: "nomodfile", Path: pkgPath, Files: []*std.MemFile{src}}

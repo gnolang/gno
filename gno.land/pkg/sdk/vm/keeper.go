@@ -604,20 +604,18 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 // paths ever stamped differently, the same source would initialize under a
 // different identity depending on which policy was in force when it was
 // submitted — with nothing to catch it. One writer makes that unrepresentable.
-// maxDeposit is the creator's declared storage-deposit ceiling, and is written
-// only where the charge outlives the declaring message — the inert path, where
-// EnablePackage reads it back. The ordinary path passes "".
+// MaxDeposit and PkgHash are set only where the enable outlives the submitting
+// message: the inert path, where EnablePackage reads them back. The ordinary
+// path leaves both empty.
 //
-// Every AddPkg field is assigned unconditionally, including the empty cases.
-// The section is keeper bookkeeping, but it lives in a file the submitter
-// authors, so anything not overwritten here is attacker-supplied: a hand-written
-// `[addpkg] max_deposit` would otherwise survive and be read at enable as though
-// the message had declared it.
-func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator crypto.Address, height int64, maxDeposit string) {
+// The whole section is replaced, including the empty fields. The section is
+// keeper bookkeeping, but it lives in a file the submitter authors, so anything
+// not overwritten here is attacker-supplied: a hand-written `[addpkg]
+// max_deposit` would otherwise survive and be read at enable as though the
+// message had declared it.
+func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, addpkg gnomod.AddPkg) {
 	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
-	gm.AddPkg.Creator = creator.String()
-	gm.AddPkg.Height = int(height)
-	gm.AddPkg.MaxDeposit = maxDeposit
+	gm.AddPkg = addpkg
 	mpkg.SetFile("gnomod.toml", gm.WriteString())
 }
 
@@ -912,7 +910,21 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			}
 			declared = maxDeposit.String()
 		}
-		stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), declared)
+		// Before the stamp rewrites gnomod.toml: approvers hash the bytes as
+		// submitted, and EnablePackage compares their approval with this.
+		digest := PackageContentHash(memPkg)
+		stampGnomod(gm, memPkg, pkgPath, gnomod.AddPkg{
+			Creator:    creator.String(),
+			Height:     int(ctx.BlockHeight()),
+			MaxDeposit: declared,
+			PkgHash:    digest,
+		})
+		// A parked file that does not parse can be neither enabled, replaced
+		// nor rejected, and the re-encode can produce one.
+		if _, err := gnomod.ParseMemPackage(memPkg); err != nil {
+			return ErrInvalidPackage(fmt.Sprintf(
+				"gnomod.toml cannot be read back once stamped: %v", err))
+		}
 		if err := vm.checkNamespacePermission(ctx, params, creator, pkgPath); err != nil {
 			return err
 		}
@@ -1025,9 +1037,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return err
 	}
 
-	// No ceiling stamped: on this path the deposit is charged in this same
-	// message, so nothing needs to outlive it.
-	stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), "")
+	// No ceiling or digest stamped: on this path the deposit is charged and the
+	// package runs in this same message, so nothing needs to outlive it.
+	stampGnomod(gm, memPkg, pkgPath, gnomod.AddPkg{Creator: creator.String(), Height: int(ctx.BlockHeight())})
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)

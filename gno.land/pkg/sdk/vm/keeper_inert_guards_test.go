@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -19,19 +20,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// approvalFor builds an approval naming the source currently parked at path.
+// approvalFor builds an approval naming the digest AddPackage recorded for the
+// submission parked at path.
 //
 // EnablePackage refuses an approval that does not name the bytes it is
-// activating, so every test that expects an enable to succeed has to compute
-// the hash the same way a real approver would.
+// activating, so every test that expects an enable to succeed has to name that
+// digest. A real approver digests the submission instead, as the tests of the
+// digest itself do.
 func approvalFor(t *testing.T, env testEnv, ctx sdk.Context, approver crypto.Address, path string) MsgEnablePackage {
 	t.Helper()
 	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(path)
 	require.NotNil(t, parked, "nothing parked at %s to approve", path)
+	gm, err := gnomod.ParseMemPackage(parked)
+	require.NoError(t, err, "the package parked at %s has no readable gnomod.toml", path)
 	return MsgEnablePackage{
 		Approver: approver,
 		PkgPath:  path,
-		PkgHash:  PackageContentHash(parked),
+		PkgHash:  gm.AddPkg.PkgHash,
 	}
 }
 
@@ -1577,7 +1582,7 @@ func TestEnableRefusesSourceChangedAfterApproval(t *testing.T) {
 
 	err := env.vmk.EnablePackage(ctx, approval)
 	require.Error(t, err, "the approval named the source it read, which is no longer parked")
-	assert.Contains(t, fmt.Sprintf("%+v", err), "changed after review")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "is not what was approved")
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false),
 		"and nothing may go live")
 
@@ -1600,6 +1605,113 @@ func TestEnableRequiresAHash(t *testing.T) {
 	err := env.vmk.EnablePackage(ctx, MsgEnablePackage{Approver: approver, PkgPath: pkgPath})
 	require.Error(t, err)
 	assert.Contains(t, fmt.Sprintf("%+v", err), "missing pkg_hash")
+}
+
+// TestEnableRefusesAPackageParkedWithoutADigest covers a package parked by a
+// binary that recorded no digest. Nothing names the bytes its submitter sent,
+// so no approval can be checked against it, and resubmitting records one.
+func TestEnableRefusesAPackageParkedWithoutADigest(t *testing.T) {
+	const pkgPath = "gno.land/r/test/nodigest"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+	submitted := NewMsgAddPackage(creator, pkgPath, replayFiles("nodigest")).Package
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("nodigest"))))
+
+	// The blob as a binary without the digest would have parked it.
+	store := env.vmk.getGnoTransactionStore(ctx)
+	parked := store.GetInertPackage(pkgPath)
+	gm, err := gnomod.ParseMemPackage(parked)
+	require.NoError(t, err)
+	gm.AddPkg.PkgHash = ""
+	parked.SetFile("gnomod.toml", gm.WriteString())
+	store.AddInertPackage(parked)
+
+	err = env.vmk.EnablePackage(ctx, MsgEnablePackage{
+		Approver: approver, PkgPath: pkgPath, PkgHash: PackageContentHash(submitted),
+	})
+	require.Error(t, err)
+	assert.Contains(t, fmt.Sprintf("%+v", err), "has to submit it again",
+		"the refusal has to tell the submitter what clears it")
+	assert.Nil(t, store.GetMemPackage(pkgPath), "and nothing may go live")
+}
+
+// gnomodAtSizeLimit renders a gnomod.toml exactly at gnomod's maxFileSize: it
+// parses as written, and any byte the stamp adds pushes it past the limit.
+func gnomodAtSizeLimit(pkgPath string) string {
+	const gnomodLimit = 4 << 10
+	head, tail := "module = \""+pkgPath+"\"\ngno = \"0.9", "\"\n"
+	return head + strings.Repeat("9", gnomodLimit-len(head)-len(tail)) + tail
+}
+
+// TestAddPackageRefusesAGnomodTheStampMakesUnreadable pins that a submission is
+// refused when its gnomod.toml stops parsing once stamped. Parked, such a file
+// can be neither enabled, replaced nor rejected: all three parse it first.
+func TestAddPackageRefusesAGnomodTheStampMakesUnreadable(t *testing.T) {
+	const pkgPath = "gno.land/r/test/unstampable"
+
+	cases := map[string]string{
+		// The [addpkg] section alone pushes it past the size limit.
+		"at the size limit": gnomodAtSizeLimit(pkgPath),
+		// The TOML escape decodes to U+001F, which the encoder writes back raw
+		// and the lexer refuses.
+		"a control character the encoder writes raw": "module = \"" + pkgPath + "\"\ngno = \"0.9\\u001F\"\n",
+	}
+	for name, mod := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := gnomod.ParseBytes("gnomod.toml", []byte(mod))
+			require.NoError(t, err, "premise: the gnomod.toml parses as submitted")
+
+			approver := crypto.AddressFromPreimage([]byte("oracle"))
+			creator := crypto.AddressFromPreimage([]byte("submitter"))
+			env, ctx := inertEnv(t, approver, creator)
+			err = env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+				{Name: "gnomod.toml", Body: mod},
+				{Name: "unstampable.gno", Body: "package unstampable\n\nfunc Who(cur realm) string { return \"reviewed\" }"},
+			}))
+			require.Error(t, err)
+			assert.Contains(t, fmt.Sprintf("%+v", err), "cannot be read back once stamped",
+				"the refusal has to tell the submitter it is the stamped file that fails")
+			assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+				"and nothing may be parked")
+		})
+	}
+}
+
+// TestEnableRefusesAnUnreadableParkedPackageAsUnreadable pins that a parked
+// gnomod.toml the chain cannot parse is reported as unreadable. Told the source
+// "is not what was approved", an approver hunts for a swap that never happened.
+//
+// AddPackage refuses to park such a file, so the blob is written directly, as a
+// binary without that refusal would have parked it.
+func TestEnableRefusesAnUnreadableParkedPackageAsUnreadable(t *testing.T) {
+	const pkgPath = "gno.land/r/test/unreadable"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+	submitted := NewMsgAddPackage(creator, pkgPath, replayFiles("unreadable")).Package
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, replayFiles("unreadable"))))
+
+	store := env.vmk.getGnoTransactionStore(ctx)
+	parked := store.GetInertPackage(pkgPath)
+	parked.SetFile("gnomod.toml", gnomodAtSizeLimit(pkgPath)+"\n")
+	store.AddInertPackage(parked)
+	_, err := gnomod.ParseMemPackage(store.GetInertPackage(pkgPath))
+	require.Error(t, err, "premise: the parked gnomod.toml does not parse")
+
+	err = env.vmk.EnablePackage(ctx, MsgEnablePackage{
+		Approver: approver, PkgPath: pkgPath, PkgHash: PackageContentHash(submitted),
+	})
+	require.Error(t, err)
+	assert.Contains(t, fmt.Sprintf("%+v", err), "exceeds limit",
+		"the refusal has to name why the parked file cannot be read")
+	assert.NotContains(t, fmt.Sprintf("%+v", err), "is not what was approved",
+		"an unreadable file is not evidence of a swap")
+	assert.Nil(t, store.GetMemPackage(pkgPath), "and nothing may go live")
 }
 
 // TestRejectPackageClearsTheQueue covers MsgRejectPackage.

@@ -116,7 +116,7 @@ back, and last an enable by hand with no oracle running.
 - `exhausted_purse.txtar`: `-max-spend` counts the fees the chain charges, refuses the approval that would cross the
   bound, and a run restarted with a larger bound reaches it without paying again for what is already live.
 - `substituted_source.txtar`: an approval computed over a reviewed submission must not activate different bytes at
-  the same path. Red: it states the boundary a fix has to meet.
+  the same path, even when the re-park changes only `gnomod.toml`.
 
 ## Limits
 

@@ -201,9 +201,8 @@ func Origin(cur realm) string { return origin }
 	// 3. Enable, signed by the approver.
 	//
 	// The hash is computed from the source that was submitted, which is how a
-	// real approver gets it -- they saw the transaction. It matches the parked
-	// blob because PackageContentHash excludes gnomod.toml, the only file the
-	// keeper stamps at submit.
+	// real approver gets it -- they saw the transaction. It matches because
+	// AddPackage records the digest of those bytes before it stamps gnomod.toml.
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
 		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
 	}}, approver)
