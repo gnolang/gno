@@ -2,12 +2,12 @@
 
 Builds the **gno.land mainnet** genesis. Mainnet is a **fresh chain** — not a hardfork of betanet (gnoland1) — whose balances come from the audited [gnolang/independence-day](https://github.com/gnolang/independence-day) allocation.
 
-> **Status: WORK IN PROGRESS — not launchable.** Chain-id, genesis time, the validator set (all four entries are throwaway keys), three T1 member keys, the vesting list, the inert-package params, and the transfer policy are all open — grep `TODO(mainnet)` in this folder for the authoritative list. `CHECKSUMS_DATA` stays unlocked until every value is final, and the independence-day pin moves with that repo until the allocation freeze.
+> **Status: WORK IN PROGRESS — not launchable.** Genesis time, the validator set (all four entries are throwaway keys), three T1 member keys, the vesting list and the inert-package params are all open — grep `TODO(mainnet)` in this folder for the authoritative list. `CHECKSUMS_DATA` stays unlocked until every value is final, and the independence-day pin moves with that repo until the allocation freeze.
 
 ## What mainnet contains
 
 - **Balances**: the independence-day allocation — ~3,262,457 accounts totalling ~1,333,000,000 GNOT (ATOM/ATONE airdrops, investor buckets, treasuries, public sale; see that repo's README for the bucket table) — downloaded by pinned-commit URL and sha256-verified at build time. Plus exact-burn funding for the genesis-tx fee payers: they land at zero post-genesis, or at exactly their allocation when an address is both (the collision gnoland1 left unresolved is handled by summing burn on top of allocation). **No faucets.**
-- **Governance**: the seven GovDAO T1 members from the gnolang/multisigs `[govdao]` section (aeddi's operational key overriding accounts.csv; three more key choices pending — see the bootstrap file), seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`.
+- **Governance**: the seven GovDAO T1 members from the gnolang/multisigs `[govdao]` section (aeddi's operational key overriding accounts.csv; three more key choices pending — see the bootstrap file), seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`. The build reads those addresses back out of the bootstrap source and refuses to produce a genesis unless each one holds a spendable balance: with no faucet and no transferable supply, a member seeded without funds could never pay for a proposal.
 - **Validators**: 4 founding validators planned — Gnocore, OnBloc, Samourai-Coop, Berty — one each, power 60 (one dark = one quarter lost, safely below the one-third halt boundary). All keys/operators are `TODO(mainnet)` placeholders pending each org's ceremony.
 - **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1 (admin address confirmation pending — `TODO(mainnet)`).
 - **Vested accounts**: `TODO(mainnet)` — the §132 investors-vesting bucket (150M GNOT, 24 months) is the known candidate; the mechanism (balance-sheet vesting syntax, continuous or cliff) is inherited from the pearl builder and already exercised there.
@@ -51,13 +51,13 @@ mainnet.gno.land/
 `gen-genesis.sh` is a single-phase script, 9 steps:
 
 1. Resolve script paths and tooling.
-2. Verify required tools (preflight with `brew` + `apt` install hints).
+2. Verify required tools, fetch and sha256-verify the allocation sheet and the §126 exemption list, and assert the bootstrap's T1 members are funded — everything that can fail in seconds, before the ten-minute build.
 3. Build binaries from source (`gno`, `gnokey`, `gnoland`, `gnogenesis`).
 4. Resolve `FILTERED_PACKAGES` deps, stage them, and `addpkg` them to the genesis.
 5. Add the bootstrap MsgRun from `transactions/base/bootstrap/`.
 6. Add the `names.Enable` MsgCall from `transactions/migration/names-enable/`.
 7. Build the valoper CSV from `INITIAL_VALSET` + `INITIAL_VALSET_OPERATORS` and add the `valopers.Register` txs (via `gnogenesis fork valoper-seed`).
-8. Download + sha256-verify the allocation sheet, enforce the overlap rules (fee payer ∩ allocation → summed; vested ∩ anything → rejected), then measure fee-payer balances via a two-pass temp-node run (measure → verify zero), gated on committed state.
+8. Enforce the overlap rules (fee payer ∩ allocation → summed; vested ∩ anything → rejected), then measure fee-payer balances via a two-pass temp-node run (measure → verify zero), gated on committed state.
 9. Add the validators + balances (fee payers + vested, then the allocation sheet last), run `gnogenesis verify`, move `genesis.json` into place.
 
 The locked artifacts (package list, valoper seed, tx stream, `genesis.json`) are checked against the `CHECKSUMS_DATA` manifest embedded in the script: after the first clean build with final values, paste the printed "not listed" lines into the heredoc to lock the build; any future run producing different bytes fails loudly.
