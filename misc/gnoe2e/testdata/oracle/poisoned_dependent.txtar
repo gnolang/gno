@@ -4,10 +4,10 @@
 #
 # vm/qfile cannot see a parked package, so the type check reports the import
 # exactly as it would one that was never submitted. Before the budget starts,
-# the verifier asks vm/qpkgmeta_json about every import the node would not
-# serve, and a type check that fails only on imports recorded parked is not a
-# verdict; the parent leaves the package pending without marking its content
-# hash seen.
+# the verifier asks vm/qpkgmeta_json about the imports the node would not
+# serve, and a type check that fails while one is recorded parked, and none
+# absent, is not a verdict; the parent leaves the package pending without
+# marking its content hash seen.
 #
 # A failure here is a package that can never deploy again, decided by nothing
 # but the order it was sent in.

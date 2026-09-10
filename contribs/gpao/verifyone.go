@@ -172,8 +172,8 @@ func exitNoVerdict(w io.Writer, err error) {
 // status alone.
 const exitResolverUnavailable = 3
 
-// exitImportParked is the child's exit status when the typecheck failed only
-// on imports parked on the chain awaiting their own approval: the verdict
+// exitImportParked is the child's exit status when the typecheck failed while
+// an import is parked on the chain awaiting its own approval: the verdict
 // belongs to the queue's order, not to the package. See errImportParked.
 const exitImportParked = 4
 

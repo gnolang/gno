@@ -106,18 +106,12 @@ func (c *inertChain) oracle(t *testing.T) *oracle {
 // TestParkedDependencyIsNotAPermanentVerdict encodes one property: a dependency
 // awaiting its own approval settles NOTHING about the package that imports it.
 //
-// B imports A. A is on the chain, parked, awaiting its own approval -- the
-// composable case the inert policy exists to allow (verifier.go's preprocess
-// stage says so in as many words, and tolerates exactly this input). But the
-// typecheck stage resolves imports through vm/qfile, which cannot see a parked
-// package, so B is rejected as bad code and its content hash marked seen:
-// resubmitting identical bytes is a no-op for the lifetime of the process, and
-// a restart re-verifies the same bytes and rejects them again. Submission order
-// alone decides whether a valid closure can ever deploy.
-//
-// The property is stated without a mechanism on purpose. vm/qinertpaths could
-// tell an oracle the path is parked; the verdict could stop being recorded as
-// seen; something else again. Which one is right is left open.
+// B imports A. A is on the chain, parked, awaiting its own approval: the
+// composable case the inert policy exists to allow. vm/qfile cannot see a
+// parked package, so B's typecheck fails on the import; the verifier asks the
+// chain what it holds at that path, and a parked import leaves B pending and
+// unseen, judged once A is live, rather than rejected for the order the two
+// were sent in.
 func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 	chain := newInertChain(t)
 
@@ -254,16 +248,11 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 		"the bytes were never judged, so a restart or resubmission must get a fresh look")
 }
 
-// TestParkedImportDoesNotExcuseOtherErrors: a parked import makes a package
-// pending only when it is the ONLY thing wrong with it.
-//
-// Every package here imports parked A, and every one has a second fault the
-// submitter owns: a type error of its own, or an import that was never
-// submitted anywhere. Those are verdicts, and A being parked must not defer
-// them. The absent import comes in both sort orders around A's path, because
-// the typecheck reports imports in path order and a classifier that looks at
-// the first unresolved one alone passes one order and fails the other.
-func TestParkedImportDoesNotExcuseOtherErrors(t *testing.T) {
+// TestAnAbsentImportIsAVerdictWhateverIsParked: an import submitted nowhere is
+// the submitter's to fix, so it settles the package even when another import
+// is parked. The absent import comes in both sort orders around the parked
+// one, because the misses are classified in path order.
+func TestAnAbsentImportIsAVerdictWhateverIsParked(t *testing.T) {
 	chain := newInertChain(t)
 	const depPath = "gno.land/p/test/parkeddep"
 	chain.park(t, chainPackage(depPath, "package parkeddep\n\nfunc Answer() int { return 42 }\n"))
@@ -272,11 +261,6 @@ func TestParkedImportDoesNotExcuseOtherErrors(t *testing.T) {
 		path, body string
 		blames     string // what the rejection has to name
 	}{
-		"own type error": {
-			path:   "gno.land/r/test/alsobroken",
-			body:   "package alsobroken\n\nimport \"" + depPath + "\"\n\nfunc N(cur realm) int { return parkeddep.Answer() + undefinedThing }\n",
-			blames: "undefinedThing",
-		},
 		"absent import sorting before the parked one": {
 			path:   "gno.land/r/test/alsomissing",
 			body:   "package alsomissing\n\nimport (\n\t\"gno.land/p/test/neversubmitted\"\n\t\"" + depPath + "\"\n)\n\nfunc N(cur realm) int { return parkeddep.Answer() + neversubmitted.Answer() }\n",
@@ -305,4 +289,61 @@ func TestParkedImportDoesNotExcuseOtherErrors(t *testing.T) {
 				"a verdict about the bytes settles them until the submitter changes them")
 		})
 	}
+}
+
+// TestAParkedImportDefersTheVerdict: a package whose typecheck failed while an
+// import it names is parked is left pending and unseen, and judged once that
+// import is live.
+//
+// At a versioned path, go/types names its stand-in for the refused import
+// after the last element, so every use of the package name is undefined too:
+// the shape of most gno.land/p/nt packages. An error of the package's own is
+// deferred with it, and reported when the package is verified against the
+// live import.
+func TestAParkedImportDefersTheVerdict(t *testing.T) {
+	chain := newInertChain(t)
+	const plainPath = "gno.land/p/test/parkeddep"
+	const versionedPath = "gno.land/p/test/versioned/v0"
+	chain.park(t, chainPackage(plainPath, "package parkeddep\n\nfunc Answer() int { return 42 }\n"))
+	chain.park(t, namedPackage(versionedPath, "versioned", "package versioned\n\nfunc Answer() int { return 42 }\n"))
+
+	cases := map[string]struct {
+		path, body string
+		awaits     string // the parked import the reason has to name
+	}{
+		"an import at a versioned path": {
+			path:   "gno.land/r/test/wantsversioned",
+			body:   "package wantsversioned\n\nimport \"" + versionedPath + "\"\n\nfunc N(cur realm) int { return versioned.Answer() }\n",
+			awaits: versionedPath,
+		},
+		"an error of the package's own": {
+			path:   "gno.land/r/test/alsobroken",
+			body:   "package alsobroken\n\nimport \"" + plainPath + "\"\n\nfunc N(cur realm) int { return parkeddep.Answer() + undefinedThing }\n",
+			awaits: plainPath,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mpkg := chainPackage(tc.path, tc.body)
+			chain.park(t, mpkg)
+			o := chain.oracle(t)
+
+			o.handleCandidate(t.Context(), mpkg)
+
+			st := o.status.get(tc.path)
+			require.Equal(t, statusPending, st.Status,
+				"a package waiting on a parked import is not judged yet -- recorded reason: %s", st.Reason)
+			assert.Contains(t, st.Reason, tc.awaits, "the reason must name the import it waits on")
+			assert.NotContains(t, o.seen, candidateKey(mpkg),
+				"the bytes were never judged, so a resubmission once the import is live must get a fresh look")
+		})
+	}
+}
+
+// namedPackage is chainPackage for a path whose last element is not the
+// package name, as at a versioned path.
+func namedPackage(pkgPath, name, body string) *std.MemPackage {
+	mpkg := chainPackage(pkgPath, body)
+	mpkg.Name = name
+	return mpkg
 }

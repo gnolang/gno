@@ -309,9 +309,9 @@ func (o *oracle) run(ctx context.Context) error {
 		served, answered := o.queryPkgMetaRoute(ctx)
 		if answered {
 			if !served {
-				return errors.New("this node does not answer vm/qpkgmeta_json, which " +
-					"verification needs to tell a parked import from an absent one; " +
-					"point gpao at a node that serves it")
+				return errors.New("this node does not answer vm/qpkgmeta_json in a form " +
+					"this build reads, which verification needs to tell a parked import " +
+					"from an absent one; point gpao at a node that serves it")
 			}
 			break
 		}
@@ -662,8 +662,9 @@ func (o *oracle) queryBlockMaxGas(ctx context.Context) (maxGas int64, answered b
 // queryPkgMetaRoute asks whether the node serves vm/qpkgmeta_json, and
 // reports whether it answered at all, split the way queryBlockMaxGas is. Any
 // path serves as the question: an absent one is a successful "absent", so
-// only an unknown-request answer means the route is missing. Any other error
-// is the node describing itself, a restart or a replay, and is asked again.
+// only an unknown-request answer means the route is missing, and a body the
+// verifier could not decode means it is unusable. Any other error is the node
+// describing itself, a restart or a replay, and is asked again.
 func (o *oracle) queryPkgMetaRoute(ctx context.Context) (served, answered bool) {
 	const probePath = "gno.land/p/gpao/probe"
 	res, err := o.client.RPCClient.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(probePath))
@@ -673,6 +674,10 @@ func (o *oracle) queryPkgMetaRoute(ctx context.Context) (served, answered bool) 
 	}
 	switch qerr := res.Response.Error; qerr.(type) {
 	case nil:
+		if _, err := decodePkgMeta(res.Response.Data); err != nil {
+			o.errf("gpao: the node answers vm/qpkgmeta_json in a form this build cannot read: %v", err)
+			return false, true
+		}
 		return true, true
 	case std.UnknownRequestError, *std.UnknownRequestError:
 		o.errf("gpao: the node refused vm/qpkgmeta_json: %v", qerr)
@@ -794,9 +799,9 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
-// errAwaitingDependency reports that the package failed to type-check only on
-// imports the chain holds parked, awaiting their own approval. Not a verdict,
-// and neither an overrun nor a fault, so it counts against no allowance.
+// errAwaitingDependency reports that the package failed to type-check while an
+// import it names is parked on the chain awaiting its own approval. Not a
+// verdict, and neither an overrun nor a fault: it counts against no allowance.
 var errAwaitingDependency = errors.New("awaiting a dependency")
 
 // gasHeadroomNum/Den add 20% to a measured estimate.

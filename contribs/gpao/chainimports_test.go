@@ -360,6 +360,97 @@ func TestPrepareReportsTheFaultUnderAnUnclassifiedImport(t *testing.T) {
 		"a miss the node would not classify is the node's fault, and the parent classifies on it")
 }
 
+// TestPrepareBuildsLatecomersInAnyOrder: two imports the walk missed, live by
+// the time they are classified, one importing the other, verify on every run.
+// Building either resolves the other, so every cached absence has to go
+// before the first build, whichever path is visited first.
+func TestPrepareBuildsLatecomersInAnyOrder(t *testing.T) {
+	low := chainPackage("gno.land/p/test/depb", "package depb\n\nfunc One() int { return 1 }\n")
+	high := chainPackage("gno.land/p/test/depa",
+		"package depa\n\nimport \"gno.land/p/test/depb\"\n\nfunc Two() int { return depb.One() + 1 }\n")
+	mpkg := chainPackage("gno.land/r/test/wantsboth",
+		"package wantsboth\n\nimport (\n\t\"gno.land/p/test/depa\"\n\t\"gno.land/p/test/depb\"\n)\n\n"+
+			"func N(cur realm) int { return depa.Two() + depb.One() }\n")
+
+	for range 10 {
+		v := newRPCVerifier(t, low, high)
+		served := v.rpc.qfile
+		missed := map[string]bool{}
+		v.rpc.qfile = func(fpath string) ([]byte, error) {
+			if (fpath == low.Path || fpath == high.Path) && !missed[fpath] {
+				missed[fpath] = true
+				return nil, errors.New("package is not available")
+			}
+			return served(fpath)
+		}
+
+		require.NoError(t, v.prepare(mpkg))
+		require.Len(t, missed, 2, "premise: the walk must have missed both, or this proves nothing")
+		require.NoError(t, v.verifyPackage(mpkg),
+			"two latecomers the chain reports live must resolve, whichever is built first")
+	}
+}
+
+// TestPrepareAsksNoFurtherOnceAnImportIsAbsent: one absent import is a verdict
+// already, so classifying the misses stops there. A package naming many
+// imports that exist nowhere costs one status query, not one per import.
+func TestPrepareAsksNoFurtherOnceAnImportIsAbsent(t *testing.T) {
+	var imports, uses strings.Builder
+	for i := range 5 {
+		fmt.Fprintf(&imports, "\t\"gno.land/p/test/nowhere%d\"\n", i)
+		fmt.Fprintf(&uses, " + nowhere%d.X", i)
+	}
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport (\n"+imports.String()+")\n\nfunc Use() int { return 0"+uses.String()+" }\n")
+
+	v := newRPCVerifier(t) // a chain that serves nothing at all
+	asked := 0
+	status := v.rpc.qmeta
+	v.rpc.qmeta = func(pkgPath string) (vm.PackageMeta, error) {
+		asked++
+		return status(pkgPath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.Len(t, v.unserved, 5, "premise: the walk must have missed every import")
+	assert.Equal(t, 1, asked,
+		"the first absent import settles the package; asking about the rest costs a round trip each")
+	err := v.verifyPackage(mpkg)
+	require.Error(t, err, "the typecheck judges a package whose imports exist nowhere")
+	assert.NotErrorIs(t, err, errImportParked)
+}
+
+// TestPrepareReportsTheFaultUnderALateBuild: a latecomer whose own import the
+// node drops while it is built reports the fault, not the build failure it
+// causes, as TestPrepareReportsTheTransportFaultUnderABuildFailure pins for
+// the walk.
+func TestPrepareReportsTheFaultUnderALateBuild(t *testing.T) {
+	low := chainPackage("gno.land/p/test/low", "package low\n\nfunc One() int { return 1 }\n")
+	late := chainPackage("gno.land/p/test/latecomer",
+		"package latecomer\n\nimport \"gno.land/p/test/low\"\n\nfunc Two() int { return low.One() + 1 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/latecomer\"\n\nfunc Use() int { return latecomer.Two() }\n")
+
+	v := newRPCVerifier(t, low, late)
+	served := v.rpc.qfile
+	missedOnce := false
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		switch {
+		case fpath == late.Path && !missedOnce:
+			missedOnce = true
+			return nil, errors.New("package is not available")
+		case strings.HasPrefix(fpath, low.Path):
+			return nil, fmt.Errorf("%w: connection reset", errResolverUnavailable)
+		}
+		return served(fpath)
+	}
+
+	err := v.prepare(mpkg)
+	require.True(t, missedOnce, "premise: the walk must have missed the latecomer, or this proves nothing")
+	require.ErrorIs(t, err, errResolverUnavailable,
+		"a build that failed under a transport fault is the fault, not a fault of this oracle's tree")
+}
+
 // A stdlib that will not build in the operator's tree leaves the candidate
 // pending, whether it is imported directly or through a chain dependency.
 //

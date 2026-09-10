@@ -25,13 +25,18 @@ import (
 
 // answersPkgMeta is a nil rpcclient.Client that answers the startup probe for
 // vm/qpkgmeta_json, which every stub that reaches the work loops has to pass.
-// Every other method still panics, as in stubRPC.
+// Any other query, and every other method, still panics, as in stubRPC.
 type answersPkgMeta struct {
 	rpcclient.Client
 }
 
-func (answersPkgMeta) ABCIQuery(context.Context, string, []byte) (*ctypes.ResultABCIQuery, error) {
-	return &ctypes.ResultABCIQuery{}, nil
+func (answersPkgMeta) ABCIQuery(_ context.Context, path string, _ []byte) (*ctypes.ResultABCIQuery, error) {
+	if path != "vm/qpkgmeta_json" {
+		panic("unexpected ABCIQuery path: " + path)
+	}
+	return &ctypes.ResultABCIQuery{Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+		Data: []byte(`{"path":"gno.land/p/gpao/probe","status":"absent"}`),
+	}}}, nil
 }
 
 // bootRaceRPC is a node that is not up yet: the first `failures` Status calls
@@ -580,6 +585,25 @@ func TestRunRefusesANodeWithoutThePackageMetaRoute(t *testing.T) {
 
 		err = o.run(ctx)
 		require.Error(t, err, "a node that cannot classify an unresolved import must not be followed")
+		assert.ErrorContains(t, err, "vm/qpkgmeta_json", "the refusal must name the route")
+	})
+
+	t.Run("a node answering the route in a form gpao cannot read is refused", func(t *testing.T) {
+		// Renamed to vm/qpaths, the probe draws a successful answer that is not
+		// a package's metadata, so every classification would fail the same way.
+		garbled := httptest.NewServer(renamingRoute(t, remote, "vm/qpkgmeta_json", "vm/qpaths"))
+		t.Cleanup(garbled.Close)
+		rpc, err := rpcclient.NewHTTPClient(garbled.URL)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		o := newStubOracle(rpc)
+		o.cfg.pollInterval = time.Millisecond
+		o.cfg.startHeight = 1
+
+		err = o.run(ctx)
+		require.Error(t, err, "a node whose answers the verifier cannot read must not be followed")
 		assert.ErrorContains(t, err, "vm/qpkgmeta_json", "the refusal must name the route")
 	})
 

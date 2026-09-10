@@ -93,22 +93,37 @@ func newRPCGetter(client rpcclient.Client) *rpcGetter {
 		return qres.Response.Data, nil
 	}
 	qmeta := func(pkgPath string) (vm.PackageMeta, error) {
-		var meta vm.PackageMeta
 		qres, err := client.ABCIQuery(context.Background(), "vm/qpkgmeta_json", []byte(pkgPath))
 		if err != nil {
-			return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+			return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
 		}
 		// An unknown path is a successful "absent" (VMKeeper.QueryPackageMeta),
 		// so an error here is the node describing itself.
 		if qerr := qres.Response.Error; qerr != nil {
-			return meta, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
+			return vm.PackageMeta{}, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
 		}
-		if err := json.Unmarshal(qres.Response.Data, &meta); err != nil {
-			return meta, fmt.Errorf("%w: unreadable vm/qpkgmeta_json answer: %w", errResolverUnavailable, err)
+		meta, err := decodePkgMeta(qres.Response.Data)
+		if err != nil {
+			return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
 		}
 		return meta, nil
 	}
 	return &rpcGetter{qfile: qfile, qmeta: qmeta, cache: make(map[string]*std.MemPackage)}
+}
+
+// decodePkgMeta reads a vm/qpkgmeta_json answer, refusing a body that does not
+// decode or names a status other than live, inert or absent: classified, such
+// an answer would read as "absent", which is a verdict.
+func decodePkgMeta(data []byte) (vm.PackageMeta, error) {
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return meta, fmt.Errorf("unreadable vm/qpkgmeta_json answer: %w", err)
+	}
+	switch meta.Status {
+	case vm.PackageStatusLive, vm.PackageStatusInert, vm.PackageStatusAbsent:
+		return meta, nil
+	}
+	return meta, fmt.Errorf("vm/qpkgmeta_json answered status %q, which this build does not know", meta.Status)
 }
 
 // absence reports whether an answered query said "nothing is stored at this

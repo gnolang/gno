@@ -100,6 +100,17 @@ func TestPackageStatusIsAnAnswerOrAFault(t *testing.T) {
 		"unreadable answer": {
 			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte("not json")}},
 		},
+		"an answer with no status": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(`{}`)}},
+		},
+		"a null answer": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(`null`)}},
+		},
+		"a status this build does not know": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"quarantined"}`),
+			}},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

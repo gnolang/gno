@@ -179,17 +179,18 @@ A package importing one that is **parked**, submitted but not yet enabled, is
 left pending too, uncounted, with the import named in the reason. `vm/qfile`
 cannot see a parked package, so the type check reports the import exactly as it
 would one that was never submitted. Before the budget starts, the verifier asks
-`vm/qpkgmeta_json` about every import the node would not serve and records the
-answer; a package is pending only when every type-check error is an unresolved
-import of a path recorded parked. An import that is absent, or any error in the
-package's own code, is a rejection whatever else is parked. An import the chain
-reports live but would not serve is fetched once more: a package enabled during
-the fetch resolves, and one whose files `vm/qfile` cannot serve leaves the
-package pending as unavailable, which is the oracle's limit and not a verdict.
-Nothing re-offers a pending package by itself: resubmit it, or restart, once
-the import is live. The daemon refuses to start against a node that does not
-answer `vm/qpkgmeta_json`, since without it every absent import would sit
-pending instead of being rejected.
+`vm/qpkgmeta_json` about the imports the node would not serve, in path order,
+and stops at the first one that is absent: an import submitted nowhere is a
+rejection whatever else is parked. When none is absent and one is parked, a
+failed type check leaves the package pending, and an error in its own code is
+reported once the import is live. An import the chain reports live but would
+not serve is fetched once more: a package enabled during the fetch resolves,
+and one whose files `vm/qfile` cannot serve leaves the package pending as
+unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
+pending package by itself: resubmit it, or restart, once the import is live.
+The daemon refuses to start against a node that does not answer
+`vm/qpkgmeta_json` in a form it reads, since without it every absent import
+would sit pending instead of being rejected.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
