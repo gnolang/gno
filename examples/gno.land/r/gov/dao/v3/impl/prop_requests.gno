@@ -4,7 +4,7 @@ import (
 	"chain/runtime/unsafe"
 	"strings"
 
-	"gno.land/p/aeddi/panictoerr"
+	"gno.land/p/aeddi/panictoerr/v0"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"

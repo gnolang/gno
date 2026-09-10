@@ -45,7 +45,7 @@ gno.land/p/sys/validators
 gno.land/p/nt/poa/v0
 gno.land/r/sys/validators/v2
 gno.land/r/gnops/valopers/proposal
-gno.land/p/aeddi/panictoerr
+gno.land/p/aeddi/panictoerr/v0
 gno.land/p/moul/helplink
 gno.land/p/nt/treasury/v0
 gno.land/p/sunspirit/md
