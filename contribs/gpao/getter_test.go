@@ -116,47 +116,91 @@ func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 			"clause here rejects the importing package for a name its author never wrote")
 }
 
-// TestRPCGetterCaching verifies the getter caches successful fetches (immutable
-// on-chain packages) but not misses (a package absent now may appear later).
+// TestRPCGetterCaching verifies the getter caches what the node ANSWERED --
+// a fetched package, because on-chain paths are immutable, and an absence --
+// and does not cache a fault.
+//
+// An absence used to be re-queried, on the rationale that a package absent now
+// may be enabled later in the run. That rationale belonged to a getter hanging
+// off the long-lived daemon. This one is built per verification in a child that
+// exits with it (newVerifier), so nothing can enable a package under it, and
+// re-asking only moves the same answer out of prepare -- which is off the
+// budget -- into the typecheck and the preprocess, which are on it. Against a
+// slow node that turns a rejection the typecheck was going to give into an
+// overrun, which counts toward maxOverBudgetAttempts instead of settling the
+// package.
 func TestRPCGetterCaching(t *testing.T) {
 	const pkgPath = "gno.land/p/x"
 	files := map[string]string{
 		pkgPath:                     "x.gno",       // file list
 		path.Join(pkgPath, "x.gno"): "package x\n", // file body
 	}
-
-	available := false
-	calls := 0
-	g := &rpcGetter{
-		cache: make(map[string]*std.MemPackage),
-		qfile: func(fp string) ([]byte, error) {
-			calls++
-			if !available {
-				return nil, errors.New("package is not available")
-			}
-			body, ok := files[fp]
-			if !ok {
-				return nil, errors.New("file is not available")
-			}
-			return []byte(body), nil
-		},
+	serve := func(fp string) ([]byte, error) {
+		body, ok := files[fp]
+		if !ok {
+			return nil, errors.New("file is not available")
+		}
+		return []byte(body), nil
 	}
 
-	// Absent now: miss, and it must NOT be cached.
-	assert.Nil(t, g.GetMemPackage(pkgPath))
-	assert.Nil(t, g.GetMemPackage(pkgPath))
+	t.Run("an answered absence is pinned", func(t *testing.T) {
+		calls := 0
+		g := &rpcGetter{
+			cache: make(map[string]*std.MemPackage),
+			qfile: func(string) ([]byte, error) {
+				calls++
+				return nil, errors.New("package is not available") // the node ran the query
+			},
+		}
 
-	// The package is enabled later in the run: the miss was not pinned, so it
-	// now resolves.
-	available = true
-	mpkg := g.GetMemPackage(pkgPath)
-	require.NotNil(t, mpkg, "package must resolve once available (miss not cached)")
-	assert.Equal(t, "x", mpkg.Name)
+		require.Nil(t, g.GetMemPackage(pkgPath))
+		afterMiss := calls
+		require.Positive(t, afterMiss, "the first lookup must reach the node")
 
-	// Subsequent lookups are served from cache — no further queries.
-	callsAfterHit := calls
-	g.GetMemPackage(pkgPath)
-	assert.Equal(t, callsAfterHit, calls, "cached package must not be re-queried")
+		assert.Nil(t, g.GetMemPackage(pkgPath))
+		assert.Equal(t, afterMiss, calls,
+			"an absence the node answered must not be asked again, on the clock")
+	})
+
+	t.Run("a fetched package is cached", func(t *testing.T) {
+		calls := 0
+		g := &rpcGetter{
+			cache: make(map[string]*std.MemPackage),
+			qfile: func(fp string) ([]byte, error) {
+				calls++
+				return serve(fp)
+			},
+		}
+
+		mpkg := g.GetMemPackage(pkgPath)
+		require.NotNil(t, mpkg)
+		assert.Equal(t, "x", mpkg.Name)
+
+		afterHit := calls
+		g.GetMemPackage(pkgPath)
+		assert.Equal(t, afterHit, calls, "cached package must not be re-queried")
+	})
+
+	t.Run("a fault is not pinned", func(t *testing.T) {
+		down := true
+		g := &rpcGetter{
+			cache: make(map[string]*std.MemPackage),
+			qfile: func(fp string) ([]byte, error) {
+				if down {
+					return nil, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+				}
+				return serve(fp)
+			},
+		}
+
+		require.Nil(t, g.GetMemPackage(pkgPath))
+
+		// The node could not be asked, so it said nothing about the path: once
+		// it can, the package resolves rather than staying pinned to nil.
+		down = false
+		require.NotNil(t, g.GetMemPackage(pkgPath),
+			"a dropped packet must not report an import as absent")
+	})
 }
 
 // TestRPCGetterSeparatesTransportFaultsFromAbsence pins the two kinds of

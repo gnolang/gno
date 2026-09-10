@@ -18,11 +18,21 @@ type AppConns interface {
 }
 
 // ClientCreator creates ABCI clients for the three Tendermint connections.
+//
+// Kept in sync with proxy.ClientCreator, which carries the same contract.
 type ClientCreator interface {
 	// NewABCIClient returns a client for mutating connections (consensus, mempool).
+	// Calls on it are serialised against each other.
 	NewABCIClient() (abcicli.Client, error)
-	// NewReadOnlyABCIClient returns a client for the query connection.
-	// It uses an independent mutex so query calls never block consensus.
+
+	// NewReadOnlyABCIClient returns a client for the query connection. Calls on
+	// it never block consensus, and they do not serialise against each other:
+	// several may be inside the application at once.
+	//
+	// PRECONDITION on any implementation: the application must be goroutine-safe
+	// for every method this connection reaches — QuerySync, InfoSync, EchoSync.
+	// An implementation that cannot promise that must serialise the connection
+	// itself.
 	NewReadOnlyABCIClient() (abcicli.Client, error)
 }
 
@@ -71,7 +81,8 @@ func (app *multi) Query() Query {
 }
 
 func (app *multi) OnStart() error {
-	// query connection — uses an independent mutex so queries never block consensus
+	// query connection — never blocks consensus, and admits several concurrent
+	// callers (bounded); see proxy.NewReadOnlyABCIClient for the precondition
 	querycli, err := app.clientCreator.NewReadOnlyABCIClient()
 	if err != nil {
 		return errors.Wrap(err, "Error creating ABCI client (query connection)")

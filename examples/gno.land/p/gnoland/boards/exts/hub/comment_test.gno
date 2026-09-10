@@ -11,7 +11,7 @@ import (
 // Addresses and the fixed time the test VM reports for time.Now().
 const (
 	alice    address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	bob      address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	bob      address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	testTime int64   = 1234567890
 )
 

@@ -251,6 +251,10 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInvalidAddress
 	}
 
+	if owner == to {
+		return ErrCannotTransferToSelf
+	}
+
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}

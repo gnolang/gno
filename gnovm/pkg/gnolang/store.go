@@ -68,6 +68,8 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	// SetBlockNodes publishes a group built together; never loop SetBlockNode.
+	SetBlockNodes([]BlockNode)
 	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
@@ -297,7 +299,18 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+	committer := t.cacheNodes.(txlog.MapCommitter[Location, BlockNode])
+	// Seal before publishing, not after. These nodes are private to this
+	// transaction right up until Commit copies them into the parent map;
+	// from that instant every store forked from the parent — including
+	// every concurrent query — can reach them, and the first two readers to
+	// touch an unfilled lazy cache would race on it. Sealing here is the
+	// last moment a single goroutine owns them.
+	s := newSealer()
+	for _, bn := range committer.Dirty() {
+		s.sealBlockNode(bn)
+	}
+	committer.Commit()
 }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
@@ -932,14 +945,47 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 						loc, bn.GetLocation()))
 				}
 			}
-			ds.cacheNodes.Set(loc, bn)
+			ds.SetBlockNode(bn)
 			return bn
 		}
 	}
 	return nil
 }
 
+// SetBlockNode publishes one block node. For a group built together, such as one
+// file's worth, call SetBlockNodes instead: looping here seals each node under
+// its own sealer and re-walks the package's type graph once per node.
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
+	ds.SetBlockNodes([]BlockNode{bn})
+}
+
+// SetBlockNodes publishes a group of block nodes that were built together, such
+// as one file's worth. Sealing them under a single sealer matters: sealBlockNode
+// follows each node's parent chain up to the file and package nodes, so sealing
+// one node at a time re-walks the package's whole type graph once per node.
+func (ds *defaultStore) SetBlockNodes(bns []BlockNode) {
+	if ds.publishesDirectly() {
+		s := newSealer()
+		for _, bn := range bns {
+			s.sealBlockNode(bn)
+		}
+	}
+	for _, bn := range bns {
+		ds.setBlockNode(bn)
+	}
+}
+
+// publishesDirectly reports whether a Set on this store lands straight in the
+// process-wide map (genesis load, and the mem-package re-run on node start)
+// rather than in a transaction fork's private overlay. Direct publication has
+// to seal first, because from the Set onwards every concurrent query can reach
+// the node. A fork's writes stay private until Write(), which seals them there.
+func (ds *defaultStore) publishesDirectly() bool {
+	_, forked := ds.cacheNodes.(txlog.MapCommitter[Location, BlockNode])
+	return !forked
+}
+
+func (ds *defaultStore) setBlockNode(bn BlockNode) {
 	loc := bn.GetLocation()
 	if loc.IsZero() {
 		panic("unexpected zero location in blocknode")

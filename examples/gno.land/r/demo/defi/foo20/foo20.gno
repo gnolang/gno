@@ -15,7 +15,7 @@ var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
 	userTeller    grc20.Teller
-	Ownable       = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Ownable       = ownable.NewWithAddress("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 )
 
 func init(cur realm) {

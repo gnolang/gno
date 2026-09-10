@@ -67,6 +67,14 @@ func TestTransactionStore(t *testing.T) {
 	if stA.(*DeclaredType).Methods == nil {
 		stA.(*DeclaredType).Methods = []TypedValue{}
 	}
+	// Normalize the lazily-memoized pkgID the same way. It is unexported and so
+	// not serialized: the type Write() published had its caches sealed before
+	// publication, while the one read back was amino-decoded and has filled
+	// nothing yet. GetPkgID is a pure function of PkgPath, so warming both
+	// compares the derived value instead of which object happened to be asked
+	// for it first.
+	helloA.(*DeclaredType).GetPkgID()
+	stA.(*DeclaredType).GetPkgID()
 	assert.Equal(t, stA, helloA)
 }
 

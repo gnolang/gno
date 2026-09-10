@@ -202,6 +202,15 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 	uassert.Equal(t, remainingAllowance, initialAllowance,
 		"allowance should not be reduced when transfer fails")
 
+	// Self-transfers fail in Transfer after SpendAllowance. TransferFrom must
+	// reject them before it can mutate the allowance.
+	err = admin.TransferFrom(owner, spender, owner, transferAmount)
+	uassert.True(t, errors.Is(err, ErrCannotTransferToSelf), "self-transfer should fail")
+	uassert.Equal(t, initialBalance, token.BalanceOf(owner),
+		"owner balance should not change when self-transfer fails")
+	uassert.Equal(t, initialAllowance, token.Allowance(owner, spender),
+		"allowance should not be reduced when self-transfer fails")
+
 	// transfer all tokens
 	admin.Transfer(owner, recipient, 100)
 	remainingBalance := token.BalanceOf(owner)

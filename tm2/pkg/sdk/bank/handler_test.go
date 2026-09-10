@@ -25,6 +25,22 @@ func TestInvalidMsg(t *testing.T) {
 	require.True(t, strings.Contains(res.Log, "unrecognized bank message type"))
 }
 
+func TestHandlerEmitsTransferEvents(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("handler-send-from"))
+	to := crypto.AddressFromPreimage([]byte("handler-send-to"))
+	amount := std.NewCoins(std.NewCoin("ugnot", 5))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
+
+	res := NewHandler(env.bankk).Process(env.ctx, NewMsgSend(from, to, amount))
+	require.True(t, res.IsOK(), res.Log)
+	require.Equal(t, []sdk.Event{TransferEvent{
+		From: from.String(), To: to.String(), Coins: amount,
+	}}, env.ctx.EventLogger().Events())
+}
+
 func TestBalances(t *testing.T) {
 	t.Parallel()
 
