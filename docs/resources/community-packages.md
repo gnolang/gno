@@ -183,7 +183,7 @@ func SetName(cur realm, name string) {
 - [`gno.land/p/onbloc/json`](../../examples/gno.land/p/onbloc/json/README.md):
   parse JSON into explicit nodes when a realm accepts structured text input.
 - [`gno.land/p/onbloc/int256`](../../examples/gno.land/p/onbloc/int256/doc.gno)
-  and [`gno.land/p/onbloc/uint256`](../../examples/gno.land/p/onbloc/uint256/README.md):
+  and [`gno.land/p/onbloc/uint256/v0`](../../examples/gno.land/p/onbloc/uint256/v0/README.md):
   fixed-width integer helpers for domains that need larger arithmetic than the
   built-in integer types.
 - `gno.land/p/lou/query` **(quarantined)**:
