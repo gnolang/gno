@@ -15,8 +15,8 @@
 #   5. After DAO unpause executes: addpkg under PA succeeds again.
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/impl
+loadpkg gno.land/r/gov/dao/v0/init
 loadpkg gno.land/r/sys/names
 loadpkg gno.land/r/sys/users
 
@@ -105,7 +105,7 @@ stdout OK!
 -- run/init_govdao.gno --
 package main
 
-import dao "gno.land/r/gov/dao/v3/init"
+import dao "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

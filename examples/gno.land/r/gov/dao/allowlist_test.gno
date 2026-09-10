@@ -26,31 +26,31 @@ func TestUpdateImplIgnoresEmptyAllowedDAOs(cur realm, t *testing.T) {
 
 	lock := func() {
 		allowedDAOs = nil // reopen so the next UpdateImpl is permitted
-		testing.SetRealm(testing.NewCodeRealm(v3))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v3}})
+		testing.SetRealm(testing.NewCodeRealm(v0))
+		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 		uassert.False(t, InAllowedDAOs(invalid), "precondition: locked down")
 	}
 
 	// Path 1: NewUpdateRequest(d, nil) — "swap the implementation, leave
-	// permissions alone", and the form v3/loader uses.
+	// permissions alone", and the form v0/loader uses.
 	lock()
-	testing.SetRealm(testing.NewCodeRealm(v3))
+	testing.SetRealm(testing.NewCodeRealm(v0))
 	UpdateImpl(cross(cur), NewUpdateRequest(&dummyDao{}, nil))
 	uassert.False(t, InAllowedDAOs(invalid),
 		"a nil AllowedDAOs must not reopen the permission gate")
 
 	// Path 2: an explicitly empty slice via the struct literal.
 	lock()
-	testing.SetRealm(testing.NewCodeRealm(v3))
+	testing.SetRealm(testing.NewCodeRealm(v0))
 	UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{}})
 	uassert.False(t, InAllowedDAOs(invalid),
 		"an empty AllowedDAOs must not reopen the permission gate")
 
 	// A legitimate extension of the list must still apply.
 	lock()
-	testing.SetRealm(testing.NewCodeRealm(v3))
-	UpdateImpl(cross(cur), NewUpdateRequest(&dummyDao{}, []string{v3, v4}))
-	uassert.True(t, InAllowedDAOs(v4), "a non-empty AllowedDAOs must still be stored")
+	testing.SetRealm(testing.NewCodeRealm(v0))
+	UpdateImpl(cross(cur), NewUpdateRequest(&dummyDao{}, []string{v0, v1}))
+	uassert.True(t, InAllowedDAOs(v1), "a non-empty AllowedDAOs must still be stored")
 	uassert.False(t, InAllowedDAOs(invalid), "and must not admit anyone else")
 }
 
@@ -62,7 +62,7 @@ func TestBootstrapWindowStillOpen(t *testing.T) {
 	defer func() { allowedDAOs = saved }()
 
 	allowedDAOs = nil
-	uassert.True(t, InAllowedDAOs("gno.land/r/gov/dao/v3/loader"),
+	uassert.True(t, InAllowedDAOs("gno.land/r/gov/dao/v0/loader"),
 		"an unset allowlist must stay open for genesis bootstrap")
 }
 
@@ -77,22 +77,22 @@ func TestUpdateImplRejectsBlankAllowedDAOEntry(cur realm, t *testing.T) {
 
 	for _, blank := range []string{"", "   "} {
 		allowedDAOs = nil
-		testing.SetRealm(testing.NewCodeRealm(v3))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v3}})
+		testing.SetRealm(testing.NewCodeRealm(v0))
+		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 
-		testing.SetRealm(testing.NewCodeRealm(v3))
+		testing.SetRealm(testing.NewCodeRealm(v0))
 		urequire.AbortsWithMessage(t, cur,
 			"AllowedDAOs entries must be realm paths; got an empty one",
 			func() {
 				UpdateImpl(cross(cur), UpdateRequest{
 					DAO:         &dummyDao{},
-					AllowedDAOs: []string{v3, blank},
+					AllowedDAOs: []string{v0, blank},
 				})
 			})
 
 		uassert.False(t, InAllowedDAOs(""),
 			"a blank entry must never make it into the allowlist")
-		uassert.True(t, InAllowedDAOs(v3),
+		uassert.True(t, InAllowedDAOs(v0),
 			"the rejected request must leave the previous allowlist intact")
 	}
 }
@@ -106,24 +106,24 @@ func TestUpdateImplRejectsPaddedAllowedDAOEntry(cur realm, t *testing.T) {
 	savedDAOs, savedDAO := allowedDAOs, dao
 	defer func() { allowedDAOs, dao = savedDAOs, savedDAO }()
 
-	for _, padded := range []string{" " + v4, v4 + " ", "\t" + v4} {
+	for _, padded := range []string{" " + v1, v1 + " ", "\t" + v1} {
 		allowedDAOs = nil
-		testing.SetRealm(testing.NewCodeRealm(v3))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v3}})
+		testing.SetRealm(testing.NewCodeRealm(v0))
+		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 
-		testing.SetRealm(testing.NewCodeRealm(v3))
+		testing.SetRealm(testing.NewCodeRealm(v0))
 		urequire.AbortsWithMessage(t, cur,
 			"AllowedDAOs entries must not have leading or trailing spaces; entry 1",
 			func() {
 				UpdateImpl(cross(cur), UpdateRequest{
 					DAO:         &dummyDao{},
-					AllowedDAOs: []string{v3, padded},
+					AllowedDAOs: []string{v0, padded},
 				})
 			})
 
 		uassert.False(t, InAllowedDAOs(padded),
 			"a padded entry must never make it into the allowlist")
-		uassert.True(t, InAllowedDAOs(v3),
+		uassert.True(t, InAllowedDAOs(v0),
 			"the rejected request must leave the previous allowlist intact")
 	}
 }

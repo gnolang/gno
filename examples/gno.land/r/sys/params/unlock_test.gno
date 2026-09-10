@@ -6,7 +6,7 @@ import (
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gov/dao"
-	ini "gno.land/r/gov/dao/v3/init"
+	ini "gno.land/r/gov/dao/v0/init"
 )
 
 var g1user = testutils.TestAddress("g1user")

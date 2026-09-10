@@ -6,7 +6,7 @@ import (
 	"chain/runtime/unsafe"
 	"strconv"
 
-	"gno.land/p/demo/svg"
+	"gno.land/p/nt/svg/v0"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/ufmt/v0"

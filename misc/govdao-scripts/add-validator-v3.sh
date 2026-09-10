@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Add an operator to the test-13 active valset via govDAO proposal.
 #
-# Routes through r/sys/validators/v3's operator-keyed
+# Routes through r/sys/validators/v0's operator-keyed
 # NewValidatorProposalRequest (non-crossing) with the given Power.
 # The operator must already exist in r/gnops/valopers' valoperCache
 # (i.e. have called valopers.Register themselves) with
-# KeepRunning=true (the default at Register time). v3's executor
+# KeepRunning=true (the default at Register time). v0's executor
 # re-resolves the signing pubkey from the cache at execution time,
 # so a mid-flight key rotation publishes the current key.
 #
@@ -33,7 +33,7 @@ fi
 ADDR="$1"
 POWER="${2:-1}"
 
-# voting_power must be a positive integer — v3 rejects Power=0 as a
+# voting_power must be a positive integer — v0 rejects Power=0 as a
 # remove operation, which would silently turn this script into a
 # remove if a user passes 0 by mistake. Catch it here.
 if ! [[ "$POWER" =~ ^[1-9][0-9]*$ ]]; then
@@ -50,7 +50,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	valv3 "gno.land/r/sys/validators/v3"
+	valv3 "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {

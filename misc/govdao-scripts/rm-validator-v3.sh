@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Remove an operator from the test-13 active valset via govDAO proposal.
 #
-# Routes through r/sys/validators/v3's operator-keyed
+# Routes through r/sys/validators/v0's operator-keyed
 # NewValidatorProposalRequest (non-crossing) with Power=0. This is a
 # force-remove — unlike the higher-level facade in
 # r/gnops/valopers/proposal.NewValidatorProposalRequest, this does
 # not require the operator to have called UpdateKeepRunning(false)
 # first. The operator must still exist in r/gnops/valopers'
-# valoperCache (v3 enforces that at proposal-creation time).
+# valoperCache (v0 enforces that at proposal-creation time).
 #
 # Usage:
 #   ./rm-validator.sh <operator_address>
@@ -39,7 +39,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	valv3 "gno.land/r/sys/validators/v3"
+	valv3 "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {

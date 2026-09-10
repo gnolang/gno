@@ -6,10 +6,10 @@ adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual p
 stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -20,7 +20,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
 
 # verify no balances are found even though the treasury address got tokens
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v0/treasury:GRC20'
 stdout 'No balances found.'
 
 # add the tokens update proposal
@@ -43,7 +43,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 23
 stdout OK!
 
 # verify the balances associated with the tokens update proposal
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v0/treasury:GRC20'
 stdout '| Denom | Amount |'
 stdout '| gno.land/r/demo/defi/grc20factory.TOKEN1 | 42 |'
 stdout '| gno.land/r/demo/defi/grc20factory.TOKEN2 | 0 |'
@@ -66,7 +66,7 @@ func main(cur realm) {
 	factory.Mint(
 		cross(cur),
 		"TOKEN1",
-		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
+		chain.PackageAddress("gno.land/r/gov/dao/v0/treasury"),
 		42,
 	)
 }
@@ -75,7 +75,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v0/impl"
 )
 
 func main(cur realm) {
@@ -95,8 +95,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -110,5 +110,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }

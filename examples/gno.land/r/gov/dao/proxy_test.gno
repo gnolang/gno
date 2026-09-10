@@ -15,10 +15,10 @@ import (
 var cur realm
 
 const (
+	v0 = "gno.land/r/gov/dao/v0/impl"
+	v1 = "gno.land/r/gov/dao/v1/impl"
+	v2 = "gno.land/r/gov/dao/v2/impl"
 	v3 = "gno.land/r/gov/dao/v3/impl"
-	v4 = "gno.land/r/gov/dao/v4/impl"
-	v5 = "gno.land/r/gov/dao/v5/impl"
-	v6 = "gno.land/r/gov/dao/v6/impl"
 )
 
 const invalid = "gno.land/r/invalid/dao"
@@ -29,7 +29,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
 	UpdateImpl(cross(cur), UpdateRequest{
 		DAO:         &dummyDao{},
-		AllowedDAOs: []string{v3},
+		AllowedDAOs: []string{v0},
 	})
 
 	// invalid package cannot add a new dao in charge
@@ -41,35 +41,35 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	})
 
 	// dao in charge can add a new dao
-	testing.SetRealm(testing.NewCodeRealm(v3))
+	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross(cur), UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
 
-	// v3 that is in charge adds v5 in charge
-	testing.SetRealm(testing.NewCodeRealm(v3))
+	// v0 that is in charge adds v2 in charge
+	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross(cur), UpdateRequest{
 			DAO:         &dummyDao{},
-			AllowedDAOs: []string{v3, v5},
+			AllowedDAOs: []string{v0, v2},
 		})
 	})
 
-	// v3 can still do updates
-	testing.SetRealm(testing.NewCodeRealm(v3))
+	// v0 can still do updates
+	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross(cur), UpdateRequest{
-			AllowedDAOs: []string{v4},
+			AllowedDAOs: []string{v1},
 		})
 	})
 
 	// not after removing himself from allowedDAOs list
-	testing.SetRealm(testing.NewCodeRealm(v3))
-	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
+	testing.SetRealm(testing.NewCodeRealm(v0))
+	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/v0/impl", func() {
 		UpdateImpl(cross(cur), UpdateRequest{
-			AllowedDAOs: []string{v3},
+			AllowedDAOs: []string{v0},
 		})
 	})
 
@@ -93,8 +93,8 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	urequire.Equal(t, "Proposal Title", p.Title())
 	urequire.Equal(t, p.Author().String(), alice.String())
 
-	// need to switch the context back to v4
-	testing.SetRealm(testing.NewCodeRealm(v4))
+	// need to switch the context back to v1
+	testing.SetRealm(testing.NewCodeRealm(v1))
 	urequire.Equal(
 		t,
 		"Render: gno.land/r/gov/dao/test",
@@ -102,7 +102,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	)
 
 	// reset state
-	testing.SetRealm(testing.NewCodeRealm(v4))
+	testing.SetRealm(testing.NewCodeRealm(v1))
 	UpdateImpl(cross(cur), UpdateRequest{
 		DAO: &dummyDao{},
 	})

@@ -17,7 +17,7 @@
 package svgbtn
 
 import (
-	"gno.land/p/demo/svg"
+	"gno.land/p/nt/svg/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

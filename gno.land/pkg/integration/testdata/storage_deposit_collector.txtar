@@ -11,7 +11,7 @@ adduserfrom alice 'relax garment load shy garden video prepare edge churn noodle
 stdout 'g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen'
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/init
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/sys/users
 
@@ -81,7 +81,7 @@ stdout 'storage: \d+, deposit: \d+'
 -- run/load_user.gno --
 package main
 
-import i "gno.land/r/gov/dao/v3/init"
+import i "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))

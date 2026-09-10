@@ -10,12 +10,12 @@ adduserfrom member 'success myself purchase tray reject demise scene little lege
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -50,17 +50,17 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	v3 "gno.land/r/sys/validators/v3"
+	v0 "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
-	pr := v3.NewValidatorProposalRequest(
+	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v3.ValoperChange{
-			v3.NewValoperChange(address(memberAddr), 0),
-			v3.NewValoperChange(address(memberAddr), 2),
-			v3.NewValoperChange(address(memberAddr), 3),
+		[]v0.ValoperChange{
+			v0.NewValoperChange(address(memberAddr), 0),
+			v0.NewValoperChange(address(memberAddr), 2),
+			v0.NewValoperChange(address(memberAddr), 3),
 		},
 		"case (a) triple-same-op",
 		"",
@@ -73,16 +73,16 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	v3 "gno.land/r/sys/validators/v3"
+	v0 "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
-	pr := v3.NewValidatorProposalRequest(
+	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v3.ValoperChange{
-			v3.NewValoperChange(address(memberAddr), 0),
-			v3.NewValoperChange(address(memberAddr), 0),
+		[]v0.ValoperChange{
+			v0.NewValoperChange(address(memberAddr), 0),
+			v0.NewValoperChange(address(memberAddr), 0),
 		},
 		"case (b) double-remove",
 		"",
@@ -95,16 +95,16 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	v3 "gno.land/r/sys/validators/v3"
+	v0 "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
-	pr := v3.NewValidatorProposalRequest(
+	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v3.ValoperChange{
-			v3.NewValoperChange(address(memberAddr), 2),
-			v3.NewValoperChange(address(memberAddr), 0),
+		[]v0.ValoperChange{
+			v0.NewValoperChange(address(memberAddr), 2),
+			v0.NewValoperChange(address(memberAddr), 0),
 		},
 		"case (c) add-first remove-second",
 		"",
@@ -117,8 +117,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -128,5 +128,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"gno.land/r/gov/dao"
-	daov3init "gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/v0/init"
 	users "gno.land/r/sys/namereg/v1"
 	susers "gno.land/r/sys/users"
 )

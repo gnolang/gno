@@ -1,6 +1,6 @@
 ## It tests unlocking token transfers through GovDAO voting
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/init
 loadpkg gno.land/r/gov/dao
 
 adduser regular1
@@ -46,7 +46,7 @@ stdout 'OK!'
 -- run/load_user.gno --
 package main
 
-import i "gno.land/r/gov/dao/v3/init"
+import i "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))

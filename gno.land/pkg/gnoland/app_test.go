@@ -415,7 +415,7 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 // panic, not via the ResponseInitChain.Error field that tm2's
 // consensus/replay.go:339-342 silently discards. Without this guarantee
 // a hardfork chain can boot in a state where genesis validators have no
-// v3 operator-keyed management plane — the safety net would fire but
+// v0 operator-keyed management plane — the safety net would fire but
 // not actually stop the boot.
 func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	t.Parallel()
@@ -432,11 +432,11 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 
 	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
 	// an error from it is the realistic shape of an assertion failure
-	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// (uncovered genesis validator → v0 panics → vmk.Call returns the
 	// wrapped error).
 	mock := &mockVMKeeper{
 		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
-			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+			return "", fmt.Errorf("synthetic v0 assertion: uncovered validator")
 		},
 	}
 
@@ -456,7 +456,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	}
 
 	assert.PanicsWithError(t,
-		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		"genesis valoper coverage assertion failed: synthetic v0 assertion: uncovered validator",
 		func() { cfg.InitChainer(testCtx, req) },
 		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
 	)
@@ -1080,9 +1080,9 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("diff applied: kept + power-change + new + removed", func(t *testing.T) {
 		t.Parallel()
 
-		// current = [v1@10, v2@20, v3@30]
+		// current = [v1@10, v2@20, v0@30]
 		// proposed = [v1@10 (kept), v2@99 (power change), v4@40 (new)]
-		// expected updates: v2@99, v3@0 (removal), v4@40
+		// expected updates: v2@99, v0@0 (removal), v4@40
 		currentUpdates := generateValidatorUpdates(t, 3)
 		newcomer := generateValidatorUpdates(t, 1)[0]
 		currentUpdates[0].Power = 10
@@ -1109,7 +1109,7 @@ func TestEndBlocker(t *testing.T) {
 			byAddr[u.Address.String()] = u
 		}
 		assert.Equal(t, int64(99), byAddr[currentUpdates[1].Address.String()].Power, "v2 power must be 99")
-		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
+		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v0 must be removed (Power=0)")
 		assert.Equal(t, int64(40), byAddr[newcomer.Address.String()].Power, "v4 must be added")
 		_, kept := byAddr[currentUpdates[0].Address.String()]
 		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
@@ -1144,7 +1144,7 @@ func TestEndBlocker(t *testing.T) {
 		// Defense-in-depth: a non-empty proposed where every entry has
 		// Power=0 is still a "remove all" — len > 0 but live count is
 		// zero. Floor must catch this regardless of outer-list length.
-		// (Reachable via v3 if a proposal's deltas remove every
+		// (Reachable via v0 if a proposal's deltas remove every
 		// validator and produce an empty published set; the floor is
 		// the consensus-safety backstop.)
 		current := generateValidatorUpdates(t, 2)

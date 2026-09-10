@@ -25,7 +25,7 @@ const (
 	// (bech32 pubkey + decimal power). Address is derived from pubkey
 	// on the chain side and not stored.
 	//
-	//   proposed = v3's full target valset
+	//   proposed = v0's full target valset
 	//   current  = chain-managed: the set that becomes ACTIVE AT H+2
 	//              once the most recent EndBlock's updates apply.
 	//              NOT necessarily the set actively signing the current
@@ -38,7 +38,7 @@ const (
 
 	// Only this realm may write valset:proposed and valset:dirty.
 	// valset:current is chain-managed (see ctx-sentinel in node_params.go).
-	valsetAuthorizedRealm = "gno.land/r/sys/validators/v3"
+	valsetAuthorizedRealm = "gno.land/r/sys/validators/v0"
 )
 
 // SetValsetProposal publishes the realm's desired valset. Each entry is
@@ -55,7 +55,7 @@ func SetValsetProposal(cur realm, entries []string) {
 // validator set (the contents of valset:current). This is the
 // V_{H+2} view — the set that will be active at H+2 once the most
 // recent EndBlock's updates apply, NOT the set signing the current
-// block. Callers that want "what v3 reports as the current
+// block. Callers that want "what v0 reports as the current
 // validator set" — including the in-flight proposed set during
 // the dirty window — should call GetValsetEffective instead.
 func GetValsetEntries() []validators.Validator {
@@ -72,14 +72,14 @@ func ValsetDirty() bool {
 }
 
 // GetValsetEffective returns the set that WILL be active at H+2:
-// valset:proposed if dirty, else valset:current. Used by v3 so that
+// valset:proposed if dirty, else valset:current. Used by v0 so that
 // (a) reads after a same-block proposal callback see that proposal's
 // effects, and (b) sequential same-block proposals accumulate
 // correctly on top of each other.
 //
-// Misuse warning: this exists for r/sys/validators/v3's internal
+// Misuse warning: this exists for r/sys/validators/v0's internal
 // reads. Other realms making "is X a validator" decisions should
-// call v3.IsValidator, not this directly, so future changes to v3's
+// call v0.IsValidator, not this directly, so future changes to v0's
 // read semantics propagate uniformly.
 func GetValsetEffective() []validators.Validator {
 	key := valsetCurrentKey
@@ -138,7 +138,7 @@ func GetValsetPubKeyTypes() []string {
 // authorization is a compile-time const, so re-pointing it requires a chain
 // relaunch, and assertNotValsetKey locks GovDAO out of the key family entirely.
 // A vote-settable slot would let one supermajority re-point the valset writer at
-// an arbitrary realm and bypass v3's valoper-existence check, its KeepRunning
+// an arbitrary realm and bypass v0's valoper-existence check, its KeepRunning
 // opt-out, and execution-time pubkey re-resolution.
 func assertValsetCaller(_ int, rlm realm) {
 	assertDelegate(0, rlm, valsetAuthorizedRealm, "valset params")

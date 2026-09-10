@@ -436,7 +436,7 @@
             "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
             "package": {
               "name": "blog",
-              "path": "gno.land/p/demo/blog",
+              "path": "gno.land/p/gnoland/blog/v0",
               "files": [
                 {
                   "name": "blog.gno",
@@ -2362,11 +2362,11 @@
             "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
             "package": {
               "name": "svg",
-              "path": "gno.land/p/demo/svg",
+              "path": "gno.land/p/nt/svg/v0",
               "files": [
                 {
                   "name": "doc.gno",
-                  "body": "/*\nPackage svg is a minimalist SVG generation library for Gno.\n\nThe svg package provides a simple and lightweight solution for programmatically generating SVG (Scalable Vector Graphics) markup in Gno. It allows you to create basic shapes like rectangles and circles, and output the generated SVG to a\n\nExample:\n\n\timport \"gno.land/p/demo/svg\"\"\n\n\tfunc Foo() string {\n\t    canvas := svg.Canvas{Width: 200, Height: 200}\n\t    canvas.DrawRectangle(50, 50, 100, 100, \"red\")\n\t    canvas.DrawCircle(100, 100, 50, \"blue\")\n\t    return canvas.String()\n\t}\n*/\npackage svg // import \"gno.land/p/demo/svg\"\n"
+                  "body": "/*\nPackage svg is a minimalist SVG generation library for Gno.\n\nThe svg package provides a simple and lightweight solution for programmatically generating SVG (Scalable Vector Graphics) markup in Gno. It allows you to create basic shapes like rectangles and circles, and output the generated SVG to a\n\nExample:\n\n\timport \"gno.land/p/nt/svg/v0\"\"\n\n\tfunc Foo() string {\n\t    canvas := svg.Canvas{Width: 200, Height: 200}\n\t    canvas.DrawRectangle(50, 50, 100, 100, \"red\")\n\t    canvas.DrawCircle(100, 100, 50, \"blue\")\n\t    return canvas.String()\n\t}\n*/\npackage svg // import \"gno.land/p/nt/svg/v0\"\n"
                 },
                 {
                   "name": "svg.gno",
@@ -2374,11 +2374,11 @@
                 },
                 {
                   "name": "z0_filetest.gno",
-                  "body": "// PKGPATH: gno.land/p/demo/svg_test\npackage svg_test\n\nimport \"gno.land/p/demo/svg\"\n\nfunc main() {\n\tcanvas := svg.Canvas{Width: 500, Height: 500}\n\tcanvas.DrawRectangle(50, 50, 100, 100, \"red\")\n\tcanvas.DrawCircle(100, 100, 50, \"blue\")\n\tcanvas.DrawText(100, 100, \"hello world!\", \"magenta\")\n\tprintln(canvas)\n}\n\n// Output:\n// \u003csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"\u003e\u003crect x=\"50\" y=\"50\" width=\"100\" height=\"100\" fill=\"red\" /\u003e\u003ccircle cx=\"100\" cy=\"100\" r=\"50\" fill=\"blue\" /\u003e\u003ctext x=\"100\" y=\"100\" fill=\"magenta\"\u003ehello world!\u003c/text\u003e\u003c/svg\u003e\n"
+                  "body": "// PKGPATH: gno.land/p/nt/svg/v0_test\npackage svg_test\n\nimport \"gno.land/p/nt/svg/v0\"\n\nfunc main() {\n\tcanvas := svg.Canvas{Width: 500, Height: 500}\n\tcanvas.DrawRectangle(50, 50, 100, 100, \"red\")\n\tcanvas.DrawCircle(100, 100, 50, \"blue\")\n\tcanvas.DrawText(100, 100, \"hello world!\", \"magenta\")\n\tprintln(canvas)\n}\n\n// Output:\n// \u003csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"\u003e\u003crect x=\"50\" y=\"50\" width=\"100\" height=\"100\" fill=\"red\" /\u003e\u003ccircle cx=\"100\" cy=\"100\" r=\"50\" fill=\"blue\" /\u003e\u003ctext x=\"100\" y=\"100\" fill=\"magenta\"\u003ehello world!\u003c/text\u003e\u003c/svg\u003e\n"
                 },
                 {
                   "name": "z1_filetest.gno",
-                  "body": "// PKGPATH: gno.land/p/demo/svg_test\npackage svg_test\n\nimport \"gno.land/p/demo/svg\"\n\nfunc main() {\n\tcanvas := svg.Canvas{\n\t\tWidth: 500, Height: 500,\n\t\tElems: []svg.Elem{\n\t\t\tsvg.Rectangle{50, 50, 100, 100, \"red\"},\n\t\t\tsvg.Circle{50, 50, 100, \"red\"},\n\t\t\tsvg.Text{100, 100, \"hello world!\", \"magenta\"},\n\t\t},\n\t}\n\tprintln(canvas)\n}\n\n// Output:\n// \u003csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"\u003e\u003crect x=\"50\" y=\"50\" width=\"100\" height=\"100\" fill=\"red\" /\u003e\u003ccircle cx=\"50\" cy=\"50\" r=\"100\" fill=\"red\" /\u003e\u003ctext x=\"100\" y=\"100\" fill=\"magenta\"\u003ehello world!\u003c/text\u003e\u003c/svg\u003e\n"
+                  "body": "// PKGPATH: gno.land/p/nt/svg/v0_test\npackage svg_test\n\nimport \"gno.land/p/nt/svg/v0\"\n\nfunc main() {\n\tcanvas := svg.Canvas{\n\t\tWidth: 500, Height: 500,\n\t\tElems: []svg.Elem{\n\t\t\tsvg.Rectangle{50, 50, 100, 100, \"red\"},\n\t\t\tsvg.Circle{50, 50, 100, \"red\"},\n\t\t\tsvg.Text{100, 100, \"hello world!\", \"magenta\"},\n\t\t},\n\t}\n\tprintln(canvas)\n}\n\n// Output:\n// \u003csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"500\" height=\"500\"\u003e\u003crect x=\"50\" y=\"50\" width=\"100\" height=\"100\" fill=\"red\" /\u003e\u003ccircle cx=\"50\" cy=\"50\" r=\"100\" fill=\"red\" /\u003e\u003ctext x=\"100\" y=\"100\" fill=\"magenta\"\u003ehello world!\u003c/text\u003e\u003c/svg\u003e\n"
                 }
               ]
             },
@@ -3858,7 +3858,7 @@
                 },
                 {
                   "name": "gnoblog.gno",
-                  "body": "package gnoblog\n\nimport (\n\t\"std\"\n\n\t\"gno.land/p/demo/blog\"\n)\n\nvar b = \u0026blog.Blog{\n\tTitle:  \"Gnoland's Blog\",\n\tPrefix: \"/r/gnoland/blog:\",\n}\n\nfunc AddComment(postSlug, comment string) {\n\tassertIsCommenter()\n\tassertNotInPause()\n\n\tcaller := std.GetOrigCaller()\n\terr := b.GetPost(postSlug).AddComment(caller, comment)\n\tcheckErr(err)\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n\nfunc RenderLastPostsWidget(limit int) string {\n\treturn b.RenderLastPostsWidget(limit)\n}\n\nfunc PostExists(slug string) bool {\n\tif b.GetPost(slug) == nil {\n\t\treturn false\n\t}\n\treturn true\n}\n"
+                  "body": "package gnoblog\n\nimport (\n\t\"std\"\n\n\t\"gno.land/p/gnoland/blog/v0\"\n)\n\nvar b = \u0026blog.Blog{\n\tTitle:  \"Gnoland's Blog\",\n\tPrefix: \"/r/gnoland/blog:\",\n}\n\nfunc AddComment(postSlug, comment string) {\n\tassertIsCommenter()\n\tassertNotInPause()\n\n\tcaller := std.GetOrigCaller()\n\terr := b.GetPost(postSlug).AddComment(caller, comment)\n\tcheckErr(err)\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n\nfunc RenderLastPostsWidget(limit int) string {\n\treturn b.RenderLastPostsWidget(limit)\n}\n\nfunc PostExists(slug string) bool {\n\tif b.GetPost(slug) == nil {\n\t\treturn false\n\t}\n\treturn true\n}\n"
                 },
                 {
                   "name": "gnoblog_test.gno",
@@ -4134,7 +4134,7 @@
                 },
                 {
                   "name": "pages.gno",
-                  "body": "package gnopages\n\nimport (\n\t\"gno.land/p/demo/blog\"\n)\n\n// TODO: switch from p/blog to p/pages\n\nvar b = \u0026blog.Blog{\n\tTitle:        \"Gnoland's Pages\",\n\tPrefix:       \"/r/gnoland/pages:\",\n\tNoBreadcrumb: true,\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n"
+                  "body": "package gnopages\n\nimport (\n\t\"gno.land/p/gnoland/blog/v0\"\n)\n\n// TODO: switch from p/blog to p/pages\n\nvar b = \u0026blog.Blog{\n\tTitle:        \"Gnoland's Pages\",\n\tPrefix:       \"/r/gnoland/pages:\",\n\tNoBreadcrumb: true,\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n"
                 },
                 {
                   "name": "pages_test.gno",
@@ -4394,7 +4394,7 @@
                 },
                 {
                   "name": "presentations.gno",
-                  "body": "package present\n\nimport (\n\t\"gno.land/p/demo/blog\"\n)\n\n// TODO: switch from p/blog to p/present\n\nvar b = \u0026blog.Blog{\n\tTitle:        \"Manfred's Presentations\",\n\tPrefix:       \"/r/manfred/present:\",\n\tNoBreadcrumb: true,\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n"
+                  "body": "package present\n\nimport (\n\t\"gno.land/p/gnoland/blog/v0\"\n)\n\n// TODO: switch from p/blog to p/present\n\nvar b = \u0026blog.Blog{\n\tTitle:        \"Manfred's Presentations\",\n\tPrefix:       \"/r/manfred/present:\",\n\tNoBreadcrumb: true,\n}\n\nfunc Render(path string) string {\n\treturn b.Render(path)\n}\n"
                 }
               ]
             },

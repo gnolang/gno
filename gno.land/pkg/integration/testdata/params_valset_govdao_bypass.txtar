@@ -7,7 +7,7 @@
 # directly (not via SetValsetProposal in valset.gno), the realm-side
 # assertValsetCaller gate is bypassed. WillSetParam validates entry
 # format but doesn't check the writer realm. Result: GovDAO can
-# override v3's authority over the validator set.
+# override v0's authority over the validator set.
 #
 # Post-fix: assertNotValsetKey in each of the 9 factories panics at
 # proposal-creation time with a clear message. This test exercises
@@ -19,11 +19,11 @@ adduserfrom member 'success myself purchase tray reject demise scene little lege
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -34,15 +34,15 @@ stdout 'gpub1'
 
 # 1) Strings factory targeting node:valset:proposed — must panic.
 ! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_strings.gno
-stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+stderr 'node:valset:\* is reserved for r/sys/validators/v0'
 
 # 2) Bytes factory targeting node:valset:proposed — must panic.
 ! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
-stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+stderr 'node:valset:\* is reserved for r/sys/validators/v0'
 
 # 3) Bool factory targeting node:valset:dirty — must panic.
 ! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bool.gno
-stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+stderr 'node:valset:\* is reserved for r/sys/validators/v0'
 
 # 4) Positive control: a legitimate non-valset write through the same
 # factory family must still succeed. (Construction; we don't execute
@@ -112,8 +112,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -123,5 +123,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }

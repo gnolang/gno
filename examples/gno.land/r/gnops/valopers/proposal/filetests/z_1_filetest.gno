@@ -10,7 +10,7 @@ import (
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
-	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+	daoinit "gno.land/r/gov/dao/v0/init" // so that the govdao initializer is executed
 )
 
 var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
@@ -52,7 +52,7 @@ func main(cur realm) {
 // OK
 // # GovDAO
 // ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// [> Go to Memberstore <](/r/gov/dao/v0/memberstore)
 // ## Proposals
 // ### [Prop #0 - Add valoper test\-1 to the valset](/r/gov/dao:0)
 // Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
