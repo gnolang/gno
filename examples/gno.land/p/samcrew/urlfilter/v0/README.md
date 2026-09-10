@@ -10,11 +10,11 @@ Given filters `["T1", "T2", "size:XL"]` and URL `/shop?filter=T1,size:XL`, it ge
 
 **Markdown output:**
 ```markdown
-[**T1**](/p/samcrew/urlfilter?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter?filter=T1)
+[**T1**](/p/samcrew/urlfilter/v0?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter/v0=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter/v0?filter=T1)
 ```
 
 **Rendered as:**
-[**T1**](/p/samcrew/urlfilter?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter?filter=T1)
+[**T1**](/p/samcrew/urlfilter/v0?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter/v0=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter/v0?filter=T1)
 
 ## Usage
 

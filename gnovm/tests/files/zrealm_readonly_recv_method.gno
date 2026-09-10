@@ -20,7 +20,7 @@ import (
 )
 
 func main(cur realm) {
-	p := tests.SomeValue3 // *TestRealmObject2 in /p/demo/tests
+	p := tests.SomeValue3 // *TestRealmObject2 in /p/demo/tests/v0
 	p.Modify()            // panics at DidUpdate
 	println("unreachable; Field =", p.Field)
 }

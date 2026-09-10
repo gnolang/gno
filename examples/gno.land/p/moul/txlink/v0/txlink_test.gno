@@ -16,10 +16,10 @@ func TestCall(t *testing.T) {
 		want      string
 		realm_XXX Realm
 	}{
-		{"foo", []string{"bar", "1", "baz", "2"}, "/p/moul/txlink$help&func=foo&bar=1&baz=2", ""},
-		{"testFunc", []string{"key", "value"}, "/p/moul/txlink$help&func=testFunc&key=value", ""},
-		{"noArgsFunc", []string{}, "/p/moul/txlink$help&func=noArgsFunc", ""},
-		{"oddArgsFunc", []string{"key"}, "/p/moul/txlink$help&func=oddArgsFunc&error=odd+number+of+arguments", ""},
+		{"foo", []string{"bar", "1", "baz", "2"}, "/p/moul/txlink/v0$help&func=foo&bar=1&baz=2", ""},
+		{"testFunc", []string{"key", "value"}, "/p/moul/txlink/v0$help&func=testFunc&key=value", ""},
+		{"noArgsFunc", []string{}, "/p/moul/txlink/v0$help&func=noArgsFunc", ""},
+		{"oddArgsFunc", []string{"key"}, "/p/moul/txlink/v0$help&func=oddArgsFunc&error=odd+number+of+arguments", ""},
 		{"foo", []string{"bar", "1", "baz", "2"}, "/r/lorem/ipsum$help&func=foo&bar=1&baz=2", Realm(cd + "/r/lorem/ipsum")},
 		{"testFunc", []string{"key", "value"}, "/r/lorem/ipsum$help&func=testFunc&key=value", Realm(cd + "/r/lorem/ipsum")},
 		{"noArgsFunc", []string{}, "/r/lorem/ipsum$help&func=noArgsFunc", Realm(cd + "/r/lorem/ipsum")},
@@ -28,10 +28,10 @@ func TestCall(t *testing.T) {
 		{"testFunc", []string{"key", "value"}, "https://gno.world/r/lorem/ipsum$help&func=testFunc&key=value", "gno.world/r/lorem/ipsum"},
 		{"noArgsFunc", []string{}, "https://gno.world/r/lorem/ipsum$help&func=noArgsFunc", "gno.world/r/lorem/ipsum"},
 		{"oddArgsFunc", []string{"key"}, "https://gno.world/r/lorem/ipsum$help&func=oddArgsFunc&error=odd+number+of+arguments", "gno.world/r/lorem/ipsum"},
-		{"test", []string{"key", "hello world"}, "/p/moul/txlink$help&func=test&key=hello+world", ""},
-		{"test", []string{"key", "a&b=c"}, "/p/moul/txlink$help&func=test&key=a%26b%3Dc", ""},
-		{"test", []string{"key", ""}, "/p/moul/txlink$help&func=test&key=", ""},
-		{"testSend", []string{"key", "hello world", ".send", "1000000ugnot"}, "/p/moul/txlink$help&func=testSend&.send=1000000ugnot&key=hello+world", ""},
+		{"test", []string{"key", "hello world"}, "/p/moul/txlink/v0$help&func=test&key=hello+world", ""},
+		{"test", []string{"key", "a&b=c"}, "/p/moul/txlink/v0$help&func=test&key=a%26b%3Dc", ""},
+		{"test", []string{"key", ""}, "/p/moul/txlink/v0$help&func=test&key=", ""},
+		{"testSend", []string{"key", "hello world", ".send", "1000000ugnot"}, "/p/moul/txlink/v0$help&func=testSend&.send=1000000ugnot&key=hello+world", ""},
 	}
 
 	for _, tt := range tests {
@@ -73,7 +73,7 @@ func TestBuilder(t *testing.T) {
 			build: func() string {
 				return NewLink("MyFunc").URL()
 			},
-			expected: "/p/moul/txlink$help&func=MyFunc",
+			expected: "/p/moul/txlink/v0$help&func=MyFunc",
 		},
 
 		// Realm tests
@@ -105,7 +105,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key", "value").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=func&key=value",
+			expected: "/p/moul/txlink/v0$help&func=func&key=value",
 		},
 
 		// URL encoding tests
@@ -116,7 +116,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key", "hello world").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=test&key=hello+world",
+			expected: "/p/moul/txlink/v0$help&func=test&key=hello+world",
 		},
 		{
 			name: "url_encoding_with_special_chars",
@@ -125,7 +125,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key", "a&b=c").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=test&key=a%26b%3Dc",
+			expected: "/p/moul/txlink/v0$help&func=test&key=a%26b%3Dc",
 		},
 		{
 			name: "url_encoding_with_unicode",
@@ -134,7 +134,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key", "🌟").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=func&key=%F0%9F%8C%9F",
+			expected: "/p/moul/txlink/v0$help&func=func&key=%F0%9F%8C%9F",
 		},
 		{
 			name: "url_encoding_with_special_chars_in_key",
@@ -143,7 +143,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("my/key", "value").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=func&my%2Fkey=value",
+			expected: "/p/moul/txlink/v0$help&func=func&my%2Fkey=value",
 		},
 
 		// AddArgs tests
@@ -154,7 +154,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key1", "value1", "key2", "value2").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=MyFunc&key1=value1&key2=value2",
+			expected: "/p/moul/txlink/v0$help&func=MyFunc&key1=value1&key2=value2",
 		},
 		{
 			name: "addargs_with_odd_number_of_args",
@@ -183,7 +183,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("", "value").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=func",
+			expected: "/p/moul/txlink/v0$help&func=func",
 		},
 		{
 			name: "empty_value_should_be_kept",
@@ -192,7 +192,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key", "").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=func&key=",
+			expected: "/p/moul/txlink/v0$help&func=func&key=",
 		},
 
 		// Send tests
@@ -204,7 +204,7 @@ func TestBuilder(t *testing.T) {
 					SetSend("1000000ugnot").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=MyFunc&.send=1000000ugnot&key=value",
+			expected: "/p/moul/txlink/v0$help&func=MyFunc&.send=1000000ugnot&key=value",
 		},
 		{
 			name: "send_via_addarg_method_panic",
@@ -231,7 +231,7 @@ func TestBuilder(t *testing.T) {
 					SetSend("2000000ugnot").
 					URL()
 			},
-			expected: "/p/moul/txlink$help&func=MyFunc&.send=2000000ugnot",
+			expected: "/p/moul/txlink/v0$help&func=MyFunc&.send=2000000ugnot",
 		},
 	}
 

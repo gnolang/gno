@@ -38,7 +38,7 @@ func RenderPieChart() string {
 	smallExample := piechart.Render(smallData, "Simple Split")
 
 	return `
-# [Piechart](/p/samcrew/piechart) Documentation
+# [Piechart](/p/samcrew/piechart/v0) Documentation
 
 Generate pie charts with label as SVG images.
 
@@ -106,6 +106,6 @@ func Render(slices []PieSlice, title string) string
 
 ---
 
-[← Back to Charts](/r/docs/charts) | [View Package](/p/samcrew/piechart)
+[← Back to Charts](/r/docs/charts) | [View Package](/p/samcrew/piechart/v0)
 `
 }

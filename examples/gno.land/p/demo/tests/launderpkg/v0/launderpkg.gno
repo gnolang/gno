@@ -11,7 +11,7 @@ type Object struct {
 }
 
 // PInitData is a /p/-init-allocated package-level data var. Its
-// StructValue carries ObjectInfo.PkgID = /p/demo/tests/launderpkg.
+// StructValue carries ObjectInfo.PkgID = /p/demo/tests/launderpkg/v0.
 // Used by zrealm_launder_pdata_* filetests to probe the /p/-source
 // read patterns that the existing 62 /r/-source launder filetests
 // don't cover. Empirically, direct value-read and pointer-deref of

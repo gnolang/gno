@@ -19,7 +19,7 @@ func Render(path string) string {
 
 	sb.WriteString(md.Paragraph(ufmt.Sprintf(
 		"📚 I’ve created a Markdown rendering library at %s. Feel free to use it for your own projects!",
-		md.Link("gno.land/p/sunspirit/md/v0", "/p/sunspirit/md"),
+		md.Link("gno.land/p/sunspirit/md/v0", "/p/sunspirit/md/v0"),
 	)) + md.LineBreak(1))
 
 	sb.WriteString(md.Paragraph("💬 I’d love to hear your feedback to help improve this library!") + md.LineBreak(1))
