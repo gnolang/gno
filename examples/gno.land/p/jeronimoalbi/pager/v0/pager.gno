@@ -6,7 +6,7 @@
 //	    "strconv"
 //	    "strings"
 //
-//	    "gno.land/p/jeronimoalbi/pager"
+//	    "gno.land/p/jeronimoalbi/pager/v0"
 //	)
 //
 //	func Render(path string) string {

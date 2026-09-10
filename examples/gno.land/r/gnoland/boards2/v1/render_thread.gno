@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/jeronimoalbi/mdform/v0"
-	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/jeronimoalbi/pager/v0"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux/v0"
