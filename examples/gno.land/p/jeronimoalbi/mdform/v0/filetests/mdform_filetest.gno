@@ -1,6 +1,6 @@
 package main
 
-import "gno.land/p/jeronimoalbi/mdform"
+import "gno.land/p/jeronimoalbi/mdform/v0"
 
 func main() {
 	form := mdform.

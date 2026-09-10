@@ -16,7 +16,7 @@ gno.land/p/moul/ulist
 gno.land/p/jeronimoalbi/message
 gno.land/p/nt/commondao/v0/exts/storage
 gno.land/p/gnoland/boards/exts/permissions/v0
-gno.land/p/jeronimoalbi/mdform
+gno.land/p/jeronimoalbi/mdform/v0
 gno.land/p/jeronimoalbi/pager
 gno.land/p/demo/svg
 gno.land/p/leon/svgbtn

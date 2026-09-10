@@ -7,7 +7,7 @@ Forms can be created by sequentially calling form methods to create each one of 
 Example usage:
 
 ```go
-import "gno.land/p/jeronimoalbi/mdform"
+import "gno.land/p/jeronimoalbi/mdform/v0"
 
 func Render(string) string {
     form := mdform.New()

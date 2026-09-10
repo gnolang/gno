@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/jeronimoalbi/mdform"
+	"gno.land/p/jeronimoalbi/mdform/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
