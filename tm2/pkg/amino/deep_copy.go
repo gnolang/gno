@@ -84,6 +84,10 @@ func _deepCopy(src, dst reflect.Value) {
 		}
 
 	case reflect.Slice:
+		if src.IsNil() {
+			dst.Set(src)
+			return
+		}
 		switch src.Type().Elem().Kind() {
 		case reflect.Int64, reflect.Int32, reflect.Int16,
 			reflect.Int8, reflect.Int, reflect.Uint64,
