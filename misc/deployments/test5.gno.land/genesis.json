@@ -3534,7 +3534,7 @@
               "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
               "package": {
                 "name": "helplink",
-                "path": "gno.land/p/moul/helplink",
+                "path": "gno.land/p/moul/helplink/v0",
                 "files": [
                   {
                     "name": "helplink.gno",

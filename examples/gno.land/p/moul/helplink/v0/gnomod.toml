@@ -1,4 +1,4 @@
-module = "gno.land/p/moul/helplink"
+module = "gno.land/p/moul/helplink/v0"
 gno = "0.9"
 
 [addpkg]
