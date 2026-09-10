@@ -1,4 +1,4 @@
-# ADR: gnoweb network kind
+# ADR-6158: gnoweb network kind
 
 ## Context
 
