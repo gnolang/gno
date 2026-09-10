@@ -712,7 +712,12 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 func (m *Machine) doOpDefer() {
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	numArgs := len(ds.Call.Args)
+	// NumArgs is the number of argument *values* on the stack, which differs
+	// from len(Args) for the x(f()) form where a single multi-value call is
+	// spread across the callee's parameters (see CallExpr.NumArgs). Using
+	// len(Args) there would peek an argument value instead of the func and
+	// pop the wrong number of values, desyncing the stack.
+	numArgs := ds.Call.NumArgs
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
@@ -739,6 +744,10 @@ func (m *Machine) doOpDefer() {
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
+		// The other branches consume the argument values via popCopyArgs; do
+		// the same here (discarding them) so the value stack stays balanced.
+		// The func value itself is popped below.
+		m.PopValues(numArgs)
 		cfr.PushDefer(Defer{Source: ds})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
