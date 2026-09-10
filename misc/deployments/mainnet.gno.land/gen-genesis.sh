@@ -153,8 +153,8 @@ INITIAL_VALSET_OPERATORS=(
 # genesis cut (main moves as sale participants bind addresses; see its
 # docs/history.md convention of recording which commit produced which
 # chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/9ecf4d39124b9204ffb7cc0ab94783114485d33c/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="091109482ed30c8aa83679e28cf13a0c4e4b88901786b14f6ac2d96f738b723d"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/9d1cfde9fc557c899367592953793198e18c5b1d/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="ea7236415802463887d2e2502dcab536c6469055ce2600b985aed6a3fc5b4f76"
 
 # Vested accounts. One entry per line, in the balance-sheet vesting syntax
 # (gno.land/pkg/gnoland/balance.go):
@@ -747,9 +747,11 @@ gzip -dc "$ALLOCATION_GZ" >"$ALLOCATION_TXT"
 alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
 # The sha proves "this is the pinned file"; these prove the file has the
 # shape the merge arithmetic in step 8 assumes (a re-pin could change
-# either): one `g1<38>=<digits>ugnot` line per account, no duplicates.
-if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot$' "$ALLOCATION_TXT"; then
-  die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot per line)"
+# either): one `g1<38>=<digits>ugnot` line per account — optionally
+# carrying a vesting suffix (the sheet emits those since independence-day
+# 9d1cfde) — and no duplicates.
+if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot(;vesting=[1-9][0-9]*ugnot,[0-9]+,[0-9]+(;type=delayed)?)?$' "$ALLOCATION_TXT"; then
+  die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot[;vesting=...] per line)"
 fi
 alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
 if [ -n "$alloc_dupes" ]; then
@@ -1238,6 +1240,13 @@ while IFS= read -r addr; do
     die "grep failed reading the allocation sheet for $addr (exit $rc)"
   fi
   if [ "$rc" -eq 0 ]; then
+    # A vested allocation line cannot be merged with a burn by the plain
+    # sum below (the amount is not the whole right-hand side, and the
+    # schedule must be preserved). No fee payer holds one today.
+    # TODO(mainnet): decide the merge semantics if this ever fires.
+    case "$alloc_line" in
+    *';vesting='*) die "fee payer $addr holds a VESTED allocation — merge semantics undecided" ;;
+    esac
     fp_alloc="${alloc_line#*=}"
     fp_alloc="${fp_alloc%ugnot}"
     printf "    %s = %s ugnot (+ %s allocation)\n" "$addr" "$final" "$fp_alloc"
