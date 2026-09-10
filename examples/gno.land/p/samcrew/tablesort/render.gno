@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/mason/md"
+	"gno.land/p/mason/md/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
