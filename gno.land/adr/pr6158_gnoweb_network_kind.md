@@ -104,8 +104,9 @@ to mainnet.
 - The `.network-chip--alert` rule is written flat rather than as a nested
   `&--alert`: `postcss-preset-env`'s `nesting-rules` is spec-compliant CSS
   nesting, which does not concatenate `&` with a suffix. The nested form
-  compiles to a dead type selector, as `&--explorer` at `06-blocks.css:80`
-  already demonstrates. Anything added to this file must follow the flat form.
+  compiles to a dead type selector, as the pre-existing `&--explorer` (removed
+  by this change, its flat duplicate did the work) demonstrated. Anything
+  added to this file must follow the flat form.
 - `public/main.css` is a tracked, embedded build artifact and CI verifies it is
   in sync (`.github/workflows/ci-dir-gnoland.yml`, `gnoweb_generate`). Any CSS
   change here requires `make -C gno.land/pkg/gnoweb generate`.
@@ -120,7 +121,8 @@ to mainnet.
 `make -C gno.land/pkg/gnoweb fclean generate` with `public/main.css` committed.
 
 New tests: `NewRouter`'s testnet default, explicit mainnet, and rejection of
-an invalid `-network-kind` (`app_test.go`),
+an invalid `-network-kind` (`app_test.go`), `Valid()` and the chip text
+(`components/network_test.go`),
 a render-level assertion that `data-network` and `network-chip--alert` reach
 the HTML (`components/layout_test.go`), and that the footer renders no Faucet
 link without a configured faucet (`components/layout_footer_test.go`).
