@@ -39,7 +39,7 @@ package exists to not do.
 ```go
 import (
     "gno.land/p/gnoland/boards/v0"
-    hubexts "gno.land/p/gnoland/boards/exts/hub"
+    hubexts "gno.land/p/gnoland/boards/exts/hub/v0"
 )
 
 func GetBoard(id uint64) (hubexts.Board, bool) {
