@@ -82,7 +82,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   append-oriented list storage with range and offset iteration.
 - [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/addrset.gno):
   address set semantics.
-- [`gno.land/p/moul/fifo`](../../examples/gno.land/p/moul/fifo/fifo.gno):
+- [`gno.land/p/moul/fifo/v0`](../../examples/gno.land/p/moul/fifo/fifo.gno):
   queue-like storage.
 - `gno.land/p/moul/collection` **(quarantined)**:
   indexed collection patterns built on tree storage and `seqid`.
