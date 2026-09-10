@@ -3,7 +3,7 @@ package message_test
 import (
 	"testing"
 
-	"gno.land/p/jeronimoalbi/expect"
+	"gno.land/p/jeronimoalbi/expect/v0"
 	"gno.land/p/jeronimoalbi/message"
 )
 
