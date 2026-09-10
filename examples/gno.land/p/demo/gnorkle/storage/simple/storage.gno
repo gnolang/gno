@@ -3,7 +3,7 @@ package simple
 import (
 	"time"
 
-	"gno.land/p/demo/gnorkle/feed"
+	"gno.land/p/demo/gnorkle/feed/v0"
 	"gno.land/p/demo/gnorkle/storage"
 )
 

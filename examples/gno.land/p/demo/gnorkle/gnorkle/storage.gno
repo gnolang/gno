@@ -1,6 +1,6 @@
 package gnorkle
 
-import "gno.land/p/demo/gnorkle/feed"
+import "gno.land/p/demo/gnorkle/feed/v0"
 
 // Storage defines how published feed values should be read
 // and written.
