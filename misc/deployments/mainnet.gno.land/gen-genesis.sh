@@ -493,6 +493,25 @@ file_size() {
   wc -c <"$1" | tr -d ' '
 }
 
+# sheet_total <path>  →  the ugnot the sheet grants, summed
+#
+# Takes the balance (the amount before any `;vesting=` suffix), which is what
+# InitChain credits; the schedule only says how much of it is locked.
+#
+# awk sums in doubles, so the result is exact while it stays under 2^53 ugnot
+# (9.007e15, ~6.8x the 1.333e9 GNOT supply). assert_exact_sum below refuses to
+# let a total cross that line unnoticed.
+sheet_total() {
+  awk -F'[=;]' '{ a = $2; sub(/ugnot$/, "", a); s += a } END { printf "%d", s + 0 }' "$1"
+}
+
+# assert_exact_sum <total> <what>  →  dies if <total> left exact-integer range
+assert_exact_sum() {
+  if [ "$1" -ge 9007199254740992 ]; then
+    die "$2 ($1 ugnot) reached 2^53, where the awk sums in sheet_total stop being exact — switch the reconciliation to arbitrary-precision arithmetic before trusting this build"
+  fi
+}
+
 # =============================================================================
 # Flag parsing.
 # =============================================================================
@@ -805,7 +824,11 @@ alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
 if [ -n "$alloc_dupes" ]; then
   die "allocation sheet has duplicate addresses: $alloc_dupes"
 fi
-print_substep "2.3" "Allocation sheet: $alloc_count accounts (sha256 + format verified)"
+# Captured here because the decompressed sheet is deleted at the end of step 8;
+# step 9.5 reconciles the shipped genesis against this total.
+alloc_total=$(sheet_total "$ALLOCATION_TXT")
+assert_exact_sum "$alloc_total" "the allocation total"
+print_substep "2.3" "Allocation sheet: $alloc_count accounts, $alloc_total ugnot (sha256 + format verified)"
 
 # ---- Unrestricted addresses (independence-day, Constitution §126) ----
 # Same fetch-and-verify treatment as the allocation sheet, and checked here for
@@ -1416,6 +1439,7 @@ EXPECTED_REMAINDERS="$BALANCES_TMP_DIR/expected-remainders.txt"
 OVERLAP_ADDRS="$BALANCES_TMP_DIR/allocation-overlap-addrs.txt"
 : >"$EXPECTED_REMAINDERS"
 : >"$OVERLAP_ADDRS"
+merged_alloc_total=0
 while IFS= read -r addr; do
   remaining=$(query_balance "$addr")
   # A fee payer funded with the float and charged at least one fee must
@@ -1444,6 +1468,9 @@ while IFS= read -r addr; do
     esac
     fp_alloc="${alloc_line#*=}"
     fp_alloc="${fp_alloc%ugnot}"
+    # Tracked for the step 9.5 reconciliation: these allocations are counted
+    # in the fee-payer sheet, and their rows leave the allocation sheet.
+    merged_alloc_total=$((merged_alloc_total + fp_alloc))
     printf "    %s = %s ugnot (+ %s allocation)\n" "$addr" "$final" "$fp_alloc"
     echo "${addr}=$((final + fp_alloc))ugnot" >>"$BALANCES_TMP_FILE"
     echo "${addr} ${fp_alloc}" >>"$EXPECTED_REMAINDERS"
@@ -1575,7 +1602,53 @@ if [ -n "$genesis_addrs" ]; then
 fi
 print_substep "9.4" "Transfer lock: restricted_denoms=[$applied_rd], $applied_unres addresses exempt"
 
-print_substep "9.5" "Running gnogenesis verify..."
+# ---- Reconcile account count and total supply against the pinned sheet ----
+# Everything above counts lines in files the script itself wrote. This reads
+# the account count and the supply back out of the genesis that ships and ties
+# both to the two independent sources they must come from: the sha256-verified
+# independence-day sheet, and the burn measured on the temp node. A truncated
+# `balances add`, a sheet added twice, a mis-stripped merge row or a jq patch
+# that dropped part of app_state all break one of these identities.
+#
+# Supply is not the allocation total: the fee payers are funded with the exact
+# gas + storage cost of the genesis txs, which is minted on top of it and burnt
+# again as the txs execute.
+genesis_accounts=$(jq -r '.app_state.balances | length' "$GENESIS_FILE")
+genesis_supply=$(jq -r '.app_state.balances[]' "$GENESIS_FILE" |
+  awk -F'[=;]' '{ a = $2; sub(/ugnot$/, "", a); s += a } END { printf "%d", s + 0 }')
+assert_exact_sum "$genesis_supply" "the genesis supply"
+
+stripped_total=$(sheet_total "$ALLOCATION_STRIPPED")
+fee_payer_total=$(sheet_total "$DEPLOYER_BALANCES")
+vested_total=0
+for vested in "${VESTED_ACCOUNTS[@]}"; do
+  vested_amount="${vested#*=}"
+  vested_total=$((vested_total + ${vested_amount%%ugnot*}))
+done
+burn_total=$((fee_payer_total - merged_alloc_total))
+
+expected_accounts=$((alloc_stripped_count + balance_count))
+if [ "$genesis_accounts" -ne "$expected_accounts" ]; then
+  die "genesis holds $genesis_accounts balance entries, expected $expected_accounts ($alloc_stripped_count allocation + $balance_count fee-payer/vested)"
+fi
+if [ "$alloc_stripped_count" -ne $((alloc_count - merged_count)) ]; then
+  die "the stripped allocation sheet has $alloc_stripped_count rows, expected $((alloc_count - merged_count)) ($alloc_count in the pinned sheet less $merged_count merged into fee-payer entries)"
+fi
+if [ "$stripped_total" -ne $((alloc_total - merged_alloc_total)) ]; then
+  die "stripping the merged rows removed $((alloc_total - stripped_total)) ugnot, but those rows are worth $merged_alloc_total ugnot — the wrong rows left the allocation sheet"
+fi
+expected_supply=$((alloc_total + burn_total + vested_total))
+if [ "$genesis_supply" -ne "$expected_supply" ]; then
+  die "$(printf '%s\n%s\n%s\n%s' \
+    "genesis supply is $genesis_supply ugnot, expected $expected_supply:" \
+    "  allocation (pinned sheet)  $alloc_total" \
+    "  fee-payer burn (measured)  $burn_total" \
+    "  vested entries             $vested_total")"
+fi
+print_substep "9.5" "$(printf 'Reconciled: %s accounts, %s ugnot = %s allocation + %s burn + %s vested' \
+  "$genesis_accounts" "$genesis_supply" "$alloc_total" "$burn_total" "$vested_total")"
+
+print_substep "9.6" "Running gnogenesis verify..."
 # -skip-signature-check: the names.Enable tx carries a post-sign caller
 # patch and the valoper Register txs carry placeholder signatures, so
 # per-tx signature verification cannot pass by design (nodes accept both
@@ -1588,7 +1661,7 @@ run "$GNOGENESIS_BIN" verify -genesis-path "$GENESIS_FILE" -skip-signature-check
 # Verify before moving: a mismatch must not clobber the previously-good
 # (gitignored, so invisible to git status) genesis.json at the root.
 verify_checksum "$GENESIS_FILE" genesis.json
-print_substep "9.6" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
+print_substep "9.7" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
 mv "$GENESIS_FILE" "$FINAL_GENESIS"
 
 # ---- Summary
