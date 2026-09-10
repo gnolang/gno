@@ -40,7 +40,7 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset/v0"
-	"gno.land/p/moul/once"
+	"gno.land/p/moul/once/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/ufmt/v0"
