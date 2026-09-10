@@ -1462,20 +1462,39 @@ start_temp_node() {
   run "$GNOGENESIS_BIN" txs add sheets "$GENESIS_TXS_JSONL" -genesis-path "$BALANCES_TMP_GENESIS"
   run "$GNOGENESIS_BIN" balances add -balance-sheet "$BALANCES_TMP_FILE" -genesis-path "$BALANCES_TMP_GENESIS"
 
+  # The shipped chain replays the genesis txs UNDER the §126 lock — InitGenesis
+  # applies restricted_denoms before tx replay — so the temp node must too, or
+  # a future genesis tx that moves ugnot through the restricted path (a -send,
+  # or realm code calling banker.SendCoins) would pass both measurement runs
+  # here and then panic InitChain on every mainnet validator. Exemptions stay
+  # empty: strictly more restrictive, and no genesis tx needs one today —
+  # one that does should fail loudly here first.
+  temp_rd_json=$(printf '%s\n' "${RESTRICTED_DENOMS[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+  jq --argjson rd "$temp_rd_json" '.app_state.bank.params.restricted_denoms = $rd' \
+    "$BALANCES_TMP_GENESIS" >"$BALANCES_TMP_GENESIS.locked"
+  mv "$BALANCES_TMP_GENESIS.locked" "$BALANCES_TMP_GENESIS"
+  if [ "$(jq -c '.app_state.bank.params.restricted_denoms' "$BALANCES_TMP_GENESIS")" != "$temp_rd_json" ]; then
+    die "temp-node genesis did not take restricted_denoms=$temp_rd_json — measurement would run without the shipped transfer lock"
+  fi
+
   # The measured burns are dominated by storage deposits priced by the
   # chain's vm/auth params. This genesis is regenerated rather than copied
   # (a future GENESIS_TIME would stall the temp node), so assert its
   # fee-governing params equal the shipping genesis AS IT STANDS NOW —
   # otherwise every measured amount is wrong by the parameter ratio and run 2
   # would agree with it. Step 9.3 then adds auth.params.unrestricted_addrs and
-  # bank.params.restricted_denoms to the shipping genesis, deliberately after
+  # the same restricted_denoms to the shipping genesis, deliberately after
   # this point: neither prices a fee (both fee collection and storage deposits
-  # go through the bank keeper's unrestricted path), and comparing after the
-  # patch would fail on a difference that cannot affect the measurement.
-  # Both sides are plain `gnogenesis generate` defaults today, so this only
+  # go through the bank keeper's unrestricted path), and comparing them here
+  # would fail on the exemption list, which cannot affect the measurement.
+  # vm/auth are plain `gnogenesis generate` defaults today, so this only
   # starts biting when the inert-package params land — patch vm.params on both
   # genesis files and this assertion holds you to it.
-  if [ "$(jq -cS '[.app_state.vm.params, .app_state.auth.params]' "$BALANCES_TMP_GENESIS")" != \
+  params_parity_lhs=$(jq -cS '[.app_state.vm.params, .app_state.auth.params]' "$BALANCES_TMP_GENESIS")
+  if [ "$params_parity_lhs" = "[null,null]" ]; then
+    die "temp-node genesis carries no vm/auth params (app_state moved?) — the parity check below would compare nothing"
+  fi
+  if [ "$params_parity_lhs" != \
     "$(jq -cS '[.app_state.vm.params, .app_state.auth.params]' "$GENESIS_FILE")" ]; then
     die "temp-node genesis fee params differ from the shipping genesis — measurement would be invalid"
   fi
