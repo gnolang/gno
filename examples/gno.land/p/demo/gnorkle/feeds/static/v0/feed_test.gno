@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/gnorkle/feed/v0"
-	"gno.land/p/demo/gnorkle/feeds/static"
+	"gno.land/p/demo/gnorkle/feeds/static/v0"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/ingester"
 	"gno.land/p/demo/gnorkle/message"
