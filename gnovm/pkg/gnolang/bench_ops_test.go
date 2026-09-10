@@ -4378,6 +4378,57 @@ func BenchmarkOpDefer_1Arg(b *testing.B)    { benchOpDefer(b, 1) }
 func BenchmarkOpDefer_10Args(b *testing.B)  { benchOpDefer(b, 10) }
 func BenchmarkOpDefer_100Args(b *testing.B) { benchOpDefer(b, 100) }
 
+// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
+// Scales linearly with call stack depth until the first crossing ancestor: the
+// handler walks m.Frames once with a cursor, visiting each frame at most once.
+// The benchmark constructs `depth` call frames with only the deepest marked
+// WithCross=true, forcing the walk to traverse the full depth. This is the
+// calibration source for OpCPUSlopeEnterCrossing.
+
+func benchOpEnterCrossing(b *testing.B, depth int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Make m.Package a realm and set a non-nil m.Realm so
+	// fri.LastRealm == m.Realm holds for intermediate frames.
+	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
+	m.Realm = &Realm{Path: "gno.land/r/bench"}
+
+	// Dummy *FuncValue so Frame.IsCall() returns true.
+	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
+
+	// Build `depth` call frames. The first pushed frame is the DEEPEST
+	// (the walk starts at the end of m.Frames and moves backward, so the
+	// first slot is reached last). Only the deepest has WithCross=true —
+	// this is what terminates the walk at step N.
+	m.Frames = m.Frames[:0]
+	for i := range depth {
+		fr := Frame{Func: fv, LastRealm: m.Realm}
+		if i == 0 {
+			fr.WithCross = true
+		}
+		m.Frames = append(m.Frames, fr)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
+		// DidCrossing is already true. Reset before each iteration.
+		m.Frames[len(m.Frames)-1].DidCrossing = false
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEnterCrossing()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
+func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
+func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
+func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
+
 // --- OpForLoop: heap item copy at end of iteration ---
 // Benchmarks the cost of copying HeapItemValues at the end of each loop
 // iteration (Go 1.22 loopvars semantics).

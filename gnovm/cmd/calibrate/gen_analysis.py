@@ -234,7 +234,7 @@ PARAM_FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
-    # EnterCrossing is quadratic (O(depth^2) frame walk). See below for quadratic fit.
+    # EnterCrossing walks m.Frames once with a cursor, so it is linear in depth.
     ('EnterCrossing (depth)', 'depth', [
         ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
         ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
@@ -730,7 +730,7 @@ def main():
         'ForLoop (heap copy)':      ('ForLoop',         'ForLoopHeap'),
         'RangeIter (array)':        ('RangeIter',       'RangeIterArray'),
         'ReturnCallDefers':         ('ReturnCallDefers','ReturnCallDefers'),
-        'EnterCrossing (depth)':    (None,              None),  # quadratic — handled separately
+        'EnterCrossing (depth)':    (None,              'EnterCrossing'),
         'CopyDataToList':           (None,              'CopyPrimitive'), # slower helper drives OpCPUSlopeCopyPrimitive
         'CopyListToData':           (None,              None),  # cheaper than CopyDataToList; shares CopyPrimitive slope
         'UnrefCopy (int)':          (None,              'CopyElement'),   # primitive unrefCopy drives OpCPUSlopeCopyElement

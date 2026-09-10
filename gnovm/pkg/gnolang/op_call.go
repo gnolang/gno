@@ -229,15 +229,21 @@ func (m *Machine) doOpEnterCrossing() {
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
 	//
-	// PERF: O(n^2) in call-stack depth. PeekCallFrame(i) restarts from the
-	// top of m.Frames every iteration; outer loop runs until the first
-	// crossing ancestor, visiting 1+2+...+D = O(D^2) frames. Fix is to
-	// walk m.Frames once with a cursor, yielding each call frame in
-	// order, which makes the handler O(D). If/when that lands, drop
-	// OpCPUSlopeEnterCrossingQuad and switch this handler to a linear
-	// per-depth charge (OpCPUSlopeEnterCrossing * depth).
-	for i := 1; ; i++ {
-		fri := m.PeekCallFrame(i) // see PERF note above.
+	// Walk m.Frames once from top to bottom, counting only call frames,
+	// so each frame is visited at most once: O(D) in call depth. The
+	// charge is OpCPUSlopeEnterCrossing per call frame visited, applied
+	// at the accept exit. i counts one extra virtual step for the faux
+	// deployer frame, which is what the walk actually costs to discover.
+	var i int64
+	for cursor := len(m.Frames) - 1; ; cursor-- {
+		var fri *Frame
+		if cursor >= 0 {
+			fri = &m.Frames[cursor]
+			if !fri.IsCall() {
+				continue
+			}
+		}
+		i++
 		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux
@@ -250,7 +256,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// runs like cross(fn)(...) which
 			// meains fri.WithCross would have been
 			// found below.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -259,7 +265,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// everything under it is also valid.
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}

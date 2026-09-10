@@ -1649,9 +1649,20 @@ const (
 	// RefValue case where unrefCopy hits the store; that worst-case is
 	// paid via store gas when GetObject is called.
 	OpCPUSlopeCopyElement = 40 // per element
-	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
-	// gas = depth^2 * slope / 10.
-	OpCPUSlopeEnterCrossingQuad = 6
+	// OpCPUSlopeEnterCrossing: per call frame visited by the
+	// doOpEnterCrossing ancestor walk. gas = depth * slope.
+	// The walk visits each frame at most once (single cursor pass over
+	// m.Frames), so cost is linear in the call depth reached. Per visit
+	// this is dearer than the superseded quadratic schedule's implied
+	// 1.2 gas/visit: that walk re-read the same few frames out of L1,
+	// whereas one pass streams a distinct 248-byte Frame per step.
+	// Fit: 1.45 ns/frame from BenchmarkOpEnterCrossing_1..1000 (intercept
+	// ~580ns), measured on a host that reproduces the recorded M2 baseline
+	// for this same benchmark (0.55 vs 0.60 ns/visit on the superseded
+	// quadratic walk), so it reads on the M2 basis. Scaled by the
+	// documented 1.8-1.95x M-to-Xeon factor that gives 2.6-2.8 ns/frame on
+	// the Xeon 8168 reference, rounded up so as not to undercharge.
+	OpCPUSlopeEnterCrossing = 3
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
