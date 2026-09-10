@@ -168,6 +168,13 @@ INITIAL_VALSET_OPERATORS=(
 # chain).
 ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/9d1cfde9fc557c899367592953793198e18c5b1d/mkgenesis/balances.txt.gz"
 ALLOCATION_SHA256="ea7236415802463887d2e2502dcab536c6469055ce2600b985aed6a3fc5b4f76"
+# The sha proves "this is the pinned file"; these two make its MAGNITUDE part
+# of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
+# artifact) and would hold for any sheet — without these, a re-pin that
+# changes how much money mainnet starts with is absorbed by the arithmetic
+# instead of appearing as a reviewable change. Update them with every re-pin.
+ALLOCATION_EXPECTED_ACCOUNTS=3262454
+ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 
 # Unrestricted addresses (Constitution §126-130). Same repo, same
 # fetch-and-verify treatment as the allocation sheet.
@@ -916,7 +923,13 @@ fi
 # step 9.5 reconciles the shipped genesis against this total.
 alloc_total=$(sheet_total "$ALLOCATION_TXT")
 assert_exact_sum "$alloc_total" "the allocation total"
-print_substep "2.3" "Allocation sheet: $alloc_count accounts, $alloc_total ugnot (sha256 + format verified)"
+if [ "$alloc_count" -ne "$ALLOCATION_EXPECTED_ACCOUNTS" ] || [ "$alloc_total" -ne "$ALLOCATION_EXPECTED_TOTAL" ]; then
+  die "$(printf '%s\n%s\n%s' \
+    "the pinned sheet does not match the declared magnitude:" \
+    "  accounts: $alloc_count (declared $ALLOCATION_EXPECTED_ACCOUNTS), total: $alloc_total ugnot (declared $ALLOCATION_EXPECTED_TOTAL)" \
+    "a re-pin changed mainnet's money supply — review the change, then update ALLOCATION_EXPECTED_* next to the pin.")"
+fi
+print_substep "2.3" "Allocation sheet: $alloc_count accounts, $alloc_total ugnot (sha256 + format + magnitude verified)"
 
 # ---- Unrestricted addresses (independence-day, Constitution §126) ----
 # Same fetch-and-verify treatment as the allocation sheet, and checked here for
