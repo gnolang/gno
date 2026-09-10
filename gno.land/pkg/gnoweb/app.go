@@ -56,7 +56,7 @@ type AppConfig struct {
 	// FaucetURL is where `/faucet` redirects and the faucet the footer
 	// advertises. Empty means this deployment has no faucet.
 	FaucetURL string
-	// NetworkKind is derived from ChainID when left empty.
+	// NetworkKind defaults to testnet when left empty; mainnet is explicit.
 	NetworkKind components.NetworkKind
 	// Domain is the domain used by the node.
 	Domain string
@@ -122,9 +122,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		}
 	}
 
-	// After the chain-id is settled, so a node-read chain-id still resolves.
+	// Operator-set, never guessed from the chain-id. Default is the safe kind.
 	if cfg.NetworkKind == "" {
-		cfg.NetworkKind = components.NetworkKindFromChainID(cfg.ChainID)
+		cfg.NetworkKind = components.NetworkTestnet
 	}
 	if !cfg.NetworkKind.Valid() {
 		return nil, fmt.Errorf("invalid network kind %q, want %q or %q",

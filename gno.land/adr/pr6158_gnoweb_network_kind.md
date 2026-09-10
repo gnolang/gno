@@ -22,22 +22,19 @@ This is item §2 of #6121, plus §3.5 and part of §3.3.
 
 ## Decision
 
-**One server-side source of truth.** `components.NetworkKind` is derived from
-the chain-id in `NewRouter`, after the chain-id is settled (it may be read from
-the node), and carried `AppConfig` → `StaticMetadata` → `IndexData` →
-`data-network` on `<html>`, next to the existing `data-theme`.
+**One server-side source of truth, set by the operator.** `components.NetworkKind`
+comes from `-network-kind` and is carried `AppConfig` → `StaticMetadata` →
+`IndexData` → `data-network` on `<html>`, next to the existing `data-theme`.
+An invalid value is a startup error rather than a silent fallback.
 
-Deriving from the chain-id rather than from a standalone flag means a testnet
-cannot accidentally present itself as mainnet through a config mistake.
-`-network-kind` overrides it, and an invalid value is a startup error rather
-than a silent fallback.
-
-The mainnet series `gnoland-N` (`gnoland-1` today, incremented on a chain
-restart) is mainnet; **everything else is a testnet**, including `gnoland1`.
-The hyphen is the whole difference and the two are different chains. An
-unrecognised chain-id resolves to testnet on purpose: a testnet mistaken for
-mainnet is the dangerous direction, a mainnet mistaken for a testnet is merely
-ugly.
+It is deliberately NOT derived from the chain-id. An earlier revision matched
+the `gnoland-N` series, but that encodes a chain-naming assumption into gnoweb
+that the naming scheme does not promise to keep (review feedback from aeddi:
+the number increments on a chain restart, and nothing guarantees the shape).
+Instead the default is **testnet** and mainnet is explicit: a mainnet that
+forgets the flag shows the alert chip, the safe direction, visibly and
+immediately; a testnet can only present as mainnet through explicit
+misconfiguration, which no derivation prevents either (the override existed).
 
 **The chip is rendered on every network, mainnet included.** Marking only the
 testnets would make the signal an absence, and an absence is unreadable — a
@@ -78,9 +75,11 @@ to mainnet.
 
 ## Alternatives considered
 
-- **A standalone `-network-kind` flag with no derivation.** Rejected: one more
-  value an operator can forget or get wrong, with no cross-check. Derivation
-  makes the chain-id the authority and leaves the flag as an escape hatch.
+- **Deriving the kind from the chain-id** (the first revision of this PR).
+  Rejected after review: it hardcodes the mainnet naming scheme into gnoweb,
+  and the failure mode of the flag-only design (mainnet forgetting the flag)
+  is safe and immediately visible, while a wrong naming assumption fails
+  silently in the dangerous direction the day the scheme changes.
 - **Chip off-mainnet only** (as originally drafted in #6121 §2.3). Rejected:
   see above — an absent marker carries no information.
 - **Faucet link conditional on `NetworkKind`.** Rejected: `FaucetURL` already
@@ -120,10 +119,8 @@ to mainnet.
 `gofmt`, `npx biome check` on the changed CSS, and
 `make -C gno.land/pkg/gnoweb fclean generate` with `public/main.css` committed.
 
-New tests: the chain-id derivation table including the `gnoland1` /
-`gnoland-1` pair (`components/network_test.go`), `NewRouter`'s derivation,
-override and rejection of an invalid `-network-kind` (`app_test.go` — the only
-place the "a testnet cannot present itself as mainnet" property is enforced),
+New tests: `NewRouter`'s testnet default, explicit mainnet, and rejection of
+an invalid `-network-kind` (`app_test.go`),
 a render-level assertion that `data-network` and `network-chip--alert` reach
 the HTML (`components/layout_test.go`), and that the footer renders no Faucet
 link without a configured faucet (`components/layout_footer_test.go`).

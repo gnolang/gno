@@ -387,9 +387,9 @@ func TestHealthEndpoints(t *testing.T) {
 	})
 }
 
-// NewRouter is where "a testnet cannot present itself as mainnet" is actually
-// enforced. With ChainID preset the node is never contacted, so this needs no
-// running chain.
+// NewRouter is where the network-kind default and validation are enforced.
+// With ChainID preset the node is never contacted, so this needs no running
+// chain.
 func TestNewRouter_NetworkKind(t *testing.T) {
 	t.Parallel()
 
@@ -400,15 +400,12 @@ func TestNewRouter_NetworkKind(t *testing.T) {
 		want     components.NetworkKind
 		wantErr  string
 	}{
-		{name: "mainnet chain-id", chainID: "gnoland-1", want: components.NetworkMainnet},
-		{name: "betanet is not mainnet", chainID: "gnoland1", want: components.NetworkTestnet},
-		{name: "testnet", chainID: "pearl-1", want: components.NetworkTestnet},
-		{name: "cli default", chainID: "dev", want: components.NetworkTestnet},
-		{
-			name: "override wins over derivation", chainID: "pearl-1",
-			override: components.NetworkMainnet, want: components.NetworkMainnet,
-		},
-		{name: "invalid override", chainID: "pearl-1", override: "prod", wantErr: "invalid network kind"},
+		// Never guessed from the chain-id: even the mainnet id defaults to
+		// the safe kind unless the operator says otherwise.
+		{name: "default is testnet", chainID: "gnoland-1", want: components.NetworkTestnet},
+		{name: "default on a testnet id", chainID: "pearl-1", want: components.NetworkTestnet},
+		{name: "mainnet is explicit", chainID: "gnoland-1", override: components.NetworkMainnet, want: components.NetworkMainnet},
+		{name: "invalid kind", chainID: "pearl-1", override: "prod", wantErr: "invalid network kind"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -6,36 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNetworkKindFromChainID(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name    string
-		chainID string
-		want    NetworkKind
-	}{
-		{"mainnet", "gnoland-1", NetworkMainnet},
-		// The mainnet series increments on a chain restart.
-		{"future mainnet", "gnoland-2", NetworkMainnet},
-		{"future mainnet two digits", "gnoland-12", NetworkMainnet},
-		// gnoland1 is the betanet, a different chain from gnoland-1.
-		{"betanet is not mainnet", "gnoland1", NetworkTestnet},
-		{"suffixed lookalike", "gnoland-1-fork", NetworkTestnet},
-		{"zero is not a chain", "gnoland-0", NetworkTestnet},
-		{"no number", "gnoland-", NetworkTestnet},
-		{"pearl", "pearl-1", NetworkTestnet},
-		{"staging", "staging", NetworkTestnet},
-		{"cli default", "dev", NetworkTestnet},
-		{"unknown", "some-new-chain", NetworkTestnet},
-		{"empty", "", NetworkTestnet},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.want, NetworkKindFromChainID(tc.chainID))
-		})
-	}
-}
-
 func TestNetworkKindValid(t *testing.T) {
 	t.Parallel()
 
