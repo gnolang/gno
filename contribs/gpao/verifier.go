@@ -220,12 +220,13 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 // preprocess; it never pays for the oracle's node being slow, nor for building
 // dependencies -- at enable time every active package's value is already in its
 // store. So this runs before the budget starts, and the budget then measures
-// only what the validator will.
+// only what the validator will. An import the node does not serve counts too:
+// the absence is cached here, so the stages below read it rather than asking
+// again on the clock.
 //
 // Two things come back as errors, both meaning no verdict was possible: a
-// transport fault, and a dependency the chain is already running that this tree
-// cannot build. An import that nothing serves is neither; the typecheck judges
-// that.
+// transport fault, and an import this tree cannot build. An import that nothing
+// serves is neither; the typecheck judges that.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
 	_ = test.LoadImports(v.prodgs, mpkg, false)
 	buildErr := v.buildChainImports(mpkg)
@@ -247,17 +248,27 @@ func (v *verifier) prepare(mpkg *std.MemPackage) error {
 // typechecker and the preprocessor need the whole graph present, not just the
 // first level.
 //
-// A dependency that will not build ends the walk and is returned, which the
-// parent reads as unavailability and leaves pending. It is not a verdict about
-// the candidate: vm/qfile serves the normal package keyspace, and a parked
-// package lives in the inert one and is invisible to that resolver, so
-// everything reachable here is already active on chain -- type-checked,
-// preprocessed and init()-run by a validator. A failure therefore points at
-// this oracle's own tree, and the candidate's bytes are not evidence of
-// anything. Letting the verification trip over it instead would settle a
-// submitter's content hash on the operator's checkout, for the life of the
-// process; pending costs a status line and a restart, which is what a
-// transport fault reaching the same point already costs.
+// An import that will not build ends the walk and is returned, which the parent
+// reads as unavailability and leaves pending. It is not a verdict about the
+// candidate, for either kind of import. A chain dependency reachable here is
+// active on chain -- vm/qfile serves the normal package keyspace and a parked
+// package lives in the inert one, invisible to that resolver -- so it has
+// already been type-checked, preprocessed and init()-run by a validator. A
+// stdlib ships with this binary and is not chain state at all. Neither is the
+// candidate's code, so a failure in either points at this oracle's own tree.
+// Letting the verification trip over it instead would settle a submitter's
+// content hash on the operator's checkout, for the life of the process; pending
+// costs a status line and a restart, which is what a transport fault reaching
+// the same point already costs.
+//
+// Stdlibs are why the walk does not stop at userlib paths. They are built
+// through the same seam even though nothing fetches them, because the
+// alternative is the asymmetry that shipped: LoadImports recovers the disk
+// getter's panic and prints it, so a candidate importing a broken stdlib
+// DIRECTLY was rejected terminally, while the same breakage one level down --
+// under a /p/ dependency -- came back here and left the package pending. One
+// level of indirection decided whether the operator's tree settled a
+// stranger's bytes.
 //
 // A path nothing serves is skipped rather than ending the walk: it is the
 // typecheck's verdict to give, and the rest of the closure still has to be
@@ -279,17 +290,28 @@ func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 		}
 		for _, imp := range imports.Merge(packages.FileKindPackageSource) {
 			path := imp.PkgPath
-			if seen[path] || !gno.IsUserlib(path) {
-				// Stdlibs and already-queued paths need nothing: the store
-				// resolves stdlibs itself. IsUserlib is what hybridGetter
-				// routes the typecheck on and what the preprocess getter asks
-				// too, so what is fetched here is exactly what they will ask
-				// for -- a path either stage would fetch but this walk skipped
-				// would reach the network inside the budget.
+			if seen[path] {
 				continue
 			}
 			seen[path] = true
 
+			// A stdlib: nothing to fetch, since the store resolves it from
+			// disk. Built anyway, so that a disk tree which will not build
+			// reaches prepare's error rather than the typecheck's verdict --
+			// see buildOne. A path merely absent returns nil without panicking,
+			// so a typo stays the typecheck's to judge.
+			if !gno.IsUserlib(path) {
+				if err := v.buildOne(path, cur.Path); err != nil {
+					return err
+				}
+				continue
+			}
+
+			// IsUserlib is what hybridGetter routes the typecheck on and what
+			// the preprocess getter asks too, so what is fetched here is
+			// exactly what they will ask for -- a path either stage would fetch
+			// but this walk skipped would reach the network inside the budget.
+			//
 			// Fetch first: the source is what the walk descends through, and a
 			// transport fault lands on the getter for prepare to read.
 			dep := v.rpc.GetMemPackage(path)
@@ -305,18 +327,22 @@ func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 	return nil
 }
 
-// buildOne builds one fetched dependency into the base store, turning the panic
-// everything past prodgs.GetPackage reports errors by into an error: on a
-// mempackage that fails AddMemPackage's validation, on a parse error in
-// ParseMemPackageAsType, and in the preprocessor itself. The message names whose
-// tree to look at, because it reaches an operator as the reason a submission is
-// sitting pending.
+// buildOne builds one import into the base store, turning the panic everything
+// past prodgs.GetPackage reports errors by into an error: on a mempackage that
+// fails AddMemPackage's validation, on a parse error in ParseMemPackageAsType,
+// and in the preprocessor itself. The message names whose tree to look at,
+// because it reaches an operator as the reason a submission is sitting pending.
+//
+// A path that is merely absent is not an error: GetPackage returns nil for one
+// without panicking, so an import nothing serves stays the typecheck's verdict
+// to give.
 func (v *verifier) buildOne(path, importedBy string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("could not prebuild %q, imported by %q: %v "+
-				"(that package is active on chain, so it has already compiled "+
-				"for a validator: check this oracle's tree)",
+				"(that package is not the candidate's code -- a chain "+
+				"dependency has already compiled for a validator, and a stdlib "+
+				"ships with this binary: check this oracle's tree)",
 				path, importedBy, r)
 		}
 	}()

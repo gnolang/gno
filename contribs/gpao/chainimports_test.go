@@ -183,9 +183,11 @@ func fakeQFile(pkgs ...*std.MemPackage) qfileFunc {
 // inert one, invisible to that resolver -- so everything reachable through the
 // getter is active on chain, and has already survived every panic buildOne
 // catches on a validator. One here therefore says something about this oracle's
-// tree, which is exactly what NUL-carrying AppleDouble files in its
-// gnovm/stdlibs did. Letting the verification trip over it instead would settle
-// a submitter's content hash on the operator's checkout, terminally.
+// tree. Letting the verification trip over it instead would settle a
+// submitter's content hash on the operator's checkout, terminally.
+//
+// TestPrepareRefusesABrokenStdlibWhereverItIsImported is the same property for
+// the other kind of import.
 //
 // prepare returning non-nil is the whole mechanism: the child exits
 // exitResolverUnavailable on it, which the parent classifies as unavailability
@@ -221,24 +223,135 @@ func TestPrepareReportsTheTransportFaultUnderABuildFailure(t *testing.T) {
 	mpkg := chainPackage("gno.land/p/test/user",
 		"package user\n\nimport \"gno.land/p/test/mid\"\n\nfunc Use() int { return mid.Two() }\n")
 
-	v := newRPCVerifier(t, mid, low)
 	// Serve mid, then go down: low is never fetched, so building mid panics on
 	// an import the getter cannot resolve. Wrapped in errResolverUnavailable
 	// like newRPCGetter's own qfile wraps an unreachable node, which is what
 	// separates a transport fault from the node answering "nothing is there".
-	inner := v.rpc.qfile
-	v.rpc.qfile = func(fpath string) ([]byte, error) {
-		if strings.HasPrefix(fpath, low.Path) {
-			return nil, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+	faulting := func() *verifier {
+		v := newRPCVerifier(t, mid, low)
+		inner := v.rpc.qfile
+		v.rpc.qfile = func(fpath string) ([]byte, error) {
+			if strings.HasPrefix(fpath, low.Path) {
+				return nil, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+			}
+			return inner(fpath)
 		}
-		return inner(fpath)
+		return v
 	}
 
-	err := v.prepare(mpkg)
+	// There is a build failure to outrank, asserted on the walk itself because
+	// prepare returns the fault instead. Without this the test below passes
+	// against a buildChainImports that does nothing: prepare's own LoadImports
+	// reaches low first and sets transportErr before the walk ever runs.
+	buildErr := faulting().buildChainImports(mpkg)
+	require.Error(t, buildErr, "the walk must produce the failure being outranked")
+	assert.Contains(t, buildErr.Error(), "could not prebuild")
+	assert.NotErrorIs(t, buildErr, errResolverUnavailable,
+		"the symptom does not carry the diagnosis, which is why the order matters")
+
+	// A fresh verifier, so the choice prepare makes is made on this run's
+	// state and not on a fault recorded by the assertions above.
+	err := faulting().prepare(mpkg)
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errResolverUnavailable,
 		"the fault under the build failure is what the parent classifies on")
+}
+
+// An import the node does not serve is asked for once, in prepare, and not
+// again by either stage the budget measures.
+//
+// That is prepare's whole claim -- it fetches the closure so the stages below
+// read the store rather than the network -- and a miss used to escape it: the
+// absence was not cached, so LoadImports and hybridGetter each asked again, on
+// the clock. The candidate is one the typecheck rejects either way, but against
+// a slow node the rejection arrived as an overrun instead, counted toward
+// maxOverBudgetAttempts rather than settling the package.
+func TestPrepareCachesAnImportTheNodeDoesNotServe(t *testing.T) {
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/nothing\"\n\nfunc Use() int { return nothing.X }\n")
+
+	v := newRPCVerifier(t) // a chain that serves nothing at all
+	calls := 0
+	inner := v.rpc.qfile
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		calls++
+		return inner(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg),
+		"an import nothing serves is the typecheck's verdict to give, not prepare's")
+	onPrepare := calls
+	require.Positive(t, onPrepare, "prepare must have asked, or this proves nothing")
+
+	require.Error(t, v.verifyPackage(mpkg), "the unresolved import must still be refused")
+	assert.Equal(t, onPrepare, calls,
+		"the typecheck and the preprocess must not reach the node on the budget")
+}
+
+// A stdlib that will not build in the operator's tree leaves the candidate
+// pending, whether it is imported directly or through a chain dependency.
+//
+// The asymmetry this pins out: buildChainImports used to skip non-userlib
+// paths, and LoadImports is called with abortOnError=false, which recovers the
+// disk getter's panic and prints it -- so prepare returned nil and the
+// typecheck's own panic became the answer. A candidate importing a broken
+// stdlib directly was rejected and marked seen; one importing a /p/ package
+// that imports it stayed pending. One level of indirection decided whether the
+// operator's checkout settled a stranger's bytes, terminally.
+func TestPrepareRefusesABrokenStdlibWhereverItIsImported(t *testing.T) {
+	// A tree that will not build, simulated at the seam a corrupt source file
+	// panics through. The real fault was NUL bytes in a stdlib .gno file.
+	breakStdlib := func(v *verifier, stdlib string) {
+		prev := v.prodgs.GetPackageGetter()
+		v.prodgs.SetPackageGetter(func(p string, st gno.Store) (*gno.PackageNode, *gno.PackageValue) {
+			if p == stdlib {
+				panic("broken stdlib tree: " + p)
+			}
+			return prev(p, st)
+		})
+	}
+
+	t.Run("imported directly", func(t *testing.T) {
+		mpkg := chainPackage("gno.land/p/test/direct",
+			"package direct\n\nimport \"strings\"\n\nfunc Use() string { return strings.ToUpper(\"x\") }\n")
+
+		v := newRPCVerifier(t)
+		breakStdlib(v, "strings")
+
+		err := v.prepare(mpkg)
+		require.Error(t, err, "the operator's tree must not settle the candidate's bytes")
+		assert.Contains(t, err.Error(), "could not prebuild")
+		assert.Contains(t, err.Error(), "strings")
+	})
+
+	t.Run("imported by a chain dependency", func(t *testing.T) {
+		dep := chainPackage("gno.land/p/test/viadep",
+			"package viadep\n\nimport \"strings\"\n\nfunc Up(s string) string { return strings.ToUpper(s) }\n")
+		mpkg := chainPackage("gno.land/p/test/indirect",
+			"package indirect\n\nimport \"gno.land/p/test/viadep\"\n\nfunc Use() string { return viadep.Up(\"x\") }\n")
+
+		v := newRPCVerifier(t, dep)
+		breakStdlib(v, "strings")
+
+		err := v.prepare(mpkg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not prebuild")
+	})
+
+	// And the boundary: a stdlib that is merely absent is a verdict, not a
+	// broken tree. GetPackage returns nil for one without panicking, so the
+	// walk passes it over and the typecheck reports the unresolved import.
+	t.Run("a stdlib that does not exist stays the typecheck's verdict", func(t *testing.T) {
+		mpkg := chainPackage("gno.land/p/test/typo",
+			"package typo\n\nimport \"strimgs\"\n\nfunc Use() string { return strimgs.ToUpper(\"x\") }\n")
+
+		v := newRPCVerifier(t)
+		require.NoError(t, v.prepare(mpkg),
+			"an import nothing serves is not the oracle's tree failing")
+		assert.Error(t, v.verifyPackage(mpkg),
+			"and the typecheck is what refuses it")
+	})
 }
 
 // Where the chain and the operator's examples/ have drifted, preprocess must

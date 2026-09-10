@@ -339,8 +339,8 @@ func TestOracleVerifyBudgetKillsTheChild(t *testing.T) {
 // what every caller reaches, and validating inside it is what makes the check
 // unskippable. It replaces a test that pinned the old degradation, in which rpc
 // was left nil and dereferencing it crashed the verifier. That nil is now
-// unreachable, and so is the mode underneath it: see the ADR's rejected
-// alternative.
+// unreachable, and so is the mode underneath it, in which every verdict
+// silently described the operator's examples/ checkout instead of the chain.
 func TestVerifierRequiresARemote(t *testing.T) {
 	v, err := newVerifier(verifyOneConfig{
 		gnoRoot: gnoenv.RootDir(), // no remote

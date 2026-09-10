@@ -58,9 +58,10 @@ var errResolverUnavailable = errors.New("import resolver unavailable")
 type qfileFunc func(filepath string) ([]byte, error)
 
 // rpcGetter fetches package sources from a node via the vm/qfile ABCI query and
-// reconstructs them into MemPackages. On-chain packages are immutable by path
-// (a path is write-once — re-adding fails), so any successfully fetched package
-// is cached for the lifetime of the oracle and never re-queried.
+// reconstructs them into MemPackages. Whatever the node ANSWERS is cached for
+// the getter's lifetime: a fetched package because on-chain paths are immutable
+// (a path is write-once — re-adding fails), and an absence because the getter
+// serves exactly one verification and chain state cannot move under it.
 type rpcGetter struct {
 	qfile qfileFunc
 	cache map[string]*std.MemPackage
@@ -114,25 +115,35 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	if mpkg, ok := g.cache[pkgPath]; ok {
 		return mpkg
 	}
-	mpkg := g.fetch(pkgPath)
-	// Cache only what the chain actually returned. Misses are NOT cached: a
-	// package that is absent now (e.g. still inert, or enabled later in this
-	// run) must resolve on a later query rather than being pinned to nil.
-	if mpkg != nil {
+	mpkg, err := g.fetch(pkgPath)
+	// Cache what the chain answered, an absence included. A miss used to be
+	// re-queried, for a getter that hung off the long-lived daemon and could
+	// outlive a package's activation; this one is built per verification in a
+	// child that exits with it (newVerifier), so nothing enables a package
+	// under it and the answer cannot change. Re-asking only moves the same
+	// answer out of prepare, which is off the budget, into the two stages that
+	// are on it -- where against a slow node it arrives as an overrun instead
+	// of as the rejection the typecheck was going to give.
+	//
+	// A fault is not an answer, so it is not cached: a node that could not be
+	// ASKED has said nothing about the path, and asking again costs less than
+	// reporting an import as absent because a packet was dropped.
+	if !errors.Is(err, errResolverUnavailable) {
 		g.cache[pkgPath] = mpkg
 	}
 	return mpkg
 }
 
 // fetch queries vm/qfile for the package's file list, then each file's body,
-// and assembles a MemPackage. Returns nil if the package is not on-chain or any
-// query fails (the typechecker then reports the import as unresolved); a
-// transport failure is additionally recorded in transportErr, because it is not
-// evidence about the import.
-func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
+// and assembles a MemPackage. A nil package with a nil error is the node
+// answering that nothing is stored at the path (the typechecker then reports
+// the import as unresolved); the error is returned so the caller can tell that
+// answer from a node it could not ask, which is additionally recorded in
+// transportErr because it is not evidence about the import.
+func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 	list, err := g.query(pkgPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	names := strings.Split(string(list), "\n")
 	files := make([]*std.MemFile, 0, len(names))
@@ -142,12 +153,12 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		}
 		body, err := g.query(path.Join(pkgPath, name))
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		files = append(files, &std.MemFile{Name: name, Body: string(body)})
 	}
 	if len(files) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// MPUserAll, matching what AddPackage stamps on the stored package and
@@ -162,7 +173,7 @@ func (g *rpcGetter) fetch(pkgPath string) *std.MemPackage {
 		Path:  pkgPath,
 		Files: files,
 		Type:  gno.MPUserAll,
-	}
+	}, nil
 }
 
 // query wraps qfile and remembers a transport fault, which is evidence
