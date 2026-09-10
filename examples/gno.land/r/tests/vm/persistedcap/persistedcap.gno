@@ -8,7 +8,7 @@
 // transient — persistence elevates it to a normal realm-owned slot.
 package persistedcap
 
-import "gno.land/p/demo/tests/p_closurecap"
+import "gno.land/p/demo/tests/p_closurecap/v0"
 
 var counter func() int
 
