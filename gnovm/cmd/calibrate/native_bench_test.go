@@ -134,6 +134,35 @@ func BenchmarkNative_Ed25519_Verify_1024(b *testing.B)  { benchEd25519Verify(b, 
 func BenchmarkNative_Ed25519_Verify_4096(b *testing.B)  { benchEd25519Verify(b, 4096) }
 func BenchmarkNative_Ed25519_Verify_16384(b *testing.B) { benchEd25519Verify(b, 16384) }
 
+// ----- crypto/secp256k1.verify(pub, msg, sig []byte) bool -----
+
+func benchSecp256k1Verify(b *testing.B, msgLen int) {
+	b.Helper()
+	priv := secp256k1.GenPrivKey()
+	pub := priv.PubKey().(secp256k1.PubKeySecp256k1)
+	msg := make([]byte, msgLen)
+	rand.Read(msg)
+	sig, err := priv.Sign(msg)
+	if err != nil {
+		b.Fatal(err)
+	}
+	m := newDispatchMachine(3)
+	setBlockValueFromGo(m, 0, pub[:])
+	setBlockValueFromGo(m, 1, msg)
+	setBlockValueFromGo(m, 2, sig)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/secp256k1", "verify"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Secp256k1_Verify_64(b *testing.B)    { benchSecp256k1Verify(b, 64) }
+func BenchmarkNative_Secp256k1_Verify_256(b *testing.B)   { benchSecp256k1Verify(b, 256) }
+func BenchmarkNative_Secp256k1_Verify_1024(b *testing.B)  { benchSecp256k1Verify(b, 1024) }
+func BenchmarkNative_Secp256k1_Verify_4096(b *testing.B)  { benchSecp256k1Verify(b, 4096) }
+func BenchmarkNative_Secp256k1_Verify_16384(b *testing.B) { benchSecp256k1Verify(b, 16384) }
+
 // ----- math.Float{32,64}{bits,frombits} -----
 
 func benchMathFlat(b *testing.B, fn gno.Name, paramVal any) {

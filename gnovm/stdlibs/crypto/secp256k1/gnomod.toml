@@ -1,0 +1,2 @@
+module = "crypto/secp256k1"
+gno = "0.9"

@@ -203,7 +203,13 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Hash bumped by the crypto/secp256k1 PR: adding the crypto/secp256k1 stdlib
+// (with native Verify) introduces a new stdlib MemPackage into the genesis
+// stdlib set, shifting the iavlStore Merkle root. This is the intended
+// consensus-breaking change of adding a new stdlib; the zrealm_crossrealm38.gno
+// filetest still passes.
+const expectedCrossrealm38Hash = "9b3516aa56fb12e03f97c7579107ff7266a61356a924d89b20f4d44ad97fd381"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
