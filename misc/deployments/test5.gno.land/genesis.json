@@ -3174,7 +3174,7 @@
               "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
               "package": {
                 "name": "subtests",
-                "path": "gno.land/p/demo/tests/subtests",
+                "path": "gno.land/p/demo/tests/subtests/v0",
                 "files": [
                   {
                     "name": "subtests.gno",
@@ -3318,7 +3318,7 @@
                   },
                   {
                     "name": "tests.gno",
-                    "body": "package tests\n\nimport (\n\t\"std\"\n\n\tpsubtests \"gno.land/p/demo/tests/subtests\"\n\t\"gno.land/r/demo/tests\"\n\trtests \"gno.land/r/demo/tests\"\n)\n\nconst World = \"world\"\n\n// IncCounter demonstrates that it's possible to call a realm function from\n// a package. So a package can potentially write into the store, by calling\n// an other realm.\nfunc IncCounter() {\n\ttests.IncCounter()\n}\n\nfunc CurrentRealmPath() string {\n\treturn std.CurrentRealm().PkgPath()\n}\n\n//----------------------------------------\n// cross realm test vars\n\ntype TestRealmObject2 struct {\n\tField string\n}\n\nfunc (o2 *TestRealmObject2) Modify() {\n\to2.Field = \"modified\"\n}\n\nvar (\n\tsomevalue1 TestRealmObject2\n\tSomeValue2 TestRealmObject2\n\tSomeValue3 *TestRealmObject2\n)\n\nfunc init() {\n\tsomevalue1 = TestRealmObject2{Field: \"init\"}\n\tSomeValue2 = TestRealmObject2{Field: \"init\"}\n\tSomeValue3 = \u0026TestRealmObject2{Field: \"init\"}\n}\n\nfunc ModifyTestRealmObject2a() {\n\tsomevalue1.Field = \"modified\"\n}\n\nfunc ModifyTestRealmObject2b() {\n\tSomeValue2.Field = \"modified\"\n}\n\nfunc ModifyTestRealmObject2c() {\n\tSomeValue3.Field = \"modified\"\n}\n\nfunc GetPrevRealm() std.Realm {\n\treturn std.PrevRealm()\n}\n\nfunc GetPSubtestsPrevRealm() std.Realm {\n\treturn psubtests.GetPrevRealm()\n}\n\nfunc GetRTestsGetPrevRealm() std.Realm {\n\treturn rtests.GetPrevRealm()\n}\n\n// Warning: unsafe pattern.\nfunc Exec(fn func()) {\n\tfn()\n}\n"
+                    "body": "package tests\n\nimport (\n\t\"std\"\n\n\tpsubtests \"gno.land/p/demo/tests/subtests/v0\"\n\t\"gno.land/r/demo/tests\"\n\trtests \"gno.land/r/demo/tests\"\n)\n\nconst World = \"world\"\n\n// IncCounter demonstrates that it's possible to call a realm function from\n// a package. So a package can potentially write into the store, by calling\n// an other realm.\nfunc IncCounter() {\n\ttests.IncCounter()\n}\n\nfunc CurrentRealmPath() string {\n\treturn std.CurrentRealm().PkgPath()\n}\n\n//----------------------------------------\n// cross realm test vars\n\ntype TestRealmObject2 struct {\n\tField string\n}\n\nfunc (o2 *TestRealmObject2) Modify() {\n\to2.Field = \"modified\"\n}\n\nvar (\n\tsomevalue1 TestRealmObject2\n\tSomeValue2 TestRealmObject2\n\tSomeValue3 *TestRealmObject2\n)\n\nfunc init() {\n\tsomevalue1 = TestRealmObject2{Field: \"init\"}\n\tSomeValue2 = TestRealmObject2{Field: \"init\"}\n\tSomeValue3 = \u0026TestRealmObject2{Field: \"init\"}\n}\n\nfunc ModifyTestRealmObject2a() {\n\tsomevalue1.Field = \"modified\"\n}\n\nfunc ModifyTestRealmObject2b() {\n\tSomeValue2.Field = \"modified\"\n}\n\nfunc ModifyTestRealmObject2c() {\n\tSomeValue3.Field = \"modified\"\n}\n\nfunc GetPrevRealm() std.Realm {\n\treturn std.PrevRealm()\n}\n\nfunc GetPSubtestsPrevRealm() std.Realm {\n\treturn psubtests.GetPrevRealm()\n}\n\nfunc GetRTestsGetPrevRealm() std.Realm {\n\treturn rtests.GetPrevRealm()\n}\n\n// Warning: unsafe pattern.\nfunc Exec(fn func()) {\n\tfn()\n}\n"
                   },
                   {
                     "name": "tests_test.gno",

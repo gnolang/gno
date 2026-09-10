@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	psubtests "gno.land/p/demo/tests/subtests"
+	psubtests "gno.land/p/demo/tests/subtests/v0"
 )
 
 const World = "world"
