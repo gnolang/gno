@@ -75,4 +75,4 @@ gno.land/r/tests/vm
 gno.land/r/demo/defi/grc20factory
 gno.land/p/sunspirit/table
 gno.land/p/jeronimoalbi/expect/v0
-gno.land/p/moul/typeutil
+gno.land/p/moul/typeutil/v0

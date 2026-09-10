@@ -1,4 +1,4 @@
-module = "gno.land/p/moul/typeutil"
+module = "gno.land/p/moul/typeutil/v0"
 gno = "0.9"
 
 [addpkg]
