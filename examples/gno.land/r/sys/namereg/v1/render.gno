@@ -2,7 +2,7 @@ package namereg
 
 import (
 	"gno.land/p/moul/md/v0"
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/ufmt/v0"
 

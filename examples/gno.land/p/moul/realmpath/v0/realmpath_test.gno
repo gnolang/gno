@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )

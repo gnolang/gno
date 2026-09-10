@@ -8,7 +8,7 @@ import (
 	"gno.land/p/jeronimoalbi/pager/v0"
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable/v0"
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
 	"gno.land/p/nt/addrset/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"

@@ -9,7 +9,7 @@ import (
 	"errors"
 	"regexp"
 
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/bptree/v0"

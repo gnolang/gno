@@ -1,4 +1,4 @@
-module = "gno.land/p/moul/realmpath"
+module = "gno.land/p/moul/realmpath/v0"
 gno = "0.9"
 
 [addpkg]

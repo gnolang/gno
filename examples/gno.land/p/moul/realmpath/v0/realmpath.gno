@@ -7,7 +7,7 @@
 //
 // Example usage:
 //
-//	import "gno.land/p/moul/realmpath"
+//	import "gno.land/p/moul/realmpath/v0"
 //
 //	func Render(path string) string {
 //	    // Parsing a sample path with query parameters
