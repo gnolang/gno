@@ -3,7 +3,7 @@ package agent_test
 import (
 	"testing"
 
-	"gno.land/p/demo/gnorkle/agent"
+	"gno.land/p/demo/gnorkle/agent/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 

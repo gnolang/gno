@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/demo/gnorkle/agent"
+	"gno.land/p/demo/gnorkle/agent/v0"
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/nt/avl/v0"
