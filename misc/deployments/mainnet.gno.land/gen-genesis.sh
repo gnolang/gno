@@ -961,8 +961,11 @@ fi
 # ErrMemberAlreadyExists on the second call and the bootstrap's must() turns it
 # into a panic, which surfaces ~90 seconds later as a node crash during the
 # measurement run instead of a sentence here.
+# Counted per call, not per line: `grep -c` would score two SetMember calls
+# sharing a line as one, and one line seeding the same address twice is the
+# exact shape this check exists to catch.
 t1_seed_calls=$(grep -v '^[[:space:]]*//' "$BOOTSTRAP_GNO" |
-  grep -cE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)') || t1_seed_calls=0
+  grep -oE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)' | wc -l | tr -d ' ') || t1_seed_calls=0
 if [ "$t1_seed_calls" -ne "$t1_count" ]; then
   die "$BOOTSTRAP_GNO makes $t1_seed_calls T1 SetMember calls for $t1_count distinct addresses — the repeated call fails with ErrMemberAlreadyExists and the bootstrap MsgRun panics at InitChain"
 fi
@@ -1109,6 +1112,21 @@ echo "" | run "$GNOGENESIS_BIN" txs add packages "$WORK_DIR_EXAMPLES" -gno-home 
 print_substep "4.7" "Exporting txs..."
 run "$GNOGENESIS_BIN" txs export "$GENESIS_TXS_JSONL" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
 
+# $pkg_count is what deplist resolved; this is what actually became a deploy.
+# Three mechanisms drop a package between the two without a word: the staging
+# copy at 4.3 uses `find -exec cp {} \;`, where a failed cp still leaves find
+# exiting 0 (verified); ReadPkgListFromDir skips any directory whose
+# gnomod.toml is missing (gnovm/pkg/packages/readpkglist.go); and
+# GetNonIgnoredPkgs drops ignore-marked packages AND everything that depends
+# on them (gnovm/pkg/packages/pkglist.go). A p/nt/* path that goes missing
+# here cannot be added post-genesis — it is a relaunch.
+addpkg_count=$(jq -r '[.tx.msg[] | select(.["@type"] == "/vm.m_addpkg")] | length' "$GENESIS_TXS_JSONL" |
+  awk '{ s += $1 } END { print s + 0 }')
+if [ "$addpkg_count" -ne "$pkg_count" ]; then
+  die "$pkg_count packages resolved but $addpkg_count addpkg txs landed in the genesis — a package was dropped between staging and deploy (staging cp failure, missing gnomod.toml, or an ignore-marked dependency)"
+fi
+print_substep "4.8" "Reconciled: $addpkg_count addpkg txs for $pkg_count resolved packages"
+
 # ---- Step 5: Add the bootstrap MsgRun (transactions/base/bootstrap/)
 # Seeds the seven GovDAO T1 members and locks AllowedDAOs. The
 # §126 transfer lock is applied at step 9.3 as genesis params rather than
@@ -1207,7 +1225,15 @@ verify_checksum "$VALOPER_SEED"
 VALOPER_TX_FILE="$WORK_DIR/valoper_seed_stripped.jsonl"
 jq -c 'del(.reason)' "$VALOPER_SEED" >"$VALOPER_TX_FILE"
 
-print_substep "7.3" "Adding ${#INITIAL_VALSET[@]} valoper Register txs to genesis..."
+# One Register per CSV row, or a founding validator silently launches with no
+# operator-keyed valoper profile — no way to rotate its signing key or signal
+# opt-out through r/sys/validators/v3, and the chain boots anyway.
+valoper_tx_count=$(wc -l <"$VALOPER_SEED" | tr -d ' ')
+if [ "$valoper_tx_count" -ne "${#INITIAL_VALSET[@]}" ]; then
+  die "valoper-seed emitted $valoper_tx_count Register txs for ${#INITIAL_VALSET[@]} validators — a CSV row was rejected or dropped"
+fi
+
+print_substep "7.3" "Adding $valoper_tx_count valoper Register txs to genesis..."
 run "$GNOGENESIS_BIN" txs add sheets "$VALOPER_TX_FILE" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
 cat "$VALOPER_TX_FILE" >>"$GENESIS_TXS_JSONL"
 verify_checksum "$GENESIS_TXS_JSONL"
@@ -1259,18 +1285,28 @@ mkdir -p "$BALANCES_TMP_DIR"
 
 print_substep "8.1" "Extracting creator/caller addresses..."
 # The extraction below assumes these msg types (their signer field is
-# creator/caller). Any other type names its fee payer differently and
-# would end up unfunded — and the chain auto-mints genesis funding for
-# unfunded signers, silently shipping an unaccounted balance.
+# creator/caller). Any other type names its fee payer differently and would
+# end up unfunded — and an unfunded genesis signer is not an error: InitChain
+# creates the account and MINTS it 10,000 GNOT (genesisSignerFunding,
+# gno.land/pkg/gnoland/app.go), which lands in the supply counter. The chain
+# would boot fine, with an unaccounted balance nobody chose and a supply the
+# step 9.5 reconciliation cannot see, since it reads the genesis file rather
+# than post-InitChain state.
 unexpected_types=$(jq -r '.tx.msg[]["@type"]' "$GENESIS_TXS_JSONL" | sort -u |
   grep -vE '^/vm\.(m_addpkg|m_run|m_call)$' || true)
 if [ -n "$unexpected_types" ]; then
   die "unexpected msg types in genesis txs: $unexpected_types"
 fi
-grep -oE '"(creator|caller)":"[^"]*"' "$GENESIS_TXS_JSONL" |
-  sed 's/"creator":"//;s/"caller":"//;s/"//g' |
+# Read the signer fields by path, not by pattern: package file bodies ride
+# in these same lines, so a fixture containing the literal "caller":"g1..."
+# would otherwise be funded as a phantom fee payer (it pays no fee, so the
+# range guard in step 8.4 would abort the build on it).
+jq -r '.tx.msg[] | (.creator // empty), (.caller // empty)' "$GENESIS_TXS_JSONL" |
   awk 'NF' |
   sort -u >"$BALANCES_TMP_CREATOR_ADDRESSES"
+if grep -qvE '^g1[0-9a-z]{38}$' "$BALANCES_TMP_CREATOR_ADDRESSES"; then
+  die "extracted a fee payer that is not a bech32 address: $(grep -vE '^g1[0-9a-z]{38}$' "$BALANCES_TMP_CREATOR_ADDRESSES" | tr '\n' ' ')"
+fi
 addr_count=$(wc -l <"$BALANCES_TMP_CREATOR_ADDRESSES" | tr -d ' ')
 print_substep "8.2" "Found $addr_count unique creator/caller addresses"
 
@@ -1544,7 +1580,9 @@ stop_temp_node
 start_temp_node "run 2: verify expected remainders"
 print_substep "8.5" "Verifying fee payers land at their expected remainders..."
 all_expected=true
+verified_count=0
 while IFS=' ' read -r addr expected; do
+  verified_count=$((verified_count + 1))
   remaining=$(query_balance "$addr")
   if [ "$remaining" -ne "$expected" ]; then
     printf "    FAIL: %s has %sugnot remaining (expected %s)\n" "$addr" "$remaining" "$expected"
@@ -1557,6 +1595,11 @@ stop_temp_node
 
 if [ "$all_expected" != true ]; then
   die "Some fee payers did not land at their expected remainder. Check $BALANCES_TMP_FILE."
+fi
+# An empty expected-remainders file would sail through the loop above and
+# report verified costs having checked nothing.
+if [ "$verified_count" -ne "$addr_count" ]; then
+  die "verified $verified_count fee payers but $addr_count were funded — $EXPECTED_REMAINDERS is short"
 fi
 print_substep "8.6" "All fee payers land at their expected remainders — costs verified"
 # The temp sheet also carries the vested entries (so the measurement runs
