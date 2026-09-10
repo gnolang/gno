@@ -3,7 +3,7 @@ package tests_test
 import (
 	"testing"
 
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 var World = "WORLD"

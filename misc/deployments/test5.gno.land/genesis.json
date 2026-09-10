@@ -3310,7 +3310,7 @@
               "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
               "package": {
                 "name": "tests",
-                "path": "gno.land/p/demo/tests",
+                "path": "gno.land/p/demo/tests/v0",
                 "files": [
                   {
                     "name": "README.md",
@@ -3322,11 +3322,11 @@
                   },
                   {
                     "name": "tests_test.gno",
-                    "body": "package tests_test\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/demo/tests\"\n\n\t\"gno.land/p/demo/uassert\"\n)\n\nvar World = \"WORLD\"\n\nfunc TestGetHelloWorld(t *testing.T) {\n\t// tests.World is 'world'\n\ts := \"hello \" + tests.World + World\n\tconst want = \"hello worldWORLD\"\n\n\tuassert.Equal(t, want, s)\n}\n"
+                    "body": "package tests_test\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/demo/tests/v0\"\n\n\t\"gno.land/p/demo/uassert\"\n)\n\nvar World = \"WORLD\"\n\nfunc TestGetHelloWorld(t *testing.T) {\n\t// tests.World is 'world'\n\ts := \"hello \" + tests.World + World\n\tconst want = \"hello worldWORLD\"\n\n\tuassert.Equal(t, want, s)\n}\n"
                   },
                   {
                     "name": "z0_filetest.gno",
-                    "body": "package main\n\nimport (\n\tptests \"gno.land/p/demo/tests\"\n\trtests \"gno.land/r/demo/tests\"\n)\n\nfunc main() {\n\tprintln(rtests.Counter())\n\tptests.IncCounter()\n\tprintln(rtests.Counter())\n}\n\n// Output:\n// 0\n// 1\n"
+                    "body": "package main\n\nimport (\n\tptests \"gno.land/p/demo/tests/v0\"\n\trtests \"gno.land/r/demo/tests\"\n)\n\nfunc main() {\n\tprintln(rtests.Counter())\n\tptests.IncCounter()\n\tprintln(rtests.Counter())\n}\n\n// Output:\n// 0\n// 1\n"
                   }
                 ]
               },

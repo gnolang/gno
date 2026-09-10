@@ -16,7 +16,7 @@ package readonlyrecvmethod
 // using /p/-helper methods are unaffected (their PkgID is /r/).
 
 import (
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 func main(cur realm) {
@@ -26,4 +26,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot mutate gno.land/p/demo/tests: package is immutable post-init
+// cannot mutate gno.land/p/demo/tests/v0: package is immutable post-init

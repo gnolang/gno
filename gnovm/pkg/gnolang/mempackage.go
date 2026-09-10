@@ -208,7 +208,7 @@ func IsTestFile(file string) bool {
 // enforced now without moving the packages. A future cleanup will
 // collapse the list as packages move under a single namespace.
 func IsTestPkgPath(pkgPath string) bool {
-	return pkgPath == "gno.land/p/demo/tests" ||
+	return pkgPath == "gno.land/p/demo/tests/v0" ||
 		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
 		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
 		pkgPath == "gno.land/r/tests/vm" ||
