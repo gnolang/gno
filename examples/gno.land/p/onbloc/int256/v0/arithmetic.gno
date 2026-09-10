@@ -1,7 +1,7 @@
 package int256
 
 import (
-	"gno.land/p/onbloc/uint256"
+	"gno.land/p/onbloc/uint256/v0"
 )
 
 const divisionByZeroError = "division by zero"
