@@ -32,7 +32,8 @@ cannot accidentally present itself as mainnet through a config mistake.
 `-network-kind` overrides it, and an invalid value is a startup error rather
 than a silent fallback.
 
-`gnoland-1` is mainnet; **everything else is a testnet**, including `gnoland1`.
+The mainnet series `gnoland-N` (`gnoland-1` today, incremented on a chain
+restart) is mainnet; **everything else is a testnet**, including `gnoland1`.
 The hyphen is the whole difference and the two are different chains. An
 unrecognised chain-id resolves to testnet on purpose: a testnet mistaken for
 mainnet is the dangerous direction, a mainnet mistaken for a testnet is merely

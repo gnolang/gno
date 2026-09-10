@@ -15,8 +15,14 @@ func TestNetworkKindFromChainID(t *testing.T) {
 		want    NetworkKind
 	}{
 		{"mainnet", "gnoland-1", NetworkMainnet},
+		// The mainnet series increments on a chain restart.
+		{"future mainnet", "gnoland-2", NetworkMainnet},
+		{"future mainnet two digits", "gnoland-12", NetworkMainnet},
 		// gnoland1 is the betanet, a different chain from gnoland-1.
 		{"betanet is not mainnet", "gnoland1", NetworkTestnet},
+		{"suffixed lookalike", "gnoland-1-fork", NetworkTestnet},
+		{"zero is not a chain", "gnoland-0", NetworkTestnet},
+		{"no number", "gnoland-", NetworkTestnet},
 		{"pearl", "pearl-1", NetworkTestnet},
 		{"staging", "staging", NetworkTestnet},
 		{"cli default", "dev", NetworkTestnet},
