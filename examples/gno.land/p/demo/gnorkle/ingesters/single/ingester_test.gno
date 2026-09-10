@@ -3,7 +3,7 @@ package single_test
 import (
 	"testing"
 
-	"gno.land/p/demo/gnorkle/ingester"
+	"gno.land/p/demo/gnorkle/ingester/v0"
 	"gno.land/p/demo/gnorkle/ingesters/single"
 	"gno.land/p/demo/gnorkle/storage/simple"
 	"gno.land/p/nt/uassert/v0"

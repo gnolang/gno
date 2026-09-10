@@ -2,7 +2,7 @@ package single
 
 import (
 	"gno.land/p/demo/gnorkle/gnorkle/v0"
-	"gno.land/p/demo/gnorkle/ingester"
+	"gno.land/p/demo/gnorkle/ingester/v0"
 )
 
 // ValueIngester is an ingester that ingests a single value.

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/gnorkle/feed/v0"
 	"gno.land/p/demo/gnorkle/feeds/static/v0"
 	"gno.land/p/demo/gnorkle/gnorkle/v0"
-	"gno.land/p/demo/gnorkle/ingester"
+	"gno.land/p/demo/gnorkle/ingester/v0"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
 	"gno.land/p/nt/uassert/v0"
