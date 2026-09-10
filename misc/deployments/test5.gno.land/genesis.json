@@ -3354,7 +3354,7 @@
               "creator": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
               "package": {
                 "name": "p_crossrealm",
-                "path": "gno.land/p/demo/tests/p_crossrealm",
+                "path": "gno.land/p/demo/tests/p_crossrealm/v0",
                 "files": [
                   {
                     "name": "p_crossrealm.gno",
@@ -4854,7 +4854,7 @@
                 "files": [
                   {
                     "name": "crossrealm.gno",
-                    "body": "package crossrealm\n\nimport (\n\t\"gno.land/p/demo/tests/p_crossrealm\"\n\t\"gno.land/p/demo/ufmt\"\n)\n\ntype LocalStruct struct {\n\tA int\n}\n\nfunc (ls *LocalStruct) String() string {\n\treturn ufmt.Sprintf(\"LocalStruct{%d}\", ls.A)\n}\n\n// local is saved locally in this realm\nvar local *LocalStruct\n\nfunc init() {\n\tlocal = \u0026LocalStruct{A: 123}\n}\n\n// Make1 returns a local object wrapped by a p struct\nfunc Make1() *p_crossrealm.Container {\n\treturn \u0026p_crossrealm.Container{\n\t\tA: 1,\n\t\tB: local,\n\t}\n}\n"
+                    "body": "package crossrealm\n\nimport (\n\t\"gno.land/p/demo/tests/p_crossrealm/v0\"\n\t\"gno.land/p/demo/ufmt\"\n)\n\ntype LocalStruct struct {\n\tA int\n}\n\nfunc (ls *LocalStruct) String() string {\n\treturn ufmt.Sprintf(\"LocalStruct{%d}\", ls.A)\n}\n\n// local is saved locally in this realm\nvar local *LocalStruct\n\nfunc init() {\n\tlocal = \u0026LocalStruct{A: 123}\n}\n\n// Make1 returns a local object wrapped by a p struct\nfunc Make1() *p_crossrealm.Container {\n\treturn \u0026p_crossrealm.Container{\n\t\tA: 1,\n\t\tB: local,\n\t}\n}\n"
                   }
                 ]
               },

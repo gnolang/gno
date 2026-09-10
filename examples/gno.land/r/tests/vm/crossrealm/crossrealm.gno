@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/tests/p_crossrealm"
+	"gno.land/p/demo/tests/p_crossrealm/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
