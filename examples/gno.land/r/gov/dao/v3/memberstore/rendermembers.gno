@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/samcrew/tablesort/v0"
-	"gno.land/p/samcrew/urlfilter"
+	"gno.land/p/samcrew/urlfilter/v0"
 )
 
 // RenderMembers returns the members list with tier filters and pagination.

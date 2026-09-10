@@ -1,4 +1,4 @@
-module = "gno.land/p/samcrew/urlfilter"
+module = "gno.land/p/samcrew/urlfilter/v0"
 gno = "0.9"
 
 [addpkg]

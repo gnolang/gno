@@ -52,7 +52,7 @@ gno.land/p/sunspirit/md
 gno.land/p/samcrew/piechart/v0
 gno.land/p/mason/md/v0
 gno.land/p/samcrew/tablesort/v0
-gno.land/p/samcrew/urlfilter
+gno.land/p/samcrew/urlfilter/v0
 gno.land/r/gov/dao/v3/memberstore
 gno.land/r/gov/dao/v3/treasury
 gno.land/r/gov/dao/v3/impl
