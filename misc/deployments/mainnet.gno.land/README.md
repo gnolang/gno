@@ -7,9 +7,9 @@ Builds the **gno.land mainnet** genesis. Mainnet is a **fresh chain** — not a 
 ## What mainnet contains
 
 - **Balances**: the independence-day allocation — 3,262,454 accounts totalling 1,332,999,998.328067 GNOT at the current pin (ATOM/ATONE airdrops, investor buckets, treasuries, public sale; see that repo's README for the bucket table) — downloaded by pinned-commit URL and sha256-verified at build time, then reconciled against the shipped genesis at step 9.5. Plus exact-burn funding for the genesis-tx fee payers: they land at zero post-genesis, or at exactly their allocation when an address is both (the collision gnoland1 left unresolved is handled by summing burn on top of allocation). **No faucets.**
-- **Governance**: the seven GovDAO T1 members from the gnolang/multisigs `[govdao]` section (aeddi's operational key overriding accounts.csv; three more key choices pending — see the bootstrap file), seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`. The build reads those addresses back out of the bootstrap source and refuses to produce a genesis unless each one holds a spendable balance: with no faucet and no transferable supply, a member seeded without funds could never pay for a proposal.
+- **Governance**: the seven GovDAO T1 members from the gnolang/multisigs `[govdao]` section (aeddi's operational key overriding accounts.csv; three more key choices pending — see the bootstrap file), seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`. The build reads those addresses back out of the bootstrap source and refuses to produce a genesis unless each one holds a balance: with no faucet and no transferable supply, a member seeded without funds could never pay for a proposal. Any nonzero balance qualifies — fees are collected via the bank's unrestricted path, so neither a vesting schedule nor the §126 lock stops a member from paying gas.
 - **Validators**: 4 founding validators planned — Gnocore, OnBloc, Samourai-Coop, Berty — one each, power 60 (one dark = one quarter lost, safely below the one-third halt boundary). All keys/operators are `TODO(mainnet)` placeholders pending each org's ceremony.
-- **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1 (admin address confirmation pending — `TODO(mainnet)`).
+- **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The admin is the gnolang/multisigs `[govdao]` 4-of-7 multisig, and the build asserts the configured value against the admin actually compiled into `r/sys/names/verifier.gno`, so a master-side change fails the build instead of panicking a temp node.
 - **Vested accounts**: `TODO(mainnet)` — the §132 investors-vesting bucket (150M GNOT, 24 months) is the known candidate; the mechanism (balance-sheet vesting syntax, continuous or cliff) is inherited from the pearl builder and already exercised there.
 - **Inert packages**: to be ACTIVE at genesis (`code_submission_policy=inert`) — approvers, run-submitters, and the submission charge are `TODO(mainnet)`; genesis replay is exempt so the genesis deploys still execute.
 - **Transfers**: **locked at genesis**, per Constitution §126 (*"$GNOT will not be transferrable initially except for whitelisted addresses"*). `bank.params.restricted_denoms=["ugnot"]` plus the 71-address exemption list fetched from `gnolang/independence-day` (`mkgenesis/unrestricted.txt`, same sha256 treatment as the balance sheet; the two pins are temporarily split across commits — see the `TODO(mainnet)` at the pin definitions). Applied at step 9.3. Both knobs are required: with `restricted_denoms` empty the exemption list is inert.
@@ -35,7 +35,8 @@ mainnet.gno.land/
 ├── gen-genesis.sh         # Single self-contained pipeline
 ├── govdao-exec.sh         # Helper for post-genesis governance ops
 ├── genesis.json           # Final artifact (produced by the script)
-├── allocation_balances.txt.gz  # Cached independence-day sheet (gitignored)
+├── allocation_balances.txt.gz   # Cached independence-day sheet (gitignored)
+├── allocation_unrestricted.txt  # Cached §126 exemption list (gitignored)
 │
 ├── transactions/          # Per-tx directories (meta.json + optional body)
 │   ├── base/
@@ -58,7 +59,7 @@ mainnet.gno.land/
 6. Add the `names.Enable` MsgCall from `transactions/migration/names-enable/`.
 7. Build the valoper CSV from `INITIAL_VALSET` + `INITIAL_VALSET_OPERATORS` and add the `valopers.Register` txs (via `gnogenesis fork valoper-seed`).
 8. Enforce the overlap rules (fee payer ∩ allocation → summed; vested ∩ anything → rejected), then measure fee-payer balances via a two-pass temp-node run (measure → verify zero), gated on committed state.
-9. Add the validators + balances (fee payers + vested, then the allocation sheet last), run `gnogenesis verify`, move `genesis.json` into place.
+9. Add the validators + balances (fee payers + vested, then the allocation sheet last), apply the §126 transfer lock, reconcile the shipped account count and supply against the pinned sheet and the measured burn, run `gnogenesis verify`, move `genesis.json` into place.
 
 The locked artifacts (package list, valoper seed, tx stream, `genesis.json`) are checked against the `CHECKSUMS_DATA` manifest embedded in the script: after the first clean build with final values, paste the printed "not listed" lines into the heredoc to lock the build; any future run producing different bytes fails loudly.
 

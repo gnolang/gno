@@ -108,7 +108,7 @@ Get your node's consensus public key:
 gnoland secrets get validator_key   # note the validator public key (gpub1...)
 ```
 
-The registration transaction costs a gas fee, so your operator account needs GNOT. There is **no faucet on mainnet** — fund the operator address from your own holdings (e.g. your independence-day allocation). <!-- TODO(mainnet): confirm the recommended funding path for external operators. -->
+The registration transaction costs a gas fee, so your operator account needs GNOT. There is **no faucet on mainnet**, and transfers are **locked at launch** per Constitution §126 — you cannot move GNOT from one of your addresses to another unless the sender is whitelisted. So use an address that already holds GNOT in the genesis allocation as your operator address: gas fees are payable from a locked balance (fee collection bypasses the transfer restriction). <!-- TODO(mainnet): confirm the recommended funding path for operators with no allocation (whitelisted-treasury transfer?). -->
 
 Register your profile on the valoper realm, **signed by your operator key** (the `gnokey` account whose `g1...` address you pass as the operator address — the realm rejects the call if the signer doesn't control that address):
 
