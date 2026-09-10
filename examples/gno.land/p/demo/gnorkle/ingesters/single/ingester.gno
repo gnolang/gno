@@ -1,7 +1,7 @@
 package single
 
 import (
-	"gno.land/p/demo/gnorkle/gnorkle"
+	"gno.land/p/demo/gnorkle/gnorkle/v0"
 	"gno.land/p/demo/gnorkle/ingester"
 )
 

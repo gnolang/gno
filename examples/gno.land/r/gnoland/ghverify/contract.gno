@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/gnorkle/feeds/static/v0"
-	"gno.land/p/demo/gnorkle/gnorkle"
+	"gno.land/p/demo/gnorkle/gnorkle/v0"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/nt/bptree/v0"
 )
