@@ -4,7 +4,7 @@
 package issue5736_bar
 
 import (
-	u256 "gno.land/p/onbloc/uint256"
+	u256 "gno.land/p/onbloc/uint256/v0"
 	"gno.land/r/tests/issue5736_common"
 )
 
