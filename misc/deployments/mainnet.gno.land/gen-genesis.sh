@@ -849,6 +849,22 @@ alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
 if [ -n "$alloc_dupes" ]; then
   die "allocation sheet has duplicate addresses: $alloc_dupes"
 fi
+# The sheet's schedules are ABSOLUTE unix times, not offsets from launch, and
+# nothing downstream relates them to this chain's genesis time:
+# VestingSchedule.Validate only checks internal consistency (start < end,
+# positive end), and `gnogenesis verify` does not know GENESIS_TIME. A sheet
+# re-pinned for an earlier target launch, or a ceremony that slips past a
+# cliff, would hand out a "locked" balance that is fully liquid at block 1 —
+# §132 anchors vesting to the day $GNOT becomes transferrable, which is
+# exactly GENESIS_TIME.
+expired_vesting=$(grep -F -- ';vesting=' "$ALLOCATION_TXT" |
+  awk -F'[,;]' -v g="$GENESIS_TIME" '{ end = $4 + 0; if (end <= g) print $0 }' || true)
+if [ -n "$expired_vesting" ]; then
+  die "$(printf '%s\n%s\n%s' \
+    "these allocation rows carry a vesting schedule that has already ended at GENESIS_TIME ($GENESIS_TIME):" \
+    "$expired_vesting" \
+    "the balance would be fully liquid at block 1 — re-pin the sheet for the real launch time, or move the launch.")"
+fi
 # Captured here because the decompressed sheet is deleted at the end of step 8;
 # step 9.5 reconciles the shipped genesis against this total.
 alloc_total=$(sheet_total "$ALLOCATION_TXT")
