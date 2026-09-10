@@ -1,4 +1,4 @@
-module = "gno.land/p/moul/txlink"
+module = "gno.land/p/moul/txlink/v0"
 gno = "0.9"
 
 [addpkg]

@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/lou/blog"
 	"gno.land/p/moul/md/v0"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 )
 
 func CreatePost(cur realm, slug, title, body, publicationDate, authors, tags string) {

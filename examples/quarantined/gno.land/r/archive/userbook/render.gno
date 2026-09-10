@@ -6,7 +6,7 @@ import (
 
 	"gno.land/r/sys/users"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 )

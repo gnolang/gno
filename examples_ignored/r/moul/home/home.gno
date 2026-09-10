@@ -7,7 +7,7 @@ import (
 	"gno.land/p/moul/debug"
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable/v0"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/moul/web25"
 	"gno.land/r/leon/hor"
 	"gno.land/r/moul/config"

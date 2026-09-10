@@ -4,7 +4,7 @@ import (
 	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/gnoland/boards/exts/permissions/v0"
 	"gno.land/p/moul/realmpath/v0"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 

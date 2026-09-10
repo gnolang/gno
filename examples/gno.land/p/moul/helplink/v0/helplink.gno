@@ -19,7 +19,7 @@ import (
 	"chain/runtime/unsafe"
 	"strings"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 )
 
 var chainDomain = runtime.ChainDomain()

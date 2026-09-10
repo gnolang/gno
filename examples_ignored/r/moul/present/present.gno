@@ -15,7 +15,7 @@ import (
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/moul/realmpath/v0"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 )
 
 var chainDomain = std.ChainDomain()
