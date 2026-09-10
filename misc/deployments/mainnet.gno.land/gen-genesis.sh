@@ -107,20 +107,20 @@ FILTERED_PACKAGES=(
 # voting power — below the one-third halt boundary, so any single failure
 # keeps the chain live (unlike the 3-validator testnet bootstraps).
 #
-# TODO(mainnet): slots 1-3 are THROWAWAY PLACEHOLDER KEYS so the build
+# TODO(mainnet): slots 1-2 are THROWAWAY PLACEHOLDER KEYS so the build
 # runs — replace with each org's ceremony keys before anything is locked:
 #   - gno-core-validator-1  -> Gnocore (key ceremony + signer setup TBD)
 #   - onbloc-validator-1    -> OnBloc
-#   - samouraicoop-validator-1 -> Samourai-Coop
-# berty-validator-1 is REAL: Berty's ceremony pair, received 2026-09-10
-# (the address was cross-checked against the pubkey by deriving it).
+# samouraicoop-validator-1 and berty-validator-1 are REAL: each org's
+# ceremony pair, received 2026-09-10 (addresses cross-checked against the
+# pubkeys by deriving them).
 # TODO(mainnet): decide the signer requirements per org (the gno-core
 # testnet pattern is horcrux 2-of-3 / tmkms softsign; mainnet probably
 # wants threshold signers or HSMs for everyone — see the launch checklist).
 INITIAL_VALSET=(
   "gno-core-validator-1 60 g1kjx28d7jz6427zw2kcuqqsz9h7zpvmvtqs8cmq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0gxjmejgyl59rln0eye9256xn655t3y2jer60ujlum7gen95r7ftswq0j"
   "onbloc-validator-1 60 g1aen39597cg6vvx0pgfz86rxcvrp7z7l5at7n66 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpmmfp0v68u2rjrgjlqlsg9s2le3ghr60xmsekkph83mn2v2t5s50y5ds"
-  "samouraicoop-validator-1 60 g1snz5kn7su5cvhhfxhkvmd6049yn8m8zzlzswpz gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpm53ffllu73slhq8nzamc45wdtmurwttqljgyewpju8zn00phwkad898ul"
+  "samouraicoop-validator-1 60 g15t7f9q6km3ldt885duwl8xu5dncs98528amk4f gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpdkjpdaqsm9gxnw90ac6a78gvnquttl4kr64zxughl87sek7xgx60gfntd"
   "berty-validator-1 60 g1l983yy3kpmapyzcfy53y5charfxupa5czjalea gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqn8u6cc4dgrzu9u8hztvlmqrvqt7mzju577xjdxjqxf8m5gjypaz798f5d"
 )
 
@@ -137,13 +137,13 @@ INITIAL_VALSET=(
 # valoper-seed` rejects duplicate operators, so all slots must be
 # distinct addresses.
 #
-# TODO(mainnet): slots 2-4 are THROWAWAY PLACEHOLDERS — collect each
-# org's operator address (OnBloc, Samourai-Coop, Berty; must differ from
-# their signing address). Slot 1 reuses the gno-core operator pending the
-# Gnocore decision. Berty's consensus pair is in, but they have NOT yet
-# provided an operator address — it cannot be their consensus address
-# g1l983yy… (valoper-seed rejects operator==signing), so ask for a
-# separate gnokey account.
+# TODO(mainnet): slots 2 and 4 are THROWAWAY PLACEHOLDERS — collect
+# OnBloc's and Berty's operator addresses (must differ from their signing
+# address). Slot 1 reuses the gno-core operator pending the Gnocore
+# decision. Slot 3 (Samourai-Coop) is REAL, received 2026-09-10. Berty's
+# consensus pair is in, but they have NOT yet provided an operator
+# address — it cannot be their consensus address g1l983yy… (valoper-seed
+# rejects operator==signing), so ask for a separate gnokey account.
 #
 # TODO(mainnet): none of the four operators holds an independence-day
 # allocation, so each lands at exactly zero once its valopers.Register tx
@@ -158,7 +158,7 @@ INITIAL_VALSET=(
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator — TODO(mainnet): confirm
   "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # onbloc-validator-1 operator — TODO(mainnet): placeholder
-  "g157heusxh73m0wh6myjfd2f69uuwuu77kcc9vhs" # samouraicoop-validator-1 operator — TODO(mainnet): placeholder
+  "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4" # samouraicoop-validator-1 operator
   "g18x40r2smn4telaps0cg9cw2znsjhnay9d353qh" # berty-validator-1 operator — TODO(mainnet): placeholder
 )
 
