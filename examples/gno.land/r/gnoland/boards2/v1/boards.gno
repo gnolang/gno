@@ -2,7 +2,7 @@ package boards2
 
 import (
 	"gno.land/p/gnoland/boards/v0"
-	"gno.land/p/gnoland/boards/exts/permissions"
+	"gno.land/p/gnoland/boards/exts/permissions/v0"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/bptree/v0"

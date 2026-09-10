@@ -3,7 +3,7 @@ package permissions
 import (
 	"chain/runtime/unsafe"
 
-	"gno.land/p/gnoland/boards/exts/permissions"
+	"gno.land/p/gnoland/boards/exts/permissions/v0"
 
 	"gno.land/r/gnoland/boards2/v1"
 )
