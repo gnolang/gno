@@ -1,4 +1,4 @@
-module = "gno.land/p/leon/svgbtn"
+module = "gno.land/p/leon/svgbtn/v0"
 gno = "0.9"
 
 [addpkg]
