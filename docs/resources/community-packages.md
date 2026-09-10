@@ -156,7 +156,7 @@ func IsClaimed(id uint64) bool {
   owner-gated administration with explicit `cur realm` checks.
 - `gno.land/p/nt/pausable/v0` **(quarantined)**:
   pause switches layered on an `ownable.Ownable`.
-- [`gno.land/p/moul/authz`](../../examples/gno.land/p/moul/authz/authz.gno):
+- [`gno.land/p/moul/authz/v0`](../../examples/gno.land/p/moul/authz/authz.gno):
   authorization helper patterns worth studying when a single owner is not
   enough.
 

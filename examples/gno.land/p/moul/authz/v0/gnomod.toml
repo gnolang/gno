@@ -1,4 +1,4 @@
-module = "gno.land/p/moul/authz"
+module = "gno.land/p/moul/authz/v0"
 gno = "0.9"
 
 [addpkg]
