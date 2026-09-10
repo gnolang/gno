@@ -1,7 +1,7 @@
 package enumerable
 
 import (
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/v0"
 )
 
 const Kind = "enumerable"

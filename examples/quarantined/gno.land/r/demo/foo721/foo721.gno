@@ -2,7 +2,7 @@
 package foo721
 
 import (
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/fqname/v0"
@@ -57,7 +57,7 @@ func renderHome() string {
 import (
 	"gno.land/r/matijamarjanovic/tokenhub"
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/demo/tokens/grc1155"
 	"gno.land/p/nt/seqid/v0"
 )

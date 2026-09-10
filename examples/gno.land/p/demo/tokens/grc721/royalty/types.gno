@@ -6,7 +6,7 @@ package royalty
 import (
 	"errors"
 
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
 )
 
