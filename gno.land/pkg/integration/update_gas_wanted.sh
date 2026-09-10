@@ -5,8 +5,13 @@
 #   cd gno
 #   ./gno.land/pkg/integration/update_gas_wanted.sh
 #
+# Covers every script TestTestdata runs: the platform ones in this package's
+# testdata/, and the package-local ones living next to their realm under
+# examples/.
+#
 # How it works:
-#   1. Snapshot every testdata/*.txtar to a tmpdir (trap EXIT restores it).
+#   1. Snapshot every *.txtar under testdata/ and examples/ to a tmpdir
+#      (trap EXIT restores it).
 #   2. Inflate every -gas-wanted N to N*10 in the live testdata files. Skip
 #      lines that are ! gnokey (negative tests) or that are preceded by a
 #      '# gas-rewrite: skip' marker comment. gas-fee is NOT touched (so we
@@ -41,30 +46,43 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 cd "$REPO_ROOT"
 
-TESTDATA="$SCRIPT_DIR/testdata"
 SNAPSHOT_DIR="$(mktemp -d -t update_gas_wanted_snapshot.XXXXXX)"
 OUTPUT="$(mktemp -t update_gas_wanted_output.XXXXXX)"
+# Paths of every txtar to rewrite, one per line, relative to REPO_ROOT. Keep the
+# roots in sync with FindTestScripts in gnovm/pkg/integration/testscript.go: a
+# root missing here silently keeps its stale gas numbers. Base names are unique
+# across the roots (FindTestScripts enforces it), which is what lets Step 4 map
+# captured gas back to a file by base name.
+#
+# -prune on dot-directories mirrors FindTestScripts, which skips them. Without
+# it a script under e.g. examples/.foo/ would get its gas numbers rewritten here
+# and never be run to check the result.
+FILELIST="$(mktemp -t update_gas_wanted_files.XXXXXX)"
+find gno.land/pkg/integration/testdata examples \
+    -name '.?*' -prune -o \
+    -type f -name '*.txtar' -print | sort > "$FILELIST"
 INFLATION_FACTOR=10
 
 # Always restore originals from snapshot, even on Ctrl-C / kill / error.
 restore_and_cleanup() {
     if [ -d "$SNAPSHOT_DIR" ] && [ -n "$(ls -A "$SNAPSHOT_DIR" 2>/dev/null)" ]; then
-        rsync -a --delete "$SNAPSHOT_DIR/" "$TESTDATA/"
+        rsync -a --files-from="$FILELIST" "$SNAPSHOT_DIR/" "$REPO_ROOT/"
     fi
     rm -rf "$SNAPSHOT_DIR"
-    rm -f "$OUTPUT"
+    rm -f "$OUTPUT" "$FILELIST"
 }
 trap restore_and_cleanup EXIT
 
-echo "Step 0: Snapshotting testdata to $SNAPSHOT_DIR..."
-rsync -a "$TESTDATA/" "$SNAPSHOT_DIR/"
+echo "Step 0: Snapshotting $(wc -l < "$FILELIST" | tr -d ' ') txtar files to $SNAPSHOT_DIR..."
+rsync -a --files-from="$FILELIST" "$REPO_ROOT/" "$SNAPSHOT_DIR/"
 
 echo "Step 1: Inflating gas-wanted values by ${INFLATION_FACTOR}x..."
-INFLATION_FACTOR=$INFLATION_FACTOR TESTDATA="$TESTDATA" python3 - <<'PYEOF'
-import os, re, glob
+INFLATION_FACTOR=$INFLATION_FACTOR FILELIST="$FILELIST" python3 - <<'PYEOF'
+import os, re
 
 INFLATION = int(os.environ['INFLATION_FACTOR'])
-TESTDATA = os.environ['TESTDATA']
+# cwd is REPO_ROOT, and the list holds repo-root-relative paths.
+TXTAR_FILES = [l.strip() for l in open(os.environ['FILELIST'], encoding='utf-8') if l.strip()]
 
 # Walk back past blank lines AND any '#'-prefixed comment lines to find a
 # 'gas-rewrite: skip' marker. The marker is honored if it appears anywhere
@@ -95,7 +113,7 @@ def format_us(val):
 
 n_files = 0
 n_lines = 0
-for fpath in sorted(glob.glob(os.path.join(TESTDATA, '*.txtar'))):
+for fpath in TXTAR_FILES:
     with open(fpath, encoding='utf-8') as f:
         lines = f.readlines()
     changed = False
@@ -129,18 +147,19 @@ echo "Step 2: Running integration tests with inflated values..."
 SEQ_TS=true go test -v -p 1 -timeout=30m ./gno.land/pkg/integration/ -run TestTestdata -count=1 > "$OUTPUT" 2>&1 || true
 
 echo "Step 3: Restoring testdata from snapshot..."
-rsync -a --delete "$SNAPSHOT_DIR/" "$TESTDATA/"
+rsync -a --files-from="$FILELIST" "$SNAPSHOT_DIR/" "$REPO_ROOT/"
 # Empty the snapshot dir so the EXIT trap doesn't re-restore (no-op).
 rm -rf "$SNAPSHOT_DIR"
 SNAPSHOT_DIR=""
 
 echo "Step 4: Parsing captured gas values and rewriting txtar files..."
-INFLATION_FACTOR=$INFLATION_FACTOR TESTDATA="$TESTDATA" OUTPUT="$OUTPUT" python3 - <<'PYEOF'
-import os, re, glob
+INFLATION_FACTOR=$INFLATION_FACTOR FILELIST="$FILELIST" OUTPUT="$OUTPUT" python3 - <<'PYEOF'
+import os, re
 
 INFLATION = int(os.environ['INFLATION_FACTOR'])
-TESTDATA = os.environ['TESTDATA']
 OUTPUT = os.environ['OUTPUT']
+# cwd is REPO_ROOT, and the list holds repo-root-relative paths.
+TXTAR_FILES = [l.strip() for l in open(os.environ['FILELIST'], encoding='utf-8') if l.strip()]
 
 def round_2sig(val):
     """Round to nearest 2 significant digits: 15658754 -> 16000000."""
@@ -230,7 +249,7 @@ files_updated = 0
 commands_updated = 0
 unmatched = []  # (basename, line_no, snippet)
 
-for fpath in sorted(glob.glob(os.path.join(TESTDATA, '*.txtar'))):
+for fpath in TXTAR_FILES:
     basename = os.path.basename(fpath).replace('.txtar', '')
     gas_pairs = test_gas.get(basename, [])
 

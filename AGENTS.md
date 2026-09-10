@@ -46,8 +46,14 @@ make fmt                        # Format all code
 |-----------|----------|
 | `gno test ./path/...` | `go test ./...` |
 | Test files: `_test.gno` | Test files: `_test.go` |
-| Filetests: `_filetest.gno` | Integration: `.txtar` in `gno.land/pkg/integration/testdata/` |
+| Filetests: `_filetest.gno` | Integration: `.txtar`, see below |
 | VM file tests: `gnovm/tests/files/` with `// Output:` | Standard Go test runner |
+
+A `.txtar` about one package belongs next to that package under `examples/`;
+`gno.land/pkg/integration/testdata/` is for scripts about the VM, the node or
+`gnokey` itself. `TestTestdata` runs both. Base names must be unique across the
+two locations (prefix with the package name). See
+[docs/resources/gno-testing.md](./docs/resources/gno-testing.md#integration-tests).
 
 ### Verification Rules
 

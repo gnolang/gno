@@ -579,6 +579,31 @@ func TestWriteMemPackageTo_FiletestsRoundTrip(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// Integration test scripts may live next to the code they exercise. They must
+// never become part of the package that gets uploaded on-chain: ReadMemPackage
+// drops them, and ValidateMemPackage rejects one that got in some other way.
+func TestMemPackage_TxtarIsNotPackageSource(t *testing.T) {
+	dir := t.TempDir()
+	for rel, body := range map[string]string{
+		"gnomod.toml": "module = \"gno.land/p/demo/rt\"\ngno = \"0.9\"\n",
+		"rt.gno":      "package rt\n",
+		"rt.txtar":    "loadpkg gno.land/p/demo/rt\n\ngnoland start\n",
+	} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, rel), []byte(body), 0o644))
+	}
+
+	// MPUserProd: what actually gets uploaded, and what ValidateMemPackage takes.
+	mpkg, err := ReadMemPackage(dir, "gno.land/p/demo/rt", MPUserProd)
+	require.NoError(t, err)
+	assert.Nil(t, mpkg.GetFile("rt.txtar"))
+	assert.NotNil(t, mpkg.GetFile("rt.gno"))
+	require.NoError(t, ValidateMemPackage(mpkg))
+
+	mpkg.Files = append(mpkg.Files, &std.MemFile{Name: "rt.txtar", Body: "gnoland start\n"})
+	mpkg.Sort()
+	assert.ErrorContains(t, ValidateMemPackage(mpkg), `invalid file "rt.txtar": unrecognized file type`)
+}
+
 func TestWriteMemPackageTo_RejectsBadNames(t *testing.T) {
 	dir := t.TempDir()
 	mpkg := &std.MemPackage{

@@ -18,6 +18,10 @@ on:
       - '!**/*.md'
       - examples/**/*.md
       - gnovm/stdlibs/**/*.md
+      # A package-local integration script is not mempackage content and is not
+      # linted or run by this suite; the suite that runs them is ci-dir-gnoland.
+      # Excluding it keeps a gas-number refresh from paying for this workflow too.
+      - '!examples/**/*.txtar'
   workflow_dispatch:
     inputs:
       debug:

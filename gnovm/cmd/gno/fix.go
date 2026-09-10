@@ -89,7 +89,6 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	for _, targ := range targets {
-		// txtar file must be an explicit target and not a directory.
 		txtarFile, err := txtarFileFromArg(targ)
 		if err != nil {
 			return fmt.Errorf("unable to gather txtar file: %w", err)
@@ -99,6 +98,23 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 				return fmt.Errorf("unable to process txtar %q: %w", txtarFile, err)
 			}
 			continue
+		}
+		// A directory target also covers the .txtar files sitting in it: an
+		// integration script may live next to the package it exercises, and a
+		// migration sweep (`gno fix ./...`) must rewrite the .gno inside it the
+		// same way it rewrites the .gno beside it. Same scope as
+		// gnoFilesFromArgs below — this directory, not its subdirectories.
+		txtarFiles, err := txtarFilesInDir(targ)
+		if err != nil {
+			return fmt.Errorf("unable to gather txtar files in %q: %w", targ, err)
+		}
+		for _, f := range txtarFiles {
+			if cmd.verbose {
+				cio.ErrPrintln(f)
+			}
+			if err := cmd.processFixTxtar(f); err != nil {
+				return fmt.Errorf("unable to process txtar %q: %w", f, err)
+			}
 		}
 		files, err := gnoFilesFromArgs([]string{targ})
 		if err != nil {
@@ -171,6 +187,32 @@ func txtarFileFromArg(target string) (string, error) {
 
 func isTxtarFile(f fs.FileInfo) bool {
 	return strings.HasSuffix(f.Name(), ".txtar") && !f.IsDir()
+}
+
+// txtarFilesInDir returns the .txtar files directly in target, sorted. It
+// returns nothing when target is not a directory: an explicit .txtar target is
+// handled by [txtarFileFromArg] instead.
+func txtarFilesInDir(target string) ([]string, error) {
+	info, err := os.Stat(target)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".txtar") {
+			continue
+		}
+		files = append(files, cleanPath(filepath.Join(target, e.Name())))
+	}
+	slices.Sort(files)
+	return files, nil
 }
 
 func (c *fixCmd) processFixTxtar(file string) error {
