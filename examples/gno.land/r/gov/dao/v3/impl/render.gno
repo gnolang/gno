@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/moul/helplink/v0"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"

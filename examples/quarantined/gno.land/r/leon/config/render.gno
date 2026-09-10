@@ -3,7 +3,7 @@ package config
 import (
 	"strconv"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	p "gno.land/p/nt/avl/v0/pager"

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/aeddi/panictoerr/v0"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/ufmt/v0"

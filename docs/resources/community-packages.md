@@ -35,12 +35,12 @@ func Render(path string) string {
 Community markdown builders are still useful for composing output after you
 know whether each helper sanitizes internally or expects sanitized input.
 
-- [`gno.land/p/moul/md`](../../examples/gno.land/p/moul/md/md.gno): helpers for
+- [`gno.land/p/moul/md/v0`](../../examples/gno.land/p/moul/md/md.gno): helpers for
   building markdown links, headings, lists, images, code blocks, and text
   escaping.
 
   ```go
-  import "gno.land/p/moul/md"
+  import "gno.land/p/moul/md/v0"
 
   func Render(_ string) string {
       return md.H1("Tasks") + md.TodoList([]string{"review", "ship"}, []bool{true, false})

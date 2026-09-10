@@ -3,7 +3,7 @@ package md_test
 import (
 	"testing"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 )
 
 func TestHelpers(t *testing.T) {

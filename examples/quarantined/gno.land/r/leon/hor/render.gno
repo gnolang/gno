@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/pager"

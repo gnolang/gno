@@ -12,7 +12,7 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/collection"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"

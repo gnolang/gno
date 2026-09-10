@@ -2,7 +2,7 @@ package grc20factory
 
 import (
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	p "gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/avl/v0/rotree"

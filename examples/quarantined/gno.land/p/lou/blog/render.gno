@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/lou/query"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/mux/v0"

@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/leon/svgbtn/v0"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/demo/art/gnoface"

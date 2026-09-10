@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/r/leon/hor"

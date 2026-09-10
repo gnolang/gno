@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/mux/v0"

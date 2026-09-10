@@ -5,7 +5,7 @@ import (
 	"chain/runtime/unsafe"
 	"strings"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/leon/hor"

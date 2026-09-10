@@ -1,6 +1,6 @@
 package echo
 
-import "gno.land/p/moul/md"
+import "gno.land/p/moul/md/v0"
 
 func Render(path string) string {
 	// Fixed: escape attacker-controlled path text before inserting it in markdown.

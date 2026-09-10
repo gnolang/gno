@@ -11,7 +11,7 @@ func main() {
 
 // Output:
 // # Package Demo: `p/moul/md`
-// This document demonstrates the features of the [gno\.land/p/moul/md](https://gno.land/p/moul/md) package, showing both the source code and the rendered result for each feature.
+// This document demonstrates the features of the [gno\.land/p/moul/md](https://gno.land/p/moul/md/v0) package, showing both the source code and the rendered result for each feature.
 //
 //
 //
@@ -424,5 +424,5 @@ func main() {
 // 5. Leverage `md.ColumnsN()` for responsive layouts
 //
 // ## See Also
-// - [gno\.land/p/moul/md](https://gno.land/p/moul/md) - The md package source code
+// - [gno\.land/p/moul/md](https://gno.land/p/moul/md/v0) - The md package source code
 // - [Markdown on Gno](https://gno.land/r/docs/markdown) - Comprehensive guide on Gno Flavored Markdown syntax

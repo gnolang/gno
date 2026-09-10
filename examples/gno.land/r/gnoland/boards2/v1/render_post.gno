@@ -7,7 +7,7 @@ import (
 	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/jeronimoalbi/mdform/v0"
 	"gno.land/p/leon/svgbtn/v0"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/markdown/foreign/v0"
 	"gno.land/p/nt/mdalert/v0"

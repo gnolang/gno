@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/lou/blog"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/txlink"
 )
 

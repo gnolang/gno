@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
 )

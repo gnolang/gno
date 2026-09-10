@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ownable/v0/exts/authorizable"
