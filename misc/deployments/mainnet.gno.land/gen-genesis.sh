@@ -1366,8 +1366,16 @@ start_temp_node() {
   # The measured burns are dominated by storage deposits priced by the
   # chain's vm/auth params. This genesis is regenerated rather than copied
   # (a future GENESIS_TIME would stall the temp node), so assert its
-  # fee-governing params equal the genesis that ships — otherwise every
-  # measured amount is wrong by the parameter ratio and run 2 would agree.
+  # fee-governing params equal the shipping genesis AS IT STANDS NOW —
+  # otherwise every measured amount is wrong by the parameter ratio and run 2
+  # would agree with it. Step 9.3 then adds auth.params.unrestricted_addrs and
+  # bank.params.restricted_denoms to the shipping genesis, deliberately after
+  # this point: neither prices a fee (both fee collection and storage deposits
+  # go through the bank keeper's unrestricted path), and comparing after the
+  # patch would fail on a difference that cannot affect the measurement.
+  # Both sides are plain `gnogenesis generate` defaults today, so this only
+  # starts biting when the inert-package params land — patch vm.params on both
+  # genesis files and this assertion holds you to it.
   if [ "$(jq -cS '[.app_state.vm.params, .app_state.auth.params]' "$BALANCES_TMP_GENESIS")" != \
     "$(jq -cS '[.app_state.vm.params, .app_state.auth.params]' "$GENESIS_FILE")" ]; then
     die "temp-node genesis fee params differ from the shipping genesis — measurement would be invalid"
@@ -1642,12 +1650,28 @@ fi
 if [ -z "$applied_rd" ]; then
   die "restricted_denoms is empty — the exemption list would be inert and §126 unmet"
 fi
-genesis_addrs=$(jq -r '.app_state.auth.accounts[]?.address // empty' "$GENESIS_FILE" | sort -u)
-if [ -n "$genesis_addrs" ]; then
-  not_funded=$(printf '%s\n' "$genesis_addrs" | comm -13 - <(sort -u "$UNRESTRICTED_ADDRS_TXT"))
-  if [ -n "$not_funded" ]; then
-    die "unrestricted addresses missing from the shipped genesis accounts (InitChain would panic): $not_funded"
-  fi
+# Non-emptiness is not the property that matters: canSendCoins only refuses a
+# transfer whose coins contain a restricted denom (tm2/pkg/sdk/bank/keeper.go),
+# so a single typo — "ugnots", or the "gnot" everyone writes in prose — leaves
+# every ugnot transfer open while this step still prints a lock. Every genesis
+# balance is denominated in ugnot (enforced by the sheet format check at 2.3),
+# so that is the denom the lock has to name.
+case ",$applied_rd," in
+*,ugnot,*) ;;
+*) die "restricted_denoms is [$applied_rd], which does not include ugnot — every ugnot transfer would be permitted and §126 unmet" ;;
+esac
+# Every exempt address must be a genesis account or InitChain panics
+# (gno.land/pkg/gnoland/app.go: "unrestricted address must be one of the
+# genesis accounts"). Step 2 checked the downloaded sheet; this checks the
+# balances that actually shipped — app_state carries no account list, the
+# balances ARE the accounts.
+genesis_addrs=$(jq -r '.app_state.balances[]' "$GENESIS_FILE" | cut -d= -f1 | sort -u)
+if [ -z "$genesis_addrs" ]; then
+  die "the shipped genesis has no balances — nothing was added, or app_state.balances moved"
+fi
+not_funded=$(printf '%s\n' "$genesis_addrs" | comm -13 - <(sort -u "$UNRESTRICTED_ADDRS_TXT"))
+if [ -n "$not_funded" ]; then
+  die "unrestricted addresses missing from the shipped genesis balances (InitChain would panic): $not_funded"
 fi
 print_substep "9.4" "Transfer lock: restricted_denoms=[$applied_rd], $applied_unres addresses exempt"
 
@@ -1662,6 +1686,22 @@ print_substep "9.4" "Transfer lock: restricted_denoms=[$applied_rd], $applied_un
 # Supply is not the allocation total: the fee payers are funded with the exact
 # gas + storage cost of the genesis txs, which is minted on top of it and burnt
 # again as the txs execute.
+#
+# The two launch parameters nothing downstream would notice: `gnogenesis
+# verify` has no opinion on either, and the temp nodes deliberately run with
+# their own generated genesis (their own chain-id-free time), so a `generate`
+# call that silently dropped one would ship a chain nobody can join.
+genesis_chain_id=$(jq -r '.chain_id' "$GENESIS_FILE")
+if [ "$genesis_chain_id" != "$CHAIN_ID" ]; then
+  die "shipped genesis carries chain_id '$genesis_chain_id', expected '$CHAIN_ID'"
+fi
+genesis_time_shipped=$(jq -r '.genesis_time' "$GENESIS_FILE")
+genesis_time_want=$(date -u -r "$GENESIS_TIME" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null ||
+  date -u -d "@$GENESIS_TIME" +%Y-%m-%dT%H:%M:%SZ)
+if [ "$genesis_time_shipped" != "$genesis_time_want" ]; then
+  die "shipped genesis carries genesis_time '$genesis_time_shipped', expected '$genesis_time_want' (GENESIS_TIME=$GENESIS_TIME)"
+fi
+
 genesis_accounts=$(jq -r '.app_state.balances | length' "$GENESIS_FILE")
 genesis_supply=$(jq -r '.app_state.balances[]' "$GENESIS_FILE" |
   awk -F'[=;]' '{ a = $2; sub(/ugnot$/, "", a); s += a } END { printf "%d", s + 0 }')
