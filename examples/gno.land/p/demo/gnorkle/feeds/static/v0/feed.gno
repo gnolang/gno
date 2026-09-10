@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/gnorkle/gnorkle/v0"
 	"gno.land/p/demo/gnorkle/ingesters/single/v0"
 	"gno.land/p/demo/gnorkle/message/v0"
-	"gno.land/p/demo/gnorkle/storage/simple"
+	"gno.land/p/demo/gnorkle/storage/simple/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

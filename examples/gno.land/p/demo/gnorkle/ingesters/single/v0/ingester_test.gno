@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/gnorkle/ingester/v0"
 	"gno.land/p/demo/gnorkle/ingesters/single/v0"
-	"gno.land/p/demo/gnorkle/storage/simple"
+	"gno.land/p/demo/gnorkle/storage/simple/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 
