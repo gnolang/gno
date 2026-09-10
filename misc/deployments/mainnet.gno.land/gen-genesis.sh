@@ -1635,7 +1635,7 @@ if [ "$alloc_stripped_count" -ne $((alloc_count - merged_count)) ]; then
   die "the stripped allocation sheet has $alloc_stripped_count rows, expected $((alloc_count - merged_count)) ($alloc_count in the pinned sheet less $merged_count merged into fee-payer entries)"
 fi
 if [ "$stripped_total" -ne $((alloc_total - merged_alloc_total)) ]; then
-  die "stripping the merged rows removed $((alloc_total - stripped_total)) ugnot, but those rows are worth $merged_alloc_total ugnot — the wrong rows left the allocation sheet"
+  die "the stripped allocation sheet is worth $stripped_total ugnot, expected $((alloc_total - merged_alloc_total)) ($alloc_total in the pinned sheet less the $merged_alloc_total merged into fee-payer entries) — the sheet lost the wrong rows or an amount changed after step 2 verified it"
 fi
 expected_supply=$((alloc_total + burn_total + vested_total))
 if [ "$genesis_supply" -ne "$expected_supply" ]; then
