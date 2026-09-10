@@ -176,13 +176,16 @@ type defaultStore struct {
 
 	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
 	// installed by the keeper (AddPackage / Run) before RunMemPackage.
-	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
-	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// Sub-Machines spun up during Preprocess (evalStaticTypeMachine,
+	// evalStaticTypeOfRaw, tryEvalStatic, evalConst) pick it up via
 	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
-	// nil → Allocate hard-panics on maxBytes overflow rather than
-	// attempting a GC retry (which would undercount because GC doesn't
-	// visit m.Values, the operand stack). gasMeter is shared with the
-	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// nil → Allocate hard-panics on maxBytes overflow instead of a GC
+	// retry: preprocess is bounded static evaluation that should fail
+	// fast at the cap. The allocator is also shared by every preprocess sub-Machine
+	// in the tx, so a collect bound to one machine would walk only that
+	// machine's roots; hence isPreprocessing skips SetGCFn.
+	// gasMeter is shared with the outer tx Machine so CPU and alloc gas
+	// both bill against tx gas.
 	// Inherited via BeginTransaction so nested forked stores see it.
 	// Cleared by the keeper's defer at handler exit; not serialized.
 	preprocessAlloc *Allocator

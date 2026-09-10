@@ -1830,13 +1830,27 @@ func (m *Machine) Run(st Stage) {
 // *Exception panic is caught. Returns the caught exception, or nil if the
 // loop completed normally. Non-Exception panics are re-raised.
 func (m *Machine) runOnce() (caught *Exception) {
+	// Anchors never span an op, so the depth on entry is the depth every
+	// op must return to. An op that panics part-way through a fill would
+	// otherwise leave its buffer anchored forever, and a recovered panic
+	// in a loop would grow the anchor list without bound.
+	anchorDepth := m.Alloc.AnchorDepth()
 	defer func() {
-		if r := recover(); r != nil {
-			if ex, ok := r.(*Exception); ok {
-				caught = ex
-			} else {
-				panic(r)
+		r := recover()
+		if r == nil {
+			if debugAssert && m.Alloc.AnchorDepth() != anchorDepth {
+				panic("runOnce: unbalanced Allocator anchor — every PushAnchor needs a PopAnchor on the op's normal path")
 			}
+			return
+		}
+		// Release anchors the panicking op left behind, whatever the
+		// panic is: the buffer is unreachable now, and a recovered panic
+		// inside a loop would otherwise grow the anchor list per iteration.
+		m.Alloc.TruncateAnchors(anchorDepth)
+		if ex, ok := r.(*Exception); ok {
+			caught = ex
+		} else {
+			panic(r)
 		}
 	}()
 

@@ -441,6 +441,14 @@ func (m *Machine) doOpArrayLit() {
 	av := defaultArrayValue(m.Alloc, bt)
 	if 0 < ne {
 		al, ad := av.List, av.Data
+		// al is a Go local until av is pushed below; anchor it so the
+		// element copies are counted as they are made (see doOpSliceLit).
+		// Data arrays hold no TypedValues and are allocated whole, so
+		// they need no anchor.
+		if al != nil {
+			m.Alloc.PushAnchor(al)
+			defer m.Alloc.PopAnchor()
+		}
 		vs := m.PopValues(ne)
 		set := make([]bool, bt.Len)
 		var idx int64
@@ -503,7 +511,9 @@ func (m *Machine) doOpSliceLit() {
 	if baseOf(st).(*SliceType).Elt.Kind() == Uint8Kind {
 		// Byte elements get a flat Data backing, matching
 		// defaultArrayValue, make([]byte,n) and append: 1 byte per
-		// element instead of a 40-byte TypedValue.
+		// element instead of a 40-byte TypedValue. Data holds no
+		// TypedValues and is allocated whole, so it needs no anchor
+		// (see doOpArrayLit).
 		baseArray = m.Alloc.NewDataArray(nil, el)
 		ad := baseArray.Data
 		for i, v := range m.PopValues(el) {
@@ -511,6 +521,11 @@ func (m *Machine) doOpSliceLit() {
 		}
 	} else {
 		baseArray = m.Alloc.NewListArray(nil, el)
+		// baseArray.List is a Go local until the slice below is pushed;
+		// anchor it so a GC triggered by one element's copy still counts
+		// the elements already copied into it.
+		m.Alloc.PushAnchor(baseArray.List)
+		defer m.Alloc.PopAnchor()
 		m.PopCopyValues(baseArray.List)
 	}
 	// construct and push value.
@@ -550,6 +565,8 @@ func (m *Machine) doOpSliceLit2() {
 	// array; nil t skips the construction-time check.
 	var baseArray *ArrayValue
 	if baseOf(st).(*SliceType).Elt.Kind() == Uint8Kind {
+		// Data holds no TypedValues and is allocated whole, so it needs
+		// no anchor (see doOpArrayLit).
 		baseArray = m.Alloc.NewDataArray(nil, int(maxVal+1))
 		ad := baseArray.Data
 		// Data elements are already zero, so IsDefined() cannot spot a
@@ -567,6 +584,10 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		baseArray = m.Alloc.NewListArray(nil, int(maxVal+1))
 		es := baseArray.List
+		// Anchor es for both fills below: the copies and the defaults are
+		// fresh allocations landing in a Go local (see doOpSliceLit).
+		m.Alloc.PushAnchor(es)
+		defer m.Alloc.PopAnchor()
 
 		for i := range el {
 			itv := tvs[i*2+0]
@@ -613,6 +634,16 @@ func (m *Machine) doOpMapLit() {
 	mv := m.Alloc.NewMap(mt)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
+		// mv is a Go local until it is pushed below, and every entry
+		// written into it is a fresh allocation — with the operands all
+		// aliasing one value ({0: a, 1: a, ...}) the popped sources are a
+		// single object while the copies grow N times. Anchor the map
+		// itself: its entries are a linked list, not a []TypedValue, so
+		// PushAnchor cannot express them. Anchoring after the pop is
+		// deliberate — pushing mv onto the operand stack instead would
+		// overwrite kvs[0], which PopValues left in place.
+		m.Alloc.PushAnchorValue(mv)
+		defer m.Alloc.PopAnchor()
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
@@ -646,16 +677,19 @@ func (m *Machine) doOpStructLit() {
 	m.Alloc.checkConstructionTime(xt)
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
-	fs := []TypedValue(nil)
 	// NOTE includes embedded fields.
+	// Allocate the field buffer before filling it and anchor it for the
+	// whole op: fs is a Go local until the struct is pushed at the end, so
+	// without the anchor the defaults and copies written into it are
+	// invisible to a GC triggered by a later field. See doOpSliceLit.
+	fs := m.Alloc.NewStructFields(nf)
+	m.Alloc.PushAnchor(fs)
 	if el == 0 {
 		// zero struct with no fields set.
 		// TODO: optimize and allow nil.
-		fs = defaultStructFields(m.Alloc, st)
+		fillDefaultStructFields(m.Alloc, st, fs)
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
-		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
-		fs = make([]TypedValue, len(st.Fields))
 		if debug {
 			if el == 0 {
 				// this is fine.
@@ -676,7 +710,7 @@ func (m *Machine) doOpStructLit() {
 		m.PopCopyValues(fs)
 	} else {
 		// field values are by name and may be out of order.
-		fs = defaultStructFields(m.Alloc, st)
+		fillDefaultStructFields(m.Alloc, st, fs)
 		fsset := make([]bool, len(fs))
 		ftvs := m.PopValues(el)
 		for i := range el {
@@ -705,6 +739,7 @@ func (m *Machine) doOpStructLit() {
 		T: xt,
 		V: sv,
 	})
+	m.Alloc.PopAnchor()
 }
 
 func (m *Machine) doOpFuncLit() {

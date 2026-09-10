@@ -1097,14 +1097,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	defer m2.Release()
 	defer doRecover(m2, &err)
 	// Per-tx preprocess allocator: separate counter from m2.Alloc (the
-	// init-phase allocator with GC). collect=nil so Allocate hard-panics
-	// on maxBytes overflow rather than attempting a GC retry — GC walks
-	// blocks/frames/package but not m.Values (the operand stack), and
-	// would undercount in-flight preprocess values like a chained-+
-	// running prefix. Closes the unbounded const-fold allocation surface
-	// where preprocess sub-Machines (NewMachine(pkg, store) at
-	// preprocess.go:3947, 4112, 4175, 4258) would otherwise run with
-	// nil Alloc and skip both maxBytes tracking and per-allocation gas.
+	// init-phase allocator with GC). Installing it closes the unbounded
+	// const-fold allocation surface where preprocess sub-Machines
+	// (evalStaticTypeMachine, evalStaticTypeOfRaw, tryEvalStatic and
+	// evalConst in preprocess.go) would otherwise run with nil Alloc and
+	// skip both maxBytes tracking and per-allocation gas.
+	// collect=nil so Allocate hard-panics on
+	// maxBytes overflow instead of a GC retry: preprocess is bounded static
+	// evaluation (const-fold, evalStaticType) that should fail fast at the
+	// cap. preAlloc is also shared by every preprocess sub-Machine in the
+	// tx, so a collect bound to one machine would walk only that machine's
+	// roots; hence isPreprocessing skips SetGCFn.
 	//
 	// The defer keeps preprocessAlloc installed for the entire handler.
 	// During init phase the outer Machine (m2) uses its own m.Alloc with

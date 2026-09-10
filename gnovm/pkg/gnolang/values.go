@@ -3218,12 +3218,25 @@ type HeapItemValue struct {
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
+	// tvs is a Go local, so anchor it while the defaults are built: each
+	// default is a fresh allocation, and a GC triggered by a later field
+	// would otherwise drop the earlier ones from the tally and re-grant
+	// the cap. See Allocator.anchors.
+	alloc.PushAnchor(tvs)
+	fillDefaultStructFields(alloc, st, tvs)
+	alloc.PopAnchor()
+	return tvs
+}
+
+// fillDefaultStructFields writes st's zero values into tvs, which must have
+// len(st.Fields) entries. The caller is responsible for anchoring tvs (see
+// Allocator.anchors) — doOpStructLit keeps its own anchor for the whole op.
+func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue) {
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
-	return tvs
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
@@ -3240,9 +3253,15 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
+		// av is a Go local until the caller roots it, so anchor its list
+		// while the defaults are built: without it a GC part-way through
+		// drops the elements already written and the cap is re-granted
+		// once per element. See Allocator.anchors.
+		alloc.PushAnchor(tvs)
 		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
 		}
+		alloc.PopAnchor()
 	}
 	return av
 }
