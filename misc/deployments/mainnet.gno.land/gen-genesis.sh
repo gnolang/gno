@@ -62,8 +62,9 @@ GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 #
 # First seven lines mirror gnoland1's gen-genesis.sh FILTERED_PACKAGES. The
 # last block is additions carried over from test13:
-#   - p/onbloc/{uint256,int256,json}: used by realms we want available
-#     (uint256 is a transitive dep of int256).
+#   - p/onbloc/{uint256,int256,json}/v0: used by realms we want available
+#     (uint256 is a transitive dep of int256; versioned under v0 since
+#     #6159).
 #   - r/sys/validators/v3: the valset realm — already matched by the
 #     ./gno.land/r/sys/... pattern, kept explicit because it is load-
 #     bearing: the node's EndBlocker reads valset state from this realm's
@@ -84,9 +85,9 @@ FILTERED_PACKAGES=(
   ./gno.land/r/gnoland/coins/...
   ./gno.land/r/gnoland/boards2/...
   ./gno.land/r/gnops/valopers/...
-  ./gno.land/p/onbloc/uint256
-  ./gno.land/p/onbloc/int256
-  ./gno.land/p/onbloc/json
+  ./gno.land/p/onbloc/uint256/v0
+  ./gno.land/p/onbloc/int256/v0
+  ./gno.land/p/onbloc/json/v0
   ./gno.land/r/sys/validators/v3
   ./gno.land/r/demo/defi/grc20reg
 )
