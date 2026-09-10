@@ -167,4 +167,12 @@ func TestDeepCopySlice(t *testing.T) {
 	cpyStruct := amino.DeepCopy(srcStruct).([]dcItem)
 	srcStruct[0].N = 999
 	assert.Equal(t, 1, cpyStruct[0].N)
+
+	var nilInts []int
+	assert.Nil(t, amino.DeepCopy(nilInts))
+
+	nilBz := []byte(nil)
+	ptr := &nilBz
+	cpyPtr := amino.DeepCopy(ptr).(*[]byte)
+	assert.Nil(t, *cpyPtr)
 }
