@@ -1168,6 +1168,11 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	return ValidateMemPackageAny(mpkg)
 }
 
+// ErrMemPackageInfo reports a std.MemPackage that arrived with its Info field
+// set. Callers match on it to name the refusal, since every other validation
+// failure here is about a path or a file.
+var ErrMemPackageInfo = errors.New("info field is not accepted")
+
 // Validates everything about mpkg, including that all files are within the
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
@@ -1195,6 +1200,11 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check mpkg.Type/mptype.
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
+	// Info is amino field 5, typed any, so a message can carry any registered
+	// value there. Nothing produces or reads it, so refuse it.
+	if mpkg.Info != nil {
+		return fmt.Errorf("invalid package %q: %w", mpkg.Path, ErrMemPackageInfo)
+	}
 	// ...
 	goodFileXtns := goodFileXtns
 	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.
