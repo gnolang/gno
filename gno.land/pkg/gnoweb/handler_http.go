@@ -46,6 +46,8 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	BuildTime         string
 	Banner            components.BannerData
+	NetworkKind       components.NetworkKind
+	FaucetURL         string
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -221,9 +223,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Analytics: components.AnalyticsData{
 				Enabled: h.Static.Analytics,
 			},
+			HasFaucet: h.Static.FaucetURL != "",
 		},
-		Theme:  theme,
-		Banner: h.Static.Banner,
+		// Seeded here, not only in setHeaderForRealm: the early parse-error
+		// page renders IndexLayout without it and would lose the chip.
+		HeaderData:  components.HeaderData{ChainId: h.Static.ChainId},
+		Theme:       theme,
+		Banner:      h.Static.Banner,
+		NetworkKind: h.Static.NetworkKind,
 	}
 
 	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream

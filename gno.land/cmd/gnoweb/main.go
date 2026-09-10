@@ -50,6 +50,7 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	networkKind      string
 	aliases          string
 	noDefaultAliases bool
 	noCache          bool
@@ -158,7 +159,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.faucetURL,
 		"faucet-url",
 		defaultWebOptions.faucetURL,
-		"The faucet URL will redirect the user when they access `/faucet`.",
+		"The faucet URL will redirect the user when they access `/faucet`, and is the faucet advertised in the footer. Leave empty on a deployment that has no faucet.",
+	)
+
+	fs.StringVar(
+		&c.networkKind,
+		"network-kind",
+		defaultWebOptions.networkKind,
+		"Override the network kind (`mainnet` or `testnet`). Derived from the chain-id when empty.",
 	)
 
 	fs.BoolVar(
@@ -239,6 +247,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.NetworkKind = components.NetworkKind(cfg.networkKind)
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
