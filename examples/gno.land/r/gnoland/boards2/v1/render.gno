@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/leon/svgbtn"

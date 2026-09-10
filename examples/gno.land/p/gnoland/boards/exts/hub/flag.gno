@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Flag defines a type for thread and comment flags.

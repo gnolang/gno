@@ -3,7 +3,7 @@ package permissions
 import (
 	"strings"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Option configures permissions.

@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Comment defines a type for threads comment/replies.

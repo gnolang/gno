@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/markdown/foreign/v0"
 

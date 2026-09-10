@@ -102,7 +102,7 @@ integrate it into their board mechanics by creating threads though proposals tha
 thread to be published.
 
 Each board can customize the way it works by implementing the [Permissions] interface that is defined in the
-[gno.land/p/gnoland/boards] package. It is though the implementation of that interface within a new realm
+[gno.land/p/gnoland/boards/v0] package. It is though the implementation of that interface within a new realm
 that the default board mechanics can be customized. The new realm can then be used to create an instance of
 a custom `Permissions` implementation to replace the one assigned by default to a board.
 
@@ -208,5 +208,5 @@ func UnfreezeThread(_ realm, boardID, threadID boards.ID)
 [custom board]: #custom-boards
 [Adena]: https://www.adena.app/
 [Faucet Hub]: https://faucet.gno.land/
-[gno.land/p/gnoland/boards]: https://gno.land/p/gnoland/boards
-[Permissions]: https://gno.land/p/gnoland/boards$source&file=permissions.gno#L23
+[gno.land/p/gnoland/boards/v0]: https://gno.land/p/gnoland/boards/v0
+[Permissions]: https://gno.land/p/gnoland/boards/v0$source&file=permissions.gno#L23

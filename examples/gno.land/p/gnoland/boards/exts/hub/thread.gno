@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Thread defines a type for board threads.

@@ -3,7 +3,7 @@ package permissions
 import (
 	"errors"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Example user account

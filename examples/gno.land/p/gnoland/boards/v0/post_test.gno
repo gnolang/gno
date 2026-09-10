@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/nt/urequire/v0"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 func TestPostSummary(t *testing.T) {

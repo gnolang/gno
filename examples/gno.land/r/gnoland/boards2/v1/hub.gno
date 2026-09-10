@@ -7,7 +7,7 @@
 package boards2
 
 import (
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	hubexts "gno.land/p/gnoland/boards/exts/hub"
 )
 

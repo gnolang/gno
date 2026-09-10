@@ -1,6 +1,6 @@
 # Boards Permissions Extension
 
-This is a `gno.land/p/gnoland/boards` package extension that provides a custom
+This is a `gno.land/p/gnoland/boards/v0` package extension that provides a custom
 `Permissions` implementation that uses an underlying `gno.land/p/nt/groups`
 group to manage users and roles.
 
@@ -17,7 +17,7 @@ package permissions
 import (
 	"errors"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Example user account

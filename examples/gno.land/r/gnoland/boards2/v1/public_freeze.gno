@@ -4,7 +4,7 @@ import (
 	"chain"
 	"strconv"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.

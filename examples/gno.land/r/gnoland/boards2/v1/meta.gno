@@ -1,6 +1,6 @@
 package boards2
 
-import "gno.land/p/gnoland/boards"
+import "gno.land/p/gnoland/boards/v0"
 
 // BoardMeta defines a type for board metadata.
 type BoardMeta struct {

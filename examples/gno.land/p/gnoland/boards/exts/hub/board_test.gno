@@ -3,7 +3,7 @@ package hub_test
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/gnoland/boards/exts/hub"
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/nt/urequire/v0"

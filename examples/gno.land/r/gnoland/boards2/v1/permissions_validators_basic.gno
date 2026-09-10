@@ -3,7 +3,7 @@ package boards2
 import (
 	"errors"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	"gno.land/r/sys/users"
 )

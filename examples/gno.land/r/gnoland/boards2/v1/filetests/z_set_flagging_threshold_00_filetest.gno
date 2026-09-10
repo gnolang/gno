@@ -5,7 +5,7 @@ package z_set_flagging_threshold_00_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )

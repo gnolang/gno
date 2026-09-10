@@ -7,7 +7,7 @@ gno.land/p/nt/cford32/v0
 gno.land/p/nt/seqid/v0
 gno.land/r/gov/dao
 gno.land/r/gnoland/blog
-gno.land/p/gnoland/boards
+gno.land/p/gnoland/boards/v0
 gno.land/p/moul/addrset
 gno.land/p/nt/avl/v0/rotree
 gno.land/p/nt/avl/v0/list

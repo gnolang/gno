@@ -1,6 +1,6 @@
 # hub
 
-Simplified, read-only view types over `gno.land/p/gnoland/boards` data:
+Simplified, read-only view types over `gno.land/p/gnoland/boards/v0` data:
 `Board`, `Thread`, `Comment`, `Flag` and `Member`.
 
 Realms use these to expose board contents through a query API without
@@ -38,7 +38,7 @@ package exists to not do.
 
 ```go
 import (
-    "gno.land/p/gnoland/boards"
+    "gno.land/p/gnoland/boards/v0"
     hubexts "gno.land/p/gnoland/boards/exts/hub"
 )
 

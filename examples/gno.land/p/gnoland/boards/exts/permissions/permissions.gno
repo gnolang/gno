@@ -3,7 +3,7 @@ package permissions
 import (
 	"strings"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/groups/v0"
 )
@@ -19,7 +19,7 @@ type ValidatorFunc func(boards.Permissions, boards.Args) error
 
 // Permissions manages users, roles and permissions.
 //
-// This type is a default `gno.land/p/gnoland/boards` package `Permissions`
+// This type is a default `gno.land/p/gnoland/boards/v0` package `Permissions`
 // implementation that handles boards users, roles and permissions using an
 // underlying groups.Group: the base set holds every user (guests included),
 // and each boards role is a group Role whose member set is kept a subset of
