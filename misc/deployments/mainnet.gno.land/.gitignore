@@ -4,5 +4,6 @@
 # Final genesis (moved here from work/ on success).
 /genesis.json
 
-# Cached independence-day allocation sheet (downloaded, sha256-verified).
+# Cached independence-day sheets (downloaded, sha256-verified).
 /allocation_balances.txt.gz
+/allocation_unrestricted.txt
