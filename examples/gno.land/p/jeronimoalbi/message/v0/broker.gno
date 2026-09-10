@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/moul/ulist"
+	"gno.land/p/moul/ulist/v0"
 	"gno.land/p/nt/avl/v0"
 )
 

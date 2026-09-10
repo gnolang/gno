@@ -78,7 +78,7 @@ know whether each helper sanitizes internally or expects sanitized input.
 
 ## Storage Helpers
 
-- [`gno.land/p/moul/ulist`](../../examples/gno.land/p/moul/ulist/ulist.gno):
+- [`gno.land/p/moul/ulist/v0`](../../examples/gno.land/p/moul/ulist/ulist.gno):
   append-oriented list storage with range and offset iteration.
 - [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/addrset.gno):
   address set semantics.
@@ -103,7 +103,7 @@ For append-only feeds, a list helper can replace a hand-rolled `nextID` plus
 tree pattern:
 
 ```go
-import "gno.land/p/moul/ulist"
+import "gno.land/p/moul/ulist/v0"
 
 var posts = ulist.New()
 
