@@ -34,7 +34,7 @@ func main(cur realm) {
 	ms := memberstore.Get(0, cur)
 	must(ms.SetMember(memberstore.T1, address("g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6"), &memberstore.Member{InvitationPoints: 3})) // Jae
 	must(ms.SetMember(memberstore.T1, address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3})) // Morgan
-	must(ms.SetMember(memberstore.T1, address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &memberstore.Member{InvitationPoints: 3})) // Ray
+	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), &memberstore.Member{InvitationPoints: 3})) // Aeddi
 	must(ms.SetMember(memberstore.T1, address("g1gzhj234kpajz963z5vf42j4ylddscnkez2wvly"), &memberstore.Member{InvitationPoints: 3})) // Dongwon
 	must(ms.SetMember(memberstore.T1, address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3})) // Maxwell
 	must(ms.SetMember(memberstore.T1, address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3})) // Milos
@@ -57,4 +57,4 @@ gnokey maketx run \
   "$TMPDIR/extend_govdao.gno"
 
 echo ""
-echo "Done — 6 T1 members added (Jae, Morgan, Ray, Dongwon, Maxwell, Milos)."
+echo "Done — 6 T1 members added (Jae, Morgan, Aeddi, Dongwon, Maxwell, Milos)."
