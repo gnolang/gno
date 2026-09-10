@@ -5,7 +5,7 @@ import (
 
 	prms "sys/params"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )

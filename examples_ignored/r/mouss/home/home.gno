@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hor"
 	"gno.land/r/mouss/config"

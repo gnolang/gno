@@ -9,7 +9,7 @@
 // Example usage:
 //
 //	import (
-//	    "gno.land/p/moul/addrset"
+//	    "gno.land/p/moul/addrset/v0"
 //	)
 //
 //	func MyHandler() {

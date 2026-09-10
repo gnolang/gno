@@ -3,7 +3,7 @@ package cla
 import (
 	"chain"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 )
 
 const SignedEvent = "CLASigned"
