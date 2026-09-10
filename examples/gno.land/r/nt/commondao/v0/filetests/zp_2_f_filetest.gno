@@ -22,15 +22,11 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
 	{
 		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", string(user))
 		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
-		testing.SetRealm(testing.NewUserRealm(user))
-		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 		commondao.Execute(cross(cur), daoID, pID)
 	}
 }

@@ -1,0 +1,95 @@
+# Which caller shapes may create a DAO, pinned on a real node.
+#
+# New keys the invite and the creators set on cur.Previous().Address(), so the
+# caller has to be the user itself. The three shapes that reach a realm differ:
+#
+#   MsgCall from an EOA        pkgPath ""                    IsUserCall  accept
+#   MsgRun from an EOA         pkgPath gno.land/e/<addr>/run IsUserRun   accept
+#   a published realm relaying pkgPath gno.land/r/...        IsCode      reject
+#
+# The first two both report the signer's own address (keeper.Run sets
+# pkgAddr := caller), so both are the user acting for itself. Only the third
+# would let one invited realm redeem invites for anyone. Testing all three is
+# what keeps the IsUser() predicate from silently narrowing to IsUserCall()
+# (which would break MsgRun) or widening to !IsCode().
+
+loadpkg gno.land/r/nt/commondao/v0
+
+adduser test3
+adduser test4
+
+# Collapse the genesis council to test1 so it can Invite.
+patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/relay -pkgpath gno.land/r/$test1_user_addr/relay -gas-fee 2000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test3_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test4_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# 1. MsgCall from an invited EOA: accepted (dao/2).
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'ByCall' -args 'Purpose' -args '' -args '' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test3
+stdout 'OK!'
+
+# 2. MsgRun from an invited EOA: accepted (dao/3). The ephemeral /e/<addr>/run
+# frame is not IsUserCall, but its address IS test4, so the invite is redeemed
+# by and the council seat granted to the right account.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test4 $WORK/script/new.gno
+stdout 'IsUserCall: false'
+stdout 'IsUserRun: true'
+stdout 'council seat is the signer: true'
+stdout 'OK!'
+
+# The invite really was consumed, and by test4 rather than the run frame.
+gnokey query vm/qeval --data "gno.land/r/nt/commondao/v0.IsInvited(\"$test4_user_addr\")"
+stdout 'false'
+
+# 3. A published realm relaying for an invited, already-creating user: rejected.
+# test3 created dao/2 above, so it is in the creators set and needs no further
+# invite -- the relay is refused on the caller's shape alone.
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/relay -func Create -gas-fee 2000000ugnot -gas-wanted 60000000 -broadcast -chainid=tendermint_test test3
+stderr 'only a user can create a DAO'
+
+# The relay realm never became a creator, so it cannot mint DAOs later either.
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/relay -func Create -gas-fee 2000000ugnot -gas-wanted 60000000 -broadcast -chainid=tendermint_test test1
+stderr 'only a user can create a DAO'
+
+-- relay/gnomod.toml --
+module = "gno.land/r/relay"
+gno = "0.9"
+
+-- relay/relay.gno --
+// Package relay stands in for a realm that calls New on a user's behalf.
+package relay
+
+import commondao "gno.land/r/nt/commondao/v0"
+
+func Create(cur realm) uint64 {
+	return commondao.New(cross(cur), "Relayed", "Purpose", "", "")
+}
+
+-- script/new.gno --
+package main
+
+import commondao "gno.land/r/nt/commondao/v0"
+
+func main(cur realm) {
+	// `cur` is what New observes as cur.Previous(); its address is the
+	// signer's own, which is why an /e/<addr>/run frame is safe to accept.
+	println("IsUserCall:", cur.IsUserCall())
+	println("IsUserRun:", cur.IsUserRun())
+
+	id := commondao.New(cross(cur), "ByRun", "Purpose", "", "")
+
+	seat := false
+	commondao.GetView(id).Council().IterateByOffset(0, 1, func(m address) bool {
+		seat = m == cur.Address()
+		return true
+	})
+	println("council seat is the signer:", seat)
+}

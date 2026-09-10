@@ -25,9 +25,8 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// Create a new DAO whose caller (`test`) becomes a council member
+	// Create a new DAO and add its direct user caller to the council
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
 	testing.SetRealm(testing.NewUserRealm(user))

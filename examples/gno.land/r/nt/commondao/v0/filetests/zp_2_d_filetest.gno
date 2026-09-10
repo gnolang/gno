@@ -20,14 +20,13 @@ func init(cur realm) {
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
 }
 
 func main(cur realm) {
 	// Call with a user that is not a member of the DAO
-	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	commondao.CreateSubDAOProposal(cross(cur), daoID, "", "Purpose", "", "")
 }

@@ -20,12 +20,11 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// The origin must be the invited user where invitation
-	// is removed after the first user call to create a DAO
+	// The direct user caller must be invited. The invitation is removed after
+	// the caller creates a DAO for the first time.
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create root DAO with a subDAO
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
 }
