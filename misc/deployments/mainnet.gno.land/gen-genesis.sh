@@ -548,6 +548,43 @@ assert_exact_sum() {
   fi
 }
 
+# assert_vesting_locked_at_genesis <sheet-file> <label>
+#
+# Every `;vesting=` schedule in the sheet must still be fully locked at
+# GENESIS_TIME. The schedules are ABSOLUTE unix times, not offsets from
+# launch, and nothing downstream relates them to the chain's genesis time
+# (VestingSchedule.Validate only checks internal consistency, and `gnogenesis
+# verify` does not know GENESIS_TIME). Two ways a schedule leaks:
+#   - end <= GENESIS_TIME: expired — 100% liquid at block 1, whatever the type;
+#   - a NON-delayed schedule whose start precedes GENESIS_TIME: continuous is
+#     the default when `;type=` is absent, and it unlocks
+#     amount*(now-start)/(end-start) (tm2/pkg/std/vesting.go), so a past start
+#     hands out that fraction at block 1. Only `;type=delayed` cliffs vest
+#     nothing before their end. The pinned sheet's one row today has start=0 —
+#     the epoch — so its `;type=delayed` suffix is the only thing between a
+#     correct lockup and ~98% of it liquid; upstream dropping the suffix on a
+#     re-pin must fail the build, not ship.
+# §132 anchors vesting to the day $GNOT becomes transferrable — GENESIS_TIME.
+assert_vesting_locked_at_genesis() {
+  local sheet="$1" label="$2" leaking
+  leaking=$(grep -F -- ';vesting=' "$sheet" |
+    awk -F'[,;]' -v g="$GENESIS_TIME" '{
+      start = $3 + 0; end = $4 + 0
+      if (end <= g) {
+        printf "  %s  <- schedule ENDS before genesis: 100%% liquid at block 1\n", $0
+      } else if ($5 != "type=delayed" && start < g) {
+        printf "  %s  <- continuous schedule STARTED before genesis: %.2f%% liquid at block 1\n", \
+          $0, (g - start) * 100 / (end - start)
+      }
+    }' || true)
+  if [ -n "$leaking" ]; then
+    die "$(printf '%s\n%s\n%s' \
+      "these $label vesting schedules are not fully locked at GENESIS_TIME ($GENESIS_TIME):" \
+      "$leaking" \
+      "fix the schedule (a pre-genesis start needs ;type=delayed), re-pin for the real launch time, or move the launch.")"
+  fi
+}
+
 # =============================================================================
 # Flag parsing.
 # =============================================================================
@@ -860,21 +897,20 @@ alloc_dupes=$(cut -d= -f1 "$ALLOCATION_TXT" | sort | uniq -d)
 if [ -n "$alloc_dupes" ]; then
   die "allocation sheet has duplicate addresses: $alloc_dupes"
 fi
-# The sheet's schedules are ABSOLUTE unix times, not offsets from launch, and
-# nothing downstream relates them to this chain's genesis time:
-# VestingSchedule.Validate only checks internal consistency (start < end,
-# positive end), and `gnogenesis verify` does not know GENESIS_TIME. A sheet
-# re-pinned for an earlier target launch, or a ceremony that slips past a
-# cliff, would hand out a "locked" balance that is fully liquid at block 1 —
-# §132 anchors vesting to the day $GNOT becomes transferrable, which is
-# exactly GENESIS_TIME.
-expired_vesting=$(grep -F -- ';vesting=' "$ALLOCATION_TXT" |
-  awk -F'[,;]' -v g="$GENESIS_TIME" '{ end = $4 + 0; if (end <= g) print $0 }' || true)
-if [ -n "$expired_vesting" ]; then
-  die "$(printf '%s\n%s\n%s' \
-    "these allocation rows carry a vesting schedule that has already ended at GENESIS_TIME ($GENESIS_TIME):" \
-    "$expired_vesting" \
-    "the balance would be fully liquid at block 1 — re-pin the sheet for the real launch time, or move the launch.")"
+# A sheet re-pinned for an earlier target launch, or a ceremony that slips
+# past a schedule, would hand out "locked" balances at block 1 — see the
+# helper's comment for both leak shapes.
+assert_vesting_locked_at_genesis "$ALLOCATION_TXT" "allocation-sheet"
+# Same check for the hand-typed VESTED_ACCOUNTS array — the input where the
+# largest single grant (§132's 150M GNOT) will eventually be typed, and the
+# one input a human can get wrong in milliseconds-vs-seconds or with a
+# timestamp carried over from an earlier planned launch. The step-8 preflight
+# runs `gnogenesis verify` with stdout discarded, and its implausible-vesting
+# check is a WARNING even when seen — this is the only hard stop.
+if [ "${#VESTED_ACCOUNTS[@]}" -gt 0 ]; then
+  VESTED_EARLY_SHEET="$WORK_DIR/vested_accounts_check.txt"
+  printf '%s\n' "${VESTED_ACCOUNTS[@]}" >"$VESTED_EARLY_SHEET"
+  assert_vesting_locked_at_genesis "$VESTED_EARLY_SHEET" "VESTED_ACCOUNTS"
 fi
 # Captured here because the decompressed sheet is deleted at the end of step 8;
 # step 9.5 reconciles the shipped genesis against this total.
