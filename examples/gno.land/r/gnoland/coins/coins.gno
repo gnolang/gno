@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"gno.land/p/leon/coinsort/v0"
-	"gno.land/p/leon/ctg"
+	"gno.land/p/leon/ctg/v0"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/nt/mux/v0"
