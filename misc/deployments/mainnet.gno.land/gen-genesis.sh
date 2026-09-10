@@ -418,6 +418,10 @@ require_tools() {
 #   - hash matches               → silent OK
 #   - hash differs               → FAIL with expected vs got
 #   - key not listed             → print computed sha256 + the line to append
+CHECKSUMS_LOCKED=0
+CHECKSUMS_UNLOCKED=0
+CHECKSUMS_UNLOCKED_LINES=""
+
 verify_checksum() {
   local path="$1"
   if [ -z "${MAINNET_DIR:-}" ]; then
@@ -441,11 +445,18 @@ verify_checksum() {
   ')
 
   if [ -z "$expected" ]; then
+    # Counted so the closing summary can say how much of this build was
+    # actually verified: the append lines below scroll past mid-run,
+    # interleaved with gnogenesis output, and "no mismatch reported" reads
+    # like "locked" when it means "never checked".
+    CHECKSUMS_UNLOCKED=$((CHECKSUMS_UNLOCKED + 1))
+    CHECKSUMS_UNLOCKED_LINES="$CHECKSUMS_UNLOCKED_LINES$got  $rel"$'\n'
     printf '  [checksum] %s\n' "$rel" >&2
     printf '             not listed in CHECKSUMS_DATA. Append to lock:\n' >&2
     printf '             %s  %s\n' "$got" "$rel" >&2
     return 0
   fi
+  CHECKSUMS_LOCKED=$((CHECKSUMS_LOCKED + 1))
 
   if [ "$expected" = "$got" ]; then
     return 0
@@ -1822,3 +1833,25 @@ FINAL_BYTES=$(file_size "$FINAL_GENESIS")
 printf '\n### mainnet build complete: genesis.json (%s, sha256=%s) ###\n' \
   "$(format_size "$FINAL_BYTES")" "$FINAL_SHA"
 printf '    total pipeline time: %s\n' "$(format_duration "$PIPELINE_DURATION")"
+
+# What produced these bytes. packages.gen.txt records package PATHS, not
+# content, so the source tree is the rest of the input: two runs from
+# different commits — or from a dirty tree — legitimately differ, and without
+# this a future checksum mismatch is unexplainable.
+# Both inputs count: examples/ is what gets deployed, and this folder is what
+# assembles it. A commit hash printed next to a dirty tree would be a lie.
+SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
+SOURCE_DIRTY=$(git -C "$REPO_ROOT" status --porcelain -- examples/ "$MAINNET_DIR" 2>/dev/null | wc -l | tr -d ' ')
+printf '    source commit:       %s%s\n' "$SOURCE_COMMIT" \
+  "$([ "$SOURCE_DIRTY" -gt 0 ] && printf ' + %s UNCOMMITTED path(s) in examples/ or this folder' "$SOURCE_DIRTY")"
+
+# The checksum manifest is the only thing standing between "the bytes I
+# reviewed" and "the bytes I am handing to four validators", so say plainly
+# how much of this build it covered.
+printf '    artifacts locked:    %s of %s\n' "$CHECKSUMS_LOCKED" "$((CHECKSUMS_LOCKED + CHECKSUMS_UNLOCKED))"
+if [ "$CHECKSUMS_UNLOCKED" -gt 0 ]; then
+  printf '\n    %s artifact(s) NOT locked — this build is not reproducible-verified.\n' "$CHECKSUMS_UNLOCKED"
+  printf '    Paste into CHECKSUMS_DATA once every launch value is final:\n\n'
+  printf '%s' "$CHECKSUMS_UNLOCKED_LINES" | sed 's/^/      /'
+  printf '\n'
+fi
