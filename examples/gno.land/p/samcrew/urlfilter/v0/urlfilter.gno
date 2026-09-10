@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/sunspirit/md"
+	"gno.land/p/sunspirit/md/v0"
 )
 
 // ApplyFilters filters items based on the "filter" query parameter in the given URL

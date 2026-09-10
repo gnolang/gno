@@ -64,12 +64,12 @@ know whether each helper sanitizes internally or expects sanitized input.
 - [`gno.land/p/nt/mdalert/v0`](../../examples/gno.land/p/nt/mdalert/v0/README.md):
   helpers for Gno-Flavored Markdown alert blocks.
 
-- [`gno.land/p/sunspirit/md`](../../examples/gno.land/p/sunspirit/md/md.gno):
+- [`gno.land/p/sunspirit/md/v0`](../../examples/gno.land/p/sunspirit/md/md.gno):
   a builder-oriented markdown package. It is convenient when a view is assembled
   from optional fragments.
 
   ```go
-  import "gno.land/p/sunspirit/md"
+  import "gno.land/p/sunspirit/md/v0"
 
   func Render(_ string) string {
       return md.NewBuilder().Add(md.H1("Profile"), md.Bold("active")).Render("\n")
