@@ -35,7 +35,7 @@ func Render(path string) string {
 Community markdown builders are still useful for composing output after you
 know whether each helper sanitizes internally or expects sanitized input.
 
-- [`gno.land/p/moul/md/v0`](../../examples/gno.land/p/moul/md/md.gno): helpers for
+- [`gno.land/p/moul/md/v0`](../../examples/gno.land/p/moul/md/v0/md.gno): helpers for
   building markdown links, headings, lists, images, code blocks, and text
   escaping.
 
@@ -47,7 +47,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   }
   ```
 
-- [`gno.land/p/moul/mdtable/v0`](../../examples/gno.land/p/moul/mdtable/mdtable.gno):
+- [`gno.land/p/moul/mdtable/v0`](../../examples/gno.land/p/moul/mdtable/v0/mdtable.gno):
   helpers for markdown tables. Use this when your `Render` output is tabular
   and you want pipe escaping handled consistently.
 
@@ -64,7 +64,7 @@ know whether each helper sanitizes internally or expects sanitized input.
 - [`gno.land/p/nt/mdalert/v0`](../../examples/gno.land/p/nt/mdalert/v0/README.md):
   helpers for Gno-Flavored Markdown alert blocks.
 
-- [`gno.land/p/sunspirit/md/v0`](../../examples/gno.land/p/sunspirit/md/md.gno):
+- [`gno.land/p/sunspirit/md/v0`](../../examples/gno.land/p/sunspirit/md/v0/md.gno):
   a builder-oriented markdown package. It is convenient when a view is assembled
   from optional fragments.
 
@@ -78,11 +78,11 @@ know whether each helper sanitizes internally or expects sanitized input.
 
 ## Storage Helpers
 
-- [`gno.land/p/moul/ulist/v0`](../../examples/gno.land/p/moul/ulist/ulist.gno):
+- [`gno.land/p/moul/ulist/v0`](../../examples/gno.land/p/moul/ulist/v0/ulist.gno):
   append-oriented list storage with range and offset iteration.
-- [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/addrset.gno):
+- [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/v0/addrset.gno):
   address set semantics.
-- [`gno.land/p/moul/fifo/v0`](../../examples/gno.land/p/moul/fifo/fifo.gno):
+- [`gno.land/p/moul/fifo/v0`](../../examples/gno.land/p/moul/fifo/v0/fifo.gno):
   queue-like storage.
 - `gno.land/p/moul/collection` **(quarantined)**:
   indexed collection patterns built on tree storage and `seqid`.
@@ -156,7 +156,7 @@ func IsClaimed(id uint64) bool {
   owner-gated administration with explicit `cur realm` checks.
 - `gno.land/p/nt/pausable/v0` **(quarantined)**:
   pause switches layered on an `ownable.Ownable`.
-- [`gno.land/p/moul/authz/v0`](../../examples/gno.land/p/moul/authz/authz.gno):
+- [`gno.land/p/moul/authz/v0`](../../examples/gno.land/p/moul/authz/v0/authz.gno):
   authorization helper patterns worth studying when a single owner is not
   enough.
 
