@@ -1,4 +1,4 @@
-module = "gno.land/p/sys/validators"
+module = "gno.land/p/sys/validators/v0"
 gno = "0.9"
 
 [addpkg]

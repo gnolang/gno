@@ -41,7 +41,7 @@ gno.land/p/nt/combinederr/v0
 gno.land/p/nt/ownable/v0
 gno.land/p/nt/ownable/v0/exts/authorizable
 gno.land/r/gnops/valopers
-gno.land/p/sys/validators
+gno.land/p/sys/validators/v0
 gno.land/p/nt/poa/v0
 gno.land/r/sys/validators/v2
 gno.land/r/gnops/valopers/proposal

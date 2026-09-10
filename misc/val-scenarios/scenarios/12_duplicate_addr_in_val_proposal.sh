@@ -39,7 +39,7 @@ cat >"${script_dir}/change_voting_power.gno" <<GNOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 	valr "gno.land/r/sys/validators/v2"

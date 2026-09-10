@@ -8,7 +8,7 @@ import (
 
 	prms "sys/params"
 
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 )
 
 // Param keys read by gno.land/pkg/gnoland (EndBlocker).

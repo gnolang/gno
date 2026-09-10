@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	sysparams "gno.land/r/sys/params"
 )
 
