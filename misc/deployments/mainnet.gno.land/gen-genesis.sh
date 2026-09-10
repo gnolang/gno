@@ -111,7 +111,7 @@ FILTERED_PACKAGES=(
 # runs — replace with each org's ceremony keys before anything is locked:
 #   - gno-core-validator-1  -> Gnocore (key ceremony + signer setup TBD)
 #   - onbloc-validator-1    -> OnBloc
-# samouraicoop-validator-1 and berty-validator-1 are REAL: each org's
+# samourai-crew-validator-1 and berty-validator-1 are REAL: each org's
 # ceremony pair, received 2026-09-10 (addresses cross-checked against the
 # pubkeys by deriving them).
 # TODO(mainnet): decide the signer requirements per org (the gno-core
@@ -120,7 +120,7 @@ FILTERED_PACKAGES=(
 INITIAL_VALSET=(
   "gno-core-validator-1 60 g1kjx28d7jz6427zw2kcuqqsz9h7zpvmvtqs8cmq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0gxjmejgyl59rln0eye9256xn655t3y2jer60ujlum7gen95r7ftswq0j"
   "onbloc-validator-1 60 g1aen39597cg6vvx0pgfz86rxcvrp7z7l5at7n66 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpmmfp0v68u2rjrgjlqlsg9s2le3ghr60xmsekkph83mn2v2t5s50y5ds"
-  "samouraicoop-validator-1 60 g15t7f9q6km3ldt885duwl8xu5dncs98528amk4f gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpdkjpdaqsm9gxnw90ac6a78gvnquttl4kr64zxughl87sek7xgx60gfntd"
+  "samourai-crew-validator-1 60 g15t7f9q6km3ldt885duwl8xu5dncs98528amk4f gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpdkjpdaqsm9gxnw90ac6a78gvnquttl4kr64zxughl87sek7xgx60gfntd"
   "berty-validator-1 60 g1l983yy3kpmapyzcfy53y5charfxupa5czjalea gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqn8u6cc4dgrzu9u8hztvlmqrvqt7mzju577xjdxjqxf8m5gjypaz798f5d"
 )
 
@@ -140,7 +140,7 @@ INITIAL_VALSET=(
 # TODO(mainnet): slots 2 and 4 are THROWAWAY PLACEHOLDERS — collect
 # OnBloc's and Berty's operator addresses (must differ from their signing
 # address). Slot 1 reuses the gno-core operator pending the Gnocore
-# decision. Slot 3 (Samourai-Coop) is REAL, received 2026-09-10. Berty's
+# decision. Slot 3 (Samourai Crew) is REAL, received 2026-09-10. Berty's
 # consensus pair is in, but they have NOT yet provided an operator
 # address — it cannot be their consensus address g1l983yy… (valoper-seed
 # rejects operator==signing), so ask for a separate gnokey account.
@@ -158,7 +158,7 @@ INITIAL_VALSET=(
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator — TODO(mainnet): confirm
   "g18kre0dtu9sz25ux67pgcjfdqhas525rls34xz9" # onbloc-validator-1 operator — TODO(mainnet): placeholder
-  "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4" # samouraicoop-validator-1 operator
+  "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4" # samourai-crew-validator-1 operator
   "g18x40r2smn4telaps0cg9cw2znsjhnay9d353qh" # berty-validator-1 operator — TODO(mainnet): placeholder
 )
 
