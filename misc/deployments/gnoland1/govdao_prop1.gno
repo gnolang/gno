@@ -22,7 +22,7 @@ package main
 import (
 	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/memberstore"
 	"gno.land/r/sys/names"
 	"gno.land/r/sys/params"
 	valr "gno.land/r/sys/validators/v2"
@@ -113,10 +113,10 @@ func main(cur realm) {
 	ms.RemoveMember(genesisDeployerAddr)
 
 	// ---- 7. Lock down memberstore access ----
-	// From this point on, only gno.land/r/gov/dao/v3/impl can call
+	// From this point on, only gno.land/r/gov/dao/v0/impl can call
 	// memberstore.Get() — matching the production AllowedDAOs configuration.
 	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v0/impl"},
 	})
 }
 

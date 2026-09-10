@@ -1,8 +1,8 @@
 loadpkg gno.land/r/sys/names
 loadpkg gno.land/r/sys/users
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/impl
+loadpkg gno.land/r/gov/dao/v0/init
 
 adduser admin
 adduserfrom gui 'relax garment load shy garden video prepare edge churn noodle frequent grass priority half merge honey cousin industry panda forward brand taste village verb'
@@ -127,7 +127,7 @@ func Render(path string) string {
 -- run/init_govdao.gno --
 package main
 
-import dao "gno.land/r/gov/dao/v3/init"
+import dao "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

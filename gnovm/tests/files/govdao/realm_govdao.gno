@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"gno.land/r/gov/dao"
-	daoimpl "gno.land/r/gov/dao/v3/impl"
-	daoinit "gno.land/r/gov/dao/v3/init"
+	daoimpl "gno.land/r/gov/dao/v0/impl"
+	daoinit "gno.land/r/gov/dao/v0/init"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 func init(cur realm) {
 	daoinit.InitWithUsers(cross(cur), user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v0/impl"))
 	// UpdateRequest is declared in /r/gov/dao; the construction-time
 	// check forbids allocating it from /r/govdao directly. Use the
 	// dao-side constructor, which runs under borrow rule #1 to /r/gov/dao.
@@ -71,7 +71,7 @@ func Render(_ int, rlm realm) {
 // true
 // # GovDAO
 // ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// [> Go to Memberstore <](/r/gov/dao/v0/memberstore)
 // ## Proposals
 // ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm

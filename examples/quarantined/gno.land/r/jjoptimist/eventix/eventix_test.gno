@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"

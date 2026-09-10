@@ -34,7 +34,7 @@ stderr 'consensus pubkey type is not allowed for validators'
 # add a valoper with a valid ed25519 signing key. The address arg is the
 # test1 user's address (= operator) and matches OriginCaller, so the squat
 # guard passes. chain.PubKeyAddress(pubKey) derives the signing address
-# g10ddhfxv47lhyhpj426u57ckxwl0qtrk6c9rs5v; v3's executor resolves operator
+# g10ddhfxv47lhyhpj426u57ckxwl0qtrk6c9rs5v; v0's executor resolves operator
 # -> signing-key via valoperCache at proposal-execute time.
 #
 # No -send: GetValoperRegisterFee() defaults to 0, so Register never reaches
@@ -83,7 +83,7 @@ stdout 'node:valoper:register_fee'
 -- run/load_user.gno --
 package main
 
-import i "gno.land/r/gov/dao/v3/init"
+import i "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))

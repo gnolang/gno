@@ -89,7 +89,7 @@ func TestPackageName(t *testing.T) {
 // sorted, so the filetest comes first and its package clause is not the
 // package's own.
 func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
-	const pkgPath = "gno.land/p/demo/tokens/grc20"
+	const pkgPath = "gno.land/p/nt/grc20/v0"
 	files := map[string]string{
 		pkgPath: "caller_teller_sub_realm_filetest.gno\ngnomod.toml\ntoken.gno\ntoken_test.gno",
 		path.Join(pkgPath, "caller_teller_sub_realm_filetest.gno"): "package grc20subrealm\n",

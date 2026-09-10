@@ -10,7 +10,7 @@ import (
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
-	daoinit "gno.land/r/gov/dao/v3/init"
+	daoinit "gno.land/r/gov/dao/v0/init"
 )
 
 var g1user = testutils.TestAddress("g1user")

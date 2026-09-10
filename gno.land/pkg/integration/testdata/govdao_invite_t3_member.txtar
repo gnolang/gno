@@ -7,10 +7,10 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 adduser newmember2
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 loadpkg gno.land/r/demo/proxy $WORK/proxy
 
 gnoland start
@@ -19,7 +19,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # Call from a non-member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test newmember2
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v0/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test newmember2
 stderr 'caller is not a member'
 
 # Call from with a proxy realm
@@ -27,25 +27,25 @@ stderr 'caller is not a member'
 stderr 'this function must be called by an EOA through msg call or msg run'
 
 # Add a T3 member with invitation points
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1400001ugnot -gas-wanted 16_000_000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v0/impl -func AddMember -gas-fee 1400001ugnot -gas-wanted 16_000_000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -chainid=tendermint_test member
 stdout OK!
 
 # No invitation point left for the member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args ${newmember2_user_addr} -chainid=tendermint_test member
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v0/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args ${newmember2_user_addr} -chainid=tendermint_test member
 stderr 'not enough invitation points'
 
 # Call from a T3 member
-! gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args ${newmember2_user_addr} -chainid=tendermint_test newmember
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/v0/impl -func AddMember -gas-fee 5000000ugnot -gas-wanted 50000000 -args ${newmember2_user_addr} -chainid=tendermint_test newmember
 stderr 'caller is not on T1 or T2. To add members, propose them through proposals'
 
 # check output
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v0/memberstore:'
 stdout 'Tier T3 contains 1 members'
 
 -- proxy/create_member.gno --
 package proxy
 
-import "gno.land/r/gov/dao/v3/impl"
+import "gno.land/r/gov/dao/v0/impl"
 
 func CreateMember(cur realm, addr address) {
 	impl.AddMember(cross(cur), addr)
@@ -55,8 +55,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -66,5 +66,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(1)) // member address
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }

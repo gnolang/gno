@@ -2,12 +2,12 @@
 ## After a rejected proposal execution, VM operations should keep working.
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 loadpkg gno.land/r/sys/params
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -53,8 +53,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -64,7 +64,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }
 
 -- run/propose_invalid.gno --

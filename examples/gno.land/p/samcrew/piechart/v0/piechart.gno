@@ -6,7 +6,7 @@ package piechart
 import (
 	"math"
 
-	"gno.land/p/demo/svg"
+	"gno.land/p/nt/svg/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sunspirit/md/v0"
 )

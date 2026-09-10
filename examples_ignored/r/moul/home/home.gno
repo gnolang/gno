@@ -3,7 +3,7 @@ package home
 import (
 	"strconv"
 
-	"gno.land/p/demo/svg"
+	"gno.land/p/nt/svg/v0"
 	"gno.land/p/moul/debug"
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable/v0"

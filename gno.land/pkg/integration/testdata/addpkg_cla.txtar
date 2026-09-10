@@ -7,11 +7,11 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 adduser alice
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 loadpkg gno.land/r/sys/cla
 
 # Load govdao implementation with member as T1 member
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -167,8 +167,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -178,7 +178,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }
 
 -- pkg1/gnomod.toml --

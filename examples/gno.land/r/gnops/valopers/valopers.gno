@@ -18,7 +18,7 @@ import (
 	"gno.land/p/nt/ownable/v0/exts/authorizable"
 	"gno.land/p/nt/ufmt/v0"
 	sysparams "gno.land/r/sys/params"
-	validators "gno.land/r/sys/validators/v3"
+	validators "gno.land/r/sys/validators/v0"
 )
 
 const (
@@ -202,7 +202,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		RetiredAtHeight:    0,
 	})
 
-	// Refresh v3's cache for this operator.
+	// Refresh v0's cache for this operator.
 	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
@@ -245,7 +245,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 }
 
 // UpdateKeepRunning updates an existing valoper's active status.
-// Calls v3.NotifyValoperChanged because the cache stores KeepRunning.
+// Calls v0.NotifyValoperChanged because the cache stores KeepRunning.
 func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
@@ -258,7 +258,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	// Save the valoper info.
 	valopers.Set(addr.String(), v)
 
-	// Refresh v3's cache (KeepRunning is one of the cached fields).
+	// Refresh v0's cache (KeepRunning is one of the cached fields).
 	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
@@ -296,13 +296,13 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 //
 // Effect: profile's SigningPubKey/SigningAddress/LastRotationHeight
 // updated; old registry entry marked retired (retiredAtHeight =
-// ChainHeight()); new entry inserted into signingRegistry; v3 emits
-// remove+add to sysparams via RotateValoperSigningKey; v3 cache
+// ChainHeight()); new entry inserted into signingRegistry; v0 emits
+// remove+add to sysparams via RotateValoperSigningKey; v0 cache
 // refreshed via NotifyValoperChanged. Rotation lands in consensus
 // at H+2.
 //
 // Atomicity: Gno tx atomicity rolls back all state if any step
-// panics. If v3.RotateValoperSigningKey panics, the registry insert
+// panics. If v0.RotateValoperSigningKey panics, the registry insert
 // and profile mutation revert with it.
 func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
@@ -350,14 +350,14 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// UpdateSigningKey — genesis-seeded validators bypassed both, so
 	// their signing addresses are absent from signingRegistry. Without
 	// this check, a valoper could rotate onto such a slot and hijack
-	// it: v3.RotateValoperSigningKey would overwrite the active entry
+	// it: v0.RotateValoperSigningKey would overwrite the active entry
 	// with this operator's claim, and a subsequent govDAO remove-op
 	// proposal would then delete it.
 	if validators.IsValidator(newSigningAddr) {
 		panic(ErrFrontrunValidator)
 	}
 
-	// Remember the previous signing key for the v3 cross-call.
+	// Remember the previous signing key for the v0 cross-call.
 	oldPubKey := v.SigningPubKey
 	oldSigningAddr := v.SigningAddress
 
@@ -384,7 +384,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v.LastRotationHeight = height
 	valopers.Set(addr.String(), v)
 
-	// Apply to consensus via v3, then refresh v3's cache view of the
+	// Apply to consensus via v0, then refresh v0's cache view of the
 	// profile. Order matters only in that both must complete; tx
 	// atomicity rolls back together on any panic.
 	validators.RotateValoperSigningKey(cross(cur), addr, oldPubKey, newPubKey)

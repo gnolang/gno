@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
-	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+	daoinit "gno.land/r/gov/dao/v0/init" // so that the govdao initializer is executed
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to
@@ -35,7 +35,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 	)
 
 	// signingAddr is derived from the pubkey and is what
-	// v3.IsValidator/GetValidator return after a proposal lands
+	// v0.IsValidator/GetValidator return after a proposal lands
 	// (parseEntry in r/sys/params canonicalizes from PubKey). Used
 	// for the "ErrSameValues" subtest's post-execute check.
 	signingAddr, err := chain.PubKeyAddress(pubKey)
@@ -102,7 +102,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 		urequire.NoError(t, err, "proposal not found")
 
 		// The proposal description is now operator-keyed (matches the
-		// new v3.NewValidatorProposalRequest format): both the profile
+		// new v0.NewValidatorProposalRequest format): both the profile
 		// link and the validator-updates section reference the
 		// OPERATOR address with explicit power.
 		description := ufmt.Sprintf(
@@ -130,7 +130,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 			dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 			// Execute the proposal — callback writes valset:proposed +
-			// dirty=true. v3.IsValidator(signingAddr) below reads the
+			// dirty=true. v0.IsValidator(signingAddr) below reads the
 			// effective view (proposed-when-dirty) and finds the
 			// just-added validator → enters the ErrSameValues branch.
 			dao.ExecuteProposal(cross(cur), dao.ProposalID(0))

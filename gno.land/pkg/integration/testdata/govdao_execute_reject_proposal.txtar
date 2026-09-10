@@ -1,4 +1,4 @@
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/init
 loadpkg gno.land/r/gov/dao
 
 gnoland start
@@ -36,7 +36,7 @@ stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: B
 -- run/init_govdao_members.gno --
 package main
 
-import dao "gno.land/r/gov/dao/v3/init"
+import dao "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

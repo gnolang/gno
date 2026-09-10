@@ -3,14 +3,14 @@ set -euo pipefail
 
 SCENARIO_CI=true
 
-# Scenario 18: add and remove a validator through r/sys/validators/v3.
+# Scenario 18: add and remove a validator through r/sys/validators/v0.
 #
-# This is the v3 variant of scenario 17. It starts a 3-validator genesis set
+# This is the v0 variant of scenario 17. It starts a 3-validator genesis set
 # plus a synced val4 node that is not part of the initial validator set. It
 # registers val4 as a valoper in r/gnops/valopers (TX_ADDRESS as operator,
 # val4's consensus pubkey as the signing key), then adds val4 through a GovDAO
-# proposal using r/sys/validators/v3.NewValidatorProposalRequest, verifies the
-# v3 on-chain validator set, then removes val4 through a second v3 proposal.
+# proposal using r/sys/validators/v0.NewValidatorProposalRequest, verifies the
+# v0 on-chain validator set, then removes val4 through a second v0 proposal.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/lib/scenario.sh"
@@ -43,14 +43,14 @@ package main
 import (
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/memberstore"
-	valr "gno.land/r/sys/validators/v3"
+	"gno.land/r/gov/dao/v0/memberstore"
+	valr "gno.land/r/sys/validators/v0"
 )
 
 const txAddr = address("${TX_ADDRESS}")
 
 func main(cur realm) {
-	// Register val4's consensus key with TX_ADDRESS as operator so v3's
+	// Register val4's consensus key with TX_ADDRESS as operator so v0's
 	// valoperCache is populated before the proposal.
 	valopers.Register(cross(cur), "val4", "val4 test validator", "cloud", txAddr, "${VAL4_PUBKEY}")
 
@@ -62,8 +62,8 @@ func main(cur realm) {
 		[]valr.ValoperChange{
 			valr.NewValoperChange(txAddr, ${VAL4_POWER}),
 		},
-		"Add validator val4 with validators v3",
-		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER} through r/sys/validators/v3",
+		"Add validator val4 with validators v0",
+		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER} through r/sys/validators/v0",
 	)
 	pid := dao.MustCreateProposal(cross(cur), r)
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
@@ -80,7 +80,7 @@ GNOEOF
 cat >"${script_dir}/assert_validator_added_v3.gno" <<GNOEOF
 package main
 
-import valr "gno.land/r/sys/validators/v3"
+import valr "gno.land/r/sys/validators/v0"
 
 func main() {
 	addr := address("${VAL4_ADDR}")
@@ -103,7 +103,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	valr "gno.land/r/sys/validators/v3"
+	valr "gno.land/r/sys/validators/v0"
 )
 
 func main(cur realm) {
@@ -111,8 +111,8 @@ func main(cur realm) {
 		[]valr.ValoperChange{
 			valr.NewValoperChange(address("${TX_ADDRESS}"), 0),
 		},
-		"Remove validator val4 with validators v3",
-		"Remove val4 (${VAL4_ADDR}) from the validator set through r/sys/validators/v3",
+		"Remove validator val4 with validators v0",
+		"Remove val4 (${VAL4_ADDR}) from the validator set through r/sys/validators/v0",
 	)
 	pid := dao.MustCreateProposal(cross(cur), r)
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
@@ -123,7 +123,7 @@ GNOEOF
 cat >"${script_dir}/assert_validator_removed_v3.gno" <<GNOEOF
 package main
 
-import valr "gno.land/r/sys/validators/v3"
+import valr "gno.land/r/sys/validators/v0"
 
 func main() {
 	if valr.IsValidator(address("${VAL4_ADDR}")) {
@@ -132,7 +132,7 @@ func main() {
 }
 GNOEOF
 
-log "estimating gas for v3 add-validator proposal"
+log "estimating gas for v0 add-validator proposal"
 set +e
 add_gas="$(estimate_run_gas val1 "${script_dir}/add_validator_v3.gno" 200000000)"
 estimate_status=$?
@@ -144,11 +144,11 @@ else
   log "gas estimate: ${add_gas}"
 fi
 
-log "submitting v3 add-validator GovDAO proposal"
+log "submitting v0 add-validator GovDAO proposal"
 run_script val1 "${script_dir}/add_validator_v3.gno" "$add_gas"
 assert_chain_advances val1 120 3
 
-log "verifying val4 is in the v3 on-chain validator set"
+log "verifying val4 is in the v0 on-chain validator set"
 run_script val1 "${script_dir}/assert_validator_added_v3.gno" 50000000 only >/dev/null
 assert_chain_advances val4 120 2
 
@@ -156,7 +156,7 @@ assert_chain_advances val4 120 2
 # normal operational flow instead of duplicate-change edge cases.
 wait_for_blocks val1 2 120
 
-log "estimating gas for v3 remove-validator proposal"
+log "estimating gas for v0 remove-validator proposal"
 set +e
 rm_gas="$(estimate_run_gas val1 "${script_dir}/rm_validator_v3.gno" 200000000)"
 estimate_status=$?
@@ -168,11 +168,11 @@ else
   log "gas estimate: ${rm_gas}"
 fi
 
-log "submitting v3 remove-validator GovDAO proposal"
+log "submitting v0 remove-validator GovDAO proposal"
 run_script val1 "${script_dir}/rm_validator_v3.gno" "$rm_gas"
 assert_chain_advances val1 120 3
 
-log "verifying val4 is no longer in the v3 on-chain validator set"
+log "verifying val4 is no longer in the v0 on-chain validator set"
 run_script val1 "${script_dir}/assert_validator_removed_v3.gno" 50000000 only >/dev/null
 
 print_cluster_status

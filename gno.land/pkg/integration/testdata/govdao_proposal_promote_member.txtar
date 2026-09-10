@@ -5,10 +5,10 @@ adduserfrom withdrawmember 'smooth crawl poverty trumpet glare useful curtain an
 stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v0/impl
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
 
 gnoland start
 
@@ -59,7 +59,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 24
 stdout OK!
 
 # check output
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v0/memberstore:'
 stdout 'Tier T2 contains 0 members'
 
 -- proposer/create_invalid_proposal.gno --
@@ -67,7 +67,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v0/impl"
 )
 
 func main(cur realm) {
@@ -79,7 +79,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v0/impl"
 )
 
 func main(cur realm) {
@@ -95,8 +95,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func init(cur realm) {
@@ -107,5 +107,5 @@ func init(cur realm) {
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 	memberstore.Get(0, cur).SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), memberstore.NewMember(2)) // member to promote
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
 }

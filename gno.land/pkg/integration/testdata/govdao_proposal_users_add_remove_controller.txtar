@@ -1,6 +1,6 @@
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/v0/impl
+loadpkg gno.land/r/gov/dao/v0/init
 loadpkg gno.land/r/sys/users
 
 adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
@@ -73,7 +73,7 @@ stdout OK!
 -- run/init_govdao.gno --
 package main
 
-import dao "gno.land/r/gov/dao/v3/init"
+import dao "gno.land/r/gov/dao/v0/init"
 
 func main(cur realm) {
 	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

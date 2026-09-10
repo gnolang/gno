@@ -21,7 +21,7 @@ cat >"$TMPDIR/extend_govdao.gno" <<'GOEOF'
 package main
 
 import (
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func must(err error) {

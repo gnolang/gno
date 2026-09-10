@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc1155"
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"

@@ -211,7 +211,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		resetState()
 
 		info := validValidatorInfo(t)
-		// Seed v3's valset:current with the very signing address that
+		// Seed v0's valset:current with the very signing address that
 		// `info.PubKey` derives to (g1sp8v98...). Any post-genesis
 		// Register attempting the same pubkey now trips
 		// `ChainHeight()>0 && validators.IsValidator(signingAddr)`.

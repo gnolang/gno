@@ -52,7 +52,7 @@ When `GH_USER` is set, all images build from the fetched remote branch by defaul
 This is useful when testing a branch that does not contain every scenario tool. For example, build the chain binaries from a remote branch but use the local `valsignerd`:
 
 ```bash
-GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build-images
+GH_USER=moul GH_BRANCH=feat/valset-params-v0 VALSIGNER_GNO_ROOT=$PWD make build-images
 ```
 
 The repository is cloned once to `/tmp/gno-remote-build` and reused across subsequent builds. To force a fresh clone, run `make fetch-remote` with the same variables.
@@ -111,7 +111,7 @@ All scenario scripts live in `scenarios/`. Each script declares whether it shoul
 - `scenarios/12_duplicate_addr_in_val_proposal.sh`: single proposal with two entries for the same validator address; EndBlocker deduplicates, val1 ends up with VotingPower=5 and the chain keeps advancing
 - `scenarios/13_duplicate_addr_across_proposals.sh`: two separate proposals in the same block targeting the same validator address; EndBlocker deduplicates, val1 ends up with VotingPower=5 and the chain keeps advancing
 - `scenarios/17_govdao_add_remove_validator.sh`: add and remove a validator through GovDAO proposals using `r/sys/validators/v2`
-- `scenarios/18_govdao_v3_add_remove_validator.sh`: add and remove a synced val4 node through `r/sys/validators/v3` GovDAO proposals (registers val4 in `r/gnops/valopers` first)
+- `scenarios/18_govdao_v3_add_remove_validator.sh`: add and remove a synced val4 node through `r/sys/validators/v0` GovDAO proposals (registers val4 in `r/gnops/valopers` first)
 
 ### Local-Only Valsignerd Scenarios
 
