@@ -871,20 +871,52 @@ fi
 
 print_substep "2.6" "Unrestricted addresses: $unrestricted_count (sha256 + format verified, all funded)"
 
-# ---- GovDAO T1 members must hold a spendable genesis balance ----
+# ---- GovDAO T1 members must hold a genesis balance ----
 # The bootstrap MsgRun seeds the T1 members, who then pay gas out of their own
 # pocket for the chain's first proposals. mainnet has no faucet and no
 # transferable supply outside the §126 exemption list, so a member seeded
 # without a balance is locked out of governance with no in-chain way to top up.
 # The addresses are read back out of the bootstrap source rather than repeated
 # here, so this guard cannot drift from what actually gets seeded.
-BOOTSTRAP_GNO="$BOOTSTRAP_DIR/$(jq -r '.body_file' "$BOOTSTRAP_DIR/meta.json")"
+#
+# Any nonzero balance qualifies, and deliberately so: fees are collected with
+# the bank keeper's SendCoinsUnrestricted (tm2/pkg/sdk/auth/ante.go), which
+# bypasses both the §126 transfer restriction and vesting locks, so a member
+# needs neither an exemption-list entry nor an unvested balance to pay. What
+# does NOT qualify is exact-burn fee-payer funding: the genesis txs consume it
+# (step 8), leaving the address at zero.
 T1_ADDRS_FILE="$WORK_DIR/t1_members.txt"
-grep -oE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)' "$BOOTSTRAP_GNO" |
-  grep -oE 'g1[0-9a-z]{38}' | sort -u >"$T1_ADDRS_FILE"
+# The seven gnolang/multisigs [govdao] members. Asserted rather than derived:
+# a SetMember line dropped, duplicated or reshaped out of the grep's reach
+# would otherwise shrink the set this guard covers without a word, which is
+# the one direction where the damage is silent.
+T1_EXPECTED_COUNT=7
+BOOTSTRAP_GNO="$BOOTSTRAP_DIR/$(jq -r '.body_file' "$BOOTSTRAP_DIR/meta.json")"
+if [ ! -f "$BOOTSTRAP_GNO" ]; then
+  die "bootstrap body '$BOOTSTRAP_GNO' does not exist — check body_file in $BOOTSTRAP_DIR/meta.json"
+fi
+# Commented-out SetMember lines are stripped first: they carry the same shape
+# but seed nobody. `|| true` lets a zero-match run reach the count check below
+# instead of dying on grep's exit 1 under pipefail, unannounced.
+grep -v '^[[:space:]]*//' "$BOOTSTRAP_GNO" |
+  grep -oE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)' |
+  grep -oE 'g1[0-9a-z]{38}' | sort -u >"$T1_ADDRS_FILE" || true
 t1_count=$(wc -l <"$T1_ADDRS_FILE" | tr -d ' ')
-if [ "$t1_count" -eq 0 ]; then
-  die "no T1 member found in $BOOTSTRAP_GNO — the SetMember shape this guard greps for has changed"
+if [ "$t1_count" -ne "$T1_EXPECTED_COUNT" ]; then
+  die "$(printf '%s\n%s' \
+    "expected $T1_EXPECTED_COUNT T1 members in $BOOTSTRAP_GNO, found $t1_count." \
+    "A SetMember line was added, removed, duplicated or reshaped past this guard's grep — fix the file, or update T1_EXPECTED_COUNT if membership really changed.")"
+fi
+
+# The count above is over DISTINCT addresses, so it cannot see the same member
+# seeded twice. That matters: MembersByTier.SetMember returns
+# ErrMemberAlreadyExists on the second call and the bootstrap's must() turns it
+# into a panic, which surfaces ~90 seconds later as a node crash during the
+# measurement run instead of a sentence here.
+t1_seed_calls=$(grep -v '^[[:space:]]*//' "$BOOTSTRAP_GNO" |
+  grep -cE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)') || t1_seed_calls=0
+if [ "$t1_seed_calls" -ne "$t1_count" ]; then
+  die "$BOOTSTRAP_GNO makes $t1_seed_calls T1 SetMember calls for $t1_count distinct addresses — the repeated call fails with ErrMemberAlreadyExists and the bootstrap MsgRun panics at InitChain"
 fi
 
 t1_unfunded=""
@@ -903,28 +935,25 @@ while IFS= read -r t1_addr; do
     t1_unfunded="$t1_unfunded  $t1_addr — no genesis balance"$'\n'
     continue
   fi
-  # Spendable = total - vested. A continuous schedule that starts before
-  # GENESIS_TIME has already released part of its locked amount by block 1,
-  # so this under-counts on purpose: an entry whose whole balance is
-  # scheduled is reported rather than guessed at.
-  t1_spendable=$(printf '%s\n' "$t1_line" | awk -F'[=;,]' '
-    {
-      total = $2; sub(/ugnot$/, "", total)
-      locked = 0
-      if ($3 == "vesting") { locked = $4; sub(/ugnot$/, "", locked) }
-      printf "%d", total - locked
-    }')
-  if [ "$t1_spendable" -le 0 ]; then
-    t1_unfunded="$t1_unfunded  $t1_addr — whole balance under a vesting schedule ($t1_line)"$'\n'
+  # Allocation lines were shape-checked at 2.3, but VESTED_ACCOUNTS entries are
+  # not parsed until step 8, so validate the amount before comparing it: an
+  # unparseable value would make `-eq` error out and read as "funded".
+  t1_amount="${t1_line#*=}"
+  t1_amount="${t1_amount%%ugnot*}"
+  case "$t1_amount" in
+  '' | *[!0-9]*) die "T1 member $t1_addr has an unparseable balance entry: '$t1_line'" ;;
+  esac
+  if [ "$t1_amount" -eq 0 ]; then
+    t1_unfunded="$t1_unfunded  $t1_addr — zero genesis balance ($t1_line)"$'\n'
   fi
 done <"$T1_ADDRS_FILE"
 if [ -n "$t1_unfunded" ]; then
   die "$(printf '%s\n%s%s' \
-    "these GovDAO T1 members hold no spendable genesis balance:" \
+    "these GovDAO T1 members hold no genesis balance:" \
     "$t1_unfunded" \
     "mainnet has no faucet: fund them in the gnolang/independence-day allocation, or drop them from the bootstrap.")"
 fi
-print_substep "2.7" "GovDAO T1 members: $t1_count seeded, each holds a spendable genesis balance"
+print_substep "2.7" "GovDAO T1 members: $t1_count seeded, each holds a genesis balance"
 
 # ---- Step 3: Build binaries from source
 
@@ -1009,7 +1038,7 @@ print_substep "4.7" "Exporting txs..."
 run "$GNOGENESIS_BIN" txs export "$GENESIS_TXS_JSONL" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
 
 # ---- Step 5: Add the bootstrap MsgRun (transactions/base/bootstrap/)
-# Seeds the sole GovDAO T1 member (aeddi) and locks AllowedDAOs. The
+# Seeds the seven GovDAO T1 members and locks AllowedDAOs. The
 # §126 transfer lock is applied at step 9.3 as genesis params rather than
 # via r/sys/params proposals, so there is nothing to propose here.
 
