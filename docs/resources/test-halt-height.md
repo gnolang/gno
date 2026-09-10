@@ -92,7 +92,7 @@ Submit it (in a second terminal while the node is running):
 
 ```bash
 ./build/gnokey maketx run \
-    -gas-fee 100000ugnot -gas-wanted 100000000 \
+    -gas-fee 10000ugnot -gas-wanted 10000000 \
     -broadcast -chainid dev \
     test1 /tmp/bootstrap_govdao.gno
 ```
@@ -128,7 +128,7 @@ Submit it:
 
 ```bash
 ./build/gnokey maketx run \
-    -gas-fee 100000ugnot -gas-wanted 100000000 \
+    -gas-fee 10000ugnot -gas-wanted 10000000 \
     -broadcast -chainid dev \
     test1 /tmp/propose_halt.gno
 ```
