@@ -1,0 +1,135 @@
+# The treasury uses the GRC20 token key list that was voted on.
+#
+# Same shape as govdao_treasury_payment_amount_is_immutable.txtar, against
+# NewTreasuryGRC20TokensUpdate / SetTokenKeys rather than NewCoinsPayment.
+# Both copy the caller's slice now: the bullet list on the proposal page is
+# rendered once at creation, but the executor closure re-reads the slice at
+# execution, and SetTokenKeys stores it into realm state the grc20Lister
+# closure then reads on every Balances() and every GRC20 payment.
+#
+# Uncopied, the holder realm's rewrite lands twice over: the board's voted key
+# never takes effect (the treasury reports no balances for it), and the holder
+# keeps a write handle on the treasury's live token set for good, able to swap
+# it on any later block with no proposal at all.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/treasury
+loadpkg gno.land/r/audit/tok $WORK/tok
+loadpkg gno.land/r/audit/holder $WORK/holder
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# the treasury's key list starts empty, so no balances yet
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+stdout 'No balances found'
+
+# propose the token key list, built from the holder realm's own []string
+gnokey maketx run -gas-fee 4400001ugnot -gas-wanted 48000000 -chainid=tendermint_test member $WORK/proposer/create.gno
+stdout OK!
+
+# what the voters read
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'gno.land/r/audit/tok.ALIASTOK'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21000000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+# after the vote, before the execution: the holder rewrites its own array
+gnokey maketx call -pkgpath gno.land/r/audit/holder -func Bump -gas-fee 1900001ugnot -gas-wanted 21000000 -args 'gno.land/r/never/voted.EVIL' -chainid=tendermint_test member
+stdout OK!
+
+# the proposal page still lists the voted key. Like the payment page, this is
+# a snapshot rendered at creation, so it is not evidence of the copy either.
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'gno.land/r/audit/tok.ALIASTOK'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2900001ugnot -gas-wanted 30000000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# the guard: the treasury uses the key list the board voted for, so the token
+# it holds is visible. Without the copy in NewTreasuryGRC20TokensUpdate the
+# rewritten key is installed instead and this reads 'No balances found'.
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+stdout '\| gno.land/r/audit/tok.ALIASTOK \| 1000 \|'
+
+# SetTokenKeys copies too, which this file cannot show: the copy above means
+# the slice reaching it is already impl's own, so reverting either copy alone
+# still leaves the other in the way. That one is pinned where it can be
+# reached directly, in r/gov/dao/v3/treasury/test.
+
+-- tok/tok.gno --
+package tok
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
+
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	Token  *grc20.Token
+	ledger *grc20.PrivateLedger
+	id     seqid.ID
+)
+
+func init(cur realm) {
+	Token, ledger = grc20.NewToken("AliasTok", "ALIASTOK", 0, id.Next(), cur)
+	grc20reg.Register(cross(cur), Token, "ALIASTOK")
+	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"), 1000)
+}
+
+-- holder/holder.gno --
+package holder
+
+// keys is this realm's own slice. Keys() hands it out by reference; nothing
+// downstream copies it.
+var keys = []string{"gno.land/r/audit/tok.ALIASTOK"}
+
+func Keys() []string { return keys }
+
+func Bump(cur realm, k string) { keys[0] = k }
+
+-- proposer/create.gno --
+package main
+
+import (
+	"gno.land/r/audit/holder"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	preq := impl.NewTreasuryGRC20TokensUpdate(cross(cur), holder.Keys())
+	dao.MustCreateProposal(cross(cur), preq)
+}
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(
+		memberstore.T1,
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"),
+		memberstore.NewMember(3),
+	)
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

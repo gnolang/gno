@@ -300,11 +300,17 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
+	// A redeploy takes over the realm persisted at the path. Read only on the
+	// branch that has already established a package is live there: reading
+	// unconditionally would charge a first deployment for a key that cannot
+	// be there.
+	var priorRealm *gno.Realm
 	if liveBlob != nil {
 		// Private redeploy: clear the prior blobs, as the normal path does.
 		gnostore.DeleteMemPackage(msg.PkgPath)
+		priorRealm = gnostore.GetPackageRealm(msg.PkgPath)
 	}
-	m2.RunMemPackage(memPkg, true)
+	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//

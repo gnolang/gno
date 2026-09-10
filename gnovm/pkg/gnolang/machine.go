@@ -376,13 +376,25 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.RunMemPackageOverRealm(mpkg, save, nil)
+}
+
+// RunMemPackageOverRealm works as [RunMemPackage], except that the package it
+// builds takes over prior rather than starting a realm of its own.
+//
+// prior is the realm record persisted at mpkg.Path, and nil for a path that
+// holds no realm yet. Handing it over is what keeps a redeployment's ObjectIDs
+// clear of the objects the path already holds, and its storage deposit
+// accounted against what those objects were charged. It must be that path's
+// own record, and save must be true.
+func (m *Machine) RunMemPackageOverRealm(mpkg *std.MemPackage, save bool, prior *Realm) (*PackageNode, *PackageValue) {
 	if bm.Enabled {
 		bm.InitMeasure()
 		if bm.StorageEnabled {
 			defer bm.FinishStore()
 		}
 	}
-	return m.runMemPackage(mpkg, save, false)
+	return m.runMemPackage(mpkg, save, false, prior)
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
@@ -395,14 +407,31 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // NOTE: Does not validate the mpkg, except when saving validates a mpkg with
 // its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(mpkg, save, true)
+	return m.runMemPackage(mpkg, save, true, nil)
 }
 
-func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prior *Realm) (*PackageNode, *PackageValue) {
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// An unsaved run must not touch a persisted realm: a finalize reached
+	// from init advances the live counter and saves objects for a package
+	// this run never stores. A record from another path would mint the
+	// package value off the wrong counter, then save itself over that
+	// path's record.
+	if prior != nil {
+		if !save {
+			panic(fmt.Sprintf(
+				"prior realm %s requires save: an unsaved run must not touch a persisted realm",
+				prior.Path))
+		}
+		if prior.Path != mpkg.Path {
+			panic(fmt.Sprintf(
+				"prior realm %s is not the realm of package %s",
+				prior.Path, mpkg.Path))
+		}
 	}
 	// If All, demote to Prod when parsing,
 	// if Test or Integration, keep it as is,
@@ -429,6 +458,11 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		pv.SetPrivate(private)
+		if prior != nil {
+			// NewPackage's blank realm counts ObjectIDs from zero, over the
+			// objects the path already holds, and drops their storage deposit.
+			pv.SetRealm(prior)
+		}
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -1614,9 +1648,20 @@ const (
 	// RefValue case where unrefCopy hits the store; that worst-case is
 	// paid via store gas when GetObject is called.
 	OpCPUSlopeCopyElement = 40 // per element
-	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
-	// gas = depth^2 * slope / 10.
-	OpCPUSlopeEnterCrossingQuad = 6
+	// OpCPUSlopeEnterCrossing: per call frame visited by the
+	// doOpEnterCrossing ancestor walk. gas = depth * slope.
+	// The walk visits each frame at most once (single cursor pass over
+	// m.Frames), so cost is linear in the call depth reached. Per visit
+	// this is dearer than the superseded quadratic schedule's implied
+	// 1.2 gas/visit: that walk re-read the same few frames out of L1,
+	// whereas one pass streams a distinct 248-byte Frame per step.
+	// Fit: 1.45 ns/frame from BenchmarkOpEnterCrossing_1..1000 (intercept
+	// ~580ns), measured on a host that reproduces the recorded M2 baseline
+	// for this same benchmark (0.55 vs 0.60 ns/visit on the superseded
+	// quadratic walk), so it reads on the M2 basis. Scaled by the
+	// documented 1.8-1.95x M-to-Xeon factor that gives 2.6-2.8 ns/frame on
+	// the Xeon 8168 reference, rounded up so as not to undercharge.
+	OpCPUSlopeEnterCrossing = 3
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
@@ -1657,6 +1702,49 @@ const (
 	OpCPUSlopeBigDecMulQ = 6 // per (digits/10)^2 / 10
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
+
+	// Quadratic charge for the O(n^2) parse of a big numeric literal in
+	// doOpEval (INT big.Int.SetString; FLOAT parseBigdecLiteral), applied
+	// before the parse so a huge literal OOGs first:
+	// gas = (digits/10)^2 * slope / 10.
+	//
+	// Both values are local estimates, not reference-HW fits. Two-point fit of
+	// BenchmarkOpEval_BigIntLit_* / BigDecLit_* over 16000->64000 digits
+	// (M1 Pro, go1.25.9, ns/op(pure)) gives local slopes ~0.8-1.1 (INT) and
+	// ~1.6-1.9 (FLOAT); scaled by a measured M->Xeon factor of 1.8-1.95x that
+	// implies ~1.4-2.1 and ~2.9-3.7 on the reference box. So 4 sits above its
+	// estimate, while 2 sits at the top of its own: INT is priced at about its
+	// measured cost, not conservatively. Derivation, caveats and the basis
+	// rules are in the ADR -- read it before changing either number.
+	//
+	// TODO(calibration): these are the only two slopes in this block without a
+	// native reference-HW fit. On the gas-table reference box run:
+	//   for n in 1000 4000 16000 64000; do   # fitted series
+	//     for b in BigIntLit BigDecLit; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	//   for n in 16000 64000; do             # controls, these two sizes only
+	//     for b in BigIntLitHex BigDecLitInt; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	// One benchmark per process is not optional: run together, they inflated
+	// BigIntLit_64000 by ~2x. No build tag needed.
+	OpCPUSlopeBigIntSetString = 2 // INT big.Int.SetString
+	// FLOAT is 2x INT because parseBigdecLiteral does ~2x the work, measured.
+	// The MantExp > ratOverflowBits guard bounds the parsed value's
+	// *magnitude*, not the literal's length: a frac-shaped literal like
+	// 1.999...9 stays near 1 in magnitude however long it is, so the guard
+	// never fires and big.Rat.SetString runs on the full mantissa on top of
+	// big.ParseFloat. (Int-shaped 999...9 crosses the guard at 1234 digits and
+	// skips the Rat pass.) BenchmarkOpEval_BigDecLit_* vs BigDecLitInt_*
+	// isolates that second pass at ~2x, holding to the ~750K delivery ceiling.
+	// So 4 is the calibrated ratio, NOT headroom -- do not lower it to match
+	// big.ParseFloat timed on its own, which sees only half the op.
+	OpCPUSlopeBigDecParse = 4
 
 	// ComputeMapKey per-call constant: bookkeeping cost of one
 	// ComputeMapKey invocation (header bytes, type-ID append, switch

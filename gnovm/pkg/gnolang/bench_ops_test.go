@@ -3821,6 +3821,111 @@ func BenchmarkOpEval_BasicLitInt_Hex(b *testing.B) {
 	benchOpEval_BasicLitInt(b, "0x"+strings.Repeat("FF", 50))
 }
 
+// --- doOpEval big numeric literals: quadratic parse cost ---
+//
+// Sized series feeding the OpCPUSlopeBigIntSetString / OpCPUSlopeBigDecParse
+// fits. The _Small/_Large/_Hex benchmarks above top out at 100 digits, which
+// is far inside the constant-dominated regime -- a quadratic slope cannot be
+// recovered from them, which is why those two constants have no native
+// reference-HW fit yet. Fit ns/op(pure) against digits^2; the const block's
+// rule is slope = ns/digit^2 * 1000.
+//
+// Decimal (and octal) go through nat.scan's maxPow/mulAddWW arm and are
+// O(n^2); bases 2/4/16 take the bit-packing arm on go>=1.25 and are linear,
+// hence the Hex series as a control.
+
+func benchOpEval_BigIntLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: INT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigintType {
+			b.Fatal("expected UntypedBigintType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func benchOpEval_BigIntLitDec(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigIntLit(b, strings.Repeat("9", digits))
+}
+
+func BenchmarkOpEval_BigIntLit_1000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 1000) }
+func BenchmarkOpEval_BigIntLit_4000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 4000) }
+func BenchmarkOpEval_BigIntLit_16000(b *testing.B) { benchOpEval_BigIntLitDec(b, 16000) }
+func BenchmarkOpEval_BigIntLit_64000(b *testing.B) { benchOpEval_BigIntLitDec(b, 64000) }
+
+// Control: power-of-two base, linear on go>=1.25. The charge is
+// base-independent, so the gap here is the deliberate over-charge.
+func BenchmarkOpEval_BigIntLitHex_16000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 16000))
+}
+
+func BenchmarkOpEval_BigIntLitHex_64000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 64000))
+}
+
+func benchOpEval_BigDecLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: FLOAT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigdecType {
+			b.Fatal("expected UntypedBigdecType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// Frac-shaped: value magnitude stays ~1 so MantExp stays 2 and the
+// `MantExp > ratOverflowBits` guard never fires -- big.Rat.SetString runs on
+// the full mantissa on top of big.ParseFloat. This is the worst case and the
+// one OpCPUSlopeBigDecParse is calibrated against.
+func benchOpEval_BigDecLitFrac(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, "1."+strings.Repeat("9", digits-2))
+}
+
+func BenchmarkOpEval_BigDecLit_1000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 1000) }
+func BenchmarkOpEval_BigDecLit_4000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 4000) }
+func BenchmarkOpEval_BigDecLit_16000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 16000) }
+func BenchmarkOpEval_BigDecLit_64000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 64000) }
+
+// Int-shaped control: magnitude grows with length, so MantExp exceeds
+// ratOverflowBits above ~1234 digits and the Rat parse is skipped. Roughly
+// half the cost of the frac-shaped series above -- do not calibrate on this
+// one.
+func benchOpEval_BigDecLitInt(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, strings.Repeat("9", digits)+".0")
+}
+
+func BenchmarkOpEval_BigDecLitInt_16000(b *testing.B) { benchOpEval_BigDecLitInt(b, 16000) }
+func BenchmarkOpEval_BigDecLitInt_64000(b *testing.B) { benchOpEval_BigDecLitInt(b, 64000) }
+
 func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	m := benchMachine()
 	defer m.Release()
@@ -4272,6 +4377,57 @@ func benchOpDefer(b *testing.B, nArgs int) {
 func BenchmarkOpDefer_1Arg(b *testing.B)    { benchOpDefer(b, 1) }
 func BenchmarkOpDefer_10Args(b *testing.B)  { benchOpDefer(b, 10) }
 func BenchmarkOpDefer_100Args(b *testing.B) { benchOpDefer(b, 100) }
+
+// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
+// Scales linearly with call stack depth until the first crossing ancestor: the
+// handler walks m.Frames once with a cursor, visiting each frame at most once.
+// The benchmark constructs `depth` call frames with only the deepest marked
+// WithCross=true, forcing the walk to traverse the full depth. This is the
+// calibration source for OpCPUSlopeEnterCrossing.
+
+func benchOpEnterCrossing(b *testing.B, depth int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Make m.Package a realm and set a non-nil m.Realm so
+	// fri.LastRealm == m.Realm holds for intermediate frames.
+	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
+	m.Realm = &Realm{Path: "gno.land/r/bench"}
+
+	// Dummy *FuncValue so Frame.IsCall() returns true.
+	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
+
+	// Build `depth` call frames. The first pushed frame is the DEEPEST
+	// (the walk starts at the end of m.Frames and moves backward, so the
+	// first slot is reached last). Only the deepest has WithCross=true —
+	// this is what terminates the walk at step N.
+	m.Frames = m.Frames[:0]
+	for i := range depth {
+		fr := Frame{Func: fv, LastRealm: m.Realm}
+		if i == 0 {
+			fr.WithCross = true
+		}
+		m.Frames = append(m.Frames, fr)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
+		// DidCrossing is already true. Reset before each iteration.
+		m.Frames[len(m.Frames)-1].DidCrossing = false
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEnterCrossing()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
+func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
+func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
+func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
 
 // --- OpForLoop: heap item copy at end of iteration ---
 // Benchmarks the cost of copying HeapItemValues at the end of each loop
