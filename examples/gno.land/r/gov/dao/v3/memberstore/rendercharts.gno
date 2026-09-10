@@ -3,7 +3,7 @@ package memberstore
 import (
 	"strings"
 
-	"gno.land/p/samcrew/piechart"
+	"gno.land/p/samcrew/piechart/v0"
 )
 
 // RenderCharts generates two pie charts for member tiers:

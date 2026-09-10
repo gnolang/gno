@@ -1,4 +1,4 @@
-module = "gno.land/p/samcrew/piechart"
+module = "gno.land/p/samcrew/piechart/v0"
 gno = "0.9"
 
 [addpkg]

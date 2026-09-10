@@ -1,7 +1,7 @@
 package charts
 
 import (
-	"gno.land/p/samcrew/piechart"
+	"gno.land/p/samcrew/piechart/v0"
 )
 
 // RenderPieChartExample creates a simple data distribution pie chart example
@@ -45,7 +45,7 @@ Generate pie charts with label as SVG images.
 ## Basic Usage
 
 ` + "```go" + `
-import "gno.land/p/samcrew/piechart"
+import "gno.land/p/samcrew/piechart/v0"
 
 data := []piechart.PieSlice{
     {Value: 35, Color: "#e74c3c", Label: "Category A"},
