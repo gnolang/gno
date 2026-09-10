@@ -1452,11 +1452,35 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 }
 
 func (m *Machine) incrCPU(cycles int64) {
-	if m.GasMeter != nil {
-		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
-	}
+	chargeCPUGas(m.GasMeter, cycles) // May panic if out of gas.
 	m.Cycles += cycles
+}
+
+// chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
+// GasFactorCPU); nil gm is a no-op. It meters work that runs outside the
+// Machine op loop — the interface-satisfaction BFS (checkImplementedBy) —
+// during both preprocess (gm from preprocessGasMeterOf) and runtime
+// (gm = m.GasMeter). May panic with OutOfGasError.
+func chargeCPUGas(gm store.GasMeter, cycles int64) {
+	if gm != nil {
+		gm.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
+	}
+}
+
+// preprocessGasMeterOf returns the per-transaction gas meter installed on
+// st's preprocess allocator by the keeper, or nil when none is (tests,
+// tooling). It is fetched per use and threaded down explicitly: a
+// process-global would race and cross-bill gas between a query's
+// preprocess and a concurrent DeliverTx.
+func preprocessGasMeterOf(st Store) store.GasMeter {
+	if st == nil {
+		return nil
+	}
+	pa := st.GetPreprocessAllocator()
+	if pa == nil {
+		return nil
+	}
+	return pa.GetGasMeter()
 }
 
 const (
@@ -1636,6 +1660,14 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
+	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
+	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.
+	// Dev-box fit (embedwalk_bench_m5_arm64.txt, machine factor 2.1):
+	// expand 161, scan 24.2, trail/hop 131.5 reference-ns.
+	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
+	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
+	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
@@ -3112,7 +3144,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
+		pv = xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]

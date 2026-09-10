@@ -80,7 +80,7 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	res := xv.getPointerToFromTV(m.Alloc, m.Store, sx.Path, m.Package.PkgPath).Deref()
+	res := xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
@@ -238,10 +238,13 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				// Non-concrete: fails without walking; per-method cost only.
+				// (The concrete path below is checked and charged inside
+				// checkImplementedBy — no double charge.)
+				m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
 					xt.String(),
@@ -251,8 +254,8 @@ func (m *Machine) doOpTypeAssert1() {
 			}
 
 			// t is Gno interface.
-			// assert that x implements type.
-			err := it.VerifyImplementedBy(xt)
+			// assert that x implements type (metered; see checkImplementedBy).
+			err := it.checkImplementedBy(m.GasMeter, xt)
 			if err != nil {
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
@@ -316,18 +319,21 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				// Non-concrete: fails without walking; per-method cost only.
+				// (The concrete path below is checked and charged inside
+				// checkImplementedBy — no double charge.)
+				m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 				*xv = TypedValue{}
 				*tv = untypedBool(false)
 				return
 			}
 
 			// t is Gno interface.
-			// assert that x implements type.
-			impl := it.IsImplementedBy(xt)
+			// assert that x implements type (metered; see checkImplementedBy).
+			impl := it.checkImplementedBy(m.GasMeter, xt) == nil
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)

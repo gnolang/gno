@@ -2791,7 +2791,7 @@ func GetError() error { return &BigErr{} }`
 	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
 		// A non-nil error interface wrapping a typed-nil concrete pointer:
 		//   var e *MyErr = nil; return e
-		// tv.ImplError() is true (static type satisfies error), so
+		// tv.ImplError(gm) is true (static type satisfies error), so
 		// tryGetError invokes .Error() — which nil-derefs the receiver.
 		// The defer-recover in tryGetError must catch the panic and
 		// gracefully degrade: no @error field, no process crash.

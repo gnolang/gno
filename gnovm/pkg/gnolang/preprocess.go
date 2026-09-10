@@ -1530,7 +1530,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// General cases.
-				n.AssertCompatible(lt, rt) // check compatibility against binaryExprs other than shift expr
+				n.AssertCompatible(store, lt, rt) // check compatibility against binaryExprs other than shift expr
 				if lic {
 					if ric {
 						// Left const, Right const ----------------------
@@ -1719,7 +1719,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(at) {
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
-								mustAssignableTo(n, at, ct)
+								mustAssignableTo(store, n, at, ct)
 							default:
 								checkOrConvertType(store, last, n, &n.Args[0], ct)
 							}
@@ -1749,7 +1749,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					_, atIface := atBase.(*InterfaceType)
 					if ctIface {
 						// e.g. <iface type>(...)
-						mustAssignableTo(n, at, ct)
+						mustAssignableTo(store, n, at, ct)
 						// The conversion is legal, set the target type.
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
@@ -2319,12 +2319,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						for i, tv := range argTVs {
 							if hasVarg {
 								if (len(spts) - 1) <= i {
-									mustAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem())
+									mustAssignableTo(store, n, tv.T, spts[len(spts)-1].Type.Elem())
 								} else {
-									mustAssignableTo(n, tv.T, spts[i].Type)
+									mustAssignableTo(store, n, tv.T, spts[i].Type)
 								}
 							} else {
-								mustAssignableTo(n, tv.T, spts[i].Type)
+								mustAssignableTo(store, n, tv.T, spts[i].Type)
 							}
 						}
 					} else {
@@ -2590,7 +2590,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					tr, _, rcvr, _, status := findEmbeddedFieldType(preprocessGasMeterOf(store), ctxpn.PkgPath, cxt, n.Sel)
 					switch status {
 					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
@@ -3424,7 +3424,7 @@ func parseMultipleAssignFromOneExpr(
 	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
-			if err := checkAssignableTo(n, tt, st); err != nil {
+			if err := checkAssignableTo(store, n, tt, st); err != nil {
 				if debug {
 					debug.Printf("checkAssignableTo fail: %v\n", err)
 				}
@@ -4862,7 +4862,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		// nil dt rather than treating it as a no-op.
 		if t != nil {
 			// e.g. int(1) == int8(1)
-			mustAssignableTo(n, cx.T, t)
+			mustAssignableTo(store, n, cx.T, t)
 		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
@@ -4872,6 +4872,15 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 		if isUntyped(xt) {
 			if t == nil || t.Kind() == InterfaceKind {
+				if t != nil {
+					// An untyped shift assigned to an interface target takes
+					// its default type below, which drops the target on the
+					// floor — so assert satisfaction before doing that, or
+					// `var r R = 1 << 2` for a non-empty R is only caught at
+					// runtime. Checked against xt, not defaultTypeOf(xt), so
+					// the diagnostic names the untyped operand.
+					mustAssignableTo(store, n, xt, t)
+				}
 				t = defaultTypeOf(xt)
 			}
 			// t is the type from context or default.
@@ -4881,13 +4890,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			checkOrConvertType(store, last, n, &bx.Left, t)
 			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
 		} else if t != nil {
-			mustAssignableTo(n, xt, t)
+			mustAssignableTo(store, n, xt, t)
 		}
 		return
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
-			mustAssignableTo(n, xt, t)
+			mustAssignableTo(store, n, xt, t)
 		}
 		if isUntyped(xt) {
 			// Push type into expr if qualifying binary expr.
@@ -4928,7 +4937,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
 				if t != nil {
-					mustAssignableTo(n, xt, t)
+					mustAssignableTo(store, n, xt, t)
 				}
 
 				if t == nil || t.Kind() == InterfaceKind {
@@ -5042,7 +5051,7 @@ func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
 func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
-			mustAssignableTo(n, cx.T, t)
+			mustAssignableTo(store, n, cx.T, t)
 		}
 		t = nil // signifies to convert to default type.
 	}
