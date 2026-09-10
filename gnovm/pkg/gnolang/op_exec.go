@@ -891,7 +891,6 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -910,7 +909,18 @@ matchLoop:
 			defaultIdx = i
 			continue
 		}
+		// Charge per clause and per case actually scanned, using the same
+		// constants the value switch charges for the same dispatch and
+		// comparison work. The previous flat OpCPUSlopeTypeSwitchCase per
+		// DECLARED clause billed clauses the loop breaks before reaching, and
+		// billed a grouped `case A, B, C:` as one comparison instead of three.
+		// TODO(calibration): cmd/calibrate still publishes the superseded
+		// "TypeSwitch (concrete) = 280.5 + 253.92*clauses" fit; its 254
+		// ns/clause is well above what a scanned clause measures today, so
+		// re-derive both when the reference-HW numbers are next refreshed.
+		m.incrCPU(OpCPUSwitchClause)
 		for _, cx := range cs.Cases {
+			m.incrCPU(OpCPUSwitchClauseCase)
 			if debug {
 				if !isConstType(cx) {
 					panic(fmt.Sprintf(
