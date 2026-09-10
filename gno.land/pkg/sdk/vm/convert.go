@@ -276,22 +276,11 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType
 		}
 		jres.Results = bz
 
-		// Check for error based on function signature. If the func return type's last
-		// element is exactly a named or unnamed interface type which implements error,
-		// then .Error() is called.
-		last := tvs[len(tvs)-1]
-		shouldExtractError := false
-		if ft != nil && len(ft.Results) > 0 {
-			// Signature-based: check if declared return type implements error
-			lastReturnType := ft.Results[len(ft.Results)-1].Type
-			shouldExtractError = gno.IsErrorType(lastReturnType)
-		} else {
-			// Fallback for QueryEval: value-based detection
-			shouldExtractError = last.ImplError()
-		}
-
-		if shouldExtractError {
-			if errStr, ok := tryGetError(m, last); ok {
+		// Error extraction needs a live machine: the error-interface checks are
+		// metered against m.GasMeter and .Error() is evaluated on m. Both
+		// checks live inside tryGetError so its recover covers them.
+		if m != nil {
+			if errStr, ok := tryGetError(m, tvs[len(tvs)-1], ft); ok {
 				jres.Error = &errStr
 			}
 		}
@@ -305,15 +294,13 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType
 	return string(s), nil
 }
 
-func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
-	// Check if type implements error interface
-	if !tv.ImplError() {
-		return "", false
-	}
-
-	// Call .Error() in a panic-safe context. ANY panic — out-of-gas, buggy
-	// .Error() method, typed-nil receiver nil-deref — gracefully degrades:
-	// no @error field, but the already-computed Results JSON is preserved.
+// tryGetError extracts the @error field from the last result. ft is the called
+// function's signature when one is known (nil on the QueryEval path).
+func tryGetError(m *gno.Machine, tv gno.TypedValue, ft *gno.FuncType) (errStr string, ok bool) {
+	// Everything below runs in a panic-safe context. ANY panic — out-of-gas,
+	// buggy .Error() method, typed-nil receiver nil-deref — gracefully
+	// degrades: no @error field, but the already-computed Results JSON is
+	// preserved.
 	//
 	// Rationale for catching OOG here (rather than re-panicking): the main
 	// expression evaluation has already succeeded by the time tryGetError
@@ -322,12 +309,31 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
 	// successful payload and return an empty body with an OOG error, which
 	// is strictly worse for the caller. Instead we treat the @error field
 	// as best-effort and surface whatever results we already have.
+	//
+	// The recover must be installed before the satisfaction checks below, not
+	// just around m.Eval: both run the metered embedding walk, so both can
+	// panic OutOfGasError, and a panic escaping from either would discard the
+	// payload exactly as described above.
 	defer func() {
 		if r := recover(); r != nil {
 			errStr = ""
 			ok = false
 		}
 	}()
+
+	// With a signature, only a last result whose declared type implements
+	// error is extracted; without one (QueryEval) the dynamic-type check
+	// below decides alone.
+	if ft != nil && len(ft.Results) > 0 {
+		if !gno.IsErrorType(m.GasMeter, ft.Results[len(ft.Results)-1].Type) {
+			return "", false
+		}
+	}
+
+	// Check if the dynamic type implements error (metered walk).
+	if !tv.ImplError(m.GasMeter) {
+		return "", false
+	}
 
 	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
 	// The realm's Error() output is caller-controlled and is assembled into

@@ -65,11 +65,15 @@ var gErrorType = &DeclaredType{
 
 // IsErrorType returns true if the given type implements the error interface.
 // This is useful for checking function return types without a TypedValue.
-func IsErrorType(t Type) bool {
+// gm meters the embedded-field BFS walk that error-satisfaction runs; runtime
+// callers on attacker-reachable paths (e.g. result formatting over an
+// attacker-declared return type) pass the tx meter so the walk is billed. nil
+// is a no-op, for callers off any metered path.
+func IsErrorType(gm types.GasMeter, t Type) bool {
 	if t == nil {
 		return false
 	}
-	return IsImplementedBy(gErrorType, t)
+	return isImplementedBy(gm, gErrorType, t)
 }
 
 var gStringerType = &DeclaredType{

@@ -99,9 +99,11 @@ func TestPreprocessAlloc_CumulativeAcrossStatements(t *testing.T) {
 
 // TestPreprocessAlloc_NoGCOnHardCap verifies the panic message
 // distinguishes the no-GC hard cap from the regular GC-retry path.
-// This is the protection invariant: GC during preprocess would
-// undercount because GarbageCollect doesn't visit m.Values, so the
-// preAlloc must NEVER attempt GC on overflow.
+// This is the protection invariant: preAlloc is shared by every
+// preprocess sub-Machine in the tx, so a collect bound to one machine
+// would walk only that machine's roots and free the rest of the tx's
+// preprocess allocations on paper. The preAlloc must therefore NEVER
+// attempt GC on overflow.
 func TestPreprocessAlloc_NoGCOnHardCap(t *testing.T) {
 	st, preAlloc := newPreprocessAllocTestStore(t, 2*1024, stypes.NewInfiniteGasMeter())
 	defer st.SetPreprocessAllocator(nil)

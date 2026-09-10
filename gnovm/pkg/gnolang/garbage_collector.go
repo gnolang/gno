@@ -26,6 +26,43 @@ var gcVisitGasTable = [25]int64{
 	700, 700, // 2^23 - 2^24: 8M-16M visits      (~700ns, DRAM+TLB)
 }
 
+// gcStackScanSlopeGas is the cost of inspecting one TypedValue slot during
+// GarbageCollect's linear walks over m.Values and Allocator.anchors.
+//
+// Priced separately from gcVisitGasTable: a slot scan is a sequential pass
+// over a contiguous []TypedValue, not a pointer-chasing object visit, and a
+// slot whose V is nil (every primitive) produces no visit at all. Without
+// this the walks are O(len(m.Values) + sum(len(anchors))) work charged zero
+// gas, which a deep operand stack can inflate without bound.
+//
+// Rough calibration from BenchmarkGCStackScan (developer machine, NOT the
+// Xeon Platinum 8168 that gcVisitGasTable is anchored on): 1.3 ns/slot
+// in-cache at 1K slots rising to 3.3 ns/slot DRAM-bound at 10M. 4 sits just
+// above the measured maximum and matches OpCPUSlopeCopyPrimitive, the
+// existing per-element slope for a comparable linear pass. Re-measure on
+// reference hardware before relying on the exact figure.
+const gcStackScanSlopeGas = 4
+
+// gcStackScanGas returns total gas for a linear walk over slots TypedValues.
+func gcStackScanGas(slots int64) int64 {
+	if slots <= 0 {
+		return 0
+	}
+	return overflow.Mulp(slots, gcStackScanSlopeGas)
+}
+
+// gcScannedSlots reports how many TypedValue slots GarbageCollect's linear
+// walks inspect: the operand stack plus every in-flight anchor buffer.
+func (m *Machine) gcScannedSlots() int64 {
+	slots := int64(len(m.Values))
+	if m.Alloc != nil {
+		for _, a := range m.Alloc.anchors {
+			slots = overflow.Addp(slots, int64(len(a.tvs)))
+		}
+	}
+	return slots
+}
+
 // gcVisitGas returns total gas for a GC traversal of visitCount objects.
 // Uses a per-visit cost that scales with heap size (cache effects).
 func gcVisitGas(visitCount int64) int64 {
@@ -63,8 +100,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// times objects are visited for gc
 	var visitCount int64
 
+	// Slots scanned by the linear walks below. Captured before the walks so
+	// the charge is unaffected by an early return; neither m.Values nor
+	// Allocator.anchors is mutated by GC.
+	scannedSlots := m.gcScannedSlots()
+
 	defer func() {
-		gasCPU := gcVisitGas(visitCount)
+		gasCPU := overflow.Addp(gcVisitGas(visitCount), gcStackScanGas(scannedSlots))
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
@@ -85,6 +127,59 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Construct visitor callback.
 	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
+
+	// Visit the operand stack (m.Values): intermediate results, call args
+	// not yet popped into a block, composite-literal elements waiting for
+	// doOp*Lit. Objects reachable only from here were previously invisible
+	// to GC, so Reset()+Recount() dropped them from alloc.bytes and the Go
+	// heap could grow past maxBytes.
+	//
+	// Known over-counts, both fail-safe (cap trips earlier, never later):
+	//  - Recount(allocTypedValue) counts the 40B slot wrapper that runtime
+	//    never charges (as Frame.Visit and Exception.Visit already do).
+	//    Bounded: each slot costs metered work (a source byte or a charged
+	//    Block). Kept on purpose: for primitive slots (V == nil) it is the
+	//    only thing the cap sees, so the stack's own footprint stays counted.
+	//  - vis dedups Objects only, so a string aliased into N slots is
+	//    charged N times its length; same at every other root (blocks,
+	//    arrays, frames). A follow-up will dedup string backings.
+	for i := range m.Values {
+		m.Alloc.Recount(allocTypedValue)
+		if v := m.Values[i].V; v != nil {
+			if stop := vis(v); stop {
+				return -1, false
+			}
+		}
+	}
+
+	// Visit buffers still under construction (Allocator.anchors): the
+	// element, field, default-fill and argument buffers that ops allocate
+	// as Go locals and fill one entry at a time. The operand-stack walk
+	// above does not cover them — the sources it sees may all alias one
+	// value ([]T{a, a, ...}), while each copy written into the buffer is a
+	// fresh allocation — so without this a fill that trips the cap frees
+	// its own headroom and continues. Recount the slots the buffer holds
+	// (allocArrayItem, allocStructField and allocBlockItem are all
+	// allocTypedValue); only the container header is missed, and just
+	// until the op roots it.
+	for _, a := range m.Alloc.anchors {
+		if a.obj != nil {
+			// Whole-object anchor (doOpMapLit): the visitor recounts it
+			// and everything already written into it.
+			if stop := vis(a.obj); stop {
+				return -1, false
+			}
+			continue
+		}
+		m.Alloc.Recount(allocTypedValue * int64(len(a.tvs)))
+		for i := range a.tvs {
+			if v := a.tvs[i].V; v != nil {
+				if stop := vis(v); stop {
+					return -1, false
+				}
+			}
+		}
+	}
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -414,6 +509,19 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 			continue
 		}
 
+		stop = vis(v)
+		if stop {
+			return
+		}
+	}
+
+	// Visit the blank slot. `_ = expr` assigns through GetBlankRef, so the
+	// block pins expr for its whole life even though nothing can read it
+	// back. Skipping it made `_ = make([]byte, n)` per recursion level a
+	// cap bypass: the value stays live on the Go heap while Reset()+Recount()
+	// cannot see it (200 levels x 300KB held 60MB under a 1MB cap, while the
+	// same expression bound to a name was correctly refused).
+	if v := b.Blank.V; v != nil {
 		stop = vis(v)
 		if stop {
 			return

@@ -683,6 +683,14 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	if isMethod == 1 {
 		args[0] = recv
 	}
+	// args is a Go local, and every PopCopyValues below writes fresh copies
+	// into it. Anchor it so a GC triggered by one argument's copy still
+	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
+	// its own headroom once per argument. The caller assigns args into the
+	// call block without allocating, so dropping the anchor on return is
+	// safe — GC only runs from Allocate. See Allocator.anchors.
+	m.Alloc.PushAnchor(args)
+	defer m.Alloc.PopAnchor()
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -697,6 +705,7 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 			// Convert variadic argument to slice argument.
 			// Convert last nvar to slice.
 			list := make([]TypedValue, nvar)
+			m.Alloc.PushAnchor(list)
 			m.PopCopyValues(list)
 			varg := m.Alloc.NewSliceFromList(list)
 			// Pop non-receiver non-varg args.
@@ -707,6 +716,9 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 				T: vart,
 				V: varg,
 			}
+			// varg is reachable through args now, which stays anchored
+			// until this function returns.
+			m.Alloc.PopAnchor()
 			return args
 		}
 	}
@@ -718,7 +730,12 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 func (m *Machine) doOpDefer() {
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	numArgs := len(ds.Call.Args)
+	// NumArgs, not len(Args): for an embedded multi-value call the single
+	// arg expression leaves len(Call.Args[0].Results) operands on the stack
+	// (nodes.go: "len(Args) or len(Args[0].Results)"). Using len(Args) here
+	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
+	// the deferred call to one of g's results instead of to f.
+	numArgs := ds.Call.NumArgs
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
