@@ -145,7 +145,7 @@ INITIAL_VALSET_OPERATORS=(
 )
 
 # Genesis allocation (no faucets on mainnet): the gnolang/independence-day
-# balance sheet — 3,262,457 accounts totalling ~1,333,000,000 GNOT
+# balance sheet — 3,262,454 accounts totalling 1,332,999,998.328067 GNOT
 # (1.333e15 ugnot, ~6900x under the int64 Coin ceiling of ~9.22e18).
 # Downloaded by pinned-commit URL and verified against ALLOCATION_SHA256
 # before use (the gnoland1/test13 pattern). The sheet is the "mkgenesis/
@@ -977,6 +977,30 @@ if [ -n "$t1_unfunded" ]; then
     "mainnet has no faucet: fund them in the gnolang/independence-day allocation, or drop them from the bootstrap.")"
 fi
 print_substep "2.7" "GovDAO T1 members: $t1_count seeded, each holds a genesis balance"
+
+# ---- NAMES_ADMIN must match the admin compiled into r/sys/names ----
+# names.Enable is gated on an address hardcoded in the realm source, and
+# NAMES_ADMIN is a copy of it. That copy has gone stale once already (#6131
+# moved the admin to the multisigs [govdao] key), and a stale copy surfaces
+# ~90 seconds in as a "caller is not admin" panic during the measurement run.
+# Read the authority out of the tree instead. Step 6 checks the other half:
+# that the tx's caller_override matches NAMES_ADMIN too.
+NAMES_VERIFIER_GNO="$REPO_ROOT/examples/gno.land/r/sys/names/verifier.gno"
+if [ ! -f "$NAMES_VERIFIER_GNO" ]; then
+  die "cannot find $NAMES_VERIFIER_GNO — r/sys/names moved; re-point this check and re-confirm NAMES_ADMIN"
+fi
+names_admin_in_tree=$(grep -oE 'admin[[:space:]]*=[[:space:]]*address\("g1[0-9a-z]{38}"\)' "$NAMES_VERIFIER_GNO" |
+  grep -oE 'g1[0-9a-z]{38}') || names_admin_in_tree=""
+if [ -z "$names_admin_in_tree" ]; then
+  die "no admin address found in $NAMES_VERIFIER_GNO — the realm's admin declaration changed shape; re-confirm NAMES_ADMIN by hand"
+fi
+if [ "$names_admin_in_tree" != "$NAMES_ADMIN" ]; then
+  die "$(printf '%s\n%s\n%s' \
+    "NAMES_ADMIN ($NAMES_ADMIN) is not the admin compiled into r/sys/names ($names_admin_in_tree)." \
+    "names.Enable would be rejected at genesis: the caller_override patch only works for the address the realm actually trusts." \
+    "Update NAMES_ADMIN and transactions/migration/names-enable/meta.json after confirming who that address belongs to.")"
+fi
+print_substep "2.8" "names admin matches r/sys/names in-tree: $names_admin_in_tree"
 
 # ---- Step 3: Build binaries from source
 
