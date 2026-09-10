@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/jeronimoalbi/message"
+	"gno.land/p/jeronimoalbi/message/v0"
 )
 
 func main() {

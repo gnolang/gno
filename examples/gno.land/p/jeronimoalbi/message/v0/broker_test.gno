@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/jeronimoalbi/expect/v0"
-	"gno.land/p/jeronimoalbi/message"
+	"gno.land/p/jeronimoalbi/message/v0"
 )
 
 var (

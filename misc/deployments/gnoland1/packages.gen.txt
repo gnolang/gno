@@ -13,7 +13,7 @@ gno.land/p/nt/avl/v0/rotree
 gno.land/p/nt/avl/v0/list
 gno.land/p/nt/commondao/v0
 gno.land/p/moul/ulist
-gno.land/p/jeronimoalbi/message
+gno.land/p/jeronimoalbi/message/v0
 gno.land/p/nt/commondao/v0/exts/storage
 gno.land/p/gnoland/boards/exts/permissions/v0
 gno.land/p/jeronimoalbi/mdform/v0
