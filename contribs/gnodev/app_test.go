@@ -140,7 +140,7 @@ func TestGnodev_PathsFlag_ReachesGenesis(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
 	t.Chdir(workspace)
 
-	const flagged = "gno.land/p/demo/nestedpkg"
+	const flagged = "gno.land/p/demo/nestedpkg/v0"
 
 	cfg := defaultLocalAppConfig
 	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
