@@ -69,6 +69,57 @@ func TestNodeAnswersAboutItselfAreNotAMiss(t *testing.T) {
 	}
 }
 
+// TestPackageStatusIsAnAnswerOrAFault pins how vm/qpkgmeta_json is read. An
+// absent path is a successful "absent" (VMKeeper.QueryPackageMeta), so unlike
+// vm/qfile the route has no error that is evidence about the path: every
+// error is the node describing itself, and is remembered as a fault so the
+// verification it interrupted is left pending rather than judged.
+func TestPackageStatusIsAnAnswerOrAFault(t *testing.T) {
+	cases := map[string]struct {
+		resp       abci.ResponseQuery
+		wantStatus string
+	}{
+		"answered inert": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"inert","pending":true}`),
+			}},
+			wantStatus: vm.PackageStatusInert,
+		},
+		"answered absent": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"absent"}`),
+			}},
+			wantStatus: vm.PackageStatusAbsent,
+		},
+		"unknown request, route missing": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: std.UnknownRequestError{}}},
+		},
+		"internal error, state unloadable": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: std.InternalError{}}},
+		},
+		"unreadable answer": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte("not json")}},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			g := newRPCGetter(answeringClient{resp: tc.resp})
+
+			status, err := g.status("gno.land/p/x/y")
+			if tc.wantStatus != "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantStatus, status)
+				assert.NoError(t, g.transportErr, "an answer records no fault")
+				return
+			}
+			require.ErrorIs(t, err, errResolverUnavailable,
+				"the route never says anything about the path through an error, so an error is about the node")
+			assert.ErrorIs(t, g.transportErr, errResolverUnavailable,
+				"the fault must be remembered so prepare reports it instead of a classification it never got")
+		})
+	}
+}
+
 // TestGenuineMissFromARealNode pins the wire form of a miss, so the type
 // switch above matches what a node actually sends rather than what the keeper
 // constructs.

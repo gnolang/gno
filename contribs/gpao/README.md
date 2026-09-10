@@ -175,6 +175,22 @@ dependency not live yet, a namespace or governance param that moved, a block out
 of gas. Those clear on their own. After the last attempt the path is recorded
 and the log says a human is needed.
 
+A package importing one that is **parked**, submitted but not yet enabled, is
+left pending too, uncounted, with the import named in the reason. `vm/qfile`
+cannot see a parked package, so the type check reports the import exactly as it
+would one that was never submitted. Before the budget starts, the verifier asks
+`vm/qpkgmeta_json` about every import the node would not serve and records the
+answer; a package is pending only when every type-check error is an unresolved
+import of a path recorded parked. An import that is absent, or any error in the
+package's own code, is a rejection whatever else is parked. An import the chain
+reports live but would not serve is fetched once more: a package enabled during
+the fetch resolves, and one whose files `vm/qfile` cannot serve leaves the
+package pending as unavailable, which is the oracle's limit and not a verdict.
+Nothing re-offers a pending package by itself: resubmit it, or restart, once
+the import is live. The daemon refuses to start against a node that does not
+answer `vm/qpkgmeta_json`, since without it every absent import would sit
+pending instead of being rejected.
+
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
 transactions are rejected.
@@ -212,11 +228,12 @@ remove.
 
 ## Import cache
 
-Packages fetched via `vm/qfile` are cached for the process lifetime. This is
-safe: on-chain package paths are write-once (re-adding an existing path fails),
-so a fetched package never changes. Only successful fetches are cached — a miss
-(a package still inert, or enabled later in the run) is re-queried on the next
-lookup rather than pinned to "not found".
+Each verification runs in its own child process, and the node's answers are
+cached for that run: a fetched package, because on-chain package paths are
+write-once (re-adding an existing path fails), and an answered "not found" as
+well, so the stages the budget measures never ask the node again. A transport
+fault is not cached. A missed import the chain reports live is fetched once
+more before the typecheck, since it may have been enabled after the miss.
 
 ### About `--gas-wanted`
 

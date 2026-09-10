@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -148,8 +149,27 @@ func chainPackage(pkgPath, body string) *std.MemPackage {
 func newRPCVerifier(t *testing.T, pkgs ...*std.MemPackage) *verifier {
 	t.Helper()
 	v := newTestVerifier(t)
-	v.rpc = &rpcGetter{cache: make(map[string]*std.MemPackage), qfile: fakeQFile(pkgs...)}
+	v.rpc = &rpcGetter{
+		cache: make(map[string]*std.MemPackage),
+		qfile: fakeQFile(pkgs...),
+		qmeta: fakeQMeta(pkgs...),
+	}
 	return v
+}
+
+// fakeQMeta answers like vm/qpkgmeta_json for a chain serving pkgs: live for
+// one of them, absent for anything else. Everything such a chain serves is
+// live, so a miss the verifier asks about can only be absent.
+func fakeQMeta(pkgs ...*std.MemPackage) qmetaFunc {
+	return func(pkgPath string) (vm.PackageMeta, error) {
+		meta := vm.PackageMeta{Path: pkgPath, Status: vm.PackageStatusAbsent}
+		for _, mpkg := range pkgs {
+			if mpkg.Path == pkgPath {
+				meta.Status = vm.PackageStatusLive
+			}
+		}
+		return meta, nil
+	}
 }
 
 // fakeQFile answers like vm/qfile: a newline-separated file list for a package
@@ -287,6 +307,57 @@ func TestPrepareCachesAnImportTheNodeDoesNotServe(t *testing.T) {
 	require.Error(t, v.verifyPackage(mpkg), "the unresolved import must still be refused")
 	assert.Equal(t, onPrepare, calls,
 		"the typecheck and the preprocess must not reach the node on the budget")
+}
+
+// A live dependency vm/qfile missed once is fetched again, before the budget.
+//
+// The walk caches a miss as an absence, which is right for a chain that cannot
+// move under one verification. vm/qfile can move under the walk, though: an
+// enable landing between the miss and prepare's question leaves the getter
+// holding "absent" for a package vm/qpkgmeta_json reports live. Read as
+// absent, the stale miss becomes a typecheck verdict on a package the
+// validator would enable. So a live answer costs one more fetch, and the
+// package then verifies through both stages.
+func TestPrepareFetchesAgainWhatWentLiveUnderTheWalk(t *testing.T) {
+	dep := chainPackage("gno.land/p/test/latecomer", "package latecomer\n\nfunc One() int { return 1 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/latecomer\"\n\nfunc Use() int { return latecomer.One() }\n")
+
+	// Absent for the first listing, served from then on: enabled between the
+	// walk's fetch and prepare's question. The status query says live
+	// throughout, as fakeQMeta does for anything the chain serves.
+	v := newRPCVerifier(t, dep)
+	served := v.rpc.qfile
+	missedOnce := false
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		if fpath == dep.Path && !missedOnce {
+			missedOnce = true
+			return nil, errors.New("package is not available")
+		}
+		return served(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.True(t, missedOnce, "premise: the walk must have missed the dependency once, or this proves nothing")
+	require.NoError(t, v.verifyPackage(mpkg),
+		"a dependency the chain reports live must resolve, whatever vm/qfile answered first")
+}
+
+// An import the walk could not fetch is classified by asking the node, and a
+// node that cannot be asked leaves it unclassified: the candidate is pending
+// on the fault, not judged on a question that was never answered.
+func TestPrepareReportsTheFaultUnderAnUnclassifiedImport(t *testing.T) {
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/nothing\"\n\nfunc Use() int { return nothing.X }\n")
+
+	v := newRPCVerifier(t) // a chain that serves nothing at all
+	v.rpc.qmeta = func(string) (vm.PackageMeta, error) {
+		return vm.PackageMeta{}, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+	}
+
+	err := v.prepare(mpkg)
+	require.ErrorIs(t, err, errResolverUnavailable,
+		"a miss the node would not classify is the node's fault, and the parent classifies on it")
 }
 
 // A stdlib that will not build in the operator's tree leaves the candidate

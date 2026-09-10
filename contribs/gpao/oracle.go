@@ -300,6 +300,29 @@ func (o *oracle) run(ctx context.Context) error {
 		}
 	}
 
+	// The route the verifier tells a parked import from an absent one on. A
+	// node without it answers "unknown request", which the child reads as a
+	// fault, so every package importing an absent path would sit pending
+	// where it should be rejected. Asked until the node answers, like the
+	// ceiling; a node that answers without it is refused here, visibly.
+	for {
+		served, answered := o.queryPkgMetaRoute(ctx)
+		if answered {
+			if !served {
+				return errors.New("this node does not answer vm/qpkgmeta_json, which " +
+					"verification needs to tell a parked import from an absent one; " +
+					"point gpao at a node that serves it")
+			}
+			break
+		}
+		select {
+		case <-ctx.Done():
+			o.logln("gpao: shutting down")
+			return nil
+		case <-ticker.C:
+		}
+	}
+
 	// Verification runs on its own goroutine, never on the block reader.
 	//
 	// The original reason was that verification was unbounded; a child process
@@ -512,6 +535,15 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
 		return
 	}
+	if errors.Is(err, errAwaitingDependency) {
+		// Left unseen, so a resubmission or a restart once the import is
+		// enabled gets a fresh look, and uncounted: a cap would end in the
+		// outcome this branch exists to prevent, valid bytes refused for the
+		// order they were sent in.
+		o.status.record(path, statusPending, err.Error(), 0)
+		o.logf("gpao: %q waits on a parked import, leaving it pending: %v", path, err)
+		return
+	}
 	// A rejection IS a verdict about the bytes, so record it: re-verifying them
 	// would reach the same answer, and the submitter has to change something for
 	// it to be worth another look -- which produces a different key.
@@ -627,6 +659,30 @@ func (o *oracle) queryBlockMaxGas(ctx context.Context) (maxGas int64, answered b
 	return maxGas, true
 }
 
+// queryPkgMetaRoute asks whether the node serves vm/qpkgmeta_json, and
+// reports whether it answered at all, split the way queryBlockMaxGas is. Any
+// path serves as the question: an absent one is a successful "absent", so
+// only an unknown-request answer means the route is missing. Any other error
+// is the node describing itself, a restart or a replay, and is asked again.
+func (o *oracle) queryPkgMetaRoute(ctx context.Context) (served, answered bool) {
+	const probePath = "gno.land/p/gpao/probe"
+	res, err := o.client.RPCClient.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(probePath))
+	if err != nil {
+		o.errf("gpao: vm/qpkgmeta_json probe failed, asking again: %v", err)
+		return false, false
+	}
+	switch qerr := res.Response.Error; qerr.(type) {
+	case nil:
+		return true, true
+	case std.UnknownRequestError, *std.UnknownRequestError:
+		o.errf("gpao: the node refused vm/qpkgmeta_json: %v", qerr)
+		return false, true
+	default:
+		o.errf("gpao: vm/qpkgmeta_json probe answered an error, asking again: %v", qerr)
+		return false, false
+	}
+}
+
 // blockMaxGasFrom picks the ceiling from a consensus-params response, returning
 // fallback for anything unusable: no response, no block section, or a bound of
 // zero or less.
@@ -737,6 +793,11 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // the per-path allowance, because the operator's box misbehaving is not the
 // submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
+
+// errAwaitingDependency reports that the package failed to type-check only on
+// imports the chain holds parked, awaiting their own approval. Not a verdict,
+// and neither an overrun nor a fault, so it counts against no allowance.
+var errAwaitingDependency = errors.New("awaiting a dependency")
 
 // gasHeadroomNum/Den add 20% to a measured estimate.
 //

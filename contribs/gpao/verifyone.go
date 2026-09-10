@@ -123,17 +123,24 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 		exitNoVerdict(cio.Err(), err)
 	}
 	if err := v.prepare(&mpkg); err != nil {
-		// Setting up for the compile failed: the network under the resolver, or
-		// a dependency the chain is already running that this tree cannot
-		// build. Neither is evidence about the candidate.
+		// Setting up for the compile failed: the network under the resolver, a
+		// dependency the chain is already running that this tree cannot build,
+		// or one the node will not serve. None is evidence about the candidate.
 		exitNoVerdict(cio.Err(), err)
 	}
 	// Everything the compile needs is local now. The parent starts the budget
 	// on this line.
 	fmt.Fprintln(cio.Out(), childReadyMarker)
 	if err := v.verifyPackage(&mpkg); err != nil {
-		if errors.Is(err, errResolverUnavailable) {
+		// Neither is a verdict, and the status is the only channel the parent
+		// classifies on. Unavailable first: a parked import found while the
+		// network was failing is unconfirmed.
+		switch {
+		case errors.Is(err, errResolverUnavailable):
 			exitNoVerdict(cio.Err(), err)
+		case errors.Is(err, errImportParked):
+			fmt.Fprintln(cio.Err(), err)
+			os.Exit(exitImportParked)
 		}
 		return err
 	}
@@ -165,6 +172,11 @@ func exitNoVerdict(w io.Writer, err error) {
 // status alone.
 const exitResolverUnavailable = 3
 
+// exitImportParked is the child's exit status when the typecheck failed only
+// on imports parked on the chain awaiting their own approval: the verdict
+// belongs to the queue's order, not to the package. See errImportParked.
+const exitImportParked = 4
+
 // childReadyMarker is the one line the child writes to stdout, once every
 // source the compile needs is local. The parent starts the budget when it
 // arrives, so what the budget measures is the compile and nothing else.
@@ -190,9 +202,11 @@ const childReadyMarker = "gpao: ready"
 //
 // Exit status is the verdict: a clean exit passes, and a non-zero exit from a
 // child that ran to completion is a rejection carrying the child's stderr as
-// the reason. Two exits are not verdicts at all: exitResolverUnavailable, which
-// says verification could not obtain evidence and becomes errVerifyUnavailable,
-// and a deadline, which becomes errVerifyBudget. Upstream treats both as "no
+// the reason. Three exits are not verdicts at all: exitResolverUnavailable,
+// which says verification could not obtain evidence and becomes
+// errVerifyUnavailable; exitImportParked, which says the package waits on an
+// import the chain holds parked and becomes errAwaitingDependency; and a
+// deadline, which becomes errVerifyBudget. Upstream treats all three as "no
 // verdict yet" rather than as a rejection, and that distinction matters — a
 // rejected package is settled, a slow one may just have lost a race with
 // whatever else the machine was doing.
@@ -277,8 +291,11 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		if msg == "" {
 			msg = runErr.Error()
 		}
-		if ee.ExitCode() == exitResolverUnavailable {
+		switch ee.ExitCode() {
+		case exitResolverUnavailable:
 			return fmt.Errorf("%w: %s", errVerifyUnavailable, msg)
+		case exitImportParked:
+			return fmt.Errorf("%w: %s", errAwaitingDependency, msg)
 		}
 		return errors.New(msg)
 	}

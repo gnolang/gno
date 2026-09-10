@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -17,6 +23,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
+// answersPkgMeta is a nil rpcclient.Client that answers the startup probe for
+// vm/qpkgmeta_json, which every stub that reaches the work loops has to pass.
+// Every other method still panics, as in stubRPC.
+type answersPkgMeta struct {
+	rpcclient.Client
+}
+
+func (answersPkgMeta) ABCIQuery(context.Context, string, []byte) (*ctypes.ResultABCIQuery, error) {
+	return &ctypes.ResultABCIQuery{}, nil
+}
+
 // bootRaceRPC is a node that is not up yet: the first `failures` Status calls
 // error, later ones answer with a tip that advances a block per poll, the way a
 // live chain's does. Asking for a block proves the oracle survived the boot
@@ -24,7 +41,7 @@ import (
 // nil on purpose, as in stubRPC: an unexpected call panics rather than passing
 // silently.
 type bootRaceRPC struct {
-	rpcclient.Client
+	answersPkgMeta
 	mu         sync.Mutex
 	failures   int
 	tip        int64
@@ -100,7 +117,7 @@ func TestRunSurvivesTheBootRace(t *testing.T) {
 // for a block ends the run, so the height recorded is the one the oracle chose
 // to begin at. The embedded interface is nil on purpose, as in stubRPC.
 type explicitStartRPC struct {
-	rpcclient.Client
+	answersPkgMeta
 	mu         sync.Mutex
 	tip        int64
 	blockAsked *int64 // first height asked of Block, nil until then
@@ -219,7 +236,7 @@ func TestRunAdoptsTheCeilingOnceTheChainAnswers(t *testing.T) {
 // The first block read ends the run. The embedded interface is nil on purpose,
 // as in stubRPC.
 type ceilingFirstRPC struct {
-	rpcclient.Client
+	answersPkgMeta
 	mu           sync.Mutex
 	failures     int
 	tip          int64
@@ -292,7 +309,7 @@ func TestRunWaitsForTheCeilingBeforeWorking(t *testing.T) {
 // asked for, and answering ends the run. The embedded interface is nil on
 // purpose, as in stubRPC.
 type startupTipRPC struct {
-	rpcclient.Client
+	answersPkgMeta
 	mu     sync.Mutex
 	asked  bool
 	cancel context.CancelFunc
@@ -437,7 +454,7 @@ func TestRunPacesAnUnusableTipAnswer(t *testing.T) {
 // anchored to, so asking ends the run. The embedded interface is nil on
 // purpose, as in stubRPC.
 type ceilingSlowRPC struct {
-	rpcclient.Client
+	answersPkgMeta
 	mu         sync.Mutex
 	failures   int
 	tip        int64
@@ -504,4 +521,111 @@ func TestRunPinsTheTipBeforeWaitingOnTheCeiling(t *testing.T) {
 	require.NotNil(t, rpc.blockAsked, "the oracle never started following blocks")
 	require.Equal(t, int64(6), *rpc.blockAsked,
 		"the tip must be pinned before the ceiling is waited on; anchoring after it skips every block committed during the wait")
+}
+
+// renamingRoute proxies to remote, rewriting one ABCI query path in every
+// request so the node answers with its own unknown-request error: a node
+// built without the route, as an older release is.
+func renamingRoute(t *testing.T, remote, from, to string) http.Handler {
+	t.Helper()
+	proxy := nodeProxy(t, remote)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		body = bytes.ReplaceAll(body, []byte(`"`+from+`"`), []byte(`"`+to+`"`))
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
+		proxy.ServeHTTP(w, r)
+	})
+}
+
+// blockEndsRun is a real node whose first block read ends the run. Reading a
+// block is what the startup checks gate, so reaching one proves they passed.
+type blockEndsRun struct {
+	rpcclient.Client
+	cancel context.CancelFunc
+}
+
+func (c *blockEndsRun) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
+	c.cancel()
+	return c.Client.Block(ctx, height)
+}
+
+// TestRunRefusesANodeWithoutThePackageMetaRoute pins that the daemon does not
+// start against a node that cannot answer vm/qpkgmeta_json.
+//
+// The verifier asks that route about every import vm/qfile would not serve;
+// it is what tells a parked import from an absent one. A node without it
+// answers "unknown request", which the child reads as the node describing
+// itself rather than the path, so every package importing an absent path is
+// left pending and uncounted where it should be rejected, and nothing in the
+// log names the route. Refusing at startup is the one place the mismatch is
+// visible.
+func TestRunRefusesANodeWithoutThePackageMetaRoute(t *testing.T) {
+	cfg := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	node, remote := integration.TestingInMemoryNode(t, log.NewNoopLogger(), cfg)
+	defer node.Stop()
+
+	t.Run("a node without the route is refused", func(t *testing.T) {
+		gone := httptest.NewServer(renamingRoute(t, remote, "vm/qpkgmeta_json", "vm/qpkgmeta_gone"))
+		t.Cleanup(gone.Close)
+		rpc, err := rpcclient.NewHTTPClient(gone.URL)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		o := newStubOracle(rpc)
+		o.cfg.pollInterval = time.Millisecond
+		o.cfg.startHeight = 1
+
+		err = o.run(ctx)
+		require.Error(t, err, "a node that cannot classify an unresolved import must not be followed")
+		assert.ErrorContains(t, err, "vm/qpkgmeta_json", "the refusal must name the route")
+	})
+
+	t.Run("a node answering with another error is asked again", func(t *testing.T) {
+		// Rewritten to vm/qfile, the first two probes draw the node's "package
+		// not available": an answered error that says nothing about the route.
+		var probes atomic.Int32
+		proxy := nodeProxy(t, remote)
+		flaky := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			if bytes.Contains(body, []byte(`"vm/qpkgmeta_json"`)) && probes.Add(1) <= 2 {
+				body = bytes.ReplaceAll(body, []byte(`"vm/qpkgmeta_json"`), []byte(`"vm/qfile"`))
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			r.ContentLength = int64(len(body))
+			proxy.ServeHTTP(w, r)
+		}))
+		t.Cleanup(flaky.Close)
+		rpc, err := rpcclient.NewHTTPClient(flaky.URL)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		o := newStubOracle(&blockEndsRun{Client: rpc, cancel: cancel})
+		o.cfg.pollInterval = time.Millisecond
+		o.cfg.startHeight = 1
+
+		require.NoError(t, o.run(ctx), "only a missing route may refuse the node")
+		require.ErrorIs(t, ctx.Err(), context.Canceled,
+			"the run must have ended on the block read, which cancels, not on the deadline")
+		assert.Greater(t, probes.Load(), int32(2), "premise: the probe was refused before it was answered")
+	})
+
+	t.Run("a node with the route is followed", func(t *testing.T) {
+		rpc, err := rpcclient.NewHTTPClient(remote)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		o := newStubOracle(&blockEndsRun{Client: rpc, cancel: cancel})
+		o.cfg.pollInterval = time.Millisecond
+		o.cfg.startHeight = 1
+
+		require.NoError(t, o.run(ctx))
+		require.ErrorIs(t, ctx.Err(), context.Canceled,
+			"the run must have ended on the block read, which cancels, not on the deadline")
+	})
 }

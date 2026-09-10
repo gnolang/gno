@@ -1,19 +1,13 @@
-# **Red on master, and red on this branch: it states what should happen, and
-# picking the fix is a design decision this change does not make.**
-#
 # A dependency awaiting its own approval settles nothing about the package that
-# imports it. Submission order alone decides whether a valid set of packages can
-# ever deploy, and nothing tells the submitter why.
+# imports it: the dependent is left pending and unseen, and identical bytes
+# resubmitted once the dependency is live deploy.
 #
-# The oracle holds a policy it does not apply here. Where preprocess meets an
-# import it cannot resolve, it skips the stage and approves on the typecheck
-# alone rather than refuse a package for a limit of the oracle. A parked
-# dependency never reaches that policy: the verifier resolves imports through
-# vm/qfile, which cannot see a parked package, so the import fails at typecheck,
-# and verifyPackage returns that error without ever calling preprocess.
-# handleCandidate then treats it as a verdict about the code, recording rejected
-# and marking the content hash seen, so resubmitting identical bytes is a silent
-# no-op for the life of the process.
+# vm/qfile cannot see a parked package, so the type check reports the import
+# exactly as it would one that was never submitted. Before the budget starts,
+# the verifier asks vm/qpkgmeta_json about every import the node would not
+# serve, and a type check that fails only on imports recorded parked is not a
+# verdict; the parent leaves the package pending without marking its content
+# hash seen.
 #
 # A failure here is a package that can never deploy again, decided by nothing
 # but the order it was sent in.
@@ -28,9 +22,9 @@ gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot 
 # A third package imports a path submitted nowhere. It is the control: an import
 # that exists in neither key space is the submitter's mistake, and it has to
 # stay rejected. vm/qfile answers "not found" for a parked path and an absent
-# path alike, so a fix that reads the error text and stops rejecting every
-# unresolved import would turn the dependent green and this arm red. Only
-# vm/qinertpaths tells the two apart.
+# path alike, so a verifier that read the error text and stopped rejecting every
+# unresolved import would pass the dependent and fail this arm. Only the chain,
+# through vm/qpkgmeta_json, tells the two apart.
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/lost -pkgpath gno.land/r/probe/lost $USER_NAME
 
 # -start-height 1 scans from the chain's start: all three submissions committed
