@@ -114,6 +114,16 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
+	// Operator-set, never guessed from the chain-id. Default is the safe kind.
+	// Validated before the chain-id probe so a typo fails without a round-trip.
+	if cfg.NetworkKind == "" {
+		cfg.NetworkKind = components.NetworkTestnet
+	}
+	if !cfg.NetworkKind.Valid() {
+		return nil, fmt.Errorf("invalid network kind %q, want %q or %q",
+			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet)
+	}
+
 	if cfg.ChainID == "" {
 		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
@@ -122,14 +132,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		}
 	}
 
-	// Operator-set, never guessed from the chain-id. Default is the safe kind.
-	if cfg.NetworkKind == "" {
-		cfg.NetworkKind = components.NetworkTestnet
-	}
-	if !cfg.NetworkKind.Valid() {
-		return nil, fmt.Errorf("invalid network kind %q, want %q or %q",
-			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet)
-	}
 	logger.Info("network", "kind", cfg.NetworkKind, "chain-id", cfg.ChainID)
 
 	// Setup client adapter
