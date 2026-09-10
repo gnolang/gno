@@ -29,4 +29,4 @@ func main(cur realm) {
 }
 
 // Error:
-// *gno.land/r/tests/vm/launderrvictim.Immutable is not of type *gno.land/p/demo/tests/launderpkg.Immutable
+// *gno.land/r/tests/vm/launderrvictim.Immutable is not of type *gno.land/p/demo/tests/launderpkg/v0.Immutable

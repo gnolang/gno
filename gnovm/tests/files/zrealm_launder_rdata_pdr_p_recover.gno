@@ -20,7 +20,7 @@ package launderrh_pdr_p_recover
 // aborts before reaching it.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

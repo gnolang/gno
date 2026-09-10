@@ -11,7 +11,7 @@ package launderpdata_p
 // /p/-immutability gate.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 )
 
 func main(cur realm) {

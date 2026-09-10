@@ -23,7 +23,7 @@ package launderrh_mv_immhook_apply
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

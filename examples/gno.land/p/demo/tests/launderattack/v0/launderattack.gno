@@ -5,7 +5,7 @@
 // launderpkg.Object.
 package launderattack
 
-import "gno.land/p/demo/tests/launderpkg"
+import "gno.land/p/demo/tests/launderpkg/v0"
 
 // TamperDirect writes through the pointer in its own body. The body
 // runs under whatever m.Realm the caller had at PushFrameCall — for a

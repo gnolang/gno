@@ -26,7 +26,7 @@ package launderrh_mv_higher_order_chain
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
