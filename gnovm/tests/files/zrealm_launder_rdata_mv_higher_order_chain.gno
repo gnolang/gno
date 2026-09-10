@@ -25,7 +25,7 @@ package launderrh_mv_higher_order_chain
 // .Apply call cuts through the wrapper layers.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/p/demo/tests/launderpkg"
 	"gno.land/r/tests/vm/launderrvictim"
 )

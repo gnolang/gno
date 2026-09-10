@@ -22,7 +22,7 @@ package launderrh_mv_immhook_apply
 // extra safety; the captured pointer carries the exploit.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/p/demo/tests/launderpkg"
 	"gno.land/r/tests/vm/launderrvictim"
 )

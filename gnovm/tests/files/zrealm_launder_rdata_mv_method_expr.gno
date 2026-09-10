@@ -18,7 +18,7 @@ package launderrh_mv_method_expr
 // (zrealm_launder_rdata_mv_method_value.gno), which succeeds.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/p/demo/tests/launderpkg"
 	"gno.land/r/tests/vm/launderrvictim"
 )

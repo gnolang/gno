@@ -16,7 +16,7 @@ package launderm
 // readonly gate fires, and the cross-realm write is rejected.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/p/demo/tests/launderpkg"
 	"gno.land/r/tests/vm/laundervictim"
 )

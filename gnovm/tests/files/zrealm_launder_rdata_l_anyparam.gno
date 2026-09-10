@@ -16,7 +16,7 @@ package launderrh
 // path to a writable view of the field. Panic at the assertion.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

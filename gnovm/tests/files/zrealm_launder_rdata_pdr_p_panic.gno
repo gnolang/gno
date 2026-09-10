@@ -21,7 +21,7 @@ package launderrh_pdr_p_panic
 // it propagate up to attacker recover normally?
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
