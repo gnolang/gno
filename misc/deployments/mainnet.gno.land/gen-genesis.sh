@@ -10,7 +10,7 @@
 #   1. The FILTERED_PACKAGES example set (resolved with transitive deps),
 #      addpkg'd by the deterministic GenesisDeployer key.
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
-#      sole GovDAO T1 member and locks dao.UpdateImpl's AllowedDAOs to
+#      seven GovDAO T1 members and locks dao.UpdateImpl's AllowedDAOs to
 #      r/gov/dao/v3/impl. Transfers are locked at genesis per §126, with
 #      the independence-day exemption list applied (step 9.3).
 #   3. A names.Enable MsgCall (transactions/migration/names-enable/) so
@@ -735,6 +735,8 @@ GENESIS_TXS_JSONL="$WORK_DIR/genesis_txs.jsonl"
 DEPLOYER_BALANCES="$WORK_DIR/deployers_balances.txt"
 VALOPER_CSV="$WORK_DIR/valoper_profiles.csv"
 VALOPER_SEED="$WORK_DIR/valoper-seed.jsonl"
+# Read at step 2 (T1 funding guard) and added to the genesis at step 5.
+BOOTSTRAP_DIR="$SCRIPT_DIR/transactions/base/bootstrap"
 
 print_substep "1.1" "MAINNET_DIR=$MAINNET_DIR"
 print_substep "1.2" "REPO_ROOT=$REPO_ROOT"
@@ -869,6 +871,61 @@ fi
 
 print_substep "2.6" "Unrestricted addresses: $unrestricted_count (sha256 + format verified, all funded)"
 
+# ---- GovDAO T1 members must hold a spendable genesis balance ----
+# The bootstrap MsgRun seeds the T1 members, who then pay gas out of their own
+# pocket for the chain's first proposals. mainnet has no faucet and no
+# transferable supply outside the §126 exemption list, so a member seeded
+# without a balance is locked out of governance with no in-chain way to top up.
+# The addresses are read back out of the bootstrap source rather than repeated
+# here, so this guard cannot drift from what actually gets seeded.
+BOOTSTRAP_GNO="$BOOTSTRAP_DIR/$(jq -r '.body_file' "$BOOTSTRAP_DIR/meta.json")"
+T1_ADDRS_FILE="$WORK_DIR/t1_members.txt"
+grep -oE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\)' "$BOOTSTRAP_GNO" |
+  grep -oE 'g1[0-9a-z]{38}' | sort -u >"$T1_ADDRS_FILE"
+t1_count=$(wc -l <"$T1_ADDRS_FILE" | tr -d ' ')
+if [ "$t1_count" -eq 0 ]; then
+  die "no T1 member found in $BOOTSTRAP_GNO — the SetMember shape this guard greps for has changed"
+fi
+
+t1_unfunded=""
+while IFS= read -r t1_addr; do
+  t1_rc=0
+  t1_line=$(grep -m1 -- "^${t1_addr}=" "$ALLOCATION_TXT") || t1_rc=$?
+  if [ "$t1_rc" -gt 1 ]; then
+    die "grep failed looking up T1 member $t1_addr in the allocation sheet (exit $t1_rc)"
+  fi
+  if [ -z "$t1_line" ]; then
+    for vested in "${VESTED_ACCOUNTS[@]}"; do
+      case "$vested" in "${t1_addr}="*) t1_line="$vested" ;; esac
+    done
+  fi
+  if [ -z "$t1_line" ]; then
+    t1_unfunded="$t1_unfunded  $t1_addr — no genesis balance"$'\n'
+    continue
+  fi
+  # Spendable = total - vested. A continuous schedule that starts before
+  # GENESIS_TIME has already released part of its locked amount by block 1,
+  # so this under-counts on purpose: an entry whose whole balance is
+  # scheduled is reported rather than guessed at.
+  t1_spendable=$(printf '%s\n' "$t1_line" | awk -F'[=;,]' '
+    {
+      total = $2; sub(/ugnot$/, "", total)
+      locked = 0
+      if ($3 == "vesting") { locked = $4; sub(/ugnot$/, "", locked) }
+      printf "%d", total - locked
+    }')
+  if [ "$t1_spendable" -le 0 ]; then
+    t1_unfunded="$t1_unfunded  $t1_addr — whole balance under a vesting schedule ($t1_line)"$'\n'
+  fi
+done <"$T1_ADDRS_FILE"
+if [ -n "$t1_unfunded" ]; then
+  die "$(printf '%s\n%s%s' \
+    "these GovDAO T1 members hold no spendable genesis balance:" \
+    "$t1_unfunded" \
+    "mainnet has no faucet: fund them in the gnolang/independence-day allocation, or drop them from the bootstrap.")"
+fi
+print_substep "2.7" "GovDAO T1 members: $t1_count seeded, each holds a spendable genesis balance"
+
 # ---- Step 3: Build binaries from source
 
 print_step_header 3 "$TOTAL_STEPS" "Build binaries from source"
@@ -958,7 +1015,6 @@ run "$GNOGENESIS_BIN" txs export "$GENESIS_TXS_JSONL" --genesis-path "$GENESIS_F
 
 print_step_header 5 "$TOTAL_STEPS" "Add bootstrap MsgRun (GovDAO seed)"
 
-BOOTSTRAP_DIR="$SCRIPT_DIR/transactions/base/bootstrap"
 BOOTSTRAP_JSONL="$WORK_DIR/bootstrap_tx.jsonl"
 
 print_substep "5.1" "Building AnnotatedTx from $BOOTSTRAP_DIR/..."
