@@ -57,13 +57,15 @@ gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot
 # ---- The head of the closure is unreachable unless every link landed
 # Live. Everything above it had to be verified,
 # approved, broadcast and committed first, in order, or this could not resolve
-# its imports at all.
-eventually gnokey query vm/qrender -data 'gno.land/r/gnoland/boards2/v1:'
+# its imports at all. 90s, because that is 26 verifications and 26 enables, one
+# at a time.
+eventually 90s gnokey query vm/qrender -data 'gno.land/r/gnoland/boards2/v1:'
 stdout 'board'
 
-# The oracle's own verdict on the head, not just the chain's.
-http_get $GPAO_STATUS/status/gno.land/r/gnoland/boards2/v1
-stdout '"status":"approved"'
+# The oracle's own verdict on the head, not just the chain's. Polled: the board
+# records the approval after the broadcast returns, which can be after the
+# render above first answers.
+eventually http_get $GPAO_STATUS/status/gno.land/r/gnoland/boards2/v1 '"status":"approved"'
 
 # Nothing left behind. A one-shot read: the head rendering above already proves
 # the queue drained past every entry, since the head was submitted last.
