@@ -5,7 +5,7 @@ Generate sortable markdown tables with clickable column headers. Sorting state i
 ## Usage
 
 ```go
-import "gno.land/p/samcrew/tablesort"
+import "gno.land/p/samcrew/tablesort/v0"
 
 table := &tablesort.Table{
     Headings: []string{"Name", "Age", "City"},

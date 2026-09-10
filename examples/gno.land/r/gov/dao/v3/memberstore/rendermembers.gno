@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/samcrew/tablesort"
+	"gno.land/p/samcrew/tablesort/v0"
 	"gno.land/p/samcrew/urlfilter"
 )
 
