@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/demo/gnorkle/agent/v0"
 	"gno.land/p/demo/gnorkle/feed/v0"
-	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/gnorkle/message/v0"
 	"gno.land/p/nt/avl/v0"
 )
 

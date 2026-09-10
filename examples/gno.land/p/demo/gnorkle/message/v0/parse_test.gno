@@ -3,7 +3,7 @@ package message_test
 import (
 	"testing"
 
-	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/gnorkle/message/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 

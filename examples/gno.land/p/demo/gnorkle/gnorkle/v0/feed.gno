@@ -2,7 +2,7 @@ package gnorkle
 
 import (
 	"gno.land/p/demo/gnorkle/feed/v0"
-	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/gnorkle/message/v0"
 )
 
 // Feed is an abstraction used by a gnorkle `Instance` to ingest data from
