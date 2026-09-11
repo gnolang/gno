@@ -55,6 +55,34 @@ func TestConvertEmptyNumbers(t *testing.T) {
 	}
 }
 
+func TestConvertFloatArgLengthBound(t *testing.T) {
+	t.Parallel()
+
+	atLimit := "0." + strings.Repeat("7", maxFloatArgLen-2)
+	overLimit := atLimit + "7"
+
+	tests := []struct {
+		argT        gnolang.Type
+		expectedErr string
+	}{
+		{gnolang.Float32Type, "error parsing float32: argument is 1025 bytes, over the 1024 byte limit"},
+		{gnolang.Float64Type, "error parsing float64: argument is 1025 bytes, over the 1024 byte limit"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.argT), func(t *testing.T) {
+			t.Parallel()
+
+			require.NotPanics(t, func() {
+				_ = convertArgToGno(atLimit, tt.argT)
+			})
+			assert.PanicsWithValue(t, tt.expectedErr, func() {
+				_ = convertArgToGno(overLimit, tt.argT)
+			})
+		})
+	}
+}
+
 func TestConvertByteArrayLengthValidation(t *testing.T) {
 	t.Parallel()
 
@@ -86,7 +114,21 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 			b64 := base64.StdEncoding.EncodeToString(input)
 
 			if tt.shouldPanic {
-				require.PanicsWithValue(t, fmt.Sprintf("array length mismatch: declared [%d]byte, got %d bytes", tt.declaredLen, tt.inputLen), func() {
+				// Two distinct guards. An argument of the wrong encoded
+				// length is refused before decoding; one of the right
+				// encoded length that still decodes to the wrong size
+				// (base64 padding makes 1, 2 and 3 bytes share an encoded
+				// length) is refused after.
+				want := base64.StdEncoding.EncodedLen(tt.declaredLen)
+				expected := fmt.Sprintf(
+					"array length mismatch: declared [%d]byte, got %d bytes",
+					tt.declaredLen, tt.inputLen)
+				if len(b64) != want {
+					expected = fmt.Sprintf(
+						"array length mismatch: declared [%d]byte, got a %d byte argument, want %d",
+						tt.declaredLen, len(b64), want)
+				}
+				require.PanicsWithValue(t, expected, func() {
 					convertArgToGno(b64, arrType)
 				})
 			} else {
@@ -97,6 +139,46 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A [N]byte argument is refused on its encoded length before base64 decoding,
+// so an oversized argument never sizes DecodeString's allocation. The decoder
+// ignores \r and \n, so this also removes the malleability that padding a
+// payload with them gave: one array value, unboundedly many spellings.
+func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
+	t.Parallel()
+
+	arrType := &gnolang.ArrayType{Len: 32, Elt: gnolang.Uint8Type}
+	canonical := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	require.Len(t, canonical, base64.StdEncoding.EncodedLen(32))
+
+	// The canonical spelling still converts.
+	tv := convertArgToGno(canonical, arrType)
+	av, ok := tv.V.(*gnolang.ArrayValue)
+	require.True(t, ok)
+	assert.Equal(t, 32, av.GetLength())
+
+	mismatch := func(argLen int) string {
+		return fmt.Sprintf(
+			"array length mismatch: declared [32]byte, got a %d byte argument, want %d",
+			argLen, base64.StdEncoding.EncodedLen(32))
+	}
+
+	// Newline-padded spellings of the same value are no longer accepted.
+	for _, arg := range []string{
+		canonical[:8] + "\n" + canonical[8:],
+		strings.Repeat("\n", 1024) + canonical,
+	} {
+		assert.PanicsWithValue(t, mismatch(len(arg)), func() {
+			convertArgToGno(arg, arrType)
+		})
+	}
+
+	// An oversized argument is refused on length, so base64 never runs on it.
+	huge := strings.Repeat("A", 1_000_000)
+	assert.PanicsWithValue(t, mismatch(len(huge)), func() {
+		convertArgToGno(huge, arrType)
+	})
 }
 
 // ============================================================================
