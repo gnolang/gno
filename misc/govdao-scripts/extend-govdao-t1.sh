@@ -56,7 +56,7 @@ func main(cur realm) {
 			println("skip " + r.name + " -- already " + tier)
 			continue
 		}
-		if err := ms.SetMember(memberstore.T1, r.addr, &memberstore.Member{InvitationPoints: 3}); err != nil {
+		if err := ms.SetMember(memberstore.T1, r.addr, memberstore.NewMember(3)); err != nil {
 			panic(err.Error())
 		}
 		println("seat " + r.name + " as T1")
