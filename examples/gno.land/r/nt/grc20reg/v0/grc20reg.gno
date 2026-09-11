@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/moul/md/v0"
+	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
 	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -155,7 +155,7 @@ func Render(path string) string {
 			token := tokenI.(*grc20.Token)
 			rlmPath, tokenID := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, tokenID)
-			infoLink := "/r/demo/grc20reg:" + key
+			infoLink := "/r/nt/grc20reg/v0:" + key
 			s += "- " + md.Bold(md.EscapeText(token.GetName())) + " - " + rlmLink + " - " + md.Link("info", infoLink) + "\n"
 			return false
 		})

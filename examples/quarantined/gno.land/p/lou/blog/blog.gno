@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/ownable/v0"
-	"gno.land/p/nt/ownable/v0/exts/authorizable"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )

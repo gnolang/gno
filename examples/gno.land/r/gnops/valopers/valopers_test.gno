@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"

@@ -29,8 +29,8 @@ import (
 	"chain"
 
 	"gno.land/r/gov/dao"
-	govimpl "gno.land/r/gov/dao/v0/impl"
-	memberstore "gno.land/r/gov/dao/v0/memberstore"
+	govimpl "gno.land/r/gov/dao/impl/v0"
+	memberstore "gno.land/r/gov/dao/memberstore/v0"
 	susers "gno.land/r/sys/users"
 )
 

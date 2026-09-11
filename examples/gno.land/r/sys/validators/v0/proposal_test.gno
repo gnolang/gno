@@ -433,7 +433,7 @@ func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(cur realm, t *t
 	RotateValoperSigningKey(cross(cur), opA, pubKeyA, pubKeyC)
 	NotifyValoperChanged(cross(cur), opA, pubKeyC, mustAddr(t, pubKeyC), true)
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v0/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
 	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
 	).Execute(cross(cur)))

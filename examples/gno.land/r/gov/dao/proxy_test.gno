@@ -15,7 +15,7 @@ import (
 var cur realm
 
 const (
-	v0 = "gno.land/r/gov/dao/v0/impl"
+	v0 = "gno.land/r/gov/dao/impl/v0"
 	v1 = "gno.land/r/gov/dao/v1/impl"
 	v2 = "gno.land/r/gov/dao/v2/impl"
 	v3 = "gno.land/r/gov/dao/v3/impl"
@@ -67,7 +67,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(testing.NewCodeRealm(v0))
-	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/v0/impl", func() {
+	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/impl/v0", func() {
 		UpdateImpl(cross(cur), UpdateRequest{
 			AllowedDAOs: []string{v0},
 		})

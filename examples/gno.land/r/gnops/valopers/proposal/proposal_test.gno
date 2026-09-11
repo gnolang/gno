@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
-	daoinit "gno.land/r/gov/dao/v0/init" // so that the govdao initializer is executed
+	daoinit "gno.land/r/gov/dao/init/v0" // so that the govdao initializer is executed
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to

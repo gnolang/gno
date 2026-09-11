@@ -7,7 +7,7 @@
 # responsibility of loading standard libraries, thus not making it exceed
 # the --gas-wanted.
 loadpkg gno.land/p/nt/avl/v0
-loadpkg gno.land/p/nt/avl/v0/pager
+loadpkg gno.land/p/nt/avl/pager/v0
 loadpkg gno.land/p/jefft0/avlhelpers/v0
 loadpkg gno.land/p/moul/txlink/v0
 
@@ -172,7 +172,7 @@ import (
 	"gno.land/p/demo/users"
 	"gno.land/p/jefft0/avlhelpers/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/avl/pager/v0"
 )
 
 //----------------------------------------

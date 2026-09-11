@@ -62,7 +62,7 @@ func TestBootstrapWindowStillOpen(t *testing.T) {
 	defer func() { allowedDAOs = saved }()
 
 	allowedDAOs = nil
-	uassert.True(t, InAllowedDAOs("gno.land/r/gov/dao/v0/loader"),
+	uassert.True(t, InAllowedDAOs("gno.land/r/gov/dao/loader/v0"),
 		"an unset allowlist must stay open for genesis bootstrap")
 }
 

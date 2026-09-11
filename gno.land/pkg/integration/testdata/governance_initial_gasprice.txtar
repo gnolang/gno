@@ -1,12 +1,12 @@
 ## Changing InitialGasPrice through governance must not halt EndBlock.
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v0/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 loadpkg gno.land/r/sys/params
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -51,8 +51,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v0/impl"
-	"gno.land/r/gov/dao/v0/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -62,7 +62,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
 -- run/propose.gno --

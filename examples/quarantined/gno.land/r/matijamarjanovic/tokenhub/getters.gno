@@ -3,7 +3,7 @@ package tokenhub
 import (
 	"strings"
 
-	"gno.land/p/nt/grc1155"
+	"gno.land/p/nt/grc1155/v0"
 	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/ufmt/v0"

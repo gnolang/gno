@@ -21,7 +21,7 @@ func TestRegistry(cur realm, t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/demo/grc20reg:gno.land/r/demo/foo.TST)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).TST - [info](/r/nt/grc20reg/v0:gno.land/r/demo/foo.TST)
 `
 	got := Render("")
 	urequire.True(t, strings.Contains(got, expected))

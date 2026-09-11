@@ -13,9 +13,9 @@ loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v0/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 
-loadpkg gno.land/r/gov/dao/v0/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -117,8 +117,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v0/impl"
-	"gno.land/r/gov/dao/v0/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -128,5 +128,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v0/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

@@ -74,7 +74,7 @@ Write a bootstrap script (`/tmp/bootstrap_govdao.gno`):
 package main
 
 import (
-    "gno.land/r/gov/dao/v0/memberstore"
+    "gno.land/r/gov/dao/memberstore/v0"
 )
 
 func main() {
