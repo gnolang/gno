@@ -110,10 +110,8 @@ FILTERED_PACKAGES=(
 # All four entries are REAL: each org's ceremony pair, received 2026-09-10/11
 # (addresses cross-checked against the pubkeys by deriving them). Names
 # follow the house <org>-validator-<n> form regardless of the moniker each
-# org proposed.
-# TODO(mainnet): decide the signer requirements per org (the gno-core
-# testnet pattern is horcrux 2-of-3 / tmkms softsign; mainnet probably
-# wants threshold signers or HSMs for everyone — see the launch checklist).
+# org proposed. How each org protects its signing key (tmkms, horcrux,
+# HSM) is its own infra, outside this genesis.
 INITIAL_VALSET=(
   "gno-core-validator-1 60 g1mmgvcssjw6x4fzphupfg6mtxqt36v000c5rf2a gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqzlmd56sl6gyam3u4sht0fnpvddxl2cf6rdx76rnz7ufcsz8lyh073fcxm"
   "onbloc-validator-1 60 g1hqhetnnz0raw5hps6yxexl7q09a6f8w3anlptt gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp95ay40jg2pc0cpn432z5fny390tfpeycf4hf8msznu9tthulswqhwtucx"
