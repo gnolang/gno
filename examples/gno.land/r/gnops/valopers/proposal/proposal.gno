@@ -7,7 +7,7 @@ import (
 	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	sysparams "gno.land/r/sys/params"
-	validators "gno.land/r/sys/validators/v3"
+	validators "gno.land/r/sys/validators/v0"
 )
 
 var (
@@ -20,8 +20,8 @@ var (
 //
 // Signature is preserved for historical-replay compatibility (gnoland-1
 // callers call this with a single address). Body is rewired to call
-// v3's operator-keyed NewValidatorProposalRequest with a single-element
-// slice; v3's executor re-resolves the signing pubkey from valoperCache
+// v0's operator-keyed NewValidatorProposalRequest with a single-element
+// slice; v0's executor re-resolves the signing pubkey from valoperCache
 // at execution time, so a mid-flight rotation publishes the current key.
 func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	var (
@@ -49,7 +49,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	// Craft the proposal title and description, framed around the
 	// valoper profile. Voters see the operator identity (moniker +
 	// operator address); the signing key is an implementation detail
-	// resolved at execution time by v3's executor.
+	// resolved at execution time by v0's executor.
 	title := ufmt.Sprintf(
 		"Add valoper %s to the valset",
 		valoper.Moniker,

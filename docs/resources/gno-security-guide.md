@@ -173,7 +173,7 @@ Empirically verified across 60+ probe filetests:
 
 ## 4. The Encapsulation Pattern (GRC20 Reference)
 
-`gno.land/p/demo/tokens/grc20` is the canonical example of *safe*
+`gno.land/p/nt/grc20/v0` is the canonical example of *safe*
 `/p/`-declared data. It violates (A) — `Token`, `PrivateLedger`, and
 `fnTeller` are all `/p/`-declared — but compensates with airtight
 encapsulation:

@@ -5,7 +5,7 @@ package web25
 import (
 	"strings"
 
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
 )
 
 type Config struct {

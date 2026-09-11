@@ -36,7 +36,7 @@ import (
 	"chain"
 	prms "sys/params"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 
 	"gno.land/r/gov/dao"
 )

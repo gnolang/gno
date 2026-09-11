@@ -15,7 +15,7 @@ package readonlyrecvmethodval
 //       caller's `v.Field` is unchanged.
 
 import (
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 func main(cur realm) {

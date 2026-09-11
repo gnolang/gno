@@ -1,14 +1,15 @@
 // PKGPATH: gno.land/r/test
 package test
 
-// GVM-01 regression: an append-into-capacity write to a List-backed []byte
-// realm variable must mark the backing ArrayValue dirty via DidUpdate, so the
-// mutation persists. Previously the copyDataToList sub-branch in uverse.go
-// wrote raw bytes into the array's .List without calling DidUpdate, so the
-// array was absent from the realm commit diff and the write was dropped.
+// GVM-01 regression: an append-into-capacity write to a []byte realm variable
+// must mark the backing ArrayValue dirty via DidUpdate, so the mutation
+// persists. Previously the raw-byte sub-branches in uverse.go wrote into the
+// array without calling DidUpdate, so the array was absent from the realm
+// commit diff and the write was dropped.
 //
-// A composite-literal []byte is List-backed (unlike []byte("..."), which is
-// Data-backed); append(b[:1], "Z"...) takes the List-dst + Data-src branch.
+// Every []byte is Data-backed now (composite literals included), so
+// append(b[:1], "Z"...) takes the Data-dst + Data-src branch. The List-dst
+// branch this test originally covered is no longer reachable from Gno source.
 var b = []byte{0, 0, 0, 0}
 
 func main(cur realm) {
@@ -22,18 +23,14 @@ func main(cur realm) {
 // Realm:
 // finalizerealm["gno.land/r/test"]
 // u[08ada09dee16d791fd406d629fe29bb0ed084a30:4](5)=
-//     @@ -8,6 +8,7 @@
-//                  }
-//              },
-//              {
-//     +            "N": "WgAAAAAAAAA=",
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
-//                      "value": "4096"
-//     @@ -29,7 +30,7 @@
+//     @@ -1,10 +1,10 @@
+//      {
+//     -    "Data": "AAAAAA==",
+//     +    "Data": "AFoAAA==",
+//          "List": null,
 //          "ObjectInfo": {
 //              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//              "LastObjectSize": "331",
+//              "LastObjectSize": "181",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
 //              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
@@ -53,8 +50,8 @@ func main(cur realm) {
 //                  "@type": "/gno.SliceValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "27feff93f5aa5d0a0fb9fdb689ef94e977fa794a",
-//     +                "Hash": "fa62c43e66bf8a51800fb8ed91ac0aaaae8ac805",
+//     -                "Hash": "7d99e547c6714ec970a8d1d7ef347b5be0f375e6",
+//     +                "Hash": "600e8853f7b498737742b46001a2f767638ee2ae",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                  },
 //                  "Length": "4",
@@ -72,8 +69,8 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "dacaff18ab949ca294c0ef65d8fa6211de74f30f",
-//     +                "Hash": "7a1c191d2d80ba27de71b8455bf65d4661b9e743",
+//     -                "Hash": "1470b50e5e5f95e1473d33b59da47e4a71fc6cca",
+//     +                "Hash": "a5580c7c34a508d8541176f52bb97ee86344e94a",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },

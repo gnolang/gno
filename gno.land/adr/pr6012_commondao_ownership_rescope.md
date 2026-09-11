@@ -69,11 +69,10 @@ presents a DAO in its own UI*.
   a latent vector in the prior caller-keyed skip, where any realm that created
   one DAO became an unlimited DAO factory for un-invited origins.
 
-  **Superseded — see `prxxxx_commondao_new_user_caller.md`.** Keying the
-  invite on the origin while the council seat came from `cur.Previous()` let a
-  relaying realm redeem a user's invite and take the seat. `New` now keys both
-  on the caller and requires that caller to be a user, which closes the
-  factory vector named above without the split.
+  **Superseded.** Keying the invite on the origin while the council seat came
+  from `cur.Previous()` meant the two could name different identities. `New`
+  now keys both on the caller and requires that caller to be a user, which
+  bounds DAO creation without the split.
 
 ## Alternatives considered
 
@@ -90,8 +89,8 @@ presents a DAO in its own UI*.
   behavior): rejected — it preserves the unlimited-factory vector; origin-keying
   is more spam-resistant and was verified not to break the multi-DAO
   builder-realm test (its origin is a constant EOA across creations).
-  **Superseded — see `prxxxx_commondao_new_user_caller.md`:** caller-keying was
-  adopted, with `assertCallerIsUser` closing the factory vector instead.
+  **Superseded:** caller-keying was adopted, with `assertCallerIsUser`
+  bounding DAO creation instead.
 
 ## Consequences
 

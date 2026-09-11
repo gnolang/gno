@@ -35,24 +35,24 @@ func Render(path string) string {
 Community markdown builders are still useful for composing output after you
 know whether each helper sanitizes internally or expects sanitized input.
 
-- [`gno.land/p/moul/md`](../../examples/gno.land/p/moul/md/md.gno): helpers for
+- [`gno.land/p/moul/md/v0`](../../examples/gno.land/p/moul/md/v0/md.gno): helpers for
   building markdown links, headings, lists, images, code blocks, and text
   escaping.
 
   ```go
-  import "gno.land/p/moul/md"
+  import "gno.land/p/moul/md/v0"
 
   func Render(_ string) string {
       return md.H1("Tasks") + md.TodoList([]string{"review", "ship"}, []bool{true, false})
   }
   ```
 
-- [`gno.land/p/moul/mdtable`](../../examples/gno.land/p/moul/mdtable/mdtable.gno):
+- [`gno.land/p/moul/mdtable/v0`](../../examples/gno.land/p/moul/mdtable/v0/mdtable.gno):
   helpers for markdown tables. Use this when your `Render` output is tabular
   and you want pipe escaping handled consistently.
 
   ```go
-  import "gno.land/p/moul/mdtable"
+  import "gno.land/p/moul/mdtable/v0"
 
   func Render(_ string) string {
       table := mdtable.Table{Headers: []string{"ID", "Status"}}
@@ -64,12 +64,12 @@ know whether each helper sanitizes internally or expects sanitized input.
 - [`gno.land/p/nt/mdalert/v0`](../../examples/gno.land/p/nt/mdalert/v0/README.md):
   helpers for Gno-Flavored Markdown alert blocks.
 
-- [`gno.land/p/sunspirit/md`](../../examples/gno.land/p/sunspirit/md/md.gno):
+- [`gno.land/p/sunspirit/md/v0`](../../examples/gno.land/p/sunspirit/md/v0/md.gno):
   a builder-oriented markdown package. It is convenient when a view is assembled
   from optional fragments.
 
   ```go
-  import "gno.land/p/sunspirit/md"
+  import "gno.land/p/sunspirit/md/v0"
 
   func Render(_ string) string {
       return md.NewBuilder().Add(md.H1("Profile"), md.Bold("active")).Render("\n")
@@ -78,11 +78,11 @@ know whether each helper sanitizes internally or expects sanitized input.
 
 ## Storage Helpers
 
-- [`gno.land/p/moul/ulist`](../../examples/gno.land/p/moul/ulist/ulist.gno):
+- [`gno.land/p/moul/ulist/v0`](../../examples/gno.land/p/moul/ulist/v0/ulist.gno):
   append-oriented list storage with range and offset iteration.
-- [`gno.land/p/moul/addrset`](../../examples/gno.land/p/moul/addrset/addrset.gno):
+- [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/v0/addrset.gno):
   address set semantics.
-- [`gno.land/p/moul/fifo`](../../examples/gno.land/p/moul/fifo/fifo.gno):
+- [`gno.land/p/moul/fifo/v0`](../../examples/gno.land/p/moul/fifo/v0/fifo.gno):
   queue-like storage.
 - `gno.land/p/moul/collection` **(quarantined)**:
   indexed collection patterns built on tree storage and `seqid`.
@@ -103,7 +103,7 @@ For append-only feeds, a list helper can replace a hand-rolled `nextID` plus
 tree pattern:
 
 ```go
-import "gno.land/p/moul/ulist"
+import "gno.land/p/moul/ulist/v0"
 
 var posts = ulist.New()
 
@@ -156,7 +156,7 @@ func IsClaimed(id uint64) bool {
   owner-gated administration with explicit `cur realm` checks.
 - `gno.land/p/nt/pausable/v0` **(quarantined)**:
   pause switches layered on an `ownable.Ownable`.
-- [`gno.land/p/moul/authz`](../../examples/gno.land/p/moul/authz/authz.gno):
+- [`gno.land/p/moul/authz/v0`](../../examples/gno.land/p/moul/authz/v0/authz.gno):
   authorization helper patterns worth studying when a single owner is not
   enough.
 

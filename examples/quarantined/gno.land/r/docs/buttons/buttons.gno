@@ -1,7 +1,7 @@
 package buttons
 
 import (
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

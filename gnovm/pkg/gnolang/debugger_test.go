@@ -158,7 +158,7 @@ func TestDebug(t *testing.T) {
 	})
 
 	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{
-		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests) package{})"},
+		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests/v0) package{})"},
 		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},
 		{in: "s\np tests.xxx\n", out: "Command failed: invalid selector: xxx"},
 	})

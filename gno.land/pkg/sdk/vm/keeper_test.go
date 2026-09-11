@@ -2791,7 +2791,7 @@ func GetError() error { return &BigErr{} }`
 	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
 		// A non-nil error interface wrapping a typed-nil concrete pointer:
 		//   var e *MyErr = nil; return e
-		// tv.ImplError() is true (static type satisfies error), so
+		// tv.ImplError(gm) is true (static type satisfies error), so
 		// tryGetError invokes .Error() — which nil-derefs the receiver.
 		// The defer-recover in tryGetError must catch the panic and
 		// gracefully degrade: no @error field, no process crash.
@@ -3508,16 +3508,16 @@ func TestQueryType_EnvelopeValidJSON(t *testing.T) {
 		"envelope must be valid JSON; got %q", envelope)
 }
 
-// TestVMKeeperQueryEvalBignumDoS is a regression test for the unmetered
-// O(n^2) big-number-literal DoS reachable via the free vm/qeval query path: a
-// huge integer/float literal parsed by big.Int.SetString / big.ParseFloat.
-// The quadratic CPU charge in doOpEval makes each attack expression exhaust
-// the query gas budget before the parse runs, instead of billing ~84 gas for
-// hundreds of ms of CPU; a small literal still evaluates. The sibling
-// chained-shift vector is metered in doOpShl and covered by
-// TestPreprocessGas_BignumDoS in gnovm/pkg/gnolang (fast, deterministic via a
-// small gas meter). See gnovm/adr/prxxxx_qeval_bignum_dos.md.
-func TestVMKeeperQueryEvalBignumDoS(t *testing.T) {
+// TestVMKeeperQueryEvalBignumGas pins the charge on big-number literal
+// parsing as reached through the vm/qeval query path: a huge integer or float
+// literal is parsed by big.Int.SetString / big.ParseFloat, which is O(n^2) in
+// the digit count. The quadratic CPU charge in doOpEval makes such an
+// expression exhaust the query gas budget before the parse runs, instead of
+// billing ~84 gas for hundreds of ms of CPU; a small literal still evaluates.
+// Chained shifts are charged in doOpShl and covered by
+// TestPreprocessGas_BignumLiterals in gnovm/pkg/gnolang (fast and
+// deterministic via a small gas meter).
+func TestVMKeeperQueryEvalBignumGas(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -3526,10 +3526,10 @@ func TestVMKeeperQueryEvalBignumDoS(t *testing.T) {
 	env.acck.SetAccount(ctx, acc)
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(20000000)))
 
-	pkgPath := "gno.land/r/test/bignumdos"
+	pkgPath := "gno.land/r/test/bignumgas"
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
-		{Name: "x.gno", Body: "package bignumdos\n\nfunc Noop() {}\n"},
+		{Name: "x.gno", Body: "package bignumgas\n\nfunc Noop() {}\n"},
 	}
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
 	env.vmk.CommitGnoTransactionStore(ctx)
@@ -3659,7 +3659,7 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 				sl.name, sl.slope, deliverable, refusedAt, margin)
 			require.Greater(t, refusedAt, deliverable,
 				"%s: if the charge ever refuses at or below the deliverable size, this residual "+
-					"is closed and the ADR's 'does not close the DoS' caveat can go", sl.name)
+					"is closed and this residual guard can go", sl.name)
 		}
 		// The FLOAT margin is the tight one (~1.15x vs ~1.63x for INT) because
 		// FLOAT is charged at twice the slope. Guard it explicitly: lowering

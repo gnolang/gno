@@ -584,8 +584,8 @@ func TestParamsValidateCodeSubmissionPolicy(t *testing.T) {
 //
 // These lists are decoded on every transaction by the ante closure, before
 // auth's SetGasMeter installs the per-tx meter — so the decode is unmetered
-// work that the party who grew the list does not pay for. Without a cap that is
-// a cheap, permanent, per-transaction DoS.
+// work that the party who grew the list does not pay for, so the list length
+// has to be bounded where it is set.
 func TestAddressListLengthCap(t *testing.T) {
 	t.Parallel()
 

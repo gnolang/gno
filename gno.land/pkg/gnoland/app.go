@@ -469,7 +469,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		"elapsed", time.Since(start))
 
 	// Hardfork-mode invariant: every signing addr in valset:current must
-	// have a corresponding valoper profile in r/sys/validators/v3's
+	// have a corresponding valoper profile in r/sys/validators/v0's
 	// valoperCache. valoper-seed migration .jsonls produce these profiles;
 	// the chain refuses to boot if any genesis validator is uncovered.
 	//
@@ -514,12 +514,12 @@ func (cfg InitChainerConfig) shouldRunValoperCoverageAssertion(req abci.RequestI
 	return !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req)
 }
 
-// shouldAssertValoperCoverage gates the hardfork-mode v3 invariant
+// shouldAssertValoperCoverage gates the hardfork-mode v0 invariant
 // check. Requires (1) non-empty PastChainIDs (authoritative hardfork
 // signal — InitialHeight alone isn't, since dev/testnets use
 // InitialHeight > 1 for non-hardfork scenarios) and (2) non-empty
 // req.Validators (otherwise the check is trivial and would needlessly
-// require v3 to be loaded).
+// require v0 to be loaded).
 func shouldAssertValoperCoverage(req abci.RequestInitChain) bool {
 	if len(req.Validators) == 0 {
 		return false
@@ -1016,31 +1016,31 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 	}, false
 }
 
-// validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
+// validatorsPkgPath is the realm whose AssertGenesisValopersConsistent
 // invariant gates hardfork-mode boot.
 const (
-	validatorsV3PkgPath       = "gno.land/r/sys/validators/v3"
-	assertGenesisValopersFunc = "AssertGenesisValopersConsistent"
-	missingV3PkgPanicSubstr   = "unexpected node with location " + validatorsV3PkgPath
+	validatorsPkgPath           = "gno.land/r/sys/validators/v0"
+	assertGenesisValopersFunc   = "AssertGenesisValopersConsistent"
+	missingValsetPkgPanicSubstr = "unexpected node with location " + validatorsPkgPath
 )
 
-// assertGenesisValopersConsistent invokes the v3 assertion via the VM
+// assertGenesisValopersConsistent invokes the v0 assertion via the VM
 // keeper directly (no tx pipeline, no AnteHandler, no fee accounting).
 //
 // Caller is the first genesis validator's address; the call sends zero
 // coins so no account need exist for it.
 //
-// If v3 isn't deployed, the underlying gnostore lookup panics outside
+// If v0 isn't deployed, the underlying gnostore lookup panics outside
 // vmk.Call's recover. The defer below catches that case and skips with
-// a warning — production hardforks always deploy v3, and if they
+// a warning — production hardforks always deploy v0, and if they
 // don't, the valoper-seed Register migration txs panic loudly anyway.
 func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci.RequestInitChain) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			msg := fmt.Sprint(r)
-			if strings.Contains(msg, missingV3PkgPanicSubstr) {
+			if strings.Contains(msg, missingValsetPkgPanicSubstr) {
 				ctx.Logger().Warn(
-					"valoper coverage assertion skipped: v3 not deployed in genesis",
+					"valoper coverage assertion skipped: v0 not deployed in genesis",
 					"detail", msg,
 				)
 				err = nil
@@ -1051,7 +1051,7 @@ func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci
 	}()
 	msg := vm.MsgCall{
 		Caller:  req.Validators[0].Address,
-		PkgPath: validatorsV3PkgPath,
+		PkgPath: validatorsPkgPath,
 		Func:    assertGenesisValopersFunc,
 	}
 	vmCtx := vmk.MakeGnoTransactionStore(ctx)
@@ -1216,11 +1216,11 @@ func EndBlocker(
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
-		// exactly the entries with Power > 0. v3's normal flow emits
+		// exactly the entries with Power > 0. v0's normal flow emits
 		// the effective set as positive-power entries — but the
 		// callback also accepts an all-removes proposal that
 		// publishes entries=[]string{}, so all-Power=0 is reachable
-		// at the v3 boundary; this floor is the consensus-safety
+		// at the v0 boundary; this floor is the consensus-safety
 		// backstop.
 		liveCount := 0
 		for _, u := range proposedSet {

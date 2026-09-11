@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 func makeBoardURI(b *boards.Board) string {

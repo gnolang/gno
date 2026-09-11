@@ -1452,11 +1452,35 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 }
 
 func (m *Machine) incrCPU(cycles int64) {
-	if m.GasMeter != nil {
-		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
-	}
+	chargeCPUGas(m.GasMeter, cycles) // May panic if out of gas.
 	m.Cycles += cycles
+}
+
+// chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
+// GasFactorCPU); nil gm is a no-op. It meters work that runs outside the
+// Machine op loop — the interface-satisfaction BFS (checkImplementedBy) —
+// during both preprocess (gm from preprocessGasMeterOf) and runtime
+// (gm = m.GasMeter). May panic with OutOfGasError.
+func chargeCPUGas(gm store.GasMeter, cycles int64) {
+	if gm != nil {
+		gm.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
+	}
+}
+
+// preprocessGasMeterOf returns the per-transaction gas meter installed on
+// st's preprocess allocator by the keeper, or nil when none is (tests,
+// tooling). It is fetched per use and threaded down explicitly: a
+// process-global would race and cross-bill gas between a query's
+// preprocess and a concurrent DeliverTx.
+func preprocessGasMeterOf(st Store) store.GasMeter {
+	if st == nil {
+		return nil
+	}
+	pa := st.GetPreprocessAllocator()
+	if pa == nil {
+		return nil
+	}
+	return pa.GetGasMeter()
 }
 
 const (
@@ -1629,12 +1653,21 @@ const (
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
+	OpCPUSlopeConvertBytesStr = 4   // per byte bytes→string; same memcpy OpCPUSlopeCopyPrimitive prices
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
 	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
 	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
+	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
+	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.
+	// Dev-box fit (embedwalk_bench_m5_arm64.txt, machine factor 2.1):
+	// expand 161, scan 24.2, trail/hop 131.5 reference-ns.
+	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
+	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
+	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
@@ -1797,13 +1830,27 @@ func (m *Machine) Run(st Stage) {
 // *Exception panic is caught. Returns the caught exception, or nil if the
 // loop completed normally. Non-Exception panics are re-raised.
 func (m *Machine) runOnce() (caught *Exception) {
+	// Anchors never span an op, so the depth on entry is the depth every
+	// op must return to. An op that panics part-way through a fill would
+	// otherwise leave its buffer anchored forever, and a recovered panic
+	// in a loop would grow the anchor list without bound.
+	anchorDepth := m.Alloc.AnchorDepth()
 	defer func() {
-		if r := recover(); r != nil {
-			if ex, ok := r.(*Exception); ok {
-				caught = ex
-			} else {
-				panic(r)
+		r := recover()
+		if r == nil {
+			if debugAssert && m.Alloc.AnchorDepth() != anchorDepth {
+				panic("runOnce: unbalanced Allocator anchor — every PushAnchor needs a PopAnchor on the op's normal path")
 			}
+			return
+		}
+		// Release anchors the panicking op left behind, whatever the
+		// panic is: the buffer is unreachable now, and a recovered panic
+		// inside a loop would otherwise grow the anchor list per iteration.
+		m.Alloc.TruncateAnchors(anchorDepth)
+		if ex, ok := r.(*Exception); ok {
+			caught = ex
+		} else {
+			panic(r)
 		}
 	}()
 
@@ -3111,7 +3158,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
+		pv = xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]

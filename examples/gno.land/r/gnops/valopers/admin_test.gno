@@ -3,7 +3,7 @@ package valopers
 import (
 	"testing"
 
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 

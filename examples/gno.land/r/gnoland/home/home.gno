@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/leon/svgbtn"
-	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/leon/svgbtn/v0"
+	"gno.land/p/moul/dynreplacer/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/r/devrels/events"
 	blog "gno.land/r/gnoland/blog"

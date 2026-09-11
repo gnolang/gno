@@ -4,7 +4,7 @@ import (
 	"chain/banker"
 	"errors"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

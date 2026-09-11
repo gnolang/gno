@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )

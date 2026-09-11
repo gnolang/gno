@@ -12,8 +12,8 @@
 # `consumer` is funded and so is the registry, so whichever one is debited is
 # visible in the balances rather than inferred.
 
-loadpkg gno.land/p/demo/tokens/grc20
-loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/p/nt/grc20/v0
+loadpkg gno.land/r/nt/grc20reg/v0
 loadpkg gno.land/r/test/wtoken $WORK/wtoken
 loadpkg gno.land/r/test/consumer $WORK/consumer
 
@@ -22,7 +22,7 @@ gnoland start
 # Fund the consumer realm and the registry with equal balances.
 gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintTo -args 'gno.land/r/test/consumer' -args '1000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintTo -args 'gno.land/r/demo/defi/grc20reg' -args '1000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/wtoken -func MintTo -args 'gno.land/r/nt/grc20reg/v0' -args '1000' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stdout OK!
 
 ## Fund the signing user too, so a redirected actor would be visible as a
@@ -71,8 +71,8 @@ package wtoken
 import (
 	"chain"
 
-	"gno.land/p/demo/tokens/grc20"
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 var (
@@ -108,7 +108,7 @@ import (
 	"chain"
 
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/nt/grc20reg/v0"
 	"gno.land/r/test/wtoken"
 )
 
@@ -139,7 +139,7 @@ func again(cur realm, outer realm, amount int64) {
 
 func Balances(cur realm) string {
 	consumer := chain.PackageAddress("gno.land/r/test/consumer")
-	registry := chain.PackageAddress("gno.land/r/demo/defi/grc20reg")
+	registry := chain.PackageAddress("gno.land/r/nt/grc20reg/v0")
 	return ufmt.Sprintf("consumer=%d registry=%d",
 		wtoken.BalanceOf(consumer), wtoken.BalanceOf(registry))
 }

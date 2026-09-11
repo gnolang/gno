@@ -3,7 +3,7 @@ package boards2
 import (
 	"strconv"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 

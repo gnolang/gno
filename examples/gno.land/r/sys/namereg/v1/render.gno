@@ -1,9 +1,9 @@
 package namereg
 
 import (
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/realmpath/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/demo/profile"

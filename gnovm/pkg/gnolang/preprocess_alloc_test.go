@@ -99,9 +99,11 @@ func TestPreprocessAlloc_CumulativeAcrossStatements(t *testing.T) {
 
 // TestPreprocessAlloc_NoGCOnHardCap verifies the panic message
 // distinguishes the no-GC hard cap from the regular GC-retry path.
-// This is the protection invariant: GC during preprocess would
-// undercount because GarbageCollect doesn't visit m.Values, so the
-// preAlloc must NEVER attempt GC on overflow.
+// This is the protection invariant: preAlloc is shared by every
+// preprocess sub-Machine in the tx, so a collect bound to one machine
+// would walk only that machine's roots and free the rest of the tx's
+// preprocess allocations on paper. The preAlloc must therefore NEVER
+// attempt GC on overflow.
 func TestPreprocessAlloc_NoGCOnHardCap(t *testing.T) {
 	st, preAlloc := newPreprocessAllocTestStore(t, 2*1024, stypes.NewInfiniteGasMeter())
 	defer st.SetPreprocessAllocator(nil)
@@ -506,13 +508,12 @@ func TestShiftAmountGasOverflow(t *testing.T) {
 	}
 }
 
-// TestPreprocessGas_BignumDoS pins the fixes for the free vm/qeval big-number
-// DoS at the layer where the O(n^2) work actually runs — constant folding
-// during preprocess. Constant folding inherits the store's preprocess-
-// allocator gas meter (same wiring as keeper AddPackage / withQueryEvalMachine),
-// so a small finite meter here mirrors the real charging path while staying
-// fast and deterministic. See gnovm/adr/prxxxx_qeval_bignum_dos.md.
-func TestPreprocessGas_BignumDoS(t *testing.T) {
+// TestPreprocessGas_BignumLiterals pins the big-number charges at the layer
+// where the O(n^2) work actually runs — constant folding during preprocess.
+// Constant folding inherits the store's preprocess-allocator gas meter (same
+// wiring as keeper AddPackage / withQueryEvalMachine), so a small finite meter
+// here mirrors the real charging path while staying fast and deterministic.
+func TestPreprocessGas_BignumLiterals(t *testing.T) {
 	newMachine := func(t *testing.T, pkgName string, gm stypes.GasMeter) *Machine {
 		t.Helper()
 		st, _ := newPreprocessAllocTestStore(t, 256*1024*1024, gm)
@@ -543,9 +544,9 @@ func TestPreprocessGas_BignumDoS(t *testing.T) {
 	// charge the 2000-shift chain bills only ~760K gas (per shift amount only)
 	// and would NOT OOG here — so this also guards against regressing part 2.
 	t.Run("chained_shift_oog", func(t *testing.T) {
-		m := newMachine(t, "shldos", stypes.NewGasMeter(10_000_000))
-		body := "package shldos\n\nconst _ = 1" + strings.Repeat(" << 10000", 2000) + "\n"
-		panicked, val := run(t, m, "shldos", body)
+		m := newMachine(t, "shlgas", stypes.NewGasMeter(10_000_000))
+		body := "package shlgas\n\nconst _ = 1" + strings.Repeat(" << 10000", 2000) + "\n"
+		panicked, val := run(t, m, "shlgas", body)
 		require.True(t, panicked, "chained shift must exhaust gas during fold")
 		require.Contains(t, strings.ToLower(fmt.Sprint(val)), "gas",
 			"panic should be out-of-gas, got: %v", val)
