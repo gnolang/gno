@@ -304,30 +304,79 @@ VESTED_ACCOUNTS=(
 # TODO(mainnet): OnBloc/AiB still need to be told, since the launch
 # checklist recorded this as open.
 
-# TODO(mainnet): (in progress — Thomas & Antoine) inert-package policy — direction is to ACTIVATE it (see
-# team discussion 2026-09): set in app_state.vm.params at genesis (genesis
-# replay is exempt via IsGenesisReplay, so the 85 genesis packages still
-# execute). ORDER-OF-VALUES matters operationally even at genesis:
-#   - pkg_approvers: TODO — empty admits NOBODY; must be non-empty or
-#     every post-genesis submission parks forever. The intended oracle key
-#     is g1yaaa6rcp4ew5yjzdj4yms596wx2dtrj3a86704, and FUNDING for it is
-#     already resolved: independence-day#79 gives it 1,000 GNOT at genesis
-#     out of the §120 Core Treasury, which at contribs/gpao's default
-#     1000000ugnot fee is ~1,000 approvals. That had to land in the sheet
-#     rather than wait for this decision — with no faucet and §126 in
-#     force, an approver seeded at zero could never be funded afterwards,
-#     and would approve nothing forever. Setting the param is still this
-#     TODO; the money is no longer in the way.
-#   - run_submitters: TODO — empty means OPEN; once non-empty it gates
-#     MsgRun, and GovDAO proposals ARE MsgRun, so the list MUST contain
-#     every governance operator or governance bricks itself.
-#   - inert_submission_charge: TODO — coins per parked submission, paid
-#     to the inert_charge_collector module account (cap 1000 GNOT).
-#   - code_submission_policy: "inert" once the three above are decided.
-# The genesis-patch step is NOT yet wired into this script — when the
-# values land, patch app_state.vm.params on BOTH the shipping genesis and
-# the step-8 measurement genesis (the params-parity assertion enforces
-# they match).
+# ---- Inert code-submission policy (decided) ----
+#
+# mainnet launches under "inert": a post-genesis MsgAddPackage is STORED, not
+# executed, and becomes live only when an address in PKG_APPROVERS sends
+# MsgEnablePackage for the exact bytes it reviewed. Genesis replay is exempt
+# (auth.IsGenesisReplay), so the 85 genesis packages still execute at block 1.
+#
+# Ported from the pearl builder (#6096), with three mainnet-specific
+# differences, each enforced by a guard in step 2.9 rather than a comment:
+#   1. the submission charge is OFF, because it is incompatible with §126;
+#   2. approvers are funded from the allocation sheet, not minted here;
+#   3. RUN_SUBMITTERS must cover every GovDAO T1 member, not just one seed.
+CODE_SUBMISSION_POLICY=inert
+
+# Addresses permitted to send MsgEnablePackage.
+#
+# Load-bearing: with no approver, every submission parks forever and the chain
+# accepts deploys it can never activate (vm.enableBlockedReason ->
+# ReasonNoApprovers). Nothing on chain refuses that state — Params.Validate
+# checks address syntax only, and InitChain logs nothing — so step 2.9 refuses
+# to build it.
+#
+# Keep this to the gpao oracle key and nothing else. An approver can activate
+# any parked package, so it is the second most consequential key on the chain
+# after governance, and it lives unattended on an internet-facing daemon.
+#
+# FUNDING is already resolved: independence-day#79 gives this address 1,000
+# GNOT at genesis out of the §120 Core Treasury, which at contribs/gpao's
+# default 1000000ugnot fee is ~1,000 approvals. That had to land in the sheet
+# rather than wait for this decision — with no faucet and §126 in force, an
+# approver seeded at zero could never be funded afterwards, and would approve
+# nothing forever. Step 2.9 re-checks it against the pinned sheet.
+PKG_APPROVERS=(
+  g1yaaa6rcp4ew5yjzdj4yms596wx2dtrj3a86704 # gpao approval oracle
+)
+
+# Addresses permitted to send MsgRun. EMPTY MEANS OPEN — the param's zero value
+# is "off", so leaving this empty lets anyone execute arbitrary source on a
+# chain whose whole submission policy exists to stop exactly that. "inert"
+# gates package PERSISTENCE; this is the gate on EXECUTION, and only both
+# together give the property the policy is named for.
+#
+# GovDAO proposal creation is MsgRun-only (a ProposalRequest carries a func
+# value, which MsgCall cannot marshal), so every T1 member must appear here or
+# governance is unreachable AND the list can never be amended.
+#
+# DERIVED, not typed: the members are read out of the bootstrap tx at 2.7 and
+# unioned in at 2.9, for the reason the T1 funding guard gives — a second copy
+# here would drift from what actually gets seeded, and the direction it drifts
+# is silent, since a member dropped from this list simply cannot govern.
+RUN_SUBMITTERS_INCLUDE_GOVDAO_T1=true
+
+# Addresses that must `maketx run` WITHOUT being GovDAO members. Empty is the
+# expected state; add an operator here only with a reason, since MsgRun
+# executes arbitrary source.
+RUN_SUBMITTERS_EXTRA=()
+
+# OFF, and it has to be: the charge moves through the bank keeper's RESTRICTED
+# SendCoins (gno.land/pkg/sdk/vm/keeper.go, "a token lock should refuse it, not
+# be bypassed"), while mainnet ships restricted_denoms=["ugnot"] with the §126
+# exemption list. A non-zero charge would therefore make MsgAddPackage
+# unpayable for every address that is not exemption-listed — turning
+# "submissions are reviewed" into "nobody may submit".
+#
+# The cost of leaving it off is that a parked package is permanent state paid
+# for by gas alone: AddInertPackage takes no storage deposit (there are no
+# realm diffs to price until enable), and nothing expires a parked blob —
+# only its creator or an approver can clear it with MsgRejectPackage.
+#
+# Revisit only together with §126: if the transfer lock is lifted, turn the
+# charge on in the same proposal.
+INERT_SUBMISSION_CHARGE=
+INERT_CHARGE_COLLECTOR=
 
 # =============================================================================
 # Internal — everything below is glue, you shouldn't need to change it.
@@ -889,6 +938,49 @@ TOTAL_STEPS=9
 
 printf '\n### mainnet genesis build ###\n'
 
+# ---- Code-submission vm params ----
+# Applied to BOTH the shipping genesis and the step-8 measurement genesis, from
+# ONE function. The params-parity assertion in step 8 requires the two to be
+# byte-identical, and two call sites building the same JSON is exactly how they
+# drift -- the same reasoning that keeps ChainDomain read from one place.
+#
+# Only non-empty values are written, so an unset list stays at the null the
+# generator produced. Writing [] instead would mean the same thing to Params
+# but would have to be written identically on both sides to keep parity.
+apply_code_submission_params() {
+  local genesis="$1" patched="$1.vmparams" approvers_json run_json applied applied_n
+  approvers_json=$(printf '%s\n' "${PKG_APPROVERS[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+  run_json=$(printf '%s\n' "${RUN_SUBMITTERS[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+  jq --arg policy "$CODE_SUBMISSION_POLICY" \
+    --argjson approvers "$approvers_json" \
+    --argjson runners "$run_json" \
+    --arg charge "$INERT_SUBMISSION_CHARGE" \
+    --arg collector "$INERT_CHARGE_COLLECTOR" \
+    '.app_state.vm.params.code_submission_policy = $policy
+     | if ($approvers | length) > 0 then .app_state.vm.params.pkg_approvers = $approvers else . end
+     | if ($runners | length) > 0 then .app_state.vm.params.run_submitters = $runners else . end
+     | if $charge != "" then .app_state.vm.params.inert_submission_charge = $charge else . end
+     | if $collector != "" then .app_state.vm.params.inert_charge_collector = $collector else . end' \
+    "$genesis" >"$patched"
+  mv "$patched" "$genesis"
+
+  # Read back. A jq path typo writes a new key and reports nothing, and the
+  # chain would then boot on the generator default -- "permissionless" -- with
+  # every guard above having passed.
+  applied=$(jq -r '.app_state.vm.params.code_submission_policy' "$genesis")
+  if [ "$applied" != "$CODE_SUBMISSION_POLICY" ]; then
+    die "code_submission_policy did not apply to $genesis: wanted '$CODE_SUBMISSION_POLICY', genesis has '$applied'"
+  fi
+  applied_n=$(jq -r '.app_state.vm.params.pkg_approvers | length // 0' "$genesis")
+  if [ "$applied_n" -ne "${#PKG_APPROVERS[@]}" ]; then
+    die "pkg_approvers did not apply to $genesis: wanted ${#PKG_APPROVERS[@]}, genesis has $applied_n"
+  fi
+  applied_n=$(jq -r '.app_state.vm.params.run_submitters | length // 0' "$genesis")
+  if [ "$applied_n" -ne "${#RUN_SUBMITTERS[@]}" ]; then
+    die "run_submitters did not apply to $genesis: wanted ${#RUN_SUBMITTERS[@]}, genesis has $applied_n"
+  fi
+}
+
 # ---- Step 1: Resolve script paths and tooling
 
 print_step_header 1 "$TOTAL_STEPS" "Resolve script paths and tooling"
@@ -1243,6 +1335,122 @@ if [ "$names_admin_in_tree" != "$NAMES_ADMIN" ]; then
     "Update NAMES_ADMIN and transactions/migration/names-enable/meta.json after confirming who that address belongs to.")"
 fi
 print_substep "2.9" "names admin matches r/sys/names in-tree: $names_admin_in_tree"
+
+# ---- Inert policy: the four values have to agree with each other ----
+# RUN_SUBMITTERS is assembled here, after 2.7 has read the seeded T1 members
+# out of the bootstrap source, so the list cannot disagree with the membership
+# the same build is about to seed.
+RUN_SUBMITTERS=()
+if [ "$RUN_SUBMITTERS_INCLUDE_GOVDAO_T1" = true ]; then
+  while IFS= read -r t1_addr; do
+    [ -n "$t1_addr" ] && RUN_SUBMITTERS+=("$t1_addr")
+  done <"$T1_ADDRS_FILE"
+fi
+for extra_addr in "${RUN_SUBMITTERS_EXTRA[@]}"; do
+  case " ${RUN_SUBMITTERS[*]} " in
+  *" $extra_addr "*) die "RUN_SUBMITTERS_EXTRA lists $extra_addr, which is already a seeded GovDAO T1 member" ;;
+  *) RUN_SUBMITTERS+=("$extra_addr") ;;
+  esac
+done
+
+# Every one of these is a state the chain accepts and cannot repair on its
+# own: Params.Validate checks address syntax and nothing else, and InitChain
+# logs a note for an empty run_submitters but says nothing about an empty
+# pkg_approvers. A genesis is forever, so they are build-time errors here.
+case "$CODE_SUBMISSION_POLICY" in
+permissionless | permissioned | inert) ;;
+*) die "CODE_SUBMISSION_POLICY must be permissionless, permissioned or inert (got '$CODE_SUBMISSION_POLICY')" ;;
+esac
+
+# An approver list that is set under the wrong policy is as broken as an empty
+# one under "inert" -- nothing would ever park, so the approvers would have
+# nothing to enable and the key would be armed for no reason.
+if [ "$CODE_SUBMISSION_POLICY" = inert ] && [ "${#PKG_APPROVERS[@]}" -eq 0 ]; then
+  die "$(printf '%s\n%s' \
+    "CODE_SUBMISSION_POLICY=inert with an empty PKG_APPROVERS: every post-genesis submission would park with nobody able to enable it, forever." \
+    "Paste the gpao oracle address into PKG_APPROVERS.")"
+fi
+if [ "$CODE_SUBMISSION_POLICY" != inert ] && [ "${#PKG_APPROVERS[@]}" -gt 0 ]; then
+  die "PKG_APPROVERS is set but CODE_SUBMISSION_POLICY is '$CODE_SUBMISSION_POLICY': nothing would ever park, so the approvers would have nothing to enable"
+fi
+
+for inert_addr in "${PKG_APPROVERS[@]}" "${RUN_SUBMITTERS[@]}"; do
+  case "$inert_addr" in
+  g1*) [ "${#inert_addr}" -eq 40 ] || die "malformed address in PKG_APPROVERS/RUN_SUBMITTERS: $inert_addr" ;;
+  *) die "malformed address in PKG_APPROVERS/RUN_SUBMITTERS: $inert_addr" ;;
+  esac
+done
+
+# An approver pays the gas for every MsgEnablePackage it sends, and mainnet has
+# no faucet and a transfer lock, so an unfunded oracle can never approve
+# anything and cannot be topped up by anyone outside the exemption list. Same
+# check and same reasoning as the T1 guard at 2.7 -- and deliberately against
+# the allocation sheet rather than minting a balance here, so the shipped
+# supply stays tied to the sha256-verified sheet and step 9.5 still reconciles.
+approver_unfunded=""
+for inert_addr in "${PKG_APPROVERS[@]}"; do
+  inert_rc=0
+  inert_line=$(grep -m1 -- "^${inert_addr}=" "$ALLOCATION_TXT") || inert_rc=$?
+  if [ "$inert_rc" -gt 1 ]; then
+    die "grep failed looking up approver $inert_addr in the allocation sheet (exit $inert_rc)"
+  fi
+  if [ -z "$inert_line" ]; then
+    approver_unfunded="$approver_unfunded  $inert_addr — no genesis balance"$'\n'
+    continue
+  fi
+  inert_amount="${inert_line#*=}"
+  inert_amount="${inert_amount%%ugnot*}"
+  case "$inert_amount" in
+  '' | *[!0-9]*) die "approver $inert_addr has an unparseable balance entry: '$inert_line'" ;;
+  esac
+  if [ "$inert_amount" -eq 0 ]; then
+    approver_unfunded="$approver_unfunded  $inert_addr — zero genesis balance ($inert_line)"$'\n'
+  fi
+done
+if [ -n "$approver_unfunded" ]; then
+  die "$(printf '%s\n%s%s' \
+    "these package approvers hold no genesis balance:" \
+    "$approver_unfunded" \
+    "mainnet has no faucet and §126 locks transfers: fund them in the gnolang/independence-day allocation, or the oracle can never enable anything.")"
+fi
+
+# RUN_SUBMITTERS armed must cover every seeded GovDAO T1 member.
+#
+# Proposal creation is MsgRun-only, so a T1 member missing from this list
+# cannot propose -- and since amending the list is itself a proposal, a list
+# that omits ALL of them is unamendable. Checked against the addresses read out
+# of the bootstrap tx at 2.7, not a second copy typed here, so the two cannot
+# drift.
+if [ "${#RUN_SUBMITTERS[@]}" -gt 0 ]; then
+  run_missing=""
+  while IFS= read -r t1_addr; do
+    case " ${RUN_SUBMITTERS[*]} " in
+    *" $t1_addr "*) ;;
+    *) run_missing="$run_missing  $t1_addr"$'\n' ;;
+    esac
+  done <"$T1_ADDRS_FILE"
+  if [ -n "$run_missing" ]; then
+    die "$(printf '%s\n%s%s' \
+      "RUN_SUBMITTERS is armed but omits these seeded GovDAO T1 members:" \
+      "$run_missing" \
+      "proposal creation is MsgRun-only, so they could not govern and the list could never be amended.")"
+  fi
+fi
+
+# The submission charge is incompatible with the §126 transfer lock: it is paid
+# through the RESTRICTED SendCoins path, so under restricted_denoms=["ugnot"]
+# only an exemption-listed address could afford to submit at all.
+if [ -n "$INERT_SUBMISSION_CHARGE" ] && [ "${#RESTRICTED_DENOMS[@]}" -gt 0 ]; then
+  die "$(printf '%s\n%s' \
+    "INERT_SUBMISSION_CHARGE=$INERT_SUBMISSION_CHARGE with restricted_denoms=[${RESTRICTED_DENOMS[*]}]: the charge goes through the restricted bank path, so no address outside the §126 exemption list could pay it and MsgAddPackage would be refused for everyone else." \
+    "Leave the charge empty while the transfer lock is on, or lift the lock in the same proposal.")"
+fi
+if [ -z "$INERT_SUBMISSION_CHARGE" ] && [ -n "$INERT_CHARGE_COLLECTOR" ]; then
+  die "INERT_CHARGE_COLLECTOR is set but INERT_SUBMISSION_CHARGE is empty: nothing would ever be collected"
+fi
+print_substep "2.10" "$(printf 'Code submission: policy=%s, approvers=%d, run_submitters=%d (gate %s), charge=%s' \
+  "$CODE_SUBMISSION_POLICY" "${#PKG_APPROVERS[@]}" "${#RUN_SUBMITTERS[@]}" \
+  "$([ "${#RUN_SUBMITTERS[@]}" -gt 0 ] && echo ARMED || echo OPEN)" "${INERT_SUBMISSION_CHARGE:-off}")"
 
 # ---- Step 3: Build binaries from source
 
@@ -1652,6 +1860,12 @@ start_temp_node() {
   if [ "$(jq -c '.app_state.bank.params.restricted_denoms' "$BALANCES_TMP_GENESIS")" != "$temp_rd_json" ]; then
     die "temp-node genesis did not take restricted_denoms=$temp_rd_json — measurement would run without the shipped transfer lock"
   fi
+  # Same code-submission params as the shipping genesis. The measurement
+  # replays the genesis txs, which are exempt from the policy via
+  # IsGenesisReplay, so this changes no measured amount -- it is here because
+  # the parity assertion below compares vm.params and would otherwise fail the
+  # moment the shipping genesis gets them.
+  apply_code_submission_params "$BALANCES_TMP_GENESIS"
 
   # The measured burns are dominated by storage deposits priced by the
   # chain's vm/auth params. This genesis is regenerated rather than copied
@@ -2002,7 +2216,18 @@ not_funded=$(printf '%s\n' "$genesis_addrs" | comm -13 - <(sort -u "$UNRESTRICTE
 if [ -n "$not_funded" ]; then
   die "unrestricted addresses missing from the shipped genesis balances (InitChain would panic): $not_funded"
 fi
+# ---- Code-submission policy (inert) ----
+# After the balance sheets, like the transfer lock: the approver-funding guard
+# at 2.9 checked the downloaded sheet, and the readback inside the helper
+# proves the params reached the artifact that ships.
+apply_code_submission_params "$GENESIS_FILE"
+applied_policy=$(jq -r '.app_state.vm.params.code_submission_policy' "$GENESIS_FILE")
+applied_approvers=$(jq -r '.app_state.vm.params.pkg_approvers | length // 0' "$GENESIS_FILE")
+applied_runners=$(jq -r '.app_state.vm.params.run_submitters | length // 0' "$GENESIS_FILE")
 print_substep "9.4" "Transfer lock: restricted_denoms=[$applied_rd], $applied_unres addresses exempt"
+print_substep "9.5" "$(printf 'Code submission: policy=%s, %d approver(s), MsgRun gate %s (%d)' \
+  "$applied_policy" "$applied_approvers" \
+  "$([ "$applied_runners" -gt 0 ] && echo ARMED || echo OPEN)" "$applied_runners")"
 
 # ---- Reconcile account count and total supply against the pinned sheet ----
 # Everything above counts lines in files the script itself wrote. This reads
@@ -2062,10 +2287,10 @@ if [ "$genesis_supply" -ne "$expected_supply" ]; then
     "  fee-payer burn (measured)  $burn_total" \
     "  vested entries             $vested_total")"
 fi
-print_substep "9.5" "$(printf 'Reconciled: %s accounts, %s ugnot = %s allocation + %s burn + %s vested' \
+print_substep "9.6" "$(printf 'Reconciled: %s accounts, %s ugnot = %s allocation + %s burn + %s vested' \
   "$genesis_accounts" "$genesis_supply" "$alloc_total" "$burn_total" "$vested_total")"
 
-print_substep "9.6" "Running gnogenesis verify..."
+print_substep "9.7" "Running gnogenesis verify..."
 # -skip-signature-check: the names.Enable tx carries a post-sign caller
 # patch and the valoper Register txs carry placeholder signatures, so
 # per-tx signature verification cannot pass by design (nodes accept both
@@ -2078,7 +2303,7 @@ run "$GNOGENESIS_BIN" verify -genesis-path "$GENESIS_FILE" -skip-signature-check
 # Verify before moving: a mismatch must not clobber the previously-good
 # (gitignored, so invisible to git status) genesis.json at the root.
 verify_checksum "$GENESIS_FILE" genesis.json
-print_substep "9.7" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
+print_substep "9.8" "Moving $GENESIS_FILE -> $FINAL_GENESIS"
 mv "$GENESIS_FILE" "$FINAL_GENESIS"
 
 # ---- Summary
