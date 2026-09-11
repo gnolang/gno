@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/gnoland/boards"
-	"gno.land/p/gnoland/boards/exts/permissions"
+	"gno.land/p/gnoland/boards/exts/permissions/v0"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 )

@@ -9,13 +9,13 @@ import (
 	"chain/runtime/unsafe"
 	"testing"
 
-	"gno.land/p/gnoland/boards"
-	"gno.land/p/gnoland/boards/exts/permissions"
+	"gno.land/p/gnoland/boards/exts/permissions/v0"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/testutils/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	"gno.land/r/gov/dao"
-	daov3init "gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/init/v0"
 )
 
 var (

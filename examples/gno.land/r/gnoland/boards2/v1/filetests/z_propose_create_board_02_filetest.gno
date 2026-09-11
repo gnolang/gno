@@ -11,7 +11,7 @@ import (
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	"gno.land/r/gov/dao"
-	daov3init "gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/init/v0"
 )
 
 const (
