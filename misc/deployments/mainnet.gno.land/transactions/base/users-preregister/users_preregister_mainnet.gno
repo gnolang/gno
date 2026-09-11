@@ -30,4 +30,5 @@ func main(cur realm) {
 	usersinit.RegisterUser(cross(cur), "moul", address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	usersinit.RegisterUser(cross(cur), "aeddi", address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"))
 	usersinit.RegisterUser(cross(cur), "aib", address("g1gkqe9c90tfuk2a7f07ygs8t826aff03vxasjsl"))
+	usersinit.RegisterUser(cross(cur), "samcrew", address("g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"))
 }
