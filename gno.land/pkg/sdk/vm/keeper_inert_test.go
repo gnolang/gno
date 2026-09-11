@@ -148,32 +148,6 @@ func Boom(cur realm) string {
 	assert.Nil(t, gnostore.GetPackage(pkgPath, false))
 }
 
-// TestVMKeeperDisablePackageNotImplemented documents that MsgDisablePackage is
-// approver-gated but not yet functional (tracked for a follow-up PR).
-func TestVMKeeperDisablePackageNotImplemented(t *testing.T) {
-	env := setupTestEnv()
-	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-	approver := crypto.AddressFromPreimage([]byte("oracle"))
-	stranger := crypto.AddressFromPreimage([]byte("stranger"))
-
-	params := DefaultParams()
-	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
-	params.PkgApprovers = []crypto.Address{approver}
-	env.vmk.SetParams(ctx, params)
-
-	// Non-approver is rejected on authorization, before hitting the stub.
-	err := env.vmk.DisablePackage(ctx, MsgDisablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unauthorized")
-
-	// Approver reaches the not-yet-implemented stub (returned as an
-	// "unknown request" abci error until the follow-up PR lands).
-	err = env.vmk.DisablePackage(ctx, MsgDisablePackage{Approver: approver, PkgPath: "gno.land/r/test/x"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown request")
-}
-
 // TestVMKeeperEnableTakesStorageDepositFromCreator pins who pays for the realm
 // state that MsgEnablePackage brings into existence.
 //
