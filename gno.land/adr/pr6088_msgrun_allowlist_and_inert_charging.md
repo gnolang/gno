@@ -1331,15 +1331,6 @@ Closing the `add_package` row for real transactions still means running under
     still covered, and the gnomod rules are re-applied from the stored file at
     enable regardless.
 
-    > **Superseded** by `pr6154_pkghash_bind_gnomod_private.md`. Excluding the
-    > file left `private`, `draft`, `ignore` and the gno version outside the
-    > approval, and `checkGnomodConstraints`' private-override guard does not
-    > fire on a first deployment — so a realm approved private could be
-    > re-parked public with the same `.gno` files and the same hash. The file is
-    > now normalized rather than excluded, and the paragraph above no longer
-    > describes the code. The claim that `stampGnomod` "touches nothing else"
-    > was also wrong: it rewrites `module` too.
-
     Skipped on replay, like the policy and approver gates: history predating
     the field carries no hash, and replay is not racing a submitter. The wire
     encoding of existing messages is unchanged — the field is appended and
