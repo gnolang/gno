@@ -23,19 +23,17 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
-	// The origin must be the invited user where invitation
-	// is removed after the first user call to create a DAO
+	// The direct user caller must be invited. The invitation is removed after
+	// the caller creates a DAO for the first time.
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 	parentDAO := commondao.New(cross(cur), "Parent DAO", "Purpose", "", "")
 	parentID = parentDAO
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
 	// SubDAOs are created through a council proposal at simple majority
 	pID := commondao.CreateSubDAOProposal(cross(cur), parentID, name, "Purpose", "Sub charter", string(user))

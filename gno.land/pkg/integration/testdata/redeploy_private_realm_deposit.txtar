@@ -1,0 +1,97 @@
+# A redeployed private realm's storage record must account for every deposit its
+# escrow holds.
+#
+# AddPackage waives its already-exists refusal for a private package, so the same
+# path can be deployed a second time. Each deployment locks a storage deposit at
+# the realm's deposit escrow, and the prior deployment's objects are not evicted,
+# so the escrow accumulates both deposits. Refunds are sized from the realm
+# record and the escrow address is a hash of the path that nothing can sign for,
+# so any deposit the record fails to account for is stranded for good.
+#
+# A redeploy takes over the record persisted at the path: its storage and deposit
+# continue from the prior deployment, and vm/qstorage reads them back. The
+# redeploy is charged for the whole v2 copy (the objects are all newly minted,
+# nothing is evicted), and the record then equals the sum of both charges, which
+# is what the escrow holds.
+#
+# Rebuilt from a blank realm instead, the redeploy's record counts only the v2
+# copy and the first deployment's deposit drops out of it. The line this test
+# turns on is the vm/qstorage read after the redeploy: 10833 bytes / 1083300ugnot
+# with the record carried over, 6519 / 651900 from a blank realm. The blank-realm
+# record accounts for the redeploy alone, so v1's 428500ugnot deposit, which the
+# escrow still holds, is stranded. Storage price is 100 ugnot/byte.
+
+gnoland start
+
+# Deploy v1. No prior realm exists, so this charge and record are the baseline.
+gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/foobar/redeploy -gas-fee 10000000ugnot -gas-wanted 20000000 -max-deposit 5000000ugnot -chainid=tendermint_test $test1_user_addr
+stdout OK!
+stdout 'STORAGE DELTA:  4285 bytes'
+stdout 'STORAGE FEE:    428500ugnot'
+
+gnokey query vm/qstorage --data gno.land/r/foobar/redeploy
+stdout 'storage: 4285, deposit: 428500'
+
+# Redeploy v2 (private, same path, same creator) with strictly more realm state.
+gnokey maketx addpkg -pkgdir $WORK/v2 -pkgpath gno.land/r/foobar/redeploy -gas-fee 10000000ugnot -gas-wanted 20000000 -max-deposit 5000000ugnot -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# The record continues from v1's baseline: 4285 + 6548 bytes, 428500 + 654800
+# ugnot, the sum of both charges and what the escrow holds. From a blank realm
+# this reads 6519 / 651900, stranding v1's 428500ugnot.
+gnokey query vm/qstorage --data gno.land/r/foobar/redeploy
+stdout 'storage: 10833, deposit: 1083300'
+
+# The redeploy replaced the code it took the record over from.
+gnokey query vm/qeval --data 'gno.land/r/foobar/redeploy.Which()'
+stdout v2
+
+-- v1/gnomod.toml --
+module = "gno.land/r/foobar/redeploy"
+gno = "0.9"
+private = true
+
+-- v1/redeploy.gno --
+package redeploy
+
+type entry struct {
+	name  string
+	value int
+}
+
+var registry = []entry{
+	{"alpha", 1},
+	{"beta", 2},
+	{"gamma", 3},
+	{"delta", 4},
+}
+
+func Which() string { return "v1" }
+
+-- v2/gnomod.toml --
+module = "gno.land/r/foobar/redeploy"
+gno = "0.9"
+private = true
+
+-- v2/redeploy.gno --
+package redeploy
+
+type entry struct {
+	name  string
+	value int
+}
+
+var registry = []entry{
+	{"alpha", 1},
+	{"beta", 2},
+	{"gamma", 3},
+	{"delta", 4},
+	{"epsilon", 5},
+	{"zeta", 6},
+	{"eta", 7},
+	{"theta", 8},
+}
+
+var extra = "additional package-level state added in v2"
+
+func Which() string { return "v2" }
