@@ -203,7 +203,16 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Hash bumped again by the test-blob-exclusion PR (#5971): #5891 stored each
+// package's #allbutprod (test/filetest) blob in the merkleized iavlStore; this
+// PR moves it to the non-merkleized baseStore so test files no longer enter the
+// consensus AppHash. Every genesis stdlib/example package that ships _test.gno
+// files drops its test blob out of the committed root, so the pinned value
+// shifts once. Behavior is unchanged; intentional consensus-breaking change
+// (see ADR pr5971). Re-derived after merging master, whose own bumps above also
+// moved the root, so neither side's value survives the combination.
+const expectedCrossrealm38Hash = "50575fdd1e5eb668f8df730e92691d1bc672cd89b2e5c93ca5acaa537123b9ea"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

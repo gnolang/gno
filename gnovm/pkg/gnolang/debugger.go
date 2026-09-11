@@ -614,8 +614,11 @@ func debugLineInfo(m *Machine) {
 
 func isMemPackage(st Store, pkgPath string) bool {
 	ds, ok := st.(*defaultStore)
+	// The prod blob lives in iavlStore; the #allbutprod test/filetest sibling
+	// lives in the non-merkleized baseStore (see store.go AddMemPackage). A
+	// prod-less package (test-only) has only the sibling, so check both stores.
 	return ok && (ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath))) ||
-		ds.iavlStore.Has(ds.gctx, []byte(backendPackageAllButProdKey(pkgPath))))
+		ds.baseStore.Has(ds.gctx, []byte(backendPackageAllButProdKey(pkgPath))))
 }
 
 func fileContent(st Store, pkgPath, name string) (string, error) {
