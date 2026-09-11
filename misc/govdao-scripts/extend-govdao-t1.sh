@@ -41,7 +41,7 @@ var t1Roster = []rosterEntry{
 	{"Morgan", "g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"},
 	{"Aeddi", "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"},
 	{"Dongwon", "g1gzhj234kpajz963z5vf42j4ylddscnkez2wvly"},
-	{"Maxwell", "g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"},
+	{"Maxwell", "g1xnv893735y5ef0we0e8w3empa55lnvkfcmn3qs"},
 	{"Milos", "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"},
 	{"Manfred", "g1manfred47kzduec920z88wfr64ylksmdcedlf5"},
 }
