@@ -98,11 +98,12 @@ GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 #     The quarantined grc1155/grc777 are deliberately NOT here: they are
 #     not deployable until they graduate.
 #
-# TODO(mainnet): this is the testnet-lineage set, kept as a starting point.
-# Re-curate for mainnet: decide per package whether it belongs on the
-# production chain (r/tests/* and r/demo/* arrive via test deps of this
-# set; p/nt/* paths cannot be added post-genesis under namespace
-# enforcement, so anything missing here is a hardfork away).
+# The set is FINAL as re-curated by #6166 (v0 repaths + the token
+# standards); it resolves — and the build unblocks — once gnolang/gno#6162
+# lands on master and is merged here. Keep in mind when touching it:
+# p/nt/* paths cannot be added post-genesis under namespace enforcement,
+# so anything missing here is a hardfork away (r/tests/* and r/demo/*
+# arrive via test deps of this set).
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -158,7 +159,7 @@ INITIAL_VALSET=(
 # — the same address as his GovDAO T1 seat (deliberate; it holds the
 # 1,000 GNOT founder grant, so it lands funded).
 #
-# TODO(mainnet): the OnBloc and Samourai Crew operators hold no
+# TODO(mainnet): (funding in progress — Manfred) the OnBloc and Samourai Crew operators hold no
 # independence-day allocation, so each lands at exactly zero (gno-core's
 # and Berty's hold 1,000 GNOT each and land funded) — note the operators
 # are NOT genesis fee payers (the deployer pays the Register txs), so an
@@ -255,7 +256,7 @@ RESTRICTED_DENOMS=("ugnot")
 # at start). Adding it here too would only trip the overlap guard. Prefer fixing
 # a schedule upstream in the sheet over typing one here.
 #
-# TODO(mainnet): decide whether anything still needs a hand-typed entry.
+# TODO(mainnet): (in progress — Manfred) decide whether anything still needs a hand-typed entry.
 # Candidates the sheet does not cover:
 #   - treasuries (§120/§121/§122) if the Constitution requires schedules
 #     rather than multisig-only custody — TBD.
@@ -284,7 +285,7 @@ VESTED_ACCOUNTS=(
 # TODO(mainnet): OnBloc/AiB still need to be told, since the launch
 # checklist recorded this as open.
 
-# TODO(mainnet): inert-package policy — direction is to ACTIVATE it (see
+# TODO(mainnet): (in progress — Thomas & Antoine) inert-package policy — direction is to ACTIVATE it (see
 # team discussion 2026-09): set in app_state.vm.params at genesis (genesis
 # replay is exempt via IsGenesisReplay, so the 85 genesis packages still
 # execute). ORDER-OF-VALUES matters operationally even at genesis:
@@ -322,7 +323,7 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # caller to this address makes Enable's gate pass. The private key is not
 # needed at build time (the multisig exists and can sign post-genesis).
 #
-# TODO(mainnet): before the package set is frozen, audit every other
+# TODO(mainnet): (in progress — Manfred) before the package set is frozen, audit every other
 # hardcoded g1... literal in the deployed set the same way (hardcoded
 # addresses are unchangeable post-genesis without a realm upgrade — see
 # the launch checklist, authority-and-keys section). Package CREATORS are a
@@ -335,7 +336,7 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # this is about who appears as mainnet's deployer of record and who holds
 # the namespaces, not about hidden authority.
 #
-# TODO(mainnet): this address holds no allocation either, so it lands at
+# TODO(mainnet): (funding in progress — Manfred) this address holds no allocation either, so it lands at
 # zero after its names.Enable tx burns its funding — the same question as
 # the valoper operators above. Enable is the only call it has to make at
 # genesis, so zero is survivable, but any later names administration is a
@@ -1456,7 +1457,7 @@ print_substep "8.2" "Found $addr_count unique creator/caller addresses"
 #     so it lands at exactly its allocation once the genesis txs execute;
 #   - a vested account may NOT hold an allocation yet — how a vesting
 #     schedule overrides an allocation line is undecided, so die loudly.
-#     TODO(mainnet): decide the override (likely: the vested entry
+#     TODO(mainnet): (in progress — Manfred) decide the override (likely: the vested entry
 #     replaces the allocation line and must carry the same total);
 #   - vested entries must be well-formed and mutually unique, and may not
 #     be fee payers (unchanged from the testnet builders).
@@ -1720,7 +1721,7 @@ while IFS= read -r addr; do
     # sum below (the amount is not the whole right-hand side, and the
     # schedule must be preserved).
     #
-    # TODO(mainnet): THIS NOW FIRES, and it blocks the build. At the 91f7f56
+    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 91f7f56
     # pin all three allocation-holding genesis fee payers carry a §132
     # schedule (independence-day #72 turned the vesting pass on by default):
     #   g125em6arxsnj49vx35f0n0z34putv5ty3376fg5      10,000 GNOT
