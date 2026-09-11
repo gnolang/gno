@@ -5,7 +5,7 @@ import (
 	"chain/banker"
 	"errors"
 
-	"gno.land/p/aeddi/panictoerr"
+	"gno.land/p/aeddi/panictoerr/v0"
 )
 
 var ErrNonCanonicalBanker = errors.New("inner banker is not the canonical chain/banker.Banker")
