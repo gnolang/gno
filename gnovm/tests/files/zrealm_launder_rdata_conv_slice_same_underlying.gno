@@ -17,7 +17,7 @@ package launderrh_conv_slice_su
 // Hypothesis: both blocked at Case 1 of doOpConvert.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
@@ -48,4 +48,4 @@ func main(cur realm) {
 // gno.land/r/launderrh_conv_slice_su/zrealm_launder_rdata_conv_slice_same_underlying.gno:39:22: cannot convert s (variable of type []launderpkg.Bare) to type []LocalBare
 
 // Error:
-// gno.land/r/launderrh_conv_slice_su/zrealm_launder_rdata_conv_slice_same_underlying.gno:39:10-24: cannot convert s<VPBlock(1,1)> (of type []gno.land/p/demo/tests/launderpkg.Bare) to type []gno.land/r/launderrh_conv_slice_su.LocalBare
+// gno.land/r/launderrh_conv_slice_su/zrealm_launder_rdata_conv_slice_same_underlying.gno:39:10-24: cannot convert s<VPBlock(1,1)> (of type []gno.land/p/demo/tests/launderpkg/v0.Bare) to type []gno.land/r/launderrh_conv_slice_su.LocalBare

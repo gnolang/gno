@@ -23,8 +23,7 @@ func init(cur realm) {
 
 	// Create a couple of DAOs
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	commondao.New(cross(cur), "A", "Purpose", "", "")
+	commondao.New(cross(cur), "A", "Purpose", "", string(user))
 	daoID = commondao.New(cross(cur), name, "Purpose", "", "")
 	commondao.New(cross(cur), "C", "Purpose", "", "")
 }

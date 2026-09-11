@@ -116,7 +116,8 @@ type Params struct {
 	CodeSubmissionPolicy CodeSubmissionPolicy `json:"code_submission_policy" yaml:"code_submission_policy"`
 	// CodeSubmitters is the allowlist used when CodeSubmissionPolicy == "permissioned".
 	CodeSubmitters []crypto.Address `json:"code_submitters" yaml:"code_submitters"`
-	// PkgApprovers may call MsgEnablePackage / MsgDisablePackage.
+	// PkgApprovers may send MsgEnablePackage, and may reject a parked package
+	// with MsgRejectPackage -- which its creator may also send.
 	// Required when CodeSubmissionPolicy == "inert".
 	PkgApprovers []crypto.Address `json:"pkg_approvers" yaml:"pkg_approvers"`
 	// RunSubmitters may send MsgRun. Consulted under EVERY CodeSubmissionPolicy,

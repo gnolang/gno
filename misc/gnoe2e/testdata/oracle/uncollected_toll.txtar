@@ -1,0 +1,123 @@
+# The run budget counts an approval when the transaction is handed to the node.
+# A candidate the oracle refuses before that point leaves the budget untouched,
+# so well-formed packages submitted afterwards are still approved.
+#
+# What makes this reachable with an ordinary submission is that the two stages
+# disagree about init(). gpao's verifier preprocesses rather than executes, so a
+# package whose init() panics passes verification; EnablePackage runs init() at
+# activation, so the enable fails at simulate every time. handleCandidate
+# reaches a verdict on such a package without a transaction existing, which is
+# the shape of every refusal that costs nothing.
+#
+# The bound below is three times the default -gas-fee, so a run that counted
+# those three refusals would land exactly on it and refuse a fourth package
+# outright. The fourth going live is what says the count follows the money.
+
+gpao start -start-height 1 -max-spend 3000000ugnot
+
+# Compared against itself at the end rather than against a literal, because
+# what this proves is that nothing moved, and the figure it started from does
+# not matter to that.
+gnokey query bank/balances/$GPAO_ADDR
+cp stdout balance-before.txt
+
+# ---- Three packages that verify clean and die at simulate
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/boom1 -pkgpath gno.land/r/probe/boom1 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/boom2 -pkgpath gno.land/r/probe/boom2 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/boom3 -pkgpath gno.land/r/probe/boom3 $USER_NAME
+
+# gpao drains one candidate queue on one verifier goroutine, so boom3 reaching a
+# terminal verdict proves boom1 and boom2, queued strictly earlier, have already
+# been decided too.
+#
+# "pending" is terminal here: recordEnableFailure leaves the content unseen
+# until the enable-attempt count runs out, and nothing in this script resolves
+# it further. Neither verdict has a chain-state equivalent to poll, since
+# nothing happens on chain for either, so this uses the body-gated http_get
+# form rather than a chain read.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/boom3 '"status":"pending"'
+
+# WHICH "pending", pinned directly. statusPending is also written when the
+# verifier is unavailable and when verification runs out of time, and neither of
+# those reaches a broadcast either; only the enable-failure branch records the
+# error enable() returned, which for a package whose init() panics is
+# simulate's. One-shot: the gated wait above already proved the record settled,
+# and http_get succeeds on any HTTP 200 regardless of body, so retrying this
+# would poll nothing.
+http_get $GPAO_STATUS/status/gno.land/r/probe/boom3
+stdout '"reason":"simulate says the enable would fail'
+
+# ---- Nothing reached the chain
+# The balance did not move, so no transaction for any of the three ever reached
+# BroadcastTxCommit and the ante handler never ran.
+gnokey query bank/balances/$GPAO_ADDR
+cp stdout balance-after.txt
+cmp balance-before.txt balance-after.txt
+
+# All three are still parked, which is also where the inert policy this cluster
+# declares is read back: on a chain that activated submissions directly there
+# would be nothing awaiting an approver.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/probe/boom1'
+stdout 'gno.land/r/probe/boom2'
+stdout 'gno.land/r/probe/boom3'
+
+# ---- The budget was never touched
+# Nothing is wrong with this package, and three refusals sit behind it. It goes
+# live, so the bound was still whole when it arrived: an approval that was never
+# broadcast was never counted.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/fourth -pkgpath gno.land/r/probe/fourth $USER_NAME
+eventually gnokey query vm/qrender -data 'gno.land/r/probe/fourth:x'
+stdout 'fourth'
+
+# The board agrees, which separates "the chain has it" from "the oracle put it
+# there". A one-shot read: the render above cannot answer until the enable has
+# committed, and the board records the approval on the same return.
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/fourth '"status":"approved"'
+
+-- cluster --
+validators: 1
+code-submission-policy: inert
+-- boom1/gnomod.toml --
+module = "gno.land/r/probe/boom1"
+gno = "0.9"
+
+-- boom1/boom1.gno --
+package boom1
+
+func init() {
+	panic("boom1")
+}
+
+-- boom2/gnomod.toml --
+module = "gno.land/r/probe/boom2"
+gno = "0.9"
+
+-- boom2/boom2.gno --
+package boom2
+
+func init() {
+	panic("boom2")
+}
+
+-- boom3/gnomod.toml --
+module = "gno.land/r/probe/boom3"
+gno = "0.9"
+
+-- boom3/boom3.gno --
+package boom3
+
+func init() {
+	panic("boom3")
+}
+
+-- fourth/gnomod.toml --
+module = "gno.land/r/probe/fourth"
+gno = "0.9"
+
+-- fourth/fourth.gno --
+package fourth
+
+func Render(path string) string {
+	return "fourth"
+}

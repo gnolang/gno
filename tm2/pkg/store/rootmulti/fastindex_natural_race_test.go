@@ -2,7 +2,8 @@ package rootmulti_test
 
 // Natural (hook-free) reproduction of #6011: hammer the query path
 // (MultiImmutableCacheWrapWithVersion, as handleQueryCustom does on the
-// query connection's independent mutex) while blocks commit. Each block
+// read-only query connection, which does not lock against consensus) while
+// blocks commit. Each block
 // updates a DISJOINT slice of pre-populated keys exactly once, so a stale
 // rebuild racing block N leaves permanently stale entries for block N's keys
 // that the final audit detects.
