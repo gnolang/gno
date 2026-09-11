@@ -218,7 +218,7 @@ undeployed, and under `inert` that is precisely the state a chain boots in. It
 does **not** stop the submitter's own bait-and-switch: the same creator may
 still replace GOOD with EVIL after an approver has read GOOD, because that same
 replacement is the legitimate retry after a failed enable. Only a content hash
-in `MsgEnablePackage` closes that, and it remains open below.
+in `MsgEnablePackage` closes that, which item 12 records.
 
 **What was reverted**, and why it is recorded rather than deleted: the first
 attempt refused *any* submission over a parked path, and sat above the policy
@@ -1274,9 +1274,9 @@ Closing the `add_package` row for real transactions still means running under
    the slow ones, making the enable it signs the vehicle for exactly the
    unmetered compile it exists to prevent.
 
-   The other half is still open: the submitter may replace parked bytes between
-   verification and enable, because `MsgEnablePackage` names a path rather than a
-   content hash. See item 12. Blocks that fail to fetch are also no longer
+   The other half, the submitter replacing parked bytes between verification
+   and enable, is closed by the content hash `MsgEnablePackage` carries: see
+   item 12. Blocks that fail to fetch are also no longer
    skipped — the height is retried rather than advanced past.
 
 9. **The txtar genesis merge is a hand-maintained field list, now guarded.**
@@ -1323,19 +1323,97 @@ Closing the `add_package` row for real transactions still means running under
     replacement is also the legitimate retry after a failed enable. Approval
     named a path, not bytes.
 
-    `PkgHash` is now required on a live enable and checked against the parked
-    blob. `PackageContentHash` excludes `gnomod.toml`, which is what lets both
-    sides agree: `stampGnomod` rewrites that file at submit and touches nothing
-    else, so an approver hashing the source it saw in the transaction gets the
-    same value the keeper computes from the stored blob. Every reviewed byte is
-    still covered, and the gnomod rules are re-applied from the stored file at
-    enable regardless.
+    **Context.** `PkgHash` is required on a live enable and has to name the
+    bytes the approver reviewed. Approvers compute it from the bytes the
+    submitter sent: gpao from the `MsgAddPackage` it decodes out of the block,
+    `gnokey maketx enablepkg -pkgdir` from a local copy read exactly as
+    `addpkg` reads it. The chain stores different bytes, because the inert
+    branch of `AddPackage` rewrites `gnomod.toml` at submit through
+    `stampGnomod`, which pins `module` to the package path and writes the
+    `[addpkg]` section. So the chain cannot recompute an approver's digest
+    from what it stores. The same file carries five fields the submitter
+    authors (`gno`, `ignore`, `draft`, `private`, `replace`), and the digest
+    has to cover them: `private` is legal to substitute, and a same-creator
+    re-park of identical `.gno` source with `private = true`, activated on an
+    approval of the public package, puts live a realm no other realm may
+    import and whose slot the creator may silently replace.
+
+    **Decision.** `PackageContentHash` covers every file byte for byte as
+    submitted, `gnomod.toml` included, because the bytes a submitter sends are
+    the bytes an approver reviews. The inert branch of `AddPackage` computes
+    it before `stampGnomod` rewrites `gnomod.toml`, and records it as
+    `pkg_hash` in the `[addpkg]` section beside the creator, the height and
+    the deposit ceiling. `stampGnomod` replaces the whole section, so a
+    `pkg_hash` the submitter wrote never survives. A same-creator re-park runs
+    the same branch and overwrites the bytes and the digest together. The
+    ordinary path records no digest, and the field is omitted when empty, so
+    its stored `gnomod.toml` is unchanged.
+
+    `EnablePackage` parses the stored `gnomod.toml` first, so a file it cannot
+    read is refused as unreadable rather than as a swap. It then refuses an
+    approval with no `PkgHash`, refuses a parked package with no recorded
+    digest, and compares `PkgHash` with the recorded digest. gpao and `gnokey`
+    need no change, since both already hash the submitted bytes.
 
     Skipped on replay, like the policy and approver gates: history predating
     the field carries no hash, and replay is not racing a submitter. The wire
-    encoding of existing messages is unchanged — the field is appended and
+    encoding of existing messages is unchanged: the field is appended and
     omitted when empty.
-    (`TestEnableRefusesSourceChangedAfterApproval`, `TestEnableRequiresAHash`.)
+
+    **Alternatives considered.**
+
+    - *Leave `gnomod.toml` out of the digest.* Both sides agree, since the
+      stamp touches no other file, but the five authored fields fall outside
+      what an approver signs and the `private` substitution goes through.
+      Re-applying the gnomod rules at enable does not close it: the rules
+      catch an illegal value, not a legal one substituted.
+    - *Hash `gnomod.toml` in a canonical form*: parse it, pin `module`, zero
+      `[addpkg]` and re-encode, on both sides. The two sides agree across the
+      stamp, but the digest then depends on the `gnomod.File` schema, its
+      field order and the TOML encoder's output, so adding a field, reordering
+      one or changing the encoder moves every digest, and two builds can
+      disagree. It re-implements `stampGnomod` in a second place that has to
+      track it. The chain side parses the stored file, which the stamp can
+      make unparseable, and that failure then reads as a swap. And the digest
+      names the parsed file rather than the bytes, so bodies that differ only
+      in comments, unknown keys or whitespace share one.
+    - *Approvers re-apply the stamp* and hash the result. Every approver would
+      have to reproduce the creator, the submit height and the effective
+      deposit ceiling, which depends on the chain default at submit time, and
+      follow every change to `stampGnomod`. A chain-side rule would leak into
+      every client.
+
+    **Consequences.**
+
+    - A package parked by a binary that records no digest cannot be enabled.
+      `EnablePackage` refuses it and says its creator has to submit it again,
+      which records one. Recording the digest also changes the stored bytes on
+      the inert path, so adopting it is a coordinated upgrade. The inert flow
+      is dormant until a chain opts in, so this reaches only chains that run
+      `inert` across the upgrade.
+    - The digest lives in `[addpkg]`, keeper bookkeeping beside the creator.
+      The live package keeps the line after enable, because the parked blob is
+      what runs, and `vm/qfile` serves it.
+    - The digest line is 80 bytes. With a two-digit height and the default
+      deposit ceiling, the stamp adds 192 bytes to the stored `gnomod.toml`
+      where it added 112, so the largest submitted `gnomod.toml` already in
+      encoder form that still parses once stamped drops from 3984 bytes to
+      3904. Each further digit of height, and each byte a declared ceiling has
+      over the default's 14, lowers that by one.
+    - `AddPackage` parses the stamped `gnomod.toml` back and refuses the
+      submission if it does not parse, whatever the cause: the size above, or
+      a value the encoder writes back in a form the lexer refuses. A parked
+      file that does not parse could be neither enabled, replaced nor
+      rejected, since all three parse it first. `EnablePackage` still refuses
+      one as unreadable, for a blob parked before this check.
+
+    (`TestAddPackageRecordsTheSubmittedDigest`,
+    `TestAddPackageRefusesAGnomodTheStampMakesUnreadable`,
+    `TestEnableRefusesBytesTheApproverDidNotReview`,
+    `TestEnableRefusesAPackageParkedWithoutADigest`,
+    `TestEnableRefusesAnUnreadableParkedPackageAsUnreadable`,
+    `TestEnableRefusesSourceChangedAfterApproval`, `TestEnableRequiresAHash`,
+    `TestEnablePkgHashMatchesWhatTheChainWillCheck`.)
 
 13. **Fixed: a parked package can be removed.** `DelInertPackage` ran only
     after a successful enable and `DisablePackage` is unimplemented, so a

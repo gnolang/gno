@@ -10,9 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// gnomodFileName is excluded from the content hash. See PackageContentHash.
-const gnomodFileName = "gnomod.toml"
-
 // PackageContentHash identifies the source an approver signed off on.
 //
 // Approval names a path, and a path's contents can change: the same creator may
@@ -20,25 +17,16 @@ const gnomodFileName = "gnomod.toml"
 // retry after a failed enable. Without naming the bytes, an approver who read
 // GOOD can be made to activate EVIL.
 //
-// gnomod.toml is excluded deliberately. AddPackage stamps the creator, height
-// and declared deposit into it at submit, so the stored file differs from the
-// one the submitter sent and from the one an approver saw in the transaction --
-// the two could never agree on a hash that included it. stampGnomod writes that
-// file and touches nothing else, which is what makes excluding it sufficient:
-// every byte an approver reviews is still covered, and the gnomod rules are
-// re-applied from the stored file at enable anyway.
+// The digest names every file exactly as the submitter sent it, gnomod.toml
+// included, because those are the bytes an approver reviews. AddPackage records
+// it before stamping gnomod.toml, so a parked blob does not hash to it: compare
+// against the recorded value, never a digest recomputed from storage.
 //
 // Each field is length-prefixed so that adjacent names and bodies cannot be
 // re-cut to collide -- without it, a file "ab" holding "c" and a file "a"
 // holding "bc" would hash alike.
 func PackageContentHash(mpkg *std.MemPackage) string {
-	files := make([]*std.MemFile, 0, len(mpkg.Files))
-	for _, f := range mpkg.Files {
-		if f.Name == gnomodFileName {
-			continue
-		}
-		files = append(files, f)
-	}
+	files := slices.Clone(mpkg.Files)
 	slices.SortFunc(files, func(a, b *std.MemFile) int {
 		return strings.Compare(a.Name, b.Name)
 	})

@@ -107,9 +107,8 @@ func execMakeEnablePkg(cfg *MakeEnablePkgCfg, args []string, io commands.IO) err
 
 	pkgHash := cfg.PkgHash
 	if cfg.PkgDir != "" {
-		// MPUserAll, matching addpkg: a parked package is stored exactly as it
-		// was submitted, test files included, so anything less would hash a
-		// different file set than the chain holds.
+		// MPUserAll, as addpkg reads it: the chain records the digest of the
+		// package as submitted, test files included.
 		memPkg, err := gno.ReadMemPackage(cfg.PkgDir, cfg.PkgPath, gno.MPUserAll)
 		if err != nil {
 			return errors.Wrap(err, "reading package")

@@ -1,0 +1,79 @@
+# An approval computed over one submission must not activate different bytes at
+# the same path.
+#
+# The digest is the only thing binding an approval to source. It covers every
+# file as submitted, gnomod.toml included, and AddPackage records it at submit
+# before stamping the creator, height and declared deposit into that file. An
+# approver who hashes the directory they reviewed names that recorded digest.
+#
+# gnomod.toml carries five fields the submitter authors, and one of them is
+# legal to substitute. Re-parking the same .gno source with private = true would,
+# if the digest missed it, activate a realm no other package may import and the
+# creator may silently replace from then on. The approver saw none of that.
+#
+# A failure here is an approver's signature naming source it never read.
+#
+# **Red on master, green with the fix.**
+
+# ---- The creator parks the package an approver will review
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/reviewed -pkgpath gno.land/r/probe/vault $USER_NAME
+
+# Parked and unreadable, which is where the inert policy this cluster declares
+# is read back.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/probe/vault'
+! gnokey query vm/qfile -data gno.land/r/probe/vault
+stdout 'is not available'
+
+# ---- The creator swaps gnomod.toml and nothing else
+# The substituted copy is assembled from the reviewed directory's own vault.gno
+# rather than from a second archive section, so the two .gno files cannot differ
+# by so much as the trailing newline a txtar section's position gives it. Only
+# gnomod.toml differs, by the one authored field no rule forbids.
+mkdir $WORK/swapped
+cp $WORK/reviewed/vault.gno $WORK/swapped/vault.gno
+cp $WORK/private/gnomod.toml $WORK/swapped/gnomod.toml
+
+# The same path and the same creator. AddPackage refuses a re-park by a
+# different creator, and permits this one: replacing your own submission is the
+# retry path after a failed enable.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/swapped -pkgpath gno.land/r/probe/vault $USER_NAME
+
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/probe/vault'
+
+# ---- The approval names the source the approver read
+# -pkgdir hashes the reviewed directory exactly as AddPackage hashed the
+# submission it recorded. The re-park recorded the swapped digest in its place,
+# so this approval names bytes that are no longer parked.
+! gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/reviewed -pkgpath gno.land/r/probe/vault $USER_NAME
+stderr 'gno.land/r/probe/vault is not what was approved'
+
+# ---- Nothing went live on that approval
+# The state, pinned independently of the wording above: the substituted bytes
+# are still parked, so no realm is serving source an approver did not read.
+! gnokey query vm/qfile -data gno.land/r/probe/vault
+stdout 'is not available'
+
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/probe/vault'
+
+-- cluster --
+validators: 1
+code-submission-policy: inert
+pkg-approver: user
+-- reviewed/gnomod.toml --
+module = "gno.land/r/probe/vault"
+gno = "0.9"
+
+-- reviewed/vault.gno --
+package vault
+
+func Render(path string) string {
+	return "vault"
+}
+
+-- private/gnomod.toml --
+module = "gno.land/r/probe/vault"
+gno = "0.9"
+private = true

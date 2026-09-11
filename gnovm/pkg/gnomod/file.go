@@ -61,6 +61,10 @@ type AddPkg struct {
 	// Empty on the ordinary path: there the ceiling is used in the same
 	// transaction that declared it, so nothing needs to outlive it.
 	MaxDeposit string `toml:"max_deposit,omitempty" json:"max_deposit,omitempty"`
+	// PkgHash is the vm keeper's PackageContentHash of the package as it was
+	// submitted, before this section was written. Set only under the "inert"
+	// policy, where MsgEnablePackage has to name it.
+	PkgHash string `toml:"pkg_hash,omitempty" json:"pkg_hash,omitempty"`
 	// XXX: GnoVersion // gno version at add time?
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
 }

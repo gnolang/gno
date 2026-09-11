@@ -100,6 +100,12 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		}
 		return ErrInvalidPkgPath("no inert package at path: " + msg.PkgPath)
 	}
+	// First, so a stored file that cannot be read is refused as that rather
+	// than as a source swap: the recorded digest is read out of it.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
 	// The approver names the source it reviewed, and this is where that is
 	// checked. Approval otherwise names a path, and a path's contents can
 	// change: the same creator may replace parked bytes at any time, and that
@@ -107,6 +113,9 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// creator who parked GOOD and had it reviewed can park EVIL before the
 	// enable lands, and nothing above would notice -- the creator-bound guard
 	// at submit stops a stranger doing it, not the submitter themselves.
+	//
+	// Compared with the digest AddPackage recorded over the bytes as submitted,
+	// which is what approvers hash; the stored gnomod.toml was stamped since.
 	//
 	// Skipped on replay, like the two gates above: history predating the field
 	// carries no hash, and refusing it would fail every replayed enable. The
@@ -117,11 +126,17 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 			return ErrInvalidPackage(
 				"missing pkg_hash: an approval has to name the source it approves")
 		}
-		if got := PackageContentHash(memPkg); got != msg.PkgHash {
+		if gm.AddPkg.PkgHash == "" {
+			return ErrInvalidPackage(fmt.Sprintf(
+				"no digest is recorded for the package parked at %s, so no approval "+
+					"can be checked against it: its creator has to submit it again",
+				msg.PkgPath))
+		}
+		if gm.AddPkg.PkgHash != msg.PkgHash {
 			return ErrInvalidPackage(fmt.Sprintf(
 				"the parked source at %s is not what was approved "+
-					"(approved %s, parked %s); it changed after review",
-				msg.PkgPath, msg.PkgHash, got))
+					"(approved %s, submitted %s)",
+				msg.PkgPath, msg.PkgHash, gm.AddPkg.PkgHash))
 		}
 	}
 	// Refuse to activate over a package that is already live, applying exactly
@@ -159,10 +174,6 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// under a different key prefix and is invisible to GetMemPackage, while a
 	// live one always has a production blob (hasProdGnoFile guarantees it at
 	// deploy). `private` comes from the same gnomod.toml the deploy stored.
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
 	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
 	priorPrivate := false
 	if liveBlob != nil {
@@ -194,8 +205,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	}
 	// AddPackage wrote the creator into gnomod.toml before storing (see the
 	// inert branch), so it round-trips; genesis.go reads it back the same way.
-	// gm was parsed above, before the liveness probe that needs it. Parsed here
-	// rather than lower down because the namespace check below needs it.
+	// Parsed here rather than lower down because the namespace check below
+	// needs it.
 	creator, err := crypto.AddressFromBech32(gm.AddPkg.Creator)
 	if err != nil {
 		return ErrInvalidPackage(fmt.Sprintf(
