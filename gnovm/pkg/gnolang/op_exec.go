@@ -934,7 +934,7 @@ matchLoop:
 			case ct == nil:
 				match = xv.IsUndefined()
 			case ct.Kind() == InterfaceKind:
-				match = baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T)
+				match = isImplementedBy(m.GasMeter, ct, xv.T)
 			default:
 				match = xtid == ct.TypeID()
 			}
