@@ -331,7 +331,7 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 	case nil:
 		return nil
 	case StringValue:
-		lim.add(int64(len(cv)))
+		lim.add(int64(len(cv.Str)))
 		return cv
 	case BigintValue:
 		// Amino emits the decimal text. 1 digit ≈ 3.32 bits; ÷3 over-charges

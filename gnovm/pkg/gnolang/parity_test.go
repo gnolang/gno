@@ -35,7 +35,7 @@ func parityCasesGnolang() []struct {
 	name string
 	v    any
 } {
-	strVal := StringValue("hello world")
+	strVal := StringValue{Str: "hello world"}
 
 	bigintVal := &BigintValue{V: big.NewInt(0)}
 	bigintNeg := &BigintValue{V: big.NewInt(-9223372036854775808)}
@@ -86,7 +86,7 @@ func parityCasesGnolang() []struct {
 
 		// StringValue.
 		{"StringValue/nonempty", &strVal},
-		{"StringValue/empty", func() *StringValue { v := StringValue(""); return &v }()},
+		{"StringValue/empty", func() *StringValue { v := StringValue{Str: ""}; return &v }()},
 
 		// ObjectID — AminoMarshaler repr-zeroness surface. Zero PkgID
 		// still produces a non-empty repr ("0000...0:N") because the

@@ -29,7 +29,7 @@ func TestConvertStringToRunes(t *testing.T) {
 			t.Parallel()
 
 			alloc := NewAllocator(math.MaxInt64)
-			tv := TypedValue{T: StringType, V: StringValue(tc.input)}
+			tv := TypedValue{T: StringType, V: StringValue{Str: tc.input}}
 			ConvertTo(alloc, nil, &tv, runeSliceType, false)
 
 			slice := tv.V.(*SliceValue)
@@ -54,7 +54,7 @@ func TestConvertStringToRunes(t *testing.T) {
 	}
 
 	t.Run("nil allocator", func(t *testing.T) {
-		tv := TypedValue{T: StringType, V: StringValue("é")}
+		tv := TypedValue{T: StringType, V: StringValue{Str: "é"}}
 		require.NotPanics(t, func() {
 			ConvertTo(nil, nil, &tv, runeSliceType, false)
 		})
@@ -65,7 +65,7 @@ func TestConvertStringToRunes(t *testing.T) {
 		const input = "ab"
 		arrayCost := int64(allocArray + allocArrayItem*utf8.RuneCountInString(input))
 		alloc := NewAllocator(arrayCost - 1)
-		tv := TypedValue{T: StringType, V: StringValue(input)}
+		tv := TypedValue{T: StringType, V: StringValue{Str: input}}
 
 		var recovered any
 		func() {

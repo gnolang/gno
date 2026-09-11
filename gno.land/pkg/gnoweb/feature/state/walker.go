@@ -534,7 +534,7 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 	case gno.StringValue:
 		return []StateNode{{
 			Name: "(string)", Type: "string", Kind: KindPrimitive,
-			Value: quoteString(string(cv)),
+			Value: quoteString(cv.Str),
 		}}
 	}
 	return nil

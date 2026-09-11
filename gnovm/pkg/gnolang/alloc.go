@@ -127,8 +127,11 @@ const (
 )
 
 const (
-	// StringValue is a Go string (16 bytes, by value).
-	// Bytes are counted separately via allocStringByte.
+	// StringValue: a 24-byte value boxed in TypedValue.V, plus one 8-byte
+	// stringBacking shared by all copies and slices of a mint. 48 covers
+	// the worst case (an uncopied string: 24 + 8) with _allocHeap's usual
+	// slack, so it is the intended charge. Bytes are counted separately
+	// via allocStringByte.
 	allocString     = _allocHeap + 16
 	allocStringByte = 1
 
@@ -352,6 +355,7 @@ func (alloc *Allocator) Status() (maxBytes int64, bytes int64) {
 	return alloc.maxBytes, alloc.bytes
 }
 
+// Reset zeroes the byte count.
 func (alloc *Allocator) Reset() *Allocator {
 	if alloc == nil {
 		return nil
@@ -584,7 +588,22 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	return mintString(s)
+}
+
+// mintString builds a tracked StringValue without charging. Only two
+// callers may use it: NewString (which charges first) and the load path,
+// where loadObjectSafe has already charged every string of the object via
+// internalStringSize in its single atomic Allocate — the fill must not
+// allocate, or a GC in mid-load evicts the half-registered object.
+func mintString(s string) StringValue {
+	if len(s) == 0 {
+		return StringValue{} // "" carries no backing; untracked
+	}
+	// Fresh backing identity: all copies/slices of this value point at
+	// it, so the GC recount charges Extent once per mint per cycle (see
+	// stringBacking).
+	return StringValue{Str: s, B: &stringBacking{Extent: int64(len(s))}}
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
@@ -883,7 +902,8 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// Header only; GCVisitorFn counts the backing bytes once per backing.
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
@@ -993,6 +1013,62 @@ func internalRefSize(val Value) int64 {
 		// do nothing
 	case TypeValue:
 		// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val,
+		))
+	}
+	return size
+}
+
+// internalStringSize returns what NewString would charge for every string
+// fillTypesOfValue re-mints when val is loaded: allocString plus one
+// allocStringByte per byte, for each StringValue in the same slots the
+// fill walks (inline values only; child Objects are RefValue slots and
+// pay when they load). loadObjectSafe folds it into its single atomic
+// Allocate so the fill itself never allocates. Keep in step with
+// fillTypesOfValue.
+func internalStringSize(val Value) int64 {
+	var size int64
+	tv := func(tv *TypedValue) { size += internalStringSize(tv.V) }
+	switch v := val.(type) {
+	case StringValue:
+		size += allocString + allocStringByte*int64(len(v.Str))
+	case PointerValue:
+		if v.Base == nil {
+			tv(v.TV)
+		}
+	case *ArrayValue:
+		for i := range v.List {
+			tv(&v.List[i])
+		}
+	case *SliceValue:
+		size += internalStringSize(v.Base)
+	case *StructValue:
+		for i := range v.Fields {
+			tv(&v.Fields[i])
+		}
+	case *BoundMethodValue:
+		if v.Func != nil {
+			size += internalStringSize(v.Func)
+		}
+		tv(&v.Receiver)
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			tv(&cur.Key)
+			tv(&cur.Value)
+		}
+	case *PackageValue:
+		size += internalStringSize(v.Block)
+	case *Block:
+		for i := range v.Values {
+			tv(&v.Values[i])
+		}
+	case *HeapItemValue:
+		tv(&v.Value)
+	case nil, *FuncValue, RefValue, BigintValue, BigdecValue, DataByteValue, TypeValue:
+		// no inline strings walked by the fill
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %T",

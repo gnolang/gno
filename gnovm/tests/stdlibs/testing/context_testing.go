@@ -95,8 +95,8 @@ func X_setContext(
 		fr := &m.Frames[frameIdx]
 		if pv, ok := fr.Cur.V.(gno.PointerValue); ok && pv.TV != nil {
 			if sv, ok := pv.TV.V.(*gno.StructValue); ok && len(sv.Fields) >= 3 {
-				sv.Fields[0].V = gno.StringValue(currRealmAddr)
-				sv.Fields[1].V = gno.StringValue(currRealmPkgPath)
+				sv.Fields[0].V = m.Alloc.NewString(currRealmAddr)
+				sv.Fields[1].V = m.Alloc.NewString(currRealmPkgPath)
 				if currRealmPkgPath == "" {
 					// UserRealm override — no previous.
 					sv.Fields[2] = gno.TypedValue{}
@@ -191,9 +191,9 @@ func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
 		V: m.Alloc.NewStructWithFields(
 			rlmType,
 			// addr address
-			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.StringValue(addr)},
+			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: m.Alloc.NewString(addr)},
 			// pkgPath string
-			gno.TypedValue{T: gno.StringType, V: gno.StringValue(pkgPath)},
+			gno.TypedValue{T: gno.StringType, V: m.Alloc.NewString(pkgPath)},
 		),
 	}
 }

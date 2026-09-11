@@ -1891,8 +1891,12 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
-	case StringValue: // do nothing
-		return cv
+	case StringValue:
+		// Re-mint identity only. The bytes were charged up front by
+		// loadObjectSafe (internalStringSize); allocating here would let
+		// a GC run while the object sits in cacheObjects unreachable and
+		// evict it mid-load (see gc_load_evicts_object.txtar).
+		return mintString(cv.Str)
 	case BigintValue: // do nothing
 		return cv
 	case BigdecValue: // do nothing
@@ -1925,6 +1929,8 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 		return cv
 	case *FuncValue:
 		cv.Type = fillType(store, cv.Type)
+		// Captures are not walked: each is a *HeapItemValue persisted as
+		// its own object, filled (strings re-tracked) when loaded.
 		return cv
 	case *BoundMethodValue:
 		if cv.Func != nil { // nil for a lazy interface bind
