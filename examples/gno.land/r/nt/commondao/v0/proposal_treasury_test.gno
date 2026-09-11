@@ -24,7 +24,7 @@ func newTestTree() (root, mid, leaf *commondao.CommonDAO) {
 }
 
 func TestTreasurySpendPropDefinition(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	dao := commondao.New(
 		commondao.WithID(100),
