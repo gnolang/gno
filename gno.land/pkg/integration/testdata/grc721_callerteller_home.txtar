@@ -18,7 +18,7 @@
 # Each attacker surfaces the error rather than swallowing it, so these assert
 # the specific refusal and not merely that no token happened to move.
 
-loadpkg gno.land/p/demo/tokens/grc721/v0
+loadpkg gno.land/p/nt/grc721/v0
 loadpkg gno.land/r/test/leaky721 $WORK/leaky721
 loadpkg gno.land/r/test/n721attack $WORK/n721attack
 
@@ -53,7 +53,7 @@ gno = "0.9"
 -- leaky721/leaky721.gno --
 package leaky721
 
-import "gno.land/p/demo/tokens/grc721/v0"
+import "gno.land/p/nt/grc721/v0"
 
 var (
 	Token  *grc721.Token
@@ -101,7 +101,7 @@ package n721attack
 import (
 	"chain"
 
-	"gno.land/p/demo/tokens/grc721/v0"
+	"gno.land/p/nt/grc721/v0"
 	"gno.land/r/test/leaky721"
 )
 

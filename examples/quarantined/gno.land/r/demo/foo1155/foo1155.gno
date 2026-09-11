@@ -3,7 +3,7 @@ package foo1155
 import (
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/grc1155"
 	"gno.land/p/nt/ufmt/v0"
 )
 

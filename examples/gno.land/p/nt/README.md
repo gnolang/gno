@@ -1,8 +1,13 @@
-# GRC: Gno.land Request for Comments
+# `p/nt`
+
+This folder contains interfaces, examples, and implementations of standard smart-contracts and patterns.
+
+## GRC: Gno.land Request for Comments
 
 GRCs are the Gnoland's equivalent of Ethereum's ERCs and EIPs, or Bitcoin's BIPs.
 
-This folder contains interfaces, examples, and implementations of standard smart-contracts and patterns.
+The token standards live here: `grc20`, `grc721` (with its `enumerable`, `metadata` and
+`royalty` extensions), and — still quarantined — `grc1155` and `grc777`.
 
 ## Acknowledgment
 

@@ -5,7 +5,7 @@ import (
 	"math"
 	"strconv"
 
-	"gno.land/p/demo/tokens/grc721/v0"
+	"gno.land/p/nt/grc721/v0"
 )
 
 const Kind = "royalty"

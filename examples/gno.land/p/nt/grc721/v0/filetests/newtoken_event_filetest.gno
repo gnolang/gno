@@ -13,7 +13,7 @@
 package grc721dupsignal
 
 import (
-	"gno.land/p/demo/tokens/grc721/v0"
+	"gno.land/p/nt/grc721/v0"
 )
 
 func main(cur realm) {
@@ -49,7 +49,7 @@ func main(cur realm) {
 //         "value": "DUP"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   },
 //   {
 //     "type": "NewToken",
@@ -67,7 +67,7 @@ func main(cur realm) {
 //         "value": "DUP"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   },
 //   {
 //     "type": "Transfer",
@@ -89,7 +89,7 @@ func main(cur realm) {
 //         "value": "1"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   },
 //   {
 //     "type": "Transfer",
@@ -111,6 +111,6 @@ func main(cur realm) {
 //         "value": "2"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   }
 // ]

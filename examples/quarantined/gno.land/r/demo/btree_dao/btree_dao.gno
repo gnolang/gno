@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/moul/md/v0"
+	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

@@ -6,7 +6,7 @@
 package grc721veto
 
 import (
-	"gno.land/p/demo/tokens/grc721/v0"
+	"gno.land/p/nt/grc721/v0"
 )
 
 type vetoExtension struct {
@@ -58,7 +58,7 @@ func main(cur realm) {
 //         "value": "VETO"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   },
 //   {
 //     "type": "Transfer",
@@ -80,6 +80,6 @@ func main(cur realm) {
 //         "value": "2"
 //       }
 //     ],
-//     "pkg_path": "gno.land/p/demo/tokens/grc721/v0"
+//     "pkg_path": "gno.land/p/nt/grc721/v0"
 //   }
 // ]

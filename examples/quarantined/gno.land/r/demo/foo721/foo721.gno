@@ -2,7 +2,7 @@
 package foo721
 
 import (
-	"gno.land/p/demo/tokens/grc721/v0"
+	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -69,7 +69,7 @@ func GetApproved(tid grc721.TokenID) address {
 // (unforgeable per-frame identity) and applies it to the unexported
 // `ledger`. The Teller rejects an rlm that is not the live crossing
 // frame, so a caller cannot act as an account it does not control.
-// See `p/demo/tokens/grc721/tellers.gno` for the Teller doctrine.
+// See `p/nt/grc721/v0/tellers.gno` for the Teller doctrine.
 func Approve(cur realm, to address, tid grc721.TokenID) {
 	if err := callerTelr.Approve(0, cur, to, tid); err != nil {
 		panic(err)

@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

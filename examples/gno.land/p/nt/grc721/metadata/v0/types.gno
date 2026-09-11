@@ -5,8 +5,8 @@ package metadata
 import (
 	"errors"
 
-	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/grc721/v0"
 )
 
 const (

@@ -6,8 +6,8 @@ package royalty
 import (
 	"errors"
 
-	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/grc721/v0"
 )
 
 // FeeDenominator is the EIP-2981 basis-point denominator: bps/10000, 10000 == 100%.
