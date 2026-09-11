@@ -181,16 +181,16 @@ INITIAL_VALSET_OPERATORS=(
 )
 
 # Genesis allocation (no faucets on mainnet): the gnolang/independence-day
-# balance sheet — 3,262,480 accounts totalling 1,332,999,998.328067 GNOT
+# balance sheet — 3,262,481 accounts totalling 1,332,999,998.328067 GNOT
 # (1.333e15 ugnot, ~6900x under the int64 Coin ceiling of ~9.22e18).
 # Downloaded by pinned-commit URL and verified against ALLOCATION_SHA256
 # before use (the gnoland1/test13 pattern). The sheet is the "mkgenesis/
 # balances.txt.gz" public-contract path of that repo.
 #
-# Pinned at independence-day main @ 0927710 (#80, "raise the chain-service
-# float to 5,000 GNOT"). Relative to the 91f7f56 pin this build was last
-# verified on, the TOTAL is unchanged and the account count is +7, across four
-# commits:
+# Pinned at independence-day main @ 0108ede (#81, "fund the GovDAO multisig
+# with a 5,000 GNOT realm-operation float"). Relative to the 91f7f56 pin this
+# build was last verified on, the TOTAL is unchanged and the account count is
+# +8, across five commits:
 #
 #   #77  e37caa6^  a SHA256SUMS manifest asserted in that repo's CI, so the
 #                  published container can no longer change silently under a
@@ -207,6 +207,15 @@ INITIAL_VALSET_OPERATORS=(
 #                  instead of 1,000, because a service spends per event where
 #                  a founder or an operator spends occasionally. Core goes
 #                  39,993,000 -> 39,989,000.
+#   #81  0108ede   +1 account. NAMES_ADMIN g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
+#                  is funded at the same 5,000 GNOT tier, out of §120. NOT for
+#                  names administration — r/sys/names' admin gates Enable()
+#                  and nothing else, and Enable is one-shot at genesis. It is
+#                  funded because the same address is the hardcoded owner of
+#                  r/gnoland/blog and r/gnoland/boards2/v1, both in this
+#                  genesis set, where every owner action is a paid tx and the
+#                  owner cannot be reassigned without a realm upgrade. Core
+#                  goes 39,989,000 -> 39,984,000. See NAMES_ADMIN below.
 #
 # Every float is charged out of an existing bucket rather than minted, so the
 # cap does not move and ALLOCATION_EXPECTED_TOTAL is unchanged.
@@ -219,14 +228,14 @@ INITIAL_VALSET_OPERATORS=(
 # genesis cut (main moves as sale participants bind addresses; see its
 # docs/history.md convention of recording which commit produced which
 # chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/0927710c5d76a719ab82b37234fac9db9d1bce38/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="10ce896b942ddcaea75e2ef4c60b3cb964062c759d562ae37f87c344b97dee9f"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/0108ede228044557aaa3bf17db245533979f5498/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="f78673663f8d5045c402a4bb90039e4b51d308e21acc17c74e6e86e36b09ed08"
 # The sha proves "this is the pinned file"; these two make its MAGNITUDE part
 # of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
 # artifact) and would hold for any sheet — without these, a re-pin that
 # changes how much money mainnet starts with is absorbed by the arithmetic
 # instead of appearing as a reviewable change. Update them with every re-pin.
-ALLOCATION_EXPECTED_ACCOUNTS=3262480
+ALLOCATION_EXPECTED_ACCOUNTS=3262481
 ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 
 # Unrestricted addresses (Constitution §126-130). Same repo, same
@@ -251,7 +260,7 @@ ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 # oracle, and neither is one of the §127 funds — they pay FEES, which
 # SendCoinsUnrestricted exempts from §126 anyway, so neither needs a whitelist
 # entry. A float appearing on this list would be the thing to question.
-UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/0927710c5d76a719ab82b37234fac9db9d1bce38/mkgenesis/unrestricted.txt"
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/0108ede228044557aaa3bf17db245533979f5498/mkgenesis/unrestricted.txt"
 UNRESTRICTED_SHA256="7b37a16822739371cfd9a3f5ae864b7ab86cef4c83155fefb5114c29abda38bf"
 
 # Denominations subject to the §126 transfer lock. Empty = no lock, and then
@@ -269,7 +278,7 @@ RESTRICTED_DENOMS=("ugnot")
 # nothing unlocks before <end_unix>, everything at once after. The vested
 # coins must be <= the total, and the difference is spendable immediately.
 #
-# This array is now mostly REDUNDANT: as of the 0927710 pin the sheet itself
+# This array is now mostly REDUNDANT: as of the 0108ede pin the sheet itself
 # carries the §132 schedules (independence-day #72 turned the vesting pass on
 # by default), including the investors-vesting multisig
 # g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3 — 150,000,000 GNOT total, 144,000,000
@@ -421,11 +430,20 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # this is about who appears as mainnet's deployer of record and who holds
 # the namespaces, not about hidden authority.
 #
-# TODO(mainnet): (funding in progress — Manfred) this address holds no allocation either, so it lands at
-# zero after its names.Enable tx burns its funding — the same question as
-# the valoper operators above. Enable is the only call it has to make at
-# genesis, so zero is survivable, but any later names administration is a
-# paid tx it cannot pay for.
+# FUNDED: 5,000 GNOT from the §120 Core Treasury (independence-day#81), the
+# same tier as the approvals oracle. The reason is NOT names administration —
+# the earlier TODO here had that wrong. r/sys/names' admin gates Enable() and
+# nothing else, Enable is a one-shot genesis call, and the realm's own source
+# calls the address "dead weight" afterwards; pause/unpause runs through a
+# GovDAO T1 proposal (ProposeSetPaused), not through this key. Funding it for
+# names administration would have been funding nothing.
+#
+# It is funded because the same address is the hardcoded OWNER of two realms
+# that ship in this genesis set — r/gnoland/blog (adminAddr) and
+# r/gnoland/boards2/v1 (gPerms) — where ownership is fixed at realm source and
+# every owner action is a paid tx. An owner at zero under §126 with no faucet
+# could not post to the chain's own blog or administer its own boards, and
+# could not be topped up until the transfer lock lifts.
 NAMES_ADMIN=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 
 # ---- Locked sha256 hashes.
@@ -689,7 +707,7 @@ assert_exact_sum() {
 #     amount*(now-start)/(end-start) (tm2/pkg/std/vesting.go), so a past start
 #     hands out that fraction at block 1. Only `;type=delayed` cliffs vest
 #     nothing before their end. This is now the load-bearing case: at the
-#     0927710 pin 3,262,416 of the sheet's 3,262,480 rows carry a CONTINUOUS
+#     0108ede pin 3,262,417 of the sheet's 3,262,481 rows carry a CONTINUOUS
 #     §132 schedule from 1789084800, and one more (the forced-lockup public-sale
 #     row) has start=0 — the epoch — so its `;type=delayed` suffix is the only
 #     thing between a correct lockup and ~98% of it liquid. Upstream dropping a
@@ -1060,7 +1078,7 @@ alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
 # either): one `g1<38>=<digits>ugnot` line per account, no duplicates.
 # A row may carry a declared vesting schedule -- and since independence-day #72
 # (in this pin) MOST rows do: the §132 pass runs by default, so all but 63 of
-# the 3,262,480 rows carry one, plus the public-sale row under a mandatory
+# the 3,262,481 rows carry one, plus the public-sale row under a mandatory
 # forced lockup. A pattern that only accepts a bare balance rejects the sheet
 # outright.
 if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot(;vesting=[0-9]+ugnot,[0-9]+,[0-9]+(;type=[a-z]+)?)?$' "$ALLOCATION_TXT"; then
@@ -2077,7 +2095,7 @@ while IFS= read -r addr; do
     # sum below (the amount is not the whole right-hand side, and the
     # schedule must be preserved).
     #
-    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 0927710
+    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 0108ede
     # pin all three allocation-holding genesis fee payers carry a §132
     # schedule (independence-day #72 turned the vesting pass on by default):
     #   g125em6arxsnj49vx35f0n0z34putv5ty3376fg5      10,000 GNOT
