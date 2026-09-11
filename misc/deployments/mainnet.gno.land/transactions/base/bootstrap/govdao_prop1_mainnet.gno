@@ -34,8 +34,8 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v0/impl"
-	"gno.land/r/gov/dao/v0/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func main(cur realm) {
@@ -45,9 +45,9 @@ func main(cur realm) {
 	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(3))) // aeddi
 
 	// ---- 2. Lock down memberstore access ----
-	// gno.land/r/gov/dao/v0/impl is the production member-mutation realm;
+	// gno.land/r/gov/dao/impl/v0 is the production member-mutation realm;
 	// after this call it is the only realm allowed to mutate membership.
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v0/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
 func must(err error) {
