@@ -1,9 +1,11 @@
 package boards2
 
 import (
+	"errors"
 	"strings"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 )
@@ -53,9 +55,14 @@ func ProposeCreateBoard(cur realm, name string, listed, open bool, owner address
 	)
 }
 
-// ProposeSetPermissions returns a GovDAO proposal request that sets a permissions
-// implementation for the realm or for a single board.
-func ProposeSetPermissions(cur realm, boardID boards.ID, p boards.Permissions) dao.ProposalRequest {
+// ProposeSetPermissions returns a GovDAO proposal request that sets the
+// permissions p for the realm or for a single board. Use the concrete
+// permissions.Permissions struct for p (not the boards.Permissions interface)
+// so that we can Clone a fresh copy. p must not have validators, which can't be copied.
+// Instead, the existing validators in the permissions for boardID are restored at
+// proposal execution time. This means that the existing permissions must be the
+// default concrete permissions.Permissions .
+func ProposeSetPermissions(cur realm, boardID boards.ID, p *permissions.Permissions) dao.ProposalRequest {
 	if !cur.IsCurrent() {
 		panic("ProposeSetPermissions must be called as a crossing function")
 	}
@@ -64,10 +71,12 @@ func ProposeSetPermissions(cur realm, boardID boards.ID, p boards.Permissions) d
 	// whatever can still change before the proposal is executed.
 	assertRealmIsNotLocked()
 	assertBoardExists(boardID)
-
-	if p == nil {
-		panic("permissions is required")
+	if _, err := getCopyablePermissions(boardID); err != nil {
+		panic(err.Error())
 	}
+
+	// Make a fresh clone which is independent of the caller's copy.
+	owned := permissions.Clone(p)
 
 	// The executor runs under GovDAO authority, so the recorded caller is the
 	// member that submitted the request.
@@ -76,7 +85,12 @@ func ProposeSetPermissions(cur realm, boardID boards.ID, p boards.Permissions) d
 	// Returns an error rather than panicking which would abort the
 	// execution transaction and leave the proposal active.
 	cb := func(realm) error {
-		return setPermissions(boardID, proposer, p)
+		src, err := getCopyablePermissions(boardID)
+		if err != nil {
+			return err
+		}
+		owned.CopyValidators(src)
+		return setPermissions(boardID, proposer, owned)
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
@@ -102,4 +116,23 @@ func ProposeSetPermissions(cur realm, boardID boards.ID, p boards.Permissions) d
 		),
 		e,
 	)
+}
+
+// getCopyablePermissions returns the current realm permissions, or the board
+// permissions when boardID is not zero, if their validators can be copied.
+func getCopyablePermissions(boardID boards.ID) (*permissions.Permissions, error) {
+	current := gPerms
+	if boardID != 0 {
+		board, found := gBoards.Get(boardID)
+		if !found {
+			return nil, errBoardNotFound
+		}
+		current = board.Permissions
+	}
+
+	src, ok := current.(*permissions.Permissions)
+	if !ok {
+		return nil, errors.New("current permissions don't support copying validators")
+	}
+	return src, nil
 }

@@ -17,13 +17,13 @@ import (
 	daov3init "gno.land/r/gov/dao/v3/init"
 )
 
-const boardOwner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+const boardOwner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 var (
 	member   = unsafe.OriginCaller()
 	newOwner = testutils.TestAddress("newOwner")
 	bid      boards.ID
-	perms    boards.Permissions
+	perms    *permissions.Permissions
 )
 
 func init(cur realm) {

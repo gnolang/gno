@@ -22,7 +22,7 @@ import (
 var (
 	member   = unsafe.OriginCaller()
 	newOwner = testutils.TestAddress("newOwner")
-	perms    boards.Permissions
+	perms    *permissions.Permissions
 )
 
 func init(cur realm) {
