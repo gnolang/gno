@@ -277,11 +277,13 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 		userActionExecuted = true
 		return nil
 	})
-	// The ContractAuthority.Authorize method should return an error
-	// because the handler now returns an error if the caller isn't the contract.
+	// A plain ContractAuthority defaults its proposer to the contract
+	// itself, so a user caller is rejected UPSTREAM (at the proposer) and
+	// the handler is never reached — the handler's own CurrentRealm check
+	// above is now belt-and-braces, not the guard being relied on.
 	uassert.Error(t, err, "user action via Authorizer.Do should fail when contract is authority")
-	uassert.ErrorContains(t, err, "handler: caller is not the contract", "error should originate from handler check") // Check specific error
-	uassert.False(t, handlerExecuted, "handler should NOT have been executed by user call")                           // Verify handler didn't run past the check
+	uassert.ErrorContains(t, err, "unauthorized", "rejection should come from the contract-identity proposer")
+	uassert.False(t, handlerExecuted, "handler should NOT have been executed by user call")
 	uassert.False(t, userActionExecuted, "user action should not have been executed")
 }
 
