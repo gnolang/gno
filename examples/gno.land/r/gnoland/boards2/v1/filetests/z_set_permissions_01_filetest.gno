@@ -5,8 +5,8 @@ package z_set_permissions_01_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/gnoland/boards/exts/permissions/v0"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )

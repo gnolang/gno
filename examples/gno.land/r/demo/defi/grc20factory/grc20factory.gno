@@ -1,11 +1,11 @@
 package grc20factory
 
 import (
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	p "gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/avl/v0/rotree"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"

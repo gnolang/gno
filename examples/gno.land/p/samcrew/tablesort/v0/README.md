@@ -27,7 +27,7 @@ markdown2 := tablesort.Render(u, table, "table2-")
 
 ## On-chain Example
 
-- [/r/gov/dao/v3/memberstore:members?filter=T1](/r/gov/dao/v3/memberstore:members?filter=T1)
+- [/r/gov/dao/v0/memberstore:members?filter=T1](/r/gov/dao/v0/memberstore:members?filter=T1)
 
 ## API
 

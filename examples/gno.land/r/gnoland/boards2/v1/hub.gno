@@ -7,8 +7,8 @@
 package boards2
 
 import (
-	"gno.land/p/gnoland/boards/v0"
 	hubexts "gno.land/p/gnoland/boards/exts/hub/v0"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // Safe view types are defined in the hub extensions package and

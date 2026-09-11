@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	trs_pkg "gno.land/p/nt/treasury/v0"
 	"gno.land/p/nt/uassert/v0"
 
-	"gno.land/r/nt/grc20reg/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v0/impl"
 	"gno.land/r/gov/dao/v0/treasury"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to

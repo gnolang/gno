@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/demo/tokens/grc721/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -27,7 +27,7 @@ type Event struct {
 	// then pay for tickets in worthless counterfeit tokens; the eventix
 	// realm thinks it got paid and mints real NFT tickets. Free tickets
 	// for the caller.
-	// Fix: restrict paymentToken to tokens registered in r/demo/defi/grc20reg
+	// Fix: restrict paymentToken to tokens registered in r/nt/grc20reg/v0
 	// (or a hardcoded allowlist of trusted token pkgPaths). Reject any
 	// *grc20.Token that doesn't come from a known good source.
 	paymentToken any

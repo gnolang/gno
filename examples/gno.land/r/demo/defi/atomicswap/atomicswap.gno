@@ -44,8 +44,8 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/nt/grc20reg/v0"
 )

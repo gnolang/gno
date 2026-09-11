@@ -71,4 +71,4 @@ func ApplyFilters(u *url.URL, items *avl.Tree, paramName string) (string, *avl.T
 
 # Example
 
-- [/r/gov/dao/v3/memberstore:members?filter=T1](/r/gov/dao/v3/memberstore:members?filter=T1)
+- [/r/gov/dao/v0/memberstore:members?filter=T1](/r/gov/dao/v0/memberstore:members?filter=T1)

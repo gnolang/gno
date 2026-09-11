@@ -6,8 +6,8 @@ import (
 	"gno.land/p/nt/grc20/v0"
 	t "gno.land/p/nt/treasury/v0"
 
-	"gno.land/r/nt/grc20reg/v0"
 	"gno.land/r/gov/dao"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 var (

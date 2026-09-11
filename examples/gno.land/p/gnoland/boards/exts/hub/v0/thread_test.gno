@@ -3,8 +3,8 @@ package hub_test
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/gnoland/boards/exts/hub/v0"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 

@@ -4,11 +4,11 @@ import (
 	"chain"
 	"strings"
 
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
