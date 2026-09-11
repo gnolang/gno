@@ -52,7 +52,7 @@ When `GH_USER` is set, all images build from the fetched remote branch by defaul
 This is useful when testing a branch that does not contain every scenario tool. For example, build the chain binaries from a remote branch but use the local `valsignerd`:
 
 ```bash
-GH_USER=moul GH_BRANCH=feat/valset-params-v0 VALSIGNER_GNO_ROOT=$PWD make build-images
+GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build-images
 ```
 
 The repository is cloned once to `/tmp/gno-remote-build` and reused across subsequent builds. To force a fresh clone, run `make fetch-remote` with the same variables.

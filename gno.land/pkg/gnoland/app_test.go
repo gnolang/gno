@@ -1134,9 +1134,9 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("diff applied: kept + power-change + new + removed", func(t *testing.T) {
 		t.Parallel()
 
-		// current = [v1@10, v2@20, v0@30]
+		// current = [v1@10, v2@20, v3@30]
 		// proposed = [v1@10 (kept), v2@99 (power change), v4@40 (new)]
-		// expected updates: v2@99, v0@0 (removal), v4@40
+		// expected updates: v2@99, v3@0 (removal), v4@40
 		currentUpdates := generateValidatorUpdates(t, 3)
 		newcomer := generateValidatorUpdates(t, 1)[0]
 		currentUpdates[0].Power = 10
@@ -1163,7 +1163,7 @@ func TestEndBlocker(t *testing.T) {
 			byAddr[u.Address.String()] = u
 		}
 		assert.Equal(t, int64(99), byAddr[currentUpdates[1].Address.String()].Power, "v2 power must be 99")
-		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v0 must be removed (Power=0)")
+		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
 		assert.Equal(t, int64(40), byAddr[newcomer.Address.String()].Power, "v4 must be added")
 		_, kept := byAddr[currentUpdates[0].Address.String()]
 		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
