@@ -23,10 +23,11 @@ func NewRoyalty(coreLedger *grc721.PrivateLedger, maxBps int64) (*Royalty, *Ledg
 	st := &storage{maxBps: maxBps}
 	core := coreLedger.ReadToken()
 	led := &Ledger{core: core, st: st}
+	view := &Royalty{core: core, st: st}
 
-	coreLedger.RegisterExtension(led)
+	coreLedger.RegisterExtension(led, view)
 
-	return &Royalty{core: core, st: st}, led
+	return view, led
 }
 
 func (r *Royalty) ExtensionKind() string { return Kind }

@@ -669,29 +669,101 @@ func TestReadViews(cur realm, t *testing.T) {
 func TestRegisterExtensionNil(cur realm, t *testing.T) {
 	_, led := newTestToken("Foo", "FOO", 0, cur)
 	uassert.PanicsWithMessage(t, cur, "grc721: nil extension", func() {
-		led.RegisterExtension(nil)
+		led.RegisterExtension(nil, nil)
 	})
 }
 
 func TestRegisterExtensionRejectsDuplicateKind(cur realm, t *testing.T) {
 	_, led := newTestToken("Foo", "FOO", 0, cur)
 	ext := &mockExtension{}
-	led.RegisterExtension(ext)
+	led.RegisterExtension(ext, nil)
 
 	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
-		led.RegisterExtension(ext)
+		led.RegisterExtension(ext, nil)
 	})
 	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: mock", func() {
-		led.RegisterExtension(&mockExtension{})
+		led.RegisterExtension(&mockExtension{}, nil)
 	})
 }
 
 func TestRegisterExtensionRejectsDuplicateKindOfUncomparableType(cur realm, t *testing.T) {
 	_, led := newTestToken("Foo", "FOO", 0, cur)
-	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}})
+	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}}, nil)
 
 	uassert.PanicsWithMessage(t, cur, "grc721: extension kind already registered: journal", func() {
-		led.RegisterExtension(journalExtension{seen: []TokenID{"2"}})
+		led.RegisterExtension(journalExtension{seen: []TokenID{"2"}}, nil)
+	})
+}
+
+func TestExtensionViewLookup(cur realm, t *testing.T) {
+	tok, led := newTestToken("Foo", "FOO", 0, cur)
+	view := &mockView{core: tok}
+	led.RegisterExtension(&mockExtension{}, view)
+	led.RegisterExtension(journalExtension{seen: []TokenID{"1"}}, nil)
+
+	uassert.Equal(t, 2, len(tok.ExtensionKinds()))
+	uassert.Equal(t, "mock", tok.ExtensionKinds()[0])
+	uassert.Equal(t, "journal", tok.ExtensionKinds()[1])
+
+	got := tok.ExtensionView("mock")
+	urequire.True(t, got != nil, "mock view registered")
+	uassert.True(t, got == ExtensionView(view))
+
+	// a kind registered without a view publishes nothing
+	uassert.True(t, tok.ExtensionView("journal") == nil)
+	uassert.True(t, tok.ExtensionView("absent") == nil)
+}
+
+type mockView struct{ core *Token }
+
+func (m *mockView) ExtensionKind() string { return "mock" }
+
+func (m *mockView) TokenID() string { return m.core.ID() }
+
+// shiftyExtension reads its kind through a pointer, so it can try to re-key
+// itself after registration.
+type shiftyExtension struct{ kind *string }
+
+func (s shiftyExtension) ExtensionKind() string { return *s.kind }
+
+func (s shiftyExtension) OnMint(to address, tid TokenID) {}
+
+func (s shiftyExtension) OnTransfer(from, to address, tid TokenID) {}
+
+func (s shiftyExtension) OnBurn(tid TokenID) {}
+
+func TestRegisterExtensionFreezesTheKind(cur realm, t *testing.T) {
+	tok, led := newTestToken("Foo", "FOO", 0, cur)
+	kind := "aux"
+	led.RegisterExtension(shiftyExtension{kind: &kind}, nil)
+
+	kind = "mock"
+
+	kinds := tok.ExtensionKinds()
+	urequire.Equal(t, 1, len(kinds))
+	uassert.Equal(t, "aux", kinds[0])
+
+	// the kind it moved to is still free for the extension that owns it
+	led.RegisterExtension(&mockExtension{}, nil)
+	uassert.Equal(t, 2, len(tok.ExtensionKinds()))
+}
+
+func TestRegisterExtensionRejectsAForeignView(cur realm, t *testing.T) {
+	tokA, ledA := newTestToken("A", "AAA", 0, cur)
+	_, ledB := newTestToken("B", "BBB", 1, cur)
+
+	uassert.PanicsWithMessage(t, cur, "grc721: view kind does not match the extension: mock", func() {
+		ledA.RegisterExtension(journalExtension{seen: []TokenID{"1"}}, &mockView{core: tokA})
+	})
+
+	uassert.PanicsWithMessage(t, cur, "grc721: view belongs to another token: "+ledB.ReadToken().ID(), func() {
+		ledA.RegisterExtension(&mockExtension{}, &mockView{core: ledB.ReadToken()})
+	})
+}
+
+func TestRegisterExtensionRejectsATokenlessLedger(cur realm, t *testing.T) {
+	uassert.PanicsWithMessage(t, cur, "grc721: ledger has no token", func() {
+		(&PrivateLedger{}).RegisterExtension(&mockExtension{}, nil)
 	})
 }
 
@@ -704,7 +776,7 @@ func TestExtensionHookFanOut(cur realm, t *testing.T) {
 		{
 			name: "mint, transfer and burn each notify the extension",
 			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {
-				led.RegisterExtension(ext)
+				led.RegisterExtension(ext, nil)
 				urequire.NoError(t, led.Mint(alice, "1"))
 				urequire.NoError(t, led.TransferFrom(alice, alice, bob, "1"))
 				urequire.NoError(t, led.Burn("1"))
@@ -721,7 +793,7 @@ func TestExtensionHookFanOut(cur realm, t *testing.T) {
 		{
 			name: "failed operations do not notify the extension",
 			run: func(t *testing.T, led *PrivateLedger, ext *mockExtension) {
-				led.RegisterExtension(ext)
+				led.RegisterExtension(ext, nil)
 				uassert.ErrorIs(t, led.Mint(zeroAddress, "1"), ErrInvalidAddress)
 				uassert.ErrorIs(t, led.Burn("999"), ErrInvalidTokenId)
 			},
