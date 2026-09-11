@@ -60,9 +60,10 @@ func encodeMultilineTomlString(value string, commented string) string {
 		case '\\':
 			b.WriteString(`\`)
 		default:
-			intRr := uint16(rr)
-			if intRr < 0x001F {
-				b.WriteString(fmt.Sprintf("\\u%0.4X", intRr))
+			// See encodeTomlString for why the comparison is on rr itself and
+			// why the bound is inclusive.
+			if rr <= 0x1F {
+				b.WriteString(fmt.Sprintf(`\u%04X`, rr))
 			} else {
 				b.WriteRune(rr)
 			}
@@ -92,9 +93,25 @@ func encodeTomlString(value string) string {
 		case '\\':
 			b.WriteString(`\\`)
 		default:
-			intRr := uint16(rr)
-			if intRr < 0x001F {
-				b.WriteString(fmt.Sprintf("\\u%0.4X", intRr))
+			// Escape every control character the lexer refuses to read back
+			// raw: lexStringAsString rejects 0x00-0x1F except tab, which the
+			// case above already handled.
+			//
+			// Upstream compared uint16(rr) against 0x1F, which was wrong
+			// twice. The bound excluded U+001F itself, so that one character
+			// was written raw into a basic string the lexer then refused --
+			// Marshal produced a document Unmarshal could not read. And the
+			// conversion truncated, so a rune whose LOW 16 bits fall under
+			// 0x1F (U+1000A, say) was emitted as the escape for those low bits
+			// alone and read back as an entirely different character.
+			//
+			// Both break Unmarshal(Marshal(v)) == v. That matters beyond
+			// tidiness here: gnomod.toml is stored re-encoded and its approval
+			// hash is taken after a further round trip
+			// (gno.land/pkg/sdk/vm.PackageContentHash), so an encoding that is
+			// not a fixpoint is an approval no approver can ever match.
+			if rr <= 0x1F {
+				b.WriteString(fmt.Sprintf(`\u%04X`, rr))
 			} else {
 				b.WriteRune(rr)
 			}

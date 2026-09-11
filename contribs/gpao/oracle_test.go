@@ -238,20 +238,20 @@ func TestOracleHandleCandidateOverBudgetCap(t *testing.T) {
 	// Every attempt before the cap leaves the package pending, so a restart or
 	// a resubmission can still reach it.
 	for i := 1; i < maxOverBudgetAttempts; i++ {
-		o.handleCandidate(context.Background(), mpkg)
+		o.handleCandidate(context.Background(), candidate{mpkg: mpkg})
 		assert.NotContains(t, o.seen, path,
 			"attempt %d of %d must leave the package pending", i, maxOverBudgetAttempts)
 		assert.Equal(t, i, o.overBudget[path], "overrun count after attempt %d", i)
 	}
 
 	// At the cap the oracle stops paying for it.
-	o.handleCandidate(context.Background(), mpkg)
+	o.handleCandidate(context.Background(), candidate{mpkg: mpkg})
 	assert.Contains(t, o.seen, path,
 		"the package must be given up on once it has burned %d budgets", maxOverBudgetAttempts)
 
 	// And having given up, it is not verified again: the count stays put
 	// because handleCandidate now returns on the seen check.
-	o.handleCandidate(context.Background(), mpkg)
+	o.handleCandidate(context.Background(), candidate{mpkg: mpkg})
 	assert.Equal(t, maxOverBudgetAttempts, o.overBudget[path],
 		"a given-up package must not be re-verified")
 }
@@ -398,7 +398,7 @@ func TestUnreachableRemoteIsNotAVerdict(t *testing.T) {
 
 	// And the consequence the submitter feels: the content is NOT settled, so
 	// a resubmission (or a restart) gets a fresh look once the fault clears.
-	o.handleCandidate(context.Background(), mpkg)
+	o.handleCandidate(context.Background(), candidate{mpkg: mpkg})
 	assert.NotContains(t, o.seen, candidateKey(mpkg),
 		"a fault that was never about the bytes must not retire them")
 	assert.Equal(t, statusPending, o.status.get(mpkg.Path).Status)
@@ -497,13 +497,13 @@ func TestOracleReVerifiesChangedBytesAtTheSamePath(t *testing.T) {
 
 	// Burn the first candidate's whole allowance so it is given up on.
 	for range maxOverBudgetAttempts {
-		o.handleCandidate(context.Background(), first)
+		o.handleCandidate(context.Background(), candidate{mpkg: first})
 	}
 	require.Contains(t, o.seen, candidateKey(first))
 
 	// The corrected resubmission at the same path gets a fresh look: it is not
 	// short-circuited by the first one's verdict.
-	o.handleCandidate(context.Background(), second)
+	o.handleCandidate(context.Background(), candidate{mpkg: second})
 	assert.Equal(t, 1, o.overBudget[candidateKey(second)],
 		"the corrected package must be verified rather than skipped")
 	assert.NotContains(t, o.seen, candidateKey(second),
