@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
@@ -50,4 +50,4 @@ func main(cur realm) {
 // [Foo](/r/nt/commondao/v0:2)
 //
 // **Sweep destination:**
-// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
+// g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
