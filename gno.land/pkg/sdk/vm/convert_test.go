@@ -48,7 +48,7 @@ func TestConvertEmptyNumbers(t *testing.T) {
 		testname := fmt.Sprintf("%v", tt.argT)
 		t.Run(testname, func(t *testing.T) {
 			run := func() {
-				_ = convertArgToGno("", tt.argT)
+				_ = convertArgToGno(nil, "", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
 		})
@@ -87,10 +87,10 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 
 			if tt.shouldPanic {
 				require.PanicsWithValue(t, fmt.Sprintf("array length mismatch: declared [%d]byte, got %d bytes", tt.declaredLen, tt.inputLen), func() {
-					convertArgToGno(b64, arrType)
+					convertArgToGno(nil, b64, arrType)
 				})
 			} else {
-				tv := convertArgToGno(b64, arrType)
+				tv := convertArgToGno(nil, b64, arrType)
 				av, ok := tv.V.(*gnolang.ArrayValue)
 				require.True(t, ok)
 				assert.Equal(t, tt.declaredLen, av.GetLength())
@@ -1391,4 +1391,29 @@ func init() {
 		require.Contains(t, rep, `"ObjectID":":1"`,
 			"back-reference must target the first-visited ephemeral Object (:1); got:\n%s", rep)
 	})
+}
+
+// TestConvertArgToGno_StringArgIsCharged pins that string call arguments
+// are minted through the tx allocator: charged at conversion time and
+// registered for the GC's backing-byte recount. A raw StringValue here
+// would be charged nothing and stay invisible to GC (header-only) forever.
+func TestConvertArgToGno_StringArgIsCharged(t *testing.T) {
+	t.Parallel()
+
+	alloc := gnolang.NewAllocator(1_000_000)
+	arg := strings.Repeat("x", 1000)
+	tv := convertArgToGno(alloc, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
+
+	_, charged := alloc.Status()
+	require.Greater(t, charged, int64(1000), "string arg bytes must be charged at conversion")
+
+	// The backing is tracked: the GC recount finds its full length.
+	n, ok := alloc.CountStringBytes(tv.GetString(), 1)
+	require.True(t, ok, "string arg backing must be tracked for GC recount")
+	require.Equal(t, int64(1000), n)
+
+	// nil allocator (tests, no budget) stays valid.
+	tv = convertArgToGno(nil, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
 }

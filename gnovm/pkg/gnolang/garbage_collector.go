@@ -171,6 +171,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}
 
+	// Drop string ranges not visited this cycle (dead backings);
+	// visited ones stay for the next recount.
+	m.Alloc.CleanupTrackedStrings(m.GCCycle)
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -225,8 +229,19 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
-		// Add object size to alloc.
+		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
+
+		// Strings: the backing bytes are raw data, invisible to
+		// VisitAssociated — count them here. CountStringBytes charges
+		// the full backing once per backing per cycle (dedup for shared
+		// backings; full length, not len(sv), so a slice outliving its
+		// source keeps the backing counted).
+		if sv, ok := v.(StringValue); ok {
+			if backingBytes, charge := alloc.CountStringBytes(string(sv), gcCycle); charge {
+				size += allocStringByte * backingBytes
+			}
+		}
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
@@ -452,6 +467,8 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
+// VisitAssociated is a no-op: the backing bytes are raw data, not a
+// Value. GCVisitorFn counts them via the allocator's string ranges.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
