@@ -112,16 +112,41 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// carries no hash, and refusing it would fail every replayed enable. The
 	// bytes are already fixed by then in any case -- replay is not racing a
 	// submitter.
+	//
+	// gnomod.toml is parsed ONCE, here, and reused by every check below that
+	// needs it: the hash, the [addpkg] pin, the gnomod rule set, and the
+	// creator that becomes OriginCaller. Parsing before the hash rather than
+	// after it is also what makes the diagnosis honest -- an unparseable stored
+	// blob (a gnomod.toml that stampGnomod's re-encode pushed past
+	// gnomod's 4KB limit, say) would otherwise surface as a hash mismatch
+	// accusing the creator of swapping bytes, with an empty hash on the right.
+	gm, err := parseGnomodForHash(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
 	if !replay {
 		if msg.PkgHash == "" {
 			return ErrInvalidPackage(
 				"missing pkg_hash: an approval has to name the source it approves")
 		}
-		if got := PackageContentHash(memPkg); got != msg.PkgHash {
+		if got := packageContentHash(memPkg, *gm); got != msg.PkgHash {
 			return ErrInvalidPackage(fmt.Sprintf(
 				"the parked source at %s is not what was approved "+
 					"(approved %s, parked %s); it changed after review",
 				msg.PkgPath, msg.PkgHash, got))
+		}
+		// The submission, not just the source. See MsgEnablePackage.PkgHeight:
+		// the hash cannot cover [addpkg], so without this a re-park keeps a
+		// standing approval alive while changing max_deposit under it.
+		//
+		// Optional, because zero is what every approval predating the field
+		// carries; an approver who pins nothing gets exactly the old behaviour.
+		if msg.PkgHeight != 0 && int64(gm.AddPkg.Height) != msg.PkgHeight {
+			return ErrInvalidPackage(fmt.Sprintf(
+				"the parked package at %s is not the submission that was approved "+
+					"(approved the one from height %d, parked one is from height %d); "+
+					"it was re-submitted after review",
+				msg.PkgPath, msg.PkgHeight, gm.AddPkg.Height))
 		}
 	}
 	// Refuse to activate over a package that is already live, applying exactly
@@ -158,11 +183,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// Blob presence is an exact liveness test here: a parked package is stored
 	// under a different key prefix and is invisible to GetMemPackage, while a
 	// live one always has a production blob (hasProdGnoFile guarantees it at
-	// deploy). `private` comes from the same gnomod.toml the deploy stored.
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
+	// deploy). `private` comes from the same gnomod.toml the deploy stored --
+	// parsed once at the hash check above, not again here.
 	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
 	priorPrivate := false
 	// Kept in scope for the creator binding below, which asks a second question

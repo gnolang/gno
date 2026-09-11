@@ -79,7 +79,7 @@ func newStubOracle(rpc rpcclient.Client) *oracle {
 	return &oracle{
 		io:         commands.NewTestIO(),
 		client:     gnoclient.Client{RPCClient: rpc},
-		candidates: make(chan *std.MemPackage, 8),
+		candidates: make(chan candidate, 8),
 		seen:       map[string]struct{}{},
 		overBudget: map[string]int{},
 	}
@@ -105,7 +105,7 @@ func TestProcessBlockIgnoresFailedTransactions(t *testing.T) {
 
 	var queued []string
 	for len(o.candidates) > 0 {
-		queued = append(queued, (<-o.candidates).Path)
+		queued = append(queued, (<-o.candidates).mpkg.Path)
 	}
 	require.Equal(t, []string{"gno.land/r/test/good"}, queued,
 		"only the package from the transaction that SUCCEEDED may be queued")

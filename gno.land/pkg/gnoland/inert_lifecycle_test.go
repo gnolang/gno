@@ -202,10 +202,13 @@ func Origin(cur realm) string { return origin }
 	//
 	// The hash is computed from the source that was submitted, which is how a
 	// real approver gets it -- they saw the transaction. It matches the parked
-	// blob because PackageContentHash excludes gnomod.toml, the only file the
-	// keeper stamps at submit.
+	// blob because PackageContentHash resets the gnomod.toml fields the keeper
+	// stamps at submit before hashing it, so the submitted copy and the stored
+	// copy canonicalize to the same bytes.
+	submittedHash, err := vm.PackageContentHash(submitted)
+	require.NoError(t, err)
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
+		Approver: approverAddr, PkgPath: path, PkgHash: submittedHash,
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "approver should be able to enable: %s", enableResp.Log)
 
@@ -301,8 +304,10 @@ func Hello(cur realm) string { return "hi" }
 
 	collectorAfterSubmit := ugnotBalance(t, app, collectorAddr)
 
+	submittedHash, err := vm.PackageContentHash(submitted)
+	require.NoError(t, err)
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
+		Approver: approverAddr, PkgPath: path, PkgHash: submittedHash,
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "enable should succeed: %s", enableResp.Log)
 

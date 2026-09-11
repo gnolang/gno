@@ -626,12 +626,18 @@ func errInvalidMemPackage(err error) error {
 // authors, so anything not overwritten here is attacker-supplied: a hand-written
 // `[addpkg] max_deposit` would otherwise survive and be read at enable as though
 // the message had declared it.
+//
+// The fields this owns are listed ONCE, in keeperOwnedGnomod, which
+// PackageContentHash resets before hashing. Two lists would drift, and the
+// consequence of drift is not cosmetic: a field stamped here but not reset
+// there makes the approver's hash and the keeper's disagree forever, so the
+// package can never be enabled. That already happened once, for Module.
 func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator crypto.Address, height int64, maxDeposit string) {
-	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	keeperOwnedGnomod(gm, pkgPath) // XXX: if gm.Module != msg.Package.Path { panic() }?
 	gm.AddPkg.Creator = creator.String()
 	gm.AddPkg.Height = int(height)
 	gm.AddPkg.MaxDeposit = maxDeposit
-	mpkg.SetFile("gnomod.toml", gm.WriteString())
+	mpkg.SetFile(gnomodFileName, gm.WriteString())
 }
 
 // checkGnomodConstraints applies the keeper-only gnomod.toml rules that the type
@@ -665,6 +671,22 @@ func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath strin
 	// no (deprecated) gno.mod file.
 	if mpkg.GetFile("gno.mod") != nil {
 		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+	// A gno version the toolchain cannot compile.
+	//
+	// ParseCheckGnoMod PANICS on an unsupported version, and it is reached from
+	// the type checker -- which the inert submit branch never runs. So a
+	// package declaring gno = "0.8" parks cleanly and detonates inside
+	// EnablePackage, on the APPROVER's transaction and gas, for a mistake the
+	// submitter made. Refusing it here charges it to the submitter on all three
+	// paths instead.
+	//
+	// The accepted set mirrors ParseCheckGnoMod's exactly: empty means "default
+	// to latest", which is why it is not rejected here either.
+	if gm.Gno != "" && gm.Gno != gno.GnoVerLatest {
+		return ErrInvalidPackage(fmt.Sprintf(
+			"unsupported gno version %q in gnomod.toml (this chain compiles %q)",
+			gm.Gno, gno.GnoVerLatest))
 	}
 	return nil
 }
