@@ -28,12 +28,12 @@
 #      valset:current from it, so v0/EndBlocker valset changes work).
 #   6. Balances: the independence-day allocation sheet (~3.26M accounts,
 #      downloaded by pinned URL + sha256-verified) and its §126
-#      unrestricted-address list (same treatment; pins temporarily split
-#      across commits — see the TODO(mainnet) at UNRESTRICTED_URL), the VESTED_ACCOUNTS
-#      entries (created as vesting accounts at genesis), plus exact-burn
-#      funding for every genesis-tx fee payer (measured on a temp node;
-#      fee payers land at zero — or at exactly their allocation if they
-#      also hold one — once the genesis txs execute).
+#      unrestricted-address list (same treatment, same pinned commit), the
+#      VESTED_ACCOUNTS entries (created as vesting accounts at genesis —
+#      though the pinned sheet now carries the §132 schedules itself), plus
+#      exact-burn funding for every genesis-tx fee payer (measured on a
+#      temp node; fee payers land at zero — or at exactly their allocation
+#      if they also hold one — once the genesis txs execute).
 #
 # Output:
 #   work/packages.gen.txt    resolved package list (audit artifact)
@@ -63,6 +63,16 @@ CHAIN_ID=gnoland-1 # decided 2026-09-09
 # Mainnet block 1 carries this timestamp forever: pin the ceremony time and
 # rebuild if it slips (topaz/sapphire/pearl all launched backdated; fine on
 # a testnet, ugly on mainnet).
+#
+# This is no longer a free parameter: since independence-day #72 the pinned
+# sheet vests nearly every row continuously from an ABSOLUTE 1789084800
+# (2026-09-11T00:00:00Z), which mkgenesis/vesting.go documents as *the genesis
+# timestamp*. GENESIS_TIME > that start is a §126/§132 leak and
+# assert_vesting_locked_at_genesis refuses to build it; GENESIS_TIME < it (the
+# case today, by 15 days) ships a chain whose §132 clock starts after launch —
+# valid on-chain (VestedCoins returns nothing before StartTime) but not what
+# §132 says. Decide the ceremony time and re-pin a sheet generated with
+# -vesting-start equal to it.
 GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 
 # Packages to include in genesis (resolved with transitive dependencies).
@@ -169,24 +179,34 @@ INITIAL_VALSET_OPERATORS=(
 )
 
 # Genesis allocation (no faucets on mainnet): the gnolang/independence-day
-# balance sheet — 3,262,454 accounts totalling 1,332,999,998.328067 GNOT
+# balance sheet — 3,262,473 accounts totalling 1,332,999,998.328067 GNOT
 # (1.333e15 ugnot, ~6900x under the int64 Coin ceiling of ~9.22e18).
 # Downloaded by pinned-commit URL and verified against ALLOCATION_SHA256
 # before use (the gnoland1/test13 pattern). The sheet is the "mkgenesis/
 # balances.txt.gz" public-contract path of that repo.
 #
+# Pinned at independence-day main @ 91f7f56 (#73, "pay the settled investor
+# and partner distributions at genesis"), which is also the first main commit
+# carrying the generated unrestricted.txt (#74) — so this pin and
+# UNRESTRICTED_URL below are back on ONE commit. Relative to the previous pin
+# (9d1cfde) the TOTAL is unchanged and the account count is +19: #73
+# redistributes out of the existing investor/partner buckets rather than
+# minting, and #72 turned the §132 vesting pass on by default, so nearly every
+# row now carries a declared schedule — which couples the sheet to GENESIS_TIME
+# (see the TODO there).
+#
 # TODO(mainnet): re-pin URL + sha to the FINAL independence-day commit at
 # genesis cut (main moves as sale participants bind addresses; see its
 # docs/history.md convention of recording which commit produced which
 # chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/9d1cfde9fc557c899367592953793198e18c5b1d/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="ea7236415802463887d2e2502dcab536c6469055ce2600b985aed6a3fc5b4f76"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/91f7f5639863a50ee35748c1534e0457b2b0beda/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="be4ad951b97909fc1c2e0187958f0e406772b61719d05636170a976da6411c0e"
 # The sha proves "this is the pinned file"; these two make its MAGNITUDE part
 # of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
 # artifact) and would hold for any sheet — without these, a re-pin that
 # changes how much money mainnet starts with is absorbed by the arithmetic
 # instead of appearing as a reviewable change. Update them with every re-pin.
-ALLOCATION_EXPECTED_ACCOUNTS=3262454
+ALLOCATION_EXPECTED_ACCOUNTS=3262473
 ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 
 # Unrestricted addresses (Constitution §126-130). Same repo, same
@@ -198,23 +218,19 @@ ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 #          chain, and funding needs or payment of investors. Whitelisted funds
 #          remain subject to the vesting schedule below."
 #
-# 71 addresses: the Ecosystem Treasury, both Investors tranches, and every
-# public-sale row. The list is GENERATED in independence-day from the same
-# publicsale.txt that produces the balance rows, so a sale participant cannot be
-# funded in the genesis but left unable to move it.
+# 91 addresses: the Ecosystem Treasury (1), both Investors tranches (2), every
+# public-sale row (79, from publicsale.txt) and every settled investor/partner
+# distribution (9, from investors.txt — new in #73). The list is GENERATED in
+# independence-day from the same inputs that produce the balance rows, so a
+# participant cannot be funded in the genesis but left unable to move it.
 #
-# TODO(mainnet): the two pins are TEMPORARILY split. They should point at
-# ONE commit (a sheet and an exemption list from different commits is
-# exactly the mismatch pinning prevents), but no independence-day commit
-# currently has both the aeddi founder-grant fix (#69, on main) and the
-# generated unrestricted.txt (feat/unrestricted-addrs, branched before
-# #69). The split is safe today — the two sheets differ ONLY in
-# founder-grant rows, no public-sale rows, so the sale↔exemption
-# correspondence holds — but re-unify both pins onto one main commit as
-# soon as feat/unrestricted-addrs lands. NOTE: the unrestricted pin
-# targets an UNMERGED branch commit; a rebase there orphans this URL.
-UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/da5b76cba333db008cc0d357be7f588ef223778b/mkgenesis/unrestricted.txt"
-UNRESTRICTED_SHA256="9bc496a3fb3c6f6d14ac33e036fc6bcc61dd0541fde1c05b10f21cf8895c1706"
+# Pinned at the SAME commit as ALLOCATION_GZ_URL above — the temporary split
+# across two commits is resolved: #74 re-landed the generated unrestricted.txt
+# on main, so main @ 91f7f56 carries both artifacts, regenerated together. Keep
+# the two pins equal on every re-pin; a sheet and an exemption list from
+# different commits is exactly the mismatch pinning exists to prevent.
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/91f7f5639863a50ee35748c1534e0457b2b0beda/mkgenesis/unrestricted.txt"
+UNRESTRICTED_SHA256="7b37a16822739371cfd9a3f5ae864b7ab86cef4c83155fefb5114c29abda38bf"
 
 # Denominations subject to the §126 transfer lock. Empty = no lock, and then
 # UNRESTRICTED_ADDRS is inert: bank.canSendCoins returns true before it ever
@@ -231,19 +247,24 @@ RESTRICTED_DENOMS=("ugnot")
 # nothing unlocks before <end_unix>, everything at once after. The vested
 # coins must be <= the total, and the difference is spendable immediately.
 #
-# TODO(mainnet): the vested-account list is undecided. Known candidates
-# from the independence-day allocation + Constitution (the schedules
-# below OVERRIDE how the listed allocation is held, so each entry must
-# match the address's allocation amount from the balance sheet and its
-# address must be listed in VESTED_OVERRIDE handling below):
-#   - investors-vesting multisig g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3
-#     (150,000,000 GNOT, Constitution §132: 24-month schedule — start/end
-#     and continuous-vs-cliff shape TBD)
+# This array is now mostly REDUNDANT: as of the 91f7f56 pin the sheet itself
+# carries the §132 schedules (independence-day #72 turned the vesting pass on
+# by default), including the investors-vesting multisig
+# g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3 — 150,000,000 GNOT total, 144,000,000
+# of it vesting continuously over 1789084800→1852243200 (24 months, 4% unlocked
+# at start). Adding it here too would only trip the overlap guard. Prefer fixing
+# a schedule upstream in the sheet over typing one here.
+#
+# TODO(mainnet): decide whether anything still needs a hand-typed entry.
+# Candidates the sheet does not cover:
 #   - treasuries (§120/§121/§122) if the Constitution requires schedules
 #     rather than multisig-only custody — TBD.
-# NOTE: a vested address that also appears in the allocation sheet is
-# rejected by the overlap guard below until the override mechanism is
-# decided — see TODO(mainnet) in step 8.
+# Entries here OVERRIDE how the listed allocation is held, so each must match
+# the address's allocation amount from the balance sheet and its address must be
+# listed in VESTED_OVERRIDE handling below. Until that override mechanism is
+# decided, an address in both inputs is rejected outright by the overlap guard —
+# see TODO(mainnet) in step 8 — which now means ANY address carrying a sheet
+# schedule.
 VESTED_ACCOUNTS=(
   # "g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3=150000000000000ugnot;vesting=150000000000000ugnot,<start>,<end>" # TODO(mainnet): §132 investors, 24 months
 )
@@ -581,10 +602,12 @@ assert_exact_sum() {
 #     the default when `;type=` is absent, and it unlocks
 #     amount*(now-start)/(end-start) (tm2/pkg/std/vesting.go), so a past start
 #     hands out that fraction at block 1. Only `;type=delayed` cliffs vest
-#     nothing before their end. The pinned sheet's one row today has start=0 —
-#     the epoch — so its `;type=delayed` suffix is the only thing between a
-#     correct lockup and ~98% of it liquid; upstream dropping the suffix on a
-#     re-pin must fail the build, not ship.
+#     nothing before their end. This is now the load-bearing case: at the
+#     91f7f56 pin 3,262,409 of the sheet's 3,262,473 rows carry a CONTINUOUS
+#     §132 schedule from 1789084800, and one more (the forced-lockup public-sale
+#     row) has start=0 — the epoch — so its `;type=delayed` suffix is the only
+#     thing between a correct lockup and ~98% of it liquid. Upstream dropping a
+#     suffix, or moving GENESIS_TIME past 1789084800, must fail the build.
 # §132 anchors vesting to the day $GNOT becomes transferrable — GENESIS_TIME.
 assert_vesting_locked_at_genesis() {
   local sheet="$1" label="$2" leaking
@@ -906,11 +929,11 @@ alloc_count=$(wc -l <"$ALLOCATION_TXT" | tr -d ' ')
 # The sha proves "this is the pinned file"; these prove the file has the
 # shape the merge arithmetic in step 8 assumes (a re-pin could change
 # either): one `g1<38>=<digits>ugnot` line per account, no duplicates.
-# A row may carry a declared vesting schedule -- independence-day emits one for
-# the public-sale participant under a mandatory forced lockup, and since
-# 2026-09-09 it emits it unconditionally rather than dropping it whenever the
-# §132 pass is off. A pattern that only accepts a bare balance rejects the
-# corrected sheet outright.
+# A row may carry a declared vesting schedule -- and since independence-day #72
+# (in this pin) MOST rows do: the §132 pass runs by default, so all but 63 of
+# the 3,262,473 rows carry one, plus the public-sale row under a mandatory
+# forced lockup. A pattern that only accepts a bare balance rejects the sheet
+# outright.
 if grep -qvE '^g1[0-9a-z]{38}=[1-9][0-9]*ugnot(;vesting=[0-9]+ugnot,[0-9]+,[0-9]+(;type=[a-z]+)?)?$' "$ALLOCATION_TXT"; then
   die "allocation sheet has malformed lines (expected g1<38chars>=<digits>ugnot[;vesting=...] per line)"
 fi
@@ -1695,8 +1718,25 @@ while IFS= read -r addr; do
   if [ "$rc" -eq 0 ]; then
     # A vested allocation line cannot be merged with a burn by the plain
     # sum below (the amount is not the whole right-hand side, and the
-    # schedule must be preserved). No fee payer holds one today.
-    # TODO(mainnet): decide the merge semantics if this ever fires.
+    # schedule must be preserved).
+    #
+    # TODO(mainnet): THIS NOW FIRES, and it blocks the build. At the 91f7f56
+    # pin all three allocation-holding genesis fee payers carry a §132
+    # schedule (independence-day #72 turned the vesting pass on by default):
+    #   g125em6arxsnj49vx35f0n0z34putv5ty3376fg5      10,000 GNOT
+    #   g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen      10,000 GNOT
+    #   g1manfred47kzduec920z88wfr64ylksmdcedlf5     111,000 GNOT
+    # all three 96%-vesting, 1789084800->1852243200. They were plain balances
+    # at the previous pin (9d1cfde), which is why this never fired before.
+    #
+    # The semantics that look right, and why -- decide before removing the die:
+    # emit `<addr>=<alloc+burn>ugnot;vesting=<unchanged>,<start>,<end>`, i.e.
+    # add the burn to the LIQUID part and carry the schedule through verbatim.
+    # Post-genesis the account then holds exactly its allocation with exactly
+    # its lockup. Doing nothing is NOT equivalent to the plain-balance case:
+    # fees are collected with SendCoinsUnrestricted, which bypasses the
+    # schedule, so an unfunded vested fee payer would pay its genesis-tx fees
+    # out of LOCKED coins and land BELOW its allocation.
     case "$alloc_line" in
     *';vesting='*) die "fee payer $addr holds a VESTED allocation — merge semantics undecided" ;;
     esac
