@@ -161,9 +161,11 @@ func TestVMKeeperPrivateRedeployIsCreatorBound(t *testing.T) {
 
 // TestVMKeeperInertPrivateRedeployIsCreatorBound pins the same binding on the
 // inert path, where the takeover needs no policy change of its own: parking is
-// permissionless, and PackageContentHash excludes gnomod.toml, so byte-identical
-// source parked by a different address yields the digest the approver already
-// signed off on for the owner.
+// permissionless, and PackageContentHash resets the [addpkg] section the keeper
+// stamps -- creator included -- so byte-identical source parked by a DIFFERENT
+// address yields the digest the approver already signed off on for the owner.
+// (MsgEnablePackage.PkgHeight can pin the submission, but it is optional, and an
+// approval that does not carry it is exactly this case.)
 //
 // EnablePackage ends with DelInertPackage, so after every successful enable the
 // parked slot is empty and the creator-bound guard over PARKED bytes has

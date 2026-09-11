@@ -372,8 +372,10 @@ func Which(cur realm) string { return "` + which + `" }
 	ownerPkg := pkgFor("owner")
 	resp := deliver(t, []std.Msg{vm.MsgAddPackage{Creator: ownerAddr, Package: ownerPkg}}, owner)
 	require.True(t, resp.IsOK(), "owner submit: %s", resp.Log)
+	ownerHash, err := vm.PackageContentHash(ownerPkg)
+	require.NoError(t, err)
 	resp = deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(ownerPkg),
+		Approver: approverAddr, PkgPath: path, PkgHash: ownerHash,
 	}}, approver)
 	require.True(t, resp.IsOK(), "owner enable: %s", resp.Log)
 
@@ -388,8 +390,10 @@ func Which(cur realm) string { return "` + which + `" }
 		"the refusal must name the address the realm belongs to")
 
 	// Nothing was queued for an approver to activate either.
+	strangerHash, err := vm.PackageContentHash(strangerPkg)
+	require.NoError(t, err)
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(strangerPkg),
+		Approver: approverAddr, PkgPath: path, PkgHash: strangerHash,
 	}}, approver)
 	require.False(t, enableResp.IsOK(), "there must be nothing parked to enable")
 	assert.Contains(t, enableResp.Log, "no inert package at path",
