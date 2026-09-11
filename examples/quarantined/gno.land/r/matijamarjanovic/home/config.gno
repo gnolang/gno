@@ -1,7 +1,7 @@
 package home
 
 import (
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 )
 
 var (

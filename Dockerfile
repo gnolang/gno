@@ -71,6 +71,19 @@ RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
             -o /gnoroot/build/gnobro .
 
+# Gpao build
+FROM        setup-gnocore AS build-gpao
+ARG         TARGETPLATFORM
+WORKDIR     /gnoroot/contribs/gpao
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
+            go mod download -x
+RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
+            go build \
+            -ldflags "-w -s -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" \
+            -o /gnoroot/build/gpao .
+
 # Gnocontribs
 ## Gnogenesis
 FROM        setup-gnocore AS build-contribs
@@ -155,6 +168,16 @@ COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt 
 # gnoweb port exposed by default
 EXPOSE     8888
 ENTRYPOINT  ["/usr/bin/gnodev"]
+
+# Gpao image
+## ghcr.io/gnolang/gno/gpao
+FROM        base AS gpao
+COPY        --from=build-gpao    /gnoroot/build/gpao                             /usr/bin/gpao
+COPY        --from=build-gnocore /gnoroot/examples                               /gnoroot/examples
+COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                          /gnoroot/gnovm/stdlibs
+COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                    /gnoroot/gnovm/tests/stdlibs
+EXPOSE      8546
+ENTRYPOINT  ["/usr/bin/gpao"]
 
 # Gno
 FROM        base AS gno

@@ -25,7 +25,7 @@ package launderrh_pdr_p_defer_apply
 // other launder tests): the embedded /p/.Immutable is mutated.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

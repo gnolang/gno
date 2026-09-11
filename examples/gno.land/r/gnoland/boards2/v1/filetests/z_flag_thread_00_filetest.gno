@@ -5,13 +5,13 @@ package z_flag_thread_00_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner     address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	moderator address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
@@ -43,7 +43,7 @@ func main(cur realm) {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v1) › test-board
-// Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC, #1
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
 // ↳ [Create Thread](/r/gnoland/boards2/v1:test-board/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---

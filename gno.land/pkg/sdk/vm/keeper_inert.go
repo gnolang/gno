@@ -67,7 +67,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	//
 	// This makes parked packages unactivatable once the policy moves, which is
 	// the intended outcome; returning to "inert" makes them activatable again.
-	// Note that nothing evicts them in the meantime — see DisablePackage.
+	// MsgRejectPackage clears them under any policy, on the creator's or an
+	// approver's request.
 	if !replay && params.CodeSubmissionPolicy != CodeSubmissionPolicyInert {
 		return std.ErrUnauthorized(fmt.Sprintf(
 			"code_submission_policy is %q, not %q: packages cannot be enabled",
@@ -201,6 +202,19 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 			"invalid creator %q in stored gnomod.toml: %v", gm.AddPkg.Creator, err))
 	}
 
+	// Re-validate the stored blob. It was validated at submit, but against the
+	// rules of the binary that parked it, and a parked blob outlives that
+	// binary. AddMemPackage does re-validate on the way in, at the end of
+	// RunMemPackage, but it PANICS rather than returning, so without this the
+	// refusal arrives as a recovered VM panic carrying no diagnostic.
+	// ErrInvalidPackage, not errInvalidMemPackage's default: this function
+	// types every refusal about the blob that way, and keeps ErrInvalidPkgPath
+	// for the two that are about the path itself. AddPackage's default is the
+	// other way round because it is preserving the type it already returned.
+	if err := validateParkedBlob(memPkg); err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+
 	// Re-check namespace and CLA, which ran at SUBMIT against whatever was true
 	// then.
 	//
@@ -299,11 +313,17 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
+	// A redeploy takes over the realm persisted at the path. Read only on the
+	// branch that has already established a package is live there: reading
+	// unconditionally would charge a first deployment for a key that cannot
+	// be there.
+	var priorRealm *gno.Realm
 	if liveBlob != nil {
 		// Private redeploy: clear the prior blobs, as the normal path does.
 		gnostore.DeleteMemPackage(msg.PkgPath)
+		priorRealm = gnostore.GetPackageRealm(msg.PkgPath)
 	}
-	m2.RunMemPackage(memPkg, true)
+	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//
@@ -368,15 +388,12 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	return nil
 }
 
-// DisablePackage moves an active package back to inert state.
-// NOTE: full disable requires evicting executed objects from the base store,
-// which is not yet implemented. This stub is provided for interface completeness.
 // RejectPackage deletes a package that is parked awaiting approval.
 //
 // Nothing else could remove one. DelInertPackage ran only after a successful
-// enable and DisablePackage is unimplemented, so a submission an approver
-// declined occupied the store forever -- and so did one parked under a policy
-// that has since moved off "inert", which no enable can ever activate.
+// enable, so a submission an approver declined occupied the store forever --
+// and so did one parked under a policy that has since moved off "inert", which
+// no enable can ever activate.
 //
 // Either the creator or an approver may send it. Both have standing: the bytes
 // are the creator's, and declining them is the approver's job. Anyone else is
@@ -409,17 +426,6 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 
 	gnostore.DelInertPackage(msg.PkgPath)
 	return nil
-}
-
-func (vm *VMKeeper) DisablePackage(ctx sdk.Context, msg MsgDisablePackage) error {
-	params := vm.GetParams(ctx)
-	if !approverGateSatisfied(ctx, params, msg.Approver) {
-		return std.ErrUnauthorized(fmt.Sprintf(
-			"address %s is not a pkg approver", msg.Approver))
-	}
-	// TODO: evict executed package objects from baseStore and move source back
-	// to inert_pkg key. Tracked in a follow-up PR.
-	return std.ErrUnknownRequest("disable_package is not yet implemented")
 }
 
 // QueryPaths returns public facing function signatures.
@@ -569,4 +575,16 @@ func enableBlockedReason(params Params) string {
 	default:
 		return ReasonAwaitingApprover
 	}
+}
+
+// validateParkedBlob validates a stored blob, returning what
+// gno.ValidateMemPackageAny raises as a panic rather than an error.
+//
+// mptype.Validate panics on every failure path, and the type assertion above it
+// is unchecked, so a blob whose type no longer matches its path arrives as a
+// panic. This call sits before the machine exists, so nothing else on the path
+// would catch one.
+func validateParkedBlob(memPkg *std.MemPackage) (err error) {
+	defer doRecoverNoMachine(&err)
+	return gno.ValidateMemPackageAny(memPkg)
 }

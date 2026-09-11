@@ -1,6 +1,6 @@
 package main
 
-import "gno.land/p/demo/tests"
+import "gno.land/p/demo/tests/v0"
 
 func main() {
 	b := tests.World

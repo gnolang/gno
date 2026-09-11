@@ -229,6 +229,9 @@ ever materializes; see Alternatives.)
   invite check deliberately uses `unsafe.OriginCaller()` (invitations
   target EOAs) — confirmed intended, pre-existing behavior. `New` takes
   a description so the Charter (`:1485`) has a creation-time slot.
+  (**Superseded.** The invite check now keys on `cur.Previous().Address()`,
+  the same identity as the council seat, and `New` requires that caller to
+  be a user.)
 - **Superseded — see `pr6012_commondao_ownership_rescope.md`.** This PR
   originally shipped an owner/`Options` host layer (`AllowListing`,
   `AllowRender`, `AllowChildren`, `AllowExecution`, an owner-tunable

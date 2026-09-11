@@ -254,7 +254,6 @@ func TestTxNeedsSimulationSignature(t *testing.T) {
 		{"add_package carries source", "vm", "add_package", true},
 		{"run carries source", "vm", "run", true},
 		{"enable_package compiles stored source", "vm", "enable_package", true},
-		{"disable_package is gated the same way", "vm", "disable_package", true},
 		{"an ordinary call is not", "vm", "call", false},
 		{"a bank send is not", "bank", "send", false},
 		{"a vm route alone is not enough", "vm", "something_new", false},

@@ -409,7 +409,7 @@ func txNeedsSimulationSignature(tx std.Tx) bool {
 			continue
 		}
 		switch msg.Type() {
-		case "add_package", "run", "enable_package", "disable_package":
+		case "add_package", "run", "enable_package":
 			return true
 		}
 	}

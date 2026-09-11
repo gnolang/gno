@@ -5,13 +5,13 @@ package z_edit_thread_06_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	title         = "Test Thread"
 	body          = "Test body"
@@ -44,7 +44,7 @@ func main(cur realm) {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Test Thread
 //
-// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
 //
 //
 // <gno-foreign>

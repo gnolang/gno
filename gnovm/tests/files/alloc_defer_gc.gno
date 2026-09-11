@@ -28,5 +28,5 @@ func main() {
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:10216}
+// MemStats:  Allocator{maxBytes:100000000, bytes:10336}
 // defer ran
