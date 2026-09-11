@@ -162,6 +162,13 @@ func TestDebug(t *testing.T) {
 		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},
 		{in: "s\np tests.xxx\n", out: "Command failed: invalid selector: xxx"},
 	})
+
+	runDebugTest(t, "../../tests/integ/debugger/fallthrough.gno", []dtest{
+		// After a fallthrough, the block's Source tracks the new clause
+		// even when it declares no names of its own; the fallen-from
+		// clause's names are out of scope and dropped from the block.
+		{in: "s\nb 11\nc\np y\n", out: "Command failed: name y not declared"},
+	})
 }
 
 const debugAddress = "localhost:17358"

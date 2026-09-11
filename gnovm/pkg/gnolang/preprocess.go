@@ -469,14 +469,13 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if !isLocallyReserved(last, ln) {
-							// if loopvar, will promote to
-							// NameExprTypeHeapDefine later.
-							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n, NSDefine, i)
-						} else {
-							nx.Type = NameExprTypeDefine
-						}
+						// if loopvar, will promote to
+						// NameExprTypeHeapDefine later.
+						nx.Type = NameExprTypeDefine
+						// Reserve() no-ops if ln is already reserved here,
+						// except when the existing slot is a faux copy that
+						// this declaration shadows.
+						last.Reserve(false, nx, n, NSDefine, i)
 					}
 				}
 			case *ImportDecl:
@@ -931,14 +930,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
+				// copies anything declared in the parent if statement.
 				pushInitBlockAndCopy(n, &last, &stack)
-				// parent if statement.
-				ifs := ns[len(ns)-1].(*IfStmt)
-				// anything declared in ifs are copied.
-				for _, n := range ifs.GetBlockNames() {
-					tv := ifs.GetSlot(nil, n, false)
-					last.Define(n, *tv)
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -1073,13 +1066,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
+				// copies anything declared in ss.Init.
 				pushInitBlockAndCopy(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss.Init are copied.
-				for _, n := range ss.GetBlockNames() {
-					tv := ss.GetSlot(nil, n, false)
-					last.Define(n, *tv)
+				// the type switch variable sits in the slot right after
+				// the copies, and is defined once per clause with the
+				// type that clause narrows the tag to.
+				defineSwitchVar := func(t Type) {
+					csb := last.GetStaticBlock()
+					csb.defineFauxCopy(
+						csb.numFauxCopiedNames(), ss.VarName, anyValue(t))
 				}
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
@@ -1087,8 +1084,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if ss.VarName != "" {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
-							last.Define(
-								ss.VarName, anyValue(tt))
+							defineSwitchVar(tt)
 						}
 					} else {
 						// evaluate case types.
@@ -1114,15 +1110,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
-									last.Define(
-										ss.VarName, anyValue(ct))
+									defineSwitchVar(ct)
 								} else {
 									// If there are 2 or more
 									// cases, or the sole case is nil,
 									// the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
-									last.Define(
-										ss.VarName, anyValue(tt))
+									defineSwitchVar(tt)
 								}
 							}
 						}
@@ -4094,12 +4088,9 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 
 // like pushInitBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
-// Not idempotent, as it calls bn.Define with reference to last's TV value slot.
 func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
-	if _, ok := bn.(*IfCaseStmt); !ok {
-		if _, ok := bn.(*SwitchClauseStmt); !ok {
-			panic("should not happen")
-		}
+	if !fauxChildBlockNode(bn) {
+		panic("should not happen")
 	}
 	orig := *last
 	pushInitBlock(bn, last, stack)
@@ -4107,10 +4098,13 @@ func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 }
 
 // anything declared in orig are copied.
+// They occupy bn's leading slots, in orig's order, so that bn and orig can
+// share one runtime block; see StaticBlock.numFauxCopiedNames.
 func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
-	for _, n := range orig.GetBlockNames() {
+	sb := bn.GetStaticBlock()
+	for i, n := range orig.GetBlockNames() {
 		tv := orig.GetSlot(nil, n, false)
-		bn.Define(n, *tv)
+		sb.defineFauxCopy(uint16(i), n, *tv)
 	}
 }
 
@@ -6371,12 +6365,6 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	}
 	t := bn.GetStaticBlock().Types[idx]
 	return t != nil
-}
-
-// if name is is reserved.
-func isLocallyReserved(bn BlockNode, n Name) bool {
-	_, isLocal := bn.GetLocalIndex(n)
-	return isLocal
 }
 
 // ----------------------------------------

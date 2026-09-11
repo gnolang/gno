@@ -33,3 +33,22 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 		},
 	)
 }
+
+func TestStaticBlock_Reserve_MaxNames(t *testing.T) {
+	// Reserve appends through defineNew, not Define2, so it needs its own
+	// max-names guard; without it NumNames wraps around silently.
+	staticBlock := new(gnolang.StaticBlock)
+	staticBlock.NumNames = math.MaxUint16
+	staticBlock.Names = make([]gnolang.Name, staticBlock.NumNames)
+	staticBlock.Types = make([]gnolang.Type, staticBlock.NumNames)
+	staticBlock.NameSources = make([]gnolang.NameSource, staticBlock.NumNames)
+	staticBlock.HeapItems = make([]bool, staticBlock.NumNames)
+
+	assert.PanicsWithValue(
+		t,
+		"too many variables in block",
+		func() {
+			staticBlock.Reserve(false, &gnolang.NameExpr{Name: "a"}, nil, gnolang.NSDefine, 0)
+		},
+	)
+}
