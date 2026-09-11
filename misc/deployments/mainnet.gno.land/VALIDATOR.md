@@ -128,6 +128,6 @@ gnokey maketx call \
   <your-key-name>
 ```
 
-Registering only lists you as a **candidate**. A GovDAO member must then create and pass a proposal to add you to the active validator set (via `r/sys/validators/v3`). Once that proposal executes, your node joins the valset.
+Registering only lists you as a **candidate**. A GovDAO member must then create and pass a proposal to add you to the active validator set (via `r/sys/validators/v0`). Once that proposal executes, your node joins the valset.
 
-You can review registered valopers and the current set at <https://gno.land/r/gnops/valopers> and <https://gno.land/r/sys/validators/v3>.
+You can review registered valopers and the current set at <https://gno.land/r/gnops/valopers> and <https://gno.land/r/sys/validators/v0>.
