@@ -156,7 +156,7 @@ func TestInterfaceTypeID_PkgPathProvenance(t *testing.T) {
 // unsupported — identity already moved. Store bytes are external input, so
 // the decode boundary (fillType, reached from both GetTypeSafe and
 // fillTypesOfValue) rejects it unconditionally; the interior sites
-// (FindEmbeddedFieldType/VerifyImplementedBy/TypeID) assume the invariant
+// (FindEmbeddedFieldType/checkImplementedBy/TypeID) assume the invariant
 // and only assert under -tags debugAssert. Pins the drop of the legacy
 // embedded-interface branches; see adr/pr5739.
 func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
@@ -172,7 +172,7 @@ func TestInterfaceType_UnflattenedIsHardError(t *testing.T) {
 	}
 	if debugAssert {
 		uses["FindEmbeddedFieldType"] = func() { legacy.FindEmbeddedFieldType("p", "M") }
-		uses["VerifyImplementedBy"] = func() { legacy.VerifyImplementedBy(embedded) }
+		uses["checkImplementedBy"] = func() { legacy.checkImplementedBy(nil, embedded) }
 		uses["TypeID"] = func() { legacy.TypeID() }
 	}
 	for name, use := range uses {

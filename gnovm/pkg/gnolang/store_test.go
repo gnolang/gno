@@ -341,6 +341,42 @@ func TestDeleteMemPackageClearsStaleBlobsOnReAdd(t *testing.T) {
 	assert.Nil(t, st.GetMemFile(pkgPath, "foo_test.gno"), "stale test file must not survive re-add")
 }
 
+// A re-add at an existing path (a private redeploy) writes a second index
+// entry for it and leaves the first, so a path can hold several. Iteration
+// must yield it once, at the highest of them, which is the position its
+// current content was stored at. That order is the order a node preprocesses
+// packages in at boot, so yielding it at the original position would place the
+// redeployed content below anything deployed in between, including a
+// dependency it imports.
+func TestIterMemPackageYieldsAReAddedPathAtItsNewestIndex(t *testing.T) {
+	const (
+		pkgPath = "gno.land/r/demo/foo"
+		depPath = "gno.land/p/demo/dep"
+	)
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	st := NewStore(nil, d1s, d2s)
+	oneFile := func(path, name string) *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll, Name: name, Path: path,
+			Files: []*std.MemFile{{Name: name + ".gno", Body: "package " + name + "\n"}},
+		}
+	}
+
+	st.AddMemPackage(oneFile(pkgPath, "foo"), MPUserAll)
+	st.AddMemPackage(oneFile(depPath, "dep"), MPUserAll)
+	st.DeleteMemPackage(pkgPath)
+	st.AddMemPackage(oneFile(pkgPath, "foo"), MPUserAll)
+	require.Equal(t, int64(3), st.NumMemPackages(), "three entries written for two paths")
+
+	var order []string
+	for mpkg := range st.IterMemPackage() {
+		order = append(order, mpkg.Path)
+	}
+	assert.Equal(t, []string{depPath, pkgPath}, order)
+}
+
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{

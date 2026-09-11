@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,6 +76,35 @@ func TestCalcBlockGasPriceFloorHoldsAcrossGasUnits(t *testing.T) {
 				next = gk.calcBlockGasPrice(next, 0, maxGas, params)
 			}
 			atOrAboveFloor(t, next)
+		})
+	}
+}
+
+func TestEndBlockAdoptsInitialGasPriceRatio(t *testing.T) {
+	for _, tc := range []struct{ last, initial string }{
+		{"1ugnot/1000gas", "1ugnot/1gas"},
+		{"1ugnot/1000gas", "2ugnot/1000gas"},
+		{"1ugnot/1000gas", "100ugnot/1gas"},
+		{"1000ugnot/1000gas", "1ugnot/1gas"},
+		{"1001ugnot/1000gas", "1ugnot/1gas"},
+		// A non-integral floor must retain its exact denominator when reached.
+		{"334ugnot/1000gas", "1ugnot/3gas"},
+		// Cross-products exceed int64, but both components are valid.
+		{"1000000000000ugnot/999999999999gas", "999999999999ugnot/999999999998gas"},
+	} {
+		t.Run(tc.last+" to "+tc.initial, func(t *testing.T) {
+			env := setupTestEnv()
+			last, err := std.ParseGasPrice(tc.last)
+			require.NoError(t, err)
+			want, err := std.ParseGasPrice(tc.initial)
+			require.NoError(t, err)
+			env.gk.SetGasPrice(env.ctx, last)
+			env.acck.prmk.SetString(env.ctx, "p:initial_gasprice", tc.initial)
+			ctx := env.ctx.WithValue(AuthParamsContextKey{}, env.acck.GetParams(env.ctx)).WithBlockGasMeter(store.NewGasMeter(10_000_000))
+			for range 3 {
+				EndBlocker(ctx, env.gk)
+				require.Equal(t, want, env.gk.LastGasPrice(ctx))
+			}
 		})
 	}
 }
