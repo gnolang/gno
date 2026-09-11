@@ -9,6 +9,13 @@ LAYOUT - Header component
         {{ template "ui/gnome" }}
       </a>
 
+      {{ if .ChainId }}
+      <span class="network-chip {{ if not .NetworkKind.IsMainnet }}network-chip--alert{{ end }}"
+        title="{{ .NetworkChipTitle }}">
+        <span class="u-sr-only">{{ .NetworkChipLabel }} </span>{{ .ChainId }}
+      </span>
+      {{ end }}
+
       <div class="b-main-navigation" data-controller="searchbar">
         <div class="inner c-reel u-no-scrollbar">
           <form class="searchbar" data-action="submit->searchbar#searchUrl">

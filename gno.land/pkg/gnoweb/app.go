@@ -53,8 +53,11 @@ type AppConfig struct {
 	NoAssetsCache bool
 	// ChainID is the chain id, used for constructing the help page.
 	ChainID string
-	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
+	// FaucetURL is where `/faucet` redirects and the faucet the footer
+	// advertises. Empty means this deployment has no faucet.
 	FaucetURL string
+	// NetworkKind defaults to testnet when left empty; mainnet is explicit.
+	NetworkKind components.NetworkKind
 	// Domain is the domain used by the node.
 	Domain string
 	// Banner, if set, displays a site-wide banner above the header.
@@ -111,6 +114,16 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
+	// Operator-set, never guessed from the chain-id. Default is the safe kind.
+	// Validated before the chain-id probe so a typo fails without a round-trip.
+	if cfg.NetworkKind == "" {
+		cfg.NetworkKind = components.NetworkTestnet
+	}
+	if !cfg.NetworkKind.Valid() {
+		return nil, fmt.Errorf("invalid network kind %q, want %q or %q",
+			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet)
+	}
+
 	if cfg.ChainID == "" {
 		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
@@ -118,6 +131,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			return nil, errors.New("no chain-id configured")
 		}
 	}
+
+	logger.Info("network", "kind", cfg.NetworkKind, "chain-id", cfg.ChainID)
 
 	// Setup client adapter
 	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain, cfg.MaxConcurrentRPC)
@@ -138,6 +153,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		BuildTime:         buildTime,
 		Banner:            cfg.Banner,
+		NetworkKind:       cfg.NetworkKind,
+		FaucetURL:         cfg.FaucetURL,
 	}
 
 	// Configure Markdown renderer
