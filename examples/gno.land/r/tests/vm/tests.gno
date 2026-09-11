@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/nestedpkg/v0"
+	"gno.land/p/moul/nestedpkg/v0"
 	rsubtests "gno.land/r/tests/vm/subtests"
 )
 

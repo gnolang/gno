@@ -1,6 +1,6 @@
 package home
 
-import "gno.land/p/demo/nestedpkg/v0"
+import "gno.land/p/moul/nestedpkg/v0"
 
 type myInterface interface {
 	Render(path string) string
