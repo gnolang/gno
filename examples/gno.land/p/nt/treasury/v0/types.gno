@@ -76,6 +76,32 @@ type Payment interface {
 	String() string   // Get a string representation of the payment.
 }
 
+// IsCanonicalPayment reports whether p is one of treasury's canonical concrete
+// Payment impls. Use this at any public entry point that accepts a Payment
+// from an external caller and shows it to a human before it is processed.
+//
+// The immutability the constructors provide is a property of these two types,
+// not of the interface: a foreign impl's String() says whatever its realm
+// likes, and no Banker will process it, because Banker.Send type-asserts and
+// so fails only at execution — after a vote has been spent on it.
+//
+// Only the value types are listed, deliberately. Banker.Send asserting
+// p.(coinsPayment) is what makes this check meaningful, so accepting
+// *coinsPayment would pass a payment that still fails at execution.
+//
+// To add a new canonical type: extend the switch below AND add a regression
+// test (under filetests/ in this package) that a foreign impl is rejected.
+//
+// Mirrors IsCanonicalBanker above.
+func IsCanonicalPayment(p Payment) bool {
+	switch p.(type) {
+	case coinsPayment, grc20Payment:
+		return true
+	default:
+		return false
+	}
+}
+
 // Balance represents the balance of an asset held by a Banker.
 type Balance struct {
 	Denom  string // The denomination of the asset

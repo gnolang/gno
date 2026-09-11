@@ -595,6 +595,19 @@ func chargePreprocessGas(ctx sdk.Context, params Params, mpkg *std.MemPackage, d
 	ctx.GasMeter().ConsumeGas(overflow.Mulp(params.PreprocessGasPerByte, srcBytes), descriptor)
 }
 
+// errInvalidMemPackage names a gno.ValidateMemPackage* failure with an ABCI
+// error type.
+//
+// That type is amino-encoded into ABCIResult.Error, which is hashed, so which
+// error a failure maps to is consensus-visible: moving one is a change to what
+// validators agree on, not a cosmetic rename.
+func errInvalidMemPackage(err error) error {
+	if goerrors.Is(err, gno.ErrMemPackageInfo) {
+		return ErrInvalidPackage(err.Error())
+	}
+	return ErrInvalidPkgPath(err.Error())
+}
+
 // stampGnomod writes the chain's own metadata into the package's gnomod.toml
 // and re-encodes it in mpkg.
 //
@@ -711,7 +724,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
 	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
-		return ErrInvalidPkgPath(err.Error())
+		return errInvalidMemPackage(err)
 	}
 	// Reject packages with no production .gno files (e.g. only _test.gno
 	// files). The storage split writes no prod blob for them (store.go
@@ -1084,14 +1097,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	defer m2.Release()
 	defer doRecover(m2, &err)
 	// Per-tx preprocess allocator: separate counter from m2.Alloc (the
-	// init-phase allocator with GC). collect=nil so Allocate hard-panics
-	// on maxBytes overflow rather than attempting a GC retry — GC walks
-	// blocks/frames/package but not m.Values (the operand stack), and
-	// would undercount in-flight preprocess values like a chained-+
-	// running prefix. Closes the unbounded const-fold allocation surface
-	// where preprocess sub-Machines (NewMachine(pkg, store) at
-	// preprocess.go:3947, 4112, 4175, 4258) would otherwise run with
-	// nil Alloc and skip both maxBytes tracking and per-allocation gas.
+	// init-phase allocator with GC). Installing it closes the unbounded
+	// const-fold allocation surface where preprocess sub-Machines
+	// (evalStaticTypeMachine, evalStaticTypeOfRaw, tryEvalStatic and
+	// evalConst in preprocess.go) would otherwise run with nil Alloc and
+	// skip both maxBytes tracking and per-allocation gas.
+	// collect=nil so Allocate hard-panics on
+	// maxBytes overflow instead of a GC retry: preprocess is bounded static
+	// evaluation (const-fold, evalStaticType) that should fail fast at the
+	// cap. preAlloc is also shared by every preprocess sub-Machine in the
+	// tx, so a collect bound to one machine would walk only that machine's
+	// roots; hence isPreprocessing skips SetGCFn.
 	//
 	// The defer keeps preprocessAlloc installed for the entire handler.
 	// During init phase the outer Machine (m2) uses its own m.Alloc with
@@ -1104,7 +1120,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
-	m2.RunMemPackage(memPkg, true)
+	// A redeploy takes over the realm persisted at the path. Read only on the
+	// branch that has already established a package is live there: reading
+	// unconditionally would charge a first deployment for a key that cannot
+	// be there.
+	var priorRealm *gno.Realm
+	if pv != nil {
+		priorRealm = gnostore.GetPackageRealm(pkgPath)
+	}
+	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {
@@ -1379,6 +1403,28 @@ func doRecoverQueryNoMachine(e *error) {
 	)
 }
 
+// doRecoverNoMachine recovers a panic raised on a transaction path with no
+// machine to take a stacktrace from, such as a validation that runs before the
+// machine is built.
+//
+// It repanics on out of gas, as doRecover does, because BaseApp handles that
+// one. It records no Go stack: the tx-path recovers keep the error
+// deterministic, and only the query variant reaches for debug.Stack.
+func doRecoverNoMachine(e *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if err, ok := r.(error); ok {
+		var oog stypes.OutOfGasError
+		if goerrors.As(err, &oog) {
+			panic(oog)
+		}
+	}
+	desc := boundedString(r, 0)
+	*e = errors.Wrapf(fmt.Errorf("%s", desc), "VM panic: %s", desc)
+}
+
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins.
@@ -1403,7 +1449,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
 	if err := gno.ValidateMemPackage(memPkg); err != nil {
-		return "", ErrInvalidPkgPath(err.Error())
+		return "", errInvalidMemPackage(err)
 	}
 
 	chargePreprocessGas(ctx, params, memPkg, "RunPreprocess")

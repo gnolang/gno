@@ -256,6 +256,239 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 	})
 }
 
+// peerErrorOnStart reports a peer error to the switch from inside Start, the
+// way an MConnection recv routine does on a bad first packet.
+type peerErrorOnStart struct {
+	*mock.Peer
+
+	startFn func() error
+}
+
+func (p *peerErrorOnStart) Start() error {
+	return p.startFn()
+}
+
+func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
+	t.Parallel()
+
+	var (
+		calls []string
+
+		record = func(call string) {
+			calls = append(calls, call)
+		}
+
+		mockTransport = &mockTransport{
+			removeFn: func(PeerConn) {},
+		}
+
+		mockReactor = &mockReactor{
+			initPeerFn: func(peer PeerConn) PeerConn {
+				record("InitPeer")
+
+				return peer
+			},
+			addPeerFn: func(PeerConn) {
+				record("AddPeer")
+			},
+			removePeerFn: func(PeerConn, any) {
+				record("RemovePeer")
+			},
+		}
+
+		sw = NewMultiplexSwitch(
+			mockTransport,
+			WithReactor("mock", mockReactor),
+		)
+
+		p = &peerErrorOnStart{Peer: mock.GeneratePeers(t, 1)[0]}
+	)
+
+	// An error on the peer's first read reaches the switch from inside Start.
+	p.startFn = func() error {
+		sw.StopPeerForError(p, errors.New("peer error"))
+
+		return nil
+	}
+
+	// addPeer must refuse a peer that was stopped while it was being added.
+	// stopAndRemovePeer removes from the peer set last, so its Remove runs
+	// before the Add, and nothing would ever remove the peer again
+	require.ErrorIs(t, sw.addPeer(p), errPeerStopped)
+
+	// InitPeer is the hook that runs first, so it is the one that can pair
+	// with the RemovePeer that frees what it took. AddPeer never runs
+	assert.Equal(t, []string{"InitPeer", "RemovePeer"}, calls)
+
+	// The peer holds neither a slot nor its ID in the peer set
+	assert.False(t, sw.peers.Has(p.ID()))
+	assert.Zero(t, sw.peers.NumInbound())
+	assert.Empty(t, sw.peers.List())
+}
+
+func TestMultiplexSwitch_AddPeerRejectsDuplicateBeforeInit(t *testing.T) {
+	t.Parallel()
+
+	var (
+		calls []string
+
+		mockTransport = &mockTransport{
+			removeFn: func(PeerConn) {},
+		}
+
+		mockReactor = &mockReactor{
+			initPeerFn: func(peer PeerConn) PeerConn {
+				calls = append(calls, "InitPeer")
+
+				return peer
+			},
+			addPeerFn:    func(PeerConn) { calls = append(calls, "AddPeer") },
+			removePeerFn: func(PeerConn, any) { calls = append(calls, "RemovePeer") },
+		}
+
+		sw = NewMultiplexSwitch(
+			mockTransport,
+			WithReactor("mock", mockReactor),
+		)
+
+		peers = mock.GeneratePeers(t, 2)
+		live  = peers[0]
+		dup   = peers[1]
+	)
+
+	// dup is a reconnect from the same node, so it carries the same peer ID.
+	id := live.ID()
+	dup.IDFn = func() types.ID { return id }
+
+	require.NoError(t, sw.addPeer(live))
+	require.Equal(t, []string{"InitPeer", "AddPeer"}, calls)
+
+	// The duplicate is refused before any reactor sees it, so it neither
+	// starts nor leaves reactor state behind
+	require.ErrorIs(t, sw.addPeer(dup), errDuplicatePeer)
+	assert.Equal(t, []string{"InitPeer", "AddPeer"}, calls)
+
+	// The live peer keeps its peer set entry and its slot
+	assert.Same(t, live, sw.peers.Get(id))
+	assert.EqualValues(t, 1, sw.peers.NumInbound())
+}
+
+func TestMultiplexSwitch_StopPeerLeavesSupersedingConnAlone(t *testing.T) {
+	t.Parallel()
+
+	var (
+		removed []PeerConn
+
+		mockTransport = &mockTransport{
+			removeFn: func(PeerConn) {},
+		}
+
+		mockReactor = &mockReactor{
+			removePeerFn: func(peer PeerConn, _ any) {
+				removed = append(removed, peer)
+			},
+		}
+
+		sw = NewMultiplexSwitch(
+			mockTransport,
+			WithReactor("mock", mockReactor),
+		)
+
+		peers = mock.GeneratePeers(t, 2)
+		live  = peers[0]
+		dup   = peers[1]
+	)
+
+	id := live.ID()
+	dup.IDFn = func() types.ID { return id }
+
+	require.NoError(t, sw.addPeer(live))
+
+	// dup lost the race for the peer set and reports an error of its own. Its
+	// own reactor state is given back, since a reactor keying that state on
+	// the connection can tell the two apart, but the peer set entry under the
+	// ID it shares with live is live's
+	sw.StopPeerForError(dup, errors.New("duplicate connection error"))
+
+	assert.Equal(t, []PeerConn{dup}, removed, "only the superseded connection")
+	assert.Same(t, live, sw.peers.Get(id), "the live peer is still registered")
+	assert.EqualValues(t, 1, sw.peers.NumInbound())
+
+	// The live peer's own teardown still works.
+	sw.StopPeerForError(live, errors.New("peer error"))
+
+	assert.Equal(t, []PeerConn{dup, live}, removed)
+	assert.False(t, sw.peers.Has(id))
+	assert.Zero(t, sw.peers.NumInbound())
+}
+
+func TestMultiplexSwitch_AddPeerUnwindsReactorStateOnError(t *testing.T) {
+	t.Parallel()
+
+	var (
+		calls []string
+
+		mockReactor = &mockReactor{
+			initPeerFn: func(peer PeerConn) PeerConn {
+				calls = append(calls, "InitPeer")
+
+				return peer
+			},
+			addPeerFn:    func(PeerConn) { calls = append(calls, "AddPeer") },
+			removePeerFn: func(PeerConn, any) { calls = append(calls, "RemovePeer") },
+		}
+
+		// The residual race the duplicate pre-check cannot cover: another
+		// connection wins sw.peers.Add between the check and the Add
+		mockSet = &mockSet{
+			addFn: func(PeerConn) error { return errDuplicatePeer },
+		}
+
+		sw = NewMultiplexSwitch(
+			&mockTransport{removeFn: func(PeerConn) {}},
+			WithReactor("mock", mockReactor),
+		)
+
+		p = mock.GeneratePeers(t, 1)[0]
+	)
+
+	sw.peers = mockSet
+
+	require.ErrorIs(t, sw.addPeer(p), errDuplicatePeer)
+
+	// Whatever InitPeer took is given back, so a refused connection does not
+	// hold reactor state for the lifetime of the process
+	assert.Equal(t, []string{"InitPeer", "RemovePeer"}, calls)
+}
+
+func TestMultiplexSwitch_AddPeerOutboundLimit(t *testing.T) {
+	t.Parallel()
+
+	const maxOutbound = 3
+
+	sw := NewMultiplexSwitch(
+		&mockTransport{removeFn: func(PeerConn) {}},
+		WithMaxOutboundPeers(maxOutbound),
+	)
+
+	// DialPeers only checks the limit when an address is queued, where
+	// NumOutbound cannot have changed yet, so a single batch of queued dials
+	// would otherwise overshoot it without bound
+	for i, p := range mock.GeneratePeers(t, maxOutbound+2) {
+		p.IsOutboundFn = func() bool { return true }
+
+		if i < maxOutbound {
+			require.NoError(t, sw.addPeer(p))
+
+			continue
+		}
+
+		assert.ErrorIs(t, sw.addPeer(p), errMaxOutboundPeers)
+	}
+
+	assert.EqualValues(t, maxOutbound, sw.peers.NumOutbound())
+}
+
 func TestMultiplexSwitch_DialLoop(t *testing.T) {
 	t.Parallel()
 

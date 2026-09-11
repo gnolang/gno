@@ -43,6 +43,11 @@ const (
 	// escapes one per proposal shown, so this is the bound that keeps a single
 	// oversized title from pricing the whole list out of the query cap.
 	maxRenderedTitle = 512
+	// A Payment's String(). The canonical impls render a coin set or an
+	// amount plus a token key, then " to " and a bech32 address; a coin set
+	// is bounded by the number of denoms a proposer cares to list and each
+	// denom's length is unbounded, which is the reason to clamp at all.
+	maxRenderedPayment = 512
 )
 
 // Always clamp first — before escaping, and before any other pass over the

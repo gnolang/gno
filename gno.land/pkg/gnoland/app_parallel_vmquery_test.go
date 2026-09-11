@@ -14,7 +14,7 @@ package gnoland
 // graph in one query:
 //
 //   - FuncType.bound / FuncType.typeid, via a concrete-to-interface conversion
-//     preprocessed fresh per query (VerifyImplementedBy -> BoundType -> TypeID);
+//     preprocessed fresh per query (checkImplementedBy -> BoundType -> TypeID);
 //   - DeclaredType.pkgID and StructType.pkgID, via allocation construction-time
 //     checks while the body runs;
 //   - DeclaredType.methodIndex, which builds only past methodIndexThreshold (8),

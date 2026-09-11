@@ -115,9 +115,23 @@ func (cp coinsPayment) String() string {
 }
 
 // NewCoinsPayment creates a new coinsPayment.
+//
+// The coins are copied, so the caller cannot change the amount after the
+// payment exists, and sorted and joined, so String() renders the set that will
+// actually be paid. A non-positive amount is rejected here rather than by the
+// bank keeper at execution, after a vote. A malformed denom is still only
+// caught by the keeper.
 func NewCoinsPayment(coins chain.Coins, toAddress address) Payment {
+	cz := chain.Coins{}.Add(coins)
+
+	for _, c := range cz {
+		if !c.IsPositive() {
+			panic("coins payment amounts must be positive, got " + c.String())
+		}
+	}
+
 	return coinsPayment{
-		coins:     coins,
+		coins:     cz,
 		toAddress: toAddress,
 	}
 }

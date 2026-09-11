@@ -71,7 +71,11 @@ func SetTokenKeys(cur realm, keys []string) {
 		panic("this Realm is not allowed to send payment: " + caller)
 	}
 
-	tokenKeys = keys
+	// Copied, not aliased: the grc20Lister closure re-reads tokenKeys on every
+	// Balances() and every GRC20 payment, so storing the caller's array as
+	// given would leave it a permanent write handle on this realm's token set.
+	tokenKeys = make([]string, len(keys))
+	copy(tokenKeys, keys)
 }
 
 // Send sends a payment using the treasury instance.
