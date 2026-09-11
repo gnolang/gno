@@ -1,0 +1,10 @@
+{
+  "reason": "mainnet namespace preregistration MsgRun: registers the initial mainnet names (gnoswap, onbloc, moul, aeddi, aib) in r/sys/users via the genesis-only r/sys/users/init.RegisterUser wrapper. The controller gate is skipped at height 0, so no standing authority survives genesis; GovDAO can rename or delete any of these via r/sys/namereg/v1 proposals.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "users_preregister_mainnet.gno"
+}

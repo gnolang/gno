@@ -12,7 +12,9 @@
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
 #      seven GovDAO T1 members and locks dao.UpdateImpl's AllowedDAOs to
 #      r/gov/dao/v0/impl. Transfers are locked at genesis per §126, with
-#      the independence-day exemption list applied (step 9.3).
+#      the independence-day exemption list applied (step 9.3). A second
+#      MsgRun (transactions/base/users-preregister/) registers the initial
+#      mainnet namespaces in r/sys/users via the genesis-only path.
 #   3. A names.Enable MsgCall (transactions/migration/names-enable/) so
 #      namespace enforcement is on from genesis. Enable is gated on the
 #      admin address hardcoded in r/sys/names/verifier.gno; the tx's
@@ -1220,7 +1222,7 @@ print_substep "4.8" "Reconciled: $addpkg_count addpkg txs for $pkg_count resolve
 # §126 transfer lock is applied at step 9.3 as genesis params rather than
 # via r/sys/params proposals, so there is nothing to propose here.
 
-print_step_header 5 "$TOTAL_STEPS" "Add bootstrap MsgRun (GovDAO seed)"
+print_step_header 5 "$TOTAL_STEPS" "Add bootstrap MsgRuns (GovDAO seed + namespace preregistration)"
 
 BOOTSTRAP_JSONL="$WORK_DIR/bootstrap_tx.jsonl"
 
@@ -1235,6 +1237,26 @@ jq -c 'del(.reason)' "$BOOTSTRAP_JSONL" >"$BOOTSTRAP_TX_FILE"
 print_substep "5.2" "Adding bootstrap tx to genesis..."
 run "$GNOGENESIS_BIN" txs add sheets "$BOOTSTRAP_TX_FILE" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
 cat "$BOOTSTRAP_TX_FILE" >>"$GENESIS_TXS_JSONL"
+
+# ---- Namespace preregistration (transactions/base/users-preregister/) ----
+# Registers the initial mainnet names in r/sys/users through the genesis-only
+# r/sys/users/init.RegisterUser wrapper (the controller gate is skipped at
+# height 0, so no authority survives genesis — see the .gno body's header).
+# Ordered AFTER the addpkg stream like every genesis tx, so r/sys/users and
+# r/sys/users/init exist when it runs.
+USERS_PREREGISTER_DIR="$SCRIPT_DIR/transactions/base/users-preregister"
+USERS_PREREGISTER_JSONL="$WORK_DIR/users_preregister_tx.jsonl"
+
+print_substep "5.3" "Building AnnotatedTx from $USERS_PREREGISTER_DIR/..."
+: >"$USERS_PREREGISTER_JSONL"
+txn_dir_to_jsonl "$USERS_PREREGISTER_DIR" "$USERS_PREREGISTER_JSONL"
+
+USERS_PREREGISTER_TX_FILE="$WORK_DIR/users_preregister_tx_stripped.jsonl"
+jq -c 'del(.reason)' "$USERS_PREREGISTER_JSONL" >"$USERS_PREREGISTER_TX_FILE"
+
+print_substep "5.4" "Adding namespace-preregistration tx to genesis..."
+run "$GNOGENESIS_BIN" txs add sheets "$USERS_PREREGISTER_TX_FILE" --genesis-path "$GENESIS_FILE" 2>&1 | sed 's/^/    /'
+cat "$USERS_PREREGISTER_TX_FILE" >>"$GENESIS_TXS_JSONL"
 
 # ---- Step 6: Add the names.Enable MsgCall (transactions/migration/names-enable/)
 # Namespace enforcement on from genesis. Enable is gated on the admin
