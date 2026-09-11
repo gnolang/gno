@@ -29,8 +29,8 @@ import (
 	"chain"
 
 	"gno.land/r/gov/dao"
-	govimpl "gno.land/r/gov/dao/v3/impl"
-	memberstore "gno.land/r/gov/dao/v3/memberstore"
+	govimpl "gno.land/r/gov/dao/impl/v0"
+	memberstore "gno.land/r/gov/dao/memberstore/v0"
 	susers "gno.land/r/sys/users"
 )
 
@@ -56,7 +56,7 @@ var (
 	// model should be replaced with a GovDAO T1 proposal flow that
 	// mirrors ProposeSetPaused. Until then, the hardcoded address is
 	// the smallest viable governance surface for the one-shot use case.
-	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin   = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	enabled = false
 	paused  = false
 )
@@ -111,6 +111,9 @@ func resolveCurrentName(name string) (address, bool) {
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable(cur realm) {
+	if !cur.IsCurrent() {
+		panic("unauthorized: cur is not the caller's live realm")
+	}
 	if cur.Previous().Address() != admin {
 		panic("caller is not admin")
 	}

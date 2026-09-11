@@ -1,0 +1,63 @@
+# A lazy interface bind persists its bind-site package (MethodPkg): unexported
+# method identity is package-qualified (PR #5739), and the realm's struct has a
+# same-spelled unexported FIELD `sec` shadowing the promoted p/sec method. If
+# the reloaded bind re-derived the trail under the realm's package instead of
+# the bind site's, it would match the field and crash. Restart forces a full
+# reload from store.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/sec -pkgpath gno.land/p/test/sec -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/shadow -pkgpath gno.land/r/test/shadow -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# bind G = x.sec inside p/test/sec (the only package that can select sec); persist.
+gnokey maketx call -pkgpath gno.land/r/test/shadow -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnoland restart
+
+# later tx after reload: dispatch must still resolve the p/test/sec method (7),
+# not the realm's shadowing field.
+gnokey maketx call -pkgpath gno.land/r/test/shadow -func Call -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout '(7 int)'
+stdout OK!
+
+-- sec/gnomod.toml --
+module = "gno.land/p/test/sec"
+gno = "0.9"
+
+-- sec/sec.gno --
+package sec
+
+type Sec interface{ sec() int } // unexported: identity is pkgpath-qualified
+
+type SecImpl struct{}
+
+func (SecImpl) sec() int { return 7 }
+
+// MakeGetter forms the method value from within sec's origin package.
+func MakeGetter(x Sec) func() int { return x.sec }
+
+-- shadow/gnomod.toml --
+module = "gno.land/r/test/shadow"
+gno = "0.9"
+
+-- shadow/shadow.gno --
+package shadow
+
+import "gno.land/p/test/sec"
+
+// F has an unexported realm-package FIELD named sec at depth 0 and the
+// promoted sec.sec METHOD at depth 1 via the embed — distinct identities.
+type F struct {
+	sec int
+	sec.SecImpl
+}
+
+var G func() int
+
+func Bind(cur realm)     { f := F{}; f.sec = 42; G = sec.MakeGetter(f) }
+func Call(cur realm) int { return G() }

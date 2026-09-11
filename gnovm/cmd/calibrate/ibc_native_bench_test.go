@@ -6,7 +6,6 @@ package calibrate
 // measured ns/op feeds gen_native_table.py without special-casing.
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
@@ -170,18 +169,36 @@ func BenchmarkNative_Merkle_LeafHash_256(b *testing.B)  { benchMerkleLeafHash(b,
 func BenchmarkNative_Merkle_LeafHash_1024(b *testing.B) { benchMerkleLeafHash(b, 1024) }
 func BenchmarkNative_Merkle_LeafHash_4096(b *testing.B) { benchMerkleLeafHash(b, 4096) }
 
-func BenchmarkNative_Merkle_InnerHash(b *testing.B) {
-	left := sha256.Sum256([]byte("left"))
-	right := sha256.Sum256([]byte("right"))
+// benchMerkleInnerHash benches innerHash with both operands at n bytes, so a
+// single-slope fit over n yields the cost per byte of one operand — which is
+// what the table charges on each of the two. Merkle tree use only ever passes
+// 32-byte hashes, but nothing enforces that, so the sweep has to reach the
+// sizes an caller can actually pass (see the innerHash comment in
+// gnovm/stdlibs/native_gas.go).
+func benchMerkleInnerHash(b *testing.B, n int) {
+	b.Helper()
+	left := make([]byte, n)
+	right := make([]byte, n)
+	for i := range left {
+		left[i] = byte(i)
+		right[i] = byte(i + 1)
+	}
 	m := newDispatchMachine(2)
-	setBlockValueFromGo(m, 0, left[:])
-	setBlockValueFromGo(m, 1, right[:])
+	setBlockValueFromGo(m, 0, left)
+	setBlockValueFromGo(m, 1, right)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/merkle", "innerHash"), nReturns: 1}
 	b.ResetTimer()
+	b.SetBytes(int64(2 * n))
 	for i := 0; i < b.N; i++ {
 		h.call()
 	}
 }
+
+func BenchmarkNative_Merkle_InnerHash_32(b *testing.B)   { benchMerkleInnerHash(b, 32) }
+func BenchmarkNative_Merkle_InnerHash_64(b *testing.B)   { benchMerkleInnerHash(b, 64) }
+func BenchmarkNative_Merkle_InnerHash_256(b *testing.B)  { benchMerkleInnerHash(b, 256) }
+func BenchmarkNative_Merkle_InnerHash_1024(b *testing.B) { benchMerkleInnerHash(b, 1024) }
+func BenchmarkNative_Merkle_InnerHash_4096(b *testing.B) { benchMerkleInnerHash(b, 4096) }
 
 // encodeMerkleItems builds the [4-byte BE count][4-byte BE len][data]…
 // wire format consumed by hashFromByteSlices.

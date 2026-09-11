@@ -206,3 +206,34 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 	err = execTest(context.Background(), cfg, io)
 	require.NoError(t, err, "hardfork genesis replay should succeed")
 }
+
+// TestCountDeliverableTxs covers the deliverable-count contract the
+// incomplete-replay guard depends on: entries flagged metadata.Failed=true
+// are excluded (deliverGenesisTx skips them without invoking the result
+// handler), everything else — including nil metadata — counts. An all-failed
+// genesis yields 0, the degenerate-but-legal case the guard treats as a pass.
+func TestCountDeliverableTxs(t *testing.T) {
+	t.Parallel()
+
+	failed := &gnoland.GnoTxMetadata{Failed: true}
+	deliverable := &gnoland.GnoTxMetadata{Failed: false}
+
+	tests := []struct {
+		name string
+		txs  []gnoland.TxWithMetadata
+		want int
+	}{
+		{"empty", nil, 0},
+		{"nil metadata counts", []gnoland.TxWithMetadata{{Metadata: nil}}, 1},
+		{"failed=false counts", []gnoland.TxWithMetadata{{Metadata: deliverable}}, 1},
+		{"failed=true skipped", []gnoland.TxWithMetadata{{Metadata: failed}}, 0},
+		{"mixed", []gnoland.TxWithMetadata{{Metadata: nil}, {Metadata: deliverable}, {Metadata: failed}}, 2},
+		{"all failed", []gnoland.TxWithMetadata{{Metadata: failed}, {Metadata: failed}}, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, countDeliverableTxs(tt.txs))
+		})
+	}
+}

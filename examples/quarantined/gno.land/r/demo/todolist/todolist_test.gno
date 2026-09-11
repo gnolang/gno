@@ -1,4 +1,4 @@
-package todolistrealm
+package todolist
 
 import (
 	"chain/runtime/unsafe"
@@ -20,7 +20,7 @@ func TestNewTodoList(cur realm, t *testing.T) {
 	uassert.Equal(t, 1, tlid, "tlid does not match")
 
 	// get the todolist node from the tree
-	node, _ = todolistTree.Get(strconv.Itoa(tlid))
+	node = todolistTree.Get(strconv.Itoa(tlid))
 	// convert the node to a TodoList struct
 	tdl = node.(*todolist.TodoList)
 

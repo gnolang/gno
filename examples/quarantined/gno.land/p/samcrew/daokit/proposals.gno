@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
-	"gno.land/p/onbloc/json"
+	"gno.land/p/onbloc/json/v0"
 	"gno.land/p/samcrew/daocond"
 )
 
@@ -83,8 +83,8 @@ func (p *ProposalsStore) newProposal(proposer string, req ProposalRequest, condi
 }
 
 func (p *ProposalsStore) GetProposal(id uint64) *Proposal {
-	value, ok := p.Tree.Get(seqid.ID(id).String())
-	if !ok {
+	value := p.Tree.Get(seqid.ID(id).String())
+	if value == nil {
 		return nil
 	}
 	proposal := value.(*Proposal)

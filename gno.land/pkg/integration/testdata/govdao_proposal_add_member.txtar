@@ -5,10 +5,10 @@ adduserfrom newmember 'smooth crawl poverty trumpet glare useful curtain annual 
 stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -18,7 +18,7 @@ stdout 'data: # GovDAO'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
-gnokey maketx run -gas-fee 110001ugnot -gas-wanted 1_100_000 -chainid=tendermint_test member $WORK/debug/check_addresses.gno
+gnokey maketx run -gas-fee 110001ugnot -gas-wanted 1_500_000 -chainid=tendermint_test member $WORK/debug/check_addresses.gno
 stdout '=== Debug info ==='
 stdout 'Origin caller: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run }'
@@ -40,7 +40,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 22
 stdout OK!
 
 # check output
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/memberstore/v0:'
 stdout 'Tier T2 contains 1 members'
 
 -- proposer/create_proposal.gno --
@@ -48,7 +48,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/impl/v0"
 )
 
 func main(cur realm) {
@@ -70,13 +70,13 @@ func main() {
 	currentRealm := unsafe.CurrentRealm()
 	println("Current realm:", currentRealm.String())
 }
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -86,5 +86,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

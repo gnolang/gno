@@ -13,6 +13,19 @@ import (
 
 var ErrURLInvalidPath = errors.New("invalid path")
 
+const (
+	maxPathLength     = 4096
+	maxErrorPathBytes = 128
+)
+
+// clipPath limits values included in parse errors.
+func clipPath(path string) string {
+	if len(path) <= maxErrorPathBytes {
+		return path
+	}
+	return path[:maxErrorPathBytes] + "..."
+}
+
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
 	// Example full path:
@@ -138,7 +151,7 @@ func (gnoURL GnoURL) EncodeWebURL() string {
 }
 
 // EncodeFormURL encodes the URL for form redirects.
-// Slashes remain encoded (%2F) to prevent browser path normalization attacks.
+// Slashes remain encoded as %2F.
 func (gnoURL GnoURL) EncodeFormURL() string {
 	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
 }
@@ -256,7 +269,7 @@ var reGnolandPath = regexp.MustCompile(`^/[rpu]/([a-z][a-z0-9_/-]*)*$`)
 // it doesn't validate semantics, like "/r/", "/p/", etc; Use `IsPure()`,
 // `IsRealm()` or similar methods to check for specific URL path cases.
 func (gnoURL GnoURL) IsValidPath() bool {
-	return reGnolandPath.MatchString(gnoURL.Path)
+	return len(gnoURL.Path) <= maxPathLength && reGnolandPath.MatchString(gnoURL.Path)
 }
 
 // Extract the package name from the Gno.land URL path (e.g., "/r/test/foo" -> "test")
@@ -294,14 +307,22 @@ var reURLPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`)
 // literal `:` inside webargs (e.g. ObjectID `<hash>:<n>`) stays in the
 // webargs and doesn't corrupt the path-args split.
 func ParseFromURL(u *url.URL) (*GnoURL, error) {
-	pathArgs, webargs, _ := strings.Cut(u.EscapedPath(), "$")
+	escapedPath := u.EscapedPath()
+
+	pathArgs, webargs, _ := strings.Cut(escapedPath, "$")
 	path, args, _ := strings.Cut(pathArgs, ":")
+
+	// Only the path segment reaches reURLPath/reGnolandPath, so bound it
+	// there. Webargs (e.g. a `$help` form's argument values) can legitimately
+	// be long and are kept out of this limit.
+	if len(path) > maxPathLength {
+		return nil, ErrURLInvalidPath
+	}
 
 	upath, err := url.PathUnescape(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unescape path %q: %w", path, err)
+		return nil, fmt.Errorf("unable to unescape path %q: %w", clipPath(path), err)
 	}
-
 	var file string
 
 	// A file is considered as one that either ends with an extension or
@@ -323,20 +344,20 @@ func ParseFromURL(u *url.URL) (*GnoURL, error) {
 	// considered valid within Gno.land package paths. The "//" is checked
 	// using contains to keep the URL path regexp simple.
 	if strings.Contains(upath, "//") || !reURLPath.MatchString(upath) {
-		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
+		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, clipPath(upath))
 	}
 
 	webquery := url.Values{}
 	if len(webargs) > 0 {
 		var parseErr error
 		if webquery, parseErr = url.ParseQuery(webargs); parseErr != nil {
-			return nil, fmt.Errorf("unable to parse webquery %q: %w", webargs, parseErr)
+			return nil, fmt.Errorf("unable to parse webquery %q: %w", clipPath(webargs), parseErr)
 		}
 	}
 
 	uargs, err := url.PathUnescape(args)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unescape args %q: %w", args, err)
+		return nil, fmt.Errorf("unable to unescape args %q: %w", clipPath(args), err)
 	}
 
 	return &GnoURL{

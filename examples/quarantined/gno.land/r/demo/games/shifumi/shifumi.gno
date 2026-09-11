@@ -69,8 +69,8 @@ func NewGame(cur realm, player address) int {
 // Play executes a move for the game at index idx, where move can be:
 // 1 (rock), 2 (paper), 3 (scissors).
 func Play(cur realm, idx, move int) {
-	v, ok := games.Get(seqid.ID(idx).String())
-	if !ok {
+	v := games.Get(seqid.ID(idx).String())
+	if v == nil {
 		panic("game not found")
 	}
 	if err := v.(*game).play(cur.Previous().Address(), move); err != nil {
@@ -94,8 +94,8 @@ Actions:
 	// Output the 100 most recent games.
 	maxGames := 100
 	for n := int(id); n > 0 && int(id)-n < maxGames; n-- {
-		v, ok := games.Get(seqid.ID(n).String())
-		if !ok {
+		v := games.Get(seqid.ID(n).String())
+		if v == nil {
 			continue
 		}
 		g := v.(*game)

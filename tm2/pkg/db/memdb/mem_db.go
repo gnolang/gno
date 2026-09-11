@@ -2,6 +2,7 @@ package memdb
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 
@@ -177,7 +178,7 @@ func (db *MemDB) Iterator(start, end []byte) (dbm.Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	keys := db.getSortedKeys(start, end, false)
+	keys := getSortedKeys(db.db, start, end, false)
 	return internal.NewMemIterator(db, keys, start, end), nil
 }
 
@@ -186,16 +187,16 @@ func (db *MemDB) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	keys := db.getSortedKeys(start, end, true)
+	keys := getSortedKeys(db.db, start, end, true)
 	return internal.NewMemIterator(db, keys, start, end), nil
 }
 
 // ----------------------------------------
 // Misc.
 
-func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
+func getSortedKeys(db map[string][]byte, start, end []byte, reverse bool) []string {
 	keys := []string{}
-	for key := range db.db {
+	for key := range db {
 		inDomain := dbm.IsKeyInDomain([]byte(key), start, end)
 		if inDomain {
 			keys = append(keys, key)
@@ -211,4 +212,42 @@ func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 		}
 	}
 	return keys
+}
+
+// Snapshot implementation
+type memSnapshot struct {
+	db map[string][]byte
+}
+
+func (db *MemDB) NewSnapshot() (dbm.Snapshot, error) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return &memSnapshot{db: maps.Clone(db.db)}, nil
+}
+
+var _ dbm.Snapshot = (*memSnapshot)(nil)
+
+func (s *memSnapshot) Close() error {
+	return nil
+}
+
+func (s *memSnapshot) Get(key []byte) ([]byte, error) {
+	key = internal.NonNilBytes(key)
+	return s.db[string(key)], nil
+}
+
+func (s *memSnapshot) Has(key []byte) (bool, error) {
+	_, ok := s.db[string(key)]
+	return ok, nil
+}
+
+func (s *memSnapshot) Iterator(start, end []byte) (dbm.Iterator, error) {
+	keys := getSortedKeys(s.db, start, end, false)
+	return internal.NewMemIterator(s, keys, start, end), nil
+}
+
+func (s *memSnapshot) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
+	keys := getSortedKeys(s.db, start, end, true)
+	return internal.NewMemIterator(s, keys, start, end), nil
 }

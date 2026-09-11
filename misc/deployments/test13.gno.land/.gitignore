@@ -1,0 +1,5 @@
+# Pipeline working dir (phase-1 + phase-2 intermediates).
+/work/
+
+# Final assembled genesis (moved here from work/phase-2/ on success).
+/genesis.json

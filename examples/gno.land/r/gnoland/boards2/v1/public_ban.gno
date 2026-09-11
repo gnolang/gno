@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 
@@ -104,8 +104,8 @@ func assertUserIsNotBanned(boardID boards.ID, user address) {
 		return
 	}
 
-	v, found := banned.Get(user.String())
-	if !found {
+	v := banned.Get(user.String())
+	if v == nil {
 		return
 	}
 

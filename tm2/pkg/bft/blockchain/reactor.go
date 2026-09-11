@@ -30,12 +30,29 @@ const (
 	// check if we should switch to consensus reactor
 	switchToConsensusIntervalSeconds = 1
 
-	// NOTE: keep up to date with bcBlockResponseMessage
-	bcBlockResponseMessagePrefixSize   = 4
-	bcBlockResponseMessageFieldKeySize = 1
-	maxMsgSize                         = types.MaxBlockSizeBytes +
-		bcBlockResponseMessagePrefixSize +
-		bcBlockResponseMessageFieldKeySize
+	// maxBlockMsgOverhead is the allowance for the bcBlockResponseMessage
+	// envelope wrapped around an already length-prefixed block: an amino type
+	// prefix, a field key and a length prefix, i.e. tens of bytes. 64KB is
+	// generous headroom for that framing.
+	//
+	// Note it does NOT need to cover the block header or the LastCommit:
+	// MaxDataBytes is also the max size ConsensusState.addProposalBlockPart
+	// passes to amino when decoding a proposal block, so a block can only ever
+	// be committed if its *whole* serialized form — header and commit
+	// included — fits in MaxDataBytes.
+	maxBlockMsgOverhead = 64 << 10 // 64KB
+
+	// maxMsgSize is the maximum size of a blockchain-reactor message. The
+	// largest message is a bcBlockResponseMessage carrying a full block. Since a
+	// committed block's serialized size is bounded by the chain's MaxDataBytes,
+	// which consensus-param validation caps at MaxBlockDataBytesLimit, deriving
+	// the limit from the ceiling covers every block the chain could ever have
+	// committed, including blocks committed before MaxDataBytes was lowered.
+	//
+	// It doubles as the channel's RecvMessageCapacity, so keeping it tight
+	// bounds the per-connection recving-buffer exposure; it was previously
+	// MaxBlockSizeBytes (100MB), far larger than any real block.
+	maxMsgSize = int(types.MaxBlockDataBytesLimit) + maxBlockMsgOverhead
 )
 
 // SwitchToConsensusFn is a callback method that is meant to

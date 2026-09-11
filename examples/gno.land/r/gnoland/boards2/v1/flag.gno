@@ -3,7 +3,7 @@ package boards2
 import (
 	"strconv"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 
@@ -33,7 +33,7 @@ func flagItem(post *boards.Post, user address, reason string, threshold int) boo
 }
 
 func getFlaggingThreshold(bid boards.ID) int {
-	if v, ok := gFlaggingThresholds.Get(bid.String()); ok {
+	if v := gFlaggingThresholds.Get(bid.String()); v != nil {
 		return v.(int)
 	}
 	return DefaultFlaggingThreshold

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
@@ -66,7 +68,23 @@ func (biv BigintValue) String() string {
 }
 
 func (bdv BigdecValue) String() string {
-	return bdv.V.String()
+	if bdv.F != nil {
+		return bdv.F.Text('g', -1)
+	}
+	if bdv.V == nil {
+		return "0.0"
+	}
+	s := bdv.V.FloatString(10)
+	// Trim trailing zeros after the decimal point, but keep at least one
+	// decimal digit so bigdec values are visually distinct from integers.
+	if strings.ContainsRune(s, '.') {
+		s = strings.TrimRight(s, "0")
+		// Keep at least one digit after the decimal point.
+		if s[len(s)-1] == '.' {
+			s += "0"
+		}
+	}
+	return s
 }
 
 func (dbv DataByteValue) String() string {
@@ -134,6 +152,11 @@ func (fv *FuncValue) String() string {
 }
 
 func (bmv *BoundMethodValue) String() string {
+	if bmv.IsLazy() {
+		// Unresolved interface bind: the concrete method is determined at call
+		// time; render from the saved operand type + selector name.
+		return fmt.Sprintf("<%s>.%s(?)(?)", bmv.Receiver.T.String(), bmv.Method)
+	}
 	name := bmv.Func.Name
 	var (
 		recvT   = "?"
@@ -220,9 +243,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
-// ImplError returns true if the TypedValue's type implements the error interface.
-func (tv *TypedValue) ImplError() bool {
-	return IsImplementedBy(gErrorType, tv.T)
+// ImplError returns true if the TypedValue's type implements the error
+// interface. gm meters the embedded-field BFS walk (nil = a no-op); see
+// IsErrorType.
+func (tv *TypedValue) ImplError(gm types.GasMeter) bool {
+	return isImplementedBy(gm, gErrorType, tv.T)
 }
 
 // for print() and println().

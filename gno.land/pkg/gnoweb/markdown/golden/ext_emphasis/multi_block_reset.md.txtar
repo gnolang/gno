@@ -1,0 +1,9 @@
+Each paragraph sits exactly at the cap (4 runs); the per-block CloseBlock
+reset means both render fully — the cap never accumulates across blocks.
+-- input.md --
+*a* *b*
+
+*c* *d*
+-- output.html --
+<p><em>a</em> <em>b</em></p>
+<p><em>c</em> <em>d</em></p>

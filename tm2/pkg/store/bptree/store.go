@@ -23,22 +23,19 @@ const (
 	ProofOpBptreeCommitment = "ics23:bptree"
 )
 
-// FastIndexEnabled controls whether stores built by StoreConstructor enable the
-// bptree fast index — an unauthenticated read accelerator outside the Merkle
-// commitment (see bptree.FastIndexOption). It is a package-level toggle because
-// StoreConstructor's signature is fixed by CommitStoreConstructor and
-// types.StoreOptions is shared with the IAVL store. Set it before stores are
-// mounted (e.g. at process init). Off by default; toggling it does not change
-// the app hash, so nodes may differ without forking.
-var FastIndexEnabled bool
-
 // StoreConstructor implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	var bopts []bp.Option
-	if FastIndexEnabled {
-		bopts = append(bopts, bp.FastIndexOption(true))
-	}
-	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger(), bopts...)
+	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger())
+	return UnsafeNewStore(tree, opts)
+}
+
+// FastStoreConstructor is StoreConstructor with the bptree fast index enabled
+// (see bptree.FastIndexOption for what the index is and what it costs).
+// Store-level notes: the first Load over an existing non-indexed DB rebuilds
+// the whole index (long on large DBs, and a rebuild error fails the load),
+// and charged gas is index-independent (depth params × tree size).
+func FastStoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
+	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger(), bp.FastIndexOption(true))
 	return UnsafeNewStore(tree, opts)
 }
 
@@ -86,7 +83,9 @@ func (st *Store) SetInitialVersion(v int64) {
 // expectedDepth100 returns log₃₂(size) in 100x fixed-point — the B+32
 // traversal depth in node reads. log₃₂ = log₂/5, so the ×100 scaling becomes
 // ×20, preserving the fractional precision integer division would truncate.
-// Floored at 100 (one op).
+// Floored at 100 (one op). Downstream Min-floor gas params and the gnogenesis
+// fork fingerprint are derived from this formula; see
+// gno.land/pkg/sdk/vm/params.go before changing it.
 func expectedDepth100(size int64) int64 {
 	if size <= 1 {
 		return 100
@@ -162,23 +161,39 @@ func (st *Store) LastCommitID() types.CommitID {
 func (st *Store) GetStoreOptions() types.StoreOptions     { return st.opts }
 func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
-func (st *Store) LoadLatestVersion() error {
-	// Load discovers versions and loads the latest
-	latestV, err := st.mtree.Load()
+// loadImmutableView loads the tree read-only and installs an immutable view
+// at ver (0 = the latest version). LoadReadonly skips fast-index maintenance —
+// a load on this path must never write (the DB may be a snapshot, and a
+// concurrent commit could otherwise be misread as a stale index; see
+// bptree.MutableTree.LoadReadonly). The view is loaded UNREGISTERED: it is
+// long-lived and never Closed, so registering it would pin its version
+// against pruning forever.
+func (st *Store) loadImmutableView(ver int64) error {
+	latestV, err := st.mtree.LoadReadonly()
 	if err != nil {
 		return err
 	}
-	if st.opts.Immutable {
-		// Long-lived immutable store view, never Closed → load UNREGISTERED so
-		// it doesn't pin this version against pruning forever.
-		iTree, err := st.mtree.GetImmutableUnregistered(latestV)
-		if err != nil {
-			return err
-		}
-		st.tree = &immutableTreeAdapter{iTree}
-	} else {
-		st.tree = &mutableTreeAdapter{st.mtree}
+	if ver == 0 {
+		ver = latestV
 	}
+	iTree, err := st.mtree.GetImmutableUnregistered(ver)
+	if err != nil {
+		return err
+	}
+	st.tree = &immutableTreeAdapter{iTree}
+	return nil
+}
+
+func (st *Store) LoadLatestVersion() error {
+	if st.opts.Immutable {
+		return st.loadImmutableView(0)
+	}
+	// Load discovers versions, loads the latest, and performs fast-index
+	// maintenance (live store, single-threaded startup).
+	if _, err := st.mtree.Load(); err != nil {
+		return err
+	}
+	st.tree = &mutableTreeAdapter{st.mtree}
 	return nil
 }
 
@@ -187,17 +202,7 @@ func (st *Store) LoadVersion(ver int64) error {
 		return nil // version 0 is always "empty"
 	}
 	if st.opts.Immutable {
-		if _, err := st.mtree.Load(); err != nil {
-			return err
-		}
-		// Long-lived immutable store view, never Closed → load UNREGISTERED so
-		// it doesn't pin this version against pruning forever.
-		iTree, err := st.mtree.GetImmutableUnregistered(ver)
-		if err != nil {
-			return err
-		}
-		st.tree = &immutableTreeAdapter{iTree}
-		return nil
+		return st.loadImmutableView(ver)
 	}
 	// Load() discovers versions and loads the latest.
 	// Then LoadVersion loads the specific requested version.

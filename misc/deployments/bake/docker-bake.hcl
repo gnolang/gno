@@ -6,6 +6,11 @@ variable "PROJECT_NAME" {
   default = "gno"
 }
 
+# computed by the caller and forwarded as a build arg.
+variable "BUILD_VERSION" {
+  default = "dev"
+}
+
 #########################################
 ################ GROUPS #################
 #########################################
@@ -23,7 +28,8 @@ group "default" {
 group "contribs" {
   targets = [
     "gnodev",
-    "gnocontribs"
+    "gnocontribs",
+    "gpao"
   ]
 }
 
@@ -52,10 +58,13 @@ target "common" {
     "type=sbom",
   ]
   context = "../../../"
+  args = {
+    BUILD_VERSION = "${BUILD_VERSION}"
+  }
   platforms = [
     "linux/amd64",
     "linux/arm64"
-  ] 
+  ]
   output = ["type=image"] # ,push=true -> Pushes to registry
 }
 
@@ -112,6 +121,14 @@ target "gnocontribs" {
   target = "gnocontribs"
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnocontribs"
+  }
+}
+
+target "gpao" {
+  inherits = ["common"]
+  target = "gpao"
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gpao"
   }
 }
 

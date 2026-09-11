@@ -81,9 +81,12 @@ func (op SimpleValueOp) Run(args [][]byte) ([][]byte, error) {
 		return nil, errors.New("leaf hash mismatch: want %X got %X", op.Proof.LeafHash, kvhash)
 	}
 
-	return [][]byte{
-		op.Proof.ComputeRootHash(),
-	}, nil
+	rootHash, err := op.Proof.ComputeRootHash()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot compute root hash")
+	}
+
+	return [][]byte{rootHash}, nil
 }
 
 func (op SimpleValueOp) GetKey() []byte {

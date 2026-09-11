@@ -1,4 +1,4 @@
-package main
+package render_invalid3
 
 // Invalid 'Render' function: too many parameters (2 instead of 1)
 

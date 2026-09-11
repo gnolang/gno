@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	p2ptypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -110,7 +111,7 @@ func TestResultGenesis_StreamJSON_StreamableAppState(t *testing.T) {
 }
 
 // nonStreamableAppState is a plain struct that does NOT implement
-// StreamableResult; the streaming path must fall back to amino marshaling.
+// StreamableResult and is NOT registered with amino.
 type nonStreamableAppState struct {
 	Plain string `json:"plain"`
 }
@@ -119,10 +120,12 @@ type nonStreamableAppState struct {
 // AppState does NOT implement StreamableResult, the streaming path falls back
 // to amino marshaling — this preserves wire compatibility for existing
 // in-memory AppState callers and keeps the streaming hook truly opt-in.
+// AppState is a polymorphic field, so the fallback must emit amino's `@type`
+// tag, exactly as marshaling the whole doc does.
 func TestResultGenesis_StreamJSON_NonStreamableAppState(t *testing.T) {
 	t.Parallel()
 
-	doc := fixtureGenesisDoc(t, nonStreamableAppState{Plain: "value"})
+	doc := fixtureGenesisDoc(t, types.MockAppState{AccountOwner: "owner"})
 	res := &ResultGenesis{Genesis: doc}
 
 	var buf bytes.Buffer
@@ -139,7 +142,55 @@ func TestResultGenesis_StreamJSON_NonStreamableAppState(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(envelope.Genesis, &inner))
 	assert.Equal(t, "test-chain-123", inner.ChainID)
-	assert.JSONEq(t, `{"plain":"value"}`, string(inner.AppState))
+	assert.JSONEq(t, `{"@type":"/tm.MockAppState","account_owner":"owner"}`, string(inner.AppState))
+}
+
+// TestResultGenesis_StreamJSON_AminoRoundTrip is the regression test for the
+// streamed /genesis body being decodable by an amino client — tm2's own RPC
+// client decodes the response this way, and so does any consumer built on it
+// (e.g. tx-indexer). Decoding GenesisDoc.AppState, an interface field,
+// requires the `@type` tag; a fallback that marshals the detached AppState as
+// its concrete type drops that tag and the whole response becomes unreadable
+// with "JSON encoding of interfaces require non-empty @type field".
+//
+// The streamed body must also be byte-identical to the buffered marshal of
+// the same result, since the streaming writer exists only to bound memory —
+// not to change the wire format.
+func TestResultGenesis_StreamJSON_AminoRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	appState := types.MockAppState{AccountOwner: "owner"}
+	res := &ResultGenesis{Genesis: fixtureGenesisDoc(t, appState)}
+
+	var buf bytes.Buffer
+	require.NoError(t, res.StreamJSON(context.Background(), &buf))
+
+	buffered, err := amino.MarshalJSON(res)
+	require.NoError(t, err)
+	assert.Equal(t, string(buffered), buf.String(), "streamed body must match the buffered marshal")
+
+	var decoded ResultGenesis
+	require.NoError(t, amino.UnmarshalJSON(buf.Bytes(), &decoded), "streamed body must decode with amino")
+	require.NotNil(t, decoded.Genesis)
+	assert.Equal(t, res.Genesis.ChainID, decoded.Genesis.ChainID)
+	assert.Equal(t, appState, decoded.Genesis.AppState)
+}
+
+// TestResultGenesis_StreamJSON_UnregisteredAppState verifies the fallback
+// reports an unregistered AppState instead of emitting JSON no amino client
+// could read. Marshaling the whole doc rejects it the same way, so the
+// streaming path is not more permissive than the buffered one.
+func TestResultGenesis_StreamJSON_UnregisteredAppState(t *testing.T) {
+	t.Parallel()
+
+	res := &ResultGenesis{Genesis: fixtureGenesisDoc(t, nonStreamableAppState{Plain: "value"})}
+
+	var buf bytes.Buffer
+	err := res.StreamJSON(context.Background(), &buf)
+	require.ErrorContains(t, err, "unregistered concrete type")
+
+	_, bufferedErr := amino.MarshalJSON(res)
+	require.ErrorContains(t, bufferedErr, "unregistered concrete type")
 }
 
 // TestResultGenesis_StreamJSON_NilAppState verifies the omitempty behavior is

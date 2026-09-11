@@ -34,5 +34,5 @@ func ProposeRemoveUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.Prop
 		s := addr.String()
 		addrStrings = append(addrStrings, s)
 	}
-	return NewSysParamStringsPropRequestRemoveWithTitle(cur, authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsPropRequestRemoveWithTitle(cur, authModulePrefix, "p", unrestrictedAddrsKey, "Remove unrestricted transfer accounts", addrStrings)
 }

@@ -234,7 +234,7 @@ PARAM_FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
-    # EnterCrossing is quadratic (O(depth^2) frame walk). See below for quadratic fit.
+    # EnterCrossing walks m.Frames once with a cursor, so it is linear in depth.
     ('EnterCrossing (depth)', 'depth', [
         ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
         ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
@@ -320,6 +320,8 @@ PARAM_FAMILIES = [
 ]
 
 # BigInt families
+PARAM_FAMILIES_BY_NAME = [(name, benches) for name, _label, benches in PARAM_FAMILIES]
+
 BIGINT_FAMILIES = [
     ('Add (BigInt)', [
         ('BenchmarkOpAdd_BigInt_64', 64), ('BenchmarkOpAdd_BigInt_256', 256),
@@ -419,6 +421,94 @@ QUADRATIC_FAMILIES = {
     'Quo (BigDec)',
 }
 
+# ============================================================
+# Embedding walk (interface-satisfaction BFS, embedWalk in types.go):
+# three slopes read from a depth x width x hit/miss x methods grid
+# (BenchmarkOpEmbedWalk). Each shape has N = d*w types; the first type of
+# every level embeds the next level; hit = all methods on the deepest type.
+#   miss_m1            = base + N*(expand + scan)
+#   hit_m1  - miss_m1  = trail(d)                     (buildEmbeddedTrail, ~d^2)
+#   (hit_m16 - hit_m1)/15 = N*scan + trail(d) + per-method fixed cost
+# Slopes are picked at the deep end (d = MaxEmbedDepth) so they are floors.
+# ============================================================
+EMBEDWALK_SHAPES = [(1, 8), (1, 32), (1, 128), (2, 64), (4, 8), (4, 32), (8, 1), (8, 4), (8, 16)]
+EMBEDWALK_METHODS = 16
+EMBEDWALK_DEEP = 8
+
+def embedwalk_picks(data, method_fixed):
+    """Per-shape derived costs and deep-end picks, or None without data."""
+    rows = []
+    for d, w in EMBEDWALK_SHAPES:
+        vals = []
+        for kind in ('miss_m1', 'hit_m1', 'hit_m%d' % EMBEDWALK_METHODS):
+            st = get_stats(data, 'BenchmarkOpEmbedWalk/d%d_w%d_%s' % (d, w, kind))
+            if st is None:
+                break
+            vals.append(gas(*st)[1])
+        if len(vals) != 3:
+            continue
+        miss1, hit1, hit16 = vals
+        n = d * w
+        trail = max(0.0, hit1 - miss1)
+        per_method = (hit16 - hit1) / (EMBEDWALK_METHODS - 1)
+        scan = max(0.0, (per_method - trail - method_fixed) / n)
+        rows.append({'d': d, 'w': w, 'n': n, 'miss1': miss1, 'hit1': hit1, 'hit16': hit16,
+                     'trail': trail, 'trail_hop': trail / d, 'scan': scan})
+    if not rows:
+        return None
+    # expand + scan per type: least squares of miss1 over N within each depth.
+    by_depth = defaultdict(list)
+    for r in rows:
+        by_depth[r['d']].append((r['n'], r['miss1']))
+    slope_by_depth = {}
+    for d, pts in by_depth.items():
+        if len(pts) >= 2:
+            a, b, r2 = least_squares(pts)
+            slope_by_depth[d] = (a, b, r2)
+    deep = max(d for d in by_depth if d in slope_by_depth) if slope_by_depth else max(by_depth)
+    deep_rows = [r for r in rows if r['d'] == deep]
+    scan_pick = max(r['scan'] for r in deep_rows)
+    trail_pick = max(r['trail_hop'] for r in deep_rows)
+    expand_pick = slope_by_depth[deep][1] - scan_pick if deep in slope_by_depth else None
+    return {'rows': rows, 'slope_by_depth': slope_by_depth, 'deep': deep,
+            'expand': expand_pick, 'scan': scan_pick, 'trail_hop': trail_pick}
+
+def emit_embedwalk_section(out, data, gas_constants, method_fixed):
+    ew = embedwalk_picks(data, method_fixed)
+    if ew is None:
+        return
+    out.append('')
+    out.append('=' * 110)
+    out.append('SECTION 2b: EMBEDDING WALK (interface satisfaction: expand / scan / trail slopes)')
+    out.append('=' * 110)
+    out.append('')
+    out.append('  per-method fixed cost subtracted from the scan slope: %.1f (TypeAssert1 (interface) fit)' % method_fixed)
+    out.append('')
+    out.append('  %5s %5s %5s %10s %10s %10s %10s %10s %10s' % ('d', 'w', 'N', 'miss_m1', 'hit_m1', 'hit_m16', 'trail(d)', 'trail/hop', 'scan/entry'))
+    out.append('  ' + '-' * 84)
+    for r in ew['rows']:
+        out.append('  %5d %5d %5d %10.1f %10.1f %10.1f %10.1f %10.1f %10.2f' % (
+            r['d'], r['w'], r['n'], r['miss1'], r['hit1'], r['hit16'], r['trail'], r['trail_hop'], r['scan']))
+    out.append('')
+    for d in sorted(ew['slope_by_depth']):
+        a, b, r2 = ew['slope_by_depth'][d]
+        out.append('  depth %d: miss_m1 = %.1f + %.2f * N  (expand + scan per type; R²=%.4f)' % (d, a, b, r2))
+    out.append('')
+    out.append('  deep-end picks (d=%d):' % ew['deep'])
+    for label, key, val in (('expand per type', 'SlopeEmbedExpand', ew['expand']),
+                            ('scan per entry', 'SlopeEmbedScan', ew['scan']),
+                            ('trail per hop', 'SlopeEmbedTrailHop', ew['trail_hop'])):
+        if val is None:
+            continue
+        cur = gas_constants.get(key, -1)
+        if cur > 0 and val > 0:
+            ratio = cur / val
+            tag = 'OVER >>>' if ratio > 3 else 'over' if ratio > 1.5 else 'UNDER <<<' if ratio < 0.67 else 'under' if ratio < 0.85 else 'ok'
+        else:
+            tag = ''
+        out.append('    %-16s %8.1f   OpCPU%-20s = %6s  %s' % (label, val, key, str(cur) if cur > 0 else '?', tag))
+
+
 def emit_param_section(out, data, families, param_unit):
     for display_name, label, benchmarks in families:
         points_total = []
@@ -477,6 +567,11 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(script_dir, 'op_bench_do_dedicated.txt')
     machine_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(script_dir, '..', '..', 'pkg', 'gnolang', 'machine.go')
+    # Optional: measured-ns per reference-ns for non-reference hardware, i.e.
+    # 1 / (table ÷ ns/op(pure) over the flat ops marked ok). Default 1.0.
+    global CPU_BASE_NS
+    if len(sys.argv) > 3:
+        CPU_BASE_NS = float(sys.argv[3])
 
     data = parse_benchmarks(data_path)
     gas_constants = read_gas_constants(machine_path)
@@ -541,6 +636,19 @@ def main():
     p('=' * 110)
 
     emit_param_section(out, data, PARAM_FAMILIES, 'N')
+
+    # Per-method fixed cost of a satisfaction check (loop + signature compare),
+    # from the TypeAssert1 (interface) fit; subtracted before deriving the
+    # embedding walk's per-entry scan slope.
+    method_fixed = 0.0
+    ta_points = []
+    for bench_name, n_val in dict(PARAM_FAMILIES_BY_NAME).get('TypeAssert1 (interface)', []):
+        st = get_stats(data, bench_name)
+        if st is not None:
+            ta_points.append((n_val, gas(*st)[1]))
+    if len(ta_points) >= 2:
+        method_fixed = least_squares(ta_points)[1]
+    emit_embedwalk_section(out, data, gas_constants, method_fixed)
 
     # ============================================================
     # SECTION 3: BIGINT OPS
@@ -730,7 +838,7 @@ def main():
         'ForLoop (heap copy)':      ('ForLoop',         'ForLoopHeap'),
         'RangeIter (array)':        ('RangeIter',       'RangeIterArray'),
         'ReturnCallDefers':         ('ReturnCallDefers','ReturnCallDefers'),
-        'EnterCrossing (depth)':    (None,              None),  # quadratic — handled separately
+        'EnterCrossing (depth)':    (None,              'EnterCrossing'),
         'CopyDataToList':           (None,              'CopyPrimitive'), # slower helper drives OpCPUSlopeCopyPrimitive
         'CopyListToData':           (None,              None),  # cheaper than CopyDataToList; shares CopyPrimitive slope
         'UnrefCopy (int)':          (None,              'CopyElement'),   # primitive unrefCopy drives OpCPUSlopeCopyElement
@@ -900,6 +1008,15 @@ def main():
             slope_per_100 = b * 100
             p('\tOpCPUSlope%-20s = %4d // %.4f ns/digit * 100 = %.1f' % (
                 go_name, round(slope_per_100), b, slope_per_100))
+
+    # --- Embedding walk slopes (deep-end picks; see SECTION 2b) ---
+    ew = embedwalk_picks(data, method_fixed)
+    if ew is not None and ew['expand'] is not None:
+        p()
+        p('\t// Embedding walk (BenchmarkOpEmbedWalk), picks at depth %d.' % ew['deep'])
+        p('\tOpCPUSlopeEmbedExpand   = %4d // per embedded type added to a level (fit: %.1f)' % (round(ew['expand']), ew['expand']))
+        p('\tOpCPUSlopeEmbedScan     = %4d // per level entry scanned, per name (fit: %.2f)' % (max(1, round(ew['scan'])), ew['scan']))
+        p('\tOpCPUSlopeEmbedTrailHop = %4d // per hop of a found name\'s trail (fit: %.1f)' % (round(ew['trail_hop']), ew['trail_hop']))
 
     p(')')
 

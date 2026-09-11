@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -18,6 +19,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// The genesis validators below are keyed with mock keys, which have to be
+// encodable for the genesis doc to marshal.
+func init() {
+	mock.UnsafeRegisterAminoPackage()
+}
 
 func TestGenesis_Verify(t *testing.T) {
 	t.Parallel()
@@ -161,6 +168,155 @@ func TestGenesis_Verify(t *testing.T) {
 				assert.ErrorIs(t, cmdErr, errInvalidTxSignature)
 			})
 		}
+	})
+
+	t.Run("skip signature check", func(t *testing.T) {
+		// Genesis-mode txs can carry signatures that intentionally don't
+		// verify: a caller_override patches the caller post-sign (e.g. a
+		// names.Enable admin call), and valoper-seed emits zero-value
+		// placeholder signatures. Nodes accept both under
+		// --skip-genesis-sig-verification; -skip-signature-check is the
+		// verify-time equivalent, keeping every other check active.
+		t.Parallel()
+
+		testTable := []struct {
+			name         string
+			signaturesFn func(tx *std.Tx, chainID string) []std.Signature
+		}{
+			{
+				name: "mutated tx body (caller_override)",
+				signaturesFn: func(tx *std.Tx, chainID string) []std.Signature {
+					// Sign with a chain ID that differs from the genesis
+					// chain ID — same mismatch class as a post-sign
+					// caller patch: valid signature shape, wrong payload.
+					signer := ed25519.GenPrivKey()
+					signBytes, err := tx.GetSignBytes(chainID+"wrong", 0, 0)
+					require.NoError(t, err)
+					signature, err := signer.Sign(signBytes)
+					require.NoError(t, err)
+
+					return []std.Signature{
+						{
+							PubKey:    signer.PubKey(),
+							Signature: signature,
+						},
+					}
+				},
+			},
+			{
+				name: "zero-value placeholder signature (valoper-seed)",
+				signaturesFn: func(tx *std.Tx, _ string) []std.Signature {
+					return make([]std.Signature, len(tx.GetSigners()))
+				},
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				tempFile, cleanup := testutils.NewTestFile(t)
+				t.Cleanup(cleanup)
+
+				g := getValidTestGenesis()
+
+				sender := ed25519.GenPrivKey()
+				sendMsg := bank.MsgSend{
+					FromAddress: sender.PubKey().Address(),
+					ToAddress:   sender.PubKey().Address(),
+					Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+				}
+
+				tx := std.Tx{
+					Msgs: []std.Msg{sendMsg},
+					Fee: std.Fee{
+						GasWanted: 1000000,
+						GasFee:    std.NewCoin("ugnot", 20),
+					},
+				}
+				tx.Signatures = testCase.signaturesFn(&tx, g.ChainID)
+
+				appState := g.AppState.(gnoland.GnoGenesisState)
+				appState.Txs = []gnoland.TxWithMetadata{
+					{
+						Tx: tx,
+					},
+				}
+				g.AppState = appState
+
+				require.NoError(t, g.SaveAs(tempFile.Name()))
+
+				// Without the flag, verification must fail.
+				cmd := NewVerifyCmd(commands.NewTestIO())
+				args := []string{
+					"--genesis-path",
+					tempFile.Name(),
+				}
+				require.Error(t, cmd.ParseAndRun(context.Background(), args))
+
+				// With the flag, every non-signature check still runs
+				// and the genesis is accepted.
+				cmd = NewVerifyCmd(commands.NewTestIO())
+				args = []string{
+					"--genesis-path",
+					tempFile.Name(),
+					"--skip-signature-check",
+				}
+				require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+			})
+		}
+	})
+
+	t.Run("missing signer public key", func(t *testing.T) {
+		// Zero-value placeholder signatures (e.g. valoper-seed output)
+		// carry no public key. Verification must reject them with a
+		// proper error, not dereference the nil PubKey.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		sender := ed25519.GenPrivKey()
+		sendMsg := bank.MsgSend{
+			FromAddress: sender.PubKey().Address(),
+			ToAddress:   sender.PubKey().Address(),
+			Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+		}
+
+		tx := std.Tx{
+			Msgs: []std.Msg{sendMsg},
+			Fee: std.Fee{
+				GasWanted: 1000000,
+				GasFee:    std.NewCoin("ugnot", 20),
+			},
+		}
+		// One zero-value signature per signer: passes ValidateBasic's
+		// len(Signatures) == len(GetSigners()) requirement, carries no
+		// key material.
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+		appState := g.AppState.(gnoland.GnoGenesisState)
+		appState.Txs = []gnoland.TxWithMetadata{
+			{
+				Tx: tx,
+			},
+		}
+		g.AppState = appState
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		// Create the command
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{
+			"--genesis-path",
+			tempFile.Name(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorIs(t, cmdErr, errInvalidTxSignature)
 	})
 
 	t.Run("invalid balances", func(t *testing.T) {
@@ -487,4 +643,124 @@ func TestGenesis_Verify(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.Error(t, cmdErr)
 	})
+}
+
+func TestWarnOnImplausibleVestingTimes(t *testing.T) {
+	t.Parallel()
+
+	// A round genesis time keeps the expected dates in the cases readable.
+	genesisTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	addr := crypto.AddressFromPreimage([]byte("vesting-holder"))
+
+	vesting := func(endTime int64) gnoland.Balance {
+		return gnoland.Balance{
+			Address: addr,
+			Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+				StartTime:       genesisTime.Unix(),
+				EndTime:         endTime,
+			},
+		}
+	}
+
+	oneYear := int64(365 * 24 * 60 * 60)
+
+	tests := []struct {
+		name    string
+		balance gnoland.Balance
+		want    string // empty means the balance must produce no warning
+	}{
+		{
+			name:    "a schedule ending a year after genesis is fine",
+			balance: vesting(genesisTime.Unix() + oneYear),
+		},
+		{
+			name:    "a schedule that already ended",
+			balance: vesting(genesisTime.Unix() - 1),
+			want:    "vests fully at genesis",
+		},
+		{
+			name:    "a schedule ending exactly at genesis",
+			balance: vesting(genesisTime.Unix()),
+			want:    "vests fully at genesis",
+		},
+		{
+			// The boundary belongs to the quiet side, so a schedule sitting
+			// exactly on the horizon is not called out.
+			name:    "a schedule ending exactly on the horizon",
+			balance: vesting(genesisTime.Unix() + vestingHorizonSecs),
+		},
+		{
+			name:    "a schedule one second past the horizon",
+			balance: vesting(genesisTime.Unix() + vestingHorizonSecs + 1),
+			want:    "more than 100 years after genesis",
+		},
+		{
+			// Unix seconds written as milliseconds: the shape the horizon exists
+			// to catch. Lands roughly 60,000 years out.
+			name:    "an end time given in milliseconds",
+			balance: vesting((genesisTime.Unix() + oneYear) * 1000),
+			want:    "milliseconds instead of seconds",
+		},
+		{
+			name: "a balance with no vesting schedule is ignored",
+			balance: gnoland.Balance{
+				Address: addr,
+				Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var out bytes.Buffer
+			cio := commands.NewTestIO()
+			cio.SetOut(commands.WriteNopCloser(&out))
+
+			warnOnImplausibleVestingTimes(cio, genesisTime, []gnoland.Balance{tt.balance})
+
+			if tt.want == "" {
+				assert.Empty(t, out.String(), "this schedule must not be called out")
+				return
+			}
+			assert.Contains(t, out.String(), tt.want)
+			assert.Contains(t, out.String(), addr.String(), "the warning must name the address")
+		})
+	}
+}
+
+// Every offending balance is reported, not just the first.
+func TestWarnOnImplausibleVestingTimesReportsEveryBalance(t *testing.T) {
+	t.Parallel()
+
+	genesisTime := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	first := crypto.AddressFromPreimage([]byte("first-holder"))
+	second := crypto.AddressFromPreimage([]byte("second-holder"))
+
+	balance := func(addr crypto.Address, endTime int64) gnoland.Balance {
+		return gnoland.Balance{
+			Address: addr,
+			Amount:  std.Coins{{Denom: "ugnot", Amount: 1000}},
+			Vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+				StartTime:       0,
+				EndTime:         endTime,
+			},
+		}
+	}
+
+	var out bytes.Buffer
+	cio := commands.NewTestIO()
+	cio.SetOut(commands.WriteNopCloser(&out))
+
+	warnOnImplausibleVestingTimes(cio, genesisTime, []gnoland.Balance{
+		balance(first, genesisTime.Unix()-1),
+		balance(second, genesisTime.Unix()+vestingHorizonSecs+1),
+	})
+
+	assert.Contains(t, out.String(), first.String())
+	assert.Contains(t, out.String(), second.String())
 }

@@ -1,10 +1,10 @@
 package boards2
 
 import (
-	"gno.land/p/gnoland/boards"
-	"gno.land/p/gnoland/boards/exts/permissions"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/gnoland/boards/exts/permissions/v0"
+	"gno.land/p/gnoland/boards/v0"
+	"gno.land/p/moul/realmpath/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 
@@ -44,7 +44,7 @@ var (
 var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
-	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
+	gPerms          = initRealmPermissions("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // GovDAO T1 multisig
 )
 
 // initRealmPermissions returns the default realm permissions.
@@ -66,8 +66,8 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 
 // getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
-	v, exists := gInviteRequests.Get(boardID.Key())
-	if !exists {
+	v := gInviteRequests.Get(boardID.Key())
+	if v == nil {
 		return nil, false
 	}
 	return v.(*bptree.BPTree), true
@@ -75,8 +75,8 @@ func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 
 // getBannedUsers returns banned users within a board.
 func getBannedUsers(boardID boards.ID) (_ *bptree.BPTree, found bool) {
-	v, exists := gBannedUsers.Get(boardID.Key())
-	if !exists {
+	v := gBannedUsers.Get(boardID.Key())
+	if v == nil {
 		return nil, false
 	}
 	return v.(*bptree.BPTree), true

@@ -62,8 +62,8 @@ func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
 	uassert.Equal(t, newSigningAddr, v.SigningAddress)
 
 	// New entry active in registry.
-	rawNew, ok := signingRegistry.Get(newSigningAddr.String())
-	urequire.True(t, ok, "new signing addr in registry")
+	rawNew := signingRegistry.Get(newSigningAddr.String())
+	urequire.NotNil(t, rawNew, "new signing addr in registry")
 	newEntry := rawNew.(regEntry)
 	uassert.Equal(t, info.Address, newEntry.OperatorAddress)
 	uassert.Equal(t, int64(0), newEntry.RetiredAtHeight)
@@ -71,8 +71,8 @@ func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
 	// Old entry retired (still present, RetiredAtHeight > 0).
 	oldSigningAddr, err := chain.PubKeyAddress(info.PubKey)
 	urequire.NoError(t, err)
-	rawOld, ok := signingRegistry.Get(oldSigningAddr.String())
-	urequire.True(t, ok, "old signing addr retained as retired")
+	rawOld := signingRegistry.Get(oldSigningAddr.String())
+	urequire.NotNil(t, rawOld, "old signing addr retained as retired")
 	oldEntry := rawOld.(regEntry)
 	uassert.Equal(t, info.Address, oldEntry.OperatorAddress)
 	uassert.True(t, oldEntry.RetiredAtHeight > 0, "old entry must be retired (RetiredAtHeight > 0)")
@@ -133,7 +133,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 	// already an active validator must be rejected. Mirrors the same
 	// guard in Register (valopers.gno: ErrFrontrunValidator). Without
 	// this, any valoper could rotate onto an unregistered (e.g.
-	// genesis-seeded) validator slot — v3's executor would overwrite
+	// genesis-seeded) validator slot — v0's executor would overwrite
 	// the active validator's entry in the effective valset with this
 	// operator's claim, then a subsequent govDAO remove-op proposal
 	// would delete it. signingRegistry uniqueness alone doesn't catch
@@ -142,7 +142,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 	// from signingRegistry.
 	info := registerForRotation(t, cur)
 
-	// Seed v3's valset:current with the address that rotateTargetPubKey
+	// Seed v0's valset:current with the address that rotateTargetPubKey
 	// derives to. ValsetEffective is read from valset:current when the
 	// dirty flag is unset, which is the default.
 	testing.SetSysParamStrings("node", "valset", "current",

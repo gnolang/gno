@@ -192,6 +192,26 @@ func (ps *PartSet) Total() int {
 	return ps.total
 }
 
+// ByteSize returns the size of the data the part set carries, which for a part
+// set built from a block is the length-prefixed amino encoding of that block --
+// the exact form peers decode, and so the form any size limit applies to.
+// Returns 0 for a part set built from a header, which holds no parts yet.
+func (ps *PartSet) ByteSize() int {
+	if ps == nil {
+		return 0
+	}
+
+	size := 0
+
+	for _, part := range ps.parts {
+		if part != nil {
+			size += len(part.Bytes)
+		}
+	}
+
+	return size
+}
+
 func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	if ps == nil {
 		return false, nil

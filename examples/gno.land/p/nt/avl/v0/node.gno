@@ -108,12 +108,15 @@ func (node *Node) Get(key string) (index int, value any, exists bool) {
 // GetByIndex retrieves the key-value pair of the node at the given index
 // in the subtree rooted at the node.
 func (node *Node) GetByIndex(index int) (key string, value any) {
+	if index < 0 {
+		panic("GetByIndex: negative index not allowed")
+	}
+
 	if node.height == 0 {
-		if index == 0 {
-			return node.key, node.value
-		} else {
+		if index != 0 {
 			panic("GetByIndex asked for invalid index")
 		}
+		return node.key, node.value
 	} else {
 		// TODO: could improve this by storing the sizes
 		leftNode := node.getLeftNode()
@@ -380,6 +383,12 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	if node == nil {
 		return false
+	}
+
+	// Clamp negative offset to 0; otherwise `delta := first.size - offset`
+	// over-counts and silently drops nodes.
+	if offset < 0 {
+		offset = 0
 	}
 
 	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.

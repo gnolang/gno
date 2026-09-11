@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/subhost"
+gno = "0.9"

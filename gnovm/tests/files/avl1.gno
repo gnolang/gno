@@ -8,9 +8,9 @@ func main() {
 	tree := avl.Tree{}
 	key := "key"
 	_ = tree.Set(key, key)
-	y, z := tree.Get(key)
-	println(y, z)
+	y := tree.Get(key)
+	println(y)
 }
 
 // Output:
-// key true
+// key

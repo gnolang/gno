@@ -7,14 +7,14 @@ package z_rename_board_06_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	uinit "gno.land/r/sys/users/init"
 )
 
 const (
-	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+	owner   address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	member  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	member2 address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 	name            = "foo123"

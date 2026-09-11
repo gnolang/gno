@@ -234,6 +234,10 @@ func (l *LMDB) Stats() map[string]string {
 	}
 }
 
+func (*LMDB) NewSnapshot() (db.Snapshot, error) {
+	return nil, errors.New("snapshots not supported")
+}
+
 func (l *LMDB) NewBatch() db.Batch {
 	return &lmdbBatch{db: l}
 }

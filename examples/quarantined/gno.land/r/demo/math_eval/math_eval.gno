@@ -1,7 +1,7 @@
 // eval realm is capable of evaluating 32-bit integer
 // expressions as they would appear in Go. For example:
 // /r/demo/math_eval:(4+12)/2-1+11*15
-package eval
+package math_eval
 
 import (
 	evalint32 "gno.land/p/demo/math_eval/int32"

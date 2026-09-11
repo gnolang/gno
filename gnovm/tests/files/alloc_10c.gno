@@ -32,4 +32,4 @@ func main(cur realm) {
 // allocation limit exceeded during importing.
 
 // Error:
-// allocation limit exceeded
+// gno.land/r/archive/boards/board.gno:4:2-11: allocation limit exceeded (no GC)

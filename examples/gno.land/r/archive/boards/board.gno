@@ -62,8 +62,8 @@ func (board *Board) IsPrivate() bool {
 
 func (board *Board) GetThread(pid PostID) *Post {
 	pidkey := postIDKey(pid)
-	postI, exists := board.threads.Get(pidkey)
-	if !exists {
+	postI := board.threads.Get(pidkey)
+	if postI == nil {
 		return nil
 	}
 	return postI.(*Post)

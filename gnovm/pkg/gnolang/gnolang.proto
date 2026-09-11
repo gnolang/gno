@@ -83,6 +83,8 @@ message BoundMethodValue {
 	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
 	FuncValue func = 2 [json_name = "Func"];
 	TypedValue receiver = 3 [json_name = "Receiver"];
+	string method = 4 [json_name = "Method"];
+	string method_pkg = 5 [json_name = "MethodPkg"];
 }
 
 message TypeValue {
@@ -596,6 +598,7 @@ message FieldType {
 	google.protobuf.Any type = 2 [json_name = "Type"];
 	bool embedded = 3 [json_name = "Embedded"];
 	string tag = 4 [json_name = "Tag"];
+	string pkg_path = 5 [json_name = "PkgPath"];
 }
 
 message FuncType {

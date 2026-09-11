@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -90,8 +91,10 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 
 	// Set up a minimal auth keeper on the gnolang multistore so per-signer
 	// (accNum, finalSeq) lookups can run without an RPC. Mirrors
-	// gno.land/pkg/gnoland/app.go: same "main" + "base" store keys, same
-	// constructors, same proto accounts.
+	// gno.land/pkg/gnoland/app.go's "main" + "base" store keys and proto
+	// accounts — but keeps the IAVL constructor deliberately: fork sources
+	// are legacy IAVL-format data dirs (the mounted chain itself now runs
+	// the bptree store).
 	s.mainKey = mstore.NewStoreKey("main")
 	baseKey := mstore.NewStoreKey("base")
 	s.cms = mstore.NewCommitMultiStore(s.appDB)
@@ -119,6 +122,13 @@ func (s *dataDirTxsSource) Description() string { return "gnoland data directory
 
 func (s *dataDirTxsSource) Close() error {
 	var errs []error
+	// Release the multistore before its backing DB: LoadLatestVersion seeds a
+	// query snapshot that PebbleDB reports as leaked if the DB closes first.
+	if closer, ok := s.cms.(io.Closer); ok {
+		if closeErr := closer.Close(); closeErr != nil {
+			errs = append(errs, closeErr)
+		}
+	}
 	for _, db := range []dbm.DB{s.bsDB, s.stateDB, s.appDB} {
 		if db == nil {
 			continue

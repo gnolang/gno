@@ -34,11 +34,18 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
-      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
           version: v2.11.4 # sync with misc/devdeps
+          # `config verify` downloads the JSONSchema from golangci-lint.run on
+          # every lint job. That is a network dependency in the critical path:
+          # when the fetch times out the job fails with a schema-loading error
+          # that has nothing to do with the code under lint. The config is
+          # already exercised by `golangci-lint run` itself, which rejects an
+          # invalid file, so the schema check buys little and costs a flake.
+          verify: false
       - name: Verify 'go fix' has been applied
         working-directory: ${{ inputs.modulepath }}
         env:

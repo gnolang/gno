@@ -114,3 +114,34 @@ func TestWillIterNext(t *testing.T) {
 	var nilCtx *GasContext
 	require.NotPanics(t, func() { nilCtx.WillIterNext(val) })
 }
+
+// Both meters implement one interface, so they must agree on what an input may
+// be. A negative consumption lowers the total instead of raising it, and the
+// infinite meter reports that total as the transaction's gas used.
+//
+// Not reachable today: every caller derives gas from a length or a validated
+// parameter, and the vm parameters that scale it are checked positive. This
+// keeps the two implementations from disagreeing about the contract anyway.
+func TestBothGasMetersRefuseANegativeConsumption(t *testing.T) {
+	t.Parallel()
+
+	for name, meter := range map[string]GasMeter{
+		"metered":  NewGasMeter(1000),
+		"infinite": NewInfiniteGasMeter(),
+	} {
+		require.Panics(t, func() { meter.ConsumeGas(-1, "negative") },
+			"%s meter must refuse a negative consumption", name)
+		require.Panics(t, func() { meter.RefundGas(-1, "negative") },
+			"%s meter must refuse a negative refund", name)
+	}
+
+	// The control: a real amount is still counted, and a refund still lands.
+	m := NewInfiniteGasMeter()
+	m.ConsumeGas(100, "work")
+	require.Equal(t, Gas(100), m.GasConsumed())
+	m.RefundGas(40, "dedup")
+	require.Equal(t, Gas(60), m.GasConsumed())
+	// A refund larger than the total floors at zero rather than going negative.
+	m.RefundGas(1000, "over")
+	require.Equal(t, Gas(0), m.GasConsumed())
+}

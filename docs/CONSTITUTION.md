@@ -1532,7 +1532,9 @@ following rules apply for Council membership election:
   vote.
 
 Each DAO may have an associated crypto address which can hold any number of
-tokens.  
+tokens. (On gno.land this is realized by sub-realm identities: the hosting
+realm mints `cur.Sub(<dao-id>)`, giving each DAO its own chain-derived
+address — see `docs/resources/gno-interrealm-v2.md` §5.5.)  
 
 DAOs may operate with logic on Gno.land, or, represented as a m-of-n
 multisig account on Gno.land where the signers are each members of the
