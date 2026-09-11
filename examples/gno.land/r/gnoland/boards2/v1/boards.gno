@@ -66,7 +66,7 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 }
 
 func init() {
-	addBoard(boards.New(gBoardsSequence.Next()), initialOwner, "OpenDiscussions", true, true)
+	addBoard(gBoardsSequence.Next(), initialOwner, "OpenDiscussions", true, true)
 }
 
 // getInviteRequests returns invite requests for a board.

@@ -141,20 +141,20 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
 
 	caller := cur.Previous().Address()
 	id := gBoardsSequence.Next()
-	board := boards.New(id)
-	args := boards.Args{caller, name, board.ID, listed, open}
+	args := boards.Args{caller, name, id, listed, open}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
-		addBoard(board, caller, name, listed, open)
+		addBoard(id, caller, name, listed, open)
 	})
-	return board.ID
+	return id
 }
 
-// addBoard initializes a board and adds it to the realm storage.
+// addBoard creates a board and adds it to the realm storage.
 // It performs no permission or validation checks, so callers are responsible
 // for doing their own.
-func addBoard(board *boards.Board, caller address, name string, listed, open bool) {
+func addBoard(id boards.ID, caller address, name string, listed, open bool) {
+	board := boards.New(id)
 	board.Name = name
 	board.Creator = caller
 	board.Meta = &BoardMeta{
