@@ -474,16 +474,16 @@ go test ./gnovm/pkg/gnolang/ -run Files -test.short -count=1 -timeout 600s
 go test ./gno.land/pkg/integration/ -run TestTestdata -count=1
 ```
 
-- `TestVMKeeperQueryEvalBignumDoS` (gno.land/pkg/sdk/vm) drives the real
+- `TestVMKeeperQueryEvalBignumGas` (gno.land/pkg/sdk/vm) drives the real
   `QueryEval` path: a ~2M-digit int and the `.0`/`e1` float variants OOG
   before the parse; a small literal still evaluates.
 - `TestVMKeeperQueryEvalBignumResidualCeiling` pins the residual above: it
   asserts the charge's refusal point stays *above* the largest literal a
   default node can receive, and that both the INT and frac-shaped FLOAT worst
   cases are still admitted. It fails if that ever flips, at which point the
-  "does not close the DoS" caveat can be dropped. Gas is asserted (deterministic);
-  wall time is logged, not asserted.
-- `TestPreprocessGas_BignumDoS` (gnovm/pkg/gnolang) const-folds under a small
+  residual guard can be dropped. Gas is asserted (deterministic); wall time
+  is logged, not asserted.
+- `TestPreprocessGas_BignumLiterals` (gnovm/pkg/gnolang) const-folds under a small
   gas meter: the chained shift OOGs (and does *not* without the `doOpShl`
   charge), INT/FLOAT literals OOG, and a 20000-digit literal folds. Each gas
   charge was mutation-tested; reverting it fails its sub-test.
@@ -504,8 +504,8 @@ All commands pass on this branch.
   slopes: `BenchmarkOpEval_BigIntLit_*`, `BenchmarkOpEval_BigDecLit_*`, plus
   the `BigIntLitHex_*` (linear-radix) and `BigDecLitInt_*` (guard-fires)
   controls
-- `gnovm/pkg/gnolang/preprocess_alloc_test.go`: `TestPreprocessGas_BignumDoS`,
+- `gnovm/pkg/gnolang/preprocess_alloc_test.go`: `TestPreprocessGas_BignumLiterals`,
   `TestShiftAmountGasOverflow`, `TestBigLitParseChargeIsEvalInvariant`,
   `TestTxPathLiteralCap`
-- `gno.land/pkg/sdk/vm/keeper_test.go`: `TestVMKeeperQueryEvalBignumDoS`,
+- `gno.land/pkg/sdk/vm/keeper_test.go`: `TestVMKeeperQueryEvalBignumGas`,
   `TestVMKeeperQueryEvalBignumResidualCeiling`
