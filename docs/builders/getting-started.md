@@ -413,7 +413,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 ## Getting help
 
 - **[Discord](https://discord.gg/vb4KVPFUKE)**: community chat.
-- **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)**: long-form
+- **[Gno Forum](https://gno.land/r/gnoland/boards2/v0)**: long-form
   questions and proposals, on-chain.
 - **[GitHub issues](https://github.com/gnolang/gno/issues)**: bugs,
   feature requests, roadmap.
