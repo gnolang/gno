@@ -18,9 +18,14 @@ import (
 // approval is refused.
 //
 // The two differ in one file. AddPackage rewrites gnomod.toml at submit with
-// the creator, height and declared deposit, so the stored copy is not the
-// submitted one -- which is why PackageContentHash excludes it. This test
-// stages that difference rather than assuming it does not matter.
+// the module path, creator, height and declared deposit, so the stored copy is
+// not the submitted one. PackageContentHash normalizes all of that away.
+//
+// This test stages the difference from the CLIENT's side, which is what it can
+// see: it imitates the stamp rather than calling it. The imitation is why the
+// module rewrite went unnoticed here for a release --
+// TestPackageContentHashSurvivesTheRealStamp, in gno.land/pkg/sdk/vm, runs the
+// real stampGnomod and is the one that holds the two in step.
 func TestEnablePkgHashMatchesWhatTheChainWillCheck(t *testing.T) {
 	const pkgPath = "gno.land/r/test/enablecli"
 
@@ -44,7 +49,11 @@ func TestEnablePkgHashMatchesWhatTheChainWillCheck(t *testing.T) {
 		stored.Files = append(stored.Files, &std.MemFile{Name: f.Name, Body: body})
 	}
 
-	assert.Equal(t, vm.PackageContentHash(stored), vm.PackageContentHash(local),
+	storedHash, err := vm.PackageContentHash(stored)
+	require.NoError(t, err)
+	localHash, err := vm.PackageContentHash(local)
+	require.NoError(t, err)
+	assert.Equal(t, storedHash, localHash,
 		"a stamped gnomod.toml must not change the hash, or -pkgdir can never match")
 
 	// And a real source change must, or the flag would approve anything.
@@ -56,7 +65,9 @@ func TestEnablePkgHashMatchesWhatTheChainWillCheck(t *testing.T) {
 		}
 		changed.Files = append(changed.Files, &std.MemFile{Name: f.Name, Body: body})
 	}
-	assert.NotEqual(t, vm.PackageContentHash(local), vm.PackageContentHash(changed),
+	changedHash, err := vm.PackageContentHash(changed)
+	require.NoError(t, err)
+	assert.NotEqual(t, localHash, changedHash,
 		"a source change must change the hash")
 }
 

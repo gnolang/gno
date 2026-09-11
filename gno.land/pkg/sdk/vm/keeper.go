@@ -626,12 +626,18 @@ func errInvalidMemPackage(err error) error {
 // authors, so anything not overwritten here is attacker-supplied: a hand-written
 // `[addpkg] max_deposit` would otherwise survive and be read at enable as though
 // the message had declared it.
+//
+// The fields this owns are listed ONCE, in keeperOwnedGnomod, which
+// PackageContentHash resets before hashing. Two lists would drift, and the
+// consequence of drift is not cosmetic: a field stamped here but not reset
+// there makes the approver's hash and the keeper's disagree forever, so the
+// package can never be enabled. That already happened once, for Module.
 func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator crypto.Address, height int64, maxDeposit string) {
-	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	keeperOwnedGnomod(gm, pkgPath) // XXX: if gm.Module != msg.Package.Path { panic() }?
 	gm.AddPkg.Creator = creator.String()
 	gm.AddPkg.Height = int(height)
 	gm.AddPkg.MaxDeposit = maxDeposit
-	mpkg.SetFile("gnomod.toml", gm.WriteString())
+	mpkg.SetFile(gnomodFileName, gm.WriteString())
 }
 
 // checkGnomodConstraints applies the keeper-only gnomod.toml rules that the type
@@ -665,6 +671,59 @@ func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath strin
 	// no (deprecated) gno.mod file.
 	if mpkg.GetFile("gno.mod") != nil {
 		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+	// A gno version the toolchain cannot compile.
+	//
+	// ParseCheckGnoMod PANICS on an unsupported version, and it is reached from
+	// the type checker -- which the inert submit branch never runs. So a
+	// package declaring gno = "0.8" parks cleanly and detonates inside
+	// EnablePackage, on the APPROVER's transaction and gas, for a mistake the
+	// submitter made. Refusing it here charges it to the submitter on all three
+	// paths instead.
+	//
+	// The accepted set mirrors ParseCheckGnoMod's exactly: empty means "default
+	// to latest", which is why it is not rejected here either.
+	if gm.Gno != "" && gm.Gno != gno.GnoVerLatest {
+		return ErrInvalidPackage(fmt.Sprintf(
+			"unsupported gno version %q in gnomod.toml (this chain compiles %q)",
+			gm.Gno, gno.GnoVerLatest))
+	}
+	return nil
+}
+
+// parseLiveGnomod reads the stored gnomod.toml of the live package at pkgPath.
+//
+// Split out of checkRedeployPermission because EnablePackage has already parsed
+// this blob to decide whether the path may be replaced at all, and decoding the
+// same bytes a second time on a consensus path buys nothing.
+func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error) {
+	if live == nil {
+		return nil, ErrInvalidPackage("no stored source for the live package at " + pkgPath)
+	}
+	gm, err := gnomod.ParseMemPackage(live)
+	if err != nil {
+		return nil, ErrInvalidPackage(fmt.Sprintf(
+			"cannot read the live package at %s: %v", pkgPath, err))
+	}
+	return gm, nil
+}
+
+// checkRedeployPermission refuses unless a submission replacing the live PRIVATE
+// package at pkgPath comes from the address that deployed it. creator is the
+// address the submission would record as the new creator: the message signer on
+// AddPackage, and the parked blob's stamped creator on EnablePackage, which is
+// the identity init() runs as.
+//
+// liveGm is the live package's stored gnomod.toml, already parsed. Its
+// addpkg.creator is the owner of record, the same field the parked-blob guard
+// compares against.
+//
+// Both call sites waive this during genesis delivery; the AddPackage one says
+// why.
+func checkRedeployPermission(liveGm *gnomod.File, pkgPath string, creator crypto.Address) error {
+	if liveGm.AddPkg.Creator != creator.String() {
+		return ErrPkgAlreadyExists(fmt.Sprintf(
+			"private package already deployed at %s by %s", pkgPath, liveGm.AddPkg.Creator))
 	}
 	return nil
 }
@@ -740,8 +799,35 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	pv := gnostore.GetPackage(pkgPath, false)
-	if pv != nil && !pv.Private {
-		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+	if pv != nil {
+		if !pv.Private {
+			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+		}
+		// One binding for the ordinary redeploy and the inert park below.
+		//
+		// Waived during genesis delivery, as EnablePackage waives its policy,
+		// approver and pkg_hash gates: InitChain reproduces a record rather
+		// than granting it again, and there is no stranger there to refuse --
+		// genesis content is the chain's own. Live traffic is unaffected.
+		//
+		// Two things break without the waiver. A chain whose history holds a
+		// cross-address private redeploy -- the very transaction this rule now
+		// refuses -- stops replaying, so forking it either aborts at boot under
+		// the default PanicOnFailingTxResultHandler or, under
+		// -skip-failing-genesis-txs, comes up silently diverged from the chain
+		// it forked. And the hardfork migration path breaks for private realms:
+		// `gnogenesis fork addpkg` stamps its tx with --deployer, which matches
+		// the realm's original creator only when the source directory already
+		// carries an [addpkg] creator for LoadPackagesFromDir to pick up.
+		if !auth.IsGenesisReplay(ctx) {
+			liveGm, err := parseLiveGnomod(gnostore.GetMemPackage(pkgPath), pkgPath)
+			if err != nil {
+				return err
+			}
+			if err := checkRedeployPermission(liveGm, pkgPath, creator); err != nil {
+				return err
+			}
+		}
 	}
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
