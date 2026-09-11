@@ -822,10 +822,10 @@ func (bmv *BoundMethodValue) IsLazy() bool {
 // receivers pass nil through), and a value receiver is a fresh snapshot of the
 // current pointee. A nested interface step yields another lazy bind, which
 // resolveLazyBound unwraps.
-func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
+func resolveInterfaceTrail(gm types.GasMeter, alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
 	btv := boxed
 	for i, path := range tr {
-		ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
+		ptr := btv.getPointerToFromTV(gm, alloc, store, path, callerPath)
 		if i == len(tr)-1 {
 			return ptr
 		}
@@ -845,7 +845,7 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 // panic instead of hanging — matching Go, which runs the same program as
 // recursion and fatally stack-overflows (uncatchable by recover()).
 //
-// nil derefs are raised by the walk itself (GetPointerToFromTV panics with a
+// nil derefs are raised by the walk itself (getPointerToFromTV panics with a
 // runtime-error Exception for a value receiver on a nil pointer, and passes nil
 // through for a pointer receiver) — the machine's Run loop converts that to the
 // cooperative panic path, so both immediate and deferred calls behave correctly
@@ -896,7 +896,9 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			}
 			seen[id] = struct{}{}
 		}
-		tr, _, _, _, status := findEmbeddedFieldType(callerPath, operand.T, name)
+		// OpCPULazyBoundResolve above is a flat per-hop base; the walk width
+		// is metered inside findEmbeddedFieldType.
+		tr, _, _, _, status := findEmbeddedFieldType(m.GasMeter, callerPath, operand.T, name)
 		if status != embedLookupFound {
 			// Mirrors the bind-site guard (getPointerToFromTV, VPInterface).
 			// The call-time operand type is the same one that passed that
@@ -905,7 +907,7 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			panic(fmt.Sprintf("method %s not found in type %s",
 				name, operand.T.String()))
 		}
-		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
+		next := resolveInterfaceTrail(m.GasMeter, m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
 			return next.Func, next.Receiver
 		}
@@ -2059,15 +2061,13 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
-func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	return tv.getPointerToFromTV(alloc, store, path, "")
-}
-
 // callerPath is the package of the code executing the selector; VPInterface
 // resolution needs it to pick the right same-spelled unexported method
 // (identity is package-qualified). Empty falls back to the dynamic type's
 // package, which is only correct when no such collision exists (debugger).
-func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
+// gm meters the embedding walk of the VPInterface branch (lazy interface
+// method value); nil only for callers that never reach it.
+func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
 			panic("getPointerToFromTV() on undefined value")
@@ -2316,7 +2316,7 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		if callerPath == "" {
 			callerPath = dtv.T.GetPkgPath()
 		}
-		_, _, _, ift, status := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
+		_, _, _, ift, status := findEmbeddedFieldType(gm, callerPath, dtv.T, path.Name)
 		if status != embedLookupFound {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
@@ -3218,12 +3218,25 @@ type HeapItemValue struct {
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
+	// tvs is a Go local, so anchor it while the defaults are built: each
+	// default is a fresh allocation, and a GC triggered by a later field
+	// would otherwise drop the earlier ones from the tally and re-grant
+	// the cap. See Allocator.anchors.
+	alloc.PushAnchor(tvs)
+	fillDefaultStructFields(alloc, st, tvs)
+	alloc.PopAnchor()
+	return tvs
+}
+
+// fillDefaultStructFields writes st's zero values into tvs, which must have
+// len(st.Fields) entries. The caller is responsible for anchoring tvs (see
+// Allocator.anchors) — doOpStructLit keeps its own anchor for the whole op.
+func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue) {
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
-	return tvs
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
@@ -3240,9 +3253,15 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
+		// av is a Go local until the caller roots it, so anchor its list
+		// while the defaults are built: without it a GC part-way through
+		// drops the elements already written and the cap is re-granted
+		// once per element. See Allocator.anchors.
+		alloc.PushAnchor(tvs)
 		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
 		}
+		alloc.PopAnchor()
 	}
 	return av
 }

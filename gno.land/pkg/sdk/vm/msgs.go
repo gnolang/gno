@@ -322,14 +322,6 @@ func (msg MsgEnablePackage) GetReceived() std.Coins { return nil }
 func (msg MsgEnablePackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
 
 //----------------------------------------
-// MsgDisablePackage
-
-// MsgDisablePackage moves an active package back to inert state, preventing
-// further calls. Only addresses listed in Params.PkgApprovers may send this.
-//
-// NOTE: full disable (cleaning up executed objects from the base store) is not
-// yet implemented; the handler returns an error until a follow-up PR completes it.
-//----------------------------------------
 // MsgRejectPackage
 
 // MsgRejectPackage removes a package that is parked awaiting approval.
@@ -374,38 +366,3 @@ func (msg MsgRejectPackage) GetSigners() []crypto.Address {
 func (msg MsgRejectPackage) GetReceived() std.Coins { return nil }
 
 func (msg MsgRejectPackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
-
-//----------------------------------------
-// MsgDisablePackage
-
-type MsgDisablePackage struct {
-	Approver crypto.Address `json:"approver" yaml:"approver"`
-	PkgPath  string         `json:"pkg_path" yaml:"pkg_path"`
-}
-
-var _ std.Msg = MsgDisablePackage{}
-
-func (msg MsgDisablePackage) Route() string { return RouterKey }
-func (msg MsgDisablePackage) Type() string  { return "disable_package" }
-
-func (msg MsgDisablePackage) ValidateBasic() error {
-	if msg.Approver.IsZero() {
-		return std.ErrInvalidAddress("missing approver address")
-	}
-	if msg.PkgPath == "" {
-		return ErrInvalidPkgPath("missing package path")
-	}
-	return nil
-}
-
-func (msg MsgDisablePackage) GetSignBytes() []byte {
-	return std.MustSortJSON(amino.MustMarshalJSON(msg))
-}
-
-func (msg MsgDisablePackage) GetSigners() []crypto.Address {
-	return []crypto.Address{msg.Approver}
-}
-
-func (msg MsgDisablePackage) GetReceived() std.Coins { return nil }
-
-func (msg MsgDisablePackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
