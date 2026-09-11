@@ -16,16 +16,16 @@ adduserfrom member 'success myself purchase tray reject demise scene little lege
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/gov/dao/v3/treasury
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/treasury/v0
 loadpkg gno.land/r/audit/tok $WORK/tok
 loadpkg gno.land/r/audit/holder $WORK/holder
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
 # the treasury's key list starts empty, so no balances yet
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v0:GRC20'
 stdout 'No balances found'
 
 # propose the token key list, built from the holder realm's own []string
@@ -54,13 +54,13 @@ stdout OK!
 # the guard: the treasury uses the key list the board voted for, so the token
 # it holds is visible. Without the copy in NewTreasuryGRC20TokensUpdate the
 # rewritten key is installed instead and this reads 'No balances found'.
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v0:GRC20'
 stdout '\| gno.land/r/audit/tok.ALIASTOK \| 1000 \|'
 
 # SetTokenKeys copies too, which this file cannot show: the copy above means
 # the slice reaching it is already impl's own, so reverting either copy alone
 # still leaves the other in the way. That one is pinned where it can be
-# reached directly, in r/gov/dao/v3/treasury/test.
+# reached directly, in r/gov/dao/treasury/test/v0.
 
 -- tok/tok.gno --
 package tok
@@ -68,10 +68,10 @@ package tok
 import (
 	"chain"
 
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/seqid/v0"
 
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 var (
@@ -83,7 +83,7 @@ var (
 func init(cur realm) {
 	Token, ledger = grc20.NewToken("AliasTok", "ALIASTOK", 0, id.Next(), cur)
 	grc20reg.Register(cross(cur), Token, "ALIASTOK")
-	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"), 1000)
+	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/treasury/v0"), 1000)
 }
 
 -- holder/holder.gno --
@@ -103,7 +103,7 @@ package main
 import (
 	"gno.land/r/audit/holder"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/impl/v0"
 )
 
 func main(cur realm) {
@@ -116,8 +116,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -131,5 +131,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

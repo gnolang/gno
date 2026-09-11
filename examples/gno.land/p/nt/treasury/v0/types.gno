@@ -3,8 +3,8 @@ package treasury
 import (
 	"errors"
 
+	"gno.land/p/nt/bptree/list/v0"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/mux/v0"
 )
 

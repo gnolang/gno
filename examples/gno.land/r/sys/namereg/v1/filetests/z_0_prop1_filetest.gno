@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gov/dao"
-	daov3init "gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/init/v0"
 	users "gno.land/r/sys/namereg/v1"
 	susers "gno.land/r/sys/users"
 )
@@ -67,7 +67,7 @@ func main(cur realm) {
 // --
 // # GovDAO
 // ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// [> Go to Memberstore <](/r/gov/dao/memberstore/v0)
 // ## Proposals
 // ### [Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm

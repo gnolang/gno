@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 const (

@@ -16,9 +16,9 @@ package bar20
 import (
 	"strings"
 
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 var (
