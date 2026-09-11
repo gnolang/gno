@@ -22,7 +22,7 @@
 # Each caller surfaces the error rather than swallowing it, so these assert
 # the specific refusal and not merely that no balance happened to move.
 
-loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/p/nt/grc20/v0
 loadpkg gno.land/r/test/leaky $WORK/leaky
 loadpkg gno.land/r/test/lattack $WORK/lattack
 loadpkg gno.land/r/test/tfattack $WORK/tfattack
@@ -96,7 +96,7 @@ gno = "0.9"
 -- leaky/leaky.gno --
 package leaky
 
-import "gno.land/p/demo/tokens/grc20"
+import "gno.land/p/nt/grc20/v0"
 
 var (
 	Token *grc20.Token

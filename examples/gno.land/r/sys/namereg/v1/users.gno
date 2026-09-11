@@ -4,7 +4,7 @@ import (
 	"chain"
 	"chain/runtime/unsafe"
 
-	"gno.land/p/moul/fifo"
+	"gno.land/p/moul/fifo/v0"
 	susers "gno.land/r/sys/users"
 )
 

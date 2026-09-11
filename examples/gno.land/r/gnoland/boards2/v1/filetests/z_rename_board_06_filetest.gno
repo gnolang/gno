@@ -7,7 +7,7 @@ package z_rename_board_06_filetest
 import (
 	"testing"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	uinit "gno.land/r/sys/users/init"

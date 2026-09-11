@@ -3,7 +3,7 @@ package boards
 import (
 	"regexp"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/avl/v0"
 )
 

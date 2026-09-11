@@ -24,7 +24,7 @@ cat >"$TMPDIR/extend_govdao.gno" <<'GOEOF'
 package main
 
 import (
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 type rosterEntry struct {

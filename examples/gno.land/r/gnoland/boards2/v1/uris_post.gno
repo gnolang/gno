@@ -1,7 +1,7 @@
 package boards2
 
 import (
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 func makeThreadURI(p *boards.Post) string {
