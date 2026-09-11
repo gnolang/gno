@@ -19,16 +19,16 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 # 1/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g1jsqdg2pqwk7jp46d9vnv6tugd6cmj4kagzjl8u
 stdout 'data: ""'
 
 # member send 42 ugnot to treasury realm
-gnokey maketx send -send 42ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test member
+gnokey maketx send -send 42ugnot -to g1jsqdg2pqwk7jp46d9vnv6tugd6cmj4kagzjl8u -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test member
 
 # 2/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g1jsqdg2pqwk7jp46d9vnv6tugd6cmj4kagzjl8u
 stdout 'data: "42ugnot"'
 
 # add the proposal
@@ -56,7 +56,7 @@ stdout '- 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 # 3/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000042ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g1jsqdg2pqwk7jp46d9vnv6tugd6cmj4kagzjl8u
 stdout 'data: ""'
 
 -- proposer/create_proposal.gno --

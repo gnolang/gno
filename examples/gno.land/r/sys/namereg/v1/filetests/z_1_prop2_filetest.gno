@@ -69,7 +69,7 @@ func main(cur realm) {
 // --
 // # GovDAO
 // ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// [> Go to Memberstore <](/r/gov/dao/v0/memberstore)
 // ## Proposals
 // ### [Prop #0 - User Registry V1: Delete user \`nym\-alice123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
