@@ -175,14 +175,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			// "Meters" means it does not nil the meter the way
-			// acck.GetParams does; the read still costs nothing here,
-			// because the ctx is on the infinite meter until
-			// auth.SetGasMeter runs. See checkCodePolicy.
+			// governed depth parameters.
+			//
+			// The read bypasses the gas meter, like acck.GetParams above
+			// and gpk.LastGasPrice. It runs before authAnteHandler calls
+			// auth.SetGasMeter, so on DeliverTx the ctx carries runTx's
+			// passthrough meter, not an infinite one: a charge here is
+			// dropped when SetGasMeter replaces the meter and runTx does
+			// ctx = newCtx, so it reaches neither the fee payer's
+			// GasWanted nor the block gas meter -- but it can still
+			// exhaust the passthrough's head limit (the gas remaining in
+			// the block) and burn the whole block tail. Bypassing only
+			// suppresses charging; the value read is identical.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three
@@ -192,7 +196,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx)
+			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
 			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
@@ -602,6 +606,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
+	assertAuthGenesis(state.Auth)
 	cfg.acck.InitGenesis(ctx, state.Auth)
 	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
@@ -686,6 +691,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		cfg.applyBalance(ctx, bal)
 	}
 	cfg.seedSupply(ctx)
+	assertAuthGenesis(authState)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -819,6 +825,33 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 // unrestricted address. Each address must already exist as a genesis
 // account (i.e. must have appeared in balances), otherwise the verifier
 // can't verify the chain's unrestricted set.
+// assertAuthGenesis checks the chain-specific parts of the auth genesis state
+// that tm2 cannot judge for itself.
+//
+// auth.Params.Validate only checks that the initial gas price's denomination is
+// well formed, because tm2 hosts whichever chain is built on it and does not
+// know which denom that chain collects fees in. gno.land does: fees are paid in
+// ugnot, and std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+// genesis quoting the gas price in anything else makes the ante handler reject
+// every transaction the chain will ever see.
+//
+// Panics to abort boot, like the genesis validator pubkey-type gate and
+// auth.InitGenesis itself. A chain that cannot accept a transaction should fail
+// to start rather than come up and look healthy: InitChainer's error return
+// lands in ResponseInitChain.Error, which tendermint's handshake does not
+// surface.
+func assertAuthGenesis(state auth.GenesisState) {
+	gp := state.Params.InitialGasPrice
+	// The unset price leaves pricing disabled and carries no denom to check.
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
+			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
 func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
 	for _, addr := range addrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
