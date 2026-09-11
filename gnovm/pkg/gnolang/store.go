@@ -68,6 +68,8 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	// SetBlockNodes publishes a group built together; never loop SetBlockNode.
+	SetBlockNodes([]BlockNode)
 	RealmStorageDiffs() StorageDiffs // returns storage changes per realm within the message
 
 	// UNSTABLE
@@ -75,6 +77,10 @@ type Store interface {
 	SetAllocator(alloc *Allocator)
 	GetPreprocessAllocator() *Allocator
 	SetPreprocessAllocator(alloc *Allocator)
+	// Number of package index entries ever written, one per AddMemPackage.
+	// A re-add at an existing path writes another without removing the one
+	// that path held, so this can sit above the number of packages
+	// IterMemPackage yields.
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -84,11 +90,18 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
+	// Inert package storage: packages pending activation, stored without
+	// typechecking or execution and invisible to the normal package resolver.
+	AddInertPackage(mpkg *std.MemPackage)
+	GetInertPackage(path string) *std.MemPackage
+	DelInertPackage(path string)
 	FindPathsByPrefix(prefix string) iter.Seq[string]
+	FindInertPathsByPrefix(prefix string) iter.Seq[string]
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
-	// is skipped.
+	// is skipped. Each path is yielded once, at its highest index, which is
+	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -163,13 +176,16 @@ type defaultStore struct {
 
 	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
 	// installed by the keeper (AddPackage / Run) before RunMemPackage.
-	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
-	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// Sub-Machines spun up during Preprocess (evalStaticTypeMachine,
+	// evalStaticTypeOfRaw, tryEvalStatic, evalConst) pick it up via
 	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
-	// nil → Allocate hard-panics on maxBytes overflow rather than
-	// attempting a GC retry (which would undercount because GC doesn't
-	// visit m.Values, the operand stack). gasMeter is shared with the
-	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// nil → Allocate hard-panics on maxBytes overflow instead of a GC
+	// retry: preprocess is bounded static evaluation that should fail
+	// fast at the cap. The allocator is also shared by every preprocess sub-Machine
+	// in the tx, so a collect bound to one machine would walk only that
+	// machine's roots; hence isPreprocessing skips SetGCFn.
+	// gasMeter is shared with the outer tx Machine so CPU and alloc gas
+	// both bill against tx gas.
 	// Inherited via BeginTransaction so nested forked stores see it.
 	// Cleared by the keeper's defer at handler exit; not serialized.
 	preprocessAlloc *Allocator
@@ -217,7 +233,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
-		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheNodes:   txlog.NewSyncGoMap[Location, BlockNode](),
 		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
@@ -291,7 +307,18 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+	committer := t.cacheNodes.(txlog.MapCommitter[Location, BlockNode])
+	// Seal before publishing, not after. These nodes are private to this
+	// transaction right up until Commit copies them into the parent map;
+	// from that instant every store forked from the parent — including
+	// every concurrent query — can reach them, and the first two readers to
+	// touch an unfilled lazy cache would race on it. Sealing here is the
+	// last moment a single goroutine owns them.
+	s := newSealer()
+	for _, bn := range committer.Dirty() {
+		s.sealBlockNode(bn)
+	}
+	committer.Commit()
 }
 
 func (transactionStore) SetNativeResolver(ns NativeResolver) {
@@ -554,6 +581,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
 		amino.MustUnmarshal(bz, &oo)
+		// Must precede GetShallowSize below: it charges by capacity.
+		normalizeDecodedCap(oo)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
@@ -590,7 +619,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
-		_ = fillTypesOfValue(ds, oo)
+		// Restore-path gas (e.g. ComputeMapKey rebuilding a map's vmap):
+		// metered against this store's tx meter. See ComputeMapKey's doc.
+		_ = fillTypesOfValue(ds.gasMeter, ds, oo)
 		return oo
 	}
 	return nil
@@ -615,8 +646,20 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	if pv.PkgID.IsZero() {
 		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
-	// Rederive pv.fBlocksMap.
-	pv.deriveFBlocksMap(ds)
+	// pv.fBlocksMap is left empty: file blocks load lazily via
+	// GetFileBlock when a function in that file is first called
+	// (see FuncValue.GetParent). Loading a package therefore no longer
+	// reads every file block up front — a call materializes only the
+	// file blocks it touches.
+	//
+	// Preserve historical hydration and gas accounting when there is no
+	// unused file to skip. A package with <= 1 file loads that one block on
+	// first call anyway, so laziness buys nothing there — only a gas shift;
+	// keep the eager path for them (this also keeps master's gas for the
+	// rare import that reads only package-level vars).
+	if len(pv.FNames) <= 1 {
+		pv.deriveFBlocksMap(ds)
+	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -732,6 +775,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
+	normalizeDecodedCap(oo)
 	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
@@ -909,14 +953,47 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 						loc, bn.GetLocation()))
 				}
 			}
-			ds.cacheNodes.Set(loc, bn)
+			ds.SetBlockNode(bn)
 			return bn
 		}
 	}
 	return nil
 }
 
+// SetBlockNode publishes one block node. For a group built together, such as one
+// file's worth, call SetBlockNodes instead: looping here seals each node under
+// its own sealer and re-walks the package's type graph once per node.
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
+	ds.SetBlockNodes([]BlockNode{bn})
+}
+
+// SetBlockNodes publishes a group of block nodes that were built together, such
+// as one file's worth. Sealing them under a single sealer matters: sealBlockNode
+// follows each node's parent chain up to the file and package nodes, so sealing
+// one node at a time re-walks the package's whole type graph once per node.
+func (ds *defaultStore) SetBlockNodes(bns []BlockNode) {
+	if ds.publishesDirectly() {
+		s := newSealer()
+		for _, bn := range bns {
+			s.sealBlockNode(bn)
+		}
+	}
+	for _, bn := range bns {
+		ds.setBlockNode(bn)
+	}
+}
+
+// publishesDirectly reports whether a Set on this store lands straight in the
+// process-wide map (genesis load, and the mem-package re-run on node start)
+// rather than in a transaction fork's private overlay. Direct publication has
+// to seal first, because from the Set onwards every concurrent query can reach
+// the node. A fork's writes stay private until Write(), which seals them there.
+func (ds *defaultStore) publishesDirectly() bool {
+	_, forked := ds.cacheNodes.(txlog.MapCommitter[Location, BlockNode])
+	return !forked
+}
+
+func (ds *defaultStore) setBlockNode(bn BlockNode) {
 	loc := bn.GetLocation()
 	if loc.IsZero() {
 		panic("unexpected zero location in blocknode")
@@ -963,6 +1040,31 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 		ds.baseStore.Set(ds.gctx, ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
 	}
+}
+
+// indexedPackagePaths returns the indexed paths in index order, each once, at
+// its highest index. Indices run 1..ctr inclusive.
+//
+// A path holds one index entry per AddMemPackage, so a re-add at an existing
+// path (a private redeploy) leaves it several, and only the highest is where
+// its current content was stored.
+func (ds *defaultStore) indexedPackagePaths(ctr uint64) []string {
+	var ordered []string
+	seen := make(map[string]bool, ctr)
+	for i := ctr; i >= 1; i-- {
+		bz := ds.baseStore.Get(ds.gctx, []byte(backendPackageIndexKey(i)))
+		if bz == nil {
+			panic(fmt.Sprintf("missing package index %d", i))
+		}
+		path := string(bz)
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
+		ordered = append(ordered, path)
+	}
+	slices.Reverse(ordered)
+	return ordered
 }
 
 // mptype is passed in as a redundant parameter as convenience to assert that
@@ -1190,6 +1292,64 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
+// AddInertPackage stores a MemPackage in the inert key space without
+// typechecking or execution. The package is invisible to the normal resolver
+// until activated via EnablePackage.
+func (ds *defaultStore) AddInertPackage(mpkg *std.MemPackage) {
+	bz := amino.MustMarshal(mpkg)
+	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoEncodeDesc)
+	pathkey := []byte(backendInertPackagePathKey(mpkg.Path))
+	ds.iavlStore.Set(ds.gctx, pathkey, bz)
+}
+
+// GetInertPackage retrieves the MemPackage from the inert key space.
+// Returns nil if no inert package exists at path.
+func (ds *defaultStore) GetInertPackage(path string) *std.MemPackage {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	bz := ds.iavlStore.Get(ds.gctx, pathkey)
+	if bz == nil {
+		return nil
+	}
+	gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz)))
+	ds.consumeGas(gas, GasAminoDecodeDesc)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// DelInertPackage removes a package from the inert key space.
+func (ds *defaultStore) DelInertPackage(path string) {
+	pathkey := []byte(backendInertPackagePathKey(path))
+	ds.iavlStore.Delete(ds.gctx, pathkey)
+}
+
+// FindInertPathsByPrefix lists packages parked awaiting an approver, under an
+// optional path prefix. An empty prefix lists all of them.
+//
+// Simpler than FindPathsByPrefix because this key space has no #allbutprod
+// sibling: a parked package is one blob under one key, so there is nothing to
+// de-duplicate.
+func (ds *defaultStore) FindInertPathsByPrefix(prefix string) iter.Seq[string] {
+	// An empty prefix needs no special case: the end key increments the ":" of
+	// the bare prefix, which bounds every key in the space.
+	startKey := []byte(backendInertPackagePathKey(prefix))
+	endKey := slices.Clone(startKey)
+	endKey[len(endKey)-1]++
+
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(ds.gctx, startKey, endKey)
+		defer iter.Close()
+
+		for ; iter.Valid(); iter.Next() {
+			path := strings.TrimPrefix(string(iter.Key()), inertPackagePrefix)
+			if !yield(path) {
+				return
+			}
+		}
+	}
+}
+
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
@@ -1239,7 +1399,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 }
 
 // IterMemPackage yields each indexed package's PROD mempackage in index
-// order, skipping prod-less packages. See the Store interface doc.
+// order, skipping prod-less packages, one yield per path. See the Store
+// interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
@@ -1252,14 +1413,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		}
 		ch := make(chan *std.MemPackage)
 		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
-				idxkey := []byte(backendPackageIndexKey(i))
-				path := ds.baseStore.Get(ds.gctx, idxkey)
-				if path == nil {
-					panic(fmt.Sprintf(
-						"missing package index %d", i))
-				}
-				mpkg := ds.GetMemPackage(string(path))
+			for _, path := range ds.indexedPackagePaths(uint64(ctr)) {
+				mpkg := ds.GetMemPackage(path)
 				if mpkg == nil {
 					// Prod-less package (e.g. xxx_test-only): no prod
 					// blob to yield. On-chain this is unreachable — the
@@ -1465,6 +1620,13 @@ func backendPackagePathKey(path string) string {
 func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
 func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+// inertPackagePrefix is the key space for packages awaiting an approver. It
+// sorts outside backendPackageGlobalPath's range, which is why a parked package
+// is invisible to FindPathsByPrefix and needs its own listing.
+const inertPackagePrefix = "inert_pkg:"
+
+func backendInertPackagePathKey(path string) string { return inertPackagePrefix + path }
 
 // backendPackageAllButProdKey returns the sibling key holding a package's
 // test/filetest files (everything in an MP*All package but its production

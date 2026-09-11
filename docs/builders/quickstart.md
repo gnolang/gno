@@ -69,6 +69,14 @@ gnokey maketx call \
 
 Live at **`https://staging.gno.land/r/<your-g1-addr>/counter`**.
 
+## Check security patterns
+
+Before publishing a non-trivial realm, read the
+[Gno Security Guide](../resources/gno-security-guide.md). The
+[`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md)
+fixtures provide a quick sanity check for recurring audit patterns and show how
+to run the executable checks.
+
 ## Next
 
 [r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land.

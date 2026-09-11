@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
@@ -378,9 +377,24 @@ func (m *Machine) doOpShl() {
 		}
 	}
 
-	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	// Per-N gas for BigInt Shl: charge per-kilobit of BOTH the shift amount
+	// (output growth) and the current input bit width. Charging only the
+	// shift amount left chained shifts undercharged — e.g.
+	// 1<<10000<<10000<<... grows the operand by ~10000 bits each step (each
+	// shift is within maxBigintShift, so the per-shift cap never trips) while
+	// gas stayed flat, so the accumulating O(bits) copy cost was free. The
+	// incrCPUBigUnary term (mirroring doOpShr) makes gas track operand size.
 	if lv.T == UntypedBigintType {
-		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+		// Clamp before the multiply: rv is unvalidated here (shlAssign
+		// enforces maxBigintShift only later), so an amount above
+		// ~2.4e17 makes int64(rv.GetUint())*OpCPUSlopeBigIntShl wrap
+		// negative and incrCPU panics "gas must not be negative"
+		// instead of the real "shift amount exceeds maximum". Anything
+		// over the cap panics in shlAssign regardless, so clamping
+		// cannot under-charge an operation that actually runs.
+		shift := min(rv.GetUint(), uint64(maxBigintShift))
+		m.incrCPU(int64(shift) * OpCPUSlopeBigIntShl / 1024)
+		m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShl)
 	}
 
 	// lv << rv
@@ -513,9 +527,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) == 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) == 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) == 0
 	case ArrayKind:
 		la := lv.V.(*ArrayValue)
 		ra := rv.V.(*ArrayValue)
@@ -650,9 +662,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) < 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) < 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) < 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator < not defined for %s",
@@ -697,9 +707,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) <= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) <= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) <= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator <= not defined for %s",
@@ -744,9 +752,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) > 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) > 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) > 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator > not defined for %s",
@@ -791,15 +797,96 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) >= 0
 	case BigdecKind:
-		lb := lv.V.(BigdecValue).V
-		rb := rv.V.(BigdecValue).V
-		return lb.Cmp(rb) >= 0
+		return bigdecCmp(lv.V.(BigdecValue), rv.V.(BigdecValue)) >= 0
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator >= not defined for %s",
 			lv.T.Kind(),
 		))
 	}
+}
+
+// ratOverflowBits is the size ceiling (in bits) above which we promote a
+// big.Rat to a bounded big.Float representation, matching go/constant which
+// switches representations past the same 4096-bit threshold.
+const ratOverflowBits = 4096
+
+// ratOverflows reports whether either component of r exceeds ratOverflowBits.
+// Callers use this signal to promote to big.Float rather than reject.
+func ratOverflows(r *big.Rat) bool {
+	return r.Num().BitLen() > ratOverflowBits ||
+		r.Denom().BitLen() > ratOverflowBits
+}
+
+// wrapRatOrPromote wraps r as a BigdecValue in rat form if it fits within
+// ratOverflowBits, or promotes it to a 512-bit big.Float form otherwise.
+// This mirrors go/constant's automatic switch from big.Rat to big.Float at
+// the same 4096-bit threshold: extreme exponents no longer allocate massive
+// integers, and huge-magnitude constants are handled the way Go handles them.
+func wrapRatOrPromote(r *big.Rat) BigdecValue {
+	if ratOverflows(r) {
+		return BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).SetRat(r)}
+	}
+	return BigdecValue{V: r}
+}
+
+// bigdecArith runs op on two BigdecValues, staying in rat form when both
+// inputs are rat-form and the result fits within ratOverflowBits, and
+// promoting to 512-bit big.Float otherwise (matching go/constant).
+func bigdecArith(lb, rb BigdecValue,
+	ratOp func(z, x, y *big.Rat) *big.Rat,
+	floatOp func(z, x, y *big.Float) *big.Float,
+) BigdecValue {
+	if lb.IsFloat() || rb.IsFloat() {
+		z := new(big.Float).SetPrec(BigdecFloatPrec)
+		return BigdecValue{F: floatOp(z, lb.AsFloat(), rb.AsFloat())}
+	}
+	result := ratOp(new(big.Rat), lb.V, rb.V)
+	return wrapRatOrPromote(result)
+}
+
+func bigdecAdd(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Add, (*big.Float).Add)
+}
+
+func bigdecSub(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Sub, (*big.Float).Sub)
+}
+
+func bigdecMul(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Mul, (*big.Float).Mul)
+}
+
+func bigdecQuo(lb, rb BigdecValue) BigdecValue {
+	return bigdecArith(lb, rb, (*big.Rat).Quo, (*big.Float).Quo)
+}
+
+// bigdecCmp compares lb and rb, promoting to a common form. Returns -1, 0, +1
+// per the usual convention.
+func bigdecCmp(lb, rb BigdecValue) int {
+	if lb.IsFloat() || rb.IsFloat() {
+		return lb.AsFloat().Cmp(rb.AsFloat())
+	}
+	return lb.V.Cmp(rb.V)
+}
+
+// parseBigdecLiteral parses a decimal or hex-float literal into a BigdecValue.
+// It probes via big.ParseFloat first (cheap, bounded) so extreme magnitudes
+// never allocate the giant big.Rat numerator/denominator; literals within
+// ratOverflowBits stay in exact rat form.
+func parseBigdecLiteral(s, kind string) BigdecValue {
+	f, _, err := big.ParseFloat(s, 0, BigdecFloatPrec, big.ToNearestEven)
+	if err != nil {
+		panic(fmt.Sprintf("invalid %s constant: %s", kind, s))
+	}
+	if exp := f.MantExp(nil); exp > ratOverflowBits || exp < -ratOverflowBits {
+		return BigdecValue{F: f}
+	}
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok || ratOverflows(r) {
+		return BigdecValue{F: f}
+	}
+	return BigdecValue{V: r}
 }
 
 // for doOpAdd and doOpAddAssign.
@@ -842,16 +929,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecAdd(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -898,16 +976,7 @@ func subAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		diff := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
-		}
-		lv.V = BigdecValue{V: diff}
+		lv.V = bigdecSub(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -954,14 +1023,7 @@ func mulAssign(lv, rv *TypedValue) {
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		prod := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
-		}
-		lv.V = BigdecValue{V: prod}
+		lv.V = bigdecMul(lv.GetBigDec(), rv.GetBigDec())
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -1048,17 +1110,11 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
+		rb := rv.GetBigDec()
+		if rb.Sign() == 0 {
 			return expt
 		}
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		quo := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec division error: %v", err))
-		}
-		lv.V = BigdecValue{V: quo}
+		lv.V = bigdecQuo(lv.GetBigDec(), rb)
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",

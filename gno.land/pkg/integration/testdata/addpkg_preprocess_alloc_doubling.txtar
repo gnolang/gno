@@ -19,7 +19,12 @@ gnoland start
 # alloc-gas to OOG. Source is ~430 bytes; without the per-tx
 # preprocess allocator's gas meter, this would silently allocate
 # ~64 KB of string heap in preprocess-time const folding.
-! gnokey maketx addpkg -pkgdir $WORK/doubling -pkgpath gno.land/r/doubling -gas-fee 100000ugnot -gas-wanted 100_000 -chainid=tendermint_test test1
+#
+# -max-deposit is explicit because this package materializes ~1.05 MB of realm
+# state, just over the 100000000ugnot default deposit ceiling. Without it the
+# storage-deposit check refuses the tx first and the allocator's gas meter —
+# the thing under test here — never gets to fire.
+! gnokey maketx addpkg -pkgdir $WORK/doubling -pkgpath gno.land/r/doubling -gas-fee 100000ugnot -gas-wanted 100_000 -max-deposit 600000000ugnot -chainid=tendermint_test test1
 stderr 'out of gas'
 
 # Node is alive — query against a fresh sequence works.

@@ -1,0 +1,50 @@
+# gnoe2e boots real gnoland and gpao binaries built from this tree, so the
+# suite must run when the chain or gpao changes, not only when misc/ does.
+# ci-dir-misc.yml filters on misc/** and cannot express that, hence a workflow
+# of its own instead of a row in its matrix.
+name: ci / gnoe2e
+
+on:
+  # No path filter on push: master always gets the full suite.
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - .github/workflows/ci-gnoe2e.yml
+      - .github/workflows/_ci-go.yml
+      - misc/gnoe2e/**
+      - contribs/gpao/**
+      - examples/**
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - go.mod
+      - go.sum
+      # *.md is prose, except in the gno source trees where it is valid
+      # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns).
+      # Order matters: a later positive pattern wins over an earlier negation.
+      - '!**/*.md'
+      - examples/**/*.md
+      - gnovm/stdlibs/**/*.md
+  workflow_dispatch:
+
+concurrency:
+  group: gnoe2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: misc/gnoe2e
+      # -p 1: the run boots real validator processes and builds real binaries,
+      # so packages tested at the same time compete for the runner rather than
+      # sharing it. -timeout 25m replaces the reusable workflow's 30m, which is
+      # its job's timeout-minutes exactly: at equal values the job is cancelled
+      # at the same moment the test binary would have dumped the goroutine
+      # stacks naming whatever hung.
+      tests-extra-args: "-p 1 -timeout 25m -coverpkg=github.com/gnolang/gno/misc/gnoe2e/..."

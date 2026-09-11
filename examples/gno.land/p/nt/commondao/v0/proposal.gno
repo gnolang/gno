@@ -4,43 +4,48 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/addrset/v0"
 )
 
 const (
 	StatusActive    ProposalStatus = "active"
-	StatusPassed                   = "passed"
-	StatusRejected                 = "rejected"
-	StatusExecuted                 = "executed"
-	StatusFailed                   = "failed"
-	StatusWithdrawn                = "withdrawn"
+	StatusPassed    ProposalStatus = "passed"
+	StatusDismissed ProposalStatus = "dismissed"
+	StatusExecuted  ProposalStatus = "executed"
+	StatusFailed    ProposalStatus = "failed"
+	StatusWithdrawn ProposalStatus = "withdrawn"
 )
 
+// Vote choices, fixed by the Common DAO Spec's default voting rules.
 const (
-	ChoiceNone       VoteChoice = ""
-	ChoiceYes                   = "YES"
-	ChoiceNo                    = "NO"
-	ChoiceNoWithVeto            = "NO WITH VETO"
-	ChoiceAbstain               = "ABSTAIN"
+	ChoiceYes     VoteChoice = "YES"
+	ChoiceNo      VoteChoice = "NO"
+	ChoiceAbstain VoteChoice = "ABSTAIN"
 )
 
+// Thresholds for the constitution's default Council voting rules.
 const (
-	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
-	QuorumMoreThanHalf         = 0.51
-	QuorumTwoThirds            = 0.66
-	QuorumThreeFourths         = 0.75
-	QuorumFull                 = 1
+	// ThresholdSupermajority passes with "two thirds or more" of the
+	// tally denominator. The default for Council decisions.
+	ThresholdSupermajority Threshold = iota
+
+	// ThresholdSimpleMajority passes with "more than half" of the
+	// tally denominator. The Constitution assigns it to specific
+	// decisions, e.g. sub-DAO creation.
+	ThresholdSimpleMajority
 )
 
-// MaxCustomVoteChoices defines the maximum number of custom
-// vote choices that a proposal definition can define.
-const MaxCustomVoteChoices = 10
+// Outcomes of tallying a proposal under the default Council rules.
+const (
+	OutcomePending Outcome = iota
+	OutcomePassed
+	OutcomeDismissed
+)
 
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
-	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
+	ErrInvalidVoterAddress        = errors.New("invalid voter address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )
 
@@ -51,8 +56,42 @@ type (
 	// VoteChoice defines a type for proposal vote choices.
 	VoteChoice string
 
-	// ExecFunc defines a type for functions that executes proposals.
-	ExecFunc func(realm) error
+	// Threshold defines a type for the default tally thresholds.
+	Threshold int
+
+	// Outcome defines a type for default tally outcomes.
+	Outcome int
+
+	// ExecFunc defines a type for functions that execute proposals.
+	//
+	// The leading int makes ExecFunc non-crossing: the host calls it
+	// directly (no cross), so the executor holds no realm cur of its own —
+	// only the realm argument, a DAO-scoped sub-identity the host mints and
+	// passes. Fund-moving executors send through that sub (e.g. banker
+	// RealmSend), which is terminal and bounded to one DAO address;
+	// executors that move no funds ignore it. The int is unused.
+	//
+	// Authority note: the sub is a least-authority DEFAULT, not a sandbox.
+	// An executor is trusted realm code; because the sub is the executor's
+	// only current realm value, it could regain the host realm's primary
+	// authority via an explicit cross(sub) into a crossing function. That is
+	// a visible, auditable call the reference realm's executors never make,
+	// so their blast radius is one treasury — but a realm that runs
+	// untrusted or user-registered executors gets no such guarantee. See ADR
+	// pr6012_commondao_exec_scope.
+	//
+	// The sharper hazard for such a realm is not cross(sub) but the banker:
+	// an executor can mint banker.NewBanker(BankerTypeRealmSend, sub) and
+	// simply RETAIN it. Authorization happens at construction only, and the
+	// banker holds no realm reference, so it persists across transactions
+	// even though the sub itself cannot — a permanent, unrevocable
+	// capability over that DAO's address, spendable later with no proposal.
+	// It also bypasses any check the host performs before spending (a
+	// frozen flag, a pause switch), because it reaches the bank keeper
+	// without re-entering host code. Passing the sub to an executor whose
+	// code the DAO has not vetted is therefore an irrevocable grant of that
+	// DAO's treasury, not a scoped loan of it.
+	ExecFunc func(int, realm) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {
@@ -60,16 +99,16 @@ type (
 		status         ProposalStatus
 		definition     ProposalDefinition
 		creator        address
-		record         *VotingRecord // TODO: Add support for multiple voting records
+		record         *VotingRecord
+		electorate     *addrset.Set // council snapshot taken at Propose
 		statusReason   string
-		voteChoices    *bptree.BPTree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
 		createdAt      time.Time
 	}
 
 	// ProposalDefinition defines an interface for custom proposal definitions.
-	// These definitions define proposal content and behavior, they esentially
-	// allow the definition for different proposal types.
+	// These definitions define proposal content and behavior, essentially
+	// allowing the definition of different proposal types.
 	ProposalDefinition interface {
 		// Title returns the proposal title.
 		Title() string
@@ -81,13 +120,51 @@ type (
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// It is used to calculate the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creation date.
 		VotingPeriod() time.Duration
 
-		// Tally counts the number of votes and verifies if proposal passes.
-		// It receives a voting context containing a readonly record with the votes
-		// that has been submitted for the proposal and also the list of DAO members.
-		Tally(VotingContext) (passes bool, _ error)
+		// Threshold returns the tally threshold for passing the proposal.
+		// Proposals are decided by the constitution's default Council voting
+		// rules: re-evaluated after every recorded vote, they can pass or be
+		// dismissed before their voting deadline.
+		//
+		// Threshold is read on every Vote (for early passage) AND again in
+		// the post-deadline re-tally inside Execute. Return a CONSTANT value:
+		// a threshold that loosens over a proposal's lifetime can let the
+		// deadline re-tally pass with fewer YES votes than voters faced when
+		// they cast under the stricter earlier value. A changing threshold is
+		// honored, but the definition author owns that consequence.
+		Threshold() Threshold
+	}
+
+	// ProposalKind defines an interface for proposal kinds: named factories
+	// for proposal definitions, registered per DAO. A kind is both the
+	// registry key (Name) and the factory (New) for one proposal type, and
+	// a DAO accepts proposals of exactly the kinds registered on it
+	// (CommonDAO.RegisterKind).
+	ProposalKind interface {
+		// Name returns the kind name used as registry key, e.g. "treasury-spend".
+		Name() string
+
+		// New validates args and builds the proposal definition. Propose
+		// passes a ReadonlyCommonDAO view of the host DAO, so New is a
+		// pure factory that cannot mutate the host or its tree before the
+		// vote; proposal targets and parameters come via args. A kind that
+		// must mutate state on execution receives the target *CommonDAO
+		// through args (which only trusted callers can populate), captures
+		// it, and mutates in its Executor. The returned definition's
+		// instance data is frozen at Propose like any proposal definition.
+		New(dao ReadonlyCommonDAO, args any) (ProposalDefinition, error)
+	}
+
+	// CapExempt defines an interface for proposal definitions that are not
+	// counted against the DAO's active proposals cap. Exempt definitions are
+	// instead bounded to one active proposal per creator, so that proposals
+	// which remove members (and therefore must never be blockable by a full
+	// cap) stay bounded.
+	CapExempt interface {
+		// CapExempt marks the definition as exempt.
+		CapExempt()
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -103,92 +180,31 @@ type (
 		// Executor returns a function to execute the proposal.
 		Executor() ExecFunc
 	}
-
-	// CustomizableVoteChoices defines an interface for proposal definitions that want
-	// to customize the list of allowed voting choices.
-	CustomizableVoteChoices interface {
-		// CustomVoteChoices returns a list of valid voting choices.
-		// Choices are considered valid only when there are at least two possible choices
-		// otherwise proposal defaults to using YES, NO and ABSTAIN as valid choices.
-		CustomVoteChoices() []VoteChoice
-	}
 )
 
-// MustValidate validates that a proposal is valid for the current state or panics on error.
-func MustValidate(v Validable) {
-	if v == nil {
-		panic("validable proposal definition is nil")
-	}
-
-	if err := v.Validate(); err != nil {
-		panic(err)
-	}
-}
-
-// MustExecute executes an executable proposal or panics on error.
+// newProposal creates a new DAO proposal.
 //
-// rlm is the realm authority threaded into the executor via cross(rlm).
-// MustExecute itself is not a crossing function (rlm sits in a non-first
-// parameter slot) because /p/ production code cannot declare crossing
-// functions — callers pass `cur` directly as the rlm argument.
-func MustExecute(e Executable, rlm realm) {
-	if e == nil {
-		panic("executable proposal definition is nil")
-	}
-
-	fn := e.Executor()
-	if fn == nil {
-		return
-	}
-
-	if err := fn(cross(rlm)); err != nil {
-		panic(err)
-	}
-}
-
-// NewProposal creates a new DAO proposal.
-func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
-	if d == nil {
-		return nil, ErrProposalDefinitionRequired
-	}
-
+// The proposal is created with an empty electorate; Propose populates it
+// with the council snapshot.
+func newProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
 	if !creator.IsValid() {
 		return nil, ErrInvalidCreatorAddress
 	}
 
 	now := time.Now()
-	p := &Proposal{
+	return &Proposal{
 		id:             id,
 		status:         StatusActive,
 		definition:     d,
 		creator:        creator,
 		record:         &VotingRecord{},
-		voteChoices:    bptree.NewBPTree32(),
+		electorate:     &addrset.Set{},
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
-	}
-
-	if v, ok := d.(CustomizableVoteChoices); ok {
-		choices := v.CustomVoteChoices()
-		if len(choices) > MaxCustomVoteChoices {
-			return nil, ErrMaxCustomVoteChoices
-		}
-
-		for _, c := range choices {
-			p.voteChoices.Set(string(c), struct{}{})
-		}
-	}
-
-	// Use default voting choices when the definition returns none or a single vote choice
-	if p.voteChoices.Size() < 2 {
-		p.voteChoices.Set(string(ChoiceYes), struct{}{})
-		p.voteChoices.Set(string(ChoiceNo), struct{}{})
-		p.voteChoices.Set(string(ChoiceAbstain), struct{}{})
-	}
-	return p, nil
+	}, nil
 }
 
-// ID returns the unique proposal identifies.
+// ID returns the unique proposal identifier.
 func (p Proposal) ID() uint64 {
 	return p.id
 }
@@ -214,13 +230,23 @@ func (p Proposal) CreatedAt() time.Time {
 	return p.createdAt
 }
 
-// VotingRecord returns a record that contains all the votes submitted for the proposal.
-func (p Proposal) VotingRecord() *VotingRecord {
-	return p.record
+// VotingRecord returns a read only record with the votes submitted for
+// the proposal. Votes are recorded through CommonDAO.Vote only.
+func (p Proposal) VotingRecord() ReadonlyVotingRecord {
+	return p.record.Readonly()
 }
 
-// StatusReason returns an optional reason that lead to the current proposal status.
-// Reason is mostyl useful when a proposal fails.
+// Electorate returns the proposal's electorate: a read only view of the
+// council snapshot taken when the proposal was created. Members added to
+// the council afterwards vote on the next proposal; members removed or
+// resigned afterwards remain in the electorate (their silence counts
+// against passage).
+func (p Proposal) Electorate() *addrset.ReadonlySet {
+	return p.electorate.Readonly()
+}
+
+// StatusReason returns an optional reason that led to the current proposal status.
+// Reason is mostly useful when a proposal fails.
 func (p Proposal) StatusReason() string {
 	return p.statusReason
 }
@@ -230,25 +256,16 @@ func (p Proposal) VotingDeadline() time.Time {
 	return p.votingDeadline
 }
 
-// VoteChoices returns the list of vote choices allowed for the proposal.
-func (p Proposal) VoteChoices() []VoteChoice {
-	choices := make([]VoteChoice, 0, p.voteChoices.Size())
-	p.voteChoices.Iterate("", "", func(c string, _ any) bool {
-		choices = append(choices, VoteChoice(c))
-		return false
-	})
-	return choices
-}
-
 // HasVotingDeadlinePassed checks if the voting deadline has been met.
 func (p Proposal) HasVotingDeadlinePassed() bool {
 	return !time.Now().Before(p.VotingDeadline())
 }
 
 // Validate validates that a proposal is valid for the current state.
-// Validation is done when proposal status is active and when the definition supports validation.
+// Validation is done when the proposal can still be executed (status is
+// active or passed) and when the definition supports validation.
 func (p Proposal) Validate() error {
-	if p.status != StatusActive {
+	if p.status != StatusActive && p.status != StatusPassed {
 		return nil
 	}
 
@@ -258,48 +275,8 @@ func (p Proposal) Validate() error {
 	return nil
 }
 
-// IsVoteChoiceValid checks if a vote choice is valid for the proposal.
-func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
-	return p.voteChoices.Has(string(c))
-}
-
-// Tally counts votes and updates proposal status with the current outcome.
-// Proposal status is updated to "passed" when proposal is approved
-// or to "rejected" if proposal doesn't pass.
-func (p *Proposal) Tally(members MemberStorage) error {
-	if p.status != StatusActive {
-		return ErrStatusIsNotActive
-	}
-
-	ctx := MustNewVotingContext(p.VotingRecord(), members)
-	passes, err := p.Definition().Tally(ctx)
-	if err != nil {
-		return err
-	}
-
-	if passes {
-		p.status = StatusPassed
-	} else {
-		p.status = StatusRejected
-	}
-	return nil
-}
-
-// IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
-	if members.Size() <= 0 || quorum <= 0 {
-		return false
-	}
-
-	var totalCount int
-	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
-		// Don't count explicit abstentions or invalid votes
-		if c != ChoiceNone && c != ChoiceAbstain {
-			totalCount += r.VoteCount(c)
-		}
-		return false
-	})
-
-	percentage := float64(totalCount) / float64(members.Size())
-	return percentage >= quorum
+// ExpectedOutcome returns the outcome the proposal would have if it were
+// decided with the votes submitted so far. Useful for rendering.
+func (p Proposal) ExpectedOutcome() Outcome {
+	return TallyDefault(p.record.Readonly(), p.Electorate(), p.definition.Threshold())
 }

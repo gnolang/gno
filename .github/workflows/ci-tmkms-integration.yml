@@ -16,6 +16,8 @@ on:
       - tm2/pkg/p2p/conn/secret_connection.go
       - go.mod
       - .github/workflows/ci-tmkms-integration.yml
+      # tm2 holds no gno source, so every *.md under it is prose.
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:

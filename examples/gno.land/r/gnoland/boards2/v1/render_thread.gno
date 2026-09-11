@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/mdform"
-	"gno.land/p/jeronimoalbi/pager"
-	"gno.land/p/leon/svgbtn"
-	"gno.land/p/moul/md"
+	"gno.land/p/gnoland/boards/v0"
+	"gno.land/p/jeronimoalbi/mdform/v0"
+	"gno.land/p/jeronimoalbi/pager/v0"
+	"gno.land/p/leon/svgbtn/v0"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -133,13 +133,14 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
+	byline := "Created by "
 	if boards.IsRepost(thread) {
 		summary += ` ⟳`
-		postURI += ` "This is a thread repost"`
+		byline = "Reposted by "
 	}
 
 	b.WriteString(md.H6(md.Link(summary, postURI)))
-	b.WriteString("Created by " + creatorLink + roleBadge + " on " + date + "  \n")
+	b.WriteString(byline + creatorLink + roleBadge + " on " + date + "  \n")
 
 	status := []string{
 		strconv.Itoa(thread.Replies.Size()) + " replies",

@@ -33,6 +33,11 @@ func TestCodecParity_Std(t *testing.T) {
 		{"Coin", &std.Coin{Denom: "ugnot", Amount: math.MaxInt64}},
 		// Note: negative coin amounts are rejected by Coin.UnmarshalAmino,
 		// so they can't round-trip. Not included.
+		//
+		// The zero case is the bare value on purpose. A zero amount that
+		// carries a denom does not round-trip either: Coin.String renders it
+		// as the empty string, and UnmarshalAmino reads that back as the zero
+		// value, so the denom is dropped.
 		{"Coin/zero", &std.Coin{}},
 		{"GasPrice", &std.GasPrice{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}}},
 		{"Fee", &std.Fee{GasWanted: 200000, GasFee: std.Coin{Denom: "ugnot", Amount: 5000}}},
@@ -52,6 +57,14 @@ func TestCodecParity_Std(t *testing.T) {
 			PubKey:        pk,
 			AccountNumber: 7,
 			Sequence:      9,
+			// The schedule is what makes part of Coins unspendable. A field
+			// dropped on decode would hand those coins back.
+			Vesting: std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 60}},
+				StartTime:       1700000000,
+				EndTime:         1800000000,
+				Type:            std.VestingDelayed,
+			},
 		}},
 
 		// BaseSessionAccount: BaseAccount embedded + extra fields + SpendLimit
@@ -66,6 +79,10 @@ func TestCodecParity_Std(t *testing.T) {
 			ExpiresAt:     1700000000,
 			SpendLimit:    std.Coins{{Denom: "ugnot", Amount: 500}},
 			SpendPeriod:   3600,
+			// SpendUsed is the budget already consumed; losing it on decode
+			// would let the session spend its limit again.
+			SpendUsed:  std.Coins{{Denom: "ugnot", Amount: 125}},
+			SpendReset: 1700000000,
 		}},
 
 		// Signature: has PubKey (interface) + Signature bytes.

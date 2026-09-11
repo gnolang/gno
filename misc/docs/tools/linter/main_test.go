@@ -76,6 +76,53 @@ nulla ac [blandit tempus](https://gitlab.org).
 	}
 }
 
+func TestExtractLinksSkipsRPCEndpoints(t *testing.T) {
+	t.Parallel()
+
+	// Chain RPC endpoints are JSON-RPC APIs, not documentation pages. A GET
+	// against them says nothing about the link being correct, but does tie
+	// docs CI to a live chain's uptime and TLS certificate.
+	mockFileContent := `# Networks
+- betanet: https://rpc.gno.land:443
+- staging: https://rpc.staging.gno.land:443
+- pearl: https://rpc.pearl.testnets.gno.land:443
+- a real doc link: https://docs.gno.land
+`
+
+	require.Equal(t,
+		[]string{"https://docs.gno.land"},
+		extractUrls([]byte(mockFileContent)),
+	)
+}
+
+func TestShouldCheckURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{"plain docs link", "https://docs.gno.land", true},
+		{"unrelated host", "https://example.org/rpc", true},
+		// "rpc." only counts as a host prefix, not anywhere in the URL.
+		{"rpc in path only", "https://example.org/rpc.gno.land", true},
+		{"betanet rpc", "https://rpc.gno.land:443", false},
+		{"testnet rpc", "https://rpc.pearl.testnets.gno.land:443", false},
+		{"localhost", "http://localhost:26657", false},
+		{"staging deployment", "https://staging.gno.land", false},
+		{"youtube", "https://youtube.com/watch?v=abc", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, shouldCheckURL(tt.url))
+		})
+	}
+}
+
 func TestExtractJSX(t *testing.T) {
 	t.Parallel()
 

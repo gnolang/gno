@@ -1,8 +1,8 @@
 package valopers
 
 import (
-	"gno.land/p/moul/authz"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/authz/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/avl/v0"
 )
 
@@ -88,7 +88,7 @@ This will initiate a governance process where **GovDAO** members will vote on yo
 
 🚀 **Register now and become a part of gno.land’s validator ecosystem!**
 
-Read more: [How to become a testnet validator](https://gnops.io/articles/guides/become-testnet-validator/) <!-- XXX: replace with a r/gnops/blog:xxx link -->
+Read more: [How to become a validator](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland#become-a-validator)
 
 Disclaimer: Please note, registering your validator profile and/or validating on testnets does not guarantee a validator slot on the gno.land beta mainnet. However, active participation and contributions to testnets will help establish credibility and may improve your chances for future validator acceptance. The initial validator amount and valset will ultimately be selected through GovDAO governance proposals and acceptance.
 

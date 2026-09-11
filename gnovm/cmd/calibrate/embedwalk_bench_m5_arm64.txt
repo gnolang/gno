@@ -1,0 +1,118 @@
+# go test -run='^$' -bench='BenchmarkOp(EmbedWalk|TypeAssert1_Interface|Add_Int$|Eql_Int$|IfCond|SwitchClause)' -benchtime=2s -count=3 ./gnovm/pkg/gnolang/
+# Dev-box run (Apple M5, darwin/arm64, go1.26.5) behind OpCPUSlopeEmbed* — informational, like bench_output_m2_arm64.txt.
+# Machine factor vs op_bench_analysis.txt (table ÷ ns/op(pure)) over the seven flat ops below: 1.87–2.17; 2.1 used (cpu_base_ns = 0.476).
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M5
+BenchmarkOpAdd_Int-10                      	29783095	        74.27 ns/op	         0 alloc-gas/op	        44.35 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	32059504	        74.57 ns/op	         0 alloc-gas/op	        45.08 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	31830678	        76.22 ns/op	         0 alloc-gas/op	        46.58 ns/op(pure)
+BenchmarkOpEql_Int-10                      	31714288	        75.28 ns/op	         0 alloc-gas/op	        44.77 ns/op(pure)
+BenchmarkOpEql_Int-10                      	32324665	        77.34 ns/op	         0 alloc-gas/op	        46.03 ns/op(pure)
+BenchmarkOpEql_Int-10                      	31902025	        75.40 ns/op	         0 alloc-gas/op	        45.26 ns/op(pure)
+BenchmarkOpEmbedWalk/d1_w8_miss_m1-10      	 3280521	       736.0 ns/op	         0 alloc-gas/op	       736.0 ns/op(pure)	    1768 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_miss_m1-10      	 3263215	       738.8 ns/op	         0 alloc-gas/op	       738.8 ns/op(pure)	    1768 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_miss_m1-10      	 3194646	       761.0 ns/op	         0 alloc-gas/op	       761.0 ns/op(pure)	    1768 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m1-10       	 3234271	       755.0 ns/op	         0 alloc-gas/op	       755.0 ns/op(pure)	    1808 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m1-10       	 3247521	       792.6 ns/op	         0 alloc-gas/op	       792.6 ns/op(pure)	    1808 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m1-10       	 3226478	       760.3 ns/op	         0 alloc-gas/op	       760.3 ns/op(pure)	    1808 B/op	      23 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m16-10      	  847898	      2820 ns/op	         0 alloc-gas/op	      2820 ns/op(pure)	    3248 B/op	      68 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m16-10      	  868317	      2743 ns/op	         0 alloc-gas/op	      2743 ns/op(pure)	    3248 B/op	      68 allocs/op
+BenchmarkOpEmbedWalk/d1_w8_hit_m16-10      	  873106	      2742 ns/op	         0 alloc-gas/op	      2742 ns/op(pure)	    3248 B/op	      68 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_miss_m1-10     	  881119	      2701 ns/op	         0 alloc-gas/op	      2701 ns/op(pure)	    7642 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_miss_m1-10     	  878808	      2724 ns/op	         0 alloc-gas/op	      2724 ns/op(pure)	    7642 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_miss_m1-10     	  876535	      2727 ns/op	         0 alloc-gas/op	      2727 ns/op(pure)	    7642 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m1-10      	  871872	      2703 ns/op	         0 alloc-gas/op	      2703 ns/op(pure)	    7680 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m1-10      	  877524	      2716 ns/op	         0 alloc-gas/op	      2716 ns/op(pure)	    7680 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m1-10      	  886587	      2705 ns/op	         0 alloc-gas/op	      2705 ns/op(pure)	    7680 B/op	      53 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m16-10     	  346048	      6792 ns/op	         0 alloc-gas/op	      6792 ns/op(pure)	    9120 B/op	      98 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m16-10     	  350446	      6844 ns/op	         0 alloc-gas/op	      6844 ns/op(pure)	    9120 B/op	      98 allocs/op
+BenchmarkOpEmbedWalk/d1_w32_hit_m16-10     	  352074	      6854 ns/op	         0 alloc-gas/op	      6854 ns/op(pure)	    9120 B/op	      98 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_miss_m1-10    	  227150	     10329 ns/op	         0 alloc-gas/op	     10329 ns/op(pure)	   30176 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_miss_m1-10    	  231934	     10351 ns/op	         0 alloc-gas/op	     10351 ns/op(pure)	   30176 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_miss_m1-10    	  231608	     10329 ns/op	         0 alloc-gas/op	     10329 ns/op(pure)	   30176 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m1-10     	  233750	     10245 ns/op	         0 alloc-gas/op	     10245 ns/op(pure)	   30208 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m1-10     	  233721	     10239 ns/op	         0 alloc-gas/op	     10239 ns/op(pure)	   30208 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m1-10     	  233366	     10235 ns/op	         0 alloc-gas/op	     10235 ns/op(pure)	   30208 B/op	     155 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m16-10    	  106095	     22418 ns/op	         0 alloc-gas/op	     22418 ns/op(pure)	   31648 B/op	     200 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m16-10    	  107930	     22367 ns/op	         0 alloc-gas/op	     22367 ns/op(pure)	   31648 B/op	     200 allocs/op
+BenchmarkOpEmbedWalk/d1_w128_hit_m16-10    	  106624	     22450 ns/op	         0 alloc-gas/op	     22450 ns/op(pure)	   31648 B/op	     200 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_miss_m1-10     	  230149	     10630 ns/op	         0 alloc-gas/op	     10630 ns/op(pure)	   30224 B/op	     162 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_miss_m1-10     	  225428	     10621 ns/op	         0 alloc-gas/op	     10621 ns/op(pure)	   30224 B/op	     162 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_miss_m1-10     	  224875	     10642 ns/op	         0 alloc-gas/op	     10642 ns/op(pure)	   30224 B/op	     162 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m1-10      	  225285	     10678 ns/op	         0 alloc-gas/op	     10678 ns/op(pure)	   30360 B/op	     164 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m1-10      	  225381	     10651 ns/op	         0 alloc-gas/op	     10651 ns/op(pure)	   30360 B/op	     164 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m1-10      	  225139	     10676 ns/op	         0 alloc-gas/op	     10676 ns/op(pure)	   30360 B/op	     164 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m16-10     	  100104	     23686 ns/op	         0 alloc-gas/op	     23686 ns/op(pure)	   33360 B/op	     239 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m16-10     	  102619	     23593 ns/op	         0 alloc-gas/op	     23593 ns/op(pure)	   33360 B/op	     239 allocs/op
+BenchmarkOpEmbedWalk/d2_w64_hit_m16-10     	  101704	     23669 ns/op	         0 alloc-gas/op	     23669 ns/op(pure)	   33360 B/op	     239 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_miss_m1-10      	  805323	      2993 ns/op	         0 alloc-gas/op	      2993 ns/op(pure)	    7514 B/op	      65 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_miss_m1-10      	  791050	      3012 ns/op	         0 alloc-gas/op	      3012 ns/op(pure)	    7514 B/op	      65 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_miss_m1-10      	  788607	      3000 ns/op	         0 alloc-gas/op	      3000 ns/op(pure)	    7514 B/op	      65 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m1-10       	  768255	      3154 ns/op	         0 alloc-gas/op	      3154 ns/op(pure)	    7928 B/op	      71 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m1-10       	  763087	      3179 ns/op	         0 alloc-gas/op	      3179 ns/op(pure)	    7928 B/op	      71 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m1-10       	  754138	      3189 ns/op	         0 alloc-gas/op	      3189 ns/op(pure)	    7928 B/op	      71 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m16-10      	  253850	      9460 ns/op	         0 alloc-gas/op	      9460 ns/op(pure)	   15008 B/op	     206 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m16-10      	  257313	      9342 ns/op	         0 alloc-gas/op	      9342 ns/op(pure)	   15008 B/op	     206 allocs/op
+BenchmarkOpEmbedWalk/d4_w8_hit_m16-10      	  260247	      9334 ns/op	         0 alloc-gas/op	      9334 ns/op(pure)	   15008 B/op	     206 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_miss_m1-10     	  223489	     11071 ns/op	         0 alloc-gas/op	     11071 ns/op(pure)	   30384 B/op	     173 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_miss_m1-10     	  216522	     11116 ns/op	         0 alloc-gas/op	     11116 ns/op(pure)	   30384 B/op	     173 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_miss_m1-10     	  214892	     11084 ns/op	         0 alloc-gas/op	     11084 ns/op(pure)	   30384 B/op	     173 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m1-10      	  214648	     11261 ns/op	         0 alloc-gas/op	     11261 ns/op(pure)	   30792 B/op	     179 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m1-10      	  213346	     11298 ns/op	         0 alloc-gas/op	     11298 ns/op(pure)	   30792 B/op	     179 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m1-10      	  213792	     11279 ns/op	         0 alloc-gas/op	     11279 ns/op(pure)	   30792 B/op	     179 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m16-10     	   91608	     25868 ns/op	         0 alloc-gas/op	     25868 ns/op(pure)	   37872 B/op	     314 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m16-10     	   92481	     25856 ns/op	         0 alloc-gas/op	     25856 ns/op(pure)	   37872 B/op	     314 allocs/op
+BenchmarkOpEmbedWalk/d4_w32_hit_m16-10     	   92554	     25717 ns/op	         0 alloc-gas/op	     25717 ns/op(pure)	   37872 B/op	     314 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_miss_m1-10      	 2686953	       900.3 ns/op	         0 alloc-gas/op	       900.3 ns/op(pure)	    2168 B/op	      30 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_miss_m1-10      	 2670764	       903.7 ns/op	         0 alloc-gas/op	       903.7 ns/op(pure)	    2168 B/op	      30 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_miss_m1-10      	 2656689	       906.8 ns/op	         0 alloc-gas/op	       906.8 ns/op(pure)	    2168 B/op	      30 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m1-10       	 1863322	      1279 ns/op	         0 alloc-gas/op	      1279 ns/op(pure)	    3416 B/op	      44 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m1-10       	 1880162	      1279 ns/op	         0 alloc-gas/op	      1279 ns/op(pure)	    3416 B/op	      44 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m1-10       	 1869061	      1280 ns/op	         0 alloc-gas/op	      1280 ns/op(pure)	    3416 B/op	      44 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m16-10      	  231370	      8958 ns/op	         0 alloc-gas/op	      8958 ns/op(pure)	   22976 B/op	     299 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m16-10      	  268323	      8952 ns/op	         0 alloc-gas/op	      8952 ns/op(pure)	   22976 B/op	     299 allocs/op
+BenchmarkOpEmbedWalk/d8_w1_hit_m16-10      	  265767	      8964 ns/op	         0 alloc-gas/op	      8964 ns/op(pure)	   22976 B/op	     299 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_miss_m1-10      	  746301	      3232 ns/op	         0 alloc-gas/op	      3232 ns/op(pure)	    7866 B/op	      74 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_miss_m1-10      	  740250	      3216 ns/op	         0 alloc-gas/op	      3216 ns/op(pure)	    7866 B/op	      74 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_miss_m1-10      	  747382	      3431 ns/op	         0 alloc-gas/op	      3431 ns/op(pure)	    7866 B/op	      74 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m1-10       	  650030	      3705 ns/op	         0 alloc-gas/op	      3705 ns/op(pure)	    9112 B/op	      88 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m1-10       	  650070	      3606 ns/op	         0 alloc-gas/op	      3606 ns/op(pure)	    9112 B/op	      88 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m1-10       	  676728	      3599 ns/op	         0 alloc-gas/op	      3599 ns/op(pure)	    9112 B/op	      88 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m16-10      	  174022	     13748 ns/op	         0 alloc-gas/op	     13748 ns/op(pure)	   28672 B/op	     343 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m16-10      	  174393	     13611 ns/op	         0 alloc-gas/op	     13611 ns/op(pure)	   28672 B/op	     343 allocs/op
+BenchmarkOpEmbedWalk/d8_w4_hit_m16-10      	  177891	     13662 ns/op	         0 alloc-gas/op	     13662 ns/op(pure)	   28672 B/op	     343 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_miss_m1-10     	  207387	     11586 ns/op	         0 alloc-gas/op	     11586 ns/op(pure)	   30736 B/op	     190 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_miss_m1-10     	  206499	     11572 ns/op	         0 alloc-gas/op	     11572 ns/op(pure)	   30736 B/op	     190 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_miss_m1-10     	  207800	     11589 ns/op	         0 alloc-gas/op	     11589 ns/op(pure)	   30736 B/op	     190 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m1-10      	  198570	     12127 ns/op	         0 alloc-gas/op	     12127 ns/op(pure)	   31976 B/op	     204 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m1-10      	  198336	     12059 ns/op	         0 alloc-gas/op	     12059 ns/op(pure)	   31976 B/op	     204 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m1-10      	  199243	     12063 ns/op	         0 alloc-gas/op	     12063 ns/op(pure)	   31976 B/op	     204 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m16-10     	   76465	     30898 ns/op	         0 alloc-gas/op	     30898 ns/op(pure)	   51536 B/op	     459 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m16-10     	   78613	     31606 ns/op	         0 alloc-gas/op	     31606 ns/op(pure)	   51536 B/op	     459 allocs/op
+BenchmarkOpEmbedWalk/d8_w16_hit_m16-10     	   70314	     30695 ns/op	         0 alloc-gas/op	     30695 ns/op(pure)	   51536 B/op	     459 allocs/op
+BenchmarkOpIfCond_TrueBranch-10            	34630681	        70.28 ns/op	         0 alloc-gas/op	        39.59 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	34374452	        69.98 ns/op	         0 alloc-gas/op	        39.52 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	34564533	        69.98 ns/op	         0 alloc-gas/op	        39.50 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	34582131	        69.90 ns/op	         0 alloc-gas/op	        39.63 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	34524901	        70.05 ns/op	         0 alloc-gas/op	        39.61 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	34128924	        70.06 ns/op	         0 alloc-gas/op	        39.62 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	32103586	        74.58 ns/op	         0 alloc-gas/op	        42.47 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	32439591	        74.30 ns/op	         0 alloc-gas/op	        42.12 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	32292063	        74.78 ns/op	         0 alloc-gas/op	        42.45 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	28661222	        83.86 ns/op	         0 alloc-gas/op	        53.86 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	28639005	        83.89 ns/op	         0 alloc-gas/op	        53.63 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	28625313	        84.21 ns/op	         0 alloc-gas/op	        54.69 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	28725757	        83.85 ns/op	         0 alloc-gas/op	        53.78 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	28704414	        83.68 ns/op	         0 alloc-gas/op	        53.57 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	28680116	        83.58 ns/op	         0 alloc-gas/op	        53.66 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_1-10      	19506228	       117.2 ns/op	         0.0000036 alloc-gas/op	        71.88 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_1-10      	20521370	       116.8 ns/op	         0.0000034 alloc-gas/op	        71.60 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_1-10      	20477800	       117.0 ns/op	         0.0000034 alloc-gas/op	        71.82 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_10-10     	 4763014	       504.3 ns/op	         0.0000147 alloc-gas/op	       456.7 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_10-10     	 4719328	       504.7 ns/op	         0.0000148 alloc-gas/op	       457.1 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_10-10     	 4757904	       526.1 ns/op	         0.0000147 alloc-gas/op	       478.4 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_100-10    	  524409	      4442 ns/op	         0.0001335 alloc-gas/op	      4387 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_100-10    	  537028	      4538 ns/op	         0.0001303 alloc-gas/op	      4481 ns/op(pure)
+BenchmarkOpTypeAssert1_Interface_100-10    	  532141	      4454 ns/op	         0.0001315 alloc-gas/op	      4397 ns/op(pure)

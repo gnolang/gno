@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -211,7 +211,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		resetState()
 
 		info := validValidatorInfo(t)
-		// Seed v3's valset:current with the very signing address that
+		// Seed v0's valset:current with the very signing address that
 		// `info.PubKey` derives to (g1sp8v98...). Any post-genesis
 		// Register attempting the same pubkey now trips
 		// `ChainHeight()>0 && validators.IsValidator(signingAddr)`.

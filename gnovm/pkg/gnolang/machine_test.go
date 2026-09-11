@@ -21,6 +21,17 @@ func BenchmarkCreateNewMachine(b *testing.B) {
 	}
 }
 
+func TestMachineReleaseClearsBlockPool(t *testing.T) {
+	// Gas charging in acquireBlock differs between pool hits and misses, so
+	// consensus safety requires the pool to start empty on every run: a warm
+	// pool carried across Release (machines are reused via machinePool) would
+	// make gas depend on prior machine use.
+	m := NewMachineWithOptions(MachineOptions{})
+	m.blockPool = append(m.blockPool, &Block{Values: make([]TypedValue, 0, blockPoolValueCap)})
+	m.Release()
+	assert.Empty(t, m.blockPool, "Machine.Release must not preserve blockPool")
+}
+
 func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	// A test to check revertToOld is correctly putting back an old value,
 	// after preprocessing fails.
@@ -60,6 +71,55 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.NotNil(t, v)
 	assert.Equal(t, StringKind, v.T.Kind())
 	assert.Equal(t, StringValue("1"), v.V)
+}
+
+// A realm record handed to RunMemPackageOverRealm has to be the one persisted
+// at the package's own path, and the run has to save it. Neither is checkable
+// after the fact: the ObjectIDs are minted off whichever counter arrives, and
+// the record is written back under its own path.
+func TestRunMemPackageOverRealmRefusesAForeignRecord(t *testing.T) {
+	const pkgPath = "gno.land/r/demo/over"
+	mpkg := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserAll,
+			Name: "over",
+			Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "over.gno", Body: "package over\n\nfunc Hi() string { return \"hi\" }\n"},
+			},
+		}
+	}
+
+	cases := map[string]struct {
+		save  bool
+		prior *Realm
+		want  string
+	}{
+		"unsaved run": {
+			save:  false,
+			prior: NewRealm(pkgPath),
+			want: "prior realm gno.land/r/demo/over requires save: " +
+				"an unsaved run must not touch a persisted realm",
+		},
+		"another path's record": {
+			save:  true,
+			prior: NewRealm("gno.land/r/demo/elsewhere"),
+			want:  "prior realm gno.land/r/demo/elsewhere is not the realm of package gno.land/r/demo/over",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			db := memdb.NewMemDB()
+			store := NewStore(nil,
+				dbadapter.StoreConstructor(db, stypes.StoreOptions{}),
+				iavl.StoreConstructor(db, stypes.StoreOptions{}))
+			m := NewMachine("over", store)
+			defer m.Release()
+			assert.PanicsWithValue(t, tc.want, func() {
+				m.RunMemPackageOverRealm(mpkg(), tc.save, tc.prior)
+			})
+		})
+	}
 }
 
 func TestMachineString(t *testing.T) {

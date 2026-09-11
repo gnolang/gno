@@ -288,10 +288,29 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			// run_submitters is deliberately NOT merged, and not seeded
+			// anywhere in this harness: an empty list means the MsgRun gate is
+			// off, which is what every txtar wants except the ones testing the
+			// gate itself. Those populate it in-script, so the default here
+			// must stay empty or they would be testing a pre-seeded list.
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
 			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
+			// Carry the scalar vm params the genesis params file can set.
+			//
+			// Those two are the only ones LoadGenesisParamsFile writes into
+			// VM.Params today, and it errors on any other key, so the input
+			// side is self-policing. The merge here is not: it copies named
+			// fields, so a value set in the file but not listed here is
+			// silently replaced by the default. That was true of both of these
+			// until now, and harmless only because the file happens to set what
+			// the defaults already are -- so a test would have passed while a
+			// real chain used the file's value. TestGenesisParamsReachTheHarness
+			// fails if a third field is added to the loader without being
+			// carried here.
+			genesis.VM.Params.ChainDomain = tsGenesis.VM.Params.ChainDomain
+			genesis.VM.Params.SysNamesPkgPath = tsGenesis.VM.Params.SysNamesPkgPath
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {

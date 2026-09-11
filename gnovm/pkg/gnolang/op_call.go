@@ -27,15 +27,22 @@ func (m *Machine) doOpPrecall() {
 		}
 	case *BoundMethodValue:
 		m.incrCPU(OpCPUPrecallBoundMethod)
-		recv := fv.Receiver
-		m.PushFrameCall(cx, fv.Func, recv, false)
+		fn, recv := fv.Func, fv.Receiver
+		// A lazy interface bind resolves its concrete method + receiver at
+		// call time, walking the saved operand's current value (Go's call-time
+		// dispatch). A resolved bind is used as-is. nil derefs raise within the
+		// walk (caught by the Run loop).
+		if fv.IsLazy() {
+			fn, recv = resolveLazyBound(m, fv)
+		}
+		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
-		isCrossing := fv.IsCrossing()
+		isCrossing := fn.IsCrossing()
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
 		if cx.IsWithCross() {
-			m.installCrossingCur(cx, isCrossing, fv.Func.PkgPath)
+			m.installCrossingCur(cx, isCrossing, fn.PkgPath)
 		}
 	case TypeValue:
 		m.incrCPU(OpCPUPrecallTypeConv)
@@ -60,7 +67,8 @@ func (m *Machine) doOpPrecall() {
 		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
 			"unexpected function value type %s %v",
-			reflect.TypeOf(v).String(), v))
+			reflect.TypeOf(v).String(), v,
+		))
 	}
 }
 
@@ -221,15 +229,21 @@ func (m *Machine) doOpEnterCrossing() {
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
 	//
-	// PERF: O(n^2) in call-stack depth. PeekCallFrame(i) restarts from the
-	// top of m.Frames every iteration; outer loop runs until the first
-	// crossing ancestor, visiting 1+2+...+D = O(D^2) frames. Fix is to
-	// walk m.Frames once with a cursor, yielding each call frame in
-	// order, which makes the handler O(D). If/when that lands, drop
-	// OpCPUSlopeEnterCrossingQuad and switch this handler to a linear
-	// per-depth charge (OpCPUSlopeEnterCrossing * depth).
-	for i := 1; ; i++ {
-		fri := m.PeekCallFrame(i) // see PERF note above.
+	// Walk m.Frames once from top to bottom, counting only call frames,
+	// so each frame is visited at most once: O(D) in call depth. The
+	// charge is OpCPUSlopeEnterCrossing per call frame visited, applied
+	// at the accept exit. i counts one extra virtual step for the faux
+	// deployer frame, which is what the walk actually costs to discover.
+	var i int64
+	for cursor := len(m.Frames) - 1; ; cursor-- {
+		var fri *Frame
+		if cursor >= 0 {
+			fri = &m.Frames[cursor]
+			if !fri.IsCall() {
+				continue
+			}
+		}
+		i++
 		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux
@@ -242,7 +256,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// runs like cross(fn)(...) which
 			// meains fri.WithCross would have been
 			// found below.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -251,7 +265,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// everything under it is also valid.
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -273,7 +287,7 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fs, pb)
+	b := m.acquireBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -579,21 +593,31 @@ func (m *Machine) doOpReturnCallDefers() {
 		return
 	}
 
-	if dfr.Func == nil {
+	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
+	var fv *FuncValue
+	var recv TypedValue // receiver for PushFrameCall: the bound receiver, or zero for a plain func
+	switch cv := dfr.Callable.(type) {
+	case *FuncValue:
+		fv = cv // plain func: no receiver, recv stays zero
+	case *BoundMethodValue:
+		// A lazy interface bind resolves its concrete method + receiver now, at
+		// the deferred call — Go's call-time dispatch on the operand's current
+		// value (nil derefs raise within the walk, caught by the Run loop). A
+		// resolved bind uses the receiver captured at the defer statement.
+		if cv.IsLazy() {
+			fv, recv = resolveLazyBound(m, cv)
+		} else {
+			fv, recv = cv.Func, dfr.Args[0]
+		}
+		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
+	default: // nil (deferred a nil func value)
 		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
 	}
 
 	// Call last deferred call.
-	fv := dfr.Func
 	ft := fv.GetType(m.Store)
-	// Push frame for defer.
-	if dfr.IsBoundMethod {
-		// args[0] is the receiver, per popCopyArgs bound-method invariant.
-		m.PushFrameCall(&dfr.Source.Call, fv, dfr.Args[0], true)
-	} else {
-		m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
-	}
+	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -602,8 +626,8 @@ func (m *Machine) doOpReturnCallDefers() {
 	m.PushOp(OpExec)
 	// Convert if variadic argument.
 	// Create new block scope for defer.
-	pb := dfr.Func.GetParent(m.Store)
-	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	pb := fv.GetParent(m.Store)
+	b := m.acquireBlock(fv.GetSource(m.Store), pb)
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
@@ -659,6 +683,14 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	if isMethod == 1 {
 		args[0] = recv
 	}
+	// args is a Go local, and every PopCopyValues below writes fresh copies
+	// into it. Anchor it so a GC triggered by one argument's copy still
+	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
+	// its own headroom once per argument. The caller assigns args into the
+	// call block without allocating, so dropping the anchor on return is
+	// safe — GC only runs from Allocate. See Allocator.anchors.
+	m.Alloc.PushAnchor(args)
+	defer m.Alloc.PopAnchor()
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -673,6 +705,7 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 			// Convert variadic argument to slice argument.
 			// Convert last nvar to slice.
 			list := make([]TypedValue, nvar)
+			m.Alloc.PushAnchor(list)
 			m.PopCopyValues(list)
 			varg := m.Alloc.NewSliceFromList(list)
 			// Pop non-receiver non-varg args.
@@ -683,6 +716,9 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 				T: vart,
 				V: varg,
 			}
+			// varg is reachable through args now, which stays anchored
+			// until this function returns.
+			m.Alloc.PopAnchor()
 			return args
 		}
 	}
@@ -692,46 +728,41 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 }
 
 func (m *Machine) doOpDefer() {
-	lb := m.LastBlock()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	numArgs := len(ds.Call.Args)
+	// NumArgs, not len(Args): for an embedded multi-value call the single
+	// arg expression leaves len(Call.Args[0].Results) operands on the stack
+	// (nodes.go: "len(Args) or len(Args[0].Results)"). Using len(Args) here
+	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
+	// the deferred call to one of g's results instead of to f.
+	numArgs := ds.Call.NumArgs
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		fv := cv
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			TypedValue{})
-		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
-		})
+			TypedValue{},
+		)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
-		fv := cv.Func
-		recv := cv.Receiver
+		// Args (and the receiver/operand) are captured now, at the defer
+		// statement. For a lazy interface bind, dispatch is resolved at the
+		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
+		// for a resolved bind, args[0] holds the copied receiver.
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
-			recv)
-		cfr.PushDefer(Defer{
-			Func:          fv,
-			IsBoundMethod: true,
-			Args:          args,
-			Source:        ds,
-			Parent:        lb,
-		})
+			cv.Receiver,
+		)
+		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
-		cfr.PushDefer(Defer{
-			Func: nil,
-		})
+		// deferred a nil func value; raised as call-of-nil at the deferred call.
+		cfr.PushDefer(Defer{Source: ds})
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return

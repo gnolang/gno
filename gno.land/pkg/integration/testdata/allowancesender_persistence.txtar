@@ -122,6 +122,9 @@ import (
 // spend `amount` to the original caller, then closes via defer.
 // Supported within-call pattern.
 func GrantAndSpend(cur realm, limit int64, amount int64) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
@@ -134,6 +137,9 @@ func GrantAndSpend(cur realm, limit int64, amount int64) {
 
 // GrantAndSpendNegative exercises the negative-amount path.
 func GrantAndSpendNegative(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),
@@ -148,6 +154,9 @@ func GrantAndSpendNegative(cur realm) {
 // the pointer. granter's defer Close() then fails because the struct
 // is no longer granter-owned. The whole tx reverts.
 func GrantAndStore(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		unsafe.CurrentRealm().Address(),

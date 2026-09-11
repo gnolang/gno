@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -38,28 +39,64 @@ func extractUrls(fileContent []byte) []string {
 
 		// Look for http & https only
 		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-			// Ignore localhost
-			if !strings.Contains(url, "localhost") &&
-				!strings.Contains(url, "127.0.0.1") &&
-				// placeholder for examples
-				!strings.Contains(url, "example.land") &&
-				// deployment-specific hosts whose uptime is not a CI concern
-				!strings.Contains(url, "staging.gno.land") &&
-				// archive.org subdomains rate-limit and intermittently 502
-				// from CI runners; the canonical Aaron Swartz Manifesto URL
-				// lives there and its reachability is not a CI concern.
-				!strings.Contains(url, "archive.org") &&
-				// YouTube blocks/rate-limits requests from data-center
-				// (CI) IPs, returning 404/429 even for live videos; its
-				// reachability is not a CI concern.
-				!strings.Contains(url, "youtube.com") &&
-				!strings.Contains(url, "youtu.be") {
+			if shouldCheckURL(url) {
 				urls = append(urls, url)
 			}
 		}
 	}
 
 	return urls
+}
+
+// skippedURLSubstrings are URLs we deliberately do not reach out to, because a
+// failure would say nothing about whether the documentation link is correct.
+var skippedURLSubstrings = []string{
+	// Not routable from CI.
+	"localhost",
+	"127.0.0.1",
+	// Placeholder for examples.
+	"example.land",
+	// archive.org subdomains rate-limit and intermittently 502 from CI
+	// runners; the canonical Aaron Swartz Manifesto URL lives there and its
+	// reachability is not a CI concern.
+	"archive.org",
+	// YouTube blocks/rate-limits requests from data-center (CI) IPs,
+	// returning 404/429 even for live videos; its reachability is not a CI
+	// concern.
+	"youtube.com",
+	"youtu.be",
+	// Deployment-specific hosts whose uptime is not a CI concern.
+	"staging.gno.land",
+}
+
+// shouldCheckURL reports whether url is worth reaching out to from CI.
+func shouldCheckURL(rawURL string) bool {
+	for _, s := range skippedURLSubstrings {
+		if strings.Contains(rawURL, s) {
+			return false
+		}
+	}
+
+	return !isRPCEndpoint(rawURL)
+}
+
+// isRPCEndpoint reports whether url points at a chain RPC endpoint (an `rpc.*`
+// host, e.g. https://rpc.gno.land:443).
+//
+// These are JSON-RPC APIs, not documentation pages: a plain GET tells us
+// nothing about whether the documented endpoint is the right one, while it does
+// make docs CI fail whenever a live chain is down, rotating, or — as happened
+// with rpc.gno.land — serving an expired TLS certificate. Their availability is
+// an infrastructure concern, not a documentation one.
+func isRPCEndpoint(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		// Not parseable as a URL; leave the decision to the caller's other
+		// checks rather than silently skipping it.
+		return false
+	}
+
+	return strings.HasPrefix(u.Hostname(), "rpc.")
 }
 
 func lintURLs(ctx context.Context, filepathToURLs map[string][]string, treatAsError bool) (string, error) {

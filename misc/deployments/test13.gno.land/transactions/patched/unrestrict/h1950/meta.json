@@ -1,0 +1,51 @@
+{
+  "reason": "API drift on params.ProposeAddUnrestrictedAcctsRequest (post-#5669): add cur realm to main, wire cross(cur) into the request constructor + dao.* calls, switch dao.VoteRequest{} to dao.NewVoteRequest factory.",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1773658193",
+    "block_height": "1950",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "account_num": "3096261",
+        "sequence": "1"
+      }
+    ]
+  },
+  "body_file": "unrestrict.gno",
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "unrestrict.gno",
+              "body": ""
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AgBSSj+NLAA6icQ/Rf6vbrjtRbbjo197vms7Sf+eLYPI"
+        },
+        "signature": "kyQa31bq4vC0GUufcElVvxOTFzULi/CnPRRkxFMEAwdf/on1bsX7/xHLkR7q1n0ltm4kUbSPOgePY580omhPcQ=="
+      }
+    ],
+    "memo": ""
+  }
+}

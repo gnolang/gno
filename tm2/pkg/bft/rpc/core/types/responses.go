@@ -87,7 +87,12 @@ func (r *ResultGenesis) StreamJSON(ctx context.Context, w io.Writer) error {
 				return err
 			}
 		} else {
-			appBytes, err := amino.MarshalJSON(originalAppState)
+			// MarshalJSONAny, not MarshalJSON: the latter marshals the
+			// detached value as its concrete type and drops the `@type`
+			// tag that the same field carries when the doc is marshaled
+			// whole. An unregistered AppState errors here, exactly as it
+			// does on the buffered path.
+			appBytes, err := amino.MarshalJSONAny(originalAppState)
 			if err != nil {
 				return fmt.Errorf("marshal app_state: %w", err)
 			}
