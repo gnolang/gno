@@ -52,7 +52,7 @@ func GetValidators() []validators.Validator {
 	return sysparams.GetValsetEffective()
 }
 
-// Render displays the effective validator set.
+// Render displays the effective validator set and any frozen validators.
 func Render(string) string {
 	var sb strings.Builder
 	h := runtime.ChainHeight()
@@ -60,10 +60,11 @@ func Render(string) string {
 	sb.WriteString(ufmt.Sprintf("## Valset at height %d\n\n", h))
 	if len(set) == 0 {
 		sb.WriteString("Valset is empty.\n")
-		return sb.String()
+	} else {
+		for i, v := range set {
+			sb.WriteString(ufmt.Sprintf("- #%d: %s (%d)\n", i, v.Address.String(), v.VotingPower))
+		}
 	}
-	for i, v := range set {
-		sb.WriteString(ufmt.Sprintf("- #%d: %s (%d)\n", i, v.Address.String(), v.VotingPower))
-	}
+	sb.WriteString(renderFrozen())
 	return sb.String()
 }
