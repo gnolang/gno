@@ -382,13 +382,19 @@ per crossing frame, refuses to persist it, and validates each use.
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` is the authentication primitive. Any public entry
-point that uses `cur` to derive caller identity (e.g.
-`cur.Previous().Address()`) **must** check `cur.IsCurrent()` first.
-Without that check, a stale or attacker-supplied realm value's
-`Address()` and `PkgPath()` still resolve numerically — they just
-no longer refer to the live caller. This is class **2
-(designation-forgery)** in `gno-security.md`.
+`IsCurrent()` is the authentication primitive for realm values a
+function is *handed*: a secondary `rlm realm` parameter (`func H(_
+int, rlm realm)`, or a crossing function's extra realm argument)
+must be checked with `rlm.IsCurrent()` before `Previous()` /
+`Address()` / `PkgPath()` is trusted. Without that check, a stale or
+attacker-supplied realm value's `Address()` and `PkgPath()` still
+resolve numerically; they just no longer refer to the live caller.
+This is class **2 (designation-forgery)** in `gno-security.md`. A
+plain crossing function's first `cur` is adopted by its own frame, so
+checking it is always true and proves nothing (see
+`gnovm/tests/files/zrealm_iscurrent.gno`, which exercises plain
+functions only). A crossing method's `cur` is not adopted and must be
+checked.
 
 ### 5.3 Realm values are ephemeral
 
@@ -676,8 +682,11 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take `cur realm`? If yes, does it check `cur.IsCurrent()`
-  before using `cur.Previous()`, `cur.Address()`, or `cur.PkgPath()`?
+- Is it a method taking `cur realm`, or does it take a realm
+  parameter beyond the first `cur`? A plain function's first `cur` is
+  adopted by its frame and needs no check; a method's `cur` and any
+  secondary `rlm realm` must be checked with `rlm.IsCurrent()` before
+  `rlm.Previous()`, `rlm.Address()`, or `rlm.PkgPath()` is used.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
@@ -751,6 +760,21 @@ package-level variable during init.
 
 The same flow applies to `/p/` package init, except after init
 completes the `/p/`'s realm is frozen.
+
+Under the `inert` package policy the timing splits. `MsgAddPackage`
+parks the package without running it, and `init()` runs in the
+transaction that enables it, observing enable-time height and
+timestamp. The identities above do not move with it:
+`runtime.PreviousRealm()` during that `init()` is the creator who
+submitted the code, not the approver who enabled it.
+
+### 12.4 Package lifecycle messages
+
+Under the `inert` policy three further messages drive a package
+between the parked and active states: `MsgEnablePackage` runs a
+parked package's `init()` and makes it callable, `MsgDisablePackage`
+returns an active package to the parked state, and
+`MsgRejectPackage` discards a parked submission.
 
 ## 13. Implementation References
 

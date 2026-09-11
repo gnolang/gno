@@ -63,7 +63,7 @@ hand or by a job that builds gno first.
 
 Current pattern slices:
 
-- `current-guard`: `cur.Previous()` before `cur.IsCurrent()`.
+- `current-guard`: a secondary `rlm realm` parameter trusted without `rlm.IsCurrent()`.
 - `render-markdown`: raw `Render(path)` markdown output.
 - `payment-user-call`: `OriginSend()` without an `IsUserCall()` guard.
 - `origin-caller-auth`: `OriginCaller()` used as authorization identity.
@@ -82,7 +82,7 @@ Each `expected/*.yaml` record describes one finding family and its fixtures:
 
 ```yaml
 id: current-guard
-title: cur.Previous without cur.IsCurrent
+title: secondary realm parameter trusted without IsCurrent
 rule: current_guard
 fixtures:
   - name: vulnerable
@@ -113,10 +113,15 @@ false positives and false negatives in real-world code.
 
 ### current_guard
 
-Detects `.Previous()` before `.IsCurrent()` only within the **same function**.
-If the `IsCurrent()` check lives in a helper function called from the same
-function that calls `.Previous()`, the detector will not flag it. Check helper
-call chains manually when auditing cross-realm code.
+Detects a secondary `rlm realm` parameter, declared on a func or on a func
+literal, read before `rlm.IsCurrent()` only within the **same function**, and
+only when the signature fits on one line. Any member other than `IsCurrent()`
+counts as a read. A plain
+function's first `cur realm` is exempt, because its frame adopts the value and
+`cur.IsCurrent()` on it is always true. A method's is not exempt: that frame
+never adopts, so the guard there is load-bearing. If the check lives in a helper
+called from the function that reads the realm value, the detector will not
+flag it. Check helper call chains manually when auditing cross-realm code.
 
 ### payment_user_call
 
