@@ -19,12 +19,15 @@
 //     caller field patched to that admin (see
 //     transactions/migration/names-enable/).
 //
-// The T1 members are the seven people of the gnolang/multisigs [govdao]
-// section. Every key below was confirmed with its owner (2026-09); aeddi's
-// is his operational key rather than the accounts.csv-derived one.
+// Mainnet launches with a SOLE GovDAO T1 member — aeddi, under his
+// operational key (confirmed 2026-09) — who then adds the remaining
+// members post-genesis through regular GovDAO proposals. The other six
+// gnolang/multisigs [govdao] keys were confirmed with their owners and
+// are recorded in the gen-genesis.sh history (commit 97987fa06) for when
+// those proposals are made.
 //
 // Steps:
-//  1. Add the seven GovDAO T1 members.
+//  1. Add the sole GovDAO T1 member.
 //  2. Lock down memberstore access by setting AllowedDAOs to the
 //     production member-mutation realm only.
 package main
@@ -38,14 +41,8 @@ import (
 func main(cur realm) {
 	ms := memberstore.Get(0, cur)
 
-	// ---- 1. Add the GovDAO T1 members ----
+	// ---- 1. Add the sole GovDAO T1 member ----
 	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(3))) // aeddi
-	must(ms.SetMember(memberstore.T1, address("g1gzhj234kpajz963z5vf42j4ylddscnkez2wvly"), memberstore.NewMember(3))) // dongwon
-	must(ms.SetMember(memberstore.T1, address("g12y822ervrzlghe06v5g888nranl5z5f56985ya"), memberstore.NewMember(3))) // howl
-	must(ms.SetMember(memberstore.T1, address("g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6"), memberstore.NewMember(3))) // jaekwon
-	must(ms.SetMember(memberstore.T1, address("g1xnv893735y5ef0we0e8w3empa55lnvkfcmn3qs"), memberstore.NewMember(3))) // maxwell
-	must(ms.SetMember(memberstore.T1, address("g10rsn5amklf2gmzy5eej2f6upg5eju47zvzv4rr"), memberstore.NewMember(3))) // milos
-	must(ms.SetMember(memberstore.T1, address("g1m7nvpk9trgj5sqhwdu2r0p9v5e2pzemedglvzt"), memberstore.NewMember(3))) // moul
 
 	// ---- 2. Lock down memberstore access ----
 	// gno.land/r/gov/dao/v0/impl is the production member-mutation realm;

@@ -10,7 +10,7 @@
 #   1. The FILTERED_PACKAGES example set (resolved with transitive deps),
 #      addpkg'd by the deterministic GenesisDeployer key.
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
-#      seven GovDAO T1 members and locks dao.UpdateImpl's AllowedDAOs to
+#      sole GovDAO T1 member (aeddi) and locks dao.UpdateImpl's AllowedDAOs to
 #      r/gov/dao/v0/impl. Transfers are locked at genesis per §126, with
 #      the independence-day exemption list applied (step 9.3). A second
 #      MsgRun (transactions/base/users-preregister/) registers the initial
@@ -1048,11 +1048,13 @@ print_substep "2.6" "Unrestricted addresses: $unrestricted_count (sha256 + forma
 # does NOT qualify is exact-burn fee-payer funding: the genesis txs consume it
 # (step 8), leaving the address at zero.
 T1_ADDRS_FILE="$WORK_DIR/t1_members.txt"
-# The seven gnolang/multisigs [govdao] members. Asserted rather than derived:
+# The sole genesis T1 member (aeddi; the other six gnolang/multisigs
+# [govdao] members are added post-genesis by proposal). Asserted rather
+# than derived:
 # a SetMember line dropped, duplicated or reshaped out of the grep's reach
 # would otherwise shrink the set this guard covers without a word, which is
 # the one direction where the damage is silent.
-T1_EXPECTED_COUNT=7
+T1_EXPECTED_COUNT=1
 BOOTSTRAP_GNO="$BOOTSTRAP_DIR/$(jq -r '.body_file' "$BOOTSTRAP_DIR/meta.json")"
 if [ ! -f "$BOOTSTRAP_GNO" ]; then
   die "bootstrap body '$BOOTSTRAP_GNO' does not exist — check body_file in $BOOTSTRAP_DIR/meta.json"
@@ -1242,7 +1244,7 @@ fi
 print_substep "4.8" "Reconciled: $addpkg_count addpkg txs for $pkg_count resolved packages"
 
 # ---- Step 5: Add the bootstrap MsgRun (transactions/base/bootstrap/)
-# Seeds the seven GovDAO T1 members and locks AllowedDAOs. The
+# Seeds the sole GovDAO T1 member and locks AllowedDAOs. The
 # §126 transfer lock is applied at step 9.3 as genesis params rather than
 # via r/sys/params proposals, so there is nothing to propose here.
 
