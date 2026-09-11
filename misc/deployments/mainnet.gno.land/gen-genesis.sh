@@ -11,7 +11,7 @@
 #      addpkg'd by the deterministic GenesisDeployer key.
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
 #      sole GovDAO T1 member (aeddi) and locks dao.UpdateImpl's AllowedDAOs to
-#      r/gov/dao/v0/impl. Transfers are locked at genesis per §126, with
+#      r/gov/dao/impl/v0. Transfers are locked at genesis per §126, with
 #      the independence-day exemption list applied (step 9.3). A second
 #      MsgRun (transactions/base/users-preregister/) registers the initial
 #      mainnet namespaces in r/sys/users via the genesis-only path.
@@ -99,8 +99,7 @@ GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 #     not deployable until they graduate.
 #
 # The set is FINAL as re-curated by #6166 (v0 repaths + the token
-# standards); it resolves — and the build unblocks — once gnolang/gno#6162
-# lands on master and is merged here. Keep in mind when touching it:
+# standards); #6162 is merged, so it resolves. Keep in mind when touching it:
 # p/nt/* paths cannot be added post-genesis under namespace enforcement,
 # so anything missing here is a hardfork away (r/tests/* and r/demo/*
 # arrive via test deps of this set).
@@ -1717,6 +1716,14 @@ fi
 #   run 2: verify the measured balances land everyone at zero
 # If run 2 disagrees, something is non-deterministic and we abort.
 
+# The code-submission vm params go into the shipping genesis BEFORE the
+# measurement: step 8's params-parity assertion compares vm.params between
+# the shipping and the temp-node genesis, and the temp side is patched with
+# the same function. (Genesis replay is policy-exempt via IsGenesisReplay,
+# so this changes no measured amount.) Step 9.5 reads the values back from
+# the final artifact.
+apply_code_submission_params "$GENESIS_FILE"
+
 print_step_header 8 "$TOTAL_STEPS" "Calculate genesis fee-payer balances"
 
 BALANCES_TMP_DIR="$WORK_DIR/balances-work"
@@ -2227,10 +2234,9 @@ if [ -n "$not_funded" ]; then
   die "unrestricted addresses missing from the shipped genesis balances (InitChain would panic): $not_funded"
 fi
 # ---- Code-submission policy (inert) ----
-# After the balance sheets, like the transfer lock: the approver-funding guard
-# at 2.9 checked the downloaded sheet, and the readback inside the helper
-# proves the params reached the artifact that ships.
-apply_code_submission_params "$GENESIS_FILE"
+# Applied BEFORE step 8 (the params-parity assertion there requires the
+# shipping and measurement genesis to carry identical vm.params); read back
+# here from the artifact that ships.
 applied_policy=$(jq -r '.app_state.vm.params.code_submission_policy' "$GENESIS_FILE")
 applied_approvers=$(jq -r '.app_state.vm.params.pkg_approvers | length // 0' "$GENESIS_FILE")
 applied_runners=$(jq -r '.app_state.vm.params.run_submitters | length // 0' "$GENESIS_FILE")
