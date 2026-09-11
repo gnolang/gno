@@ -669,6 +669,43 @@ func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath strin
 	return nil
 }
 
+// parseLiveGnomod reads the stored gnomod.toml of the live package at pkgPath.
+//
+// Split out of checkRedeployPermission because EnablePackage has already parsed
+// this blob to decide whether the path may be replaced at all, and decoding the
+// same bytes a second time on a consensus path buys nothing.
+func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error) {
+	if live == nil {
+		return nil, ErrInvalidPackage("no stored source for the live package at " + pkgPath)
+	}
+	gm, err := gnomod.ParseMemPackage(live)
+	if err != nil {
+		return nil, ErrInvalidPackage(fmt.Sprintf(
+			"cannot read the live package at %s: %v", pkgPath, err))
+	}
+	return gm, nil
+}
+
+// checkRedeployPermission refuses unless a submission replacing the live PRIVATE
+// package at pkgPath comes from the address that deployed it. creator is the
+// address the submission would record as the new creator: the message signer on
+// AddPackage, and the parked blob's stamped creator on EnablePackage, which is
+// the identity init() runs as.
+//
+// liveGm is the live package's stored gnomod.toml, already parsed. Its
+// addpkg.creator is the owner of record, the same field the parked-blob guard
+// compares against.
+//
+// Both call sites waive this during genesis delivery; the AddPackage one says
+// why.
+func checkRedeployPermission(liveGm *gnomod.File, pkgPath string, creator crypto.Address) error {
+	if liveGm.AddPkg.Creator != creator.String() {
+		return ErrPkgAlreadyExists(fmt.Sprintf(
+			"private package already deployed at %s by %s", pkgPath, liveGm.AddPkg.Creator))
+	}
+	return nil
+}
+
 // hasProdGnoFile reports whether mpkg contains at least one production
 // (non-test) .gno file. It applies MPFProd's own per-file predicate so it
 // cannot drift from what the storage split (store.go splitProdAllButProd)
@@ -740,8 +777,35 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	pv := gnostore.GetPackage(pkgPath, false)
-	if pv != nil && !pv.Private {
-		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+	if pv != nil {
+		if !pv.Private {
+			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+		}
+		// One binding for the ordinary redeploy and the inert park below.
+		//
+		// Waived during genesis delivery, as EnablePackage waives its policy,
+		// approver and pkg_hash gates: InitChain reproduces a record rather
+		// than granting it again, and there is no stranger there to refuse --
+		// genesis content is the chain's own. Live traffic is unaffected.
+		//
+		// Two things break without the waiver. A chain whose history holds a
+		// cross-address private redeploy -- the very transaction this rule now
+		// refuses -- stops replaying, so forking it either aborts at boot under
+		// the default PanicOnFailingTxResultHandler or, under
+		// -skip-failing-genesis-txs, comes up silently diverged from the chain
+		// it forked. And the hardfork migration path breaks for private realms:
+		// `gnogenesis fork addpkg` stamps its tx with --deployer, which matches
+		// the realm's original creator only when the source directory already
+		// carries an [addpkg] creator for LoadPackagesFromDir to pick up.
+		if !auth.IsGenesisReplay(ctx) {
+			liveGm, err := parseLiveGnomod(gnostore.GetMemPackage(pkgPath), pkgPath)
+			if err != nil {
+				return err
+			}
+			if err := checkRedeployPermission(liveGm, pkgPath, creator); err != nil {
+				return err
+			}
+		}
 	}
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")

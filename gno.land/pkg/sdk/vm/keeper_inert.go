@@ -165,8 +165,13 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	}
 	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
 	priorPrivate := false
+	// Kept in scope for the creator binding below, which asks a second question
+	// of the same file. Parsing it twice would be one redundant decode of every
+	// live package's gnomod.toml on a consensus path.
+	var liveGm *gnomod.File
 	if liveBlob != nil {
-		liveGm, perr := gnomod.ParseMemPackage(liveBlob)
+		var perr error
+		liveGm, perr = gnomod.ParseMemPackage(liveBlob)
 		if perr != nil || !liveGm.Private {
 			return ErrPkgAlreadyExists("package already exists: " + msg.PkgPath)
 		}
@@ -211,8 +216,26 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// types every refusal about the blob that way, and keeps ErrInvalidPkgPath
 	// for the two that are about the path itself. AddPackage's default is the
 	// other way round because it is preserving the type it already returned.
+	//
+	// Before the creator binding below, as AddPackage validates the submission
+	// before reaching its own binding: the two halves of one deploy apply the
+	// same rules in the same order, which is the rule this function is built on.
 	if err := validateParkedBlob(memPkg); err != nil {
 		return ErrInvalidPackage(err.Error())
+	}
+
+	// Bind the private-replacement exemption to the live package's own creator,
+	// which AddPackage cannot do for a package parked before anything was live
+	// at the path: its binding then had nothing to compare against.
+	//
+	// Exempt on replay, like the policy, approver and pkg_hash gates above, and
+	// for the same reason: a fork reproduces a record rather than granting it
+	// again, and refusing here would make a chain unable to replay its own
+	// history. See the AddPackage call site.
+	if liveGm != nil && !replay {
+		if err := checkRedeployPermission(liveGm, msg.PkgPath, creator); err != nil {
+			return err
+		}
 	}
 
 	// Re-check namespace and CLA, which ran at SUBMIT against whatever was true
@@ -395,9 +418,19 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 // and so did one parked under a policy that has since moved off "inert", which
 // no enable can ever activate.
 //
-// Either the creator or an approver may send it. Both have standing: the bytes
-// are the creator's, and declining them is the approver's job. Anyone else is
-// refused, or a stranger could clear a queue they have no part in.
+// The creator, an approver, or the owner of the live package at that path may
+// send it. The first two are obvious: the bytes are the creator's, and declining
+// them is the approver's job. Anyone else is refused, or a stranger could clear
+// a queue they have no part in.
+//
+// The live owner has standing because a parked blob at their path is a blob
+// nobody can act on and that only harms them. Once a private realm is live,
+// EnablePackage's creator binding refuses to activate a submission from any
+// other address, so a stranger's blob parked before the realm existed is dead
+// weight -- while AddPackage's creator-bound park guard still names that
+// stranger, so it blocks the OWNER's own redeploys for as long as it sits there.
+// Without this the only parties who could clear it are the squatter and an
+// approver, which leaves the owner's realm frozen with no move of their own.
 //
 // Not gated on the policy still being "inert". Cleanup is most needed exactly
 // when it is not: those packages are unactivatable and would otherwise be
@@ -417,10 +450,16 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 			"cannot read the parked package at %s: %v", msg.PkgPath, err))
 	}
 
+	// Ordered cheapest first, and && short-circuits, so the live blob is read
+	// only for a sender the two existing tests already refused. Rejecting as
+	// the creator or an approver costs exactly what it did before.
 	params := vm.GetParams(ctx)
-	if !approverGateSatisfied(ctx, params, msg.Sender) && gm.AddPkg.Creator != msg.Sender.String() {
+	if !approverGateSatisfied(ctx, params, msg.Sender) &&
+		gm.AddPkg.Creator != msg.Sender.String() &&
+		!isLivePackageOwner(gnostore, msg.PkgPath, msg.Sender) {
 		return std.ErrUnauthorized(fmt.Sprintf(
-			"address %s is neither a pkg approver nor the creator of %s",
+			"address %s is neither a pkg approver, the creator of %s, nor the "+
+				"owner of the live package there",
 			msg.Sender, msg.PkgPath))
 	}
 
@@ -473,6 +512,15 @@ const (
 	// submitted under. Reversible: returning to "inert" makes it enablable
 	// again, and nothing evicts the package meanwhile.
 	ReasonPolicyMoved = `the chain no longer runs the "inert" code submission policy`
+	// ReasonOwnerMismatch means the parked submission can never be enabled: a
+	// live PRIVATE package occupies the path and was deployed by a different
+	// address, and EnablePackage binds the replacement to that address.
+	//
+	// Terminal, unlike the reasons above -- no governance change makes it
+	// enablable. MsgRejectPackage from the creator, an approver or the live
+	// owner is the only way out.
+	ReasonOwnerMismatch = "a live private package at this path was deployed by a " +
+		"different address, so this submission can never be enabled"
 )
 
 // Package statuses reported by QueryPackageMeta.
@@ -497,7 +545,8 @@ type PackageMeta struct {
 	Height     int    `json:"height,omitempty"`
 	MaxDeposit string `json:"max_deposit,omitempty"`
 	// Reason says why a parked package is not live yet, in terms its submitter
-	// can act on. Empty unless Status is "inert".
+	// can act on. Set when Status is "inert", and also on a "live" path whose
+	// pending submission can never be enabled over it.
 	Reason string `json:"reason,omitempty"`
 	// Pending reports a parked submission awaiting an approver. It is always
 	// true for status "inert", and also true for a live PRIVATE realm with a
@@ -534,7 +583,15 @@ func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res strin
 		// Both key spaces are read even when the live one answers, or a
 		// redeploy parked over a live private realm would be invisible -- the
 		// case this query exists to make visible.
-		info.Pending = gnostore.GetInertPackage(pkgPath) != nil
+		if parked := gnostore.GetInertPackage(pkgPath); parked != nil {
+			info.Pending = true
+			// "Pending" alone reads as "an approver has yet to get to it". Say
+			// when no approver ever can: EnablePackage refuses a submission
+			// whose creator is not the live package's owner of record, so an
+			// oracle polling this would otherwise pay a flat fee per attempt on
+			// a refusal the chain could predict.
+			info.Reason = redeployBlockedReason(mpkg, parked)
+		}
 	} else if mpkg = gnostore.GetInertPackage(pkgPath); mpkg != nil {
 		info.Status = PackageStatusInert
 		info.Pending = true
@@ -575,6 +632,44 @@ func enableBlockedReason(params Params) string {
 	default:
 		return ReasonAwaitingApprover
 	}
+}
+
+// isLivePackageOwner reports whether addr is the creator stamped into the
+// package live at pkgPath. False when nothing is live there.
+//
+// Read through GetMemPackage, not GetPackage: loading the live PackageValue
+// populates the object cache, which nothing here needs and which the enable
+// path is careful to avoid. The stamped creator is in the stored blob.
+func isLivePackageOwner(gnostore gno.TransactionStore, pkgPath string, addr crypto.Address) bool {
+	live := gnostore.GetMemPackage(pkgPath)
+	if live == nil {
+		return false
+	}
+	liveGm, err := gnomod.ParseMemPackage(live)
+	if err != nil {
+		return false
+	}
+	return liveGm.AddPkg.Creator == addr.String()
+}
+
+// redeployBlockedReason reports why the blob parked at a path can never be
+// enabled over the package already live there, or "" if nothing rules it out.
+//
+// This is the one EnablePackage gate that cannot be answered from params alone,
+// which is why it does not live in enableBlockedReason: it is a fact about the
+// two blobs. A parse failure reports nothing rather than guessing -- a stored
+// package always carries a stamped gnomod.toml, so that is a corrupt store, and
+// QueryPackageMeta's job is to answer with what it can.
+func redeployBlockedReason(live, parked *std.MemPackage) string {
+	liveGm, lerr := gnomod.ParseMemPackage(live)
+	parkedGm, perr := gnomod.ParseMemPackage(parked)
+	if lerr != nil || perr != nil {
+		return ""
+	}
+	if liveGm.AddPkg.Creator != parkedGm.AddPkg.Creator {
+		return ReasonOwnerMismatch
+	}
+	return ""
 }
 
 // validateParkedBlob validates a stored blob, returning what
