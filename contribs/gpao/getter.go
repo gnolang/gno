@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -57,6 +58,9 @@ var errResolverUnavailable = errors.New("import resolver unavailable")
 // qfileFunc runs a vm/qfile query for a package path or a package file path.
 type qfileFunc func(filepath string) ([]byte, error)
 
+// qmetaFunc runs a vm/qpkgmeta_json query for a package path.
+type qmetaFunc func(pkgPath string) (vm.PackageMeta, error)
+
 // rpcGetter fetches package sources from a node via the vm/qfile ABCI query and
 // reconstructs them into MemPackages. Whatever the node ANSWERS is cached for
 // the getter's lifetime: a fetched package because on-chain paths are immutable
@@ -64,6 +68,7 @@ type qfileFunc func(filepath string) ([]byte, error)
 // serves exactly one verification and chain state cannot move under it.
 type rpcGetter struct {
 	qfile qfileFunc
+	qmeta qmetaFunc
 	cache map[string]*std.MemPackage
 
 	// transportErr is the first transport fault seen this verification; the
@@ -87,7 +92,38 @@ func newRPCGetter(client rpcclient.Client) *rpcGetter {
 		}
 		return qres.Response.Data, nil
 	}
-	return &rpcGetter{qfile: qfile, cache: make(map[string]*std.MemPackage)}
+	qmeta := func(pkgPath string) (vm.PackageMeta, error) {
+		qres, err := client.ABCIQuery(context.Background(), "vm/qpkgmeta_json", []byte(pkgPath))
+		if err != nil {
+			return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+		}
+		// An unknown path is a successful "absent" (VMKeeper.QueryPackageMeta),
+		// so an error here is the node describing itself.
+		if qerr := qres.Response.Error; qerr != nil {
+			return vm.PackageMeta{}, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
+		}
+		meta, err := decodePkgMeta(qres.Response.Data)
+		if err != nil {
+			return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+		}
+		return meta, nil
+	}
+	return &rpcGetter{qfile: qfile, qmeta: qmeta, cache: make(map[string]*std.MemPackage)}
+}
+
+// decodePkgMeta reads a vm/qpkgmeta_json answer, refusing a body that does not
+// decode or names a status other than live, inert or absent: classified, such
+// an answer would read as "absent", which is a verdict.
+func decodePkgMeta(data []byte) (vm.PackageMeta, error) {
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return meta, fmt.Errorf("unreadable vm/qpkgmeta_json answer: %w", err)
+	}
+	switch meta.Status {
+	case vm.PackageStatusLive, vm.PackageStatusInert, vm.PackageStatusAbsent:
+		return meta, nil
+	}
+	return meta, fmt.Errorf("vm/qpkgmeta_json answered status %q, which this build does not know", meta.Status)
 }
 
 // absence reports whether an answered query said "nothing is stored at this
@@ -174,6 +210,20 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		Files: files,
 		Type:  gno.MPUserAll,
 	}, nil
+}
+
+// status asks what the chain holds at a path vm/qfile would not serve: live,
+// inert or absent (the vm.PackageStatus constants). A fault is remembered
+// like a qfile one, since the node could not be asked.
+func (g *rpcGetter) status(pkgPath string) (string, error) {
+	meta, err := g.qmeta(pkgPath)
+	if err != nil {
+		if errors.Is(err, errResolverUnavailable) && g.transportErr == nil {
+			g.transportErr = err
+		}
+		return "", err
+	}
+	return meta.Status, nil
 }
 
 // query wraps qfile and remembers a transport fault, which is evidence

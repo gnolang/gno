@@ -1,10 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 	"io"
+	"maps"
+	"slices"
 
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
@@ -37,6 +41,13 @@ type verifier struct {
 	// which disk answers for a /p/ or /r/ path -- see injectChainGetter, and
 	// hybridGetter for the typecheck's half.
 	rpc *rpcGetter
+
+	// unserved is every chain import the prepare walk could not fetch, keyed
+	// by path, with the package importing it. parked is the subset the chain
+	// holds inert, left empty when any of them is absent: a failed typecheck is
+	// then a verdict, and otherwise the approval queue's order.
+	unserved map[string]string
+	parked   map[string]bool
 }
 
 // newVerifier builds the stores for one verification. errw takes the store's
@@ -66,7 +77,9 @@ func newVerifier(cfg verifyOneConfig, errw io.Writer) (*verifier, error) {
 
 	v := &verifier{
 		prodbs: prodbs, prodgs: prodgs,
-		rpc: newRPCGetter(c),
+		rpc:      newRPCGetter(c),
+		unserved: make(map[string]string),
+		parked:   make(map[string]bool),
 	}
 	// On the base store, so every transaction begun from it inherits the
 	// getter: BeginTransaction copies pkgGetter. prepare materializes the chain
@@ -165,11 +178,24 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		Mode:     gno.TCLatestStrict,
 		ProdOnly: true,
 	}); errs != nil {
+		// A parked import fails the typecheck however the package is written,
+		// and hides what the rest of it would say, so the verdict waits for it.
+		if len(v.parked) > 0 {
+			return fmt.Errorf("%w: %q imports %q, which the chain holds parked awaiting "+
+				"approval; it is judged once they are live", errImportParked, mpkg.Path,
+				slices.Sorted(maps.Keys(v.parked)))
+		}
 		return errs
 	}
 
 	return v.preprocess(mpkg)
 }
+
+// errImportParked reports that the typecheck failed while an import the
+// package names is parked on the chain awaiting its own approval. That is the
+// approval queue's order, not a verdict: the same bytes are judged once the
+// imports are live.
+var errImportParked = errors.New("import parked")
 
 // preprocess runs the preprocessor over mpkg's production files.
 //
@@ -224,9 +250,10 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 // the absence is cached here, so the stages below read it rather than asking
 // again on the clock.
 //
-// Two things come back as errors, both meaning no verdict was possible: a
-// transport fault, and an import this tree cannot build. An import that nothing
-// serves is neither; the typecheck judges that.
+// Three things come back as errors, all meaning no verdict was possible: a
+// transport fault, an import this tree cannot build, and a live import the
+// node lists but will not serve. An import that nothing serves is none of
+// them; the typecheck judges that, against what classifyUnserved recorded.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
 	_ = test.LoadImports(v.prodgs, mpkg, false)
 	buildErr := v.buildChainImports(mpkg)
@@ -237,7 +264,59 @@ func (v *verifier) prepare(mpkg *std.MemPackage) error {
 	if v.rpc.transportErr != nil {
 		return v.rpc.transportErr
 	}
-	return buildErr
+	if buildErr != nil {
+		return buildErr
+	}
+	return v.classifyUnserved()
+}
+
+// classifyUnserved asks the chain what it holds at each path the walk could
+// not fetch, since vm/qfile answers "not found" for a parked path and an
+// absent one alike. One absent path settles the package, so nothing further is
+// asked; inert paths are recorded as parked. A live path is a package enabled
+// after the miss, or one whose files the node cannot serve: one more fetch
+// tells the two apart.
+func (v *verifier) classifyUnserved() error {
+	var live []string
+	for _, path := range slices.Sorted(maps.Keys(v.unserved)) {
+		status, err := v.rpc.status(path)
+		if err != nil {
+			return err
+		}
+		switch status {
+		case vm.PackageStatusAbsent:
+			clear(v.parked)
+			return nil
+		case vm.PackageStatusInert:
+			v.parked[path] = true
+		case vm.PackageStatusLive:
+			live = append(live, path)
+		}
+	}
+	// Every cached absence goes before the first build: building one
+	// latecomer resolves its own imports, which may be another.
+	for _, path := range live {
+		delete(v.rpc.cache, path)
+	}
+	for _, path := range live {
+		importer := v.unserved[path]
+		if v.rpc.GetMemPackage(path) == nil {
+			if v.rpc.transportErr != nil {
+				return v.rpc.transportErr
+			}
+			return fmt.Errorf("the node would not serve %q, which is live and imported "+
+				"by %q: a limit of this oracle, not a verdict", path, importer)
+		}
+		if err := v.buildOne(path, importer); err != nil {
+			// Transport first, as prepare orders it: a fetch dropped under the
+			// build is the diagnosis, and the build failure its symptom.
+			if v.rpc.transportErr != nil {
+				return v.rpc.transportErr
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 // buildChainImports fetches mpkg's chain import closure into the RPC cache and
@@ -316,6 +395,7 @@ func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 			// transport fault lands on the getter for prepare to read.
 			dep := v.rpc.GetMemPackage(path)
 			if dep == nil {
+				v.unserved[path] = cur.Path
 				continue
 			}
 			if err := v.buildOne(path, cur.Path); err != nil {
