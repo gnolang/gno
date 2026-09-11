@@ -1,5 +1,5 @@
 # Regression test for the post-genesis guard on
-# r/sys/validators/v3.AssertGenesisValopersConsistent. The function is
+# r/sys/validators/v0.AssertGenesisValopersConsistent. The function is
 # the LAST migration tx emitted by `gnogenesis fork valoper-seed` and
 # is documented as genesis-mode-only (ChainHeight()==0). The guard
 # also closes a post-genesis DoS surface (paid-gas O(N) iteration over
@@ -11,10 +11,10 @@
 # harness; they are covered at the gno-test level by
 # TestAssertGenesisValopersConsistent_HappyPath and
 # TestAssertGenesisValopersConsistent_PanicsOnMissingProfile in
-# examples/gno.land/r/sys/validators/v3/cache_test.gno.
+# examples/gno.land/r/sys/validators/v0/cache_test.gno.
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 
 gnoland start
 
@@ -26,7 +26,7 @@ cp stdout valset_before.txt
 
 # Post-boot MsgCall to AssertGenesisValopersConsistent. ChainHeight() > 0,
 # so the guard must reject with the documented panic.
-! gnokey maketx call -pkgpath gno.land/r/sys/validators/v3 -func AssertGenesisValopersConsistent -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/sys/validators/v0 -func AssertGenesisValopersConsistent -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stderr 'only callable during genesis-mode replay'
 
 gnokey query params/node:valset:current
