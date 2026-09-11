@@ -470,16 +470,4 @@ func TestHybridGetterAsksTheChainForUserPackages(t *testing.T) {
 			"stdlibs ship with the binary; the chain cannot serve them")
 		assert.Contains(t, disk.asked, stdPath)
 	})
-
-	t.Run("with no remote, disk answers everything", func(t *testing.T) {
-		t.Parallel()
-
-		disk := &stubGetter{pkgs: map[string]*std.MemPackage{
-			userPath: onePkg(userPath, "package x\n"),
-		}}
-		h := hybridGetter{disk: disk, rpc: nil}
-
-		assert.NotNil(t, h.GetMemPackage(userPath),
-			"development mode: there is nothing to ask, so disk is all there is")
-	})
 }

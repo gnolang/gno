@@ -113,6 +113,10 @@ back, and last an enable by hand with no oracle running.
   oracle waits on a frozen tip without spinning, exiting or losing its place.
 - `resume.txtar`: a package parks while the oracle is stopped, and an oracle restarted with no `-start-height`
   activates it -- so the height it recorded, not the node's tip, is where a restart begins.
+- `uncollected_toll.txtar`: three packages whose `init()` panics verify clean and fail the enable at simulate. No
+  transaction reaches the chain, the run budget is untouched, and a fourth package still goes live.
+- `exhausted_purse.txtar`: `-max-spend` counts the fees the chain charges, refuses the approval that would cross the
+  bound, and a run restarted with a larger bound reaches it without paying again for what is already live.
 
 ## Limits
 

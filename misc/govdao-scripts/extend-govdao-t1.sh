@@ -32,10 +32,10 @@ func must(err error) {
 
 func main(cur realm) {
 	ms := memberstore.Get(0, cur)
-	must(ms.SetMember(memberstore.T1, address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &memberstore.Member{InvitationPoints: 3})) // Jae
+	must(ms.SetMember(memberstore.T1, address("g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6"), &memberstore.Member{InvitationPoints: 3})) // Jae
 	must(ms.SetMember(memberstore.T1, address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3})) // Morgan
 	must(ms.SetMember(memberstore.T1, address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &memberstore.Member{InvitationPoints: 3})) // Ray
-	must(ms.SetMember(memberstore.T1, address("g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"), &memberstore.Member{InvitationPoints: 3})) // Dongwon
+	must(ms.SetMember(memberstore.T1, address("g1gzhj234kpajz963z5vf42j4ylddscnkez2wvly"), &memberstore.Member{InvitationPoints: 3})) // Dongwon
 	must(ms.SetMember(memberstore.T1, address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3})) // Maxwell
 	must(ms.SetMember(memberstore.T1, address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3})) // Milos
 }

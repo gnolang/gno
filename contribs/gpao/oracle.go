@@ -98,13 +98,12 @@ type oracle struct {
 
 	// blockMaxGas is the chain's Block.MaxGas. It bounds both the probe used for
 	// estimation and the resulting gas-wanted, because the ante refuses a
-	// transaction above it rather than clamping. Set to defaultBlockMaxGas when
-	// the chain reports no bound or cannot be asked.
+	// transaction above it rather than clamping. A chain reporting no usable
+	// bound gets the stand-in queryBlockMaxGas supplies.
 	//
-	// Written once at the top of run(), before the verifier goroutine is
-	// started, and read only by that goroutine afterwards. Starting the
-	// goroutine is what publishes the value; there is no lock. Re-reading it
-	// per approval, or writing it anywhere else, needs one.
+	// Written once in run(), before the verifier goroutine is started, and read
+	// only by that goroutine afterwards. Starting the goroutine is what
+	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
 
 	// status is the one piece of oracle state readable from outside the
@@ -322,43 +321,49 @@ func (o *oracle) serveStatus(ctx context.Context, addr string) {
 }
 
 // startHeight resolves the height to read first: an explicit --start-height, a
-// cursor left by an earlier run, or the node's tip.
+// cursor left by an earlier run, or the node's tip. It reports whether the
+// height is settled, the way queryLatestHeight does and for the same reason: a
+// node that has said nothing about its tip has settled nothing, and the caller
+// must ask again rather than anchor to a guess.
+//
+// An error, by contrast, is final. A cursor ahead of the chain is not a node
+// that has yet to answer, so no amount of asking again resolves it.
 //
 // The flag wins over the cursor and rewrites it. An operator replaying a range
 // has to be able to contradict a recorded height -- otherwise a height stored
 // in error, or a range that needs a second look, could never be revisited --
 // and rewriting means a later restart resumes from the replay rather than
-// jumping back to where the cursor was.
-func (o *oracle) startHeight(ctx context.Context) (int64, error) {
+// jumping back to where the cursor was. It also needs no tip, so a run pinned
+// by the flag starts without waiting on the node.
+func (o *oracle) startHeight(ctx context.Context) (height int64, answered bool, err error) {
 	if h := o.cfg.startHeight; h > 0 {
 		// h-1 because the two quantities are not the same one: the flag names
 		// the height to read next, the cursor the last height finished. The
 		// flag wins and rewrites the record; see stateStore.reset for why it
 		// must be able to.
 		if err := o.state.reset(h - 1); err != nil {
-			return 0, err
+			return 0, false, err
 		}
 		o.logf("gpao: starting at height %d (-start-height overrides the recorded cursor)", h)
-		return h, nil
+		return h, true, nil
 	}
 
-	status, err := o.client.RPCClient.Status(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to query node status: %w", err)
+	tip, answered := o.queryLatestHeight(ctx)
+	if !answered {
+		return 0, false, nil
 	}
-	tip := status.SyncInfo.LatestBlockHeight
 
 	stored := o.state.lastVerifiedHeight()
 	if stored == noCursor {
 		o.logf("gpao: starting at height %d (nothing recorded yet, watching from the tip)", tip+1)
-		return tip + 1, nil
+		return tip + 1, true, nil
 	}
 	if stored > tip {
 		// Not something to wait out. Either this cursor belongs to a chain that
 		// was reset under the same id, or the node being watched does not have
 		// the history that produced it -- and both are worth stopping for,
 		// because silently waiting looks identical to an oracle that works.
-		return 0, fmt.Errorf("the recorded cursor is at height %d but %s is only "+
+		return 0, false, fmt.Errorf("the recorded cursor is at height %d but %s is only "+
 			"at %d: this state was written for a chain that has since been "+
 			"reset, or against a node with more history than this one. Pass "+
 			"--start-height to overwrite it, or point --data-dir elsewhere",
@@ -368,20 +373,57 @@ func (o *oracle) startHeight(ctx context.Context) (int64, error) {
 	// having to be inferred from the oracle being busy for a while.
 	o.logf("gpao: resuming at height %d (recorded cursor %d, node tip %d)",
 		stored+1, stored, tip)
-	return stored + 1, nil
+	return stored + 1, true, nil
 }
 
 // run polls the node for new blocks and processes each one, until ctx is done.
 func (o *oracle) run(ctx context.Context) error {
-	o.blockMaxGas = o.queryBlockMaxGas(ctx)
-
 	if o.cfg.statusListen != "" {
 		o.serveStatus(ctx, o.cfg.statusListen)
 	}
 
-	height, err := o.startHeight(ctx)
-	if err != nil {
-		return err
+	ticker := time.NewTicker(o.cfg.pollInterval)
+	defer ticker.Stop()
+
+	// Heights only move forward from where this lands, so the start height is
+	// pinned before anything else is waited on.
+	var height int64
+	for {
+		h, answered, err := o.startHeight(ctx)
+		if err != nil {
+			return err
+		}
+		if answered {
+			height = h
+			break
+		}
+		select {
+		case <-ctx.Done():
+			o.logln("gpao: shutting down")
+			return nil
+		case <-ticker.C:
+		}
+	}
+
+	// The ceiling is settled before any work begins, because every approval's
+	// probe is signed at exactly this number and the ante refuses a gas-wanted
+	// above Block.MaxGas rather than clamping it. A candidate reached while a
+	// stand-in was held would be graded as a message the node ran and rejected,
+	// so it would fail for a reason that has nothing to do with the package.
+	//
+	// The status board is already listening, so the wait is visible rather than
+	// silent.
+	for {
+		if maxGas, answered := o.queryBlockMaxGas(ctx); answered {
+			o.blockMaxGas = maxGas
+			break
+		}
+		select {
+		case <-ctx.Done():
+			o.logln("gpao: shutting down")
+			return nil
+		case <-ticker.C:
+		}
 	}
 
 	// Verification runs on its own goroutine, never on the block reader.
@@ -404,9 +446,6 @@ func (o *oracle) run(ctx context.Context) error {
 	// each slower and the budget harder to interpret.
 	go o.runVerifier(ctx)
 
-	ticker := time.NewTicker(o.cfg.pollInterval)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -415,12 +454,10 @@ func (o *oracle) run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 
-		status, err := o.client.RPCClient.Status(ctx, nil)
-		if err != nil {
-			o.errf("gpao: status query failed: %v", err)
+		latest, answered := o.queryLatestHeight(ctx)
+		if !answered {
 			continue
 		}
-		latest := status.SyncInfo.LatestBlockHeight
 
 		for ; height <= latest; height++ {
 			// Catching up can span many blocks, and enqueue blocks when the
@@ -707,9 +744,6 @@ func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.Me
 	}
 
 	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
-	// Counted before the call, not after: the fee is deducted by the ante
-	// handler, so a failed approval costs exactly as much as a successful one.
-	o.spent += o.enableFee
 	if err := o.enable(path, vm.PackageContentHash(mpkg)); err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
@@ -737,40 +771,72 @@ func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.Me
 	o.logf("gpao: %q approved and enabled", path)
 }
 
-// queryBlockMaxGas reads the chain's Block.MaxGas, falling back to
-// defaultBlockMaxGas.
+// queryLatestHeight reads the chain's latest committed height, and reports
+// whether the chain answered with one the oracle can start from.
 //
-// Asked once at startup rather than per approval: it is a consensus param, so
-// it changes rarely, and a per-approval query would add a round trip to every
-// enable to learn something that almost never moves.
+// A negative height is not an answer. One past it is 0 or less, and no chain
+// has a block there, so a run anchored to it stalls on a height the node
+// refuses rather than starting: the caller must keep asking instead.
+func (o *oracle) queryLatestHeight(ctx context.Context) (latest int64, answered bool) {
+	status, err := o.client.RPCClient.Status(ctx, nil)
+	if err != nil {
+		o.errf("gpao: status query failed: %v", err)
+		return 0, false
+	}
+	if h := status.SyncInfo.LatestBlockHeight; h >= 0 {
+		return h, true
+	}
+	o.errf("gpao: node reported height %d, asking again",
+		status.SyncInfo.LatestBlockHeight)
+	return 0, false
+}
+
+// queryBlockMaxGas reads the chain's Block.MaxGas, and reports whether the
+// chain answered at all.
+//
+// The two are separate the way classifySimulate separates them: a node that
+// could not be reached has said nothing about the ceiling and must be asked
+// again, while a chain that answered has settled it -- including when the
+// answer is unusable and the fallback stands in. Answered once, it is not
+// asked for again: it is a consensus param, so it changes rarely, and a
+// per-approval query would add a round trip to every enable to learn something
+// that almost never moves.
 //
 // A chain may set -1, meaning no bound. The fallback is used there too -- an
 // unbounded ceiling would let one absurd estimate ask for unbounded gas, and
 // nothing gpao approves should need more than a full block's worth anyway.
-func (o *oracle) queryBlockMaxGas(ctx context.Context) int64 {
+func (o *oracle) queryBlockMaxGas(ctx context.Context) (maxGas int64, answered bool) {
+	// unboundedCeiling stands in when the chain reports no usable bound. It is
+	// tm2's MaxBlockMaxGas, the value a chain that configures nothing gets. A
+	// chain may configure far more: gno.land's own nodes run ten times this.
+	const unboundedCeiling = int64(3_000_000_000)
+
 	res, err := o.client.RPCClient.ConsensusParams(ctx, nil)
-	maxGas := blockMaxGasFrom(res, err)
-	if maxGas == defaultBlockMaxGas {
-		o.logf("gpao: using %d for block max gas: %v", defaultBlockMaxGas, err)
+	if err != nil {
+		o.errf("gpao: block max gas query failed, asking again: %v", err)
+		return 0, false
 	}
-	return maxGas
+	maxGas = blockMaxGasFrom(res, unboundedCeiling)
+	o.logf("gpao: block max gas is %d", maxGas)
+	return maxGas, true
 }
 
-// blockMaxGasFrom picks the ceiling from a consensus-params response, falling
-// back to defaultBlockMaxGas on anything unusable.
+// blockMaxGasFrom picks the ceiling from a consensus-params response, returning
+// fallback for anything unusable: no response, no block section, or a bound of
+// zero or less.
 //
 // Split out from the query so it can be tested without a node. A chain may
 // legitimately report -1, meaning no bound; the fallback covers that too,
 // because an unbounded ceiling would let one absurd estimate ask for unbounded
 // gas.
-func blockMaxGasFrom(res *ctypes.ResultConsensusParams, err error) int64 {
-	if err != nil || res == nil || res.ConsensusParams.Block == nil {
-		return defaultBlockMaxGas
+func blockMaxGasFrom(res *ctypes.ResultConsensusParams, fallback int64) int64 {
+	if res == nil || res.ConsensusParams.Block == nil {
+		return fallback
 	}
 	if maxGas := res.ConsensusParams.Block.MaxGas; maxGas > 0 {
 		return maxGas
 	}
-	return defaultBlockMaxGas
+	return fallback
 }
 
 // recordEnableFailure counts a failed enable for this content and reports the
@@ -866,17 +932,6 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
-// defaultBlockMaxGas is the fallback ceiling on a gas-wanted, used until the
-// chain's own Block.MaxGas is known. It matches tm2's MaxBlockMaxGas, which is
-// also the default a chain gets if it sets nothing.
-//
-// The real value matters because the ante REFUSES a transaction whose
-// GasWanted exceeds Block.MaxGas rather than clamping it. So on a chain
-// configured below this fallback, a probe signed at the fallback is rejected
-// and every estimate fails -- which is why blockMaxGas is queried at startup
-// instead of assumed.
-const defaultBlockMaxGas = int64(3_000_000_000)
-
 // gasHeadroomNum/Den add 20% to a measured estimate.
 //
 // The estimate is a measurement of one execution against the state the
@@ -953,6 +1008,18 @@ func gasWantedFor(estimated, fallback, ceiling int64) int64 {
 	return ceiling
 }
 
+// broadcastWasFree says whether a failed broadcast cost nothing, and so whether
+// the debit taken before it has to be given back.
+//
+// Only a CheckTx rejection is free: the ante refused it before any block, so
+// nothing was deducted. A DeliverTx failure ran in a block and was charged. A
+// missing result covers both a pre-mempool refusal, which is free, and an
+// answer lost after the transaction was handed over, which may have committed
+// -- indistinguishable here, and over-counting is the safe half of that guess.
+func broadcastWasFree(res *ctypes.ResultBroadcastTxCommit) bool {
+	return res != nil && res.CheckTx.IsErr()
+}
+
 // enable builds, signs and broadcasts a MsgEnablePackage for pkgPath.
 //
 // Signed twice, deliberately. The fee is part of the sign bytes, so the
@@ -1008,8 +1075,18 @@ func (o *oracle) enable(pkgPath, pkgHash string) error {
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
+	// Counted at the send, not at the decision to send: what is handed to the
+	// node is counted, and the paths above that return without broadcasting are
+	// not. No transaction exists on those, so the ante charges nothing, and
+	// counting them would make the oracle report itself out of budget while
+	// holding every coin it started with.
+	o.spent += o.enableFee
 	// BroadcastTxCommit returns an error if CheckTx or DeliverTx failed.
-	if _, err := o.client.BroadcastTxCommit(signed); err != nil {
+	res, err := o.client.BroadcastTxCommit(signed)
+	if err != nil {
+		if broadcastWasFree(res) {
+			o.spent -= o.enableFee
+		}
 		return fmt.Errorf("broadcast: %w", err)
 	}
 	return nil

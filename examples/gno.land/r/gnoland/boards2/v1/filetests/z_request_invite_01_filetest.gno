@@ -10,7 +10,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 var bid boards.ID
 

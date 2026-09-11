@@ -63,8 +63,9 @@ func newCursorOracle(t *testing.T, tip int64) *oracle {
 func TestStartHeightFallsBackToTheTip(t *testing.T) {
 	o := newCursorOracle(t, 500)
 
-	h, err := o.startHeight(context.Background())
+	h, answered, err := o.startHeight(context.Background())
 	require.NoError(t, err)
+	require.True(t, answered)
 	assert.Equal(t, int64(501), h)
 }
 
@@ -75,8 +76,9 @@ func TestStartHeightResumesFromTheCursor(t *testing.T) {
 	o := newCursorOracle(t, 500)
 	require.NoError(t, o.state.setLastVerifiedHeight(120))
 
-	h, err := o.startHeight(context.Background())
+	h, answered, err := o.startHeight(context.Background())
 	require.NoError(t, err)
+	require.True(t, answered)
 	assert.Equal(t, int64(121), h, "resume past the last height that was finished, not at it")
 }
 
@@ -89,8 +91,9 @@ func TestStartHeightFlagOverridesAndRewritesTheCursor(t *testing.T) {
 	require.NoError(t, o.state.setLastVerifiedHeight(400))
 	o.cfg.startHeight = 10
 
-	h, err := o.startHeight(context.Background())
+	h, answered, err := o.startHeight(context.Background())
 	require.NoError(t, err)
+	require.True(t, answered)
 	assert.Equal(t, int64(10), h)
 	assert.Equal(t, int64(9), o.state.lastVerifiedHeight(),
 		"the cursor names the last height finished, so the flag stores one below it")
@@ -107,8 +110,9 @@ func TestStartHeightResumesFromARecordedZero(t *testing.T) {
 	o := newCursorOracle(t, 500)
 	require.NoError(t, o.state.reset(0))
 
-	h, err := o.startHeight(context.Background())
+	h, answered, err := o.startHeight(context.Background())
 	require.NoError(t, err)
+	require.True(t, answered)
 	assert.Equal(t, int64(1), h, "a recorded 0 resumes at 1, it does not mean the tip")
 }
 
@@ -120,7 +124,7 @@ func TestStartHeightRefusesACursorAheadOfTheChain(t *testing.T) {
 	o := newCursorOracle(t, 12)
 	require.NoError(t, o.state.setLastVerifiedHeight(4218))
 
-	_, err := o.startHeight(context.Background())
+	_, _, err := o.startHeight(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "4218")
 	assert.Contains(t, err.Error(), "12")
@@ -133,8 +137,9 @@ func TestStartHeightAcceptsACursorAtTheTip(t *testing.T) {
 	o := newCursorOracle(t, 500)
 	require.NoError(t, o.state.setLastVerifiedHeight(500))
 
-	h, err := o.startHeight(context.Background())
+	h, answered, err := o.startHeight(context.Background())
 	require.NoError(t, err)
+	require.True(t, answered)
 	assert.Equal(t, int64(501), h)
 }
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gno.land/p/onbloc/diff"
+	"gno.land/p/onbloc/diff/v0"
 )
 
 // MaxOps bounds the number of ops a decoded patch may carry. DiffTexts
