@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -122,6 +123,45 @@ func TestExtLinksClassifiesResolvedDestination(t *testing.T) {
 			require.Equal(t, want, renderExtLinks(t, src))
 		})
 	}
+}
+
+// A link between two pages of the same non-realm section (the embedded
+// documentation under /docs) is navigation inside one document tree, not a hop
+// to another package, so it must not wear the "Cross package link" badge.
+// Leaving that section for a realm still must.
+func TestExtLinksSameSectionIsNotCrossPackage(t *testing.T) {
+	orig := &weburl.GnoURL{Path: "/docs/builders/getting-started", Domain: "gno.land"}
+
+	tests := []struct {
+		target string
+		want   GnoLinkType
+	}{
+		{"/docs/builders/local-setup", GnoLinkTypePackage},
+		{"/docs/resources/gno-testing", GnoLinkTypePackage},
+		{"/docs", GnoLinkTypePackage},
+		// Leaving /docs for a realm is a real cross-package link.
+		{"/r/gnoland/home", GnoLinkTypeInternal},
+		{"/u/moul", GnoLinkTypeUser},
+		{"https://github.com/gnolang/gno", GnoLinkTypeExternal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			dest, err := url.Parse(tt.target)
+			require.NoError(t, err)
+			_, got := detectLinkType(dest, orig)
+			require.Equal(t, tt.want, got, "target %q", tt.target)
+		})
+	}
+
+	// The rule is scoped to the both-sides-unnamespaced case, so a realm
+	// origin is unaffected: /r/a/x -> /r/b/y stays a cross-package link even
+	// though both share the "r" first segment.
+	realmOrig, err := weburl.Parse("https://gno.land/r/alice/blog")
+	require.NoError(t, err)
+	dest, err := url.Parse("/r/bob/blog")
+	require.NoError(t, err)
+	_, got := detectLinkType(dest, realmOrig)
+	require.Equal(t, GnoLinkTypeInternal, got)
 }
 
 func renderExtLinks(t *testing.T, src string) string {

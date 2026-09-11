@@ -1,0 +1,33 @@
+{{ define "renderDocs" }}
+<!-- Documentation section navigation; replaces the in-page TOC on /docs pages. -->
+<aside class="b-sidebar b-docs-sidebar" aria-label="Documentation navigation">
+  <div>
+    <div class="inner u-no-scrollbar">
+      {{ template "ui/expend_label" "Documentation"}}
+      <nav>
+        <ul class="b-docs-nav">
+          {{ range .Sections }}
+          <li class="b-docs-nav-section">
+            <h3>{{ .Title }}</h3>
+            <ul>
+              {{ range .Items }}
+              <li class="b-docs-nav-item{{ if .Active }} is-active{{ end }}">
+                {{ if .External }}
+                <a href="{{ .Href }}" target="_blank" rel="noopener noreferrer">{{ .Title }}<span aria-hidden="true"> ↗</span></a>
+                {{ else }}
+                <a href="{{ .Href }}">{{ .Title }}</a>
+                {{ end }}
+              </li>
+              {{ end }}
+            </ul>
+          </li>
+          {{ end }}
+        </ul>
+      </nav>
+    </div>
+  </div>
+</aside>
+
+<!-- Document body -->
+{{ template "layout/article" .Article }}
+{{ end }}
