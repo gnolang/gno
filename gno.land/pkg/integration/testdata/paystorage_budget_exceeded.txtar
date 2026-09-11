@@ -1,0 +1,46 @@
+# Test that PayStorage budget is enforced. Realm calls PayStorage with a
+# small maxDeposit, then writes lots of data exceeding the budget.
+# Settlement fails — tx reverts, realm balance unchanged.
+
+## start a new node
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK/storbudget -pkgpath gno.land/r/test/storbudget -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g1eymgwesre9qh3gq7fhygyq8d59k7j7le3ws59v -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check realm balance before
+gnokey query bank/balances/g1eymgwesre9qh3gq7fhygyq8d59k7j7le3ws59v
+stdout '10000000ugnot'
+
+## call — PayStorage(1) is tiny, writing data will exceed budget
+! gnokey maketx call -pkgpath gno.land/r/test/storbudget -func WriteLotsOfData -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'storage deposit'
+
+## realm balance unchanged — tx failed
+gnokey query bank/balances/g1eymgwesre9qh3gq7fhygyq8d59k7j7le3ws59v
+stdout '10000000ugnot'
+
+-- storbudget/gnomod.toml --
+module = "storbudget"
+gno = "0.9"
+
+-- storbudget/storbudget.gno --
+package storbudget
+
+import "chain/runtime"
+
+var bigData string
+
+func WriteLotsOfData(cur realm) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(1) // tiny budget — 1 ugnot won't cover any storage
+
+	// Write lots of data — storage deposit will exceed budget
+	bigData = "this is a lot of data that requires storage deposit exceeding 1 ugnot"
+	return "done"
+}

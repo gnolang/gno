@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -46,6 +48,7 @@ type AppOptions struct {
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
+	AllowZeroFeeTxs            bool // accept 0-fee txs when realms sponsor gas via PayGas
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -151,6 +154,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
+		AllowZeroFeeTxs:         cfg.AllowZeroFeeTxs,
 		// MsgAddPackage and MsgRun both compile caller-supplied Gno source,
 		// and who is allowed to do that is decided from the signer.
 		// `.app/simulate` is a public query that RUNS the messages, so
@@ -160,6 +164,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// type keeps working without a key.
 		RequireSigForSimulate: txCarriesCode,
 	}
+	baseApp.SetAllowZeroFeeTxs(cfg.AllowZeroFeeTxs)
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
@@ -248,10 +253,138 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
-	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
-		if result.IsOK() {
-			vmk.CommitGnoTransactionStore(ctx)
+	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) error {
+		// End-of-tx settlement runs ONLY on success. On failure every message
+		// write reverts and a gas sponsor does NOT pay: free execution is instead
+		// bounded by the credit window and the "PayGas was called" enforcement.
+		// See the design note in docs/design/realm-gas-sponsorship-hld.md.
+		//
+		// baseapp also runs this at 0-fee mempool admission (CheckExecute), where
+		// it acts as a DRY RUN: every write below lands in the discarded cache, so
+		// a tx that cannot settle is rejected before it is gossiped rather than
+		// being included and failing at nobody's expense. Nothing here may write
+		// outside that cache — the gno store commit lives in SetCommitTxHook.
+		//
+		// Settlement runs on a fresh infinite gas meter: it is deterministic
+		// protocol bookkeeping (like the ante's fee deduction), not user
+		// computation, so it should not consume the tx's (tightened) gas budget
+		// or inflate its reported GasUsed. gasUsed for the fee is read from the
+		// REAL tx meter before the swap.
+		//
+		// CAVEAT: this covers only the bank/params side. The gno transaction
+		// store was built in BeginTxHook and captured the ORIGINAL meter (see
+		// VMKeeper.MakeGnoTransactionStore), so the realm reads/writes that
+		// ProcessStorageDepositFromDiffs performs still charge the tx meter —
+		// proportional to the number of realms in AccumulatedDiffs. A sponsor
+		// sizing maxFee purely from an RPC gas estimate (Simulate does not run
+		// settlement) can therefore come up short and OOG inside settlement.
+		// That tx is deterministically doomed, so admission now rejects it
+		// rather than letting it burn block gas, but the estimate is still
+		// optimistic. Making settlement's store metering match this comment is
+		// a consensus-affecting change and is deliberately not done here.
+		gasUsed := ctx.GasMeter().GasConsumed()
+		settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
+
+		pgi := ctx.PayGasInfo()
+		if pgi != nil && pgi.MaxFee > 0 {
+			// Route sponsored gas fees to the SAME collector the ante uses for
+			// normal fees: the governable auth param (p:fee_collector), not the
+			// hardcoded default preimage — otherwise sponsored fees are stranded
+			// at the stale default after governance moves the collector.
+			feeCollectorAddr := acck.FeeCollectorAddress(settleCtx)
+
+			gasPrice, ok := ctx.Value(auth.GasPriceContextKey{}).(std.GasPrice)
+			if !ok || gasPrice.Gas <= 0 {
+				return std.ErrInternal("PayGas settlement: gas price not available on context")
+			}
+			// Overflow-safe: actualCost = ceil(gasUsed * Price.Amount / Gas),
+			// capped by MaxFee. Ceiling (not floor) division so the realm is
+			// never undercharged the sub-unit remainder of real gas consumed.
+			product, ok := overflow.Mul(gasUsed, gasPrice.Price.Amount)
+			if !ok {
+				return std.ErrInternal("PayGas settlement: gas cost calculation overflow")
+			}
+			actualCost := product / gasPrice.Gas
+			if product%gasPrice.Gas != 0 {
+				actualCost++
+			}
+			if actualCost > pgi.MaxFee {
+				actualCost = pgi.MaxFee
+			}
+			if actualCost > 0 {
+				realmAddr := pgi.RealmAddr
+				costCoins := std.NewCoins(std.NewCoin(gasPrice.Price.Denom, actualCost))
+				// Pre-check balance (same pattern as auth.DeductFees).
+				realmCoins := bankk.GetCoins(settleCtx, realmAddr)
+				if !realmCoins.SubUnsafe(costCoins).IsValid() {
+					return std.ErrInsufficientFunds(fmt.Sprintf(
+						"PayGas settlement: insufficient realm funds; %s < %s", realmCoins, costCoins))
+				}
+				if err := bankk.SendCoinsUnrestricted(settleCtx, realmAddr, feeCollectorAddr, costCoins); err != nil {
+					return std.ErrInternal(fmt.Sprintf("PayGas settlement failed: %v", err))
+				}
+			}
 		}
+
+		// Storage deposit settlement (SponsorStorage txs).
+		if ctx.SponsorStorage() {
+			// SponsorStorage defers all messages' storage diffs to end-of-tx,
+			// expecting a realm to cover them via PayStorage. Diffs were
+			// accumulated per-message in accumulateStorageDiffs.
+			psi := ctx.PayStorageInfo()
+			if psi != nil && len(psi.AccumulatedDiffs) > 0 {
+				gnostore := vmk.GetGnoTransactionStoreReadOnly(settleCtx)
+				params := vmk.GetParams(settleCtx)
+				grewStorage := false
+				for _, d := range psi.AccumulatedDiffs {
+					if d > 0 {
+						grewStorage = true
+						break
+					}
+				}
+				switch {
+				case psi.MaxDeposit > 0:
+					// A realm sponsored: it PAYS for storage growth up to its
+					// committed budget. It is only the payer — refunds for freed
+					// storage go to the tx caller, which the callee resolves
+					// itself (see ProcessStorageDepositFromDiffs).
+					// Fold out anything already debited on the per-message path,
+					// so the realm's committed budget is a per-TRANSACTION cap
+					// rather than one that re-arms at end-of-tx. Belt and braces
+					// now that every message path defers under SponsorStorage,
+					// but the cap must not depend on that staying true.
+					outstanding := psi.MaxDeposit - psi.SpentDeposit
+					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, psi.RealmAddr, psi.AccumulatedDiffs, outstanding, gnostore, params); err != nil {
+						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
+					}
+				case grewStorage:
+					// Storage grew but no realm called PayStorage: there is no
+					// authorized payer or budget (the signer's per-message
+					// MaxDeposit was never applied), so fail with a TYPED error
+					// (surfaced cleanly at DeliverTx) rather than a panic that the
+					// baseapp recover turns into an opaque ErrInternal.
+					return std.ErrUnauthorized("SponsorStorage tx grew storage but no realm called PayStorage")
+				default:
+					// Only refunds (freed storage), which need no payer or
+					// authorization — return the freed deposit to the tx caller.
+					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, ctx.TxCaller(), psi.AccumulatedDiffs, math.MaxInt64, gnostore, params); err != nil {
+						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
+					}
+				}
+			}
+		}
+		// Per-message storage (SponsorStorage=false) was already settled in handlers.
+
+		return nil
+	})
+
+	// Commit the gno transaction store only when the tx is actually committed.
+	// This CANNOT live in the EndTxHook: that hook also runs as a dry run during
+	// 0-fee mempool admission, and CommitGnoTransactionStore writes through to the
+	// node-level gno store cache, which the CheckExecute rollback does not cover —
+	// a CheckTx would otherwise mutate shared state.
+	baseApp.SetCommitTxHook(func(ctx sdk.Context) {
+		vmk.CommitGnoTransactionStore(ctx)
 	})
 
 	// Set EndBlocker
@@ -325,6 +458,7 @@ func NewApp(
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
 		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
+		AllowZeroFeeTxs:            appCfg.AllowZeroFeeTxs,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler

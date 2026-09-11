@@ -203,7 +203,24 @@ import (
 // claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "1d05023c96f166ae4cb352baf98adee2facc3fa92abd9f777814d275cc175398"
+//
+// Hash bumped by the realm transaction sponsorship PR: adding the PayGas and
+// PayStorage natives to the chain/runtime stdlib changes that stdlib's committed
+// genesis MemPackage, which shifts the committed multistore root — same class of
+// change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
+// (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
+// shifted. This covers the whole sponsorship stdlib surface: the paygas.gno /
+// paystorage.gno doc comments (including the "PayGas and PayStorage are
+// independent" note added when two-realm sponsorship was allowed) are stdlib
+// .gno source bytes committed into genesis, so they are consensus-relevant even
+// though they are comments. The native .go changes are NOT part of the committed
+// MemPackage and do not affect this hash. Re-derived after merging master, so
+// this value reflects the bptree store + #5890 + #5891 + #5892 + #5867 + the
+// banker comment + this PR together.
+// Re-derived after merging master into the sponsorship branch, so this value
+// reflects master's bumps (banker.GetCoin, the coins.gno doc fix, and the
+// origin-send envelope work) together with the sponsorship stdlib surface.
+const expectedCrossrealm38Hash = "0c36d9bbc5c84a8f329a942b029a31ac04edf6167c8b91f6291ff99ff91c012a"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

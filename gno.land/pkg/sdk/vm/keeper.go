@@ -12,6 +12,7 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
+	"math"
 	"math/big"
 	"path"
 	"path/filepath"
@@ -51,6 +52,40 @@ const (
 	maxAllocQuery = 1_500_000_000 // higher limit for queries
 	maxGasQuery   = 3_000_000_000 // same as max block gas
 )
+
+// accumulateStorageDiffs reads per-message storage diffs and adds them to the
+// tx-level accumulator on PayStorageInfo. Must be called BEFORE the next
+// getGnoTransactionStore call (which clears diffs via ClearObjectCache).
+func (vm *VMKeeper) accumulateStorageDiffs(ctx sdk.Context, gnostore gno.TransactionStore) {
+	psi := ctx.PayStorageInfo()
+	if psi == nil || psi.AccumulatedDiffs == nil {
+		return
+	}
+	for path, diff := range gnostore.RealmStorageDiffs() {
+		psi.AccumulatedDiffs[path] += diff
+	}
+	// Also account chain/params byte deltas, mirroring the per-message path
+	// (ProcessStorageDeposit merges ParamsRealmDiffs and flushes the meta-key).
+	// Deferred settlement runs on the end-of-tx ctx, which no longer carries this
+	// message's params accumulator, so flush each realm's meta-key baseline now.
+	// The whole SponsorStorage tx is atomic (endTxHook failure reverts the msg
+	// cache), so these meta-key writes revert together with the deferred deposit
+	// if settlement fails — keeping bank state and the baseline consistent.
+	for path, diff := range ParamsRealmDiffs(ctx) {
+		psi.AccumulatedDiffs[path] += diff
+		FlushParamsRealmAccum(ctx, vm.prmk, path)
+	}
+}
+
+// getGasPrice reads the current gas price from the auth module's context value.
+func getGasPrice(ctx sdk.Context) std.GasPrice {
+	if v := ctx.Context().Value(auth.GasPriceContextKey{}); v != nil {
+		if gp, ok := v.(std.GasPrice); ok {
+			return gp
+		}
+	}
+	return std.GasPrice{}
+}
 
 // maxQueryExportBytes bounds the estimated serialized size of the value tree
 // returned by the value-returning query endpoints (qeval, qeval_json,
@@ -394,6 +429,19 @@ func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 
 func (vm *VMKeeper) getTypeCheckCache(ctx sdk.Context) gno.TypeCheckCache {
 	return ctx.Value(vmkContextKeyTypeCheckCache).(gno.TypeCheckCache)
+}
+
+// GetGnoTransactionStore returns the Gno transaction store for the given context.
+// Note: this calls ClearObjectCache internally — use GetGnoTransactionStoreReadOnly
+// when you need to read accumulated state (like RealmStorageDiffs) without clearing.
+func (vm *VMKeeper) GetGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
+	return vm.getGnoTransactionStore(ctx)
+}
+
+// GetGnoTransactionStoreReadOnly returns the transaction store without clearing the object cache.
+// Use this when reading accumulated state (RealmStorageDiffs) at end-of-tx settlement.
+func (vm *VMKeeper) GetGnoTransactionStoreReadOnly(ctx sdk.Context) gno.TransactionStore {
+	return ctx.Value(vmkContextKeyStore).(gno.TransactionStore)
 }
 
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
@@ -1053,6 +1101,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// happen BEFORE NewSDKParams captures ctx into its struct field.
 	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
+	localPGIAdd := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
 		ChainDomain:     chainDomain,
@@ -1069,6 +1118,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Params:              NewSDKParams(vm.prmk, ctx),
 		EventLogger:         ctx.EventLogger(),
 		SessionAccount:      getSessionAccount(ctx, creator),
+		PayGasInfo:          localPGIAdd,
+		PayStorageInfo:      ctx.PayStorageInfo(),
+		GasPrice:            getGasPrice(ctx),
+		StorageDepositDenom: ugnot.Denom,
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -1106,9 +1159,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	defer gnostore.SetPreprocessAllocator(nil)
 	m2.RunMemPackage(memPkg, true)
 
-	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
-	if err != nil {
-		return err
+	// Storage deposit: per-message or deferred depending on SponsorStorage.
+	if ctx.SponsorStorage() {
+		vm.accumulateStorageDiffs(ctx, gnostore)
+	} else {
+		err = vm.ProcessStorageDeposit(ctx, creator, msg.MaxDeposit, gnostore, params)
+		if err != nil {
+			return err
+		}
 	}
 	// Log the telemetry
 	logTelemetry(
@@ -1133,6 +1191,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins
 	// (tm2/pkg/sdk/bank/keeper.go), which is where the actual coin
 	// transfer happens. No pre-check needed here.
+	//
+	// Fetch params before execution — execution may change params (e.g. governance proposals).
 	params := vm.GetParams(ctx)
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
@@ -1173,6 +1233,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	chainDomain := params.ChainDomain
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
+	localPGI := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
 		ChainID:            ctx.ChainID(),
 		ChainDomain:        chainDomain,
@@ -1191,6 +1252,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Params:                  NewSDKParams(vm.prmk, ctx),
 		EventLogger:             ctx.EventLogger(),
 		SessionAccount:          getSessionAccount(ctx, caller),
+		PayGasInfo:              localPGI,
+		PayStorageInfo:          ctx.PayStorageInfo(),
+		GasPrice:                getGasPrice(ctx),
+		StorageDepositDenom:     ugnot.Denom,
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -1285,11 +1350,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			send.String(), pkgPath, fnc))
 	}
 
-	// Use parameters before executing the message, as they may change during execution.
-	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
-	if err != nil {
-		return "", err
+	// Use parameters before executing the message, as they may change during
+	// execution. Parameter changes take effect only after the message has
+	// executed successfully.
+	//
+	// Storage deposit: per-message or deferred depending on SponsorStorage.
+	if ctx.SponsorStorage() {
+		vm.accumulateStorageDiffs(ctx, gnostore)
+	} else {
+		err = vm.ProcessStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+		if err != nil {
+			return "", err
+		}
 	}
 	// Log the telemetry
 	logTelemetry(
@@ -1304,7 +1376,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
 
 	return res, nil
-	// TODO pay for gas? TODO see context?
 }
 
 func doRecover(m *gno.Machine, e *error) {
@@ -1382,12 +1453,14 @@ func doRecoverQueryNoMachine(e *error) {
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins.
+	//
+	// Fetch params before execution — execution may change params.
+	params := vm.GetParams(ctx)
 	caller := msg.Caller
 	pkgAddr := caller
 	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
-	params := vm.GetParams(ctx)
 	chainDomain := params.ChainDomain
 
 	memPkg.Type = gno.MPUserProd
@@ -1430,6 +1503,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
+	localPGIRun := ctx.PayGasInfo()
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
 		ChainDomain:     chainDomain,
@@ -1445,10 +1519,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
 		// the recipient empty is fail-closed: nothing can spend against an
 		// envelope that never moved.
-		Banker:         NewSDKBanker(vm, ctx),
-		Params:         NewSDKParams(vm.prmk, ctx),
-		EventLogger:    ctx.EventLogger(),
-		SessionAccount: getSessionAccount(ctx, caller),
+		Banker:              NewSDKBanker(vm, ctx),
+		Params:              NewSDKParams(vm.prmk, ctx),
+		EventLogger:         ctx.EventLogger(),
+		SessionAccount:      getSessionAccount(ctx, caller),
+		PayGasInfo:          localPGIRun,
+		PayStorageInfo:      ctx.PayStorageInfo(),
+		GasPrice:            getGasPrice(ctx),
+		StorageDepositDenom: ugnot.Denom,
 	}
 
 	buf := new(bytes.Buffer)
@@ -1511,11 +1589,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer doRecover(m2, &err)
 	m2.RunMainMaybeCrossing()
 	res = buf.String()
-	// Use parameters before executing the message, as they may change during execution.
-	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
-	if err != nil {
-		return "", err
+	// Storage deposit: per-message or deferred depending on SponsorStorage.
+	if ctx.SponsorStorage() {
+		vm.accumulateStorageDiffs(ctx, gnostore)
+	} else {
+		err = vm.ProcessStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+		if err != nil {
+			return "", err
+		}
 	}
 	// Log the telemetry
 	logTelemetry(
@@ -2199,7 +2280,7 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 	}
 }
 
-// processStorageDeposit processes storage deposit adjustments for package realms based on
+// ProcessStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //
 // For each realm, it:
@@ -2208,13 +2289,34 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 //
 // Returns an aggregated error if any realm processing fails due to insufficient deposit,
 // transfer errors.
-func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+func (vm *VMKeeper) ProcessStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
 	if ctx.IsCheckTx() {
 		// Defense-in-depth: baseapp already skips handler.Process in
 		// CheckTx, but keep the guard so any future caller invoking
 		// this directly during a non-deliver phase doesn't lock funds.
 		return nil
 	}
+	// When PayStorage is active, the sponsoring realm pays storage deposits
+	// instead of the caller. MaxDeposit is a per-TRANSACTION cap: track the spend
+	// so far on the shared PayStorageInfo so that an N-message tx cannot charge
+	// the realm up to the full budget on every message.
+	//
+	// Only the PAYER is redirected; `caller` keeps refunds. See
+	// ProcessStorageDepositFromDiffs for why freed storage never belongs to the
+	// sponsor. Here the payer is this MESSAGE's caller rather than the tx's
+	// first signer, which is finer-grained than the deferred path by design.
+	var maxStorageBudget int64 = math.MaxInt64
+	psi := ctx.PayStorageInfo()
+	sponsored := psi != nil && psi.MaxDeposit > 0
+	payer := caller
+	if sponsored {
+		payer = psi.RealmAddr
+		maxStorageBudget = psi.MaxDeposit - psi.SpentDeposit
+		if maxStorageBudget < 0 {
+			maxStorageBudget = 0
+		}
+	}
+
 	realmDiffs := gnostore.RealmStorageDiffs()
 	// Merge per-realm chain/params byte deltas accumulated on ctx.
 	// See gno.land/pkg/sdk/vm/params_deposit.go.
@@ -2225,6 +2327,13 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
+	}
+	if sponsored {
+		// The sponsoring realm's committed PayStorage budget is the deposit
+		// ceiling, not the caller's (often empty) MaxDeposit / DefaultDeposit —
+		// otherwise a legitimately large sponsored write is wrongly rejected as
+		// "not enough deposit". Mirrors ProcessStorageDepositFromDiffs.
+		depositAmt = maxStorageBudget
 	}
 	price := std.MustParseCoin(params.StoragePrice)
 
@@ -2266,13 +2375,20 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
+			// Check PayStorage budget
+			if maxStorageBudget < math.MaxInt64 && requiredDeposit > maxStorageBudget {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"storage deposit exceeds PayStorage budget: requires %d%s, budget remaining %d%s",
+					requiredDeposit, ugnot.Denom, maxStorageBudget, ugnot.Denom))
+				continue
+			}
 			if depositAmt < requiredDeposit {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
 					requiredDeposit, ugnot.Denom, diff))
 				continue
 			}
-			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
+			err := vm.lockStorageDeposit(ctx, payer, rlm, requiredDeposit, diff)
 			if err != nil {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"lockStorageDeposit failed for realm %s: %w",
@@ -2284,6 +2400,20 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// partial failure.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			depositAmt -= requiredDeposit
+			maxStorageBudget -= requiredDeposit
+			if sponsored {
+				// Persist the running spend so the next message in this tx
+				// sees the reduced remaining budget.
+				psi.SpentDeposit += requiredDeposit
+				// Remember that THIS tx's sponsor funded this realm's deposit,
+				// so a later message in the same tx that frees the bytes
+				// refunds the sponsor rather than handing its money to the
+				// signer. See PayStorageInfo.SponsorFunded.
+				if psi.SponsorFunded == nil {
+					psi.SponsorFunded = make(map[string]int64)
+				}
+				psi.SponsorFunded[rlmPath] += requiredDeposit
+			}
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
 			evt := chain.StorageDepositEvent{
@@ -2337,10 +2467,38 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				receiver = params.StorageFeeCollector
 			}
 
-			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
-			if err != nil {
+			// Unwind this tx's own sponsored lock first: whatever the sponsor
+			// funded a message ago is its money coming back, not the caller's
+			// to collect. Only the excess released deposit that an EARLIER
+			// transaction locked, and that excess is the caller's. Skipped for
+			// a restricted denom, where the refund is withheld from everyone.
+			totalUnlocked := depositUnlocked
+			sponsorShare := int64(0)
+			if !isRestricted && psi != nil && psi.SponsorFunded[rlmPath] > 0 {
+				sponsorShare = min(depositUnlocked, psi.SponsorFunded[rlmPath])
+			}
+			if sponsorShare > 0 {
+				// The byte release rides along with this transfer; the
+				// remainder below moves coins only. Splitting it the other way
+				// would double-decrement rlm.Storage.
+				if err := vm.refundStorageDeposit(
+					ctx, psi.RealmAddr, rlm, sponsorShare, released); err != nil {
+					return err
+				}
+				psi.SponsorFunded[rlmPath] -= sponsorShare
+				psi.SpentDeposit -= sponsorShare
+				depositUnlocked -= sponsorShare
+				if depositUnlocked > 0 {
+					if err := vm.refundStorageDeposit(
+						ctx, receiver, rlm, depositUnlocked, 0); err != nil {
+						return err
+					}
+				}
+			} else if err := vm.refundStorageDeposit(
+				ctx, receiver, rlm, depositUnlocked, released); err != nil {
 				return err
 			}
+			depositUnlocked = totalUnlocked
 			// Commit the per-realm meta-key only after the refund
 			// transfers — symmetry with the lock branch above.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
@@ -2352,6 +2510,140 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				PkgPath:        rlmPath,
 				RefundWithheld: isRestricted,
 			}
+			ctx.EventLogger().EmitEvent(evt)
+		}
+		gnostore.SetPackageRealm(rlm)
+	}
+	if allErrs != nil {
+		return fmt.Errorf("storage deposit processing encountered one or more errors: %w", allErrs)
+	}
+	return nil
+}
+
+// ProcessStorageDepositFromDiffs processes storage deposits using pre-accumulated diffs
+// (for SponsorStorage=true txs where diffs are accumulated across all messages).
+//
+// payer is charged for storage growth. Refunds for freed storage always go to
+// ctx.TxCaller() instead, and deliberately are NOT a parameter: under
+// sponsorship the payer is a PayStorage realm, but the deposit released by freed
+// storage was locked by an EARLIER transaction — accumulateStorageDiffs nets each
+// realm's diff across the whole tx, so a negative diff can never be storage this
+// tx's sponsor funded. Paying it to the sponsor would let a realm commit
+// maxDeposit=1 and collect deposits someone else paid. Resolving the receiver
+// here rather than at the call site makes that true by construction.
+// ctx.TxCaller() is unambiguous here because the ante rejects SponsorStorage on
+// multi-signer txs.
+func (vm *VMKeeper) ProcessStorageDepositFromDiffs(ctx sdk.Context, payer crypto.Address, diffs map[string]int64, maxBudget int64, gnostore gno.Store, params Params) error {
+	refundReceiver := ctx.TxCaller()
+	price := std.MustParseCoin(params.StoragePrice)
+	// The deposit cap is the sponsor's committed budget (PayStorage maxDeposit),
+	// not DefaultDeposit. A non-positive budget means NOTHING may be charged, and
+	// must not fall back to DefaultDeposit: that made the failure mode of a
+	// defensive branch a LARGER charge than the invariant it defends allows, up
+	// to the chain default (100 GNOT today) against a realm that committed less.
+	// Refunds still settle, since releasing storage needs no budget.
+	if maxBudget <= 0 {
+		// Report the first growing realm in sorted order. Ranging the map here
+		// would make the message depend on Go's randomized iteration order, so
+		// the one branch this guard exists to make safe would read differently
+		// on every node.
+		grown := make([]string, 0, len(diffs))
+		for path, d := range diffs {
+			if d > 0 {
+				grown = append(grown, path)
+			}
+		}
+		if len(grown) > 0 {
+			slices.Sort(grown)
+			return fmt.Errorf(
+				"storage deposit budget exhausted: realm %s grew %d bytes with no remaining budget",
+				grown[0], diffs[grown[0]])
+		}
+	}
+	depositAmt := maxBudget
+
+	sortedRealm := make([]string, 0, len(diffs))
+	for path := range diffs {
+		sortedRealm = append(sortedRealm, path)
+	}
+	slices.SortFunc(sortedRealm, strings.Compare)
+
+	var allErrs error
+	totalCharged := int64(0)
+	for _, rlmPath := range sortedRealm {
+		diff := diffs[rlmPath]
+		if diff == 0 {
+			continue
+		}
+		rlm := gnostore.GetPackageRealm(rlmPath)
+		if rlm == nil {
+			// Defensive: mirror ProcessStorageDeposit's guard so an
+			// unresolvable realm path can't nil-deref in the branches below.
+			allErrs = goerrors.Join(allErrs, fmt.Errorf(
+				"storage diff for unknown realm %q (size=%d) — deposit skipped",
+				rlmPath, diff))
+			continue
+		}
+		if diff > 0 {
+			requiredDeposit := overflow.Mulp(diff, price.Amount)
+			// Check budget (from PayStorage maxDeposit)
+			if maxBudget > 0 && totalCharged+requiredDeposit > maxBudget {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"storage deposit exceeds PayStorage budget: total %d%s > budget %d%s",
+					totalCharged+requiredDeposit, ugnot.Denom, maxBudget, ugnot.Denom))
+				continue
+			}
+			if depositAmt < requiredDeposit {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
+					requiredDeposit, ugnot.Denom, diff))
+				continue
+			}
+			err := vm.lockStorageDeposit(ctx, payer, rlm, requiredDeposit, diff)
+			if err != nil {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"lockStorageDeposit failed for realm %s: %w", rlmPath, err))
+				continue
+			}
+			totalCharged += requiredDeposit
+			depositAmt -= requiredDeposit
+			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
+			evt := chain.StorageDepositEvent{BytesDelta: diff, FeeDelta: d, PkgPath: rlmPath}
+			ctx.EventLogger().EmitEvent(evt)
+		} else {
+			released := -diff
+			if rlm.Storage < uint64(released) {
+				panic(fmt.Sprintf("not enough storage to be released for realm %s", rlmPath))
+			}
+			// Proportional refund based on the realm's actual locked deposit, NOT
+			// released*current price. Mirrors ProcessStorageDeposit so that a
+			// governance StoragePrice change cannot (a) panic here when
+			// released*newPrice > the realm's locked deposit, or (b) orphan deposit
+			// by under-refunding after a price decrease.
+			var depositUnlocked int64
+			if rlm.Storage == uint64(released) {
+				// Freeing all storage: refund the entire deposit (avoids rounding loss).
+				depositUnlocked = int64(rlm.Deposit)
+			} else {
+				result := new(big.Int).SetUint64(rlm.Deposit)
+				result.Mul(result, big.NewInt(released))
+				result.Div(result, new(big.Int).SetUint64(rlm.Storage))
+				depositUnlocked = result.Int64()
+			}
+			if rlm.Deposit < uint64(depositUnlocked) {
+				panic(fmt.Sprintf("not enough deposit to be unlocked for realm %s", rlmPath))
+			}
+			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
+			receiver := refundReceiver
+			if isRestricted {
+				receiver = params.StorageFeeCollector
+			}
+			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
+			if err != nil {
+				return err
+			}
+			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
+			evt := chain.StorageUnlockEvent{BytesDelta: diff, FeeRefund: d, PkgPath: rlmPath, RefundWithheld: isRestricted}
 			ctx.EventLogger().EmitEvent(evt)
 		}
 		gnostore.SetPackageRealm(rlm)

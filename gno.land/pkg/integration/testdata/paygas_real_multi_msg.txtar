@@ -1,0 +1,75 @@
+# Test true multi-MsgCall tx where PayGas is called in the second message.
+# First MsgCall increments a counter (no PayGas).
+# Second MsgCall calls a payer realm (calls PayGas).
+# Both execute atomically, payer realm pays total gas.
+#
+# Uses a separate user (user1) for the multi-msg tx to avoid sequence issues.
+
+## load packages
+loadpkg gno.land/r/test/mm_counter $WORK/counter
+loadpkg gno.land/r/test/mm_payer $WORK/payer
+
+## create user1 for signing the multi-msg tx
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund payer realm using test1 (test1 pays this with normal fees)
+gnokey maketx send -send 10000000ugnot -to g1tur0eldetcmmyanlnpyf5mhv3c788dkq0wa7va -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## check payer balance before
+gnokey query bank/balances/g1tur0eldetcmmyanlnpyf5mhv3c788dkq0wa7va
+stdout '10000000ugnot'
+
+## check user1 balance before
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## sign the multi-msg tx with user1 (fresh sequence, no prior txs)
+gnokey sign -tx-path $WORK/multi_msg.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+## broadcast
+gnokey broadcast $WORK/multi_msg.tx -quiet=false
+stdout OK!
+
+## check payer balance decreased (paid gas for both messages)
+gnokey query bank/balances/g1tur0eldetcmmyanlnpyf5mhv3c788dkq0wa7va
+! stdout '10000000ugnot'
+
+## check user1 balance — may pay storage for Msg[0] (counter.Increment) since SponsorStorage not set.
+## To make user pay truly 0 for multi-msg, use SponsorStorage=true on the tx.
+gnokey query bank/balances/$user1_user_addr
+
+-- counter/gnomod.toml --
+module = "mm_counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package mm_counter
+
+var Count int
+
+func Increment(cur realm) {
+	Count++
+}
+
+-- payer/gnomod.toml --
+module = "mm_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package mm_payer
+
+import "chain/runtime"
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000)    // pay gas up to 5 gnot
+	runtime.PayStorage(500000) // pay storage up to 0.5 gnot
+	return "paid"
+}
+
+-- multi_msg.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/mm_counter","func":"Increment","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/mm_payer","func":"Pay","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

@@ -1,0 +1,30 @@
+# Test that PayGas(0) panics — maxFee must be positive.
+
+## start a new node
+gnoland start
+
+## deploy realm
+gnokey maketx addpkg -pkgdir $WORK/zero -pkgpath gno.land/r/test/zero -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund realm
+gnokey maketx send -send 10000000ugnot -to g19l50v4j0xmceh8s5plux9e6g6nve7da2j4038h -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call — PayGas(0) should panic
+! gnokey maketx call -pkgpath gno.land/r/test/zero -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
+stderr 'maxFee must be positive'
+
+-- zero/gnomod.toml --
+module = "zero"
+gno = "0.9"
+
+-- zero/zero.gno --
+package zero
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(0)
+	return "done"
+}

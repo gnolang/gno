@@ -1,0 +1,83 @@
+# A SponsorStorage tx that calls PayGas but never PayStorage, while growing
+# storage, can NEVER settle: end-of-tx settlement has no authorized storage payer
+# and fails with "grew storage but no realm called PayStorage".
+#
+# Regression test: such a tx must be REJECTED AT ADMISSION (CheckTx), not
+# admitted-then-failed at DeliverTx. Because a FAILED sponsored tx charges
+# nobody, admitting it would let any user burn block gas for free and make every
+# opting-in validator re-run the VM on a tx that is deterministically doomed.
+#
+# Before the fix this tx was admitted, gossiped, INCLUDED IN A BLOCK, burned
+# ~1.5M gas, and left every balance untouched.
+#
+# NOTE for maintainers: the assertion that actually pins the fix is the
+# `DeliverTx.*GasWanted:0, GasUsed:0` one — pre-fix that line read
+# `GasWanted:10000000, GasUsed:~1175246` because the tx really was delivered.
+# The `! gnokey broadcast` and the balance checks are NOT discriminating: the tx
+# failed (at DeliverTx) and charged nobody before the fix too. Keep the GasUsed:0
+# assertion if you edit this file.
+
+## load the realm
+loadpkg gno.land/r/test/ss_nopay $WORK/nopay
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the realm generously — it can easily afford the gas. The point is the
+## MISSING PayStorage, not insolvency.
+gnokey maketx send -send 10000000ugnot -to g1jt20dla20qgu26p869908rgxhh8cgrjywwdctg -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/g1jt20dla20qgu26p869908rgxhh8cgrjywwdctg
+stdout '10000000ugnot'
+
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## sign the 0-fee SponsorStorage tx
+gnokey sign -tx-path $WORK/nopay.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+## broadcast must FAIL. The rejection lands in CheckTx (the settlement dry run)
+## with an UnauthorizedError, and DeliverTx never runs — GasUsed:0 — proving the
+## tx never entered the mempool. Before the fix, CheckTx returned OK and the tx
+## was included in a block, burning ~1.5M gas at nobody's expense.
+! gnokey broadcast $WORK/nopay.tx -quiet=false
+## anchored so `.*` cannot run past the CheckTx struct into the DeliverTx one
+## (gnokey prints the whole ResultBroadcastTxCommit on a single line)
+stderr 'CheckTx:abci\.ResponseCheckTx\{[^}]*UnauthorizedError'
+stderr 'DeliverTx.*GasWanted:0, GasUsed:0'
+
+## nobody paid: the realm's balance is untouched...
+gnokey query bank/balances/g1jt20dla20qgu26p869908rgxhh8cgrjywwdctg
+stdout '10000000ugnot'
+
+## ...and so is the signer's.
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+cmp user1_balance_before user1_balance_after
+
+-- nopay/gnomod.toml --
+module = "ss_nopay"
+gno = "0.9"
+
+-- nopay/nopay.gno --
+package ss_nopay
+
+import "chain/runtime"
+
+var data []string
+
+func Grow(cur realm) string {
+	// Sponsors gas only. Deliberately never calls PayStorage, while growing
+	// storage — so end-of-tx settlement has no authorized storage payer.
+	runtime.PayGas(5000000)
+	data = append(data, "grow the realm's storage")
+	return "grown"
+}
+
+-- nopay.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_nopay","func":"Grow","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot","sponsor_storage":true},"signatures":null,"memo":""}
