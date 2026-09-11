@@ -24,7 +24,9 @@
 // members post-genesis through regular GovDAO proposals. The other six
 // gnolang/multisigs [govdao] keys were confirmed with their owners and
 // are recorded in the gen-genesis.sh history (commit 97987fa06) for when
-// those proposals are made.
+// those proposals are made. He is seeded with NINE invitation points
+// rather than the T1 default of three, because each of those six adds
+// burns one of HIS — see the comment on the SetMember call.
 //
 // Steps:
 //  1. Add the sole GovDAO T1 member.
@@ -42,7 +44,28 @@ func main(cur realm) {
 	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add the sole GovDAO T1 member ----
-	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(3))) // aeddi
+	//
+	// NINE invitation points, not the T1 tier default of three.
+	//
+	// Each NewT1MemberRequest burns one point of the PROPOSER's balance at
+	// execution time (r/gov/dao/impl/v0/prop_requests.gno), and the T1 tier
+	// default only governs what the INVITEE is seeded with — every member
+	// added this way starts at three regardless of what the inviter holds.
+	// So seating the six remaining [govdao] members costs aeddi six points,
+	// and three is what the seven-member bootstrap gave every founder.
+	// 6 + 3 = 9 reproduces that end state exactly: seven T1 members holding
+	// three points each, which is what this chain would have launched with
+	// had all seven been seeded at genesis.
+	//
+	// Three would not merely be tight, it would be short: aeddi would run
+	// out after the third proposal (the fourth NewT1MemberRequest panics at
+	// creation with "proposer does not have enough invitation points"), and
+	// the remaining three members could only be seated by spending the
+	// points of members he had just invited — leaving the founding set with
+	// an arbitrary, lopsided point distribution that no proposal can
+	// rebalance, since nothing in the memberstore grants points after the
+	// fact.
+	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(9))) // aeddi
 
 	// ---- 2. Lock down memberstore access ----
 	// gno.land/r/gov/dao/impl/v0 is the production member-mutation realm;
