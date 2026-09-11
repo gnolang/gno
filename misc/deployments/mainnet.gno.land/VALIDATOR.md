@@ -1,6 +1,6 @@
 # Joining mainnet as a validator
 
-> **WORK IN PROGRESS** — the chain-id (`gnoland-1`) and the endpoints (`gno.land`, `rpc.gno.land`, `seed-1.gno.land`/`seed-2.gno.land`) are final; the genesis sha and the seed node IDs are placeholders until launch. Grep `TODO(mainnet)` across this folder.
+> **WORK IN PROGRESS** — the chain-id (`gnoland-1`), the endpoints (`gno.land`, `rpc.gno.land`, `seed-1.gno.land`/`seed-2.gno.land`) and the seed node IDs are final; the genesis sha is a placeholder until launch. Grep `TODO(mainnet)` across this folder.
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
@@ -64,7 +64,7 @@ Then set the following (edit `config.toml`, or use `gnoland config set <key> <va
 
 | Key | Value |
 | --- | --- |
-| `p2p.persistent_peers` | `<node-id>@seed-1.gno.land:26656,<node-id>@seed-2.gno.land:26656` — TODO(mainnet): the two seed node IDs land here with the infra handoff |
+| `p2p.persistent_peers` | `g15rcv5yqef3kvnmueqvkyw8y05sd40jz9p3n5su@seed-1.gno.land:26656,g1ck2yeyvvnpl92237gcea0z68jx07a4nnyvuaan@seed-2.gno.land:26656` |
 | `application.prune_strategy` | `syncable` |
 | `consensus.timeout_commit` | `3s` |
 | `consensus.peer_gossip_sleep_duration` | `10ms` |
