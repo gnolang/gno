@@ -65,7 +65,10 @@ func removeValidator(address_XXX address) {
 	chain.Emit(validators.ValidatorRemovedEvent)
 }
 
-// saveChange saves the valset change
+// saveChange saves the valset change.
+// If a change for the same address already exists in the current block,
+// it is overwritten (last-writer-wins) to prevent duplicate entries
+// from reaching the consensus layer.
 func saveChange(ch change) {
 	id := getBlockID(ch.blockNum)
 
@@ -76,10 +79,19 @@ func saveChange(ch change) {
 		return
 	}
 
-	// Save the change
+	// Check if a change for this address already exists in this block
 	set := setRaw.([]change)
-	set = append(set, ch)
+	for i, existing := range set {
+		if existing.validator.Address == ch.validator.Address {
+			// Overwrite the existing change for this address
+			set[i] = ch
+			changes.Set(id, set)
 
+			return
+		}
+	}
+
+	set = append(set, ch)
 	changes.Set(id, set)
 }
 

@@ -1,0 +1,181 @@
+# Test: two proposals modifying the same validator address executed in the
+# same block.
+#
+# Without per-block dedup in saveChange(), two proposals touching the same
+# address produce duplicate entries [{X, 0}, {X, 30}] in the realm's change
+# list. With a real (matching-pubkey) validator, these duplicates would
+# reach tm2's processChanges() which rejects them and halts the chain. In
+# this txtar setup the pubkey does not match the address, so the app-level
+# EndBlocker filter drops the updates before tm2 sees them — the chain does
+# not halt, but the realm-level duplicate is still observable via Render.
+#
+# saveChange() applies last-writer-wins dedup per block, so only the re-add
+# entry remains after both proposals execute in the same block.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/validators/v2
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/test/val_helper $WORK/val_helper
+
+gnoland start
+
+# Step 1: add validator X (proposal 0: create + vote + execute in one tx)
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/run/add_validator.gno
+stdout OK!
+
+# Step 2: create remove proposal (proposal 1) - separate block
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/run/create_remove_proposal.gno
+stdout OK!
+
+# Step 3: create add proposal (proposal 2) - separate block
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/run/create_add_proposal.gno
+stdout OK!
+
+# Step 4: vote and execute BOTH proposals in the same block.
+# saveChange() is called twice for the same address in the same block;
+# the second call must overwrite the first (last-writer-wins).
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/run/vote_and_execute_both.gno
+stdout OK!
+
+# Step 5: verify the realm's change list for the cross-proposal block has
+# exactly one entry for validator X (the re-add), not two:
+#   - the remove entry "(0)" must NOT be present (overwritten by dedup)
+#   - the re-add entry "(30)" must be present (last-writer-wins)
+gnokey query vm/qrender --data 'gno.land/r/sys/validators/v2:'
+! stdout 'g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl \(0\)'
+stdout 'g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl \(30\)'
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
+-- val_helper/gnomod.toml --
+module = "gno.land/r/test/val_helper"
+gno = "0.9"
+-- val_helper/val_helper.gno --
+// Package val_helper returns validator proposal requests whose closures
+// are captured inside this (non-private) realm, so they can be persisted
+// when the DAO stores the proposal.
+package val_helper
+
+import (
+	"gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	valrealm "gno.land/r/sys/validators/v2"
+)
+
+const (
+	// Test address/pubkey (pubkey does NOT match the address, so the
+	// app-level pubkey filter in the EndBlocker removes these updates
+	// before they reach tm2. This test therefore only exercises the
+	// realm-level dedup logic in saveChange(), not the downstream
+	// tm2 processChanges() crash. Triggering the chain halt requires
+	// a real validator node (see D4ryl00's val-scenarios/scenario 13
+	// which uses a multi-node cluster).
+	ValAddr   = "g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"
+	ValPubKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
+)
+
+// AddRequest returns a proposal to add validator X with the given power.
+func AddRequest(power uint64) dao.ProposalRequest {
+	changesFn := func() []validators.Validator {
+		return []validators.Validator{
+			{
+				Address:     address(ValAddr),
+				PubKey:      ValPubKey,
+				VotingPower: power,
+			},
+		}
+	}
+	return valrealm.NewPropRequest(changesFn, "Add validator X", "")
+}
+
+// RemoveRequest returns a proposal to remove validator X.
+func RemoveRequest() dao.ProposalRequest {
+	changesFn := func() []validators.Validator {
+		return []validators.Validator{
+			{
+				Address:     address(ValAddr),
+				VotingPower: 0,
+			},
+		}
+	}
+	return valrealm.NewPropRequest(changesFn, "Remove validator X", "")
+}
+-- run/add_validator.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/val_helper"
+)
+
+func main() {
+	pr := val_helper.AddRequest(20)
+	pid := dao.MustCreateProposal(cross, pr)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: "YES", ProposalID: pid})
+	dao.ExecuteProposal(cross, pid)
+}
+-- run/create_remove_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/val_helper"
+)
+
+func main() {
+	pr := val_helper.RemoveRequest()
+	dao.MustCreateProposal(cross, pr)
+}
+-- run/create_add_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/val_helper"
+)
+
+func main() {
+	pr := val_helper.AddRequest(30)
+	dao.MustCreateProposal(cross, pr)
+}
+-- run/vote_and_execute_both.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	// Vote on both proposals
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: "YES", ProposalID: dao.ProposalID(1)})
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: "YES", ProposalID: dao.ProposalID(2)})
+
+	// Execute both in the same block - triggers saveChange() twice for the
+	// same address in the same block
+	dao.ExecuteProposal(cross, dao.ProposalID(1))
+	dao.ExecuteProposal(cross, dao.ProposalID(2))
+}
