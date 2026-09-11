@@ -12,13 +12,16 @@ Shared scripts for govDAO governance operations. These scripts require `GNOKEY_N
 ./govdao rm-validator ADDR                   # v2: remove a validator
 ./govdao add-validator-v3 OPADDR [POWER]     # v3: add validator by operator-address (test-13+)
 ./govdao rm-validator-v3 OPADDR              # v3: remove validator by operator-address (test-13+)
+./govdao add-validators-v3 OPADDR[:POWER]... # v3: batch-add validators in one proposal (max 40)
 ./govdao register-valoper MONIKER DESC TYPE OPADDR PUBKEY   # operator self-register profile (NOT govDAO-signed)
 ./govdao register-user USERNAME ADDR         # govDAO-grant a custom username for ADDR
 ./govdao extend-govdao-t1                    # add 6 T1 members to govDAO (one-time bootstrap)
 ./govdao unrestrict-account ADDR [ADDR...]   # allow address(es) to transfer ugnot
 ./govdao restrict-account ADDR [ADDR...]     # re-restrict account(s) from transferring ugnot
+./govdao unlock-transfer                     # clear the bank lock chain-wide (all accounts can transfer)
 ./govdao set-cla URL                         # set/update CLA document via govDAO proposal
 ./govdao set-valoper-minfee AMOUNT           # update valoper registration minimum fee
+./govdao set-valoper-instructions            # update r/gnops/valopers registration instructions
 ```
 
 The `-v3` validator commands route through `r/sys/validators/v3` (operator-keyed,
