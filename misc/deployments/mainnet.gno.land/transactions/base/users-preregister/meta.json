@@ -1,5 +1,5 @@
 {
-  "reason": "mainnet namespace preregistration MsgRun: registers the initial mainnet names (gnoswap, onbloc, moul, aeddi, aib, samcrew, morgan) in r/sys/users via the genesis-only r/sys/users/init.RegisterUser wrapper. The controller gate is skipped at height 0, so no standing authority survives genesis; GovDAO can rename or delete any of these via r/sys/namereg/v1 proposals.",
+  "reason": "mainnet namespace preregistration MsgRun: registers the initial mainnet names (gnoswap, onbloc, moul, aeddi, aib, samcrew, howl) in r/sys/users via the genesis-only r/sys/users/init.RegisterUser wrapper. The controller gate is skipped at height 0, so no standing authority survives genesis; GovDAO can rename or delete any of these via r/sys/namereg/v1 proposals.",
   "kind": "MsgRun",
   "caller_key": "GenesisDeployer",
   "gas_wanted": 100000000,
