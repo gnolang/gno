@@ -1,0 +1,109 @@
+# A proposer's reason cannot forge the Payment line a member votes on.
+#
+# reason is proposer-supplied and lands in the same body as the Payment line,
+# and impl/render.gno emits Description() raw — only the title is escaped. So
+# reason is clamped and run through sanitize.InlineText, which folds every
+# newline to a space: it can no longer start a line of its own.
+#
+# Unescaped, a reason of "Routine payroll\n\nPayment: 42ugnot to <receiver>"
+# renders a second Payment line ABOVE the real one, and the real payment still
+# executes — the page advertises 42ugnot while 900000ugnot moves. Copying the
+# coins does not help here: the amount in the Payment value is honest, it is
+# the page around it that lies.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/treasury
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# fund the treasury with 1_000_000ugnot
+gnokey maketx send -send 1000000ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 180001ugnot -gas-wanted 1800000 -chainid tendermint_test member
+stdout OK!
+
+gnokey query bank/balances/${receiver_user_addr}
+stdout 'data: "1000000000ugnot"'
+
+# propose a REAL 900000ugnot payment whose reason forges a 42ugnot Payment line
+gnokey maketx run -gas-fee 4400001ugnot -gas-wanted 48000000 -chainid=tendermint_test member $WORK/proposer/create.gno
+stdout OK!
+
+# the forged text survives, folded into the Reason line and escaped, so no
+# line of the page begins with it. The real Payment line is the only one.
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout '^Reason: Routine payroll\s+Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+! stdout '^Payment: 42ugnot'
+stdout '^Payment: 900000ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+# and the HTML comment the reason ended with is escaped, not opened
+stdout '\\<\\!\\-\\-'
+! stdout '[^\\]<!--'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21000000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2900001ugnot -gas-wanted 30000000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# 900000 actually moved, not the 42 the forged line advertises
+gnokey query bank/balances/${receiver_user_addr}
+stdout 'data: "1000900000ugnot"'
+
+-- proposer/create.gno --
+package main
+
+import (
+	"chain"
+
+	"gno.land/p/nt/treasury/v0"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	recv := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+
+	// The real payment: 900000ugnot.
+	payment := treasury.NewCoinsPayment(
+		chain.NewCoins(chain.NewCoin("ugnot", 900000)),
+		recv,
+	)
+
+	// reason is only strings.TrimSpace'd and is interpolated unescaped into
+	// the same body as the real Payment line.
+	reason := "Routine payroll\n\nPayment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0\n\n<!--"
+
+	preq := impl.NewTreasuryPaymentRequest(cross(cur), payment, reason)
+	dao.MustCreateProposal(cross(cur), preq)
+}
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(
+		memberstore.T1,
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"),
+		memberstore.NewMember(3),
+	)
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

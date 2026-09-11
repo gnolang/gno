@@ -77,6 +77,10 @@ type Store interface {
 	SetAllocator(alloc *Allocator)
 	GetPreprocessAllocator() *Allocator
 	SetPreprocessAllocator(alloc *Allocator)
+	// Number of package index entries ever written, one per AddMemPackage.
+	// A re-add at an existing path writes another without removing the one
+	// that path held, so this can sit above the number of packages
+	// IterMemPackage yields.
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -96,7 +100,8 @@ type Store interface {
 	// Yields each indexed package's PROD mempackage (test/filetest files
 	// live under the #allbutprod sibling and are not included), in index
 	// order. A package with no production .gno files has no prod blob and
-	// is skipped.
+	// is skipped. Each path is yielded once, at its highest index, which is
+	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -171,13 +176,16 @@ type defaultStore struct {
 
 	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
 	// installed by the keeper (AddPackage / Run) before RunMemPackage.
-	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
-	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// Sub-Machines spun up during Preprocess (evalStaticTypeMachine,
+	// evalStaticTypeOfRaw, tryEvalStatic, evalConst) pick it up via
 	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
-	// nil → Allocate hard-panics on maxBytes overflow rather than
-	// attempting a GC retry (which would undercount because GC doesn't
-	// visit m.Values, the operand stack). gasMeter is shared with the
-	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// nil → Allocate hard-panics on maxBytes overflow instead of a GC
+	// retry: preprocess is bounded static evaluation that should fail
+	// fast at the cap. The allocator is also shared by every preprocess sub-Machine
+	// in the tx, so a collect bound to one machine would walk only that
+	// machine's roots; hence isPreprocessing skips SetGCFn.
+	// gasMeter is shared with the outer tx Machine so CPU and alloc gas
+	// both bill against tx gas.
 	// Inherited via BeginTransaction so nested forked stores see it.
 	// Cleared by the keeper's defer at handler exit; not serialized.
 	preprocessAlloc *Allocator
@@ -1034,6 +1042,31 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
+// indexedPackagePaths returns the indexed paths in index order, each once, at
+// its highest index. Indices run 1..ctr inclusive.
+//
+// A path holds one index entry per AddMemPackage, so a re-add at an existing
+// path (a private redeploy) leaves it several, and only the highest is where
+// its current content was stored.
+func (ds *defaultStore) indexedPackagePaths(ctr uint64) []string {
+	var ordered []string
+	seen := make(map[string]bool, ctr)
+	for i := ctr; i >= 1; i-- {
+		bz := ds.baseStore.Get(ds.gctx, []byte(backendPackageIndexKey(i)))
+		if bz == nil {
+			panic(fmt.Sprintf("missing package index %d", i))
+		}
+		path := string(bz)
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
+		ordered = append(ordered, path)
+	}
+	slices.Reverse(ordered)
+	return ordered
+}
+
 // mptype is passed in as a redundant parameter as convenience to assert that
 // mpkg.Type is what is expected.
 // If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for
@@ -1366,7 +1399,8 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 }
 
 // IterMemPackage yields each indexed package's PROD mempackage in index
-// order, skipping prod-less packages. See the Store interface doc.
+// order, skipping prod-less packages, one yield per path. See the Store
+// interface doc.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
@@ -1379,14 +1413,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		}
 		ch := make(chan *std.MemPackage)
 		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
-				idxkey := []byte(backendPackageIndexKey(i))
-				path := ds.baseStore.Get(ds.gctx, idxkey)
-				if path == nil {
-					panic(fmt.Sprintf(
-						"missing package index %d", i))
-				}
-				mpkg := ds.GetMemPackage(string(path))
+			for _, path := range ds.indexedPackagePaths(uint64(ctr)) {
+				mpkg := ds.GetMemPackage(path)
 				if mpkg == nil {
 					// Prod-less package (e.g. xxx_test-only): no prod
 					// blob to yield. On-chain this is unreachable — the

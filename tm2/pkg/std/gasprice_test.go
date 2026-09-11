@@ -1,12 +1,36 @@
 package std
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGasPriceJSON(t *testing.T) {
+	t.Parallel()
+
+	want := GasPrice{Gas: 1, Price: Coin{Denom: "ugnot", Amount: 1}}
+
+	var got GasPrice
+	require.NoError(t, json.Unmarshal([]byte(`"1ugnot/1gas"`), &got))
+	require.Equal(t, want, got)
+	require.NoError(t, json.Unmarshal([]byte(`null`), &got))
+	require.Equal(t, want, got)
+
+	require.Error(t, json.Unmarshal([]byte(`"bogus"`), &got))
+
+	bz, err := json.Marshal(want)
+	require.NoError(t, err)
+	require.Equal(t, `{"gas":1,"price":{"denom":"ugnot","amount":1}}`, string(bz))
+
+	// Object form (from json.Marshal) round-trips via the alias branch.
+	var fromObj GasPrice
+	require.NoError(t, json.Unmarshal(bz, &fromObj))
+	require.Equal(t, want, fromObj)
+}
 
 func TestGasPriceGTE(t *testing.T) {
 	t.Parallel()
@@ -190,4 +214,29 @@ func TestGasPriceIsGTERefusesNegativeGas(t *testing.T) {
 	ok, err = nodeMin.IsGTE(GasPrice{Gas: -1000, Price: Coin{Denom: "ugnot", Amount: 1}})
 	require.Error(t, err)
 	require.False(t, ok)
+}
+
+func TestGasPriceJSONObjectAtomic(t *testing.T) {
+	before := GasPrice{Gas: 1000, Price: Coin{Denom: "ugnot", Amount: 7}}
+	for _, tc := range []struct {
+		name, input string
+		want        GasPrice
+		wantErr     bool
+	}{
+		{"error after gas", `{"gas":1,"price":{"denom":"foo","amount":"bad"}}`, before, true},
+		{"error before price", `{"gas":"bad","price":{"denom":"foo","amount":2}}`, before, true},
+		{"partial", `{"gas":1}`, GasPrice{Gas: 1, Price: before.Price}, false},
+		{"complete", `{"gas":2,"price":{"denom":"ugnot","amount":3}}`, GasPrice{Gas: 2, Price: Coin{Denom: "ugnot", Amount: 3}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := before
+			err := json.Unmarshal([]byte(tc.input), &got)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
