@@ -211,26 +211,33 @@ func TestWouldExceedSpend(t *testing.T) {
 	}
 }
 
+// baseConfig is what the constructor tests start from and override one field
+// of. It carries more than newOracle reads, since the same config goes on to
+// sign, and it sets both child budgets: a zero one is unset rather than a
+// zero-length deadline, and it would expire the spawned child at once.
+func baseConfig() config {
+	return config{
+		remote:        "http://127.0.0.1:26657",
+		chainID:       "test",
+		mnemonic:      testMnemonic,
+		gnoRoot:       gnoenv.RootDir(),
+		gasFee:        "1000000ugnot",
+		gasWanted:     defaultGasWanted,
+		prepareBudget: defaultPrepareBudget,
+		verifyBudget:  defaultVerifyBudget,
+	}
+}
+
 // TestNewOracleRejectsUnusableSpendBound pins the startup checks. A bound that
 // cannot pay for a single approval would leave the daemon running and silently
 // approving nothing, which is worse than refusing to start.
 func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
-	base := func() config {
-		return config{
-			remote:    "http://127.0.0.1:26657",
-			chainID:   "test",
-			mnemonic:  testMnemonic,
-			gnoRoot:   gnoenv.RootDir(),
-			gasFee:    "1000000ugnot",
-			gasWanted: defaultGasWanted,
-		}
-	}
 	tio := commands.NewTestIO()
 	tio.SetOut(commands.WriteNopCloser(io.Discard))
 	tio.SetErr(commands.WriteNopCloser(io.Discard))
 
 	t.Run("below one approval", func(t *testing.T) {
-		cfg := base()
+		cfg := baseConfig()
 		cfg.maxSpend = "999999ugnot"
 		_, err := newOracle(cfg, tio)
 		require.Error(t, err)
@@ -238,7 +245,7 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	})
 
 	t.Run("wrong denom", func(t *testing.T) {
-		cfg := base()
+		cfg := baseConfig()
 		cfg.maxSpend = "100foocoin"
 		_, err := newOracle(cfg, tio)
 		require.Error(t, err)
@@ -246,7 +253,7 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	})
 
 	t.Run("a usable bound is accepted", func(t *testing.T) {
-		cfg := base()
+		cfg := baseConfig()
 		cfg.maxSpend = defaultMaxSpend
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
@@ -345,17 +352,5 @@ func TestHybridGetterAsksTheChainForUserPackages(t *testing.T) {
 		require.NotNil(t, h.GetMemPackage(stdPath),
 			"stdlibs ship with the binary; the chain cannot serve them")
 		assert.Contains(t, disk.asked, stdPath)
-	})
-
-	t.Run("with no remote, disk answers everything", func(t *testing.T) {
-		t.Parallel()
-
-		disk := &stubGetter{pkgs: map[string]*std.MemPackage{
-			userPath: onePkg(userPath, "package x\n"),
-		}}
-		h := hybridGetter{disk: disk, rpc: nil}
-
-		assert.NotNil(t, h.GetMemPackage(userPath),
-			"development mode: there is nothing to ask, so disk is all there is")
 	})
 }

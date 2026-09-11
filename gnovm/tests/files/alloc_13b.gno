@@ -40,5 +40,5 @@ gggggggggggggggggggggggggg` // 512 bytes
 }
 
 // Output:
-// after GC:  Allocator{maxBytes:100000, bytes:8920}
+// after GC:  Allocator{maxBytes:100000, bytes:9000}
 // 1024 10

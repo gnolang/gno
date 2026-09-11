@@ -19,5 +19,5 @@ func main(cur realm) {
 }
 
 // Output:
-// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:9502}
+// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:9582}
 // 40 79

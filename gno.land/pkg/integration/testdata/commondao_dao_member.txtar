@@ -9,7 +9,9 @@
 #
 # A closure cannot be encoded in a CLI transaction, so it is authored by a small
 # policy realm (mpolicy) that sits on M's council. That realm is M's governance:
-# it creates M, opts M into the execution kind, and drives M's votes.
+# it opts M into the execution kind and drives M's votes. Only a user may call
+# New, so M is handed over rather than created by mpolicy: test1 creates M with
+# mpolicy seated alongside itself, then resigns.
 #
 # We prove M's vote is decisive with the bank keeper: P passes a treasury spend
 # that a two-member council can only pass with BOTH members voting YES. After
@@ -33,8 +35,15 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Invite -args $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# M = dao/2, created BY the policy realm, so mpolicy is M's sole council member.
-gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/mpolicy -func CreateMemberDAO -gas-fee 2000000ugnot -gas-wanted 60000000 -broadcast -chainid=tendermint_test test1
+# M = dao/2, created by test1 with the policy realm
+# (g1pwkwxhyvc6yfgpelxev95ppjdycvsz9cx3p8cd = gno.land/r/$test1_user_addr/mpolicy)
+# seated on its council. New always adds its caller too, so the council is
+# {mpolicy, test1} at this point.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func New -args 'MemberDAO' -args 'A DAO governed by a policy realm' -args '' -args g1pwkwxhyvc6yfgpelxev95ppjdycvsz9cx3p8cd -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# test1 resigns, leaving mpolicy as M's sole council member.
+gnokey maketx call -pkgpath gno.land/r/nt/commondao/v0 -func Resign -args 2 -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 # Register the execution kind on M through mpolicy (M's council).
@@ -101,13 +110,6 @@ import (
 	pdao "gno.land/p/nt/commondao/v0"
 	commondao "gno.land/r/nt/commondao/v0"
 )
-
-// CreateMemberDAO creates a CommonDAO whose sole council member is THIS realm
-// (the immediate caller of New), and returns its ID. The transaction origin
-// must hold a commondao invite.
-func CreateMemberDAO(cur realm) uint64 {
-	return commondao.New(cross(cur), "MemberDAO", "A DAO governed by a policy realm", "", "")
-}
 
 // RegisterExecutionKind opts DAO mID into the execution kind through its own
 // governance. This realm is mID's sole council member, so one YES decides.

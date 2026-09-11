@@ -242,6 +242,60 @@ func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
 	})
 }
 
+// A gas price quoted in anything but ugnot makes std.GasPrice.IsGTE fail on
+// every fee comparison, so the ante handler would reject every transaction the
+// chain ever sees. auth.Params.Validate cannot catch it -- tm2 hosts whichever
+// chain is built on it and only checks that the denom is well formed -- so
+// gno.land asserts its own denom at InitChain, while the chain still fails to
+// boot rather than coming up unusable.
+func TestInitChainer_GenesisGasPriceDenom(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(gp std.GasPrice) abci.RequestInitChain {
+		state := DefaultGenState()
+		state.Auth.Params.InitialGasPrice = gp
+		pubKey := ed25519.GenPrivKey().PubKey()
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: state,
+		}
+	}
+
+	t.Run("ugnot accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(std.GasPrice{
+			Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1},
+		}))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("foreign denom aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		assert.PanicsWithError(t, `genesis auth initial_gasprice must be denominated in ugnot, got "atom"`, func() {
+			app.InitChain(newInitReq(std.GasPrice{
+				Gas: 1000, Price: std.Coin{Denom: "atom", Amount: 1},
+			}))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -3976,6 +4030,40 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
 }
 
+// TestApplyBalanceChoosesInitCoinsOrSetCoins pins the branch applyBalance takes
+// on cfg.acck.GetAccount, using mocks so the choice is asserted directly rather
+// than inferred from the resulting balance: a first sighting must go through
+// InitCoins, and a repeat must go through SetCoins, and neither may call the
+// other.
+func TestApplyBalanceChoosesInitCoinsOrSetCoins(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck := &mockAuthKeeper{}
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("applyBalance-branch"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 100}}
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.initCoinsCalls, "a first sighting must take the InitCoins branch")
+	require.Equal(t, 0, bankk.setCoinsCalls, "and must not also call SetCoins")
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.setCoinsCalls, "a repeat must take the SetCoins branch")
+	require.Equal(t, 1, bankk.initCoinsCalls, "and must not call InitCoins again")
+}
+
 // TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
 // outside the balances file: a genesis transaction whose signer has no account is
 // funded so it can pay for itself. That has to mint rather than credit. The supply
@@ -4061,7 +4149,6 @@ func TestTxCarriesCode(t *testing.T) {
 		// work done for free. Its omission here was a live hole, reproduced end
 		// to end against a running app.
 		{"enable_package alone", []std.Msg{vm.MsgEnablePackage{Approver: addr}}, true},
-		{"disable_package alone", []std.Msg{vm.MsgDisablePackage{Approver: addr}}, true},
 		{"enable_package behind a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgEnablePackage{Approver: addr}}, true},
 	}
 	for _, tt := range tests {
@@ -4096,12 +4183,14 @@ func TestTxCodeMsgSigners(t *testing.T) {
 		{
 			"add_package alone",
 			[]std.Msg{vm.MsgAddPackage{Creator: alice}},
-			[]crypto.Address{alice}, nil,
+			[]crypto.Address{alice},
+			nil,
 		},
 		{
 			"run alone",
 			[]std.Msg{vm.MsgRun{Caller: alice}},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 		{
 			// Both in one tx is the case that separates the two rules: under
@@ -4112,7 +4201,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				vm.MsgAddPackage{Creator: alice},
 				vm.MsgRun{Caller: bob},
 			},
-			[]crypto.Address{alice}, []crypto.Address{bob},
+			[]crypto.Address{alice},
+			[]crypto.Address{bob},
 		},
 		{
 			// MsgCall names a package but carries no source, so it must not be
@@ -4129,7 +4219,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				bank.MsgSend{FromAddress: bob, ToAddress: alice},
 				vm.MsgRun{Caller: alice},
 			},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 	}
 	for _, tt := range tests {

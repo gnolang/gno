@@ -175,14 +175,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			// "Meters" means it does not nil the meter the way
-			// acck.GetParams does; the read still costs nothing here,
-			// because the ctx is on the infinite meter until
-			// auth.SetGasMeter runs. See checkCodePolicy.
+			// governed depth parameters.
+			//
+			// The read bypasses the gas meter, like acck.GetParams above
+			// and gpk.LastGasPrice. It runs before authAnteHandler calls
+			// auth.SetGasMeter, so on DeliverTx the ctx carries runTx's
+			// passthrough meter, not an infinite one: a charge here is
+			// dropped when SetGasMeter replaces the meter and runTx does
+			// ctx = newCtx, so it reaches neither the fee payer's
+			// GasWanted nor the block gas meter -- but it can still
+			// exhaust the passthrough's head limit (the gas remaining in
+			// the block) and burn the whole block tail. Bypassing only
+			// suppresses charging; the value read is identical.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three
@@ -192,7 +196,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx)
+			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
 			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
@@ -602,6 +606,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
+	assertAuthGenesis(state.Auth)
 	cfg.acck.InitGenesis(ctx, state.Auth)
 	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
@@ -686,6 +691,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		cfg.applyBalance(ctx, bal)
 	}
 	cfg.seedSupply(ctx)
+	assertAuthGenesis(authState)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -774,6 +780,20 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	// only by the schedule set on it. Built through NewAccountWithAddress like
 	// every other account, which is what keeps it a *GnoAccount and so keeps the
 	// attributes -- the token-lock whitelist bit among them -- available on it.
+	// Probe before creating the account, to learn whether this address is a repeat
+	// (see the note above on repeated entries). A first sighting cannot hold a
+	// split-tier balance yet -- the bank store is empty when InitChainer starts,
+	// bank.InitGenesis writes params only, and this loop is its sole writer -- so
+	// there are no stale keys for SetCoins to drain, and InitCoins skips the
+	// enumeration that finds them. That enumeration is a store range iteration
+	// whose cost is O(all dirty keys), not O(denoms held), which made loading a
+	// large balance sheet quadratic. A repeat takes the SetCoins path unchanged.
+	firstSighting := cfg.acck.GetAccount(ctx, bal.Address) == nil
+
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
 	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
 		if err := bal.Vesting.Validate(); err != nil {
@@ -786,7 +806,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		acc.SetVesting(*bal.Vesting)
 	}
 	cfg.acck.SetAccount(ctx, acc)
-	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
+
+	setCoins := cfg.bankk.SetCoins
+	if firstSighting {
+		setCoins = cfg.bankk.InitCoins
+	}
+	if err := setCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a
 		// chain needs to know which entry to fix. std.ErrInvalidCoins carries the
@@ -800,6 +825,33 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 // unrestricted address. Each address must already exist as a genesis
 // account (i.e. must have appeared in balances), otherwise the verifier
 // can't verify the chain's unrestricted set.
+// assertAuthGenesis checks the chain-specific parts of the auth genesis state
+// that tm2 cannot judge for itself.
+//
+// auth.Params.Validate only checks that the initial gas price's denomination is
+// well formed, because tm2 hosts whichever chain is built on it and does not
+// know which denom that chain collects fees in. gno.land does: fees are paid in
+// ugnot, and std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+// genesis quoting the gas price in anything else makes the ante handler reject
+// every transaction the chain will ever see.
+//
+// Panics to abort boot, like the genesis validator pubkey-type gate and
+// auth.InitGenesis itself. A chain that cannot accept a transaction should fail
+// to start rather than come up and look healthy: InitChainer's error return
+// lands in ResponseInitChain.Error, which tendermint's handshake does not
+// surface.
+func assertAuthGenesis(state auth.GenesisState) {
+	gp := state.Params.InitialGasPrice
+	// The unset price leaves pricing disabled and carries no denom to check.
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
+			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
 func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
 	for _, addr := range addrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
@@ -1274,18 +1326,18 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 // The cost: keyless gas estimation no longer works for either message. gnokey
 // signs a second transaction for simulation and is unaffected; other clients
 // that estimate before signing must supply a real signature.
-// MsgEnablePackage and MsgDisablePackage are covered too, and are NOT part of
-// txCodeMsgSigners: that function feeds the code_submitters/run_submitters
-// allowlists, which have no authority over enabling. Their gate is
-// params.PkgApprovers, checked in the keeper against msg.Approver -- a
-// caller-supplied field, exactly like the signers above. So the same reasoning
-// applies: on an unverified simulate, anyone may name the real approver, attach
-// arbitrary bytes as a signature, and have the chain type-check and init() an
-// already-parked package for free. That the bytes are already stored makes it
-// worse rather than better, since under "inert" anyone may park them.
+// MsgEnablePackage is covered too, and is NOT part of txCodeMsgSigners: that
+// function feeds the code_submitters/run_submitters allowlists, which have no
+// authority over enabling. Its gate is params.PkgApprovers, checked in the
+// keeper against msg.Approver -- a caller-supplied field, exactly like the
+// signers above. So the same reasoning applies: on an unverified simulate,
+// anyone may name the real approver, attach arbitrary bytes as a signature, and
+// have the chain type-check and init() an already-parked package for free. That
+// the bytes are already stored makes it worse rather than better, since under
+// "inert" anyone may park them.
 //
 // MsgRejectPackage is deliberately NOT covered. It is authorized from its own
-// payload like the two above, but it executes nothing: it reads the parked
+// payload like the ones above, but it executes nothing: it reads the parked
 // blob, parses its gnomod.toml and deletes it. The harm the others invite --
 // driving a free type-check and init() per query -- has no analogue, and the
 // blob decode it does do is already reachable anonymously through
@@ -1298,7 +1350,7 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 func txCarriesCode(tx std.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		switch msg.(type) {
-		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage, vm.MsgDisablePackage:
+		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage:
 			return true
 		}
 	}
@@ -1548,7 +1600,7 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 		switch msg.Type() {
 		case "add_package":
 			return true
-		case "enable_package", "disable_package", "reject_package":
+		case "enable_package", "reject_package":
 			// Approver authority, and it cannot be scoped down. A session's
 			// AllowPaths are matched via GetPkgPath(), which only MsgCall
 			// implements -- so no path-scoped entry can ever match these, and

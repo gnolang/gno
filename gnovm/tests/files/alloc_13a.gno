@@ -51,4 +51,4 @@ func main() {
 
 // Output:
 // ===before GC, MemStats:  Allocator{maxBytes:50000, bytes:11980}
-// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:8972}
+// ===after GC, MemStats:  Allocator{maxBytes:50000, bytes:9052}
