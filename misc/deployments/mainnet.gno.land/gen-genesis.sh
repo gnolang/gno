@@ -1214,6 +1214,31 @@ if [ "$t1_seed_calls" -ne "$t1_count" ]; then
   die "$BOOTSTRAP_GNO makes $t1_seed_calls T1 SetMember calls for $t1_count distinct addresses — the repeated call fails with ErrMemberAlreadyExists and the bootstrap MsgRun panics at InitChain"
 fi
 
+# ---- The sole member's invitation points must cover the six post-genesis adds ----
+#
+# Every NewT1MemberRequest burns one point of the PROPOSER's balance when the
+# proposal executes, and there is no realm path that grants points after the
+# fact — not a proposal, not a promotion. So the number typed into NewMember()
+# at genesis is the permanent ceiling on how many members the launch member can
+# ever seat, and running out is terminal for the intended founding set: the
+# remaining seats could only be filled by spending the points of members he had
+# just invited, which no later proposal can rebalance.
+#
+# T1_EXPECTED_INVITATION_POINTS = the six remaining gnolang/multisigs [govdao]
+# members + the three the seven-member bootstrap gave every founder. Asserted
+# rather than defaulted, because the T1 tier's own default is 3 (it governs what
+# an INVITEE is seeded with, not an inviter) — so the wrong value here reads as
+# the right one, and only surfaces as a stuck governance set after launch.
+T1_EXPECTED_INVITATION_POINTS=9
+t1_points=$(grep -v '^[[:space:]]*//' "$BOOTSTRAP_GNO" |
+  grep -oE 'memberstore\.T1, address\("g1[0-9a-z]{38}"\), memberstore\.NewMember\([0-9]+\)' |
+  grep -oE 'NewMember\([0-9]+\)$' | grep -oE '[0-9]+') || t1_points=""
+if [ "$t1_points" != "$T1_EXPECTED_INVITATION_POINTS" ]; then
+  die "$(printf '%s\n%s' \
+    "expected the sole T1 member in $BOOTSTRAP_GNO to be seeded with $T1_EXPECTED_INVITATION_POINTS invitation points, found '${t1_points:-none}'." \
+    "With fewer, the six remaining [govdao] members cannot all be seated by proposal — and nothing on chain can top the balance up afterwards.")"
+fi
+
 t1_unfunded=""
 while IFS= read -r t1_addr; do
   t1_rc=0
@@ -1248,7 +1273,7 @@ if [ -n "$t1_unfunded" ]; then
     "$t1_unfunded" \
     "mainnet has no faucet: fund them in the gnolang/independence-day allocation, or drop them from the bootstrap.")"
 fi
-print_substep "2.7" "GovDAO T1 members: $t1_count seeded, each holds a genesis balance"
+print_substep "2.7" "GovDAO T1 members: $t1_count seeded with $t1_points invitation points, each holds a genesis balance"
 
 # ---- Every founding validator address must be able to pay for a tx ----
 # The same argument as 2.7, for the other set of addresses that must act on a
