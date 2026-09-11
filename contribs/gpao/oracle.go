@@ -35,9 +35,43 @@ type oracle struct {
 	client   gnoclient.Client
 	approver crypto.Address
 
-	// candidates carries submitted packages from the block reader to the
-	// verifier goroutine. See runVerifier for why they are separate.
-	candidates chan *std.MemPackage
+	// candidates carries one block's submitted packages, and that block's
+	// height, from the block reader to the verifier goroutine. See runVerifier
+	// for why they are separate, and blockWork for why the height rides along.
+	candidates chan blockWork
+
+	// state is what this run leaves on disk for the next one. A last-verified
+	// height is all it carries today, which is its current content and not the
+	// limit of what belongs there -- anything a restart would be better for
+	// knowing goes here rather than into a second file.
+	//
+	// Written by the verifier goroutine only, like seen and overBudget below,
+	// except for the --start-height override in run() -- which happens before
+	// that goroutine is started.
+	state *stateStore
+
+	// spendBlocked records that --max-spend stopped an approval, which freezes
+	// the cursor from that point on.
+	//
+	// Reaching the bound is normal operation, not a fault: the daemon keeps
+	// watching blocks and says so. But a block whose package was declined for
+	// want of budget has NOT been verified in the sense the cursor claims, and
+	// recording it as such is how raising the bound and restarting would report
+	// itself caught up while having permanently skipped every submission made
+	// after the bound was hit.
+	//
+	// Only this one of handleCandidate's four retryable outcomes freezes the
+	// cursor, and the criterion is whether the outcome is provably terminal for
+	// the rest of the run. It is here: `spent` only grows and `maxSpend` is
+	// fixed, so once one approval is declined every later one is too. An
+	// over-budget verification or a failed enable may succeed for the very next
+	// package, and both are capped, so freezing on those would let one
+	// transient blip at height 100 pin the cursor there for a run that reaches
+	// 100000. An unavailable verifier sits between the two -- see the
+	// errVerifyUnavailable branch.
+	//
+	// Same goroutine as spent, so no lock.
+	spendBlocked bool
 
 	// seen dedupes packages already processed in this run. Touched ONLY by the
 	// verifier goroutine, never by the block reader, or the two race on a plain
@@ -129,12 +163,36 @@ const maxOverBudgetAttempts = 3
 // pays a submission charge and then never learns why nothing happened.
 const maxEnableAttempts = 3
 
+// blockWork is one block's worth of verification, and the unit the cursor
+// advances by.
+//
+// Every block that was read produces exactly one, carrying however many
+// packages that block submitted -- including none. That is what makes "verified
+// through height N" mean the same thing on a busy chain and an idle one, and it
+// is why the height travels with the packages rather than being tracked
+// alongside: one FIFO drained by one goroutine cannot report a height it has
+// not finished, and two channels could.
+type blockWork struct {
+	height int64
+	pkgs   []*std.MemPackage
+}
+
 // candidateQueueSize bounds how far the block reader may run ahead of the
-// verifier. Generous, because its whole job is absorbing a bursty block; past
-// that, blocking the reader is the honest response to a saturated oracle.
+// verifier, in blocks. Past that, blocking the reader is the honest response to
+// an oracle that cannot keep up.
+//
+// Blocks, not packages: it also bounds how much progress a crash re-reads,
+// since the reader may be this far ahead of the persisted cursor. A burst rides
+// inside a single element rather than filling the queue, which is fine -- one
+// block's packages are bounded by the chain's own block size, and the common
+// case of package-free blocks now retains nothing at all.
 const candidateQueueSize = 256
 
 func newOracle(cfg config, io commands.IO) (*oracle, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
 	signer, err := buildSigner(cfg, io)
 	if err != nil {
 		return nil, err
@@ -173,12 +231,21 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		}
 	}
 
+	// After the signer on purpose: a wrong password should not leave a data
+	// directory behind, and creating one is the cheapest way to find out at
+	// startup that --data-dir is not writable.
+	st, err := openStateStore(cfg.dataDir, cfg.chainID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &oracle{
 		cfg:          cfg,
 		io:           io,
 		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
 		approver:     info.GetAddress(),
-		candidates:   make(chan *std.MemPackage, candidateQueueSize),
+		candidates:   make(chan blockWork, candidateQueueSize),
+		state:        st,
 		seen:         make(map[string]struct{}),
 		overBudget:   make(map[string]int),
 		failedEnable: make(map[string]int),
@@ -253,6 +320,62 @@ func (o *oracle) serveStatus(ctx context.Context, addr string) {
 	}()
 }
 
+// startHeight resolves the height to read first: an explicit --start-height, a
+// cursor left by an earlier run, or the node's tip. It reports whether the
+// height is settled, the way queryLatestHeight does and for the same reason: a
+// node that has said nothing about its tip has settled nothing, and the caller
+// must ask again rather than anchor to a guess.
+//
+// An error, by contrast, is final. A cursor ahead of the chain is not a node
+// that has yet to answer, so no amount of asking again resolves it.
+//
+// The flag wins over the cursor and rewrites it. An operator replaying a range
+// has to be able to contradict a recorded height -- otherwise a height stored
+// in error, or a range that needs a second look, could never be revisited --
+// and rewriting means a later restart resumes from the replay rather than
+// jumping back to where the cursor was. It also needs no tip, so a run pinned
+// by the flag starts without waiting on the node.
+func (o *oracle) startHeight(ctx context.Context) (height int64, answered bool, err error) {
+	if h := o.cfg.startHeight; h > 0 {
+		// h-1 because the two quantities are not the same one: the flag names
+		// the height to read next, the cursor the last height finished. The
+		// flag wins and rewrites the record; see stateStore.reset for why it
+		// must be able to.
+		if err := o.state.reset(h - 1); err != nil {
+			return 0, false, err
+		}
+		o.logf("gpao: starting at height %d (-start-height overrides the recorded cursor)", h)
+		return h, true, nil
+	}
+
+	tip, answered := o.queryLatestHeight(ctx)
+	if !answered {
+		return 0, false, nil
+	}
+
+	stored := o.state.lastVerifiedHeight()
+	if stored == noCursor {
+		o.logf("gpao: starting at height %d (nothing recorded yet, watching from the tip)", tip+1)
+		return tip + 1, true, nil
+	}
+	if stored > tip {
+		// Not something to wait out. Either this cursor belongs to a chain that
+		// was reset under the same id, or the node being watched does not have
+		// the history that produced it -- and both are worth stopping for,
+		// because silently waiting looks identical to an oracle that works.
+		return 0, false, fmt.Errorf("the recorded cursor is at height %d but %s is only "+
+			"at %d: this state was written for a chain that has since been "+
+			"reset, or against a node with more history than this one. Pass "+
+			"--start-height to overwrite it, or point --data-dir elsewhere",
+			stored, o.cfg.remote, tip)
+	}
+	// Both numbers, so a long outage is visible as a backlog rather than
+	// having to be inferred from the oracle being busy for a while.
+	o.logf("gpao: resuming at height %d (recorded cursor %d, node tip %d)",
+		stored+1, stored, tip)
+	return stored + 1, true, nil
+}
+
 // run polls the node for new blocks and processes each one, until ctx is done.
 func (o *oracle) run(ctx context.Context) error {
 	if o.cfg.statusListen != "" {
@@ -264,10 +387,14 @@ func (o *oracle) run(ctx context.Context) error {
 
 	// Heights only move forward from where this lands, so the start height is
 	// pinned before anything else is waited on.
-	height := o.cfg.startHeight
-	for height <= 0 {
-		if latest, answered := o.queryLatestHeight(ctx); answered {
-			height = latest + 1
+	var height int64
+	for {
+		h, answered, err := o.startHeight(ctx)
+		if err != nil {
+			return err
+		}
+		if answered {
+			height = h
 			break
 		}
 		select {
@@ -277,7 +404,6 @@ func (o *oracle) run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 	}
-	o.logf("gpao: following from height %d", height)
 
 	// The ceiling is settled before any work begins, because every approval's
 	// probe is signed at exactly this number and the ante refuses a gas-wanted
@@ -309,9 +435,10 @@ func (o *oracle) run(ctx context.Context) error {
 	// chain-following for the sum of them.
 	//
 	// The visible cost is that `height` runs ahead of what has actually been
-	// verified. That is cheap here because no progress is persisted either way
-	// -- height is in-memory and a restart resumes from -start-height -- so
-	// running ahead loses nothing a crash would not have lost anyway.
+	// verified, and since the cursor is the verifier's, ahead of what is
+	// persisted. That is what candidateQueueSize bounds: a crash re-reads at
+	// most that many blocks, and re-reading is cheap because handleCandidate
+	// asks whether a package is already settled before it pays for anything.
 	//
 	// One verifier, not a pool. Each verification is an isolated process now,
 	// so concurrency would be safe; it stays serial because verification is the
@@ -356,18 +483,41 @@ func (o *oracle) run(ctx context.Context) error {
 	}
 }
 
-// processBlock decodes a block's transactions and handles every MsgAddPackage.
+// processBlock reads a block and hands it to the verifier as a single unit.
+//
+// Exactly one blockWork per successful call, published as the LAST thing the
+// function does, after every step that can fail. That ordering is what makes
+// the retry in run() safe: a height that could not be read publishes nothing
+// -- not even its number -- so it is re-read rather than durably recorded as
+// verified, and a height that was read is published once.
 func (o *oracle) processBlock(ctx context.Context, height int64) error {
-	res, err := o.client.RPCClient.Block(ctx, &height)
+	pkgs, err := o.collectBlock(ctx, height)
 	if err != nil {
 		return err
 	}
+	return o.enqueue(ctx, blockWork{height: height, pkgs: pkgs})
+}
+
+// collectBlock returns every package a block submitted successfully, which is
+// nil for the ordinary block that submitted none.
+func (o *oracle) collectBlock(ctx context.Context, height int64) ([]*std.MemPackage, error) {
+	res, err := o.client.RPCClient.Block(ctx, &height)
+	if err != nil {
+		return nil, err
+	}
 	if res.Block == nil {
-		return nil
+		// A conforming node errors on a height it cannot describe rather than
+		// answering without a block, so this is a proxy or something else
+		// non-conforming. Treated as a fault, not as an empty block: the
+		// cursor is durable now, and trusting an anomalous answer enough to
+		// record the height as done would skip it for good. The ticker retries.
+		return nil, fmt.Errorf("node answered height %d with no block", height)
 	}
 	txs := res.Block.Data.Txs
 	if len(txs) == 0 {
-		return nil
+		// An empty block was still described, and has nothing to verify, so it
+		// is genuinely verified.
+		return nil, nil
 	}
 	// Only transactions that SUCCEEDED count. A block carries every transaction
 	// that was proposed, including those that failed in DeliverTx -- CheckTx
@@ -388,15 +538,16 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 	// path rather than a content hash. That needs a chain-side change.
 	results, err := o.client.RPCClient.BlockResults(ctx, &height)
 	if err != nil {
-		return fmt.Errorf("cannot read results for block %d, refusing to verify "+
+		return nil, fmt.Errorf("cannot read results for block %d, refusing to verify "+
 			"transactions whose outcome is unknown: %w", height, err)
 	}
 	if results.Results == nil || len(results.Results.DeliverTxs) != len(txs) {
-		return fmt.Errorf("block %d has %d transactions but %d results; "+
+		return nil, fmt.Errorf("block %d has %d transactions but %d results; "+
 			"refusing to pair them by position",
 			height, len(txs), deliverTxCount(results))
 	}
 
+	var pkgs []*std.MemPackage
 	for i, raw := range txs {
 		if !results.Results.DeliverTxs[i].IsOK() {
 			continue
@@ -411,12 +562,10 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 			if !ok || add.Package == nil {
 				continue
 			}
-			if err := o.enqueue(ctx, add.Package); err != nil {
-				return err
-			}
+			pkgs = append(pkgs, add.Package)
 		}
 	}
-	return nil
+	return pkgs, nil
 }
 
 func deliverTxCount(r *ctypes.ResultBlockResults) int {
@@ -426,36 +575,60 @@ func deliverTxCount(r *ctypes.ResultBlockResults) int {
 	return len(r.Results.DeliverTxs)
 }
 
-// runVerifier drains the candidate queue, one package at a time.
+// runVerifier drains the queue one block at a time, recording each block as
+// verified once its last package has a verdict.
+//
+// The cursor is written here rather than by the block reader because the reader
+// runs ahead: a height recorded when it was merely READ would, after a crash,
+// resume past packages that were queued and never verified -- exactly the work
+// the cursor exists to avoid losing.
 func (o *oracle) runVerifier(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case mpkg := <-o.candidates:
-			o.handleCandidate(ctx, mpkg)
+		case work := <-o.candidates:
+			for _, mpkg := range work.pkgs {
+				o.handleCandidate(ctx, work.height, mpkg)
+			}
+			o.recordVerified(work.height)
 		}
 	}
 }
 
-// enqueue hands a candidate to the verifier, blocking if it is behind.
+// recordVerified advances the cursor past a finished block.
+//
+// A write failure is reported and survived. The oracle's job is approving
+// packages; refusing to keep doing it because the record of it cannot be
+// written would trade the work for the bookkeeping. openStateStore's MkdirAll
+// is what catches the ordinary causes at startup instead.
+func (o *oracle) recordVerified(height int64) {
+	if o.spendBlocked {
+		return
+	}
+	if err := o.state.setLastVerifiedHeight(height); err != nil {
+		o.errf("gpao: could not record height %d as verified: %v", height, err)
+	}
+}
+
+// enqueue hands one block to the verifier, blocking if it is behind.
 //
 // Nothing is dropped. A dropped candidate would never be verified and so never
 // approved, and since each block is read exactly once there would be no later
 // retry -- it would stay inert with no record of why. Blocking is the honest
 // alternative, and saturation is announced rather than left to be inferred from
 // the oracle mysteriously lagging.
-func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
+func (o *oracle) enqueue(ctx context.Context, work blockWork) error {
 	select {
-	case o.candidates <- mpkg:
+	case o.candidates <- work:
 		return nil
 	default:
 	}
 	o.errf(
-		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated",
-		cap(o.candidates))
+		"gpao: verifier is %d blocks behind, pausing block reads at height %d",
+		cap(o.candidates), work.height)
 	select {
-	case o.candidates <- mpkg:
+	case o.candidates <- work:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -464,7 +637,7 @@ func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
 
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
 // a MsgEnablePackage to activate it on-chain.
-func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
+func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.MemPackage) {
 	path := mpkg.Path
 	// Keyed on the bytes, not just the path. A rejection is a verdict about the
 	// code, so a submitter who fixes the code and resubmits deserves a fresh
@@ -483,9 +656,12 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	o.logf("gpao: verifying %q (budget %s)", path, o.cfg.verifyBudget)
 	err := o.verify(ctx, mpkg)
 	if errors.Is(err, errVerifyUnavailable) {
-		// Left unseen and uncounted, so a restart or resubmission retries it.
+		// Left unseen and uncounted, so a resubmission retries it. A bare
+		// restart will not: the cursor advances past this height.
 		o.status.record(path, statusPending, "the oracle could not run verification: "+err.Error(), 0)
-		o.errf("gpao: could not verify %q, leaving it pending: %v", path, err)
+		o.errf("gpao: could not verify %q (height %d), leaving it pending; "+
+			"retry it with -start-height %d or by resubmitting: %v",
+			path, height, height, err)
 		return
 	}
 	if errors.Is(err, errVerifyBudget) {
@@ -493,10 +669,12 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		// "this package is bad", and CPU contention is transient.
 		//
 		// Note what that does and does not buy. Heights are read once and only
-		// move forward, so nothing re-offers this package on its own; the retry
-		// is a restart (with -start-height at or below the submitting block) or
-		// a resubmission. Leaving it unseen is what makes either effective
-		// instead of a no-op, and it keeps a slow package off the rejected list.
+		// move forward, and the cursor records them as done, so nothing
+		// re-offers this package on its own -- not even a restart. The retry is
+		// a resubmission, or a restart with -start-height at or below this
+		// height, which overwrites the cursor. Leaving it unseen is what makes
+		// either effective instead of a no-op, and it keeps a slow package off
+		// the rejected list.
 		o.overBudget[key]++
 		if n := o.overBudget[key]; n >= maxOverBudgetAttempts {
 			o.seen[key] = struct{}{}
@@ -509,7 +687,9 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		}
 		o.status.record(path, statusPending, "verification ran out of time; will be retried",
 			o.overBudget[key])
-		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
+		o.errf("gpao: %q exceeded the verify budget at height %d, leaving it "+
+			"pending; retry it with -start-height %d or by resubmitting: %v",
+			path, height, height, err)
 		return
 	}
 	// A rejection IS a verdict about the bytes, so record it: re-verifying them
@@ -525,8 +705,9 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 
 	// Live with nothing waiting to be enabled? Then there is nothing to enable,
 	// and sending the message anyway costs the full fee to be told so. This is
-	// the common case when catching up with -start-height over blocks that were
-	// already approved. Terminal, so recorded.
+	// the common case when catching up -- from the recorded cursor or from
+	// -start-height -- over blocks that were already approved. Terminal, so
+	// recorded.
 	if o.isSettled(ctx, path) {
 		o.status.record(path, statusApproved, "already active on-chain", 0)
 		o.seen[key] = struct{}{}
@@ -540,15 +721,25 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	// Left UNSEEN. The message tells the operator to raise the bound or restart,
 	// and both are no-ops if the package has been retired -- the whole point is
 	// that it should be approved once there is budget for it.
+	//
+	// It also freezes the cursor, which is what makes "restart" true; see
+	// spendBlocked.
 	if o.wouldExceedSpend() {
+		o.spendBlocked = true
 		// Nothing is wrong with the package; the oracle is out of allowance.
 		// Saying so is the difference between "your code is bad" and "ask the
 		// operator", which the submitter cannot otherwise tell apart.
 		o.status.record(path, statusBlocked,
 			"the oracle has reached its spending limit for this run", 0)
+		// The held height is asked for rather than computed from `height`: by
+		// the second declined block the cursor is still where the FIRST one
+		// froze it, so height-1 would name a block that was never the cursor.
+		held := o.state.lastVerifiedHeight()
 		o.errf("gpao: not approving %q: it would take this run past its "+
-			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
-			path, o.maxSpend, ugnotDenom, o.spent)
+			"-max-spend of %d%s (already spent %d). Raise the bound and "+
+			"restart; the cursor is held at height %d so the restart picks this "+
+			"up rather than resuming past it.",
+			path, o.maxSpend, ugnotDenom, o.spent, held)
 		return
 	}
 
@@ -559,9 +750,10 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 		// chain's state rather than the code, and most such causes clear.
 		//
 		// As with overBudget, this does not re-offer the package by itself --
-		// heights only move forward. It is what makes a restart (with
-		// -start-height at or below the submitting block) or a resubmission of
-		// the same bytes effective instead of a silent no-op.
+		// heights only move forward and the cursor records them as done. It is
+		// what makes a resubmission of the same bytes, or a restart with
+		// -start-height at or below this height, effective instead of a silent
+		// no-op.
 		if n, giveUp := o.recordEnableFailure(key); giveUp {
 			o.status.record(path, statusGaveUp, err.Error(), n)
 			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
@@ -569,7 +761,9 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 			return
 		}
 		o.status.record(path, statusPending, err.Error(), o.failedEnable[key])
-		o.errf("gpao: failed to approve %q, leaving it pending: %v", path, err)
+		o.errf("gpao: failed to approve %q (height %d), leaving it pending; "+
+			"retry it with -start-height %d or by resubmitting: %v",
+			path, height, height, err)
 		return
 	}
 	o.status.record(path, statusApproved, "", 0)

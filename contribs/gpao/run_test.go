@@ -83,7 +83,7 @@ func TestRunSurvivesTheBootRace(t *testing.T) {
 	defer cancel()
 
 	rpc := &bootRaceRPC{failures: 2, tip: 7, cancel: cancel}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Millisecond
 	o.cfg.startHeight = 0 // the flag under test: begin from the tip
 
@@ -142,7 +142,7 @@ func TestRunHonoursExplicitStartHeight(t *testing.T) {
 	defer cancel()
 
 	rpc := &explicitStartRPC{tip: 7, cancel: cancel}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Millisecond
 	o.cfg.startHeight = 5 // behind the tip: there is history to catch up on
 
@@ -203,7 +203,7 @@ func TestRunAdoptsTheCeilingOnceTheChainAnswers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	o := newStubOracle(&ceilingLateRPC{Client: nodeRPC, failures: 2, cancel: cancel})
+	o := newStubOracle(t, &ceilingLateRPC{Client: nodeRPC, failures: 2, cancel: cancel})
 	o.cfg.pollInterval = time.Millisecond
 
 	require.NoError(t, o.run(ctx))
@@ -276,7 +276,7 @@ func TestRunWaitsForTheCeilingBeforeWorking(t *testing.T) {
 	defer cancel()
 
 	rpc := &ceilingFirstRPC{failures: 3, tip: 1, cancel: cancel}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Millisecond
 
 	require.NoError(t, o.run(ctx))
@@ -340,7 +340,7 @@ func TestRunResolvesTheTipBeforeTheFirstPollInterval(t *testing.T) {
 	defer cancel()
 
 	rpc := &startupTipRPC{cancel: cancel}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Minute
 	o.cfg.startHeight = 0 // the flag under test: begin from the tip
 
@@ -412,7 +412,7 @@ func TestRunPacesAnUnusableTipAnswer(t *testing.T) {
 	defer cancel()
 
 	rpc := &unusableTipRPC{}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Minute
 	o.cfg.startHeight = 0
 
@@ -495,7 +495,7 @@ func TestRunPinsTheTipBeforeWaitingOnTheCeiling(t *testing.T) {
 	defer cancel()
 
 	rpc := &ceilingSlowRPC{failures: 3, tip: 5, cancel: cancel}
-	o := newStubOracle(rpc)
+	o := newStubOracle(t, rpc)
 	o.cfg.pollInterval = time.Millisecond
 	o.cfg.startHeight = 0 // the flag under test: begin from the tip
 

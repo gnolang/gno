@@ -1,0 +1,99 @@
+# The oracle remembers how far it got, so a restart needs no -start-height.
+#
+# The claim is the second start: a package parked while the oracle was down is
+# activated by an oracle started with no height on its line. Before the cursor
+# existed, a start with no -start-height watched from the node's tip and a
+# package parked before it came up was never seen again -- which is what made
+# recovering from a crash a matter of the operator knowing which height the
+# daemon had reached.
+#
+# Two validators, both read back: the resumed approval has to be chain state,
+# not something only the node the oracle talked to believes.
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/early -pkgpath gno.land/r/resume/early $USER_NAME
+
+# -start-height 1 for the first run only, because there is no cursor yet and
+# early committed before this line. It also writes the cursor the rest of the
+# scenario depends on.
+gpao start -start-height 1
+
+eventually gnokey query vm/qrender -data 'gno.land/r/resume/early:x'
+stdout 'early'
+
+# The harness puts the oracle's state under $WORK, so the scenario can read the
+# mechanism and not only its effect. Checked while the oracle is up because the
+# file is written at startup by the -start-height override above.
+exists $WORK/gpao-data/state.json
+grep '"chain_id"' $WORK/gpao-data/state.json
+grep '"last_verified_height"' $WORK/gpao-data/state.json
+
+# ---- The oracle goes down, and a package parks while it is away.
+
+gpao stop
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/late -pkgpath gno.land/r/resume/late $USER_NAME
+
+# Parked, and it will stay parked until an approver acts: the oracle is not
+# running, so nothing else can move it. A settled read -- addpkg returned only
+# once its own transaction committed.
+gnokey query vm/qinertpaths -data ''
+stdout 'gno.land/r/resume/late'
+! gnokey query vm/qrender -data 'gno.land/r/resume/late:x'
+stdout 'package not found'
+
+# ---- The oracle comes back with nothing on its line.
+
+# No -start-height. This is the whole scenario: the oracle has to resume past
+# the height it recorded before the stop, which is below the block that parked
+# late, rather than watching from the tip and never seeing it.
+gpao start
+
+eventually gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'gno.land/r/resume/late:x'
+stdout 'late'
+eventually gnokey -remote $RPC_ADDR_1 query vm/qrender -data 'gno.land/r/resume/late:x'
+stdout 'late'
+
+# The oracle's own verdict, a separate claim from the on-chain effect: the board
+# records an approval after the enabling transaction has committed, so the
+# package renders before the board says so.
+eventually http_get $GPAO_STATUS/status/gno.land/r/resume/late '"status":"approved"'
+stdout '"status":"approved"'
+
+# Nothing left parked, so the resumed run drained its queue rather than
+# activating late and stopping there.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/resume/'
+
+# ---- The cursor moved.
+
+# Read after the stop, not before: the height is written once a block's last
+# package has a verdict, so only a dead oracle has a final file to read. A
+# cursor still at 0 would mean the resume above worked by luck.
+gpao stop
+
+! grep '"last_verified_height": 0' $WORK/gpao-data/state.json
+
+-- cluster --
+validators: 2
+code-submission-policy: inert
+-- early/gnomod.toml --
+module = "gno.land/r/resume/early"
+gno = "0.9"
+
+-- early/early.gno --
+package early
+
+func Render(path string) string {
+	return "early"
+}
+
+-- late/gnomod.toml --
+module = "gno.land/r/resume/late"
+gno = "0.9"
+
+-- late/late.gno --
+package late
+
+func Render(path string) string {
+	return "late"
+}

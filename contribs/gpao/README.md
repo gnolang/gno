@@ -50,6 +50,7 @@ key password through `GPAO_PASSWORD`:
 ```sh
 docker run -d \
   -v /path/to/gnokey-home:/keystore \
+  -v /path/to/gpao-data:/data \
   -e GPAO_PASSWORD=... \
   -p 8546:8546 \
   ghcr.io/gnolang/gno/gpao \
@@ -57,8 +58,13 @@ docker run -d \
   --chain-id dev \
   --home /keystore \
   --key approver \
+  --data-dir /data \
   --status-listen 0.0.0.0:8546
 ```
+
+`--data-dir` needs a volume of its own. It holds the height the oracle resumes
+from, and a container that keeps it only in its own filesystem loses it on the
+first replacement — which is the case the state exists for.
 
 ## Usage
 
@@ -83,13 +89,14 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--remote` | `http://127.0.0.1:26657` | RPC address of the node to watch; every `/p/` and `/r/` import is resolved from it |
 | `--chain-id` | *(required)* | Chain ID used to sign approval transactions |
 | `--home` | gnokey home (`$GNOHOME`) | Keystore directory holding the approver key |
+| `--data-dir` | `$GNOHOME/gpao` | Directory holding the oracle's own state — the height a restart resumes from |
 | `--key` | *(required)* | Name or bech32 address of the approver key |
 | `--gno-root` | auto-detected | gno repo root, used to resolve stdlibs and examples for typechecking |
 | `--gas-fee` | `1000000ugnot` | Gas fee for approval transactions |
 | `--max-spend` | `100000000ugnot` | Total fees this run will pay for approvals before it stops approving |
 | `--gas-wanted` | `20000000` | Fallback gas wanted, used only when the node will not simulate an approval |
 | `--poll-interval` | `1s` | How often to poll for new blocks |
-| `--start-height` | `0` | Height to start watching from (0 = current tip) |
+| `--start-height` | `0` | Height to start watching from; 0 resumes past the recorded height, or the tip when none is recorded. A value overrides that record and rewrites it |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
 | `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
@@ -165,8 +172,10 @@ machine is doing.
 
 Exceeding the budget is **not** a rejection. The package is left pending and
 neither approved nor recorded as bad. Nothing re-offers it automatically — block
-heights are read once and only move forward — so retrying it means restarting
-with `--start-height` at or below the block that submitted it.
+heights are read once, only move forward, and are recorded as done — so
+retrying it means resubmitting the package, or restarting with `--start-height`
+at or below the block that submitted it. The log names that height for exactly
+this reason; a bare restart resumes *past* it.
 
 A failed **enable** works the same way. A package that verified but whose
 approval failed on chain is left pending through a bounded number of attempts,
@@ -254,14 +263,81 @@ stops that.
 
 Two things reduce how often it is reached. Before approving, the daemon checks
 whether the package is already live with nothing waiting to be enabled, and
-skips it if so, which is the common case when catching up with `--start-height`
-over blocks that were already approved. And it ignores transactions that
-failed on chain, so a submission the chain rejected never leads to an approval.
+skips it if so, which is the common case when catching up — from the recorded
+height or from `--start-height` — over blocks that were already approved. And it
+ignores transactions that failed on chain, so a submission the chain rejected
+never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
-watching blocks. Raise the bound or restart to continue.
+watching blocks, but it stops advancing its recorded height: a block whose
+package was declined for want of budget has not been verified in the sense that
+height claims, and recording it would mean a restart with a raised bound
+reporting itself caught up while having permanently skipped everything submitted
+after the bound was hit. So raising the bound and restarting resumes from where
+the approvals stopped.
+
+## State
+
+`--data-dir` (default `$GNOHOME/gpao`) holds `state.json`:
+
+```json
+{
+  "chain_id": "dev",
+  "last_verified_height": 4218
+}
+```
+
+`last_verified_height` is the highest block whose every submitted package
+reached a verdict — **not** the highest block read. Verification runs on its own
+goroutine, so the reader is normally ahead of this number; what it records is
+work that is actually finished, which is the point. A block that submitted no
+package counts as verified, so the height advances on an idle chain too.
+
+That makes a restart a restart: with no `--start-height`, gpao resumes at
+`last_verified_height + 1`. Nobody has to know where the last run stopped, which
+matters most where it is hardest to pass a flag — a `systemd` unit whose
+`ExecStart` is fixed.
+
+`--start-height` still wins, and rewrites the record, so replaying a range does
+not get undone by the next bare restart.
+
+Three refusals at startup, all recoverable and all saying so:
+
+- a `chain_id` that is not this run's, because the default directory is under
+  `$GNOHOME` and will be reused against a second chain sooner or later;
+- a height above the node's tip, which means this state was written for a chain
+  that has since been reset, or against a node with history this one does not
+  have. Waiting for the chain to catch up would look identical to an oracle
+  that works;
+- a file that will not decode. Writes are atomic, so that is not a torn write,
+  and starting over silently is the one failure a resume cursor must not have.
+  Deleting the file is the documented way to start over.
+
+The file is written once per block, atomically (temp file plus rename) and
+synchronously, so a recorded height survives a power loss and not only a
+process crash. It costs about 2ms per block, which bounds a long catch-up at
+roughly 500 blocks/s.
+
+The height stops advancing once `--max-spend` is reached — see
+[About `--max-spend`](#about---max-spend) for why.
+
+Nothing else is persisted. Rejections, over-budget counts, failed-enable counts,
+the spend tally and the status board are all per-run — see
+[Limitations](#limitations) for what that costs.
 
 ## Limitations
 
-- **No catch-up persistence**: `--start-height` lets you replay from a given
-  height, but gpao keeps no on-disk cursor between runs.
+- **Pending packages are not remembered**: what persists is the height, not the
+  reasons a package was left pending, so a package awaiting a retry when the
+  daemon stops is not revisited by a bare restart. Its height is in the log, and
+  `--start-height` is how to go back for it.
+
+  Not new, and not a cost of the cursor: heights have always been read once and
+  only forward, and a restart used to begin at the node's tip, which skipped
+  *every* earlier height rather than just this one. The cursor shrinks that gap
+  to the single block the pending package arrived in — and closes it entirely
+  for the `--max-spend` case, which is why that one freezes the cursor. What is
+  new is only that the boundary is now an explicit number instead of "wherever
+  the chain happens to be". The residue is real all the same: recovering a
+  pending package is still a manual `--start-height`, where before an operator
+  had to choose a height anyway and a low one swept them up by accident.

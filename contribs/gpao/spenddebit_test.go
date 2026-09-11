@@ -107,6 +107,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 		gasWanted:     defaultGasWanted,
 		verifyBudget:  time.Minute,
 		prepareBudget: defaultPrepareBudget,
+		dataDir:       t.TempDir(),
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
@@ -116,7 +117,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 
 	// Verified clean, refused at simulate, nothing broadcast: the counter must
 	// not move, because the money did not.
-	o.handleCandidate(t.Context(), bad)
+	o.handleCandidate(t.Context(), 1, bad)
 	badStatus := o.status.get(badPath)
 	require.Equal(t, statusPending, badStatus.Status)
 	require.Contains(t, badStatus.Reason, "simulate says the enable would fail",
@@ -126,7 +127,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 
 	// Control arm: a broadcast approval costs exactly one fee, counted at the
 	// send.
-	o.handleCandidate(t.Context(), good)
+	o.handleCandidate(t.Context(), 1, good)
 	assert.Equal(t, o.enableFee, o.spent,
 		"a broadcast approval must be counted, whether or not it succeeds -- the ante charges for it")
 	assert.Equal(t, statusApproved, o.status.get(goodPath).Status)
@@ -208,6 +209,7 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 		gasWanted:     defaultGasWanted,
 		verifyBudget:  time.Minute,
 		prepareBudget: defaultPrepareBudget,
+		dataDir:       t.TempDir(),
 	}
 	o, err := newOracle(ocfg, testIO(t))
 	require.NoError(t, err)
@@ -218,7 +220,7 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 	before, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
 
-	o.handleCandidate(t.Context(), mpkg)
+	o.handleCandidate(t.Context(), 1, mpkg)
 
 	status := o.status.get(pkgPath)
 	require.Equal(t, statusPending, status.Status)
