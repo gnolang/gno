@@ -188,10 +188,10 @@ INITIAL_VALSET_OPERATORS=(
 # before use (the gnoland1/test13 pattern). The sheet is the "mkgenesis/
 # balances.txt.gz" public-contract path of that repo.
 #
-# Pinned at independence-day main @ 64f0848 (#79, "fund the inert-package
-# approvals oracle with a 1,000 GNOT gas float"). Relative to the 91f7f56 pin
-# this build was last verified on, the TOTAL is unchanged and the account count
-# is +7, across three commits:
+# Pinned at independence-day main @ 0927710 (#80, "raise the chain-service
+# float to 5,000 GNOT"). Relative to the 91f7f56 pin this build was last
+# verified on, the TOTAL is unchanged and the account count is +7, across four
+# commits:
 #
 #   #77  e37caa6^  a SHA256SUMS manifest asserted in that repo's CI, so the
 #                  published container can no longer change silently under a
@@ -202,9 +202,12 @@ INITIAL_VALSET_OPERATORS=(
 #                  Treasury (20,000,000 -> 19,994,000). Closes the funding TODO
 #                  on INITIAL_VALSET_OPERATORS above; asserted at step 2.8.
 #   #79  64f0848   +1 account. The inert-package approvals oracle
-#                  g1yaaa6rcp4ew5yjzdj4yms596wx2dtrj3a86704 holds 1,000 GNOT,
-#                  charged OUT of the §120 Core Treasury (39,994,000 ->
-#                  39,993,000). See the inert-policy TODO below.
+#                  g1yaaa6rcp4ew5yjzdj4yms596wx2dtrj3a86704 is funded out of
+#                  the §120 Core Treasury. See PKG_APPROVERS below.
+#   #80  0927710   no account change — the SAME oracle row at 5,000 GNOT
+#                  instead of 1,000, because a service spends per event where
+#                  a founder or an operator spends occasionally. Core goes
+#                  39,993,000 -> 39,989,000.
 #
 # Every float is charged out of an existing bucket rather than minted, so the
 # cap does not move and ALLOCATION_EXPECTED_TOTAL is unchanged.
@@ -217,8 +220,8 @@ INITIAL_VALSET_OPERATORS=(
 # genesis cut (main moves as sale participants bind addresses; see its
 # docs/history.md convention of recording which commit produced which
 # chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/64f0848be56cd42ec6f5c4624a68e1d97a02f34f/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="b8566e825ead302cbea20bd39dc6e039daeaf9e43a7704ed1950e3f09d63253b"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/0927710c5d76a719ab82b37234fac9db9d1bce38/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="10ce896b942ddcaea75e2ef4c60b3cb964062c759d562ae37f87c344b97dee9f"
 # The sha proves "this is the pinned file"; these two make its MAGNITUDE part
 # of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
 # artifact) and would hold for any sheet — without these, a re-pin that
@@ -249,7 +252,7 @@ ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 # oracle, and neither is one of the §127 funds — they pay FEES, which
 # SendCoinsUnrestricted exempts from §126 anyway, so neither needs a whitelist
 # entry. A float appearing on this list would be the thing to question.
-UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/64f0848be56cd42ec6f5c4624a68e1d97a02f34f/mkgenesis/unrestricted.txt"
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/0927710c5d76a719ab82b37234fac9db9d1bce38/mkgenesis/unrestricted.txt"
 UNRESTRICTED_SHA256="7b37a16822739371cfd9a3f5ae864b7ab86cef4c83155fefb5114c29abda38bf"
 
 # Denominations subject to the §126 transfer lock. Empty = no lock, and then
@@ -267,7 +270,7 @@ RESTRICTED_DENOMS=("ugnot")
 # nothing unlocks before <end_unix>, everything at once after. The vested
 # coins must be <= the total, and the difference is spendable immediately.
 #
-# This array is now mostly REDUNDANT: as of the 64f0848 pin the sheet itself
+# This array is now mostly REDUNDANT: as of the 0927710 pin the sheet itself
 # carries the §132 schedules (independence-day #72 turned the vesting pass on
 # by default), including the investors-vesting multisig
 # g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3 — 150,000,000 GNOT total, 144,000,000
@@ -330,12 +333,19 @@ CODE_SUBMISSION_POLICY=inert
 # any parked package, so it is the second most consequential key on the chain
 # after governance, and it lives unattended on an internet-facing daemon.
 #
-# FUNDING is already resolved: independence-day#79 gives this address 1,000
-# GNOT at genesis out of the §120 Core Treasury, which at contribs/gpao's
-# default 1000000ugnot fee is ~1,000 approvals. That had to land in the sheet
-# rather than wait for this decision — with no faucet and §126 in force, an
-# approver seeded at zero could never be funded afterwards, and would approve
-# nothing forever. Step 2.9 re-checks it against the pinned sheet.
+# FUNDING is already resolved: independence-day#79 gives this address a genesis
+# balance out of the §120 Core Treasury, raised to 5,000 GNOT by #80 — at
+# contribs/gpao's default 1000000ugnot fee, ~5,000 approvals, with gpao's own
+# per-run max-spend bound (100 GNOT) a fiftieth of the float. Five times the
+# 1,000 tier the founders and validator operators sit at, deliberately: they
+# pay for occasional management actions, this key pays per EVENT for as long as
+# the chain accepts packages, and §126 leaves no way to top it up short of the
+# transfer lock lifting or a GovDAO proposal.
+#
+# That had to land in the sheet rather than wait for this decision — with no
+# faucet and §126 in force, an approver seeded at zero could never be funded
+# afterwards, and would approve nothing forever. Step 2.9 re-checks it against
+# the pinned sheet.
 PKG_APPROVERS=(
   g1yaaa6rcp4ew5yjzdj4yms596wx2dtrj3a86704 # gpao approval oracle
 )
@@ -680,7 +690,7 @@ assert_exact_sum() {
 #     amount*(now-start)/(end-start) (tm2/pkg/std/vesting.go), so a past start
 #     hands out that fraction at block 1. Only `;type=delayed` cliffs vest
 #     nothing before their end. This is now the load-bearing case: at the
-#     64f0848 pin 3,262,416 of the sheet's 3,262,480 rows carry a CONTINUOUS
+#     0927710 pin 3,262,416 of the sheet's 3,262,480 rows carry a CONTINUOUS
 #     §132 schedule from 1789084800, and one more (the forced-lockup public-sale
 #     row) has start=0 — the epoch — so its `;type=delayed` suffix is the only
 #     thing between a correct lockup and ~98% of it liquid. Upstream dropping a
@@ -2035,7 +2045,7 @@ while IFS= read -r addr; do
     # sum below (the amount is not the whole right-hand side, and the
     # schedule must be preserved).
     #
-    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 64f0848
+    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 0927710
     # pin all three allocation-holding genesis fee payers carry a §132
     # schedule (independence-day #72 turned the vesting pass on by default):
     #   g125em6arxsnj49vx35f0n0z34putv5ty3376fg5      10,000 GNOT
