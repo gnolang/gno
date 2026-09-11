@@ -2091,37 +2091,66 @@ while IFS= read -r addr; do
     die "grep failed reading the allocation sheet for $addr (exit $rc)"
   fi
   if [ "$rc" -eq 0 ]; then
-    # A vested allocation line cannot be merged with a burn by the plain
-    # sum below (the amount is not the whole right-hand side, and the
-    # schedule must be preserved).
+    # An allocation row is `<addr>=<amount>ugnot[;<suffix>]`, and since
+    # independence-day #72 turned the §132 pass on by default the suffix is
+    # normally a vesting schedule. At the 0108ede pin all three
+    # allocation-holding genesis fee payers carry one:
     #
-    # TODO(mainnet): (in progress — Manfred) THIS NOW FIRES, and it blocks the build. At the 0108ede
-    # pin all three allocation-holding genesis fee payers carry a §132
-    # schedule (independence-day #72 turned the vesting pass on by default):
     #   g125em6arxsnj49vx35f0n0z34putv5ty3376fg5      10,000 GNOT
     #   g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen      10,000 GNOT
     #   g1manfred47kzduec920z88wfr64ylksmdcedlf5     111,000 GNOT
-    # all three 96%-vesting, 1789084800->1852243200. They were plain balances
-    # at the previous pin (9d1cfde), which is why this never fired before.
     #
-    # The semantics that look right, and why -- decide before removing the die:
-    # emit `<addr>=<alloc+burn>ugnot;vesting=<unchanged>,<start>,<end>`, i.e.
-    # add the burn to the LIQUID part and carry the schedule through verbatim.
-    # Post-genesis the account then holds exactly its allocation with exactly
-    # its lockup. Doing nothing is NOT equivalent to the plain-balance case:
-    # fees are collected with SendCoinsUnrestricted, which bypasses the
-    # schedule, so an unfunded vested fee payer would pay its genesis-tx fees
-    # out of LOCKED coins and land BELOW its allocation.
-    case "$alloc_line" in
-    *';vesting='*) die "fee payer $addr holds a VESTED allocation — merge semantics undecided" ;;
+    # all three 96%-vesting, 1789084800->1852243200. They were plain balances
+    # at the 9d1cfde pin, which is why the merge below only had to handle bare
+    # amounts until now.
+    #
+    # The merge adds the burn to the LIQUID part and carries the schedule
+    # through VERBATIM: `<addr>=<alloc+burn>ugnot;vesting=<unchanged>,...`.
+    # The locked amount does not move, so the extra coins are spendable
+    # immediately (tm2 treats total-minus-vesting as liquid) and the account
+    # lands post-genesis at exactly its allocation under exactly its lockup.
+    #
+    # Leaving a vested fee payer unmerged is NOT the same as the plain-balance
+    # case: fees are collected with SendCoinsUnrestricted, which bypasses the
+    # schedule, so it would pay its genesis-tx fees out of LOCKED coins and
+    # land BELOW its allocation.
+    alloc_rhs="${alloc_line#*=}"
+    case "$alloc_rhs" in
+    *';'*)
+      fp_alloc="${alloc_rhs%%;*}"
+      alloc_suffix=";${alloc_rhs#*;}"
+      ;;
+    *)
+      fp_alloc="$alloc_rhs"
+      alloc_suffix=""
+      ;;
     esac
-    fp_alloc="${alloc_line#*=}"
     fp_alloc="${fp_alloc%ugnot}"
+    # The parse is load-bearing for the money: a shape this does not
+    # understand must stop the build, not be summed as if it were an amount.
+    case "$fp_alloc" in
+    '' | *[!0-9]*) die "fee payer $addr: cannot read an amount out of the allocation row '$alloc_line' — the sheet's row shape changed" ;;
+    esac
+    case "$alloc_suffix" in
+    '' | ';vesting='*) ;;
+    *) die "fee payer $addr: allocation row '$alloc_line' carries an unrecognised suffix '$alloc_suffix' — only ;vesting= is understood by the merge" ;;
+    esac
     # Tracked for the step 9.5 reconciliation: these allocations are counted
     # in the fee-payer sheet, and their rows leave the allocation sheet.
     merged_alloc_total=$((merged_alloc_total + fp_alloc))
-    printf "    %s = %s ugnot (+ %s allocation)\n" "$addr" "$final" "$fp_alloc"
-    echo "${addr}=$((final + fp_alloc))ugnot" >>"$BALANCES_TMP_FILE"
+    if [ -n "$alloc_suffix" ]; then
+      printf "    %s = %s ugnot (+ %s allocation, schedule carried)\n" "$addr" "$final" "$fp_alloc"
+    else
+      printf "    %s = %s ugnot (+ %s allocation)\n" "$addr" "$final" "$fp_alloc"
+    fi
+    merged_row="${addr}=$((final + fp_alloc))ugnot${alloc_suffix}"
+    # The schedule must survive the merge byte for byte. A dropped or rewritten
+    # suffix is the failure that unlocks a §132 balance at block 1, and it would
+    # otherwise be invisible: the totals still reconcile either way.
+    if [ -n "$alloc_suffix" ] && [ "${merged_row#*ugnot}" != "$alloc_suffix" ]; then
+      die "fee payer $addr: the vesting schedule did not survive the merge (row '$merged_row', expected suffix '$alloc_suffix')"
+    fi
+    echo "$merged_row" >>"$BALANCES_TMP_FILE"
     echo "${addr} ${fp_alloc}" >>"$EXPECTED_REMAINDERS"
     echo "$addr" >>"$OVERLAP_ADDRS"
   else
@@ -2161,7 +2190,28 @@ print_substep "8.6" "All fee payers land at their expected remainders — costs 
 # The temp sheet also carries the vested entries (so the measurement runs
 # exercise their creation); keep only the measured fee-payer lines here —
 # step 9 appends the vested entries itself.
-grep -vF -- ';vesting=' "$BALANCES_TMP_FILE" >"$DEPLOYER_BALANCES"
+#
+# Selected BY ADDRESS, not by the absence of `;vesting=`. A fee payer whose
+# allocation carries a §132 schedule is merged above into a row that keeps the
+# schedule, so a `grep -v ';vesting='` here would drop exactly those rows —
+# and with their allocation rows already stripped from the allocation sheet,
+# the addresses would vanish from genesis entirely.
+sed 's/^/^/; s/$/=/' "$BALANCES_TMP_CREATOR_ADDRESSES" >"$BALANCES_TMP_DIR/feepayers.pat"
+rc=0
+grep -f "$BALANCES_TMP_DIR/feepayers.pat" "$BALANCES_TMP_FILE" >"$DEPLOYER_BALANCES" || rc=$?
+if [ "$rc" -gt 1 ]; then
+  die "grep failed selecting the fee-payer rows out of $BALANCES_TMP_FILE (exit $rc)"
+fi
+deployer_rows=$(wc -l <"$DEPLOYER_BALANCES" | tr -d ' ')
+if [ "$deployer_rows" -ne "$addr_count" ]; then
+  die "the measured fee-payer sheet has $deployer_rows rows for $addr_count fee payers — a row was dropped or duplicated between the measurement and the shipped sheet"
+fi
+# This sheet can now carry §132 schedules (a fee payer whose allocation is
+# vested keeps its schedule through the merge), so it gets the same
+# fully-locked-at-genesis check the allocation sheet got in step 2. The merge
+# copies the schedule verbatim, so this can only fire if GENESIS_TIME moved
+# past a cliff — which is exactly when it should.
+assert_vesting_locked_at_genesis "$DEPLOYER_BALANCES" "merged-fee-payers"
 # This small sheet is where the MEASURED numbers live; locking it localises a
 # future genesis.json mismatch to "the burn changed" instead of "196MB of
 # bytes changed somewhere".
