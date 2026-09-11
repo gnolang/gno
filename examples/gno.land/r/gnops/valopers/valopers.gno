@@ -84,20 +84,46 @@ type Valoper struct {
 	auth *authorizable.Authorizable
 }
 
-func (v Valoper) Auth() *authorizable.Authorizable {
-	return v.auth
+// AuthOwner returns the operator address that owns this profile's auth
+// list. Read-only by construction: it copies out an address rather than
+// returning the live *authorizable.Authorizable.
+//
+// SECURITY: the previous `Auth() *authorizable.Authorizable` was a
+// capability leak of the same class this realm's governance authority
+// closes by returning a description instead of the live authority.
+// `Valoper` is returned BY VALUE from the exported, non-crossing
+// GetByAddr, but `auth` is a pointer field, so the copy shared the
+// callee's Authorizable. Any realm could therefore obtain a live,
+// mutable handle and write through it.
+//
+// That was a privilege escalation, not merely a wider surface.
+// Authorizable's gates read `rlm.Previous().Address()`, so inside a
+// hostile realm's frame `Previous()` is whoever called it. When a
+// valoper OPERATOR called any function of a hostile realm (faucet,
+// airdrop, mint), that realm could reach
+// `GetByAddr(operator).Auth().AddToAuthList(...)` and — because
+// Previous() was then the operator, the Authorizable's own owner —
+// persist itself onto the operator's auth list. From the next
+// transaction on it acted alone: UpdateKeepRunning to drain the
+// validator, UpdateSigningKey to rotate the consensus key.
+//
+// The exported wrappers below are NOT equivalent to the raw handle and
+// were never the hole: there `cur.Previous()` is the hostile realm
+// itself rather than the operator, so the owner check rejects it.
+func (v Valoper) AuthOwner() address {
+	return v.auth.Owner()
 }
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(0, cur, member); err != nil {
+	if err := v.auth.AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(0, cur, member); err != nil {
+	if err := v.auth.DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
@@ -216,7 +242,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update the moniker.
 	v.Moniker = moniker
@@ -235,7 +261,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update the description.
 	v.Description = description
@@ -250,7 +276,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update status.
 	v.KeepRunning = keepRunning
@@ -272,7 +298,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update server type.
 	v.ServerType = serverType
@@ -308,7 +334,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Throttle: limit one rotation per rotation_period_blocks per
 	// operator (per profile, not per caller — multi-member auth lists

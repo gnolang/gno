@@ -259,9 +259,19 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 
 		// Auth owner must be the operator addr (info.Address), NOT
 		// the deployer.
+		//
+		// Asserted through the exported AuthOwner() accessor, not the
+		// private v.auth: AuthOwner is the API that replaced the removed
+		// Auth() capability leak, so it is what external readers see. A
+		// second assertion against the underlying Authorizable pins that
+		// the accessor actually reports the auth list's owner rather
+		// than echoing OperatorAddress, which is what a plausible
+		// "simplification" of AuthOwner would do.
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String(),
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String(),
 			"auth owner must equal OperatorAddress, not OriginCaller")
+		uassert.Equal(t, v.auth.Owner().String(), v.AuthOwner().String(),
+			"AuthOwner must report the Authorizable's owner")
 
 		// Operator can manage their own profile post-genesis.
 		testing.SetHeight(100)
@@ -298,7 +308,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		})
 
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String())
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String())
 	})
 }
 
