@@ -38,6 +38,7 @@ func main() {
 // Output:
 // Valoper's details:
 // ## test-1
+//
 // test-1's description
 //
 // - Operator Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
