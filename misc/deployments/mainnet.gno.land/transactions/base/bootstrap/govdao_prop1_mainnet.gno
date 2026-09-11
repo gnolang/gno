@@ -6,7 +6,7 @@
 //   - NO validator-set seed via a realm: the consensus valset comes from
 //     GenesisDoc.Validators (the build script sets it via `gnogenesis
 //     validator add`), and InitChainer seeds r/sys/params' valset:current
-//     from it, so r/sys/validators/v3 proposals manage the set
+//     from it, so r/sys/validators/v0 proposals manage the set
 //     post-genesis.
 //   - NO temporary-deployer T1 dance: with no proposals to execute at
 //     genesis, the members are written directly. At this point the
@@ -31,8 +31,8 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v0/impl"
+	"gno.land/r/gov/dao/v0/memberstore"
 )
 
 func main(cur realm) {
@@ -48,9 +48,9 @@ func main(cur realm) {
 	must(ms.SetMember(memberstore.T1, address("g1m7nvpk9trgj5sqhwdu2r0p9v5e2pzemedglvzt"), memberstore.NewMember(3))) // moul
 
 	// ---- 2. Lock down memberstore access ----
-	// gno.land/r/gov/dao/v3/impl is the production member-mutation realm;
+	// gno.land/r/gov/dao/v0/impl is the production member-mutation realm;
 	// after this call it is the only realm allowed to mutate membership.
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v0/impl"}))
 }
 
 func must(err error) {

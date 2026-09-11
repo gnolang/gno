@@ -11,7 +11,7 @@
 #      addpkg'd by the deterministic GenesisDeployer key.
 #   2. A bootstrap MsgRun (transactions/base/bootstrap/) that seeds the
 #      seven GovDAO T1 members and locks dao.UpdateImpl's AllowedDAOs to
-#      r/gov/dao/v3/impl. Transfers are locked at genesis per §126, with
+#      r/gov/dao/v0/impl. Transfers are locked at genesis per §126, with
 #      the independence-day exemption list applied (step 9.3).
 #   3. A names.Enable MsgCall (transactions/migration/names-enable/) so
 #      namespace enforcement is on from genesis. Enable is gated on the
@@ -21,9 +21,9 @@
 #   4. Per-validator valopers.Register MsgCalls (emitted by `gnogenesis fork
 #      valoper-seed` from INITIAL_VALSET + INITIAL_VALSET_OPERATORS) so
 #      the founding validators have operator-keyed valoper profiles and
-#      r/sys/validators/v3 can manage the set post-genesis.
+#      r/sys/validators/v0 can manage the set post-genesis.
 #   5. The INITIAL_VALSET as GenesisDoc.Validators (InitChainer seeds
-#      valset:current from it, so v3/EndBlocker valset changes work).
+#      valset:current from it, so v0/EndBlocker valset changes work).
 #   6. Balances: the independence-day allocation sheet (~3.26M accounts,
 #      downloaded by pinned URL + sha256-verified) and its §126
 #      unrestricted-address list (same treatment; pins temporarily split
@@ -71,12 +71,20 @@ GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 #   - p/onbloc/{uint256,int256,json}/v0: used by realms we want available
 #     (uint256 is a transitive dep of int256; versioned under v0 since
 #     #6159).
-#   - r/sys/validators/v3: the valset realm — already matched by the
+#   - r/sys/validators/v0: the valset realm — already matched by the
 #     ./gno.land/r/sys/... pattern, kept explicit because it is load-
 #     bearing: the node's EndBlocker reads valset state from this realm's
 #     params; without it on chain, post-genesis valset changes can't
 #     happen.
-#   - r/demo/defi/grc20reg: GRC20 token registry.
+#   - r/nt/grc20reg/v0: GRC20 token registry.
+#   - p/nt/grc20/v0 and p/nt/grc721/...: the token standards, listed
+#     explicitly instead of being left to arrive as transitive deps — see
+#     the namespace note below. Checked with `gno tool deplist -test-dep`
+#     on the set above: grc20 already arrives (via r/nt/grc20reg/v0), but
+#     no grc721 package arrives at all, and grc721 plus its enumerable/
+#     metadata/royalty extensions is what every future NFT realm needs.
+#     The quarantined grc1155/grc777 are deliberately NOT here: they are
+#     not deployable until they graduate.
 #
 # TODO(mainnet): this is the testnet-lineage set, kept as a starting point.
 # Re-curate for mainnet: decide per package whether it belongs on the
@@ -94,8 +102,10 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/uint256/v0
   ./gno.land/p/onbloc/int256/v0
   ./gno.land/p/onbloc/json/v0
-  ./gno.land/r/sys/validators/v3
-  ./gno.land/r/demo/defi/grc20reg
+  ./gno.land/r/sys/validators/v0
+  ./gno.land/r/nt/grc20reg/v0
+  ./gno.land/p/nt/grc20/v0
+  ./gno.land/p/nt/grc721/...
 )
 
 # Initial mainnet validator set. Format: "name power address pub_key".
@@ -126,7 +136,7 @@ INITIAL_VALSET=(
 #
 # The operator key is the management plane for the validator: whoever
 # holds it can rotate the signing key, edit the valoper profile, and
-# signal opt-out via r/gnops/valopers + r/sys/validators/v3.
+# signal opt-out via r/gnops/valopers + r/sys/validators/v0.
 #
 # Valoper profiles are keyed on the operator address and `fork
 # valoper-seed` rejects duplicate operators, so all slots must be
@@ -1265,7 +1275,7 @@ cat "$NAMES_ENABLE_TX_FILE" >>"$GENESIS_TXS_JSONL"
 # founding validator, keyed on its operator address. Without these the
 # chain still boots (the valoper coverage assertion only fires in
 # hardfork mode), but the founding validators would have no operator-
-# keyed management plane in r/sys/validators/v3.
+# keyed management plane in r/sys/validators/v0.
 
 print_step_header 7 "$TOTAL_STEPS" "Add valoper-seed Register MsgCalls"
 
@@ -1305,7 +1315,7 @@ jq -c 'del(.reason)' "$VALOPER_SEED" >"$VALOPER_TX_FILE"
 
 # One Register per CSV row, or a founding validator silently launches with no
 # operator-keyed valoper profile — no way to rotate its signing key or signal
-# opt-out through r/sys/validators/v3, and the chain boots anyway.
+# opt-out through r/sys/validators/v0, and the chain boots anyway.
 valoper_tx_count=$(wc -l <"$VALOPER_SEED" | tr -d ' ')
 if [ "$valoper_tx_count" -ne "${#INITIAL_VALSET[@]}" ]; then
   die "valoper-seed emitted $valoper_tx_count Register txs for ${#INITIAL_VALSET[@]} validators — a CSV row was rejected or dropped"
