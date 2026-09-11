@@ -107,18 +107,15 @@ FILTERED_PACKAGES=(
 # voting power — below the one-third halt boundary, so any single failure
 # keeps the chain live (unlike the 3-validator testnet bootstraps).
 #
-# TODO(mainnet): slot 1 (gno-core-validator-1 -> Gnocore) is a THROWAWAY
-# PLACEHOLDER KEY so the build runs — replace with Gnocore's ceremony key
-# before anything is locked (key ceremony + signer setup TBD).
-# onbloc-validator-1, samourai-crew-validator-1 and berty-validator-1 are
-# REAL: each org's ceremony pair (addresses cross-checked against the
-# pubkeys by deriving them). Names follow the house <org>-validator-<n>
-# form regardless of the moniker each org proposed.
+# All four entries are REAL: each org's ceremony pair, received 2026-09-10/11
+# (addresses cross-checked against the pubkeys by deriving them). Names
+# follow the house <org>-validator-<n> form regardless of the moniker each
+# org proposed.
 # TODO(mainnet): decide the signer requirements per org (the gno-core
 # testnet pattern is horcrux 2-of-3 / tmkms softsign; mainnet probably
 # wants threshold signers or HSMs for everyone — see the launch checklist).
 INITIAL_VALSET=(
-  "gno-core-validator-1 60 g1kjx28d7jz6427zw2kcuqqsz9h7zpvmvtqs8cmq gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0gxjmejgyl59rln0eye9256xn655t3y2jer60ujlum7gen95r7ftswq0j"
+  "gno-core-validator-1 60 g1mmgvcssjw6x4fzphupfg6mtxqt36v000c5rf2a gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqzlmd56sl6gyam3u4sht0fnpvddxl2cf6rdx76rnz7ufcsz8lyh073fcxm"
   "onbloc-validator-1 60 g1hqhetnnz0raw5hps6yxexl7q09a6f8w3anlptt gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp95ay40jg2pc0cpn432z5fny390tfpeycf4hf8msznu9tthulswqhwtucx"
   "samourai-crew-validator-1 60 g15t7f9q6km3ldt885duwl8xu5dncs98528amk4f gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpdkjpdaqsm9gxnw90ac6a78gvnquttl4kr64zxughl87sek7xgx60gfntd"
   "berty-validator-1 60 g1l983yy3kpmapyzcfy53y5charfxupa5czjalea gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqn8u6cc4dgrzu9u8hztvlmqrvqt7mzju577xjdxjqxf8m5gjypaz798f5d"
@@ -137,16 +134,15 @@ INITIAL_VALSET=(
 # valoper-seed` rejects duplicate operators, so all slots must be
 # distinct addresses.
 #
-# TODO(mainnet): slot 1 reuses the gno-core operator pending the Gnocore
-# decision. Slots 2 (OnBloc), 3 (Samourai Crew) and 4 (Berty) are REAL;
-# Berty's operator holds a 1,000 GNOT allocation, so it is the one
-# operator the funding TODO above does not apply to.
+# All four slots are REAL. gno-core's operator is aeddi's operational key
+# — the same address as his GovDAO T1 seat (deliberate; it holds the
+# 1,000 GNOT founder grant, so it lands funded).
 #
-# TODO(mainnet): apart from Berty's (1,000 GNOT allocation), no operator
-# holds an independence-day allocation, so each lands at exactly zero once
-# its valopers.Register tx burns the funding measured in step 8 — note the
-# operators are NOT genesis fee payers (the deployer pays the Register
-# txs), so an allocation-holding operator simply keeps its allocation.
+# TODO(mainnet): the OnBloc and Samourai Crew operators hold no
+# independence-day allocation, so each lands at exactly zero (gno-core's
+# and Berty's hold 1,000 GNOT each and land funded) — note the operators
+# are NOT genesis fee payers (the deployer pays the Register txs), so an
+# allocation-holding operator simply keeps its allocation.
 # An operator with no balance cannot
 # rotate its signing key, edit its valoper profile or signal opt-out —
 # every one of those is a paid tx, there is no faucet, and §126 leaves
@@ -156,7 +152,7 @@ INITIAL_VALSET=(
 # extend the step 2.7 guard to cover whichever addresses must be able to
 # act. The same question applies to NAMES_ADMIN below.
 INITIAL_VALSET_OPERATORS=(
-  "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-validator-1 operator — TODO(mainnet): confirm
+  "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m" # gno-core-validator-1 operator (aeddi)
   "g12gtvlcexzgax49nvvkvhp2u0v6eejhunq0074p" # onbloc-validator-1 operator
   "g1n9y62agq998jt8w59az60xcqlftjknjg2grhn4" # samourai-crew-validator-1 operator
   "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm" # berty-validator-1 operator
