@@ -3,7 +3,7 @@ package int256
 import (
 	"errors"
 
-	"gno.land/p/onbloc/uint256"
+	"gno.land/p/onbloc/uint256/v0"
 )
 
 var (

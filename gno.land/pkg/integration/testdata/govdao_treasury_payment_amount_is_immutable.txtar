@@ -1,0 +1,129 @@
+# A treasury payment pays the amount that was voted on, and records it.
+#
+# NewCoinsPayment copies the caller's chain.Coins, so the realm that supplied
+# them cannot rewrite the amount between the vote and the execution.
+#
+# Without the copy the holder realm's rewrite lands: the receiver is credited
+# 900000ugnot on a vote for 42, and the history records 900000ugnot. Those two
+# are what this file guards — the receiver's balance, and the banker history,
+# which holds that same Payment and calls String() on it live.
+#
+# The proposal-page assertions below are NOT guards, and reverting the copy
+# leaves them passing: NewTreasuryPaymentRequest interpolates payment.String()
+# into the description once, at creation, so the page serves a frozen string
+# and cannot follow the array either way. They are here to pin that snapshot
+# behaviour, because it is what makes the tampering invisible to a member
+# reading the proposal: pre-fix the page showed the stale 42ugnot while
+# 900000ugnot moved.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/treasury
+loadpkg gno.land/r/audit/holder $WORK/holder
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# fund the treasury with 1_000_000ugnot
+gnokey maketx send -send 1000000ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 180001ugnot -gas-wanted 1800000 -chainid tendermint_test member
+gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+stdout 'data: "1000000ugnot"'
+
+gnokey query bank/balances/${receiver_user_addr}
+stdout 'data: "1000000000ugnot"'
+
+# propose a 42ugnot payment, built from the holder realm's own Coins slice
+gnokey maketx run -gas-fee 4400001ugnot -gas-wanted 48000000 -chainid=tendermint_test member $WORK/proposer/create.gno
+stdout OK!
+
+# what the voters read
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21000000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+# after the vote, before the execution: the holder rewrites its own array
+gnokey maketx call -pkgpath gno.land/r/audit/holder -func Bump -gas-fee 1900001ugnot -gas-wanted 21000000 -args 900000 -chainid=tendermint_test member
+stdout OK!
+
+# the page still says 42ugnot — a frozen snapshot, not evidence of the copy
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2900001ugnot -gas-wanted 30000000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# the receiver is credited the 42ugnot the board voted for, not the 900000
+# the holder realm rewrote its own array to.
+gnokey query bank/balances/${receiver_user_addr}
+stdout 'data: "1000000042ugnot"'
+gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+stdout 'data: "999958ugnot"'
+
+# and the history records what was paid, so the audit trail agrees with the vote
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:Coins/history'
+stdout '42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+! stdout '900000ugnot'
+
+-- holder/holder.gno --
+package holder
+
+import "chain"
+
+// coins is this realm's own slice. Coins() hands it out by reference; nothing
+// downstream copies it.
+var coins = chain.Coins{chain.Coin{Denom: "ugnot", Amount: 42}}
+
+func Coins() chain.Coins { return coins }
+
+func Bump(cur realm, amt int64) { coins[0].Amount = amt }
+
+-- proposer/create.gno --
+package main
+
+import (
+	"gno.land/p/nt/treasury/v0"
+
+	"gno.land/r/audit/holder"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	payment := treasury.NewCoinsPayment(
+		holder.Coins(),
+		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"),
+	)
+	preq := impl.NewTreasuryPaymentRequest(cross(cur), payment, "audit fixture payment")
+	dao.MustCreateProposal(cross(cur), preq)
+}
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(
+		memberstore.T1,
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"),
+		memberstore.NewMember(3),
+	)
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

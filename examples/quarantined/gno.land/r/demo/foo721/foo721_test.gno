@@ -7,7 +7,7 @@ import (
 )
 
 func TestFoo721(t *testing.T) {
-	admin := address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin := address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 
 	for _, tc := range []struct {
 		name     string

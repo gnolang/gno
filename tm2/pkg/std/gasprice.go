@@ -1,6 +1,7 @@
 package std
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
@@ -12,6 +13,29 @@ import (
 type GasPrice struct {
 	Gas   int64 `json:"gas"`
 	Price Coin  `json:"price"`
+}
+
+func (gp *GasPrice) UnmarshalJSON(b []byte) error {
+	var s *string
+	if err := json.Unmarshal(b, &s); err == nil {
+		if s == nil {
+			return nil
+		}
+		parsed, err := ParseGasPrice(*s)
+		if err != nil {
+			return err
+		}
+		*gp = parsed
+		return nil
+	}
+
+	type gasPriceAlias GasPrice
+	tmp := gasPriceAlias(*gp)
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+	*gp = GasPrice(tmp)
+	return nil
 }
 
 func ParseGasPrice(gasprice string) (GasPrice, error) {

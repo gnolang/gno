@@ -15,9 +15,9 @@ sends `MsgEnablePackage`.
 2. **Extracts** `MsgAddPackage` transactions from each block.
 3. **Verifies** the submitted package off-chain — typecheck *and* preprocess,
    the same two stages the chain re-runs at `MsgEnablePackage` — under one
-   wall-clock budget. Imports resolve from the local disk store (stdlibs +
-   `examples/`) first, falling back to `vm/qfile` RPC queries against the
-   watched node for on-chain-only packages.
+   wall-clock budget. Stdlibs resolve from the local disk store; every `/p/` and
+   `/r/` import resolves from the chain, over `vm/qfile` queries against the
+   watched node, and disk is not consulted for those.
 4. If it passes **and finishes in time**, **broadcasts** a `MsgEnablePackage`
    signed by the approver key, activating the package on-chain.
 
@@ -80,7 +80,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--remote` | `http://127.0.0.1:26657` | RPC address of the node to watch |
+| `--remote` | `http://127.0.0.1:26657` | RPC address of the node to watch; every `/p/` and `/r/` import is resolved from it |
 | `--chain-id` | *(required)* | Chain ID used to sign approval transactions |
 | `--home` | gnokey home (`$GNOHOME`) | Keystore directory holding the approver key |
 | `--key` | *(required)* | Name or bech32 address of the approver key |
@@ -203,9 +203,12 @@ exists in the operator's `examples/` but not on the chain must not verify clean;
 if it did, the approval would fail its own type-check on chain, burning a fee and
 blaming the code for the operator's local tree.
 
-With no `--remote` there is nothing to ask, so disk answers everything. That is
-a development mode, and the verdict then describes the operator's tree rather
-than the chain.
+So the verifier requires a node: `gpao verify-one` refuses to start without
+`--remote`, and being unable to configure itself leaves the package pending
+rather than rejected. There is no mode in which disk answers for a `/p/` or
+`/r/` path — a verdict reached that way describes the operator's checkout while
+claiming to predict the validator, which is the failure this routing exists to
+remove.
 
 ## Import cache
 
