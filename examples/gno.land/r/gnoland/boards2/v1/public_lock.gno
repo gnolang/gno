@@ -4,7 +4,7 @@ import (
 	"chain"
 	"strconv"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // LockRealm locks the realm making it readonly.

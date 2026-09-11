@@ -1,0 +1,39 @@
+# A submitter-supplied std.MemPackage.Info is refused when the package is
+# broadcast.
+#
+# Info is amino field 5, typed any, so a hand-crafted tx document can carry a
+# registered concrete value there (std.MemFile is registered). `gnokey maketx
+# addpkg` cannot: it reads the package with ReadMemPackage, which leaves Info
+# nil. Nothing on chain reads Info and chargePreprocessGas does not price it,
+# so an accepted payload is cheap dead weight in the merkleized package blob.
+# MsgAddPackage.ValidateBasic never reads the field, so the document signs; the
+# keeper refuses it at AddPackage, naming the field.
+
+gnoland start
+
+# ValidateBasic ignores Info, so signing the Info-carrying document succeeds.
+gnokey sign -tx-path $WORK/tx.json -chainid=tendermint_test -account-number $test1_account_num -account-sequence $test1_account_seq test1
+stdout 'Tx successfully signed and saved to '
+
+# The keeper refuses the payload at DeliverTx, naming the field. Among the
+# failures ValidateMemPackageAny reports, errInvalidMemPackage maps the Info
+# case to InvalidPackageError and every other to the InvalidPkgPathError the
+# submit paths return; that type URL is hashed into the tx result, so the type
+# is a consensus-visible artifact. Matching the Go type name relies on broadcast
+# rendering the result with %#v, which can only false-red, never false-green.
+! gnokey broadcast $WORK/tx.json
+stderr 'info field is not accepted'
+stderr 'InvalidPackageError'
+! stderr 'InvalidPkgPathError'
+
+# A refused submission stores nothing: the path is not available to serve.
+! gnokey query vm/qfile --data 'gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/carrier'
+stdout 'is not available'
+
+-- tx.json --
+{
+  "msg": [
+    {"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"carrier","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/carrier","files":[{"name":"carrier.gno","body":"package carrier\n"},{"name":"gnomod.toml","body":"module = \"carrier\"\ngno = \"0.9\"\n"}],"info":{"@type":"/std.MemFile","name":"payload","body":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}}
+  ],
+  "fee": {"gas_wanted":"7500000","gas_fee":"750001ugnot"}
+}

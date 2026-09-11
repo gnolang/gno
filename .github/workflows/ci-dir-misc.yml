@@ -30,7 +30,8 @@ jobs:
         # The cost is silence: a Go program under misc/ that is not listed here
         # is simply never built, with nothing to say so. Some are covered
         # elsewhere instead — genproto2 by a job in ci-codegen-verify,
-        # multiarch-determinism by its own workflow, and stdlib_diff by
+        # multiarch-determinism by its own workflow, gnoe2e by ci-gnoe2e,
+        # which also fires on chain and gpao changes, and stdlib_diff by
         # deploy-pages, which runs its generator on pull requests touching it.
         # A new one with neither is untested from its first commit.
         program:

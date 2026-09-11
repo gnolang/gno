@@ -1,6 +1,6 @@
 package users
 
-import "gno.land/p/nt/bptree/v0/rotree"
+import "gno.land/p/nt/bptree/rotree/v0"
 
 // ResolveName returns the latest UserData of a specific user by name or alias
 func ResolveName(name string) (data *UserData, isCurrent bool) {

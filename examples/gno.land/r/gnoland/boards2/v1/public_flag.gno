@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/gnoland/boards"
+	"gno.land/p/gnoland/boards/v0"
 )
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.

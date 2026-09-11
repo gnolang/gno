@@ -847,22 +847,21 @@ func TestVmHandlerProcessRoutesReject(t *testing.T) {
 		"and fail in the keeper body, not as an unrecognised message type")
 }
 
-// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
-// inert-policy messages to their keeper methods.
+// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the
+// inert-policy enable message to its keeper method.
 //
-// The keeper methods are covered in depth elsewhere; what has no other test is
-// the wiring. handleMsgDisablePackage had zero coverage anywhere in the tree,
-// and handleMsgEnablePackage only reached through one end-to-end test in
-// another package — so deleting either case from the switch left a message that
-// ValidateBasic accepts, the ante admits, and the VM then silently rejects as
-// "unrecognized vm message type". That is a routing failure reported as a
-// message-type failure, at the point a chain has already committed to the
+// The keeper method is covered in depth elsewhere; what has no other test is
+// the wiring. handleMsgEnablePackage was only reached through one end-to-end
+// test in another package — so deleting its case from the switch left a
+// message that ValidateBasic accepts, the ante admits, and the VM then silently
+// rejects as "unrecognized vm message type". That is a routing failure reported
+// as a message-type failure, at the point a chain has already committed to the
 // policy.
 //
 // Asserted through the errors the keeper alone produces: "not a pkg approver"
-// can only come from EnablePackage/DisablePackage, and "not yet implemented"
-// only from the DisablePackage stub. An unrouted message would instead say
-// "unrecognized", which is what the negative case at the bottom pins.
+// and "no inert package at path" can only come from EnablePackage. An unrouted
+// message would instead say "unrecognized", which is what the negative case at
+// the bottom pins.
 func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -889,19 +888,6 @@ func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
 		res := vh.Process(ctx, MsgEnablePackage{Approver: approver, PkgPath: "gno.land/r/test/nothinghere"})
 		require.False(t, res.IsOK())
 		assert.Contains(t, res.Log, "no inert package at path")
-	})
-
-	t.Run("disable reaches the keeper's approver gate", func(t *testing.T) {
-		res := vh.Process(ctx, MsgDisablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
-		require.False(t, res.IsOK())
-		assert.Contains(t, res.Log, "not a pkg approver")
-		assert.NotContains(t, res.Log, "unrecognized")
-	})
-
-	t.Run("disable reaches the stub", func(t *testing.T) {
-		res := vh.Process(ctx, MsgDisablePackage{Approver: approver, PkgPath: "gno.land/r/test/x"})
-		require.False(t, res.IsOK())
-		assert.Contains(t, res.Log, "not yet implemented")
 	})
 
 	t.Run("an unrouted message is distinguishable", func(t *testing.T) {

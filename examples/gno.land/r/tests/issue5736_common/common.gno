@@ -7,11 +7,11 @@
 // {Array,Struct}Value.Copy, this triggered:
 //
 //	panic: cannot directly modify readonly tainted object
-//	  gno.land/p/onbloc/uint256/bitwise.gno (z.arr[0] = z.arr[0] << n)
+//	  gno.land/p/onbloc/uint256/v0/bitwise.gno (z.arr[0] = z.arr[0] << n)
 package issue5736_common
 
 import (
-	u256 "gno.land/p/onbloc/uint256"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 func DoLsh(x *u256.Uint, n uint) *u256.Uint {
