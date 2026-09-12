@@ -58,6 +58,28 @@ type signDocPayload struct {
 	Memo          string     `json:"memo"`
 }
 
+// GetSignaturePayloadLegacy returns the payload as it was rendered before the
+// fee moved to the Cosmos shape: amino over SignDoc itself, fee and all.
+//
+// It exists so a node can keep accepting signatures from clients that have not
+// been updated yet -- wallets build this payload themselves, and they cannot all
+// ship on the same day the chain does -- and so that transactions signed BEFORE
+// the change can still be verified afterwards, which archived genesis files and
+// any replay of chain history both require. See VerifySignaturePayload.
+func GetSignaturePayloadLegacy(s SignDoc) ([]byte, error) {
+	data, err := amino.MarshalJSON(s)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal sign doc, %w", err)
+	}
+
+	sortedData, err := sortJSON(data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sort payload JSON, %w", err)
+	}
+
+	return sortedData, nil
+}
+
 // feeAmount renders the fee coin as Cosmos renders a coin list.
 //
 // A ZERO FEE IS AN EMPTY LIST, not a list holding an empty coin. Cosmos's Coins
@@ -105,6 +127,43 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 	}
 
 	return sortedData, nil
+}
+
+// VerifySignaturePayload reports whether sig is a valid signature by pubKey over
+// s, in EITHER of the two renderings that are accepted: the current one, and the
+// one that preceded the fee's move to the Cosmos shape.
+//
+// WHY BOTH ARE ACCEPTED. Clients build the signature payload themselves, so the
+// rendering cannot change on one side only. A node that took just the new bytes
+// would reject every wallet that had not shipped the change, and every signature
+// made before it -- including the ones sitting in already-written genesis files.
+// A node that took just the old bytes leaves every Ledger unable to sign at all.
+//
+// WHY ACCEPTING BOTH IS SAFE, and not merely convenient. The two renderings
+// cannot be confused for one another: the old fee object carries gas_wanted and
+// gas_fee, the new one amount and gas, and those key sets have no member in
+// common. Two JSON objects that parse to different key sets are not the same
+// bytes, so no legacy rendering of one transaction can equal the current
+// rendering of a DIFFERENT one. A signature therefore still authorises exactly
+// one transaction; what widens is the set of acceptable proofs of it, not the set
+// of transactions behind a proof. TestSignaturePayloadEncodingsAreDisjoint pins
+// this, and it is the property to re-check before either rendering is touched.
+//
+// The legacy rendering is computed only when the current one does not verify, so
+// the ordinary path pays for one encoding and one curve operation.
+func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) bool {
+	if payload, err := GetSignaturePayload(s); err == nil {
+		if pubKey.VerifyBytes(payload, sig) {
+			return true
+		}
+	}
+
+	legacy, err := GetSignaturePayloadLegacy(s)
+	if err != nil {
+		return false
+	}
+
+	return pubKey.VerifyBytes(legacy, sig)
 }
 
 // Signature represents a wrapped signature of a transaction

@@ -106,15 +106,26 @@ func (tx Tx) GetMemo() string { return tx.Memo }
 // .Empty().
 func (tx Tx) GetSignatures() []Signature { return tx.Signatures }
 
-func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
-	return GetSignaturePayload(SignDoc{
+func (tx Tx) signDoc(chainID string, accountNumber, sequence uint64) SignDoc {
+	return SignDoc{
 		ChainID:       chainID,
 		AccountNumber: accountNumber,
 		Sequence:      sequence,
 		Fee:           tx.Fee,
 		Msgs:          tx.Msgs,
 		Memo:          tx.Memo,
-	})
+	}
+}
+
+func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
+	return GetSignaturePayload(tx.signDoc(chainID, accountNumber, sequence))
+}
+
+// GetSignBytesLegacy returns the payload in the pre-Cosmos-shape rendering, for
+// verifying signatures from clients that have not been updated. See
+// GetSignaturePayloadLegacy.
+func (tx Tx) GetSignBytesLegacy(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
+	return GetSignaturePayloadLegacy(tx.signDoc(chainID, accountNumber, sequence))
 }
 
 // __________________________________________________________

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 // The Ledger Cosmos app validates the amino sign doc against a fixed allowlist
@@ -173,5 +175,179 @@ func TestSignaturePayloadIsStable(t *testing.T) {
 	const want = `{"account_number":"42","chain_id":"dev","fee":{"amount":[{"amount":"1000000","denom":"ugnot"}],"gas":"200000"},"memo":"hello","msgs":null,"sequence":"7"}`
 	if got := string(payload); got != want {
 		t.Errorf("signed bytes changed -- this is a consensus change\n got: %s\nwant: %s", got, want)
+	}
+}
+
+// THE LEGACY RENDERING IS THE PRE-CHANGE ONE, byte for byte. Its whole purpose
+// is to reproduce what clients signed before the fee moved, so a literal is the
+// only honest way to pin it: anything derived from the current code would follow
+// the current code wherever it went, which is exactly the failure this guards.
+//
+// The expectation below was taken from master before the change (amino over
+// SignDoc itself, then sortJSON), and utils.go's sortJSON is untouched.
+func TestSignaturePayloadLegacyIsTheOldRendering(t *testing.T) {
+	t.Parallel()
+
+	payload, err := GetSignaturePayloadLegacy(SignDoc{
+		ChainID:       "dev",
+		AccountNumber: 42,
+		Sequence:      7,
+		Fee:           NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}),
+		Msgs:          nil,
+		Memo:          "hello",
+	})
+	if err != nil {
+		t.Fatalf("legacy payload: %v", err)
+	}
+
+	const want = `{"account_number":"42","chain_id":"dev","fee":{"gas_fee":"1000000ugnot","gas_wanted":"200000"},"memo":"hello","msgs":null,"sequence":"7"}`
+	if got := string(payload); got != want {
+		t.Errorf("the legacy rendering moved -- signatures made before the fee\n"+
+			"change no longer verify, which breaks written genesis files\n got: %s\nwant: %s", got, want)
+	}
+}
+
+// WHY A NODE MAY ACCEPT BOTH RENDERINGS AT ONCE. ante.go verifies against the
+// current payload and, on failure, against the legacy one, so that clients which
+// have not shipped the change -- and signatures already written into genesis
+// files -- keep working. That is only sound if no legacy rendering of one
+// transaction can equal the current rendering of a DIFFERENT one. If it could, a
+// signature authorising T1 would also authorise T2, which is forgery wearing
+// compatibility's coat.
+//
+// The separation is structural, not lucky: the legacy fee object carries
+// gas_wanted and gas_fee, the current one amount and gas, and those key sets have
+// no member in common. Two JSON objects that parse to different key sets are not
+// the same bytes -- whatever else differs between the documents.
+//
+// THIS IS THE TEST TO CONSULT BEFORE CHANGING EITHER RENDERING. If a future fee
+// shape reuses a legacy key name, dual verification stops being safe and this
+// fails rather than letting it through quietly.
+func TestSignaturePayloadEncodingsAreDisjoint(t *testing.T) {
+	t.Parallel()
+
+	/* The adversarial rows matter more than the ordinary one. An attacker
+	   choosing the document gets to pick the memo, the chain id and the msgs,
+	   so the separation has to hold when those carry the other encoding's own
+	   text -- the fee is the only field they cannot reach. */
+	docs := []struct {
+		name string
+		doc  SignDoc
+	}{
+		{"ordinary", SignDoc{
+			ChainID: "dev", AccountNumber: 42, Sequence: 7,
+			Fee: NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}), Memo: "hello",
+		}},
+		{"zero fee", SignDoc{ChainID: "dev"}},
+		{"memo spelling the other fee shape", SignDoc{
+			ChainID: "dev", AccountNumber: 1, Sequence: 1,
+			Fee:  NewFee(1, Coin{Denom: "ugnot", Amount: 1}),
+			Memo: `"fee":{"gas_wanted":"200000","gas_fee":"1000000ugnot"}`,
+		}},
+		{"chain id spelling it too", SignDoc{
+			ChainID: `dev","fee":{"amount":[],"gas":"0`,
+			Fee:     NewFee(5, Coin{Denom: "ugnot", Amount: 5}),
+		}},
+		{"large fee", SignDoc{
+			ChainID: "dev", AccountNumber: 1 << 62, Sequence: 1 << 62,
+			Fee: NewFee(1<<62, Coin{Denom: "ugnot", Amount: 1 << 62}),
+		}},
+	}
+
+	feeKeys := func(t *testing.T, payload []byte) map[string]bool {
+		t.Helper()
+		var doc struct {
+			Fee map[string]json.RawMessage `json:"fee"`
+		}
+		if err := json.Unmarshal(payload, &doc); err != nil {
+			t.Fatalf("payload does not parse: %v (%s)", err, payload)
+		}
+		if len(doc.Fee) == 0 {
+			t.Fatalf("payload carries no fee object at all: %s", payload)
+		}
+		keys := make(map[string]bool, len(doc.Fee))
+		for k := range doc.Fee {
+			keys[k] = true
+		}
+		return keys
+	}
+
+	legacyAll := make([][]byte, len(docs))
+	currentAll := make([][]byte, len(docs))
+
+	for i, tc := range docs {
+		legacy, err := GetSignaturePayloadLegacy(tc.doc)
+		if err != nil {
+			t.Fatalf("%s: legacy payload: %v", tc.name, err)
+		}
+		current, err := GetSignaturePayload(tc.doc)
+		if err != nil {
+			t.Fatalf("%s: current payload: %v", tc.name, err)
+		}
+		legacyAll[i], currentAll[i] = legacy, current
+
+		for k := range feeKeys(t, legacy) {
+			if feeKeys(t, current)[k] {
+				t.Errorf("%s: fee key %q appears in BOTH renderings; dual "+
+					"verification is no longer safe", tc.name, k)
+			}
+		}
+	}
+
+	/* The property that actually matters, stated over every pair: one
+	   signature cannot span two different transactions. */
+	for i := range docs {
+		for j := range docs {
+			if bytes.Equal(legacyAll[i], currentAll[j]) {
+				t.Errorf("legacy rendering of %q equals the current rendering of %q:\n%s",
+					docs[i].name, docs[j].name, legacyAll[i])
+			}
+		}
+	}
+}
+
+// The helper the tools and the ante handler lean on: it must take both, and it
+// must still refuse a signature over neither.
+func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
+	t.Parallel()
+
+	priv := ed25519.GenPrivKey()
+	doc := SignDoc{
+		ChainID: "dev", AccountNumber: 3, Sequence: 4,
+		Fee: NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}), Memo: "m",
+	}
+
+	for _, tc := range []struct {
+		name   string
+		render func(SignDoc) ([]byte, error)
+	}{
+		{"current", GetSignaturePayload},
+		{"legacy", GetSignaturePayloadLegacy},
+	} {
+		payload, err := tc.render(doc)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		sig, err := priv.Sign(payload)
+		if err != nil {
+			t.Fatalf("%s: sign: %v", tc.name, err)
+		}
+		if !VerifySignaturePayload(priv.PubKey(), doc, sig) {
+			t.Errorf("a signature over the %s rendering was refused", tc.name)
+		}
+
+		/* AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must not
+		   mean accepting a signature made over a different transaction: the
+		   same bytes against a changed sequence has to fail, or the fallback
+		   has become a bypass. */
+		moved := doc
+		moved.Sequence = doc.Sequence + 1
+		if VerifySignaturePayload(priv.PubKey(), moved, sig) {
+			t.Errorf("%s: a signature verified against a DIFFERENT sign doc", tc.name)
+		}
+	}
+
+	if VerifySignaturePayload(priv.PubKey(), doc, []byte("not a signature")) {
+		t.Error("garbage verified as a signature")
 	}
 }

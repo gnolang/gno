@@ -309,9 +309,28 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				// THE PREVIOUS RENDERING IS STILL ACCEPTED. The fee moved to the
+				// shape the Ledger Cosmos app will parse, and clients build this
+				// payload themselves, so signatures made by an older client --
+				// and those already written into a genesis file -- must keep
+				// verifying. std.VerifySignaturePayload carries the argument for
+				// why taking both is safe; the short version is that the two fee
+				// key sets are disjoint, so one signature still authorises
+				// exactly one transaction.
+				//
+				// Spelled out here rather than delegated to that helper so the
+				// marshalling failure above keeps its own error, and so the
+				// legacy encoding is computed only on the path that needs it.
+				// Gas was charged above for one verification.
+				legacySignBytes, lerr := tx.GetSignBytesLegacy(
+					newCtx.ChainID(),
+					accNum,
+					accSeq,
+				)
+				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
 			}
-
 			if isSession {
 				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
 				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)

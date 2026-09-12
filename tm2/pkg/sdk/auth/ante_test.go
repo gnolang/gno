@@ -1180,3 +1180,106 @@ func TestMempoolFeeRefusesNonPositiveGasWanted(t *testing.T) {
 			"gas_wanted %d must be refused", gasWanted)
 	}
 }
+
+// A TRANSACTION SIGNED BY AN OLDER CLIENT STILL ENTERS THE CHAIN. The fee moved
+// to the shape the Ledger Cosmos app will parse, and clients build the signature
+// payload themselves -- wallets, the genesis tooling, anything holding a key.
+// They cannot all ship on the day the node does, and signatures already written
+// into a genesis file cannot ship at all. So the handler verifies against the
+// current rendering and falls back to the previous one.
+//
+// See std.VerifySignaturePayload for why taking both is safe rather than merely
+// convenient: the two fee key sets are disjoint, so a signature still authorises
+// exactly one transaction.
+func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr)}
+	fee := tu.NewTestFee()
+
+	// Signed over the PREVIOUS rendering, which is what an un-updated client
+	// still produces.
+	legacyBytes, err := std.GetSignaturePayloadLegacy(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      0,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+
+	// Guard the guard: if the two renderings ever coincide, this test would
+	// pass without exercising the fallback at all.
+	currentBytes, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      0,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, legacyBytes,
+		"the two renderings are identical, so this test proves nothing")
+
+	tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, legacyBytes, "")
+	checkValidTx(t, anteHandler, ctx, tx, false)
+}
+
+// AND THE FALLBACK IS NOT A BYPASS. Accepting a second rendering must not widen
+// what a signature authorises: bytes signed over one sign doc must still be
+// refused against a different one, and nonsense must still be refused outright.
+// A fallback that swallowed the failure would pass every test above and this is
+// the one that would catch it.
+func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	msgs := []std.Msg{tu.NewTestMsg(addr)}
+	fee := tu.NewTestFee()
+
+	t.Run("signed over a different chain id", func(t *testing.T) {
+		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
+			ChainID: "some-other-chain", Fee: fee, Msgs: msgs,
+		})
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, wrong, "")
+		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("signed over a different sequence", func(t *testing.T) {
+		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
+			ChainID: ctx.ChainID(), Sequence: 99, Fee: fee, Msgs: msgs,
+		})
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, wrong, "")
+		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("not a signature at all", func(t *testing.T) {
+		tx := std.NewTx(msgs, fee, []std.Signature{{
+			PubKey: priv.PubKey(), Signature: []byte("nope"),
+		}}, "")
+		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+	})
+}

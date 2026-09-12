@@ -173,8 +173,20 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		return fmt.Errorf("unable to get signature bytes, %w", err)
 	}
 
-	if err = kb.Verify(info.GetName(), signBytes, sig); err != nil {
-		return fmt.Errorf("unable to verify signature: %w", err)
+	err = kb.Verify(info.GetName(), signBytes, sig)
+	if err != nil {
+		// EITHER RENDERING COUNTS. A transaction signed before the fee moved
+		// to the Cosmos shape, or by a client that has not yet moved, carries
+		// the older payload -- and the chain still accepts it, so reporting it
+		// invalid here would contradict the node.
+		legacySignBytes, lerr := tx.GetSignBytesLegacy(
+			chainID,
+			accountNumber,
+			accountSequence,
+		)
+		if lerr != nil || kb.Verify(info.GetName(), legacySignBytes, sig) != nil {
+			return fmt.Errorf("unable to verify signature: %w", err)
+		}
 	}
 
 	if !cfg.RootCfg.BaseOptions.Quiet {
