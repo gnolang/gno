@@ -4,7 +4,7 @@
 //
 // The package supports multiple authorization strategies:
 //   - Member-based: Single user or team of users
-//   - Contract-based: Async authorization (e.g., via DAO)
+//   - Contract-based: The contract at a given path is itself the authority
 //   - Auto-accept: Allow all actions
 //   - Drop: Deny all actions
 //
@@ -13,7 +13,7 @@
 //   - Authority interface: Base interface implemented by all authorities
 //   - Authorizer: Main wrapper object for authority management
 //   - MemberAuthority: Manages authorized addresses
-//   - ContractAuthority: Delegates to another contract
+//   - ContractAuthority: Makes the contract at a path its own authority
 //   - AutoAcceptAuthority: Accepts all actions
 //   - DroppedAuthority: Denies all actions
 //
@@ -81,6 +81,20 @@ type Authorizer struct {
 //     can swallow actions, log the caller, or execute arbitrary code
 //     under the consumer's frame. Register only trusted handler functions.
 //     See r/gnops/valopers/init.gno for the realistic registration shape.
+//
+//   - Caller- and title-forgery on the RAW interface: Authorize takes
+//     `caller` and `title` as ARGUMENTS, not from the frame. A consumer
+//     that exposes a bare Authority (rather than the *Authorizer that
+//     wraps it) therefore lets any holder present any caller and any
+//     title. Caller-forgery is contained — the only authority-mutating
+//     closure lives inside Authorizer.Transfer, so a forged caller on a
+//     raw Authorize runs the caller's own inert closure and cannot
+//     transfer; TestForgedCallerCannotTransfer pins that boundary.
+//     Title-forgery is NOT contained: the title is passed straight to the
+//     contractHandler, so a handler that branches on it (routing, quotas,
+//     audit trails) must not treat it as trusted. Keep the Authority
+//     unexported and hand out only what callers need; see
+//     r/gnops/valopers/admin.gno, which exports a description string.
 //
 // We do NOT seal Authority via an unexported marker method — that pattern
 // is bypassable via embedding in Gno; see
@@ -217,20 +231,14 @@ func (a *Authorizer) DoByPrevious(_ int, rlm realm, title string, action Privile
 	return a.auth.Authorize(rlm.Previous().Address(), title, action, args...)
 }
 
-// String returns a string representation of the auth authority
+// String returns a string representation of the auth authority.
+//
+// A non-canonical impl is wrapped as custom_authority[...] so that the
+// official "dropped" is distinguishable from a "*custom*: dropped"
+// (autoclaimed) one. Shared with ContractAuthority.String, which applies
+// the same rule to its nested proposer.
 func (a *Authorizer) String() string {
-	authStr := a.auth.String()
-
-	switch a.auth.(type) {
-	case *MemberAuthority:
-	case *ContractAuthority:
-	case *AutoAcceptAuthority:
-	case *droppedAuthority:
-	default:
-		// this way official "dropped" is different from "*custom*: dropped" (autoclaimed).
-		return ufmt.Sprintf("custom_authority[%s]", authStr)
-	}
-	return authStr
+	return canonicalAuthorityString(a.auth)
 }
 
 // MemberAuthority is the default implementation using addrset for member
@@ -330,27 +338,117 @@ type ContractAuthority struct {
 	proposer        Authority // controls who can create proposals
 }
 
-// NewContractAuthority creates a new contract-based authority.
+// NewContractAuthority makes the contract at `path` its OWN authority:
+// the default proposer accepts only chain.PackageAddress(path), so a
+// privileged action proceeds only when driven from that contract's own
+// frame.
+//
+// NewRestrictedContractAuthority does NOT widen this — it REPLACES it.
+// See its godoc; with an explicit proposer, `path` is a label and
+// contractAddr is never consulted.
+//
+// The `caller` compared against that address is established upstream by
+// Authorizer.DoByCurrent / DoByPrevious / Transfer under rlm.IsCurrent(),
+// so an external realm cannot present the contract address.
+//
+// BREAKING: the default proposer used to be
+// NewAutoAcceptAuthority ("anyone can propose"). Consumers that relied on
+// arbitrary callers driving a plain ContractAuthority will start getting
+// "unauthorized"; that is the fix, not a regression. Pass an explicit
+// proposer to NewRestrictedContractAuthority to opt back in.
+//
+// SECURITY — the gate binds the contract's IDENTITY, not its intent.
+// Inside any crossing frame of the contract, rlm.Address() is
+// unconditionally PackageAddress(path), so `DoByCurrent` from within the
+// contract is a tautology; only DoByPrevious and Transfer gain a real
+// check. Consequently ANY exported function of the contract that returns
+// a crossing closure (or anything else carrying its frame) hands this
+// authority to its caller. Keep privileged closures unexported.
+//
+// So DO NOT write NewContractAuthority(ownPath) + DoByCurrent. It reads
+// like "only I may do this" and compiles to "anyone may do this". Point
+// `path` at the principal you actually want to assert — usually the
+// governance realm that will drive the action — and use DoByPrevious, so
+// the comparison is against whoever crossed in:
+//
+//	// in r/gnops/valopers/init.gno
+//	auth = authz.NewWithAuthority(
+//	    authz.NewContractAuthority("gno.land/r/gov/dao", handler),
+//	)
+//	// in the privileged write
+//	auth.DoByPrevious(0, rlm, "update-instructions", action)
+//
+// Own-path is right only when something OTHER than the contract's own
+// frame supplies the caller — i.e. you drive it via DoByPrevious from a
+// realm you have deliberately let call in, or via Transfer.
+//
+// SECURITY — a gate is only as good as the principal it names. Pointing
+// `path` at a realm whose frame ANY caller can mint buys nothing. Check,
+// for whatever principal you choose, that nothing exported by that realm
+// hands out its frame identity:
+//
+//   - `gno.land/r/gov/dao` is safe to assert ONLY because
+//     SimpleExecutor.Execute rejects invocation from outside the proxy
+//     (r/gov/dao/types.gno). Before that gate existed, dao's exported
+//     NewSimpleExecutor + Execute let any realm mint a frame whose
+//     Previous() was r/gov/dao, so this whole pairing authenticated
+//     nothing. Do not assume a governance path is unforgeable; verify it.
+//   - Whatever the principal, an exported function of YOUR realm whose
+//     signature is assignable to a callback type the principal invokes
+//     (for r/gov/dao: `func(realm) error`) is itself the leak — the
+//     principal will happily call it for an attacker. Keep privileged
+//     entrypoints out of that shape, or take extra parameters.
+//
+// Neither shape defends against re-exporting the privileged closure: its
+// holder picks the Previous() they present by wrapping it in an executor
+// of their own. Unexported closures remain the load-bearing rule.
+//
+// A syntactically valid but WRONG `path` is a permanent brick, not an
+// error: the authority accepts nobody, and Transfer routes through the
+// same gate, so it cannot be rotated out either. Construction rejects
+// malformed paths, but it cannot tell a wrong path from a right one —
+// e.g. "gno.land/r/gov/dao/impl/v0" (the path r/gov/dao's own
+// allowedDAOs list holds) is well-formed and permanently dead, because
+// an executor's Previous() is the PROXY path, never the impl. Give the
+// consumer a governance-gated rotation entrypoint before deploying; see
+// r/gnops/valopers/admin.gno's NewAuthorityRotationProposalRequest.
 //
 // SECURITY (Class-4 captured callback): `handler` is a caller-supplied
 // closure that runs SYNCHRONOUSLY inside Authorize, with the consumer's
 // authority. A hostile handler can swallow actions, log the caller, or
 // execute arbitrary code under the consumer's frame. The package-internal
-// wrappedAction guards "execute action only from contractAddr" but the
-// handler can call wrappedAction however it likes (multiple times, never,
-// out of order). Register only trusted handler functions; treat handler
-// registration as the trust boundary.
+// wrappedAction enforces at-most-once invocation and NOTHING ELSE — in
+// particular it does not check the caller, and the handler may call it
+// however it likes (multiple times, never, out of order). Register only
+// trusted handler functions; treat handler registration as the trust
+// boundary.
+//
+// Panics if `path` is empty or malformed, or if `handler` is nil.
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
-	return &ContractAuthority{
-		contractPath:    path,
-		contractAddr:    chain.PackageAddress(path),
-		contractHandler: handler,
-		proposer:        NewAutoAcceptAuthority(), // default: anyone can propose
-	}
+	addr := chain.PackageAddress(assertValidContractPath(path))
+	// The default proposer is a real Authority, not an absent one. Encoding
+	// the strictest policy as a nil field would mean the secure default is
+	// what you get by leaving something OUT: a struct literal that skips
+	// this constructor, a persisted value from an older build, or re-adding
+	// `if proposer == nil { proposer = NewAutoAcceptAuthority() }` would all
+	// silently be wide open again. A one-field struct costs the same as the
+	// nil it replaces and cannot be reached by omission.
+	return newContractAuthority(path, addr, handler, &contractIdentityAuthority{addr: addr})
 }
 
-// NewRestrictedContractAuthority creates a new contract authority with a
-// proposer restriction.
+// NewRestrictedContractAuthority creates a contract authority whose
+// proposer REPLACES the contract-identity gate.
+//
+// This is the escape hatch, not a second lock. `proposer` becomes the ONLY
+// authorization decision: contractAddr is not consulted on this path, so
+// `path` degrades to a label that appears in String() and asserts nothing.
+// NewRestrictedContractAuthority(p, h, NewAutoAcceptAuthority()) is exactly
+// the old default behaviour ("anyone can propose"), stated
+// explicitly rather than reached by default.
+//
+// In particular NewRestrictedContractAuthority("gno.land/r/gov/dao", h,
+// NewMemberAuthority(alice)) does NOT mean "GovDAO and alice". It means
+// "alice, and not GovDAO".
 //
 // SECURITY:
 //   - `handler` is the same Class-4 captured-callback risk as
@@ -359,23 +457,106 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 //   - `proposer` is an open-interface input (Class-3 impl-substitution).
 //     A hostile proposer Authority can always-approve creation of any
 //     proposal, defeating the restriction. Pass canonical impls only.
+//     String() renders a non-canonical proposer wrapped as
+//     custom_authority[...] so such a substitution is at least visible.
 func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler, proposer Authority) Authority {
-	if path == "" {
-		panic("contract path cannot be empty")
-	}
-	if handler == nil {
-		panic("contract handler cannot be nil")
-	}
 	if proposer == nil {
 		panic("proposer cannot be nil")
 	}
+	addr := chain.PackageAddress(assertValidContractPath(path))
+	return newContractAuthority(path, addr, handler, proposer)
+}
+
+// newContractAuthority is the single construction path: both exported
+// constructors validate, then land here, so a guard added once applies to
+// both. `handler` is rejected here rather than surfaced at Authorize time
+// because Authorize checks contractHandler == nil BEFORE consulting the
+// proposer, and Transfer routes through Authorize — so a nil-handler
+// authority could never be rotated out. It is a permanent brick with no
+// on-chain recovery for anyone: the same bricked-governance failure
+// mode, reached by accident.
+func newContractAuthority(path string, addr address, handler PrivilegedActionHandler, proposer Authority) *ContractAuthority {
+	if handler == nil {
+		panic("contract handler cannot be nil")
+	}
 	return &ContractAuthority{
 		contractPath:    path,
-		contractAddr:    chain.PackageAddress(path),
+		contractAddr:    addr,
 		contractHandler: handler,
 		proposer:        proposer,
 	}
 }
+
+// assertValidContractPath rejects paths that chain.PackageAddress would
+// hash happily but that no realm could ever present, which would brick the
+// authority permanently (nobody authorizes, and Transfer routes through the
+// same gate so nobody can rotate out). Returns `path` so it composes.
+//
+// The authoritative rule is gnolang.ReGnoUserPkgPath ("all paths must be
+// lowercase ascii alphanumeric characters", gnovm/pkg/gnolang/mempackage.go),
+// but no validator is exported to Gno code — chain's isValidSubpath /
+// assertValidSubpath are unexported, and there is no chain.IsValidPkgPath.
+// So this is a deliberately permissive superset: segment ("/" segment)*,
+// segment = [a-z0-9] ([a-z0-9_.-]* [a-z0-9])?. It accepts every real
+// package path and catches what actually gets typed wrong — trailing or
+// embedded whitespace, empty segments, uppercase, stray punctuation. It
+// CANNOT catch a well-formed path that is simply the wrong principal. See
+// NewContractAuthority's godoc on rotation.
+func assertValidContractPath(path string) string {
+	if path == "" {
+		panic("contract path cannot be empty")
+	}
+	if !strings.Contains(path, "/") {
+		panic("contract path must be a package path, e.g. gno.land/r/gov/dao")
+	}
+	start := 0
+	for i := 0; i <= len(path); i++ {
+		if i == len(path) || path[i] == '/' {
+			if !isValidContractPathSegment(path[start:i]) {
+				panic("contract path must be '/'-separated segments of [a-z0-9] with '_.-' allowed inside a segment, e.g. gno.land/r/gov/dao")
+			}
+			start = i + 1
+		}
+	}
+	return path
+}
+
+func isValidContractPathSegment(seg string) bool {
+	if seg == "" {
+		return false
+	}
+	for i := 0; i < len(seg); i++ {
+		switch c := seg[i]; {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case c == '_' || c == '.' || c == '-':
+			// Allowed only strictly inside a segment.
+			if i == 0 || i == len(seg)-1 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// contractIdentityAuthority is the default proposer installed by
+// NewContractAuthority: the contract at the bound path, and nobody else.
+// Unexported and unmutable by design — AddMember/RemoveMember are
+// meaningless for a fixed contract identity, which is why this is not a
+// MemberAuthority holding one address.
+type contractIdentityAuthority struct {
+	addr address
+}
+
+func (a *contractIdentityAuthority) Authorize(caller address, _ string, action PrivilegedAction, _ ...any) error {
+	if caller != a.addr {
+		return errors.New("unauthorized")
+	}
+	return action()
+}
+
+func (a *contractIdentityAuthority) String() string { return "contract-identity" }
 
 func (a *ContractAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	if a.contractHandler == nil {
@@ -400,17 +581,86 @@ func (a *ContractAuthority) Authorize(caller address, title string, action Privi
 		})
 	}
 
-	// Use the proposer authority to control who can create proposals
-	return a.proposer.Authorize(caller, title+"_proposal", func() error {
+	handle := func() error {
 		if err := a.contractHandler(title, wrappedAction); err != nil {
 			return err
 		}
 		return nil
-	}, args...)
+	}
+
+	// The proposer IS the authorization decision. For an authority built by
+	// NewContractAuthority it is a contractIdentityAuthority bound to
+	// contractAddr — the contract itself and nobody else; for one built by
+	// NewRestrictedContractAuthority it is whatever the consumer installed,
+	// and contractAddr is deliberately not consulted (see that constructor's
+	// godoc). `caller` is established upstream by Authorizer.DoByCurrent /
+	// DoByPrevious / Transfer under rlm.IsCurrent(), so an external realm
+	// cannot present an arbitrary principal here.
+	//
+	// A nil proposer is not a policy, it is a malformed value: both
+	// constructors always install one, so nil means the struct was built by
+	// a literal that bypassed them. Fail closed rather than dereference.
+	if a.proposer == nil {
+		return errors.New("proposer is not set")
+	}
+	return a.proposer.Authorize(caller, title+"_proposal", handle, args...)
 }
 
+// String renders the contract path AND the proposer.
+//
+// The proposer half is security-relevant, not cosmetic: it is the only
+// thing distinguishing a gated authority from a wide-open one. Rendering
+// the path alone made
+//
+//	NewContractAuthority(path, handler)                              // gated
+//	NewRestrictedContractAuthority(path, handler, AutoAccept{})      // open to all
+//
+// byte-identical, so any consumer test asserting on this string — and
+// any on-chain reader inspecting it — was blind to the difference. A
+// consumer realm could have its authority swapped for a fully permissive
+// one and its assertions would stay green.
+//
+// "contract-identity" names the default installed by NewContractAuthority:
+// the contract at contractPath, and nobody else, may drive this authority.
+//
+// The proposer is rendered through canonicalAuthorityString, NOT by calling
+// a.proposer.String() directly. Authority is an open interface, so a foreign
+// impl can return any text it likes — including "contract-identity". That
+// made a fully permissive authority byte-identical to the gated default
+// again, defeating the very assertions this rendering exists to support.
+// Non-canonical impls are wrapped as custom_authority[...], mirroring what
+// Authorizer.String has always done at the outer level.
+//
+// Read the `contract=` half with care: it is load-bearing only for the
+// contract-identity default. With any other proposer it is a label —
+// see NewRestrictedContractAuthority.
 func (a *ContractAuthority) String() string {
-	return ufmt.Sprintf("contract_authority[contract=%s]", a.contractPath)
+	return ufmt.Sprintf(
+		"contract_authority[contract=%s,proposer=%s]",
+		a.contractPath,
+		canonicalAuthorityString(a.proposer),
+	)
+}
+
+// canonicalAuthorityString renders an Authority, wrapping any
+// implementation that is not one of this package's own as
+// custom_authority[...] so a foreign impl cannot impersonate a canonical
+// one by choosing its String() text. Shared by ContractAuthority.String
+// (for the nested proposer) and Authorizer.String (for the installed
+// authority).
+func canonicalAuthorityString(auth Authority) string {
+	if auth == nil {
+		// Only reachable via a struct literal that bypassed the
+		// constructors; Authorize fails closed on the same condition.
+		return "<unset>"
+	}
+	switch auth.(type) {
+	case *MemberAuthority, *ContractAuthority, *AutoAcceptAuthority,
+		*droppedAuthority, *contractIdentityAuthority:
+		return auth.String()
+	default:
+		return ufmt.Sprintf("custom_authority[%s]", auth.String())
+	}
 }
 
 // AutoAcceptAuthority implements an authority that accepts all actions
