@@ -128,11 +128,24 @@ func signaturePayload(v any) ([]byte, error) {
 	return sortedData, nil
 }
 
-// VerifySignaturePayload reports whether sig is a valid signature by pubKey over
-// s in either of the two accepted renderings: the amount/gas fee shape the
-// Ledger Cosmos app parses (GetSignaturePayload), and the gas_wanted/gas_fee
-// shape (GetSignaturePayloadLegacy). An error means no payload could be built
-// to check against, which is a malformed sign doc rather than a bad signature.
+// PayloadRendering names the signature payload rendering a signature was made
+// over, as reported by VerifySignaturePayload.
+type PayloadRendering uint8
+
+const (
+	// PayloadRenderingNone means the signature matched neither rendering.
+	PayloadRenderingNone PayloadRendering = iota
+	// PayloadRenderingCurrent is the amount/gas fee shape the Ledger Cosmos app
+	// parses, produced by GetSignaturePayload.
+	PayloadRenderingCurrent
+	// PayloadRenderingLegacy is the gas_wanted/gas_fee fee shape, produced by
+	// GetSignaturePayloadLegacy.
+	PayloadRenderingLegacy
+)
+
+// VerifySignaturePayload reports which rendering of s, if either, sig is a valid
+// signature over by pubKey. An error means no payload could be built to check
+// against, which is a malformed sign doc rather than a bad signature.
 //
 // WHY BOTH ARE ACCEPTED. Clients build the signature payload themselves, so the
 // rendering cannot change on one side only. A node that took only the amount/gas
@@ -155,21 +168,24 @@ func signaturePayload(v any) ([]byte, error) {
 // the ordinary path pays for one encoding and one curve operation. A signature
 // that matches neither pays for two of each, and nothing meters that: the cost of
 // rejecting an invalid signature is borne by the node, not the sender.
-func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (bool, error) {
+func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (PayloadRendering, error) {
 	payload, err := GetSignaturePayload(s)
 	if err != nil {
-		return false, err
+		return PayloadRenderingNone, err
 	}
 	if pubKey.VerifyBytes(payload, sig) {
-		return true, nil
+		return PayloadRenderingCurrent, nil
 	}
 
 	legacy, err := GetSignaturePayloadLegacy(s)
 	if err != nil {
-		return false, err
+		return PayloadRenderingNone, err
+	}
+	if pubKey.VerifyBytes(legacy, sig) {
+		return PayloadRenderingLegacy, nil
 	}
 
-	return pubKey.VerifyBytes(legacy, sig), nil
+	return PayloadRenderingNone, nil
 }
 
 // Signature represents a wrapped signature of a transaction

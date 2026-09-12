@@ -180,16 +180,18 @@ func TestSignaturePayloadZeroFeeIsEmptyList(t *testing.T) {
 func TestSignDocPayloadMirrorsSignDoc(t *testing.T) {
 	t.Parallel()
 
-	doc, payload := reflect.TypeOf(SignDoc{}), reflect.TypeOf(signDocPayload{})
+	doc, payload := reflect.TypeFor[SignDoc](), reflect.TypeFor[signDocPayload]()
 	if doc.NumField() != payload.NumField() {
 		t.Fatalf("SignDoc has %d fields, signDocPayload has %d; a field is "+
 			"missing from the signed bytes", doc.NumField(), payload.NumField())
 	}
 
 	for i := range doc.NumField() {
-		df, pf := doc.Field(i), payload.Field(i)
-		if df.Name != pf.Name {
-			t.Errorf("field %d: SignDoc.%s against signDocPayload.%s", i, df.Name, pf.Name)
+		df := doc.Field(i)
+		pf, ok := payload.FieldByName(df.Name)
+		if !ok {
+			t.Errorf("SignDoc.%s has no counterpart in signDocPayload", df.Name)
+			continue
 		}
 		if got, want := pf.Tag.Get("json"), df.Tag.Get("json"); got != want {
 			t.Errorf("%s: json tag %q, want %q", df.Name, got, want)
@@ -355,8 +357,8 @@ func TestSignaturePayloadEncodingsAreDisjoint(t *testing.T) {
 	}
 }
 
-// The helper the tools lean on: it must take both, and it must still refuse a
-// signature over neither.
+// The helper the tools lean on: it must take both renderings, say which one
+// matched, and still refuse a signature over neither.
 func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 	t.Parallel()
 
@@ -365,13 +367,22 @@ func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 		ChainID: "dev", AccountNumber: 3, Sequence: 4,
 		Fee: NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}), Memo: "m",
 	}
+	verify := func(t *testing.T, doc SignDoc, sig []byte) PayloadRendering {
+		t.Helper()
+		rendering, err := VerifySignaturePayload(priv.PubKey(), doc, sig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rendering
+	}
 
 	for _, tc := range []struct {
 		name   string
 		render func(SignDoc) ([]byte, error)
+		want   PayloadRendering
 	}{
-		{"current", GetSignaturePayload},
-		{"legacy", GetSignaturePayloadLegacy},
+		{"current", GetSignaturePayload, PayloadRenderingCurrent},
+		{"legacy", GetSignaturePayloadLegacy, PayloadRenderingLegacy},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -385,12 +396,8 @@ func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ok, err := VerifySignaturePayload(priv.PubKey(), doc, sig)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !ok {
-				t.Errorf("a signature over the %s rendering was refused", tc.name)
+			if got := verify(t, doc, sig); got != tc.want {
+				t.Errorf("a signature over the %s rendering verified as %d, want %d", tc.name, got, tc.want)
 			}
 
 			// AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must
@@ -399,22 +406,14 @@ func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 			// fail, or the fallback has become a bypass.
 			moved := doc
 			moved.Sequence = doc.Sequence + 1
-			ok, err = VerifySignaturePayload(priv.PubKey(), moved, sig)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if ok {
-				t.Errorf("%s: a signature verified against a DIFFERENT sign doc", tc.name)
+			if got := verify(t, moved, sig); got != PayloadRenderingNone {
+				t.Errorf("%s: a signature verified against a DIFFERENT sign doc as %d", tc.name, got)
 			}
 		})
 	}
 
-	ok, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("not a signature"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ok {
-		t.Error("garbage verified as a signature")
+	if got := verify(t, doc, []byte("not a signature")); got != PayloadRenderingNone {
+		t.Errorf("garbage verified as a signature, rendering %d", got)
 	}
 }
 
@@ -436,11 +435,11 @@ func TestVerifySignaturePayloadReportsUnencodableMsgs(t *testing.T) {
 	priv := ed25519.GenPrivKey()
 	doc := SignDoc{ChainID: "dev", Msgs: []Msg{unregisteredMsg{}}}
 
-	ok, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("irrelevant"))
+	rendering, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("irrelevant"))
 	if err == nil {
 		t.Fatal("an unencodable sign doc verified without error")
 	}
-	if ok {
-		t.Error("an unencodable sign doc verified as signed")
+	if rendering != PayloadRenderingNone {
+		t.Errorf("an unencodable sign doc verified as rendering %d", rendering)
 	}
 }

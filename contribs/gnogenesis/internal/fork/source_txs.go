@@ -74,7 +74,7 @@ func bruteForceSignerSequence(
 	// their sender ran; a source whose clients all produced the
 	// gas_wanted/gas_fee rendering would otherwise resolve no sequence at all.
 	for seq := lo; seq <= hi; seq++ {
-		valid, err := std.VerifySignaturePayload(
+		rendering, err := std.VerifySignaturePayload(
 			pubKey,
 			tx.SignDoc(chainID, accNum, seq),
 			sig.Signature,
@@ -82,7 +82,7 @@ func bruteForceSignerSequence(
 		if err != nil {
 			return lo, fmt.Errorf("unable to get tx signature payload, %w", err)
 		}
-		if valid {
+		if rendering != std.PayloadRenderingNone {
 			return seq, nil
 		}
 	}

@@ -121,7 +121,7 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			// a genesis file is signed once and cannot be re-signed, so the
 			// verifier has to accept whichever rendering its signer produced,
 			// as the node does.
-			valid, err := std.VerifySignaturePayload(
+			rendering, err := std.VerifySignaturePayload(
 				signer.PubKey,
 				tx.Tx.SignDoc(genesis.ChainID, 0, 0),
 				signer.Signature,
@@ -129,7 +129,7 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			if err != nil {
 				return fmt.Errorf("unable to get tx signature payload, %w", err)
 			}
-			if !valid {
+			if rendering == std.PayloadRenderingNone {
 				return fmt.Errorf(
 					"%w #%d, by signer %s",
 					errInvalidTxSignature,
