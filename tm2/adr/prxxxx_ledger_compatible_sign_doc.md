@@ -73,11 +73,22 @@ working signature path looks like.
 payloads and is a **separate, unfixed problem**: package upload appears to be
 beyond a Ledger regardless of this change. This ADR does not address it.
 
-Three tests are added. They fail against the current rendering, naming the
+A zero fee renders as `"amount":[]`, not as a list holding an empty coin.
+Cosmos's `Coins` carries no zero entries, and the device displays every coin it
+is given, so `{"denom":"","amount":"0"}` would be both wrong and likely refused —
+reintroducing this very failure for zero-fee transactions. That path is live, not
+hypothetical: `ante.go` branches on `GasFee.IsZero()`, and every genesis
+transaction is signed with `GetSignBytes(chainID, 0, 0)`.
+
+The protobuf wire encoding is untouched. Only the JSON signature payload moves,
+so `Tx` on the wire, and every decoder of it, are unaffected.
+
+Four tests are added. They fail against the current rendering, naming the
 offending keys, and pass with the change:
 
 - the sign doc's keys, and the fee's keys, are within the app's allowlist
 - the fee has the array-of-coins shape with string-typed numbers
+- a zero fee is an empty list, with no empty denom anywhere in the payload
 - the whole payload is pinned byte-for-byte
 
 The last is the one that would have caught this. Nothing in the tree pinned the

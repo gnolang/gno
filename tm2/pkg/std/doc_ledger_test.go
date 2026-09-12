@@ -1,6 +1,7 @@
 package std
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 )
@@ -110,6 +111,42 @@ func TestSignaturePayloadFeeShape(t *testing.T) {
 	}
 	if got, want := doc.Fee.Gas, "200000"; got != want {
 		t.Errorf("fee.gas = %q, want %q (a string, not a number)", got, want)
+	}
+}
+
+// A ZERO FEE IS AN EMPTY LIST. Genesis transactions are signed with
+// GetSignBytes(chainID, 0, 0) and the ante handler branches on GasFee.IsZero(),
+// so this is a live path, not a curiosity. Rendering it as a list holding
+// {"denom":"","amount":"0"} would put an empty denom in front of a device that
+// displays every coin it is given.
+func TestSignaturePayloadZeroFeeIsEmptyList(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		fee  Fee
+	}{
+		{"wholly zero", Fee{}},
+		{"zero amount with a denom", NewFee(0, Coin{Denom: "ugnot", Amount: 0})},
+	} {
+		payload, err := GetSignaturePayload(SignDoc{ChainID: "dev", Fee: tc.fee})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		var doc struct {
+			Fee struct {
+				Amount []json.RawMessage `json:"amount"`
+			} `json:"fee"`
+		}
+		if err := json.Unmarshal(payload, &doc); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if len(doc.Fee.Amount) != 0 {
+			t.Errorf("%s: fee.amount = %v, want an empty list", tc.name, doc.Fee.Amount)
+		}
+		if bytes.Contains(payload, []byte(`"denom":""`)) {
+			t.Errorf("%s: payload carries a coin with an empty denom: %s", tc.name, payload)
+		}
 	}
 }
 
