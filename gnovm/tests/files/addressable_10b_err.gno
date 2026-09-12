@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// illegal assignment X expression type *gnolang.CallExpr
+// main/addressable_10b_err.gno:8:10-17: invalid operation: cannot take address of (const (new func(type{}) *main.S))(typeval{main.S}) (value of type *main.S)
 
 // TypeCheckError:
 // main/addressable_10b_err.gno:8:11: invalid operation: cannot take address of new(S) (value of type *S)
