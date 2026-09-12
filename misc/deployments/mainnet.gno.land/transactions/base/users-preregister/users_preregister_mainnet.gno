@@ -1,13 +1,13 @@
 // users_preregister_mainnet.gno runs as a MsgRun at genesis to register the
 // initial mainnet namespaces in r/sys/users, alongside the universal system
-// names that r/sys/namereg/v1's preregister seed adds on every chain.
+// names that r/sys/namereg/v0's preregister seed adds on every chain.
 //
 // The r/sys/users controller gate is skipped at ChainHeight()==0 and
 // r/sys/users/init.RegisterUser is genesis-only by construction (it panics
 // after height 0), so this grants NO standing authority: nothing is
 // whitelisted, and nothing survives genesis except the registrations
 // themselves. GovDAO keeps full control over every name afterwards
-// (rename/delete via r/sys/namereg/v1 proposals).
+// (rename/delete via r/sys/namereg/v0 proposals).
 //
 // Registration uses the bypass path (RegisterUserIgnoreCanonical, later-wins
 // on canonical collisions), so this curated list must not confusable-collide

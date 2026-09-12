@@ -171,8 +171,9 @@ INITIAL_VALSET=(
 # The operators are NOT genesis fee payers — the deployer pays the Register
 # txs — so each simply keeps its 1,000 GNOT.
 #
-# NAMES_ADMIN below is the remaining unfunded actor — see its own
-# TODO(mainnet); the same argument applies to it, and the same fix would.
+# Every address that must act post-genesis is now funded upstream: the
+# validator addresses (#78), the approvals oracle (#79/#80), and the
+# blog/boards owner multisig (#81) — see NAMES_ADMIN below.
 INITIAL_VALSET_OPERATORS=(
   "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m" # gno-core-validator-1 operator (aeddi)
   "g12gtvlcexzgax49nvvkvhp2u0v6eejhunq0074p" # onbloc-validator-1 operator
@@ -212,7 +213,7 @@ INITIAL_VALSET_OPERATORS=(
 #                  names administration — r/sys/names' admin gates Enable()
 #                  and nothing else, and Enable is one-shot at genesis. It is
 #                  funded because the same address is the hardcoded owner of
-#                  r/gnoland/blog and r/gnoland/boards2/v1, both in this
+#                  r/gnoland/blog and r/gnoland/boards2/v0, both in this
 #                  genesis set, where every owner action is a paid tx and the
 #                  owner cannot be reassigned without a realm upgrade. Core
 #                  goes 39,989,000 -> 39,984,000. See NAMES_ADMIN below.
@@ -286,18 +287,12 @@ RESTRICTED_DENOMS=("ugnot")
 # at start). Adding it here too would only trip the overlap guard. Prefer fixing
 # a schedule upstream in the sheet over typing one here.
 #
-# TODO(mainnet): (in progress — Manfred) decide whether anything still needs a hand-typed entry.
-# Candidates the sheet does not cover:
-#   - treasuries (§120/§121/§122) if the Constitution requires schedules
-#     rather than multisig-only custody — TBD.
-# Entries here OVERRIDE how the listed allocation is held, so each must match
-# the address's allocation amount from the balance sheet and its address must be
-# listed in VESTED_OVERRIDE handling below. Until that override mechanism is
-# decided, an address in both inputs is rejected outright by the overlap guard —
-# see TODO(mainnet) in step 8 — which now means ANY address carrying a sheet
-# schedule.
+# DECIDED: nothing needs a hand-typed entry — the pinned sheet carries every
+# schedule (§132 rows, the investors bucket, the treasuries hold multisig-only
+# custody). The array stays as an escape hatch; an entry whose address also
+# carries a sheet schedule is rejected outright by the overlap guard in step 8
+# (sheet wins — fix a schedule upstream in the sheet, not here).
 VESTED_ACCOUNTS=(
-  # "g1x7tm26g9wj84cmg3cs74uwf3g9lqj4mjp6gax3=150000000000000ugnot;vesting=150000000000000ugnot,<start>,<end>" # TODO(mainnet): §132 investors, 24 months
 )
 
 # Token-transfer policy: LOCKED at genesis, per Constitution §126 —
@@ -440,7 +435,7 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 #
 # It is funded because the same address is the hardcoded OWNER of two realms
 # that ship in this genesis set — r/gnoland/blog (adminAddr) and
-# r/gnoland/boards2/v1 (gPerms) — where ownership is fixed at realm source and
+# r/gnoland/boards2/v0 (gPerms) — where ownership is fixed at realm source and
 # every owner action is a paid tx. An owner at zero under §126 with no faucet
 # could not post to the chain's own blog or administer its own boards, and
 # could not be topped up until the transfer lock lifts.
@@ -1823,10 +1818,9 @@ print_substep "8.2" "Found $addr_count unique creator/caller addresses"
 #   - a fee payer MAY also hold an allocation: its final entry becomes
 #     allocation + measured burn (summed during the measure run below),
 #     so it lands at exactly its allocation once the genesis txs execute;
-#   - a vested account may NOT hold an allocation yet — how a vesting
-#     schedule overrides an allocation line is undecided, so die loudly.
-#     TODO(mainnet): (in progress — Manfred) decide the override (likely: the vested entry
-#     replaces the allocation line and must carry the same total);
+#   - a VESTED_ACCOUNTS entry may NOT hold an allocation: the sheet is the
+#     single source of schedules (decided), so an address in both inputs
+#     dies loudly — fix the schedule upstream in the sheet instead;
 #   - vested entries must be well-formed and mutually unique, and may not
 #     be fee payers (unchanged from the testnet builders).
 VESTED_ADDRS_FILE="$BALANCES_TMP_DIR/vested-addrs.txt"
@@ -1852,7 +1846,7 @@ while IFS= read -r vested_addr; do
     die "vested account $vested_addr is also a genesis-tx fee payer — its entry would be silently overwritten"
   fi
   if grep -q -- "^${vested_addr}=" "$ALLOCATION_TXT"; then
-    die "vested account $vested_addr also holds an independence-day allocation — the override mechanism is undecided (see TODO(mainnet) above)"
+    die "vested account $vested_addr also holds an independence-day allocation — the sheet is the single source of schedules; fix it upstream instead of overriding here"
   fi
 done <"$VESTED_ADDRS_FILE"
 
