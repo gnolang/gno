@@ -309,25 +309,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				// Either payload rendering is accepted: the amount/gas fee shape
-				// the Ledger Cosmos app parses, and the gas_wanted/gas_fee shape
-				// that clients building the payload themselves, and written
-				// genesis files, may still carry. std.VerifySignaturePayload
-				// holds the argument for why taking both is safe; the short
-				// version is that the two fee key sets are disjoint, so one
-				// signature still authorises exactly one transaction.
+				// Either payload rendering is accepted; std.VerifySignaturePayload
+				// holds the argument for why that is safe.
 				//
-				// Spelled out here rather than delegated to that helper so a
-				// payload that cannot be built keeps the ErrInternal it gets
-				// above, distinct from ErrUnauthorized. The legacy encoding
-				// cannot fail once the one above succeeded -- the two differ
-				// only in the fee's plain fields -- so lerr carries nothing the
-				// first marshal did not already report.
-				//
-				// Gas was charged above for one verification. A signature that
-				// matches neither rendering costs a second encoding and curve
-				// operation that nothing meters, since a rejected transaction
-				// pays no fee.
+				// Spelled out here rather than delegated to that helper because
+				// the payload is built above, before gas is charged and outside
+				// the simulate gate, and delegating would reorder those steps on
+				// the consensus path. The legacy encoding cannot fail once the
+				// one above succeeded -- the two differ only in the fee's plain
+				// fields -- so lerr carries nothing the first marshal did not
+				// already report. Gas was charged above for one verification.
 				legacySignBytes, lerr := tx.GetSignBytesLegacy(
 					newCtx.ChainID(),
 					accNum,
