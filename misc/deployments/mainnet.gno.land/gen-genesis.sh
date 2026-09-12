@@ -59,7 +59,7 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=gnoland-1 # decided 2026-09-09
-# DECIDED (A, 2026-09-12): launch at 2026-09-12T13:00:00Z (15:00 CEST).
+# DECIDED (A, 2026-09-12): launch at 2026-09-12T14:00:00Z.
 # Mainnet block 1 carries this timestamp forever. The pinned sheet's vesting
 # schedules must start at exactly this instant — the vesting-lock guard in
 # step 2 refuses anything else — so the FINAL allocation re-pin must be
@@ -75,7 +75,7 @@ CHAIN_ID=gnoland-1 # decided 2026-09-09
 # The decided time is 37h AFTER the current pin's start, so the build stays
 # refused until the sheet is re-pinned generated with
 # -vesting-start equal to it.
-GENESIS_TIME=1789218000 # Saturday, September 12th 2026, 13:00 UTC (15:00 CEST) — decided 2026-09-12
+GENESIS_TIME=1789221600 # 2026-09-12T14:00:00Z — decided 2026-09-12
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
@@ -227,12 +227,11 @@ INITIAL_VALSET_OPERATORS=(
 # them: fees are collected with SendCoinsUnrestricted, bypassing both the
 # vesting lock and the §126 transfer restriction.
 #
-# TODO(mainnet): re-pin URL + sha to the FINAL independence-day commit at
-# genesis cut (main moves as sale participants bind addresses; see its
-# docs/history.md convention of recording which commit produced which
-# chain).
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/0108ede228044557aaa3bf17db245533979f5498/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="f78673663f8d5045c402a4bb90039e4b51d308e21acc17c74e6e86e36b09ed08"
+# FINAL PIN: independence-day main @ 665d4e5 (#82 moves the §132 vesting
+# window to the ceremony time). That repo's docs/history.md records which
+# commit produced which chain.
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/665d4e5a9cc6351fa8309672a187ab0d449a63cf/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="c86994ab85f0674a5817341b2c3b5eb6f4e0b60564c7f685a61731f6c0a8d487"
 # The sha proves "this is the pinned file"; these two make its MAGNITUDE part
 # of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
 # artifact) and would hold for any sheet — without these, a re-pin that
@@ -263,7 +262,7 @@ ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 # oracle, and neither is one of the §127 funds — they pay FEES, which
 # SendCoinsUnrestricted exempts from §126 anyway, so neither needs a whitelist
 # entry. A float appearing on this list would be the thing to question.
-UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/0108ede228044557aaa3bf17db245533979f5498/mkgenesis/unrestricted.txt"
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/665d4e5a9cc6351fa8309672a187ab0d449a63cf/mkgenesis/unrestricted.txt"
 UNRESTRICTED_SHA256="7b37a16822739371cfd9a3f5ae864b7ab86cef4c83155fefb5114c29abda38bf"
 
 # Denominations subject to the §126 transfer lock. Empty = no lock, and then
@@ -414,7 +413,7 @@ DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 # caller to this address makes Enable's gate pass. The private key is not
 # needed at build time (the multisig exists and can sign post-genesis).
 #
-# TODO(mainnet): (in progress — Manfred) before the package set is frozen, audit every other
+# AUDITED (Manfred, 2026-09-12): every other
 # hardcoded g1... literal in the deployed set the same way (hardcoded
 # addresses are unchangeable post-genesis without a realm upgrade — see
 # the launch checklist, authority-and-keys section). Package CREATORS are a
