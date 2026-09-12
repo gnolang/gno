@@ -1,6 +1,6 @@
 # Joining mainnet as a validator
 
-> Launch: **2026-09-12T12:00:00Z**, chain-id `gnoland-1`. All values below are final.
+> Launch: **2026-09-12T15:00:00Z**, chain-id `gnoland-1`. All values below are final.
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 

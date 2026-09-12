@@ -2,7 +2,7 @@
 
 Builds the **gno.land mainnet** genesis. Mainnet is a **fresh chain** — not a hardfork of betanet (gnoland1) — whose balances come from the audited [gnolang/independence-day](https://github.com/gnolang/independence-day) allocation.
 
-> Launch: **2026-09-12T12:00:00Z**, chain-id `gnoland-1`.
+> Launch: **2026-09-12T15:00:00Z**, chain-id `gnoland-1`.
 
 ## What mainnet contains
 

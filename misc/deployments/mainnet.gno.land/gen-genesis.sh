@@ -59,7 +59,7 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=gnoland-1 # decided 2026-09-09
-# DECIDED (A, 2026-09-12): launch at 2026-09-12T12:00:00Z — the ceremony
+# DECIDED (A, 2026-09-12): launch at 2026-09-12T15:00:00Z — the ceremony
 # time the pinned sheet's §132 schedules vest from (independence-day #82).
 # Mainnet block 1 carries this timestamp forever. The vesting-lock guard in
 # step 2 refuses any sheet whose schedules do not start at exactly this
@@ -75,7 +75,7 @@ CHAIN_ID=gnoland-1 # decided 2026-09-09
 # The decided time equals the pin's start, and any drift between the two
 # refuses the build. A re-pin must be generated with
 # -vesting-start equal to it.
-GENESIS_TIME=1789214400 # 2026-09-12T12:00:00Z — decided 2026-09-12
+GENESIS_TIME=1789225200 # 2026-09-12T15:00:00Z — decided 2026-09-12
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
