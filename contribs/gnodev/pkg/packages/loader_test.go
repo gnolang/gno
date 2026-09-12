@@ -637,7 +637,7 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		// Fall back to gnoenv discovery. Test target is a stable example.
 		gnoroot = filepath.Join("..", "..", "..", "..")
 	}
-	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v1")
+	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v0")
 	if _, err := os.Stat(realmDir); err != nil {
 		t.Skipf("examples realm not available: %v", err)
 	}
