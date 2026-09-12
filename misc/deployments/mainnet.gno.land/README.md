@@ -1,0 +1,70 @@
+# mainnet genesis (WIP)
+
+Builds the **gno.land mainnet** genesis. Mainnet is a **fresh chain** — not a hardfork of betanet (gnoland1) — whose balances come from the audited [gnolang/independence-day](https://github.com/gnolang/independence-day) allocation.
+
+> Launch: **2026-09-12T15:00:00Z**, chain-id `gnoland-1`.
+
+## What mainnet contains
+
+- **Balances**: the independence-day allocation — 3,262,481 accounts totalling 1,332,999,998.328067 GNOT at the current pin (`main` @ `0108ede`: ATOM/ATONE airdrops, investor buckets, treasuries, public sale, settled investor/partner distributions; see that repo's README for the bucket table) — downloaded by pinned-commit URL and sha256-verified at build time, then reconciled against the shipped genesis at step 9.5. Plus exact-burn funding for the genesis-tx fee payers: they land at zero post-genesis, or at exactly their allocation when an address is both (the collision gnoland1 left unresolved is handled by summing burn on top of allocation). **No faucets.**
+- **Governance**: a **sole GovDAO T1 member at genesis — aeddi** (operational key), seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/impl/v0`. The remaining six gnolang/multisigs `[govdao]` members (keys already confirmed with each owner) are added post-genesis through regular GovDAO proposals. The build reads the seeded address back out of the bootstrap source and refuses to produce a genesis unless it holds a balance: with no faucet and no transferable supply, a member seeded without funds could never pay for a proposal. Any nonzero balance qualifies — fees are collected via the bank's unrestricted path, so neither a vesting schedule nor the §126 lock stops a member from paying gas.
+- **Validators**: 4 founding validators — Gnocore, OnBloc, Samourai Crew, Berty — one each, power 60 (one dark = one quarter lost, safely below the one-third halt boundary). All four are real: each org's ceremony consensus pair plus its operator address, every consensus address cross-checked by deriving it from the pubkey. All eight addresses — four signing, four operator — hold 1,000 GNOT at genesis from the §122 Validator Services Treasury (independence-day#78), because rotating a key, editing a valoper profile and signalling opt-out are all paid txs on a chain with no faucet and §126 in force; step 2.8 asserts it against the pinned sheet.
+- **Namespaces**: seven initial names — `gnoswap`, `onbloc`, `moul`, `aeddi`, `aib`, `samcrew`, `howl` — are registered in `r/sys/users` by a genesis MsgRun through the genesis-only `r/sys/users/init.RegisterUser` path (the controller gate is skipped at height 0, so no authority survives genesis; GovDAO can rename or delete any of them via `r/sys/namereg/v0` proposals). They join the universal system names seeded by namereg itself.
+- **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The admin is the gnolang/multisigs `[govdao]` 4-of-7 multisig, and the build asserts the configured value against the admin actually compiled into `r/sys/names/verifier.gno`, so a master-side change fails the build instead of panicking a temp node.
+- **Vested accounts**: the §132 schedules now arrive **in the pinned sheet** (independence-day #72 emits them by default), so `VESTED_ACCOUNTS` is empty and mostly redundant: all but 63 of the 3,262,481 rows carry a schedule — 3,262,417 of them vesting 96% continuously over 2026-09-11 → 2028-09-11, including the 150M GNOT investors-vesting bucket, plus one `;type=delayed` cliff. A build-time guard refuses any schedule that is not fully locked at `GENESIS_TIME` — the decided launch instant — so the pinned sheet's `-vesting-start` must equal it exactly.
+- **Inert packages**: ACTIVE at genesis — `code_submission_policy=inert`, the gpao approvals oracle as sole `pkg_approvers` entry, `run_submitters` open, and the submission charge OFF (it moves through the restricted bank path, so §126 would break every submission). The params are patched into both the shipping and the measurement genesis and read back; genesis replay is exempt so the genesis deploys still execute. The `pkg_approvers` oracle (`g1yaaa6r…`) is **funded** in the pinned sheet with 5,000 GNOT from the §120 Core Treasury (independence-day#79, raised from 1,000 by #80) — ~5,000 approvals at `contribs/gpao`'s default fee. Five times the founders/validator tier on purpose: a service spends per event for as long as the chain accepts packages, and §126 leaves no way to top it up. That could not wait for the param decision: an approver seeded at zero could never be funded afterwards under §126, and would approve nothing forever.
+- **Transfers**: **locked at genesis**, per Constitution §126 (*"$GNOT will not be transferrable initially except for whitelisted addresses"*). `bank.params.restricted_denoms=["ugnot"]` plus the 91-address exemption list fetched from `gnolang/independence-day` (`mkgenesis/unrestricted.txt`, same sha256 treatment as the balance sheet, and now pinned at the **same commit** — the temporary split across two commits is resolved). Applied at step 9.3. Both knobs are required: with `restricted_denoms` empty the exemption list is inert.
+
+Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis via GovDAO proposals, see `misc/govdao-scripts/`): CLA and minimum gas price.
+
+## Quick start
+
+The script builds the binaries from the worktree, downloads and verifies the allocation sheet (cached after the first run), assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
+
+```bash
+./gen-genesis.sh                # full build
+./gen-genesis.sh --no-install   # reuse previously built binaries
+./gen-genesis.sh --debug        # echo the main pipeline commands
+```
+
+Output: `genesis.json` at the root of this directory (large: ~3.26M balance entries).
+
+## Directory layout
+
+```
+mainnet.gno.land/
+├── gen-genesis.sh         # Single self-contained pipeline
+├── govdao-exec.sh         # Helper for post-genesis governance ops
+├── genesis.json           # Final artifact (produced by the script)
+├── allocation_balances.txt.gz   # Cached independence-day sheet (gitignored)
+├── allocation_unrestricted.txt  # Cached §126 exemption list (gitignored)
+│
+├── transactions/          # Per-tx directories (meta.json + optional body)
+│   ├── base/
+│   │   ├── bootstrap/          # Bootstrap MsgRun (GovDAO T1 seed + AllowedDAOs lock)
+│   │   └── users-preregister/  # MsgRun registering the initial mainnet namespaces
+│   └── migration/
+│       └── names-enable/  # Genesis MsgCall to names.Enable
+│
+└── work/                  # Gitignored — generated artifacts
+```
+
+## Pipeline
+
+`gen-genesis.sh` is a single-phase script, 9 steps:
+
+1. Resolve script paths and tooling.
+2. Verify required tools, fetch and sha256-verify the allocation sheet and the §126 exemption list, and assert the bootstrap's T1 members are funded — everything that can fail in seconds, before the ten-minute build.
+3. Build binaries from source (`gno`, `gnokey`, `gnoland`, `gnogenesis`).
+4. Resolve `FILTERED_PACKAGES` deps, stage them, and `addpkg` them to the genesis.
+5. Add the bootstrap MsgRun from `transactions/base/bootstrap/`.
+6. Add the `names.Enable` MsgCall from `transactions/migration/names-enable/`.
+7. Build the valoper CSV from `INITIAL_VALSET` + `INITIAL_VALSET_OPERATORS` and add the `valopers.Register` txs (via `gnogenesis fork valoper-seed`).
+8. Enforce the overlap rules (fee payer ∩ allocation → summed; vested ∩ anything → rejected), then measure fee-payer balances via a two-pass temp-node run (measure → verify zero), gated on committed state.
+9. Add the validators + balances (fee payers + vested, then the allocation sheet last), apply the §126 transfer lock, reconcile the shipped account count and supply against the pinned sheet and the measured burn, run `gnogenesis verify`, move `genesis.json` into place.
+
+The locked artifacts (package list, valoper seed, tx stream, `genesis.json`) are checked against the `CHECKSUMS_DATA` manifest embedded in the script: after the first clean build with final values, paste the printed "not listed" lines into the heredoc to lock the build; any future run producing different bytes fails loudly.
+
+## Transactions folder
+
+Every entry under `transactions/` is a directory containing a `meta.json` (carries the `reason` audit field, a `kind` discriminator, and signing parameters) and optionally a body file. The `txn_dir_to_jsonl` helper in `gen-genesis.sh` converts such a directory into one tx jsonl line, signing via `gnokey` with the deterministic deployer key. `MsgCall` entries support `caller_override`: the caller field is jq-patched post-sign, which the chain trusts at genesis under `--skip-genesis-sig-verification` — used by `names-enable` to satisfy the admin gate without holding the admin key. Decided: mainnet keeps this pattern — every node runs `--skip-genesis-sig-verification` (documented in `VALIDATOR.md`), and no signing ceremony is held for the admin txs.
