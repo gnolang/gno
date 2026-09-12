@@ -1,0 +1,52 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_edit_thread_00_filetest
+
+package z_edit_thread_00_filetest
+
+import (
+	"testing"
+
+	"gno.land/p/gnoland/boards/v0"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const (
+	owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+	title         = "Test Thread"
+	body          = "Test body"
+	path          = "test-board/1"
+)
+
+var (
+	bid boards.ID
+	pid boards.ID
+)
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	pid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+}
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	boards2.EditThread(cross(cur), bid, pid, title, body)
+
+	println(boards2.Render(path))
+}
+
+// Output:
+// # [Boards](/r/gnoland/boards2/v0) › [test\-board](/r/gnoland/boards2/v0:test-board)
+// ## Test Thread
+//
+// **[g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx)** `owner` · 2009-02-13 11:31pm UTC
+//
+//
+// <gno-foreign>
+// Test body
+// </gno-foreign>
+//
+//
+//
+// ↳ [Flag](/r/gnoland/boards2/v0:test-board/1/flag) • [Repost](/r/gnoland/boards2/v0:test-board/1/repost) • [Comment](/r/gnoland/boards2/v0:test-board/1/reply) • [Edit](/r/gnoland/boards2/v0:test-board/1/edit) • [Delete](/r/gnoland/boards2/v0$help&func=DeleteThread&boardID=1&threadID=1)

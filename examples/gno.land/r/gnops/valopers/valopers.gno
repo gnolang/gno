@@ -592,7 +592,7 @@ func validatePubKey(pubKey string) error {
 // and IsUserCall() is the check that reads it. It is therefore the only
 // PreviousRealm shape where the envelope is guaranteed to have landed here:
 // it excludes intermediate code realms and user-run ephemeral realms alike.
-// Same reasoning and same pairing as r/sys/namereg/v1.Register, which reads
+// Same reasoning and same pairing as r/sys/namereg/v0.Register, which reads
 // OriginSend for its anti-squatting payment; see the two-guard comment there.
 //
 // Deliberately inside the `fee > 0` branch rather than at the top of the
