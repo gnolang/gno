@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	realmPkgPath = "gno.land/r/gnoland/boards2/v0"
-	gRealmPath   = "/r/gnoland/boards2/v0"
+	realmPkgPath         = "gno.land/r/gnoland/boards2/v0"
+	gRealmPath           = "/r/gnoland/boards2/v0"
+	initialOwner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // GovDAO T1 multisig
 )
 
 var (
@@ -44,7 +45,7 @@ var (
 var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
-	gPerms          = initRealmPermissions("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // GovDAO T1 multisig
+	gPerms          = initRealmPermissions(initialOwner)
 )
 
 // initRealmPermissions returns the default realm permissions.
@@ -62,6 +63,10 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
 	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
+}
+
+func init() {
+	addBoard(gBoardsSequence.Next(), initialOwner, "OpenDiscussions", true, true)
 }
 
 // getInviteRequests returns invite requests for a board.
