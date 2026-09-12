@@ -1194,6 +1194,82 @@ func TestMempoolFeeRefusesNonPositiveGasWanted(t *testing.T) {
 func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
 	t.Parallel()
 
+	e := newSingleSignerEnv(t)
+
+	// Signed over the gas_wanted/gas_fee rendering, which is what a client
+	// that builds the payload itself may still produce.
+	legacyBytes, err := std.GetSignaturePayloadLegacy(e.signDoc())
+	require.NoError(t, err)
+
+	// Guard the guard: if the two renderings ever coincide, this test would
+	// pass without exercising the fallback at all.
+	currentBytes, err := std.GetSignaturePayload(e.signDoc())
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, legacyBytes,
+		"the two renderings are identical, so this test proves nothing")
+
+	tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, legacyBytes, "")
+	checkValidTx(t, e.anteHandler, e.ctx, tx, false)
+}
+
+// AND THE FALLBACK IS NOT A BYPASS. Accepting a second rendering must not widen
+// what a signature authorises: bytes signed over one sign doc must still be
+// refused against a different one, and nonsense must still be refused outright.
+// A fallback that swallowed the failure would pass every test above and this is
+// the one that would catch it.
+func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("signed over a different chain id", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.ChainID = "some-other-chain"
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("signed over a different sequence", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.Sequence = 99
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("not a signature at all", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
+			PubKey: e.priv.PubKey(), Signature: []byte("nope"),
+		}}, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+}
+
+// singleSignerEnv is a funded account with number 0 and sequence 0, the handler
+// that judges its transactions, and a message and fee for it to sign. Every test
+// builds its own: the ante handler writes to the store before it reaches
+// signature verification, and the store is not safe for concurrent use.
+type singleSignerEnv struct {
+	anteHandler sdk.AnteHandler
+	ctx         sdk.Context
+	priv        crypto.PrivKey
+	msgs        []std.Msg
+	fee         std.Fee
+}
+
+func newSingleSignerEnv(t *testing.T) singleSignerEnv {
+	t.Helper()
+
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bankk,
 		DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -1205,109 +1281,22 @@ func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
 	require.NoError(t, acc.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc)
 
-	msgs := []std.Msg{tu.NewTestMsg(addr)}
-	fee := tu.NewTestFee()
-
-	// Signed over the PREVIOUS rendering, which is what an un-updated client
-	// still produces.
-	legacyBytes, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-		ChainID:       ctx.ChainID(),
-		AccountNumber: 0,
-		Sequence:      0,
-		Fee:           fee,
-		Msgs:          msgs,
-	})
-	require.NoError(t, err)
-
-	// Guard the guard: if the two renderings ever coincide, this test would
-	// pass without exercising the fallback at all.
-	currentBytes, err := std.GetSignaturePayload(std.SignDoc{
-		ChainID:       ctx.ChainID(),
-		AccountNumber: 0,
-		Sequence:      0,
-		Fee:           fee,
-		Msgs:          msgs,
-	})
-	require.NoError(t, err)
-	require.NotEqual(t, currentBytes, legacyBytes,
-		"the two renderings are identical, so this test proves nothing")
-
-	tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, legacyBytes, "")
-	checkValidTx(t, anteHandler, ctx, tx, false)
+	return singleSignerEnv{
+		anteHandler: anteHandler,
+		ctx:         ctx,
+		priv:        priv,
+		msgs:        []std.Msg{tu.NewTestMsg(addr)},
+		fee:         tu.NewTestFee(),
+	}
 }
 
-// AND THE FALLBACK IS NOT A BYPASS. Accepting a second rendering must not widen
-// what a signature authorises: bytes signed over one sign doc must still be
-// refused against a different one, and nonsense must still be refused outright.
-// A fallback that swallowed the failure would pass every test above and this is
-// the one that would catch it.
-func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
-	t.Parallel()
-
-	// The ante handler writes to the store before it reaches signature
-	// verification, and the store is not safe for concurrent use, so every
-	// subtest gets its own environment.
-	type badSigEnv struct {
-		anteHandler sdk.AnteHandler
-		ctx         sdk.Context
-		priv        crypto.PrivKey
-		msgs        []std.Msg
-		fee         std.Fee
+// signDoc is the document the account's next transaction is signed over.
+func (e singleSignerEnv) signDoc() std.SignDoc {
+	return std.SignDoc{
+		ChainID:       e.ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      0,
+		Fee:           e.fee,
+		Msgs:          e.msgs,
 	}
-	setup := func(t *testing.T) badSigEnv {
-		t.Helper()
-
-		env := setupTestEnv()
-		anteHandler := NewAnteHandler(env.acck, env.bankk,
-			DefaultSigVerificationGasConsumer, defaultAnteOptions())
-		ctx := env.ctx
-
-		priv, _, addr := tu.KeyTestPubAddr()
-		acc := env.acck.NewAccountWithAddress(ctx, addr)
-		acc.SetCoins(tu.NewTestCoins())
-		require.NoError(t, acc.SetAccountNumber(0))
-		env.acck.SetAccount(ctx, acc)
-
-		return badSigEnv{
-			anteHandler: anteHandler,
-			ctx:         ctx,
-			priv:        priv,
-			msgs:        []std.Msg{tu.NewTestMsg(addr)},
-			fee:         tu.NewTestFee(),
-		}
-	}
-
-	t.Run("signed over a different chain id", func(t *testing.T) {
-		t.Parallel()
-
-		e := setup(t)
-		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-			ChainID: "some-other-chain", Fee: e.fee, Msgs: e.msgs,
-		})
-		require.NoError(t, err)
-		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
-		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
-	})
-
-	t.Run("signed over a different sequence", func(t *testing.T) {
-		t.Parallel()
-
-		e := setup(t)
-		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-			ChainID: e.ctx.ChainID(), Sequence: 99, Fee: e.fee, Msgs: e.msgs,
-		})
-		require.NoError(t, err)
-		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
-		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
-	})
-
-	t.Run("not a signature at all", func(t *testing.T) {
-		t.Parallel()
-
-		e := setup(t)
-		tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
-			PubKey: e.priv.PubKey(), Signature: []byte("nope"),
-		}}, "")
-		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
-	})
 }

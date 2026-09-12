@@ -9,7 +9,6 @@ func TestTxSignDoc(t *testing.T) {
 	t.Parallel()
 
 	tx := Tx{
-		Msgs: nil,
 		Fee:  NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}),
 		Memo: "hello",
 	}

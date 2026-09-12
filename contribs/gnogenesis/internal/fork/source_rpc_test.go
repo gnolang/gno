@@ -19,14 +19,16 @@ import (
 // bruteForceSignerSequence can verify it.
 func signTxAt(t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64) std.Signature {
 	t.Helper()
-	payload, err := std.GetSignaturePayload(std.SignDoc{
-		ChainID:       chainID,
-		AccountNumber: accNum,
-		Sequence:      seq,
-		Fee:           tx.Fee,
-		Msgs:          tx.Msgs,
-		Memo:          tx.Memo,
-	})
+	return signTxAtWith(t, priv, tx, chainID, accNum, seq, std.GetSignaturePayload)
+}
+
+// signTxAtWith is signTxAt over a chosen payload rendering.
+func signTxAtWith(
+	t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64,
+	render func(std.SignDoc) ([]byte, error),
+) std.Signature {
+	t.Helper()
+	payload, err := render(tx.SignDoc(chainID, accNum, seq))
 	require.NoError(t, err)
 
 	sig, err := priv.Sign(payload)
@@ -78,11 +80,7 @@ func TestBruteForceSignerSequence(t *testing.T) {
 		// Signed over the gas_wanted/gas_fee rendering, which is what every
 		// transaction carries on a source chain whose clients produced only
 		// that shape.
-		payload, err := tx.GetSignBytesLegacy(chainID, accNum, actualSeq)
-		require.NoError(t, err)
-		rawSig, err := priv.Sign(payload)
-		require.NoError(t, err)
-		sig := std.Signature{PubKey: priv.PubKey(), Signature: rawSig}
+		sig := signTxAtWith(t, priv, tx, chainID, accNum, actualSeq, std.GetSignaturePayloadLegacy)
 
 		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
 		require.NoError(t, err)
