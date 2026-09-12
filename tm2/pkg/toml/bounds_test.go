@@ -144,3 +144,58 @@ func TestBoundsAcceptOrdinaryDocuments(t *testing.T) {
 		}
 	}
 }
+
+// Marshal's output must decode back to the value it was given, for every rune.
+//
+// PackageContentHash (gno.land/pkg/sdk/vm) hashes gnomod.toml after a
+// parse-and-re-encode, against a stored copy the keeper had already parsed and
+// re-encoded once. The two agree only if encoding is a fixpoint, so a rune that
+// survives one round trip but not two is an approval nobody can match.
+//
+// Upstream's control-character escape got this wrong in both directions:
+// `uint16(rr) < 0x001F` excluded U+001F, which was then written raw into a
+// basic string the lexer refuses; and the conversion truncated, so a rune whose
+// low 16 bits fall under 0x1F was emitted as the escape for those bits alone.
+func TestBoundsMarshalRoundTripsEveryRune(t *testing.T) {
+	t.Parallel()
+
+	type doc struct {
+		V string `toml:"v"`
+	}
+
+	check := func(t *testing.T, in string) {
+		t.Helper()
+		first, err := Marshal(doc{V: in})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		var back doc
+		if err := Unmarshal(first, &back); err != nil {
+			t.Fatalf("the encoder produced a document the decoder refuses: %v\n%q", err, first)
+		}
+		if back.V != in {
+			t.Fatalf("value changed across a round trip: %q -> %q", in, back.V)
+		}
+		second, err := Marshal(back)
+		if err != nil {
+			t.Fatalf("re-marshal: %v", err)
+		}
+		if string(first) != string(second) {
+			t.Fatalf("encoding is not a fixpoint:\n first: %q\nsecond: %q", first, second)
+		}
+	}
+
+	t.Run("every control character", func(t *testing.T) {
+		t.Parallel()
+		for r := rune(0); r <= 0x1F; r++ {
+			check(t, "x"+string(r)+"y")
+		}
+	})
+
+	t.Run("astral runes with low bits under 0x1F", func(t *testing.T) {
+		t.Parallel()
+		for _, r := range []rune{0x1000A, 0x10000, 0x1001E, 0x2000D, 0x10FFFF} {
+			check(t, "x"+string(r)+"y")
+		}
+	})
+}

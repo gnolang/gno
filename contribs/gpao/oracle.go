@@ -37,7 +37,7 @@ type oracle struct {
 
 	// candidates carries submitted packages from the block reader to the
 	// verifier goroutine. See runVerifier for why they are separate.
-	candidates chan *std.MemPackage
+	candidates chan candidate
 
 	// seen dedupes packages already processed in this run. Touched ONLY by the
 	// verifier goroutine, never by the block reader, or the two race on a plain
@@ -178,7 +178,7 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		io:           io,
 		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
 		approver:     info.GetAddress(),
-		candidates:   make(chan *std.MemPackage, candidateQueueSize),
+		candidates:   make(chan candidate, candidateQueueSize),
 		seen:         make(map[string]struct{}),
 		overBudget:   make(map[string]int),
 		failedEnable: make(map[string]int),
@@ -411,7 +411,7 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 			if !ok || add.Package == nil {
 				continue
 			}
-			if err := o.enqueue(ctx, add.Package); err != nil {
+			if err := o.enqueue(ctx, candidate{mpkg: add.Package, height: height}); err != nil {
 				return err
 			}
 		}
@@ -432,10 +432,23 @@ func (o *oracle) runVerifier(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case mpkg := <-o.candidates:
-			o.handleCandidate(ctx, mpkg)
+		case c := <-o.candidates:
+			o.handleCandidate(ctx, c)
 		}
 	}
+}
+
+// candidate is a submitted package together with the block it was submitted in.
+//
+// The height travels with the bytes because it is part of what gets approved,
+// not merely context for a log line: MsgEnablePackage pins it, so that a
+// re-submission of the same sources -- which keeps the content hash while
+// rewriting the [addpkg] section underneath it, including the storage-deposit
+// ceiling this oracle's own transaction pays against -- cannot ride an approval
+// issued for the submission that was actually verified.
+type candidate struct {
+	mpkg   *std.MemPackage
+	height int64
 }
 
 // enqueue hands a candidate to the verifier, blocking if it is behind.
@@ -445,9 +458,9 @@ func (o *oracle) runVerifier(ctx context.Context) {
 // retry -- it would stay inert with no record of why. Blocking is the honest
 // alternative, and saturation is announced rather than left to be inferred from
 // the oracle mysteriously lagging.
-func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
+func (o *oracle) enqueue(ctx context.Context, c candidate) error {
 	select {
-	case o.candidates <- mpkg:
+	case o.candidates <- c:
 		return nil
 	default:
 	}
@@ -455,7 +468,7 @@ func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
 		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated",
 		cap(o.candidates))
 	select {
-	case o.candidates <- mpkg:
+	case o.candidates <- c:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -464,7 +477,8 @@ func (o *oracle) enqueue(ctx context.Context, mpkg *std.MemPackage) error {
 
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
 // a MsgEnablePackage to activate it on-chain.
-func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
+func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
+	mpkg := c.mpkg
 	path := mpkg.Path
 	// Keyed on the bytes, not just the path. A rejection is a verdict about the
 	// code, so a submitter who fixes the code and resubmits deserves a fresh
@@ -553,7 +567,19 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage) {
 	}
 
 	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
-	if err := o.enable(path, vm.PackageContentHash(mpkg)); err != nil {
+	// Checked, not assigned: a package whose gnomod.toml cannot be parsed has
+	// no hash to approve, and an empty one would ride into MsgEnablePackage as
+	// "names no source" -- rejected on chain after the fee, three times, before
+	// being filed as a generic enable failure. It is a verdict about the
+	// package, so it is recorded as one.
+	pkgHash, err := vm.PackageContentHash(mpkg)
+	if err != nil {
+		o.seen[key] = struct{}{}
+		o.status.record(path, statusRejected, "cannot hash the submitted source: "+err.Error(), 0)
+		o.errf("gpao: not approving %q: %v", path, err)
+		return
+	}
+	if err := o.enable(path, pkgHash, c.height); err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
 		// chain's state rather than the code, and most such causes clear.
@@ -837,15 +863,23 @@ func broadcastWasFree(res *ctypes.ResultBroadcastTxCommit) bool {
 // at -gas-wanted would make the simulation run out of gas exactly on the
 // packages whose cost we most need to learn, and report that failure instead of
 // a measurement.
-func (o *oracle) enable(pkgPath, pkgHash string) error {
+func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
 	gasFee, err := std.ParseCoin(o.cfg.gasFee)
 	if err != nil {
 		return fmt.Errorf("invalid gas fee %q: %w", o.cfg.gasFee, err)
 	}
-	// Name the source that was verified. The keeper hashes the parked blob the
-	// same way and refuses if they differ, so a creator who replaces the bytes
-	// after verification cannot ride this approval.
-	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath, PkgHash: pkgHash}
+	// Name the source that was verified, and the submission it came from. The
+	// keeper hashes the parked blob the same way and refuses if they differ, so
+	// a creator who replaces the bytes after verification cannot ride this
+	// approval; the height covers the case where the bytes are identical and
+	// only the [addpkg] section the keeper stamps has moved, which the hash
+	// cannot see. See MsgEnablePackage.PkgHeight.
+	msg := vm.MsgEnablePackage{
+		Approver:  o.approver,
+		PkgPath:   pkgPath,
+		PkgHash:   pkgHash,
+		PkgHeight: pkgHeight,
+	}
 
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{
