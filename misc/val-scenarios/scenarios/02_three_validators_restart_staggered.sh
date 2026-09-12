@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCENARIO_CI=true
+# Consensus-only: skip example packages + on-chain PoA valset realm in genesis
+# (validators reach consensus via the genesis validator set).
+SCENARIO_GENESIS_EXAMPLES=false
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/lib/scenario.sh"
