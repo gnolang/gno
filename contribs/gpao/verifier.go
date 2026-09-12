@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -14,9 +13,13 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-// verifier holds everything one verification needs: the disk-backed stores that
-// resolve stdlib and examples/ imports, a typecheck cache, and an RPC fallback
-// for packages that exist only on chain.
+// verifier holds everything one verification needs: stores that resolve stdlib
+// imports from the local filesystem, and an RPC resolver that every /p/ and /r/
+// import goes to -- the chain, not disk, is what the validator will see.
+//
+// "Local" rather than "persistent": the stores are backed by a memdb built at
+// construction (see test.StoreWithOptions), so every package they materialize
+// is read from gnoRoot and preprocessed again for the next verification.
 //
 // It lives in the child process (see verifyone.go), one per verification. That
 // is what makes the budget enforceable. Previously these stores hung off the
@@ -29,42 +32,88 @@ type verifier struct {
 	prodbs storetypes.CommitStore
 	prodgs gno.Store
 
-	// rpc resolves on-chain-only imports the disk store cannot (falls back to
-	// vm/qfile queries against the watched node). Nil when no remote is given,
-	// in which case such imports simply stay unresolved.
+	// rpc resolves userlib imports, over vm/qfile queries against the watched
+	// node. Never nil: a remote is required, so there is no configuration in
+	// which disk answers for a /p/ or /r/ path -- see injectChainGetter, and
+	// hybridGetter for the typecheck's half.
 	rpc *rpcGetter
-
-	// errw receives advisory notes. A child's stderr is captured by the parent
-	// and surfaces as the rejection reason, so anything written here must be
-	// worth an operator seeing.
-	errw io.Writer
 }
 
-// newVerifier builds the stores for one verification.
+// newVerifier builds the stores for one verification. errw takes the store's
+// own diagnostics; the parent tees a child's stderr, so anything landing there
+// is seen by an operator.
 //
 // Deliberately no signer and no keystore: a verifier handles untrusted input
 // and cannot approve anything, so the approver key never enters the process
 // that compiles a stranger's code.
-func newVerifier(gnoRoot, remote string, errw io.Writer) (*verifier, error) {
-	var rpc *rpcGetter
-	if remote != "" {
-		c, err := rpcclient.NewHTTPClient(remote)
-		if err != nil {
-			return nil, fmt.Errorf("build RPC client: %w", err)
-		}
-		rpc = newRPCGetter(c)
+func newVerifier(cfg verifyOneConfig, errw io.Writer) (*verifier, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
-	// Mirrors `gno lint`: production files against stdlibs + examples, with a
-	// test-stdlib overlay. PreprocessOnly so imported code is preprocessed
-	// rather than executed — we need type information, not side effects.
-	prodbs, prodgs := test.StoreWithOptions(gnoRoot, errw,
+	c, err := rpcclient.NewHTTPClient(cfg.remote)
+	if err != nil {
+		return nil, fmt.Errorf("build RPC client: %w", err)
+	}
+	// Production files against two directories under cfg.gnoRoot: gnovm/stdlibs
+	// and examples. No test-stdlib overlay and the production native resolver,
+	// which is right for this daemon -- the chain does not evaluate test files
+	// at enable, so a test-only definition must not resolve here either.
+	//
+	// PreprocessOnly so imported code is preprocessed rather than executed: we
+	// need type information, not side effects.
+	prodbs, prodgs := test.StoreWithOptions(cfg.gnoRoot, errw,
 		test.StoreOptions{PreprocessOnly: true, WithExamples: true})
 
-	return &verifier{
+	v := &verifier{
 		prodbs: prodbs, prodgs: prodgs,
-		rpc:  rpc,
-		errw: errw,
-	}, nil
+		rpc: newRPCGetter(c),
+	}
+	// On the base store, so every transaction begun from it inherits the
+	// getter: BeginTransaction copies pkgGetter. prepare materializes the chain
+	// closure through it before the budget starts, and the verification then
+	// finds those packages already built.
+	v.injectChainGetter(prodgs)
+	return v, nil
+}
+
+// injectChainGetter replaces st's package getter with one that resolves each
+// kind of import from wherever the chain would, fetching the source over RPC
+// and preprocessing it into st. That is what the disk getter does for an
+// examples/ import, so the preprocessor sees one uniform way to resolve.
+//
+// Preprocessed, never run: init() stays unexecuted, as it does for the
+// candidate itself. Saved, though: GetPackage caches a getter's result in the
+// calling store alone, and prepare's work has to be visible to the
+// verification's own transaction, which reads through the base store.
+func (v *verifier) injectChainGetter(st gno.Store) {
+	disk := st.GetPackageGetter()
+	st.SetPackageGetter(func(pkgPath string, store gno.Store) (
+		*gno.PackageNode, *gno.PackageValue,
+	) {
+		if !gno.IsUserlib(pkgPath) {
+			return disk(pkgPath, store)
+		}
+		dep := v.rpc.GetMemPackage(pkgPath)
+		if dep == nil {
+			return nil, nil
+		}
+		// Under the dependency's OWN declared type, which AddMemPackage
+		// requires to match.
+		mptype, ok := dep.Type.(gno.MemPackageType)
+		if !ok {
+			return nil, nil
+		}
+		store.AddMemPackage(dep, mptype)
+		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+			PkgPath:     pkgPath,
+			Output:      io.Discard,
+			Store:       store,
+			SkipPackage: true,
+		})
+		defer m2.Release()
+		return m2.PreprocessFiles(dep.Name, dep.Path,
+			m2.ParseMemPackageAsType(dep, gno.MPUserProd), true, false)
+	})
 }
 
 // verifyPackage typechecks and then preprocesses mpkg, mirroring the two stages
@@ -82,15 +131,14 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		}
 		// A failure reached while the resolver under it was failing is not a
 		// verdict: the unresolved import may exist and be unfetchable.
-		if err != nil && v.rpc != nil && v.rpc.transportErr != nil {
+		if err != nil && v.rpc.transportErr != nil {
 			err = fmt.Errorf("%w (verification said: %w)", v.rpc.transportErr, err)
 		}
 	}()
 
-	// Best-effort preload of imports resolvable from disk (stdlibs, examples).
-	// On-chain-only imports are left to the RPC fallback below and to
-	// seedChainImports; anything still unresolved surfaces as a typecheck
-	// error, or skips preprocess with a note. Inlined rather than left as a
+	// Best-effort preload, through the getter injectChainGetter installed, so
+	// where each import comes from is that getter's split here too; anything
+	// unresolvable surfaces as a typecheck error. Inlined rather than left as a
 	// separate step a caller has to remember: two of the tests used to omit it
 	// and so exercised a sequence the child never runs.
 	_ = test.LoadImports(v.prodgs, mpkg, false)
@@ -100,8 +148,8 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		cw := v.prodbs.CacheWrap()
 		return v.prodgs.BeginTransaction(cw, cw, nil, nil)
 	}
-	// Wrap the disk getters with an RPC fallback so imports of on-chain-only
-	// packages (not present under examples/) still resolve.
+	// The typecheck's own resolver, splitting disk from chain the way the
+	// preprocess getter does.
 	// Options match EnablePackage's exactly (see VMKeeper.EnablePackage):
 	// Getter only, ProdOnly, TCLatestStrict. That is the point — gpao exists to
 	// predict what the validator will do, so any divergence here is a way to
@@ -137,25 +185,11 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 	cw := v.prodbs.CacheWrap()
 	st := v.prodgs.BeginTransaction(cw, cw, nil, nil)
 
-	// The preprocessor resolves imports through the store, which has no RPC
-	// fallback of its own -- unlike the typecheck above, which reaches the
-	// chain through hybridGetter. Seed what the disk cannot supply, or a
-	// package importing an on-chain-only dependency would fail preprocess
-	// while type-checking fine: precisely the composable case "inert" exists
-	// to allow.
-	//
-	// If something is still unresolvable, skip preprocess rather than reject.
-	// Refusing would be a regression -- before this stage existed such a
-	// package was approved on the typecheck alone -- and it would refuse for a
-	// limitation of the oracle rather than a fault of the package. Silence is
-	// the thing to avoid, so it is logged.
-	if missing := v.seedChainImports(st, mpkg); missing != "" {
-		fmt.Fprintf(v.errw,
-			"gpao: %q imports %q, which this oracle cannot resolve; "+
-				"approving on the typecheck alone, preprocess NOT measured\n",
-			mpkg.Path, missing)
-		return nil
-	}
+	// Chain imports resolve through the getter newVerifier installed on the
+	// base store, which this transaction inherits. prepare has already
+	// materialized them, so this stage normally finds them in the store and the
+	// getter is a fallback. AddMemPackage is NOT the seam for any of it: an
+	// import resolves to a PackageValue, and storing source builds none.
 
 	tm := test.Machine(st, io.Discard, mpkg.Path, false, nil)
 	defer tm.Release()
@@ -179,54 +213,67 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 	return nil
 }
 
-// prepare does the work verification needs that is not the package's cost:
-// the disk imports, and the chain-domain import closure fetched into the RPC
-// cache so that neither stage below asks the network again. The validator pays
-// for the typecheck and the preprocess; it never pays for the oracle's node
-// being slow. So this runs before the budget starts, and the budget then
-// measures only what the validator will.
+// prepare does the work verification needs that is not the package's cost: the
+// disk imports, and the chain import closure, fetched into the RPC cache and
+// built into the store so that neither stage below asks the network or compiles
+// a dependency again. The validator pays for the candidate's typecheck and
+// preprocess; it never pays for the oracle's node being slow, nor for building
+// dependencies -- at enable time every active package's value is already in its
+// store. So this runs before the budget starts, and the budget then measures
+// only what the validator will. An import the node does not serve counts too:
+// the absence is cached here, so the stages below read it rather than asking
+// again on the clock.
 //
-// A transport fault is returned as such: no verdict was possible. An import
-// that nothing serves is not an error here; the typecheck judges that.
+// Two things come back as errors, both meaning no verdict was possible: a
+// transport fault, and an import this tree cannot build. An import that nothing
+// serves is neither; the typecheck judges that.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
 	_ = test.LoadImports(v.prodgs, mpkg, false)
-	if v.rpc == nil {
-		return nil
-	}
-	v.walkChainImports(mpkg, v.rpc.GetMemPackage)
+	buildErr := v.buildChainImports(mpkg)
+	// Transport first, even when a build also failed: an unfetchable
+	// transitive import makes the package importing it unbuildable, so the
+	// build failure is a symptom and the fault under it is the diagnosis. Both
+	// leave the package pending, so this only chooses which reason is reported.
 	if v.rpc.transportErr != nil {
 		return v.rpc.transportErr
 	}
-	return nil
+	return buildErr
 }
 
-// seedChainImports loads mpkg's chain-domain imports into st, transitively,
-// fetching over RPC whatever the disk store lacks. It returns the first import
-// path it could not resolve, or "" if everything resolved.
-func (v *verifier) seedChainImports(st gno.Store, mpkg *std.MemPackage) string {
-	return v.walkChainImports(mpkg, func(path string) *std.MemPackage {
-		if dep := v.prodgs.GetMemPackage(path); dep != nil {
-			return dep
-		}
-		if v.rpc == nil {
-			return nil
-		}
-		dep := v.rpc.GetMemPackage(path)
-		if dep != nil {
-			st.AddMemPackage(dep, gno.MPUserProd)
-		}
-		return dep
-	})
-}
-
-// walkChainImports visits mpkg's chain-domain imports transitively, resolving
-// each through resolve, and returns the first path resolve could not supply, or
-// "" if everything resolved.
+// buildChainImports fetches mpkg's chain import closure into the RPC cache and
+// builds each member into the base store, through the getter newVerifier
+// installed there.
 //
 // Transitive because a fetched dependency has imports of its own, and both the
 // typechecker and the preprocessor need the whole graph present, not just the
 // first level.
-func (v *verifier) walkChainImports(mpkg *std.MemPackage, resolve func(path string) *std.MemPackage) string {
+//
+// An import that will not build ends the walk and is returned, which the parent
+// reads as unavailability and leaves pending. It is not a verdict about the
+// candidate, for either kind of import. A chain dependency reachable here is
+// active on chain -- vm/qfile serves the normal package keyspace and a parked
+// package lives in the inert one, invisible to that resolver -- so it has
+// already been type-checked, preprocessed and init()-run by a validator. A
+// stdlib ships with this binary and is not chain state at all. Neither is the
+// candidate's code, so a failure in either points at this oracle's own tree.
+// Letting the verification trip over it instead would settle a submitter's
+// content hash on the operator's checkout, for the life of the process; pending
+// costs a status line and a restart, which is what a transport fault reaching
+// the same point already costs.
+//
+// Stdlibs are why the walk does not stop at userlib paths. They are built
+// through the same seam even though nothing fetches them, because the
+// alternative is the asymmetry that shipped: LoadImports recovers the disk
+// getter's panic and prints it, so a candidate importing a broken stdlib
+// DIRECTLY was rejected terminally, while the same breakage one level down --
+// under a /p/ dependency -- came back here and left the package pending. One
+// level of indirection decided whether the operator's tree settled a
+// stranger's bytes.
+//
+// A path nothing serves is skipped rather than ending the walk: it is the
+// typecheck's verdict to give, and the rest of the closure still has to be
+// fetched, or the typecheck goes to the network on the clock.
+func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 	seen := map[string]bool{mpkg.Path: true}
 	queue := []*std.MemPackage{mpkg}
 
@@ -237,27 +284,68 @@ func (v *verifier) walkChainImports(mpkg *std.MemPackage, resolve func(path stri
 		imports, err := packages.Imports(cur, token.NewFileSet())
 		if err != nil {
 			// Unparseable source is the typecheck's verdict to give, not ours.
-			return ""
+			// Skipped rather than ending the walk, for the same reason a path
+			// nothing serves is.
+			continue
 		}
 		for _, imp := range imports.Merge(packages.FileKindPackageSource) {
 			path := imp.PkgPath
-			if seen[path] || !strings.HasPrefix(path, chainDomainPrefix) {
-				// Stdlibs and already-queued paths need nothing: the store
-				// resolves stdlibs itself.
+			if seen[path] {
 				continue
 			}
 			seen[path] = true
 
-			dep := resolve(path)
+			// A stdlib: nothing to fetch, since the store resolves it from
+			// disk. Built anyway, so that a disk tree which will not build
+			// reaches prepare's error rather than the typecheck's verdict --
+			// see buildOne. A path merely absent returns nil without panicking,
+			// so a typo stays the typecheck's to judge.
+			if !gno.IsUserlib(path) {
+				if err := v.buildOne(path, cur.Path); err != nil {
+					return err
+				}
+				continue
+			}
+
+			// IsUserlib is what hybridGetter routes the typecheck on and what
+			// the preprocess getter asks too, so what is fetched here is
+			// exactly what they will ask for -- a path either stage would fetch
+			// but this walk skipped would reach the network inside the budget.
+			//
+			// Fetch first: the source is what the walk descends through, and a
+			// transport fault lands on the getter for prepare to read.
+			dep := v.rpc.GetMemPackage(path)
 			if dep == nil {
-				return path
+				continue
+			}
+			if err := v.buildOne(path, cur.Path); err != nil {
+				return err
 			}
 			queue = append(queue, dep)
 		}
 	}
-	return ""
+	return nil
 }
 
-// chainDomainPrefix is the import prefix that means "on this chain" rather than
-// "a standard library".
-const chainDomainPrefix = "gno.land/"
+// buildOne builds one import into the base store, turning the panic everything
+// past prodgs.GetPackage reports errors by into an error: on a mempackage that
+// fails AddMemPackage's validation, on a parse error in ParseMemPackageAsType,
+// and in the preprocessor itself. The message names whose tree to look at,
+// because it reaches an operator as the reason a submission is sitting pending.
+//
+// A path that is merely absent is not an error: GetPackage returns nil for one
+// without panicking, so an import nothing serves stays the typecheck's verdict
+// to give.
+func (v *verifier) buildOne(path, importedBy string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("could not prebuild %q, imported by %q: %v "+
+				"(that package is not the candidate's code -- a chain "+
+				"dependency has already compiled for a validator, and a stdlib "+
+				"ships with this binary: check this oracle's tree)",
+				path, importedBy, r)
+		}
+	}()
+	v.prodgs.GetPackage(path, false)
+	return nil
+}

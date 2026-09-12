@@ -9,7 +9,7 @@ adduser test2
 adduser test3
 
 # Genesis council = {test1, test2}.
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test2_user_addr
 
 gnoland start

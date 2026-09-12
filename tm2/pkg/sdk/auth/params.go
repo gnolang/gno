@@ -28,6 +28,10 @@ const (
 	DefaultFeeCollectorName string = "fee_collector"
 )
 
+// MaxGasPriceComponent caps governance and dynamic gas price components at
+// 10^12, keeping calcBlockGasPrice arithmetic safely within int64 range.
+const MaxGasPriceComponent int64 = 1_000_000_000_000
+
 // Params defines the parameters for the auth module.
 type Params struct {
 	MaxMemoBytes              int64            `json:"max_memo_bytes" yaml:"max_memo_bytes"`
@@ -131,11 +135,43 @@ func (p Params) Validate() error {
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
 	}
-	if p.InitialGasPrice.Gas < 0 {
-		return fmt.Errorf("invalid initial gas price: gas must be non-negative, got %d", p.InitialGasPrice.Gas)
-	}
-	if p.InitialGasPrice.Price.Amount < 0 {
-		return fmt.Errorf("invalid initial gas price: price amount must be non-negative, got %d", p.InitialGasPrice.Price.Amount)
+	gp := p.InitialGasPrice
+	// A gas price is either unset -- the value DefaultParams uses to leave
+	// pricing disabled -- or a genuine ratio with both components positive.
+	//
+	// "Unset" has to mean "both components are zero" rather than equality with
+	// std.GasPrice{}, because the params store is lossy for a zero amount: it
+	// marshals a Coin through Coin.String(), which renders "" and drops the
+	// denom. A price written as {Gas: 1000, Price: 0ugnot} reads back as
+	// {Gas: 1000, Price: {Denom: "", Amount: 0}}, so a struct-equality test
+	// accepts it on the way in and rejects it on the way out. WillSetParam
+	// re-validates the whole struct it reads from the store, so that asymmetry
+	// would panic every later write to any auth param, and ExportGenesis would
+	// emit a genesis the node then refuses to load.
+	unset := gp.Gas == 0 && gp.Price.Amount == 0
+	if !unset {
+		// Each degenerate half is a trap on its own. Gas == 0 makes
+		// std.GasPrice.IsGTE error out on every fee comparison, so no
+		// transaction can be priced at all. Price.Amount == 0 pins the block gas
+		// price at zero for good: calcBlockGasPrice returns early on a zero
+		// amount and nothing outside InitChainer ever writes a nonzero one back,
+		// so a later proposal restoring a real price cannot take effect.
+		if gp.Gas <= 0 || gp.Price.Amount <= 0 {
+			return fmt.Errorf(
+				"invalid initial gas price: gas and price amount must both be positive, got %d gas and %d",
+				gp.Gas, gp.Price.Amount)
+		}
+		// Shape only. tm2 is the generic framework and does not know which
+		// denomination the chain it is hosting collects fees in -- genesis names
+		// it, the chain's own genesis validation asserts it (see
+		// gnoland.validateAuthGenesis), and WillSetParam below keeps governance
+		// from moving it afterwards.
+		if err := std.ValidateDenom(gp.Price.Denom); err != nil {
+			return fmt.Errorf("invalid initial gas price: %w", err)
+		}
+		if gp.Gas > MaxGasPriceComponent || gp.Price.Amount > MaxGasPriceComponent {
+			return fmt.Errorf("invalid initial gas price: gas and price amount must not exceed %d", MaxGasPriceComponent)
+		}
 	}
 	return nil
 }
@@ -204,6 +240,19 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		gp, err := std.ParseGasPrice(s)
 		if err != nil {
 			panic(fmt.Sprintf("invalid initial_gasprice: %v", err))
+		}
+		// Governance may move the price, but not the denomination it is quoted
+		// in. std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+		// switch makes EnsureSufficientMempoolFees reject every transaction --
+		// including the proposal that would switch it back, which is why this
+		// has to be caught before the write rather than repaired after it. The
+		// denom is whatever genesis chose; a price that is still unset has none
+		// to preserve, so first enabling pricing is free to pick one.
+		if cur := params.InitialGasPrice; cur.Gas != 0 || cur.Price.Amount != 0 {
+			if gp.Price.Denom != cur.Price.Denom {
+				panic(fmt.Sprintf("invalid initial_gasprice: denomination must stay %q, got %q",
+					cur.Price.Denom, gp.Price.Denom))
+			}
 		}
 		params.InitialGasPrice = gp
 	case "p:unrestricted_addrs":

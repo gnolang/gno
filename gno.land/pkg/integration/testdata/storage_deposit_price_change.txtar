@@ -3,12 +3,12 @@
 ## can still release storage after a price change.
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 loadpkg gno.land/r/sys/params
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -38,7 +38,7 @@ stdout 'storage: 503690, deposit: 50369000'
 # be re-derived. The assertion that actually tests this file's subject is the
 # storage/deposit pair above.
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999812930300ugnot"'
+stdout '"coins": "9999812771500ugnot"'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -73,15 +73,15 @@ stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999850573800ugnot"'
+stdout '"coins": "9999850415000ugnot"'
 
 -- loader/load_govdao.gno --
 package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -91,7 +91,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 -- run/propose_price.gno --
 package main

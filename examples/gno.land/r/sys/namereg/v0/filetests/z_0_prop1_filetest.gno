@@ -1,0 +1,126 @@
+// PKGPATH: gno.land/r/sys/namereg/v0/filetests/z_0_prop1_filetest
+
+package z_0_prop1_filetest
+
+import (
+	"chain"
+	"chain/runtime/unsafe"
+	"testing"
+
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/r/gov/dao"
+	daov3init "gno.land/r/gov/dao/init/v0"
+	users "gno.land/r/sys/namereg/v0"
+	susers "gno.land/r/sys/users"
+)
+
+// Test updating a name via GovDAO
+var c address = unsafe.OriginCaller()
+
+func init(cur realm) {
+	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
+	testing.SetHeight(0)
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v0"))
+	testing.SetHeight(123)
+
+	daov3init.InitWithUsers(cross(cur), c)
+
+	alice := testutils.TestAddress("alice")
+
+	// Register alice
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	users.Register(cross(cur), "nym-alice123")
+
+	// Prop to change name
+	testing.SetOriginCaller(c)
+	testing.SetRealm(testing.NewUserRealm(c))
+	pr := users.ProposeNewName(cross(cur), alice, "alice_new123")
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+func main(cur realm) {
+	testing.SetOriginCaller(c)
+
+	println("--")
+	println(dao.Render(cross(cur), ""))
+	println("--")
+	println(dao.Render(cross(cur), "0"))
+	println("--")
+
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+
+	println("--")
+	println(dao.Render(cross(cur), "0"))
+	println("--")
+
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+
+	println("--")
+	println(dao.Render(cross(cur), "0"))
+
+	data, _ := susers.ResolveName("alice_new123")
+	println(data.Addr())
+}
+
+// Output:
+// --
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/memberstore/v0)
+// ## Proposals
+// ### [Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`](/r/gov/dao:0)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// Status: ACTIVE
+//
+// Tiers eligible to vote: T1, T2, T3
+//
+// ---
+//
+//
+// --
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 0.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// --
+// --
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 100.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// --
+// --
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACCEPTED\
+// Eligible: T1, T2, T3\
+// Votes: YES 100.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh

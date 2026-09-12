@@ -1,0 +1,49 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_ui_home_00_filetest
+
+// Render default realm view.
+// Default realm view must render the list of listed boards.
+package z_ui_home_00_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	// Create board "AAA" with a single thread
+	boardID := boards2.CreateBoard(cross(cur), "AAA", true, false)
+	boards2.CreateThread(cross(cur), boardID, "Foo", "Bar")
+
+	// Create 2 more boards
+	boards2.CreateBoard(cross(cur), "BBB", true, false)
+	boards2.CreateBoard(cross(cur), "CCC", true, false)
+	boards2.CreateBoard(cross(cur), "DDD", false, false) // <-- Unlisted board
+}
+
+func main() {
+	println(boards2.Render(""))
+}
+
+// Output:
+// # Boards
+// [Create Board](/r/gnoland/boards2/v0:create-board) • [List Admin Users](/r/gnoland/boards2/v0:admin-users) • [Help](/r/gnoland/boards2/v0:help)
+//
+// ---
+// Sort by: [newest first](/r/gnoland/boards2/v0:?order=desc)
+//
+// ###### [AAA](/r/gnoland/boards2/v0:AAA)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
+// **1 threads**
+//
+// ###### [BBB](/r/gnoland/boards2/v0:BBB)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #2
+// **0 threads**
+//
+// ###### [CCC](/r/gnoland/boards2/v0:CCC)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #3
+// **0 threads**

@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/leon/svgbtn"
-	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/leon/svgbtn/v0"
+	"gno.land/p/moul/dynreplacer/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/r/devrels/events"
 	blog "gno.land/r/gnoland/blog"
@@ -13,7 +13,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Admin    = ownable.NewWithAddress("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -47,13 +47,13 @@ the foundations of a fairer and freer world, join us today.
 
 ---
 
-## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
+## [Boards](/r/gnoland/boards2/v0) - On-chain forum for the Gno.land community
 
 **Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
 
 Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
 
-**[Open Boards](/r/gnoland/boards2/v1)**
+**[Open Boards](/r/gnoland/boards2/v0)**
 
 ---
 

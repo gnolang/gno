@@ -1,0 +1,82 @@
+// PKGPATH: gno.land/r/test/govdao
+package govdao
+
+import (
+	"strconv"
+	"testing"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+var (
+	executor   dao.Executor
+	proposalID dao.ProposalID
+	renderPath string
+	govdao     = impl.NewGovDAO()
+)
+
+func init(cur realm) {
+	// Initialize GovDAO members
+	memberstore.Get(0, cur).DeleteAll()
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+
+	// Create a dummy executor
+	cb := func(realm) error { return nil }
+	executor = dao.NewSimpleExecutor(0, cur, cb, "")
+
+	// Create a proposal request that pass on execution
+	request := dao.NewProposalRequest("Test", "This proposal always pass on execution", executor)
+
+	// Create the proposal from a realm so GovDAO instance is able to render the proposal
+	testing.SetRealm(testing.NewUserRealm(user))
+	proposalID = dao.MustCreateProposal(cross(cur), request)
+	renderPath = strconv.FormatUint(uint64(proposalID), 10)
+
+	// Register proposal with the local GovDAO instance
+	govdao.PostCreateProposal(0, cur, request, proposalID)
+}
+
+func main(cur realm) {
+	// Execute proposal, status should be ACTIVE
+	// SimpleExecutor.Execute is invocable only by the r/gov/dao proxy, which
+	// is the realm the live route calls it from (dao.ExecuteProposal ->
+	// impl.ExecuteProposal, both threading the proxy's cur non-crossing).
+	// This filetest calls impl.ExecuteProposal directly, so stand in for the
+	// proxy explicitly rather than exercising a route no transaction takes.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
+
+	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
+
+	println(err == nil)
+	println()
+	println(govdao.Render(cross(cur), "gno.land/r/gov/dao/impl/v0", renderPath))
+}
+
+// Output:
+// true
+//
+// ## Prop #0 - Test
+// Author: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\
+// Executes: [`gno.land/r/test/govdao`](/r/test/govdao$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 0.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao/impl/v0:0/votes))
+//
+// ---
+//
+// ### Description
+//
+// This proposal always pass on execution
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.

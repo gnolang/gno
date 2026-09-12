@@ -627,7 +627,7 @@ func TestPackage_KindZeroValue(t *testing.T) {
 }
 
 // TestLoader_LoadRealExamplesRealm exercises loading a real realm from
-// $GNOROOT/examples. boards2/v1 imports chain, chain/runtime, p-tree, etc.
+// $GNOROOT/examples. boards2/v0 imports chain, chain/runtime, p-tree, etc.
 // — the kind of graph that triggers stripStdlibs + MPUserProd code paths
 // that trivial single-package tests miss. Skips cleanly if the realm path
 // doesn't exist (e.g., running outside the monorepo).
@@ -637,14 +637,14 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		// Fall back to gnoenv discovery. Test target is a stable example.
 		gnoroot = filepath.Join("..", "..", "..", "..")
 	}
-	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v1")
+	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v0")
 	if _, err := os.Stat(realmDir); err != nil {
 		t.Skipf("examples realm not available: %v", err)
 	}
 	absRealm, err := filepath.Abs(realmDir)
 	require.NoError(t, err)
 
-	// Set up a workspace at the realm dir (boards2/v1 has its own gnomod.toml).
+	// Set up a workspace at the realm dir (boards2/v0 has its own gnomod.toml).
 	t.Chdir(absRealm)
 
 	l := New(Config{
@@ -654,18 +654,18 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		Logger:    testLogger(),
 	})
 	pkgs, err := l.LoadWorkspace()
-	require.NoError(t, err, "boards2/v1 should load without errors")
+	require.NoError(t, err, "boards2/v0 should load without errors")
 	require.NotEmpty(t, pkgs, "should resolve at least one package")
 
 	// Verify it loaded the realm itself.
 	paths := pathsOf(pkgs)
-	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v1")
+	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v0")
 
 	// ToMemPackage uses MPUserProd, which strips _test.gno files. Realms
-	// like boards2/v1 have test files that import not-yet-deployed packages;
+	// like boards2/v0 have test files that import not-yet-deployed packages;
 	// shipping them would fail chain-side type checks at deploy time.
 	for _, p := range pkgs {
-		if p.ImportPath == "gno.land/r/gnoland/boards2/v1" {
+		if p.ImportPath == "gno.land/r/gnoland/boards2/v0" {
 			mp, err := p.ToMemPackage()
 			require.NoError(t, err, "ToMemPackage must succeed on real realm")
 			assert.NotEmpty(t, mp.Name, "MemPackage must have a Name")
@@ -676,7 +676,7 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 			return
 		}
 	}
-	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
+	t.Fatalf("boards2/v0 not found in loaded packages: %v", paths)
 }
 
 // TestLoader_Reload_ExamplesDepsFromDisk: a workspace package importing an

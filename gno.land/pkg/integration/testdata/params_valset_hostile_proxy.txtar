@@ -1,6 +1,8 @@
 # Hostile realm proxy attack on valopers.UpdateSigningKey.
 #
-# valopers.UpdateSigningKey gates on v.Auth().AssertPreviousOnAuthList().
+# valopers.UpdateSigningKey gates on v.auth.AssertPreviousOnAuthList(),
+# the per-operator auth list -- NOT the realm-level governance authority
+# that valopers.Auth() describes; the two are unrelated.
 # Per docs/resources/gno-interrealm.md, PreviousRealm() returns the
 # IMMEDIATE previous frame: when a hostile third realm cross-calls
 # UpdateSigningKey from its own crossing function, valopers sees the
@@ -25,7 +27,7 @@ adduserfrom member 'success myself purchase tray reject demise scene little lege
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gnops/valopers
 
 gnoland start
