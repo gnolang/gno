@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'gnolang/gno'
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # we don't know what commit the last tag was it's safer to get entire repo so previousStableVersion resolves
           fetch-depth: 0
@@ -25,7 +25,7 @@ jobs:
         uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # 8.1.1
 
       - name: Set up JDK 17
-        uses: coursier/setup-action@fd1707a76b027efdfb66ca79318b4d29b72e5a02 # v3.0.0
+        uses: coursier/setup-action@9b7939bf01fd1185ce2babe16135168361bf2c62 # v3.0.2
         with:
           jvm: temurin:1.17
 
