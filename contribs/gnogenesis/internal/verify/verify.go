@@ -117,17 +117,19 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			// transactions are signed with account number and sequence
 			// set to 0.
 			//
-			// EITHER RENDERING COUNTS, because this reads files that were
-			// written in the past: every genesis file signed before the fee
-			// moved to the Cosmos shape carries the older payload, and a
-			// verifier that knew only the current one would report every one
-			// of them as forged.
-			if !std.VerifySignaturePayload(signer.PubKey, std.SignDoc{
-				ChainID: genesis.ChainID,
-				Fee:     tx.Tx.Fee,
-				Msgs:    tx.Tx.Msgs,
-				Memo:    tx.Tx.Memo,
-			}, signer.Signature) {
+			// Either payload rendering counts (see std.VerifySignaturePayload):
+			// a genesis file is signed once and cannot be re-signed, so the
+			// verifier has to accept whichever rendering its signer produced,
+			// as the node does.
+			rendering, err := std.VerifySignaturePayload(
+				signer.PubKey,
+				tx.Tx.SignDoc(genesis.ChainID, 0, 0),
+				signer.Signature,
+			)
+			if err != nil {
+				return fmt.Errorf("unable to get tx signature payload, %w", err)
+			}
+			if rendering == std.PayloadRenderingNone {
 				return fmt.Errorf(
 					"%w #%d, by signer %s",
 					errInvalidTxSignature,

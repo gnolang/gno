@@ -3,8 +3,10 @@ package std
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
@@ -33,6 +35,19 @@ var (
 		"granter": true,
 		"payer":   true,
 	}
+
+	// The app also REQUIRES these six (tx_validate.c answers
+	// parser_json_missing_<key> when one is absent), so a payload that dropped
+	// a key -- an omitempty on the memo, say -- would pass the allowlist and
+	// still be refused.
+	requiredSignDocKeys = []string{
+		"account_number",
+		"chain_id",
+		"fee",
+		"memo",
+		"msgs",
+		"sequence",
+	}
 )
 
 func TestSignaturePayloadKeysAreLedgerCompatible(t *testing.T) {
@@ -58,6 +73,12 @@ func TestSignaturePayloadKeysAreLedgerCompatible(t *testing.T) {
 		if !allowedSignDocKeys[key] {
 			t.Errorf("sign doc key %q is outside the Ledger allowlist; "+
 				"every gno transaction becomes unsignable on a Ledger", key)
+		}
+	}
+	for _, key := range requiredSignDocKeys {
+		if _, ok := doc[key]; !ok {
+			t.Errorf("sign doc key %q is missing; the Ledger app requires it "+
+				"even when its value is empty", key)
 		}
 	}
 
@@ -121,8 +142,15 @@ func TestSignaturePayloadFeeShape(t *testing.T) {
 // so this is a live path, not a curiosity. Rendering it as a list holding
 // {"denom":"","amount":"0"} would put an empty denom in front of a device that
 // displays every coin it is given.
+//
+// The bytes are pinned rather than parsed: json.Unmarshal reads both `[]` and
+// `null` into a zero-length slice, so a structural check cannot tell the empty
+// list apart from the `null` a nil slice renders as. The two are different
+// signed bytes, and only one of them is the Cosmos shape.
 func TestSignaturePayloadZeroFeeIsEmptyList(t *testing.T) {
 	t.Parallel()
+
+	const want = `{"account_number":"0","chain_id":"dev","fee":{"amount":[],"gas":"0"},"memo":"","msgs":null,"sequence":"0"}`
 
 	for _, tc := range []struct {
 		name string
@@ -131,23 +159,45 @@ func TestSignaturePayloadZeroFeeIsEmptyList(t *testing.T) {
 		{"wholly zero", Fee{}},
 		{"zero amount with a denom", NewFee(0, Coin{Denom: "ugnot", Amount: 0})},
 	} {
-		payload, err := GetSignaturePayload(SignDoc{ChainID: "dev", Fee: tc.fee})
-		if err != nil {
-			t.Fatalf("%s: %v", tc.name, err)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			payload, err := GetSignaturePayload(SignDoc{ChainID: "dev", Fee: tc.fee})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(payload); got != want {
+				t.Errorf("zero-fee payload\n got: %s\nwant: %s", got, want)
+			}
+		})
+	}
+}
+
+// signDocPayload is a hand-written copy of SignDoc, and nothing in the compiler
+// ties the two together. A field added to SignDoc and forgotten here would be
+// part of the transaction yet absent from the signed bytes, with no compile
+// error and no failing test. The fee is the one field allowed to differ.
+func TestSignDocPayloadMirrorsSignDoc(t *testing.T) {
+	t.Parallel()
+
+	doc, payload := reflect.TypeFor[SignDoc](), reflect.TypeFor[signDocPayload]()
+	if doc.NumField() != payload.NumField() {
+		t.Fatalf("SignDoc has %d fields, signDocPayload has %d; a field is "+
+			"missing from the signed bytes", doc.NumField(), payload.NumField())
+	}
+
+	for i := range doc.NumField() {
+		df := doc.Field(i)
+		pf, ok := payload.FieldByName(df.Name)
+		if !ok {
+			t.Errorf("SignDoc.%s has no counterpart in signDocPayload", df.Name)
+			continue
 		}
-		var doc struct {
-			Fee struct {
-				Amount []json.RawMessage `json:"amount"`
-			} `json:"fee"`
+		if got, want := pf.Tag.Get("json"), df.Tag.Get("json"); got != want {
+			t.Errorf("%s: json tag %q, want %q", df.Name, got, want)
 		}
-		if err := json.Unmarshal(payload, &doc); err != nil {
-			t.Fatalf("%s: %v", tc.name, err)
-		}
-		if len(doc.Fee.Amount) != 0 {
-			t.Errorf("%s: fee.amount = %v, want an empty list", tc.name, doc.Fee.Amount)
-		}
-		if bytes.Contains(payload, []byte(`"denom":""`)) {
-			t.Errorf("%s: payload carries a coin with an empty denom: %s", tc.name, payload)
+		if df.Name != "Fee" && df.Type != pf.Type {
+			t.Errorf("%s: type %s, want %s", df.Name, pf.Type, df.Type)
 		}
 	}
 }
@@ -286,8 +336,9 @@ func TestSignaturePayloadEncodingsAreDisjoint(t *testing.T) {
 		}
 		legacyAll[i], currentAll[i] = legacy, current
 
+		currentFeeKeys := feeKeys(t, current)
 		for k := range feeKeys(t, legacy) {
-			if feeKeys(t, current)[k] {
+			if currentFeeKeys[k] {
 				t.Errorf("%s: fee key %q appears in BOTH renderings; dual "+
 					"verification is no longer safe", tc.name, k)
 			}
@@ -306,8 +357,8 @@ func TestSignaturePayloadEncodingsAreDisjoint(t *testing.T) {
 	}
 }
 
-// The helper the tools and the ante handler lean on: it must take both, and it
-// must still refuse a signature over neither.
+// The helper the tools lean on: it must take both renderings, say which one
+// matched, and still refuse a signature over neither.
 func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 	t.Parallel()
 
@@ -316,38 +367,79 @@ func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 		ChainID: "dev", AccountNumber: 3, Sequence: 4,
 		Fee: NewFee(200000, Coin{Denom: "ugnot", Amount: 1000000}), Memo: "m",
 	}
+	verify := func(t *testing.T, doc SignDoc, sig []byte) PayloadRendering {
+		t.Helper()
+		rendering, err := VerifySignaturePayload(priv.PubKey(), doc, sig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rendering
+	}
 
 	for _, tc := range []struct {
 		name   string
 		render func(SignDoc) ([]byte, error)
+		want   PayloadRendering
 	}{
-		{"current", GetSignaturePayload},
-		{"legacy", GetSignaturePayloadLegacy},
+		{"current", GetSignaturePayload, PayloadRenderingCurrent},
+		{"legacy", GetSignaturePayloadLegacy, PayloadRenderingLegacy},
 	} {
-		payload, err := tc.render(doc)
-		if err != nil {
-			t.Fatalf("%s: %v", tc.name, err)
-		}
-		sig, err := priv.Sign(payload)
-		if err != nil {
-			t.Fatalf("%s: sign: %v", tc.name, err)
-		}
-		if !VerifySignaturePayload(priv.PubKey(), doc, sig) {
-			t.Errorf("a signature over the %s rendering was refused", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		/* AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must not
-		   mean accepting a signature made over a different transaction: the
-		   same bytes against a changed sequence has to fail, or the fallback
-		   has become a bypass. */
-		moved := doc
-		moved.Sequence = doc.Sequence + 1
-		if VerifySignaturePayload(priv.PubKey(), moved, sig) {
-			t.Errorf("%s: a signature verified against a DIFFERENT sign doc", tc.name)
-		}
+			payload, err := tc.render(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sig, err := priv.Sign(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := verify(t, doc, sig); got != tc.want {
+				t.Errorf("a signature over the %s rendering verified as %d, want %d", tc.name, got, tc.want)
+			}
+
+			// AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must
+			// not mean accepting a signature made over a different
+			// transaction: the same bytes against a changed sequence has to
+			// fail, or the fallback has become a bypass.
+			moved := doc
+			moved.Sequence = doc.Sequence + 1
+			if got := verify(t, moved, sig); got != PayloadRenderingNone {
+				t.Errorf("%s: a signature verified against a DIFFERENT sign doc as %d", tc.name, got)
+			}
+		})
 	}
 
-	if VerifySignaturePayload(priv.PubKey(), doc, []byte("not a signature")) {
-		t.Error("garbage verified as a signature")
+	if got := verify(t, doc, []byte("not a signature")); got != PayloadRenderingNone {
+		t.Errorf("garbage verified as a signature, rendering %d", got)
+	}
+}
+
+// unregisteredMsg is a Msg amino cannot encode: no package registers it.
+type unregisteredMsg struct{}
+
+func (unregisteredMsg) Route() string                { return "" }
+func (unregisteredMsg) Type() string                 { return "" }
+func (unregisteredMsg) ValidateBasic() error         { return nil }
+func (unregisteredMsg) GetSignBytes() []byte         { return nil }
+func (unregisteredMsg) GetSigners() []crypto.Address { return nil }
+
+// A payload that cannot be built is not a bad signature. Callers report the two
+// differently -- one is a malformed transaction, the other a forgery -- so the
+// helper has to keep them apart instead of folding both into "false".
+func TestVerifySignaturePayloadReportsUnencodableMsgs(t *testing.T) {
+	t.Parallel()
+
+	priv := ed25519.GenPrivKey()
+	doc := SignDoc{ChainID: "dev", Msgs: []Msg{unregisteredMsg{}}}
+
+	rendering, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("irrelevant"))
+	if err == nil {
+		t.Fatal("an unencodable sign doc verified without error")
+	}
+	if rendering != PayloadRenderingNone {
+		t.Errorf("an unencodable sign doc verified as rendering %d", rendering)
 	}
 }

@@ -106,7 +106,10 @@ func (tx Tx) GetMemo() string { return tx.Memo }
 // .Empty().
 func (tx Tx) GetSignatures() []Signature { return tx.Signatures }
 
-func (tx Tx) signDoc(chainID string, accountNumber, sequence uint64) SignDoc {
+// SignDoc returns the document a signer of tx commits to: the transaction's own
+// fee, msgs and memo bound to a chain ID and to the signer's account number and
+// sequence. Genesis transactions use 0 for both.
+func (tx Tx) SignDoc(chainID string, accountNumber, sequence uint64) SignDoc {
 	return SignDoc{
 		ChainID:       chainID,
 		AccountNumber: accountNumber,
@@ -117,15 +120,17 @@ func (tx Tx) signDoc(chainID string, accountNumber, sequence uint64) SignDoc {
 	}
 }
 
+// GetSignBytes returns the signature payload for tx in the amount/gas fee
+// rendering. See GetSignaturePayload.
 func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
-	return GetSignaturePayload(tx.signDoc(chainID, accountNumber, sequence))
+	return GetSignaturePayload(tx.SignDoc(chainID, accountNumber, sequence))
 }
 
-// GetSignBytesLegacy returns the payload in the pre-Cosmos-shape rendering, for
-// verifying signatures from clients that have not been updated. See
-// GetSignaturePayloadLegacy.
+// GetSignBytesLegacy returns the signature payload for tx in the
+// gas_wanted/gas_fee fee rendering, which verification accepts alongside the
+// one GetSignBytes produces. See GetSignaturePayloadLegacy.
 func (tx Tx) GetSignBytesLegacy(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
-	return GetSignaturePayloadLegacy(tx.signDoc(chainID, accountNumber, sequence))
+	return GetSignaturePayloadLegacy(tx.SignDoc(chainID, accountNumber, sequence))
 }
 
 // __________________________________________________________

@@ -69,20 +69,20 @@ func bruteForceSignerSequence(
 		return lo, fmt.Errorf("no pubkey in signature")
 	}
 
-	// EITHER RENDERING COUNTS. These transactions come off a live source
-	// chain, where they were signed by whatever client their sender was
-	// running -- for anything forked from a chain older than the fee's move
-	// to the Cosmos shape, that is the legacy payload for every one of them,
-	// and matching only the current rendering would find no sequence at all.
+	// Either payload rendering counts (see std.VerifySignaturePayload). These
+	// transactions come off a live source chain, signed by whatever client
+	// their sender ran; a source whose clients all produced the
+	// gas_wanted/gas_fee rendering would otherwise resolve no sequence at all.
 	for seq := lo; seq <= hi; seq++ {
-		if std.VerifySignaturePayload(pubKey, std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      seq,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		}, sig.Signature) {
+		rendering, err := std.VerifySignaturePayload(
+			pubKey,
+			tx.SignDoc(chainID, accNum, seq),
+			sig.Signature,
+		)
+		if err != nil {
+			return lo, fmt.Errorf("unable to get tx signature payload, %w", err)
+		}
+		if rendering != std.PayloadRenderingNone {
 			return seq, nil
 		}
 	}
