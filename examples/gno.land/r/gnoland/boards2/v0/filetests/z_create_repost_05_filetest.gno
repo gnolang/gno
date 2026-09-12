@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_repost_05_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_create_repost_05_filetest
 
 // Creating a thread requires the user to have 3000 GNOT, but reposing a thread
 // also creates a thread. Test that this fails when the user has insufficient GNOT.
@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/gnoland/boards/v0"
 
-	boards2 "gno.land/r/gnoland/boards2/v1"
+	boards2 "gno.land/r/gnoland/boards2/v0"
 )
 
 const (
