@@ -309,19 +309,25 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				// THE PREVIOUS RENDERING IS STILL ACCEPTED. The fee moved to the
-				// shape the Ledger Cosmos app will parse, and clients build this
-				// payload themselves, so signatures made by an older client --
-				// and those already written into a genesis file -- must keep
-				// verifying. std.VerifySignaturePayload carries the argument for
-				// why taking both is safe; the short version is that the two fee
-				// key sets are disjoint, so one signature still authorises
-				// exactly one transaction.
+				// Either payload rendering is accepted: the amount/gas fee shape
+				// the Ledger Cosmos app parses, and the gas_wanted/gas_fee shape
+				// that clients building the payload themselves, and written
+				// genesis files, may still carry. std.VerifySignaturePayload
+				// holds the argument for why taking both is safe; the short
+				// version is that the two fee key sets are disjoint, so one
+				// signature still authorises exactly one transaction.
 				//
-				// Spelled out here rather than delegated to that helper so the
-				// marshalling failure above keeps its own error, and so the
-				// legacy encoding is computed only on the path that needs it.
-				// Gas was charged above for one verification.
+				// Spelled out here rather than delegated to that helper so a
+				// payload that cannot be built keeps the ErrInternal it gets
+				// above, distinct from ErrUnauthorized. The legacy encoding
+				// cannot fail once the one above succeeded -- the two differ
+				// only in the fee's plain fields -- so lerr carries nothing the
+				// first marshal did not already report.
+				//
+				// Gas was charged above for one verification. A signature that
+				// matches neither rendering costs a second encoding and curve
+				// operation that nothing meters, since a rejected transaction
+				// pays no fee.
 				legacySignBytes, lerr := tx.GetSignBytesLegacy(
 					newCtx.ChainID(),
 					accNum,
@@ -654,8 +660,9 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
 }
 
-// GetSignBytes returns a slice of bytes to sign over for a given transaction
-// and an account.
+// GetSignBytes returns the amount/gas rendering of the signature payload for a
+// given transaction and account. It is a signing helper only: a verifier must
+// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var (
 		accNum      uint64
