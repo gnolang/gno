@@ -252,6 +252,12 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 		if err != nil {
 			return
 		}
+		// Bind signing to the stored Ledger identity, not whichever device is plugged in.
+		if !priv.PubKey().Equals(info.PubKey) {
+			err = fmt.Errorf("the public key on the connected ledger device does not match the stored public key for key %q: %s does not match %s",
+				nameOrBech32, priv.PubKey().String(), info.PubKey.String())
+			return nil, nil, err
+		}
 
 	case offlineInfo, multiInfo:
 		err = fmt.Errorf("cannot sign with key or addr %s", nameOrBech32)
@@ -264,6 +270,9 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 	}
 
 	pub = priv.PubKey()
+	if _, isLedger := info.(ledgerInfo); isLedger && !pub.VerifyBytes(msg, sig) {
+		return nil, nil, errors.New("ledger produced an invalid signature")
+	}
 	return sig, pub, nil
 }
 
