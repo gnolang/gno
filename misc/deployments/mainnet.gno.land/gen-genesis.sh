@@ -60,15 +60,15 @@ set -eo pipefail
 
 CHAIN_ID=gnoland-1 # decided 2026-09-09
 # DECIDED (A, 2026-09-12): launch at 2026-09-12T15:00:00Z — the ceremony
-# time the pinned sheet's §132 schedules vest from (independence-day #82).
+# time the pinned sheet's §132 schedules vest from (independence-day #83).
 # Mainnet block 1 carries this timestamp forever. The vesting-lock guard in
 # step 2 refuses any sheet whose schedules do not start at exactly this
 # instant, so the time and the pin move together.
 #
-# This is no longer a free parameter: since independence-day #72 the pinned
-# sheet vests nearly every row continuously from an ABSOLUTE 1789084800
-# (2026-09-11T00:00:00Z), which mkgenesis/vesting.go documents as *the genesis
-# timestamp*. GENESIS_TIME > that start is a §126/§132 leak and
+# This is not a free parameter: the pinned sheet vests nearly every row
+# continuously from an ABSOLUTE 1789225200, which mkgenesis/vesting.go
+# documents as *the genesis timestamp*. GENESIS_TIME > that start is a
+# §126/§132 leak and
 # assert_vesting_locked_at_genesis refuses to build it; GENESIS_TIME < it
 # ships a chain whose §132 clock starts after launch — valid on-chain
 # (VestedCoins returns nothing before StartTime) but not what §132 says.
@@ -230,8 +230,8 @@ INITIAL_VALSET_OPERATORS=(
 # FINAL PIN: independence-day main @ 665d4e5 (#82 moves the §132 vesting
 # window to the ceremony time). That repo's docs/history.md records which
 # commit produced which chain.
-ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/665d4e5a9cc6351fa8309672a187ab0d449a63cf/mkgenesis/balances.txt.gz"
-ALLOCATION_SHA256="c86994ab85f0674a5817341b2c3b5eb6f4e0b60564c7f685a61731f6c0a8d487"
+ALLOCATION_GZ_URL="https://github.com/gnolang/independence-day/raw/30ec18996779f0185966ddb628590008999dbecf/mkgenesis/balances.txt.gz"
+ALLOCATION_SHA256="3379977407b57e617da5d3dcb5b8f0aeb0a739bd51e152bdc1a60fbec0215ec3"
 # The sha proves "this is the pinned file"; these two make its MAGNITUDE part
 # of the reviewed diff. Every downstream reconciliation is internal (sheet ↔
 # artifact) and would hold for any sheet — without these, a re-pin that
@@ -262,7 +262,7 @@ ALLOCATION_EXPECTED_TOTAL=1332999998328067 # ugnot ≈ 1.333e9 GNOT
 # oracle, and neither is one of the §127 funds — they pay FEES, which
 # SendCoinsUnrestricted exempts from §126 anyway, so neither needs a whitelist
 # entry. A float appearing on this list would be the thing to question.
-UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/665d4e5a9cc6351fa8309672a187ab0d449a63cf/mkgenesis/unrestricted.txt"
+UNRESTRICTED_URL="https://github.com/gnolang/independence-day/raw/30ec18996779f0185966ddb628590008999dbecf/mkgenesis/unrestricted.txt"
 UNRESTRICTED_SHA256="7b37a16822739371cfd9a3f5ae864b7ab86cef4c83155fefb5114c29abda38bf"
 
 # Denominations subject to the §126 transfer lock. Empty = no lock, and then
@@ -464,8 +464,8 @@ CHECKSUMS_DATA=$(
 0f58018876aa393456190c5236ad8b66b1c7a0e1d25ab31674b26f5d8d14a960  work/packages.gen.txt
 63b2f339252e5dceb41d52fa7ea07d0f31d52aa2a1c2c499c5ab9fef055eb8cf  work/valoper-seed.jsonl
 a8b985e4f435f9893bcffd8b9ad73a65086f6a23d5c154e2e74222c9cc1a52e4  work/genesis_txs.jsonl
-37d6cb251e503d312ad995c3bdbcec8d932f2606695e81731715f027f98634be  work/deployers_balances.txt
-8e0e668da85c6f577c358c9b3c60e90ab54def0f6f4912f2e6b3a6830cc0abe7  genesis.json
+6a675d57b8c914e7557e2507241b0510d375c3a2b15102fb0b5456eabf126149  work/deployers_balances.txt
+ea22691003130eae3ba975b7d16460706b5d75ce6c04ae82c0c4faeab7de91f0  genesis.json
 EOF
 )
 
