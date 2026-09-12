@@ -42,7 +42,7 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	}))
 
 	// Create markdown processor with extensions and renderer options
-	m := goldmark.New()
+	m := goldmark.New(goldmark.WithParserOptions(parser.WithAutoHeadingID()))
 	ext.Extend(m)
 
 	// Parse markdown input with context
