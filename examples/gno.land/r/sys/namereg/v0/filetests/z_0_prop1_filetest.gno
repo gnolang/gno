@@ -69,7 +69,7 @@ func main(cur realm) {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/memberstore/v0)
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -80,7 +80,7 @@ func main(cur realm) {
 //
 //
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
@@ -109,7 +109,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
@@ -138,7 +138,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //

@@ -42,12 +42,12 @@ func renderHomePage() string {
 }
 
 func renderIntroParagraph() string {
-	out := md.Paragraph("Welcome to the Gno.land User Registry (v1). Please register a username.")
+	out := md.Paragraph("Welcome to the Gno.land User Registry (v0). Please register a username.")
 	out += md.Paragraph(`Registering a username grants the registering address the right to deploy packages and realms
 under that username’s namespace. For example, if an address registers the username ` + md.InlineCode("nym-alice123") + `, it
 will gain permission to deploy packages and realms to package paths with the pattern ` + md.InlineCode("gno.land/{p,r}/nym-alice123/*") + `.`)
 
-	out += md.Paragraph("In V1, usernames must match `nym-<stem><digits>`, where:")
+	out += md.Paragraph("In V0, usernames must match `nym-<stem><digits>`, where:")
 	items := []string{
 		"`<stem>` is 5 to 13 lowercase ASCII letters",
 		"`<digits>` is exactly 3 decimal digits",

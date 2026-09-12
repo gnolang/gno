@@ -71,7 +71,7 @@ func main(cur realm) {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/memberstore/v0)
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Delete user \`nym\-alice123\`](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V0: Delete user \`nym\-alice123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -82,7 +82,7 @@ func main(cur realm) {
 //
 //
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V0: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
@@ -111,7 +111,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V0: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
@@ -140,7 +140,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V0: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test

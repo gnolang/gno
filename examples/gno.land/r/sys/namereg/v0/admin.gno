@@ -42,10 +42,10 @@ func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	if newPausedValue {
-		return dao.NewProposalRequest("User Registry V1: Pause", "", e)
+		return dao.NewProposalRequest("User Registry V0: Pause", "", e)
 	}
 
-	return dao.NewProposalRequest("User Registry V1: Unpause", "", e)
+	return dao.NewProposalRequest("User Registry V0: Unpause", "", e)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user.
@@ -73,7 +73,7 @@ func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
-		ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName),
+		ufmt.Sprintf("User Registry V0: Rename user `%s` to `%s`", userData.Name(), newName),
 		"",
 		e,
 	)
@@ -95,7 +95,7 @@ func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalReque
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
-		ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()),
+		ufmt.Sprintf("User Registry V0: Delete user `%s`", userData.Name()),
 		reason,
 		e,
 	)
@@ -119,7 +119,7 @@ func ProposeNewRegisterPrice(cur realm, newPrice int64) dao.ProposalRequest {
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
-		ufmt.Sprintf("User Registry V1: Update registration price to `%d`", newPrice),
+		ufmt.Sprintf("User Registry V0: Update registration price to `%d`", newPrice),
 		"",
 		e,
 	)
