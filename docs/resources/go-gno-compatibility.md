@@ -324,10 +324,8 @@ Legend:
   `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
   `BigEndian`/`LittleEndian` values. The reflection-based helpers (`Read`,
   `Write`, `Size`) depend on `reflect` (see [^9]).
-[^8]: `errors` currently ships `New` only. `Is`, `As`, `Unwrap`, and `Join`
-  are not yet available; tracked by issue
-  [#486](https://github.com/gnolang/gno/issues/486) and PR
-  [#5385](https://github.com/gnolang/gno/pull/5385) (`Is`, `Unwrap`, `Join`).
+[^8]: `errors` ships `New`, `Is`, `Unwrap`, and `Join`. `As` is not yet
+  available, since it needs `reflect` (see [^9]).
 [^9]: like many other encoding packages, `fmt` depends on `reflect` to be added.
   For now, package `gno.land/p/nt/ufmt/v0` may do what you need. In test
   functions, `fmt` works.
