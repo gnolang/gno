@@ -40,6 +40,13 @@ Download `genesis.json` from the [release page](https://github.com/gnolang/gno/r
 wget -O genesis.json https://github.com/gnolang/gno/releases/download/chain/mainnet/genesis.json
 ```
 
+Or the compressed variant (the raw file is ~324 MB):
+
+```shell
+wget -O genesis.json.gz https://github.com/gnolang/gno/releases/download/chain/mainnet/genesis.json.gz
+gunzip genesis.json.gz
+```
+
 Verify its SHA256 — it must match:
 
 ```shell
