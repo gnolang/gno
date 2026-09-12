@@ -459,8 +459,13 @@ NAMES_ADMIN=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 # different output will fail loudly.
 CHECKSUMS_DATA=$(
   cat <<'EOF'
-# (empty — TODO(mainnet): locked only once every launch value is final:
-# run a fresh end-to-end build and paste the printed "not listed" lines.)
+# LOCKED 2026-09-12 — the gnoland-1 launch build (every launch value final).
+# Any run producing different bytes for these artifacts fails loudly.
+0f58018876aa393456190c5236ad8b66b1c7a0e1d25ab31674b26f5d8d14a960  work/packages.gen.txt
+63b2f339252e5dceb41d52fa7ea07d0f31d52aa2a1c2c499c5ab9fef055eb8cf  work/valoper-seed.jsonl
+a8b985e4f435f9893bcffd8b9ad73a65086f6a23d5c154e2e74222c9cc1a52e4  work/genesis_txs.jsonl
+37d6cb251e503d312ad995c3bdbcec8d932f2606695e81731715f027f98634be  work/deployers_balances.txt
+8e0e668da85c6f577c358c9b3c60e90ab54def0f6f4912f2e6b3a6830cc0abe7  genesis.json
 EOF
 )
 

@@ -1,6 +1,6 @@
 # Joining mainnet as a validator
 
-> **WORK IN PROGRESS** — the chain-id (`gnoland-1`), the endpoints (`gno.land`, `rpc.gno.land`, `seed-1.gno.land`/`seed-2.gno.land`) and the seed node IDs are final; the genesis sha is a placeholder until launch. Grep `TODO(mainnet)` across this folder.
+> Launch: **2026-09-12T12:00:00Z**, chain-id `gnoland-1`. All values below are final.
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
@@ -51,7 +51,7 @@ Verify its SHA256 — it must match:
 
 ```shell
 shasum -a 256 genesis.json
-# GENESIS_SHA256_PLACEHOLDER — TODO(mainnet): filled once every launch value is final  genesis.json
+# 8e0e668da85c6f577c358c9b3c60e90ab54def0f6f4912f2e6b3a6830cc0abe7  genesis.json
 ```
 
 To regenerate the genesis yourself instead of downloading it, see [`README.md`](./README.md).
