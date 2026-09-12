@@ -173,20 +173,24 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		return fmt.Errorf("unable to get signature bytes, %w", err)
 	}
 
-	err = kb.Verify(info.GetName(), signBytes, sig)
-	if err != nil {
-		// EITHER RENDERING COUNTS. A transaction signed before the fee moved
-		// to the Cosmos shape, or by a client that has not yet moved, carries
-		// the older payload -- and the chain still accepts it, so reporting it
-		// invalid here would contradict the node.
-		legacySignBytes, lerr := tx.GetSignBytesLegacy(
+	// The chain accepts a signature over either payload rendering, see
+	// std.VerifySignaturePayload. The two are tried here one at a time rather
+	// than through that helper so the output can say which one matched: only
+	// the amount/gas rendering is one the Ledger Cosmos app will sign.
+	legacy := false
+	if kb.Verify(info.GetName(), signBytes, sig) != nil {
+		legacySignBytes, legacyErr := tx.GetSignBytesLegacy(
 			chainID,
 			accountNumber,
 			accountSequence,
 		)
-		if lerr != nil || kb.Verify(info.GetName(), legacySignBytes, sig) != nil {
-			return fmt.Errorf("unable to verify signature: %w", err)
+		if legacyErr != nil {
+			return fmt.Errorf("unable to get legacy signature bytes, %w", legacyErr)
 		}
+		if verifyErr := kb.Verify(info.GetName(), legacySignBytes, sig); verifyErr != nil {
+			return fmt.Errorf("unable to verify signature: %w", verifyErr)
+		}
+		legacy = true
 	}
 
 	if !cfg.RootCfg.BaseOptions.Quiet {
@@ -196,6 +200,10 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 			info.GetPubKey().String(),
 			base64.StdEncoding.EncodeToString(sig),
 		)
+		if legacy {
+			io.Printfln("Note: signed over the legacy payload rendering (fee as " +
+				"gas_wanted/gas_fee), which the Ledger Cosmos app refuses to sign")
+		}
 	}
 
 	return nil

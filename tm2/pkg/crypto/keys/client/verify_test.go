@@ -935,6 +935,70 @@ func Test_execVerify(t *testing.T) {
 	})
 }
 
+// A signature over the legacy payload rendering is valid, since the chain accepts
+// it, but the output says which rendering matched: only the amount/gas rendering
+// is one the Ledger Cosmos app will sign, and a wallet developer checking their
+// payload shape has to be able to tell the two apart.
+func Test_execVerifyReportsLegacyRendering(t *testing.T) {
+	t.Parallel()
+
+	const (
+		accountNumber   = uint64(10)
+		accountSequence = uint64(2)
+		keyName         = "verifyLegacy_Key"
+		chainID         = "dev"
+	)
+
+	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
+	t.Cleanup(kbCleanUp)
+
+	kb, err := keys.NewKeyBaseFromDir(kbHome)
+	require.NoError(t, err)
+	info, err := kb.CreateAccount(keyName, testMnemonic, "", "", 0, 0)
+	require.NoError(t, err)
+
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: info.GetAddress(),
+			ToAddress:   info.GetAddress(),
+			Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+		}},
+		Fee: std.NewFee(10, std.NewCoin("ugnot", 10)),
+	}
+
+	legacyBytes, err := tx.GetSignBytesLegacy(chainID, accountNumber, accountSequence)
+	require.NoError(t, err)
+	signature, pub, err := kb.Sign(keyName, "", legacyBytes)
+	require.NoError(t, err)
+	tx.Signatures = []std.Signature{{PubKey: pub, Signature: signature}}
+
+	rawTx, err := amino.MarshalJSON(tx)
+	require.NoError(t, err)
+	txPath := filepath.Join(t.TempDir(), "tx.json")
+	require.NoError(t, os.WriteFile(txPath, rawTx, 0o644))
+
+	var out strings.Builder
+	io := commands.NewTestIO()
+	io.SetOut(commands.WriteNopCloser(&out))
+
+	cfg := &VerifyCfg{
+		RootCfg: &BaseCfg{
+			BaseOptions: BaseOptions{
+				Home:                  kbHome,
+				InsecurePasswordStdin: true,
+			},
+		},
+		AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
+		AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
+		ChainID:         chainID,
+		TxPath:          txPath,
+	}
+
+	require.NoError(t, execVerify(context.Background(), cfg, []string{keyName}, io))
+	require.Contains(t, out.String(), "Valid signature!")
+	require.Contains(t, out.String(), "legacy payload rendering")
+}
+
 func Test_VerifyMultisig(t *testing.T) {
 	t.Parallel()
 
