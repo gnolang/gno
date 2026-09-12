@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
@@ -354,8 +355,8 @@ func TestSignaturePayloadEncodingsAreDisjoint(t *testing.T) {
 	}
 }
 
-// The helper the tools and the ante handler lean on: it must take both, and it
-// must still refuse a signature over neither.
+// The helper the tools lean on: it must take both, and it must still refuse a
+// signature over neither.
 func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 	t.Parallel()
 
@@ -372,30 +373,74 @@ func TestVerifySignaturePayloadTakesEitherRendering(t *testing.T) {
 		{"current", GetSignaturePayload},
 		{"legacy", GetSignaturePayloadLegacy},
 	} {
-		payload, err := tc.render(doc)
-		if err != nil {
-			t.Fatalf("%s: %v", tc.name, err)
-		}
-		sig, err := priv.Sign(payload)
-		if err != nil {
-			t.Fatalf("%s: sign: %v", tc.name, err)
-		}
-		if !VerifySignaturePayload(priv.PubKey(), doc, sig) {
-			t.Errorf("a signature over the %s rendering was refused", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		/* AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must not
-		   mean accepting a signature made over a different transaction: the
-		   same bytes against a changed sequence has to fail, or the fallback
-		   has become a bypass. */
-		moved := doc
-		moved.Sequence = doc.Sequence + 1
-		if VerifySignaturePayload(priv.PubKey(), moved, sig) {
-			t.Errorf("%s: a signature verified against a DIFFERENT sign doc", tc.name)
-		}
+			payload, err := tc.render(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sig, err := priv.Sign(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ok, err := VerifySignaturePayload(priv.PubKey(), doc, sig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Errorf("a signature over the %s rendering was refused", tc.name)
+			}
+
+			// AND IT STILL BINDS THE DOCUMENT. Accepting two renderings must
+			// not mean accepting a signature made over a different
+			// transaction: the same bytes against a changed sequence has to
+			// fail, or the fallback has become a bypass.
+			moved := doc
+			moved.Sequence = doc.Sequence + 1
+			ok, err = VerifySignaturePayload(priv.PubKey(), moved, sig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ok {
+				t.Errorf("%s: a signature verified against a DIFFERENT sign doc", tc.name)
+			}
+		})
 	}
 
-	if VerifySignaturePayload(priv.PubKey(), doc, []byte("not a signature")) {
+	ok, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("not a signature"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
 		t.Error("garbage verified as a signature")
+	}
+}
+
+// unregisteredMsg is a Msg amino cannot encode: no package registers it.
+type unregisteredMsg struct{}
+
+func (unregisteredMsg) Route() string                { return "" }
+func (unregisteredMsg) Type() string                 { return "" }
+func (unregisteredMsg) ValidateBasic() error         { return nil }
+func (unregisteredMsg) GetSignBytes() []byte         { return nil }
+func (unregisteredMsg) GetSigners() []crypto.Address { return nil }
+
+// A payload that cannot be built is not a bad signature. Callers report the two
+// differently -- one is a malformed transaction, the other a forgery -- so the
+// helper has to keep them apart instead of folding both into "false".
+func TestVerifySignaturePayloadReportsUnencodableMsgs(t *testing.T) {
+	t.Parallel()
+
+	priv := ed25519.GenPrivKey()
+	doc := SignDoc{ChainID: "dev", Msgs: []Msg{unregisteredMsg{}}}
+
+	ok, err := VerifySignaturePayload(priv.PubKey(), doc, []byte("irrelevant"))
+	if err == nil {
+		t.Fatal("an unencodable sign doc verified without error")
+	}
+	if ok {
+		t.Error("an unencodable sign doc verified as signed")
 	}
 }

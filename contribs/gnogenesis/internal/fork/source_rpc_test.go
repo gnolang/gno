@@ -70,6 +70,25 @@ func TestBruteForceSignerSequence(t *testing.T) {
 		assert.Equal(t, actualSeq, resolved)
 	})
 
+	t.Run("finds sequence for a legacy-rendering signature", func(t *testing.T) {
+		t.Parallel()
+		tx := makeTestTx(t, priv)
+		actualSeq := uint64(7)
+
+		// Signed over the gas_wanted/gas_fee rendering, which is what every
+		// transaction carries on a source chain whose clients produced only
+		// that shape.
+		payload, err := tx.GetSignBytesLegacy(chainID, accNum, actualSeq)
+		require.NoError(t, err)
+		rawSig, err := priv.Sign(payload)
+		require.NoError(t, err)
+		sig := std.Signature{PubKey: priv.PubKey(), Signature: rawSig}
+
+		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
+		require.NoError(t, err)
+		assert.Equal(t, actualSeq, resolved)
+	})
+
 	t.Run("finds sequence at lo boundary", func(t *testing.T) {
 		t.Parallel()
 		tx := makeTestTx(t, priv)

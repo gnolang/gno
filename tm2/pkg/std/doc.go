@@ -67,17 +67,7 @@ type signDocPayload struct {
 // the change can still be verified afterwards, which archived genesis files and
 // any replay of chain history both require. See VerifySignaturePayload.
 func GetSignaturePayloadLegacy(s SignDoc) ([]byte, error) {
-	data, err := amino.MarshalJSON(s)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal sign doc, %w", err)
-	}
-
-	sortedData, err := sortJSON(data)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sort payload JSON, %w", err)
-	}
-
-	return sortedData, nil
+	return signaturePayload(s)
 }
 
 // feeAmount renders the fee coin as Cosmos renders a coin list.
@@ -104,8 +94,7 @@ func feeAmount(c Coin) []signDocCoin {
 // into Amino JSON, and then sorting the Amino JSON.
 // Ultimately, the formula for signing is sign(sortJSON(aminoJSON(SignDoc)))
 func GetSignaturePayload(s SignDoc) ([]byte, error) {
-	// Prepare the amino JSON
-	data, err := amino.MarshalJSON(signDocPayload{
+	return signaturePayload(signDocPayload{
 		ChainID:       s.ChainID,
 		AccountNumber: s.AccountNumber,
 		Sequence:      s.Sequence,
@@ -116,11 +105,16 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 		Msgs: s.Msgs,
 		Memo: s.Memo,
 	})
+}
+
+// signaturePayload renders v as amino JSON with its keys sorted, the form every
+// signature payload takes: sign(sortJSON(aminoJSON(v))).
+func signaturePayload(v any) ([]byte, error) {
+	data, err := amino.MarshalJSON(v)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal sign doc, %w", err)
 	}
 
-	// Sort the JSON
 	sortedData, err := sortJSON(data)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort payload JSON, %w", err)
@@ -130,18 +124,21 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 }
 
 // VerifySignaturePayload reports whether sig is a valid signature by pubKey over
-// s, in EITHER of the two renderings that are accepted: the current one, and the
-// one that preceded the fee's move to the Cosmos shape.
+// s in either of the two accepted renderings: the amount/gas fee shape the
+// Ledger Cosmos app parses (GetSignaturePayload), and the gas_wanted/gas_fee
+// shape (GetSignaturePayloadLegacy). An error means no payload could be built
+// to check against, which is a malformed sign doc rather than a bad signature.
 //
 // WHY BOTH ARE ACCEPTED. Clients build the signature payload themselves, so the
-// rendering cannot change on one side only. A node that took just the new bytes
-// would reject every wallet that had not shipped the change, and every signature
-// made before it -- including the ones sitting in already-written genesis files.
-// A node that took just the old bytes leaves every Ledger unable to sign at all.
+// rendering cannot change on one side only. A node that took only the amount/gas
+// bytes would reject every wallet still producing the other shape, and every
+// signature already made over it -- including the ones sitting in written
+// genesis files, which cannot be re-signed. A node that took only the
+// gas_wanted/gas_fee bytes leaves every Ledger unable to sign at all.
 //
 // WHY ACCEPTING BOTH IS SAFE, and not merely convenient. The two renderings
-// cannot be confused for one another: the old fee object carries gas_wanted and
-// gas_fee, the new one amount and gas, and those key sets have no member in
+// cannot be confused for one another: one fee object carries gas_wanted and
+// gas_fee, the other amount and gas, and those key sets have no member in
 // common. Two JSON objects that parse to different key sets are not the same
 // bytes, so no legacy rendering of one transaction can equal the current
 // rendering of a DIFFERENT one. A signature therefore still authorises exactly
@@ -150,20 +147,24 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 // this, and it is the property to re-check before either rendering is touched.
 //
 // The legacy rendering is computed only when the current one does not verify, so
-// the ordinary path pays for one encoding and one curve operation.
-func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) bool {
-	if payload, err := GetSignaturePayload(s); err == nil {
-		if pubKey.VerifyBytes(payload, sig) {
-			return true
-		}
+// the ordinary path pays for one encoding and one curve operation. A signature
+// that matches neither pays for two of each, and nothing meters that: the cost of
+// rejecting an invalid signature is borne by the node, not the sender.
+func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (bool, error) {
+	payload, err := GetSignaturePayload(s)
+	if err != nil {
+		return false, err
+	}
+	if pubKey.VerifyBytes(payload, sig) {
+		return true, nil
 	}
 
 	legacy, err := GetSignaturePayloadLegacy(s)
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return pubKey.VerifyBytes(legacy, sig)
+	return pubKey.VerifyBytes(legacy, sig), nil
 }
 
 // Signature represents a wrapped signature of a transaction

@@ -805,14 +805,9 @@ func TestGenesis_VerifyAcceptsLegacySignedTxs(t *testing.T) {
 		Fee: std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
 	}
 
-	// Signed the way a client signed before the change. Genesis transactions
-	// use account number and sequence 0.
-	legacyBytes, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-		ChainID: g.ChainID,
-		Fee:     tx.Fee,
-		Msgs:    tx.Msgs,
-		Memo:    tx.Memo,
-	})
+	// Signed over the gas_wanted/gas_fee rendering. Genesis transactions use
+	// account number and sequence 0.
+	legacyBytes, err := tx.GetSignBytesLegacy(g.ChainID, 0, 0)
 	require.NoError(t, err)
 
 	// Guard the guard: if the renderings ever coincided, this would pass
