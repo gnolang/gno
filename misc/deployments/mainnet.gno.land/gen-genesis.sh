@@ -308,8 +308,7 @@ VESTED_ACCOUNTS=(
 # launch is block 1 — so 100% would be liquid where 96% should be locked.
 #
 # RESTRICTED_DENOMS + the fetched exemption list are applied in step 9.3.
-# TODO(mainnet): OnBloc/AiB still need to be told, since the launch
-# checklist recorded this as open.
+# OnBloc and AiB were informed of the locked launch (2026-09-12).
 
 # ---- Inert code-submission policy (decided) ----
 #
