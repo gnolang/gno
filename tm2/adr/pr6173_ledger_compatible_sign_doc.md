@@ -95,11 +95,25 @@ Every path that verifies a signature it did not produce:
 | `gnokey verify` | would otherwise call a signature invalid that the chain accepts |
 
 `auth.GetSignBytes` is exported but has no callers in the tree and is not on any
-verification path; it was left alone.
+verification path; its doc comment now says it is a signing helper only, since a
+verifier using it would reject legacy signatures the node accepts.
+
+`gnokey verify` prints which rendering a valid signature matched. Only the
+amount/gas rendering is one a Ledger will sign, so a wallet developer checking
+their payload shape can tell the two apart from the output.
 
 The legacy encoding is computed only when the current one fails, so the ordinary
 path pays for one encoding and one curve operation, as before. Gas is charged
 once, before either attempt.
+
+That is the honest path. A signature that matches neither rendering costs two
+encodings and two curve operations, and none of it is metered: the first encoding
+happens before the signature gas is charged, and a transaction the ante handler
+rejects pays no fee. Measured on a 1 MB `MsgAddPackage`, one encoding plus
+`sortJSON` takes about 7 ms, so garbage-signature spam costs a node roughly twice
+what it did before dual verification. This amplifies a cost the attacker already
+did not pay rather than opening a new class of attack; the sunset switch below is
+the operator's lever against it.
 
 ## Consequences
 
@@ -111,6 +125,14 @@ working; what an un-upgraded node cannot do is accept a *Ledger-signed*
 transaction. If validators upgrade piecemeal, an upgraded proposer can include a
 Ledger-signed tx in a block that un-upgraded validators reject. Validators must
 still upgrade together; users and wallets no longer have to.
+
+That holds in one direction only: nodes before clients. A client built from this
+commit signs the amount/gas rendering and nothing else, so against a node that
+has not upgraded every one of its transactions is refused with `signature
+verification failed`, and a genesis file it signed panics a pre-change node at
+`InitChain`. Ship node binaries first and hold client releases until the
+validator set has moved. `node:p:halt_height` and `node:p:halt_min_version` are
+the coordination tools the chain already has for the validator side.
 
 Verified on `gnoland1` with the fee change applied and no other modification: a
 Nano X on Cosmos app 2.39.1 signs both a `send` and a `/vm.m_call`, the node
@@ -133,32 +155,61 @@ transaction is signed with `GetSignBytes(chainID, 0, 0)`.
 The protobuf wire encoding is untouched. Only the JSON signature payload moves,
 so `Tx` on the wire, and every decoder of it, are unaffected.
 
+A multisig whose members run different clients cannot sign during the
+transition. `PubKeyMultisigThreshold.VerifyBytes` checks every constituent
+signature against one payload, so a signature set split across the two
+renderings fails both attempts, and `gnokey multisign` aggregates partial
+signatures without verifying them, so the failure surfaces only at broadcast.
+Every member must produce the same rendering.
+
+Clients that build the payload themselves — `tm2-js-client` and `gno-js-client`,
+Adena, gnonative — keep working through the fallback, and must move to the
+amount/gas rendering to sign with a Ledger.
+
 **The legacy path is meant to be temporary, and nothing here retires it.** It has
 no sunset switch and no deprecation warning; removing it later is a second
-consensus change, needing its own coordination once wallets have moved. A
-configuration flag to refuse the legacy rendering would make that transition
-observable — a node could report how often the fallback fires — and is the
-obvious follow-up. It was left out here to keep this change to one decision.
+consensus change, needing its own coordination once wallets have moved. A switch
+to refuse the legacy rendering would make that transition observable — a node
+could report how often the fallback fires — and is the obvious follow-up. It must
+be a chain-wide consensus parameter rather than a per-node flag: nodes that
+disagree about accepting the legacy rendering fork on the first legacy-signed
+transaction. Its zero value must mean *accept*: a parameter absent from the
+store reads back as its zero value on an in-place upgrade, so a "reject legacy"
+switch defaulting to off is the only shape that does not itself produce the flag
+day this change avoids. It was left out here to keep this change to one decision.
 
 ### Tests
 
-Ten, across three packages. Seven are in `tm2/pkg/std`, and the first four of
+Sixteen, across four packages. Twelve are in `tm2/pkg/std`, and the first four of
 those fail against the pre-change rendering, naming the offending keys:
 
-- the sign doc's keys, and the fee's keys, are within the app's allowlist
+- the sign doc's keys, and the fee's keys, are within the app's allowlist, and
+  every key the app requires is present even when its value is empty
 - the fee has the array-of-coins shape with string-typed numbers
-- a zero fee is an empty list, with no empty denom anywhere in the payload
-- the whole current payload is pinned byte-for-byte
+- a zero fee is pinned byte-for-byte as an empty list — pinned rather than
+  parsed, because `json.Unmarshal` reads `[]` and `null` into the same
+  zero-length slice, and a nil slice renders as `null`
+- the whole current payload is pinned byte-for-byte, once with nil msgs and once
+  with a real `bank.MsgSend`
+- the two renderings differ only in the fee; every other field, msgs included,
+  is byte-identical
+- `signDocPayload` mirrors `SignDoc` field for field, so a field added to one
+  and forgotten in the other fails a test instead of silently leaving the signed
+  bytes
+- `Tx.SignDoc` binds the transaction to the chain ID, account number and sequence
+  it is given
 - the legacy payload is pinned byte-for-byte, to a literal taken from master
   before the change — anything derived from the current code would follow the
   current code wherever it went
 - the two encodings are disjoint, over a table including adversarial memos
 - the shared helper takes either rendering, still binds the sign doc it was
-  given, and still refuses nonsense
+  given, still refuses nonsense, and reports a sign doc it cannot encode as an
+  error rather than as a bad signature
 
-Plus three behavioural ones: the ante handler admits a legacy-signed transaction,
+Plus four behavioural ones: the ante handler admits a legacy-signed transaction,
 still rejects a signature made over a different chain ID, sequence, or nothing at
-all, and `gnogenesis verify` accepts a genesis file signed before the change.
+all, `gnogenesis verify` accepts a genesis file signed before the change, and
+`gnokey verify` says so when the legacy rendering is the one that matched.
 
 Each was checked by ablation — breaking one thing at a time and confirming which
 test fired. Removing the ante fallback fails only the ante acceptance test;
@@ -167,7 +218,10 @@ the disjointness test, and the ante test's own guard against the two renderings
 coinciding; making the fallback swallow its failure fails all three rejection
 cases; making the shared helper return `true` fails the binds-the-document and
 garbage arms, which is a different assertion from the one that fires when the
-helper's legacy branch is removed.
+helper's legacy branch is removed. Making `feeAmount` return a nil slice fails
+the zero-fee pin; an `omitempty` on the payload's memo fails the required-keys
+check; a field added to `SignDoc` alone fails the mirror test; renaming the
+payload's msgs tag fails both msgs pins.
 
 The byte-for-byte pins are the ones that would have caught the original problem.
 Nothing in the tree pinned the signed bytes before, so the rendering was free to
