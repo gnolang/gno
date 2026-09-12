@@ -1244,42 +1244,70 @@ func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
 func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
 	t.Parallel()
 
-	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bankk,
-		DefaultSigVerificationGasConsumer, defaultAnteOptions())
-	ctx := env.ctx
+	// The ante handler writes to the store before it reaches signature
+	// verification, and the store is not safe for concurrent use, so every
+	// subtest gets its own environment.
+	type badSigEnv struct {
+		anteHandler sdk.AnteHandler
+		ctx         sdk.Context
+		priv        crypto.PrivKey
+		msgs        []std.Msg
+		fee         std.Fee
+	}
+	setup := func(t *testing.T) badSigEnv {
+		t.Helper()
 
-	priv, _, addr := tu.KeyTestPubAddr()
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
-	acc.SetCoins(tu.NewTestCoins())
-	require.NoError(t, acc.SetAccountNumber(0))
-	env.acck.SetAccount(ctx, acc)
+		env := setupTestEnv()
+		anteHandler := NewAnteHandler(env.acck, env.bankk,
+			DefaultSigVerificationGasConsumer, defaultAnteOptions())
+		ctx := env.ctx
 
-	msgs := []std.Msg{tu.NewTestMsg(addr)}
-	fee := tu.NewTestFee()
+		priv, _, addr := tu.KeyTestPubAddr()
+		acc := env.acck.NewAccountWithAddress(ctx, addr)
+		acc.SetCoins(tu.NewTestCoins())
+		require.NoError(t, acc.SetAccountNumber(0))
+		env.acck.SetAccount(ctx, acc)
+
+		return badSigEnv{
+			anteHandler: anteHandler,
+			ctx:         ctx,
+			priv:        priv,
+			msgs:        []std.Msg{tu.NewTestMsg(addr)},
+			fee:         tu.NewTestFee(),
+		}
+	}
 
 	t.Run("signed over a different chain id", func(t *testing.T) {
+		t.Parallel()
+
+		e := setup(t)
 		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-			ChainID: "some-other-chain", Fee: fee, Msgs: msgs,
+			ChainID: "some-other-chain", Fee: e.fee, Msgs: e.msgs,
 		})
 		require.NoError(t, err)
-		tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, wrong, "")
-		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
 	})
 
 	t.Run("signed over a different sequence", func(t *testing.T) {
+		t.Parallel()
+
+		e := setup(t)
 		wrong, err := std.GetSignaturePayloadLegacy(std.SignDoc{
-			ChainID: ctx.ChainID(), Sequence: 99, Fee: fee, Msgs: msgs,
+			ChainID: e.ctx.ChainID(), Sequence: 99, Fee: e.fee, Msgs: e.msgs,
 		})
 		require.NoError(t, err)
-		tx := tu.NewTestTxWithSignBytes(msgs, []crypto.PrivKey{priv}, fee, wrong, "")
-		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
 	})
 
 	t.Run("not a signature at all", func(t *testing.T) {
-		tx := std.NewTx(msgs, fee, []std.Signature{{
-			PubKey: priv.PubKey(), Signature: []byte("nope"),
+		t.Parallel()
+
+		e := setup(t)
+		tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
+			PubKey: e.priv.PubKey(), Signature: []byte("nope"),
 		}}, "")
-		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
 	})
 }
