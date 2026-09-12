@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
 	github.com/bmatsuo/lmdb-go v1.8.0
+	github.com/boombuler/barcode v1.1.0
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/cockroachdb/apd/v3 v3.2.3
