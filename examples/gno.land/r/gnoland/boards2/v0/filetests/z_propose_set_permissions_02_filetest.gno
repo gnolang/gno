@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_propose_set_permissions_02_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_propose_set_permissions_02_filetest
 
 // Test "board not found" for ProposeSetPermissions and GovDAO approval.
 
@@ -11,7 +11,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions/v0"
 	"gno.land/p/gnoland/boards/v0"
 
-	boards2 "gno.land/r/gnoland/boards2/v1"
+	boards2 "gno.land/r/gnoland/boards2/v0"
 	daov3init "gno.land/r/gov/dao/init/v0"
 )
 

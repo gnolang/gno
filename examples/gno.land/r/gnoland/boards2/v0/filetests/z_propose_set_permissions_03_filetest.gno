@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_propose_set_permissions_03_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_propose_set_permissions_03_filetest
 
 // Test the failure for ProposeSetPermissions and GovDAO approval where the
 // realm is locked between proposal creation and execution.
@@ -13,7 +13,7 @@ import (
 	"gno.land/p/gnoland/boards/v0"
 	"gno.land/p/nt/testutils/v0"
 
-	boards2 "gno.land/r/gnoland/boards2/v1"
+	boards2 "gno.land/r/gnoland/boards2/v0"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/init/v0"
 )

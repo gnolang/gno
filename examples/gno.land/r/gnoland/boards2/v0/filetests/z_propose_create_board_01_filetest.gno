@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_propose_create_board_01_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_propose_create_board_01_filetest
 
 // Test "board already exists" for ProposeCreateBoard and GovDAO approval.
 
@@ -8,7 +8,7 @@ import (
 	"chain/runtime/unsafe"
 	"testing"
 
-	boards2 "gno.land/r/gnoland/boards2/v1"
+	boards2 "gno.land/r/gnoland/boards2/v0"
 	daov3init "gno.land/r/gov/dao/init/v0"
 )
 

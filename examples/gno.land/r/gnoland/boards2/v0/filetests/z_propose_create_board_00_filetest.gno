@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_propose_create_board_00_filetest
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_propose_create_board_00_filetest
 
 // Test the normal flow for ProposeCreateBoard and GovDAO approval.
 
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
-	boards2 "gno.land/r/gnoland/boards2/v1"
+	boards2 "gno.land/r/gnoland/boards2/v0"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/init/v0"
 )
