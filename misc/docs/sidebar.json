@@ -37,6 +37,7 @@
           "resources/gno-packages",
           "resources/gno-data-structures",
           "resources/gnoland-networks",
+          "resources/chain-upgrades",
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/storage-deposit",
