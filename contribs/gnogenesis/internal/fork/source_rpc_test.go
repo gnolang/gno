@@ -19,14 +19,16 @@ import (
 // bruteForceSignerSequence can verify it.
 func signTxAt(t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64) std.Signature {
 	t.Helper()
-	payload, err := std.GetSignaturePayload(std.SignDoc{
-		ChainID:       chainID,
-		AccountNumber: accNum,
-		Sequence:      seq,
-		Fee:           tx.Fee,
-		Msgs:          tx.Msgs,
-		Memo:          tx.Memo,
-	})
+	return signTxAtWith(t, priv, tx, chainID, accNum, seq, std.GetSignaturePayload)
+}
+
+// signTxAtWith is signTxAt over a chosen payload rendering.
+func signTxAtWith(
+	t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64,
+	render func(std.SignDoc) ([]byte, error),
+) std.Signature {
+	t.Helper()
+	payload, err := render(tx.SignDoc(chainID, accNum, seq))
 	require.NoError(t, err)
 
 	sig, err := priv.Sign(payload)
@@ -64,6 +66,21 @@ func TestBruteForceSignerSequence(t *testing.T) {
 		tx := makeTestTx(t, priv)
 		actualSeq := uint64(7)
 		sig := signTxAt(t, priv, tx, chainID, accNum, actualSeq)
+
+		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
+		require.NoError(t, err)
+		assert.Equal(t, actualSeq, resolved)
+	})
+
+	t.Run("finds sequence for a legacy-rendering signature", func(t *testing.T) {
+		t.Parallel()
+		tx := makeTestTx(t, priv)
+		actualSeq := uint64(7)
+
+		// Signed over the gas_wanted/gas_fee rendering, which is what every
+		// transaction carries on a source chain whose clients produced only
+		// that shape.
+		sig := signTxAtWith(t, priv, tx, chainID, accNum, actualSeq, std.GetSignaturePayloadLegacy)
 
 		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
 		require.NoError(t, err)
