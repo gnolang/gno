@@ -329,7 +329,7 @@ network as a single package. Deploy yours:
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 \
+  -gas-fee 1000000ugnot -gas-wanted 50000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
   alice
 ```
@@ -340,7 +340,7 @@ you'll see:
 
 ```text
 OK!
-GAS WANTED: 20000000
+GAS WANTED: 50000000
 GAS USED:   3456789
 HEIGHT:     12345
 EVENTS:     []
@@ -362,7 +362,25 @@ For the full flag list, see
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 
-### 5. Call Increment
+### 5. Verify your package
+Once you done with deployment to network. you can verify this following command 
+```sh 
+gnokey query vm/file \
+  -data "gno.land/r/<your-g1-addr>/myrealm" \ 
+  -remote https://rpc.staging.gno.land:443
+```
+
+It will returns with 
+
+```sh 
+height: 0
+data: gnomod.toml
+myrealm.gno
+myrealm_test.gno
+```
+
+
+### 6. Call Increment
 
 Same shape as the local call earlier, with two changes: the package
 path uses your address-based namespace, and `-gas-wanted` is tuned to
@@ -394,13 +412,86 @@ To read the state without spending gas, query the realm's render:
 
 ```sh
 gnokey query vm/qrender \
-  -pkgpath "gno.land/r/<your-g1-addr>/myrealm" -data "" \
+  -data "gno.land/r/<your-g1-addr>/myrealm:" \
   -remote https://rpc.staging.gno.land:443
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
 reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
+
+### 7. Troubleshooting
+
+#### `invalid gno package; type check failed`
+
+```text
+Data: invalid gno package; type check failed
+    0  /gnoroot/gno.land/pkg/sdk/vm/errors.go:90 -
+       gno.land/r/<addr>/myrealm/myrealm_test.gno:5:24: undefined: relam
+```
+
+The chain type-checks your package before storing it, and rejects the
+whole `addpkg` if anything fails to compile. Read past the traces to the
+last line: it carries the real compiler diagnostic with file, line, and
+column — here a `realm` typo'd as `relam`.
+
+Two things this error tells you:
+
+- **`_test.gno` files are type-checked too.** They're uploaded with the
+  package, so a broken test file blocks a deploy even when the realm
+  code itself is fine.
+- **The transaction still consumed gas.** The trace reads `deliver
+  transaction failed`, meaning the tx was included and you paid for the
+  failed type check.
+
+Catch it locally first — [step 3](#3-format-lint-and-test) runs the same
+type checker and prints the same diagnostic for free:
+
+```console
+$ gno lint ./...
+myrealm_test.gno:6:26: undefined: relam (code=gnoTypeCheckError)
+```
+
+Fix every reported line, re-run until `gno lint ./...` and
+`gno test ./...` are clean, then re-submit `addpkg`.
+
+#### `remote error: tls: handshake failure`
+
+```text
+Post "https://rpc.topaz.gno.land:443": remote error: tls: handshake failure
+```
+
+Usually a wrong `-remote` hostname, not a broken network. Testnet RPC
+endpoints live under `testnets.gno.land`; only betanet
+(`rpc.gno.land`) and staging (`rpc.staging.gno.land`) sit directly on
+`gno.land`:
+
+```sh
+# wrong
+-remote https://rpc.topaz.gno.land:443
+# right
+-remote https://rpc.topaz.testnets.gno.land:443
+```
+
+
+Verify an endpoint independently before debugging further; a healthy
+node answers with its `node_info`:
+
+```sh
+curl https://rpc.topaz.testnets.gno.land:443/status
+```
+
+Two other causes of the same error:
+
+- **Missing port.** `gnokey` doesn't infer 443 from the `https://`
+  scheme, so always write `-remote https://rpc.staging.gno.land:443`.
+- **`https://` against a local node.** `gnodev` serves plain HTTP —
+  use `-remote http://localhost:26657`.
+
+If the URL checks out on all three counts, the endpoint is likely down
+or mid-reset; staging wipes on a short cadence, and testnets get
+retired. See [Networks](../resources/gnoland-networks.md) for the
+current list of chainids and endpoints.
 
 ## Next steps
 
