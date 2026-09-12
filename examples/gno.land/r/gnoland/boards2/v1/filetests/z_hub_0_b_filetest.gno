@@ -48,7 +48,7 @@ func main(cur realm) {
 }
 
 // Output:
-// 2
+// 1
 // foo123
 // slice[("test123" string)]
 // true

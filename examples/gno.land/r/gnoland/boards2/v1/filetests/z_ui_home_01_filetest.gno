@@ -31,17 +31,13 @@ func main() {
 // Sort by: [oldest first](/r/gnoland/boards2/v1:?order=asc)
 //
 // ###### [CCC](/r/gnoland/boards2/v1:CCC)
-// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #4
-// **0 threads**
-//
-// ###### [BBB](/r/gnoland/boards2/v1:BBB)
 // Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #3
 // **0 threads**
 //
-// ###### [AAA](/r/gnoland/boards2/v1:AAA)
+// ###### [BBB](/r/gnoland/boards2/v1:BBB)
 // Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #2
 // **0 threads**
 //
-// ###### [OpenDiscussions](/r/gnoland/boards2/v1:OpenDiscussions)
+// ###### [AAA](/r/gnoland/boards2/v1:AAA)
 // Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
 // **0 threads**

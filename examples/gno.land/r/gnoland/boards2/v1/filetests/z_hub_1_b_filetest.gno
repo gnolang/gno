@@ -64,7 +64,7 @@ func main(cur realm) {
 // 1
 // 0
 // 0
-// 2
+// 1
 // Foo
 // Bar
 // true

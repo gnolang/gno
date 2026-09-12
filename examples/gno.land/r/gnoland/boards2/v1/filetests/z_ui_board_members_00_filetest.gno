@@ -30,4 +30,4 @@ func main() {
 // ### These are the board members
 // | Member | Role | Actions |
 // | --- | --- | --- |
-// | [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=2&member=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=2&member=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx&role=) |
+// | [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx&role=) |
