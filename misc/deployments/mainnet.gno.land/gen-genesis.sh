@@ -59,21 +59,23 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=gnoland-1 # decided 2026-09-09
-# TODO(mainnet): launch time undecided — placeholder is pearl's launch time.
-# Mainnet block 1 carries this timestamp forever: pin the ceremony time and
-# rebuild if it slips (topaz/sapphire/pearl all launched backdated; fine on
-# a testnet, ugly on mainnet).
+# DECIDED (A, 2026-09-12): launch at 2026-09-12T13:00:00Z (15:00 CEST).
+# Mainnet block 1 carries this timestamp forever. The pinned sheet's vesting
+# schedules must start at exactly this instant — the vesting-lock guard in
+# step 2 refuses anything else — so the FINAL allocation re-pin must be
+# generated with -vesting-start equal to this value.
 #
 # This is no longer a free parameter: since independence-day #72 the pinned
 # sheet vests nearly every row continuously from an ABSOLUTE 1789084800
 # (2026-09-11T00:00:00Z), which mkgenesis/vesting.go documents as *the genesis
 # timestamp*. GENESIS_TIME > that start is a §126/§132 leak and
-# assert_vesting_locked_at_genesis refuses to build it; GENESIS_TIME < it (the
-# case today, by 15 days) ships a chain whose §132 clock starts after launch —
-# valid on-chain (VestedCoins returns nothing before StartTime) but not what
-# §132 says. Decide the ceremony time and re-pin a sheet generated with
+# assert_vesting_locked_at_genesis refuses to build it; GENESIS_TIME < it
+# ships a chain whose §132 clock starts after launch — valid on-chain
+# (VestedCoins returns nothing before StartTime) but not what §132 says.
+# The decided time is 37h AFTER the current pin's start, so the build stays
+# refused until the sheet is re-pinned generated with
 # -vesting-start equal to it.
-GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
+GENESIS_TIME=1789218000 # Saturday, September 12th 2026, 13:00 UTC (15:00 CEST) — decided 2026-09-12
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
@@ -709,17 +711,26 @@ assert_exact_sum() {
 #     suffix, or moving GENESIS_TIME past 1789084800, must fail the build.
 # §132 anchors vesting to the day $GNOT becomes transferrable — GENESIS_TIME.
 assert_vesting_locked_at_genesis() {
+  # The offender list is capped inside awk: on a re-pin/time mismatch MILLIONS
+  # of rows offend at once, and accumulating them all into one variable for
+  # the die message would be a 400MB error string. Five examples + the total
+  # say everything.
   local sheet="$1" label="$2" leaking
   leaking=$(grep -F -- ';vesting=' "$sheet" |
-    awk -F'[,;]' -v g="$GENESIS_TIME" '{
-      start = $3 + 0; end = $4 + 0
-      if (end <= g) {
-        printf "  %s  <- schedule ENDS before genesis: 100%% liquid at block 1\n", $0
-      } else if ($5 != "type=delayed" && start < g) {
-        printf "  %s  <- continuous schedule STARTED before genesis: %.2f%% liquid at block 1\n", \
-          $0, (g - start) * 100 / (end - start)
+    awk -F'[,;]' -v g="$GENESIS_TIME" '
+      function flag(reason) {
+        n++
+        if (n <= 5) { printf "  %s  <- %s\n", $0, reason }
       }
-    }' || true)
+      {
+        start = $3 + 0; end = $4 + 0
+        if (end <= g) {
+          flag("schedule ENDS before genesis: 100% liquid at block 1")
+        } else if ($5 != "type=delayed" && start < g) {
+          flag(sprintf("continuous schedule STARTED before genesis: %.2f%% liquid at block 1", (g - start) * 100 / (end - start)))
+        }
+      }
+      END { if (n > 5) printf "  ... and %d more rows\n", n - 5 }' || true)
   if [ -n "$leaking" ]; then
     die "$(printf '%s\n%s\n%s' \
       "these $label vesting schedules are not fully locked at GENESIS_TIME ($GENESIS_TIME):" \
