@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 func (rss *RemoteSignerServer) setListener(listener net.Listener) error {
@@ -67,11 +68,18 @@ func (rss *RemoteSignerServer) serve(listener net.Listener) {
 				HandshakeTimeout: rss.responseTimeout * 2, // Double the response timeout for the handshake (send + receive).
 			}
 
+			// Convert the ed25519 authorized keys slice to []crypto.PubKey
+			// to satisfy the scheme-agnostic ConfigureTCPConnection signature.
+			authKeys := make([]crypto.PubKey, len(rss.authorizedKeys))
+			for i := range rss.authorizedKeys {
+				authKeys[i] = rss.authorizedKeys[i]
+			}
+
 			// Configure and secure the TCP connection then authenticate the client.
 			sconn, err := r.ConfigureTCPConnection(
 				tcpConn,
 				rss.serverPrivKey,
-				rss.authorizedKeys,
+				authKeys,
 				tcpCfg,
 			)
 			if err != nil {

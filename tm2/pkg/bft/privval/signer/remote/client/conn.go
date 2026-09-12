@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // ensureConnection tries to establish a connection with the server.
@@ -58,11 +59,18 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 				HandshakeTimeout: rsc.requestTimeout,
 			}
 
+			// Convert the ed25519 authorized keys slice to []crypto.PubKey
+			// to satisfy the scheme-agnostic ConfigureTCPConnection signature.
+			authKeys := make([]crypto.PubKey, len(rsc.authorizedKeys))
+			for i := range rsc.authorizedKeys {
+				authKeys[i] = rsc.authorizedKeys[i]
+			}
+
 			// Configure and secure the TCP connection then authenticate the server.
 			sconn, err := r.ConfigureTCPConnection(
 				tcpConn,
 				rsc.clientPrivKey,
-				rsc.authorizedKeys,
+				authKeys,
 				tcpCfg,
 			)
 			if err != nil {
