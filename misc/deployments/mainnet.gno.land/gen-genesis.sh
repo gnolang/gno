@@ -59,11 +59,11 @@ set -eo pipefail
 # =============================================================================
 
 CHAIN_ID=gnoland-1 # decided 2026-09-09
-# DECIDED (A, 2026-09-12): launch at 2026-09-12T14:00:00Z.
-# Mainnet block 1 carries this timestamp forever. The pinned sheet's vesting
-# schedules must start at exactly this instant — the vesting-lock guard in
-# step 2 refuses anything else — so the FINAL allocation re-pin must be
-# generated with -vesting-start equal to this value.
+# DECIDED (A, 2026-09-12): launch at 2026-09-12T12:00:00Z — the ceremony
+# time the pinned sheet's §132 schedules vest from (independence-day #82).
+# Mainnet block 1 carries this timestamp forever. The vesting-lock guard in
+# step 2 refuses any sheet whose schedules do not start at exactly this
+# instant, so the time and the pin move together.
 #
 # This is no longer a free parameter: since independence-day #72 the pinned
 # sheet vests nearly every row continuously from an ABSOLUTE 1789084800
@@ -72,10 +72,10 @@ CHAIN_ID=gnoland-1 # decided 2026-09-09
 # assert_vesting_locked_at_genesis refuses to build it; GENESIS_TIME < it
 # ships a chain whose §132 clock starts after launch — valid on-chain
 # (VestedCoins returns nothing before StartTime) but not what §132 says.
-# The decided time is 37h AFTER the current pin's start, so the build stays
-# refused until the sheet is re-pinned generated with
+# The decided time equals the pin's start, and any drift between the two
+# refuses the build. A re-pin must be generated with
 # -vesting-start equal to it.
-GENESIS_TIME=1789221600 # 2026-09-12T14:00:00Z — decided 2026-09-12
+GENESIS_TIME=1789214400 # 2026-09-12T12:00:00Z — decided 2026-09-12
 
 # Packages to include in genesis (resolved with transitive dependencies).
 # Use "..." suffix to match all sub-packages.
