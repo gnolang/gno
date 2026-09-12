@@ -764,3 +764,79 @@ func TestWarnOnImplausibleVestingTimesReportsEveryBalance(t *testing.T) {
 	assert.Contains(t, out.String(), first.String())
 	assert.Contains(t, out.String(), second.String())
 }
+
+// A GENESIS FILE WRITTEN BEFORE THE FEE MOVED STILL VERIFIES. This command reads
+// files from the past, and a genesis file cannot be re-signed: its transactions
+// were signed once, by whoever held the key, under whatever rendering was current
+// then. When the fee moved to the shape the Ledger Cosmos app parses, a verifier
+// that knew only the new rendering would have reported every archived genesis
+// file as carrying forged signatures.
+//
+// The node accepts both renderings (see std.VerifySignaturePayload), so a tool
+// that accepted only one would contradict the chain it is checking against.
+//
+// The negative cases in TestGenesis_Verify are the other half of this: a wrong
+// chain ID and a wrong account number must STILL be refused, or the fallback has
+// turned into a bypass.
+func TestGenesis_VerifyAcceptsLegacySignedTxs(t *testing.T) {
+	t.Parallel()
+
+	tempFile, cleanup := testutils.NewTestFile(t)
+	t.Cleanup(cleanup)
+
+	key := mock.GenPrivKey().PubKey()
+	g := &types.GenesisDoc{
+		GenesisTime:     time.Now(),
+		ChainID:         "valid-chain-id",
+		ConsensusParams: types.DefaultConsensusParams(),
+		Validators: []types.GenesisValidator{
+			{Address: key.Address(), PubKey: key, Power: 1, Name: "valid validator"},
+		},
+		AppState: gnoland.DefaultGenState(),
+	}
+
+	signer := ed25519.GenPrivKey()
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: signer.PubKey().Address(),
+			ToAddress:   signer.PubKey().Address(),
+			Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+		}},
+		Fee: std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
+	}
+
+	// Signed the way a client signed before the change. Genesis transactions
+	// use account number and sequence 0.
+	legacyBytes, err := std.GetSignaturePayloadLegacy(std.SignDoc{
+		ChainID: g.ChainID,
+		Fee:     tx.Fee,
+		Msgs:    tx.Msgs,
+		Memo:    tx.Memo,
+	})
+	require.NoError(t, err)
+
+	// Guard the guard: if the renderings ever coincided, this would pass
+	// without exercising the fallback.
+	currentBytes, err := tx.GetSignBytes(g.ChainID, 0, 0)
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, legacyBytes,
+		"the two renderings are identical, so this test proves nothing")
+
+	signature, err := signer.Sign(legacyBytes)
+	require.NoError(t, err)
+	tx.Signatures = append(tx.Signatures, std.Signature{
+		PubKey:    signer.PubKey(),
+		Signature: signature,
+	})
+
+	appState := g.AppState.(gnoland.GnoGenesisState)
+	appState.Txs = []gnoland.TxWithMetadata{{Tx: tx}}
+	g.AppState = appState
+
+	require.NoError(t, g.SaveAs(tempFile.Name()))
+
+	cmd := NewVerifyCmd(commands.NewTestIO())
+	require.NoError(t, cmd.ParseAndRun(context.Background(), []string{
+		"--genesis-path", tempFile.Name(),
+	}))
+}
