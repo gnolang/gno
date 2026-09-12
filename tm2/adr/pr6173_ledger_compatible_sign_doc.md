@@ -180,8 +180,8 @@ day this change avoids. It was left out here to keep this change to one decision
 
 ### Tests
 
-Sixteen, across four packages. Twelve are in `tm2/pkg/std`, and the first four of
-those fail against the pre-change rendering, naming the offending keys:
+Across four packages. Most are in `tm2/pkg/std`, and the first four below fail
+against the pre-change rendering, naming the offending keys:
 
 - the sign doc's keys, and the fee's keys, are within the app's allowlist, and
   every key the app requires is present even when its value is empty
@@ -202,11 +202,11 @@ those fail against the pre-change rendering, naming the offending keys:
   before the change — anything derived from the current code would follow the
   current code wherever it went
 - the two encodings are disjoint, over a table including adversarial memos
-- the shared helper takes either rendering, still binds the sign doc it was
-  given, still refuses nonsense, and reports a sign doc it cannot encode as an
-  error rather than as a bad signature
+- the shared helper takes either rendering and says which one matched, still
+  binds the sign doc it was given, still refuses nonsense, and reports a sign
+  doc it cannot encode as an error rather than as a bad signature
 
-Plus four behavioural ones: the ante handler admits a legacy-signed transaction,
+Plus the behavioural ones: the ante handler admits a legacy-signed transaction,
 still rejects a signature made over a different chain ID, sequence, or nothing at
 all, `gnogenesis verify` accepts a genesis file signed before the change, and
 `gnokey verify` says so when the legacy rendering is the one that matched.
