@@ -1368,16 +1368,20 @@ main.dev-mode .b-toc a {
 }
 
 .b-source-toc {
-	& > .b-source-toc__overview {
-		margin-block-end: var(--g-space-4);
-	}
-
 	& > .b-toc {
 		margin-block-end: var(--g-space-4);
 	}
 
 	& > * + * {
 		margin-block-start: var(--g-space-1-5);
+	}
+
+	/* Always-open file section (Configuration Files): a heading over its list,
+	   matching the accordion's heading type without the collapse toggle. */
+	.b-source-toc__section h3 {
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-medium);
+		margin-block: 0 var(--g-space-1);
 	}
 
 	.accordion {
@@ -3117,6 +3121,16 @@ main.dev-mode > section:has(.c-overview-view) {
 		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-normal);
 	}
+
+	/* The reset strips link styling from the one label that navigates. */
+	.b-pkg-section__link {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
 }
 
 .b-pkg-section__body {
@@ -3295,6 +3309,11 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-secondary);
 }
 
+.b-pkg-list__outbound {
+	inline-size: 0.75em;
+	block-size: 0.75em;
+}
+
 .b-pkg-list__tags {
 	display: inline-flex;
 	gap: var(--g-space-1-5);
@@ -3312,18 +3331,33 @@ main.dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-brand-weak);
 }
 
-/* Status pair: draft (caution) vs published (success); visibility uses the
-   neutral b-tag--secondary for public/private. */
+/* Two axes side by side: status on caution/success, visibility on warning/info.
+   Yellow against blue survives red-green deficiency. */
+.b-tag--draft,
+.b-tag--published,
+.b-tag--private,
+.b-tag--public {
+	border-color: transparent;
+}
+
 .b-tag--draft {
 	color: var(--s-color-text-caution);
 	background: var(--s-color-bg-caution-weak);
-	border-color: transparent;
 }
 
 .b-tag--published {
 	color: var(--s-color-text-success);
 	background: var(--s-color-bg-success-weak);
-	border-color: transparent;
+}
+
+.b-tag--private {
+	color: var(--s-color-text-warning);
+	background: var(--s-color-bg-warning-weak);
+}
+
+.b-tag--public {
+	color: var(--s-color-text-info);
+	background: var(--s-color-bg-info-weak);
 }
 
 /* Truncation notice (shown when symbol lists were capped). */

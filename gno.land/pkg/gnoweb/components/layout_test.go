@@ -224,6 +224,26 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	assert.Equal(t, "Source", links[1].Label)
 }
 
+func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path:     "/r/test/pkg",
+		WebQuery: url.Values{"source": {""}, "file": {"admin.gno"}},
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	source := links[2]
+	require.Equal(t, "Source", source.Label)
+	assert.Contains(t, source.URL, "file=admin.gno", "the Source tab must not drop the open file")
+	assert.True(t, source.IsActive)
+
+	// With no file open, Source still points at the package overview.
+	u.WebQuery = url.Values{}
+	links = StaticHeaderDevLinks(u, ViewModeRealm, false)
+	assert.NotContains(t, links[2].URL, "file=")
+}
+
 func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
 	t.Parallel()
 
