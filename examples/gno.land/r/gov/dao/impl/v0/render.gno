@@ -111,56 +111,204 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	// GetProposal can succeed for a proposal this implementation has no status
 	// for — the same post-upgrade case PreExecuteProposal guards (statuses live
 	// on the instance, so a fresh instance has none). Without this the page
-	// panics at ps.String below. renderProposalListItem needs no such guard:
+	// panics at ps.statusLine below. renderProposalListItem needs no such guard:
 	// its pids are iterated out of pss itself, so a status always exists.
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	if ps == nil {
 		return ufmt.Sprintf("# Proposal #%v not available\n\nThis proposal was not created by the current govDAO implementation, so it has no voting status here.", pid)
 	}
 
+	// The trailing backslashes are markdown hard breaks: gnoweb folds a plain
+	// newline into a space, and the block would render as one paragraph.
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
-	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
+	out += "Author: " + tryResolveAddr(p.Author()) + "\\\n"
+	out += "Executes: " + executesLine(p) + "\\\n"
+	out += ps.statusLine() + "\\\n"
+	out += "Eligible: " + strings.Join(ps.TiersAllowedToVote, ", ") + "\\\n"
+	out += ps.tally(0, rlm)
+	out += ufmt.Sprintf(" ([detail](%v:%v/votes))\n\n", ren.relativeRealmPath, pid)
 
-	out += p.Description()
-	out += "\n\n"
+	// The page draws every rule on it, and escapeThematicBreaks takes the mark
+	// out of the description, so an imitation can only render below this one.
+	out += renderExecution(p)
+	out += "---\n\n"
 
-	// Add executor metadata if available
-	if p.ExecutorString() != "" {
-		out += ufmt.Sprintf(`This proposal contains the following metadata:
-
-%s
-
-`, p.ExecutorString())
+	if description := escapeThematicBreaks(p.Description()); description != "" {
+		out += "### Description\n\n"
+		out += description
+		out += "\n\n---\n\n"
 	}
-
-	// Disclosed independently of the description: this names the realm whose
-	// code runs if the proposal passes. Sharing the gate above hid it for every
-	// proposal built with an empty executor description — 16 call sites across
-	// 7 production realms, nearly all r/sys/* governance actions.
-	//
-	// Escaped, not trusted: CreationRealm() is dispatched through the public
-	// dao.Executor interface, so only SimpleExecutor's value is VM-captured;
-	// a third-party executor returns any string it likes.
-	// Guarded on the sanitized value, not the raw one: InlineCode returns ""
-	// for input that strips to nothing (bidi/zero-width only), and TrimSpace
-	// catches plain whitespace, so neither prints a label with nothing after
-	// it. This is tidiness, not a boundary: a zero-width/space mixture still
-	// renders an empty-looking span, and a hostile executor can always return
-	// a plausible-looking lie. The security property is the escaping below.
-	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
-		out += ufmt.Sprintf("Executor created in: %s\n", cr)
-		out += "\n\n"
-	}
-
-	out += "\n\n---\n\n"
-	out += ps.String(0, rlm)
-	out += "\n"
-	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
-	out += "\n\n---\n\n"
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
 	return out
+}
+
+// escapeThematicBreaks backslashes every line of the description that would
+// render as a horizontal rule, leaving the rule to the page. Fenced blocks are
+// skipped, where a rule is already literal text.
+func escapeThematicBreaks(description string) string {
+	if !strings.ContainsAny(description, "-_*") {
+		return description
+	}
+
+	lines := strings.Split(description, "\n")
+	fenced := false
+	for i, line := range lines {
+		// A CRLF description leaves a trailing carriage return on every line,
+		// which gnoweb drops before it reads the line.
+		trimmed := strings.TrimSuffix(line, "\r")
+		if isCodeFence(trimmed) {
+			fenced = !fenced
+			continue
+		}
+		if !fenced && isThematicBreak(trimmed) {
+			lines[i] = "\\" + line
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// isCodeFence reports whether the line opens or closes a fenced code block.
+func isCodeFence(line string) bool {
+	line = trimIndent(line)
+	return strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")
+}
+
+// isThematicBreak reports whether the line renders as a horizontal rule, by
+// the CommonMark rule. A setext underline is the same run of dashes.
+func isThematicBreak(line string) bool {
+	line = trimIndent(line)
+	if line == "" {
+		return false
+	}
+
+	mark := line[0]
+	if mark != '-' && mark != '_' && mark != '*' {
+		return false
+	}
+
+	count := 0
+	for i := 0; i < len(line); i++ {
+		switch c := line[i]; {
+		case c == mark:
+			count++
+		case c == ' ' || c == '\t':
+		default:
+			return false
+		}
+	}
+
+	return count >= 3
+}
+
+// trimIndent drops the up-to-three leading spaces a block marker may carry. A
+// fourth space makes the line indented code, which renders literally.
+func trimIndent(line string) string {
+	for i := 0; i < 3 && i < len(line); i++ {
+		if line[i] != ' ' {
+			return line[i:]
+		}
+	}
+	if len(line) >= 3 {
+		return line[3:]
+	}
+
+	return ""
+}
+
+// executesLine names the realm that runs if the proposal passes. The line is
+// never dropped: silence reads as a shorter page, not as a missing disclosure.
+func executesLine(p *dao.Proposal) string {
+	if creationRealm := renderCreationRealm(p.ExecutorCreationRealm()); creationRealm != "" {
+		return creationRealm
+	}
+
+	return "none reported"
+}
+
+// renderExecution returns the executor's own account of what runs, under a
+// heading of its own, and "" for an executor with nothing to say.
+func renderExecution(p *dao.Proposal) string {
+	description := p.ExecutorString()
+	if description == "" {
+		return ""
+	}
+
+	return "### Execution\n\n" + description + "\n\n"
+}
+
+// renderCreationRealm renders the realm an executor reports it was created in:
+// the escaped code span it has always rendered as, linked to that realm's
+// source when the value parses as a package path this chain serves. Any
+// executor returns any string it likes, so the escaping is the guard here.
+func renderCreationRealm(creationRealm string) string {
+	// Clamp before escaping, per clamp.gno: an escaped value cut afterwards can
+	// lose its closing fence.
+	pkgPath := strings.TrimSpace(clampField(creationRealm, maxRenderedRealm))
+	code := sanitize.InlineCode(pkgPath)
+	if code == "" {
+		return ""
+	}
+
+	source, ok := realmSourcePath(pkgPath)
+	if !ok {
+		return code
+	}
+
+	// The destination is a value realmSourcePath accepted, which carries no
+	// backtick, bracket, parenthesis or colon to break out of the link.
+	return "[" + code + "](" + source + ")"
+}
+
+// realmSourcePath maps a package path this chain serves to its gnoweb source
+// path. Anything else renders unlinked rather than pointing at a 404.
+func realmSourcePath(pkgPath string) (string, bool) {
+	rel, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
+	if !found {
+		return "", false
+	}
+
+	// "/r/gov/dao/v3/impl": the letter directory, then one or more segments.
+	if len(rel) < len("/r/x") || rel[0] != '/' || rel[2] != '/' ||
+		(rel[1] != 'r' && rel[1] != 'p') {
+		return "", false
+	}
+	for _, segment := range strings.Split(rel[3:], "/") {
+		if !isPkgPathSegment(segment) {
+			return "", false
+		}
+	}
+
+	// The overview page, which is $source with no file selected.
+	return rel + "$source", true
+}
+
+// isPkgPathSegment reports whether s is one segment of a package path, by the
+// grammar the VM enforces on a deployed path: Re_name in
+// gnovm/pkg/gnolang/mempackage.go.
+func isPkgPathSegment(s string) bool {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
+		return false
+	}
+
+	separator := false
+	for i := 1; i < len(s); i++ {
+		switch c := s[i]; {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+			separator = false
+		case c == '_' || c == '-':
+			if separator {
+				return false
+			}
+			separator = true
+		default:
+			return false
+		}
+	}
+
+	return !separator
 }
 
 func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovDAO) string {
