@@ -1,0 +1,142 @@
+/* ==========================================================================
+   RUN - maketx run scratchpad
+   ========================================================================== */
+.b-run {
+	display: flex;
+	flex-direction: column;
+	min-height: 70vh;
+	grid-column: 1 / -1;
+	padding-bottom: var(--g-space-24);
+}
+
+.b-run-settings {
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands h3 {
+	font-size: var(--g-font-size-400);
+}
+
+.b-run-settings-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+	margin-block-start: var(--g-space-4);
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+	}
+}
+
+/* Dry run output. Mirrors .b-action-eval-result on the action page; kept as
+   its own block so the run feature stays self-contained in this file. */
+.b-run-result {
+	background-color: var(--s-color-bg-surface-secondary);
+	border: 1px solid var(--s-color-border-default);
+	border-radius: var(--g-radius-2);
+	overflow: hidden;
+	padding: var(--g-space-4);
+}
+
+.b-run-result-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background-color: var(--s-color-bg-muted);
+	border-bottom: 1px solid var(--s-color-border-default);
+	margin-bottom: var(--g-space-1);
+}
+
+.b-run-result-title {
+	font-size: var(--g-font-size-50);
+	letter-spacing: 0.05em;
+}
+
+.b-run-result-clear {
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: var(--g-font-size-50);
+	color: var(--s-color-text-tertiary);
+
+	&:hover {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+.b-run-result-content {
+	padding: var(--g-space-2);
+	margin: 0;
+	font-family: var(--g-font-mono);
+	font-size: var(--g-font-size-75);
+	line-height: 1.6;
+	white-space: pre-wrap;
+	word-break: break-word;
+	min-height: 80px;
+	max-height: 400px;
+	overflow-y: auto;
+	background-color: var(--s-color-bg-base);
+}
+
+.b-run-command-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: var(--g-space-4);
+	row-gap: var(--g-space-1);
+	margin-block-end: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+}
+
+.b-run-command-label {
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-primary);
+}
+
+.b-run-command-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	cursor: pointer;
+
+	input[type="checkbox"] {
+		width: var(--g-space-4);
+		height: var(--g-space-4);
+		flex-shrink: 0;
+		accent-color: var(--s-color-bg-brand-default);
+		cursor: pointer;
+	}
+
+	label {
+		cursor: pointer;
+	}
+
+	input:checked ~ .b-run-command-hint-off,
+	input:not(:checked) ~ .b-run-command-hint-on {
+		display: none;
+	}
+
+	&:hover .b-run-command-label {
+		color: var(--s-color-text-brand-default);
+	}
+}

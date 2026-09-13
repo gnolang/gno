@@ -46,6 +46,30 @@ export function findAllInclusive(
 	return result;
 }
 
+export function makeIcon(icon: string): SVGSVGElement {
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.classList.add("c-icon");
+	const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+	use.setAttribute("href", `#ico-${icon}`);
+	svg.appendChild(use);
+	return svg;
+}
+
+export function makeCopyIcon(): SVGSVGElement {
+	const svg = makeIcon("copy");
+	svg.querySelector("use")?.setAttribute("data-copy-target", "icon");
+
+	const checkUse = document.createElementNS(
+		"http://www.w3.org/2000/svg",
+		"use",
+	);
+	checkUse.setAttribute("href", "#ico-check");
+	checkUse.setAttribute("data-copy-target", "icon");
+	checkUse.classList.add("u-hidden", "u-color-valid");
+	svg.appendChild(checkUse);
+	return svg;
+}
+
 // setPrefCookie writes a SameSite=Lax preference cookie, adding Secure
 // on HTTPS. Used by controllers that mirror a JS preference to a cookie
 // so the server can stamp the right state on first paint.
