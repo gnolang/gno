@@ -114,7 +114,7 @@ version (`master.12345+abc1234`), which never parses as a chain version. Such a
 binary satisfies only a byte-identical `halt_min_version`, so in practice it
 fails any `chain/gnolandX.Y` requirement. Testing this feature requires
 building with an explicit `-ldflags` version; see
-[`docs/resources/test-halt-height.md`](../../docs/resources/test-halt-height.md).
+[`gno.land/cmd/gnoland/UPGRADES-TESTING.md`](../cmd/gnoland/UPGRADES-TESTING.md).
 
 ## Alternatives Considered
 

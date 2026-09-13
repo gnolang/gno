@@ -307,9 +307,9 @@ migration files, and from patches, and why.
 The deployment scripts are the real reference, and they are considerably more
 detailed than this page:
 
-- [`misc/deployments/test13.gno.land/gen-genesis.sh`](../../misc/deployments/test13.gno.land/gen-genesis.sh)
+- [`misc/deployments/test13.gno.land/gen-genesis.sh`](../../../misc/deployments/test13.gno.land/gen-genesis.sh)
   — the fullest example, including `--migration-tx` for valoper seeding
-- [`misc/deployments/pearl.gno.land/gen-genesis.sh`](../../misc/deployments/pearl.gno.land/gen-genesis.sh)
+- [`misc/deployments/pearl.gno.land/gen-genesis.sh`](../../../misc/deployments/pearl.gno.land/gen-genesis.sh)
 
 ## What does not exist
 
@@ -351,8 +351,8 @@ implements:
 
 | Topic | Where |
 |---|---|
-| Halt params, arming, startup checks | [`gno.land/adr/pr5368_govdao_halt_height.md`](../../gno.land/adr/pr5368_govdao_halt_height.md) |
-| Genesis replay, tx metadata, fork tooling | [`gno.land/adr/pr5511_chain_upgrade_genesis_replay.md`](../../gno.land/adr/pr5511_chain_upgrade_genesis_replay.md) |
-| `InitialHeight` in consensus and the block store | [`tm2/adr/pr5511_initial_height.md`](../../tm2/adr/pr5511_initial_height.md) |
-| Manual test plan for the halt mechanism | [Testing the halt height feature](test-halt-height.md) |
-| Node configuration and operation | [`gno.land/cmd/gnoland/README.md`](../../gno.land/cmd/gnoland/README.md) |
+| Halt params, arming, startup checks | [`gno.land/adr/pr5368_govdao_halt_height.md`](../../adr/pr5368_govdao_halt_height.md) |
+| Genesis replay, tx metadata, fork tooling | [`gno.land/adr/pr5511_chain_upgrade_genesis_replay.md`](../../adr/pr5511_chain_upgrade_genesis_replay.md) |
+| `InitialHeight` in consensus and the block store | [`tm2/adr/pr5511_initial_height.md`](../../../tm2/adr/pr5511_initial_height.md) |
+| Manual test plan for the halt mechanism | [Testing the halt height feature](UPGRADES-TESTING.md) |
+| Node configuration and operation | [`README.md`](README.md) |

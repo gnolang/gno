@@ -2,9 +2,9 @@
 
 Single-validator manual test plan for the governance-based chain halt mechanism.
 
-For where this fits in a chain upgrade, see [Chain upgrades](chain-upgrades.md).
+For where this fits in a chain upgrade, see [Chain upgrades](UPGRADES.md).
 For how the mechanism works internally (params, arming, the two startup checks),
-see [`gno.land/adr/pr5368_govdao_halt_height.md`](../../gno.land/adr/pr5368_govdao_halt_height.md).
+see [`gno.land/adr/pr5368_govdao_halt_height.md`](../../adr/pr5368_govdao_halt_height.md).
 
 ## Cleanup / Starting Fresh
 
