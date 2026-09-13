@@ -175,14 +175,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			// "Meters" means it does not nil the meter the way
-			// acck.GetParams does; the read still costs nothing here,
-			// because the ctx is on the infinite meter until
-			// auth.SetGasMeter runs. See checkCodePolicy.
+			// governed depth parameters.
+			//
+			// The read bypasses the gas meter, like acck.GetParams above
+			// and gpk.LastGasPrice. It runs before authAnteHandler calls
+			// auth.SetGasMeter, so on DeliverTx the ctx carries runTx's
+			// passthrough meter, not an infinite one: a charge here is
+			// dropped when SetGasMeter replaces the meter and runTx does
+			// ctx = newCtx, so it reaches neither the fee payer's
+			// GasWanted nor the block gas meter -- but it can still
+			// exhaust the passthrough's head limit (the gas remaining in
+			// the block) and burn the whole block tail. Bypassing only
+			// suppresses charging; the value read is identical.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three
@@ -192,7 +196,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx)
+			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
 			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
@@ -465,7 +469,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		"elapsed", time.Since(start))
 
 	// Hardfork-mode invariant: every signing addr in valset:current must
-	// have a corresponding valoper profile in r/sys/validators/v3's
+	// have a corresponding valoper profile in r/sys/validators/v0's
 	// valoperCache. valoper-seed migration .jsonls produce these profiles;
 	// the chain refuses to boot if any genesis validator is uncovered.
 	//
@@ -510,12 +514,12 @@ func (cfg InitChainerConfig) shouldRunValoperCoverageAssertion(req abci.RequestI
 	return !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req)
 }
 
-// shouldAssertValoperCoverage gates the hardfork-mode v3 invariant
+// shouldAssertValoperCoverage gates the hardfork-mode v0 invariant
 // check. Requires (1) non-empty PastChainIDs (authoritative hardfork
 // signal — InitialHeight alone isn't, since dev/testnets use
 // InitialHeight > 1 for non-hardfork scenarios) and (2) non-empty
 // req.Validators (otherwise the check is trivial and would needlessly
-// require v3 to be loaded).
+// require v0 to be loaded).
 func shouldAssertValoperCoverage(req abci.RequestInitChain) bool {
 	if len(req.Validators) == 0 {
 		return false
@@ -602,6 +606,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
+	assertAuthGenesis(state.Auth)
 	cfg.acck.InitGenesis(ctx, state.Auth)
 	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
@@ -686,6 +691,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		cfg.applyBalance(ctx, bal)
 	}
 	cfg.seedSupply(ctx)
+	assertAuthGenesis(authState)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -819,6 +825,33 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 // unrestricted address. Each address must already exist as a genesis
 // account (i.e. must have appeared in balances), otherwise the verifier
 // can't verify the chain's unrestricted set.
+// assertAuthGenesis checks the chain-specific parts of the auth genesis state
+// that tm2 cannot judge for itself.
+//
+// auth.Params.Validate only checks that the initial gas price's denomination is
+// well formed, because tm2 hosts whichever chain is built on it and does not
+// know which denom that chain collects fees in. gno.land does: fees are paid in
+// ugnot, and std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+// genesis quoting the gas price in anything else makes the ante handler reject
+// every transaction the chain will ever see.
+//
+// Panics to abort boot, like the genesis validator pubkey-type gate and
+// auth.InitGenesis itself. A chain that cannot accept a transaction should fail
+// to start rather than come up and look healthy: InitChainer's error return
+// lands in ResponseInitChain.Error, which tendermint's handshake does not
+// surface.
+func assertAuthGenesis(state auth.GenesisState) {
+	gp := state.Params.InitialGasPrice
+	// The unset price leaves pricing disabled and carries no denom to check.
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
+			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
 func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
 	for _, addr := range addrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
@@ -983,31 +1016,31 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 	}, false
 }
 
-// validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
+// validatorsPkgPath is the realm whose AssertGenesisValopersConsistent
 // invariant gates hardfork-mode boot.
 const (
-	validatorsV3PkgPath       = "gno.land/r/sys/validators/v3"
-	assertGenesisValopersFunc = "AssertGenesisValopersConsistent"
-	missingV3PkgPanicSubstr   = "unexpected node with location " + validatorsV3PkgPath
+	validatorsPkgPath           = "gno.land/r/sys/validators/v0"
+	assertGenesisValopersFunc   = "AssertGenesisValopersConsistent"
+	missingValsetPkgPanicSubstr = "unexpected node with location " + validatorsPkgPath
 )
 
-// assertGenesisValopersConsistent invokes the v3 assertion via the VM
+// assertGenesisValopersConsistent invokes the v0 assertion via the VM
 // keeper directly (no tx pipeline, no AnteHandler, no fee accounting).
 //
 // Caller is the first genesis validator's address; the call sends zero
 // coins so no account need exist for it.
 //
-// If v3 isn't deployed, the underlying gnostore lookup panics outside
+// If v0 isn't deployed, the underlying gnostore lookup panics outside
 // vmk.Call's recover. The defer below catches that case and skips with
-// a warning — production hardforks always deploy v3, and if they
+// a warning — production hardforks always deploy v0, and if they
 // don't, the valoper-seed Register migration txs panic loudly anyway.
 func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci.RequestInitChain) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			msg := fmt.Sprint(r)
-			if strings.Contains(msg, missingV3PkgPanicSubstr) {
+			if strings.Contains(msg, missingValsetPkgPanicSubstr) {
 				ctx.Logger().Warn(
-					"valoper coverage assertion skipped: v3 not deployed in genesis",
+					"valoper coverage assertion skipped: v0 not deployed in genesis",
 					"detail", msg,
 				)
 				err = nil
@@ -1018,7 +1051,7 @@ func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci
 	}()
 	msg := vm.MsgCall{
 		Caller:  req.Validators[0].Address,
-		PkgPath: validatorsV3PkgPath,
+		PkgPath: validatorsPkgPath,
 		Func:    assertGenesisValopersFunc,
 	}
 	vmCtx := vmk.MakeGnoTransactionStore(ctx)
@@ -1183,11 +1216,11 @@ func EndBlocker(
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
-		// exactly the entries with Power > 0. v3's normal flow emits
+		// exactly the entries with Power > 0. v0's normal flow emits
 		// the effective set as positive-power entries — but the
 		// callback also accepts an all-removes proposal that
 		// publishes entries=[]string{}, so all-Power=0 is reachable
-		// at the v3 boundary; this floor is the consensus-safety
+		// at the v0 boundary; this floor is the consensus-safety
 		// backstop.
 		liveCount := 0
 		for _, u := range proposedSet {

@@ -242,6 +242,60 @@ func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
 	})
 }
 
+// A gas price quoted in anything but ugnot makes std.GasPrice.IsGTE fail on
+// every fee comparison, so the ante handler would reject every transaction the
+// chain ever sees. auth.Params.Validate cannot catch it -- tm2 hosts whichever
+// chain is built on it and only checks that the denom is well formed -- so
+// gno.land asserts its own denom at InitChain, while the chain still fails to
+// boot rather than coming up unusable.
+func TestInitChainer_GenesisGasPriceDenom(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(gp std.GasPrice) abci.RequestInitChain {
+		state := DefaultGenState()
+		state.Auth.Params.InitialGasPrice = gp
+		pubKey := ed25519.GenPrivKey().PubKey()
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: state,
+		}
+	}
+
+	t.Run("ugnot accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(std.GasPrice{
+			Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1},
+		}))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("foreign denom aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		assert.PanicsWithError(t, `genesis auth initial_gasprice must be denominated in ugnot, got "atom"`, func() {
+			app.InitChain(newInitReq(std.GasPrice{
+				Gas: 1000, Price: std.Coin{Denom: "atom", Amount: 1},
+			}))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -415,7 +469,7 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 // panic, not via the ResponseInitChain.Error field that tm2's
 // consensus/replay.go:339-342 silently discards. Without this guarantee
 // a hardfork chain can boot in a state where genesis validators have no
-// v3 operator-keyed management plane — the safety net would fire but
+// v0 operator-keyed management plane — the safety net would fire but
 // not actually stop the boot.
 func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	t.Parallel()
@@ -432,11 +486,11 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 
 	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
 	// an error from it is the realistic shape of an assertion failure
-	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// (uncovered genesis validator → v0 panics → vmk.Call returns the
 	// wrapped error).
 	mock := &mockVMKeeper{
 		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
-			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+			return "", fmt.Errorf("synthetic v0 assertion: uncovered validator")
 		},
 	}
 
@@ -456,7 +510,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	}
 
 	assert.PanicsWithError(t,
-		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		"genesis valoper coverage assertion failed: synthetic v0 assertion: uncovered validator",
 		func() { cfg.InitChainer(testCtx, req) },
 		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
 	)
@@ -1144,7 +1198,7 @@ func TestEndBlocker(t *testing.T) {
 		// Defense-in-depth: a non-empty proposed where every entry has
 		// Power=0 is still a "remove all" — len > 0 but live count is
 		// zero. Floor must catch this regardless of outer-list length.
-		// (Reachable via v3 if a proposal's deltas remove every
+		// (Reachable via v0 if a proposal's deltas remove every
 		// validator and produce an empty published set; the floor is
 		// the consensus-safety backstop.)
 		current := generateValidatorUpdates(t, 2)
@@ -4129,12 +4183,14 @@ func TestTxCodeMsgSigners(t *testing.T) {
 		{
 			"add_package alone",
 			[]std.Msg{vm.MsgAddPackage{Creator: alice}},
-			[]crypto.Address{alice}, nil,
+			[]crypto.Address{alice},
+			nil,
 		},
 		{
 			"run alone",
 			[]std.Msg{vm.MsgRun{Caller: alice}},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 		{
 			// Both in one tx is the case that separates the two rules: under
@@ -4145,7 +4201,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				vm.MsgAddPackage{Creator: alice},
 				vm.MsgRun{Caller: bob},
 			},
-			[]crypto.Address{alice}, []crypto.Address{bob},
+			[]crypto.Address{alice},
+			[]crypto.Address{bob},
 		},
 		{
 			// MsgCall names a package but carries no source, so it must not be
@@ -4162,7 +4219,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				bank.MsgSend{FromAddress: bob, ToAddress: alice},
 				vm.MsgRun{Caller: alice},
 			},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 	}
 	for _, tt := range tests {
