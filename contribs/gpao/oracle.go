@@ -526,6 +526,15 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		o.errf("gpao: %q exceeded the verify budget, leaving it pending: %v", path, err)
 		return
 	}
+	if errors.Is(err, errAwaitingDependency) {
+		// Left unseen, so a resubmission or a restart once the import is
+		// enabled gets a fresh look, and uncounted: a cap would end in the
+		// outcome this branch exists to prevent, valid bytes refused for the
+		// order they were sent in.
+		o.status.record(path, statusPending, err.Error(), 0)
+		o.logf("gpao: %q waits on a parked import, leaving it pending: %v", path, err)
+		return
+	}
 	// A rejection IS a verdict about the bytes, so record it: re-verifying them
 	// would reach the same answer, and the submitter has to change something for
 	// it to be worth another look -- which produces a different key.
@@ -763,6 +772,11 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // the per-path allowance, because the operator's box misbehaving is not the
 // submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
+
+// errAwaitingDependency reports that the package failed to type-check while an
+// import it names is parked on the chain awaiting its own approval. Not a
+// verdict, and neither an overrun nor a fault: it counts against no allowance.
+var errAwaitingDependency = errors.New("awaiting a dependency")
 
 // gasHeadroomNum/Den add 20% to a measured estimate.
 //
