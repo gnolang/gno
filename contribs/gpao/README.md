@@ -188,9 +188,6 @@ not serve is fetched once more: a package enabled during the fetch resolves,
 and one whose files `vm/qfile` cannot serve leaves the package pending as
 unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
 pending package by itself: resubmit it, or restart, once the import is live.
-The daemon refuses to start against a node that does not answer
-`vm/qpkgmeta_json` in a form it reads, since without it every absent import
-would sit pending instead of being rejected.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`

@@ -300,29 +300,6 @@ func (o *oracle) run(ctx context.Context) error {
 		}
 	}
 
-	// The route the verifier tells a parked import from an absent one on. A
-	// node without it answers "unknown request", which the child reads as a
-	// fault, so every package importing an absent path would sit pending
-	// where it should be rejected. Asked until the node answers, like the
-	// ceiling; a node that answers without it is refused here, visibly.
-	for {
-		served, answered := o.queryPkgMetaRoute(ctx)
-		if answered {
-			if !served {
-				return errors.New("this node does not answer vm/qpkgmeta_json in a form " +
-					"this build reads, which verification needs to tell a parked import " +
-					"from an absent one; point gpao at a node that serves it")
-			}
-			break
-		}
-		select {
-		case <-ctx.Done():
-			o.logln("gpao: shutting down")
-			return nil
-		case <-ticker.C:
-		}
-	}
-
 	// Verification runs on its own goroutine, never on the block reader.
 	//
 	// The original reason was that verification was unbounded; a child process
@@ -657,35 +634,6 @@ func (o *oracle) queryBlockMaxGas(ctx context.Context) (maxGas int64, answered b
 	maxGas = blockMaxGasFrom(res, unboundedCeiling)
 	o.logf("gpao: block max gas is %d", maxGas)
 	return maxGas, true
-}
-
-// queryPkgMetaRoute asks whether the node serves vm/qpkgmeta_json, and
-// reports whether it answered at all, split the way queryBlockMaxGas is. Any
-// path serves as the question: an absent one is a successful "absent", so
-// only an unknown-request answer means the route is missing, and a body the
-// verifier could not decode means it is unusable. Any other error is the node
-// describing itself, a restart or a replay, and is asked again.
-func (o *oracle) queryPkgMetaRoute(ctx context.Context) (served, answered bool) {
-	const probePath = "gno.land/p/gpao/probe"
-	res, err := o.client.RPCClient.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(probePath))
-	if err != nil {
-		o.errf("gpao: vm/qpkgmeta_json probe failed, asking again: %v", err)
-		return false, false
-	}
-	switch qerr := res.Response.Error; qerr.(type) {
-	case nil:
-		if _, err := decodePkgMeta(res.Response.Data); err != nil {
-			o.errf("gpao: the node answers vm/qpkgmeta_json in a form this build cannot read: %v", err)
-			return false, true
-		}
-		return true, true
-	case std.UnknownRequestError, *std.UnknownRequestError:
-		o.errf("gpao: the node refused vm/qpkgmeta_json: %v", qerr)
-		return false, true
-	default:
-		o.errf("gpao: vm/qpkgmeta_json probe answered an error, asking again: %v", qerr)
-		return false, false
-	}
 }
 
 // blockMaxGasFrom picks the ceiling from a consensus-params response, returning
