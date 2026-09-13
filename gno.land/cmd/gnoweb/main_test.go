@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,6 +122,28 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
 	}
+}
+
+func TestSecureHeadersMiddlewareUsesRemoteHelp(t *testing.T) {
+	t.Parallel()
+
+	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.NodeRemote = "http://internal-rpc:26657"
+	appcfg.RemoteHelp = "https://public-rpc.example.test"
+
+	handler := newSecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, appcfg)
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+	res := rec.Result()
+
+	csp := res.Header.Get("Content-Security-Policy")
+	require.Contains(t, csp, "connect-src 'self' https://public-rpc.example.test/abci_query")
+	require.NotContains(t, csp, "http://internal-rpc:26657/abci_query")
+	require.Contains(t, csp, "form-action 'self'")
+	require.Equal(t, "max-age=31536000", res.Header.Get("Strict-Transport-Security"))
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
