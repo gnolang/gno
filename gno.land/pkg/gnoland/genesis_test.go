@@ -506,3 +506,63 @@ func TestLoadGenesisParamsFile_RealmSection(t *testing.T) {
 		assert.Equal(t, "gno.land/r/demo/foo:bar", ggs.VM.RealmParams[0].Key)
 	})
 }
+
+// The balance sheet gnoland reads at start is the same file gnogenesis writes,
+// so a vesting entry has to work in both. This one used to be rejected as a
+// malformed line.
+func TestLoadGenesisBalancesFile_Vesting(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+	write := func(t *testing.T, body string) string {
+		t.Helper()
+		p := filepath.Join(t.TempDir(), "balances.txt")
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o600))
+		return p
+	}
+
+	t.Run("a vesting entry loads with its schedule", func(t *testing.T) {
+		t.Parallel()
+
+		bs, err := LoadGenesisBalancesFile(write(t,
+			"# a comment\n\n"+addr+"=1000ugnot;vesting=1000ugnot,100,200\n"))
+		require.NoError(t, err)
+		require.Len(t, bs, 1)
+
+		bal := bs[crypto.MustAddressFromString(addr)]
+		require.NotNil(t, bal.Vesting, "the schedule must survive loading")
+		assert.Equal(t, int64(200), bal.Vesting.EndTime)
+		assert.Equal(t, int64(1000), bal.Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("a delayed entry keeps its type", func(t *testing.T) {
+		t.Parallel()
+
+		bs, err := LoadGenesisBalancesFile(write(t,
+			addr+"=1000ugnot;vesting=1000ugnot,0,200;type=delayed\n"))
+		require.NoError(t, err)
+
+		bal := bs[crypto.MustAddressFromString(addr)]
+		require.NotNil(t, bal.Vesting)
+		assert.Equal(t, std.VestingDelayed, bal.Vesting.Type)
+	})
+
+	t.Run("a plain entry still loads, and carries no schedule", func(t *testing.T) {
+		t.Parallel()
+
+		bs, err := LoadGenesisBalancesFile(write(t, addr+"=1000ugnot\n"))
+		require.NoError(t, err)
+
+		bal := bs[crypto.MustAddressFromString(addr)]
+		assert.Nil(t, bal.Vesting)
+		assert.Equal(t, int64(1000), bal.Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("a malformed entry is still refused", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := LoadGenesisBalancesFile(write(t, "not-an-entry\n"))
+		require.Error(t, err)
+	})
+}

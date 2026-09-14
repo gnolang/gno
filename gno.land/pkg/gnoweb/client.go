@@ -289,7 +289,7 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
-	// Debug, not Info: `data` carries attacker-supplied OID/TID/file —
+	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
 	c.logger.Debug("querying node", "path", qpath, "data", string(data), "height", height)
@@ -391,6 +391,35 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 			"error", qres.Response.Error,
 		)
 		return nil, ErrClientRenderNotDeclared
+	case errors.Is(qerr, vm.ExportSizeExceededError{}):
+		// The node refused the query because its response would exceed
+		// maxQueryExportBytes. That is the same "response too large" condition
+		// gnoweb's own maxRPCResponseSize cap reports, so route it to the same
+		// sentinel (state.mapClientError renders it as 502, not a generic 500).
+		c.logger.Warn("node refused oversized response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
+	case errors.Is(qerr, vm.ExportDepthExceededError{}):
+		// Sibling of the size guard above: the node refused a response nested
+		// past maxExportDepth. Route it to the same sentinel so it renders as a
+		// 502 rather than a generic 500 — from the client's side it is the same
+		// "the node would not serialize this" condition.
+		//
+		// Defensive, not expected: the value-returning endpoints gnoweb calls
+		// (qpkg_json / qobject_json) resolve persisted data, whose children
+		// collapse to RefValue one level in, so they do not reach the depth cap
+		// (measured: a 600-node persisted list exports to 899 bytes). Mapped
+		// anyway so a future endpoint — or a shape that does not collapse —
+		// cannot regress this into a generic 500.
+		c.logger.Warn("node refused deeply nested response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
 	default:
 	}
 

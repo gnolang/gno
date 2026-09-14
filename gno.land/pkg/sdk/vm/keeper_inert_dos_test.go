@@ -154,7 +154,7 @@ func TestInertFlowDoesNotBoundTheTypeCheckWalk(t *testing.T) {
 				}
 			}()
 			return env.vmk.EnablePackage(ectx, MsgEnablePackage{
-				Approver: approver, PkgPath: parkedPath, PkgHash: PackageContentHash(mp),
+				Approver: approver, PkgPath: parkedPath, PkgHash: mustContentHash(t, mp),
 			})
 		}()
 		elapsed := time.Since(start)
@@ -198,4 +198,12 @@ func TestInertFlowDoesNotBoundTheTypeCheckWalk(t *testing.T) {
 				"run_submitters is empty by default (elapsed %v)", elapsed)
 		assert.Contains(t, err.Error(), "out of gas")
 	})
+}
+
+// mustContentHash is PackageContentHash for fixtures that are known to hash.
+func mustContentHash(t *testing.T, mp *std.MemPackage) string {
+	t.Helper()
+	h, err := PackageContentHash(mp)
+	require.NoError(t, err)
+	return h
 }

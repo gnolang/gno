@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -1143,4 +1144,159 @@ func TestAnteHandlerRequireSigForSimulateAcceptsValidSig(t *testing.T) {
 	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
 		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
 	checkValidTx(t, anteHandler, ctx, tx, true)
+}
+
+// The node's minimum and the block minimum are one rule, and both now go through
+// GasPrice.IsGTE. When this cross-multiplied inline it did not inherit IsGTE's
+// guards: a negative gas_wanted flips the sign of one side, so a fee of nothing
+// compared as sufficient and the transaction entered the mempool.
+//
+// Nothing was exploitable -- SetGasMeter runs two lines later and NewGasMeter
+// panics on a negative limit -- but the two implementations disagreed on the
+// same inputs, and only one of them had been fixed.
+func TestMempoolFeeRefusesNonPositiveGasWanted(t *testing.T) {
+	t.Parallel()
+
+	minGP, err := std.ParseGasPrice("1ugnot/1000gas")
+	require.NoError(t, err)
+	ctx := sdk.NewContext(sdk.RunTxModeCheck, nil, &bft.Header{ChainID: "test"}, nil).
+		WithMinGasPrices([]std.GasPrice{minGP}).
+		// No block gas price, so the node minimum is the only rule in play.
+		WithValue(GasPriceContextKey{}, std.GasPrice{})
+
+	feeOf := func(gasWanted, amount int64) std.Fee {
+		return std.Fee{GasWanted: gasWanted, GasFee: std.Coin{Denom: "ugnot", Amount: amount}}
+	}
+
+	// Controls: the rule still works for real gas, in both directions.
+	require.True(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 10)).IsOK(),
+		"paying above the minimum must be accepted")
+	require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 0)).IsOK(),
+		"paying nothing for real gas must be refused")
+
+	// A fee of nothing must not become sufficient by negating the gas.
+	for _, gasWanted := range []int64{-1, -1000, math.MinInt64} {
+		require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(gasWanted, 0)).IsOK(),
+			"gas_wanted %d must be refused", gasWanted)
+	}
+}
+
+// A TRANSACTION SIGNED BY AN OLDER CLIENT STILL ENTERS THE CHAIN. The fee moved
+// to the shape the Ledger Cosmos app will parse, and clients build the signature
+// payload themselves -- wallets, the genesis tooling, anything holding a key.
+// They cannot all ship on the day the node does, and signatures already written
+// into a genesis file cannot ship at all. So the handler verifies against the
+// current rendering and falls back to the previous one.
+//
+// See std.VerifySignaturePayload for why taking both is safe rather than merely
+// convenient: the two fee key sets are disjoint, so a signature still authorises
+// exactly one transaction.
+func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
+	t.Parallel()
+
+	e := newSingleSignerEnv(t)
+
+	// Signed over the gas_wanted/gas_fee rendering, which is what a client
+	// that builds the payload itself may still produce.
+	legacyBytes, err := std.GetSignaturePayloadLegacy(e.signDoc())
+	require.NoError(t, err)
+
+	// Guard the guard: if the two renderings ever coincide, this test would
+	// pass without exercising the fallback at all.
+	currentBytes, err := std.GetSignaturePayload(e.signDoc())
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, legacyBytes,
+		"the two renderings are identical, so this test proves nothing")
+
+	tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, legacyBytes, "")
+	checkValidTx(t, e.anteHandler, e.ctx, tx, false)
+}
+
+// AND THE FALLBACK IS NOT A BYPASS. Accepting a second rendering must not widen
+// what a signature authorises: bytes signed over one sign doc must still be
+// refused against a different one, and nonsense must still be refused outright.
+// A fallback that swallowed the failure would pass every test above and this is
+// the one that would catch it.
+func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("signed over a different chain id", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.ChainID = "some-other-chain"
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("signed over a different sequence", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.Sequence = 99
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("not a signature at all", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
+			PubKey: e.priv.PubKey(), Signature: []byte("nope"),
+		}}, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+}
+
+// singleSignerEnv is a funded account with number 0 and sequence 0, the handler
+// that judges its transactions, and a message and fee for it to sign. Every test
+// builds its own: the ante handler writes to the store before it reaches
+// signature verification, and the store is not safe for concurrent use.
+type singleSignerEnv struct {
+	anteHandler sdk.AnteHandler
+	ctx         sdk.Context
+	priv        crypto.PrivKey
+	msgs        []std.Msg
+	fee         std.Fee
+}
+
+func newSingleSignerEnv(t *testing.T) singleSignerEnv {
+	t.Helper()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	return singleSignerEnv{
+		anteHandler: anteHandler,
+		ctx:         ctx,
+		priv:        priv,
+		msgs:        []std.Msg{tu.NewTestMsg(addr)},
+		fee:         tu.NewTestFee(),
+	}
+}
+
+// signDoc is the document the account's next transaction is signed over.
+func (e singleSignerEnv) signDoc() std.SignDoc {
+	return std.SignDoc{
+		ChainID:       e.ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      0,
+		Fee:           e.fee,
+		Msgs:          e.msgs,
+	}
 }

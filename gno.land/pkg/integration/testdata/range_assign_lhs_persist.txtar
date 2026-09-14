@@ -1,0 +1,57 @@
+# Regression (VM soundness + persistence): ASSIGN-form range with a non-NameExpr
+# LHS (`for i, m[k] = range x`) used to range over the wrong value-stack operand,
+# writing a type-confused value (a uint8 byte from the misread subject) into a
+# string-typed map slot and PERSISTING it. A later len(m[k]) then threw an
+# uncatchable host panic ("unexpected type for len(): uint8"), failing the tx
+# with gas already burned and bricking the key across transactions.
+#
+# This pins the fixed behavior: tx1 stores the correct last element and returns
+# the correct index, and later txs read it back cleanly. Pre-fix, tx1 returned
+# (2 int) and tx2 failed.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/rangebug -pkgpath gno.land/r/test/rangebug -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# tx1: `for i, m["k"] = range []string{"A","B","C","D","E"}`.
+# Correct Go semantics: i == 4 (last index) and m["k"] == "E".
+gnokey maketx call -pkgpath gno.land/r/test/rangebug -func Corrupt -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout '(4 int)'
+stdout OK!
+
+# tx2: read len(m["k"]) in a LATER tx (proves persistence). Must be 1 ("E").
+# Pre-fix this threw "unexpected type for len(): uint8" and the tx failed.
+gnokey maketx call -pkgpath gno.land/r/test/rangebug -func ReadLen -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout '(1 int)'
+stdout OK!
+
+# tx3: read the element itself back — must be the correct persisted "E".
+gnokey maketx call -pkgpath gno.land/r/test/rangebug -func Read -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout '("E" string)'
+stdout OK!
+
+-- rangebug/gnomod.toml --
+module = "gno.land/r/test/rangebug"
+gno = "0.9"
+
+-- rangebug/rangebug.gno --
+package rangebug
+
+var m = map[string]string{"k": "orig"}
+
+// Corrupt runs the ASSIGN-form range with an IndexExpr (m["k"]) value target
+// and returns the final index. Correct result: i == 4, m["k"] == "E".
+func Corrupt(cur realm) int {
+	var i int
+	for i, m["k"] = range []string{"A", "B", "C", "D", "E"} {
+	}
+	return i
+}
+
+// ReadLen reads len(m["k"]) in a later tx. Pre-fix, m["k"] held a uint8 and this
+// threw an uncatchable host panic.
+func ReadLen(cur realm) int { return len(m["k"]) }
+
+// Read returns the persisted element.
+func Read(cur realm) string { return m["k"] }

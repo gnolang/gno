@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -241,6 +242,60 @@ func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
 	})
 }
 
+// A gas price quoted in anything but ugnot makes std.GasPrice.IsGTE fail on
+// every fee comparison, so the ante handler would reject every transaction the
+// chain ever sees. auth.Params.Validate cannot catch it -- tm2 hosts whichever
+// chain is built on it and only checks that the denom is well formed -- so
+// gno.land asserts its own denom at InitChain, while the chain still fails to
+// boot rather than coming up unusable.
+func TestInitChainer_GenesisGasPriceDenom(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(gp std.GasPrice) abci.RequestInitChain {
+		state := DefaultGenState()
+		state.Auth.Params.InitialGasPrice = gp
+		pubKey := ed25519.GenPrivKey().PubKey()
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: state,
+		}
+	}
+
+	t.Run("ugnot accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(std.GasPrice{
+			Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1},
+		}))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("foreign denom aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		assert.PanicsWithError(t, `genesis auth initial_gasprice must be denominated in ugnot, got "atom"`, func() {
+			app.InitChain(newInitReq(std.GasPrice{
+				Gas: 1000, Price: std.Coin{Denom: "atom", Amount: 1},
+			}))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -414,7 +469,7 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 // panic, not via the ResponseInitChain.Error field that tm2's
 // consensus/replay.go:339-342 silently discards. Without this guarantee
 // a hardfork chain can boot in a state where genesis validators have no
-// v3 operator-keyed management plane — the safety net would fire but
+// v0 operator-keyed management plane — the safety net would fire but
 // not actually stop the boot.
 func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	t.Parallel()
@@ -431,11 +486,11 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 
 	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
 	// an error from it is the realistic shape of an assertion failure
-	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// (uncovered genesis validator → v0 panics → vmk.Call returns the
 	// wrapped error).
 	mock := &mockVMKeeper{
 		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
-			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+			return "", fmt.Errorf("synthetic v0 assertion: uncovered validator")
 		},
 	}
 
@@ -455,7 +510,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	}
 
 	assert.PanicsWithError(t,
-		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		"genesis valoper coverage assertion failed: synthetic v0 assertion: uncovered validator",
 		func() { cfg.InitChainer(testCtx, req) },
 		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
 	)
@@ -1143,7 +1198,7 @@ func TestEndBlocker(t *testing.T) {
 		// Defense-in-depth: a non-empty proposed where every entry has
 		// Power=0 is still a "remove all" — len > 0 but live count is
 		// zero. Floor must catch this regardless of outer-list length.
-		// (Reachable via v3 if a proposal's deltas remove every
+		// (Reachable via v0 if a proposal's deltas remove every
 		// validator and produce an empty published set; the floor is
 		// the consensus-safety backstop.)
 		current := generateValidatorUpdates(t, 2)
@@ -3721,10 +3776,16 @@ func TestInitChainer_VestingAccount(t *testing.T) {
 			require.True(t, qres.IsOK(), "account query response: %v", qres)
 
 			if tt.isVesting {
-				// The account should be a vesting account type.
-				assert.Contains(t, string(qres.Data), "Vesting")
+				// An ordinary account carrying a schedule, so what identifies it
+				// is the field rather than a type name.
+				assert.Contains(t, string(qres.Data), `"vesting"`)
+				assert.Contains(t, string(qres.Data), vestingAmount.String())
 				// The account number must be present.
 				assert.Contains(t, string(qres.Data), "account_number")
+			} else {
+				// An account with no schedule must not carry the key at all: that
+				// is what keeps the field out of every existing account's bytes.
+				assert.NotContains(t, string(qres.Data), `"vesting"`)
 			}
 
 			// Verify the coins are set correctly.
@@ -3952,9 +4013,12 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	cfg.applyBalance(ctx, Balance{Address: vester, Amount: amount, Vesting: &std.VestingSchedule{
 		OriginalVesting: amount, StartTime: 100, EndTime: 1_000_000,
 	}})
-	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
-	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
 	require.IsType(t, &GnoAccount{}, acck.GetAccount(ctx, vester),
+		"a vesting balance is an ordinary account carrying a schedule")
+	require.False(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
+		"the schedule must have been set")
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
+	require.True(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
 		"a plain entry must clear an earlier vesting schedule")
 	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
 		"and the funds must be spendable")
@@ -3964,6 +4028,40 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	require.Equal(t, int64(250+499), bankk.TotalSupply(ctx, ugnot.Denom))
 	msg, broken := bank.AllInvariants(bankk.ViewKeeper)(ctx)
 	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
+}
+
+// TestApplyBalanceChoosesInitCoinsOrSetCoins pins the branch applyBalance takes
+// on cfg.acck.GetAccount, using mocks so the choice is asserted directly rather
+// than inferred from the resulting balance: a first sighting must go through
+// InitCoins, and a repeat must go through SetCoins, and neither may call the
+// other.
+func TestApplyBalanceChoosesInitCoinsOrSetCoins(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck := &mockAuthKeeper{}
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("applyBalance-branch"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 100}}
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.initCoinsCalls, "a first sighting must take the InitCoins branch")
+	require.Equal(t, 0, bankk.setCoinsCalls, "and must not also call SetCoins")
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.setCoinsCalls, "a repeat must take the SetCoins branch")
+	require.Equal(t, 1, bankk.initCoinsCalls, "and must not call InitCoins again")
 }
 
 // TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
@@ -4051,7 +4149,6 @@ func TestTxCarriesCode(t *testing.T) {
 		// work done for free. Its omission here was a live hole, reproduced end
 		// to end against a running app.
 		{"enable_package alone", []std.Msg{vm.MsgEnablePackage{Approver: addr}}, true},
-		{"disable_package alone", []std.Msg{vm.MsgDisablePackage{Approver: addr}}, true},
 		{"enable_package behind a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgEnablePackage{Approver: addr}}, true},
 	}
 	for _, tt := range tests {
@@ -4086,12 +4183,14 @@ func TestTxCodeMsgSigners(t *testing.T) {
 		{
 			"add_package alone",
 			[]std.Msg{vm.MsgAddPackage{Creator: alice}},
-			[]crypto.Address{alice}, nil,
+			[]crypto.Address{alice},
+			nil,
 		},
 		{
 			"run alone",
 			[]std.Msg{vm.MsgRun{Caller: alice}},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 		{
 			// Both in one tx is the case that separates the two rules: under
@@ -4102,7 +4201,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				vm.MsgAddPackage{Creator: alice},
 				vm.MsgRun{Caller: bob},
 			},
-			[]crypto.Address{alice}, []crypto.Address{bob},
+			[]crypto.Address{alice},
+			[]crypto.Address{bob},
 		},
 		{
 			// MsgCall names a package but carries no source, so it must not be
@@ -4119,7 +4219,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				bank.MsgSend{FromAddress: bob, ToAddress: alice},
 				vm.MsgRun{Caller: alice},
 			},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 	}
 	for _, tt := range tests {
@@ -4243,4 +4344,195 @@ func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
 				"an ordinary message must not be refused for its signature")
 		}
 	})
+}
+
+// A vesting account must also be whitelistable against the token lock. The two
+// are meant to be combined -- see docs/CONSTITUTION.md, "Whitelisted funds
+// remain subject to the vesting schedule" -- and the combination used to abort
+// genesis, because applyBalance built a bare std.BaseAccount subtype while
+// applyUnrestrictedAddrs asserts every genesis account to *GnoAccount.
+func TestInitChainer_VestingAccountCanBeWhitelisted(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("vested-investor"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount, Vesting: &std.VestingSchedule{
+		OriginalVesting: amount, StartTime: 100, EndTime: 200,
+	}})
+
+	// The panic this guards against happened here.
+	require.NotPanics(t, func() {
+		cfg.applyUnrestrictedAddrs(ctx, []crypto.Address{addr})
+	}, "a vesting account must be whitelistable")
+
+	acc := acck.GetAccount(ctx, addr)
+	unrestricter, ok := acc.(std.AccountUnrestricter)
+	require.True(t, ok, "a vesting account must carry the token-lock attributes")
+	assert.True(t, unrestricter.IsTokenLockWhitelisted(), "the whitelist bit must have been set")
+
+	// Both rules still apply: whitelisted against the token lock, and still
+	// locked by the schedule. Whitelisting must not have cleared it.
+	assert.False(t, acc.GetVesting().IsZero(), "whitelisting must not clear the schedule")
+	locked := acc.LockedCoins(time.Unix(150, 0))
+	assert.Equal(t, int64(500), locked.AmountOf(ugnot.Denom),
+		"halfway through, half must still be locked")
+}
+
+// applyBalance is the runtime path that builds accounts, and it holds the only
+// guards on a genesis schedule. Balance.Verify checks the same two things, but it
+// runs only under `gnogenesis verify`, which an operator can skip; these must
+// abort the boot on their own.
+func TestInitChainer_RejectsABadVestingSchedule(t *testing.T) {
+	t.Parallel()
+
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+
+	tests := []struct {
+		name    string
+		vesting *std.VestingSchedule
+		want    string
+	}{
+		{
+			name: "vesting more than the balance",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: ugnot.Denom, Amount: 5000}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "vesting a denom the balance does not hold",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "atom", Amount: 1}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "linear vesting that starts after it ends",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				StartTime:       300,
+				EndTime:         100,
+			},
+			want: "invalid vesting schedule",
+		},
+		{
+			name: "an end time of zero",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				Type:            std.VestingDelayed,
+			},
+			want: "invalid vesting schedule",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := memdb.NewMemDB()
+			mainKey := store.NewStoreKey("mainKey")
+			ms := store.NewCommitMultiStore(db)
+			ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+			require.NoError(t, ms.LoadLatestVersion())
+			ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+			prmk := params.NewParamsKeeper(mainKey)
+			acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+			bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+			prmk.Register(auth.ModuleName, acck)
+			prmk.Register(bank.ModuleName, bankk)
+			cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+			addr := crypto.AddressFromPreimage([]byte("bad-vester"))
+			bal := Balance{Address: addr, Amount: amount, Vesting: tt.vesting}
+
+			defer func() {
+				r := recover()
+				require.NotNil(t, r, "a bad schedule must abort genesis")
+				assert.Contains(t, fmt.Sprint(r), tt.want)
+				// Nothing may be left behind by a boot that aborted.
+				assert.Nil(t, acck.GetAccount(ctx, addr),
+					"the account must not have been written")
+			}()
+			cfg.applyBalance(ctx, bal)
+		})
+	}
+}
+
+// The whole path an operator actually takes: a balance sheet with a vesting
+// entry, loaded from file, applied at genesis, and then enforced by the bank.
+// Each half is covered on its own; this is the seam between them, where a
+// schedule that parses but never reaches the account would otherwise go
+// unnoticed.
+func TestInitChainer_VestingFromABalanceSheetIsEnforced(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+	sheet := filepath.Join(t.TempDir(), "balances.txt")
+	require.NoError(t, os.WriteFile(sheet,
+		[]byte(addr+"=1000ugnot;vesting=1000ugnot,100,200\n"), 0o600))
+
+	loaded, err := LoadGenesisBalancesFile(sheet)
+	require.NoError(t, err)
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	for _, bal := range loaded.List() {
+		cfg.applyBalance(ctx, bal)
+	}
+
+	vester := crypto.MustAddressFromString(addr)
+	to := crypto.AddressFromPreimage([]byte("sheet-vesting-to"))
+
+	atTime := func(unix int64) sdk.Context {
+		return ctx.WithBlockHeader(&bft.Header{ChainID: ctx.ChainID(), Time: time.Unix(unix, 0)})
+	}
+
+	// Before it starts: the schedule made it all the way from the file.
+	before := atTime(50)
+	require.Error(t, bankk.SendCoins(before, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
+		"a schedule read from the sheet must be enforced")
+	require.Equal(t, int64(1000), bankk.GetCoin(before, vester, ugnot.Denom))
+
+	// Halfway: exactly half is spendable, so this pins the schedule's numbers and
+	// not merely that something is locked.
+	half := atTime(150)
+	require.Error(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 501}}))
+	require.NoError(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+
+	// After it ends: the rest is free.
+	after := atTime(250)
+	require.NoError(t, bankk.SendCoins(after, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+	require.Zero(t, bankk.GetCoin(after, vester, ugnot.Denom))
 }

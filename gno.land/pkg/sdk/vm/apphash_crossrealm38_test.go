@@ -150,13 +150,85 @@ import (
 // CEILING on a storage deposit when a message declares no MaxDeposit, so a
 // single message may now add at most 1 MB of realm state rather than 6 MB
 // before it is refused. Measured against all 321 genesis packages the largest
-// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// deploy is r/gnoland/boards2/v0 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
 // Bumped again by the two inert-charge vm params, for the same reason as
 // run_submitters above: two more keys, written unconditionally. Behavior at
 // this hash is unchanged — inert_submission_charge defaults to empty, which
 // means off, and the scenario submits nothing under the "inert" policy anyway.
-const expectedCrossrealm38Hash = "3de2574b220ca19d04a19a6287d9ad82fdd2edf3770b7dc107da19b3be1775a2"
+//
+// Hash bumped by the native-input-bounds PR: crypto/bn254's G1Add/G1Mul got
+// their length checks moved into the .gno wrapper (ahead of the native call, so
+// an oversized input is not copied into Go memory for a flat fee), plus a test
+// for that. Both bn254.gno and bn254_test.gno are stdlib source bytes committed
+// into genesis state, so the root moves. Attributed by bisection against the
+// OriginSend value above: base .gno files give b43e5fd5, bn254_test.gno alone
+// gives a25dc7a4, both give the value below; the innerHash gas-table change moves
+// nothing (gas is not committed state). Behavior is unchanged — the crossrealm38
+// filetest passes and the bn254 EIP-196/197 vectors are untouched.
+//
+// Bumped again by the entity-reference hardening of PercentEncodeURL. The
+// change to chain/markdown is comment-only on the .gno side — the encoding
+// rule itself lives in the injected Go implementation — but stdlib .gno
+// source bytes are genesis state, so documenting the new rule moves the
+// root just as the GetCoin bump above did. Re-derived after merging develop,
+// so the value below covers the bn254 wrapper bounds above and this change
+// together.
+//
+// Bumped once more within this branch by extending that same PercentEncodeURL
+// doc comment (the `&amp;` round-trip note from review). Still comment-only,
+// still consensus-breaking for the reason above; the merge commit pins
+// 0e8e8714 without it.
+//
+// Re-derived for the combination: master's params/deposit bumps and this
+// branch's stdlib source bumps both move the root, so neither side's value
+// survives the merge.
+//
+// Bumped again by the chain/params reader API: params.gno gains six GetXxx
+// declarations and the doc describing what a wrong-type read does. Stdlib .gno
+// source bytes are genesis state, so both the declarations and the comment move
+// the root. The crossrealm38 scenario calls none of them; the shift is the
+// stdlib source change alone. Re-derived after merging master, whose own
+// encode/decode work moved the root too, so neither side's value survives.
+//
+// Bumped 2026-08-26 by the chain.NewCoins copy fix: it edits coins.gno and
+// coins_test.gno, and stdlib MemPackages carry both files' source bytes into
+// genesis state. The scenario never calls NewCoins, and the
+// zrealm_crossrealm38.gno filetest still passes, so behavior is unchanged.
+// Checked that the source bytes are the whole cause and not the copy the fix
+// adds: starting from the pre-fix file, one comment line moves the root on its
+// own.
+//
+// Bumped 2026-08-27 by a doc fix on Coin.Add and Coin.Sub in coins.gno. Both
+// claimed an invalid result panics; neither checks the sign, and 5ugnot.Sub
+// (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
+// calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
+//
+// Bumped 2026-09-10 by data-backing byte slices: doOpSliceLit now allocates a
+// flat Data-backed ArrayValue for []byte composite literals instead of one
+// TypedValue per element, so those arrays persist under a different amino
+// encoding and the iavl root moves. Attributed by bisection: reverting
+// op_expressions.go alone restores 1d05023c, while reverting gonative.go's
+// Go2GnoValue byte arm or doOpSliceLit2's indexed-literal path leaves the
+// value below unchanged, so doOpSliceLit's byte path is the whole cause.
+// Narrowed once more to the two 136-byte HMAC pads in crypto/cometblszk, the
+// only package-scope []byte literals in the stdlibs that setupTestEnv commits
+// wholesale: excluding len-136 literals from the Data path also restores
+// 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
+// []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
+// still passes.
+//
+// Bumped by the crypto/modexp operand cap and gas rework: modexp.gno gained a
+// MaxOperandLen const, a length guard in ModExp, and doc text for the new
+// rejection behavior. stdlib .gno source bytes are committed into genesis
+// state, so the root moves. Note this branch also adds modexp_test.gno, and
+// loadStdlibPackage reads stdlibs with MPStdlibAll, which keeps _test.gno
+// files — so that file is inside the Merkle root too, not just modexp.gno.
+// crossrealm38 calls neither, so the shift is those source bytes alone. The
+// gas-row change moves nothing here: gas is not committed state. Re-derived
+// after merging develop, whose own changes moved the root too, so neither
+// side's value survives.
+const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

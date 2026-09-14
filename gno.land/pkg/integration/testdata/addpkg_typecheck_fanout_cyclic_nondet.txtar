@@ -8,8 +8,8 @@
 #
 # All six packages below are identical and all rejected by go/types for the same
 # invalid recursive type, but the charge lands BEFORE go/types runs, so each is
-# billed at random: GAS USED is 1636245 (1634985 on the last tx, which is 1260
-# cheaper for unrelated reasons) or 1942245.
+# billed at random: GAS USED is 1694995 (1693735 on the last tx, which is 1260
+# cheaper for unrelated reasons) or 2000995.
 #
 # On a real chain that is a divergent DeliverTx result between validators, and
 # ABCIResult.Error is hashed into LastResultsHash.
@@ -27,22 +27,22 @@
 gnoland start
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc1 -pkgpath gno.land/r/foobar/cyc1 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc2 -pkgpath gno.land/r/foobar/cyc2 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc3 -pkgpath gno.land/r/foobar/cyc3 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc4 -pkgpath gno.land/r/foobar/cyc4 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc5 -pkgpath gno.land/r/foobar/cyc5 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 ! gnokey maketx addpkg -pkgdir $WORK/cyc6 -pkgpath gno.land/r/foobar/cyc6 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
-stdout 'GAS USED:\s+163[0-9]{4}\b'
+stdout 'GAS USED:\s+169[0-9]{4}\b'
 
 -- cyc1/gnomod.toml --
 module = "gno.land/r/foobar/cyc1"
