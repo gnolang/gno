@@ -2,6 +2,10 @@
 set -euo pipefail
 
 SCENARIO_CI=true
+# Consensus-only: no realm/tx work, so skip loading the example packages and the
+# on-chain PoA valset realm in genesis (validators reach consensus via the
+# genesis validator set). This avoids replaying 300+ packages at every start.
+SCENARIO_GENESIS_EXAMPLES=false
 
 # 5 validators, stop/reset/restart 2.
 # 3/5 remain during the reset (60% < 2/3 threshold) so the chain must halt.
