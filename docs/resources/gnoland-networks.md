@@ -5,7 +5,7 @@
 | Network           | RPC Endpoint                            | Chain ID    | Deployment files                                                                                                           |
 |-------------------|-----------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
-| Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                |
+| Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/betanet`](../../misc/deployments/betanet)                                                               |
 | Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](../../misc/loop)                                                                                             |
 | Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
 
