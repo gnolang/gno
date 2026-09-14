@@ -1920,28 +1920,18 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	return slices.Contains(sb.Consts, n)
 }
 
-// IsAssignableName returns false iff n denotes a package-level func decl
-// (per its NameSource in the block that declares it) or a uverse name,
-// i.e. a name that may not appear as an assignment LHS. Unlike
-// checkAssignableTo, this is about the name's object kind, not type
-// assignability. Constants and type names never reach this check: both
-// are folded to const expressions during preprocessing.
-func (sb *StaticBlock) IsAssignableName(store Store, n Name) bool {
-	idx, ok := sb.GetLocalIndex(n)
-	bp := sb.GetParentNode(store)
-	for {
-		if ok {
-			return sb.NameSources[idx].Type != NSFuncDecl
-		} else if bp != nil {
-			idx, ok = bp.GetLocalIndex(n)
-			sb = bp.GetStaticBlock()
-			bp = bp.GetParentNode(store)
-		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
-			return false
-		} else {
-			return true
-		}
+// IsAssignableNameAt reports whether the declaration at path may be an
+// assignment LHS: false for package-level func decls (NSFuncDecl) and
+// uverse names. Path-keyed, not name-keyed: an assignment before a
+// shadowing declaration in the same block targets the outer binding,
+// which a name walk misses by stopping at the shadow's reserved slot.
+func (sb *StaticBlock) IsAssignableNameAt(store Store, path ValuePath) bool {
+	// Uverse NameSources are zero-valued, so they cannot answer this.
+	if path.Type == VPUverse {
+		return false
 	}
+	bn := sb.GetBlockNodeForPath(store, path)
+	return bn.GetStaticBlock().NameSources[path.Index].Type != NSFuncDecl
 }
 
 // Implements BlockNode.

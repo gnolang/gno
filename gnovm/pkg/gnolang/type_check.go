@@ -1040,6 +1040,8 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
 		} else if last.GetIsConst(store, clx.Name) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else if !last.GetStaticBlock().IsAssignableNameAt(store, clx.Path) {
+			panic(fmt.Sprintf("cannot assign to func %v", clx.Name))
 		} else {
 			shouldPanic = false
 		}

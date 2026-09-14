@@ -1,4 +1,4 @@
-# ADR: Derive `IsAssignableName` from `NameSources`, drop `StaticBlock.UnassignableNames`
+# ADR: Derive `IsAssignableNameAt` from `NameSources`, drop `StaticBlock.UnassignableNames`
 
 ## Context
 
@@ -11,9 +11,17 @@ calling `Reserve(false, nx, n, NSFuncDecl, -1)` on the same package
 block. Every other kind of unassignable name is handled elsewhere —
 constants are folded to `ConstExpr` (and tracked in `Consts`), type
 names are folded to `constTypeExpr`, and uverse names are refused by an
-explicit branch inside `IsAssignableName` (formerly `IsAssignable`;
+explicit branch inside `IsAssignableNameAt` (formerly `IsAssignable`;
 renamed to avoid confusion with type assignability à la
 `checkAssignableTo`).
+
+The name-keyed walk had a second defect, exposed by #6060: it stops at
+the first block holding a slot for the name, which for an assignment
+placed *before* a shadowing declaration in the same block is the shadow's
+reserved slot, not the outer binding the assignment actually targets.
+`f = func(){}; f := 1` inside a block therefore overwrote the package-level
+`f`. The `const f`/`type f` spellings were rejected on master only by the
+name-keyed const check, which #6060 makes path-aware for the same reason.
 
 That `Reserve` call already records the same fact in
 `StaticBlock.NameSources`: the entry at the name's local index carries
@@ -24,12 +32,19 @@ list" — which is false.
 
 ## Decision
 
-- Delete the `UnassignableNames` field. `IsAssignableName` now answers from
-  the block that declares the name: `NameSources[idx].Type != NSFuncDecl`,
-  an O(1) lookup instead of an O(n) scan. Indexing `NameSources` by a
-  `GetLocalIndex` result is safe: `Define2` panics unless
-  `NumNames == len(NameSources)`, and the same unguarded idiom is
-  already used for `NSTypeDecl` lookups in `preprocess.go`.
+- Delete the `UnassignableNames` field. `IsAssignableNameAt(store, path)`
+  answers from the block the NameExpr's already-resolved path names
+  (`GetBlockNodeForPath`, as `GetIsConstAt` does):
+  `NameSources[path.Index].Type != NSFuncDecl`. Indexing by the path
+  index is safe: `Define2` panics unless `NumNames == len(NameSources)`.
+- Move the check from an `AssignStmt`-only loop in `preprocess.go` into
+  `assertValidAssignLhs` (`type_check.go`), after its blank/uverse/const
+  branches. That gate is shared by assignments, inc/dec and range
+  clauses, so `for _, f = range ...` into a package func is now rejected
+  too (`tests/files/assign43.gno`); on master it ran. The error reads
+  `cannot assign to func f`, alongside the existing `cannot assign to
+  const`. Position-correct: an assignment before a shadowing declaration
+  checks the outer binding (`tests/files/assign42.gno`).
 - Retire amino field 8 with a blank `_ struct{} `amino:"reserved"``
   field — the mechanism introduced for `Externs` (field 10) in #5301.
   Field numbers are unchanged; decoders skip field 8 if present in old
@@ -46,8 +61,13 @@ list" — which is false.
 
 ## Consequences
 
-- One less field to keep in sync with `NameSources`, and an O(1) check
-  instead of an O(n) scan in the preprocessor's assign check.
+- One less field to keep in sync with `NameSources`, and a path-keyed
+  check in the shared LHS gate instead of a name scan on one statement
+  kind. The shadow-before-assignment hole is closed for all three
+  spellings once #6060 lands (verified on a merge of both branches).
+- #6060 edits the adjacent const branch of `assertValidAssignLhs`
+  (`GetIsConst` to `GetIsConstAt`); the two merge cleanly in either
+  order, verified with #6060's shadow tests and the probes above.
 - One less field in the amino/proto schema for `StaticBlock`. Block
   nodes are not persisted to the store backend today
   (`SetBlockNode`'s backend write is a TODO), so this is schema
@@ -55,7 +75,5 @@ list" — which is false.
   `-run Gas`, `TestTestdata`) all pass unchanged.
 - Like the `Externs` removal, the reserved slot must stay in place;
   amino field removal remains order-brittle.
-- Possible follow-ups, out of scope here: an `IsAssignableNameAt(store,
-  path)` fast path (the `AssignStmt` call site already has a resolved
-  `ValuePath`, mirroring `GetIsConstAt`), and merging `Consts` into
+- Possible follow-up, out of scope here: merging `Consts` into
   `NameSources` the same way, retiring the last parallel name-list.
