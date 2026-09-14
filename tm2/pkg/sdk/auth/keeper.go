@@ -405,7 +405,7 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 // We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
 // two scenarios differently. In both cases we move the price by at least 1 unit (instead of rounding the
 // integer division down to 0), otherwise the price ratchets: it can rise but never fall. When increasing we
-// cap nothing (yet); when decreasing we floor the result at the initial gas price. This is just a starting
+// cap the numerator at MaxGasPriceComponent; when decreasing we apply the initial gas price floor. This is just a starting
 // point. Down the line, the solution might not be even representable by one simple formula
 func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
 	// If no block gas price is set, there is no need to change the last gas price.
@@ -430,6 +430,15 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
+	// A target of zero or less is not a target, and both branches below divide by
+	// it. Consensus params accept any Block.MaxGas at or above -1: a limit under
+	// 100 truncates the target to zero, and -1 means unlimited, which has no
+	// congestion to measure. This runs in EndBlocker, so dividing by zero there
+	// would halt the chain rather than fail one transaction.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
+
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
@@ -449,13 +458,12 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// increase at least 1
 		diff := maxBig(num, bigOne)
 		num.Add(lastPriceInt, diff)
-		// XXX should we cap it with a max gas price?
+		// Cap before int64 conversion, including repeated congested blocks.
+		if num.Cmp(big.NewInt(MaxGasPriceComponent)) > 0 {
+			num.SetInt64(MaxGasPriceComponent)
+		}
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
-		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
-		if lastPriceInt.Cmp(initPriceInt) == -1 {
-			return params.InitialGasPrice
-		}
 		num.Sub(targetGasInt, gasUsedInt)
 		num.Mul(num, lastPriceInt)
 		num.Div(num, targetGasInt)
@@ -466,8 +474,29 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// value of GasPricesChangeCompressor (see issue #5906).
 		diff := maxBig(num, bigOne)
 		num.Sub(lastPriceInt, diff)
-		// gas price should not be less than the initial gas price,
-		num = maxBig(num, initPriceInt)
+		// The floor is a comparison of two ratios, which is what
+		// std.GasPrice.IsGTE exists to do -- the same rule the ante handler
+		// prices transactions by. Going through it keeps one implementation of
+		// the comparison and inherits its guards: a bare cross-product here
+		// would read a zero Gas on either side as "no floor" and a negative one
+		// as an inverted floor, and would compare amounts across denominations
+		// as if they were commensurate.
+		//
+		// num is within int64 by construction: diff is at least 1 and at most
+		// lastPriceInt (gasUsed >= 0 and c >= 1 bound the quotient above by
+		// lastPriceInt), so num lands in [0, lastPriceInt-1].
+		initial := params.InitialGasPrice
+		candidate := lastGasPrice
+		candidate.Price.Amount = num.Int64()
+		// initial.IsGTE(candidate) is candidate <= initial, so the floor also
+		// fires on an exact tie, as it did when this was a cross-product. An
+		// error means one of the two is not a usable ratio, and then there is no
+		// floor to apply.
+		if atOrBelowFloor, err := initial.IsGTE(candidate); err == nil && atOrBelowFloor {
+			// Adopt the initial price whole rather than rounding its ratio onto
+			// the stored Gas.
+			return initial
+		}
 	}
 
 	if !num.IsInt64() {

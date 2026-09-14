@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/moul/helplink"
+	"gno.land/p/moul/helplink/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

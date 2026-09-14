@@ -3,11 +3,11 @@ package foo1155
 import (
 	"testing"
 
-	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/grc1155/v0"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin := address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	bob := address("g1ze6et22ces5atv79y4xh38s4kuraey4y2fr6tw")
 	tid1 := grc1155.TokenID("1")
 

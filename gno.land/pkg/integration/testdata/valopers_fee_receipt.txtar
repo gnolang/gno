@@ -1,0 +1,219 @@
+# The valoper register fee must actually be RECEIVED, not merely declared.
+#
+# unsafe.OriginSend() reports the transaction's declared send envelope, not
+# what this realm received. Only a direct `maketx call` on valopers credits
+# the envelope to valopers. For a `maketx run` the keeper sets
+# pkgAddr := caller, so the coins move from the caller to the caller and never
+# land anywhere at all, while OriginSend() still reports the full amount. So
+# the amount check alone verifies intent, never receipt.
+#
+# The guard is IsUserCall rather than an address comparison because a run
+# script's realm is address-indistinguishable from its user: inside
+# `main(cur realm)` the ephemeral realm's own address IS the caller's EOA
+# address. Every address-based guard here accepts a `maketx run` -- Register's
+# squat guard and UpdateSigningKey's auth-list check both pass. Only the
+# pkgPath differs.
+#
+# Reported by @D4ryl00. Both fees default to 0 and genesis
+# leaves them there, so nothing was live; this pins the fix before anyone
+# proposes a nonzero fee.
+#
+# Sections:
+#   1. while the fee is unset, a `maketx run` registration still works
+#      (the compatibility property the guard must not break)
+#   2. governance raises register_fee to 1000ugnot
+#   3. the `maketx run` bypass is refused, and valopers received nothing
+#   4. underpaying via a direct call is still caught by the amount check
+#   5. the legitimate direct call succeeds AND the realm actually receives
+#   6. the same shape on UpdateSigningKey's rotation fee
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduser test2 1010000000ugnot
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v0
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+# --- 1. fee unset: a maketx run registration is accepted, as before ---
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/register_free.gno
+stdout OK!
+stdout 'registered via run: freeop'
+
+# --- 2. governance raises the fee ---
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 80_000_000 -broadcast -chainid=tendermint_test member $WORK/run/set_fee.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/sys/params.GetValoperRegisterFee()'
+stdout '1000 uint64'
+
+# --- 3. the bypass is refused ---
+# Before the fix this succeeded: registration landed and valopers received
+# zero, because the 1000ugnot envelope was credited to the run script's own
+# ephemeral realm.
+! gnokey maketx run -send 1000ugnot -gas-fee 6000001ugnot -gas-wanted 80_000_000 -broadcast -chainid=tendermint_test test2 $WORK/run/register_paid.gno
+stderr 'call this directly as a user'
+
+# Nothing was registered, and valopers holds nothing.
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test member $WORK/run/probe.gno
+stdout 'valopers balance: 0'
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+! stdout 'paidop'
+
+# --- 4. underpaying a direct call is still caught by the amount check ---
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -send 500ugnot -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args paidop -args 'a valid description for the operator profile' -args cloud -args $test2_user_addr -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test test2
+stderr 'payment must not be less than 1000ugnot'
+
+# --- 5. the legitimate direct call succeeds, and the realm receives ---
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -send 1000ugnot -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args paidop -args 'a valid description for the operator profile' -args cloud -args $test2_user_addr -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test test2
+stdout OK!
+
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test member $WORK/run/probe.gno
+stdout 'valopers balance: 1000'
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+stdout 'paidop'
+
+# --- 6. the same shape on the ROTATION fee ---
+# UpdateSigningKey has an identical unsafe.OriginSend() amount check. It
+# matters more than Register's: rotation reaches
+# validators.RotateValoperSigningKey, which rewrites the EFFECTIVE valset.
+# The fee is the economic brake alongside rotation_period_blocks; auth is
+# the operator's auth list, which this does not weaken either way.
+#
+# Two proposals in one script (ids 1 and 2): drop the throttle so the
+# in-test rotation is not height-blocked, and set rotation_fee.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 80_000_000 -broadcast -chainid=tendermint_test member $WORK/run/set_rotation.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 2 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 2 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# The bypass is refused for rotation too.
+! gnokey maketx run -send 500ugnot -gas-fee 6000001ugnot -gas-wanted 80_000_000 -broadcast -chainid=tendermint_test member $WORK/run/rotate_paid.gno
+stderr 'call this directly as a user'
+
+# The legitimate direct rotation succeeds and the realm receives the fee
+# (1000 from section 5 + 500 here).
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -send 500ugnot -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test member $WORK/run/probe.gno
+stdout 'valopers balance: 1500'
+
+-- run/register_free.gno --
+package main
+
+import "gno.land/r/gnops/valopers"
+
+func main(cur realm) {
+	valopers.Register(cross(cur), "freeop", "a valid description for the operator profile", "cloud",
+		cur.Previous().Address(),
+		"gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr")
+	println("registered via run:", valopers.GetByAddr(cur.Previous().Address()).Moniker)
+}
+
+-- run/register_paid.gno --
+package main
+
+import "gno.land/r/gnops/valopers"
+
+func main(cur realm) {
+	// The 1000ugnot envelope never moves: for a `maketx run` the keeper
+	// sends it from the caller to the caller, and this ephemeral realm's
+	// address IS the caller's. valopers receives nothing and the caller
+	// keeps the coins, so the call must be refused.
+	valopers.Register(cross(cur), "paidop", "a valid description for the operator profile", "cloud",
+		cur.Previous().Address(),
+		"gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny")
+	println("UNREACHABLE: registered without paying")
+}
+
+-- run/set_fee.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	params "gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur),
+		params.NewSysParamUint64PropRequest(cross(cur), "node", "valoper", "register_fee", 1000))
+}
+
+-- run/set_rotation.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	params "gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur),
+		params.NewSysParamInt64PropRequest(cross(cur), "node", "valoper", "rotation_period_blocks", 0))
+	dao.MustCreateProposal(cross(cur),
+		params.NewSysParamUint64PropRequest(cross(cur), "node", "valoper", "rotation_fee", 500))
+}
+
+-- run/rotate_paid.gno --
+package main
+
+import "gno.land/r/gnops/valopers"
+
+func main(cur realm) {
+	// Same shape as register_paid.gno: the 500ugnot envelope never left the
+	// caller, so valopers never receives it. Note the auth-list check above
+	// PASSES here -- this ephemeral realm's address is the operator's own --
+	// so assertPaidCallIsDirect is the only thing that refuses this.
+	valopers.UpdateSigningKey(cross(cur), cur.Previous().Address(),
+		"gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p")
+	println("UNREACHABLE: rotated without paying")
+}
+
+-- run/probe.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewReadonlyBanker()
+	println("valopers balance:", b.GetCoin(chain.PackageAddress("gno.land/r/gnops/valopers"), "ugnot"))
+}
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}

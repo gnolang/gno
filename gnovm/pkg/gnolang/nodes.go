@@ -977,7 +977,7 @@ type bodyStmt struct {
 	BodyLen       int          // for for-continue
 	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
 	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
+	NumValues     int          // number of Values, for goto (range: X-only, excludes ASSIGN LHS operands; see rangeFrame)
 	NumExprs      int          // number of Exprs, for goto
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
@@ -2313,6 +2313,11 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+	if tv.T == nil {
+		panic(fmt.Sprintf(
+			"StaticBlock.Define(%s) requires non-nil tv.T; use Reserve() for placeholder slots",
+			n))
+	}
 	sb.Define2(false, n, tv.T, tv, NameSource{})
 }
 

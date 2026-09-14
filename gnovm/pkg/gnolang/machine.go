@@ -338,17 +338,8 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
-		if mpkg == nil {
-			// An indexed package with no production files (e.g. an
-			// xxx_test-only package) has no prod blob, so GetMemPackage
-			// returns nil. There are no production block nodes to build;
-			// its test files live under the #allbutprod sibling. On-chain
-			// this is unreachable — the vm keeper rejects prod-less packages
-			// at AddPackage (block-node state would otherwise depend on
-			// restart history) — so this skip is defensive, for non-chain
-			// stores.
-			continue
-		}
+		// IterMemPackage never yields nil: its producer already skips
+		// prod-less packages before sending.
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
@@ -385,13 +376,25 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.RunMemPackageOverRealm(mpkg, save, nil)
+}
+
+// RunMemPackageOverRealm works as [RunMemPackage], except that the package it
+// builds takes over prior rather than starting a realm of its own.
+//
+// prior is the realm record persisted at mpkg.Path, and nil for a path that
+// holds no realm yet. Handing it over is what keeps a redeployment's ObjectIDs
+// clear of the objects the path already holds, and its storage deposit
+// accounted against what those objects were charged. It must be that path's
+// own record, and save must be true.
+func (m *Machine) RunMemPackageOverRealm(mpkg *std.MemPackage, save bool, prior *Realm) (*PackageNode, *PackageValue) {
 	if bm.Enabled {
 		bm.InitMeasure()
 		if bm.StorageEnabled {
 			defer bm.FinishStore()
 		}
 	}
-	return m.runMemPackage(mpkg, save, false)
+	return m.runMemPackage(mpkg, save, false, prior)
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
@@ -404,14 +407,31 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // NOTE: Does not validate the mpkg, except when saving validates a mpkg with
 // its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(mpkg, save, true)
+	return m.runMemPackage(mpkg, save, true, nil)
 }
 
-func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prior *Realm) (*PackageNode, *PackageValue) {
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// An unsaved run must not touch a persisted realm: a finalize reached
+	// from init advances the live counter and saves objects for a package
+	// this run never stores. A record from another path would mint the
+	// package value off the wrong counter, then save itself over that
+	// path's record.
+	if prior != nil {
+		if !save {
+			panic(fmt.Sprintf(
+				"prior realm %s requires save: an unsaved run must not touch a persisted realm",
+				prior.Path))
+		}
+		if prior.Path != mpkg.Path {
+			panic(fmt.Sprintf(
+				"prior realm %s is not the realm of package %s",
+				prior.Path, mpkg.Path))
+		}
 	}
 	// If All, demote to Prod when parsing,
 	// if Test or Integration, keep it as is,
@@ -438,6 +458,11 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		pv.SetPrivate(private)
+		if prior != nil {
+			// NewPackage's blank realm counts ObjectIDs from zero, over the
+			// objects the path already holds, and drops their storage deposit.
+			pv.SetRealm(prior)
+		}
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -1427,11 +1452,35 @@ func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
 }
 
 func (m *Machine) incrCPU(cycles int64) {
-	if m.GasMeter != nil {
-		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
-	}
+	chargeCPUGas(m.GasMeter, cycles) // May panic if out of gas.
 	m.Cycles += cycles
+}
+
+// chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
+// GasFactorCPU); nil gm is a no-op. It meters work that runs outside the
+// Machine op loop — the interface-satisfaction BFS (checkImplementedBy) —
+// during both preprocess (gm from preprocessGasMeterOf) and runtime
+// (gm = m.GasMeter). May panic with OutOfGasError.
+func chargeCPUGas(gm store.GasMeter, cycles int64) {
+	if gm != nil {
+		gm.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
+	}
+}
+
+// preprocessGasMeterOf returns the per-transaction gas meter installed on
+// st's preprocess allocator by the keeper, or nil when none is (tests,
+// tooling). It is fetched per use and threaded down explicitly: a
+// process-global would race and cross-bill gas between a query's
+// preprocess and a concurrent DeliverTx.
+func preprocessGasMeterOf(st Store) store.GasMeter {
+	if st == nil {
+		return nil
+	}
+	pa := st.GetPreprocessAllocator()
+	if pa == nil {
+		return nil
+	}
+	return pa.GetGasMeter()
 }
 
 const (
@@ -1601,16 +1650,24 @@ const (
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
 	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeSwitchCase  = 254 // per clause concrete (fit: 253.9)
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
+	OpCPUSlopeConvertBytesStr = 4   // per byte bytes→string; same memcpy OpCPUSlopeCopyPrimitive prices
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
 	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
 	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
+	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
+	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.
+	// Dev-box fit (embedwalk_bench_m5_arm64.txt, machine factor 2.1):
+	// expand 161, scan 24.2, trail/hop 131.5 reference-ns.
+	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
+	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
+	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
@@ -1624,9 +1681,20 @@ const (
 	// RefValue case where unrefCopy hits the store; that worst-case is
 	// paid via store gas when GetObject is called.
 	OpCPUSlopeCopyElement = 40 // per element
-	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
-	// gas = depth^2 * slope / 10.
-	OpCPUSlopeEnterCrossingQuad = 6
+	// OpCPUSlopeEnterCrossing: per call frame visited by the
+	// doOpEnterCrossing ancestor walk. gas = depth * slope.
+	// The walk visits each frame at most once (single cursor pass over
+	// m.Frames), so cost is linear in the call depth reached. Per visit
+	// this is dearer than the superseded quadratic schedule's implied
+	// 1.2 gas/visit: that walk re-read the same few frames out of L1,
+	// whereas one pass streams a distinct 248-byte Frame per step.
+	// Fit: 1.45 ns/frame from BenchmarkOpEnterCrossing_1..1000 (intercept
+	// ~580ns), measured on a host that reproduces the recorded M2 baseline
+	// for this same benchmark (0.55 vs 0.60 ns/visit on the superseded
+	// quadratic walk), so it reads on the M2 basis. Scaled by the
+	// documented 1.8-1.95x M-to-Xeon factor that gives 2.6-2.8 ns/frame on
+	// the Xeon 8168 reference, rounded up so as not to undercharge.
+	OpCPUSlopeEnterCrossing = 3
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
@@ -1667,6 +1735,49 @@ const (
 	OpCPUSlopeBigDecMulQ = 6 // per (digits/10)^2 / 10
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
+
+	// Quadratic charge for the O(n^2) parse of a big numeric literal in
+	// doOpEval (INT big.Int.SetString; FLOAT parseBigdecLiteral), applied
+	// before the parse so a huge literal OOGs first:
+	// gas = (digits/10)^2 * slope / 10.
+	//
+	// Both values are local estimates, not reference-HW fits. Two-point fit of
+	// BenchmarkOpEval_BigIntLit_* / BigDecLit_* over 16000->64000 digits
+	// (M1 Pro, go1.25.9, ns/op(pure)) gives local slopes ~0.8-1.1 (INT) and
+	// ~1.6-1.9 (FLOAT); scaled by a measured M->Xeon factor of 1.8-1.95x that
+	// implies ~1.4-2.1 and ~2.9-3.7 on the reference box. So 4 sits above its
+	// estimate, while 2 sits at the top of its own: INT is priced at about its
+	// measured cost, not conservatively. Derivation, caveats and the basis
+	// rules are in the ADR -- read it before changing either number.
+	//
+	// TODO(calibration): these are the only two slopes in this block without a
+	// native reference-HW fit. On the gas-table reference box run:
+	//   for n in 1000 4000 16000 64000; do   # fitted series
+	//     for b in BigIntLit BigDecLit; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	//   for n in 16000 64000; do             # controls, these two sizes only
+	//     for b in BigIntLitHex BigDecLitInt; do
+	//       go test -run='^$' -bench="^BenchmarkOpEval_${b}_${n}$" \
+	//         -benchtime=2s -count=5 ./gnovm/pkg/gnolang/
+	//     done
+	//   done
+	// One benchmark per process is not optional: run together, they inflated
+	// BigIntLit_64000 by ~2x. No build tag needed.
+	OpCPUSlopeBigIntSetString = 2 // INT big.Int.SetString
+	// FLOAT is 2x INT because parseBigdecLiteral does ~2x the work, measured.
+	// The MantExp > ratOverflowBits guard bounds the parsed value's
+	// *magnitude*, not the literal's length: a frac-shaped literal like
+	// 1.999...9 stays near 1 in magnitude however long it is, so the guard
+	// never fires and big.Rat.SetString runs on the full mantissa on top of
+	// big.ParseFloat. (Int-shaped 999...9 crosses the guard at 1234 digits and
+	// skips the Rat pass.) BenchmarkOpEval_BigDecLit_* vs BigDecLitInt_*
+	// isolates that second pass at ~2x, holding to the ~750K delivery ceiling.
+	// So 4 is the calibrated ratio, NOT headroom -- do not lower it to match
+	// big.ParseFloat timed on its own, which sees only half the op.
+	OpCPUSlopeBigDecParse = 4
 
 	// ComputeMapKey per-call constant: bookkeeping cost of one
 	// ComputeMapKey invocation (header bytes, type-ID append, switch
@@ -1719,13 +1830,27 @@ func (m *Machine) Run(st Stage) {
 // *Exception panic is caught. Returns the caught exception, or nil if the
 // loop completed normally. Non-Exception panics are re-raised.
 func (m *Machine) runOnce() (caught *Exception) {
+	// Anchors never span an op, so the depth on entry is the depth every
+	// op must return to. An op that panics part-way through a fill would
+	// otherwise leave its buffer anchored forever, and a recovered panic
+	// in a loop would grow the anchor list without bound.
+	anchorDepth := m.Alloc.AnchorDepth()
 	defer func() {
-		if r := recover(); r != nil {
-			if ex, ok := r.(*Exception); ok {
-				caught = ex
-			} else {
-				panic(r)
+		r := recover()
+		if r == nil {
+			if debugAssert && m.Alloc.AnchorDepth() != anchorDepth {
+				panic("runOnce: unbalanced Allocator anchor — every PushAnchor needs a PopAnchor on the op's normal path")
 			}
+			return
+		}
+		// Release anchors the panicking op left behind, whatever the
+		// panic is: the buffer is unreachable now, and a recovered panic
+		// inside a loop would otherwise grow the anchor list per iteration.
+		m.Alloc.TruncateAnchors(anchorDepth)
+		if ex, ok := r.(*Exception); ok {
+			caught = ex
+		} else {
+			panic(r)
 		}
 	}()
 
@@ -2334,8 +2459,6 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 //   - node-owned static blocks and long-lived file/package blocks, which
 //     also travel on the block stack (RunStatement/Eval flows push static
 //     blocks; file blocks are referenced by FuncValue.Parent);
-//   - blocks captured as a pending Defer.Parent, which the garbage
-//     collector visits until the defer runs (see Block.setNotRecyclable);
 //   - blocks with a finalized ObjectID (already persisted to realm
 //     state) or marked new-real (reachable from the realm graph and
 //     pending an ObjectID at finalize), as insurance against aliasing
@@ -2353,16 +2476,20 @@ func (m *Machine) acquireBlock(source BlockNode, parent *Block) *Block {
 // Runtime scope/call blocks never enter that state — they are not
 // reachable from realm storage (closures capture heap items, not blocks)
 // — so this is belt-and-suspenders, not a hot exclusion.
+//
+// Deferred calls do not pin their origin block: a Defer records only its
+// callable, args and source (it resolves its scope from FuncValue.GetParent
+// plus copied Captures at execution), so a popped block referenced by a
+// pending defer is provably dead like any other.
 func (m *Machine) releaseBlock(b *Block) {
 	// exclusion conditions:
-	// pool over capacity, explicitly not recyclable, panicking, or cap(values)
-	// not exactly the uniform pooled capacity. Oversized blocks (numNames >
-	// blockPoolValueCap) are dropped whole to the Go GC rather than pooled:
-	// pooling them would pin their oversized backing array (and any values in
-	// its tail slots, beyond the re-sliced cap) for the machine's lifetime
-	// while serving at most blockPoolValueCap slots.
+	// pool over capacity, panicking, or cap(values) not exactly the uniform
+	// pooled capacity. Oversized blocks (numNames > blockPoolValueCap) are
+	// dropped whole to the Go GC rather than pooled: pooling them would pin
+	// their oversized backing array (and any values in its tail slots, beyond
+	// the re-sliced cap) for the machine's lifetime while serving at most
+	// blockPoolValueCap slots.
 	if len(m.blockPool) >= blockPoolLimit ||
-		b.notRecyclable ||
 		m.Exception != nil ||
 		cap(b.Values) != blockPoolValueCap {
 		return
@@ -2378,6 +2505,9 @@ func (m *Machine) releaseBlock(b *Block) {
 	if oi := b.GetObjectInfo(); oi.ID.IsFinalized() || oi.GetIsNewReal() {
 		return
 	}
+	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
+	clear(values)
+	*b = Block{Values: values[:0]}
 	if debugAssert {
 		// Core invariant: a recycled block is provably dead — nothing that
 		// outlives its pop from the block stack still points into it. This
@@ -2385,41 +2515,13 @@ func (m *Machine) releaseBlock(b *Block) {
 		// outlive the scope (a captured local or an &-taken local) is routed
 		// through a *HeapItemValue, a separate allocation that is never
 		// pooled (see codaHeapDefinesByUse and GetPointerToMaybeHeapDefine),
-		// so no live pointer ever has Base == b. The one non-heap reference
-		// that can travel past a pop is Defer.Parent, which setNotRecyclable
-		// excludes above. Scan for that here to catch any future path that
-		// reaches release with the flag missing (a forgotten
-		// setNotRecyclable, a new long-lived block reference, etc.).
+		// so no live pointer ever has Base == b.
 		//
-		// This scan only covers the known Defer.Parent route, and only the
-		// DIRECT parent: doOpDefer marks m.LastBlock(), so an enclosing
-		// block (e.g. the for-block around a `{ defer f() }`) is still
-		// recyclable while the defer is pending, and the collector can
-		// reach it through Defer.Parent.Parent. That is harmless today
-		// because Defer.Parent has exactly one consumer — Frame.Visit's GC
-		// walk — and released blocks are zeroed, so the walk terminates.
-		// Anything that starts reading Defer.Parent for real (resolving a
-		// name, rebuilding a scope) must first extend setNotRecyclable to
-		// the whole parent chain, and this scan with it.
-		//
-		// The broader invariant is enforced empirically by poisoning the
-		// block below, which turns a followed stale pointer into a panic in
-		// PointerValue.Deref/Assign2 rather than silent corruption.
-		for fi := range m.Frames {
-			for di := range m.Frames[fi].Defers {
-				if m.Frames[fi].Defers[di].Parent == b {
-					panic("releaseBlock: recycling a block still referenced as a pending Defer.Parent")
-				}
-			}
-		}
-	}
-	values := b.Values[:blockPoolValueCap:blockPoolValueCap]
-	clear(values)
-	*b = Block{Values: values[:0]}
-	if debugAssert {
-		// Mark the pooled block so that following any pointer whose Base is
-		// this block panics until it is re-acquired (and un-poisoned). See
-		// PointerValue.assertBaseNotPoisoned.
+		// Enforced empirically from both ends: poisoning the block here turns
+		// a followed stale pointer into a panic in PointerValue.Deref/Assign2
+		// rather than silent corruption, and GarbageCollect asserts that its
+		// recount never reaches a pooled block (a reference-path-agnostic
+		// check for anything that re-pins a dead block).
 		b.poisoned = true
 	}
 	m.blockPool = append(m.blockPool, b)
@@ -2680,16 +2782,20 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
+		// NOTE: fr.NumStmts was captured before the outermost popped frame
+		// pushed its bodyStmt, so truncating to it already drops every
+		// popped loop's bodyStmt — no extra depthFrames pop is needed.
+		// The GOTO handler (op_exec.go) then sets the final length from
+		// the target block's bodyStmt.
 		m.Stmts = m.Stmts[:fr.NumStmts]
 		m.releaseBlocksFrom(fr.NumBlocks)
-		// pop stmts
-		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
 	}
 
 	if depthBlocks >= len(m.Blocks) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
-	// pop blocks
+	// pop blocks: unlike stmts above, blocks do need this second pop —
+	// depthBlocks counts scopes within the target frame (see findGotoLabel).
 	m.releaseBlocksFrom(len(m.Blocks) - depthBlocks)
 }
 
@@ -3052,7 +3158,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 		}
 	case *SelectorExpr:
 		xv := &lhsOperands[0]
-		pv = xv.getPointerToFromTV(m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
+		pv = xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, lx.Path, m.Package.PkgPath)
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := &lhsOperands[0]

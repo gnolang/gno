@@ -589,34 +589,36 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 // Ensure uniqueness of declarations,
 // e.g. test/stdlibs overriding stdlibs.
 func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
-	dupes := []ast.Decl{}
+	// Single pass, filtering in place: names are registered as they are
+	// visited, so no auxiliary set of duplicates to remove afterwards.
+	kept := gof.Decls[:0]
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods, init and blank functions
-		if !ok ||
-			fd.Recv != nil ||
-			fd.Name.Name == "init" ||
-			fd.Name.Name == "_" {
-			continue
-		}
-		// if declaration is duplicate, delete this one.
-		_, exists := decls[fd.Name.Name]
-		if exists {
-			// delete this one. doesn't matter which one (whether
-			// Go native or gno) for type-checking.
-			dupes = append(dupes, decl)
-		} else {
+		if ok &&
+			fd.Recv == nil &&
+			fd.Name.Name != "init" &&
+			fd.Name.Name != "_" {
+			// if declaration is duplicate, delete this one. doesn't
+			// matter which one (whether Go native or gno) for
+			// type-checking.
+			if _, exists := decls[fd.Name.Name]; exists {
+				continue
+			}
 			decls[fd.Name.Name] = struct{}{}
 		}
+		kept = append(kept, decl)
 	}
-	// actually delete.
-	gof.Decls = slices.DeleteFunc(gof.Decls,
-		func(d ast.Decl) bool { return slices.Contains(dupes, d) })
+	clear(gof.Decls[len(kept):]) // zero out the obsolete elements, for GC
+	gof.Decls = kept
 }
 
 // ========================================
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
+//
+// Every returned file has its GoVersion cleared, so the ASTs do not carry the
+// //go:build go1.N line the source may have declared.
 //
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
@@ -675,6 +677,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		// Build constraints have no meaning in Gno. A //go:build go1.N line
+		// otherwise sets this file's language version in go/types, overriding
+		// the pinned Config.GoVersion, so the accept/reject verdict would
+		// depend on the submitter's tag and on the toolchain each validator
+		// binary was built with. Blank it so the pin is the sole authority.
+		gof.GoVersion = ""
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
 			mpkg.Type == MPFiletests {

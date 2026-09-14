@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // ----------------------------------------
@@ -821,10 +822,10 @@ func (bmv *BoundMethodValue) IsLazy() bool {
 // receivers pass nil through), and a value receiver is a fresh snapshot of the
 // current pointee. A nested interface step yields another lazy bind, which
 // resolveLazyBound unwraps.
-func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
+func resolveInterfaceTrail(gm types.GasMeter, alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
 	btv := boxed
 	for i, path := range tr {
-		ptr := btv.getPointerToFromTV(alloc, store, path, callerPath)
+		ptr := btv.getPointerToFromTV(gm, alloc, store, path, callerPath)
 		if i == len(tr)-1 {
 			return ptr
 		}
@@ -844,7 +845,7 @@ func resolveInterfaceTrail(alloc *Allocator, store Store, boxed TypedValue, tr [
 // panic instead of hanging — matching Go, which runs the same program as
 // recursion and fatally stack-overflows (uncatchable by recover()).
 //
-// nil derefs are raised by the walk itself (GetPointerToFromTV panics with a
+// nil derefs are raised by the walk itself (getPointerToFromTV panics with a
 // runtime-error Exception for a value receiver on a nil pointer, and passes nil
 // through for a pointer receiver) — the machine's Run loop converts that to the
 // cooperative panic path, so both immediate and deferred calls behave correctly
@@ -895,7 +896,9 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			}
 			seen[id] = struct{}{}
 		}
-		tr, _, _, _, status := findEmbeddedFieldType(callerPath, operand.T, name)
+		// OpCPULazyBoundResolve above is a flat per-hop base; the walk width
+		// is metered inside findEmbeddedFieldType.
+		tr, _, _, _, status := findEmbeddedFieldType(m.GasMeter, callerPath, operand.T, name)
 		if status != embedLookupFound {
 			// Mirrors the bind-site guard (getPointerToFromTV, VPInterface).
 			// The call-time operand type is the same one that passed that
@@ -904,7 +907,7 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 			panic(fmt.Sprintf("method %s not found in type %s",
 				name, operand.T.String()))
 		}
-		next := resolveInterfaceTrail(m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
+		next := resolveInterfaceTrail(m.GasMeter, m.Alloc, m.Store, operand, tr, callerPath).Deref().V.(*BoundMethodValue)
 		if !next.IsLazy() {
 			return next.Func, next.Receiver
 		}
@@ -1030,9 +1033,17 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue) PointerValue {
-	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, gm types.GasMeter, store Store, key TypedValue) PointerValue {
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
+	return mv.getPointerForComputedKey(alloc, kmk, isNaN, key)
+}
+
+// getPointerForComputedKey is GetPointerForKey with the map key already
+// computed (and charged) by the caller — GetPointerAtIndex computes it for
+// its oldObject lookup, and recomputing from a value-copy would return the
+// same MapKey and charge the meter twice per assignment.
+func (mv *MapValue) getPointerForComputedKey(alloc *Allocator, kmk MapKey, isNaN bool, key TypedValue) PointerValue {
+	// If NaN, instead of using the map key, just append to List.
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
 			// When assigning to a map item, the key is always equal to that of the
@@ -1058,9 +1069,9 @@ func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, 
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(gm types.GasMeter, store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return
 	}
@@ -1075,9 +1086,9 @@ func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (va
 // that was removed (nil if the key was absent or NaN). Callers must dirty-mark /
 // DecRef this stored key's object, not the (possibly transient) argument key —
 // otherwise a non-primitive stored key object is orphaned in the store.
-func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) (deletedKey *TypedValue) {
+func (mv *MapValue) DeleteForKey(gm types.GasMeter, store Store, key *TypedValue) (deletedKey *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(m, store, false)
+	kmk, isNaN := key.ComputeMapKey(gm, store, false)
 	if isNaN {
 		return nil
 	}
@@ -1871,9 +1882,16 @@ func (tv *TypedValue) Sign() int {
 // isNaN returns whether tv, or any of the values contained within (like in an
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
-func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key MapKey, isNaN bool) {
-	if m != nil && m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
+//
+// gm is the gas meter to charge for the key computation: VM-runtime callers
+// pass m.GasMeter, the realm-restore path passes the store's tx-scoped meter
+// (see loadObjectSafe). nil means unmetered: tests and tools, plus
+// GetPointerAtIndex's nil-Machine path, which only ever reaches the
+// slice/string branches (see GetPointerAtIndexInt) and so computes no
+// map key.
+func (tv *TypedValue) ComputeMapKey(gm types.GasMeter, store Store, omitType bool) (key MapKey, isNaN bool) {
+	if gm != nil {
+		gm.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
 	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1898,9 +1916,9 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	// prefix, av.Data, string content, brackets/separators, uvarint
 	// length headers, children's mk re-appended). This catches every
 	// O(N) work path uniformly, including early isNaN returns.
-	if m != nil && m.GasMeter != nil {
+	if gm != nil {
 		defer func() {
-			m.GasMeter.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
+			gm.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
 		}()
 	}
 	if !omitType {
@@ -1951,7 +1969,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				mk, isNaN := ev.ComputeMapKey(m, store, omitTypes)
+				mk, isNaN := ev.ComputeMapKey(gm, store, omitTypes)
 				if isNaN {
 					return "", true
 				}
@@ -1976,7 +1994,7 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 			}
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
+			mk, isNaN := fv.ComputeMapKey(gm, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
@@ -2043,15 +2061,13 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
-func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	return tv.getPointerToFromTV(alloc, store, path, "")
-}
-
 // callerPath is the package of the code executing the selector; VPInterface
 // resolution needs it to pick the right same-spelled unexported method
 // (identity is package-qualified). Empty falls back to the dynamic type's
 // package, which is only correct when no such collision exists (debugger).
-func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
+// gm meters the embedding walk of the VPInterface branch (lazy interface
+// method value); nil only for callers that never reach it.
+func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
 			panic("getPointerToFromTV() on undefined value")
@@ -2300,7 +2316,7 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 		if callerPath == "" {
 			callerPath = dtv.T.GetPkgPath()
 		}
-		_, _, _, ift, status := findEmbeddedFieldType(callerPath, dtv.T, path.Name)
+		_, _, _, ift, status := findEmbeddedFieldType(gm, callerPath, dtv.T, path.Name)
 		if status != embedLookupFound {
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
@@ -2335,10 +2351,10 @@ func (tv *TypedValue) getPointerToFromTV(alloc *Allocator, store Store, path Val
 }
 
 // Convenience for GetPointerAtIndex(). Slow.
-func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
+func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(m, nilRealm, nil, store, &iv)
+	return tv.GetPointerAtIndex(nil, nilRealm, nil, store, &iv)
 }
 
 // GetByteAtIndexInt is a read-only fast path of GetPointerAtIndex for
@@ -2451,7 +2467,13 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(m, store, false)
+		// Meter from m: the nil-m path (GetPointerAtIndexInt) only ever
+		// indexes slices/strings, so no map-key gas is lost there.
+		var gm types.GasMeter
+		if m != nil {
+			gm = m.GasMeter
+		}
+		key, isNaN := iv.ComputeMapKey(gm, store, false)
 		if !isNaN {
 			k, ok := mv.vmap[key]
 			if ok {
@@ -2460,7 +2482,10 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(m, alloc, store, ivk)
+		// key was already computed (and charged) from iv above, and ivk is a
+		// value-copy of iv, so recomputing it here would return the same
+		// MapKey and charge twice.
+		pv := mv.getPointerForComputedKey(alloc, key, isNaN, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -2825,13 +2850,6 @@ type Block struct {
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 
-	// notRecyclable marks the block as ineligible for Machine.releaseBlock's
-	// pool because a reference to it may outlive its time on the machine's
-	// block stack (currently only Defer.Parent; see setNotRecyclable). It is
-	// transient runtime state — not persisted, and zeroed when a block is
-	// recycled or freshly allocated.
-	notRecyclable bool
-
 	// poisoned marks a block that has been returned to the machine's block
 	// pool (see Machine.releaseBlock). It only carries meaning under the
 	// debugAssert build tag, where PointerValue.Deref/Assign2 panic on a
@@ -2905,12 +2923,6 @@ func normalizeDecodedCap(oo Object) {
 		b.Values = b.Values[:len(b.Values):len(b.Values)]
 	}
 }
-
-// setNotRecyclable marks the block as ineligible for Machine.releaseBlock's
-// pool, because a reference to it may outlive its time on the machine's
-// block stack (currently only Defer.Parent, which the garbage collector
-// visits until the defer runs).
-func (b *Block) setNotRecyclable() { b.notRecyclable = true }
 
 // initHeapItems prepopulates the heap-item slots of a block's values per
 // source.GetHeapItems(); these slots must always hold heap items. Used by
@@ -3206,12 +3218,25 @@ type HeapItemValue struct {
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
+	// tvs is a Go local, so anchor it while the defaults are built: each
+	// default is a fresh allocation, and a GC triggered by a later field
+	// would otherwise drop the earlier ones from the tally and re-grant
+	// the cap. See Allocator.anchors.
+	alloc.PushAnchor(tvs)
+	fillDefaultStructFields(alloc, st, tvs)
+	alloc.PopAnchor()
+	return tvs
+}
+
+// fillDefaultStructFields writes st's zero values into tvs, which must have
+// len(st.Fields) entries. The caller is responsible for anchoring tvs (see
+// Allocator.anchors) — doOpStructLit keeps its own anchor for the whole op.
+func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue) {
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
-	return tvs
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
@@ -3228,9 +3253,15 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
+		// av is a Go local until the caller roots it, so anchor its list
+		// while the defaults are built: without it a GC part-way through
+		// drops the elements already written and the cap is re-granted
+		// once per element. See Allocator.anchors.
+		alloc.PushAnchor(tvs)
 		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
 		}
+		alloc.PopAnchor()
 	}
 	return av
 }

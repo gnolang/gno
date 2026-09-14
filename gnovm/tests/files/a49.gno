@@ -8,5 +8,5 @@ func main() {
 }
 
 // Output:
-// &(65 uint8)
+// &(65 <databyte> uint8)
 // true
