@@ -14,7 +14,7 @@ var (
 )
 
 func TestCouncilUpdatePropDefinitionNew(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	dao := commondao.New(commondao.WithCouncilMember(member))
 
@@ -35,7 +35,7 @@ func TestCouncilUpdatePropDefinitionNew(cur realm, t *testing.T) {
 
 func TestCouncilUpdatePropDefinitionValidate(t *testing.T) {
 	var (
-		memberA address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+		memberA address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 		memberB address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 	)
 
@@ -53,7 +53,7 @@ func TestCouncilUpdatePropDefinitionValidate(t *testing.T) {
 
 func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 	var (
-		memberA address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+		memberA address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 		memberB address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 	)
 
@@ -84,7 +84,7 @@ func TestCouncilUpdatePropDefinitionExecute(cur realm, t *testing.T) {
 }
 
 func TestAncestorCouncilUpdatePropDefinition(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	root := commondao.New(commondao.WithID(201), commondao.WithName("Root"))
 	mid := commondao.New(commondao.WithID(202), commondao.WithName("Mid"), commondao.WithParent(root))

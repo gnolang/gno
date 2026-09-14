@@ -39,34 +39,99 @@ func BenchmarkNative_Keccak256_Sum256_16384(b *testing.B) { benchKeccak256(b, 16
 
 // ----- crypto/modexp.modExp(base, exp, modulus []byte) []byte -----
 //
-// Modular exponentiation cost is dominated by len(exp)·len(mod). The
-// EVM precompile (EIP-198) gas formula uses similar scaling. We bench
-// a square modulus and a square exponent so a single-slope fit on
-// "size N" (== len(mod) == len(exp) == len(base)) captures the dominant term.
+// Modular exponentiation performs one modular squaring per exponent bit, each
+// costing O(words(mod)²), so its cost is a product of two operands rather than
+// a sum. It is priced with SizeModExpWork, which folds that product into a
+// single metric (see gnovm/pkg/gnolang/native_gas.go):
+//
+//	work = (modular multiplications expNN performs) · (floor + ceil(len(mod)/8)²)
+//
+// Cost is NOT linear in 8·len(exp)·words², which is what this row charged on
+// before the grid was extended. Two effects that metric did not model dominate
+// at small exponents:
+//
+//   - The exponent regime. big.Int only takes the windowed Montgomery path when
+//     the exponent exceeds one machine word (nat.go: `if len(y) > 1 && !slow`).
+//     At 8 bytes or fewer it runs the generic loop, which divides on every
+//     iteration rather than reducing in Montgomery form — ~2.5x the cost per
+//     exponent bit. And the Montgomery loop walks whole words, so 9 bytes of
+//     exponent costs what 16 does. Under the old metric 8/256 measured MORE
+//     than 9/256 while being charged less.
+//   - The dispatcher floor. Converting the operands and building the result is
+//     linear in len(modulus) and entirely independent of the exponent, so at
+//     small exponents it dominates a work term that is near zero. The exp=0 row
+//     isolates it: 55us at a 1024-byte modulus for work=0.
+//
+// Both are now modelled rather than fitted around: the work metric counts the
+// operations each expNN routine performs (see gnovm/pkg/gnolang/native_gas.go)
+// and the row carries a second slope on len(modulus) for the dispatcher. So a
+// re-fit is a single number — ns per modular multiplication — and the grid
+// exists to check that it bounds every point rather than to fit a shape.
+// gen_native_table.py's fit_modexp does exactly that; pass --hw-factor unless
+// the run was taken on the reference Xeon.
+//
+// Both operands must stay at or below crypto/modexp.maxOperandLen (1024): above
+// it X_modExp returns immediately and the bench would time the rejection path.
+//
+// RECORDED RUN — this is the calibration input for the shipped row, committed
+// so the row can be re-derived rather than taken on faith. AMD Ryzen 7 7840U,
+// -benchtime=100ms -count=5, median; run-to-run spread was 1.02-1.19x at every
+// point but one (9/32, 1.32x). This is NOT the reference Xeon and is materially
+// faster than it: rows in this same table calibrated on a reference-class Xeon
+// measure 2.19-2.33x faster here (cometbls.verifyZKP 2632556 -> 1204572,
+// bn254.pairingCheck 792691 -> 361591 at one pair and 1798041 -> 772655 at
+// four, and modexp's own superseded anchor 6219920 -> 2686662). The shipped row
+// projects by 2.3, the HIGH end: a larger factor charges more, so the high end
+// is the safe choice, not the low one.
+//
+// These supersede a pre-#97 run. Data-backing byte slices changed what the
+// dispatcher costs: Go2GnoValue no longer builds one TypedValue per byte, so
+// the exponent-independent per-modulus-byte term fell from ~134 ns/byte to
+// ~2.9. Any grid recorded before that commit overstates the dispatcher by ~50x
+// and must not be mixed with these.
+//
+//	 exp    mod    work            ns/op      ns/work
+//	0      32     0                      520          -
+//	0      256    0                      768          -
+//	0      1024   0                    1,716          -
+//	1      256    43560               30,436      0.699
+//	1      1024   657960             240,084      0.365
+//	3      256    130680              98,887      0.757
+//	3      1024   1973880            792,236      0.401
+//	4      32     12960                8,454      0.652
+//	4      256    174240             123,890      0.711
+//	4      1024   2631840          1,102,211      0.419
+//	8      32     25920               15,168      0.585
+//	8      256    348480             239,457      0.687
+//	8      1024   5263680          2,088,169      0.397
+//	9      32     28998               17,203      0.593
+//	9      256    389862             210,814      0.541
+//	9      1024   5888742          2,612,594      0.444
+//	16     256    389862             198,277      0.509
+//	24     256    564102             278,681      0.494
+//	32     32     54918               24,218      0.441
+//	32     256    738342             352,113      0.477
+//	32     1024   11152422         4,641,969      0.416
+//	256    32     417798             165,587      0.396
+//	256    1024   84843942        35,314,846      0.416
+//	1024   32     1661958            724,654      0.436
+//	1024   256    22344102        10,771,770      0.482
+//	1024   1024   337500582       131,967,026      0.391
+//
+// The ns/work column still carries the dispatcher cost, which the row's second
+// slope handles separately. Net of it the Montgomery points (exp > 8) hold to
+// within a small factor of each other across a 128x range of exponent sizes,
+// which is the check that the operation count matches the algorithm. The
+// generic points (exp <= 8) are the ragged ones — nat.div's cost per word is
+// set by hardware divide latency rather than a multiplication count, so that
+// branch's constant is calibrated rather than counted.
 
+// benchModExp is the symmetric diagonal, len(base)==len(exp)==len(mod)==n. Kept
+// because the shipped slope is anchored to its N=256 point.
 func benchModExp(b *testing.B, n int) {
 	b.Helper()
-	base := make([]byte, n)
-	exp := make([]byte, n)
-	mod := make([]byte, n)
-	for i := range n {
-		base[i] = byte(i + 1)
-		exp[i] = byte(i + 3)
-		mod[i] = 0xFF // large odd modulus
-	}
-	if n > 0 {
-		mod[n-1] = 0xFD
-	}
-	m := newDispatchMachine(3)
-	setBlockValueFromGo(m, 0, base)
-	setBlockValueFromGo(m, 1, exp)
-	setBlockValueFromGo(m, 2, mod)
-	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
-	b.ResetTimer()
 	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		h.call()
-	}
+	benchModExpGrid(b, n, n)
 }
 
 func BenchmarkNative_ModExp_32(b *testing.B)  { benchModExp(b, 32) }
@@ -74,6 +139,92 @@ func BenchmarkNative_ModExp_64(b *testing.B)  { benchModExp(b, 64) }
 func BenchmarkNative_ModExp_128(b *testing.B) { benchModExp(b, 128) }
 func BenchmarkNative_ModExp_256(b *testing.B) { benchModExp(b, 256) }
 func BenchmarkNative_ModExp_512(b *testing.B) { benchModExp(b, 512) }
+
+// benchModExpGrid varies the exponent and modulus lengths independently. The
+// base is held at the modulus length: a base wider than the modulus only adds
+// the initial reduction, which the work metric deliberately does not model
+// separately (maxOperandLen bounds it instead).
+func benchModExpGrid(b *testing.B, expLen, modLen int) {
+	b.Helper()
+	base := make([]byte, modLen)
+	exp := make([]byte, expLen)
+	mod := make([]byte, modLen)
+	for i := range base {
+		base[i] = byte(i + 1)
+	}
+	for i := range exp {
+		// Worst case for the metric, which charges on len(exp). Below the
+		// Montgomery crossover big.Int walks the exponent bit by bit from the
+		// highest set one (nat.go expNN: shift := nlz(v)+1), squaring every
+		// iteration and multiplying again on each set bit — so an all-ones
+		// exponent maximizes both the iteration count and the multiplies, and
+		// is the only fill whose true bit length equals the charged one. A
+		// patterned fill measures up to 1.75x cheaper at 4 bytes, which would
+		// fit a slope that is not an upper bound. Above the crossover the
+		// windowed Montgomery loop does 4 squarings plus one multiply per
+		// 4-bit window whatever the window holds, so the fill is irrelevant
+		// there and costs those points nothing.
+		exp[i] = 0xFF
+	}
+	for i := range mod {
+		mod[i] = 0xFF // large odd modulus
+	}
+	if modLen > 0 {
+		mod[modLen-1] = 0xFD
+	}
+	m := newDispatchMachine(3)
+	setBlockValueFromGo(m, 0, base)
+	setBlockValueFromGo(m, 1, exp)
+	setBlockValueFromGo(m, 2, mod)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "crypto/modexp", "modExp"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+// Grid naming is ModExpGrid_<expLen>_<modLen>. Sweeps small-exp/large-mod (the
+// RSA-verify shape), large-exp/small-mod (the shape the old slope priced at
+// zero), and the symmetric corner at the 1024-byte cap.
+func BenchmarkNative_ModExpGrid_4_32(b *testing.B)      { benchModExpGrid(b, 4, 32) }
+func BenchmarkNative_ModExpGrid_4_256(b *testing.B)     { benchModExpGrid(b, 4, 256) }
+func BenchmarkNative_ModExpGrid_4_1024(b *testing.B)    { benchModExpGrid(b, 4, 1024) }
+func BenchmarkNative_ModExpGrid_32_32(b *testing.B)     { benchModExpGrid(b, 32, 32) }
+func BenchmarkNative_ModExpGrid_32_256(b *testing.B)    { benchModExpGrid(b, 32, 256) }
+func BenchmarkNative_ModExpGrid_32_1024(b *testing.B)   { benchModExpGrid(b, 32, 1024) }
+func BenchmarkNative_ModExpGrid_256_32(b *testing.B)    { benchModExpGrid(b, 256, 32) }
+func BenchmarkNative_ModExpGrid_256_1024(b *testing.B)  { benchModExpGrid(b, 256, 1024) }
+func BenchmarkNative_ModExpGrid_1024_32(b *testing.B)   { benchModExpGrid(b, 1024, 32) }
+func BenchmarkNative_ModExpGrid_1024_256(b *testing.B)  { benchModExpGrid(b, 1024, 256) }
+func BenchmarkNative_ModExpGrid_1024_1024(b *testing.B) { benchModExpGrid(b, 1024, 1024) }
+
+// The sub-word band. big.Int only takes the windowed Montgomery path when the
+// exponent exceeds one machine word (nat.go: `if len(y) > 1 && !slow`), so an
+// exponent of 8 bytes or fewer runs the generic loop, which reduces by division
+// on every iteration instead. That is the more expensive regime per exponent
+// bit, and the grid above jumps 4 -> 32 straight over it, so the shipped slope
+// was fit without a single measurement of the band where it is thinnest. 8 and
+// 9 bracket the crossover; 3 is the RSA-verify shape (e=65537).
+//
+// expLen=0 is charged nothing by the work metric, while the native still
+// allocates and fills len(modulus) bytes and the dispatcher still converts
+// each operand. These points isolate that cost so it can be priced on its own
+// slope rather than hidden in Base.
+func BenchmarkNative_ModExpGrid_0_32(b *testing.B)   { benchModExpGrid(b, 0, 32) }
+func BenchmarkNative_ModExpGrid_0_256(b *testing.B)  { benchModExpGrid(b, 0, 256) }
+func BenchmarkNative_ModExpGrid_0_1024(b *testing.B) { benchModExpGrid(b, 0, 1024) }
+func BenchmarkNative_ModExpGrid_1_256(b *testing.B)  { benchModExpGrid(b, 1, 256) }
+func BenchmarkNative_ModExpGrid_1_1024(b *testing.B) { benchModExpGrid(b, 1, 1024) }
+func BenchmarkNative_ModExpGrid_3_256(b *testing.B)  { benchModExpGrid(b, 3, 256) }
+func BenchmarkNative_ModExpGrid_3_1024(b *testing.B) { benchModExpGrid(b, 3, 1024) }
+func BenchmarkNative_ModExpGrid_8_32(b *testing.B)   { benchModExpGrid(b, 8, 32) }
+func BenchmarkNative_ModExpGrid_8_256(b *testing.B)  { benchModExpGrid(b, 8, 256) }
+func BenchmarkNative_ModExpGrid_8_1024(b *testing.B) { benchModExpGrid(b, 8, 1024) }
+func BenchmarkNative_ModExpGrid_9_32(b *testing.B)   { benchModExpGrid(b, 9, 32) }
+func BenchmarkNative_ModExpGrid_9_256(b *testing.B)  { benchModExpGrid(b, 9, 256) }
+func BenchmarkNative_ModExpGrid_9_1024(b *testing.B) { benchModExpGrid(b, 9, 1024) }
+func BenchmarkNative_ModExpGrid_16_256(b *testing.B) { benchModExpGrid(b, 16, 256) }
+func BenchmarkNative_ModExpGrid_24_256(b *testing.B) { benchModExpGrid(b, 24, 256) }
 
 // ----- crypto/bn254 EIP-196/197 precompile natives -----
 
