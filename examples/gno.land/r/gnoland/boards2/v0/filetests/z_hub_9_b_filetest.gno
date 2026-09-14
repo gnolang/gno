@@ -54,7 +54,7 @@ func main(cur realm) {
 
 // Output:
 // 2
-// 1
+// 2
 // 1
 // 1
 // Test comment
