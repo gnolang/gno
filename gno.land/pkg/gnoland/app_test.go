@@ -2952,77 +2952,9 @@ func TestValidateSignerInfo(t *testing.T) {
 	}
 }
 
-func TestMeetsMinVersion(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		binary string
-		minVer string
-		want   bool
-	}{
-		// Empty minVersion always passes
-		{"chain/gnoland1.0", "", true},
-		{"develop", "", true},
-
-		// Same version passes
-		{"chain/gnoland1.0", "chain/gnoland1.0", true},
-		{"chain/gnoland1.1", "chain/gnoland1.1", true},
-
-		// Newer binary passes
-		{"chain/gnoland1.1", "chain/gnoland1.0", true},
-		{"chain/gnoland2.0", "chain/gnoland1.0", true},
-		{"chain/gnoland1.2", "chain/gnoland1.1", true},
-
-		// Older binary fails
-		{"chain/gnoland1.0", "chain/gnoland1.1", false},
-		{"chain/gnoland1.0", "chain/gnoland2.0", false},
-
-		// Non-gnoland format: requires exact match
-		{"develop", "chain/gnoland1.1", false},
-		{"v1.0.0", "v1.0.0", true},
-		{"v1.0.0", "v1.1.0", false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
-			t.Parallel()
-			got := meetsMinVersion(tc.binary, tc.minVer)
-			assert.Equal(t, tc.want, got,
-				"meetsMinVersion(%q, %q)", tc.binary, tc.minVer)
-		})
-	}
-}
-
-func TestParseGnolandVersion(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		input string
-		major int
-		minor int
-		ok    bool
-	}{
-		{"chain/gnoland1.0", 1, 0, true},
-		{"chain/gnoland1.1", 1, 1, true},
-		{"chain/gnoland2.3", 2, 3, true},
-		{"develop", 0, 0, false},
-		{"v1.0.0", 0, 0, false},
-		{"chain/gnoland", 0, 0, false},
-		{"chain/gnolandX.Y", 0, 0, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.input, func(t *testing.T) {
-			t.Parallel()
-			major, minor, ok := parseGnolandVersion(tc.input)
-			assert.Equal(t, tc.ok, ok)
-			if tc.ok {
-				assert.Equal(t, tc.major, major)
-				assert.Equal(t, tc.minor, minor)
-			}
-		})
-	}
-}
+// TestMeetsMinVersion and TestParseGnolandVersion moved to
+// node_params_version_test.go, next to the code they cover, when the parser
+// gained the vMAJOR.MINOR.PATCH shape.
 
 func TestIsPastChainID(t *testing.T) {
 	t.Parallel()
