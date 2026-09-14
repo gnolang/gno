@@ -77,8 +77,8 @@ The zero value of `Tree` is a usable empty tree. `Get` returns `nil` for an abse
 
 ## Subpackages
 
-- `gno.land/p/nt/avl/v0/pager` - pagination helper for trees and lists.
-- `gno.land/p/nt/avl/v0/rotree` - read-only view of a `Tree`.
+- `gno.land/p/nt/avl/pager/v0` - pagination helper for trees and lists.
+- `gno.land/p/nt/avl/rotree/v0` - read-only view of a `Tree`.
 
 ## Why AVL over Map?
 
@@ -123,5 +123,5 @@ Object :33 = Node{key="100", value="123", height=0, size=1}
 
 - [Why should you use an AVL tree instead of a map?](https://howl.moe/posts/2024-09-19-gno-avl-over-maps/)
 - [Berty's AVL scalability report](https://github.com/gnolang/hackerspace/issues/67) - testing up to 20M entries
-- [Effective Gno - Prefer avl.Tree over map](https://docs.gno.land/resources/effective-gno#prefer-avltree-over-map-for-scalable-storage)
+- [Effective Gno - Choose storage types by access pattern](https://docs.gno.land/resources/effective-gno#choose-storage-types-by-access-pattern)
 - [Wikipedia - AVL tree](https://en.wikipedia.org/wiki/AVL_tree)

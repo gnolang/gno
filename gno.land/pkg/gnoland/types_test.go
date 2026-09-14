@@ -436,3 +436,28 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 	// Verify AllowPaths round-trips correctly
 	assert.Equal(t, original.AllowPaths, result.AllowPaths)
 }
+
+// A vesting account's query JSON must decode into GnoAccount, because that is
+// the concrete type gnoclient.QueryAccount unmarshals every account into. When a
+// vesting account was its own type its JSON carried a "VestingSchedule" field
+// that GnoAccount had no place for, so querying one failed outright with
+// `unknown JSON field "VestingSchedule"` and no client could read it.
+func TestGnoAccountWithVestingRoundTripsAsQueryJSON(t *testing.T) {
+	t.Parallel()
+
+	acc := ProtoGnoAccount()
+	require.NoError(t, acc.SetAddress(crypto.AddressFromPreimage([]byte("vester"))))
+	require.NoError(t, acc.SetCoins(std.Coins{{Denom: "ugnot", Amount: 1000}}))
+	acc.SetVesting(std.VestingSchedule{
+		OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+		StartTime:       100,
+		EndTime:         200,
+	})
+
+	var back GnoAccount
+	require.NoError(t, amino.UnmarshalJSON(amino.MustMarshalJSON(acc), &back),
+		"a vesting account's JSON must decode into the type clients use")
+	assert.Equal(t, acc.GetVesting(), back.GetVesting())
+	assert.Equal(t, int64(500), back.LockedCoins(time.Unix(150, 0)).AmountOf("ugnot"),
+		"and the schedule must still work after the round trip")
+}
