@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"baseUrl": ".",
+		"paths": {
+			"@gnoweb/js/*": ["frontend/js/*"]
+		}
+	}
+}

@@ -198,10 +198,9 @@ export class ActionFunctionController extends BaseController {
 	// on the target so the contract is shared with analytics.ts.
 	private async _updateQEvalResult(): Promise<void> {
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
-		const remoteTarget = this.getTarget("remote") as HTMLElement;
 
-		// If there is no resultTarget or remoteTarget, this is a crossing function.
-		if (!(resultTarget && remoteTarget)) return;
+		// Crossing functions have no qeval-result target.
+		if (!resultTarget) return;
 
 		const placeholder = resultTarget.dataset.qevalPlaceholder ?? "";
 		const errorClass = resultTarget.dataset.qevalErrorClass ?? "u-color-danger";
@@ -215,33 +214,67 @@ export class ActionFunctionController extends BaseController {
 			return;
 		}
 
-		// Build the data string for the qeval query.
+		// Build the expression for the eval query.
 		const args = argNodes
 			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
 			.join(",");
-		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+		const expression = `${this._funcName}(${args})`;
 
-		// Fetch the qeval result from the remote and update the DOM.
-		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
+		// Fetch the eval result and update the DOM.
+		const result = await this._evalExpression(expression);
 		resultTarget.textContent = result;
 		resultTarget.classList.toggle(errorClass, result.startsWith("Error:"));
 	}
 
-	// Fetch the qeval result from the remote
-	private async _fetchQEval(remote: string, data: string): Promise<string> {
+	// Fetch the eval result via the same-origin /_/api/eval endpoint.
+	private async _evalExpression(expression: string): Promise<string> {
 		try {
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
+			const response = await fetch("/_/api/eval", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ pkg_path: this._pkgPath, expression }),
+			});
 			if (!response.ok) return "";
 
-			const result = (await response.json()).result.response.ResponseBase;
-			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
+			const json = await response.json();
+			return json.error ? `Error: ${json.error}` : (json.result ?? "");
 		} catch {
 			return "";
 		}
 	}
 
 	// DOM ACTIONS
+
+	// Dispatch eval:expression event (DOM action).
+	// If the function has params, fills type-based placeholders without auto-evaluating.
+	// If no params, auto-evaluates immediately.
+	public triggerEval(
+		event: Event & { params?: Record<string, unknown> },
+	): void {
+		const funcName = this._funcName || "";
+		const funcSig = (event.params?.sig as string) || "";
+
+		const paramMatch = funcSig.match(/\(([^)]*)\)/);
+		const params = paramMatch ? paramMatch[1].trim() : "";
+
+		if (params) {
+			const expression = `${funcName}(${params
+				.split(",")
+				.map((p: string) => {
+					const parts = p.trim().split(/\s+/);
+					const type = parts[parts.length - 1];
+					return type === "string" ? '""' : "0";
+				})
+				.join(", ")})`;
+			this.dispatch("eval:expression", { expression, autoEval: false });
+		} else {
+			this.dispatch("eval:expression", {
+				expression: `${funcName}()`,
+				autoEval: true,
+			});
+		}
+	}
+
 	// update all args (DOM action)
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
