@@ -50,6 +50,37 @@ SelectStmt ->
 // running this operation and any queued in the op stack following this
 // operation is that the value of the expression is pushed onto the stack.
 
+// rangeFrame returns the frame the executing RangeStmt pushed. Its NumValues is
+// the index of the range subject X in m.Values.
+//
+// The RangeStmt setup (below, the *RangeStmt case) calls PushFrameBasic and only
+// then evaluates X, so the value-stack length the frame recorded IS X's slot.
+// Everything above that slot belongs to the loop rather than to X: in the ASSIGN
+// form (`for k, m[i] = range x`, as opposed to `:= range`) PushForPointer stacks
+// each LHS's pointer operands on top of X for the -1 phase to pop back off with
+// PopAsPointer, and mid-body the stack carries whatever the body is evaluating.
+// Addressing X at this absolute index instead of at an offset from the top of
+// the stack is what keeps the read independent of the LHS shape: a fixed
+// m.PeekValue(1) is only correct when both range targets are NameExprs, which
+// push no operands.
+//
+// bs.NumValues, which the GOTO handler restores m.Values to, is fr.NumValues+1
+// for the same reason: it must record the X-only length so that a goto out of
+// the loop body leaves the value stack exactly where a continue does (see
+// PeekFrameAndContinueRange).
+func (m *Machine) rangeFrame() *Frame {
+	fr := m.LastFrame()
+	if debugAssert {
+		if _, ok := fr.Source.(*RangeStmt); !ok {
+			panic(fmt.Sprintf(
+				"expected the last frame to be the range's own frame, got %T",
+				fr.Source,
+			))
+		}
+	}
+	return fr
+}
+
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if line := s.GetLine(); line != 0 {
@@ -158,7 +189,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIter, OpRangeIterArrayPtr:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		// TODO check length.
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -189,7 +221,7 @@ func (m *Machine) doOpExec(op Op) {
 			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -209,16 +241,19 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
-					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				if !ok {
+					iv := TypedValue{T: IntType}
+					iv.SetInt(int64(bs.ListIndex))
+					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				}
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
@@ -275,7 +310,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterString:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		sv := xv.GetString()
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -291,7 +327,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextRune = r
 			bs.StrIndex += size
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -373,7 +409,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		var mv *MapValue
 		if xv.V != nil {
 			mv = xv.V.(*MapValue)
@@ -387,7 +424,7 @@ func (m *Machine) doOpExec(op Op) {
 			// initialize bs.
 			bs.NextItem = mv.List.Head
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -534,7 +571,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
 			numInit = len(as.Lhs)
@@ -561,7 +598,7 @@ EXEC_SWITCH:
 			m.PushOp(OpExec)
 		}
 	case *IfStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		m.PushOp(OpIfCond)
@@ -619,7 +656,7 @@ EXEC_SWITCH:
 		}
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
@@ -725,6 +762,12 @@ EXEC_SWITCH:
 			nextClause := cs.BodyIndex + 1
 			// expand block size
 			cl := &ss.Clauses[nextClause]
+			// All clauses share the switch's block: the switch's own names
+			// come first (copied by copyFromFauxBlock during preprocess) and
+			// the running clause's names are appended by ExpandWith. Drop the
+			// falling-through clause's names first; they are out of scope in
+			// the next clause, which gets fresh slots of its own.
+			b.Values = b.Values[:ss.GetNumNames()]
 			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
@@ -771,7 +814,7 @@ EXEC_SWITCH:
 	case *SwitchStmt:
 		m.PushFrameBasic(cs)
 		m.PushOp(OpPopFrameAndReset)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		if cs.IsTypeSwitch {
@@ -795,7 +838,7 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		b := m.acquireBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
@@ -848,7 +891,6 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -856,101 +898,113 @@ func (m *Machine) doOpTypeSwitch() {
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
 	// iterating over all clauses and cases here.
+	// The default clause matches only when no other clause does, so it is
+	// deferred to a second pass regardless of its textual position.
+	defaultIdx := -1
+	matchedIdx := -1
+matchLoop:
 	for i := range ss.Clauses {
-		match := false
 		cs := &ss.Clauses[i]
-		if len(cs.Cases) > 0 {
-			// see if any clause cases match.
-			for _, cx := range cs.Cases {
-				if debug {
-					if !isConstType(cx) {
-						panic(fmt.Sprintf(
-							"should not happen, expected const type expr for case(s) but got %s",
-							reflect.TypeOf(cx)))
-					}
-				}
-				ct := cx.(*constTypeExpr).Type
-				if ct == nil {
-					if xv.IsUndefined() {
-						// match nil type with undefined
-						match = true
-					}
-				} else if ct.Kind() == InterfaceKind {
-					gnot := ct
-					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
-						// match
-						match = true
-					}
-				} else {
-					ctid := TypeID("")
-					if ct != nil {
-						ctid = ct.TypeID()
-					}
-					if xtid == ctid {
-						// match
-						match = true
-					}
-				}
-			}
-		} else { // default
-			match = true
+		if len(cs.Cases) == 0 {
+			defaultIdx = i
+			continue
 		}
-		if match { // did match
-			if len(cs.Body) != 0 {
-				b := m.LastBlock()
-				// remember size (from init)
-				size := len(b.Values)
-				// expand block size
-				b.ExpandWith(m.Alloc, cs)
-				// define if varname
-				if ss.VarName != "" {
-					// NOTE: assumes the var is first after size.
-					vp := NewValuePath(
-						VPBlock, 1, uint16(size), ss.VarName)
-					// NOTE: GetPointerToMaybeHeapDefine not needed,
-					// because this type is in new type switch clause block.
-					ptr := b.GetPointerTo(m.Store, vp)
-					ptr.TV.Assign(m.Alloc, *xv, false)
+		// Charge per clause and per case actually scanned, using the same
+		// constants the value switch charges for the same dispatch and
+		// comparison work. The previous flat OpCPUSlopeTypeSwitchCase per
+		// DECLARED clause billed clauses the loop breaks before reaching, and
+		// billed a grouped `case A, B, C:` as one comparison instead of three.
+		// TODO(calibration): cmd/calibrate still publishes the superseded
+		// "TypeSwitch (concrete) = 280.5 + 253.92*clauses" fit; its 254
+		// ns/clause is well above what a scanned clause measures today, so
+		// re-derive both when the reference-HW numbers are next refreshed.
+		m.incrCPU(OpCPUSwitchClause)
+		for _, cx := range cs.Cases {
+			m.incrCPU(OpCPUSwitchClauseCase)
+			if debug {
+				if !isConstType(cx) {
+					panic(fmt.Sprintf(
+						"should not happen, expected const type expr for case(s) but got %s",
+						reflect.TypeOf(cx)))
 				}
-				// exec clause body
-				b.bodyStmt = bodyStmt{
-					Body:          cs.Body,
-					BodyLen:       len(cs.Body),
-					NextBodyIndex: -2,
-				}
-				m.PushOp(OpBody)
-				m.PushStmt(b.GetBodyStmt())
 			}
-			return // done!
+			ct := cx.(*constTypeExpr).Type
+			var match bool
+			switch {
+			case ct == nil:
+				match = xv.IsUndefined()
+			case ct.Kind() == InterfaceKind:
+				match = isImplementedBy(m.GasMeter, ct, xv.T)
+			default:
+				match = xtid == ct.TypeID()
+			}
+			if match {
+				matchedIdx = i
+				break matchLoop
+			}
 		}
 	}
+	if matchedIdx < 0 {
+		matchedIdx = defaultIdx
+	}
+	if matchedIdx < 0 {
+		return // no clause matched and no default
+	}
+	cs := &ss.Clauses[matchedIdx]
+	if len(cs.Body) == 0 {
+		return
+	}
+	b := m.LastBlock()
+	// remember size (from init)
+	size := len(b.Values)
+	// expand block size
+	b.ExpandWith(m.Alloc, cs)
+	// define if varname
+	if ss.VarName != "" {
+		// NOTE: assumes the var is first after size.
+		vp := NewValuePath(
+			VPBlock, 1, uint16(size), ss.VarName)
+		// NOTE: GetPointerToMaybeHeapDefine not needed,
+		// because this type is in new type switch clause block.
+		ptr := b.GetPointerTo(m.Store, vp)
+		ptr.TV.Assign(m.Alloc, *xv, false)
+	}
+	// exec clause body
+	b.bodyStmt = bodyStmt{
+		Body:          cs.Body,
+		BodyLen:       len(cs.Body),
+		NextBodyIndex: -2,
+	}
+	m.PushOp(OpBody)
+	m.PushStmt(b.GetBodyStmt())
 }
 
 func (m *Machine) doOpSwitchClause() {
 	ss := m.PeekStmt1().(*SwitchStmt)
 	// tv := m.PeekValue(1) // switch tag value
-	// caiv := m.PeekValue(2) // switch clause case index (reuse)
+	caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
-	idx := cliv.GetInt()
-	if int(idx) >= len(ss.Clauses) {
-		// no clauses matched: do nothing.
-		m.PopStmt()  // pop switch stmt
-		m.PopValue() // pop switch tag value
-		m.PopValue() // pop clause case index
-		m.PopValue() // pop clause index
-		// done!
-	} else {
-		cl := &ss.Clauses[idx]
-		if len(cl.Cases) == 0 {
-			// default clause
-			m.PopStmt()  // pop switch stmt
-			m.PopValue() // pop switch tag value
-			m.PopValue() // clause case index no longer needed
-			m.PopValue() // clause index no longer needed
-			// expand block size
+	// Skip default clauses during the matching pass: the default is only
+	// taken if no case matches, regardless of textual position.
+	idx := int(cliv.GetInt())
+	for idx < len(ss.Clauses) && len(ss.Clauses[idx].Cases) == 0 {
+		idx++
+	}
+	if idx >= len(ss.Clauses) {
+		// no case clauses matched: run the default clause if present.
+		defaultIdx := -1
+		for i := range ss.Clauses {
+			if len(ss.Clauses[i].Cases) == 0 {
+				defaultIdx = i
+				break
+			}
+		}
+		m.PopStmt()    // pop switch stmt
+		m.PopValues(3) // pop switch tag value, clause case index, clause index
+		if defaultIdx >= 0 {
+			cl := &ss.Clauses[defaultIdx]
 			b := m.LastBlock()
 			b.ExpandWith(m.Alloc, cl)
-			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
 				BodyLen:       len(cl.Body),
@@ -958,13 +1012,17 @@ func (m *Machine) doOpSwitchClause() {
 			}
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
-		} else {
-			// try to match switch clause case(s).
-			m.PushOp(OpSwitchClauseCase)
-			// push first case expr
-			m.PushOp(OpEval)
-			m.PushExpr(cl.Cases[0])
 		}
+		// else: no default and no match, done.
+	} else {
+		caiv.SetInt(0)
+		cliv.SetInt(int64(idx))
+		cl := &ss.Clauses[idx]
+		// try to match switch clause case(s).
+		m.PushOp(OpSwitchClauseCase)
+		// push first case expr
+		m.PushOp(OpEval)
+		m.PushExpr(cl.Cases[0])
 	}
 }
 
@@ -987,9 +1045,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt
-		m.PopValue()                    // pop switch tag value
-		m.PopValue()                    // pop clause case index
-		m.PopValue()                    // pop clause index
+		m.PopValues(3)                  // pop switch tag value, clause case index, clause index
 		// expand block size
 		clidx := cliv.GetInt()
 		cl := &ss.Clauses[clidx]

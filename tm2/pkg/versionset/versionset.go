@@ -61,11 +61,9 @@ func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err erro
 	type pvpair [2]*VersionInfo
 	name2Pair := map[string]*pvpair{}
 	for _, pv := range pvs {
-		pv := pv
 		name2Pair[pv.Name] = &pvpair{&pv, nil}
 	}
 	for _, pv := range other {
-		pv := pv
 		item, ok := name2Pair[pv.Name]
 		if ok {
 			item[1] = &pv

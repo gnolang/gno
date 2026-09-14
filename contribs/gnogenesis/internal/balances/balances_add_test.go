@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -257,7 +258,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		var referenceBalances []gnoland.Balance
 
-		for run := 0; run < nRuns; run++ {
+		for run := range nRuns {
 			// Create a fresh genesis file
 			tempGenesis, cleanupGen := testutils.NewTestFile(t)
 			t.Cleanup(cleanupGen)
@@ -643,5 +644,83 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		assert.NotNil(t, balanceMap)
 		assert.Contains(t, mockErr.String(), "invalid send amount")
+	})
+}
+
+// Overriding a vesting account's amount must not release its funds. The schedule
+// is not part of the amount, and what is left after dropping it looks like an
+// ordinary balance, so nothing downstream would report it.
+func TestGenesis_Balances_Add_KeepsAVestingSchedule(t *testing.T) {
+	t.Parallel()
+
+	key := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	schedule := &std.VestingSchedule{
+		OriginalVesting: std.Coins{{Denom: ugnot.Denom, Amount: 100}},
+		StartTime:       100,
+		EndTime:         200,
+	}
+
+	newGenesisWithVesting := func(t *testing.T) string {
+		t.Helper()
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := common.DefaultGenesis()
+		genesis.AppState = gnoland.GnoGenesisState{
+			Balances: []gnoland.Balance{{
+				Address: key,
+				Amount:  std.Coins{{Denom: ugnot.Denom, Amount: 1000}},
+				Vesting: schedule,
+			}},
+		}
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+		return tempGenesis.Name()
+	}
+
+	readBack := func(t *testing.T, path string) gnoland.Balance {
+		t.Helper()
+
+		genesis, err := types.GenesisDocFromFile(path)
+		require.NoError(t, err)
+		state, ok := genesis.AppState.(gnoland.GnoGenesisState)
+		require.True(t, ok)
+		require.Len(t, state.Balances, 1)
+		return state.Balances[0]
+	}
+
+	t.Run("an amount override keeps the schedule", func(t *testing.T) {
+		t.Parallel()
+
+		path := newGenesisWithVesting(t)
+		cmd := NewBalancesCmd(commands.NewTestIO())
+		require.NoError(t, cmd.ParseAndRun(context.Background(), []string{
+			"add",
+			"--single", key.String() + "=500ugnot",
+			"--genesis-path", path,
+		}))
+
+		got := readBack(t, path)
+		assert.Equal(t, int64(500), got.Amount.AmountOf(ugnot.Denom),
+			"the input amount must win")
+		require.NotNil(t, got.Vesting, "the schedule must survive the override")
+		assert.Equal(t, *schedule, *got.Vesting)
+	})
+
+	t.Run("an input schedule wins over the genesis one", func(t *testing.T) {
+		t.Parallel()
+
+		path := newGenesisWithVesting(t)
+		cmd := NewBalancesCmd(commands.NewTestIO())
+		require.NoError(t, cmd.ParseAndRun(context.Background(), []string{
+			"add",
+			"--single", key.String() + "=500ugnot;vesting=50ugnot,300,400",
+			"--genesis-path", path,
+		}))
+
+		got := readBack(t, path)
+		require.NotNil(t, got.Vesting)
+		assert.Equal(t, int64(400), got.Vesting.EndTime,
+			"an explicit schedule must not be overwritten by the genesis one")
 	})
 }

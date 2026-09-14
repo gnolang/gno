@@ -137,7 +137,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedListContinuation(t *testing.T
 	// Find bytes that look like a tag for ByteLength (lower 3 bits == 2).
 	// Skip the first one (the outer initial tag). Flip to Varint.
 	found := 0
-	for i := 0; i < len(bz); i++ {
+	for i := range bz {
 		if bz[i]&0x07 == typ3ByteLength {
 			found++
 			if found == 2 {
@@ -507,7 +507,7 @@ func TestBinaryDepthLimitRejected(t *testing.T) {
 	// (just a typeURL, no value for the Inner field). Each wrapper adds an
 	// Any(ConcreteRecursive) envelope whose Inner field contains the previous level.
 	obj := Interface1(ConcreteRecursive{})
-	for i := 0; i < 70; i++ {
+	for range 70 {
 		obj = ConcreteRecursive{Inner: obj}
 	}
 	// Marshal with Any wrapping so the outermost is an Any envelope.
@@ -538,7 +538,7 @@ func TestGenproto2DepthLimitRejected(t *testing.T) {
 	cdc.Seal()
 
 	obj := Interface1(ConcreteRecursive{})
-	for i := 0; i < 70; i++ {
+	for range 70 {
 		obj = ConcreteRecursive{Inner: obj}
 	}
 	bz, err := cdc.MarshalBinary2(&ConcreteRecursive{Inner: obj})

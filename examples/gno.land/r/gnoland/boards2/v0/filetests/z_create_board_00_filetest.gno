@@ -1,0 +1,21 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_create_board_00_filetest
+
+package z_create_board_00_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	bid := boards2.CreateBoard(cross(cur), "test123", false, false)
+	println("ID =", bid)
+}
+
+// Output:
+// ID = 1

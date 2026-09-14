@@ -1,6 +1,7 @@
 package gnofmt
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -11,6 +12,10 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
+
+// ErrPackageConflict is returned when a directory contains non-test .gno files
+// with different package names (e.g. filetest directories).
+var ErrPackageConflict = errors.New("package name conflict")
 
 type Package interface {
 	// Should return the package path
@@ -81,7 +86,7 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 		}
 
 		if pkgname != "" && pkgname != f.Name.Name {
-			return nil, fmt.Errorf("conflict package name between %q and %q", pkgname, f.Name.Name)
+			return nil, fmt.Errorf("%w: between %q and %q", ErrPackageConflict, pkgname, f.Name.Name)
 		}
 
 		pkgname = f.Name.Name

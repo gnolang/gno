@@ -41,7 +41,6 @@ func TestCodecParity_Crypto(t *testing.T) {
 	cdc.Seal()
 
 	for i, c := range parityCasesCrypto() {
-		c := c
 		name := fmt.Sprintf("%d/%s", i, c.name)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

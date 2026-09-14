@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"path/filepath"
 	"time"
 )
 
@@ -10,7 +11,12 @@ var (
 	ErrInvalidMaxPayloadSize       = errors.New("invalid message payload size")
 	ErrInvalidSendRate             = errors.New("invalid packet send rate")
 	ErrInvalidReceiveRate          = errors.New("invalid packet receive rate")
+	ErrInvalidRecvAssemblyTimeout  = errors.New("invalid receive assembly timeout")
+	ErrInvalidMaxRecvBufferBytes   = errors.New("invalid max receive buffer size")
 )
+
+// defaultAddrBookPath is the default relative path for the persisted peer address book
+var defaultAddrBookPath = "config/addrbook.json"
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {
@@ -46,11 +52,24 @@ type P2PConfig struct {
 	// Rate at which packets can be received, in bytes/second
 	RecvRate int64 `json:"recv_rate" toml:"recv_rate" comment:"Rate at which packets can be received, in bytes/second"`
 
+	// Maximum time a single incoming message may spend being assembled from partial packets
+	RecvAssemblyTimeout time.Duration `json:"recv_assembly_timeout" toml:"recv_assembly_timeout" comment:"Maximum time a single incoming message may spend being assembled from partial packets.\n The deadline is anchored to the first partial packet of a message and is not extended by later ones,\n so a peer cannot hold buffer space indefinitely by dribbling packets. 0 disables the deadline."`
+
+	// Maximum total bytes buffered for incomplete messages, across all of a connection's channels
+	MaxRecvBufferBytes int `json:"max_recv_buffer_bytes" toml:"max_recv_buffer_bytes" comment:"Maximum total bytes buffered for incomplete incoming messages, across all of a connection's channels.\n This is the per-connection bound on memory a peer can pin, so the node's worst case is this times the peer limits.\n 0 disables the budget, leaving only each channel's own capacity."`
+
 	// Set true to enable the peer-exchange reactor
 	PeerExchange bool `json:"pex" toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
 
 	// Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 	PrivatePeerIDs string `json:"private_peer_ids" toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
+
+	// Toggle to disable guard against peers connecting from the same ip
+	AllowDuplicateIP bool `json:"allow_duplicate_ip" toml:"allow_duplicate_ip" comment:"Toggle to disable guard against peers connecting from the same ip"`
+
+	// Path to the address book file used to persist discovered peers across restarts.
+	// When empty, a default path relative to the root directory is used.
+	AddrBook string `json:"addr_book_file" toml:"addr_book_file" comment:"Path to the address book file used to persist discovered peers across restarts"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -64,7 +83,11 @@ func DefaultP2PConfig() *P2PConfig {
 		MaxPacketMsgPayloadSize: 1024,    // 1 kB
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
+		RecvAssemblyTimeout:     30 * time.Second,
+		MaxRecvBufferBytes:      20 << 20, // 20MB
 		PeerExchange:            true,
+		AllowDuplicateIP:        false,
+		AddrBook:                defaultAddrBookPath,
 	}
 }
 
@@ -87,5 +110,29 @@ func (cfg *P2PConfig) ValidateBasic() error {
 		return ErrInvalidReceiveRate
 	}
 
+	if cfg.RecvAssemblyTimeout < 0 {
+		return ErrInvalidRecvAssemblyTimeout
+	}
+
+	if cfg.MaxRecvBufferBytes < 0 {
+		return ErrInvalidMaxRecvBufferBytes
+	}
+
 	return nil
+}
+
+// AddrBookFile returns the absolute path to the address book file.
+// When AddrBook is a relative path, it is resolved against RootDir.
+// When AddrBook is empty, the default path is used.
+func (cfg *P2PConfig) AddrBookFile() string {
+	path := cfg.AddrBook
+	if path == "" {
+		path = defaultAddrBookPath
+	}
+
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(cfg.RootDir, path)
 }

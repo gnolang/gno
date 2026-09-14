@@ -203,7 +203,7 @@ func (ctx *P3Context2) writeFieldMarshal(sb *strings.Builder, field amino.FieldI
 	fnum := field.BinFieldNum
 	fopts := field.FieldOptions
 	ftype := field.Type
-	isPtr := ftype.Kind() == reflect.Ptr
+	isPtr := ftype.Kind() == reflect.Pointer
 
 	accessor := fmt.Sprintf("%s.%s", recv, fname)
 
@@ -323,7 +323,7 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 	rinfo := finfo.ReprType
 
 	switch {
-	case rinfo.Type == reflect.TypeOf(time.Time{}):
+	case rinfo.Type == reflect.TypeFor[time.Time]():
 		fmt.Fprintf(sb, "%s{\n", indent)
 		fmt.Fprintf(sb, "%s\tbefore := offset\n", indent)
 		fmt.Fprintf(sb, "%s\toffset, err = amino.PrependTime(buf, offset, %s)\n", indent, accessor)
@@ -331,7 +331,7 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 		ctx.writeLengthPrefixedField(sb, fnum, typ3, writeEmpty, indent+"\t")
 		fmt.Fprintf(sb, "%s}\n", indent)
 
-	case rinfo.Type == reflect.TypeOf(time.Duration(0)):
+	case rinfo.Type == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%s{\n", indent)
 		fmt.Fprintf(sb, "%s\tbefore := offset\n", indent)
 		fmt.Fprintf(sb, "%s\toffset, err = amino.PrependDuration(buf, offset, %s)\n", indent, accessor)
@@ -374,7 +374,7 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 				sb, "%s\tfor i := len(%s) - 1; i >= 0; i-- {\n", indent, accessor)
 			fmt.Fprintf(sb, "%s\t\te := %s[i]\n", indent, accessor)
 			eAccessor := "e"
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				fmt.Fprintf(sb, "%s\t\tvar de %s\n", indent, ctx.goTypeName(ert.Elem()))
 				fmt.Fprintf(sb, "%s\t\tif e != nil {\n%s\t\t\tde = *e\n%s\t\t}\n", indent, indent, indent)
 				eAccessor = "de"
@@ -390,7 +390,7 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 		} else if einfo != nil {
 			fmt.Fprintf(sb, "%s\tfor i := len(%s) - 1; i >= 0; i-- {\n", indent, accessor)
 			fmt.Fprintf(sb, "%s\t\te := %s[i]\n", indent, accessor)
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				fmt.Fprintf(sb, "%s\t\tif e == nil {\n%s\t\t\te = new(%s)\n%s\t\t}\n", indent, indent, ctx.goTypeName(ert.Elem()), indent)
 				if einfo.IsAminoMarshaler {
 					fmt.Fprintf(sb, "%s\t\ter, err := (*e).MarshalAmino()\n", indent)
@@ -534,7 +534,7 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		sb.WriteString("\t\tbefore := offset\n")
 		fmt.Fprintf(sb, "\t\tfor i := len(%s) - 1; i >= 0; i-- {\n", accessor)
 		fmt.Fprintf(sb, "\t\t\telem := %s[i]\n", accessor)
-		if ert.Kind() == reflect.Ptr {
+		if ert.Kind() == reflect.Pointer {
 			sb.WriteString("\t\t\tif elem == nil {\n")
 			sb.WriteString("\t\t\t\telem = new(" + ctx.goTypeName(ert.Elem()) + ")\n")
 			sb.WriteString("\t\t\t}\n")
@@ -552,7 +552,7 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		// writeImplicit: nested list whose inner elements are length-prefixed.
 		// TypeInfo invariant: einfo.Elem is non-nil for list types; reflect
 		// (binary_encode.go:400) dereferences without a nil guard. Match that.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
@@ -623,7 +623,7 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%s}\n", extraIndent)
 			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", extraIndent, fopts.BinFieldNum)
 		} else if einfo.ReprType.Type.Kind() == reflect.Struct ||
-			einfo.ReprType.Type == reflect.TypeOf(time.Duration(0)) ||
+			einfo.ReprType.Type == reflect.TypeFor[time.Duration]() ||
 			(isListType(einfo.ReprType.Type) && einfo.ReprType.Type.Elem().Kind() != reflect.Uint8) {
 			fmt.Fprintf( // Struct/Duration/nested-list element: encode backward, then length-prefix.
 				sb, "%sbefore := offset\n", extraIndent)
@@ -676,7 +676,7 @@ func (ctx *P3Context2) writeListEncode(sb *strings.Builder, accessor string, inf
 	if typ3 != amino.Typ3ByteLength {
 		fmt.Fprintf(sb, "%sfor i := len(%s) - 1; i >= 0; i-- {\n", indent, accessor)
 		fmt.Fprintf(sb, "%s\te := %s[i]\n", indent, accessor)
-		if ert.Kind() == reflect.Ptr {
+		if ert.Kind() == reflect.Pointer {
 			fmt.Fprintf(sb, "%s\tif e == nil {\n%s\t\te = new(%s)\n%s\t}\n", indent, indent, ctx.goTypeName(ert.Elem()), indent)
 			ctx.writePrimitiveEncode(sb, "(*e)", einfo, fopts, indent+"\t")
 		} else {
@@ -698,10 +698,10 @@ func (ctx *P3Context2) writeListEncode(sb *strings.Builder, accessor string, inf
 func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, einfo *amino.TypeInfo, fopts amino.FieldOptions, indent string) {
 	rinfo := einfo.ReprType
 	switch {
-	case rinfo.Type == reflect.TypeOf(time.Time{}):
+	case rinfo.Type == reflect.TypeFor[time.Time]():
 		fmt.Fprintf(sb, "%soffset, err = amino.PrependTime(buf, offset, %s)\n", indent, accessor)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn offset, err\n%s}\n", indent, indent, indent)
-	case rinfo.Type == reflect.TypeOf(time.Duration(0)):
+	case rinfo.Type == reflect.TypeFor[time.Duration]():
 		fmt.Fprintf(sb, "%soffset, err = amino.PrependDuration(buf, offset, %s)\n", indent, accessor)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn offset, err\n%s}\n", indent, indent, indent)
 	case rinfo.Type.Kind() == reflect.Struct:
@@ -741,13 +741,13 @@ func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, 
 				sb, "%sfor ii := len(%s) - 1; ii >= 0; ii-- {\n", indent, accessor)
 			fmt.Fprintf(sb, "%s\tie := %s[ii]\n", indent, accessor)
 			switch {
-			case innerRinfo.Type == reflect.TypeOf(time.Time{}):
+			case innerRinfo.Type == reflect.TypeFor[time.Time]():
 				fmt.Fprintf(sb, "%s\tieBefore := offset\n", indent)
 				fmt.Fprintf(sb, "%s\toffset, err = amino.PrependTime(buf, offset, ie)\n", indent)
 				fmt.Fprintf(sb, "%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent)
 				fmt.Fprintf(sb, "%s\tieLen := ieBefore - offset\n", indent)
 				fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(ieLen))\n", indent)
-			case innerRinfo.Type == reflect.TypeOf(time.Duration(0)):
+			case innerRinfo.Type == reflect.TypeFor[time.Duration]():
 				fmt.Fprintf(sb, "%s\tieBefore := offset\n", indent)
 				fmt.Fprintf(sb, "%s\toffset, err = amino.PrependDuration(buf, offset, ie)\n", indent)
 				fmt.Fprintf(sb, "%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent)
@@ -904,7 +904,7 @@ func (ctx *P3Context2) zeroCheck(accessor string, info *amino.TypeInfo, fopts am
 	rt := rinfo.Type
 
 	// time.Duration is treated as a struct (not skipped on zero).
-	if rt == reflect.TypeOf(time.Duration(0)) {
+	if rt == reflect.TypeFor[time.Duration]() {
 		return ""
 	}
 

@@ -373,6 +373,23 @@ func runTest_cur(runFlag string, verbose bool, failfast bool, test InternalTest)
 	return report.marshal()
 }
 
+// RunExampleTest runs the example test function. If the function
+// panics, then this prints the stack trace and returns true. If the function doesn't panic,
+// then the caller is responsible for collecting the output from the Machine and comparing
+// with the expected output.
+func RunExampleTest(exampleTestFunc func()) (panicked bool) {
+	defer func() {
+		err, st := recoverWithStacktrace()
+		if err != nil {
+			panicked = true
+			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)
+		}
+	}()
+
+	exampleTestFunc()
+	return
+}
+
 func formatDur(dur int64) string {
 	// XXX switch to FormatFloat after it's been added
 	// 1 sec = 1e9 nsec

@@ -17,7 +17,7 @@ func NewBPTree32() *BPTree            // convenience: fanout 32
 type ITree interface {
     Size() int
     Has(key string) bool
-    Get(key string) (value any, exists bool)
+    Get(key string) any
     GetByIndex(index int) (key string, value any)
     Iterate(start, end string, cb IterCbFn) bool
     ReverseIterate(start, end string, cb IterCbFn) bool
@@ -363,9 +363,10 @@ within a single method call. It does not create any persistent references.
 
 ### Values and keys
 - `nil` is a valid value. `Set("foo", nil)` stores it; `Get("foo")` returns
-  `(nil, true)`. `Remove("foo")` returns `(nil, true)`.
+  `nil`; `Has("foo")` returns `true`. `Remove("foo")` returns `(nil, true)`.
 - `""` is a valid key. Stored, retrieved, removed like any other key.
-- `Get` on missing key returns `(nil, false)`.
+- `Get` on missing key returns `nil` (use `Has` to distinguish from a stored
+  nil value).
 - `Remove` on missing key returns `(nil, false)`.
 - `Set` same key twice replaces value, returns `updated=true`.
 

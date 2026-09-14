@@ -30,4 +30,3 @@ func main(cur realm) {
 
 // Output:
 // stored.N before defer fires = 0
-

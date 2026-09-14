@@ -58,16 +58,6 @@ func CanonicalizeBlockID(blockID BlockID) CanonicalBlockID {
 }
 
 func CanonicalizePartSetHeader(psh PartSetHeader) CanonicalPartSetHeader {
-	// SECURITY: this panic is unreachable from network ingress —
-	// ConsensusReactor.Receive (consensus/reactor.go:218) calls
-	// msg.ValidateBasic() before any SignBytes/canonicalize work, and
-	// PartSetHeader.ValidateBasic (part_set.go:76-82) caps Total at
-	// MaxBlockPartsCount (1601), well inside uint32. The panic is retained
-	// as a fail-loud assertion against future bypass paths (test/debug
-	// callers, on-disk corruption, future SignBytes invocations that
-	// skip ValidateBasic). If you reach this panic from non-test code,
-	// add ValidateBasic upstream rather than weakening this check.
-	//
 	// PartSetHeader.Total is platform-int. Reject anything that doesn't fit
 	// in the canonical uint32 — both negatives and values > math.MaxUint32 —
 	// before the cast silently truncates. Without the upper-bound check on

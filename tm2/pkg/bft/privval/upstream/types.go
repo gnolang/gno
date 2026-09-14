@@ -9,7 +9,7 @@
 // The translator (translator.go) converts between the two shapes.
 //
 // CanonicalVote and CanonicalProposal are NOT redefined here — they live in
-// tm2/pkg/bft/types and were re-tagged in Phase 1 (POLRound varint;
+// tm2/pkg/bft/types and were re-tagged (POLRound varint;
 // CanonicalPartSetHeader uint32 Total first) to be byte-identical to
 // upstream's canonical.proto.
 package upstream

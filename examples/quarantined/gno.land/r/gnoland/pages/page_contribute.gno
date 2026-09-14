@@ -1,4 +1,4 @@
-package gnopages
+package pages
 
 func init() {
 	path := "contribute"

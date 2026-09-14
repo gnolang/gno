@@ -14,13 +14,13 @@ the foundations of a fairer and freer world, join us today.
 
 ---
 
-## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
+## [Boards](/r/gnoland/boards2/v0) - On-chain forum for the Gno.land community
 
 **Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
 
 Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
 
-**[Open Boards](/r/gnoland/boards2/v1)**
+**[Open Boards](/r/gnoland/boards2/v0)**
 
 ---
 
@@ -42,7 +42,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
+- [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
 <gno-columns-sep>

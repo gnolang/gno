@@ -1,12 +1,12 @@
 ## It tests changing deposit parameters through GovDAO voting
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 loadpkg gno.land/r/sys/params
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -26,7 +26,7 @@ stdout 'OK!'
 
 ## query params before the change
 gnokey query params/vm:p:default_deposit
-stdout '600000000ugnot'
+stdout '100000000ugnot'
 
 ## Execute "update default deposit" proposal
 gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
@@ -58,13 +58,13 @@ func main(cur realm) {
   dao.MustCreateProposal(cross(cur),prop)
 }
 
--- loader/load_govdao.gno --
-package load_govdao
+-- loader/loader.gno --
+package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -74,7 +74,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 -- run/vote_proposal.gno --
 package main

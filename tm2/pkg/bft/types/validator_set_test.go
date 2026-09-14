@@ -18,6 +18,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
+// The validators below are keyed with mock keys, which have to be encodable to
+// be hashed into a validator set.
+func init() {
+	mock.UnsafeRegisterAminoPackage()
+}
+
 func TestValidatorSetBasic(t *testing.T) {
 	t.Parallel()
 

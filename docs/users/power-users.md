@@ -22,7 +22,7 @@ Stay updated and connected with the Gno.land community:
 
 - [Twitter/X](https://twitter.com/_gnoland) - Latest announcements and updates
 - [GitHub](https://github.com/gnolang) - Repositories for all Gno.land projects
-- [Forum](https://gno.land/r/gnoland/boards2/v1) - Long-form discussions and proposals
+- [Forum](https://gno.land/r/gnoland/boards2/v0) - Long-form discussions and proposals
 
 ## Tools
 
@@ -55,7 +55,7 @@ Ready to contribute? Here are pathways to level up your involvement:
 4. **Documentation** - Help improve these docs and educational content
 5. **Community Building** - Organize events or create content
 
-Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more
+Check out the [Contributor guide](../builders/contributor-guide.md) for more
 details on contributing to the ecosystem.
 
 Remember, the best power users eventually become builders. As you grow more
