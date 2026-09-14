@@ -188,42 +188,127 @@ func safeBlockHeight(ctx sdk.Context) (h int64) {
 }
 
 // meetsMinVersion reports whether binaryVersion satisfies the minVersion requirement.
-// Versions are expected to follow the "chain/gnolandX.Y" format used for gno.land chain releases.
-// If either version cannot be parsed in that format, an exact string match is required.
+//
+// Two release-tag shapes are understood, ordered against each other as a single
+// line (see RELEASING.md):
+//
+//	vMAJOR.MINOR.PATCH        the current shape, e.g. "v1.2.0"
+//	chain/gnolandMAJOR.MINOR  betanet's retired shape, e.g. "chain/gnoland1.1"
+//
+// Anything else does not parse: "develop" (a plain `go build`),
+// "master.3335+bc43a5fb7" (an off-tag `make` build), or an un-numbered chain tag
+// such as "chain/mainnet". A binary whose version does not parse satisfies no
+// floor, which is the intended outcome — an ad-hoc build must not pass an
+// upgrade gate.
+//
+// A minVersion that does not parse is the dangerous case, and the reason this
+// function takes shapes rather than one: it degrades to byte equality, so the
+// correctly-upgraded binary is refused alongside the stale ones and the chain
+// cannot restart at all. Governance must name a parseable release tag; the
+// release tooling in misc/release refuses to emit a proposal that does not.
 func meetsMinVersion(binaryVersion, minVersion string) bool {
 	if minVersion == "" {
 		return true
 	}
 
-	bMajor, bMinor, bOK := parseGnolandVersion(binaryVersion)
-	mMajor, mMinor, mOK := parseGnolandVersion(minVersion)
+	bv, bOK := parseReleaseVersion(binaryVersion)
+	mv, mOK := parseReleaseVersion(minVersion)
 
 	if bOK && mOK {
-		if bMajor != mMajor {
-			return bMajor > mMajor
-		}
-		return bMinor >= mMinor
+		return bv.compare(mv) >= 0
 	}
 
 	// Fall back to exact match if versions are not in the recognized format.
 	return binaryVersion == minVersion
 }
 
-// parseGnolandVersion parses a version string like "chain/gnoland1.2" into its major and minor parts.
-func parseGnolandVersion(v string) (major, minor int, ok bool) {
-	const prefix = "chain/gnoland"
-	if !strings.HasPrefix(v, prefix) {
-		return 0, 0, false
+// releaseVersion is a parsed gno.land release tag.
+type releaseVersion struct {
+	major, minor, patch int
+	// pre is the semver pre-release suffix without its leading '-', empty for a
+	// final release. A pre-release sorts below the release it leads to, so
+	// "v1.3.0-rc.1" does not satisfy a "v1.3.0" floor.
+	pre string
+}
+
+// compare returns -1, 0 or +1 as v sorts before, equal to, or after o.
+func (v releaseVersion) compare(o releaseVersion) int {
+	for _, pair := range [][2]int{
+		{v.major, o.major},
+		{v.minor, o.minor},
+		{v.patch, o.patch},
+	} {
+		if pair[0] != pair[1] {
+			if pair[0] < pair[1] {
+				return -1
+			}
+			return 1
+		}
 	}
-	rest := v[len(prefix):]
-	before, after, ok0 := strings.Cut(rest, ".")
-	if !ok0 {
-		return 0, 0, false
+
+	// Equal numbers: a release outranks any pre-release of itself. Two
+	// pre-releases are ordered by plain string comparison, which matches semver
+	// for the "rc.N" shape we use and is only approximate beyond it.
+	switch {
+	case v.pre == o.pre:
+		return 0
+	case v.pre == "":
+		return 1
+	case o.pre == "":
+		return -1
+	case v.pre < o.pre:
+		return -1
+	default:
+		return 1
 	}
-	maj, err1 := strconv.Atoi(before)
-	mnr, err2 := strconv.Atoi(after)
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
+}
+
+// legacyChainPrefix is betanet's tag shape. It is frozen: chain/gnoland1.0 and
+// chain/gnoland1.1 are the only two tags that ever used it, and they are the
+// version strings compiled into the binaries that ran that chain.
+const legacyChainPrefix = "chain/gnoland"
+
+// parseReleaseVersion parses a release tag in either supported shape.
+func parseReleaseVersion(v string) (releaseVersion, bool) {
+	if rest, ok := strings.CutPrefix(v, legacyChainPrefix); ok {
+		// "chain/gnolandMAJOR.MINOR" — no patch component.
+		majorStr, minorStr, found := strings.Cut(rest, ".")
+		if !found {
+			return releaseVersion{}, false
+		}
+		major, err1 := strconv.Atoi(majorStr)
+		minor, err2 := strconv.Atoi(minorStr)
+		if err1 != nil || err2 != nil {
+			return releaseVersion{}, false
+		}
+		return releaseVersion{major: major, minor: minor}, true
 	}
-	return maj, mnr, true
+
+	rest, ok := strings.CutPrefix(v, "v")
+	if !ok {
+		return releaseVersion{}, false
+	}
+
+	// Drop the build metadata; semver says it takes no part in ordering.
+	rest, _, _ = strings.Cut(rest, "+")
+	rest, pre, _ := strings.Cut(rest, "-")
+
+	parts := strings.Split(rest, ".")
+	if len(parts) != 3 {
+		return releaseVersion{}, false
+	}
+	nums := make([]int, 3)
+	for i, p := range parts {
+		// Reject "+1", "-1" and leading zeros, which Atoi would otherwise accept
+		// or silently normalise into a tag that is not the one that was pushed.
+		if p == "" || (len(p) > 1 && p[0] == '0') {
+			return releaseVersion{}, false
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return releaseVersion{}, false
+		}
+		nums[i] = n
+	}
+	return releaseVersion{major: nums[0], minor: nums[1], patch: nums[2], pre: pre}, true
 }

@@ -25,4 +25,4 @@ The `-v0` validator commands route through `r/sys/validators/v0` (operator-keyed
 post-VALOPLAN2). Use them on chains running v0 (test-13 onward). On chains still
 running v2 (gnoland1 pre-hardfork), use the unsuffixed `add-validator` / `rm-validator`.
 
-Each deployment wrapper (e.g., `misc/deployments/gnoland1/govdao`) sets the correct chain ID, RPC endpoint, and default key name.
+Each deployment wrapper (e.g., `misc/deployments/betanet/govdao`) sets the correct chain ID, RPC endpoint, and default key name.
