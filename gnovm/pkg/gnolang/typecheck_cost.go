@@ -382,7 +382,7 @@ func typeExpansionCost(entryPath string, gofs []*ast.File, resolve pkgResolver, 
 	//
 	// Only invalid recursive types are affected, and go/types rejects those a moment
 	// later — but the charge lands BEFORE it does, so one cheap malformed package
-	// was enough. TestTypeExpansionCostCyclicIsDeterministic pins this.
+	// was enough. TestTypeExpansionCostIsDeterministic pins this.
 	var total uint64
 	decls := c.declsFor(entryPath)
 	for _, name := range decls.names {

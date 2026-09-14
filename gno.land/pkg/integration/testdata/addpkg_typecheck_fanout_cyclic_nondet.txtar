@@ -16,7 +16,7 @@
 #
 # Fixture from @omarsy's review of #5826, kept as written. Six samples rather than
 # one because a single run cannot observe map order: unsorted it failed 6/6 runs
-# here, sorted it passes. TestTypeExpansionCostCyclicIsDeterministic covers the same
+# here, sorted it passes. TestTypeExpansionCostIsDeterministic covers the same
 # defect deterministically (300 iterations, one assertion) — this one covers the
 # real DeliverTx path and the actual gas figures.
 #
