@@ -590,7 +590,7 @@ func (o *oracle) runVerifier(ctx context.Context) {
 			return
 		case work := <-o.candidates:
 			for _, mpkg := range work.pkgs {
-				o.handleCandidate(ctx, candidate{mpkg: mpkg, height: work.height})
+				o.handleCandidate(ctx, mpkg, work.height)
 			}
 			o.recordVerified(work.height)
 		}
@@ -610,22 +610,6 @@ func (o *oracle) recordVerified(height int64) {
 	if err := o.state.setLastVerifiedHeight(height); err != nil {
 		o.errf("gpao: could not record height %d as verified: %v", height, err)
 	}
-}
-
-// candidate is a submitted package together with the block it was submitted in.
-//
-// The height travels with the bytes because it is part of what gets approved,
-// not merely context for a log line: MsgEnablePackage pins it, so that a
-// re-submission of the same sources -- which keeps the content hash while
-// rewriting the [addpkg] section underneath it, including the storage-deposit
-// ceiling this oracle's own transaction pays against -- cannot ride an approval
-// issued for the submission that was actually verified.
-//
-// It is not what the channel carries: blockWork is, because the cursor advances
-// per block. runVerifier pairs each package with its block's height.
-type candidate struct {
-	mpkg   *std.MemPackage
-	height int64
 }
 
 // enqueue hands one block to the verifier, blocking if it is behind.
@@ -654,8 +638,7 @@ func (o *oracle) enqueue(ctx context.Context, work blockWork) error {
 
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
 // a MsgEnablePackage to activate it on-chain.
-func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
-	mpkg, height := c.mpkg, c.height
+func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage, height int64) {
 	path := mpkg.Path
 	// Keyed on the bytes, not just the path. A rejection is a verdict about the
 	// code, so a submitter who fixes the code and resubmits deserves a fresh

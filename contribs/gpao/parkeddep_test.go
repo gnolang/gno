@@ -159,7 +159,7 @@ func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 	// until they change. Treating every unresolved import as pending would
 	// satisfy B's claims below and break these, so a fix has to ask the chain
 	// which paths are parked -- vm/qpkgmeta_json -- rather than read the error.
-	o.handleCandidate(t.Context(), candidate{mpkg: control})
+	o.handleCandidate(t.Context(), control, 0)
 
 	controlSt := o.status.get(controlPath)
 	require.Equal(t, statusRejected, controlSt.Status,
@@ -169,7 +169,7 @@ func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 	require.Contains(t, o.seen, candidateKey(control),
 		"re-verifying these bytes reaches the same answer, so they are settled until the submitter changes them")
 
-	o.handleCandidate(t.Context(), candidate{mpkg: app})
+	o.handleCandidate(t.Context(), app, 0)
 
 	// Guards first. Both claims below are satisfied by an oracle that did
 	// nothing at all -- `seen` is empty and status.get returns statusUnknown
@@ -220,7 +220,7 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 	// The oracle enables the dependency itself, so it is live and the fixture
 	// is a package the approver has already accepted.
 	o := chain.oracle(t)
-	o.handleCandidate(t.Context(), candidate{mpkg: dep})
+	o.handleCandidate(t.Context(), dep, 0)
 	depSt := o.status.get(depPath)
 	require.Equal(t, statusApproved, depSt.Status,
 		"premise: the dependency must be live -- recorded reason: %s", depSt.Reason)
@@ -237,7 +237,7 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 		"package wantslicenced\n\nimport \""+depPath+"\"\n\nfunc N(cur realm) int { return licenced.Answer() }\n")
 	chain.park(t, app)
 
-	o.handleCandidate(t.Context(), candidate{mpkg: app})
+	o.handleCandidate(t.Context(), app, 0)
 
 	st := o.status.get(appPath)
 	require.Equal(t, statusPending, st.Status,
@@ -279,7 +279,7 @@ func TestAnAbsentImportIsAVerdictWhateverIsParked(t *testing.T) {
 			chain.park(t, mpkg)
 			o := chain.oracle(t)
 
-			o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
+			o.handleCandidate(t.Context(), mpkg, 0)
 
 			st := o.status.get(tc.path)
 			require.Equal(t, statusRejected, st.Status,
@@ -329,7 +329,7 @@ func TestAParkedImportDefersTheVerdict(t *testing.T) {
 			chain.park(t, mpkg)
 			o := chain.oracle(t)
 
-			o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
+			o.handleCandidate(t.Context(), mpkg, 0)
 
 			st := o.status.get(tc.path)
 			require.Equal(t, statusPending, st.Status,
