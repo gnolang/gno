@@ -114,6 +114,9 @@ func describeBroadcast(res *ctypes.ResultBroadcastTxCommit, err error) string {
 //     second key that is neither the approver nor a listed submitter reaches the
 //     same walk on this locked-down chain.
 func TestDoSGapAgainstARealChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("starts a real node")
+	}
 	const parkedPath = "gno.land/r/test/parked"
 
 	gnoroot := gnoenv.RootDir()

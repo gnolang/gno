@@ -275,9 +275,13 @@ func (c *expansionChecker) namedCost(k typeKey) uint64 {
 // Every such case routes through here, so the file has one answer to "what does an
 // unknown name cost" rather than one per call site.
 func unresolvedCost(name string) uint64 {
-	if types.Universe.Lookup(name) != nil {
-		// Predeclared (int, string, error, any, ...). validType stops at these, so
-		// 1 is exact, not an approximation.
+	if obj := types.Universe.Lookup(name); obj != nil {
+		// Predeclared. validType stops at a basic type or a bare interface (any),
+		// but error and comparable are *types.Named: it visits the Named, then its
+		// underlying interface, which embeds nothing. Pinned by TestUnresolvedCostUniverse.
+		if _, named := types.Unalias(obj.Type()).(*types.Named); named {
+			return 2
+		}
 		return 1
 	}
 	if v, ok := gnoBuiltinShimExpansion[name]; ok {

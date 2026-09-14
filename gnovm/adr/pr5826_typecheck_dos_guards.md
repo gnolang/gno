@@ -29,6 +29,7 @@ is nanoseconds per node **on that machine**, which takes two steps:
 | step | source | result |
 |---|---|---|
 | measure the walk | `BenchmarkValidTypeWalk`, Apple M5 | 30.1 / 30.4 / 34.9 ns/node at depth 18 / 20 / 22; *marginal* rate climbs 34.3 → 40.3 from depth 22 → 26 as the working set outgrows cache |
+| check the shape | same benchmark, `iface` sub-benchmarks (interface embedding) | 35–39 ns/node at depth 18–22 (~1.15x the struct chain); every shape converges on ~50 ns/node by depth 26, so the rate is not shape-sensitive at the DoS end |
 | calibrate to the Xeon | rerun `cmd/calibrate`'s `BenchmarkAlloc` locally, compare to the shipped `bench_output_do_dedicated.txt` | Xeon 2.96x slower over 37 shared cases (median), 2.2–3.2x on small allocations — the regime resembling `validType`'s pointer chasing |
 
 A denial of service is the large-working-set end, so price ~40, not ~30:
@@ -110,7 +111,7 @@ of a doubling chain of depth `d` is walked 2^d times. So:
 |---|---|---|
 | type params, `\|`, `~` | **rejected** (`checkNoUncountableGenerics`) | `cost()` cannot model them |
 | dot imports | **rejected** (`checkNoDotImports`) | hide a type's expansion from `cost()` |
-| predeclared names | exactly 1 | `validType` stops there |
+| predeclared names | exactly 1, or 2 for `error`/`comparable` | `validType` stops at a basic type or bare interface; those two are `*types.Named` over an interface, so it visits both (`TestUnresolvedCostUniverse`) |
 | `.gnobuiltins.gno` `realm`/`address` | exactly 2 (`gnoBuiltinShimExpansion`) | shim injected *after* these guards run |
 | imported stdlib types | `leafExpansionBound = 32` | over-counts; see below |
 

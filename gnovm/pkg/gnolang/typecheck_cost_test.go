@@ -25,7 +25,7 @@ import (
 
 // parseCostSrc parses Go source into the (fset, []*ast.File) shape that
 // typeExpansionCost consumes.
-func parseCostSrc(t *testing.T, src string) (*token.FileSet, []*ast.File) {
+func parseCostSrc(t testing.TB, src string) (*token.FileSet, []*ast.File) {
 	t.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "bound.go", src, parser.SkipObjectResolution)
@@ -110,6 +110,10 @@ func genericFanOutSrc(depth int) string {
 // unions two array types over I_{n-1}, so validType still doubles per level. Type
 // sets are a go1.18 generics feature, so this must be rejected before go/types.
 func unionFanOutSrc(depth int) string { return ifaceChainSrc("|", depth) }
+
+// ifaceFanOutSrc routes the doubling through ordinary interface embedding, which
+// validType follows and cost() must count.
+func ifaceFanOutSrc(depth int) string { return ifaceChainSrc(";", depth) }
 
 // ifaceChainSrc builds an interface type-set chain whose terms are separated by
 // sep: "|" is a union (a generics construct cost() cannot count, so rejected),
@@ -207,7 +211,7 @@ func TestTypeExpansionCost(t *testing.T) {
 			// rather than a union `|`: the generics guard does not reject this shape
 			// (no `|`/`~`), so the cost model must count both elements itself.
 			"multi-element interface value fan-out counted",
-			ifaceChainSrc(";", 30),
+			ifaceFanOutSrc(30),
 			true,
 		},
 	}
@@ -640,6 +644,35 @@ func TestExpansionGas(t *testing.T) {
 	assert.Equal(t, int64(math.MaxInt64), expansionGas(exact+1))
 }
 
+// TestUnresolvedCostUniverse pins unresolvedCost against a replay of validType0
+// for every predeclared type name.
+func TestUnresolvedCostUniverse(t *testing.T) {
+	t.Parallel()
+
+	// validTypeNodes replays validType0 on the shapes the Universe contains: a
+	// Named is one node plus its underlying type, anything else is one node.
+	var validTypeNodes func(types.Type) uint64
+	validTypeNodes = func(typ types.Type) uint64 {
+		if named, ok := types.Unalias(typ).(*types.Named); ok {
+			return 1 + validTypeNodes(named.Underlying())
+		}
+		return 1
+	}
+
+	checked := 0
+	for _, name := range types.Universe.Names() {
+		tn, ok := types.Universe.Lookup(name).(*types.TypeName)
+		if !ok {
+			continue
+		}
+		checked++
+		assert.Equal(t, validTypeNodes(tn.Type()), unresolvedCost(name), "predeclared %q", name)
+	}
+	require.NotZero(t, checked)
+	// One anchor, so a same-direction drift in the replay above cannot pass.
+	assert.Equal(t, uint64(2), unresolvedCost("error"))
+}
+
 // BenchmarkValidTypeWalk measures the thing typeExpansionGasPerNode prices: the
 // wall time go/types spends per node of the validType walk. It reports ns/node,
 // which is the rate the constant is derived from — see typeExpansionGasPerNode for
@@ -653,38 +686,35 @@ func TestExpansionGas(t *testing.T) {
 // The rate climbs with depth (the working set outgrows cache), and the DoS case is
 // the large-working-set end, so read the deepest figure, not the shallowest.
 func BenchmarkValidTypeWalk(b *testing.B) {
-	for _, depth := range []int{18, 20, 22} {
-		src := fanOutSrc(depth)
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "x.go", src, 0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		gofs := []*ast.File{f}
-		nodes := typeExpansionCost("", gofs, nil, nil)
+	shapes := []struct {
+		name string
+		src  func(int) string
+	}{
+		{"struct", fanOutSrc},
+		{"iface", ifaceFanOutSrc},
+	}
+	for _, shape := range shapes {
+		for _, depth := range []int{18, 20, 22} {
+			fset, gofs := parseCostSrc(b, shape.src(depth))
+			nodes := typeExpansionCost("", gofs, nil, nil)
 
-		b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
-			for range b.N {
-				conf := types.Config{Importer: importer.Default(), Error: func(error) {}}
-				_, _ = conf.Check("x", fset, gofs, nil)
-			}
-			b.ReportMetric(
-				float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(nodes),
-				"ns/node")
-			b.ReportMetric(float64(nodes), "nodes")
-		})
+			b.Run(fmt.Sprintf("%s/depth-%d", shape.name, depth), func(b *testing.B) {
+				for range b.N {
+					conf := types.Config{Importer: importer.Default(), Error: func(error) {}}
+					_, _ = conf.Check("x", fset, gofs, nil)
+				}
+				b.ReportMetric(
+					float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(nodes),
+					"ns/node")
+				b.ReportMetric(float64(nodes), "nodes")
+			})
+		}
 	}
 }
 
 func BenchmarkTypeExpansionCost(b *testing.B) {
 	for _, depth := range []int{100, 1000, 5000} {
-		src := fanOutSrc(depth)
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "bound.go", src, parser.SkipObjectResolution)
-		if err != nil {
-			b.Fatal(err)
-		}
-		gofs := []*ast.File{f}
+		_, gofs := parseCostSrc(b, fanOutSrc(depth))
 		b.Run(fmt.Sprintf("fanout-depth-%d", depth), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = typeExpansionCost("", gofs, nil, nil)
