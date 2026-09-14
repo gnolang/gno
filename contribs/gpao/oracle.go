@@ -53,23 +53,6 @@ type oracle struct {
 	// spendBlocked records that --max-spend stopped an approval, which freezes
 	// the cursor from that point on.
 	//
-	// Reaching the bound is normal operation, not a fault: the daemon keeps
-	// watching blocks and says so. But a block whose package was declined for
-	// want of budget has NOT been verified in the sense the cursor claims, and
-	// recording it as such is how raising the bound and restarting would report
-	// itself caught up while having permanently skipped every submission made
-	// after the bound was hit.
-	//
-	// Only this one of handleCandidate's five retryable outcomes freezes the
-	// cursor, and the criterion is whether the outcome is provably terminal for
-	// the rest of the run. It is here: `spent` only grows and `maxSpend` is
-	// fixed, so once one approval is declined every later one is too. An
-	// over-budget verification or a failed enable may succeed for the very next
-	// package, and both are capped, so freezing on those would let one
-	// transient blip at height 100 pin the cursor there for a run that reaches
-	// 100000. An unavailable verifier sits between the two -- see the
-	// errVerifyUnavailable branch.
-	//
 	// Same goroutine as spent, so no lock.
 	spendBlocked bool
 
