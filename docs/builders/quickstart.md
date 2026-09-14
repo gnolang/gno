@@ -56,14 +56,14 @@ gnokey query bank/balances/<your-g1-addr> \
 # 7. Deploy
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 \
+  -gas-fee 5000ugnot -gas-wanted 5000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 dev
 
 # 8. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 dev
 ```
 

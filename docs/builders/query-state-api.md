@@ -17,6 +17,7 @@ type system.
 | `vm/qpkg_json` | `<pkgpath>` | Named top-level variables of a package |
 | `vm/qobject_json` | `<objectid>` | Children of a persisted object |
 | `vm/qtype_json` | `<typeid>` | Type definition (struct fields, etc.) |
+| `vm/qobject_binary` | `<objectid>` | The same object as `vm/qobject_json`, in Amino binary |
 
 ### `vm/qeval_json`
 
@@ -111,6 +112,12 @@ gnokey query vm/qtype_json --data 'gno.land/p/demo/avl.Node'
   }
 }
 ```
+
+### `vm/qobject_binary`
+
+Takes the same ObjectID as `vm/qobject_json` and returns the object encoded as
+Amino binary. Reach for it from a client that already decodes Amino; to read a
+response by eye, use the JSON form.
 
 ## Amino JSON Format
 
