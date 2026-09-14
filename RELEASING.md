@@ -41,10 +41,14 @@ the judgement is yours.
 
 ### The `v` line is continuous across networks
 
-`v1.0.0` and `v1.1.0` were betanet's, and were deleted upstream when betanet was
-retired. The line continues rather than restarting: mainnet's launch is
-`v1.2.0`. A deleted tag name is never reused for different content — anyone who
-fetched the old one would silently keep it.
+`v1.0.0` and `v1.1.0` are betanet's — the same two commits as
+`chain/gnoland1.0` and `chain/gnoland1.1`. They were deleted upstream for a
+while and have been restored at their original commits.
+
+The line continues rather than restarting: mainnet's launch is `v1.2.0`. A tag
+name is never reused for different content, which is also why restoring a
+deleted tag is only safe at the commit it originally pointed to — anyone still
+holding the old ref then has an identical one.
 
 ### Branches and tags
 
