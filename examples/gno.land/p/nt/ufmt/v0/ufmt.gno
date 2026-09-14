@@ -6,7 +6,6 @@
 package ufmt
 
 import (
-	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -54,7 +53,7 @@ func Sprint(a ...any) string {
 func (p *printer) doPrint(args []any) {
 	for argNum, arg := range args {
 		if argNum > 0 {
-			p.buf.writeRune(' ')
+			p.buf.writeByte(' ')
 		}
 
 		switch v := arg.(type) {
@@ -65,9 +64,27 @@ func (p *printer) doPrint(args []any) {
 		case error:
 			p.buf.writeString(v.Error())
 		case float64:
-			p.buf.writeString(Sprintf("%f", v))
-		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			p.buf.writeString(Sprintf("%d", v))
+			p.buf = strconv.AppendFloat(p.buf, v, 'f', 6, 64)
+		case int:
+			p.buf = strconv.AppendInt(p.buf, int64(v), 10)
+		case int8:
+			p.buf = strconv.AppendInt(p.buf, int64(v), 10)
+		case int16:
+			p.buf = strconv.AppendInt(p.buf, int64(v), 10)
+		case int32:
+			p.buf = strconv.AppendInt(p.buf, int64(v), 10)
+		case int64:
+			p.buf = strconv.AppendInt(p.buf, v, 10)
+		case uint:
+			p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
+		case uint8:
+			p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
+		case uint16:
+			p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
+		case uint32:
+			p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
+		case uint64:
+			p.buf = strconv.AppendUint(p.buf, v, 10)
 		case bool:
 			if v {
 				p.buf.writeString("true")
@@ -134,18 +151,19 @@ func Sprintf(format string, a ...any) string {
 
 // doPrintf parses the format string and writes formatted arguments to the buffer.
 func (p *printer) doPrintf(format string, args []any) {
-	sTor := []rune(format)
-	end := len(sTor)
+	end := len(format)
 	argNum := 0
 	argLen := len(args)
 
 	for i := 0; i < end; {
-		isLast := i == end-1
-		c := sTor[i]
-
-		if isLast || c != '%' {
-			// we don't check for invalid format like a one ending with "%"
-			p.buf.writeRune(c)
+		if format[i] != '%' {
+			p.buf.writeByte(format[i])
+			i++
+			continue
+		}
+		// trailing '%' — treat as literal (invalid but tolerated)
+		if i == end-1 {
+			p.buf.writeByte('%')
 			i++
 			continue
 		}
@@ -154,33 +172,16 @@ func (p *printer) doPrintf(format string, args []any) {
 		precision := -1
 		i++ // skip '%'
 
-		digits := func() string {
-			start := i
-			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
-				i++
-			}
-			if i > start {
-				return string(sTor[start:i])
-			}
-			return ""
+		if n, c, ok := parseNumber(format, i, end); ok {
+			length = n
+			i += c
 		}
 
-		if l := digits(); l != "" {
-			var err error
-			length, err = strconv.Atoi(l)
-			if err != nil {
-				panic("ufmt: invalid length specification")
-			}
-		}
-
-		if i < end && sTor[i] == '.' {
+		if i < end && format[i] == '.' {
 			i++ // skip '.'
-			if l := digits(); l != "" {
-				var err error
-				precision, err = strconv.Atoi(l)
-				if err != nil {
-					panic("ufmt: invalid precision specification")
-				}
+			if n, c, ok := parseNumber(format, i, end); ok {
+				precision = n
+				i += c
 			}
 		}
 
@@ -188,9 +189,9 @@ func (p *printer) doPrintf(format string, args []any) {
 			panic("ufmt: invalid format string")
 		}
 
-		verb := sTor[i]
+		verb := format[i]
 		if verb == '%' {
-			p.buf.writeRune('%')
+			p.buf.writeByte('%')
 			i++
 			continue
 		}
@@ -203,26 +204,28 @@ func (p *printer) doPrintf(format string, args []any) {
 
 		switch verb {
 		case 'v':
-			writeValue(p, verb, arg)
+			writeValue(p, rune(verb), arg)
 		case 's':
-			writeStringWithLength(p, verb, arg, length)
+			writeStringWithLength(p, rune(verb), arg, length)
 		case 'c':
-			writeChar(p, verb, arg)
+			writeChar(p, rune(verb), arg)
 		case 'd':
-			writeInt(p, verb, arg)
+			writeInt(p, rune(verb), arg)
 		case 'e', 'E', 'f', 'F', 'g', 'G':
-			writeFloatWithPrecision(p, verb, arg, precision)
+			writeFloatWithPrecision(p, rune(verb), arg, precision)
 		case 't':
-			writeBool(p, verb, arg)
+			writeBool(p, rune(verb), arg)
 		case 'x':
-			writeHex(p, verb, arg)
+			writeHex(p, rune(verb), arg)
 		case 'q':
-			writeQuotedString(p, verb, arg)
+			writeQuotedString(p, rune(verb), arg)
 		case 'T':
 			writeType(p, arg)
 		// % handled before, as it does not consume an argument
 		default:
-			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
+			p.buf.writeString("(unhandled verb: %")
+			p.buf.writeByte(verb)
+			p.buf.writeByte(')')
 		}
 
 		i++
@@ -233,35 +236,54 @@ func (p *printer) doPrintf(format string, args []any) {
 	}
 }
 
+// parseNumber scans consecutive ASCII digits in s starting at start.
+// Returns the parsed integer, how many bytes were consumed, and whether
+// any digit was found.
+func parseNumber(s string, start, end int) (num, consumed int, ok bool) {
+	for i := start; i < end; i++ {
+		b := s[i]
+		if b < '0' || b > '9' {
+			break
+		}
+		num = num*10 + int(b-'0')
+		consumed++
+	}
+	return num, consumed, consumed > 0
+}
+
 // writeValue handles %v formatting
 func writeValue(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
 	case nil:
 		p.buf.writeString("<nil>")
 	case bool:
-		writeBool(p, verb, v)
+		if v {
+			p.buf.writeString("true")
+		} else {
+			p.buf.writeString("false")
+		}
 	case int:
-		p.buf.writeString(strconv.Itoa(v))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int8:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int16:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int32:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int64:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case uint:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint16:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint32:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint64:
-		p.buf.writeString(strconv.FormatUint(v, 10))
+		p.buf = strconv.AppendUint(p.buf, v, 10)
 	case float64:
-		p.buf.writeString(strconv.FormatFloat(v, 'g', -1, 64))
+		p.buf = strconv.AppendFloat(p.buf, v, 'g', -1, 64)
 	case string:
 		p.buf.writeString(v)
 	case []byte:
@@ -273,7 +295,7 @@ func writeValue(p *printer, verb rune, arg any) {
 	case error:
 		p.buf.writeString(v.Error())
 	default:
-		p.buf.writeString(fallback(verb, v))
+		writeFallback(p, verb, v)
 	}
 }
 
@@ -288,11 +310,14 @@ func writeStringWithLength(p *printer, verb rune, arg any, length int) {
 	case string:
 		s = v
 	default:
-		s = fallback(verb, v)
+		writeFallback(p, verb, v)
+		return
 	}
 
 	if length > 0 && len(s) < length {
-		s = strings.Repeat(" ", length-len(s)) + s
+		for k := length - len(s); k > 0; k-- {
+			p.buf.writeByte(' ')
+		}
 	}
 	p.buf.writeString(s)
 }
@@ -304,19 +329,19 @@ func writeChar(p *printer, verb rune, arg any) {
 	case rune:
 		p.buf.writeString(string(v))
 	case int:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	case int8:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	case int16:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	case uint:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	case uint8:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	case uint16:
-		p.buf.writeRune(rune(v))
+		p.buf.writeString(string(rune(v)))
 	default:
-		p.buf.writeString(fallback(verb, v))
+		writeFallback(p, verb, v)
 	}
 }
 
@@ -324,27 +349,27 @@ func writeChar(p *printer, verb rune, arg any) {
 func writeInt(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
 	case int:
-		p.buf.writeString(strconv.Itoa(v))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int8:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int16:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int32:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case int64:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		p.buf = strconv.AppendInt(p.buf, int64(v), 10)
 	case uint:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint16:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint32:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 10)
 	case uint64:
-		p.buf.writeString(strconv.FormatUint(v, 10))
+		p.buf = strconv.AppendUint(p.buf, v, 10)
 	default:
-		p.buf.writeString(fallback(verb, v))
+		writeFallback(p, verb, v)
 	}
 }
 
@@ -366,7 +391,7 @@ func writeFloatWithPrecision(p *printer, verb rune, arg any, precision int) {
 		}
 		p.buf = strconv.AppendFloat(p.buf, v, format, precision, 64)
 	default:
-		p.buf.writeString(fallback(verb, v))
+		writeFallback(p, verb, v)
 	}
 }
 
@@ -380,7 +405,7 @@ func writeBool(p *printer, verb rune, arg any) {
 			p.buf.writeString("false")
 		}
 	default:
-		p.buf.writeString(fallback(verb, v))
+		writeFallback(p, verb, v)
 	}
 }
 
@@ -388,7 +413,7 @@ func writeBool(p *printer, verb rune, arg any) {
 func writeHex(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 16))
+		p.buf = strconv.AppendUint(p.buf, uint64(v), 16)
 	default:
 		p.buf.writeString("(unhandled)")
 	}
@@ -398,7 +423,7 @@ func writeHex(p *printer, verb rune, arg any) {
 func writeQuotedString(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
 	case string:
-		p.buf.writeString(strconv.Quote(v))
+		p.buf = strconv.AppendQuote(p.buf, v)
 	default:
 		p.buf.writeString("(unhandled)")
 	}
@@ -531,79 +556,48 @@ func Appendln(b []byte, a ...any) []byte {
 	return append(b, p.buf...)
 }
 
-// This function is used to mimic Go's fmt.Sprintf
-// specific behaviour of showing verb/type mismatches,
-// where for example:
-//
-//	fmt.Sprintf("%d", "foo") gives "%!d(string=foo)"
-//
-// Here:
-//
-//	fallback("s", 8) -> "%!s(int=8)"
-//	fallback("d", nil) -> "%!d(<nil>)", and so on.f
-func fallback(verb rune, arg any) string {
-	var s string
+// writeFallback mimics Go's fmt.Sprintf mismatch output (e.g. "%!d(string=foo)")
+// by building the body via string concatenation and issuing a single
+// writeString. On gno this is cheaper than many small buffer appends.
+func writeFallback(p *printer, verb rune, arg any) {
+	var body string
 	switch v := arg.(type) {
 	case string:
-		s = "string=" + v
+		body = "string=" + v
 	case (interface{ String() string }):
-		s = "string=" + v.String()
+		body = "string=" + v.String()
 	case error:
-		// note: also "string=" in Go fmt
-		s = "string=" + v.Error()
+		body = "string=" + v.Error()
 	case float64:
-		s = "float64=" + Sprintf("%f", v)
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		// note: rune, byte would be dups, being aliases
-		if typename, e := typeToString(v); e == nil {
-			s = typename + "=" + Sprintf("%d", v)
-		} else {
-			panic("ufmt: unexpected type error")
-		}
-	case bool:
-		s = "bool=" + strconv.FormatBool(v)
-	case nil:
-		s = "<nil>"
-	default:
-		s = "(unhandled)"
-	}
-	return "%!" + string(verb) + "(" + s + ")"
-}
-
-// typeToString returns the name of basic Go types as string.
-func typeToString(v any) (string, error) {
-	switch v.(type) {
-	case string:
-		return "string", nil
+		body = "float64=" + strconv.FormatFloat(v, 'f', 6, 64)
 	case int:
-		return "int", nil
+		body = "int=" + strconv.Itoa(v)
 	case int8:
-		return "int8", nil
+		body = "int8=" + strconv.Itoa(int(v))
 	case int16:
-		return "int16", nil
+		body = "int16=" + strconv.Itoa(int(v))
 	case int32:
-		return "int32", nil
+		body = "int32=" + strconv.Itoa(int(v))
 	case int64:
-		return "int64", nil
+		body = "int64=" + strconv.FormatInt(v, 10)
 	case uint:
-		return "uint", nil
+		body = "uint=" + strconv.FormatUint(uint64(v), 10)
 	case uint8:
-		return "uint8", nil
+		body = "uint8=" + strconv.FormatUint(uint64(v), 10)
 	case uint16:
-		return "uint16", nil
+		body = "uint16=" + strconv.FormatUint(uint64(v), 10)
 	case uint32:
-		return "uint32", nil
+		body = "uint32=" + strconv.FormatUint(uint64(v), 10)
 	case uint64:
-		return "uint64", nil
-	case float32:
-		return "float32", nil
-	case float64:
-		return "float64", nil
+		body = "uint64=" + strconv.FormatUint(v, 10)
 	case bool:
-		return "bool", nil
+		body = "bool=" + strconv.FormatBool(v)
+	case nil:
+		body = "<nil>"
 	default:
-		return "", errors.New("unsupported type")
+		body = "(unhandled)"
 	}
+	p.buf.writeString("%!" + string(verb) + "(" + body + ")")
 }
 
 // errMsg implements the error interface for formatted error strings.
