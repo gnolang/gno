@@ -11,3 +11,6 @@ func getArr() [1]int {
 
 // TypeCheckError:
 // main/addressable_1c_rrr.gno:4:7: invalid operation: cannot take address of getArr()[0] (value of type int)
+
+// Error:
+// main/addressable_1c_rrr.gno:4:6-18: invalid operation: cannot take address of getArr<VPBlock(3,1)>()[(const (0 int))] (value of type int)
