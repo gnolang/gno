@@ -462,6 +462,34 @@ func TestTypeExpansionCostDuplicateImportSelector(t *testing.T) {
 			"price the heaviest candidate, not the last", honest, hijack)
 }
 
+// TestTypeExpansionCostDuplicateTypeName pins the rule the rebound-selector fix
+// copied from declsFor: a name declared twice keeps both declarations, a reference
+// to it is priced at the heavier one whichever comes first, and the total counts
+// both, since validType runs once per declaration.
+func TestTypeExpansionCostDuplicateTypeName(t *testing.T) {
+	t.Parallel()
+
+	base := "package x\ntype t0 struct{ v int }\n"
+	heavy := doublingChain("t", 16) + "type T struct{ a, b [0]t16 }\n"
+	light := "type T struct{ a, b int }\n"
+	entry := "type U struct{ a, b [0]T }\n"
+
+	costU := func(src string) uint64 {
+		_, gofs := parseCostSrc(t, src)
+		return newExpansionChecker("", gofs, nil, nil).namedCost(typeKey{name: "U"})
+	}
+	honest := costU(base + heavy + entry)
+	require.Greater(t, honest, uint64(costlyThreshold), "control must be expensive")
+	assert.Equal(t, honest, costU(base+heavy+light+entry), "light T declared second")
+	assert.Equal(t, honest, costU(base+light+heavy+entry), "light T declared first")
+
+	// The light declaration is still validated: 1 for T plus a struct of two ints.
+	_, honestGofs := parseCostSrc(t, base+heavy+entry)
+	_, bothGofs := parseCostSrc(t, base+heavy+light+entry)
+	assert.Equal(t, typeExpansionCost("", honestGofs, nil, nil)+4,
+		typeExpansionCost("", bothGofs, nil, nil))
+}
+
 func TestTypeExpansionCostImports(t *testing.T) {
 	t.Parallel()
 
