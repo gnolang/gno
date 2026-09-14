@@ -188,7 +188,8 @@ func TestDoSGapAgainstARealChain(t *testing.T) {
 	// defaultBlockMaxGas — which is exactly the 3e9 pinned above, a useful
 	// confirmation that the pin matches what gpao itself assumes.
 	o := &oracle{client: client, io: commands.NewTestIO()}
-	maxGas := o.queryBlockMaxGas(t.Context())
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered, "chain reported no usable Block.MaxGas")
 	require.Positive(t, maxGas)
 	t.Logf("chain Block.MaxGas = %d", maxGas)
 
@@ -203,6 +204,8 @@ func TestDoSGapAgainstARealChain(t *testing.T) {
 			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(parkedPath)},
 		},
 	}
+	pkgHash, err := vm.PackageContentHash(mpkg)
+	require.NoError(t, err)
 
 	t.Run("submit parks the bytes without type-checking them", func(t *testing.T) {
 		tx, err := client.SignTx(std.Tx{
@@ -229,7 +232,7 @@ func TestDoSGapAgainstARealChain(t *testing.T) {
 		probe, err := client.SignTx(std.Tx{
 			Msgs: []std.Msg{vm.MsgEnablePackage{
 				Approver: approver, PkgPath: parkedPath,
-				PkgHash: vm.PackageContentHash(mpkg),
+				PkgHash: pkgHash,
 			}},
 			Fee: feeFor(maxGas),
 		}, 0, 0)
@@ -253,7 +256,7 @@ func TestDoSGapAgainstARealChain(t *testing.T) {
 		tx, err := client.SignTx(std.Tx{
 			Msgs: []std.Msg{vm.MsgEnablePackage{
 				Approver: approver, PkgPath: parkedPath,
-				PkgHash: vm.PackageContentHash(mpkg),
+				PkgHash: pkgHash,
 			}},
 			Fee: feeFor(maxGas),
 		}, 0, 1)

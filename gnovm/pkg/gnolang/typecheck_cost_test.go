@@ -25,11 +25,11 @@ import (
 
 // parseCostSrc parses Go source into the (fset, []*ast.File) shape that
 // typeExpansionCost consumes.
-func parseCostSrc(t testing.TB, src string) (*token.FileSet, []*ast.File) {
-	t.Helper()
+func parseCostSrc(tb testing.TB, src string) (*token.FileSet, []*ast.File) {
+	tb.Helper()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "bound.go", src, parser.SkipObjectResolution)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return fset, []*ast.File{f}
 }
 
