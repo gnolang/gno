@@ -151,3 +151,28 @@ func TestDeepCopyInterface2(t *testing.T) {
 	dci2 := amino.DeepCopy(dci1).(DCInterface1)
 	assert.Equal(t, "foo", dci2.Foo)
 }
+
+func TestDeepCopySlice(t *testing.T) {
+	t.Parallel()
+
+	src := []int{1, 2, 3}
+	cpy := amino.DeepCopy(src).([]int)
+	src[0] = 999
+	assert.Equal(t, 1, cpy[0])
+
+	type dcItem struct {
+		N int
+	}
+	srcStruct := []dcItem{{N: 1}, {N: 2}}
+	cpyStruct := amino.DeepCopy(srcStruct).([]dcItem)
+	srcStruct[0].N = 999
+	assert.Equal(t, 1, cpyStruct[0].N)
+
+	var nilInts []int
+	assert.Nil(t, amino.DeepCopy(nilInts))
+
+	nilBz := []byte(nil)
+	ptr := &nilBz
+	cpyPtr := amino.DeepCopy(ptr).(*[]byte)
+	assert.Nil(t, *cpyPtr)
+}
