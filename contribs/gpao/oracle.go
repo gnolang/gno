@@ -566,6 +566,17 @@ func deliverTxCount(r *ctypes.ResultBlockResults) int {
 // runs ahead: a height recorded when it was merely READ would, after a crash,
 // resume past packages that were queued and never verified -- exactly the work
 // the cursor exists to avoid losing.
+//
+// A shutdown abandons the block rather than finishing it, so the cursor is not
+// moved for one. Cancelling the context kills the verifier child, and verify()
+// classifies that as "shutting down" rather than as a verdict -- but the
+// candidate loop would still run to its end and record the height, so a package
+// left `pending` with "will be retried" would be one the cursor guarantees is
+// never reached again. The ctx checks are what keep the two consistent: every
+// exit that skipped work leaves the cursor where it was, and the block is
+// re-read on the next run. Re-reading costs nothing it should not cost, because
+// handleCandidate asks whether a package is already settled before it pays for
+// anything.
 func (o *oracle) runVerifier(ctx context.Context) {
 	for {
 		select {
@@ -573,7 +584,16 @@ func (o *oracle) runVerifier(ctx context.Context) {
 			return
 		case work := <-o.candidates:
 			for _, mpkg := range work.pkgs {
+				if ctx.Err() != nil {
+					return
+				}
 				o.handleCandidate(ctx, mpkg, work.height)
+			}
+			// Checked again after the loop: a block whose LAST package was the
+			// one interrupted has an empty remainder to iterate, so the guard
+			// above never runs for it.
+			if ctx.Err() != nil {
+				return
 			}
 			o.recordVerified(work.height)
 		}
@@ -782,10 +802,28 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage, heig
 // A negative height is not an answer. One past it is 0 or less, and no chain
 // has a block there, so a run anchored to it stalls on a height the node
 // refuses rather than starting: the caller must keep asking instead.
+//
+// Neither is the height of a node that is still catching up, and that one
+// matters more now that a cursor is durable. A replaying or fast-syncing node
+// serves RPC with a height that climbs from wherever it restarted, so a tip read
+// there is a statement about the NODE's progress, not the chain's. startHeight
+// would compare a recorded cursor against it and read the difference as a chain
+// that had been reset -- and that is fatal, on a process a supervisor brings up
+// alongside its node. Which is the case TestRunSurvivesTheBootRace exists for.
+//
+// So it is treated as silence, and the caller polls. gpao then waits for the
+// node to finish syncing before following anything, which is also the right
+// answer for an oracle that must not miss a block: a tip that is still moving
+// for reasons of its own is not a chain height to follow.
 func (o *oracle) queryLatestHeight(ctx context.Context) (latest int64, answered bool) {
 	status, err := o.client.RPCClient.Status(ctx, nil)
 	if err != nil {
 		o.errf("gpao: status query failed: %v", err)
+		return 0, false
+	}
+	if status.SyncInfo.CatchingUp {
+		o.logf("gpao: node is still catching up (at height %d), waiting for it to sync",
+			status.SyncInfo.LatestBlockHeight)
 		return 0, false
 	}
 	if h := status.SyncInfo.LatestBlockHeight; h >= 0 {
