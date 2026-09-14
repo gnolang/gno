@@ -267,31 +267,15 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
-			// Catch any incomplete InitChainer run: if the result handler
-			// fired fewer times than there were deliverable txs, the chain
-			// boot is silently broken. Two known reasons to land here:
-			//   - InitChainer returned a ResponseInitChain.Error before
-			//     the tx loop (e.g. validateSignerInfo rejected the
-			//     genesis) — processed stays at 0.
-			//   - InitChainer aborted the tx loop before delivering every
-			//     deliverable tx, leaving processed between 0 and expected.
-			// Without this guard the test prints "PASS" while the chain
-			// has effectively zero / partial genesis state; the empty or
-			// truncated appHash is the only on-the-wire signal and is
-			// easy to miss. Fail loudly instead.
-			//
-			// Per-tx metadata.Failed entries are skipped by the InitChain
-			// loop (no handler call), so the deliverable count excludes
-			// them — degenerate genesises where every tx is
-			// metadata.Failed (expected=0) trivially pass the check.
+			// Tripwire: every deliverable tx must reach the result handler.
+			// No current path skips one, and any other genesis failure aborts
+			// the handshake before we get here.
 			expected := int64(countDeliverableTxs(appState.Txs))
 			if processed < expected {
 				return fmt.Errorf(
-					"FAIL: genesis replay delivered %d of %d expected txs — "+
-						"InitChainer either returned a ResponseInitChain.Error before the tx loop "+
-						"or exited the loop early; re-run a real `gnoland start` against the same "+
-						"genesis with --log-level debug to surface the underlying error (typically "+
-						"validateSignerInfo or InitialHeight mismatch)",
+					"FAIL: genesis replay delivered %d of %d expected txs; "+
+						"the InitChain tx loop skipped deliverable txs. "+
+						"Re-run with --verbose to see the node's own error output",
 					processed, expected,
 				)
 			}

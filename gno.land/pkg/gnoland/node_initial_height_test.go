@@ -87,3 +87,14 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 	require.Nil(t, bs.LoadBlockMeta(initialHeight-1),
 		"a block exists below InitialHeight (%d), so it is not the first", initialHeight)
 }
+
+// AppState must be a GnoGenesisState value: loadAppState rejects a
+// *GnoGenesisState as an invalid AppState.
+func TestNewDefaultGenesisConfig_AppStateType(t *testing.T) {
+	t.Parallel()
+
+	genesis := NewDefaultGenesisConfig("test-chain", "gno.land")
+
+	_, ok := genesis.AppState.(GnoGenesisState)
+	require.True(t, ok, "AppState must be a GnoGenesisState value, got %T", genesis.AppState)
+}
