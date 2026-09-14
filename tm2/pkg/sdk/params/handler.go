@@ -55,6 +55,7 @@ func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		}
 		var val []byte
 		bh.params.GetBytes(ctx, rest, &val)
+		res.Height = req.Height
 		res.Data = val
 		return
 
