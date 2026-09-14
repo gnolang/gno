@@ -60,7 +60,7 @@ type oracle struct {
 	// itself caught up while having permanently skipped every submission made
 	// after the bound was hit.
 	//
-	// Only this one of handleCandidate's four retryable outcomes freezes the
+	// Only this one of handleCandidate's five retryable outcomes freezes the
 	// cursor, and the criterion is whether the outcome is provably terminal for
 	// the rest of the run. It is here: `spent` only grows and `maxSpend` is
 	// fixed, so once one approval is declined every later one is too. An
@@ -172,6 +172,7 @@ const maxEnableAttempts = 3
 // is why the height travels with the packages rather than being tracked
 // alongside: one FIFO drained by one goroutine cannot report a height it has
 // not finished, and two channels could.
+
 type blockWork struct {
 	height int64
 	pkgs   []*std.MemPackage
@@ -589,7 +590,7 @@ func (o *oracle) runVerifier(ctx context.Context) {
 			return
 		case work := <-o.candidates:
 			for _, mpkg := range work.pkgs {
-				o.handleCandidate(ctx, work.height, mpkg)
+				o.handleCandidate(ctx, candidate{mpkg: mpkg, height: work.height})
 			}
 			o.recordVerified(work.height)
 		}
@@ -609,6 +610,22 @@ func (o *oracle) recordVerified(height int64) {
 	if err := o.state.setLastVerifiedHeight(height); err != nil {
 		o.errf("gpao: could not record height %d as verified: %v", height, err)
 	}
+}
+
+// candidate is a submitted package together with the block it was submitted in.
+//
+// The height travels with the bytes because it is part of what gets approved,
+// not merely context for a log line: MsgEnablePackage pins it, so that a
+// re-submission of the same sources -- which keeps the content hash while
+// rewriting the [addpkg] section underneath it, including the storage-deposit
+// ceiling this oracle's own transaction pays against -- cannot ride an approval
+// issued for the submission that was actually verified.
+//
+// It is not what the channel carries: blockWork is, because the cursor advances
+// per block. runVerifier pairs each package with its block's height.
+type candidate struct {
+	mpkg   *std.MemPackage
+	height int64
 }
 
 // enqueue hands one block to the verifier, blocking if it is behind.
@@ -637,7 +654,8 @@ func (o *oracle) enqueue(ctx context.Context, work blockWork) error {
 
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
 // a MsgEnablePackage to activate it on-chain.
-func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.MemPackage) {
+func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
+	mpkg, height := c.mpkg, c.height
 	path := mpkg.Path
 	// Keyed on the bytes, not just the path. A rejection is a verdict about the
 	// code, so a submitter who fixes the code and resubmits deserves a fresh
@@ -692,6 +710,15 @@ func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.Me
 			path, height, height, err)
 		return
 	}
+	if errors.Is(err, errAwaitingDependency) {
+		// Left unseen, so a resubmission or a restart once the import is
+		// enabled gets a fresh look, and uncounted: a cap would end in the
+		// outcome this branch exists to prevent, valid bytes refused for the
+		// order they were sent in.
+		o.status.record(path, statusPending, err.Error(), 0)
+		o.logf("gpao: %q waits on a parked import, leaving it pending: %v", path, err)
+		return
+	}
 	// A rejection IS a verdict about the bytes, so record it: re-verifying them
 	// would reach the same answer, and the submitter has to change something for
 	// it to be worth another look -- which produces a different key.
@@ -744,7 +771,19 @@ func (o *oracle) handleCandidate(ctx context.Context, height int64, mpkg *std.Me
 	}
 
 	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
-	if err := o.enable(path, vm.PackageContentHash(mpkg)); err != nil {
+	// Checked, not assigned: a package whose gnomod.toml cannot be parsed has
+	// no hash to approve, and an empty one would ride into MsgEnablePackage as
+	// "names no source" -- rejected on chain after the fee, three times, before
+	// being filed as a generic enable failure. It is a verdict about the
+	// package, so it is recorded as one.
+	pkgHash, err := vm.PackageContentHash(mpkg)
+	if err != nil {
+		o.seen[key] = struct{}{}
+		o.status.record(path, statusRejected, "cannot hash the submitted source: "+err.Error(), 0)
+		o.errf("gpao: not approving %q: %v", path, err)
+		return
+	}
+	if err := o.enable(path, pkgHash, height); err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
 		// chain's state rather than the code, and most such causes clear.
@@ -932,6 +971,11 @@ var errVerifyBudget = errors.New("verify budget exceeded")
 // submitter's doing.
 var errVerifyUnavailable = errors.New("verifier unavailable")
 
+// errAwaitingDependency reports that the package failed to type-check while an
+// import it names is parked on the chain awaiting its own approval. Not a
+// verdict, and neither an overrun nor a fault: it counts against no allowance.
+var errAwaitingDependency = errors.New("awaiting a dependency")
+
 // gasHeadroomNum/Den add 20% to a measured estimate.
 //
 // The estimate is a measurement of one execution against the state the
@@ -1031,15 +1075,23 @@ func broadcastWasFree(res *ctypes.ResultBroadcastTxCommit) bool {
 // at -gas-wanted would make the simulation run out of gas exactly on the
 // packages whose cost we most need to learn, and report that failure instead of
 // a measurement.
-func (o *oracle) enable(pkgPath, pkgHash string) error {
+func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
 	gasFee, err := std.ParseCoin(o.cfg.gasFee)
 	if err != nil {
 		return fmt.Errorf("invalid gas fee %q: %w", o.cfg.gasFee, err)
 	}
-	// Name the source that was verified. The keeper hashes the parked blob the
-	// same way and refuses if they differ, so a creator who replaces the bytes
-	// after verification cannot ride this approval.
-	msg := vm.MsgEnablePackage{Approver: o.approver, PkgPath: pkgPath, PkgHash: pkgHash}
+	// Name the source that was verified, and the submission it came from. The
+	// keeper hashes the parked blob the same way and refuses if they differ, so
+	// a creator who replaces the bytes after verification cannot ride this
+	// approval; the height covers the case where the bytes are identical and
+	// only the [addpkg] section the keeper stamps has moved, which the hash
+	// cannot see. See MsgEnablePackage.PkgHeight.
+	msg := vm.MsgEnablePackage{
+		Approver:  o.approver,
+		PkgPath:   pkgPath,
+		PkgHash:   pkgHash,
+		PkgHeight: pkgHeight,
+	}
 
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{

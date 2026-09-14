@@ -1,9 +1,9 @@
 package avl_pager_params
 
 import (
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
