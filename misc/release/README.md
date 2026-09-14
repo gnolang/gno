@@ -23,7 +23,7 @@ misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
 | `--chain <name>` | chain branch to cut from (default `mainnet` → `chain/mainnet`) |
 | `--commit <ref>` | commit to tag (default: the branch tip) |
 | `--previous <version>` | previous release, for the change summary (default: newest `v*` tag) |
-| `--halt-height <H>` | emit a GovDAO halt proposal gating the restart on this release |
+| `--halt-height <H>` | emit a GovDAO halt proposal gating the restart on this release (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
 | `--push` | push the tag (otherwise it stops after creating it locally) |
 | `--allow-dirty` | skip the clean-worktree check — local rehearsal only |
 

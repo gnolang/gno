@@ -122,7 +122,7 @@ For a MINOR bump, the release is only half of it: validators have to stop at the
 same height and come back on the new binary. `--halt-height` emits the GovDAO
 proposal, with `halt_min_version` set to the tag being cut. The mechanism, the
 failure modes, and what a halt looks like in the logs are documented in
-[`gno.land/cmd/gnoland/README.md`](gno.land/cmd/gnoland/README.md).
+[`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES.md).
 
 ### Hotfix
 

@@ -292,7 +292,7 @@ emit_halt_proposal() {
 //
 // Before passing this: every operator should confirm halt_height is unset in
 // their own config.toml. A future-dated value there halts the node at the wrong
-// block. See RELEASING.md and gno.land/cmd/gnoland/README.md.
+// block. See gno.land/cmd/gnoland/UPGRADES.md.
 package main
 
 import (
