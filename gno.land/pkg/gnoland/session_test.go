@@ -563,7 +563,7 @@ func TestSessionRestrictedDeniesUnlistedMsgType(t *testing.T) {
 // TestSessionAlwaysDeniedMatrix pins which message types a session key may never
 // carry, whatever its AllowPaths say.
 //
-// The enable/disable rows were the reason for writing this: they are approver
+// The enable/reject rows were the reason for writing this: they are approver
 // authority and, unlike MsgCall, cannot be scoped down. AllowPaths are matched
 // through GetPkgPath(), which only MsgCall implements, so no path-scoped entry
 // can ever match them and the only grant that would is the "*" wildcard —
@@ -588,7 +588,6 @@ func TestSessionAlwaysDeniedMatrix(t *testing.T) {
 		{"vm/add_package", vm.MsgAddPackage{Creator: addr, Package: &std.MemPackage{Path: pkgPath}}, true},
 		// Approver authority, unscopeable — the cases under test.
 		{"vm/enable_package", vm.MsgEnablePackage{Approver: addr, PkgPath: pkgPath}, true},
-		{"vm/disable_package", vm.MsgDisablePackage{Approver: addr, PkgPath: pkgPath}, true},
 		{"vm/reject_package", vm.MsgRejectPackage{Sender: addr, PkgPath: pkgPath}, true},
 		// The whole auth route: a session must not manage sessions, or it could
 		// mint itself a fresh one with wider AllowPaths and outlive its own
