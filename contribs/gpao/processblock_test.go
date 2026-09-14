@@ -231,6 +231,11 @@ func baseConfig() config {
 // TestNewOracleRejectsUnusableSpendBound pins the startup checks. A bound that
 // cannot pay for a single approval would leave the daemon running and silently
 // approving nothing, which is worse than refusing to start.
+//
+// The two ways of saying "no bound" are pinned here too, and they matter more
+// than they look: the default is now one of them, and a zero that tripped the
+// below-one-approval check would refuse to start on the very configuration
+// every operator gets by default.
 func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 	tio := commands.NewTestIO()
 	tio.SetOut(commands.WriteNopCloser(io.Discard))
@@ -254,11 +259,33 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 
 	t.Run("a usable bound is accepted", func(t *testing.T) {
 		cfg := baseConfig()
-		cfg.maxSpend = defaultMaxSpend
+		cfg.maxSpend = "100000000ugnot"
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1000000), o.enableFee)
+		assert.Equal(t, ugnotDenom, o.feeDenom)
 		assert.Positive(t, o.maxSpend)
+	})
+
+	t.Run("the default is no bound", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.maxSpend = defaultMaxSpend
+		o, err := newOracle(cfg, tio)
+		require.NoError(t, err)
+		assert.Zero(t, o.maxSpend,
+			"the default must leave the approver's balance as the only bound")
+		assert.False(t, o.wouldExceedSpend(),
+			"nothing may be refused for a bound that was never set")
+	})
+
+	t.Run("an explicit zero is no bound, not an unusable one", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.maxSpend = "0ugnot"
+		o, err := newOracle(cfg, tio)
+		require.NoError(t, err,
+			"zero says the same thing the empty default says, and is below one "+
+				"approval only in the arithmetic sense")
+		assert.Zero(t, o.maxSpend)
 	})
 }
 

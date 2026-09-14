@@ -61,6 +61,21 @@ type oracle struct {
 	spent     int64
 	maxSpend  int64
 	enableFee int64
+	// feeDenom is the denom approvals are paid in, kept so the approver's
+	// balance can be read in the unit the ante will actually charge. The gas fee
+	// names it, and a chain may price gas in something other than ugnot.
+	feeDenom string
+
+	// unfunded records that a balance read said the approver could not cover one
+	// more approval. It is a cache of a fact the chain owns, not the fact
+	// itself: everything that acts on it re-reads first, because the cure for it
+	// -- sending the key some coins -- happens off this process entirely and
+	// must not need a restart to take effect.
+	//
+	// Written once by reportFunding at startup, before run() starts the verifier
+	// goroutine, and only by that goroutine afterwards. Starting the goroutine
+	// is what publishes it; there is no lock.
+	unfunded bool
 
 	// blockMaxGas is the chain's Block.MaxGas. It bounds both the probe used for
 	// estimation and the resulting gas-wanted, because the ante refuses a
@@ -166,7 +181,14 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 			return nil, fmt.Errorf("max spend is in %s but gas fees are paid in %s",
 				maxSpend.Denom, gasFee.Denom)
 		}
-		if maxSpend.Amount < gasFee.Amount {
+		// Zero is "no bound", spelled out rather than left empty, and has to be
+		// allowed through: it is the same thing the empty default says, and an
+		// operator who writes it deserves the same answer. Only a bound that is
+		// SET and still cannot pay for one approval is the mistake worth
+		// refusing to start on -- it would leave the daemon running and
+		// approving nothing, forever, which is the failure this whole file is
+		// now arranged to avoid.
+		if maxSpend.Amount > 0 && maxSpend.Amount < gasFee.Amount {
 			return nil, fmt.Errorf("max spend %s is below the cost of a single "+
 				"approval (%s), so nothing could ever be approved",
 				cfg.maxSpend, cfg.gasFee)
@@ -184,6 +206,7 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		failedEnable: make(map[string]int),
 		status:       newStatusBoard(),
 		enableFee:    gasFee.Amount,
+		feeDenom:     gasFee.Denom,
 		maxSpend:     maxSpend.Amount,
 	}, nil
 }
@@ -575,6 +598,17 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 
+	// Re-read the balance only once a read has already said the purse is empty.
+	// In the healthy case that is no query at all, and in the unhealthy one it
+	// is what notices a top-up without a restart -- while saving the
+	// sign-and-simulate round trip that would otherwise be spent to be told the
+	// same thing. The failure branch below is what catches a key that empties
+	// between here and the broadcast.
+	if o.unfunded && o.cannotAffordFee() {
+		o.blockedOnFunds(path)
+		return
+	}
+
 	o.logf("gpao: %q passed typecheck, broadcasting approval", path)
 	// Checked, not assigned: a package whose gnomod.toml cannot be parsed has
 	// no hash to approve, and an empty one would ride into MsgEnablePackage as
@@ -589,6 +623,21 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 	if err := o.enable(path, pkgHash, c.height); err != nil {
+		// An empty purse is not one of the three chances the package gets.
+		//
+		// Asked first, and asked of the chain rather than of the error text,
+		// because both an unpayable fee and a creator who cannot cover the
+		// storage deposit arrive here as insufficient funds and only one of them
+		// is about this key. Without the distinction, an approver that runs out
+		// spends every package's allowance three failures at a time and then
+		// marks each one seen -- retiring, for the life of the run, packages
+		// nothing was ever wrong with, under a message that says a human is
+		// needed. That is the one outcome a funding problem must not produce,
+		// since the fix is a transfer and the packages should simply resume.
+		if o.cannotAffordFee() {
+			o.blockedOnFunds(path)
+			return
+		}
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
 		// chain's state rather than the code, and most such causes clear.
@@ -697,7 +746,8 @@ func (o *oracle) recordEnableFailure(key string) (n int, giveUp bool) {
 }
 
 // wouldExceedSpend reports whether paying for one more approval would take this
-// run past its bound. Zero means no bound.
+// run past its bound. Zero means no bound, which is the default; see
+// defaultMaxSpend.
 //
 // Asked BEFORE approving, because the fee is deducted by the ante handler
 // whether or not the message succeeds -- so checking afterwards would always be
@@ -707,6 +757,101 @@ func (o *oracle) wouldExceedSpend() bool {
 }
 
 const ugnotDenom = "ugnot"
+
+// approverBalance reads what the approver holds in the fee denom, and reports
+// whether the chain answered at all.
+//
+// The two are separate for the reason classifySimulate separates them: a node
+// that could not be reached has said nothing about the balance, and treating
+// silence as "broke" would hand anyone able to disturb the query path a way to
+// stall approvals chain-wide.
+//
+// Read through the bank rather than the account object. A balance does not
+// necessarily live in the account -- realm-issued denoms have their own keys --
+// and the fee denom is whatever -gas-fee names, which is the same reason
+// auth.DeductFees reads it this way before charging.
+func (o *oracle) approverBalance() (balance int64, answered bool) {
+	coins, _, err := o.client.QueryBalance(o.approver)
+	if err != nil {
+		return 0, false
+	}
+	return coins.AmountOf(o.feeDenom), true
+}
+
+// cannotAffordFee reports that the chain has SAID the approver cannot pay for
+// one more approval, and records the answer either way.
+//
+// This is the bound that replaces the old -max-spend default, and it is a
+// better one for a reason worth stating: it is the same quantity the ante
+// enforces, so it cannot be wrong about what the chain will do, and it un-blocks
+// by itself the moment somebody funds the key. A constant could only be raised
+// by an operator who first worked out that it was the problem -- from a log
+// line, since a parked package looks identical on chain either way.
+//
+// Not answered is not "cannot": silence leaves the oracle willing to try, and
+// the attempt costs nothing it would not otherwise have spent, because a
+// simulate that hits an unpayable fee fails before any transaction exists.
+func (o *oracle) cannotAffordFee() bool {
+	balance, answered := o.approverBalance()
+	if !answered {
+		return false
+	}
+	o.unfunded = balance < o.enableFee
+	return o.unfunded
+}
+
+// blockedOnFunds records that a package was not approved because the approver
+// is out of money.
+//
+// statusBlocked, not statusRejected or statusGaveUp, and the path is left
+// UNSEEN by every caller: nothing is wrong with the package, and the whole
+// point is that it gets approved once the key can pay. Saying which of those it
+// is, is the difference between "your code is bad" and "ask the operator",
+// which a submitter cannot otherwise tell apart -- and it is the difference the
+// chain itself cannot report, since a parked package reads the same either way.
+func (o *oracle) blockedOnFunds(path string) {
+	o.status.record(path, statusBlocked,
+		"the approver cannot pay the approval fee; the oracle needs funding", 0)
+	o.errf("gpao: not approving %q: the approver %s cannot cover one approval "+
+		"fee of %d%s. Fund it -- approvals resume on their own, and nothing is "+
+		"recorded against the package in the meantime.",
+		path, o.approver, o.enableFee, o.feeDenom)
+}
+
+// reportFunding logs how many approvals the approver can afford, once, at
+// startup, and seeds unfunded so a key that is already empty is known before
+// the first candidate rather than after it.
+//
+// Called from execOracle rather than run(), which keeps run() a pure follow
+// loop and means the value is settled on the caller's goroutine before run()
+// starts the verifier -- the same publication blockMaxGas relies on.
+//
+// The one number an operator needs and has no other way to see. Everything else
+// about a stalled oracle is visible somewhere -- the chain lists what is parked,
+// the status board carries every verdict -- but "this key is about to run out"
+// appears nowhere until approvals have already stopped, and they stop silently.
+//
+// Never fatal. A daemon that refuses to start because it could not read a
+// balance, or because the key is empty right now, is worse than one that says so
+// and keeps watching: funding it is a transfer away, and the run is then already
+// in place to notice.
+func (o *oracle) reportFunding() {
+	balance, answered := o.approverBalance()
+	if !answered {
+		o.errf("gpao: could not read the approver's balance; continuing, and " +
+			"approvals will report it themselves if the key cannot pay")
+		return
+	}
+	if balance < o.enableFee {
+		o.unfunded = true
+		o.errf("gpao: approver %s holds %d%s, less than one approval fee of "+
+			"%d%s: nothing can be approved until it is funded",
+			o.approver, balance, o.feeDenom, o.enableFee, o.feeDenom)
+		return
+	}
+	o.logf("gpao: approver %s holds %d%s, about %d approvals at %d%s each",
+		o.approver, balance, o.feeDenom, balance/o.enableFee, o.enableFee, o.feeDenom)
+}
 
 // isSettled reports whether a package is live at this path with nothing left to
 // enable.
@@ -725,8 +870,10 @@ const ugnotDenom = "ugnot"
 // what the dead end costs.
 //
 // On a query error this returns false, so a node that cannot answer does not
-// silently stop the oracle approving. The spend bound is what limits the damage
-// if the node is wrong.
+// silently stop the oracle approving. The approver's balance is what limits the
+// damage if the node is wrong: a re-enable of a live package fails at simulate
+// without costing a fee, and a key that does empty stops the run at
+// cannotAffordFee rather than at a package's expense.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
 	res, err := o.client.Query(gnoclient.QueryCfg{
 		Path: "vm/qpkgmeta_json",

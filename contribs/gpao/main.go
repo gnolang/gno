@@ -28,14 +28,26 @@ const (
 	defaultRemote = "http://127.0.0.1:26657"
 	defaultGasFee = "1000000ugnot"
 
-	// defaultMaxSpend bounds what one run will pay in gas fees for approvals.
+	// defaultMaxSpend is empty: no bound by default.
 	//
-	// Every approval costs the full gas fee whether or not it succeeds, and the
-	// daemon decides on its own when to send one -- so without a bound, anything
-	// that makes approvals fail repeatedly drains the approver key. 100 GNOT at
-	// the default 1 GNOT fee is a hundred approvals, generous for normal
-	// operation and small enough to notice.
-	defaultMaxSpend     = "100000000ugnot"
+	// There was one, and it was 100 GNOT against a 1 GNOT fee -- exactly a
+	// hundred approvals. On gno.land's own mainnet that stopped package
+	// activation chain-wide after the hundredth, while the approver still held
+	// roughly fifty times the balance it needed, and nothing on chain said why:
+	// a parked package reports "waiting for a package approver" whether the
+	// oracle is out of allowance or the package landed a second ago.
+	//
+	// What the bound was guarding is real -- the daemon holds a hot key, every
+	// approval costs the full gas fee whether or not it succeeds, and something
+	// that makes approvals fail repeatedly would drain the key. A constant is
+	// the wrong instrument for it. The approver's own balance is the honest
+	// bound: it is what the chain enforces anyway, it needs no guessing at how
+	// many packages a chain will see, and unlike a per-run constant it recovers
+	// on its own when the key is topped up. See oracle.cannotAffordFee.
+	//
+	// Operators who want a tighter leash than the balance still have
+	// -max-spend; it is only the default that is gone.
+	defaultMaxSpend     = ""
 	defaultGasWanted    = int64(20_000_000)
 	defaultPollInterval = time.Second
 	// defaultVerifyBudget bounds how long one candidate may take to
@@ -125,7 +137,8 @@ type config struct {
 	// prepareBudget: see defaultPrepareBudget.
 	prepareBudget time.Duration
 	startHeight   int64
-	// maxSpend bounds the total gas fees this run will pay for approvals. See
+	// maxSpend bounds the total gas fees this run will pay for approvals.
+	// Empty or zero means no bound beyond the approver's balance. See
 	// defaultMaxSpend.
 	maxSpend string
 }
@@ -151,7 +164,8 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.maxSpend, "max-spend", defaultMaxSpend,
 		"total gas fees this run will pay for approvals before it stops "+
 			"approving; the daemon holds a hot key, and every approval costs a "+
-			"fee whether or not it succeeds")
+			"fee whether or not it succeeds. Empty or zero means no bound beyond "+
+			"the approver's own balance, which the oracle reads and reports on")
 	fs.StringVar(&c.gasFee, "gas-fee", defaultGasFee,
 		"gas fee for approval transactions")
 	fs.DurationVar(&c.verifyBudget, "verify-budget", defaultVerifyBudget,
@@ -203,6 +217,12 @@ func execOracle(ctx context.Context, cfg *config, io commands.IO) error {
 
 	io.Println("gpao: approver", oracle.approver.String(),
 		"watching", cfg.remote, "chain", cfg.chainID)
+
+	// What the key can afford, said while anyone is still reading the startup
+	// output. Never fatal, and deliberately before run(): an operator who
+	// reaches for the logs because nothing is being approved should find the
+	// answer at the top rather than infer it from silence.
+	oracle.reportFunding()
 
 	return oracle.run(ctx)
 }

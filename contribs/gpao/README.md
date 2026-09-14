@@ -86,13 +86,48 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--key` | *(required)* | Name or bech32 address of the approver key |
 | `--gno-root` | auto-detected | gno repo root, used to resolve stdlibs and examples for typechecking |
 | `--gas-fee` | `1000000ugnot` | Gas fee for approval transactions |
-| `--max-spend` | `100000000ugnot` | Total fees this run will pay for approvals before it stops approving |
+| `--max-spend` | *(none)* | Total fees this run will pay for approvals before it stops approving. Empty or zero leaves the approver's balance as the only bound — see [Funding the approver](#funding-the-approver) |
 | `--gas-wanted` | `20000000` | Fallback gas wanted, used only when the node will not simulate an approval |
 | `--poll-interval` | `1s` | How often to poll for new blocks |
 | `--start-height` | `0` | Height to start watching from (0 = current tip) |
 | `--verify-budget` | `10s` | Withhold approval from a package that takes longer than this to verify |
 | `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
+
+### Funding the approver
+
+Every approval costs the full `--gas-fee`, charged by the ante handler whether
+or not the message succeeds. The approver's balance in that denom is therefore
+the real bound on how many packages a run can activate, and gpao reports it at
+startup:
+
+```
+gpao: approver g1... holds 4900000000ugnot, about 4900 approvals at 1000000ugnot each
+```
+
+Note that a vesting schedule on the key does not reduce this. Gas fees debit
+through the unrestricted path and never consult a schedule, so the number that
+matters is the whole balance, not the vested part.
+
+When the key cannot cover one more fee, gpao does **not** reject or retire the
+packages it cannot approve. They are recorded `blocked`, they keep their retry
+allowance, and nothing is marked seen — so funding the key resumes the run in
+place, with no restart and no resubmission:
+
+```sh
+curl http://127.0.0.1:8546/status/gno.land/r/you/yours
+# {"path":"...","status":"blocked","reason":"the approver cannot pay the approval fee; the oracle needs funding"}
+```
+
+`--max-spend` is a *tighter* leash than the balance, for operators who want one:
+the daemon holds a hot key, and something that makes approvals fail repeatedly
+would otherwise spend down to zero. It is off by default because a constant
+cannot know how many packages a chain will see, and a run that hits it stops
+approving chain-wide while a parked package still reports only "waiting for a
+package approver" — indistinguishable, on chain, from one that arrived a second
+ago. A run that hits the bound records `blocked` as well, and restarting with a
+larger one (and `--start-height` at or below the submitting block) picks up
+exactly what it refused.
 
 ### About `--status-listen`
 
