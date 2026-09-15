@@ -239,8 +239,9 @@ type dryRunRequest struct {
 
 // dryRunResponse is the JSON response for the dry run endpoint.
 type dryRunResponse struct {
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Result  string `json:"result,omitempty"`
+	Error   string `json:"error,omitempty"`
+	GasUsed int64  `json:"gas_used,omitempty"`
 }
 
 func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
@@ -422,7 +423,10 @@ func (h *Handler) serveDryRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dryRunResponse{Result: string(result.Data)})
+	writeJSON(w, http.StatusOK, dryRunResponse{
+		Result:  string(result.Data),
+		GasUsed: result.GasUsed,
+	})
 }
 
 // isSource reports whether a file is source code that can be displayed in the code editor.

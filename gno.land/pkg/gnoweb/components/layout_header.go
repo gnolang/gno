@@ -42,12 +42,11 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
-	contentURL, sourceURL, helpURL, forkURL, runURL, stateURL := u, u, u, u, u, u
+	contentURL, sourceURL, helpURL, forkURL, stateURL := u, u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 	forkURL.WebQuery = url.Values{"fork": {""}}
-	runURL.WebQuery = url.Values{"run": {""}}
 	stateURL.WebQuery = url.Values{"state": {""}}
 
 	contentLink := HeaderLink{
@@ -80,13 +79,6 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	}
 	*/
 
-	runLink := HeaderLink{
-		Label:    "Run",
-		URL:      runURL.EncodeWebURL(),
-		Icon:     "ico-tx-link",
-		IsActive: isActive(u.WebQuery, "Run"),
-	}
-
 	stateLink := HeaderLink{
 		Label:    "State",
 		URL:      stateURL.EncodeWebURL(),
@@ -108,7 +100,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		return []HeaderLink{}
 	default:
 		// Hide the Fork button until we have publishing support
-		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink /* forkLink, */, runLink}
+		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink /* forkLink, */}
 	}
 }
 
@@ -127,7 +119,7 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("fork") && !webQuery.Has("run") && !webQuery.Has("state")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("fork") && !webQuery.Has("state")
 	case "State":
 		return webQuery.Has("state")
 	case "Source":
@@ -136,8 +128,6 @@ func isActive(webQuery url.Values, label string) bool {
 		return webQuery.Has("help")
 	case "Fork":
 		return webQuery.Has("fork")
-	case "Run":
-		return webQuery.Has("run")
 	default:
 		return false
 	}

@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"net/url"
 	"strings"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
@@ -93,5 +95,14 @@ func init() {
 	tmpl, err = tmpl.ParseFS(html, "layouts/*.html", "ui/*.html", "views/*.html")
 	if err != nil {
 		panic("unable to parse embed templates: " + err.Error())
+	}
+
+	// The run scratchpad ("ui/run_script") is a section of the Actions page but
+	// its template lives with the feature's frontend assets, outside this
+	// package's embed root. Pull it into the same set so views/action.html can
+	// reference it.
+	tmpl, err = tmpl.ParseFS(run.TemplatesFS(), "templates/*.html")
+	if err != nil {
+		panic("unable to parse run feature templates: " + err.Error())
 	}
 }
