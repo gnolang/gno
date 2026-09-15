@@ -106,11 +106,11 @@ FLAGS
   -v=false 	enable verbose output for development
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
-  -web-dry-run=false 	gnoweb: enable the dryrun endpoint and Dry Run screen
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-msg-run=false 	gnoweb: enable the dryrun endpoint and Run Script screen
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
@@ -156,11 +156,11 @@ FLAGS
   -v=false 	enable verbose output for development
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
-  -web-dry-run=false 	gnoweb: enable the dryrun endpoint and Dry Run screen
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-msg-run=false 	gnoweb: enable the dryrun endpoint and Run Script screen
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 

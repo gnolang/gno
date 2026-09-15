@@ -50,7 +50,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	BuildTime         string
 	Banner            components.BannerData
-	DryRun            bool
+	MsgRun            bool
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -716,7 +716,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
-		DryRun:    h.Static.DryRun,
+		MsgRun:    h.Static.MsgRun,
 	})
 }
 

@@ -33,7 +33,7 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
-	DryRun      bool   // gates the "ui/run_script" Dry Run button and result pane
+	MsgRun      bool   // gates the Run Script and related panes
 }
 
 // PkgAlias returns the name a Gno file would import this package under.

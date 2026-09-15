@@ -73,11 +73,11 @@ type AppConfig struct {
 	// (the default) trusts nothing, so untrusted deployments never trust
 	// attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
-	// DryRun enables the /_/api/dryrun endpoint and the Dry Run controls on the
+	// MsgRun enables the /_/api/dryrun endpoint and the Dry Run controls on the
 	// Actions page. Off by default because the feature currently only works
 	// against an older gnoland. The current gnoland rejects a simulated MsgRun whose
 	// signature is not real.
-	DryRun bool
+	MsgRun bool
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
 	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
 	// chain nodes under pressure; relax when capacity allows. ADR-003
@@ -143,7 +143,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		BuildTime:         buildTime,
 		Banner:            cfg.Banner,
-		DryRun:            cfg.DryRun,
+		MsgRun:            cfg.MsgRun,
 	}
 
 	// Configure Markdown renderer
@@ -215,7 +215,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// The dryrun route is always registered so a request never falls through
 	// to the default page router. If not enabled, return 404.
 	dryRunHandler := http.NotFoundHandler()
-	if cfg.DryRun {
+	if cfg.MsgRun {
 		dryRunHandler = httphandler.Playground.DryRunHandler()
 	}
 	mux.Handle("/_/api/dryrun", dryRunHandler)

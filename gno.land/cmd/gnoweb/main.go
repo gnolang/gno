@@ -59,7 +59,7 @@ type webCfg struct {
 	html             bool
 	noStrict         bool
 	verbose          bool
-	dryRun           bool
+	msgRun           bool
 }
 
 var defaultWebOptions = webCfg{
@@ -213,10 +213,10 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.dryRun,
-		"with-dry-run",
-		defaultWebOptions.dryRun,
-		"enable the dryrun endpoint and Dry Run screen",
+		&c.msgRun,
+		"with-msg-run",
+		defaultWebOptions.msgRun,
+		"enable the dryrun endpoint and the Run Script screen",
 	)
 }
 
@@ -248,7 +248,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
-	appcfg.DryRun = cfg.dryRun
+	appcfg.MsgRun = cfg.msgRun
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {

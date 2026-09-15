@@ -19,7 +19,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 	appcfg.UnsafeHTML = cfg.webHTML
 	appcfg.Analytics = cfg.webAnalytics
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
-	appcfg.DryRun = cfg.webDryRun
+	appcfg.MsgRun = cfg.webMsgRun
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
 	if cfg.webRemoteHelperAddr != "" {
@@ -38,7 +38,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 		"helper_remote", appcfg.RemoteHelp,
 		"html", appcfg.UnsafeHTML,
 		"analytics", appcfg.Analytics,
-		"dry_run", appcfg.DryRun,
+		"msg_run", appcfg.MsgRun,
 		"chain_id", cfg.chainId,
 	)
 	return router, nil

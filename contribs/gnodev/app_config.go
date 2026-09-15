@@ -32,7 +32,7 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
-	webDryRun            bool
+	webMsgRun            bool
 
 	// Loader
 	noExamples                 bool
@@ -145,10 +145,10 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.BoolVar(
-		&c.webDryRun,
-		"web-dry-run",
-		defaultCfg.webDryRun,
-		"gnoweb: enable the dryrun endpoint and Dry Run screen",
+		&c.webMsgRun,
+		"web-msg-run",
+		defaultCfg.webMsgRun,
+		"gnoweb: enable the dryrun endpoint and Run Script screen",
 	)
 
 	fs.BoolVar(

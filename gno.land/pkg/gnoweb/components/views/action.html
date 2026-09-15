@@ -58,7 +58,9 @@ UI - Help Function component
 
 {{ template "ui/eval_expression" $data }}
 
+{{ if .MsgRun }}
 {{ template "ui/run_script" $data }}
+{{ end }}
 
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}

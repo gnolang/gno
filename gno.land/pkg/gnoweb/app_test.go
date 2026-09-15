@@ -334,7 +334,7 @@ func TestDryRun(t *testing.T) {
 		t.Helper()
 		cfg := NewDefaultAppConfig()
 		cfg.NodeRemote = remoteAddr
-		cfg.DryRun = enabled
+		cfg.MsgRun = enabled
 		router, err := NewRouter(log.NewTestingLogger(t), cfg)
 		require.NoError(t, err)
 		return router
