@@ -80,10 +80,7 @@ func Remember(cur realm) { savedRealm = cur }
 
 // RIGHT
 var savedAddr address
-func Save(cur realm) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
-    savedAddr = cur.Previous().Address()
-}
+func Save(cur realm) { savedAddr = cur.Previous().Address() }
 ```
 
 ### 7. `/p/`-type with callback iterators
@@ -240,7 +237,7 @@ Two cases where the swap is **wrong**, both found by making it:
 
 ## Review Checklist
 
-- [ ] Authenticated mutators take `cur realm` and panic unless `cur.IsCurrent()`
+- [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
 - [ ] No `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` used for caller identity in a crossing function
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer, slice, or map aliasing internal mutable state
