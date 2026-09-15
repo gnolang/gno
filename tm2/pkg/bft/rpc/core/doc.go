@@ -1,112 +1,46 @@
 /*
-# Introduction
+Package core implements the JSON-RPC methods a Tendermint2 node exposes.
 
-Tendermint supports the following RPC protocols:
+The route map in [Environment.Routes] is the authoritative list of methods and
+their parameters. For the user-facing reference — encoding rules and limits —
+see docs/resources/rpc-endpoints.md.
 
-* URI over HTTP
-* JSONRPC over HTTP
-* JSONRPC over websockets
+# Transports
 
-Tendermint RPC is built using our own RPC library which contains its own set of documentation and tests.
-See it here: https://github.com/gnolang/gno/tree/master/tm2/pkg/bft/rpc/lib
+The same methods are served three ways, all mounted by [rpc.RegisterRPCFuncs]
+and [github.com/gnolang/gno/tm2/pkg/bft/node]:
 
-## Configuration
+  - URI over HTTP, as GET /<method>?<arg>=<value>
+  - JSON-RPC over HTTP, as POST / with a request object
+  - WebSocket, at /websocket, serving the same methods
 
-RPC can be configured by tuning parameters under `[rpc]` table in the `$TMHOME/config/config.toml` file or by using the `--rpc.X` command-line flags.
+Both JSON-RPC transports also accept an array of request objects as a batch.
 
-Default rpc listen address is `tcp://0.0.0.0:26657`. To set another address,  set the `laddr` config parameter to desired value.
-CORS (Cross-Origin Resource Sharing) can be enabled by setting `cors_allowed_origins`, `cors_allowed_methods`, `cors_allowed_headers` config parameters.
+A request to / with an empty body returns an HTML index of the methods
+available on that node.
 
-## Arguments
+# Configuration
 
-Arguments which expect strings or byte arrays may be passed as quoted strings, like `"abc"` or as `0x`-prefixed strings, like `0x616263`.
+Parameters live under the rpc table of $TMHOME/config/config.toml, or as
+--rpc.X command-line flags. The default listen address is tcp://127.0.0.1:26657.
+The unsafe_* methods are registered only when rpc.unsafe is true. Two of
+them pass a caller-supplied filename straight to os.Create, so a node running
+with rpc.unsafe on a reachable address lets any caller overwrite files as the
+node user.
 
-## URI/HTTP
+# Arguments
 
-```bash
-curl 'localhost:26657/broadcast_tx_sync?tx="abc"'
-```
+Byte-array arguments may be passed as base64, or — on the URI transport only —
+as a 0x-prefixed hex string such as 0x616263. The 0x form is decoded in
+httpParamsToArgs; the JSON-RPC transport accepts base64 exclusively.
 
-> Response:
+String arguments are safest quoted, as path="auth/accounts/g1...". An unquoted
+value is wrapped for the caller unless it already parses as JSON. A bare true
+or an out-of-range number then reaches amino as raw JSON and fails to unmarshal
+into a string; a bare null is worse, since it unmarshals silently to "".
 
-```json
-
-	{
-		"error": "",
-		"result": {
-			"hash": "2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF",
-			"log": "",
-			"data": "",
-			"code": "0"
-		},
-		"id": "",
-		"jsonrpc": "2.0"
-	}
-
-```
-
-## JSONRPC/HTTP
-
-JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://localhost:26657/`).
-
-```json
-
-	{
-		"method": "broadcast_tx_sync",
-		"jsonrpc": "2.0",
-		"params": [ "abc" ],
-		"id": "dontcare"
-	}
-
-```
-
-## JSONRPC/websockets
-
-JSONRPC requests can be made via websocket. The websocket endpoint is at `/websocket`, e.g. `localhost:26657/websocket`.
-
-## More Examples
-
-See the various bash tests using curl in `test/`, and examples using the `Go` API in `rpc/client/`.
-
-## Get the list
-
-An HTTP Get request to the root RPC endpoint shows a list of available endpoints.
-
-```bash
-curl 'localhost:26657'
-```
-
-> Response:
-
-```plain
-Available endpoints:
-/abci_info
-/dump_consensus_state
-/genesis
-/net_info
-/num_unconfirmed_txs
-/status
-/health
-/unconfirmed_txs
-/unsafe_flush_mempool
-/unsafe_stop_cpu_profiler
-/validators
-
-Endpoints that require arguments:
-/abci_query?path=_&data=_&prove=_
-/block?height=_
-/blockchain?minHeight=_&maxHeight=_
-/broadcast_tx_async?tx=_
-/broadcast_tx_commit?tx=_
-/broadcast_tx_sync?tx=_
-/commit?height=_
-/dial_seeds?seeds=_
-/dial_persistent_peers?persistent_peers=_
-/tx?hash=_&prove=_
-/unsafe_start_cpu_profiler?filename=_
-/unsafe_write_heap_profile?filename=_
-```
-
-# Endpoints
+The JSON-RPC envelope is ordinary JSON, but the result is marshalled with
+Amino JSON, which encodes every byte array as base64 and every 64-bit integer
+as a quoted string.
 */
 package core
