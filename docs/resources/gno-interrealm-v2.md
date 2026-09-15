@@ -375,9 +375,9 @@ per crossing frame, refuses to persist it, and validates each use.
 - `PkgPath() string` — pkgpath, or `""` at chain root.
 - `Previous() realm` — the captured realm that was current before
   this crossing.
-- `IsCurrent() bool` — **true only when this `cur` matches the
-  topmost live crossing frame's HIV pointer identity.** Stored or
-  stale realm values return false.
+- `IsCurrent() bool` — **true only when the receiver is the topmost
+  live crossing frame's `cur`, by HIV pointer identity**; a sub-token
+  matches through its parent rather than its own HIV.
 - `IsCode() / IsUser() / IsUserCall() / IsUserRun() / IsEphemeral()` —
   classification by address and pkgpath.
 - `String() string` — debug representation.
@@ -388,8 +388,9 @@ per crossing frame, refuses to persist it, and validates each use.
 `rlm.Previous()`. Without it, a stale realm value still resolves to an
 identity that is no longer the live caller, class **2
 (designation-forgery)** in [`gno-security.md`](./gno-security.md). A
-crossing function's own `cur` needs no such check: the runtime makes it
-current on entry, so a guard on `cur` cannot fire.
+crossing function's own `cur` needs no such check. Every entry from
+another realm mints a fresh `cur`, so `cur.IsCurrent()` authenticates
+nothing.
 
 ### 5.3 Realm values are ephemeral
 
