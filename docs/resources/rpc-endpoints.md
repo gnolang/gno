@@ -48,7 +48,7 @@ Takes an optional `heightGte`. Returns:
 
 | Field | Contents |
 |---|---|
-| `node_info` | Moniker, network, software version, P2P address, channels |
+| `node_info` | Moniker, network, versions, P2P address, channels, and `other` with the transaction index flag |
 | `sync_info` | `latest_block_hash`, `latest_app_hash`, `latest_block_height`, `latest_block_time`, `catching_up` |
 | `validator_info` | This node's validator `address`, `pub_key` and `voting_power` |
 | `build_version` | The binary's build string |
@@ -154,14 +154,16 @@ here as a success.
 ### `broadcast_tx_commit`
 
 Takes `tx`. Returns `check_tx`, `deliver_tx`, `hash` and `height` once the
-transaction is in a committed block.
+transaction is in a committed block. A transaction `CheckTx` rejects comes back
+immediately instead, with an empty `deliver_tx` and a `height` of `0`.
 
 The source marks it for testing and development rather than production. On
 timeout it returns an error while the transaction may still commit later.
 
 ### `unconfirmed_txs`, `num_unconfirmed_txs`
 
-The first takes `limit` and returns `n_txs`, `total`, `total_bytes` and `txs`.
+The first takes an optional `limit` and returns `n_txs`, `total`, `total_bytes`
+and `txs`.
 `limit` defaults to 30 and is capped at 100. The second takes nothing and
 returns the same shape with `txs` left null.
 
@@ -169,10 +171,11 @@ returns the same shape with `txs` left null.
 
 ### `abci_query`
 
-Takes `path`, `data`, `height` and `prove`. Returns `response`, holding `Key`,
-`Value`, `Proof`, `Height` and a `ResponseBase` of `Error`, `Data`, `Log` and
-`Info`. The module paths — `auth/`, `bank/`, `vm/`, `params/` — return their
-result in `ResponseBase.Data`, not at the top level.
+Takes `path`, and optional `data`, `height` and `prove`. `height` defaults to
+the chain tip. Returns `response`, holding `Key`, `Value`, `Proof`, `Height`
+and a `ResponseBase` of `Error`, `Data`, `Events`, `Log` and `Info`. The module
+paths — `auth/`, `bank/`, `vm/`, `params/` — return their result in
+`ResponseBase.Data`, not at the top level.
 
 A failed query still comes back as HTTP 200 with no top-level `error`; the
 failure sits at `response.ResponseBase.Error`. A client that checks only the
@@ -186,8 +189,9 @@ chain tip before that check.
 
 ### `abci_info`
 
-Takes nothing. Returns `response`, holding the application name in `Data` and
-the last block height.
+Takes nothing. Returns `response`, with the last block height at
+`LastBlockHeight` and the application name one level down, at
+`ResponseBase.Data`.
 
 ## Reading a response
 
@@ -238,9 +242,9 @@ than rejecting the argument.
 | `tx_search`, `block_search` | Transactions are looked up by exact hash only. Run [tx-indexer](https://github.com/gnolang/tx-indexer) for anything else. |
 | `subscribe`, `unsubscribe` | No event stream. `/websocket` serves the same request-response endpoints as HTTP. |
 | `?page` / `?per_page` | No endpoint paginates; both are accepted and ignored. |
-| A gRPC server | `grpc_laddr` appears in generated config files and nothing reads it. |
+| A gRPC server | `grpc_laddr` appears in generated config files, and nothing starts a server from it. |
 | `dial_seeds`, `dial_persistent_peers` | Removed. |
-| Hex output | Every byte value is base64. |
+| Hex output | Byte arrays go out as base64, never as hex. |
 
 Four `unsafe_*` endpoints, a mempool flush and the pprof profilers, are
 registered only when a node runs with `rpc.unsafe = true`, which public nodes

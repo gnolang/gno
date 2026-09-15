@@ -21,8 +21,10 @@ available on that node.
 
 # Configuration
 
-Parameters live under the rpc table of $TMHOME/config/config.toml, or as
---rpc.X command-line flags. The default listen address is tcp://127.0.0.1:26657.
+Parameters live under the rpc table of the node's config.toml, inside the data
+directory given by gnoland's --data-dir, and are edited there or with
+"gnoland config set rpc.<key> <value>". The default listen address is
+tcp://127.0.0.1:26657.
 The unsafe_* methods are registered only when rpc.unsafe is true. Two of
 them pass a caller-supplied filename straight to os.Create, so a node running
 with rpc.unsafe on a reachable address lets any caller overwrite files as the
@@ -40,7 +42,8 @@ or an out-of-range number then reaches amino as raw JSON and fails to unmarshal
 into a string; a bare null is worse, since it unmarshals silently to "".
 
 The JSON-RPC envelope is ordinary JSON, but the result is marshalled with
-Amino JSON, which encodes every byte array as base64 and every 64-bit integer
-as a quoted string.
+Amino JSON, which encodes byte arrays as base64 and 64-bit integers as quoted
+strings. Types with their own MarshalAmino, addresses among them, override
+that.
 */
 package core
