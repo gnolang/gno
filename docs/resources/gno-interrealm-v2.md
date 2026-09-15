@@ -385,9 +385,9 @@ per crossing frame, refuses to persist it, and validates each use.
 convention, never your own `cur`, the value handed to you when
 crossing. Your `cur` is in the current realm-context from the moment
 the call arrives, so `cur.IsCurrent()` is always true and a check on it
-refuses nobody. An `rlm` may be in that context too, or left over from
+refuses nobody. A `rlm` may be in that context too, or left over from
 an earlier call, and `rlm.IsCurrent()` is what tells you which. Read no
-identity out of an `rlm` until that answers true: a left-over one
+identity out of a `rlm` until that answers true: a left-over one
 answers as readily as a live one, and the caller it names is not the
 one calling you. Trusting it is class **2 (designation-forgery)** in
 [`gno-security.md`](./gno-security.md).
@@ -678,7 +678,7 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does a caller hand it a realm value of its own, an `rlm`? If yes,
+- Does a caller hand it a realm value of its own, a `rlm`? If yes,
   does it call `rlm.IsCurrent()` before reading an identity out of it?
   A check on the function's own `cur` refuses nobody.
 - Does it return a pointer that aliases internal mutable state? If
