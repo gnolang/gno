@@ -375,22 +375,23 @@ per crossing frame, refuses to persist it, and validates each use.
 - `PkgPath() string` — pkgpath, or `""` at chain root.
 - `Previous() realm` — the captured realm that was current before
   this crossing.
-- `IsCurrent() bool` — **true only when the receiver is the topmost
-  live crossing frame's `cur`, by HIV pointer identity**; a sub-token
-  matches through its parent rather than its own HIV.
+- `IsCurrent() bool` — **true when the receiver is the `cur` of the
+  innermost crossing call still running**, tested by value identity
+  rather than by pkgpath. A sub-token answers for the `cur` that
+  minted it.
 - `IsCode() / IsUser() / IsUserCall() / IsUserRun() / IsEphemeral()` —
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` guards a realm value the caller supplies, such as the
-`rlm` of `Send(_ int, rlm realm, ...)` in `p/nt/treasury/v0`: check
-`rlm.IsCurrent()` before using `rlm.Address()`, `rlm.PkgPath()` or
-`rlm.Previous()`. Without it, a stale realm value still resolves to an
-identity that is no longer the live caller, class **2
-(designation-forgery)** in [`gno-security.md`](./gno-security.md). A
-crossing function's own `cur` needs no such check. Every entry from
-another realm mints a fresh `cur`, so `cur.IsCurrent()` authenticates
-nothing.
+`IsCurrent()` guards a realm parameter that is not in first position,
+the `rlm` of `Send(_ int, rlm realm, ...)` in `p/nt/treasury/v0`. Call
+`rlm.IsCurrent()` before reading `rlm.Address()`, `rlm.PkgPath()` or
+`rlm.Previous()`. A stale value answers all three, and the identity it
+names is no longer the caller, class **2 (designation-forgery)** in
+[`gno-security.md`](./gno-security.md).
+
+A crossing function's own `cur` needs no check. Every entry from
+another realm mints a fresh `cur`, so `cur.IsCurrent()` refuses nobody.
 
 ### 5.3 Realm values are ephemeral
 
@@ -678,11 +679,10 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take a realm value as an ordinary parameter, the way the
-  non-crossing `Send(_ int, rlm realm, ...)` takes the caller's identity
-  in its `rlm`? If yes, does it check `rlm.IsCurrent()` before using
-  `rlm.Previous()`, `rlm.Address()`, or `rlm.PkgPath()`? A crossing
-  function's own `cur` needs no check.
+- Does it take a realm parameter that is not in first position, the way
+  `Send(_ int, rlm realm, ...)` does? If yes, does it call
+  `rlm.IsCurrent()` before reading `rlm.Previous()`, `rlm.Address()` or
+  `rlm.PkgPath()`? A crossing function's own `cur` needs no check.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
