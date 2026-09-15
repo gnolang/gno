@@ -25,8 +25,9 @@ curl -s -X POST https://rpc.gno.land:443/ \
   -d '{"jsonrpc":"2.0","id":1,"method":"block","params":{"height":"51942"}}'
 ```
 
-Both JSON-RPC transports also accept an array of request objects and answer
-with an array. `params` takes either the object form above or a positional
+Both JSON-RPC transports also accept an array of request objects. HTTP always
+answers with an array; WebSocket answers a one-element batch with the bare
+object. `params` takes either the object form above or a positional
 array, and the array form requires every parameter the endpoint declares. Send
 `"params":{}` rather than omitting the key for an endpoint whose arguments are
 all optional.
@@ -197,7 +198,7 @@ implemented deliberately.
 |---|---|
 | Byte arrays, every hash included | Base64, standard alphabet, padded. A nil one is `null`, an empty one `""`. |
 | `int64`, `uint64`, `int`, `uint` | Quoted strings, because JavaScript cannot hold them |
-| `int32` and narrower | Bare JSON numbers |
+| 32-bit and narrower | Bare JSON numbers |
 
 A single `tx` response therefore carries `"height": "51942"` next to
 `"index": 0`. The same rule governs arguments: over JSON-RPC,
@@ -208,15 +209,17 @@ Addresses are bech32 strings such as
 is the untruncated `sha256` of the raw transaction bytes.
 
 An HTTP 200 carries no meaning of its own, since successful results and
-JSON-RPC errors both use it. The exceptions are `status`'s 409 on the URI
-transport, an unregistered path giving a plain-text 404, and a handler panic
-giving a 500 whose body is still a JSON-RPC error.
+JSON-RPC errors both use it. One endpoint departs from that, `status` with
+`heightGte` answering 409 on the URI transport. Other statuses come from the
+server rather than from an endpoint: an unregistered path gives a plain-text
+404, `/websocket` without a valid upgrade handshake gives a 400, and a handler
+panic gives a 500 whose body is still a JSON-RPC error.
 
 ### Passing byte arguments
 
 `hash`, `abci_query`'s `data` and the `tx` of the broadcast endpoints are byte
-arrays. Each accepts base64, quoted or not, and on the URI transport a
-`0x`-prefixed hex string.
+arrays. Over JSON-RPC each takes a base64 string. The URI transport is looser:
+it also accepts the value unquoted, and a `0x`-prefixed hex string.
 
 Two rules follow. A `+` in a base64 value has to be percent-encoded as `%2B`,
 since a literal `+` means a space in a query string, and roughly half of all
@@ -225,8 +228,8 @@ JSON-RPC the argument goes through Amino, which takes base64 alone.
 
 Hex without the prefix is the trap worth naming. Hexadecimal characters are a
 subset of the base64 alphabet, so 64 hex characters decode cleanly into 48
-bytes of noise and the node answers "not found" rather than rejecting the
-argument.
+bytes of noise, so the node returns a "could not find tx result" error rather
+than rejecting the argument.
 
 ## Not available
 
