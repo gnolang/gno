@@ -381,15 +381,15 @@ per crossing frame, refuses to persist it, and validates each use.
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` is for a realm parameter your own function declares and a
-caller fills, `rlm` by convention, never for your `cur`. The runtime
-puts `cur` in the current realm-context as the call arrives, so
-`cur.IsCurrent()` is always true and a check on it refuses nobody. An
-`rlm` may be in that context too, or left over from an earlier call,
-and `rlm.IsCurrent()` is what tells you which. Read no identity out of
-an `rlm` until that answers true: a left-over one answers as readily as
-a live one, and the caller it names is not the one calling you.
-Trusting it is class **2 (designation-forgery)** in
+`IsCurrent()` guards a realm value a caller hands you, named `rlm` by
+convention, never your own `cur`, the value handed to you when
+crossing. Your `cur` is in the current realm-context from the moment
+the call arrives, so `cur.IsCurrent()` is always true and a check on it
+refuses nobody. An `rlm` may be in that context too, or left over from
+an earlier call, and `rlm.IsCurrent()` is what tells you which. Read no
+identity out of an `rlm` until that answers true: a left-over one
+answers as readily as a live one, and the caller it names is not the
+one calling you. Trusting it is class **2 (designation-forgery)** in
 [`gno-security.md`](./gno-security.md).
 
 ### 5.3 Realm values are ephemeral
