@@ -4,6 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -15,8 +18,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestAnEmptyPurseBlocksRatherThanRetiringPackages pins what happens when the
@@ -144,10 +145,6 @@ func TestAnEmptyPurseBlocksRatherThanRetiringPackages(t *testing.T) {
 	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
 	o.blockMaxGas = maxGas
 
-	// A key that can pay is not reported as one that cannot.
-	o.reportFunding()
-	require.False(t, o.unfunded, "the approver starts with two approvals' worth")
-
 	// ---- Control arm: everything it can afford goes through
 	for _, mpkg := range []*std.MemPackage{one, two} {
 		o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
@@ -170,7 +167,6 @@ func TestAnEmptyPurseBlocksRatherThanRetiringPackages(t *testing.T) {
 			"tell the submitter their code is at fault")
 	assert.Contains(t, status.Reason, "cannot pay the approval fee")
 	assert.Zero(t, status.Attempt, "a funding stall must not be counted as an attempt")
-	assert.True(t, o.unfunded)
 
 	key := candidateKey(three)
 	assert.NotContains(t, o.seen, key,
@@ -179,10 +175,21 @@ func TestAnEmptyPurseBlocksRatherThanRetiringPackages(t *testing.T) {
 	assert.NotContains(t, o.failedEnable, key,
 		"an empty purse must not spend one of the three chances the package gets")
 
-	// reportFunding says so too, which is the only warning an operator gets
-	// before approvals stop.
-	o.reportFunding()
-	assert.True(t, o.unfunded)
+	// The boundary the branch above is selected on, pinned against a real node.
+	// auth.DeductFees is the only thing in the tree that raises this type, and
+	// MsgEnablePackage names the approver as its sole signer, so it cannot mean
+	// anyone else's shortfall -- the creator's storage deposit fails on this
+	// same message as InsufficientCoinsError, from the VM handler. If that ever
+	// changed class, handleCandidate would go back to burning attempts with no
+	// other test noticing.
+	pkgHash, err := vm.PackageContentHash(three)
+	require.NoError(t, err)
+	enableErr := o.enable(three.Path, pkgHash, 0)
+	require.Error(t, enableErr)
+	assert.ErrorAs(t, enableErr, &std.InsufficientFundsError{},
+		"blockedOnFunds is chosen on this type; see handleCandidate")
+	assert.Zero(t, o.spent-approvalsAffordable*fee,
+		"a simulate refusal must not be counted as spend")
 
 	// ---- Funding the key resumes the run, with no restart
 	//
@@ -206,5 +213,4 @@ func TestAnEmptyPurseBlocksRatherThanRetiringPackages(t *testing.T) {
 	o.handleCandidate(t.Context(), candidate{mpkg: three})
 	assert.Equal(t, statusApproved, o.status.get(three.Path).Status,
 		"the package was never at fault; a funded key has to reach it without a restart")
-	assert.False(t, o.unfunded)
 }

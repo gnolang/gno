@@ -30,20 +30,15 @@ const (
 
 	// defaultMaxSpend is empty: no bound by default.
 	//
-	// There was one, and it was 100 GNOT against a 1 GNOT fee -- exactly a
-	// hundred approvals. On gno.land's own mainnet that stopped package
-	// activation chain-wide after the hundredth, while the approver still held
-	// roughly fifty times the balance it needed, and nothing on chain said why:
-	// a parked package reports "waiting for a package approver" whether the
-	// oracle is out of allowance or the package landed a second ago.
-	//
 	// What the bound was guarding is real -- the daemon holds a hot key, every
 	// approval costs the full gas fee whether or not it succeeds, and something
 	// that makes approvals fail repeatedly would drain the key. A constant is
 	// the wrong instrument for it. The approver's own balance is the honest
 	// bound: it is what the chain enforces anyway, it needs no guessing at how
 	// many packages a chain will see, and unlike a per-run constant it recovers
-	// on its own when the key is topped up. See oracle.cannotAffordFee.
+	// on its own when the key is topped up. An approval the key cannot pay for
+	// is recorded as blocked rather than held against the package; see
+	// handleCandidate's InsufficientFundsError branch.
 	//
 	// Operators who want a tighter leash than the balance still have
 	// -max-spend; it is only the default that is gone.
