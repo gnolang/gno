@@ -23,19 +23,39 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath  string
-	RealmURL   weburl.GnoURL
-	Breadcrumb BreadcrumbData
-	Links      HeaderLinks
-	ChainId    string
-	Remote     string
-	Mode       ViewMode
-	Static     bool
+	RealmPath   string
+	RealmURL    weburl.GnoURL
+	Breadcrumb  BreadcrumbData
+	Links       HeaderLinks
+	ChainId     string
+	Remote      string
+	Mode        ViewMode
+	Static      bool
+	NetworkKind NetworkKind
+}
+
+// NetworkChipTitle is the tooltip. The visible chip is a bare chain-id, which
+// means nothing to a reader who does not already know which chains are mainnet.
+func (d HeaderData) NetworkChipTitle() string {
+	if d.NetworkKind.IsMainnet() {
+		return "You are on gno.land mainnet (" + d.ChainId + ")"
+	}
+	return "You are on " + d.ChainId + " — this is not mainnet"
+}
+
+// NetworkChipLabel prefixes the chain-id for screen readers. It deliberately
+// does not repeat the id, which follows it as the chip's visible text.
+func (d HeaderData) NetworkChipLabel() string {
+	if d.NetworkKind.IsMainnet() {
+		return "Network, mainnet:"
+	}
+	return "Network, not mainnet:"
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
-		{Label: "About", URL: "https://gno.land/about"},
+		// Relative: an absolute gno.land URL moves the user off their deployment.
+		{Label: "About", URL: "/about"},
 		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
 		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}

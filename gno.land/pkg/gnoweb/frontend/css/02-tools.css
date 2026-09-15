@@ -153,6 +153,12 @@
 	/* Logo / gnome */
 	--s-logo-hat: var(--g-color-green-600, #226c57);
 	--s-logo-beard: var(--g-color-gray-300, #999999);
+
+	/* Network chip: neutral by default, escalated off-mainnet */
+	--s-color-bg-network: var(--g-color-gray-100);
+	--s-color-text-network: var(--g-color-gray-600);
+	--s-color-bg-network-alert: var(--g-color-purple-50);
+	--s-color-text-network-alert: var(--g-color-purple-600);
 }
 
 /* ===== DARK THEME ===== */
@@ -247,4 +253,24 @@
 	/* Logo / gnome */
 	--s-logo-hat: #ffffff;
 	--s-logo-beard: #808080;
+
+	/* Network chip */
+	--s-color-bg-network: var(--g-color-gray-800);
+	--s-color-text-network: var(--g-color-gray-300);
+	--s-color-bg-network-alert: var(--g-color-purple-950);
+	--s-color-text-network-alert: var(--g-color-purple-50);
+}
+
+/* ===== NETWORK ===== */
+
+/* Off-mainnet accent. The header chip carries the chain-id itself; colour
+   alone is not a signal a screenshot or a colour-blind reader keeps. */
+/* :not() rather than source order: at equal specificity this rule only beats
+   the dark theme because it happens to come later in the file. */
+[data-network="testnet"]:not([data-theme="dark"]) {
+	--s-logo-hat: var(--g-color-purple-600);
+}
+
+[data-theme="dark"][data-network="testnet"] {
+	--s-logo-hat: var(--g-color-purple-400);
 }
