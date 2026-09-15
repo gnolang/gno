@@ -314,7 +314,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://staging.gno.land/p/demo/tokens/grc20$source&file=types.gno)
+Here's an example from [grc20](https://staging.gno.land/p/nt/grc20/v0$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -738,7 +738,7 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import "gno.land/p/demo/tokens/grc20"
+import "gno.land/p/nt/grc20/v0"
 
 var (
 	Token         *grc20.Token

@@ -41,7 +41,7 @@ cat >"$TMPDIR/add_validator.gno" <<GOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 	valr "gno.land/r/sys/validators/v2"
 )

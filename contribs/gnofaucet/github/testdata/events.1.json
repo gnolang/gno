@@ -39379,7 +39379,7 @@
         "id": 2242715938,
         "node_id": "PRRC_kwDOE-u6Jc6FrSEi",
         "diff_hunk": "@@ -32,6 +32,7 @@ func init() {\n \tgPerms = initRealmPermissions(\n \t\t\"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\", // @devx\n \t\t\"g1manfred47kzduec920z88wfr64ylksmdcedlf5\", // @moul\n+\t\t\"g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp\", // @test123 -> for txtar",
-        "path": "examples/gno.land/r/gnoland/boards2/v1/boards.gno",
+        "path": "examples/gno.land/r/gnoland/boards2/v0/boards.gno",
         "commit_id": "1e1b66a0bfb30cde30968497059499844c4d9ac3",
         "original_commit_id": "51ad0eca1ab8867156c978d641e0ccba2c2b4715",
         "user": {
