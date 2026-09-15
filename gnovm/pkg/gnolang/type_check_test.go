@@ -54,7 +54,7 @@ func TestCheckAssignableTo(t *testing.T) {
 					}
 				}()
 			}
-			err := checkAssignableTo(nil, tt.xt, tt.dt)
+			err := checkAssignableTo(nil, nil, tt.xt, tt.dt)
 			if tt.wantError != "" {
 				if err.Error() != tt.wantError {
 					t.Errorf("checkAssignableTo() returned wrong error: want: %v got: %v", tt.wantError, err.Error())

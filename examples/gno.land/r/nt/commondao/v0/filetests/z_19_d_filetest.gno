@@ -16,7 +16,7 @@ import (
 // the proposal stays active and cannot be executed before its deadline. A
 // mutant deciding it by simple majority would pass it early here.
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	moul  = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 	memD  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2

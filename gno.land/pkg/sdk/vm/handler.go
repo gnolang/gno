@@ -33,8 +33,6 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgRun(ctx, msg)
 	case MsgEnablePackage:
 		return vh.handleMsgEnablePackage(ctx, msg)
-	case MsgDisablePackage:
-		return vh.handleMsgDisablePackage(ctx, msg)
 	case MsgRejectPackage:
 		return vh.handleMsgRejectPackage(ctx, msg)
 	default:
@@ -84,15 +82,6 @@ func (vh vmHandler) handleMsgEnablePackage(ctx sdk.Context, msg MsgEnablePackage
 // Handle MsgRejectPackage.
 func (vh vmHandler) handleMsgRejectPackage(ctx sdk.Context, msg MsgRejectPackage) sdk.Result {
 	err := vh.vm.RejectPackage(ctx, msg)
-	if err != nil {
-		return abciResult(err)
-	}
-	return sdk.Result{}
-}
-
-// Handle MsgDisablePackage.
-func (vh vmHandler) handleMsgDisablePackage(ctx sdk.Context, msg MsgDisablePackage) sdk.Result {
-	err := vh.vm.DisablePackage(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}

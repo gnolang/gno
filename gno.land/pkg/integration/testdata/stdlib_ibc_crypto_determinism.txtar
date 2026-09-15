@@ -14,7 +14,28 @@
 
 env ADDPKG_GAS=10_000_000
 env CALL_GAS=10_000_000
-env EXACT_GAS=2547040
+# Moves when crypto/modexp's gas row changes: this realm makes one ModExp call
+# with 32-byte operands, so the whole delta against the base branch is checkable
+# rather than taken on faith. At the 32/32-byte shape the row charges:
+#
+#   on develop    58000 + 24647680*32/1024                    = 828240
+#   on this PR     1400 + 2200*work(32,32)/1024 + 3500*32/1024 = 119496
+#
+# where work counts the modular multiplications big.Int.Exp performs rather than
+# fitting a product: a 32-byte exponent is 4 machine words, so expNN takes the
+# Montgomery path and does 38 + 160*4 = 678 of them, each costing 65 +
+# words(32)^2 = 81 units, giving 678*81 = 54918.
+#
+# Reconciling against develop's 2547293:
+#
+#   2547293 - (828240 - 119496) = 1838549   the gas row alone
+#   1850271 - 1838549           =   11722   the operand-length guard added to
+#                                           ModExp itself, which is Gno-side
+#                                           opcodes, not a native charge
+#
+# Re-derived after merging develop; unrelated gas changes on the base branch
+# move the absolute number, so re-derive again rather than assuming it holds.
+env EXACT_GAS=1850271
 
 gnoland start
 
