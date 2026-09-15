@@ -375,20 +375,25 @@ per crossing frame, refuses to persist it, and validates each use.
 - `PkgPath() string` — pkgpath, or `""` at chain root.
 - `Previous() realm` — the captured realm that was current before
   this crossing.
-- `IsCurrent() bool` — **true when the receiver is the `cur` of the
-  innermost crossing call still running**, or a sub-token of it.
+- `IsCurrent() bool` — true for the `cur` of the crossing call you are
+  inside, or a token `Sub()` derived from it, and false for every other
+  realm value.
 - `IsCode() / IsUser() / IsUserCall() / IsUserRun() / IsEphemeral()` —
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` guards a realm parameter that is not in first position.
-Check it before trusting that parameter for caller identity. A stale
-realm value still answers, and the identity it answers with is no
-longer the caller, class **2 (designation-forgery)** in
-[`gno-security.md`](./gno-security.md).
+`IsCurrent()` guards a realm value that arrived as an ordinary
+argument. The runtime mints one realm value per call, the `cur` in a
+crossing function's first parameter; every other realm parameter
+carries whatever the caller chose to pass, possibly left over from an
+earlier call. Call `IsCurrent()` on such a parameter before reading an
+identity out of it: a left-over value answers as readily as a live one,
+and names a realm that is not calling you. Trusting it is class
+**2 (designation-forgery)** in [`gno-security.md`](./gno-security.md).
 
-A crossing function's own `cur` needs no check. Every entry from
-another realm mints a fresh `cur`, so `cur.IsCurrent()` refuses nobody.
+A crossing function's own `cur` needs no check. The runtime mints a
+fresh one on every entry from another realm, so `cur.IsCurrent()`
+refuses nobody.
 
 ### 5.3 Realm values are ephemeral
 
@@ -676,9 +681,10 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take a realm parameter that is not in first position? If yes,
-  does it check `IsCurrent()` on that parameter before trusting it for
-  caller identity? A crossing function's own `cur` needs no check.
+- Does it take a realm parameter other than a crossing function's
+  first? That one came from the caller, so does it call `IsCurrent()`
+  before reading an identity out of it? A crossing function's own `cur`
+  needs no check.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
