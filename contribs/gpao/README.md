@@ -109,15 +109,18 @@ Note that a vesting schedule on the key does not reduce this. Gas fees debit
 through the unrestricted path and never consult a schedule, so the number that
 matters is the whole balance, not the vested part.
 
-When the key cannot cover one more fee, gpao does **not** reject or retire the
-packages it cannot approve. They are recorded `blocked`, they keep their retry
-allowance, and nothing is marked seen — so funding the key resumes the run in
-place, with no restart and no resubmission:
+When the key cannot cover one more fee, gpao stops rather than walking past the
+packages it cannot approve. The one in hand is recorded `blocked`, keeps its
+retry allowance, and is not marked seen; the rest stay queued and unread. So
+funding the key resumes the run in place, with no restart and no resubmission:
 
 ```sh
 curl http://127.0.0.1:8546/status/gno.land/r/you/yours
-# {"path":"...","status":"blocked","reason":"the approver cannot pay the approval fee; the oracle needs funding"}
+# {"path":"...","status":"blocked","reason":"the approver cannot pay the approval fee; the oracle is paused until it is funded"}
 ```
+
+No blocks are read and no verdicts are issued while paused, rejections included.
+The balance is re-read every 30s.
 
 `--max-spend` is a *tighter* leash than the balance, for operators who want one:
 the daemon holds a hot key, and something that makes approvals fail repeatedly

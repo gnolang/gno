@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -15,196 +19,238 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// TestAnEmptyPurseBlocksRatherThanRetiringPackages pins what happens when the
-// approver runs out of money, which is the state the default -max-spend used to
-// hide: a run stopped at its bound while the key was still full, so nobody had
-// to find out what an actually empty key did.
-//
-// It does something bad. An enable whose fee cannot be paid fails at simulate,
-// and every failed enable spends one of the package's three attempts before the
-// third marks it seen -- so an unfunded approver walks through the queue
-// retiring, for the life of the run, packages that nothing is wrong with, each
-// under a message saying a human is needed. Nothing on chain contradicts it: a
-// parked package reports "waiting for a package approver" whether the oracle is
-// broke or the package landed a second ago.
-//
-// So the rule is: out of money is a property of the ORACLE, never a verdict on
-// the package. It records statusBlocked, it burns no attempt, it marks nothing
-// seen, and it clears itself the moment the key is funded -- without a restart,
-// because the cure happens in a different process entirely.
-//
-// Every figure below is read off the chain rather than assumed. The approver is
-// funded with exactly two approvals' worth, which is what makes the third
-// package the one under test and the first two its control arm.
-func TestAnEmptyPurseBlocksRatherThanRetiringPackages(t *testing.T) {
+const purseFee = int64(1_000_000) // defaultGasFee, as an amount
+
+// purseFixture is a chain whose approver holds a known, small number of
+// approval fees, plus a separate rich key to park with.
+type purseFixture struct {
+	approver  crypto.Address
+	submitter crypto.Address
+	client    gnoclient.Client
+	remote    string
+	chainID   string
+	gnoroot   string
+}
+
+// newPurseFixture starts an inert-policy node whose approver holds exactly
+// approvals worth of fees, to the ugnot: the ante deducts tx.Fee.GasFee whole
+// rather than metering it, so the next enable meets an empty account.
+func newPurseFixture(t *testing.T, approvals int64) *purseFixture {
+	t.Helper()
 	gnoroot := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(gnoroot)
 	cfg.SkipGenesisSigVerification = true
 
-	// Two keys off one seed. Index 0 is what newOracle builds from cfg.mnemonic,
-	// so it has to be the approver; index 1 pays for the submissions, because a
-	// key poor enough to be the subject of this test cannot afford to park
-	// anything.
-	approverSigner, err := gnoclient.SignerFromBip39(
-		integration.DefaultAccount_Seed, cfg.Genesis.ChainID, "", 0, 0)
-	require.NoError(t, err)
-	approverInfo, err := approverSigner.Info()
-	require.NoError(t, err)
-	approver := approverInfo.GetAddress()
-
-	submitterSigner, err := gnoclient.SignerFromBip39(
-		integration.DefaultAccount_Seed, cfg.Genesis.ChainID, "", 0, 1)
-	require.NoError(t, err)
-	submitterInfo, err := submitterSigner.Info()
-	require.NoError(t, err)
-	submitter := submitterInfo.GetAddress()
+	// Index 0 is what newOracle builds from cfg.mnemonic, so it is the approver.
+	key := func(i uint32) crypto.Address {
+		t.Helper()
+		s, err := gnoclient.SignerFromBip39(
+			integration.DefaultAccount_Seed, cfg.Genesis.ChainID, "", 0, i)
+		require.NoError(t, err)
+		info, err := s.Info()
+		require.NoError(t, err)
+		return info.GetAddress()
+	}
+	approver, submitter := key(0), key(1)
 	require.NotEqual(t, approver, submitter,
 		"the two arms have to be different accounts or the purse cannot be emptied")
 
-	const fee = int64(1_000_000) // defaultGasFee, as an amount
-	const approvalsAffordable = 2
-
 	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 	ggs.Balances = []gnoland.Balance{
-		{
-			Address: submitter,
-			Amount:  std.NewCoins(std.NewCoin(ugnotDenom, 100_000_000_000)),
-		},
-		{
-			// Exactly two approvals, to the ugnot. The ante deducts
-			// tx.Fee.GasFee whole rather than metering it, so the third enable
-			// meets an account holding nothing at all.
-			Address: approver,
-			Amount:  std.NewCoins(std.NewCoin(ugnotDenom, approvalsAffordable*fee)),
-		},
+		{Address: submitter, Amount: std.NewCoins(std.NewCoin(ugnotDenom, 100_000_000_000))},
+		{Address: approver, Amount: std.NewCoins(std.NewCoin(ugnotDenom, approvals*purseFee))},
 	}
 	ggs.VM.Params.CodeSubmissionPolicy = "inert"
 	ggs.VM.Params.PkgApprovers = []crypto.Address{approver}
 	cfg.Genesis.AppState = ggs
 
 	node, remote := integration.TestingInMemoryNode(t, log.NewNoopLogger(), cfg)
-	defer node.Stop()
+	t.Cleanup(func() { _ = node.Stop() })
 
 	rpc, err := client.NewHTTPClient(remote)
 	require.NoError(t, err)
-	submitterClient := gnoclient.Client{Signer: submitterSigner, RPCClient: rpc}
+	submitterSigner, err := gnoclient.SignerFromBip39(
+		integration.DefaultAccount_Seed, cfg.Genesis.ChainID, "", 0, 1)
+	require.NoError(t, err)
 
-	pkg := func(name string) *std.MemPackage {
-		path := "gno.land/r/purse/" + name
-		return &std.MemPackage{
-			Name: name,
-			Path: path,
-			Files: []*std.MemFile{
-				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(path)},
-				{Name: name + ".gno", Body: "package " + name + "\n\nfunc F(cur realm) string { return \"" + name + "\" }\n"},
-			},
-		}
+	return &purseFixture{
+		approver:  approver,
+		submitter: submitter,
+		client:    gnoclient.Client{Signer: submitterSigner, RPCClient: rpc},
+		remote:    remote,
+		chainID:   cfg.Genesis.ChainID,
+		gnoroot:   gnoroot,
 	}
-	park := func(t *testing.T, mpkg *std.MemPackage) {
-		t.Helper()
-		tx := std.Tx{
-			Msgs: []std.Msg{vm.MsgAddPackage{Creator: submitter, Package: mpkg}},
-			Fee:  std.NewFee(20_000_000, std.MustParseCoin("1000000ugnot")),
-		}
-		signed, err := submitterClient.SignTx(tx, 0, 0)
-		require.NoError(t, err)
-		res, err := submitterClient.BroadcastTxCommit(signed)
-		require.NoError(t, err)
-		require.True(t, res.CheckTx.IsOK(), "park checkTx: %v", res.CheckTx.Error)
-		require.True(t, res.DeliverTx.IsOK(), "park deliverTx: %v", res.DeliverTx.Error)
+}
+
+func (f *purseFixture) pkg(name string) *std.MemPackage {
+	path := "gno.land/r/purse/" + name
+	return &std.MemPackage{
+		Name: name,
+		Path: path,
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(path)},
+			{Name: name + ".gno", Body: "package " + name + "\n\nfunc F(cur realm) string { return \"" + name + "\" }\n"},
+		},
 	}
+}
 
-	one, two, three := pkg("one"), pkg("two"), pkg("three")
-	park(t, one)
-	park(t, two)
-	park(t, three)
+// park submits a package and returns the height MsgEnablePackage has to name.
+func (f *purseFixture) park(t *testing.T, mpkg *std.MemPackage) int64 {
+	t.Helper()
+	tx := std.Tx{
+		Msgs: []std.Msg{vm.MsgAddPackage{Creator: f.submitter, Package: mpkg}},
+		Fee:  std.NewFee(20_000_000, std.MustParseCoin("1000000ugnot")),
+	}
+	signed, err := f.client.SignTx(tx, 0, 0)
+	require.NoError(t, err)
+	res, err := f.client.BroadcastTxCommit(signed)
+	require.NoError(t, err)
+	require.True(t, res.CheckTx.IsOK(), "park checkTx: %v", res.CheckTx.Error)
+	require.True(t, res.DeliverTx.IsOK(), "park deliverTx: %v", res.DeliverTx.Error)
+	return res.Height
+}
 
-	ocfg := config{
-		remote:        remote,
-		chainID:       cfg.Genesis.ChainID,
+// fund tops the approver up by a plain transfer.
+func (f *purseFixture) fund(t *testing.T, approvals int64) {
+	t.Helper()
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: f.submitter,
+			ToAddress:   f.approver,
+			Amount:      std.NewCoins(std.NewCoin(ugnotDenom, approvals*purseFee)),
+		}},
+		Fee: std.NewFee(20_000_000, std.MustParseCoin("1000000ugnot")),
+	}
+	signed, err := f.client.SignTx(tx, 0, 0)
+	require.NoError(t, err)
+	res, err := f.client.BroadcastTxCommit(signed)
+	require.NoError(t, err)
+	require.True(t, res.DeliverTx.IsOK(), "fund deliverTx: %v", res.DeliverTx.Error)
+}
+
+func (f *purseFixture) oracle(t *testing.T, startHeight int64) *oracle {
+	t.Helper()
+	o, err := newOracle(config{
+		remote:        f.remote,
+		chainID:       f.chainID,
 		mnemonic:      integration.DefaultAccount_Seed,
-		gnoRoot:       gnoroot,
+		gnoRoot:       f.gnoroot,
 		gasFee:        defaultGasFee,
 		maxSpend:      defaultMaxSpend,
 		gasWanted:     defaultGasWanted,
 		verifyBudget:  time.Minute,
 		prepareBudget: defaultPrepareBudget,
-	}
-	o, err := newOracle(ocfg, testIO(t))
+		pollInterval:  200 * time.Millisecond,
+		startHeight:   startHeight,
+	}, testIO(t))
 	require.NoError(t, err)
-	require.Equal(t, approver, o.approver)
+	require.Equal(t, f.approver, o.approver)
 	require.Zero(t, o.maxSpend,
-		"the default has to leave the balance as the only bound, or this test "+
-			"measures the bound instead of the balance")
+		"the default has to leave the balance as the only bound, or these tests "+
+			"measure the bound instead of the balance")
+	return o
+}
+
+// awaitStatus waits for a verdict, and reports rather than hanging.
+func awaitStatus(t *testing.T, o *oracle, path, want string) {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := o.status.get(path); got.Status == want {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("%s never reached %q; last verdict %+v", path, want, o.status.get(path))
+}
+
+// TestAnUnpayableFeeIsTypedInsufficientFunds pins the type the pause is selected
+// on. Worth its own test because misreading it now waits forever instead of
+// retiring one package.
+func TestAnUnpayableFeeIsTypedInsufficientFunds(t *testing.T) {
+	f := newPurseFixture(t, 0) // the approver cannot pay for anything
+
+	mpkg := f.pkg("nofunds") // sorts after gnomod.toml; unsorted files are refused
+
+	height := f.park(t, mpkg)
+
+	o := f.oracle(t, 1)
 	maxGas, answered := o.queryBlockMaxGas(t.Context())
-	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
+	require.True(t, answered, "a zero ceiling clamps every gas figure to zero")
 	o.blockMaxGas = maxGas
 
-	// A key that can pay is not reported as one that cannot.
-	o.reportFunding()
-	require.False(t, o.unfunded, "the approver starts with two approvals' worth")
-
-	// ---- Control arm: everything it can afford goes through
-	for _, mpkg := range []*std.MemPackage{one, two} {
-		o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
-		require.Equal(t, statusApproved, o.status.get(mpkg.Path).Status,
-			"%s is affordable and has to be approved", mpkg.Path)
-	}
-	assert.Equal(t, approvalsAffordable*fee, o.spent)
-
-	balance, _, err := submitterClient.QueryBalance(approver)
+	pkgHash, err := vm.PackageContentHash(mpkg)
 	require.NoError(t, err)
-	require.Zero(t, balance.AmountOf(ugnotDenom),
-		"the purse has to be empty for the arm under test to be about an empty purse")
+
+	err = o.enable(mpkg.Path, pkgHash, height)
+	require.Error(t, err)
+	assert.ErrorAs(t, err, &std.InsufficientFundsError{},
+		"handleCandidate pauses on exactly this type; see its enable loop")
+	assert.Zero(t, o.spent,
+		"a simulate refusal creates no transaction, so it must not be counted")
+}
+
+// TestAnEmptyPursePausesRatherThanRetiringPackages: out of money is a property
+// of the oracle, never a verdict on a package. An unfunded approver used to walk
+// the queue spending each package's three attempts and then marking it seen, and
+// even without that a skipped package was gone -- heights only move forward. So
+// it stops: blocked on the package in hand, no attempt, nothing seen, and the
+// reader stalled through the queue. Funding resumes all of it in place.
+//
+// The approver holds exactly two approvals, which makes the third package the
+// arm under test and the first two its control.
+func TestAnEmptyPursePausesRatherThanRetiringPackages(t *testing.T) {
+	const approvalsAffordable = 2
+	f := newPurseFixture(t, approvalsAffordable)
+
+	one, two, three := f.pkg("one"), f.pkg("two"), f.pkg("three")
+	f.park(t, one)
+	f.park(t, two)
+	f.park(t, three)
+
+	o := f.oracle(t, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go func() { _ = o.run(ctx) }()
+
+	// ---- Control arm: everything the key can afford goes through
+	awaitStatus(t, o, one.Path, statusApproved)
+	awaitStatus(t, o, two.Path, statusApproved)
 
 	// ---- The arm under test: out of money, and nothing held against the package
-	o.handleCandidate(t.Context(), candidate{mpkg: three})
+	awaitStatus(t, o, three.Path, statusBlocked)
 
+	// Reading the verifier's maps is safe here only: it is parked in
+	// waitForFunds, and the status mutex orders its writes before this read.
 	status := o.status.get(three.Path)
-	assert.Equal(t, statusBlocked, status.Status,
-		"an unpayable fee is the oracle's problem; rejected or gave_up would "+
-			"tell the submitter their code is at fault")
 	assert.Contains(t, status.Reason, "cannot pay the approval fee")
 	assert.Zero(t, status.Attempt, "a funding stall must not be counted as an attempt")
-	assert.True(t, o.unfunded)
+	assert.Equal(t, approvalsAffordable*purseFee, o.spent,
+		"only the two affordable approvals were ever sent")
 
 	key := candidateKey(three)
 	assert.NotContains(t, o.seen, key,
-		"a blocked package has to stay eligible, or funding the key fixes nothing "+
-			"without a restart")
+		"a paused package has to stay eligible, or resuming approves nothing")
 	assert.NotContains(t, o.failedEnable, key,
 		"an empty purse must not spend one of the three chances the package gets")
 
-	// reportFunding says so too, which is the only warning an operator gets
-	// before approvals stop.
-	o.reportFunding()
-	assert.True(t, o.unfunded)
-
-	// ---- Funding the key resumes the run, with no restart
-	//
-	// A plain transfer, which is what an operator actually does about this, and
-	// nothing else: no restart, no flag, no resubmission of the package.
-	fund := std.Tx{
-		Msgs: []std.Msg{bank.MsgSend{
-			FromAddress: submitter,
-			ToAddress:   approver,
-			Amount:      std.NewCoins(std.NewCoin(ugnotDenom, 5*fee)),
-		}},
-		Fee: std.NewFee(20_000_000, std.MustParseCoin("1000000ugnot")),
-	}
-	signedFund, err := submitterClient.SignTx(fund, 0, 0)
+	balance, _, err := f.client.QueryBalance(f.approver)
 	require.NoError(t, err)
-	fundRes, err := submitterClient.BroadcastTxCommit(signedFund)
-	require.NoError(t, err)
-	require.True(t, fundRes.CheckTx.IsOK(), "fund checkTx: %v", fundRes.CheckTx.Error)
-	require.True(t, fundRes.DeliverTx.IsOK(), "fund deliverTx: %v", fundRes.DeliverTx.Error)
+	require.Zero(t, balance.AmountOf(ugnotDenom),
+		"the purse has to be empty for this to be about an empty purse")
 
-	o.handleCandidate(t.Context(), candidate{mpkg: three})
-	assert.Equal(t, statusApproved, o.status.get(three.Path).Status,
-		"the package was never at fault; a funded key has to reach it without a restart")
-	assert.False(t, o.unfunded)
+	// ---- Submitted DURING the stall, and still not lost
+	later := f.pkg("later")
+	f.park(t, later)
+	require.Equal(t, statusUnknown, o.status.get(later.Path).Status,
+		"a paused oracle issues no verdicts at all, not even for what it queued")
+
+	// ---- Funding resumes everything, with no restart
+	f.fund(t, 5)
+
+	awaitStatus(t, o, three.Path, statusApproved)
+	awaitStatus(t, o, later.Path, statusApproved)
 }
