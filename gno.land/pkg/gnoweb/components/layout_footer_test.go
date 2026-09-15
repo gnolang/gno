@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnrichFooterData_Outbound(t *testing.T) {
@@ -23,7 +24,10 @@ func TestEnrichFooterData_Outbound(t *testing.T) {
 	}
 
 	want := map[string]string{
-		"https://docs.gno.land/":                                OutboundDocs,
+		// /docs is served by DocsHandler from the embedded docs/ tree, so it is
+		// a first-party path and must NOT carry data-outbound: SimpleAnalytics
+		// already counts it as a page view and an outbound tag double-counts it.
+		"/docs":                                                 "",
 		"https://faucet.gno.land/":                              OutboundFaucet,
 		"https://status.gnoteam.com/":                           OutboundStatus,
 		"https://github.com/gnolang/gno":                        OutboundGitHub,
@@ -45,9 +49,13 @@ func TestStaticHeaderGeneralLinks_Outbound(t *testing.T) {
 	for _, l := range links {
 		got[l.URL] = l.Outbound
 	}
-	assert.Equal(t, OutboundDocs, got["https://docs.gno.land/"])
 	assert.Equal(t, OutboundGitHub, got["https://github.com/gnolang"])
 	// Same-domain links must not carry data-outbound; SimpleAnalytics already
 	// counts them as page views and an outbound tag would double-count them.
 	assert.Equal(t, "", got["https://gno.land/about"])
+	// The Docs entry must point at the locally served /docs — this is the only
+	// link into DocsHandler, so pointing it back at docs.gno.land leaves the
+	// embedded pages unreachable from the UI.
+	require.Contains(t, got, "/docs")
+	assert.Equal(t, "", got["/docs"])
 }

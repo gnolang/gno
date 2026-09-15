@@ -27,7 +27,8 @@ func EnrichFooterData(data FooterData) FooterData {
 			Title: "Footer navigation",
 			Links: []FooterLink{
 				{Label: "About", URL: "/about"},
-				{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+				// See StaticHeaderGeneralLinks: /docs is served locally.
+				{Label: "Docs", URL: "/docs"},
 				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
 				{Label: "Status", URL: "https://status.gnoteam.com/", Outbound: OutboundStatus},
