@@ -134,8 +134,11 @@ const maxOverBudgetAttempts = 3
 const maxEnableAttempts = 3
 
 // candidateQueueSize bounds how far the block reader may run ahead of the
-// verifier. Generous, because its whole job is absorbing a bursty block; past
+// verifier. Generous, because its first job is absorbing a bursty block; past
 // that, blocking the reader is the honest response to a saturated oracle.
+//
+// It is also what stops the reader during a funding pause: a verifier parked in
+// waitForFunds stops draining, the queue fills, and enqueue blocks.
 const candidateQueueSize = 256
 
 func newOracle(cfg config, io commands.IO) (*oracle, error) {
@@ -488,7 +491,8 @@ func (o *oracle) enqueue(ctx context.Context, c candidate) error {
 }
 
 // handleCandidate typechecks a submitted package and, if it passes, broadcasts
-// a MsgEnablePackage to activate it on-chain.
+// a MsgEnablePackage to activate it on-chain. Blocks until ctx is done if the
+// approver cannot pay; see the enable loop.
 func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	mpkg := c.mpkg
 	path := mpkg.Path
@@ -600,28 +604,28 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		o.errf("gpao: not approving %q: %v", path, err)
 		return
 	}
-	if err := o.enable(path, pkgHash, c.height); err != nil {
-		// An empty purse is not one of the three chances the package gets.
-		//
-		// InsufficientFundsError is exactly "the fee payer could not pay", and
-		// the fee payer here is the approver: MsgEnablePackage.GetSigners names
-		// it alone, the ante charges the first signer, and auth.DeductFees is
-		// the only thing in the tree that raises this type. The creator's
-		// storage deposit, which fails on this same message, comes back as
-		// InsufficientCoinsError from the VM handler instead -- a different
-		// stage, a different type, and not about this key.
+	// Looped, so an approver with no money holds this candidate instead of
+	// consuming it.
+	for {
+		err := o.enable(path, pkgHash, c.height)
+		if err == nil {
+			break
+		}
+		// auth.DeductFees alone raises this, and MsgEnablePackage names the
+		// approver as its sole signer, so it means this key and nothing else.
+		// The creator's storage deposit fails on the same message as
+		// InsufficientCoinsError, from the VM handler.
 		if errors.As(err, &std.InsufficientFundsError{}) {
 			o.blockedOnFunds(path)
-			return
+			if !o.waitForFunds(ctx) {
+				return
+			}
+			continue
 		}
 		// Left unseen until the count runs out, for the reason at
-		// maxEnableAttempts: the package verified, so the failure is about the
-		// chain's state rather than the code, and most such causes clear.
-		//
-		// As with overBudget, this does not re-offer the package by itself --
-		// heights only move forward. It is what makes a restart (with
-		// -start-height at or below the submitting block) or a resubmission of
-		// the same bytes effective instead of a silent no-op.
+		// maxEnableAttempts. Not held like the branch above: these need
+		// something on chain to change, which is not something to wait on with
+		// every other package queued behind it.
 		if n, giveUp := o.recordEnableFailure(key); giveUp {
 			o.status.record(path, statusGaveUp, err.Error(), n)
 			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
@@ -744,22 +748,62 @@ func (o *oracle) approverBalance() (balance int64, answered bool) {
 	return coins.AmountOf(o.feeDenom), true
 }
 
-// blockedOnFunds records that a package was not approved because the approver
-// is out of money.
-//
-// statusBlocked, not statusRejected or statusGaveUp, and the path is left
-// UNSEEN by every caller: nothing is wrong with the package, and the whole
-// point is that it gets approved once the key can pay. Saying which of those it
-// is, is the difference between "your code is bad" and "ask the operator",
-// which a submitter cannot otherwise tell apart -- and it is the difference the
-// chain itself cannot report, since a parked package reads the same either way.
+// blockedOnFunds records that the oracle stopped on this package for want of
+// money. Blocked rather than rejected or gave_up, because a submitter cannot
+// otherwise tell "your code is bad" from "ask the operator" -- the chain reports
+// a parked package the same either way. Only the held candidate gets it; the
+// ones queued behind have not been verified.
 func (o *oracle) blockedOnFunds(path string) {
 	o.status.record(path, statusBlocked,
-		"the approver cannot pay the approval fee; the oracle needs funding", 0)
-	o.errf("gpao: not approving %q: the approver %s cannot cover one approval "+
-		"fee of %d%s. Fund it -- approvals resume on their own, and nothing is "+
-		"recorded against the package in the meantime.",
+		"the approver cannot pay the approval fee; the oracle is paused until it is funded", 0)
+	o.errf("gpao: paused on %q: the approver %s cannot cover one approval fee "+
+		"of %d%s. Fund it -- this package and everything behind it resume "+
+		"automatically, with no restart and nothing resubmitted. No blocks are "+
+		"read while paused.",
 		path, o.approver, o.enableFee, o.feeDenom)
+}
+
+// waitForFunds blocks until the approver can pay for one approval; false means
+// the context was cancelled. Silence is not funded, so an unanswered read keeps
+// waiting. The balance is polled rather than the enable because simulate
+// executes the package, and this runs for as long as the stall lasts.
+func (o *oracle) waitForFunds(ctx context.Context) bool {
+	const (
+		// Long: the cure is a human sending a transaction, and QueryBalance
+		// walks every denom the address holds, which anyone can add to.
+		pollInterval = 30 * time.Second
+		// Re-log the pause once per this many polls.
+		remindEvery = 10
+	)
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for polls := 1; ; polls++ {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
+
+		balance, answered := o.approverBalance()
+		switch {
+		case !answered:
+			if polls%remindEvery == 0 {
+				o.errf("gpao: still paused; the approver's balance cannot be read")
+			}
+		case balance >= o.enableFee:
+			o.logf("gpao: approver %s holds %d%s, resuming: %d approvals at "+
+				"%d%s each, %d candidates queued",
+				o.approver, balance, o.feeDenom, balance/o.enableFee,
+				o.enableFee, o.feeDenom, len(o.candidates))
+			return true
+		case polls%remindEvery == 0:
+			o.errf("gpao: still paused; the approver %s holds %d%s, one approval "+
+				"costs %d%s, %d candidates queued",
+				o.approver, balance, o.feeDenom, o.enableFee, o.feeDenom,
+				len(o.candidates))
+		}
+	}
 }
 
 // reportFunding logs how many approvals the approver can afford, once, at
