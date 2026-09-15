@@ -375,20 +375,20 @@ per crossing frame, refuses to persist it, and validates each use.
 - `PkgPath() string` — pkgpath, or `""` at chain root.
 - `Previous() realm` — the captured realm that was current before
   this crossing.
-- `IsCurrent() bool` — true if this realm is part of the current
+- `IsCurrent() bool` — true if `cur` is part of the current
   realm-context.
 - `IsCode() / IsUser() / IsUserCall() / IsUserRun() / IsEphemeral()` —
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` guards a realm value a caller handed you. The runtime
-puts your own `cur` into the current realm-context when another realm
-calls in, so `cur.IsCurrent()` is always true and a check on it refuses
-nobody. A realm value that arrived as an ordinary argument may be part
-of that context or left over from an earlier call, and `IsCurrent()` is
-what tells you which. Read no identity out of such a value until it
-answers true: a left-over one answers as readily as a live one, and
-names a realm that is not calling you. Trusting it is class
+`IsCurrent()` guards a realm value a caller hands you, named `rlm` by
+convention, never your own `cur`. Your `cur` is in the current
+realm-context from the moment the call arrives, so `cur.IsCurrent()` is
+always true and a check on it refuses nobody. An `rlm` may be in that
+context too, or left over from an earlier call, and `rlm.IsCurrent()`
+is what tells you which. Read no identity out of an `rlm` until that
+answers true: a left-over one answers as readily as a live one, and the
+caller it names is not the one calling you. Trusting it is class
 **2 (designation-forgery)** in [`gno-security.md`](./gno-security.md).
 
 ### 5.3 Realm values are ephemeral
@@ -677,9 +677,9 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does a caller hand it a realm value as an ordinary argument? If yes,
-  does it call `IsCurrent()` on that value before reading an identity
-  out of it? A check on the function's own `cur` refuses nobody.
+- Does a caller hand it a realm value of its own, an `rlm`? If yes,
+  does it call `rlm.IsCurrent()` before reading an identity out of it?
+  A check on the function's own `cur` refuses nobody.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
