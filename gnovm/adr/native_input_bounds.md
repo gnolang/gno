@@ -4,9 +4,16 @@
 
 Implemented, landed in commit `acd01fa29`.
 
+This is the one ADR from that batch without an `acd01fa29_` filename prefix.
+`gnovm/stdlibs/crypto/bn254/bn254.gno` cites it by this name, and a stdlib
+MemPackage's source bytes are committed into genesis state — editing that
+comment shifts the multistore root (verified: it fails
+`TestAppHashCrossrealm38`). Renaming the file would cost a consensus break to
+fix a doc reference, so the name stays.
+
 ## Context
 
-`gno2go_slice_gas.md` narrowed the Gno→Go conversion from `Maxcap` to
+`acd01fa29_gno2go_slice_gas.md` narrowed the Gno→Go conversion from `Maxcap` to
 `Length`, so a native no longer receives more bytes than the Gno slice makes
 visible. `Length` is still attacker-chosen, and the conversion still allocates
 and copies all of it — `Gno2GoValue` runs inside the native dispatcher, after
