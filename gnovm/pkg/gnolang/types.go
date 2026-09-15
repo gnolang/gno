@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	r "github.com/gnolang/gno/tm2/pkg/regx"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // NOTE: TypeID() implementations are currently
@@ -361,7 +362,7 @@ type FieldType struct {
 	// the enclosing interface's PkgPath. Used to keep unexported-method
 	// identity package-qualified (see ms.TypeIDForPackage) and to gate
 	// unexported selection and interface satisfaction (see
-	// FindEmbeddedFieldType, VerifyImplementedBy).
+	// FindEmbeddedFieldType, checkImplementedBy).
 	PkgPath string
 }
 
@@ -988,7 +989,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name) (
 			// Ensure exposed or package match. Gate against the method's
 			// origin package (its stamp when flattened out of another
 			// package), not the enclosing interface's — same rule as
-			// VerifyImplementedBy below. A same-spelled unexported method
+			// checkImplementedBy below. A same-spelled unexported method
 			// from another package is a distinct method: skip it and keep
 			// scanning for one with a matching identity.
 			if !isUpper(string(n)) && im.originPkg(it.PkgPath) != callerPath {
@@ -1015,9 +1016,26 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 		im.Name, it.String()))
 }
 
-// For run-time type assertion.
+// checkImplementedBy reports whether ot satisfies the interface (nil error) or
+// why it does not, charging the embedding-graph BFS against gm and threading
+// the meter down into findEmbeddedFieldType so the per-embedded-field work is
+// billed. Both preprocess (gm = the preprocess meter) and runtime
+// (gm = m.GasMeter) call it. gm may be nil only off consensus paths (tests,
+// debug asserts); there is deliberately no nil-defaulting exported wrapper, so
+// an unmetered call is visible at its call site.
 // TODO: optimize somehow.
-func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
+func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
+	// Charge gas for the per-method interface implementation verification.
+	// Each method is looked up on a shared embedWalk
+	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
+	// mirrors the runtime type-assertion charge in op_expressions.go.
+	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
+	// One walk of ot's embedding graph serves every method lookup below: the
+	// graph is expanded once (OpCPUSlopeEmbedExpand per type) and re-scanned
+	// per name (OpCPUSlopeEmbedScan per entry, plus OpCPUSlopeEmbedTrailHop
+	// per hop of a hit), instead of being rebuilt from the root for each of
+	// the (up to MaxInterfaceMethods) methods.
+	w := newEmbedWalk(gm, ot)
 	for _, im := range it.Methods {
 		if debugAssert && im.Type.Kind() == InterfaceKind {
 			it.panicUnflattened(im)
@@ -1026,7 +1044,7 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// method's origin package (its stamp when flattened out of another
 		// package), not the enclosing interface's — otherwise a type could
 		// satisfy another package's sealed interface.
-		trail, hp, rt, ft, status := findEmbeddedFieldType(im.originPkg(it.PkgPath), ot, im.Name)
+		trail, hp, rt, ft, status := w.find(im.originPkg(it.PkgPath), im.Name)
 		mname := im.stampedName()
 		if status != embedLookupFound {
 			return fmt.Errorf("missing method %s", mname)
@@ -1070,7 +1088,7 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 // isSealedMarkerName reports whether n is a runtime seal marker: a
 // dot-prefixed method name. The Gno parser rejects identifiers beginning
 // with `.`, so such names cannot originate from user source and only the
-// runtime declares them (e.g. `.seal`). See VerifyImplementedBy.
+// runtime declares them (e.g. `.seal`). See checkImplementedBy.
 func isSealedMarkerName(n Name) bool {
 	return len(n) > 0 && n[0] == '.'
 }
@@ -1083,13 +1101,9 @@ func isSealedMarkerName(n Name) bool {
 // longer than a single element is a promotion. Using the length rather than
 // matching the head's VPType also covers the VPSubrefField / deref-method head
 // forms that applyPointerDeref produces for a pointer method reached through
-// fields. See VerifyImplementedBy.
+// fields. See checkImplementedBy.
 func trailPromotedThroughField(trail []ValuePath) bool {
 	return len(trail) > 1
-}
-
-func (it *InterfaceType) IsImplementedBy(ot Type) bool {
-	return it.VerifyImplementedBy(ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -1687,7 +1701,7 @@ func validateTypeDepth(t Type, x Expr) {
 
 // MaxInterfaceMethods bounds the effective method count of an
 // InterfaceType (counting methods reached through any depth of
-// interface embedding). Caps the per-VerifyImplementedBy iteration;
+// interface embedding). Caps the per-checkImplementedBy iteration;
 // combined with the methodIndex O(1) per-method lookup on concrete
 // types, K assignments × MaxInterfaceMethods = bytes-linear preprocess
 // work for interface-conversion patterns (DEGEN11 WideIfaceConvK).
@@ -2513,10 +2527,10 @@ func debugAssertEqualityTypes(lt, rt Type) {
 		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
 	} else if lt.Kind() == InterfaceKind &&
-		IsImplementedBy(lt, rt) {
+		isImplementedBy(nil, lt, rt) { // debug-only: never on a metered path
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
-		IsImplementedBy(rt, lt) {
+		isImplementedBy(nil, rt, lt) {
 		// lt implements rt (and rt is nil interface).
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
@@ -2664,10 +2678,15 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	return out
 }
 
-func IsImplementedBy(it Type, ot Type) bool {
+// isImplementedBy reports whether ot satisfies interface type it, charging the
+// embedded-field BFS walk against gm (nil = unmetered; only off consensus
+// paths). Runtime callers on attacker-reachable paths (e.g. Fprint's
+// Stringer/error dispatch over a wide-embedding type) pass a non-nil meter so
+// the walk is billed; see checkImplementedBy.
+func isImplementedBy(gm store.GasMeter, it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
-		return cbt.IsImplementedBy(ot)
+		return cbt.checkImplementedBy(gm, ot) == nil
 	default:
 		panic("should not happen")
 	}
@@ -2778,7 +2797,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					mustAssignableTo(n, spec, match.Elem())
+					mustAssignableTo(store, n, spec, match.Elem())
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2792,7 +2811,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					mustAssignableTo(n, spec, match)
+					mustAssignableTo(store, n, spec, match)
 					return // ok
 				} else {
 					if isUntyped(spec) {
@@ -2954,16 +2973,26 @@ func isGeneric(t Type) bool {
 // identity, so a gated candidate is skipped, never resolved; the walk
 // reports embedLookupAccessError only when gated sightings were the
 // only ones.
-func findEmbeddedFieldType(callerPath string, t Type, n Name) (
+// gm meters the walk (OpCPUSlopeEmbedExpand per reachable type); nil is
+// unmetered and belongs only off consensus paths. See checkImplementedBy.
+func findEmbeddedFieldType(gm store.GasMeter, callerPath string, t Type, n Name) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, status embedLookupStatus,
 ) {
-	root := canonEmbeddedType(t)
-	if root == nil {
+	w := newEmbedWalk(gm, t)
+	return w.find(callerPath, n)
+}
+
+// find is findEmbeddedFieldType over the walk's root; several names may be
+// looked up on the same walk (see checkImplementedBy).
+func (w *embedWalk) find(callerPath string, n Name) (
+	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, status embedLookupStatus,
+) {
+	if w.root == nil {
 		// e.g. nested pointers and pointers to interfaces
 		// do not expose fields or methods.
 		return
 	}
-	if it, ok := root.(*InterfaceType); ok {
+	if it, ok := w.root.(*InterfaceType); ok {
 		// Interface method sets are flat (interfaces only embed
 		// interfaces), so delegate directly instead of running the
 		// find-then-rebuild phases twice over the same methods.
@@ -2977,13 +3006,16 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name) (
 		}
 		return
 	}
-	hops, lstatus := lookupShallowestEmbedded(callerPath, root, n)
+	hops, lstatus := w.lookup(callerPath, n)
 	if lstatus != embedLookupFound {
 		status = lstatus
 		return
 	}
+	// Rebuilding the winning path grows with its depth (~hops²); bill it
+	// per hop at the deep-end slope.
+	chargeCPUGas(w.gm, OpCPUSlopeEmbedTrailHop*int64(len(hops)))
 	var accessError bool
-	trail, hasPtr, rcvr, ft, accessError = buildEmbeddedTrail(callerPath, t, n, hops)
+	trail, hasPtr, rcvr, ft, accessError = buildEmbeddedTrail(callerPath, w.t, n, hops)
 	switch {
 	case accessError:
 		trail, hasPtr, rcvr, ft = nil, false, nil, nil
@@ -3009,107 +3041,120 @@ const (
 	embedLookupAccessError
 )
 
-// embedLookupEntry is one node of the breadth-first walk in
-// lookupShallowestEmbedded.
-type embedLookupEntry struct {
-	typ       Type     // canonical node; see canonEmbeddedType
-	hops      []uint16 // embedded-field indices from the root to typ
-	multiples bool     // reachable by more than one same-depth path
+// embedWalk is the breadth-first expansion of one root's embedding graph,
+// one level per embedded struct field traversed. It is built lazily, one
+// level at a time as lookups need to go deeper, and one walk serves lookups
+// of many names on the same root (checkImplementedBy looks up every method).
+//
+//	type S struct{ A; B; X int }
+//	type A struct{ C }
+//	type B struct{ C }
+//	type C struct{}
+//
+//	levels[0] = [S]        the root
+//	levels[1] = [A, B]     S's embedded fields (X is not embedded)
+//	levels[2] = [C]        reached via both A and B → multiples=true
+//
+// A lookup of n scans levels[1], then levels[2], … and stops at the first
+// level with a provider; exactly one provider (and not multiples) resolves,
+// more is ambiguous (Go spec §Selectors). Same-spelled unexported names from
+// other packages are distinct identities: they never occupy a depth, but if
+// a lookup ends with only such gated sightings the result is an access
+// error. A type already reached at a shallower level is not re-added — any
+// match through the deeper occurrence is shadowed anyway — which bounds the
+// walk to O(reachable types) and guards embedding cycles.
+type embedWalk struct {
+	gm   store.GasMeter
+	t    Type // as given to findEmbeddedFieldType (buildEmbeddedTrail needs it)
+	root Type // canonEmbeddedType(t); nil exposes nothing
+
+	// levels[d] is the set of types first reached at depth d; levels[0] is
+	// the root alone. nil until the first root miss, so a depth-0 hit (the
+	// common case) allocates no BFS state.
+	levels [][]embedLookupEntry
+	// seen maps every reached type to its index in the level currently
+	// being built (a second same-depth sighting marks that entry
+	// multiples) or -1 once its level is complete (a deeper sighting is
+	// shadowed). One map for the whole walk: O(1) duplicate detection with
+	// no per-level allocation.
+	seen map[Type]int
+	done bool // the last level had nothing to expand
 }
 
-// lookupShallowestEmbedded walks the embedding graph of root breadth-
-// first, one level per embedded struct field traversed, and reports how
-// n resolves: the unique shallowest accessible provider's hops
-// (embedded-field indices from root), or ambiguity when the shallowest
-// providing level has more than one provider (Go spec §Selectors).
-// Same-spelled unexported names from other packages are distinct
-// identities: they never occupy a depth (an accessible match at the
-// same or a deeper level still resolves), but if the walk ends with
-// only gated sightings the result is an access error. A global seen set
-// skips types already reached at a shallower level — any match through
-// a deeper occurrence is shadowed anyway — which bounds the walk to
-// O(reachable types) and guards embedding cycles.
-func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, embedLookupStatus) {
+// embedLookupEntry is one node of an embedWalk.
+type embedLookupEntry struct {
+	typ       Type        // canonical node; see canonEmbeddedType
+	st        *StructType // struct to expand one level deeper; recorded by the scan that missed on typ
+	hops      []uint16    // embedded-field indices from the root to typ
+	multiples bool        // reachable by more than one same-depth path
+}
+
+// newEmbedWalk prepares a walk over t's embedding graph; nothing is built
+// until the first lookup misses at depth 0.
+func newEmbedWalk(gm store.GasMeter, t Type) embedWalk {
+	return embedWalk{gm: gm, t: t, root: canonEmbeddedType(t)}
+}
+
+// lookup reports how n resolves on the walk's root: the unique shallowest
+// accessible provider's hops (embedded-field indices from the root), or
+// ambiguity when the shallowest providing level has more than one provider.
+// Each level scanned is billed OpCPUSlopeEmbedScan per entry; building
+// a level for the first time is billed separately in expand.
+func (w *embedWalk) lookup(callerPath string, n Name) ([]uint16, embedLookupStatus) {
 	notFound := func(gated bool) embedLookupStatus {
 		if gated {
 			return embedLookupAccessError
 		}
 		return embedLookupNone
 	}
-	// Depth 0: the root provides n directly — the common case; no BFS
-	// state is allocated for it.
-	hit, sawGated, rootSt := resolveEmbedNode(callerPath, root, n)
-	switch {
-	case hit:
+	// Depth 0: the root provides n directly — the common case.
+	hit, sawGated, rootSt := resolveEmbedNode(callerPath, w.root, n)
+	if hit {
 		return nil, embedLookupFound
-	case rootSt == nil:
+	}
+	if rootSt == nil && w.levels == nil {
+		// The root exposes no struct to expand, so nothing is reachable at
+		// any depth: return without allocating the walk's BFS state at all.
+		// rootSt is a property of the root, not of n (resolveEmbedNode only
+		// returns nil on a hit, which returned above), so no later lookup on
+		// this walk can build a level either. Keeps the primitive-root case
+		// allocation-free — it is the hot one, since Fprint probes Stringer
+		// and error on every printed value.
 		return nil, notFound(sawGated)
 	}
-	seen := map[Type]struct{}{root: {}}
-	cur := []embedLookupEntry{{typ: root}}
-	structs := []*StructType{rootSt}
-	for {
-		// Expand each entry's embedded fields into the next level.
-		var next []embedLookupEntry
-		for i := range cur {
-			st := structs[i]
-			if st == nil {
-				continue
-			}
-			e := &cur[i]
-			for j := range st.Fields {
-				sf := &st.Fields[j]
-				if !sf.Embedded {
-					continue
-				}
-				child := canonEmbeddedType(sf.Type)
-				if child == nil {
-					continue
-				}
-				// Second same-depth path to the same type? Then any
-				// name it provides is not unique at this depth.
-				// (Linear scan: level width is small in practice and
-				// bounded by MaxStructFields regardless.)
-				dup := false
-				for k := range next {
-					if next[k].typ == child {
-						next[k].multiples = true
-						dup = true
-						break
-					}
-				}
-				if dup {
-					continue
-				}
-				if _, ok := seen[child]; ok {
-					continue // reached at a shallower depth already
-				}
-				seen[child] = struct{}{}
-				hops := make([]uint16, len(e.hops)+1)
-				copy(hops, e.hops)
-				hops[len(e.hops)] = uint16(j)
-				next = append(next, embedLookupEntry{typ: child, hops: hops, multiples: e.multiples})
+	if w.levels == nil {
+		w.seen = map[Type]int{w.root: -1}
+		w.levels = [][]embedLookupEntry{{{typ: w.root, st: rootSt}}}
+	}
+	// d starts at 1: depth 0 (the root) was just checked above; scanning
+	// levels[0] again would only repeat that miss and bill one more scan.
+	for d := 1; ; d++ {
+		for d >= len(w.levels) {
+			if !w.expand() {
+				return nil, notFound(sawGated)
 			}
 		}
-		if len(next) == 0 {
-			return nil, notFound(sawGated)
-		}
-		// Scan the new level for accessible providers of n.
+		// level: the distinct types first reached at depth d (built once,
+		// shared by every name looked up on this walk).
+		level := w.levels[d]
+		// Re-scanning a built level is cheap per entry; the one-time build
+		// was billed in expand (OpCPUSlopeEmbedExpand).
+		chargeCPUGas(w.gm, OpCPUSlopeEmbedScan*int64(len(level)))
 		found := false
 		ambiguous := false
 		var winner []uint16
-		structs = make([]*StructType, len(next))
-		for i := range next {
-			e := &next[i]
+		for i := range level {
+			e := &level[i]
 			hit, gated, st := resolveEmbedNode(callerPath, e.typ, n)
-			structs[i] = st
 			sawGated = sawGated || gated
 			if !hit {
+				// A level is only expanded after a full scan missed on
+				// every entry, so each entry's struct is on record by then.
+				e.st = st
 				continue
 			}
 			// A second provider at this depth — or one reachable via
-			// two same-depth paths — makes n ambiguous (Go spec
-			// §Selectors: not exactly one f at the shallowest depth).
+			// two same-depth paths — makes n ambiguous.
 			ambiguous = ambiguous || found || e.multiples
 			if !found {
 				winner = e.hops
@@ -3122,8 +3167,57 @@ func lookupShallowestEmbedded(callerPath string, root Type, n Name) ([]uint16, e
 			}
 			return winner, embedLookupFound
 		}
-		cur = next
 	}
+}
+
+// expand appends the next level — the embedded fields of every entry of the
+// current last level — and reports whether there was one.
+func (w *embedWalk) expand() bool {
+	if w.done {
+		return false
+	}
+	frontier := w.levels[len(w.levels)-1]
+	var next []embedLookupEntry
+	for i := range frontier {
+		e := &frontier[i]
+		if e.st == nil {
+			continue
+		}
+		for j := range e.st.Fields {
+			sf := &e.st.Fields[j]
+			if !sf.Embedded {
+				continue
+			}
+			child := canonEmbeddedType(sf.Type)
+			if child == nil {
+				continue
+			}
+			if k, ok := w.seen[child]; ok {
+				if k >= 0 {
+					// Second same-depth path to the same type: any
+					// name it provides is not unique at this depth.
+					next[k].multiples = true
+				}
+				continue // else reached at a shallower depth: shadowed
+			}
+			w.seen[child] = len(next)
+			hops := make([]uint16, len(e.hops)+1)
+			copy(hops, e.hops)
+			hops[len(e.hops)] = uint16(j)
+			next = append(next, embedLookupEntry{typ: child, hops: hops, multiples: e.multiples})
+		}
+	}
+	if len(next) == 0 {
+		w.done = true
+		return false
+	}
+	// Bill the expansion once per type reached; scans are billed per lookup.
+	chargeCPUGas(w.gm, OpCPUSlopeEmbedExpand*int64(len(next)))
+	for i := range next {
+		w.seen[next[i].typ] = -1 // level complete: deeper sightings are shadowed
+	}
+	w.levels = append(w.levels, next)
+	return true
 }
 
 // canonEmbeddedType returns the canonical lookup node for an embedded
@@ -3205,7 +3299,7 @@ func resolveEmbedNode(callerPath string, typ Type, n Name) (hit, gated bool, st 
 }
 
 // buildEmbeddedTrail constructs the ValuePath trail for the unique
-// match found by lookupShallowestEmbedded by re-walking the single
+// match found by embedWalk.lookup by re-walking the single
 // winning path: hops are embedded-field indices, one per struct level;
 // declared-type and pointer wrappers between levels contribute no hop
 // but transform the trail (depth bumps and pointer derefs). The trail
