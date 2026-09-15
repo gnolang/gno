@@ -184,7 +184,7 @@ Legend:
 | encoding/json                               | `todo`   |
 | encoding/pem                                | `todo`   |
 | encoding/xml                                | `todo`   |
-| errors                                      | `part`[^8] |
+| errors                                      | `full`[^8] |
 | expvar                                      | `tbd`    |
 | flag                                        | `nondet` |
 | fmt                                         | `test`[^9] |
@@ -287,7 +287,7 @@ Legend:
 | text/template/parse                         | `todo`   |
 | time                                        | `full`[^15] |
 | time/tzdata                                 | `tbd`    |
-| unicode                                     | `full`   |
+| unicode                                     | `full`[^16] |
 | unicode/utf16                               | `full`   |
 | unicode/utf8                                | `full`   |
 | unsafe                                      | `nondet` |
@@ -317,17 +317,24 @@ Legend:
   instead, while the Gno-only `XORBytesUnsafe(dst, x, y []byte) int` keeps the
   write-into-`dst` behaviour. The constant-time comparison primitives
   (`ConstantTimeCompare`, `ConstantTimeEq`, `ConstantTimeSelect`,
-  `ConstantTimeByteEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`) are not yet
-  implemented.
+  `ConstantTimeByteEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`) and
+  `WithDataIndependentTiming` are deliberately **not** provided: everything a
+  chain executes is public and replayable by anyone, so there is no secret whose
+  comparison time could leak. Constant-time primitives would add cost and imply
+  a guarantee the execution model does not need.
 [^7]: `encoding/binary` only ships the varint family (`Varint`, `Uvarint`,
   `PutVarint`, `PutUvarint`, `AppendVarint`, `AppendUvarint`, `ReadVarint`,
   `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
-  `BigEndian`/`LittleEndian` values. The reflection-based helpers (`Read`,
-  `Write`, `Size`) depend on `reflect` (see [^9]).
-[^8]: `errors` currently ships `New` only. `Is`, `As`, `Unwrap`, and `Join`
-  are not yet available; tracked by issue
-  [#486](https://github.com/gnolang/gno/issues/486) and PR
-  [#5385](https://github.com/gnolang/gno/pull/5385) (`Is`, `Unwrap`, `Join`).
+  `BigEndian`/`LittleEndian` values. `Read`, `Write`, `Size`, `Append`, `Encode`
+  and `Decode` are absent. Their general form needs `reflect` (see [^9]), but
+  the fixed-size fast path Go uses for numeric types and slices of them does
+  not, so a partial implementation is possible; contributions welcome.
+  `NativeEndian` is deliberately absent, as host byte order is not
+  deterministic.
+[^8]: `errors` ships `New`, `Unwrap`, `Is`, `Join` and `ErrUnsupported`.
+  `As` is unavailable because it needs `reflect`; types wanting custom matching
+  should implement `Is(error) bool` instead. `AsType` (Go 1.26) needs generics.
+  See `gnovm/stdlibs/errors/README.md`.
 [^9]: like many other encoding packages, `fmt` depends on `reflect` to be added.
   For now, package `gno.land/p/nt/ufmt/v0` may do what you need. In test
   functions, `fmt` works.
@@ -343,10 +350,19 @@ Legend:
   `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The `Source`
   interface also changed: where v1 defined it with two methods (`Int63` and
   `Seed`), v2 defines it with a single `Uint64() uint64`.
+
+    The **top-level convenience functions are not provided**. In Go they draw
+    from a package-level Source seeded with runtime entropy; Gno has no runtime
+    entropy, and `math/rand` is a pure package that a realm cannot write to, so
+    a package-level Source could only ever be a fixed seed producing the same
+    stream in every transaction. Construct a generator and own its seed
+    explicitly: `r := rand.New(rand.NewPCG(a, b))`. The ChaCha8 generator is
+    also not provided.
 [^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
-  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. Implement
+  `sort.SliceStable` or `sort.SliceIsSorted`, which need `reflect`. Implement
   `sort.Interface` and call `sort.Sort` instead, which takes a bit of
-  boilerplate.
+  boilerplate. `sort.Find` **is** available: it takes a comparison closure and
+  needs no reflection.
 [^14]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
 [^15]: `time.Now` returns the block time rather than the system time, for
@@ -410,3 +426,7 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 | go version        |                              |                                                                       |
 | go vet            |                              |                                                                       |
 | golint            | gno lint                     | same intention                                                        |
+[^16]: `unicode` tracks **Unicode 17.0.0**, taken from Go 1.27. Note that
+  category `C` (`Other`) follows the Go 1.25 redefinition and now includes
+  unassigned code points (`Cn`), so `unicode.Is(unicode.C, r)` and the regexp
+  class `\p{C}` match more code points than they did before.
