@@ -678,9 +678,9 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does a caller hand it a realm value of its own, a `rlm`? If yes,
-  does it call `rlm.IsCurrent()` before reading an identity out of it?
-  A check on the function's own `cur` refuses nobody.
+- Does it accept a `rlm` parameter, a realm value the caller fills? If
+  yes, call `rlm.IsCurrent()` before reading an identity out of it. Its
+  own `cur` needs no check.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
