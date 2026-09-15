@@ -109,9 +109,6 @@ that could lead to user frustration or the need to fork the code.
 
 ```go
 func Foobar(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
@@ -434,9 +431,6 @@ Here's an example:
 var admin address = "g1xxxxx"
 
 func AdminOnlyFunction(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -462,9 +456,6 @@ Here's an example:
 
 ```go
 func TransferTokens(cur realm, to address, amount int64) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -546,11 +537,11 @@ questions:
   tells you, so you can give delegated sessions tighter limits.
 
 There is also `chain/runtime/unsafe`, with raw stack walkers like
-`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. They are unsafe because
-they answer from wherever they happen to be called: move the call into a
-helper and `PreviousRealm()` no longer means your caller, and nothing
-verifies the answer the way a `cur` handle is verified before you trust it.
-`OriginCaller()` is the `tx.origin` covered in
+`unsafe.PreviousRealm()` and `unsafe.OriginCaller()`. They are unsafe
+because they answer from wherever they happen to be called: move the call
+into a helper and `PreviousRealm()` no longer means your caller. A `cur`
+parameter cannot drift that way, because the runtime binds it to the frame
+that received it. `OriginCaller()` is the `tx.origin` covered in
 [contract-level access control](#contract-level-access-control). Keep
 security checks on `cur`; use the frame stack only for questions about the
 whole transaction, not about your caller.
@@ -573,9 +564,6 @@ type MySafeStruct struct {
 }
 
 func NewSafeStruct(cur realm) *MySafeStruct {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
@@ -585,9 +573,6 @@ func NewSafeStruct(cur realm) *MySafeStruct {
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
@@ -938,9 +923,6 @@ certain operations.
 
 ```go
 func PublicMethod(cur realm, nb int) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 	privateMethod(caller, nb)
 }
@@ -1009,9 +991,6 @@ func init(cur realm) {
 }
 
 func ChangeOwner(cur realm, newOwner address) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	caller := cur.Previous().Address()
 
 	if caller != owner {
@@ -1070,9 +1049,6 @@ type Game struct {
 }
 
 func Play(cur realm, gameID string, cell int) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	g := mustGetGame(gameID)
 	if g.phase != PhasePlaying {
 		panic("game is not in progress")
@@ -1123,9 +1099,6 @@ when the payment expires, and gate paid endpoints on that record.
 var subs avl.Tree // address -> expiry (time.Time)
 
 func Subscribe(cur realm) {
-	if !cur.IsCurrent() {
-		panic("spoofed realm")
-	}
 	// Verify the sent coins as shown in "Verifying inbound Coin payments".
 	caller := cur.Previous().Address()
 	subs.Set(caller.String(), time.Now().Add(30*24*time.Hour))
