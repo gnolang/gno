@@ -3258,11 +3258,9 @@ func (m *Machine) Panic(etv TypedValue) {
 	panic(ex)
 }
 
-// This function normally schedules VM panic unwinding rather than go-panicking.
-// If no call frame exists, there is nothing to unwind or recover through, so
-// it terminates through the existing unhandled-panic path.
-// It should ONLY be called from doOp* Op handlers,
-// and should return immediately from the origin Op.
+// pushPanic schedules VM panic unwinding instead of panicking in Go.
+// If no call frame exists, it terminates via the unhandled-panic path.
+// Callers must be doOp* handlers and return immediately after calling it.
 func (m *Machine) pushPanic(etv TypedValue) {
 	// Construct a new exception.
 	ex := &Exception{
