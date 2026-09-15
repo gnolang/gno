@@ -23,14 +23,14 @@ func RenderMainDocs() string {
 
 ## Available Packages
 
-- **[Piechart](/p/samcrew/piechart)** - SVG Pie Charts
+- **[Piechart](/p/samcrew/piechart/v0)** - SVG Pie Charts
   - [View All Examples](/r/docs/charts:piechart) - Detailed documentation with multiple examples
 - **[Gauge](/p/samcrew/gauge)** - SVG Gauge Charts  
   - [View All Examples](/r/docs/charts:gauge) - Detailed documentation with multiple examples
 
 ## Examples
 
-### [Piechart](/p/samcrew/piechart) - SVG Pie Charts
+### [Piechart](/p/samcrew/piechart/v0) - SVG Pie Charts
 Generate pie charts with label as SVG images .
 
 ` + pieChartExample + `
