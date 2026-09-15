@@ -1,0 +1,62 @@
+-- input.md --
+ > [!NOTE] one space
+ > body
+
+  > [!TIP] two spaces
+  > body
+
+   > [!WARNING] three spaces
+   > body
+
+>	> [!CAUTION] tab-nested marker
+>	> body
+
+> [!SUCCESS] indented continuation
+  > body
+
+    > [!NOTE] four spaces is an indented code block, not an alert
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>one space<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-tip" open>
+<summary>
+<svg><use href="#ico-tip"></use></svg>two spaces<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-warning" open>
+<summary>
+<svg><use href="#ico-warning"></use></svg>three spaces<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<blockquote>
+<details class="gno-alert gno-alert-caution" open>
+<summary>
+<svg><use href="#ico-caution"></use></svg>tab-nested marker<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+</blockquote>
+<details class="gno-alert gno-alert-success" open>
+<summary>
+<svg><use href="#ico-success"></use></svg>indented continuation<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<pre><code>&gt; [!NOTE] four spaces is an indented code block, not an alert
+</code></pre>

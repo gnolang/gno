@@ -1,0 +1,34 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_create_reply_12_filetest
+
+package z_create_reply_12_filetest
+
+import (
+	"strings"
+	"testing"
+
+	"gno.land/p/gnoland/boards/v0"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+
+var (
+	bid boards.ID
+	tid boards.ID
+)
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+}
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	boards2.CreateReply(cross(cur), bid, tid, 0, strings.Repeat("x", boards2.MaxReplyLength+1))
+}
+
+// Error:
+// reply is too long, maximum allowed is 10000 characters
