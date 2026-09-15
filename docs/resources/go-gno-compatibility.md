@@ -35,7 +35,7 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 | go          | missing (after launch) |
 | goto        | full                   |
 | if          | full                   |
-| import      | full                   |
+| import      | full (except `.`)      |
 | interface   | full                   |
 | package     | full                   |
 | range       | full                   |
@@ -47,6 +47,13 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 | var         | full                   |
 
 Generics are currently not implemented.
+
+Note that Gno does not support [dot imports](https://go.dev/ref/spec#Import_declarations)
+(`import . "pkg"`). An ordinary import contributes one package name to file scope;
+a dot import would inject the dependency's entire exported surface into that scope.
+Deployed packages are immutable while dependencies can gain exports, so a newly
+exported name could later shadow or collide with a name in an already-deployed
+importer.
 
 Note that Gno does not support shadowing of built-in types.
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
