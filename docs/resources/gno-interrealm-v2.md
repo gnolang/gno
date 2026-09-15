@@ -376,18 +376,15 @@ per crossing frame, refuses to persist it, and validates each use.
 - `Previous() realm` — the captured realm that was current before
   this crossing.
 - `IsCurrent() bool` — **true when the receiver is the `cur` of the
-  innermost crossing call still running**, tested by value identity
-  rather than by pkgpath. A sub-token answers for the `cur` that
-  minted it.
+  innermost crossing call still running**, or a sub-token of it.
 - `IsCode() / IsUser() / IsUserCall() / IsUserRun() / IsEphemeral()` —
   classification by address and pkgpath.
 - `String() string` — debug representation.
 
-`IsCurrent()` guards a realm parameter that is not in first position,
-the `rlm` of `Send(_ int, rlm realm, ...)` in `p/nt/treasury/v0`. Call
-`rlm.IsCurrent()` before reading `rlm.Address()`, `rlm.PkgPath()` or
-`rlm.Previous()`. A stale value answers all three, and the identity it
-names is no longer the caller, class **2 (designation-forgery)** in
+`IsCurrent()` guards a realm parameter that is not in first position.
+Check it before trusting that parameter for caller identity. A stale
+realm value still answers, and the identity it answers with is no
+longer the caller, class **2 (designation-forgery)** in
 [`gno-security.md`](./gno-security.md).
 
 A crossing function's own `cur` needs no check. Every entry from
@@ -679,10 +676,9 @@ holder** — equivalent to returning a setter closure.
 
 For every exported function or method in your `/r/` realm:
 
-- Does it take a realm parameter that is not in first position, the way
-  `Send(_ int, rlm realm, ...)` does? If yes, does it call
-  `rlm.IsCurrent()` before reading `rlm.Previous()`, `rlm.Address()` or
-  `rlm.PkgPath()`? A crossing function's own `cur` needs no check.
+- Does it take a realm parameter that is not in first position? If yes,
+  does it check `IsCurrent()` on that parameter before trusting it for
+  caller identity? A crossing function's own `cur` needs no check.
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
   type that borrow rule #2 borrows back to you.
