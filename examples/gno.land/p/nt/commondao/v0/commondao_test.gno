@@ -15,7 +15,7 @@ const (
 	memberA address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	memberB address = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
 	memberC address = "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"
-	memberD address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	memberD address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 	memberE address = "g1yx35a8f4lhhhrarljrgr37u55gkqdrl0949ycf"
 	memberF address = "g1cyh9qm4y43w38gfk77qxczrhqj2asdr8l7uk54"
 	memberG address = "g1x95kxqpwvqjf98qpkvsay7tppkh6zs9fr7wwda"
