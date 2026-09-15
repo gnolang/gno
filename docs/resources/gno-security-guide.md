@@ -409,10 +409,10 @@ tx-origin primitives `unsafe.OriginCaller()` and `unsafe.OriginSend()`
 are different: no `cur` substitute, and fine for tx-level identity like
 event emission or fee attribution.
 
-**Rule**: in crossing functions, derive caller identity from
-`cur.Previous()` and write no `cur.IsCurrent()` guard. Drop
-`unsafe.PreviousRealm()`/`unsafe.CurrentRealm()`; keep the `unsafe`
-import only for `OriginCaller()`/`OriginSend()`.
+**Rule**: in crossing functions, always derive caller identity from
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+`unsafe.PreviousRealm()` and `unsafe.CurrentRealm()` calls, and keep
+the `unsafe` import only for `OriginCaller()`/`OriginSend()`.
 
 ---
 

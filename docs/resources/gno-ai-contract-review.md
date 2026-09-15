@@ -237,7 +237,7 @@ Two cases where the swap is **wrong**, both found by making it:
 
 ## Review Checklist
 
-- [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
+- [ ] Authenticated mutators take `cur realm` and call `cur.IsCurrent()`
 - [ ] No `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` used for caller identity in a crossing function
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer, slice, or map aliasing internal mutable state
