@@ -14,7 +14,7 @@ misc/release/cut-release.sh v1.3.0
 # tag a specific commit rather than the branch tip
 misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 
-# a coordinated upgrade: also writes the GovDAO halt proposal, then pushes
+# a coordinated upgrade: also prints the GovDAO halt proposal, then pushes
 misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
 ```
 
@@ -23,12 +23,13 @@ misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
 | `--chain <name>` | chain branch to cut from (default `mainnet` → `chain/mainnet`) |
 | `--commit <ref>` | commit to tag (default: the branch tip) |
 | `--previous <version>` | previous release, for the change summary (default: newest `v*` tag) |
-| `--halt-height <H>` | emit a GovDAO halt proposal gating the restart on this release (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
-| `--push` | push the tag (otherwise it stops after creating it locally) |
+| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `./govdao set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
+| `--push` | create and push the tag (without it, nothing is created at all) |
 | `--allow-dirty` | skip the clean-worktree check — local rehearsal only |
 
-Without `--push` nothing leaves the machine, and the tag is trivially undone
-with `git tag -d`.
+Without `--push` nothing is created — not even locally. A local tag left behind
+by a rehearsal would make the next run refuse the version as already released,
+so a dry run prints the tag it would make and stops.
 
 Run `git fetch --tags origin` first. The script compares against `origin/master`
 and `origin/chain/*`, and uses local tags to find the previous release.
@@ -40,7 +41,9 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   proposal and `halt_min_version` falls back to byte equality, which refuses the
   upgraded binary and leaves the chain unable to restart.
 - **A tag that already exists**, locally or on origin. Tags are immutable.
-- **Protocol-version constants that disagree** — see below.
+- **Protocol-version constants that disagree** — see below. Read from a worktree
+  of the commit being tagged, not from your checkout: that commit is usually
+  `origin/chain/<name>`, and drift that exists only there is drift validators run.
 - **A binary that does not report the tag.** The script builds `gnoland` the way
   CI does and asks it. `chain/mainnet`'s published binaries answer `develop`.
 

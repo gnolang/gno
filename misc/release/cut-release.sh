@@ -23,7 +23,7 @@
 #   --chain <name>       chain branch to cut from       (default: mainnet)
 #   --commit <ref>       commit to tag                  (default: the branch tip)
 #   --previous <version> previous release, for the range (default: newest v* tag)
-#   --halt-height <H>    also emit a GovDAO halt proposal for a coordinated upgrade
+#   --halt-height <H>    also print the GovDAO halt proposal for a coordinated upgrade
 #   --push               push the tag to origin (otherwise: dry run)
 #   --allow-dirty        skip the clean-worktree check (local rehearsal only)
 #
@@ -37,7 +37,19 @@
 set -euo pipefail
 
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Kept identical to .github/workflows/release-chain-tag.yml: the point of the
+# build check below is to prove the workflow's flags produce a binary carrying
+# the tag, which it cannot do if it builds with different ones.
+# gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser reads both out of the
+# files and fails if they drift, so keep each on one line.
 readonly VERSION_PKG="github.com/gnolang/gno/tm2/pkg/version.Version"
+
+# The shape gno.land/pkg/gnoland.parseReleaseVersion accepts, spelled as an ERE:
+# semver's own grammar, so that leading zeros, signed components and a dangling
+# "-" are refused here rather than at the halt. The same test holds this to the
+# Go parser over a corpus, so keep it on one line too.
+readonly VERSION_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
 
 CHAIN="mainnet"
 COMMIT=""
@@ -46,11 +58,19 @@ HALT_HEIGHT=""
 PUSH=0
 ALLOW_DIRTY=0
 VERSION=""
-# Scratch dir for the build check. A single EXIT trap rather than a RETURN one:
-# a RETURN trap set inside a function fires again when main returns, where the
-# local it referred to is gone and `set -u` turns cleanup into an error.
+# A checkout of the commit being tagged, shared by every preflight check that
+# has to inspect that tree rather than the one the operator is standing on. A
+# single EXIT trap rather than a RETURN one: a RETURN trap set inside a function
+# fires again when main returns, where the local it referred to is gone and
+# `set -u` turns cleanup into an error.
 SCRATCH=""
-cleanup() { [[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"; }
+WORKTREE=""
+cleanup() {
+	if [[ -n ${WORKTREE} ]]; then
+		git -C "${REPO_ROOT}" worktree remove --force "${WORKTREE}" >/dev/null 2>&1 || true
+	fi
+	[[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"
+}
 trap cleanup EXIT
 
 die() {
@@ -60,7 +80,9 @@ die() {
 info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*" >&2; }
-usage() { sed -n '2,34p' "${BASH_SOURCE[0]}" | sed 's|^# \{0,1\}||'; }
+# Up to the first blank line, so adding an option to the header above cannot
+# silently truncate --help.
+usage() { sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's|^# \{0,1\}||'; }
 
 parse_args() {
 	while [[ $# -gt 0 ]]; do
@@ -82,7 +104,15 @@ parse_args() {
 			shift 2
 			;;
 		--halt-height)
-			HALT_HEIGHT="${2-}"
+			# Not just "non-empty": 0 is the documented *cancel* form (see
+			# NewSetHaltRequest in examples/gno.land/r/sys/params/halt.gno), so
+			# accepting it here would emit a proposal that cancels the halt while
+			# every other artifact describes scheduling one. A bare --halt-height
+			# followed by another flag would otherwise swallow it, too.
+			[[ ${2-} =~ ^[1-9][0-9]*$ ]] \
+				|| die "--halt-height takes a positive block height (got ${2-<missing>}).
+       Height 0 cancels a scheduled halt; emit that one by hand."
+			HALT_HEIGHT="$2"
 			shift 2
 			;;
 		--push)
@@ -109,10 +139,10 @@ parse_args() {
 
 # ---------------------------------------------------------------- preflight
 
-# The shape gno.land/pkg/gnoland.parseReleaseVersion accepts. A tag outside it
-# cannot be used as halt_min_version, which is most of the point of tagging.
+# A tag outside VERSION_RE cannot be used as halt_min_version, which is most of
+# the point of tagging.
 check_version_shape() {
-	[[ ${VERSION} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+	[[ ${VERSION} =~ ${VERSION_RE} ]] \
 		|| die "version must be vMAJOR.MINOR.PATCH, optionally -prerelease (got ${VERSION}).
        This is the shape the node parses for halt_min_version; 'chain/<name>'
        tags do not order and cannot gate an upgrade. See RELEASING.md."
@@ -168,7 +198,10 @@ check_on_master() {
 
 	local missing
 	missing="$(git -C "${REPO_ROOT}" log --oneline --no-merges -n 20 origin/master.."${COMMIT}" -- \
-		":!misc/deployments")"
+		":!misc/deployments" 2>/dev/null)" || {
+		warn "cannot compare against origin/master (is it fetched?); skipping the check"
+		return
+	}
 	if [[ -z ${missing} ]]; then
 		ok "differs from origin/master only under misc/deployments"
 		return
@@ -180,37 +213,64 @@ check_on_master() {
 	warn "to master first, or the chain runs code the development tree never saw."
 }
 
+# Everything below inspects the commit being tagged, which is usually not the
+# commit the operator has checked out: the default is origin/chain/<name>, and
+# drift that exists only there is drift the validators would be running.
+prepare_worktree() {
+	SCRATCH="$(mktemp -d)"
+	WORKTREE="${SCRATCH}/src"
+	git -C "${REPO_ROOT}" worktree add --detach "${WORKTREE}" "${COMMIT}" >/dev/null 2>&1 \
+		|| die "could not create a worktree at ${COMMIT:0:9}"
+}
+
 check_protocol_constants() {
-	"${REPO_ROOT}/misc/release/bump-protocol-version.sh" --check >/dev/null 2>&1 \
-		|| die "the protocol-version constants disagree; run misc/release/bump-protocol-version.sh"
-	ok "protocol-version constants agree"
+	# This checkout's script against the tagged commit's tree: the commit may
+	# predate misc/release/ entirely, which the v1.2.0 example above does.
+	local out
+	out="$(GNO_REPO_ROOT="${WORKTREE}" \
+		"${REPO_ROOT}/misc/release/bump-protocol-version.sh" --check 2>&1)" || die \
+		"the protocol-version constants at ${COMMIT:0:9} did not verify:
+
+$(printf '%s\n' "${out}" | sed 's/^/       /')
+
+       If they genuinely disagree, misc/release/bump-protocol-version.sh moves
+       all six together."
+	# Warnings on the success path would otherwise vanish into the captured
+	# output — notably "the invariant test is not in this tree", which is how a
+	# check that verified less than it claims stays quiet.
+	local warnings
+	warnings="$(printf '%s\n' "${out}" | grep '^warning:' || true)"
+	if [[ -n ${warnings} ]]; then
+		while IFS= read -r line; do warn "${line#warning: }"; done <<<"${warnings}"
+	fi
+	ok "protocol-version constants agree at ${COMMIT:0:9}"
 }
 
 # The check that would have caught chain/mainnet's binaries reporting `develop`:
 # build the way the release workflow builds, then ask the binary what it is.
 check_build_reports_tag() {
-	SCRATCH="$(mktemp -d)"
-	local tmp="${SCRATCH}"
-
 	info "building gnoland at ${COMMIT:0:9} to verify the version is compiled in"
-	local worktree="${tmp}/src"
-	git -C "${REPO_ROOT}" worktree add --detach "${worktree}" "${COMMIT}" >/dev/null 2>&1 \
-		|| die "could not create a worktree at ${COMMIT:0:9}"
 
-	local built=1
-	if (cd "${worktree}" && go build -trimpath \
+	local build_log="${SCRATCH}/build.log"
+	(cd "${WORKTREE}" && go build \
 		-ldflags "-w -s -X ${VERSION_PKG}=${VERSION}" \
-		-o "${tmp}/gnoland" ./gno.land/cmd/gnoland >/dev/null 2>&1); then
-		built=0
-	fi
+		-o "${SCRATCH}/gnoland" ./gno.land/cmd/gnoland) >"${build_log}" 2>&1 \
+		|| die "gnoland does not build at ${COMMIT:0:9}:
 
-	git -C "${REPO_ROOT}" worktree remove --force "${worktree}" >/dev/null 2>&1 || true
-	[[ ${built} -eq 0 ]] || die "gnoland does not build at ${COMMIT:0:9}"
+$(tail -20 "${build_log}" | sed 's/^/       /')"
 
-	local reported
+	# Captured rather than piped: under `set -o pipefail` a binary that exits
+	# non-zero — which is exactly what a partially applied protocol-version bump
+	# does, in an init() guard — would abort the script here, so the message
+	# below would never reach the operator and neither would the panic.
+	local out reported
+	out="$("${SCRATCH}/gnoland" version 2>&1)" \
+		|| die "the binary built at ${COMMIT:0:9} failed to run:
+
+$(printf '%s\n' "${out}" | sed 's/^/       /')"
+
 	# Match the version line itself: mdbx writes debug lines around it.
-	reported="$(GNOROOT="${REPO_ROOT}" "${tmp}/gnoland" version 2>/dev/null \
-		| awk '$1 == "gnoland" && $2 == "version:" {print $3}')"
+	reported="$(printf '%s\n' "${out}" | awk '$1 == "gnoland" && $2 == "version:" {print $3}')"
 	[[ ${reported} == "${VERSION}" ]] \
 		|| die "the built binary reports ${reported:-<nothing>}, not ${VERSION}.
        Release binaries must carry the tag or they satisfy no halt_min_version.
@@ -221,8 +281,15 @@ check_build_reports_tag() {
 # ------------------------------------------------------------ classification
 
 newest_release_tag() {
-	# awk over head: head exits early, which SIGPIPEs git and trips pipefail.
-	git -C "${REPO_ROOT}" tag --list 'v*' --sort=-v:refname | awk 'NR==1'
+	# Reachable from the commit being tagged, so a tag on an unrelated line is
+	# not mistaken for this release's predecessor, and final releases only: a
+	# pre-release is not the release it leads to, and picking v1.3.0-rc.1 as the
+	# predecessor of v1.3.0 makes a coordinated upgrade classify as a PATCH.
+	local tags
+	tags="$(git -C "${REPO_ROOT}" tag --list 'v*' --sort=-v:refname --merged "${COMMIT}" 2>/dev/null)" \
+		|| return 0
+	# awk rather than head: head exits early, which SIGPIPEs git and trips pipefail.
+	printf '%s\n' "${tags}" | awk 'NF && !/-/ {print; exit}'
 }
 
 # Says what kind of upgrade this is, because the answer decides whether
@@ -239,7 +306,11 @@ classify() {
 		return
 	fi
 
+	# Strip any pre-release suffix: v1.3.0-rc.1 and v1.3.0 are the same line, and
+	# --previous may name one even though newest_release_tag will not.
 	local prev_mm="${PREVIOUS#v}" new_mm="${VERSION#v}"
+	prev_mm="${prev_mm%%-*}"
+	new_mm="${new_mm%%-*}"
 	local prev_major="${prev_mm%%.*}" new_major="${new_mm%%.*}"
 	local prev_minor new_minor
 	prev_minor="$(printf '%s' "${prev_mm}" | cut -d. -f2)"
@@ -276,49 +347,62 @@ classify() {
 
 # ------------------------------------------------------------------- output
 
-emit_halt_proposal() {
-	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land/transactions/migration/halt-${VERSION}"
-	[[ -d "${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land" ]] \
-		|| die "no misc/deployments/${CHAIN}.gno.land — pass the right --chain"
+# Printed, not written. transactions/migration/ is a replay archive whose
+# entries are meta.json directories read by name (see gen-genesis.sh), so a bare
+# .gno dropped in there has no reader — and a file written before the tag is a
+# file left behind when the tag is undone. The proposal is a governance action,
+# and misc/govdao-scripts/set-halt.sh is what performs it.
+print_halt_proposal() {
+	# The wrapper is named govdao-exec.sh in most deployments and govdao in a
+	# couple of older ones; both dispatch into misc/govdao-scripts/.
+	local wrapper=""
+	local dir name
+	for dir in "misc/deployments/${CHAIN}.gno.land" "misc/deployments/${CHAIN}"; do
+		for name in govdao-exec.sh govdao; do
+			if [[ -x "${REPO_ROOT}/${dir}/${name}" ]]; then
+				wrapper="${dir}/${name}"
+				break 2
+			fi
+		done
+	done
+	[[ -n ${wrapper} ]] || die "no govdao wrapper under misc/deployments for --chain ${CHAIN}"
 
-	mkdir -p "${dir}"
-	cat >"${dir}/halt_${VERSION//[.-]/_}.gno" <<EOF
-// Coordinated halt for the ${VERSION} upgrade.
-//
-// Every node stops after committing block ${HALT_HEIGHT}, and refuses to
-// restart on a binary older than ${VERSION}. Generated by
-// misc/release/cut-release.sh; the version string is the release tag, which
-// gno.land/pkg/gnoland.meetsMinVersion parses and orders.
-//
-// Before passing this: every operator should confirm halt_height is unset in
-// their own config.toml. A future-dated value there halts the node at the wrong
-// block. See gno.land/cmd/gnoland/UPGRADES.md.
-package main
+	info "coordinated upgrade: the GovDAO proposal for it is"
+	printf '\n    %s set-halt %s %s\n\n' "${wrapper}" "${HALT_HEIGHT}" "${VERSION}"
+	info "which creates this proposal:"
+	cat <<EOF
 
-import (
-	"gno.land/r/gov/dao"
-	"gno.land/r/sys/params"
-)
+    // Every node stops after committing block ${HALT_HEIGHT}, and refuses to
+    // restart on a binary older than ${VERSION}.
+    package main
 
-func main(cur realm) {
-	req := params.NewSetHaltRequest(cross(cur), ${HALT_HEIGHT}, "${VERSION}")
-	dao.MustCreateProposal(cross(cur), req)
-}
+    import (
+    	"gno.land/r/gov/dao"
+    	"gno.land/r/sys/params"
+    )
+
+    func main(cur realm) {
+    	req := params.NewSetHaltRequest(cross(cur), ${HALT_HEIGHT}, "${VERSION}")
+    	dao.MustCreateProposal(cross(cur), req)
+    }
+
 EOF
-	ok "wrote ${dir#"${REPO_ROOT}"/}/halt_${VERSION//[.-]/_}.gno"
 	warn "this creates the proposal only — members vote and execute separately"
+	warn "before it passes, every operator should confirm halt_height is unset in"
+	warn "their own config.toml. See gno.land/cmd/gnoland/UPGRADES.md."
+}
+
+tag_message() {
+	printf '%s %s\n\nReleased from chain/%s at %s.' \
+		"${CHAIN}" "${VERSION}" "${CHAIN}" "${COMMIT:0:9}"
+	[[ -z ${PREVIOUS} ]] || printf '\nPrevious release: %s.' "${PREVIOUS}"
+	[[ -z ${HALT_HEIGHT} ]] || printf '\nCoordinated upgrade at height %s, halt_min_version %s.' \
+		"${HALT_HEIGHT}" "${VERSION}"
+	printf '\n'
 }
 
 create_tag() {
-	local message="${CHAIN} ${VERSION}
-
-Released from chain/${CHAIN} at ${COMMIT:0:9}."
-	[[ -z ${PREVIOUS} ]] || message+="
-Previous release: ${PREVIOUS}."
-	[[ -z ${HALT_HEIGHT} ]] || message+="
-Coordinated upgrade at height ${HALT_HEIGHT}, halt_min_version ${VERSION}."
-
-	git -C "${REPO_ROOT}" tag -a "${VERSION}" "${COMMIT}" -m "${message}"
+	git -C "${REPO_ROOT}" tag -a "${VERSION}" "${COMMIT}" -m "$(tag_message)"
 	ok "created annotated tag ${VERSION}"
 }
 
@@ -331,26 +415,31 @@ main() {
 	check_tag_free
 	resolve_commit
 	check_on_master
+	prepare_worktree
 	check_protocol_constants
 	check_build_reports_tag
 	printf '\n'
 
 	classify
 
-	[[ -z ${HALT_HEIGHT} ]] || emit_halt_proposal
+	[[ -z ${HALT_HEIGHT} ]] || print_halt_proposal
+
+	# A dry run changes nothing, not even locally: a tag created here would have
+	# to be remembered and deleted, and until it was, check_tag_free would refuse
+	# the real run as if the version had already been released.
+	if [[ ${PUSH} -eq 0 ]]; then
+		printf '\n'
+		info "dry run — nothing was created. The tag would be:"
+		printf '\n%s\n\n' "$(tag_message | sed 's/^/    /')"
+		info "to cut it for real, re-run with --push"
+		return
+	fi
 
 	create_tag
-
 	printf '\n'
-	if [[ ${PUSH} -eq 1 ]]; then
-		info "pushing"
-		git -C "${REPO_ROOT}" push origin "refs/tags/${VERSION}:refs/tags/${VERSION}"
-		ok "pushed ${VERSION} — release / chain-tag will build and attach the binaries"
-	else
-		info "dry run. To publish:"
-		printf '\n    git push origin refs/tags/%s:refs/tags/%s\n\n' "${VERSION}" "${VERSION}"
-		info "to undo the local tag: git tag -d ${VERSION}"
-	fi
+	info "pushing"
+	git -C "${REPO_ROOT}" push origin "refs/tags/${VERSION}:refs/tags/${VERSION}"
+	ok "pushed ${VERSION} — release / chain-tag will build and attach the binaries"
 }
 
 main "$@"

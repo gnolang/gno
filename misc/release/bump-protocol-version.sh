@@ -26,7 +26,11 @@
 
 set -euo pipefail
 
-readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# GNO_REPO_ROOT lets cut-release.sh point this script at a worktree of the
+# commit being tagged rather than the checkout it was invoked from. The commit
+# may predate this script, so the script has to travel to the tree, not the
+# other way round.
+readonly REPO_ROOT="${GNO_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 # file:constant pairs. Keep in sync with TestProtocolVersionsAgree in
 # tm2/pkg/bft/version/version_test.go, which is what fails if this list rots.
@@ -95,7 +99,19 @@ current_version() {
 
 verify() {
 	info "verifying the constants agree"
-	(cd "${REPO_ROOT}" && go test ./tm2/pkg/bft/version/ -run TestProtocolVersionsAgree -count=1) \
+	# `go test -run` exits 0 when the pattern matches nothing, so a renamed or
+	# moved test would turn this whole check into a no-op without saying so.
+	# -list answers whether it is there before -run is asked to run it.
+	local listed
+	listed="$(cd "${REPO_ROOT}" && go test ./tm2/pkg/bft/version/ \
+		-list '^TestProtocolVersionsAgree$' 2>/dev/null | grep -cx 'TestProtocolVersionsAgree')" || true
+	if [[ ${listed} -eq 0 ]]; then
+		warn "TestProtocolVersionsAgree is not in ${REPO_ROOT}/tm2/pkg/bft/version —"
+		warn "renamed, moved, or a tree predating it. The six constants were compared"
+		warn "by reading the files; the init() guards were not exercised."
+		return
+	fi
+	(cd "${REPO_ROOT}" && go test ./tm2/pkg/bft/version/ -run '^TestProtocolVersionsAgree$' -count=1) \
 		|| die "TestProtocolVersionsAgree failed — the constants are out of sync"
 }
 
@@ -116,7 +132,11 @@ main() {
 		;;
 	esac
 
-	[[ ${target} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+	# The same ERE cut-release.sh uses, for the same reason: versionset compares
+	# these with semver.Compare, so a value semver will not parse orders wrong.
+	# gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser holds both to the
+	# Go parser, so keep this on one line.
+	[[ ${target} =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$ ]] \
 		|| die "version must look like v1.2.3 or v1.2.3-rc.1, got ${target}"
 
 	local now
@@ -138,14 +158,22 @@ main() {
 	fi
 
 	info "bumping protocol version ${now} -> ${target}"
-	local file name
+	# A failure part-way leaves the tree with the constants disagreeing, which is
+	# the state current_version() refuses to start from. Name what was already
+	# written so the next run is a `git checkout` away rather than a hunt.
+	local file name patched=()
 	for entry in "${CONSTANTS[@]}"; do
 		file="${entry%%:*}"
 		name="${entry##*:}"
-		write_constant "${file}" "${name}" "${target}"
+		write_constant "${file}" "${name}" "${target}" || die "failed to patch ${name} in ${file}.
+       Already patched to ${target}: ${patched[*]:-<none>}
+       Revert with: git -C ${REPO_ROOT} checkout -- ${patched[*]:-}"
 		local got
 		got="$(read_constant "${file}" "${name}")"
-		[[ ${got} == "${target}" ]] || die "failed to patch ${name} in ${file} (still ${got})"
+		[[ ${got} == "${target}" ]] || die "failed to patch ${name} in ${file} (still ${got}).
+       Already patched to ${target}: ${patched[*]:-<none>}
+       Revert with: git -C ${REPO_ROOT} checkout -- ${patched[*]:-}"
+		patched+=("${file}")
 		printf '    %s\n' "${file}"
 	done
 
