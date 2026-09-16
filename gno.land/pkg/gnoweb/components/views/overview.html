@@ -46,7 +46,7 @@ UI - Package metadata (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_meta" }}
 <dl class="b-pkg-meta" aria-label="Package info">
-  <dt class="section">Package Info</dt>
+  <dt class="section b-sidebar-heading">Package Info</dt>
   <div class="row"><dt class="label">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
   <div class="row mono"><dt class="label">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
   <div class="row"><dt class="label">Type</dt><dd class="value">{{ .Info.PackageType }}</dd></div>
@@ -55,7 +55,7 @@ UI - Package metadata (sidebar card)
   {{ with .Info.Creator }}<div class="row"><dt class="label">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
   {{ if .Info.Creator }}<div class="row"><dt class="label">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
 
-  <dt class="section">Code stats</dt>
+  <dt class="section b-sidebar-heading">Code stats</dt>
   <div class="row"><dt class="label">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
   <div class="row"><dt class="label">.gno files</dt><dd class="value">{{ .Stats.GnoFileCount }}</dd></div>
   <div class="row"><dt class="label">Tests</dt><dd class="value">{{ .Stats.TestCount }}</dd></div>
@@ -74,7 +74,7 @@ UI - Package quality (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_metadata" }}
 <section class="b-pkg-metadata" aria-label="Package metadata">
-  <h3 class="b-pkg-meta-heading">Metadata</h3>
+  <h2 class="b-sidebar-heading">Metadata</h2>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
     {{ if .Info.Draft }}<li class="b-tag b-tag--draft">draft</li>{{ else }}<li class="b-tag b-tag--published">published</li>{{ end }}
