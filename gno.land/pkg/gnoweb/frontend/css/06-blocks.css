@@ -1184,7 +1184,8 @@
 			background-color: var(--g-color-transparent);
 		}
 
-		& > nav {
+		& > nav,
+		& > .rail-body {
 			display: none;
 			font-size: var(--g-font-size-100);
 			margin-block-start: var(--g-space-2);
@@ -1193,7 +1194,10 @@
 
 			@media (--lg) {
 				display: block;
-				margin-block-start: 0;
+				/* Took over the toggle's top offset: the toggle is the
+				   rail's desktop heading no longer, and display:none
+				   drops its margin with it. */
+				margin-block-start: var(--g-space-10);
 				padding-inline: 0;
 				padding-block-end: var(--g-space-28);
 
@@ -1201,6 +1205,11 @@
 					padding-inline-start: 0;
 				}
 			}
+		}
+
+		/* The rail's own heading carries the leading gap on desktop. */
+		:is(nav, .rail-body) > :first-child {
+			margin-block-start: 0;
 		}
 	}
 
@@ -1219,25 +1228,18 @@
 			background-color: var(--s-color-bg-surface-secondary);
 		}
 
+		/* Mobile-only. The rail used to have no heading of its own, so this
+		   toggle wore one on desktop; now the <h2> inside the panel it opens
+		   names the rail in both layouts and this is purely the affordance. */
 		@media (--lg) {
-			font-size: var(--g-font-size-200);
-			font-weight: var(--g-font-semibold);
-			margin-block-start: var(--g-space-10);
-			border: none;
-			background-color: var(--g-color-transparent);
-			padding: 0;
-			cursor: default;
-
-			&:hover {
-				background-color: var(--g-color-transparent);
-			}
+			display: none;
 		}
 
-		&:has(#toc-expend:checked) + nav {
+		&:has(> input:checked) + * {
 			display: block;
 		}
 
-		&:has(#toc-expend:checked) .ico {
+		&:has(> input:checked) .ico {
 			transform: rotate(180deg);
 		}
 
@@ -1282,13 +1284,21 @@
 .is-dev-mode .b-sidebar .b-expend-btn {
 	background-color: var(--s-color-bg-surface-secondary);
 
-	@media (--lg) {
-		background-color: var(--g-color-transparent);
-	}
-
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary);
 	}
+}
+
+/* Names what the rail lists. Visible in both layouts: on desktop it is the
+   rail's title, on mobile a caption inside the opened panel, which the
+   overview rail needs since one panel holds both metadata and the index. */
+.b-sidebar-heading {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
+	font-size: var(--g-font-size-200);
+	margin-block: var(--g-space-4) var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-divider);
 }
 
 /* ===== CODE COMPONENT & CHROMA ===== */
@@ -1386,34 +1396,34 @@ main.is-dev-mode .b-toc a {
 	& > * + * {
 		margin-block-start: var(--g-space-1-5);
 	}
+}
 
-	.accordion {
-		summary {
-			& > svg {
-				transform: rotate(-90deg);
-			}
-
-			&:hover {
-				text-decoration: underline;
-				color: var(--s-color-text-link-hover);
-			}
+/* Disclosure group. Was `.accordion`, nested inside `.b-source-toc`: an
+   unprefixed global name that only one block could reach. */
+.b-accordion {
+	& > summary {
+		& > svg {
+			transform: rotate(-90deg);
 		}
 
-		&[open] {
-			summary > svg {
-				transform: rotate(0deg);
-			}
+		&:hover {
+			text-decoration: underline;
+			color: var(--s-color-text-link-hover);
 		}
 
-		& > .b-toc {
-			padding-inline-start: var(--g-space-5);
-		}
-
-		h3 {
+		& > h3 {
 			font-size: var(--g-font-size-100);
 			font-weight: var(--g-font-medium);
 			margin-block-start: 0;
 		}
+	}
+
+	&[open] > summary > svg {
+		transform: rotate(0deg);
+	}
+
+	& > .b-toc {
+		padding-inline-start: var(--g-space-5);
 	}
 }
 
@@ -2174,82 +2184,91 @@ main.is-dev-mode .b-toc a {
 			}
 		}
 	}
+}
 
-	/* ===== TOOLTIP COMPONENT ===== */
-	.tooltip {
-		--tooltip-left: 0;
-		--tooltip-right: initial;
+/* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */
+/* Keyed on the renderer element, not on a view class: the markdown pipeline
+   emits these, so every container it fills should style them. Scoped to
+   `.c-realm-view, .c-readme-view` they were dead in `.c-overview-view`, which
+   renders doc comments through the same pipeline. Names stay unprefixed
+   because the Go extensions emit them literally and ~40 golden fixtures pin
+   them. */
+md-renderer .tooltip {
+	--tooltip-left: 0;
+	--tooltip-right: initial;
 
-		position: relative;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--s-rounded-full);
-		color: var(--s-color-text-tertiary);
-		width: var(--g-space-4);
-		height: var(--g-space-4);
-		border: var(--s-border);
-		margin-block-end: var(--g-space-px);
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--s-rounded-full);
+	color: var(--s-color-text-tertiary);
+	width: var(--g-space-4);
+	height: var(--g-space-4);
+	border: var(--s-border);
+	margin-block-end: var(--g-space-px);
 
-		& > svg {
-			width: var(--g-space-3);
-			height: var(--g-space-3);
-		}
-
-		&::after {
-			content: attr(data-tooltip);
-			left: var(--tooltip-left);
-			right: var(--tooltip-right);
-			position: absolute;
-			z-index: var(--g-z-max);
-			scale: 0;
-			visibility: hidden;
-			padding-inline: var(--g-space-2);
-			padding-block: var(--g-space-1);
-			background-color: var(--s-color-bg-base);
-			border-radius: var(--s-rounded);
-			border: var(--s-border-secondary);
-			width: fit-content;
-			min-width: var(--g-space-32);
-			max-width: var(--g-space-48);
-			top: 100%;
-			text-align: center;
-			font-size: var(--g-font-size-100);
-			color: var(--s-color-text-secondary);
-			font-weight: var(--g-font-normal);
-			opacity: 0;
-		}
-
-		&:hover::after {
-			opacity: 1;
-			visibility: visible;
-			transition-delay: var(--g-transition-fast);
-			scale: 1;
-		}
-
-		&:only-of-type {
-			margin-inline: 0.3em;
-		}
-
-		&:has(+ span) {
-			margin-inline-start: 0.3em;
-		}
+	& > svg {
+		width: var(--g-space-3);
+		height: var(--g-space-3);
 	}
 
-	.link-external {
-		font-size: 0.67em;
-	}
-	.link-internal {
-		font-size: 0.75em;
-		font-weight: 400;
-	}
-	.link-tx {
-		font-size: 0.75em;
-	}
-	.link-user {
-		font-size: 0.75em;
+	&::after {
+		content: attr(data-tooltip);
+		left: var(--tooltip-left);
+		right: var(--tooltip-right);
+		position: absolute;
+		z-index: var(--g-z-max);
+		scale: 0;
+		visibility: hidden;
+		padding-inline: var(--g-space-2);
+		padding-block: var(--g-space-1);
+		background-color: var(--s-color-bg-base);
+		border-radius: var(--s-rounded);
+		border: var(--s-border-secondary);
+		width: fit-content;
+		min-width: var(--g-space-32);
+		max-width: var(--g-space-48);
+		top: 100%;
+		text-align: center;
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+		font-weight: var(--g-font-normal);
+		opacity: 0;
 	}
 
+	&:hover::after {
+		opacity: 1;
+		visibility: visible;
+		transition-delay: var(--g-transition-fast);
+		scale: 1;
+	}
+
+	&:only-of-type {
+		margin-inline: 0.3em;
+	}
+
+	&:has(+ span) {
+		margin-inline-start: 0.3em;
+	}
+}
+
+md-renderer .link-external {
+	font-size: 0.67em;
+}
+md-renderer .link-internal {
+	font-size: 0.75em;
+	font-weight: 400;
+}
+md-renderer .link-tx {
+	font-size: 0.75em;
+}
+md-renderer .link-user {
+	font-size: 0.75em;
+}
+
+.c-realm-view,
+.c-readme-view {
 	/* ===== CHECKBOXES COMPONENT ===== */
 	ul:has(li > input[type="checkbox"]:first-child) {
 		list-style: none;

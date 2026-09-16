@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"html/template"
 	"strings"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 //go:embed templates/*.html
@@ -145,6 +147,13 @@ func mustParse(name string, paths ...string) *template.Template {
 	t, err := template.New(name).Funcs(funcMap).ParseFS(templateFS, paths...)
 	if err != nil {
 		panic("state: parse " + paths[0] + ": " + err.Error())
+	}
+	// Shared sidebar partials live in components' embed, which this package's
+	// templateFS cannot see. Parsing them in keeps one definition of the
+	// collapse affordance instead of a copy that has to be kept in sync.
+	t, err = t.ParseFS(components.SharedPartialsFS(), "ui/expend_label.html")
+	if err != nil {
+		panic("state: parse shared partials: " + err.Error())
 	}
 	return t
 }
