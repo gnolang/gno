@@ -21,7 +21,7 @@
   {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
-  <main id="main-content" {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
+  <main id="main-content" {{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
     <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>

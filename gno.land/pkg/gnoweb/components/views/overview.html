@@ -88,7 +88,7 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
 =================================================================================== */}}
 {{ define "ui/pkg_nav" }}
 <nav class="b-pkg-subheader" aria-label="Package sections" data-controller="observer">
-  <div class="packages-tabs">
+  <div class="b-packages-tabs">
     {{/* Grouped jumps (Readme+Overview, Consts+Vars) keep the bar from overflowing;
          the sidebar Package Index still lists each section separately. */}}
     {{ if .Readme }}<a href="#readme">Overview</a>{{ else if or .PackageDoc .Bugs }}<a href="#overview">Overview</a>{{ end }}

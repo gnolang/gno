@@ -260,7 +260,7 @@
 				display: flex;
 			}
 
-			& ~ .menu-general {
+			& ~ .b-menu-general {
 				display: none;
 			}
 		}
@@ -268,7 +268,7 @@
 
 	/* Menu containers */
 	& .menu-dev,
-	& .menu-general {
+	& .b-menu-general {
 		display: flex;
 		justify-content: flex-end;
 		height: 100%;
@@ -354,7 +354,7 @@
 
 	/* Link with icon - simplified styles */
 	.link--icon {
-		font-weight: var(--g-font-regular);
+		font-weight: var(--g-font-normal);
 		margin-inline-end: var(--g-space-4);
 
 		@media (--sm) {
@@ -376,7 +376,7 @@
 	}
 }
 
-.menu-general .link {
+.b-menu-general .link {
 	color: var(--s-color-text-secondary);
 
 	&:hover {
@@ -710,8 +710,7 @@
 /* Responsive label-hide for `.b-inline-btn` toolbars: icon-only on
    small screens, full label at xl+. Used by source page header
    (Copy/Download) and the state explorer tree toolbar. */
-.b-content-header .b-inline-btn > span,
-.tree-toolbar .b-inline-btn > span {
+.b-content-header .b-inline-btn > span {
 	display: none;
 
 	@media (--xl) {
@@ -828,7 +827,7 @@
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--s-color-text-link);
+		outline: var(--s-focus-ring);
 		outline-offset: 2px;
 	}
 }
@@ -1248,7 +1247,7 @@
 		   keyboard at all, and screen readers announced no role and no state.
 		   WCAG 2.1.1 Keyboard and 4.1.2 Name, Role, Value. */
 		&:has(> input:focus-visible) {
-			outline: 2px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: var(--g-space-1);
 		}
 
@@ -1280,7 +1279,7 @@
 	}
 }
 
-.dev-mode .b-sidebar .b-expend-btn {
+.is-dev-mode .b-sidebar .b-expend-btn {
 	background-color: var(--s-color-bg-surface-secondary);
 
 	@media (--lg) {
@@ -1294,7 +1293,7 @@
 
 /* ===== CODE COMPONENT & CHROMA ===== */
 .b-source-code {
-	font-family: var(--g-font-mono);
+	font-family: var(--g-font-family-mono);
 
 	/* Qualified with .chroma-chroma to outrank chroma's own light-theme
 	   background rule, so the code sits on the surface (white in light) with a
@@ -1371,7 +1370,7 @@ pre.chroma-chroma {
 	}
 }
 
-main.dev-mode .b-toc a {
+main.is-dev-mode .b-toc a {
 	word-break: break-all;
 }
 
@@ -1474,7 +1473,7 @@ main.dev-mode .b-toc a {
 	& > header {
 		.signature {
 			& > code {
-				color: var(--s--text-secondary);
+				color: var(--s-color-text-secondary);
 			}
 
 			@media (--lg) {
@@ -1614,7 +1613,7 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	/* `.packages-tabs` block lives at top level (below `.b-packages`)
+	/* `.b-packages-tabs` block lives at top level (below `.b-packages`)
 	   so the same chrome can be reused by other pages (state explorer
 	   sub-header). */
 
@@ -1689,7 +1688,7 @@ main.dev-mode .b-toc a {
 			display: none;
 			grid-column: 1 / -1;
 			font-size: var(--g-font-size-200);
-			font-weight: var(--g-font-weight-bold);
+			font-weight: var(--g-font-bold);
 			color: var(--s-color-text-tertiary);
 			padding-block: var(--g-space-2);
 			width: 100%;
@@ -1808,7 +1807,7 @@ main.dev-mode .b-toc a {
 		display: flex;
 	}
 
-	/* Active-label underline now scoped to `.packages-tabs label:has(input:checked)`
+	/* Active-label underline now scoped to `.b-packages-tabs label:has(input:checked)`
 	   at top level (lifted to be reusable). See PACKAGES-TABS COMPONENT block. */
 
 	/* realms not found */
@@ -1942,8 +1941,8 @@ main.dev-mode .b-toc a {
 }
 
 /* Filter-tabs row — lifted out of `.b-packages` to be reusable
-   (state explorer subheader composes it via `class="packages-tabs"`). */
-.packages-tabs {
+   (state explorer subheader composes it via `class="b-packages-tabs"`). */
+.b-packages-tabs {
 	display: flex;
 	grid-column: span 4 / span 4;
 	gap: var(--g-space-4);
@@ -1982,7 +1981,7 @@ main.dev-mode .b-toc a {
 		/* Radios are `u-sr-only` — surface their focus on the label
 		   so keyboard users can see the active tab. */
 		&:has(input:focus-visible) {
-			outline: 2px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: var(--g-space-1);
 			border-radius: var(--s-rounded-sm);
 		}
@@ -1996,7 +1995,7 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	/* Active-label underline — on `.packages-tabs` directly so it
+	/* Active-label underline — on `.b-packages-tabs` directly so it
 	   carries to any page using the class. */
 	label:has(input:checked) {
 		color: var(--s-color-text-tertiary);
@@ -2468,7 +2467,7 @@ main.dev-mode .b-toc a {
 
 		&[readonly],
 		&:disabled {
-			background-color: var(--s-color-bg-secondary);
+			background-color: var(--s-color-bg-surface-secondary);
 			color: var(--s-color-text-tertiary);
 			cursor: not-allowed;
 
@@ -2769,7 +2768,7 @@ main.dev-mode .b-toc a {
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering
    ========================================================================== */
-.doc-example {
+.b-doc-example {
 	margin-block: var(--g-space-3);
 	border: var(--s-divider);
 	border-radius: var(--s-rounded-sm);
@@ -2802,7 +2801,7 @@ main.dev-mode .b-toc a {
 /* Code in doc comments (examples, snippets) is chroma-highlighted; drop chroma's
    own background so the surrounding surface shows — no stray code-editor blue.
    Descendant selector so it catches the chroma <pre> wherever it nests (plain
-   doc code or inside a <details class="doc-example">). */
+   doc code or inside a <details class="b-doc-example">). */
 .c-doc-view .chroma-chroma {
 	background-color: transparent;
 }
@@ -2811,7 +2810,7 @@ main.dev-mode .b-toc a {
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
 /* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. */
-main.dev-mode > section:has(.c-overview-view) {
+main.is-dev-mode > section:has(.c-overview-view) {
 	.b-content-h1 {
 		display: inline-flex;
 		align-items: center;
@@ -2855,7 +2854,8 @@ main.dev-mode > section:has(.c-overview-view) {
    given its own `b-pkg-*` name: #5649 ships a `.b-state-meta` in the same
    bundle (feature/state/frontend/state.css), so sharing the name would
    cross-apply between the two views. Overview-owned. */
-.b-pkg-meta {
+.b-pkg-meta,
+.b-state-meta {
 	margin: 0 0 var(--g-space-6) 0;
 	font-size: var(--g-font-size-90);
 	display: flex;
@@ -2983,7 +2983,7 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 }
 
-.b-pkg-subheader .packages-tabs {
+.b-pkg-subheader .b-packages-tabs {
 	display: flex;
 	flex-wrap: wrap;
 	grid-column: span 4 / span 4;
@@ -3022,7 +3022,7 @@ main.dev-mode > section:has(.c-overview-view) {
 		}
 
 		&:focus-visible {
-			outline: 2px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: var(--g-space-1);
 			border-radius: var(--s-rounded-sm);
 		}
@@ -3042,13 +3042,13 @@ main.dev-mode > section:has(.c-overview-view) {
 
 /* Active tab: high-contrast text (white/black per theme), not the tertiary gray
    of the inactive tabs. */
-.b-pkg-subheader .packages-tabs a[aria-current] {
+.b-pkg-subheader .b-packages-tabs a[aria-current] {
 	color: var(--s-color-text-primary);
 }
 
 /* Active-section underline. The agnostic observer controller sets aria-current
    on the in-view section's link as you scroll. */
-.b-pkg-subheader .packages-tabs a[aria-current]::after {
+.b-pkg-subheader .b-packages-tabs a[aria-current]::after {
 	content: "";
 	position: absolute;
 	bottom: calc(var(--g-space-1) * -2);
@@ -3064,7 +3064,7 @@ main.dev-mode > section:has(.c-overview-view) {
    tabs 3/4 of the bar (not half) to keep them on one line. Outside the corral
    so it survives the #5649 merge. */
 @media (--md) {
-	.c-overview-view .b-pkg-subheader .packages-tabs {
+	.c-overview-view .b-pkg-subheader .b-packages-tabs {
 		grid-column: span 3 / span 3;
 	}
 
