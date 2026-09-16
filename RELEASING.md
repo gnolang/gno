@@ -17,7 +17,9 @@ the source of most release incidents, so they are named separately here.
 | **App version** | `baseApp.SetAppVersion` in `gno.land/pkg/gnoland/app.go` | the `app` entry of the versionset, persisted onto consensus state at the ABCI handshake | rarely |
 
 Only the first is what people usually mean by "the version". The tooling in
-[`misc/release/`](misc/release) handles all three.
+[`misc/release/`](misc/release) covers the first two: `cut-release.sh` for the
+release version, `bump-protocol-version.sh` for the protocol constants. The app
+version is the literal `SetAppVersion("dev")` in `app.go` and is edited by hand.
 
 ## Versioning & branching
 
@@ -56,7 +58,7 @@ holding the old ref then has an identical one.
 |--------|------|---------|
 | `master` | none | Continuous integration; the development tree |
 | `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — coordinated upgrades only, never rebased |
-| `chain/betanet` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries |
+| `chain/gnoland1` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries. The branch is to be renamed `chain/betanet` — until it is, `--chain betanet` has no branch to resolve |
 | `chain/pearl`, `chain/test13`, … | `chain/<name>` | Testnets. One launch tag each |
 
 Two tag shapes exist, and the node parses both
@@ -73,8 +75,13 @@ version**: it does not order, so it cannot be used as a `halt_min_version`. Name
 a `vX.Y.Z` tag there instead.
 
 **Tagging rules.** Tags are immutable: never move one, and never reuse a name.
-Tags are annotated (`git tag -a`), so `git describe` prefers them. Pre-release
-tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they lead to.
+New tags are annotated (`git tag -a`), so plain `git describe` finds them;
+`v1.0.0` predates the rule and is lightweight, which is one reason every
+`describe` in the tree passes `--tags --match 'v*'` — the other being that a
+release commit also carries the chain's launch tag, which is not a version.
+Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
+lead to, and are published as GitHub pre-releases so they do not become the
+"Latest" release operators and `misc/install.sh` land on.
 
 ### Chain branches are not master
 
@@ -95,18 +102,20 @@ runs, and the two are not the same thing:
 # dry run: every check, no push
 misc/release/cut-release.sh v1.3.0
 
-# a coordinated upgrade: also writes the GovDAO halt proposal
+# a coordinated upgrade: also prints the GovDAO halt proposal to go with it
 misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
 ```
 
-The script refuses a tag that would not work as a release, and each refusal
-corresponds to something that has gone wrong before:
+The script checks that a tag would work as a release, and each check
+corresponds to something that has gone wrong before. All but one are refusals:
 
 1. **The version shape parses.** A tag the node cannot parse degrades
    `halt_min_version` to byte equality, which refuses the very binary the
    upgrade was cut for — and the chain cannot restart at all.
 2. **The tag is free**, locally and on origin.
 3. **The commit is on `master`**, or differs only under `misc/deployments/`.
+   A *warning*, not a refusal: a squash-merged commit shows up as missing even
+   though its content landed, so the operator has to read the list.
 4. **The protocol-version constants agree** (see below).
 5. **The built binary reports the tag.** Built the way CI builds it, then asked.
    `chain/mainnet`'s published binaries report `develop`, satisfy no
@@ -116,17 +125,30 @@ corresponds to something that has gone wrong before:
 Pushing the tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
 the four platforms, asserts each native binary carries the tag, and attaches
-them to the release. **Do not hand-upload release binaries** — an artifact built
-outside CI is not reproducible from the tag and generally lacks the `-ldflags`
-that give it a version at all.
+them to the release. It also triggers
+[`release / docker`](.github/workflows/release-docker.yml), which publishes the
+matching images to `ghcr.io/gnolang/gno/*` — the place every
+`misc/deployments/*/VALIDATOR.md` points operators at.
+
+**Do not hand-upload release binaries** — an artifact built outside CI is not
+reproducible from the tag and generally lacks the `-ldflags` that give it a
+version at all. Note that `-ldflags` is only recorded in `go version -m` output
+for builds without `-trimpath`, so its absence there is not on its own evidence
+of a hand-built binary; the binary's own `version` output is.
 
 ### Coordinated upgrades
 
 For a MINOR bump, the release is only half of it: validators have to stop at the
-same height and come back on the new binary. `--halt-height` emits the GovDAO
-proposal, with `halt_min_version` set to the tag being cut. The mechanism, the
-failure modes, and what a halt looks like in the logs are documented in
-[`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES.md).
+same height and come back on the new binary. `--halt-height` prints the GovDAO
+proposal to go with the tag, with `halt_min_version` set to the tag being cut,
+and the command that creates it:
+
+```sh
+misc/deployments/mainnet.gno.land/govdao set-halt 120000 v1.3.0
+```
+
+The mechanism, the failure modes, and what a halt looks like in the logs are
+documented in [`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES.md).
 
 ### Hotfix
 
@@ -163,7 +185,9 @@ fails in CI if they drift.
 **A MAJOR bump here partitions the network.** `VersionSet.CompatibleWith`
 compares major.minor and refuses a peer whose major differs, so old and new
 nodes cannot gossip — independently of any halt height. It must ride a
-coordinated upgrade, with every validator switching at the same block.
+coordinated upgrade, with every validator switching at the same block. That
+function carries no tests and still reads `// TODO: test`; treat a MAJOR bump as
+needing a rehearsal on a testnet rather than as a checked invariant.
 
 These constants have never been bumped: they still read `v1.0.0-rc.0`, the value
 they were given in 2023. Mainnet launched on it.

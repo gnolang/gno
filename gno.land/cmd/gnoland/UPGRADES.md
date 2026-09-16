@@ -210,10 +210,13 @@ config or chain state, so it is fixed the moment the binary is produced:
 | `go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=..."` | whatever you pass |
 
 The Makefile injects it with `-ldflags -X`, deriving the value from
-`git describe --tags --exact-match` and falling back to the branch/count/hash
-form when the commit is not tagged. The release workflow injects the tag
-verbatim for the same reason: a binary built on a release tag has to report
-exactly the shape the comparison understands.
+`git describe --tags --exact-match --match 'v*'` and falling back to the
+branch/count/hash form when the commit is not tagged. The `--match` is
+load-bearing: a release commit also carries the chain's launch tag
+(`chain/mainnet` sits on the same commit as `v1.2.0`), and an unfiltered
+`describe` answers that one — a string the comparison below refuses. The release
+workflow injects the tag verbatim for the same reason: a binary built on a
+release tag has to report exactly the shape the comparison understands.
 
 Two shapes parse (`meetsMinVersion`, and see [RELEASING.md](../../../RELEASING.md)):
 
