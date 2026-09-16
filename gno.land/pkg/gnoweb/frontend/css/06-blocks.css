@@ -1207,8 +1207,10 @@
 			}
 		}
 
-		/* The rail's own heading carries the leading gap on desktop. */
-		:is(nav, .rail-body) > :first-child {
+		/* The rail panel supplies the leading gap, so its first child drops its
+		   own. Direct children only: the overview's nested index <nav> sits
+		   mid-panel and still needs the gap from the metadata above it. */
+		& > :is(nav, .rail-body) > :first-child {
 			margin-block-start: 0;
 		}
 	}
@@ -1289,9 +1291,11 @@
 	}
 }
 
-/* Names what the rail lists. Visible in both layouts: on desktop it is the
-   rail's title, on mobile a caption inside the opened panel, which the
-   overview rail needs since one panel holds both metadata and the index. */
+/* The one rail section heading. Names what the section lists, and on desktop
+   the first one doubles as the rail's title now that the toggle is hidden
+   there. Replaces three byte-identical copies: `.b-pkg-meta dt.section` /
+   `.b-pkg-meta-heading` here, `.b-state-meta` ditto in the state bundle, and
+   an overview-only rule that bumped the size back up to 200. */
 .b-sidebar-heading {
 	color: var(--s-color-text-primary);
 	font-weight: var(--g-font-semibold);
@@ -2838,12 +2842,6 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		text-align: start;
 	}
 
-	/* Sidebar section headings a notch larger (16px) for presence. Scoped to the
-	   overview so it persists past merge. */
-	:is(.b-pkg-meta dt.section, .b-pkg-meta-heading) {
-		font-size: var(--g-font-size-200);
-	}
-
 	@media (--lg) {
 		.b-sidebar {
 			grid-row: 1 / span 99;
@@ -2928,16 +2926,6 @@ main.is-dev-mode > section:has(.c-overview-view) {
 			text-decoration: underline;
 		}
 	}
-}
-
-.b-pkg-meta dt.section,
-.b-pkg-meta-heading {
-	color: var(--s-color-text-primary);
-	font-weight: var(--g-font-semibold);
-	font-size: var(--g-font-size-100);
-	margin-block: var(--g-space-4) var(--g-space-2);
-	padding-block-end: var(--g-space-1);
-	border-block-end: var(--s-divider);
 }
 
 .b-pkg-metadata {

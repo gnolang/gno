@@ -1062,16 +1062,6 @@ body:has(#kf-types:checked)
 	font-size: var(--g-font-size-100);
 }
 
-.b-state-meta dt.section,
-.b-state-meta-heading {
-	color: var(--s-color-text-primary);
-	font-weight: var(--g-font-semibold);
-	font-size: var(--g-font-size-100);
-	margin-block: var(--g-space-4) var(--g-space-2);
-	padding-block-end: var(--g-space-1);
-	border-block-end: var(--s-divider);
-}
-
 .b-state-toc {
 	small.type[data-kind] {
 		margin-inline-start: var(--g-space-2);
