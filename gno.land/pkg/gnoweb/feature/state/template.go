@@ -151,7 +151,7 @@ func mustParse(name string, paths ...string) *template.Template {
 	// Shared sidebar partials live in components' embed, which this package's
 	// templateFS cannot see. Parsing them in keeps one definition of the
 	// collapse affordance instead of a copy that has to be kept in sync.
-	t, err = t.ParseFS(components.SharedPartialsFS(), "ui/expend_label.html")
+	t, err = t.ParseFS(components.SharedPartialsFS(), "expend_label.html")
 	if err != nil {
 		panic("state: parse shared partials: " + err.Error())
 	}

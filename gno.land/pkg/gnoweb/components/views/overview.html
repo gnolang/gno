@@ -6,20 +6,19 @@ LAYOUT - Overview
 <aside class="b-sidebar sidebar" aria-label="Package metadata and table of contents">
   <div>
     <div class="inner u-no-scrollbar c-stack">
-      {{ template "ui/expend_label" }}
-      {{/* Not a <nav>: this wrapper holds a metadata <dl> as well as the index,
-           and a navigation landmark around a definition list is a lie. The
-           mobile collapse keys on the toggle's next sibling, whatever it is. */}}
-      <div class="rail-body">
-        {{ template "ui/pkg_meta" . }}
-        {{ template "ui/pkg_metadata" . }}
-        {{ with render .ComponentTOC }}
-        <nav aria-labelledby="pkg-index-heading">
-          <h2 id="pkg-index-heading" class="b-sidebar-heading">Package Index</h2>
-          <div class="b-pkg-toc">{{ . }}</div>
-        </nav>
-        {{ end }}
-      </div>
+      {{/* Metadata stays outside the collapse: it identifies the package, and
+           below --lg the toggle's target is hidden, so folding it in would
+           leave a phone with nothing but a button. The toggle owns the index
+           alone, which is why it can be named for it. */}}
+      {{ template "ui/pkg_meta" . }}
+      {{ template "ui/pkg_metadata" . }}
+      {{ template "ui/expend_label" "Package Index" }}
+      {{ with render .ComponentTOC }}
+      <nav aria-labelledby="pkg-index-heading">
+        <h2 id="pkg-index-heading" class="b-sidebar-heading">Package Index</h2>
+        <div class="b-pkg-toc">{{ . }}</div>
+      </nav>
+      {{ end }}
     </div>
   </div>
 </aside>

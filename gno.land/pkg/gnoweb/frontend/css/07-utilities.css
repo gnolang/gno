@@ -13,7 +13,10 @@
 	position: absolute;
 	inset-block-start: var(--g-space-2);
 	inset-inline-start: var(--g-space-2);
-	z-index: var(--g-z-2);
+	/* Must outrank .b-header, which is sticky at --g-z-max with an opaque
+	   background over this exact corner: at any lower layer the link is
+	   focusable but painted behind the header, i.e. invisible. */
+	z-index: var(--g-z-max);
 	padding: var(--g-space-2) var(--g-space-4);
 	border-radius: var(--s-rounded-sm);
 	background-color: var(--s-color-bg-base);
