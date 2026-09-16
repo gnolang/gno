@@ -5,7 +5,7 @@ package crossrealm
 // assignment. A forged embedder is boxed in an interface{} and asserted to
 // `realm` with the comma-ok form: because a promoted `.seal` does not satisfy
 // the sealed interface, ok is false — no forged realm escapes and no panic.
-// See gnovm/adr/realm_seal_embedding.md.
+// See gnovm/adr/acd01fa29_realm_seal_embedding.md.
 
 type fooRealm struct {
 	realm
