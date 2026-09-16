@@ -1273,9 +1273,9 @@ import (
         "chain/runtime"
         "strings"
 
-        "gno.land/p/demo/tokens/grc20"
+        "gno.land/p/nt/grc20/v0"
         "gno.land/p/nt/ufmt/v0"
-        "gno.land/r/demo/defi/grc20reg"
+        "gno.land/r/nt/grc20reg/v0"
 )
 
 var (
@@ -1494,7 +1494,7 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -pkgpath "gno.land/r/gnoland/boards2/v0" \
   -func "CreateBoard" \
   -args "MyBoard" \
   -args "true" \

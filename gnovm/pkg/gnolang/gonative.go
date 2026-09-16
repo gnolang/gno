@@ -133,6 +133,16 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		rvl := rv.Len()
 		rvc := rv.Cap()
 
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			// Match the reflect.Array arm above, and every other byte-slice
+			// producer in the VM: flat Data backing, 1 byte per element.
+			// Value.Bytes tests the element kind, not its identity, so this
+			// also covers named byte types (reflect.Copy would not).
+			baseArray := alloc.NewDataArray(nil, rvc)
+			copy(baseArray.Data[:rvl], rv.Bytes())
+			tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
+			return
+		}
 		baseArray := alloc.NewListArray2(nil, rvl, rvc)
 		list := baseArray.List
 		for i := range rvl {

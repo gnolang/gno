@@ -22,7 +22,7 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 adduser attacker 1010000000ugnot
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gnops/valopers
 
 gnoland start
