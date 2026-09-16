@@ -177,7 +177,7 @@
         {{ if .Sidebar.Meta }}
           <dl class="b-state-meta">
             {{ range .Sidebar.Meta }}
-              {{ if .Section }}<dt class="section">{{ .Section }}</dt>{{ end }}
+              {{ if .Section }}<dt class="section b-sidebar-heading">{{ .Section }}</dt>{{ end }}
               <div class="row{{ if .Inline }} inline{{ end }}{{ if .Mono }} mono{{ end }}{{ if .Block }} block{{ end }}">
                 <dt class="label">{{ .Label }}</dt>
                 <dd class="value">
@@ -194,7 +194,7 @@
           </dl>
         {{ end }}
         {{ if .Sidebar.TOC }}
-          {{ if .Sidebar.Heading }}<h3 class="b-state-meta-heading">{{ .Sidebar.Heading }}</h3>{{ end }}
+          {{ if .Sidebar.Heading }}<h2 class="b-sidebar-heading">{{ .Sidebar.Heading }}</h2>{{ end }}
           {{ $treeMode := eq .ViewMode "tree" }}
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
