@@ -1,25 +1,56 @@
 {{ define "renderDocs" }}
-<!-- Documentation section navigation; replaces the in-page TOC on /docs pages. -->
-<aside class="b-sidebar b-docs-sidebar" aria-label="Documentation navigation">
+{{/* One tree at two scales rather than two look-alike lists: the documentation
+     sections, and under the current page its own top-level headings. A section
+     costs one row plus its links, so the rail's height follows the number of
+     sections, not the number of pages. Measured on the longest page (the
+     glossary, 74 headings): 881px against 3866px for a flat nav plus a full
+     in-page TOC. */}}
+<aside class="b-sidebar sidebar b-docs-sidebar" aria-label="Documentation">
   <div>
     <div class="inner u-no-scrollbar">
-      {{ template "ui/expend_label" "Documentation"}}
-      <nav>
-        <ul class="b-docs-nav">
+      {{ template "ui/expend_label" "Sections" }}
+      <nav aria-labelledby="docs-nav-heading">
+        {{/* Pages absent from README.md's lists have no tree entry to hang
+             their outline on, so it is rendered here instead of dropped. */}}
+        {{ with .PageToc }}
+        <h2 class="b-docs-heading">On this page</h2>
+        <ul class="b-toc">
+          {{ range . }}<li><a href="{{ .Anchor }}">{{ .Title }}</a></li>{{ end }}
+        </ul>
+        {{ end }}
+        <h2 id="docs-nav-heading" class="b-docs-heading">Documentation</h2>
+        <ul class="b-toc b-docs-nav">
           {{ range .Sections }}
-          <li class="b-docs-nav-section">
-            <h3>{{ .Title }}</h3>
-            <ul>
-              {{ range .Items }}
-              <li class="b-docs-nav-item{{ if .Active }} is-active{{ end }}">
-                {{ if .External }}
-                <a href="{{ .Href }}" target="_blank" rel="noopener noreferrer">{{ .Title }}<span aria-hidden="true"> ↗</span></a>
-                {{ else }}
-                <a href="{{ .Href }}">{{ .Title }}</a>
+          <li>
+            <details class="b-docs-section" open>
+              <summary class="c-between">
+                <span>{{ .Title }}</span>
+                <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
+              </summary>
+              <ul class="b-toc">
+                {{ range .Items }}
+                <li>
+                  {{ if .External }}
+                  <a href="{{ .Href }}" rel="noopener noreferrer nofollow ugc">{{ .Title }}<svg class="c-icon b-docs-nav-ext" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>
+                  {{ else }}
+                  <a href="{{ .Href }}"{{ if .Active }} aria-current="page"{{ end }}>{{ .Title }}</a>
+                  {{ end }}
+                  {{ with .Toc }}
+                  {{/* A nested <nav> rather than a bare list: merging the page
+                       outline into the site tree removes the heading a screen
+                       reader user would otherwise navigate to, so the outline
+                       keeps a named landmark of its own. Material for MkDocs
+                       nests the same way under toc.integrate. */}}
+                  <nav class="b-docs-page-toc" aria-label="On this page">
+                    <ul class="b-toc">
+                      {{ range . }}<li><a href="{{ .Anchor }}">{{ .Title }}</a></li>{{ end }}
+                    </ul>
+                  </nav>
+                  {{ end }}
+                </li>
                 {{ end }}
-              </li>
-              {{ end }}
-            </ul>
+              </ul>
+            </details>
           </li>
           {{ end }}
         </ul>

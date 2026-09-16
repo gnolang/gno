@@ -154,20 +154,28 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var content bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
+	toc, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
 		Domain:  h.Static.Domain,
-	}); err != nil {
+	})
+	if err != nil {
 		h.Logger.Error("docs render failed", "path", r.URL.Path, "error", err)
 		h.renderError(w, r, http.StatusInternalServerError, "documentation page failed to render")
 		return
 	}
 
-	indexData.BodyView = components.DocsView(components.DocsData{
+	sections, matched := buildSidebar(resolvedRel, toc.Items)
+	docsData := components.DocsData{
 		ComponentContent: components.NewReaderComponent(&content),
-		Sections:         buildSidebar(resolvedRel),
-	})
+		Sections:         sections,
+	}
+	if !matched {
+		// The page is reachable but absent from README.md's lists, so no tree
+		// entry can carry its outline. Render it on its own rather than drop it.
+		docsData.PageToc = toc.Items
+	}
+	indexData.BodyView = components.DocsView(docsData)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -338,12 +346,15 @@ func shouldSkipLink(target string) bool {
 	return false
 }
 
-// buildSidebar adapts the docs package's parsed nav into the component's
-// view model: internal item hrefs are turned into clean /docs/<path> URLs
-// and the item matching the currently rendered page is flagged Active.
-// currentRel is the embed-relative path of the current document, e.g.
-// "builders/getting-started.md".
-func buildSidebar(currentRel string) []components.DocsSidebarSection {
+// buildSidebar adapts the docs package's parsed nav into the component's view
+// model: internal item hrefs become clean /docs/<path> URLs, and the item
+// matching the currently rendered page is flagged Active and carries the page's
+// own outline. currentRel is the embed-relative path of the current document,
+// e.g. "builders/getting-started.md". The bool reports whether any item
+// matched: 11 of the 44 embedded pages are not listed in README.md, and those
+// still need their outline rendered somewhere.
+func buildSidebar(currentRel string, pageToc []*components.TocItem) ([]components.DocsSidebarSection, bool) {
+	var matched bool
 	parsed := docs.Sidebar()
 	out := make([]components.DocsSidebarSection, 0, len(parsed))
 	for _, sec := range parsed {
@@ -363,12 +374,17 @@ func buildSidebar(currentRel string) []components.DocsSidebarSection {
 				href = DocsURLPrefix + "/" + clean
 				active = it.Href == currentRel
 			}
-			viewSec.Items = append(viewSec.Items, components.DocsSidebarItem{
+			item := components.DocsSidebarItem{
 				Title:    it.Title,
 				Href:     href,
 				External: it.External,
 				Active:   active,
-			})
+			}
+			if active {
+				item.Toc = pageToc
+				matched = true
+			}
+			viewSec.Items = append(viewSec.Items, item)
 		}
 		out = append(out, viewSec)
 	}
@@ -388,7 +404,7 @@ func buildSidebar(currentRel string) []components.DocsSidebarSection {
 		}},
 	})
 
-	return out
+	return out, matched
 }
 
 // admonitionOpenRE matches a Docusaurus-style admonition opener:

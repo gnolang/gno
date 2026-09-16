@@ -2792,60 +2792,96 @@ main.dev-mode .b-toc a {
 }
 
 /* ===== DOCS SIDEBAR ===== */
-/* Section navigation for the /docs subtree. Inherits .b-sidebar positioning
-   (right-rail aside) and adds layered list styling so categories and items
-   read as a hierarchy. */
-.b-docs-sidebar {
+/* The /docs navigation tree. The lists are .b-toc, so the nesting guide, the
+   indent and the hover come from there; only what is specific to this rail is
+   declared below. */
+
+/* This rail carries its own headings inside the <nav>, so the shared toggle is
+   a mobile affordance only here. Scoped: the other rails keep theirs. */
+.b-docs-sidebar .b-expend-btn {
+	@media (--lg) {
+		display: none;
+	}
+}
+
+.b-docs-heading {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
 	font-size: var(--g-font-size-200);
+	margin-block: var(--g-space-4) var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-divider);
 }
 
-.b-docs-nav {
-	list-style: none;
-	margin: 0;
-	padding: 0;
+.b-docs-sidebar .inner > nav > :first-child {
+	margin-block-start: 0;
+
+	@media (--lg) {
+		margin-block-start: var(--g-space-8);
+	}
 }
 
-.b-docs-nav-section {
-	margin-block-end: var(--g-space-6);
-}
-
-.b-docs-nav-section > h3 {
-	margin-block-end: var(--g-space-2);
+/* Section captions sit one level under the rail headings. */
+.b-docs-section > summary {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
 	font-size: var(--g-font-size-100);
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--g-color-700, currentColor);
+	margin-block: var(--g-space-4) var(--g-space-1);
+	cursor: pointer;
+
+	& > svg {
+		transform: rotate(-90deg);
+	}
+
+	&:hover {
+		color: var(--s-color-text-link-hover);
+	}
 }
 
-.b-docs-nav-section > ul {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	border-inline-start: 1px solid var(--g-color-300, rgba(0, 0, 0, 0.1));
+.b-docs-section[open] > summary > svg {
+	transform: rotate(0deg);
 }
 
-.b-docs-nav-item {
-	margin: 0;
+.b-docs-section > .b-toc {
+	padding-inline-start: var(--g-space-5);
 }
 
-.b-docs-nav-item > a {
-	display: block;
-	padding: var(--g-space-1) var(--g-space-3);
-	color: inherit;
-	text-decoration: none;
-	border-inline-start: 2px solid transparent;
-	margin-inline-start: -1px;
-	line-height: 1.4;
+/* The current page and the outline grafted under it read as one block: a quiet
+   band behind the whole entry, pulled back by its own padding so the title
+   stays on the same left edge as its siblings. */
+.b-docs-nav li:has(> a[aria-current="page"]) {
+	background-color: color-mix(
+		in srgb,
+		var(--s-color-bg-surface-primary) 70%,
+		transparent
+	);
+	border-radius: var(--s-rounded-sm);
+	padding: var(--g-space-1) var(--g-space-2);
+	margin-inline: calc(-1 * var(--g-space-2));
 }
 
-.b-docs-nav-item > a:hover {
-	color: var(--g-color-link, currentColor);
+.b-docs-nav a[aria-current="page"] {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
 }
 
-.b-docs-nav-item.is-active > a {
-	border-inline-start-color: currentColor;
-	font-weight: 600;
+.b-docs-page-toc {
+	margin-block-start: var(--g-space-1);
+	font-size: var(--g-font-size-90);
+
+	& > .b-toc {
+		margin-block-start: 0;
+	}
+}
+
+/* "Leaves the page" marker. The shared .link-external chrome is scoped to the
+   content views, so the rail sizes its own. */
+.b-docs-nav-ext {
+	inline-size: 0.8em;
+	block-size: 0.8em;
+	margin-inline-start: var(--g-space-1);
+	color: var(--s-color-text-tertiary);
+	vertical-align: baseline;
 }
 
 /* Code in doc comments (examples, snippets) is chroma-highlighted; drop chroma's

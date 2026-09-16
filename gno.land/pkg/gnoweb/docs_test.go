@@ -107,7 +107,7 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			name:        "current page item marked active",
 			route:       "/docs/builders/getting-started",
 			wantStatus:  http.StatusOK,
-			wantSnippet: "b-docs-nav-item is-active",
+			wantSnippet: `href="/docs/builders/getting-started" aria-current="page"`,
 		},
 	}
 
