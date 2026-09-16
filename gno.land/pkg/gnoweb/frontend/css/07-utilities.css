@@ -9,6 +9,29 @@
 	display: inline;
 }
 
+.u-skip-link {
+	position: absolute;
+	inset-block-start: var(--g-space-2);
+	inset-inline-start: var(--g-space-2);
+	z-index: var(--g-z-2);
+	padding: var(--g-space-2) var(--g-space-4);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	outline: 2px solid var(--s-color-text-link);
+
+	/* Off-screen until focused rather than display:none, so it stays in the
+	   tab order and is announced. */
+	&:not(:focus-visible) {
+		clip-path: inset(50%);
+		overflow: hidden;
+		white-space: nowrap;
+		block-size: 1px;
+		inline-size: 1px;
+		padding: 0;
+	}
+}
+
 .u-sr-only {
 	height: 1px;
 	margin: -1px;
@@ -124,5 +147,5 @@
 
 /* ===== EMPTY STATE UTILITIES ===== */
 *:empty + .u-prev-empty {
-	margin-top: var(--space-4);
+	margin-top: var(--g-space-4);
 }
