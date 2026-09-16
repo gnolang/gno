@@ -68,7 +68,7 @@ body:has(.b-state-page)
 
 	/* sr-only radios carry focus; surface it on the styled label. */
 	input:focus-visible + label {
-		outline: 2px solid var(--s-color-text-link);
+		outline: var(--s-focus-ring);
 		outline-offset: -2px;
 	}
 
@@ -288,7 +288,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 
 	&:focus-visible {
 		opacity: 1;
-		outline: 1px solid var(--s-color-text-link);
+		outline: var(--s-focus-ring);
 		outline-offset: 1px;
 	}
 }
@@ -537,7 +537,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 				border: none;
 				padding: 0;
 				font-size: var(--g-font-size-100);
-				font-weight: var(--g-font-regular);
+				font-weight: var(--g-font-normal);
 				color: var(--s-color-text-primary);
 				font-family: var(--g-font-family-mono);
 				min-width: 0;
@@ -882,7 +882,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 		font-family: var(--g-font-family-mono);
 		font-size: var(--g-font-size-100);
 		color: var(--s-color-text-primary);
-		font-weight: var(--g-font-regular);
+		font-weight: var(--g-font-normal);
 		overflow-wrap: anywhere;
 	}
 
@@ -908,51 +908,8 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 
 /* ===== SIDEBAR AUDIT-META ===== */
 .b-state-meta {
-	margin: 0 0 var(--g-space-6) 0;
-	font-size: var(--g-font-size-90);
-	display: flex;
-	flex-direction: column;
-
-	dt.section {
-		&:first-child {
-			margin-block-start: 0;
-		}
-	}
-
-	.row {
-		display: flex;
-		flex-direction: row;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: var(--g-space-3);
-		padding-block: var(--g-space-1);
-		min-width: 0;
-	}
-
-	dt.label {
-		color: var(--s-color-text-tertiary);
-		font-weight: var(--g-font-semibold);
-		font-size: var(--g-font-size-80);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		flex-shrink: 0;
-	}
-
-	dd.value {
-		margin: 0;
-		color: var(--s-color-text-primary);
-		line-height: 1.4;
-		min-width: 0;
-		text-align: end;
-		overflow-wrap: anywhere;
-	}
-
-	.row.mono dd.value {
-		font-family: var(--g-font-family-mono);
-		font-size: var(--g-font-size-90);
-		color: var(--s-color-text-secondary);
-	}
-
+	/* Everything else is shared with .b-pkg-meta, declared once in
+	   06-blocks.css. Only the state explorer's own additions live here. */
 	.row.block {
 		flex-direction: column;
 		align-items: stretch;
@@ -992,7 +949,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 		}
 
 		&:focus-visible {
-			outline: 1px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: 1px;
 		}
 	}
@@ -1045,7 +1002,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 }
 
 .b-page-subheader
-	.packages-tabs
+	.b-packages-tabs
 	label
 	:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
 	display: inline-flex;
@@ -1243,7 +1200,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 
 	.view-tree > .tree {
 		background-color: var(--s-color-bg-surface-primary);
-		border: 1px solid var(--s-color-border-primary);
+		border: var(--s-border);
 		border-radius: var(--s-rounded);
 		padding: var(--g-space-3) var(--g-space-4);
 		overflow-x: auto;
@@ -1375,7 +1332,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 
 		&:focus-visible {
 			opacity: 1;
-			outline: 1px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: 1px;
 		}
 	}
@@ -1459,7 +1416,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 	gap: var(--g-space-3);
 	margin-block-start: var(--g-space-8);
 	padding-block: var(--g-space-4);
-	border-block-start: 1px solid var(--s-color-border-subtle);
+	border-block-start: var(--s-divider);
 
 	@media (--md) {
 		flex-direction: row;

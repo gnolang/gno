@@ -68,13 +68,13 @@
 {{ end }}
 
 {{ define "state/kind-tabs" }}
-<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs">
+<div class="b-packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs">
   {{ template "state/kind-tabs-inner" .KindCounts }}
 </div>
 {{ end }}
 
 {{ define "state/kind-tabs-oob" }}
-<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs" hx-swap-oob="true">
+<div class="b-packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs" hx-swap-oob="true">
   {{ template "state/kind-tabs-inner" .KindCounts }}
 </div>
 {{ end }}

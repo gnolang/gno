@@ -18,7 +18,7 @@
 	border-radius: var(--s-rounded-sm);
 	background-color: var(--s-color-bg-base);
 	color: var(--s-color-text-primary);
-	outline: 2px solid var(--s-color-text-link);
+	outline: var(--s-focus-ring);
 
 	/* Off-screen until focused rather than display:none, so it stays in the
 	   tab order and is announced. */
