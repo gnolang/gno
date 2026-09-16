@@ -4,7 +4,7 @@
 // valopers is NOT the principal the gate accepts.
 //
 // This is the runtime counterpart to
-// ./z_ghsa_q44x_foreign_realm_filetest.gno. That file pins that the
+// ./z_foreign_realm_capability_filetest.gno. That file pins that the
 // privileged CAPABILITY cannot be obtained; this one pins that the
 // PRINCIPAL cannot be minted — which is the other half of what the gate
 // depends on, and the half that was actually broken.

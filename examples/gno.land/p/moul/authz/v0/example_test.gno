@@ -47,7 +47,7 @@ func Example_addingMembers(cur realm) {
 // unconditionally PackageAddress(ownPath), so that gate compares the
 // realm to itself, can never reject, and any exported crossing
 // entrypoint next to it becomes an unauthenticated privileged write --
-// the GHSA-q44x-j94x-292h shape. Own-path is right only when something
+// the self-comparing-gate shape. Own-path is right only when something
 // OTHER than your own frame supplies the caller, i.e. DoByPrevious from
 // a realm you deliberately let call in, or Transfer.
 //

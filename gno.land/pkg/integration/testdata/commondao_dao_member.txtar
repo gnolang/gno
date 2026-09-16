@@ -22,7 +22,7 @@ loadpkg gno.land/r/nt/commondao/v0
 
 # Collapse the genesis council to test1 (the two hardcoded members become a
 # one-address set, so a single YES is a supermajority there).
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
 
 gnoland start

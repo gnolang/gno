@@ -1,10 +1,10 @@
 // PKGPATH: gno.land/r/gnops/valopers/proposal/filetests/z_governed_instructions_filetest
 //
 // Positive counterpart to
-// r/gnops/valopers/filetests/z_ghsa_q44x_foreign_realm_filetest.gno.
+// r/gnops/valopers/filetests/z_foreign_realm_capability_filetest.gno.
 //
 // Sealing the privileged closure inside a dao.ProposalRequest closes the
-// GHSA-q44x-j94x-292h capability leak, but it would be worthless if it
+// capability leak, but it would be worthless if it
 // also broke the legitimate path. This runs the real thing end to end —
 // propose, vote, execute — and asserts the instructions are actually
 // rewritten.

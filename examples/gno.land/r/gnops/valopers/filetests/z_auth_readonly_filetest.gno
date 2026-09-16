@@ -7,7 +7,7 @@
 // SCOPE. This asserts two things, one of which is now security-relevant:
 //
 //  1. Auth()'s RETURN TYPE — that the mutable handle is gone from the
-//     type system. This is what makes the advisory's
+//     type system. This is what makes an
 //     Auth().Transfer(...) PoC stop compiling.
 //  2. The PROPOSER, since ContractAuthority.String() now renders it.
 //     Previously the string was byte-identical whether the authority was
@@ -25,9 +25,8 @@
 //     TestSpoofedProposerCannotImpersonateContractIdentity and
 //     filetests/z_contract_authority_shape_filetest.gno, since the
 //     rendered proposer is now part of what is pinned.
-//   - ./z_ghsa_q44x_foreign_realm_filetest.gno — the consumer-level one
-//     the advisory was actually about: a foreign realm cannot reach the
-//     privileged capability.
+//   - ./z_foreign_realm_capability_filetest.gno — the consumer-level
+//     one: a foreign realm cannot reach the privileged capability.
 //   - ./z_govdao_only_principal_filetest.gno — that the repointed
 //     authority names GovDAO and that the principal cannot be MINTED:
 //     it drives the forged-executor route and MustCreateProposal, and

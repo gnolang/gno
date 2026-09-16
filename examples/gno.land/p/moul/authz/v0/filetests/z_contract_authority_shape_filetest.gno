@@ -14,7 +14,7 @@
 //     address no matter what testing.SetRealm says. Only a realm can
 //     present its own.
 //
-// (2) is the same mechanism as GHSA-q44x-j94x-292h, seen from the other
+// (2) is the same mechanism as the capability leak, seen from the other
 // side: it is what makes `rlm.Address()` inside a crossing frame
 // unconditionally the realm's own address — and therefore what makes
 // `NewContractAuthority(ownPath)` + `DoByCurrent` a comparison of the
@@ -61,7 +61,7 @@ var updated string
 // unauthenticated privileged write.
 //
 // Note what must NOT be added next to it: a function returning this
-// closure, or any other value carrying this frame. That is the advisory.
+// closure, or any other value carrying this frame. That is the leak.
 func UpdateParams(cur realm, v string) error {
 	return auth.DoByPrevious(0, cur, "update_params", func() error {
 		updated = v

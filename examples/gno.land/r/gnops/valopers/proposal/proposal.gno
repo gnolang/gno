@@ -73,7 +73,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 //
 // Signature is preserved; the body now delegates. Building the request
 // here required valopers to export the privileged closure, which handed
-// this realm's frame identity to any caller (GHSA-q44x-j94x-292h). The
+// this realm's frame identity to any caller. The
 // closure and the request are now built inside valopers, which returns
 // the request with its executor sealed — see valopers.NewInstructionsProposalRequest.
 func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {

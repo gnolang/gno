@@ -212,7 +212,7 @@ const proxyPkgPath = "gno.land/r/gov/dao"
 // Gates the executor object's INVOCATION only. Keeping a privileged closure,
 // or an exported entrypoint shaped like `func(realm) error`, out of reach
 // stays the consumer's job — see r/gnops/valopers/admin.gno
-// (GHSA-q44x-j94x-292h) and p/moul/authz's NewContractAuthority godoc.
+// and p/moul/authz's NewContractAuthority godoc.
 func (e *SimpleExecutor) Execute(cur realm) error {
 	// IsCurrent first, as every other gate here does: otherwise Previous() is
 	// read from whatever realm value the caller threaded in.

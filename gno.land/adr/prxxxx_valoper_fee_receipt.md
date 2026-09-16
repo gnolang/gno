@@ -61,7 +61,7 @@ The reason to fix it now rather than later: the control silently does nothing th
 
 `assertPaidCallIsDirect` panics unless `rlm.Previous().IsUserCall()`, and is called at the top of both `fee > 0` branches.
 
-This is the established in-tree pattern: `r/sys/namereg/v1.Register` does exactly this for its anti-squatting payment, and its comment already carries the reasoning. `IsUserCall` is the only `PreviousRealm` shape where the envelope is guaranteed to have landed at this realm's address — it excludes intermediate code realms and user-run ephemeral realms alike.
+This is the established in-tree pattern: `r/sys/namereg/v0.Register` does exactly this for its anti-squatting payment, and its comment already carries the reasoning. `IsUserCall` is the only `PreviousRealm` shape where the envelope is guaranteed to have landed at this realm's address — it excludes intermediate code realms and user-run ephemeral realms alike.
 
 ### 2. The guard sits inside the `fee > 0` branch, not at the top of the function
 

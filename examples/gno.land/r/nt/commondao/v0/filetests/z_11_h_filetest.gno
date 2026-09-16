@@ -19,7 +19,7 @@ import (
 // pins the spend threshold behaviourally: flipping it to SimpleMajority
 // would let this same vote pass and spend the funds.
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	moul  = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 	mF    = address("g1cyh9qm4y43w38gfk77qxczrhqj2asdr8l7uk54")

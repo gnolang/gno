@@ -791,7 +791,7 @@ func TestRestrictedAutoAcceptEscapeHatch(cur realm, t *testing.T) {
 // tolerated: Authorize checks contractHandler == nil BEFORE consulting the
 // proposer, and Transfer routes through Authorize, so there is no rotation
 // path out. It is a permanent brick reachable by an ordinary deployer
-// typo -- the same failure mode as GHSA-q44x-j94x-292h, by accident.
+// typo -- the same bricked-governance failure mode, by accident.
 //
 // The zero value is used because the constructor no longer allows it.
 func TestNilHandlerWouldBeUnrotatable(cur realm, t *testing.T) {
@@ -823,7 +823,7 @@ func TestNilHandlerWouldBeUnrotatable(cur realm, t *testing.T) {
 // realm. It is covered by filetests/z_contract_authority_shape_filetest.gno.
 //
 // The same property is why an exported crossing closure leaks a realm's
-// authority (GHSA-q44x-j94x-292h) -- it is one mechanism seen from two
+// authority to any caller -- it is one mechanism seen from two
 // sides. This test pins the half that is observable here: an unrelated
 // package's frame is rejected.
 func TestForeignFrameCannotDriveContractAuthority(cur realm, t *testing.T) {

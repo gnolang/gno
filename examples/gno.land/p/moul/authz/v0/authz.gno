@@ -351,7 +351,7 @@ type ContractAuthority struct {
 // Authorizer.DoByCurrent / DoByPrevious / Transfer under rlm.IsCurrent(),
 // so an external realm cannot present the contract address.
 //
-// BREAKING (GHSA-q44x-j94x-292h): the default proposer used to be
+// BREAKING: the default proposer used to be
 // NewAutoAcceptAuthority ("anyone can propose"). Consumers that relied on
 // arbitrary callers driving a plain ContractAuthority will start getting
 // "unauthorized"; that is the fix, not a regression. Pass an explicit
@@ -443,7 +443,7 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 // authorization decision: contractAddr is not consulted on this path, so
 // `path` degrades to a label that appears in String() and asserts nothing.
 // NewRestrictedContractAuthority(p, h, NewAutoAcceptAuthority()) is exactly
-// the pre-GHSA-q44x-j94x-292h behaviour ("anyone can propose"), stated
+// the old default behaviour ("anyone can propose"), stated
 // explicitly rather than reached by default.
 //
 // In particular NewRestrictedContractAuthority("gno.land/r/gov/dao", h,
@@ -473,8 +473,8 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 // because Authorize checks contractHandler == nil BEFORE consulting the
 // proposer, and Transfer routes through Authorize — so a nil-handler
 // authority could never be rotated out. It is a permanent brick with no
-// on-chain recovery for anyone: the same failure mode as the advisory,
-// reached by accident.
+// on-chain recovery for anyone: the same bricked-governance failure
+// mode, reached by accident.
 func newContractAuthority(path string, addr address, handler PrivilegedActionHandler, proposer Authority) *ContractAuthority {
 	if handler == nil {
 		panic("contract handler cannot be nil")

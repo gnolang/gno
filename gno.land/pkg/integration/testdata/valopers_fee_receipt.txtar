@@ -14,7 +14,7 @@
 # squat guard and UpdateSigningKey's auth-list check both pass. Only the
 # pkgPath differs.
 #
-# Reported by @D4ryl00 on gno-fixes#9. Both fees default to 0 and genesis
+# Reported by @D4ryl00. Both fees default to 0 and genesis
 # leaves them there, so nothing was live; this pins the fix before anyone
 # proposes a nonzero fee.
 #

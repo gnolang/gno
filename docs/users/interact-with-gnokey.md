@@ -1494,7 +1494,7 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -pkgpath "gno.land/r/gnoland/boards2/v0" \
   -func "CreateBoard" \
   -args "MyBoard" \
   -args "true" \

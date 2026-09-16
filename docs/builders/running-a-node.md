@@ -57,6 +57,9 @@ each network pins its own.
 :::warning
 Don't point a `master` build at a released network. Chains run pinned
 releases; a node built from `master` will not reach consensus with them.
+After a coordinated upgrade the chain can also require a minimum binary
+version, and a `master` build satisfies none — see
+[upgrades](../../gno.land/cmd/gnoland/UPGRADES.md).
 :::
 
 ## Become a validator

@@ -271,15 +271,16 @@ network dropdown and every `gnokey` command's `-remote` and
 | Local      | `dev`        | `http://localhost:26657`                      |
 | Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
 | Testnet    | `pearl-1`    | `https://rpc.pearl.testnets.gno.land:443`     |
+| Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-Pearl is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list, including mainnet status.
+Pearl is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
 use the current **testnet** instead; staging wipes regularly and your
-realm will disappear with it. **Betanet** (`gnoland1`) is the production
-network. There's no open faucet; funds can be granted case-by-case via a
-manually reviewed interest form.
+realm will disappear with it. **Mainnet** (`gnoland-1`) is the production
+network: no faucet, and token transfers start locked per Constitution
+§126 — deploying there means holding GNOT from the genesis allocation.
 
 ### 1. Get test tokens
 
@@ -413,7 +414,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 ## Getting help
 
 - **[Discord](https://discord.gg/vb4KVPFUKE)**: community chat.
-- **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)**: long-form
+- **[Gno Forum](https://gno.land/r/gnoland/boards2/v0)**: long-form
   questions and proposals, on-chain.
 - **[GitHub issues](https://github.com/gnolang/gno/issues)**: bugs,
   feature requests, roadmap.

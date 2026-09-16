@@ -564,7 +564,7 @@ and `cur.Previous()` is `r/gov/dao`, so `DoByPrevious` authorizes as
     nothing about reachability. Now that `String()` renders the proposer it
     also pins the gate's shape, and it goes red on either revert above. The
     consumer-level regression the advisory was actually about lives in
-    `z_ghsa_q44x_foreign_realm_filetest.gno`: a foreign realm cannot reach
+    `z_foreign_realm_capability_filetest.gno`: a foreign realm cannot reach
     the executor, cannot get it adopted, and leaves `instructions` untouched.
 
     Honest caveat, unchanged: for both that file and

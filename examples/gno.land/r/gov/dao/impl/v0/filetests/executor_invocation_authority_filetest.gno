@@ -23,7 +23,7 @@ package execauthority
 // OBJECT, but an attacker never needs someone else's executor: a reachable
 // CALLBACK is enough, and an ordinary exported entrypoint of the victim whose
 // signature is assignable to func(realm) error is such a callback.
-// r/gnops/valopers had exactly that shape (GHSA-q44x-j94x-292h).
+// r/gnops/valopers had exactly that shape.
 //
 // Sections 2, 3 and 6 are the inversion: the forgery is now refused, the two
 // frames are no longer comparable, and the proxy identity is not mintable.

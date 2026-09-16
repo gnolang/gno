@@ -576,7 +576,7 @@ func validatePubKey(pubKey string) error {
 // are moved from the caller to the caller, so nothing actually moves." So
 // the amount check alone verifies intent, never receipt.
 //
-// Reported by @D4ryl00 on gno-fixes#9, with a local-chain reproduction:
+// Reported by @D4ryl00, with a local-chain reproduction:
 // governance sets register_fee to 1000ugnot, an operator runs a script
 // calling Register with `-send 1000ugnot`, registration succeeds, valopers
 // receives zero, and the operator still holds the coins. No hostile script
@@ -592,7 +592,7 @@ func validatePubKey(pubKey string) error {
 // and IsUserCall() is the check that reads it. It is therefore the only
 // PreviousRealm shape where the envelope is guaranteed to have landed here:
 // it excludes intermediate code realms and user-run ephemeral realms alike.
-// Same reasoning and same pairing as r/sys/namereg/v1.Register, which reads
+// Same reasoning and same pairing as r/sys/namereg/v0.Register, which reads
 // OriginSend for its anti-squatting payment; see the two-guard comment there.
 //
 // Deliberately inside the `fee > 0` branch rather than at the top of the

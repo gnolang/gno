@@ -101,7 +101,7 @@ func updateInstructions(_ int, rlm realm, newInstructions string) error {
 // frame identity — and no exported function may itself BE such a thing,
 // i.e. have a signature assignable to dao's `func(realm) error` callback
 // type, since the proxy would then invoke it on an attacker's behalf.
-// filetests/z_ghsa_q44x_foreign_realm_filetest.gno pins the first;
+// filetests/z_foreign_realm_capability_filetest.gno pins the first;
 // filetests/z_govdao_only_principal_filetest.gno pins the second.
 func NewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
 	cb := func(cur realm) error {

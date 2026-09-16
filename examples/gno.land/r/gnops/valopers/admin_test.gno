@@ -16,7 +16,7 @@ import (
 // Before ContractAuthority.String() rendered the proposer, this assertion
 // was blind to the drift that matters: swapping init.gno for
 // NewRestrictedContractAuthority(path, handler, NewAutoAcceptAuthority())
-// — i.e. reopening the advisory for this realm — left the rendered string
+// — i.e. reopening the hole for this realm — left the rendered string
 // byte-identical and the whole valopers suite green.
 //
 // It is also blind no longer to a proposer that merely CLAIMS to be the

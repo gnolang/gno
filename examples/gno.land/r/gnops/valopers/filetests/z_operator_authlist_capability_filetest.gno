@@ -1,9 +1,9 @@
 // PKGPATH: gno.land/r/zzoperatorauth
 //
 // Regression pin for the per-operator auth-list capability leak
-// (reported on gno-fixes#9 by @thehowl; pre-existing, fixed here because
-// it is the same class as GHSA-q44x-j94x-292h and the same audit that
-// found the advisory should have found it).
+// (reported by @thehowl; pre-existing, fixed here because it is the same
+// class as the governance capability leak, and the same audit that found
+// that one should have found it).
 //
 // THE HOLE. `Valoper.Auth() *authorizable.Authorizable` was exported and
 // `GetByAddr` is exported and non-crossing. Valoper is returned BY
@@ -25,8 +25,9 @@
 // `AuthOwner()` copies out an address.
 //
 // WHAT THIS FILE PINS, honestly scoped. The raw-handle attack is a
-// compile-time absence now, so — like the GHSA filetest — reverting the
-// fix fails this on a build error rather than an assertion. What it
+// compile-time absence now, so — like the foreign-realm filetest —
+// reverting the fix fails this on a build error rather than an
+// assertion. What it
 // drives at RUNTIME is the property that makes the removal safe: the
 // exported wrapper is NOT an equivalent route. There `cur.Previous()` is
 // the hostile realm rather than the operator, so the superuser check
