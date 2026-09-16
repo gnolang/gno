@@ -53,7 +53,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Gnoscan](https://gnoscan.io)
 - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
 - [Staging](https://staging.gno.land/)
-- [Testnet 12](https://test12.testnets.gno.land/)
+- [Pearl Testnet](https://pearl.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
 </gno-columns>
