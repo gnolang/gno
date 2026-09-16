@@ -30,6 +30,8 @@ permissions: {}
 
 jobs:
   binaries:
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     strategy:
       matrix:
         include:
@@ -65,10 +67,13 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ inputs.tag || github.ref_name }}
         run: |
-          # -trimpath so the build does not depend on the checkout path.
-          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}"
+          # Deliberately no -trimpath. gnoenv.guessRootDir falls back to the
+          # caller's absolute source path to locate GNOROOT, so a trimmed
+          # gnoland or gno panics on every subcommand unless the user sets
+          # GNOROOT by hand; goreleaser does not trim these either, and the
+          # only build that does (gnodev) replaces the path with an ldflag.
+          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${TAG}"
           SUFFIX="${GOOS}_${GOARCH}"
           mkdir -p dist
           for target in \
@@ -80,9 +85,14 @@ jobs:
             name="${target%%:*}"
             pkg="${target#*:}"
             echo "Building ${name}..."
-            go build -trimpath -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
+            go build -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
           done
-          (cd dist && shasum -a 256 ./* > "checksums_${SUFFIX}.txt")
+          # Named explicitly, not ./*: the redirect creates the checksums file
+          # before the glob expands, so it would otherwise list itself. Bare
+          # names, so misc/install.sh can match an asset name against a line.
+          (cd dist && shasum -a 256 \
+            "gnoland_${SUFFIX}" "gnokey_${SUFFIX}" "gnoweb_${SUFFIX}" "gno_${SUFFIX}" \
+            > "checksums_${SUFFIX}.txt")
 
       # The binaries must report the tag, not "develop". A release built without
       # the ldflags looks identical on the release page and satisfies no
@@ -91,13 +101,18 @@ jobs:
         if: matrix.native
         env:
           SUFFIX: ${{ matrix.goos }}_${{ matrix.goarch }}
-          VERSION: ${{ inputs.tag || github.ref_name }}
-          GNOROOT: ${{ github.workspace }}
         run: |
+          # No GNOROOT here on purpose: setting it would hide a binary that
+          # cannot work out its own GNOROOT, which is how a downloader runs it.
           for name in gnoland gnokey gno; do
-            got="$("./dist/${name}_${SUFFIX}" version 2>/dev/null | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
-            if [ "$got" != "$VERSION" ]; then
-              echo "::error::${name} reports '${got}', expected '${VERSION}' — the -ldflags did not apply"
+            if ! out="$("./dist/${name}_${SUFFIX}" version 2>&1)"; then
+              echo "::error::${name} failed to run:"
+              echo "${out}"
+              exit 1
+            fi
+            got="$(echo "${out}" | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
+            if [ "$got" != "$TAG" ]; then
+              echo "::error::${name} reports '${got}', expected '${TAG}' — the -ldflags did not apply"
               exit 1
             fi
             echo "${name}: ${got}"
@@ -111,6 +126,8 @@ jobs:
   release:
     needs: binaries
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write # to create/upload release assets
     steps:
@@ -132,18 +149,25 @@ jobs:
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
+          # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
+          # "Latest" — which is the page misc/deployments/*/VALIDATOR.md sends
+          # operators to, and what misc/install.sh resolves "latest" to. Mark
+          # pre-releases as such, matching goreleaser's `prerelease: auto`.
+          PRERELEASE=""
+          case "${TAG}" in
+            v*-*) PRERELEASE="--prerelease" ;;
+          esac
           gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "${TAG}" \
               --generate-notes \
-              --verify-tag
+              --verify-tag \
+              ${PRERELEASE}
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
