@@ -119,6 +119,18 @@ func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 	return app.runTx(ctx, txBytes)
 }
 
+// deliverAnteOnlyKey is set only by DeliverAnteOnly, never from transaction bytes.
+type deliverAnteOnlyKey struct{}
+
+// DeliverAnteOnly commits ante effects without executing messages. Development
+// replay uses this for transactions whose messages failed in the original block.
+func (app *BaseApp) DeliverAnteOnly(tx Tx, ctxFns ...ContextFn) Result {
+	ctxFns = append(ctxFns, func(ctx Context) Context {
+		return ctx.WithValue(deliverAnteOnlyKey{}, true)
+	})
+	return app.Deliver(tx, ctxFns...)
+}
+
 func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
 	txBytes, err := amino.Marshal(tx)
 	if err != nil {

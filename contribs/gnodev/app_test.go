@@ -11,7 +11,15 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -252,4 +260,56 @@ func TestGnodev_Reload_AfterProxyHit(t *testing.T) {
 	paths := importPaths(out)
 	assert.Contains(t, paths, "gno.land/p/ws/only")
 	assert.Contains(t, paths, "gno.land/p/ext/proxy")
+}
+
+func newTestingLazyApp(t *testing.T, preload bool) (*App, *gnoclient.Client) {
+	t.Helper()
+	cfg := defaultLocalAppConfig
+	cfg.root = gnoenv.RootDir()
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	// Use a short socket path so macOS's Unix socket length limit is respected.
+	socketDir, err := os.MkdirTemp("/private/tmp", "gnodev-rpc-")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(socketDir) })
+	cfg.nodeRPCListenerAddr = "unix://" + filepath.Join(socketDir, "rpc.sock")
+	cfg.noWatch = true
+	if preload {
+		cfg.paths = "gno.land/p/nt/bptree/v0"
+	}
+	app := NewApp(discardLogger(), &cfg, commands.NewTestIO())
+	require.NoError(t, app.Setup(t.Context()))
+	t.Cleanup(app.Close)
+	_, err = app.setupHandlers(t.Context())
+	require.NoError(t, err)
+	rpc, err := client.NewHTTPClient(app.proxy.TargetAddress())
+	require.NoError(t, err)
+	signer, err := gnoclient.SignerFromBip39(integration.DefaultAccount_Seed, cfg.chainId, "", 0, 0)
+	require.NoError(t, err)
+	return app, &gnoclient.Client{Signer: signer, RPCClient: rpc}
+}
+
+func TestDiagnosisLazyDeployment(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, preload := range []bool{false, true} {
+		name := "lazy"
+		if preload {
+			name = "preloaded"
+		}
+		t.Run(name, func(t *testing.T) {
+			app, cli := newTestingLazyApp(t, preload)
+			info, err := cli.Signer.Info()
+			require.NoError(t, err)
+			txcfg := gnoclient.BaseTxCfg{GasFee: "1000000ugnot", GasWanted: 100000000}
+
+			// Commit a transfer so the deployment is signed against sequence 1.
+			_, err = cli.Send(txcfg, bank.MsgSend{FromAddress: info.GetAddress(), ToAddress: info.GetAddress(), Amount: std.MustParseCoins("1ugnot")})
+			require.NoError(t, err)
+
+			// Broadcast a package whose dependency may trigger a synchronous proxy reload.
+			pkg, err := gnolang.ReadMemPackage(filepath.Join(app.cfg.root, "examples/gno.land/p/nt/addrset/v0"), "gno.land/p/nt/addrset/v0", gnolang.MPUserProd)
+			require.NoError(t, err)
+			_, err = cli.AddPackage(txcfg, vm.MsgAddPackage{Creator: info.GetAddress(), Package: pkg, MaxDeposit: std.MustParseCoins("100000000ugnot")})
+			require.NoError(t, err, "dependency reload must not invalidate the signed deployment")
+		})
+	}
 }

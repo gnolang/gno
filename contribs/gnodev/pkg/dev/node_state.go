@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -24,6 +25,9 @@ func (n *Node) SaveCurrentState(ctx context.Context) error {
 	}
 
 	n.initialState = state[:n.currentStateIndex]
+	n.muAccountNumbers.Lock()
+	n.initialAccountNumbers = maps.Clone(n.accountNumbers)
+	n.muAccountNumbers.Unlock()
 	return nil
 }
 
@@ -84,7 +88,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs := n.generateTxs(DefaultFee, n.pkgs)
+	pkgsTxs := append(n.generateTxs(DefaultFee, n.pkgs), n.bootstrapTxs(n.pkgs)...)
 
 	// Create genesis with loaded pkgs + previous state
 	newState := n.state[:newIndex]
