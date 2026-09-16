@@ -13,11 +13,19 @@ import (
 //go:embed ui/*.html views/*.html layouts/*.html
 var html embed.FS
 
-// SharedPartialsFS exposes the shared UI partials. Feature packages parse their
-// templates from their own embed and cannot reach this one, so without it they
-// copy the markup: feature/state carried a verbatim mirror of ui/expend_label,
-// pinned by a regression test, for exactly that reason.
-func SharedPartialsFS() fs.FS { return html }
+// SharedPartialsFS exposes the shared ui/ partials, and only those. Feature
+// packages parse their templates from their own embed and cannot reach this
+// one, so without it they copy the markup: feature/state carried a verbatim
+// mirror of ui/expend_label, pinned by a regression test, for exactly that
+// reason. Narrowed to ui/ so a caller cannot ParseFS views/ and silently
+// redefine renderRealm inside its own set.
+func SharedPartialsFS() fs.FS {
+	sub, err := fs.Sub(html, "ui")
+	if err != nil {
+		panic("components: sub ui: " + err.Error())
+	}
+	return sub
+}
 
 var funcMap = template.FuncMap{}
 
