@@ -19,6 +19,12 @@ import (
 // only. A bump that misses one of them panics every node at init, which is a
 // bad way to find out. misc/release/bump-protocol-version.sh moves all six
 // together; this test is what tells CI it did.
+//
+// Note that the guards this covers are init() guards, so for the pairs they
+// already cover the panic arrives during package initialisation and the
+// assertions below never run — CI reports the drift as a panic naming the two
+// constants rather than as a test failure. The assertions are what catch a
+// constant that no init() guard happens to pair with.
 func TestProtocolVersionsAgree(t *testing.T) {
 	t.Parallel()
 
@@ -38,9 +44,10 @@ func TestProtocolVersionsAgree(t *testing.T) {
 }
 
 // TestVersionSetIsComplete checks that every component this package advertises
-// to peers actually carries a version. An entry with an empty version makes
-// VersionSet.CompatibleWith compare empty majors, which matches anything —
-// silently disabling the negotiation rather than failing it.
+// to peers actually carries a version. If an entry went empty on both sides,
+// VersionSet.CompatibleWith would compare two empty majors, find them equal,
+// and negotiate the component at the empty version — silently disabling the
+// check rather than failing it. See TestVersionSetEmptyOnBothSidesNegotiatesNothing.
 func TestVersionSetIsComplete(t *testing.T) {
 	t.Parallel()
 
