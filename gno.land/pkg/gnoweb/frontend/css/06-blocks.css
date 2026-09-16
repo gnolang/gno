@@ -1242,9 +1242,17 @@
 			transform: rotate(180deg);
 		}
 
-		& > input {
-			display: none;
+		/* The control is visually hidden (.u-sr-only in the template), not
+		   display:none, which removed it from the tab order and from the
+		   accessibility tree: below --lg the rail could not be opened by
+		   keyboard at all, and screen readers announced no role and no state.
+		   WCAG 2.1.1 Keyboard and 4.1.2 Name, Role, Value. */
+		&:has(> input:focus-visible) {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: var(--g-space-1);
+		}
 
+		& > input {
 			&:checked + .wrapper-icon {
 				&:before {
 					content: "close";
