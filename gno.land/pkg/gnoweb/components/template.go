@@ -5,12 +5,19 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/url"
 	"strings"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
 var html embed.FS
+
+// SharedPartialsFS exposes the shared UI partials. Feature packages parse their
+// templates from their own embed and cannot reach this one, so without it they
+// copy the markup: feature/state carried a verbatim mirror of ui/expend_label,
+// pinned by a regression test, for exactly that reason.
+func SharedPartialsFS() fs.FS { return html }
 
 var funcMap = template.FuncMap{}
 

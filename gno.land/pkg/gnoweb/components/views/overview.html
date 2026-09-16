@@ -6,10 +6,20 @@ LAYOUT - Overview
 <aside class="b-sidebar sidebar" aria-label="Package metadata and table of contents">
   <div>
     <div class="inner u-no-scrollbar c-stack">
-      {{ template "ui/pkg_meta" . }}
-      {{ template "ui/pkg_metadata" . }}
-      {{ template "ui/expend_label" "Package Index" }}
-      {{ with render .ComponentTOC }}<nav class="b-pkg-toc" aria-label="Package index">{{ . }}</nav>{{ end }}
+      {{ template "ui/expend_label" }}
+      {{/* Not a <nav>: this wrapper holds a metadata <dl> as well as the index,
+           and a navigation landmark around a definition list is a lie. The
+           mobile collapse keys on the toggle's next sibling, whatever it is. */}}
+      <div class="rail-body">
+        {{ template "ui/pkg_meta" . }}
+        {{ template "ui/pkg_metadata" . }}
+        {{ with render .ComponentTOC }}
+        <nav aria-labelledby="pkg-index-heading">
+          <h2 id="pkg-index-heading" class="b-sidebar-heading">Package Index</h2>
+          <div class="b-pkg-toc">{{ . }}</div>
+        </nav>
+        {{ end }}
+      </div>
     </div>
   </div>
 </aside>
