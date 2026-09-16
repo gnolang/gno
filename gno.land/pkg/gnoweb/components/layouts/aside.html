@@ -2,13 +2,14 @@
 LAYOUT - Aside component
 =================================================================================== */}}
 {{- define "layout/aside" }}
-{{/* Input: dict "Title" <string> "Content" <rendered TOC>. The title names
-     what the rail lists, "Contents", "Files", "Functions", rather than
-     labelling the rail itself. */}}
-<aside class="b-sidebar sidebar" aria-label="{{ .Title }}">
+{{/* Input: dict "Title" <string> "Content" <rendered TOC>. The title names what
+     the rail lists, "Contents", "Files", "Functions". It labels the <nav> via
+     the heading; the <aside> is left unnamed on purpose, or a screen reader
+     announces the same string twice, once per landmark. */}}
+<aside class="b-sidebar sidebar">
   <div>
     <div class="inner u-no-scrollbar">
-      {{ template "ui/expend_label" }}
+      {{ template "ui/expend_label" .Title }}
       <nav aria-labelledby="rail-heading">
         <h2 id="rail-heading" class="b-sidebar-heading">{{ .Title }}</h2>
         {{ .Content }}

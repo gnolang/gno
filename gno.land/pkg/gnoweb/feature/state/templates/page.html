@@ -141,7 +141,7 @@
 
 {{ define "state/sidebar" }}
 {{ if .Sidebar }}
-<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="Package state">
+<aside class="b-sidebar sidebar" id="state-sidebar">
   {{ template "state/sidebar-inner" . }}
 </aside>
 {{ end }}
@@ -150,7 +150,7 @@
 {{/* Rendered even when .Sidebar is nil so a prior non-empty sidebar
      can be cleared on swap. */}}
 {{ define "state/sidebar-oob" }}
-<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="Package state" hx-swap-oob="true">
+<aside class="b-sidebar sidebar" id="state-sidebar" hx-swap-oob="true">
   {{ if .Sidebar }}{{ template "state/sidebar-inner" . }}{{ end }}
 </aside>
 {{ end }}
@@ -158,7 +158,7 @@
 {{ define "state/sidebar-inner" }}
   <div>
     <div class="inner u-no-scrollbar">
-      {{ template "ui/expend_label" }}
+      {{ template "ui/expend_label" "Package state" }}
       {{/* Copy JSON + meta + TOC all live inside <nav> to preserve the
            shared `.b-expend-btn:has(:checked) + nav` adjacency on mobile. */}}
       <nav aria-labelledby="state-rail-heading">

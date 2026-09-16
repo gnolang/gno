@@ -1,12 +1,12 @@
 {{/* ===================================================================================
 UI - Expend Label component
 =================================================================================== */}}
-{{/* Mobile-only toggle for the whole rail. Generic on purpose: the rail's own
-     heading, inside the <nav> it opens, does the labelling and stays visible on
-     desktop where this button is hidden. */}}
+{{/* Input: the rail's title. Mobile-only, and the panel it opens (with the
+     matching <h2> inside) is display:none while it shows, so this string is the
+     only name of the rail a phone user gets. */}}
 {{ define "ui/expend_label" }}
 <label for="toc-expend" class="b-expend-btn">
-  Sections
+  {{ . }}
   <input id="toc-expend" type="checkbox" class="u-sr-only" />
   <span class="wrapper-icon">
     <svg class="c-icon u-icon-static">

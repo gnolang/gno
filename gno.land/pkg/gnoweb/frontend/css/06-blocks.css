@@ -1159,7 +1159,7 @@
 		   <ul>...</ul></nav>` and possibly `<nav><dl>...</dl></nav>`
 		   on object pages without TOC entries — both pass. Only a
 		   genuinely empty `<nav>` triggers the hide. */
-		&:has(.inner):not(:has(nav > *)) {
+		&:has(.inner):not(:has(nav > :not(.b-sidebar-heading))) {
 			display: none;
 		}
 
@@ -1184,8 +1184,7 @@
 			background-color: var(--g-color-transparent);
 		}
 
-		& > nav,
-		& > .rail-body {
+		& > nav {
 			display: none;
 			font-size: var(--g-font-size-100);
 			margin-block-start: var(--g-space-2);
@@ -1207,10 +1206,8 @@
 			}
 		}
 
-		/* The rail panel supplies the leading gap, so its first child drops its
-		   own. Direct children only: the overview's nested index <nav> sits
-		   mid-panel and still needs the gap from the metadata above it. */
-		& > :is(nav, .rail-body) > :first-child {
+		/* The <nav> supplies the leading gap, so its heading drops its own. */
+		& > nav > :first-child {
 			margin-block-start: 0;
 		}
 	}
@@ -2191,13 +2188,8 @@ main.is-dev-mode .b-toc a {
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */
-/* Keyed on the renderer element, not on a view class: the markdown pipeline
-   emits these, so every container it fills should style them. Scoped to
-   `.c-realm-view, .c-readme-view` they were dead in `.c-overview-view`, which
-   renders doc comments through the same pipeline. Names stay unprefixed
-   because the Go extensions emit them literally and ~40 golden fixtures pin
-   them. */
-md-renderer .tooltip {
+.c-realm-view .tooltip,
+.c-readme-view .tooltip {
 	--tooltip-left: 0;
 	--tooltip-right: initial;
 
@@ -2257,17 +2249,21 @@ md-renderer .tooltip {
 	}
 }
 
-md-renderer .link-external {
+.c-realm-view .link-external,
+.c-readme-view .link-external {
 	font-size: 0.67em;
 }
-md-renderer .link-internal {
+.c-realm-view .link-internal,
+.c-readme-view .link-internal {
 	font-size: 0.75em;
 	font-weight: 400;
 }
-md-renderer .link-tx {
+.c-realm-view .link-tx,
+.c-readme-view .link-tx {
 	font-size: 0.75em;
 }
-md-renderer .link-user {
+.c-realm-view .link-user,
+.c-readme-view .link-user {
 	font-size: 0.75em;
 }
 
