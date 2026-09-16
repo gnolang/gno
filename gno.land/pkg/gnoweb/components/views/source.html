@@ -3,7 +3,7 @@ LAYOUT - Source component
 =================================================================================== */}}
 {{ define "renderSource" }}
 <!-- Source ToC -->
-{{ with render .ComponentTOC }} {{ template "layout/aside" . }} {{ end }}
+{{ with render .ComponentTOC }} {{ template "layout/aside" (dict "Title" "Files" "Content" .) }} {{ end }}
 
 <!-- Source Info -->
 <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
