@@ -2952,10 +2952,6 @@ func TestValidateSignerInfo(t *testing.T) {
 	}
 }
 
-// TestMeetsMinVersion and TestParseGnolandVersion moved to
-// node_params_version_test.go, next to the code they cover, when the parser
-// gained the vMAJOR.MINOR.PATCH shape.
-
 func TestIsPastChainID(t *testing.T) {
 	t.Parallel()
 

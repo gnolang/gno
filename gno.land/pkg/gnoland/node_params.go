@@ -2,8 +2,9 @@ package gnoland
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -215,52 +216,11 @@ func meetsMinVersion(binaryVersion, minVersion string) bool {
 	mv, mOK := parseReleaseVersion(minVersion)
 
 	if bOK && mOK {
-		return bv.compare(mv) >= 0
+		return semver.Compare(bv, mv) >= 0
 	}
 
 	// Fall back to exact match if versions are not in the recognized format.
 	return binaryVersion == minVersion
-}
-
-// releaseVersion is a parsed gno.land release tag.
-type releaseVersion struct {
-	major, minor, patch int
-	// pre is the semver pre-release suffix without its leading '-', empty for a
-	// final release. A pre-release sorts below the release it leads to, so
-	// "v1.3.0-rc.1" does not satisfy a "v1.3.0" floor.
-	pre string
-}
-
-// compare returns -1, 0 or +1 as v sorts before, equal to, or after o.
-func (v releaseVersion) compare(o releaseVersion) int {
-	for _, pair := range [][2]int{
-		{v.major, o.major},
-		{v.minor, o.minor},
-		{v.patch, o.patch},
-	} {
-		if pair[0] != pair[1] {
-			if pair[0] < pair[1] {
-				return -1
-			}
-			return 1
-		}
-	}
-
-	// Equal numbers: a release outranks any pre-release of itself. Two
-	// pre-releases are ordered by plain string comparison, which matches semver
-	// for the "rc.N" shape we use and is only approximate beyond it.
-	switch {
-	case v.pre == o.pre:
-		return 0
-	case v.pre == "":
-		return 1
-	case o.pre == "":
-		return -1
-	case v.pre < o.pre:
-		return -1
-	default:
-		return 1
-	}
 }
 
 // legacyChainPrefix is betanet's tag shape. It is frozen: chain/gnoland1.0 and
@@ -268,47 +228,35 @@ func (v releaseVersion) compare(o releaseVersion) int {
 // version strings compiled into the binaries that ran that chain.
 const legacyChainPrefix = "chain/gnoland"
 
-// parseReleaseVersion parses a release tag in either supported shape.
-func parseReleaseVersion(v string) (releaseVersion, bool) {
+// parseReleaseVersion normalises a release tag into a canonical semver string,
+// which semver.Compare then orders. Betanet's two-component shape is widened to
+// its equivalent vMAJOR.MINOR.0 so that both shapes live on one line.
+//
+// Deferring to golang.org/x/mod/semver rather than splitting on dots is what
+// makes the awkward cases come out right: numeric pre-release identifiers order
+// numerically (rc.10 outranks rc.9, which plain string comparison inverts), and
+// leading zeros, signed components and a dangling "-" are rejected instead of
+// being coerced into a version that is not the tag anyone pushed.
+func parseReleaseVersion(v string) (string, bool) {
 	if rest, ok := strings.CutPrefix(v, legacyChainPrefix); ok {
-		// "chain/gnolandMAJOR.MINOR" — no patch component.
-		majorStr, minorStr, found := strings.Cut(rest, ".")
+		major, minor, found := strings.Cut(rest, ".")
 		if !found {
-			return releaseVersion{}, false
+			return "", false
 		}
-		major, err1 := strconv.Atoi(majorStr)
-		minor, err2 := strconv.Atoi(minorStr)
-		if err1 != nil || err2 != nil {
-			return releaseVersion{}, false
-		}
-		return releaseVersion{major: major, minor: minor}, true
+		v = "v" + major + "." + minor + ".0"
 	}
 
-	rest, ok := strings.CutPrefix(v, "v")
-	if !ok {
-		return releaseVersion{}, false
+	if !semver.IsValid(v) {
+		return "", false
 	}
-
-	// Drop the build metadata; semver says it takes no part in ordering.
-	rest, _, _ = strings.Cut(rest, "+")
-	rest, pre, _ := strings.Cut(rest, "-")
-
-	parts := strings.Split(rest, ".")
-	if len(parts) != 3 {
-		return releaseVersion{}, false
+	// Build metadata takes no part in ordering, so drop it before comparing:
+	// "v1.2.0+abc" and "v1.2.0" are the same version.
+	v = strings.TrimSuffix(v, semver.Build(v))
+	// IsValid also accepts "v1" and "v1.2"; a release tag names all three
+	// components. Canonical fills the missing ones in, so requiring it to be a
+	// no-op pins the shape to exactly vMAJOR.MINOR.PATCH[-PRERELEASE].
+	if semver.Canonical(v) != v {
+		return "", false
 	}
-	nums := make([]int, 3)
-	for i, p := range parts {
-		// Reject "+1", "-1" and leading zeros, which Atoi would otherwise accept
-		// or silently normalise into a tag that is not the one that was pushed.
-		if p == "" || (len(p) > 1 && p[0] == '0') {
-			return releaseVersion{}, false
-		}
-		n, err := strconv.Atoi(p)
-		if err != nil || n < 0 {
-			return releaseVersion{}, false
-		}
-		nums[i] = n
-	}
-	return releaseVersion{major: nums[0], minor: nums[1], patch: nums[2], pre: pre}, true
+	return v, true
 }
