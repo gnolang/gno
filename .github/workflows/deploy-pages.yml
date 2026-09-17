@@ -31,10 +31,14 @@ permissions:
 
 concurrency:
   group: pages
-  # Every run rebuilds and publishes the complete site, so a newer run is always
-  # a superset of the one it replaces. Cancelling in progress is what keeps a
-  # burst of pull request previews from queueing up one full deploy each.
-  cancel-in-progress: true
+  # Left false deliberately, now that pull request previews dispatch this
+  # workflow too. Every run publishes the COMPLETE site, so coalescing is
+  # already free: GitHub keeps one running plus one pending run, and a third
+  # dispatch simply replaces the pending one, which will pick up everything on
+  # gh-pages when it starts. Setting this true instead makes a burst of previews
+  # cancel the in-flight deploy over and over, and the site stops updating for
+  # as long as the burst lasts.
+  cancel-in-progress: false
 
 jobs:
   build:
