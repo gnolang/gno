@@ -176,3 +176,24 @@ func TestDeepCopySlice(t *testing.T) {
 	cpyPtr := amino.DeepCopy(ptr).(*[]byte)
 	assert.Nil(t, *cpyPtr)
 }
+
+// TestDeepCopyPointerToStruct covers the pointer -> struct -> slice path.
+func TestDeepCopyPointerToStruct(t *testing.T) {
+	t.Parallel()
+
+	type dcInner struct {
+		Ints []int
+		Bz   *[]byte
+	}
+	type dcOuter struct {
+		Inner *dcInner
+	}
+
+	nilBz := []byte(nil)
+	src := &dcOuter{Inner: &dcInner{Ints: []int{1, 2, 3}, Bz: &nilBz}}
+	cpy := amino.DeepCopy(src).(*dcOuter)
+
+	src.Inner.Ints[0] = 999
+	assert.Equal(t, 1, cpy.Inner.Ints[0])
+	assert.Nil(t, *cpy.Inner.Bz)
+}
