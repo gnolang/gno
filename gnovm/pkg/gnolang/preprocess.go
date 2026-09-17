@@ -2580,10 +2580,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// so the address is what gets refused. This also covers `&cur`
 				// escaping into a helper that assigns through it, which no LHS
 				// rule would see.
-				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" {
-					if xt == gRealmType {
-						panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
-					}
+				if ne, ok := n.X.(*NameExpr); ok && isCrossingCurParam(store, last, ne) {
+					panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
 				}
 				if tt, ok := xt.(*tupleType); ok {
 					panic(fmt.Sprintf(
@@ -2862,16 +2860,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// frame; rebinding the name makes it describe a realm the frame
 				// is not in.
 				//
-				// `cur` is reserved as a PARAMETER name — the preprocessor lets
-				// only a crossing function's first realm parameter use it (see
-				// FuncTypeExpr above) — but a local may still shadow it in an
-				// inner block (`cur := cur.Previous()`), so a realm-typed `cur`
-				// on the left of `=` is USUALLY, not always, that parameter.
-				// Rejecting both is deliberate: a shadowing local cannot be
-				// cur-called anyway (the provenance check below resolves the
-				// name's declaring block node and requires a crossing
-				// FuncDecl/FuncLitExpr), so refusing it costs nothing and avoids
-				// reasoning about which one this is.
+				// The rule targets exactly that parameter, by resolving the
+				// written name to its declaring block node and asking whether
+				// that declaration is a crossing FuncDecl/FuncLitExpr — the same
+				// test the cur-call provenance check below makes before it lets
+				// a bare `cur` be forwarded to a crossing function, so "may be
+				// cur-called" and "may not be written" agree by construction.
+				// Other realm-typed bindings that happen to be named `cur` (a
+				// package-level var, a named result, a block-scoped shadow) are
+				// not any frame's identity and stay writable.
 				//
 				// It matters because the parameter is the one realm value a
 				// no-cross crossing call can forward (the cur-call check below
@@ -2879,19 +2876,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// becomes the callee's frame Cur, and from there IsCurrent() and
 				// cross(rlm) both agree with it. Storing a realm value into some
 				// other variable is unaffected — it cannot be cur-called and
-				// keeps its own persist-time guard — so only `cur` is rejected
-				// here. doOpCall carries the matching runtime check.
-				if n.Op != DEFINE {
-					for _, lh := range n.Lhs {
-						ne, ok := lh.(*NameExpr)
-						if !ok || ne.Name != "cur" {
-							continue
-						}
-						if evalStaticTypeOf(store, last, ne) == gRealmType {
-							panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
-						}
-					}
-				}
+				// keeps its own persist-time guard. doOpCall carries the
+				// matching runtime check.
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
@@ -3011,6 +2997,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				// Checked AFTER the branch above, because a DEFINE that
+				// reuses a name already declared in this same block assigns
+				// that slot rather than declaring a new one (defineOrDecl
+				// takes the same "already defined" branch), and only sets the
+				// name's path while doing so. So `cur, x := ...` at the
+				// function body's own level is a rebind of the parameter with
+				// a different spelling; a DEFINE that shadows `cur` in an
+				// inner block resolves to the block node instead and is left
+				// alone.
+				for _, lh := range n.Lhs {
+					ne, ok := lh.(*NameExpr)
+					if !ok || !isCrossingCurParam(store, last, ne) {
+						continue
+					}
+					panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
+				}
+
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
 				switch n.Op {
@@ -3110,12 +3113,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.Op != DEFINE {
 					for _, lh := range []Expr{n.Key, n.Value} {
 						ne, ok := lh.(*NameExpr)
-						if !ok || ne.Name != "cur" {
+						if !ok || !isCrossingCurParam(store, last, ne) {
 							continue
 						}
-						if evalStaticTypeOf(store, last, ne) == gRealmType {
-							panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
-						}
+						panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
 					}
 				}
 
@@ -6095,6 +6096,29 @@ func skipFile(n BlockNode) BlockNode {
 	} else {
 		return n
 	}
+}
+
+// isCrossingCurParam reports whether nx names the crossing `cur` parameter:
+// the first realm parameter of a containing crossing FuncDecl or FuncLitExpr.
+// The write rules target exactly that binding. A realm-typed `cur` that
+// declares anything else — a package-level var, a named result, a block-scoped
+// shadow — is not any frame's identity, and stays writable.
+//
+// This is the same declaration test the cur-call provenance check makes when
+// it decides whether a bare `cur` may be forwarded to a crossing function (see
+// the GetBlockNodeForPath switch there), so "may be cur-called" and "may not be
+// written" agree by construction.
+func isCrossingCurParam(store Store, last BlockNode, nx *NameExpr) bool {
+	if nx.Name != "cur" || nx.Path.Type != VPBlock {
+		return false
+	}
+	switch dbn := last.GetBlockNodeForPath(store, nx.Path).(type) {
+	case *FuncDecl:
+		return getType(&dbn.Type).(*FuncType).IsCrossing()
+	case *FuncLitExpr:
+		return getType(&dbn.Type).(*FuncType).IsCrossing()
+	}
+	return false
 }
 
 // returns "" if not in a file node.

@@ -2,20 +2,22 @@
 package curshadow
 
 // A local shadowing `cur` in an inner block is realm-typed and is NOT the
-// crossing parameter, so the rejection below is over-broad by construction.
-// That is deliberate and worth pinning: such a local can never be cur-called
-// (the provenance check resolves the name's declaring block node and requires
-// a crossing FuncDecl/FuncLitExpr, so a block-scoped `cur` is refused at the
-// call), so refusing to rebind it costs nothing and saves the assignment rule
-// from having to work out which `cur` it is looking at.
-
+// crossing parameter, so rebinding it is allowed: the write rules resolve the
+// written name to its declaring block node, and a block-scoped declaration is
+// not any frame's identity. Its matching half is pinned by
+// zrealm_cur_shadow_call.gno: the shadow still cannot be cur-called, because
+// the provenance check refuses a name whose declaring block is not a crossing
+// FuncDecl/FuncLitExpr.
 func main(cur realm) {
 	{
-		cur := cur.Previous()
-		cur = cur.Previous()
+		cur := cur
+		cur = nil
+		p := &cur
+		*p = nil
 		_ = cur
 	}
+	println("ok")
 }
 
-// Error:
-// gno.land/r/demo/curshadow/zrealm_cur_shadow.gno:15:3-23: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
+// Output:
+// ok
