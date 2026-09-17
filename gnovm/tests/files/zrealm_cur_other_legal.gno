@@ -1,36 +1,48 @@
 // PKGPATH: gno.land/r/demo/curother
 package curother
 
-// Realm-typed bindings named `cur` that are NOT a crossing parameter keep
-// compiling: a package-level var, a named result, and a block-scoped local are
-// not any frame's identity, so the write rules leave them alone. Only the
-// parameter is fixed.
+// The declaration rule keys on the pair (name `cur`, resolved type `realm`).
+// Realm-typed bindings under any other name — a package-level var, a named
+// result, a local, a range variable — are ordinary realm values and stay
+// legal, and a `cur` of a non-realm type stays legal too.
 
-var pkgCur realm
+var pkgRealm realm
 
-func setPkgCur(x int, r realm) {
-	pkgCur = r
-	pkgCur = nil
+func setPkgRealm(x int, r realm) {
+	pkgRealm = r
+	pkgRealm = nil
 }
 
-func namedResult(x int) (cur realm) {
-	cur = nil
-	return cur
+func namedResult(x int) (rlm realm) {
+	rlm = nil
+	return rlm
 }
 
 func rangeLocal(x int, r realm) {
-	cur := r
-	for _, cur = range []realm{r} {
+	rlm := r
+	for _, rlm = range []realm{r} {
 	}
-	_ = cur
+	_ = rlm
+}
+
+func intCur(x int) {
+	cur := x
+	cur = 7
+	p := &cur
+	*p = 8
+	for _, cur = range []int{9} {
+	}
+	println("int cur:", cur)
 }
 
 func main() {
-	setPkgCur(0, nil)
+	setPkgRealm(0, nil)
 	_ = namedResult(0)
 	rangeLocal(0, nil)
+	intCur(0)
 	println("ok")
 }
 
 // Output:
+// int cur: 9
 // ok

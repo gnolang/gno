@@ -1,30 +1,30 @@
 // PKGPATH: gno.land/r/demo/curlegal
 package curlegal
 
-// POSITIVE CONTROL for the three rejections: everything here is legal and must
-// stay legal. Without this, tightening any of the rules into an over-rejection
-// would pass CI.
+// The fixed-binding rules key on the resolved type, so everything that is not
+// a realm-typed binding named `cur` is left alone: threading `cur` unchanged
+// into a no-cross crossing helper, crossing with cross(cur), a realm-typed
+// binding under another name, and a `cur` of a non-realm type.
 
 func helper(cur realm) string { return cur.PkgPath() }
 
 func main(cur realm) {
 	// threading cur unchanged into a no-cross crossing helper
 	println("threaded:", helper(cur))
-	// and through cross()
+
 	println("crossed:", helper(cross(cur)))
 
-	// the DEFINE form of range binds a NEW name; it is not a write to the
-	// parameter slot and cannot be cur-called, so it stays legal.
-	for _, cur := range []realm{cur.Previous()} {
-		println("range-define pkgpath:", cur.PkgPath())
+	// a realm-typed binding under another name is an ordinary realm value,
+	// not any frame's identity; declaring it is fine.
+	for _, prev := range []realm{cur} {
+		println("range pkgpath:", prev.PkgPath())
 	}
 
-	// a non-realm variable named `cur` is untouched by all three rules,
-	// including taking its address.
+	// a non-realm variable named `cur` is untouched by every rule.
 	{
 		cur := 41
 		p := &cur
-		*p = *p + 1
+		*p = 42
 		for _, cur = range []int{7} {
 		}
 		println("int cur:", cur)
@@ -34,5 +34,5 @@ func main(cur realm) {
 // Output:
 // threaded: gno.land/r/demo/curlegal
 // crossed: gno.land/r/demo/curlegal
-// range-define pkgpath:
+// range pkgpath: gno.land/r/demo/curlegal
 // int cur: 7
