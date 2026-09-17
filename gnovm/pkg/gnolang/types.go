@@ -1060,7 +1060,7 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 		// overrides identity methods such as Address()/PkgPath() — splitting
 		// liveness (from the embedded realm) from identity (from the
 		// overrides) and defeating the seal's guarantee that both originate
-		// from the same concrete `.grealm`. See gnovm/adr/realm_seal_embedding.md.
+		// from the same concrete `.grealm`. See gnovm/adr/acd01fa29_realm_seal_embedding.md.
 		// A directly-declared method resolves as a lone method value-path; a
 		// promoted one prepends at least one embedded-field hop, so its trail
 		// is longer than a single element. Reject the latter for markers.
