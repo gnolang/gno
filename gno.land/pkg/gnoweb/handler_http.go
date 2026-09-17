@@ -998,7 +998,7 @@ func clientErrorMessage(err error, height int64) (int, string) {
 	if err == nil {
 		return http.StatusOK, ""
 	}
-	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientFileNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, err.Error()
 	}
 	if height > 0 {

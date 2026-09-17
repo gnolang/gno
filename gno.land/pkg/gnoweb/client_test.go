@@ -106,13 +106,23 @@ func TestStateErrorSentinelPact(t *testing.T) {
 	}
 }
 
-func TestRPCClientFileRejectsPathSegments(t *testing.T) {
+func TestValidFileName(t *testing.T) {
 	t.Parallel()
 
-	c := &rpcClient{domain: "gno.land"} // the guard returns before any RPC
-	for _, name := range []string{".", "..", "../other/render.gno", "sub/render.gno", "/render.gno"} {
-		if _, _, err := c.File(context.Background(), "/r/gnoland/home", name, 0); !errors.Is(err, ErrClientFileNotFound) {
-			t.Errorf("File(%q): got %v, want ErrClientFileNotFound", name, err)
+	cases := map[string]bool{
+		"render.gno":          true,
+		"gno.mod":             true,
+		"README.md":           true,
+		".gitignore":          true,
+		".":                   false,
+		"..":                  false,
+		"../other/render.gno": false,
+		"sub/render.gno":      false,
+		"/render.gno":         false,
+	}
+	for name, want := range cases {
+		if got := validFileName(name); got != want {
+			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
 		}
 	}
 }

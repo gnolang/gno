@@ -13,12 +13,15 @@ trust, per page or otherwise, and neither did the chain.
 
 ## Decision
 
-gnoweb shows a notice, in the warning tone, on every `/r/` and `/p/` page
-whose package path is not under a trusted entry: render, `$source`, `$help`
-and `?state` alike. The actions page is where a user copies a transaction, so
-it is the page that matters most. The notice is rendered under the site-wide
-banner, never instead of it: an operator's emergency banner must stay visible
-on the very pages it warns about.
+gnoweb shows a notice, in the warning tone, on every `/r/`, `/p/` and `/u/`
+page whose namespace is not under a trusted entry: render, `$source`, `$help`,
+`?state`, and the user profile, which renders that user's home realm. The
+actions page is where a user copies a transaction, so it is the page that
+matters most; the notice sits at the top and scrolls out of view under the
+sticky header on long pages, so a reminder next to the transaction form is a
+possible follow-up. The notice is rendered under the site-wide banner, never
+instead of it: an operator's emergency banner must stay visible on the very
+pages it warns about.
 
 The notice is on by default in the `gnoweb` binary (`-no-realm-notice` turns
 it off), with the trusted list in `-trusted-paths` and the wording in
@@ -34,15 +37,18 @@ the live chain on 2026-09-17 (`r/sys/names.IsEnabled`, `r/sys/users`,
 
 - namespace enforcement is enabled: only the address that owns a name can
   deploy under it;
-- open registration only accepts names matching `nym-[a-z]{5,13}\d{3}`, so a
-  plain name cannot be squatted. The default list holds two kinds of names:
-  those preregistered at genesis from this repo (`moul`, `aeddi`, `aib`,
-  `howl`, `samcrew`, `onbloc`, `gnoswap`; see
-  `misc/deployments/mainnet.gno.land/transactions/base/users-preregister/`)
-  and those with no owner at all (`gnoland`, `sys`, `gov`, `nt`, `demo`,
-  `docs`, `tests`, `gnops`, `devrels`, `leon`, `jeronimoalbi`, `mason`),
-  where only genesis or a GovDAO proposal can place code. A GovDAO allocation
-  of one of those names to a new party has to be mirrored in the list.
+- the only controller of `r/sys/users` is the `r/sys/namereg/v0` realm, and
+  its open registration only accepts names matching `nym-[a-z]{5,13}\d{3}`,
+  so a plain name cannot be squatted. The default list holds three kinds of
+  names: those preregistered at genesis to a party's key from this repo
+  (`moul`, `aeddi`, `aib`, `howl`, `samcrew`, `onbloc`, `gnoswap`; see
+  `misc/deployments/mainnet.gno.land/transactions/base/users-preregister/`),
+  those the namereg seed registers to ownerless addresses (`gnoland`, `sys`,
+  `gov`, `nt`, `demo`; see `r/sys/namereg/v0/preregister.gno`), and those
+  not registered at all (`docs`, `tests`, `gnops`, `devrels`, `leon`,
+  `jeronimoalbi`, `mason`). For the last two kinds only genesis or a GovDAO
+  proposal can place code, and a GovDAO allocation of such a name to a new
+  party has to be mirrored in the list.
 
 An entry is a namespace or a package path, without the domain and without the
 `/r/` or `/p/` prefix; one entry covers both trees because they share a deploy
@@ -53,12 +59,17 @@ entries. A deny set is the later addition if that becomes frequent. This entry
 format is the interchange format for any future producer of the list.
 
 The wording says "reviewed", not "audited": the team reviews its own realms,
-it does not audit them.
+it does not audit them. The same text is used on pure packages, which hold no
+coins; it addresses the end user, who reaches a package page from a realm.
 
 The default list names namespaces whose code the team reviews in this repo or
-whose deploy key belongs to a party it vouches for. Changing it is a reviewed
-pull request; the deployment flag exists for removing an entry without a
-release.
+whose deploy key belongs to a party it vouches for. A vouched key covers
+everything it deploys, experiments included: on mainnet today that is the
+`moul/x/daily/*` and `gnoswap/*` realms, which have no counterpart in this
+repo. If the team wants a narrower endorsement, the lever is to replace the
+namespace entry with the paths it stands behind. Changing the list is a
+reviewed pull request; the deployment flag exists for removing an entry
+without a release.
 
 ## Alternatives considered
 
@@ -81,8 +92,8 @@ Two lanes, both already practised in this repository.
 
 **Fast lane, in place with this change.** A list compiled into the binary and
 changed by pull request is how gnoweb has always carried an allowlist: the
-image hosts in the CSP (#4058) and the embedded wallet registry (#5970) work
-the same way. A merge builds the image; whether the instance restarts on its
+image hosts in the CSP (#4058) work the same way, and the wallet registry
+proposed in #5970 takes the same shape. A merge builds the image; whether the instance restarts on its
 own is an infrastructure property, not gnoweb's.
 
 **Slow lane, when a second reader or a governance need appears.** The source of
