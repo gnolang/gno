@@ -159,6 +159,11 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	if fileName == "" {
 		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
 	}
+	// Package files are flat; a separator or dot segment would path-join
+	// into another package.
+	if fileName == "." || fileName == ".." || strings.ContainsRune(fileName, '/') {
+		return nil, meta, ErrClientFileNotFound
+	}
 
 	// XXX: Consider moving this into gnoclient
 	fullPath := gopath.Join(c.domain, strings.Trim(path, "/"), fileName)
