@@ -185,9 +185,9 @@ fails in CI if they drift.
 **A MAJOR bump here partitions the network.** `VersionSet.CompatibleWith`
 compares major.minor and refuses a peer whose major differs, so old and new
 nodes cannot gossip — independently of any halt height. It must ride a
-coordinated upgrade, with every validator switching at the same block. That
-function carries no tests and still reads `// TODO: test`; treat a MAJOR bump as
-needing a rehearsal on a testnet rather than as a checked invariant.
+coordinated upgrade, with every validator switching at the same block.
+`TestVersionSetCompatibleWith` covers the refusal and the negotiated minor;
+treat a MAJOR bump as needing a rehearsal on a testnet anyway.
 
 These constants have never been bumped: they still read `v1.0.0-rc.0`, the value
 they were given in 2023. Mainnet launched on it.
