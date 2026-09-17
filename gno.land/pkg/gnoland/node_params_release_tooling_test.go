@@ -50,7 +50,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 	shapeRE := grepOne(t, cutRelease, `(?m)^readonly VERSION_RE='(.+)'$`)
 
-	t.Run("the shape check accepts exactly what the node parses", func(t *testing.T) {
+	t.Run("the shape check never accepts more than the node parses", func(t *testing.T) {
 		t.Parallel()
 
 		re, err := regexp.Compile(shapeRE)
@@ -79,6 +79,18 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		// script cuts: it tags the v line only.
 		for _, v := range []string{"chain/gnoland1.0", "chain/gnoland1.1", "chain/mainnet"} {
 			assert.False(t, re.MatchString(v), "%s should not accept %q", cutRelease, v)
+		}
+
+		// Accepted by the node, refused by the script on purpose: build
+		// metadata takes no part in ordering, so parseReleaseVersion strips it,
+		// while the release tooling should not cut a tag carrying "+". The
+		// disagreement is fail-closed. The dangerous direction is the reverse,
+		// a script accepting a tag the node cannot parse, and the corpus above
+		// is what pins it.
+		for _, v := range []string{"v1.2.0+deadbeef", "v1.3.0-rc.1+deadbeef"} {
+			_, parses := parseReleaseVersion(v)
+			assert.True(t, parses, "parseReleaseVersion should accept %q", v)
+			assert.False(t, re.MatchString(v), "%s should refuse %q", cutRelease, v)
 		}
 	})
 
