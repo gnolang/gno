@@ -33,14 +33,17 @@ concurrency:
 
 jobs:
   render:
-    if: github.repository == 'gnolang/gno'
+    # One knob turns previews on: the repository variable GNOWEB_PREVIEW_BASE_URL,
+    # set to where the Pages site is served from (no trailing slash). Unset means
+    # previews are off — which is what every fork gets by default, so nobody pays
+    # for a gnodev build they did not ask for.
+    #
+    #   gh variable set GNOWEB_PREVIEW_BASE_URL -R <repo> -b https://<owner>.github.io/<repo>
+    if: vars.GNOWEB_PREVIEW_BASE_URL != ''
     runs-on: ubuntu-latest
     env:
       PR: ${{ github.event.pull_request.number }}
-      # Where the snapshot will end up. Kept in sync with pr-preview-publish.yml;
-      # this job cannot read repository variables it is not given, and the URL is
-      # derived from the PR number alone, so it is safe to compute here.
-      BASE_URL: https://gnolang.github.io/gno/pr-${{ github.event.pull_request.number }}
+      BASE_URL: ${{ vars.GNOWEB_PREVIEW_BASE_URL }}/pr-${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

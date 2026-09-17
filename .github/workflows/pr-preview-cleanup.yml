@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   cleanup:
-    if: github.repository == 'gnolang/gno'
+    # Same opt-in as pr-preview.yml; see the note there.
+    if: vars.GNOWEB_PREVIEW_BASE_URL != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write # to push the deletion to the gh-pages storage branch

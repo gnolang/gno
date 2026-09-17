@@ -28,7 +28,9 @@ jobs:
   publish:
     # A skipped preview uploads no artifact, and the download below turns the
     # whole job into a no-op — no comment, no commit, nothing.
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >
+      vars.GNOWEB_PREVIEW_BASE_URL != '' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write # to push the snapshot to the gh-pages storage branch
