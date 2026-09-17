@@ -30,7 +30,7 @@ Or build a Docker image:
 docker build --target gnoland -t gnoland:mainnet .
 ```
 
-Prebuilt `gnoland`/`gnokey` binaries are on the release page (below). Prebuilt container images are on the GitHub Container Registry, at `ghcr.io/gnolang/gno/gnoland`.
+Prebuilt `gnoland`/`gnokey` binaries are on the release page (below). When using them, set `GNOROOT` to a checkout of this branch (`export GNOROOT=~/gno`): `gnoland` needs the repo's `gnovm/stdlibs` at runtime and exits without it. Prebuilt container images are on the GitHub Container Registry, at `ghcr.io/gnolang/gno/gnoland`.
 
 ## 2. Genesis
 
