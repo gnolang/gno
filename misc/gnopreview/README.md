@@ -48,12 +48,22 @@ GNODEV=/tmp/gnodev GNOROOT=$(git rev-parse --show-toplevel) \
 ( cd _preview && python3 -m http.server 8777 )   # http://localhost:8777/
 ```
 
+Pass `-base-root <checkout of the merge base>` to get **before/after** screenshots of the
+realms the pull request changed. Both passes run the *head's* gnodev and reference the
+head's assets, so the pair differs by the realm change and nothing else; the two nodes are
+given distinct RPC ports and keybases, because gnodev defaults both to fixed locations and
+would otherwise collide.
+
 `render` writes, next to the site:
 
 - `preview.json` — the plan that was executed, for the CI to read
 - `comment.md` — the sticky pull request comment body (absent when there is nothing
   to preview, which is what makes the CI skip silently)
-- `_shots/*.png` — screenshots, only for gnoweb changes
+- `_shots/*.png` — screenshots. A **gnoweb** change gets a fixed four-page sample; a
+  **realm** change gets `<realm>-before.png` / `<realm>-after.png` for up to 2 changed
+  realms. The two are alternatives, never both.
+- `_before/` — the changed realms as the merge base renders them, so a reviewer can click
+  through to the before page and not just its screenshot
 
 ## Output layout
 

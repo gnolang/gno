@@ -77,6 +77,9 @@ type Plan struct {
 	// Shots are screenshots taken of the finished snapshot, embedded in the
 	// PR comment. Only populated for gnoweb changes.
 	Shots []Shot `json:"shots,omitempty"`
+	// Pairs are before/after screenshots of realms this PR changed, rendered
+	// from the merge base and from the head with the same gnoweb.
+	Pairs []ShotPair `json:"pairs,omitempty"`
 }
 
 // Empty reports whether there is nothing worth previewing.

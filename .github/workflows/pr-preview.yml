@@ -59,8 +59,14 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" > changed.txt
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          git diff --name-only "$base" "$HEAD_SHA" > changed.txt
           echo "changed files: $(wc -l < changed.txt)"
+          # A checkout of the merge base, so a changed realm can be rendered as
+          # it looks today as well as as this branch renders it. Both passes use
+          # the head's gnodev and the head's assets, so the pair differs by the
+          # realm change alone.
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
 
       # Decide before paying for a gnodev build. The paths filter above is
       # coarse (a *_test.gno edit matches examples/**); the plan is exact.
@@ -89,10 +95,11 @@ jobs:
         run: |
           "$RUNNER_TEMP/gnopreview" render \
             -changed changed.txt \
+            -base-root "$RUNNER_TEMP/base" \
             -out _preview \
             -base-url "$BASE_URL" \
             -pr "$PR"
-          rm -f _preview/gnodev.log
+          rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*
           du -sh _preview
 
       # The publishing job runs on workflow_run, where the PR number is not

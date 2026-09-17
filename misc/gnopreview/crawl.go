@@ -33,6 +33,12 @@ type Crawler struct {
 	Realms   []string // package paths that may be followed
 	MaxPages int
 	Live     string // absolute origin for links we did not capture
+	// RenderOnly captures just each realm's render page and follows nothing.
+	// Used for the "before" pass, where only the rendered output is compared.
+	RenderOnly bool
+	// Prefix is prepended to every output path, so a second crawl of the same
+	// realms can live beside the first (the "before" tree under _before/).
+	Prefix string
 
 	pages map[string]*page // url -> page
 	order []string
@@ -53,14 +59,19 @@ func (c *Crawler) Seeds() []string {
 	for _, r := range c.Realms {
 		u := urlOf(r)
 		add(u)
+		if c.RenderOnly {
+			continue
+		}
 		add(u + "$source")
 		add(u + "$help")
 		for d := path.Dir(u); d != "/" && d != "."; d = path.Dir(d) {
 			dirs[d] = true
 		}
 	}
-	for _, d := range sortedKeys(dirs) {
-		add(d)
+	if !c.RenderOnly {
+		for _, d := range sortedKeys(dirs) {
+			add(d)
+		}
 	}
 	return out
 }
@@ -96,7 +107,7 @@ func (c *Crawler) Run() error {
 			fmt.Fprintf(os.Stderr, "  ! %s: HTTP %d\n", u, code)
 			continue
 		}
-		p := &page{URL: u, File: urlToFile(u), Body: body}
+		p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), Body: body}
 		c.pages[u] = p
 		c.order = append(c.order, u)
 		fmt.Printf("  ✓ %s\n", u)
@@ -132,6 +143,9 @@ var explosiveArgs = map[string]bool{
 // query ($source&file=a.gno) are part of the same page family, so they are
 // followed; anything else is left to the live site.
 func (c *Crawler) inScope(p string) bool {
+	if c.RenderOnly {
+		return false
+	}
 	base, args, query := splitURL(p)
 	// $source and $help do not depend on the render arguments, so ":x$source"
 	// is a byte-for-byte copy of "$source". Keep the render view of each
@@ -188,6 +202,9 @@ func canonicalURL(p string) string {
 // rewritten: to a relative path when we captured the target, to the live site
 // otherwise. assets is the repo's gnoweb public/ dir, copied verbatim.
 func (c *Crawler) Write(dir, assets string) error {
+	if assets == "" { // a prefixed crawl reuses the assets already written
+		return c.writePages(dir)
+	}
 	n, err := copyTree(assets, filepath.Join(dir, "public"))
 	if err != nil {
 		return fmt.Errorf("copy assets: %w", err)
@@ -204,6 +221,10 @@ func (c *Crawler) Write(dir, assets string) error {
 			return err
 		}
 	}
+	return c.writePages(dir)
+}
+
+func (c *Crawler) writePages(dir string) error {
 	for _, u := range c.order {
 		p := c.pages[u]
 		out := filepath.Join(dir, filepath.FromSlash(p.File))
@@ -212,6 +233,15 @@ func (c *Crawler) Write(dir, assets string) error {
 		}
 	}
 	return nil
+}
+
+// FileOf returns where a captured URL was written, relative to the output dir.
+func (c *Crawler) FileOf(u string) (string, bool) {
+	p, ok := c.pages[canonicalURL(u)]
+	if !ok {
+		return "", false
+	}
+	return p.File, true
 }
 
 // rewrite maps every absolute URL in a page to something that resolves from the

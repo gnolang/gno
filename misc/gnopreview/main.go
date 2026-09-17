@@ -32,6 +32,7 @@ const (
 
 type config struct {
 	root      string
+	baseRoot  string
 	changed   string
 	out       string
 	gnodev    string
@@ -61,6 +62,7 @@ func run(args []string) error {
 	var cfg config
 	fs := flag.NewFlagSet("gnopreview "+cmd, flag.ExitOnError)
 	fs.StringVar(&cfg.root, "root", "", "gno monorepo root (default: walk up from the working directory)")
+	fs.StringVar(&cfg.baseRoot, "base-root", "", "checkout of the merge base; enables before/after screenshots of changed realms")
 	fs.StringVar(&cfg.changed, "changed", "-", "file holding the changed paths, one per line (- for stdin)")
 	fs.StringVar(&cfg.out, "out", "_preview", "output directory")
 	fs.StringVar(&cfg.gnodev, "gnodev", envOr("GNODEV", "gnodev"), "gnodev binary")
@@ -112,7 +114,7 @@ func render(cfg config, plan *Plan) error {
 	}
 
 	fmt.Printf("rendering %d realm(s): %s\n", len(plan.Realms), strings.Join(plan.Realms, " "))
-	stop, err := startGnodev(cfg, plan)
+	stop, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
 	if err != nil {
 		return err
 	}
@@ -137,9 +139,13 @@ func render(cfg config, plan *Plan) error {
 	if err := writeFile(filepath.Join(cfg.out, "index.html"), Index(plan, c)); err != nil {
 		return err
 	}
-	// Screenshots only when gnoweb itself changed: that is the case a reviewer
-	// cannot judge from a list of realm links.
-	if plan.Gnoweb {
+	// Screenshots serve two different questions. When gnoweb itself changed,
+	// a fixed sample of pages shows what the chrome now looks like. When a
+	// realm changed, the useful picture is that realm before and after.
+	if len(plan.ChangedRealms) > 0 {
+		base := renderBase(cfg, plan, c)
+		plan.Pairs = ScreenshotPairs(cfg.out, c, base, plan.ChangedRealms, cfg.chrome)
+	} else if plan.Gnoweb {
 		plan.Shots = Screenshot(cfg.out, c, cfg.chrome)
 	}
 	if err := writeJSON(filepath.Join(cfg.out, "preview.json"), plan); err != nil {
@@ -148,28 +154,36 @@ func render(cfg config, plan *Plan) error {
 	if err := writeFile(filepath.Join(cfg.out, "comment.md"), Comment(plan, cfg.baseURL, cfg.pr)); err != nil {
 		return err
 	}
-	fmt.Printf("done: %d page(s), %d screenshot(s) -> %s\n", len(c.pages), len(plan.Shots), cfg.out)
+	fmt.Printf("done: %d page(s), %d screenshot(s), %d before/after pair(s) -> %s\n",
+		len(c.pages), len(plan.Shots), len(plan.Pairs), cfg.out)
 	return nil
 }
 
-// startGnodev boots gnodev on the selected package dirs. Dependencies resolve
-// lazily out of examples/, so only the realms being previewed are loaded.
-func startGnodev(cfg config, plan *Plan) (func(), error) {
-	examples := filepath.Join(cfg.root, examplesRel)
+// startGnodev boots gnodev on the given package dirs of the given tree.
+// Dependencies resolve lazily out of examples/, so only the realms being
+// previewed are loaded.
+func startGnodev(cfg config, root string, dirs []string, port int, logName string) (func(), error) {
+	examples := filepath.Join(root, examplesRel)
 	args := []string{
 		"local", "-no-watch",
-		"-web-listener", fmt.Sprintf("127.0.0.1:%d", cfg.port),
+		"-web-listener", fmt.Sprintf("127.0.0.1:%d", port),
+		// The RPC listener and the keybase both default to fixed locations
+		// (127.0.0.1:26657 and $GNOHOME), so the before/after passes — which
+		// run at the same time — would collide on them. Derive both from the
+		// web port instead.
+		"-node-rpc-listener", fmt.Sprintf("tcp://127.0.0.1:%d", port+10000),
+		"-home", filepath.Join(cfg.out, fmt.Sprintf(".gnodev-%d", port)),
 		"-C", examples,
 	}
-	for _, d := range plan.Dirs {
-		args = append(args, filepath.Join(cfg.root, filepath.FromSlash(d)))
+	for _, d := range dirs {
+		args = append(args, filepath.Join(root, filepath.FromSlash(d)))
 	}
-	log, err := os.Create(filepath.Join(cfg.out, "gnodev.log"))
+	log, err := os.Create(filepath.Join(cfg.out, logName))
 	if err != nil {
 		return nil, err
 	}
 	cmd := exec.Command(cfg.gnodev, args...)
-	cmd.Env = append(os.Environ(), "GNOROOT="+cfg.root)
+	cmd.Env = append(os.Environ(), "GNOROOT="+root)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -182,6 +196,61 @@ func startGnodev(cfg config, plan *Plan) (func(), error) {
 		_ = cmd.Wait()
 		log.Close()
 	}, nil
+}
+
+// renderBase renders the changed realms a second time from the merge-base
+// checkout, into <out>/_before/. It reuses the head's gnodev binary and the
+// head's assets on purpose: the pair must differ by the realm change alone, not
+// by whatever else moved on master. Returns nil when there is no base checkout,
+// none of the changed realms exist there (all new), or the pass fails — a
+// missing "before" costs the comment one image, not the preview.
+func renderBase(cfg config, plan *Plan, head *Crawler) *Crawler {
+	if cfg.baseRoot == "" {
+		return nil
+	}
+	var realms, dirs []string
+	for i, r := range plan.Realms {
+		if !contains(plan.ChangedRealms, r) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(cfg.baseRoot, filepath.FromSlash(plan.Dirs[i]))); err != nil {
+			continue // added by this pull request
+		}
+		realms = append(realms, r)
+		dirs = append(dirs, plan.Dirs[i])
+	}
+	if len(realms) == 0 {
+		return nil
+	}
+	port := cfg.port + 1
+	stop, err := startGnodev(cfg, cfg.baseRoot, dirs, port, "gnodev-base.log")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+		return nil
+	}
+	defer stop()
+
+	base := &Crawler{
+		Base:       fmt.Sprintf("http://127.0.0.1:%d", port),
+		Realms:     realms,
+		MaxPages:   len(realms),
+		Live:       head.Live,
+		RenderOnly: true,
+		Prefix:     beforeDir,
+	}
+	if err := waitReady(base.Base, urlOf(realms[0]), cfg.timeout); err != nil {
+		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+		return nil
+	}
+	if err := base.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+		return nil
+	}
+	if err := base.Write(cfg.out, ""); err != nil {
+		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+		return nil
+	}
+	return base
 }
 
 // --- small helpers ---------------------------------------------------------

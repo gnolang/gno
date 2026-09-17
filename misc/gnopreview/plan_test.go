@@ -230,3 +230,31 @@ func TestCommentGnowebHasShots(t *testing.T) {
 		}
 	}
 }
+
+func TestCommentBeforeAfter(t *testing.T) {
+	t.Parallel()
+	p := &Plan{
+		ChangedRealms: []string{"gno.land/r/x/leaf", "gno.land/r/x/fresh"},
+		Realms:        []string{"gno.land/r/x/fresh", "gno.land/r/x/leaf"},
+		Pairs: []ShotPair{
+			{Realm: "gno.land/r/x/leaf", Before: "_shots/r-x-leaf-before.png", After: "_shots/r-x-leaf-after.png", URL: "r/x/leaf/"},
+			{Realm: "gno.land/r/x/fresh", After: "_shots/r-x-fresh-after.png", URL: "r/x/fresh/"},
+		},
+	}
+	got := Comment(p, "https://example.test/pr-5", "5")
+	for _, want := range []string{
+		`<img src="https://example.test/pr-5/_shots/r-x-leaf-before.png"`,
+		"before — merge base",
+		"<b>after — this PR</b>",
+		// a realm the PR adds has no before, and the comment says why
+		"New in this PR — nothing to compare against.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("comment missing %q\n---\n%s", want, got)
+		}
+	}
+	// The gnoweb sample and the before/after pairs are alternatives, never both.
+	if strings.Contains(got, "Home — rendered markdown") {
+		t.Errorf("realm change should not carry the gnoweb sample:\n%s", got)
+	}
+}
