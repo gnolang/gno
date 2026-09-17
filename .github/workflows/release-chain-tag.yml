@@ -87,11 +87,15 @@ jobs:
             echo "Building ${name}..."
             go build -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
           done
+          # gnodev is its own module, so it is built from its own directory,
+          # and -o is relative to that directory.
+          echo "Building gnodev..."
+          (cd contribs/gnodev && go build -ldflags "$LDFLAGS" -o "../../dist/gnodev_${SUFFIX}" .)
           # Named explicitly, not ./*: the redirect creates the checksums file
           # before the glob expands, so it would otherwise list itself. Bare
           # names, so misc/install.sh can match an asset name against a line.
           (cd dist && shasum -a 256 \
-            "gnoland_${SUFFIX}" "gnokey_${SUFFIX}" "gnoweb_${SUFFIX}" "gno_${SUFFIX}" \
+            "gnoland_${SUFFIX}" "gnokey_${SUFFIX}" "gnoweb_${SUFFIX}" "gno_${SUFFIX}" "gnodev_${SUFFIX}" \
             > "checksums_${SUFFIX}.txt")
 
       # The binaries must report the tag, not "develop". A release built without
@@ -104,6 +108,8 @@ jobs:
         run: |
           # No GNOROOT here on purpose: setting it would hide a binary that
           # cannot work out its own GNOROOT, which is how a downloader runs it.
+          # gnoweb and gnodev are not listed: neither has a version subcommand
+          # to ask, so there is nothing for this loop to compare.
           for name in gnoland gnokey gno; do
             if ! out="$("./dist/${name}_${SUFFIX}" version 2>&1)"; then
               echo "::error::${name} failed to run:"

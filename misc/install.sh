@@ -9,8 +9,8 @@ set -eu
 REPO="gnolang/gno"
 API="https://api.github.com/repos/${REPO}"
 
-COMPONENTS="gno gnokey gnodev gnobro gnoweb"
-FULL_COMPONENTS="gno gnokey gnodev gnobro gnoweb gnoland"
+COMPONENTS="gno gnokey gnodev gnoweb"
+FULL_COMPONENTS="gno gnokey gnodev gnoweb gnoland"
 
 VERSION="${GNO_VERSION:-latest}"
 INSTALL_DIR="${GNO_INSTALL_DIR:-${HOME}/.gno/bin}"
@@ -50,7 +50,7 @@ Flags:
                     Requires go, git, and make.
   --help            show this help
 
-By default installs: gno, gnokey, gnodev, gnobro, gnoweb.
+By default installs: gno, gnokey, gnodev, gnoweb.
 Use --full to additionally install gnoland (validator node).
 To remove an installation, see misc/uninstall.sh.
 
@@ -315,10 +315,10 @@ install_gno() {
         components="$COMPONENTS"
     fi
 
-    # Two workflows publish v* releases, with different asset shapes, and
-    # "latest" can resolve to either: release-goreleaser.yml ships one tarball
-    # per platform, release-chain-tag.yml ships one binary per target plus
-    # CHECKSUMS.txt. Pick by what the release actually carries.
+    # Two release shapes exist, and "latest" can resolve to either: the older
+    # goreleaser releases ship one tarball per platform, release-chain-tag.yml
+    # ships one binary per target plus CHECKSUMS.txt. Pick by what the release
+    # actually carries.
     ARCHIVE="gno_${VERSION#v}_${OS}_${ARCH}.tar.gz"
     ARCHIVE_URL="$(asset_url "$ARCHIVE")"
     if [ -n "$ARCHIVE_URL" ]; then
@@ -373,8 +373,8 @@ install_from_archive() {
 }
 
 # release / chain-tag's shape: <name>_<os>_<arch> per binary, plus an uppercase
-# CHECKSUMS.txt covering all platforms. It ships the four chain binaries only,
-# so the components it does not carry are reported as missing, not fatal.
+# CHECKSUMS.txt covering all platforms. It ships the chain binaries and gnodev
+# only, so anything else is reported as missing, not fatal.
 install_from_binaries() {
     SUMS_URL="$(asset_url "CHECKSUMS.txt")"
     [ -n "$SUMS_URL" ] || die "CHECKSUMS.txt missing from $VERSION"
