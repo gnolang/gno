@@ -34,13 +34,13 @@ jobs:
     env:
       PR: ${{ github.event.pull_request.number }}
     steps:
-      # The token is persisted on purpose: pushing to the previews repository is this
-      # job's only reason to exist. It uploads no artifact, so nothing can leak it.
+      # A repo-scoped deploy key, persisted on purpose: pushing to the previews
+      # repository is this job's only reason to exist, and it uploads no artifact.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
         with:
           repository: ${{ env.PREVIEWS_REPO }}
           ref: main
-          token: ${{ secrets.PREVIEWS_DEPLOY_PAT }} # zizmor: ignore[secrets-outside-env]
+          ssh-key: ${{ secrets.PREVIEWS_DEPLOY_KEY }} # zizmor: ignore[secrets-outside-env]
           path: previews
 
       # Same replay story as the publish job: on a rejected push, reset onto the latest

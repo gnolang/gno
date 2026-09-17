@@ -75,7 +75,7 @@ would otherwise collide.
 
 Publishing lives in a separate repository, [`gnolang/gno-previews`](https://github.com/gnolang/gno-previews) —
 see its README for why. This tool does not know about it: it writes a directory, and
-`pr-preview-publish.yml` moves it.
+`pr-preview-publish.yml` moves it there over a repo-scoped deploy key.
 
 ## Output layout
 

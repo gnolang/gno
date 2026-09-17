@@ -62,17 +62,18 @@ jobs:
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           rm -f _preview/pr-number.txt
 
-      # A separate repository needs a credential of its own — GITHUB_TOKEN is scoped to
-      # this one — following the DOCS_DEPLOY_PAT pattern in deploy-docs.yml. The token is
-      # persisted because pushing is the point, and this job uploads no artifact for it
-      # to leak into.
+      # A separate repository needs a credential of its own: GITHUB_TOKEN is scoped to
+      # this one. A deploy key rather than a PAT — it cannot reach any repository but
+      # gno-previews, it does not expire, and it carries no personal identity, so preview
+      # commits are not attributed to whoever minted it. Credentials are persisted
+      # because pushing is the point, and this job uploads no artifact to leak them into.
       - name: Check out the previews repository
         if: steps.download.outcome == 'success'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
         with:
           repository: ${{ env.PREVIEWS_REPO }}
           ref: main
-          token: ${{ secrets.PREVIEWS_DEPLOY_PAT }} # zizmor: ignore[secrets-outside-env]
+          ssh-key: ${{ secrets.PREVIEWS_DEPLOY_KEY }} # zizmor: ignore[secrets-outside-env]
           path: previews
 
       # Concurrent pull requests share one branch, each owning only its own pr-<N>/, so a
