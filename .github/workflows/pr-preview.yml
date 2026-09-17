@@ -1,0 +1,108 @@
+# Renders what a pull request changed with gnodev/gnoweb and stores the result
+# as a static site, so reviewers can look at a realm instead of imagining it.
+#
+# This is the UNTRUSTED half: it runs the pull request's own code (gnodev, the
+# realms, misc/gnopreview) and therefore has a read-only token and no secrets.
+# It only produces an artifact. Publishing it — pushing to gh-pages, writing the
+# PR comment — happens in pr-preview-publish.yml, which never checks out PR code.
+#
+# No artifact means no comment: a PR that changes neither a realm, a realm
+# dependency nor gnoweb is silently skipped.
+name: pr / preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      # Realms and the packages they may import.
+      - examples/gno.land/**
+      # gnoweb itself, and the node that serves it in the preview.
+      - gno.land/pkg/gnoweb/**
+      - gno.land/cmd/gnoweb/**
+      - contribs/gnodev/**
+      # The preview tooling.
+      - misc/gnopreview/**
+      - .github/workflows/pr-preview.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    if: github.repository == 'gnolang/gno'
+    runs-on: ubuntu-latest
+    env:
+      PR: ${{ github.event.pull_request.number }}
+      # Where the snapshot will end up. Kept in sync with pr-preview-publish.yml;
+      # this job cannot read repository variables it is not given, and the URL is
+      # derived from the PR number alone, so it is safe to compute here.
+      BASE_URL: https://gnolang.github.io/gno/pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Collect the changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" > changed.txt
+          echo "changed files: $(wc -l < changed.txt)"
+
+      # Decide before paying for a gnodev build. The paths filter above is
+      # coarse (a *_test.gno edit matches examples/**); the plan is exact.
+      - name: Plan the preview
+        id: plan
+        run: |
+          cd misc/gnopreview && go build -o "$RUNNER_TEMP/gnopreview" . && cd -
+          "$RUNNER_TEMP/gnopreview" plan -changed changed.txt | tee plan.json
+          if [ "$(jq -r 'if .gnoweb or (.realms | length > 0) then "yes" else "no" end' plan.json)" = "no" ]; then
+            echo "nothing to preview — no realm, realm dependency or gnoweb change"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build gnodev
+        if: steps.plan.outputs.skip != 'true'
+        run: cd contribs/gnodev && go build -o "$RUNNER_TEMP/gnodev" .
+
+      # Screenshots are only taken for gnoweb changes; google-chrome ships with
+      # the ubuntu-latest image, and a missing browser costs the comment its
+      # images, not the preview.
+      - name: Render the snapshot
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          GNODEV: ${{ runner.temp }}/gnodev
+          GNOROOT: ${{ github.workspace }}
+        run: |
+          "$RUNNER_TEMP/gnopreview" render \
+            -changed changed.txt \
+            -out _preview \
+            -base-url "$BASE_URL" \
+            -pr "$PR"
+          rm -f _preview/gnodev.log
+          du -sh _preview
+
+      # The publishing job runs on workflow_run, where the PR number is not
+      # available for fork pull requests — carry it in the artifact instead.
+      # Not a dotfile: upload-artifact drops hidden files by default.
+      - name: Pack the snapshot for the publishing job
+        if: steps.plan.outputs.skip != 'true'
+        run: echo "$PR" > _preview/pr-number.txt
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          name: pr-preview
+          path: _preview
+          retention-days: 3
+          if-no-files-found: error

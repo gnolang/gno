@@ -1,0 +1,434 @@
+package main
+
+import (
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+)
+
+// A page is one crawled gnoweb response.
+type page struct {
+	URL  string // gnoweb path, e.g. /r/gnoland/home$source&file=home.gno
+	File string // repo-relative output file, e.g. r/gnoland/home/_t/source--file-home.gno/index.html
+	Body string
+}
+
+var (
+	attrRe = regexp.MustCompile(`(?i)\b(href|src)="([^"]*)"`)
+	cssRe  = regexp.MustCompile(`url\(\s*"?(/public/[^)"']*)"?\s*\)`)
+)
+
+// Crawler snapshots a running gnoweb into a self-contained static tree.
+type Crawler struct {
+	Base     string   // http://127.0.0.1:8899
+	Realms   []string // package paths that may be followed
+	MaxPages int
+	Live     string // absolute origin for links we did not capture
+
+	pages map[string]*page // url -> page
+	order []string
+}
+
+// Seeds returns the entry points for the selected realms, plus the directory
+// pages above them. Everything else is reached by following links.
+func (c *Crawler) Seeds() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(u string) {
+		if !seen[u] {
+			seen[u] = true
+			out = append(out, u)
+		}
+	}
+	dirs := map[string]bool{}
+	for _, r := range c.Realms {
+		u := urlOf(r)
+		add(u)
+		add(u + "$source")
+		add(u + "$help")
+		for d := path.Dir(u); d != "/" && d != "."; d = path.Dir(d) {
+			dirs[d] = true
+		}
+	}
+	for _, d := range sortedKeys(dirs) {
+		add(d)
+	}
+	return out
+}
+
+// Run crawls from the seeds, following only links that stay inside the selected
+// realms (or the directory pages we seeded), and returns the captured pages.
+func (c *Crawler) Run() error {
+	c.pages = map[string]*page{}
+	seeds := c.Seeds()
+	seedSet := map[string]bool{}
+	for _, s := range seeds {
+		seedSet[s] = true
+	}
+
+	queue := append([]string(nil), seeds...)
+	visited := map[string]bool{}
+	for len(queue) > 0 {
+		u := queue[0]
+		queue = queue[1:]
+		if visited[u] {
+			continue
+		}
+		visited[u] = true
+		if c.MaxPages > 0 && len(c.pages) >= c.MaxPages {
+			return fmt.Errorf("page cap %d reached (queue still had %d)", c.MaxPages, len(queue)+1)
+		}
+		body, code, err := c.getRetry(u)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ! %s: %v\n", u, err)
+			continue
+		}
+		if code != http.StatusOK {
+			fmt.Fprintf(os.Stderr, "  ! %s: HTTP %d\n", u, code)
+			continue
+		}
+		p := &page{URL: u, File: urlToFile(u), Body: body}
+		c.pages[u] = p
+		c.order = append(c.order, u)
+		fmt.Printf("  ✓ %s\n", u)
+
+		for _, link := range links(body) {
+			if !visited[link] && (seedSet[link] || c.inScope(link)) {
+				queue = append(queue, link)
+			}
+		}
+	}
+	return nil
+}
+
+// explosiveArgs are gnoweb web-query keys whose links enumerate the chain state
+// object graph: following them multiplies pages without bound and trips
+// gnoweb's per-IP $state rate limiter. The top-level $state page is still
+// captured; only the drill-down links are dropped.
+var explosiveArgs = map[string]bool{
+	"oid":      true, // state explorer object id
+	"tid":      true, // state explorer type id
+	"download": true, // raw file bytes, not a page
+	// $help already lists every exported function with its form; $help&func=X
+	// only preselects one, at one page (and ~130 KB) per function.
+	"func": true,
+	// The state explorer serializes the whole realm object graph: ~1.3 MB of
+	// HTML for a mid-sized realm, on a chain that only ever ran init(). Not
+	// worth carrying in every PR snapshot — run gnodev locally for it.
+	"state": true,
+}
+
+// inScope reports whether a gnoweb path belongs to one of the selected realms
+// and is a page worth snapshotting. Render arguments (:p/about) and the tab
+// query ($source&file=a.gno) are part of the same page family, so they are
+// followed; anything else is left to the live site.
+func (c *Crawler) inScope(p string) bool {
+	base, args, query := splitURL(p)
+	// $source and $help do not depend on the render arguments, so ":x$source"
+	// is a byte-for-byte copy of "$source". Keep the render view of each
+	// argument set, and the argument-free tabs.
+	if args != "" && query != "" {
+		return false
+	}
+	for part := range strings.SplitSeq(query, "&") {
+		if key, _, _ := strings.Cut(part, "="); explosiveArgs[key] {
+			return false
+		}
+	}
+	for _, r := range c.Realms {
+		if base == urlOf(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitURL breaks a gnoweb path into its three components. gnoweb puts them all
+// in the path: ":" opens the render arguments, "$" the web query.
+//
+//	/r/x/y                     -> "/r/x/y", "",        ""
+//	/r/x/y$source&file=a.gno   -> "/r/x/y", "",        "source&file=a.gno"
+//	/r/x/y:p/about$source      -> "/r/x/y", "p/about", "source"
+func splitURL(p string) (base, args, query string) {
+	p = strings.TrimSuffix(p, "/")
+	if i := strings.Index(p, "$"); i >= 0 {
+		p, query = p[:i], p[i+1:]
+	}
+	if i := strings.Index(p, ":"); i >= 0 {
+		p, args = p[:i], p[i+1:]
+	}
+	return p, args, query
+}
+
+// canonicalURL gives one spelling to a page gnoweb links to in several orders:
+// templates emit both "$source&file=a.gno" and "$file=a.gno&source".
+func canonicalURL(p string) string {
+	base, args, query := splitURL(p)
+	if args != "" {
+		base += ":" + args
+	}
+	if query == "" {
+		return base
+	}
+	parts := strings.Split(query, "&")
+	sort.Strings(parts)
+	return base + "$" + strings.Join(parts, "&")
+}
+
+// Write renders the captured pages into dir with every absolute gnoweb URL
+// rewritten: to a relative path when we captured the target, to the live site
+// otherwise. assets is the repo's gnoweb public/ dir, copied verbatim.
+func (c *Crawler) Write(dir, assets string) error {
+	n, err := copyTree(assets, filepath.Join(dir, "public"))
+	if err != nil {
+		return fmt.Errorf("copy assets: %w", err)
+	}
+	// js/index.js has carried a hardcoded "/public/js/controller-" prefix since
+	// the controller loader was introduced. If that ever stops being true the
+	// snapshot silently loses every interactive control, so say so.
+	if n == 0 {
+		fmt.Fprintln(os.Stderr, "  ! no absolute /public/ reference found in the assets — check js/index.js still needs relativizing")
+	}
+	// _chroma/style.css is generated at runtime, not embedded in public/.
+	if body, code, err := c.get("/public/_chroma/style.css"); err == nil && code == http.StatusOK {
+		if err := writeFile(filepath.Join(dir, "public", "_chroma", "style.css"), body); err != nil {
+			return err
+		}
+	}
+	for _, u := range c.order {
+		p := c.pages[u]
+		out := filepath.Join(dir, filepath.FromSlash(p.File))
+		if err := writeFile(out, c.rewrite(p)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// rewrite maps every absolute URL in a page to something that resolves from the
+// page's own directory in the static tree.
+func (c *Crawler) rewrite(p *page) string {
+	// Depth of the directory holding this page's index.html.
+	depth := len(strings.Split(strings.Trim(path.Dir(p.File), "/"), "/"))
+	up := strings.Repeat("../", depth)
+
+	body := attrRe.ReplaceAllStringFunc(p.Body, func(m string) string {
+		sub := attrRe.FindStringSubmatch(m)
+		attr, raw := sub[1], sub[2]
+		return fmt.Sprintf(`%s="%s"`, attr, html.EscapeString(c.mapURL(html.UnescapeString(raw), up)))
+	})
+	return cssRe.ReplaceAllStringFunc(body, func(m string) string {
+		sub := cssRe.FindStringSubmatch(m)
+		return "url(" + up + strings.TrimPrefix(sub[1], "/") + ")"
+	})
+}
+
+// mapURL is the single place that decides where a link points in the snapshot.
+func (c *Crawler) mapURL(raw, up string) string {
+	if raw == "" || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return raw // fragment, relative, mailto:, external — leave alone
+	}
+	target, frag, _ := strings.Cut(raw, "#")
+	if frag != "" {
+		frag = "#" + frag
+	}
+	// Assets: served from the copied public/ tree; the ?v= cache-buster is kept
+	// on the href and ignored by any static file server.
+	if clean, query, _ := strings.Cut(target, "?"); strings.HasPrefix(clean, "/public/") {
+		clean = path.Clean(clean) // gnoweb emits "/public//favicon.ico"
+		u := up + strings.TrimPrefix(clean, "/")
+		if query != "" {
+			u += "?" + query
+		}
+		return u + frag
+	}
+	if target == "/" {
+		return up + "index.html" + frag
+	}
+	if p, ok := c.pages[canonicalURL(target)]; ok {
+		return up + path.Dir(p.File) + "/" + frag
+	}
+	return c.Live + target + frag
+}
+
+// --- helpers ---------------------------------------------------------------
+
+// getRetry backs off on 429: gnoweb rate-limits the $state view per IP, and a
+// crawl is exactly the traffic shape that limiter is there to stop.
+func (c *Crawler) getRetry(p string) (string, int, error) {
+	var body string
+	var code int
+	var err error
+	for attempt := range 3 {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+		}
+		body, code, err = c.get(p)
+		if err != nil || code != http.StatusTooManyRequests {
+			return body, code, err
+		}
+	}
+	return body, code, err
+}
+
+func (c *Crawler) get(p string) (string, int, error) {
+	req, err := http.NewRequest(http.MethodGet, c.Base+p, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	// gnoweb redirects "/" and a few legacy paths; capture what is served, not
+	// where it points.
+	client := &http.Client{
+		Timeout:       30 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	return string(b), resp.StatusCode, err
+}
+
+// links extracts the absolute in-site paths a page points at.
+func links(body string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range attrRe.FindAllStringSubmatch(body, -1) {
+		raw := html.UnescapeString(m[2])
+		if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, "/public/") {
+			continue
+		}
+		p, _, _ := strings.Cut(raw, "#")
+		p = canonicalURL(p)
+		if p == "" || seen[p] {
+			continue
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// urlOf maps a package path to its gnoweb path: gno.land/r/x/y -> /r/x/y.
+func urlOf(pkgPath string) string {
+	_, rest, ok := strings.Cut(pkgPath, "/")
+	if !ok {
+		return "/" + pkgPath
+	}
+	return "/" + rest
+}
+
+var unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+// urlToFile maps a gnoweb path to a static file. The render page keeps its
+// natural path (/r/x/y -> r/x/y/index.html); render arguments go under _a/ and
+// the tab query under _t/, both slugged, so no path segment ever carries $, :
+// or & — characters that survive a URL but not every static host.
+//
+//	/r/x/y:p/about$source  ->  r/x/y/_a/p-about/_t/source/index.html
+func urlToFile(u string) string {
+	base, args, query := splitURL(strings.TrimPrefix(u, "/"))
+	base = strings.Trim(base, "/")
+	if base == "" {
+		base = "_root"
+	}
+	parts := []string{base}
+	if args != "" {
+		parts = append(parts, "_a", slug(args))
+	}
+	if query != "" {
+		parts = append(parts, "_t", slug(query))
+	}
+	return path.Join(append(parts, "index.html")...)
+}
+
+func slug(s string) string {
+	out := strings.Trim(unsafeSeg.ReplaceAllString(s, "-"), "-")
+	if out == "" {
+		return "default"
+	}
+	return out
+}
+
+func writeFile(p, body string) error {
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(p, []byte(body), 0o644)
+}
+
+// copyTree copies gnoweb's public/ into the snapshot, relativizing the absolute
+// "/public/…" references that live *inside* the assets. js/index.js builds its
+// dynamic import specifiers from a hardcoded "/public/js/controller-" prefix,
+// which 404s from any mount point other than the site root; rewriting it to a
+// path relative to the asset's own URL keeps the snapshot portable.
+func copyTree(src, dst string) (int, error) {
+	rewrites := 0
+	err := filepath.Walk(src, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		out := filepath.Join(dst, rel)
+		if fi.IsDir() {
+			return os.MkdirAll(out, 0o755)
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		switch filepath.Ext(p) {
+		case ".js", ".css":
+			// Depth of this asset inside public/, so "/public/" resolves back
+			// to the copied tree from wherever the asset is loaded from.
+			up := "./"
+			if d := filepath.ToSlash(filepath.Dir(rel)); d != "." {
+				up = strings.Repeat("../", len(strings.Split(d, "/")))
+			}
+			if n := strings.Count(string(b), "/public/"); n > 0 {
+				rewrites += n
+				b = []byte(strings.ReplaceAll(string(b), "/public/", up))
+			}
+		}
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(out, b, 0o644)
+	})
+	return rewrites, err
+}
+
+// waitReady polls probe until gnoweb answers or the deadline passes.
+func waitReady(base, probe string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 3 * time.Second}
+	u, err := url.JoinPath(base, probe)
+	if err != nil {
+		return err
+	}
+	for time.Now().Before(deadline) {
+		if resp, err := client.Get(u); err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("gnoweb not ready after %s", timeout)
+}

@@ -21,6 +21,9 @@ on:
       - '**/*.go'
       - go.mod
       - go.sum
+  # Dispatched by pr-preview-publish.yml / pr-preview-cleanup.yml after they
+  # change a pr-<N>/ directory on the gh-pages storage branch: every run
+  # publishes the whole site, so a preview change needs a redeploy.
   workflow_dispatch:
 
 permissions:
@@ -28,7 +31,10 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  # Every run rebuilds and publishes the complete site, so a newer run is always
+  # a superset of the one it replaces. Cancelling in progress is what keeps a
+  # burst of pull request previews from queueing up one full deploy each.
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -52,6 +58,28 @@ jobs:
           cp -r misc/gendocs/godoc/* pages_output/
           cp -r misc/stdlib_diff/stdlib_diff/* pages_output/stdlib_diff/
 
+      # Per-pull-request gnoweb previews live on the gh-pages branch, which is
+      # storage rather than a publishing source: pr-preview-publish.yml writes
+      # pr-<N>/ there and dispatches this workflow. Folding them in here keeps
+      # Pages on a custom Actions workflow, which is exempt from the 10
+      # builds/hour cap that branch-published sites are subject to.
+      - name: Fold in the pull request previews
+        if: github.event_name != 'pull_request'
+        run: |
+          git fetch origin gh-pages --depth=1 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add .ghp origin/gh-pages
+            for d in .ghp/pr-*/; do
+              [ -d "$d" ] || continue
+              cp -r "$d" "pages_output/$(basename "$d")"
+            done
+            git worktree remove --force .ghp
+          fi
+          # The previews serve pages from _t/ and _a/ directories, which Jekyll
+          # would drop.
+          : > pages_output/.nojekyll
+          du -sh pages_output
+
       # These two last steps will be skipped on pull requests
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
         id: pages
@@ -66,7 +94,7 @@ jobs:
     if: >
       github.repository == 'gnolang/gno' &&
       github.ref == 'refs/heads/master' &&
-      github.event_name == 'push'
+      github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write # to deploy to GitHub Pages

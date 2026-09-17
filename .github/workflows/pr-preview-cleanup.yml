@@ -1,0 +1,74 @@
+# Removes a pull request's preview from the gh-pages storage branch when the PR
+# closes, so the published site does not grow without bound.
+#
+# pull_request_target is what gives this a write token on pull requests opened
+# from forks. It is safe here because nothing from the pull request is ever
+# checked out or executed: the job only deletes a directory named after the PR
+# number.
+name: pr / preview cleanup
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [closed]
+
+permissions: {}
+
+concurrency:
+  group: pr-preview-publish
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.repository == 'gnolang/gno'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the deletion to the gh-pages storage branch
+      actions: write # to redeploy Pages without the removed preview
+    env:
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # Credentials are persisted on purpose: this job's whole reason to exist
+      # is pushing to the gh-pages storage branch. It uploads no artifact, so
+      # there is nothing for them to leak into.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      # Same concurrency story as the publish job: retry on a rejected push,
+      # re-deleting our own pr-<N>/ on the latest gh-pages each time.
+      - name: Remove gh-pages/pr-<N>
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin gh-pages --depth=1 2>/dev/null || true
+            git show-ref --verify --quiet refs/remotes/origin/gh-pages || {
+              echo "no gh-pages branch — nothing to clean"; exit 0
+            }
+            rm -rf .ghp; git worktree prune
+            git worktree add .ghp origin/gh-pages
+            ( cd .ghp && git checkout -B gh-pages )
+            rm -rf ".ghp/pr-$PR"
+            ( cd .ghp && git add -A )
+            if ( cd .ghp && git diff --cached --quiet ); then
+              echo "no preview for PR #$PR — nothing to clean"; exit 0
+            fi
+            ( cd .ghp && git commit -q -m "preview: remove PR #$PR" )
+            if ( cd .ghp && git push origin gh-pages ); then
+              echo "cleaned on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected (gh-pages moved); retrying — attempt $attempt"
+            git worktree remove --force .ghp
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::could not clean the preview after 5 attempts"
+          exit 1
+
+      # gh-pages is storage; pages-deploy assembles and publishes it.
+      - name: Publish the site
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: gh workflow run deploy-pages.yml -R "$REPO"
