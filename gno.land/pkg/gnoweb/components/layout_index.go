@@ -65,11 +65,19 @@ var _ Component = BannerData{}
 type BannerData struct {
 	content string
 	url     string
+	warning bool
 }
 
-func (b BannerData) Enabled() bool { return b.content != "" }
-func (b BannerData) HasURL() bool  { return b.url != "" }
-func (b BannerData) URL() string   { return b.url }
+func (b BannerData) Enabled() bool   { return b.content != "" }
+func (b BannerData) HasURL() bool    { return b.url != "" }
+func (b BannerData) URL() string     { return b.url }
+func (b BannerData) IsWarning() bool { return b.warning }
+
+// AsWarning returns a copy of b rendered in the warning tone.
+func (b BannerData) AsWarning() BannerData {
+	b.warning = true
+	return b
+}
 
 func (b BannerData) Render(w io.Writer) (err error) {
 	_, err = io.WriteString(w, b.content)
@@ -165,6 +173,8 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
+	// Notice is a second strip rendered under Banner.
+	Notice BannerData
 }
 
 type indexLayoutParams struct {
