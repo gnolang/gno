@@ -36,7 +36,9 @@ property of the object, so it survives the store.
 1. **`mutable(x)` uverse builtin**, shaped like `cross(x)`: returns `x`
    unchanged and sets `ObjectInfo.IsShared` on `x`'s first object. Only the
    owner may grant (`PkgID == m.Realm.ID`), else panic. Real objects are
-   marked dirty; unreal ones carry the flag into their first save.
+   marked dirty; unreal ones carry the flag into their first save. The grant
+   unit is the pointer's base object (`GetFirstObject`, the same object rule
+   #2 inspects): `mutable(&s.field)` grants `s`.
 2. **Borrow rule #2 needs the grant.** For a `/p/` method on a **real**
    foreign-owned receiver, `PushFrameCall` borrows to the owner only if
    `IsShared` is set. Otherwise `m.Realm` stays the caller's and the method's
@@ -55,6 +57,12 @@ property of the object, so it survives the store.
 Persistence: `IsShared` is amino field 8, `json:",omitempty"`, so unflagged
 objects hash as before. Amino numbers fields by struct position, so the field
 sits after `LastObjectSize`; a later field (e.g. an adopted-stamp mark) takes 9.
+
+Follow-up: the refusal message is chosen by the executing package's kind
+(library vs realm). Choosing it from the refused object (immutable-package
+owner, ungranted foreign owner, or other) would be more precise and would let
+the `/p/`-owned exemption in rule #2 go; it needs `resolvePointer` to hand the
+offending value to the panic site.
 
 ## Alternatives considered
 

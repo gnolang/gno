@@ -2681,9 +2681,16 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//       function). /r/attacker code runs with /r/attacker's
 	//       authority, not victim's.
 	//
-	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
-	//       foreign-stamped object, borrow to the receiver's constructing
-	//       realm (which is the same as its storage realm).
+	//   #2. Otherwise (/p/-declared) → if the receiver is a foreign-stamped
+	//       object, borrow to the receiver's constructing realm (which is
+	//       the same as its storage realm) — for a REAL receiver only if
+	//       its owner granted it with mutable(x) (ObjectInfo.IsShared);
+	//       otherwise the reference is a view and the method's writes hit
+	//       the readonly gate. An unreal foreign receiver always borrows:
+	//       finalize runs when a borrow frame returns, so an unreal object
+	//       reaching a caller was built by the owner's code in this call
+	//       (e.g. a token's teller). A /p/-owned receiver always borrows so
+	//       the post-init immutability gate reports the write.
 	//
 	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
 	//       package, borrow to the realm context that was active when
@@ -2708,19 +2715,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
-		// A REAL foreign receiver borrows only if its owner granted it with
-		// mutable(x): otherwise the reference is a view and the method's
-		// writes are refused by the readonly gate. An unreal foreign receiver
-		// (built in this tx by the owner's code, e.g. a teller returned by a
-		// token's method) borrows as before: the owner just constructed it.
 		if obj != nil {
 			oi := obj.GetObjectInfo()
 			recvOID := oi.ID
-			// /p/-owned receivers keep borrowing so the post-init
-			// immutability gate reports them, not this one.
-			borrowable := !obj.GetIsReal() || oi.GetIsShared() || recvOID.PkgID.IsImmutablePkg()
-			if borrowable && !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
-				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
+			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) &&
+				(!oi.GetIsReal() || oi.IsShared || recvOID.PkgID.IsImmutablePkg()) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				r := objpv.GetRealm()
@@ -3039,10 +3039,9 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
 // the target's owner.
 func (m *Machine) readonlyAccessPanic(x Expr) string {
-	if m.Package != nil && !IsRealmPath(m.Package.PkgPath) {
-		// Library code writing an object another realm owns: the /p/ method
-		// ran with the caller's storage because the owner never granted a
-		// handle (borrow rule #2 needs mutable(x)).
+	if m.Package != nil && m.Package.PkgID.IsImmutablePkg() {
+		// Library (/p/ or stdlib) code writing an object another realm owns:
+		// no borrow happened because the owner never granted mutable(x).
 		return "cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): " + x.String()
 	}
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()

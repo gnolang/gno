@@ -143,7 +143,7 @@ func parityCasesGnolang() []struct {
 			ModTime:  100,
 			RefCount: 3,
 		}},
-		// ObjectInfo with the owner's mutable() grant (amino field 9).
+		// ObjectInfo with the owner's mutable() grant (amino field 8).
 		{"ObjectInfo/shared", &ObjectInfo{
 			ID:       ObjectID{PkgID: PkgID{Hashlet: NewHashlet([]byte("pidpidpidpidpidpidpi"))}, NewTime: 8},
 			ModTime:  101,
