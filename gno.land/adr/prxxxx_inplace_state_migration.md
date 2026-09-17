@@ -114,20 +114,13 @@ The two params that exist today, unchanged in name, type and wire format:
 | Param | Type | Meaning |
 |---|---|---|
 | `node:p:halt_height` | `int64` | height to stop at; `0` cancels |
-| `node:p:halt_min_version` | `string` | version floor **and** upgrade registry key |
+| `node:p:halt_min_version` | `string` | version floor **and** handlers' registry key |
 
 `NewSetHaltRequest(cur, height, minVersion)` keeps its signature. Nothing about
-the public surface moves: the two `gnokey query params/node:p:*` paths documented
-at `UPGRADES.md:58-59` and scripted throughout `UPGRADES-TESTING.md`, the
-`set_halt` event payload keys `height` / `min_version`, and the realm API pinned
-by `examples/gno.land/r/sys/params/params_test.gno:21,28,35`.
+the public surface moves.
 
-That matters more than it looks. An `upgrade_name` param would have been a
-breaking change to a public realm API for no capability that `halt_min_version`
-cannot express — see Alternatives.
-
-An empty value leaves no key to look up, so an upgrade on an unversioned binary
-carries no migration.
+An empty `halt_min_version` leaves no key to look up, so an upgrade on an
+unversioned binary carries no migration.
 
 `WillSetParam` (`node_params.go:69-73`) currently type-checks the string and
 nothing else. It should additionally reject a value the node cannot parse, so a
@@ -142,34 +135,18 @@ type Handler func(ctx sdk.Context, k Keepers) error
 
 type Upgrade struct {
 	Version          string  // the release tag; what halt_min_version carries
-	Handler          Handler // nil for a version-gate-only upgrade
+	Handler          Handler
 	StateFormatAfter int64   // the format version this upgrade leaves behind
 }
 ```
 
-Registered in one place, compiled in, **never removed** (see Consequences).
+Registered in one place and compiled in. An entry may be dropped once nothing can
+replay the block that ran its handler.
 
-`Version` is the release that **introduced** the upgrade — not "the version you
-must be running". The param's value is used by two different operations:
-
-```go
-meetsMinVersion(tmver.Version, minVersion)  // ordered: binary vs param
-registry[minVersion]                        // exact: param only
-```
-
-The binary's own version never enters the lookup. A v1.3.1 binary resolves
-`"v1.3.0"` because the registry is a source-level literal and v1.3.1 is cut from
-a commit that still declares that entry. So an already-voted proposal survives a
-patch release cut before the halt height.
-
-**That covers the proposal, not the binaries.** If the patch fixed the handler
-itself, two nodes clear the floor and hold the key but run different code under
-it, compute different state at `H+1`, and split on AppHash. Nothing here detects
-that — validators must agree on the exact binary, not just the floor.
-
-A `nil` Handler is legitimate: a coordinated upgrade that breaks consensus
-without changing state format still needs a floor, and registering it keeps a
-mistyped version a *refused startup* rather than a silently skipped migration.
+Only upgrades that migrate state register anything. A coordinated upgrade that
+breaks consensus without touching state needs a floor and nothing else, so
+`halt_min_version` is set and no entry exists — the state-format versions agree,
+so nothing looks one up.
 
 A handler is arbitrary Go with the keepers in hand, so its reach is whatever the
 store allows — deploy a package, rewrite params, seed data, replace the valoper
@@ -180,7 +157,7 @@ already-deployed realm, for the reason in Open questions.
 ### 3. State format version
 
 - a value in the binary, *derived* as the maximum `StateFormatAfter` across the
-  upgrade registry of §2 rather than written by hand — #6177 exists largely
+  handlers' registry of §2 rather than written by hand — #6177 exists largely
   because six protocol constants had to be kept equal by hand, and a bump that
   missed one panicked every node at startup. Do not repeat that shape;
 - an `int64` in `main` under a reserved key, written by the handler;
@@ -190,12 +167,13 @@ already-deployed realm, for the reason in Open questions.
 | stored vs binary | action |
 |---|---|
 | equal | proceed |
-| stored < binary | proceed **only if** a pending `halt_min_version` names a registry entry closing the gap; otherwise refuse |
+| stored < binary | proceed **only if** a pending `halt_min_version` names an entry in the handlers' registry closing the gap; otherwise refuse |
 | stored > binary | refuse — downgrade onto newer data |
 
 This is the piece that has no substitute today. `halt_min_version` gates which
-*binary* may start; even carrying the registry key, it says nothing about the
-*data*. Nothing compares what the binary expects against what is on disk.
+*binary* may start; even carrying the handlers' registry key, it says nothing
+about the *data*. Nothing compares what the binary expects against what is on
+disk.
 
 `checkNodeStartupParams` (`node_params.go:129-181`, called once at `app.go:288`
 after `LoadLatestVersion` and before the app serves anything) therefore grows two
@@ -205,10 +183,9 @@ checks beside the two it has:
 |---|---|---|
 | binary meets the floor (`:158-166`) | post-halt | yes, as today |
 | binary does *not* meet the floor (`:170-178`) | pre-halt | yes, as today |
-| non-empty `halt_min_version` names a registry entry | **post-halt only** | **no** |
 | stored state-format version vs the binary's | always | **no** |
 
-The two new checks sit deliberately outside the escape hatch:
+The new check sits deliberately outside the escape hatch:
 
 ```bash
 gnoland config set skip_upgrade_height 704052
@@ -235,18 +212,23 @@ exact-height arming at `app.go:1151-1162`:
 
 ```
 read node:p:halt_min_version
-  ""                       → nothing to look up; no migration possible
-  entry, Handler non-nil   → run it; write state_format_version;
-                             record (version, height)
-  entry, Handler nil       → write state_format_version; record
-  no entry                 → unreachable: startup already refused
+  ""       → nothing to look up; no migration possible
+  entry    → run the handler; write state_format_version;
+             record (version, height); clear both params
+  no entry → nothing to migrate; clear both params
 ```
 
-Note the last line. Cosmos needs "panic if no handler" because the missing
-handler *is* its halt. gno gates at startup instead, so a stale binary is
-refused before any block with a real error message rather than as a consensus
-panic on a running node. The in-block branch is a belt-and-braces assertion, not
-the mechanism.
+**The BeginBlocker needs to clear both params**. Left set, they are read
+forever: `halt_min_version` keeps naming an entry in the handlers' registry
+that every later startup looks up, which pins that entry in the binary for the
+life of the chain and turns any later pruning into a refused startup on every
+node at once. It also leaves a version floor standing that nobody chose to
+keep.
+
+It also reverses documented behaviour, so `UPGRADES.md` has to be fixed in the
+same change: it currently states that the halt params are never cleared and that
+`halt_min_version` therefore "stays in force as a permanent minimum-version floor
+for every later restart".
 
 ### Timeline
 
@@ -273,14 +255,6 @@ So the handler runs in-block, and the cost below is not a choice.
 
 ## Consequences
 
-**Handlers are permanent.** Every handler must stay compiled in for as long as
-the chain can be synced from genesis, because any syncing node re-executes it.
-Cosmos chains accumulate `upgrades/v2/`, `v3/`, … forever and use cosmovisor to
-swap binaries per height. gno has no supervisor (`contribs/` is gnodev, gnokms,
-gnogenesis, gpao, …) and **no state sync** — there is no statesync reactor in
-`tm2/pkg/bft`. So sync-from-genesis is the only way to join, and the registry is
-append-only. This is the single largest cost of the decision.
-
 **No dry run exists.** A handler is arbitrary code that commits inside a block
 on every validator, and there is no way to rehearse one first. Something like
 `gnoland upgrade dry-run --at <height>` against a copy of the data dir has to be
@@ -291,6 +265,13 @@ block: byte-identical output, no OOM, no block-timeout blowout.
 
 **There is no rollback.** A bad migration commits. Recovery is
 restore-from-backup at the halt height, on every validator.
+
+**The permanent version floor goes away.** `UPGRADES.md` documents today's
+behaviour — the params are never cleared, so `halt_min_version` "stays in force
+as a permanent minimum-version floor for every later restart" — and this reverses
+it. The protection is not lost, it moves: a stale binary is now caught by the
+state-format check, which compares what the code expects against what is on disk
+instead of against a string someone typed into a proposal.
 
 ## Syncing past an upgrade height
 
@@ -371,9 +352,11 @@ save work: a handler already knows which store it touched.
 `NewSetHaltRequest`'s public realm signature (three tests pin the arity at
 `params_test.gno:21,28,35`), widen a public contract that already includes two
 documented query paths and the `set_halt` event payload, and add a second source
-of truth for the question `halt_min_version` already answers. Because the
-registry is append-only, handler presence and the version floor are the same
-predicate — so the second param buys nothing.
+of truth for the question `halt_min_version` already answers. The lookup only
+happens while an upgrade is pending — the params are cleared once it has run — so
+any binary that satisfies the floor is by construction one that carries the
+entry. The two are the same predicate wherever it is consulted, and the second
+param buys nothing.
 
 **Cosmos's name-only plan.** `x/upgrade`'s `Plan` is `{Name, Height, Info}` —
 there has never been a version field. That is not a rejection of the version
@@ -381,8 +364,9 @@ approach so much as its unavailability: `x/upgrade` ships to hundreds of chains
 with their own binaries, tag schemes and version strings, so the SDK has no
 equivalent of `tm2/pkg/version.Version` to read, and no guarantee any chain's
 string is even semver. A name is opaque, so it works everywhere. Cosmos then
-gets the ordering free from its append-only registry, and a stable name survives
-patch releases cut between the vote and the halt height.
+matches the name exactly and lets cosmovisor supply the right binary per height,
+and a stable name survives patch releases cut between the vote and the halt
+height.
 
 The price Cosmos pays is that a wrong binary surfaces as a consensus panic at
 the upgrade height rather than a refused startup — a large part of why cosmovisor
@@ -394,7 +378,7 @@ one version string it controls and can parse. It should use it.
 Undecided — recorded to be settled before implementation. Drop
 `StateFormatAfter` and the derived integer entirely; store the `Version` of the
 last applied upgrade, and take the expected value as the newest `Version` in the
-registry.
+handlers' registry.
 
 Orthogonal to the rest of the design: the check tables and the post-halt scoping
 are identical either way.
@@ -404,7 +388,7 @@ are identical either way.
 1. **The `StateFormatAfter` field, entirely.** Every upgrade implicitly advances
    the format to its own version. Nothing to choose per entry.
 2. **The derivation step.** The expected value is just the newest `Version` in
-   the registry.
+   the handlers' registry.
 3. **A whole numbering scheme.** Nobody has to answer "does this upgrade bump the
    format, or leave it where it was?"
 
@@ -413,7 +397,8 @@ are identical either way.
 4. **The tripwire stops being forgettable.** The strongest argument.
    `StateFormatAfter` is hand-chosen per entry — write an upgrade that changes the
    VM object encoding, leave `StateFormatAfter` at its predecessor's value, and the
-   check silently never fires. Deriving the constant from the registry fixes drift
+   check silently never fires. Deriving the constant from the handlers' registry
+   fixes drift
    between constant and entries; it does nothing about a wrong value *on* an entry.
    With versions there is no value to get wrong, so the error class disappears.
 5. **It merges with the applied-upgrade record.** The handler already records
@@ -448,9 +433,10 @@ are identical either way.
 12. **The zero value.** `0` is a natural "no upgrades applied" for a fresh chain.
     `""` has to be defined, and must sort below every real version including
     betanet's `chain/gnolandX.Y` shape.
-13. **Who writes it for a `nil` handler.** The BeginBlocker already does this in
-    the current design, so it carries over — worth confirming it stays
-    unconditional.
+13. **What an upgrade with no entry writes.** With integers it writes nothing —
+    the formats already agree. With versions the stored value would have to
+    advance anyway, so the BeginBlocker writes it even when there is no handler
+    to run.
 
 ## Open questions
 
@@ -469,7 +455,7 @@ are identical either way.
 2. Answer open question 1. Everything downstream depends on it.
 3. State-format version + startup gate. Useful alone: it makes any future
    mismatch loud, and commits to nothing else.
-4. The registry, the registry startup gate, and the BeginBlocker. No param
+4. The handlers' registry, its startup gate, and the BeginBlocker. No param
    changes — `halt_min_version` already carries what is needed.
 5. First real handler, with a dry-run tool.
 

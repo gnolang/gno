@@ -1,13 +1,9 @@
-- registry[minVersion]: say what this registry is about
-	- 'The binary's own version never enters the lookup': specify what lookup we are talking about
+
+- Handlers
+  - Handlers might need more than just the keepers, like the stores, check what SDK handlers look like
+  - There is 2 similar alternatives about the plan name
 
 - Document better the new behavior of skip_halt_height (there's a related flag as well right?)
-
-- it is mentionned that binary should keep all upgrade so a node syncing can apply them. But from memory it seems like SDK does not force to keep upgrade handlers, -> check in AtomOne if we do that.
-	- related to what is called "Handlers are permament" (so remove this mention if we manage to clear it)
-	- nor AtomOne nor Gaia have permanent handlers, can we remove entirely this notion of permamnent handler? With supervisor switching binary, binary only need to keep the handler it has to pass fir its version. 
-
-- check prerequisite (section # Prerequesite and also mentionned in ### The halt panic precedes the BeginBlocker)
 
 - store versinning ?
   - called Upgrade.StateFOrmatVersion
@@ -22,3 +18,6 @@
 - investigate about WillSetParams that should reject a value the node cannot parse
 
 - investigate rollbacks (theres a appd rollback command)
+
+- check if source line numbers are still accured 
+
