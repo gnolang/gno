@@ -23,11 +23,12 @@ will regenerate everything from scratch.
 ### Build two gnoland binaries with distinct versions
 
 The startup checks compare `tm2/pkg/version.Version` against the governance
-`halt_min_version` param. Comparison only understands the
-`chain/gnoland<major>.<minor>` format; anything else falls back to exact string
-equality. The `gno.land/Makefile` build targets *do* inject a version, but it is
-derived from `git describe` (e.g. `master.12345+abc1234`), which never parses as
-a chain version — so you must pass the version explicitly.
+`halt_min_version` param. Comparison understands two shapes — `vMAJOR.MINOR.PATCH`
+and betanet's retired `chain/gnolandMAJOR.MINOR` — and anything else falls back
+to exact string equality. The `gno.land/Makefile` build targets *do* inject a
+version, but off a tag it is derived from `git describe` (e.g.
+`master.12345+abc1234`), which parses as neither — so you must pass the version
+explicitly.
 
 ```bash
 # "Old" binary — simulates the currently running chain software.
