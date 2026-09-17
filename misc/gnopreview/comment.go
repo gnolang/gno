@@ -174,7 +174,7 @@ func Index(p *Plan, c *Crawler) string {
 	return fmt.Sprintf(`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex">
+<meta name="robots" content="noindex, nofollow">
 <title>gnoweb preview</title>
 <style>
  :root{color-scheme:light dark}
