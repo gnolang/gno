@@ -92,15 +92,18 @@ parse_args() {
 			exit 0
 			;;
 		--chain)
-			CHAIN="${2-}"
+			[[ -n ${2-} ]] || die "--chain needs a value (e.g. mainnet)"
+			CHAIN="$2"
 			shift 2
 			;;
 		--commit)
-			COMMIT="${2-}"
+			[[ -n ${2-} ]] || die "--commit needs a ref"
+			COMMIT="$2"
 			shift 2
 			;;
 		--previous)
-			PREVIOUS="${2-}"
+			[[ -n ${2-} ]] || die "--previous needs a version (e.g. v1.2.0)"
+			PREVIOUS="$2"
 			shift 2
 			;;
 		--halt-height)
@@ -161,9 +164,17 @@ check_tag_free() {
 	if git -C "${REPO_ROOT}" rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
 		die "tag ${VERSION} already exists locally. Tags are immutable — pick the next version."
 	fi
-	if git -C "${REPO_ROOT}" ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null 2>&1; then
-		die "tag ${VERSION} already exists on origin. Tags are immutable — pick the next version."
-	fi
+	# ls-remote exits 2 when no ref matches, and anything else (128 for an
+	# unreachable remote) means the question was never answered. Only 2 means
+	# free: reading every failure as free would skip the check without saying so.
+	local rc=0
+	git -C "${REPO_ROOT}" ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null 2>&1 || rc=$?
+	case ${rc} in
+	0) die "tag ${VERSION} already exists on origin. Tags are immutable — pick the next version." ;;
+	2) ;;
+	*) die "could not ask origin whether ${VERSION} exists (git ls-remote exited ${rc}).
+       Check the remote and network before cutting." ;;
+	esac
 	ok "tag ${VERSION} is free"
 }
 
@@ -238,8 +249,10 @@ $(printf '%s\n' "${out}" | sed 's/^/       /')
 	# Warnings on the success path would otherwise vanish into the captured
 	# output — notably "the invariant test is not in this tree", which is how a
 	# check that verified less than it claims stays quiet.
+	# bump-protocol-version.sh colours its output, so strip ANSI first:
+	# grep '^warning:' never fires against "\033[33mwarning:\033[0m".
 	local warnings
-	warnings="$(printf '%s\n' "${out}" | grep '^warning:' || true)"
+	warnings="$(printf '%s\n' "${out}" | sed -e $'s/\033\\[[0-9;]*m//g' | grep '^warning:' || true)"
 	if [[ -n ${warnings} ]]; then
 		while IFS= read -r line; do warn "${line#warning: }"; done <<<"${warnings}"
 	fi

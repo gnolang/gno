@@ -23,6 +23,9 @@ MIN_VERSION="${2-}"
 case "$HEIGHT" in
 0) [ -z "$MIN_VERSION" ] || { echo "error: height 0 cancels the halt; it takes no version" >&2; exit 1; } ;;
 '' | *[!0-9]*) echo "error: HEIGHT must be a non-negative block height (got '$HEIGHT')" >&2; exit 1 ;;
+# Gno parses the interpolated literal below as Go does: 0120000 is 40960, and
+# 00 is 0, the cancel form. Only canonical decimal reaches the proposal.
+0[0-9]*) echo "error: HEIGHT must not have leading zeros (got '$HEIGHT'); Gno reads it as an octal literal" >&2; exit 1 ;;
 *)
   [ -n "$MIN_VERSION" ] || { echo "error: MIN_VERSION is required for a halt (height 0 is the cancel form)" >&2; exit 1; }
   # The shape gno.land/pkg/gnoland.parseReleaseVersion accepts, spelled as an
