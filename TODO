@@ -1,10 +1,11 @@
-- dont mention gnogenesis, nor fork path (both are related right?)
-	- about the fork flag, are they part of the gno.land binary or gnogenesis?
+- registry[minVersion]: say what this registry is about
+	- 'The binary's own version never enters the lookup': specify what lookup we are talking about
 
-- ask how nodes sync old block from a new binary w/o breaking the consensus 
-	- it is mentionned that binary should keep all upgrade so a node syncing can apply them. But from memory it seems like SDK does not force to keep upgrade handlers, -> check in AtomOne if we do that.
+- Document better the new behavior of skip_halt_height (there's a related flag as well right?)
+
+- it is mentionned that binary should keep all upgrade so a node syncing can apply them. But from memory it seems like SDK does not force to keep upgrade handlers, -> check in AtomOne if we do that.
 	- related to what is called "Handlers are permament" (so remove this mention if we manage to clear it)
-	- how does node sync block with a halt height ? Check SDK
+	- nor AtomOne nor Gaia have permanent handlers, can we remove entirely this notion of permamnent handler? With supervisor switching binary, binary only need to keep the handler it has to pass fir its version. 
 
 - check prerequisite (section # Prerequesite and also mentionned in ### The halt panic precedes the BeginBlocker)
 
@@ -16,8 +17,8 @@
 	- resolve alternative about using version instead of StateFormatAfter
 	- rename StateFormatAfter to something more meaningful ? (use Store instead of State)?
 
-- investigate realm patching with realm store migration
+- investigate realm patching with realm store migration (see open question 1)
 
 - investigate about WillSetParams that should reject a value the node cannot parse
 
-
+- investigate rollbacks (theres a appd rollback command)

@@ -34,15 +34,23 @@ other than rebuilding it.
 
 `gno.land/cmd/gnoland/UPGRADES.md` states it plainly: there is no migrate
 function and no upgrade-handler framework. `halt_min_version` gates startup and
-does nothing else. Migration happens on a *new* chain during replay.
-[#5377](https://github.com/gnolang/gno/pull/5377) (`gnoland start --migrate`) is
-still open.
+does nothing else. There is no way to change state at all.
 
-### The decision that frames this ADR
+### Not a complement to replay upgrades
 
-**In-place migration replaces genesis replay as the upgrade path.** Not
-complementary — replay is to be retired for upgrades. That is a given for this
-document, not something argued here.
+Replay upgrades have two existing paths today, both rebuilding state by
+re-executing history rather than transforming it:
+
+- **into a fresh genesis** — built by `gnogenesis fork`: a new chain carrying the
+  whole transaction history, re-executed under the new rules at `InitChain`.
+  Never used on mainnet nor testnet.
+- **in place** — [#5377](https://github.com/gnolang/gno/pull/5377)
+  (`gnoland start --migrate`), which replays the local block store under the new
+  binary and swaps the app DB. Still open.
+
+This ADR does not treat either as an existing mechanism to extend, fall back on,
+or interoperate with. In-place migration is the upgrade path; the rest of this
+document assumes nothing else exists.
 
 ### Why Cosmos SDK's design does not port wholesale
 
@@ -163,15 +171,11 @@ A `nil` Handler is legitimate: a coordinated upgrade that breaks consensus
 without changing state format still needs a floor, and registering it keeps a
 mistyped version a *refused startup* rather than a silently skipped migration.
 
-Handlers hold what the fork flags express today — and that list is the
-requirements spec:
-
-| Fork flag (to be retired) | In-place equivalent |
-|---|---|
-| `--migration-tx` | handler code: deploys, param writes, data seeding |
-| `--patch-realm` | handler code — **blocked, see Open questions** |
-| `--patch-txs` | no equivalent; history is not rewritten in place |
-| `fork valoper-seed` | handler code writing `valset:proposed` |
+A handler is arbitrary Go with the keepers in hand, so its reach is whatever the
+store allows — deploy a package, rewrite params, seed data, replace the valoper
+set, walk and re-encode objects. There is no fixed list, and no attempt to define
+one. The only known limit is changing the code and/or the state of an
+already-deployed realm, for the reason in Open questions.
 
 ### 3. State format version
 
@@ -255,19 +259,6 @@ the mechanism.
   H+1    BeginBlocker runs the handler, in consensus
 ```
 
-### The halt panic precedes the BeginBlocker
-
-`baseapp.go:596` panics **before** `:622` calls the beginBlocker. On a node whose
-in-memory `haltHeight` is armed, the handler is therefore never reached at `H+1`:
-
-- **Restart path** — fine. `app.haltHeight` is in-memory and resets to 0, so the
-  swapped binary reaches the BeginBlocker normally.
-- **Sync path** — broken. The EndBlocker arms at `H` from committed state, so a
-  syncing node stops entering `H+1` and the handler does not run in that pass.
-
-This turns the prerequisite below from an ergonomic wart into a hard dependency:
-without it, in-place migration does not work during sync at all.
-
 ### Why the handler must run inside a block
 
 It is tempting to migrate at startup, outside consensus, so that block history
@@ -290,45 +281,75 @@ gnogenesis, gpao, …) and **no state sync** — there is no statesync reactor i
 `tm2/pkg/bft`. So sync-from-genesis is the only way to join, and the registry is
 append-only. This is the single largest cost of the decision.
 
-**The fork surface becomes dead weight.** `gnogenesis fork
-generate/test/inspect/addpkg/valoper-seed`, `PastChainIDs`, `InitialHeight`,
-`GasReplayMode`, `--migration-tx`, `--patch-realm`, `--patch-txs`, ADR `pr5511`
-in both `gno.land/adr/` and `tm2/adr/`, and the UPGRADES.md section documenting
-replay as *the* answer. Retiring it is a separate PR with its own decision:
-deleted, frozen, or kept for disaster recovery only.
-
-**No dry run.** `gnogenesis fork test` boots a candidate genesis in-process
-before shipping. In-place has no equivalent unless one is built — a `gnoland
-upgrade dry-run --at <height>` against a copy of the data dir is the obvious
-shape.
+**No dry run exists.** A handler is arbitrary code that commits inside a block
+on every validator, and there is no way to rehearse one first. Something like
+`gnoland upgrade dry-run --at <height>` against a copy of the data dir has to be
+built alongside the first real handler.
 
 **Determinism and bounded execution.** Every validator runs the handler inside a
-block: byte-identical output, no OOM, no block-timeout blowout. `base` is the
-raw VM object graph on a chain whose history is already ~192MB; a full walk is a
-different risk class from a Cosmos module migration over a few thousand keys.
-Mitigation is the usual one — the upgrade block accepts no txs.
+block: byte-identical output, no OOM, no block-timeout blowout.
 
-**Rollback changes character.** Replay lets you regenerate genesis and retry. A
-bad in-place migration commits; recovery is restore-from-backup at the halt
-height, on every validator.
+**There is no rollback.** A bad migration commits. Recovery is
+restore-from-backup at the halt height, on every validator.
 
-## Prerequisite: syncing past a historical halt is broken today
+## Syncing past an upgrade height
 
-Independent of this design, and it must be fixed before in-place upgrades make
-it routine.
+A node joining the network replays history, and an upgrade height is where that
+breaks. Two distinct problems:
 
-The EndBlocker arms on `req.Height == haltHeight` reading committed state, and
-`halt_height` is never cleared. A node syncing `gnoland-1` from genesis
-therefore executes block 36170 (which sets `halt_height = 36300`), arms at
-36300, and stops entering 36301 — the same halt the original upgrade produced.
-Block 36300 is committed first and `app.haltHeight` is in-memory, so a restart
-gets past it: one manual restart per historical halt height.
+**1. The encoding changed.** Once the encoding of a stored value moves, only code
+that knows the old encoding can replay the blocks that came before it, because
+the encoding impacts the AppHash. A node replaying block 5 with a binary that
+encodes differently computes an AppHash the committed header does not agree with,
+and sync fails.
 
-With replay-based upgrades that is a curiosity — one halt exists. With in-place
-upgrades, every upgrade adds another interruption to the only path for joining
-the network, since there is no state sync. Options: skip arming while the node
-is catching up, clear the param in the handler, or record a done-height and
-compare against it.
+**2. The halt is still armed.** The EndBlocker arms on `req.Height == haltHeight`
+from committed state, and `halt_height` is never cleared. A node syncing
+`gnoland-1` from genesis therefore executes block 36170 (which sets
+`halt_height = 36300`), arms at 36300, and stops entering 36301 — the same halt
+the original upgrade produced. Block 36300 is committed first and
+`app.haltHeight` is in-memory, so a restart gets past it: one manual restart per
+historical halt height.
+
+### How Cosmos handles it
+
+Twice, and neither answer is conditional encoding inside one binary:
+
+| Node | Mechanism |
+|---|---|
+| ordinary | **state sync** — restore a recent snapshot, never execute a pre-upgrade block |
+| archive, from genesis | **cosmovisor** — read `upgrade-info.json`, swap to `upgrades/<name>/bin/<daemon>`, restart; blocks 1..H1 run under v1, H1..H2 under v2 |
+
+The binary boundary does the versioning. Note what this makes of problem 2: the
+stop is **the signal, not a fault** — it is what tells cosmovisor which binary to
+run next.
+
+### How gno could handle it
+
+gno has neither mechanism: no ABCI state-sync surface in `tm2` (`ListSnapshots`,
+`OfferSnapshot`, `LoadSnapshotChunk`, `ApplySnapshotChunk` are absent, so there
+is nothing a `gnoland snapshot dump` could dump), and nothing cosmovisor-shaped
+in `contribs/`. One of the following must exist before any upgrade may change a
+stored encoding, in increasing order of cost:
+
+- **Manual snapshots.** No code at all: archive a stopped node's data dir — app
+  DB, TM state DB, block store — and a joining node unpacks it and syncs forward,
+  never executing a pre-upgrade block. Several Cosmos chains run exactly this,
+  outside the protocol. The cost is trust: the tarball is unverified, so
+  operators trust whoever published it, where state sync verifies chunks against
+  the AppHash.
+- **A supervisor.** Preserves sync-from-genesis, which is the only way to join
+  today. It needs the halt to be machine-detectable and a per-upgrade binary
+  layout.
+- **State sync.** The largest build, and the only one that makes
+  sync-from-genesis optional rather than mandatory — which is in turn the only
+  thing that would let historical encodings be dropped rather than kept.
+
+Whichever is chosen, problem 2 must not be "fixed" by suppressing the arming
+during catch-up. That lets a single binary sync straight through, producing
+exactly the replay that cannot reach the right AppHash. What the stop needs is to
+become machine-readable, so a supervisor can act on it rather than the node
+idling until an operator notices.
 
 *Read from `app.go:1151-1162` and `baseapp.go:596`; confirm against a real sync
 of `gnoland-1` before acting on it.*
@@ -373,8 +394,6 @@ The price Cosmos pays is that a wrong binary surfaces as a consensus panic at
 the upgrade height rather than a refused startup — a large part of why cosmovisor
 exists. gno has exactly the thing the SDK lacks: one binary, one release process,
 one version string it controls and can parse. It should use it.
-
-**Keep replay alongside.** Out of scope by decision.
 
 ### The release version as the format version
 
@@ -441,28 +460,24 @@ are identical either way.
 
 ## Open questions
 
-1. **`--patch-realm` has no in-place equivalent yet.** Its own documentation says
-   you *cannot re-`addpkg` a path that already exists* — a VM property, not a
-   replay-tooling one. If that holds, handlers cannot change deployed realm code
-   and layer A is blocked on a VM change rather than on upgrade plumbing. This
-   needs answering before anything else here is built.
-2. **Retirement plan for the fork tooling** — delete, freeze, or keep for
-   disaster recovery.
-3. **Where the reserved `main` key lives** so it cannot collide with a realm or
+1. **Can a handler change the code of a deployed realm?** `addpkg` refuses a
+   path that already exists. If that cannot be worked around from inside a
+   handler, realm code changes are blocked on a VM change rather than on upgrade
+   plumbing — and that is most of what an upgrade wants to do. This needs
+   answering before anything else here is built.
+2. **Where the reserved `main` key lives** so it cannot collide with a realm or
    a module prefix.
 
 ## Phasing
 
-1. Fix the sync-past-a-historical-halt bug. Not merely ergonomics: while the
-   halt arms during sync, the BeginBlocker is unreachable at `H+1`, so no
-   handler can run on that path. Everything else is blocked on it.
+1. Pick and build one of the three answers in *Syncing past an upgrade height*,
+   starting with manual snapshots. Everything else is blocked on it.
 2. Answer open question 1. Everything downstream depends on it.
 3. State-format version + startup gate. Useful alone: it makes any future
    mismatch loud, and commits to nothing else.
 4. The registry, the registry startup gate, and the BeginBlocker. No param
    changes — `halt_min_version` already carries what is needed.
 5. First real handler, with a dry-run tool.
-6. Retire the fork path.
 
 Worth folding into whichever phase touches the params: the halt params have **no
 `.txtar` coverage at all** — zero hits across `gno.land/pkg/integration/testdata/`
