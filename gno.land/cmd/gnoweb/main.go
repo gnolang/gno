@@ -94,7 +94,9 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
-  GNOWEB_REALM_NOTICE_TEXT  Notice shown on packages outside -trusted-paths (inline markdown). Max 400 chars.`,
+  GNOWEB_REALM_NOTICE_TEXT  Notice shown on packages outside -trusted-paths (inline markdown). Max 400 chars.
+                            Unset or empty keeps the built-in text; a value that renders to nothing
+                            refuses to start. Disable the notice with -no-realm-notice.`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {

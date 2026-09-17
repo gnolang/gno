@@ -35,12 +35,13 @@ func (t trustedPaths) contains(pkg string) bool {
 	}
 }
 
-// showRealmNotice reports whether u is a package page outside the trusted
-// paths. The bare "/r/" and "/p/" listings are not package pages.
+// showRealmNotice reports whether u is a package or user page outside the
+// trusted paths. A user page renders that user's home realm. The bare "/r/",
+// "/p/" and "/u/" listings are none of these.
 func (h *HTTPHandler) showRealmNotice(u *weburl.GnoURL) bool {
-	if !h.Static.RealmNotice.Enabled() || !(u.IsRealm() || u.IsPure()) {
+	if !h.Static.RealmNotice.Enabled() || !(u.IsRealm() || u.IsPure() || u.IsUser()) {
 		return false
 	}
-	pkg := u.Path[3:] // skip "/r/" or "/p/"
+	pkg := u.Path[3:] // skip "/r/", "/p/" or "/u/"
 	return pkg != "" && !h.trusted.contains(pkg)
 }
