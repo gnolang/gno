@@ -9,12 +9,12 @@
 | Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
 | Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
 
-Mainnet (`gnoland-1`) launches at `2026-09-12T14:00:00Z` as a fresh chain — not
+Mainnet (`gnoland-1`) launched at `2026-09-12T15:00:00Z` as a fresh chain — not
 a hardfork of betanet. Balances come from the audited
 [gnolang/independence-day](https://github.com/gnolang/independence-day)
 allocation, transfers start locked per Constitution §126, and there is **no
-faucet**. The `rpc.gno.land` endpoint serves `gnoland-1` from launch; betanet,
-which held that name before, is retired.
+faucet**. The `rpc.gno.land` endpoint serves `gnoland-1`; betanet, which held
+that name before, is retired.
 
 ### WebSocket endpoints
 
