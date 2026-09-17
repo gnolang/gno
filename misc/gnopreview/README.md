@@ -29,6 +29,14 @@ widely imported package would otherwise crowd out the realms the PR is about.
 At most 25 realms are rendered (`-max-realms`). Directly changed realms are always
 kept; the comment says how many were dropped.
 
+**Per-file `$source` pages are rendered only for the files the pull request touched.**
+They are the bulk of a wide preview — 133 of 243 pages and 13.3 MB of 22.2 MB on a change
+to `p/nt/avl/v0`, which reaches the realm cap — and a reviewer wants the files that
+changed, not all of them. A realm pulled in only because it imports a changed package gets
+none; when *gnoweb itself* changed, every realm keeps two, because there the rendering of
+a source file is the thing under review. Measured effect on that worst case:
+**22.2 MB / 243 pages → 8.8 MB / 110 pages.**
+
 ## Usage
 
 ```sh
@@ -64,6 +72,10 @@ would otherwise collide.
   realms. The two are alternatives, never both.
 - `_before/` — the changed realms as the merge base renders them, so a reviewer can click
   through to the before page and not just its screenshot
+
+Publishing lives in a separate repository, [`gnolang/gno-previews`](https://github.com/gnolang/gno-previews) —
+see its README for why. This tool does not know about it: it writes a directory, and
+`pr-preview-publish.yml` moves it.
 
 ## Output layout
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -64,7 +65,12 @@ func TestURLToFile(t *testing.T) {
 
 func TestCrawlerInScope(t *testing.T) {
 	t.Parallel()
-	c := &Crawler{Realms: []string{"gno.land/r/gnoland/home", "gno.land/r/demo/counter"}}
+	// Budgeted so the file case still exercises the tab parsing; which files are
+	// worth keeping is covered by TestWantFile and TestFileBudgetZeroDropsAllUnchanged.
+	c := &Crawler{
+		Realms:     []string{"gno.land/r/gnoland/home", "gno.land/r/demo/counter"},
+		FileBudget: GnowebFileBudget,
+	}
 	for _, tc := range []struct {
 		in   string
 		want bool
@@ -178,5 +184,52 @@ func TestRewriteAddsNoindex(t *testing.T) {
 		if strings.Contains(got, "index, follow") {
 			t.Errorf("%s: gnoweb's index,follow survived: %s", tc.name, got)
 		}
+	}
+}
+
+func TestWantFile(t *testing.T) {
+	t.Parallel()
+	c := &Crawler{
+		Realms:       []string{"gno.land/r/x/touched", "gno.land/r/x/untouched"},
+		ChangedFiles: map[string][]string{"gno.land/r/x/touched": {"a.gno", "gnomod.toml"}},
+		FileBudget:   GnowebFileBudget,
+	}
+	// A realm the PR edited: exactly its changed files, nothing else.
+	for _, tc := range []struct {
+		url  string
+		want bool
+	}{
+		{"/r/x/touched$source&file=a.gno", true},
+		{"/r/x/touched$source&file=gnomod.toml", true},
+		{"/r/x/touched$source&file=b.gno", false},
+		{"/r/x/touched$source", true}, // the overview always stays
+	} {
+		if got := c.inScope(tc.url); got != tc.want {
+			t.Errorf("inScope(%q) = %v; want %v", tc.url, got, tc.want)
+		}
+	}
+	// A realm pulled in by a dependency: a small budget, then nothing, so one
+	// widely imported package cannot drag in a page per file per realm.
+	for i := range GnowebFileBudget {
+		u := fmt.Sprintf("/r/x/untouched$source&file=f%d.gno", i)
+		if !c.inScope(u) {
+			t.Errorf("inScope(%q) = false; want true within the budget", u)
+		}
+	}
+	if c.inScope("/r/x/untouched$source&file=over.gno") {
+		t.Error("budget exceeded but the page was still captured")
+	}
+}
+
+func TestFileBudgetZeroDropsAllUnchanged(t *testing.T) {
+	t.Parallel()
+	// A dependency bump: no file in the realm changed, and no gnoweb change to
+	// justify looking at one. Per-file pages are 60% of a wide preview's bytes.
+	c := &Crawler{Realms: []string{"gno.land/r/x/dep"}}
+	if c.inScope("/r/x/dep$source&file=any.gno") {
+		t.Error("per-file page captured with a zero budget")
+	}
+	if !c.inScope("/r/x/dep$source") {
+		t.Error("the source overview must still be captured")
 	}
 }

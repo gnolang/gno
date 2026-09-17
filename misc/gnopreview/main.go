@@ -121,10 +121,12 @@ func render(cfg config, plan *Plan) error {
 	defer stop()
 
 	c := &Crawler{
-		Base:     fmt.Sprintf("http://127.0.0.1:%d", cfg.port),
-		Realms:   plan.Realms,
-		MaxPages: cfg.maxPages,
-		Live:     strings.TrimSuffix(cfg.live, "/"),
+		Base:         fmt.Sprintf("http://127.0.0.1:%d", cfg.port),
+		Realms:       plan.Realms,
+		MaxPages:     cfg.maxPages,
+		Live:         strings.TrimSuffix(cfg.live, "/"),
+		ChangedFiles: plan.ChangedFiles,
+		FileBudget:   fileBudget(plan),
 	}
 	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout); err != nil {
 		return err
@@ -196,6 +198,16 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
 		_ = cmd.Wait()
 		log.Close()
 	}, nil
+}
+
+// fileBudget allows a couple of per-file source pages for realms nothing
+// changed in, but only when the pull request changed gnoweb: that is the case
+// where the rendering of a source file is itself what needs reviewing.
+func fileBudget(plan *Plan) int {
+	if plan.Gnoweb {
+		return GnowebFileBudget
+	}
+	return 0
 }
 
 // renderBase renders the changed realms a second time from the merge-base

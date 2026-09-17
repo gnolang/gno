@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -50,6 +51,18 @@ type Crawler struct {
 	// Prefix is prepended to every output path, so a second crawl of the same
 	// realms can live beside the first (the "before" tree under _before/).
 	Prefix string
+	// ChangedFiles maps a realm package path to the files the pull request
+	// touched. A realm listed here gets a per-file $source page for those files
+	// and no others; a realm absent from it gets at most unchangedFileBudget of
+	// them, enough to show the syntax highlighting without carrying the rest.
+	ChangedFiles map[string][]string
+	// FileBudget is how many per-file source pages a realm with no changed
+	// files may still keep. Non-zero only when gnoweb itself changed, where
+	// the syntax highlighting is the thing under review; for a realm pulled in
+	// by a dependency bump there is nothing to look at file by file.
+	FileBudget int
+
+	fileBudget map[string]int
 
 	pages map[string]*page // url -> page
 	order []string
@@ -164,17 +177,47 @@ func (c *Crawler) inScope(p string) bool {
 	if args != "" && query != "" {
 		return false
 	}
+	realm := ""
+	for _, r := range c.Realms {
+		if base == urlOf(r) {
+			realm = r
+			break
+		}
+	}
+	if realm == "" {
+		return false
+	}
 	for part := range strings.SplitSeq(query, "&") {
-		if key, _, _ := strings.Cut(part, "="); explosiveArgs[key] {
+		key, val, _ := strings.Cut(part, "=")
+		if explosiveArgs[key] {
+			return false
+		}
+		if key == "file" && !c.wantFile(realm, val) {
 			return false
 		}
 	}
-	for _, r := range c.Realms {
-		if base == urlOf(r) {
-			return true
-		}
+	return true
+}
+
+// GnowebFileBudget is the FileBudget used when gnoweb itself changed: enough
+// pages to show that highlighting still renders, without one page per file.
+const GnowebFileBudget = 2
+
+// wantFile decides whether a realm's $source&file=<name> page is worth keeping.
+// Measured on a 25-realm preview: per-file source pages were 133 of 243 pages
+// and 13.3 MB of 22.2 MB. A reviewer wants the files the PR touched.
+func (c *Crawler) wantFile(realm, name string) bool {
+	if changed, ok := c.ChangedFiles[realm]; ok {
+		return slices.Contains(changed, name)
 	}
-	return false
+	if c.fileBudget == nil {
+		c.fileBudget = map[string]int{}
+	}
+	if c.fileBudget[realm] >= c.FileBudget {
+		return false
+	}
+	c.fileBudget[realm]++
+	return true
 }
 
 // splitURL breaks a gnoweb path into its three components. gnoweb puts them all

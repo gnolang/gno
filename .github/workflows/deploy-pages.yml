@@ -21,9 +21,6 @@ on:
       - '**/*.go'
       - go.mod
       - go.sum
-  # Dispatched by pr-preview-publish.yml / pr-preview-cleanup.yml after they
-  # change a pr-<N>/ directory on the gh-pages storage branch: every run
-  # publishes the whole site, so a preview change needs a redeploy.
   workflow_dispatch:
 
 permissions:
@@ -31,21 +28,11 @@ permissions:
 
 concurrency:
   group: pages
-  # Left false deliberately, now that pull request previews dispatch this
-  # workflow too. Every run publishes the COMPLETE site, so coalescing is
-  # already free: GitHub keeps one running plus one pending run, and a third
-  # dispatch simply replaces the pending one, which will pick up everything on
-  # gh-pages when it starts. Setting this true instead makes a burst of previews
-  # cancel the in-flight deploy over and over, and the site stops updating for
-  # as long as the burst lasts.
   cancel-in-progress: false
 
 jobs:
   build:
-    # Alternatively, validate based on provided tokens and permissions.
-    # GNOWEB_PREVIEW_BASE_URL also opts a fork in: a repository that publishes
-    # pull request previews has to publish the Pages site that carries them.
-    if: github.repository == 'gnolang/gno' || vars.GNOWEB_PREVIEW_BASE_URL != ''
+    if: github.repository == 'gnolang/gno' # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -65,28 +52,6 @@ jobs:
           cp -r misc/gendocs/godoc/* pages_output/
           cp -r misc/stdlib_diff/stdlib_diff/* pages_output/stdlib_diff/
 
-      # Per-pull-request gnoweb previews live on the gh-pages branch, which is
-      # storage rather than a publishing source: pr-preview-publish.yml writes
-      # pr-<N>/ there and dispatches this workflow. Folding them in here keeps
-      # Pages on a custom Actions workflow, which is exempt from the 10
-      # builds/hour cap that branch-published sites are subject to.
-      - name: Fold in the pull request previews
-        if: github.event_name != 'pull_request'
-        run: |
-          git fetch origin gh-pages --depth=1 2>/dev/null || true
-          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-            git worktree add .ghp origin/gh-pages
-            for d in .ghp/pr-*/; do
-              [ -d "$d" ] || continue
-              cp -r "$d" "pages_output/$(basename "$d")"
-            done
-            git worktree remove --force .ghp
-          fi
-          # The previews serve pages from _t/ and _a/ directories, which Jekyll
-          # would drop.
-          : > pages_output/.nojekyll
-          du -sh pages_output
-
       # These two last steps will be skipped on pull requests
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
         id: pages
@@ -99,9 +64,9 @@ jobs:
 
   deploy:
     if: >
-      (github.repository == 'gnolang/gno' || vars.GNOWEB_PREVIEW_BASE_URL != '') &&
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
-      github.event_name != 'pull_request'
+      github.repository == 'gnolang/gno' &&
+      github.ref == 'refs/heads/master' &&
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       pages: write # to deploy to GitHub Pages

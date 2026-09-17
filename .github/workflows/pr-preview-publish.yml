@@ -1,16 +1,15 @@
 # Publishes the snapshot built by pr-preview.yml and posts the sticky comment.
 #
-# This is the PRIVILEGED half. It deliberately never checks out the pull
-# request's code and never runs anything from it: it only downloads the
-# artifact, copies its files into the gh-pages storage branch, and posts a
-# comment body that the untrusted job wrote. That split is what makes previews
-# safe for pull requests opened from forks, where the `pull_request` token is
-# read-only.
+# This is the PRIVILEGED half. It deliberately never checks out the pull request's code
+# and never runs anything from it: it downloads the artifact, copies its files into the
+# gnolang/gno-previews repository, and posts a comment body that the untrusted job wrote.
+# That split is what makes previews safe for pull requests opened from forks, where the
+# `pull_request` token is read-only.
 #
-# gh-pages is storage, not the published site: pages-deploy.yml assembles it
-# into the GitHub Pages artifact. Keeping Pages on a custom Actions workflow
-# matters — branch-published sites are capped at 10 builds/hour, which a repo
-# with this many open pull requests would blow through.
+# Previews live in their own repository so that publishing one is a single incremental
+# push. A GitHub Pages site built by an Actions workflow — like this repository's godoc
+# site — has no incremental deploy, so sharing it would rebuild and re-upload the whole
+# documentation mirror for every preview. See gnolang/gno-previews/README.md.
 name: pr / preview publish
 
 on:
@@ -20,37 +19,30 @@ on:
 
 permissions: {}
 
-# Keyed per pull request, not globally: GitHub queues at most ONE pending run
-# per concurrency group, so a third arrival silently CANCELS the one waiting —
-# observed as a pull request whose preview published and whose comment never
-# appeared. Serializing the shared gh-pages branch is the retry loop's job, not
-# this group's.
+# Keyed per pull request, not globally: GitHub queues at most ONE pending run per
+# concurrency group, so a third arrival silently CANCELS the one waiting — observed as a
+# pull request whose preview published and whose comment never appeared. Concurrent
+# pushes to the previews repository are handled by the replay loop below instead.
 concurrency:
   group: >-
     pr-preview-publish-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
+env:
+  PREVIEWS_REPO: gnolang/gno-previews
+
 jobs:
   publish:
-    # A skipped preview uploads no artifact, and the download below turns the
-    # whole job into a no-op — no comment, no commit, nothing.
+    # A skipped preview uploads no artifact, and the download below turns the whole job
+    # into a no-op — no comment, no commit, nothing.
     if: >
       vars.GNOWEB_PREVIEW_BASE_URL != '' &&
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # to push the snapshot to the gh-pages storage branch
       pull-requests: write # to upsert the sticky comment
-      actions: write # to download the triggering run's artifact, and redeploy Pages
+      actions: read # to download the artifact from the triggering run
     steps:
-      # Credentials are persisted on purpose: this job's whole reason to exist
-      # is pushing to the gh-pages storage branch. It uploads no artifact, so
-      # there is nothing for them to leak into.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
-        with:
-          # The base repository, never the pull request's head.
-          ref: ${{ github.event.repository.default_branch }}
-
       - name: Download the snapshot
         id: download
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -70,47 +62,56 @@ jobs:
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           rm -f _preview/pr-number.txt
 
-      # Rebuild pr-<N>/ on the latest gh-pages each attempt, then push.
-      # Concurrent PRs share this one branch (each owns only its own pr-<N>/),
-      # so a parallel push makes ours non-fast-forward. Replaying is idempotent:
-      # it only ever rewrites our own subfolder.
-      - name: Push to gh-pages/pr-<N>
+      # A separate repository needs a credential of its own — GITHUB_TOKEN is scoped to
+      # this one — following the DOCS_DEPLOY_PAT pattern in deploy-docs.yml. The token is
+      # persisted because pushing is the point, and this job uploads no artifact for it
+      # to leak into.
+      - name: Check out the previews repository
         if: steps.download.outcome == 'success'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
+        with:
+          repository: ${{ env.PREVIEWS_REPO }}
+          ref: main
+          token: ${{ secrets.PREVIEWS_DEPLOY_PAT }} # zizmor: ignore[secrets-outside-env]
+          path: previews
+
+      # Concurrent pull requests share one branch, each owning only its own pr-<N>/, so a
+      # parallel push makes ours non-fast-forward. Rather than rebase, replay: reset onto
+      # the latest main and redo the copy. It only ever rewrites our own directory plus
+      # the generated index, so replaying is idempotent and cannot clobber another PR.
+      - name: Publish pr-<N>
+        if: steps.download.outcome == 'success'
+        working-directory: previews
         env:
           PR: ${{ steps.meta.outputs.pr }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3 4 5; do
-            git fetch origin gh-pages --depth=1 2>/dev/null || true
-            rm -rf .ghp; git worktree prune
-            if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-              git worktree add .ghp origin/gh-pages
-              ( cd .ghp && git checkout -B gh-pages )
-            else
-              git worktree add --detach .ghp
-              # Braces, not `A && B || true`: the fallback belongs to the `git rm`
-              # (whose index may already be empty), not to the checkout.
-              ( cd .ghp && git checkout --orphan gh-pages && { git rm -rqf . 2>/dev/null || true; } )
-            fi
-            # .nojekyll is mandatory: the snapshot puts pages under _t/ and _a/,
-            # and Jekyll drops every path starting with an underscore.
-            : > .ghp/.nojekyll
-            rm -rf ".ghp/pr-$PR"; mkdir -p ".ghp/pr-$PR"; cp -r _preview/. ".ghp/pr-$PR/"
-            ( cd .ghp && git add -A && (git diff --cached --quiet || git commit -q -m "preview: PR #$PR") )
-            if ( cd .ghp && git push origin gh-pages ); then
-              echo "pushed on attempt $attempt"
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            rm -rf "pr-$PR"
+            mkdir -p "pr-$PR"
+            cp -r ../_preview/. "pr-$PR/"
+            ./bin/reindex.sh
+            git add -A
+            if git diff --cached --quiet; then
+              echo "preview unchanged"
               exit 0
             fi
-            echo "push rejected (gh-pages moved); replaying on latest — attempt $attempt"
-            git worktree remove --force .ghp
+            git commit -q -m "preview: PR #$PR"
+            if git push -q origin HEAD:main; then
+              echo "published on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected (main moved); replaying on the latest — attempt $attempt"
             sleep $((RANDOM % 5 + 2))
           done
           echo "::error::could not publish the preview after 5 attempts"
           exit 1
 
-      # The body was written by the untrusted job, so it is treated as data:
-      # passed through a file, never interpolated into a shell command.
+      # The body was written by the untrusted job, so it is treated as data: passed
+      # through a file, never interpolated into a shell command.
       - name: Upsert the sticky comment
         if: steps.download.outcome == 'success'
         env:
@@ -129,11 +130,3 @@ jobs:
             gh api "repos/$REPO/issues/$PR/comments" -F body=@_preview/comment.md >/dev/null
             echo "created comment"
           fi
-
-      # gh-pages is storage; pages-deploy assembles and publishes it.
-      - name: Publish the site
-        if: steps.download.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: gh workflow run deploy-pages.yml -R "$REPO"

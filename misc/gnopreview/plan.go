@@ -74,6 +74,11 @@ type Plan struct {
 	Dropped int `json:"dropped"`
 	// Dirs are the repo-relative package dirs handed to gnodev.
 	Dirs []string `json:"dirs"`
+	// ChangedFiles maps a changed realm to the base names of its files that the
+	// pull request touched. Per-file $source pages are rendered only for these:
+	// they are 60% of a wide preview's bytes, and a reviewer wants the files
+	// that changed, not all of them.
+	ChangedFiles map[string][]string `json:"changed_files,omitempty"`
 	// Shots are screenshots taken of the finished snapshot, embedded in the
 	// PR comment. Only populated for gnoweb changes.
 	Shots []Shot `json:"shots,omitempty"`
@@ -196,8 +201,9 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
 		byDir[p.Dir] = p
 	}
 
-	plan := &Plan{}
+	plan := &Plan{ChangedFiles: map[string][]string{}}
 	changedPkgs := map[string]bool{}
+	changedFiles := map[string]map[string]bool{}
 	for _, f := range changed {
 		f = filepath.ToSlash(strings.TrimSpace(f))
 		if f == "" {
@@ -213,6 +219,10 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
 		}
 		if p := byDir[path.Dir(f)]; p != nil && !p.Ignore {
 			changedPkgs[p.Path] = true
+			if changedFiles[p.Path] == nil {
+				changedFiles[p.Path] = map[string]bool{}
+			}
+			changedFiles[p.Path][path.Base(f)] = true
 		}
 	}
 
@@ -260,6 +270,9 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
 	}
 	for _, r := range plan.Realms {
 		plan.Dirs = append(plan.Dirs, pkgs[r].Dir)
+		if f := changedFiles[r]; len(f) > 0 {
+			plan.ChangedFiles[r] = sortedKeys(f)
+		}
 	}
 	return plan, nil
 }
