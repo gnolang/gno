@@ -775,16 +775,14 @@ it protects realms against mutating its own object that it doesn't intend to:
 such as when a realm's real object is passed as an argument to a mutator
 function where the object happens to match the type of the argument.
 
-Objects returned from functions or methods are not readonly tainted. So if
-`func (eo object) GetA() any { return eo.FieldA }` then `externalobject.GetA()`
-returns an object that is not tainted assuming eo.FieldA was not otherwise
-tainted. While the parent object `eo` is still protected from direct
-modification by external realm logic, the returned object from `GetA()` can be
-passed as an argument to logic declared in the residing realm of `eo.FieldA`
-for direct mutation.
+Objects returned from functions or methods carry no extra taint, but a
+`/p/` method called on a foreign-owned object writes only if the owner granted
+a handle with `mutable(x)`; see "Views and handles" below.
 
 Whether or not an object is readonly tainted it can always be mutated by a
-method declared on the receiver.
+method declared in the realm that owns it (borrow rule #1 runs that method
+under the declaring realm). A `/p/`-declared method mutates it only if the
+owner granted a handle with `mutable(x)`.
 
 ```go
 // /r/alice
@@ -821,6 +819,35 @@ Future versions of Gno may also expose a new modifier keyword `readonly` to
 allow for return values of functions to be tainted as readonly. Then with `func
 GetBlacklist() readonly []string` the return value would be readonly tainted
 for both bob and alice.
+
+### Views and handles: `mutable(x)`
+
+A reference that crosses a realm boundary, as a return value or as an
+argument, is a **view**. Direct writes through it are refused by the
+readonly taint, and a `/p/` method called on it runs with the *caller's*
+storage-context, so its writes are refused as well. Borrow rule #2 (the
+storage-realm borrow to the receiver's owner) fires only for an object the
+owner granted:
+
+```go
+// realm X
+func GetUsers() *avl.Tree  { return users }            // view
+func EditUsers() *avl.Tree { return mutable(users) }   // handle
+
+// realm A
+X.GetUsers().Set("k", v)    // refused: X never granted
+X.EditUsers().Set("k", v)   // commits to X's storage
+X.Register(cross(cur), mutable(mine))   // A grants X write access to A's tree
+```
+
+`mutable(x)` is a uverse builtin. It returns `x` unchanged and sets a
+persisted flag on the object (`ObjectInfo.IsShared`), so a handle stored by
+another realm stays a handle in later transactions. Only the owning realm may
+grant: calling it on an object another realm allocated panics. Two receivers
+borrow without a grant: an *unreal* foreign receiver, which the owner's code
+built in this transaction (a teller returned by a token's method), and an
+object owned by a `/p/` package, whose own post-init immutability gate
+reports the write.
 
 ## `panic()` and `revive(fn)`
 

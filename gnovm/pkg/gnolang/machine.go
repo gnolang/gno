@@ -2708,9 +2708,18 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
+		// A REAL foreign receiver borrows only if its owner granted it with
+		// mutable(x): otherwise the reference is a view and the method's
+		// writes are refused by the readonly gate. An unreal foreign receiver
+		// (built in this tx by the owner's code, e.g. a teller returned by a
+		// token's method) borrows as before: the owner just constructed it.
 		if obj != nil {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
+			oi := obj.GetObjectInfo()
+			recvOID := oi.ID
+			// /p/-owned receivers keep borrowing so the post-init
+			// immutability gate reports them, not this one.
+			borrowable := !obj.GetIsReal() || oi.GetIsShared() || recvOID.PkgID.IsImmutablePkg()
+			if borrowable && !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
 				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
@@ -3018,7 +3027,7 @@ func panicIllegalPointerLHS(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString(readonlyAccessPanic(lx)))
+		m.Panic(typedString(m.readonlyAccessPanic(lx)))
 	}
 	return pv
 }
@@ -3029,7 +3038,13 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // through a method or crossing function re-enters via PushFrameCall, whose
 // implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
 // the target's owner.
-func readonlyAccessPanic(x Expr) string {
+func (m *Machine) readonlyAccessPanic(x Expr) string {
+	if m.Package != nil && !IsRealmPath(m.Package.PkgPath) {
+		// Library code writing an object another realm owns: the /p/ method
+		// ran with the caller's storage because the owner never granted a
+		// handle (borrow rule #2 needs mutable(x)).
+		return "cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): " + x.String()
+	}
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
@@ -3149,7 +3164,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 			ro = m.IsReadonly(xv)
 			if ro {
 				// Ensure we always panic, without expecting the caller to do it.
-				m.Panic(typedString(readonlyAccessPanic(lx)))
+				m.Panic(typedString(m.readonlyAccessPanic(lx)))
 			}
 			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {

@@ -412,7 +412,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// dispatch; the preprocessor handles its actual lowering. For
 		// the gno-to-go transpile build, treat it as a pass-through
 		// identity so the resulting Go code compiles.
-		if fe.Name == "cross" && len(ce.Args) == 1 {
+		if (fe.Name == "cross" || fe.Name == "mutable") && len(ce.Args) == 1 {
 			c.Replace(ce.Args[0])
 			return true
 		}

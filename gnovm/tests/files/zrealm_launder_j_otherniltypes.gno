@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderj
 package launderj
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Attack J: NIL-VALUED RECEIVERS OF OTHER REFERENCE-UNDERLYING TYPES.
 //
 // Variants of Attack H/I where the receiver is a nil function-typed
@@ -34,7 +39,5 @@ func main(cur realm) {
 	println("after EvilMap:", laundervictim.ReadImm())
 }
 
-// Output:
-// after EvilFunc: pwnd-via-func
-// after EvilSlice: pwnd-via-slice
-// after EvilMap: pwnd-via-map
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field

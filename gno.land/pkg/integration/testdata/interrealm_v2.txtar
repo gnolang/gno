@@ -196,7 +196,8 @@ stderr 'cannot cur-call to external realm function'
 ## ============================================================
 
 ## L2_PMethodOnOwnedReal: /p/-method on real /r/owned-allocated
-## receiver. borrow rule #2 borrows m.Realm to /r/owned; write succeeds.
+## receiver the owner granted with mutable(). borrow rule #2 borrows m.Realm
+## to /r/owned; write succeeds.
 ##
 ##   func L2_PMethodOnOwnedReal(cur realm) {
 ##       owned.Lib.TouchA()
@@ -456,7 +457,7 @@ func (r *Resource) RecordRealmTraceForCTX() {
 var (
 	global      int
 	Real        = &Resource{Value: 0}
-	Lib         = &v2lib.LibContainer{A: 0}
+	Lib         = mutable(&v2lib.LibContainer{A: 0}) // grant: foreign /p/-method writes may borrow
 	GlobalSlice = []int{1, 2, 3}
 	trace       string
 )
@@ -552,7 +553,7 @@ import (
 	"gno.land/r/test/owned"
 )
 
-var Lib = &v2lib.LibContainer{A: 0}
+var Lib = mutable(&v2lib.LibContainer{A: 0}) // grant: foreign /p/-method writes may borrow
 
 func MutateOwnedVia(r *owned.Resource) {
 	r.Mutate()

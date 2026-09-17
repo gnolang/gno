@@ -1843,6 +1843,41 @@ func makeUverseNode() {
 			m.PushValue(*arg0.TV)
 		},
 	)
+	// mutable(x) is the owner's grant of write access through x's /p/
+	// methods to foreign holders. Without it a reference that crosses a
+	// realm boundary is a view: borrow rule #2 (PushFrameCall) does not
+	// switch storage to x's owner, so /p/ method writes hit the readonly
+	// gate. Only the owning realm may grant, and the flag is persisted with
+	// the object, so a stored handle stays a handle in later transactions.
+	defNative("mutable",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // result
+			"result", GenT("X", nil),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			tv := arg0.TV
+			obj := tv.GetFirstObject(m.Store)
+			if obj == nil {
+				m.PanicString("mutable: value is not backed by a realm object")
+				return
+			}
+			oi := obj.GetObjectInfo()
+			if m.Realm != nil && !oi.ID.PkgID.IsZero() && oi.ID.PkgID != m.Realm.ID {
+				m.PanicString("mutable: only the owning realm may grant write access to its object")
+				return
+			}
+			if !oi.GetIsShared() {
+				oi.SetIsShared(true)
+				if m.Realm != nil && obj.GetIsReal() {
+					m.Realm.MarkDirty(obj)
+				}
+			}
+			m.PushValue(*tv)
+		},
+	)
 	defNative("attach",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

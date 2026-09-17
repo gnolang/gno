@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/laundern
 package laundern
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Attack N: the stdlib-receiver analogue of attack M (the /p/-receiver case).
 //
 // base64.StdEncoding is a stdlib-init-stamped receiver. Under the borrow
@@ -26,4 +31,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): dst<VPBlock(1,1)>[di<VPBlock(1,3)> + (const (0 int))]
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): dst<VPBlock(1,1)>[di<VPBlock(1,3)> + (const (0 int))]

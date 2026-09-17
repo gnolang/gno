@@ -179,6 +179,12 @@ type ObjectInfo struct {
 
 	LastObjectSize int64 //
 
+	// The owning realm granted write access through this object's /p/ methods
+	// to foreign holders (borrow rule #2). Set only by uverse mutable(x); an
+	// unset flag makes a cross-realm reference a read-only view. Amino numbers
+	// fields by position, so this must stay after LastObjectSize (field 8).
+	IsShared bool `json:",omitempty"`
+
 	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
@@ -208,6 +214,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:        oi.ModTime,
 		RefCount:       oi.RefCount,
 		IsEscaped:      oi.IsEscaped,
+		IsShared:       oi.IsShared,
 		LastObjectSize: oi.LastObjectSize,
 		isDirty:        oi.isDirty,
 		isDeleted:      oi.isDeleted,
@@ -347,6 +354,14 @@ func (oi *ObjectInfo) GetIsEscaped() bool {
 
 func (oi *ObjectInfo) SetIsEscaped(x bool) {
 	oi.IsEscaped = x
+}
+
+func (oi *ObjectInfo) GetIsShared() bool {
+	return oi.IsShared
+}
+
+func (oi *ObjectInfo) SetIsShared(x bool) {
+	oi.IsShared = x
 }
 
 func (oi *ObjectInfo) GetIsDeleted() bool {

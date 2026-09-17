@@ -144,6 +144,7 @@ message ObjectInfo {
 	sint64 ref_count = 5 [json_name = "RefCount"];
 	bool is_escaped = 6 [json_name = "IsEscaped"];
 	sint64 last_object_size = 7 [json_name = "LastObjectSize"];
+	bool is_shared = 8 [json_name = "IsShared"];
 }
 
 message ValueHash {
