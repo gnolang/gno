@@ -89,7 +89,9 @@ jobs:
               ( cd .ghp && git checkout -B gh-pages )
             else
               git worktree add --detach .ghp
-              ( cd .ghp && git checkout --orphan gh-pages && git rm -rqf . 2>/dev/null || true )
+              # Braces, not `A && B || true`: the fallback belongs to the `git rm`
+              # (whose index may already be empty), not to the checkout.
+              ( cd .ghp && git checkout --orphan gh-pages && { git rm -rqf . 2>/dev/null || true; } )
             fi
             # .nojekyll is mandatory: the snapshot puts pages under _t/ and _a/,
             # and Jekyll drops every path starting with an underscore.
