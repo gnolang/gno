@@ -313,7 +313,7 @@ historical halt height.
 
 ### How Cosmos handles it
 
-Twice, and neither answer is conditional encoding inside one binary:
+Twice:
 
 | Node | Mechanism |
 |---|---|
@@ -359,12 +359,6 @@ of `gnoland-1` before acting on it.*
 **Port Cosmos's module layer wholesale.** Rejected: builds a module manager,
 configurator and per-module registry to serve four keepers sharing one store
 key, for a modularity property gno does not have.
-
-**No state-format version, rely on the plan record.** Rejected: with sequential
-upgrades "which ran" is equivalent to "what format", but equivalence is not a
-check. Nothing detects a binary expecting format N meeting data at N-1, and
-`skip_upgrade_height` exists specifically to let an operator bypass the only
-gate that exists.
 
 **Two state-format versions, `main` and `base` separately.** Rejected, for the
 same reason as per-module consensus versions: there is no independent axis. Both
