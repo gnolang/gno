@@ -92,7 +92,7 @@ repository.
   community
 
 **Connect & Get Help:**
-- [Discord](https://discord.gg/YFtMjWwUN7) - Real-time support and development 
+- [Discord](https://discord.com/invite/gnoland) - Real-time support and development 
   discussions
 - [Twitter](https://twitter.com/_gnoland) - Official announcements and updates
 - [YouTube](https://www.youtube.com/@_gnoland) - Tutorials, workshops, and 
