@@ -50,9 +50,13 @@ property of the object, so it survives the store.
    by a foreign constructor to carry its authority. An object owned by a
    `/p/` package: its post-init immutability gate reports the write with the
    clearer message, so borrowing is harmless.
-4. **Both directions.** A passing its own `*avl.Tree` into
+4. **Grants do not survive adoption.** `SetPkgID` clears `IsShared`, so an
+   object pre-marked by its allocator (e.g. a `maketx run` script) and then
+   adopted by the realm that stores it is a view for the allocator afterwards.
+   This is what keeps the flag from re-opening the adopted-stamp borrow.
+5. **Both directions.** A passing its own `*avl.Tree` into
    `X.Register(cross(cur), t)` gives X a view unless A wrote `mutable(t)`.
-5. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
+6. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
 
 Persistence: `IsShared` is amino field 8, `json:",omitempty"`, so unflagged
 objects hash as before. Amino numbers fields by struct position, so the field

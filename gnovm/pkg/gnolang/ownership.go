@@ -304,8 +304,11 @@ func (oi *ObjectInfo) SetNewTime(t uint64) {
 // SetPkgID stamps only the PkgID portion of the ObjectID,
 // preserving any pre-existing NewTime. Used by allocator
 // constructors to stamp authority at allocation.
+// SetPkgID stamps or re-stamps the owner. A re-stamp (adoption) is a new
+// owner, and grants do not transfer: the adopter never wrote mutable(x).
 func (oi *ObjectInfo) SetPkgID(p PkgID) {
 	oi.ID.PkgID = p
+	oi.IsShared = false
 }
 
 func (oi *ObjectInfo) GetModTime() uint64 {
