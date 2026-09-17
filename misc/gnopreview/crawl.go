@@ -32,9 +32,10 @@ type page struct {
 const noindexTag = `<meta name="robots" content="noindex, nofollow">`
 
 var (
-	headRe = regexp.MustCompile(`(?i)<head[^>]*>`)
-	attrRe = regexp.MustCompile(`(?i)\b(href|src)="([^"]*)"`)
-	cssRe  = regexp.MustCompile(`url\(\s*"?(/public/[^)"']*)"?\s*\)`)
+	headRe   = regexp.MustCompile(`(?i)<head[^>]*>`)
+	robotsRe = regexp.MustCompile(`(?i)<meta\s+name="robots"[^>]*>`)
+	attrRe   = regexp.MustCompile(`(?i)\b(href|src)="([^"]*)"`)
+	cssRe    = regexp.MustCompile(`url\(\s*"?(/public/[^)"']*)"?\s*\)`)
 )
 
 // Crawler snapshots a running gnoweb into a self-contained static tree.
@@ -261,12 +262,7 @@ func (c *Crawler) rewrite(p *page) string {
 	depth := len(strings.Split(strings.Trim(path.Dir(p.File), "/"), "/"))
 	up := strings.Repeat("../", depth)
 
-	body := p.Body
-	if loc := headRe.FindStringIndex(body); loc != nil {
-		body = body[:loc[1]] + noindexTag + body[loc[1]:]
-	} else {
-		body = noindexTag + body
-	}
+	body := setNoindex(p.Body)
 	body = attrRe.ReplaceAllStringFunc(body, func(m string) string {
 		sub := attrRe.FindStringSubmatch(m)
 		attr, raw := sub[1], sub[2]
@@ -276,6 +272,21 @@ func (c *Crawler) rewrite(p *page) string {
 		sub := cssRe.FindStringSubmatch(m)
 		return "url(" + up + strings.TrimPrefix(sub[1], "/") + ")"
 	})
+}
+
+// setNoindex makes a captured page unindexable. gnoweb's own layout emits
+// `<meta name="robots" content="index, follow">` on every page, so this
+// REPLACES that tag rather than adding a second one: two conflicting robots
+// directives leave the outcome to each crawler's precedence rules, and the
+// correct one is not worth betting the gno.land search results on.
+func setNoindex(body string) string {
+	if robotsRe.MatchString(body) {
+		return robotsRe.ReplaceAllString(body, noindexTag)
+	}
+	if loc := headRe.FindStringIndex(body); loc != nil {
+		return body[:loc[1]] + noindexTag + body[loc[1]:]
+	}
+	return noindexTag + body
 }
 
 // mapURL is the single place that decides where a link points in the snapshot.

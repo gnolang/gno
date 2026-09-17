@@ -105,6 +105,19 @@ enumerate rather than describe:
 
 A `-max-pages` cap (400) backstops the rest.
 
+## Search engines
+
+Every captured page is a near-duplicate of a real gno.land page, so the snapshot must not be
+indexed. gnoweb's own layout emits `<meta name="robots" content="index, follow">` on every
+page (`components/layouts/head.html`); the renderer **replaces** that tag with
+`noindex, nofollow` rather than adding a second one, because two conflicting robots
+directives leave the outcome to each crawler's precedence rules.
+
+Deliberately not a `robots.txt` `Disallow` instead: a disallowed path can still be indexed
+when something links to it, and being disallowed is precisely what stops a crawler from
+fetching the page and reading the `noindex`. GitHub Pages cannot set an `X-Robots-Tag`
+header, so the meta tag is the only authoritative mechanism available.
+
 ## Known limits
 
 - Transactions, the faucet, and search do not work: there is no signer and no chain

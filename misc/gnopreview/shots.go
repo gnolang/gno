@@ -29,9 +29,14 @@ const maxPairs = 2
 // ShotPair is one realm shown before and after the pull request's change.
 type ShotPair struct {
 	Realm  string `json:"realm"`
-	Before string `json:"before,omitempty"` // empty when the realm is new in this PR
+	Before string `json:"before,omitempty"`
 	After  string `json:"after"`
 	URL    string `json:"url"` // the after page, for the link behind the image
+	// New says the realm does not exist at the merge base, which is why there
+	// is no "before". Distinct from Before being empty because no base
+	// checkout was supplied at all — claiming a realm is new when we simply
+	// did not look would be a lie in the comment.
+	New bool `json:"new,omitempty"`
 }
 
 // ScreenshotPairs photographs each changed realm as the merge base renders it
@@ -68,13 +73,16 @@ func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, chrome
 		pair.After = path.Join(shotsDir, name+"-after.png")
 
 		// A realm added by this pull request has no "before"; say so rather
-		// than inventing one.
+		// than inventing one. With no base pass at all, say nothing.
 		if base != nil {
+			pair.New = true
 			if beforeFile, ok := base.FileOf(urlOf(r)); ok {
 				if err := chromeShot(bin, filepath.Join(outDir, filepath.FromSlash(beforeFile)),
 					filepath.Join(outDir, shotsDir, name+"-before.png")); err == nil {
 					pair.Before = path.Join(shotsDir, name+"-before.png")
+					pair.New = false
 				} else {
+					pair.New = false
 					fmt.Fprintf(os.Stderr, "  ! screenshot %s (before): %v\n", r, err)
 				}
 			}
