@@ -12,8 +12,9 @@ import (
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
-// and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + id.
+// and rlm.PkgPath() — the calling realm itself, with any realm.Sub subpath
+// stripped — becomes the Token's origRealm. Token.ID() keeps the raw
+// rlm.PkgPath(), and returns it + "." + symbol + "." + id.
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
@@ -29,7 +30,8 @@ import (
 // other token of that realm can collide with it.
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
+// grc20reg.Register(cross(cur), Token, slug). The registry key is the
+// rlmPath.symbol prefix of Token.ID(), without its trailing id.
 //
 // Every successful call emits a NewToken event carrying the resulting
 // Token.ID(). Because Token's fields are unexported, NewToken is the only way a
@@ -132,7 +134,8 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // ID returns the Identifier of the token.
-// It is composed of the original realm, the symbol, and the provided id.
+// It is composed of the creating realm's raw pkgpath — including any
+// realm.Sub subpath, unlike origRealm — the symbol, and the provided id.
 func (tok *Token) ID() string {
 	return tok.id
 }
