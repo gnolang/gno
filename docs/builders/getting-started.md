@@ -31,6 +31,19 @@ Install all three with the [one-line installer](./install.md#one-line-installer)
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
+:::warning
+The precompiled-binary path is **currently broken**: the installer resolves
+`latest` against GitHub *Releases*, and the `v*` tags have no release objects
+attached, so it exits with `no v* release found`. Until
+[#6195](https://github.com/gnolang/gno/issues/6195) is resolved, pass
+`--from-source` — it clones the repo and runs `make install` (needs Go, git and
+make):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --from-source
+```
+:::
+
 Binaries land in `$HOME/.gno/bin`. The installer supports Linux and
 macOS; on Windows use WSL. See the [Installation page](./install.md) for
 source builds, Docker, version pinning with `--version <tag>`, or a full

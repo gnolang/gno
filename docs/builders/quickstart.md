@@ -7,7 +7,9 @@
 ```sh
 # 1. Install the toolchain (gno, gnokey, gnodev).
 #    Docker, source build, or pinned version: see install.md.
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
+#    NOTE: add --from-source until gnolang/gno#6195 is fixed; the
+#    precompiled-binary path currently exits with "no v* release found".
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --from-source
 
 # 2. Create a realm
 mkdir counter && cd counter
@@ -41,7 +43,11 @@ func Render(path string) string {
 }
 ```
 
-## Deploy to staging
+## Deploy to a testnet
+
+Testnets are renamed and replaced regularly. Get the current one's chain id, RPC
+endpoint and web URL from [Gno networks](https://docs.gno.land/testnets), then
+substitute them below for `<chain-id>`, `<rpc>` and `<web>`.
 
 ```sh
 # 5. Create a key, then fund it at https://faucet.gno.land
@@ -50,24 +56,26 @@ gnokey add dev
 gnokey list   # copy the g1... address
 
 # 6. Confirm the faucet landed
-gnokey query bank/balances/<your-g1-addr> \
-  -remote https://rpc.staging.gno.land:443
+gnokey query bank/balances/<your-g1-addr> -remote <rpc>
 
 # 7. Deploy
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+  -chainid <chain-id> -remote <rpc> dev
 
 # 8. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+  -chainid <chain-id> -remote <rpc> dev
 ```
 
-Live at **`https://staging.gno.land/r/<your-g1-addr>/counter`**.
+Live at **`<web>/r/<your-g1-addr>/counter`**.
+
+Mainnet (`gnoland-1`, `https://rpc.gno.land:443`) works the same way, but has no
+faucet — you need real GNOT.
 
 ## Check security patterns
 
@@ -79,4 +87,4 @@ to run the executable checks.
 
 ## Next
 
-[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land.
+[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land. Deployed on Staging only; it is not in the mainnet or testnet genesis.
