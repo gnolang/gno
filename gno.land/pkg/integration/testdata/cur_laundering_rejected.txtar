@@ -1,0 +1,197 @@
+# Regression for the cur-laundering primitive (dora 7cd298d9 and its
+# generalizations). A crossing function that rebinds `cur = cur.Previous()`
+# and forwards it into a crossing helper entered without cross() used to
+# install a forged realm identity as that helper's frame Cur, satisfying
+# rlm.IsCurrent()/cross(rlm). It let a hostile realm drain a lured party's
+# registered GRC20 tokens, drain their NATIVE ugnot via chain/banker, and
+# impersonate them to any realm authorizing by cur.Previous().
+#
+# The fix rejects, at preprocess, both reassigning a realm-typed `cur` and
+# taking its address (so the attacker realms below fail to DEPLOY), backstopped
+# at runtime in doOpCall. NEGATIVE 5 is the address-of route: it matches no
+# assignment rule, so before that rejection it deployed cleanly and was caught
+# only at call time. Legit crossing code that threads `cur` unchanged is
+# unaffected.
+
+loadpkg gno.land/r/gnoland/wugnot
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+# POSITIVE CONTROL: a realm that threads `cur` unchanged into a no-cross
+# crossing helper deploys fine and works.
+gnokey maketx addpkg -pkgdir $WORK/honest -pkgpath gno.land/r/test/honest -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/honest -func Do -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/honest:'
+stdout 'ok=true'
+
+# NEGATIVE 1 — grc20reg write-wrapper drain: rejected at deploy.
+! gnokey maketx addpkg -pkgdir $WORK/attwrapper -pkgpath gno.land/r/test/attwrapper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# NEGATIVE 2 — native ugnot drain via chain/banker: rejected at deploy.
+! gnokey maketx addpkg -pkgdir $WORK/attbanker -pkgpath gno.land/r/test/attbanker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# NEGATIVE 3 — cross-realm identity relay (cur.Previous() auth): rejected.
+! gnokey maketx addpkg -pkgdir $WORK/attrelay -pkgpath gno.land/r/test/attrelay -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# NEGATIVE 4 — the `cur = forged` form (forged := cur.Previous()) is caught too.
+! gnokey maketx addpkg -pkgdir $WORK/attindirect -pkgpath gno.land/r/test/attindirect -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# NEGATIVE 5 — the address-of route: `p := &cur; *p = cur.Previous()` writes the
+# same parameter slot through a StarExpr, which no assignment rule matches. It
+# used to DEPLOY and fail only when called; it is now refused at deploy.
+! gnokey maketx addpkg -pkgdir $WORK/attaddr -pkgpath gno.land/r/test/attaddr -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot take the address of a realm-typed .cur.'
+
+# NEGATIVE 6 — the range route: `for _, cur = range rs` writes the same slot
+# without being an assignment statement and without taking an address, so
+# neither preprocess rejection above sees it. It too used to DEPLOY and fail
+# only when called.
+! gnokey maketx addpkg -pkgdir $WORK/attrange -pkgpath gno.land/r/test/attrange -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot assign to a realm-typed .cur. in a range clause'
+
+-- honest/gnomod.toml --
+module = "gno.land/r/test/honest"
+gno = "0.9"
+
+-- honest/honest.gno --
+package honest
+
+var done bool
+
+// Do threads its own live `cur` into a no-cross crossing helper — the
+// legitimate pattern. `cur` is never reassigned, so the helper inherits the
+// genuine current-realm cur.
+func Do(cur realm) {
+	helper(cur)
+}
+
+func helper(cur realm) {
+	done = cur.IsCurrent() // true: cur genuinely names this realm
+}
+
+func Render(path string) string {
+	if done {
+		return "ok=true"
+	}
+	return "ok=false"
+}
+
+-- attwrapper/gnomod.toml --
+module = "gno.land/r/test/attwrapper"
+gno = "0.9"
+
+-- attwrapper/att.gno --
+package attwrapper
+
+import "gno.land/r/nt/grc20reg/v0"
+
+func Claim(cur realm, to address, amount int64) {
+	cur = cur.Previous()
+	grc20reg.Transfer(0, cur, "gno.land/r/gnoland/wugnot.wugnot", to, amount)
+}
+
+-- attbanker/gnomod.toml --
+module = "gno.land/r/test/attbanker"
+gno = "0.9"
+
+-- attbanker/att.gno --
+package attbanker
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func Drain(cur realm, to address, amount int64) {
+	cur = cur.Previous()
+	steal(cur, to, amount)
+}
+
+func steal(cur realm, to address, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), to, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+-- attrelay/gnomod.toml --
+module = "gno.land/r/test/attrelay"
+gno = "0.9"
+
+-- attrelay/att.gno --
+package attrelay
+
+import "gno.land/r/test/honest"
+
+func Hook(cur realm) {
+	cur = cur.Previous()
+	relay(cur)
+}
+
+func relay(cur realm) {
+	honest.Do(cross(cur))
+}
+
+-- attindirect/gnomod.toml --
+module = "gno.land/r/test/attindirect"
+gno = "0.9"
+
+-- attindirect/att.gno --
+package attindirect
+
+func Hook(cur realm) {
+	forged := cur.Previous()
+	cur = forged
+	relay(cur)
+}
+
+func relay(cur realm) {
+	_ = cur.IsCurrent()
+}
+
+-- attaddr/gnomod.toml --
+module = "gno.land/r/test/attaddr"
+gno = "0.9"
+
+-- attaddr/att.gno --
+package attaddr
+
+// The address-of route to the same laundering primitive. Nothing here is an
+// AssignStmt with `cur` on the left, so the reassignment rule does not match;
+// the write lands in the parameter slot all the same, and `steal` would
+// inherit the forged value as its frame Cur.
+func Steal(cur realm) {
+	p := &cur
+	*p = cur.Previous()
+	steal(cur)
+}
+
+func steal(cur realm) {
+	_ = cur.IsCurrent()
+}
+
+-- attrange/gnomod.toml --
+module = "gno.land/r/test/attrange"
+gno = "0.9"
+
+-- attrange/att.gno --
+package attrange
+
+// The range route. No AssignStmt with `cur` on the left, no address taken —
+// the write lands in the parameter slot all the same.
+func Steal(cur realm) {
+	rs := []realm{cur.Previous()}
+	for _, cur = range rs {
+	}
+	steal(cur)
+}
+
+func steal(cur realm) {
+	_ = cur.IsCurrent()
+}
