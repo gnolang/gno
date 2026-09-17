@@ -36,9 +36,11 @@ Run all tests:
 make test
 ```
 
-Test specific Gno code:
+Test specific Gno code. `gno` resolves packages from the workspace it is run in,
+so run it from `examples/` (which has the `gnowork.toml`), not the repo root:
 ```bash
-gno test ./examples/... -v
+gno -C examples test ./... -v                       # everything
+gno -C examples test ./gno.land/r/demo/counter -v   # one package
 ```
 
 ## Project Structure
