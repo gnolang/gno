@@ -10,6 +10,7 @@ genesis.json
 
 # Build leftovers
 build
+misc/gnopreview/gnopreview
 dist
 
 # Legacy .gitignore
