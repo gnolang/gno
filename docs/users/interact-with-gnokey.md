@@ -981,7 +981,7 @@ git checkout master
 Compute the same `VERSION` string the repo uses (see `build.gnokey`) and build with equivalent `-ldflags`:
 
 ```bash
-VERSION="$(git describe --tags --exact-match 2>/dev/null || \
+VERSION="$(git describe --tags --exact-match --match 'v*' 2>/dev/null || \
   echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")"
 
 mkdir -p build

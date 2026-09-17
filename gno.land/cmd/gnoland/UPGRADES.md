@@ -205,27 +205,43 @@ config or chain state, so it is fixed the moment the binary is produced:
 | How it was built | Reported version |
 |---|---|
 | `go build ./gno.land/cmd/gnoland` | `develop` — the hardcoded default, since nothing overrides it |
-| `make build.gnoland` on a release tag | the tag, e.g. `chain/gnoland1.1` |
+| `make build.gnoland` on a release tag | the tag, e.g. `v1.2.0` |
 | `make build.gnoland` off a tag | `<branch>.<commits>+<hash>`, e.g. `master.3335+bc43a5fb7` |
 | `go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=..."` | whatever you pass |
 
 The Makefile injects it with `-ldflags -X`, deriving the value from
-`git describe --tags --exact-match` and falling back to the branch/count/hash
-form when the commit is not tagged. `chain/gnoland1.0` and `chain/gnoland1.1`
-are real tags in this repository — that is where the
-`chain/gnoland<major>.<minor>` format comes from, and why a binary built on a
-release tag reports exactly the shape the comparison understands.
+`git describe --tags --exact-match --match 'v*'` and falling back to the
+branch/count/hash form when the commit is not tagged. The `--match` is
+load-bearing: a release commit also carries the chain's launch tag
+(`chain/mainnet` sits on the same commit as `v1.2.0`), and an unfiltered
+`describe` answers that one — a string the comparison below refuses. The release
+workflow injects the tag verbatim for the same reason: a binary built on a
+release tag has to report exactly the shape the comparison understands.
 
-Versions are compared by parsing that shape: different majors compare as majors,
-otherwise the minor must be greater or equal. **Anything that does not parse
-falls back to exact string equality**, so `develop` and `master.3335+bc43a5fb7`
-satisfy no `chain/gnolandX.Y` floor at all. A release build passes the gate; an
-ad-hoc build of the same code does not.
+Two shapes parse (`meetsMinVersion`, and see [RELEASING.md](../../../RELEASING.md)):
+
+| Shape | Example | |
+|---|---|---|
+| `vMAJOR.MINOR.PATCH` | `v1.2.0` | the current release shape |
+| `chain/gnolandMAJOR.MINOR` | `chain/gnoland1.1` | betanet's retired shape, still parsed because those tags are compiled into binaries that ran that chain |
+
+They order as one line, and a pre-release sorts below the release it leads to,
+so `v1.3.0-rc.1` does not satisfy a `v1.3.0` floor.
+
+**Anything that does not parse falls back to exact string equality.** For a
+*binary* version that is the intended outcome: `develop` and
+`master.3335+bc43a5fb7` satisfy no floor, so a release build passes the gate and
+an ad-hoc build of the same code does not. For a *`halt_min_version`* it is a
+trap — an unparseable floor such as the bare `chain/mainnet` tag can only be met
+by a byte-identical binary version, which refuses the upgraded binary along with
+the stale ones and leaves the chain unable to restart. **Name a `vX.Y.Z` tag in a
+halt proposal**; `misc/release/cut-release.sh` will not emit one that does not
+parse.
 
 To read a version back:
 
 ```bash
-gnoland version                              # gnoland version: chain/gnoland1.1
+gnoland version                              # gnoland version: v1.2.0
 curl -s localhost:26657/status | grep -i build_version
 ```
 
