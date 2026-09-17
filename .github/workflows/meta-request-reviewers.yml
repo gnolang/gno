@@ -1,0 +1,90 @@
+name: meta / request-reviewers
+
+# Requests reviewers on a PR from the paths it touches, per .github/reviewers.json.
+#
+# Why a workflow and not CODEOWNERS: GitHub only honours a CODEOWNERS entry for a
+# user with WRITE access, and silently ignores the rest -- on this repo omarsy,
+# davd-gzl, notJoon and julienrbrt have read, so most of the map would have been
+# dropped with no error anywhere. The requested-reviewers API only needs the user
+# to have read access, so this asks everyone the map names.
+#
+# Advisory, not blocking: it requests, it never enforces, and a human can remove
+# anyone. It also never re-adds someone who was removed or who already reviewed.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  request:
+    name: request reviewers by path
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # read .github/reviewers.json from the base branch
+      pull-requests: write
+    steps:
+      - name: Resolve reviewers from changed paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Read the map from the BASE branch, not the PR head: a PR must not be
+          # able to rewrite the rules that decide who reviews it. Fetched over the
+          # API rather than checked out, so this job runs no third-party action and
+          # never has a git credential on disk.
+          gh api "repos/$REPO/contents/.github/reviewers.json?ref=$BASE" \
+            --jq '.content' | base64 -d > /tmp/reviewers.json
+
+          gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' > /tmp/files.txt
+          echo "changed files: $(wc -l < /tmp/files.txt)"
+
+          # Union of every rule whose prefix matches at least one changed file,
+          # minus the author. Someone who already reviewed, or is already
+          # requested, is excluded so re-runs stay quiet.
+          gh api "repos/$REPO/pulls/$PR/reviews" --paginate --jq '.[].user.login' > /tmp/reviewed.txt || true
+          gh api "repos/$REPO/pulls/$PR/requested_reviewers" --jq '.users[].login' > /tmp/pending.txt || true
+
+          jq -r --rawfile files /tmp/files.txt \
+                --rawfile reviewed /tmp/reviewed.txt \
+                --rawfile pending /tmp/pending.txt \
+                --arg author "$AUTHOR" '
+            ($files   | split("\n") | map(select(length > 0)))    as $f |
+            ($reviewed| split("\n") | map(select(length > 0)))    as $r |
+            ($pending | split("\n") | map(select(length > 0)))    as $p |
+            [ to_entries[]
+              | select(.key | startswith("_") | not)
+              | select( .key as $k | $f | any(startswith($k)) )
+              | .value[] ]
+            | unique
+            | map(select(. != $author and (IN($r[]) | not) and (IN($p[]) | not)))
+            | .[]
+          ' /tmp/reviewers.json > /tmp/want.txt
+
+          if [ ! -s /tmp/want.txt ]; then
+            echo "No new reviewers to request."
+            exit 0
+          fi
+          echo "requesting: $(tr '\n' ' ' < /tmp/want.txt)"
+
+          # Request individually: one handle the API rejects (no repo access,
+          # deactivated account) must not drop the rest.
+          rc=0
+          while read -r u; do
+            if gh api --method POST "repos/$REPO/pulls/$PR/requested_reviewers" \
+                 -f "reviewers[]=$u" --silent; then
+              echo "  ok       $u"
+            else
+              echo "  SKIPPED  $u (API refused -- no access to this repo?)"
+              rc=0
+            fi
+          done < /tmp/want.txt
+          exit $rc
