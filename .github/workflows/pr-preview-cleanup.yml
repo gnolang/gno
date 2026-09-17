@@ -13,8 +13,11 @@ on:
 
 permissions: {}
 
+# Same key as pr-preview-publish.yml, so a close that races a publish for the
+# same pull request serializes behind it instead of re-adding a deleted preview.
 concurrency:
-  group: pr-preview-publish
+  group: >-
+    pr-preview-publish-${{ github.event.pull_request.head.repo.full_name }}-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
 
 jobs:

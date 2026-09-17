@@ -20,8 +20,14 @@ on:
 
 permissions: {}
 
+# Keyed per pull request, not globally: GitHub queues at most ONE pending run
+# per concurrency group, so a third arrival silently CANCELS the one waiting —
+# observed as a pull request whose preview published and whose comment never
+# appeared. Serializing the shared gh-pages branch is the retry loop's job, not
+# this group's.
 concurrency:
-  group: pr-preview-publish
+  group: >-
+    pr-preview-publish-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
