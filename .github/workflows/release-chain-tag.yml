@@ -139,6 +139,11 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ inputs.tag || github.ref }}
+          # Full history, so the notes step can ask which tag precedes this one.
+          # blob:none keeps that cheap: commits and tags, no file contents.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -151,6 +156,76 @@ jobs:
           cd dist
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
+
+      # Notes are generated here rather than with `gh release create
+      # --generate-notes`, which picks the range itself and picked wrong: it
+      # diffs against the previous *release*, and v1.0.0 and v1.1.0 are tags
+      # with no release attached, so v1.2.0 generated notes all the way back to
+      # v0.1.0 (July 2024) — 276,999 characters against a 125,000 limit, and
+      # the create failed with "body is too long". Naming v1.1.0 as the
+      # predecessor gives 52,637 for the same tag.
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The predecessor is chosen by version order, NOT by git ancestry.
+          # --merged would be wrong here: mainnet launched as a fresh chain, so
+          # v1.1.0 is not an ancestor of v1.2.0 and ancestry skips past the tag
+          # a reader actually wants the diff against. RELEASING.md says the same
+          # thing — the v line continues from where chain/gnoland1.1 left off,
+          # across a branch that never merged.
+          #
+          # versionsort.suffix is load-bearing. Without it git's -v:refname sorts
+          # v1.3.0-rc.2 ABOVE v1.3.0 — the opposite of semver — so cutting an rc
+          # would name the final release as its own predecessor.
+          tags() { git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname; }
+
+          case "${TAG}" in
+          v*)
+            # TAG is itself in this list (the workflow only runs for a tag that
+            # exists), so the next final release below it is the predecessor.
+            # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
+            PREV="$(tags | awk -v t="${TAG}" '
+              $0 == t { seen = 1; next }
+              seen && $0 !~ /-/ { print; exit }')"
+            ;;
+          *)
+            # A chain/<name> launch tag: baseline against the newest release.
+            PREV="$(tags | awk '!/-/ { print; exit }')"
+            ;;
+          esac
+
+          # Every branch below writes notes.raw, so the release is never blocked
+          # on note generation. generate-notes rejects a previous_tag_name that
+          # does not exist on the remote, which is the one way PREV can be wrong.
+          BASE="https://github.com/${GITHUB_REPOSITORY}"
+          if [ -n "${PREV}" ] && gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+               -f tag_name="${TAG}" -f previous_tag_name="${PREV}" --jq '.body' > notes.raw; then
+            echo "notes for ${PREV}..${TAG}"
+            FULL="${BASE}/compare/${PREV}...${TAG}"
+          elif gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+               -f tag_name="${TAG}" --jq '.body' > notes.raw; then
+            echo "::warning::no usable predecessor for ${TAG} (tried '${PREV:-none}'); GitHub chose the range"
+            FULL="${BASE}/commits/${TAG}"
+          else
+            echo "::warning::could not generate release notes for ${TAG}"
+            printf 'Binaries for %s. Full changelog: %s/commits/%s\n' "${TAG}" "${BASE}" "${TAG}" > notes.raw
+            FULL="${BASE}/commits/${TAG}"
+          fi
+
+          # Backstop, so this step cannot fail the release again whatever the
+          # range turns out to be. Truncation is by whole lines: cutting mid-line
+          # would leave a half-written markdown link in the release body.
+          LIMIT=118000
+          if [ "$(wc -c <notes.raw)" -gt "${LIMIT}" ]; then
+            awk -v max="${LIMIT}" '{ n += length($0) + 1; if (n > max) exit; print }' notes.raw > notes.md
+            printf '\n---\n\n_Notes truncated to fit GitHub'"'"'s 125,000-character limit. Full changelog: %s_\n' \
+              "${FULL}" >> notes.md
+            echo "::warning::release notes truncated; full changelog at ${FULL}"
+          else
+            cp notes.raw notes.md
+          fi
+          echo "release body: $(wc -c <notes.md) characters"
 
       - name: Ensure release exists
         env:
@@ -168,7 +243,7 @@ jobs:
             gh release create "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "${TAG}" \
-              --generate-notes \
+              --notes-file notes.md \
               --verify-tag \
               ${PRERELEASE}
 
