@@ -7,10 +7,16 @@ on:
       - chain/*
     tags:
       - chain/*
+      # Release tags too: VALIDATOR.md points operators at ghcr.io for upgrade
+      # images, and under the chain/gnoland1.N scheme a coordinated upgrade
+      # always carried a chain/* tag. A v* release that built no image would
+      # leave them with the chain/<name> branch build, whose version string is
+      # <branch>.<count>+<sha> — which satisfies no halt_min_version.
+      - v*
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g. chain/gnoland1.1)"
+        description: "Tag to build (e.g. v1.3.0)"
         required: true
 
 permissions:
@@ -36,7 +42,12 @@ jobs:
       - name: Compute build version
         id: build_version
         run: |
-          V=$(git describe --tags --exact-match 2>/dev/null \
+          # Prefer the release tag: a launch commit carries both chain/<name>
+          # and v<X.Y.Z>, and only the latter is a version the node can order.
+          # The branch fallback deliberately produces something unparseable —
+          # a branch build must not satisfy an upgrade gate.
+          V=$(git describe --tags --exact-match --match 'v*' 2>/dev/null \
+              || git describe --tags --exact-match 2>/dev/null \
               || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
           echo "version=$V" >> "$GITHUB_OUTPUT"
 

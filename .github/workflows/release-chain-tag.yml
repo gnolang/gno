@@ -1,14 +1,26 @@
-# Build and upload binaries for chain/* tags.
+# Build and upload binaries for release tags.
+#
+# Two tag shapes reach this workflow:
+#
+#   v1.2.0          a release of the current network (see RELEASING.md)
+#   chain/<name>    a chain's launch tag, and betanet's retired chain/gnoland1.N
+#
+# The tag is compiled into the binaries VERBATIM. That matters: the node parses
+# its own version to decide whether it satisfies a governance halt_min_version,
+# and it only understands these two shapes. Stripping the "chain/" prefix, as
+# this workflow used to, produced binaries reporting "mainnet" — a string that
+# parses as nothing and satisfies no upgrade gate.
 name: release / chain-tag
 
 on:
   push:
     tags:
       - "chain/*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g. chain/gnoland1.1)"
+        description: "Tag to build (e.g. v1.2.0)"
         required: true
 
 concurrency:
@@ -18,12 +30,15 @@ permissions: {}
 
 jobs:
   binaries:
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
+            native: true # runs on the builder, so the version can be asserted
           - os: ubuntu-latest
             goos: linux
             goarch: arm64
@@ -33,11 +48,10 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: arm64
+            native: true
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    env:
-      RAW_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -49,17 +63,17 @@ jobs:
           go-version-file: go.mod
           cache: false # zizmor: cache-poisoning — this job publishes artifacts
 
-      - name: Compute version
-        id: version
-        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
-
       - name: Build binaries
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ steps.version.outputs.tag }}
         run: |
-          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${VERSION}"
+          # Deliberately no -trimpath. gnoenv.guessRootDir falls back to the
+          # caller's absolute source path to locate GNOROOT, so a trimmed
+          # gnoland or gno panics on every subcommand unless the user sets
+          # GNOROOT by hand; goreleaser does not trim these either, and the
+          # only build that does (gnodev) replaces the path with an ldflag.
+          LDFLAGS="-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=${TAG}"
           SUFFIX="${GOOS}_${GOARCH}"
           mkdir -p dist
           for target in \
@@ -73,7 +87,42 @@ jobs:
             echo "Building ${name}..."
             go build -ldflags "$LDFLAGS" -o "dist/${name}_${SUFFIX}" "$pkg"
           done
-          (cd dist && shasum -a 256 ./* > "checksums_${SUFFIX}.txt")
+          # gnodev is its own module, so it is built from its own directory,
+          # and -o is relative to that directory.
+          echo "Building gnodev..."
+          (cd contribs/gnodev && go build -ldflags "$LDFLAGS" -o "../../dist/gnodev_${SUFFIX}" .)
+          # Named explicitly, not ./*: the redirect creates the checksums file
+          # before the glob expands, so it would otherwise list itself. Bare
+          # names, so misc/install.sh can match an asset name against a line.
+          (cd dist && shasum -a 256 \
+            "gnoland_${SUFFIX}" "gnokey_${SUFFIX}" "gnoweb_${SUFFIX}" "gno_${SUFFIX}" "gnodev_${SUFFIX}" \
+            > "checksums_${SUFFIX}.txt")
+
+      # The binaries must report the tag, not "develop". A release built without
+      # the ldflags looks identical on the release page and satisfies no
+      # halt_min_version, which is only discovered when a chain will not restart.
+      - name: Assert the binaries carry the tag
+        if: matrix.native
+        env:
+          SUFFIX: ${{ matrix.goos }}_${{ matrix.goarch }}
+        run: |
+          # No GNOROOT here on purpose: setting it would hide a binary that
+          # cannot work out its own GNOROOT, which is how a downloader runs it.
+          # gnoweb and gnodev are not listed: neither has a version subcommand
+          # to ask, so there is nothing for this loop to compare.
+          for name in gnoland gnokey gno; do
+            if ! out="$("./dist/${name}_${SUFFIX}" version 2>&1)"; then
+              echo "::error::${name} failed to run:"
+              echo "${out}"
+              exit 1
+            fi
+            got="$(echo "${out}" | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
+            if [ "$got" != "$TAG" ]; then
+              echo "::error::${name} reports '${got}', expected '${TAG}' — the -ldflags did not apply"
+              exit 1
+            fi
+            echo "${name}: ${got}"
+          done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -83,18 +132,19 @@ jobs:
   release:
     needs: binaries
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write # to create/upload release assets
-    env:
-      RAW_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ inputs.tag || github.ref }}
+          # Full history, so the notes step can ask which tag precedes this one.
+          # blob:none keeps that cheap: commits and tags, no file contents.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
-
-      - name: Compute version
-        id: version
-        run: echo "tag=${RAW_TAG#chain/}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -107,21 +157,98 @@ jobs:
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
 
+      # Notes are generated here rather than with `gh release create
+      # --generate-notes`, which picks the range itself and picked wrong: it
+      # diffs against the previous *release*, and v1.0.0 and v1.1.0 are tags
+      # with no release attached, so v1.2.0 generated notes all the way back to
+      # v0.1.0 (July 2024) — 276,999 characters against a 125,000 limit, and
+      # the create failed with "body is too long". Naming v1.1.0 as the
+      # predecessor gives 52,637 for the same tag.
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The predecessor is chosen by version order, NOT by git ancestry.
+          # --merged would be wrong here: mainnet launched as a fresh chain, so
+          # v1.1.0 is not an ancestor of v1.2.0 and ancestry skips past the tag
+          # a reader actually wants the diff against. RELEASING.md says the same
+          # thing — the v line continues from where chain/gnoland1.1 left off,
+          # across a branch that never merged.
+          #
+          # versionsort.suffix is load-bearing. Without it git's -v:refname sorts
+          # v1.3.0-rc.2 ABOVE v1.3.0 — the opposite of semver — so cutting an rc
+          # would name the final release as its own predecessor.
+          tags() { git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname; }
+
+          case "${TAG}" in
+          v*)
+            # TAG is itself in this list (the workflow only runs for a tag that
+            # exists), so the next final release below it is the predecessor.
+            # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
+            PREV="$(tags | awk -v t="${TAG}" '
+              $0 == t { seen = 1; next }
+              seen && $0 !~ /-/ { print; exit }')"
+            ;;
+          *)
+            # A chain/<name> launch tag: baseline against the newest release.
+            PREV="$(tags | awk '!/-/ { print; exit }')"
+            ;;
+          esac
+
+          # Every branch below writes notes.raw, so the release is never blocked
+          # on note generation. generate-notes rejects a previous_tag_name that
+          # does not exist on the remote, which is the one way PREV can be wrong.
+          BASE="https://github.com/${GITHUB_REPOSITORY}"
+          if [ -n "${PREV}" ] && gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+               -f tag_name="${TAG}" -f previous_tag_name="${PREV}" --jq '.body' > notes.raw; then
+            echo "notes for ${PREV}..${TAG}"
+            FULL="${BASE}/compare/${PREV}...${TAG}"
+          elif gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+               -f tag_name="${TAG}" --jq '.body' > notes.raw; then
+            echo "::warning::no usable predecessor for ${TAG} (tried '${PREV:-none}'); GitHub chose the range"
+            FULL="${BASE}/commits/${TAG}"
+          else
+            echo "::warning::could not generate release notes for ${TAG}"
+            printf 'Binaries for %s. Full changelog: %s/commits/%s\n' "${TAG}" "${BASE}" "${TAG}" > notes.raw
+            FULL="${BASE}/commits/${TAG}"
+          fi
+
+          # Backstop, so this step cannot fail the release again whatever the
+          # range turns out to be. Truncation is by whole lines: cutting mid-line
+          # would leave a half-written markdown link in the release body.
+          LIMIT=118000
+          if [ "$(wc -c <notes.raw)" -gt "${LIMIT}" ]; then
+            awk -v max="${LIMIT}" '{ n += length($0) + 1; if (n > max) exit; print }' notes.raw > notes.md
+            printf '\n---\n\n_Notes truncated to fit GitHub'"'"'s 125,000-character limit. Full changelog: %s_\n' \
+              "${FULL}" >> notes.md
+            echo "::warning::release notes truncated; full changelog at ${FULL}"
+          else
+            cp notes.raw notes.md
+          fi
+          echo "release body: $(wc -c <notes.md) characters"
+
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release view "chain/${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
-            gh release create "chain/${TAG}" \
+          # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
+          # "Latest" — which is the page misc/deployments/*/VALIDATOR.md sends
+          # operators to, and what misc/install.sh resolves "latest" to. Mark
+          # pre-releases as such, matching goreleaser's `prerelease: auto`.
+          PRERELEASE=""
+          case "${TAG}" in
+            v*-*) PRERELEASE="--prerelease" ;;
+          esac
+          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "${TAG}" \
-              --generate-notes \
-              --verify-tag
+              --notes-file notes.md \
+              --verify-tag \
+              ${PRERELEASE}
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release upload "chain/${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
