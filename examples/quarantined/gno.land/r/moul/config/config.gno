@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 )
 
 var Authorizer *authz.Authorizer

@@ -3,7 +3,7 @@ package groups
 import (
 	"errors"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 

@@ -512,6 +512,7 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 		Handler:           handlers,
 		Addr:              addr,
 		ReadHeaderTimeout: 60 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	// Serve gnoweb
