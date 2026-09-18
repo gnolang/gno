@@ -30,8 +30,8 @@ It is deliberately NOT derived from the chain-id. An earlier revision matched
 the `gnoland-N` series, but that encodes a chain-naming assumption into gnoweb
 that the naming scheme does not promise to keep — aeddi, reviewing this PR:
 `gnoland-1` will not necessarily be the only mainnet, the number may be
-incremented later under certain conditions.
-Instead the default is **testnet** and mainnet is explicit: a mainnet that
+incremented later under certain conditions. Instead the default is **testnet**
+and mainnet is explicit: a mainnet that
 forgets the flag shows the alert chip, the safe direction, visibly and
 immediately; a testnet can only present as mainnet through explicit
 misconfiguration, which no derivation prevents either (the override existed).
@@ -60,8 +60,8 @@ constant; only the presence of the link is configuration-driven.
 
 This narrows the footer only. `-faucet-url` still reaches an `href` on the
 `/faucet` interstitial (`components/views/redirect.html` renders it as the
-canonical link, the meta-refresh target and a visible anchor), so on staging
-that page still offers a click through to the API. Pre-existing and out of
+canonical link, the meta-refresh target and a visible anchor), so that page
+still offers a click through to whatever the flag holds. Pre-existing and out of
 scope here, but the two surfaces now disagree by design rather than by accident.
 
 **Colour is secondary.** Only `--s-logo-hat` moves under
@@ -130,7 +130,7 @@ the HTML (`components/layout_test.go`), and that the footer renders no Faucet
 link without a configured faucet (`components/layout_footer_test.go`).
 
 Also checked by hand against a running gnoweb, since a Go test cannot catch a
-dead CSS selector: chip and `data-network` on mainnet and testnet chain-ids,
-the chip surviving the 400 error page, the footer link appearing only with
+dead CSS selector: chip and `data-network` under both kinds, the chip
+surviving the 400 error page, the footer link appearing only with
 `-faucet-url`, and `.b-header .network-chip--alert` present in the generated
 `public/main.css`.
