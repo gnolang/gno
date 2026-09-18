@@ -68,6 +68,13 @@ owner, ungranted foreign owner, or other) would be more precise and would let
 the `/p/`-owned exemption in rule #2 go; it needs `resolvePointer` to hand the
 offending value to the panic site.
 
+Follow-up: a `//gno:mutable` directive on the declaration, checked by the
+preprocessor, would move the grant into the signature without a parser
+change: it inserts `mutable()` on the returned or received reference and
+rejects a body that hands out a handle the declaration does not announce.
+A Gno2 type qualifier (`func F() mutable *T`, `t mutable *T`) is the same
+idea with syntax; both keep the flag as the mechanism.
+
 ## Alternatives considered
 
 - **Keep guidance only.** The dangerous code (`return users`) is the natural
