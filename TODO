@@ -3,13 +3,9 @@
 - is this really needed to have multiple upgrades ?
 	- what triggers the upgrade (version or stateformat?)
 
-- Check mention of Cosmos, try to isolate it in a single section
-
 - Document better the new behavior of skip_halt_height (there's a related flag as well right?)
 
 - investigate realm patching with realm store migration (see open question 1)
-
-- investigate about WillSetParams that should reject a value the node cannot parse
 
 - investigate rollbacks (theres a appd rollback command)
 
