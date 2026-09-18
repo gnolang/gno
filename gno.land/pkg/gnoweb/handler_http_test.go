@@ -40,6 +40,14 @@ type stubClient struct {
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
+	evalFunc      func(ctx context.Context, pkgPath, expr string) ([]byte, error)
+}
+
+func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	if s.evalFunc != nil {
+		return s.evalFunc(ctx, pkgPath, expr)
+	}
+	return nil, errors.New("stubClient: Eval not implemented")
 }
 
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
@@ -1992,4 +2000,165 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
 	})
+}
+
+// resolveNamePayload mirrors the raw vm/qeval output of ResolveName. The
+// UserData line carries a "(false bool)" of its own, so a parser that searches
+// the whole payload is fooled.
+func resolveNamePayload(current bool) []byte {
+	return fmt.Appendf(nil, `(&(struct{("g1manfred47kzduec920z88wfr64ylksmdcedlf5" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+(%t bool)`, current)
+}
+
+func getUserPage(t *testing.T, client *stubClient, path string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, client),
+	)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+	return rr
+}
+
+// A name with no packages that does not resolve is not a user, and neither is
+// one whose lookup came back empty: 404, without fetching the home realm.
+func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
+	t.Parallel()
+
+	for name, eval := range map[string]func(context.Context, string, string) ([]byte, error){
+		"unknown name": func(context.Context, string, string) ([]byte, error) {
+			return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)"), nil
+		},
+		// A renamed-away name still resolves, but not as the current one.
+		"renamed alias": func(context.Context, string, string) ([]byte, error) {
+			return resolveNamePayload(false), nil
+		},
+		// A chain that does not deploy the registry.
+		"no registry": func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			realmCalled := false
+			rr := getUserPage(t, &stubClient{
+				// An empty prefix comes back as a single blank line; counting
+				// it as a contribution would accept every name.
+				listPathsFunc: func(context.Context, string, int) ([]string, error) {
+					return []string{""}, nil
+				},
+				evalFunc: eval,
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					realmCalled = true
+					return nil, errors.New("unexpected")
+				},
+			}, "/u/alice")
+
+			assert.Equal(t, http.StatusNotFound, rr.Code)
+			assert.Contains(t, rr.Body.String(), "user not found")
+			assert.NotContains(t, rr.Body.String(), "Gnome alice")
+			assert.False(t, realmCalled, "no home realm fetch for a name that does not exist")
+		})
+	}
+}
+
+// A registered user who has not deployed anything yet still has a page.
+func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+		evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
+			assert.Equal(t, "/r/sys/users", pkgPath)
+			assert.Equal(t, `ResolveName("alice")`, expr)
+			return resolveNamePayload(true), nil
+		},
+		realmFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	rr := getUserPage(t, client, "/u/alice")
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Gnome alice")
+}
+
+// An address is a namespace by construction: no registry lookup.
+func TestHTTPHandler_GetUserView_Address(t *testing.T) {
+	t.Parallel()
+
+	evalCalled := false
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			evalCalled = true
+			return nil, errors.New("unexpected")
+		},
+		realmFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	rr := getUserPage(t, client, "/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "g1ma...dlf5")
+	assert.False(t, evalCalled, "an address needs no registry lookup")
+}
+
+// A segment that could never be a registered name is refused before any chain
+// query.
+func TestHTTPHandler_GetUserView_RejectsInvalidNames(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/u/foo/bar",
+		"/u/a--b",
+		"/u/a-",
+		"/u/" + strings.Repeat("a", 65),
+	} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			queried := false
+			client := &stubClient{
+				listPathsFunc: func(context.Context, string, int) ([]string, error) {
+					queried = true
+					return nil, nil
+				},
+				evalFunc: func(context.Context, string, string) ([]byte, error) {
+					queried = true
+					return nil, errors.New("unexpected")
+				},
+			}
+
+			rr := getUserPage(t, client, path)
+
+			assert.Equal(t, http.StatusNotFound, rr.Code)
+			assert.False(t, queried, "invalid names must not reach the chain")
+		})
+	}
+}
+
+// A node that cannot answer is not an answer: a 404 here would delete a real
+// user's page.
+func TestHTTPHandler_GetUserView_LookupFailureIsNotA404(t *testing.T) {
+	t.Parallel()
+
+	rr := getUserPage(t, &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) {
+			return []string{""}, nil
+		},
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientTimeout
+		},
+	}, "/u/alice")
+
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code, "a timeout must surface as a timeout, not as a missing user")
 }

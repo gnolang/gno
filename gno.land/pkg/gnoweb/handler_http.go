@@ -24,7 +24,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -511,6 +511,11 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		// An empty listing is a single blank line, not a malformed path.
+		if raw == "" {
+			continue
+		}
+
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -536,16 +541,48 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
-func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+// reUsername is the shape r/sys/users accepts: it mirrors gnolang, so gnoweb
+// reads the same source rather than a copy that could drift out of it.
+var reUsername = gno.Re_name.Compile()
+
+const maxUsernameLen = 64
+
+// userExists reports whether username is the current name of a live user,
+// which is the rule r/sys/names applies before authorizing a deploy. A chain
+// without the registry answers false; a chain that could not be asked returns
+// an error, since a 404 on a failed lookup is as wrong as a fabricated page.
+func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, error) {
+	res, err := h.Client.Eval(ctx, "/r/sys/users", fmt.Sprintf("ResolveName(%q)", username))
+	switch {
+	case errors.Is(err, ErrClientPackageNotFound):
+		h.Logger.Debug("no user registry on this chain", "error", err)
+		return false, nil
+	case err != nil:
+		return false, err
 	}
 
-	return username
+	// One line per return value, and the UserData line carries a "(false bool)"
+	// of its own, so only the last line answers.
+	lines := bytes.Split(bytes.TrimSpace(res), []byte("\n"))
+	switch answer := string(bytes.TrimSpace(lines[len(lines)-1])); answer {
+	case "(true bool)":
+		return true, nil
+	case "(false bool)":
+		return false, nil
+	default:
+		// Reading an unknown shape as "no user" would 404 every registered
+		// user at once, and in silence.
+		return false, fmt.Errorf("%w: unexpected ResolveName result %q", ErrClientResponse, answer)
+	}
+}
+
+// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
+func CreateUsernameFromBech32(username string) string {
+	if _, err := crypto.AddressFromBech32(username); err != nil {
+		return username
+	}
+
+	return username[:4] + "..." + username[len(username)-4:]
 }
 
 // displayPackageName returns versioned name for a package path.
@@ -560,9 +597,34 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
+// GetUserView returns the user profile view for a given GnoURL. It serves a
+// page only for an address, a namespace holding packages, or a name
+// r/sys/users resolves; anything else would be a fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	username := gnourl.Username()
+
+	_, err := crypto.AddressFromBech32(username)
+	isAddress := err == nil
+	if !isAddress && (len(username) > maxUsernameLen || !reUsername.Matches(username)) {
+		return http.StatusNotFound, components.StatusErrorComponent("user not found")
+	}
+
+	contribs, realmCount, err := h.buildContributions(ctx, username)
+	if err != nil {
+		h.Logger.Error("unable to build contributions", "error", err)
+		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+
+	if !isAddress && len(contribs) == 0 {
+		exists, err := h.userExists(ctx, username)
+		if err != nil {
+			h.Logger.Error("unable to resolve user", "error", err)
+			return GetClientErrorStatusView(gnourl, err, 0)
+		}
+		if !exists {
+			return http.StatusNotFound, components.StatusErrorComponent("user not found")
+		}
+	}
 
 	var content bytes.Buffer
 
@@ -580,19 +642,10 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
 	}
 
-	// Build contributions
-	contribs, realmCount, err := h.buildContributions(ctx, username)
-	if err != nil {
-		h.Logger.Error("unable to build contributions", "error", err)
-		return GetClientErrorStatusView(gnourl, err, 0)
-	}
-
 	// Compute package counts
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-	// Try to decode the bech32 address
 	username = CreateUsernameFromBech32(username)
 
 	// TODO: get from user r/profile and use placeholder if not set
