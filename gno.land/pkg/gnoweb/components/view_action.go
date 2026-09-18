@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"image/png"
+	"net/url"
 	"strings"
 
 	"github.com/boombuler/barcode"
@@ -69,26 +70,26 @@ type helpViewParams struct {
 // laptop screen, small enough that the data URI stays a few KB.
 const helpQRSize = 256
 
+// escapeWebArg percent-encodes one key or value of the `$help&k=v` segment.
+// The frontend splices this URL on `&`, so no unescaped separator may reach the
+// output; `%20` is the spelling its encodeURIComponent uses for a space, and
+// canonicalHelpURL in handler_http.go must keep agreeing with it.
+func escapeWebArg(s string) string {
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+}
+
 // buildHelpURL is the function's help page with its args pinned:
 // `$help&func=Name&p1=v1&...`. The Execute form's action, the anchor link and
-// the QR all resolve to this one URL.
+// the QR all resolve to this one URL. Args arrive already decoded, so every
+// part is re-escaped on the way back out.
 func buildHelpURL(data HelpData, fn HelpFunction) string {
 	pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-	var url strings.Builder
-	url.WriteString(data.Origin + pkgPath + "$help&func=" + fn.Name)
-	if len(fn.Params) > 0 {
-		url.WriteString("&")
-		for i, param := range fn.Params {
-			if i > 0 {
-				url.WriteString("&")
-			}
-			url.WriteString(param.Name + "=")
-			if val, ok := data.SelectedArgs[param.Name]; ok {
-				url.WriteString(val)
-			}
-		}
+	var b strings.Builder
+	b.WriteString(data.Origin + pkgPath + "$help&func=" + escapeWebArg(fn.Name))
+	for _, param := range fn.Params {
+		b.WriteString("&" + escapeWebArg(param.Name) + "=" + escapeWebArg(data.SelectedArgs[param.Name]))
 	}
-	return url.String()
+	return b.String()
 }
 
 // buildHelpQR renders that URL as a QR, embedded as a data URI so the page

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,4 +84,59 @@ func TestHelpView_RendersQRPanel(t *testing.T) {
 	assert.Contains(t, out, `id="qr-Transfer"`)
 	assert.Contains(t, out, "data:image/png;base64,")
 	assert.Contains(t, out, `data-action-function-target="qr-anchor"`)
+}
+
+// postFixture is helpFixture with a two-argument function, so the URL tests
+// vary only the args.
+func postFixture(args map[string]string) (HelpData, HelpFunction) {
+	fn := HelpFunction{JSONFunc: &doc.JSONFunc{
+		Name:   "Post",
+		Params: []*doc.JSONField{{Name: "author"}, {Name: "body"}},
+	}}
+	return HelpData{
+		SelectedFunc: "Post",
+		SelectedArgs: args,
+		PkgPath:      "gno.land/r/demo/board",
+		Domain:       "gno.land",
+		Origin:       "https://gno.land",
+		Functions:    []HelpFunction{fn},
+	}, fn
+}
+
+// Args reach buildHelpURL already decoded, so the URL it builds must survive
+// being parsed again — otherwise the form action, the copied link and the QR
+// describe a different call than the page shows.
+func TestBuildHelpURL_ArgsSurviveAReparse(t *testing.T) {
+	t.Parallel()
+
+	for name, author := range map[string]string{
+		"separator":   "a&b=evil", // injected a parameter
+		"fragment":    "tag#frag", // truncated the rest of the URL
+		"percent":     "100%",     // made the URL unparseable
+		"space":       "a b",      // raw space in a URL
+		"plus":        "a+b",      // must not come back as a space
+		"unicode":     "héllo",
+		"empty":       "",
+		"already_enc": "%26",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			data, fn := postFixture(map[string]string{"author": author, "body": "hello"})
+			parsed, err := weburl.Parse(buildHelpURL(data, fn))
+			require.NoError(t, err)
+			assert.Equal(t, "Post", parsed.WebQuery.Get("func"))
+			assert.Equal(t, author, parsed.WebQuery.Get("author"))
+			assert.Equal(t, "hello", parsed.WebQuery.Get("body"))
+		})
+	}
+}
+
+// A reparse alone cannot pin the spelling: url.ParseQuery decodes `+` and
+// `%20` alike. The frontend writes `%20`, so assert on the bytes.
+func TestBuildHelpURL_SpellsSpaceLikeTheFrontend(t *testing.T) {
+	t.Parallel()
+
+	data, fn := postFixture(map[string]string{"author": "a b"})
+	assert.Contains(t, buildHelpURL(data, fn), "author=a%20b")
 }
