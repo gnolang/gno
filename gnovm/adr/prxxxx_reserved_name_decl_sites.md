@@ -16,11 +16,11 @@ variables, range DEFINEs and for-init DEFINEs were never checked, so
 
 #6196 made a realm-typed `cur` declarable only as a crossing function's first
 parameter, with a type-based `checkRealmCurDecl` wired at exactly the sites
-above. Its review proposed reserving `cur` by *name*, like the builtins: a
-`cur` in a realm reads as the frame's identity to every reader, and an int
-named `cur`, or a shadow in an inner block, defeats that reading even where it
-is safe. That is the same question #6181 asks about builtins, so the two are
-solved with one check.
+above. Its review proposed, and has not yet settled, reserving `cur` by
+*name*, like the builtins: a `cur` in a realm reads as the frame's identity to
+every reader, and an int named `cur`, or a shadow in an inner block, defeats
+that reading even where it is safe. That is the same question #6181 asks about
+builtins, so this PR puts both on one check and offers it for that decision.
 
 ## Decision
 
