@@ -1,4 +1,4 @@
-# PRxxxx: Loop-var rename pass resolves clause expressions in the wrong scope
+# PR6209: Loop-var rename pass resolves clause expressions in the wrong scope
 
 ## Context
 
