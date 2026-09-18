@@ -15,4 +15,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curdecltypeswitchdef/zrealm_cur_decl_typeswitch_default.gno:11:2-12:48: a realm-typed `cur` may only be declared as the first parameter of a crossing function
+// gno.land/r/demo/curdecltypeswitchdef/zrealm_cur_decl_typeswitch_default.gno:11:2-12:48: `cur` is reserved: it may only be declared as the first parameter of a crossing function
