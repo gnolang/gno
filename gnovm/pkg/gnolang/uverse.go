@@ -1866,8 +1866,15 @@ func makeUverseNode() {
 				return
 			}
 			oi := obj.GetObjectInfo()
-			if !oi.IsShared {
-				oi.IsShared = true
+			// Library code may grant only what it just built (a constructor
+			// handing out a handle); a realm's stored objects are granted by
+			// the realm's own code, where reviewers look for mutable(x).
+			if callerPkg := m.LastFrame().LastPackage; callerPkg != nil && callerPkg.PkgID.IsImmutablePkg() && oi.GetIsReal() {
+				m.PanicString("mutable: library code cannot grant a stored object; the owning realm must call mutable(x) itself")
+				return
+			}
+			if !oi.IsMutable {
+				oi.IsMutable = true
 				if m.Realm != nil && obj.GetIsReal() {
 					m.Realm.MarkDirty(obj)
 				}

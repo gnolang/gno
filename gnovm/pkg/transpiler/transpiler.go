@@ -250,6 +250,8 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			case *ast.ExprStmt:
 				// `mutable(x)` as a statement: the pass-through below would
 				// leave a bare `x`, which Go rejects as unused, so bind it.
+				// Apply still walks the original children, and the native
+				// rewrites inside x mutate nodes in place, so x is shared.
 				if ce, ok := node.X.(*ast.CallExpr); ok && len(ce.Args) == 1 {
 					if fe, ok := ce.Fun.(*ast.Ident); ok && fe.Name == "mutable" {
 						c.Replace(&ast.AssignStmt{
@@ -257,7 +259,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 							Tok: token.ASSIGN,
 							Rhs: []ast.Expr{ce.Args[0]},
 						})
-						return false
+						return true
 					}
 				}
 			case *ast.CallExpr:

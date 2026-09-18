@@ -831,23 +831,33 @@ owner granted:
 
 ```go
 // realm X
-func GetUsers() *avl.Tree  { return users }            // view
-func EditUsers() *avl.Tree { return mutable(users) }   // handle
+var users = mutable(avl.NewTree())    // granted once, where it is built
+
+func Users() *avl.Tree                { return users }                    // handle
+func ReadUsers() *rotree.ReadOnlyTree { return rotree.Wrap(users, nil) } // view of the same data
+func Log() *avl.Tree                  { return log }                      // never granted: view
 
 // realm A
-X.GetUsers().Set("k", v)    // refused: X never granted
-X.EditUsers().Set("k", v)   // commits to X's storage
+X.Log().Set("k", v)         // refused: X never granted log
+X.Users().Set("k", v)       // commits to X's storage
+X.ReadUsers().Set("k", v)   // does not compile: ReadOnlyTree has no Set
 X.Register(cross(cur), mutable(mine))   // A grants X write access to A's tree
 ```
 
 `mutable(x)` is a uverse builtin. It returns `x` unchanged and sets a
-persisted flag on the object (`ObjectInfo.IsShared`), so a handle stored by
-another realm stays a handle in later transactions. Only the owning realm may
-grant: calling it on an object another realm allocated panics. Two receivers
-borrow without a grant: an *unreal* foreign receiver, which the owner's code
-built in this transaction (a teller returned by a token's method), and an
-object owned by a `/p/` package, whose own post-init immutability gate
-reports the write.
+persisted flag on the object (`ObjectInfo.IsMutable`), so a handle stored by
+another realm stays a handle in later transactions. The grant belongs to the
+object, not to the reference or the getter: once `users` is granted, every
+`*avl.Tree` to it is a handle, and there is no revoke. A view of granted data
+is a wrapper such as `rotree.Wrap`, not the object.
+
+Only the owning realm may grant: calling it on an object another realm
+allocated panics. `/p/` code may grant only an object it just built, as a
+constructor handing out a handle does (grc20's tellers return
+`mutable(&fnTeller{...})`); on a stored object it panics, so every grant of a
+realm's state is a `mutable(` line in that realm. One receiver borrows without
+a grant: an object owned by a `/p/` package, whose own post-init immutability
+gate reports the write.
 
 ## `panic()` and `revive(fn)`
 

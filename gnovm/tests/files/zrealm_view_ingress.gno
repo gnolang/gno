@@ -7,7 +7,8 @@ import (
 )
 
 // Same rule in the argument direction: a tree this realm hands to another
-// realm is a view there unless this realm granted it.
+// realm is a view there unless this realm granted it, whether the tree was
+// stored earlier (t) or allocated in this transaction (fresh).
 
 var t = avl.NewTree()
 
@@ -17,8 +18,15 @@ func main(cur realm) {
 	viewdefault.Store(cross(cur), mutable(t))
 	viewdefault.WriteInbox(cross(cur))
 	println("granted write landed here:", t.Get("from"))
+
+	fresh := avl.NewTree()
+	println("ungranted fresh tree:", revive(func() { viewdefault.StoreAndWrite(cross(cur), fresh) }))
+	viewdefault.StoreAndWrite(cross(cur), mutable(fresh))
+	println("granted fresh tree:", fresh.Get("from"))
 }
 
 // Output:
 // ungranted write by holder: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
 // granted write landed here: viewdefault
+// ungranted fresh tree: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
+// granted fresh tree: viewdefault

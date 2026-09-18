@@ -2957,10 +2957,10 @@ func (goo *ObjectID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 
 func (goo ObjectInfo) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	if goo.IsShared {
+	if goo.IsMutable {
 		{
 			before := offset
-			offset = amino.PrependBool(buf, offset, bool(goo.IsShared))
+			offset = amino.PrependBool(buf, offset, bool(goo.IsMutable))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
@@ -3115,7 +3115,7 @@ func (goo ObjectInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.LastObjectSize != 0 {
 		s += 1 + amino.VarintSize(int64(goo.LastObjectSize))
 	}
-	if goo.IsShared {
+	if goo.IsMutable {
 		s += 1 + 1
 	}
 	return s, nil
@@ -3227,7 +3227,7 @@ func (goo *ObjectInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 				return err
 			}
 			bz = bz[n:]
-			goo.IsShared = bool(v)
+			goo.IsMutable = bool(v)
 		default:
 			return fmt.Errorf("unknown field number %d for ObjectInfo", fnum)
 		}

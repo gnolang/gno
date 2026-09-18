@@ -11,14 +11,14 @@ package launderj
 // Variants of Attack H/I where the receiver is a nil function-typed
 // value, nil slice, or nil map of a defined type. Each has
 // `GetFirstObject` returning nil — same borrow rule #2 anchor gap. Each
-// successive call overwrites imm.Field; the test asserts the final
-// value to confirm all three shapes write through.
+// call is recovered separately so all three shapes are pinned.
 //
 // Same preconditions as Attack H: exploitable only when victim
 // logic data is /p/-declared.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 
@@ -26,18 +26,22 @@ func main(cur realm) {
 	gp := laundervictim.GetPtr()
 	imm := laundervictim.GetImm()
 
+	// One recover per shape, so every variant is pinned as refused.
+	try := func(name string, m launderpkg.Mutator) {
+		defer func() { println(name+":", recover()) }()
+		gp.UseMutator(imm, m)
+	}
 	var nilFn launderattack.EvilFunc
-	gp.UseMutator(imm, nilFn)
-	println("after EvilFunc:", laundervictim.ReadImm())
-
+	try("EvilFunc", nilFn)
 	var nilSlice launderattack.EvilSlice
-	gp.UseMutator(imm, nilSlice)
-	println("after EvilSlice:", laundervictim.ReadImm())
-
+	try("EvilSlice", nilSlice)
 	var nilMap launderattack.EvilMap
-	gp.UseMutator(imm, nilMap)
-	println("after EvilMap:", laundervictim.ReadImm())
+	try("EvilMap", nilMap)
+	println("after:", laundervictim.ReadImm())
 }
 
-// Error:
-// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field
+// Output:
+// EvilFunc: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field
+// EvilSlice: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field
+// EvilMap: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field
+// after: original-imm

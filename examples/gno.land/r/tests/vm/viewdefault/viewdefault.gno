@@ -3,7 +3,10 @@
 // handle with mutable(x).
 package viewdefault
 
-import "gno.land/p/nt/avl/v0"
+import (
+	"gno.land/p/demo/tests/viewgrant/v0"
+	"gno.land/p/nt/avl/v0"
+)
 
 var (
 	view   = avl.NewTree() // handed out as a view
@@ -27,6 +30,18 @@ func GrantForeign(cur realm, t *avl.Tree) *avl.Tree { return mutable(t) }
 
 // Store keeps a caller's tree and later writes to it.
 func Store(cur realm, t *avl.Tree) { inbox = t }
+
+// StoreAndWrite writes through a caller's tree inside the same call.
+func StoreAndWrite(cur realm, t *avl.Tree) {
+	inbox = t
+	t.Set("from", "viewdefault")
+}
+
+// PublishView asks library code to grant the stored view.
+func PublishView() *avl.Tree { return viewgrant.Publish(view) }
+
+// NewViewWriter hands out a fresh /p/-built handle onto the stored view.
+func NewViewWriter() *viewgrant.Writer { return viewgrant.NewWriter(view) }
 
 func WriteInbox(cur realm) { inbox.Set("from", "viewdefault") }
 

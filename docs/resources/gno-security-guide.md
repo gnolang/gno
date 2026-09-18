@@ -220,15 +220,22 @@ method runs with the caller's storage and its write fails with
 `cannot modify object owned by another realm from library code`.
 
 ```go
-func Users() *avl.Tree     { return users }            // view: Set() is refused
-func EditUsers() *avl.Tree { return mutable(users) }   // handle: Set() commits to /r/V
+var users = mutable(avl.NewTree())    // handle: Set() through any reference commits to /r/V
+var log   = avl.NewTree()             // view: Set() is refused
+
+func Users() *avl.Tree                { return users }
+func ReadUsers() *rotree.ReadOnlyTree { return rotree.Wrap(users, nil) } // view of granted data
 ```
 
 **Rule**: a reference that leaves your realm is a view by default.
 Write `mutable(x)` only where you mean to publish that object's
 mutators as your own API, and treat every `mutable(` in a realm as a
-line reviewers must read. The same applies to arguments: a value you
-pass into another realm is a view there unless you granted it.
+line reviewers must read; `/p/` code cannot grant your stored objects
+for you. The grant belongs to the object: once granted, every reference
+to it is a handle, from every getter, with no revoke, so a view of
+granted data is a wrapper, not the object. The same applies to
+arguments: a value you pass into another realm is a view there unless
+you granted it.
 
 #### 5.1a `/p/`-type with unexported fields but exported mutation methods
 

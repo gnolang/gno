@@ -144,11 +144,11 @@ func parityCasesGnolang() []struct {
 			RefCount: 3,
 		}},
 		// ObjectInfo with the owner's mutable() grant (amino field 8).
-		{"ObjectInfo/shared", &ObjectInfo{
-			ID:       ObjectID{PkgID: PkgID{Hashlet: NewHashlet([]byte("pidpidpidpidpidpidpi"))}, NewTime: 8},
-			ModTime:  101,
-			RefCount: 1,
-			IsShared: true,
+		{"ObjectInfo/mutable", &ObjectInfo{
+			ID:        ObjectID{PkgID: PkgID{Hashlet: NewHashlet([]byte("pidpidpidpidpidpidpi"))}, NewTime: 8},
+			ModTime:   101,
+			RefCount:  1,
+			IsMutable: true,
 		}},
 
 		// Realm — package-state wrapper.
