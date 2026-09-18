@@ -28,8 +28,9 @@ An invalid value is a startup error rather than a silent fallback.
 
 It is deliberately NOT derived from the chain-id. An earlier revision matched
 the `gnoland-N` series, but that encodes a chain-naming assumption into gnoweb
-that the naming scheme does not promise to keep (review feedback from aeddi:
-the number increments on a chain restart, and nothing guarantees the shape).
+that the naming scheme does not promise to keep — aeddi, reviewing this PR:
+`gnoland-1` will not necessarily be the only mainnet, the number may be
+incremented later under certain conditions.
 Instead the default is **testnet** and mainnet is explicit: a mainnet that
 forgets the flag shows the alert chip, the safe direction, visibly and
 immediately; a testnet can only present as mainnet through explicit
