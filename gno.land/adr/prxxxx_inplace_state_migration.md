@@ -131,7 +131,23 @@ floor that can only ever be met by byte equality cannot reach state.
 ```go
 // gno.land/pkg/gnoland/upgrades
 
-type Handler func(ctx sdk.Context, k Keepers) error
+// Env is everything a handler may reach. No such aggregate exists today: the
+// keepers and store keys are locals in NewAppWithOptions, so building this and
+// threading it to the BeginBlocker is part of the work.
+type Env struct {
+	Params   params.ParamsKeeperI
+	Account  auth.AccountKeeperI
+	Bank     bank.BankKeeperI
+	GasPrice auth.GasPriceKeeperI
+	VM       *vm.VMKeeper
+
+	// Store keys, for what the keepers do not expose — ctx.Store(BaseKey) is
+	// the VM object graph, which a re-encoding migration has to walk directly.
+	MainKey store.StoreKey
+	BaseKey store.StoreKey
+}
+
+type Handler func(ctx sdk.Context, env Env) error
 
 type Upgrade struct {
 	Version          string  // the release tag; what halt_min_version carries
@@ -140,17 +156,20 @@ type Upgrade struct {
 }
 ```
 
-Registered in one place and compiled in. An entry may be dropped once nothing can
-replay the block that ran its handler.
+Registered in one place and compiled in. An entry may be dropped once nothing
+can replay the block that ran its handler.
+
+Keepers alone are not enough: walking `base` to re-encode objects has no keeper
+method behind it.
 
 Only upgrades that migrate state register anything. A coordinated upgrade that
 breaks consensus without touching state needs a floor and nothing else, so
 `halt_min_version` is set and no entry exists — the state-format versions agree,
 so nothing looks one up.
 
-A handler is arbitrary Go with the keepers in hand, so its reach is whatever the
-store allows — deploy a package, rewrite params, seed data, replace the valoper
-set, walk and re-encode objects. There is no fixed list, and no attempt to define
+A handler is arbitrary Go with `Env` in hand, so its reach is whatever the store
+allows — deploy a package, rewrite params, seed data, replace the valoper set,
+walk and re-encode objects. There is no fixed list, and no attempt to define
 one. The only known limit is changing the code and/or the state of an
 already-deployed realm, for the reason in Open questions.
 

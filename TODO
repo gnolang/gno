@@ -1,7 +1,4 @@
 
-- Handlers
-  - Handlers might need more than just the keepers, like the stores, check what SDK handlers look like
-
 - Document better the new behavior of skip_halt_height (there's a related flag as well right?)
 
 - store versinning ?
