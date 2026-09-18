@@ -99,7 +99,9 @@ gas change is consensus-visible and rides with the schedule work
   precondition to release, for the uverse block names plus `cur`.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
   binding site, plus `shadow_builtin_{functype,iface_method}.gno` and
-  `zrealm_cur_decl_functype.gno` for types; `zrealm_cur_alias*.gno`
+  `zrealm_cur_decl_{functype,functype_second,functype_result,iface_method}.gno`
+  for types, with the crossing shapes `func(cur realm)` and `M(cur realm)`
+  kept legal in `zrealm_cur_legal.gno`; `zrealm_cur_alias*.gno`
   pin the resolved-type rule through a non-`cur` first parameter and a bare
   function type; the four `zrealm_cur_shadow*.gno` are deleted (the shadow is
   now a declaration error); `zrealm_cur_reassign_define.gno`,
