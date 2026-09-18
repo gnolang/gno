@@ -2002,10 +2002,9 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 }
 
-// resolveNamePayload mirrors the raw vm/qeval output of
-// r/sys/users.ResolveName on gnoland-1. The UserData line carries its own
-// "(false bool)" (the deleted field), so a parser that looks for the token
-// anywhere in the payload is fooled; only the last line is the answer.
+// resolveNamePayload mirrors the raw vm/qeval output of ResolveName. The
+// UserData line carries a "(false bool)" of its own, so a parser that searches
+// the whole payload is fooled.
 func resolveNamePayload(current bool) []byte {
 	return fmt.Appendf(nil, `(&(struct{("g1manfred47kzduec920z88wfr64ylksmdcedlf5" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
 (%t bool)`, current)
@@ -2025,9 +2024,8 @@ func getUserPage(t *testing.T, client *stubClient, path string) *httptest.Respon
 	return rr
 }
 
-// A name with no packages that r/sys/users does not resolve is not a user, and
-// neither is a name whose lookup failed: fail closed, without fetching the
-// home realm.
+// A name with no packages that does not resolve is not a user, and neither is
+// one whose lookup came back empty: 404, without fetching the home realm.
 func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 	t.Parallel()
 
@@ -2035,12 +2033,11 @@ func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 		"unknown name": func(context.Context, string, string) ([]byte, error) {
 			return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)"), nil
 		},
-		// After a rename the old name still resolves to UserData, but not as
-		// the current one.
+		// A renamed-away name still resolves, but not as the current one.
 		"renamed alias": func(context.Context, string, string) ([]byte, error) {
 			return resolveNamePayload(false), nil
 		},
-		// A chain that does not deploy the registry, e.g. gnodev.
+		// A chain that does not deploy the registry.
 		"no registry": func(context.Context, string, string) ([]byte, error) {
 			return nil, gnoweb.ErrClientPackageNotFound
 		},
@@ -2050,9 +2047,8 @@ func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 
 			realmCalled := false
 			rr := getUserPage(t, &stubClient{
-				// The node answers an empty prefix with a single blank line;
-				// if that ever counted as a contribution, rule 2 would accept
-				// every name and the gate would be dead code.
+				// An empty prefix comes back as a single blank line; counting
+				// it as a contribution would accept every name.
 				listPathsFunc: func(context.Context, string, int) ([]string, error) {
 					return []string{""}, nil
 				},
@@ -2116,8 +2112,8 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 	assert.False(t, evalCalled, "an address needs no registry lookup")
 }
 
-// A segment that could never be a registered name is refused before any
-// chain query: it is neither listed nor embedded in an eval expression.
+// A segment that could never be a registered name is refused before any chain
+// query.
 func TestHTTPHandler_GetUserView_RejectsInvalidNames(t *testing.T) {
 	t.Parallel()
 
@@ -2150,8 +2146,8 @@ func TestHTTPHandler_GetUserView_RejectsInvalidNames(t *testing.T) {
 	}
 }
 
-// A node that cannot answer is not an answer: publishing 404 on a timeout
-// would delete a real user's page for as long as a crawler remembers it.
+// A node that cannot answer is not an answer: a 404 here would delete a real
+// user's page.
 func TestHTTPHandler_GetUserView_LookupFailureIsNotA404(t *testing.T) {
 	t.Parallel()
 

@@ -511,8 +511,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
-		// An empty listing comes back as a single blank line, and a user page
-		// that does not exist is now the common case, so this must not log.
+		// An empty listing is a single blank line, not a malformed path.
 		if raw == "" {
 			continue
 		}
@@ -542,20 +541,16 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// reUsername is the shape r/sys/users accepts, which its own store.gno says it
-// mirrors from gnolang. Taking it from the same source removes the copy that
-// would silently 404 newly valid names once upstream moves. The length cap is
-// the registry's own (store.gno, maxNameLen).
+// reUsername is the shape r/sys/users accepts: it mirrors gnolang, so gnoweb
+// reads the same source rather than a copy that could drift out of it.
 var reUsername = gno.Re_name.Compile()
 
 const maxUsernameLen = 64
 
-// userExists reports whether username is the current name of a live user.
-// ResolveName is false for unknown, deleted and renamed-away names, the same
-// rule r/sys/names applies before authorizing a deploy. A chain that does not
-// deploy the registry answers false, which is the gnodev case; a chain that
-// could not be asked returns an error, because a 404 published on a timeout
-// is as wrong as a fabricated profile.
+// userExists reports whether username is the current name of a live user,
+// which is the rule r/sys/names applies before authorizing a deploy. A chain
+// without the registry answers false; a chain that could not be asked returns
+// an error, since a 404 on a failed lookup is as wrong as a fabricated page.
 func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, error) {
 	res, err := h.Client.Eval(ctx, "/r/sys/users", fmt.Sprintf("ResolveName(%q)", username))
 	switch {
@@ -567,7 +562,7 @@ func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, er
 	}
 
 	// One line per return value, and the UserData line carries a "(false bool)"
-	// field of its own, so only the last line answers.
+	// of its own, so only the last line answers.
 	lines := bytes.Split(bytes.TrimSpace(res), []byte("\n"))
 	switch answer := string(bytes.TrimSpace(lines[len(lines)-1])); answer {
 	case "(true bool)":
@@ -575,9 +570,8 @@ func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, er
 	case "(false bool)":
 		return false, nil
 	default:
-		// ResolveName changed shape, or the node answered something else.
-		// Saying "no user" here would 404 every registered user at once,
-		// quietly; an error keeps that visible.
+		// Reading an unknown shape as "no user" would 404 every registered
+		// user at once, and in silence.
 		return false, fmt.Errorf("%w: unexpected ResolveName result %q", ErrClientResponse, answer)
 	}
 }
@@ -603,9 +597,9 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL. A page is
-// served only for an address, a namespace that already holds packages, or a
-// name r/sys/users resolves; anything else would be a fabricated profile.
+// GetUserView returns the user profile view for a given GnoURL. It serves a
+// page only for an address, a namespace holding packages, or a name
+// r/sys/users resolves; anything else would be a fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	username := gnourl.Username()
 
@@ -615,7 +609,6 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 
-	// Build contributions
 	contribs, realmCount, err := h.buildContributions(ctx, username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
