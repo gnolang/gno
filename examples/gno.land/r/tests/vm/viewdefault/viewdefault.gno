@@ -6,9 +6,9 @@ package viewdefault
 import "gno.land/p/nt/avl/v0"
 
 var (
-	view   = avl.NewTree()          // handed out as a view
-	handle = avl.NewTree()          // handed out with a grant
-	inbox  *avl.Tree                // a caller's tree, stored by Store
+	view   = avl.NewTree() // handed out as a view
+	handle = avl.NewTree() // handed out with a grant
+	inbox  *avl.Tree       // a caller's tree, stored by Store
 )
 
 func init() {
