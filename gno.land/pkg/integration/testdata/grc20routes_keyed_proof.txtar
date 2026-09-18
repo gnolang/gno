@@ -1,0 +1,84 @@
+# A keyed route is proven against grc20factory EXACTLY AS DEPLOYED.
+#
+# grc20factory is live on mainnet and cannot be redeployed, so it can never call
+# grc20routes.Register. This asserts that it does not have to: its shape is
+# established from the outside, by effect, using nothing but calls it already
+# exposes. No package under test is modified — grc20factory is loaded from
+# examples/ unchanged.
+#
+# The order below is the point:
+#
+#   (a) before the proof, the route reads as the canonical convention, which is
+#       WRONG for this realm — a consumer following it would build
+#       Approve(spender, amount) and abort on arity;
+#   (b) the proof moves TWO different tokens' allowances at the one realm, which
+#       an unkeyed Approve cannot do;
+#   (c) after it, every token on the realm resolves to Keyed(<its own symbol>) —
+#       including one minted afterwards, which the proof never named.
+#
+# The probe address g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep is
+# grc20routes' own realm address, where the proof parks its throwaway allowance.
+
+loadpkg gno.land/r/demo/defi/grc20factory
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/nt/grc20routes/v0
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+# Alice mints two tokens through the factory. Both land in grc20reg under
+# gno.land/r/demo/defi/grc20factory.<SYMBOL>.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Foo -args FOO -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Bar -args BAR -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# (a) Before the proof: the convention, and it is the wrong answer for this realm.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.FOO\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+# (b) The proof. Four calls, no privileged operation among them: Approve is
+# something any holder may already do.
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func BeginKeyedProof -args gno.land/r/demo/defi/grc20factory.FOO -args gno.land/r/demo/defi/grc20factory.BAR -args 111 -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args FOO -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 111 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args BAR -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func FinishKeyedProof -args gno.land/r/demo/defi/grc20factory.FOO -args gno.land/r/demo/defi/grc20factory.BAR -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# (c) After: both proven tokens, keyed by their own symbol.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.FOO\")"
+stdout '\\"prefix\\":\[\\"FOO\\"\],\\"source\\":\\"proven\\"'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.BAR\")"
+stdout '\\"prefix\\":\[\\"BAR\\"\],\\"source\\":\\"proven\\"'
+stdout '\\"funcs\\":{\\"approve\\":\\"Approve\\",\\"transfer\\":\\"Transfer\\",\\"transfer_from\\":\\"TransferFrom\\"}'
+
+# The single-operation getter, which is all a wallet building one message needs.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.Func(\"gno.land/r/demo/defi/grc20factory.BAR\",\"approve\")"
+stdout 'Approve'
+
+# ...and a token minted after the fact, which no proof ever named. One proof
+# covers the realm, not a token, which is what makes this tractable for a
+# factory already hosting dozens of them.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Baz -args BAZ -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.BAZ\")"
+stdout '\\"prefix\\":\[\\"BAZ\\"\],\\"source\\":\\"proven\\"'
+
+# Proving one realm keyed says nothing about any other. wugnot is a single-token
+# realm and still reads as the convention, which for it is the right answer.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/gnoland/wugnot.wugnot\")"
+stdout '\\"pkg_path\\":\\"gno.land/r/gnoland/wugnot\\"'
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
