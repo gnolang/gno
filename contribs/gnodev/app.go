@@ -608,8 +608,11 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
 
 	case rawterm.KeyI: // Import the dev key into the user's keybase
-		if importDevKey(ds.logger.WithGroup(AccountsLogName), ds.cfg.home) {
-			ds.book.Rename(defaultDeployerAddress, DevKeyName)
+		accounts := ds.logger.WithGroup(AccountsLogName)
+		if importDevKey(accounts, ds.cfg.home) {
+			if err = ds.book.ImportKeybase(ds.cfg.home); err != nil {
+				accounts.Error("unable to re-read the keybase", "err", err)
+			}
 		}
 
 	case rawterm.KeyR: // Reload

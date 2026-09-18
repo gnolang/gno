@@ -25,6 +25,7 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		importDevKey(logger, cfg.home)
 	}
 
+	// Check for home folder
 	if cfg.home == "" {
 		logger.Warn("home not specified, no keybase will be loaded")
 	} else if !osm.DirExists(cfg.home) {
@@ -34,21 +35,24 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		return nil, fmt.Errorf("unable to import local keybase %q: %w", cfg.home, err)
 	}
 
+	// Add additional accounts to our keybase
 	for acc := range cfg.premineAccounts {
 		if _, ok := book.GetByName(acc); ok {
-			continue
+			continue // we already know this account from keybase
 		}
 
+		// Check if we have a valid bech32 address instead
 		addr, err := crypto.AddressFromBech32(acc)
 		if err != nil {
 			return nil, fmt.Errorf("invalid bech32 address or unknown keyname %q", acc)
 		}
 
-		book.Add(addr, "")
+		book.Add(addr, "") // add addr to the book with no name
 
 		logger.Info("additional account added", "addr", addr.String())
 	}
 
+	// Ensure that we have a default address
 	if names, ok := book.GetByAddress(defaultDeployerAddress); ok {
 		var name string
 		if len(names) > 0 {
@@ -60,15 +64,14 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		return book, nil
 	}
 
-	creatorName := fmt.Sprintf("_default#%.6s", defaultDeployerAddress.String())
-	book.Add(defaultDeployerAddress, creatorName)
+	// Nameless: the keybase holds no name for it, and logAccounts prints "_".
+	book.Add(defaultDeployerAddress, "")
 
 	// The mnemonic stays out of the log: it is the public DefaultDeployerSeed.
 	logger.Warn("default address tracked in-memory only; gnokey cannot sign with it",
-		"name", creatorName,
 		"addr", defaultDeployerAddress.String(),
 	)
-	logger.Info("press I to import it as a local key, or start with -import-dev-key",
+	logger.Info("start with -import-dev-key to sign as it, or press I in interactive mode",
 		"name", DevKeyName,
 	)
 
@@ -84,17 +87,11 @@ func importDevKey(logger *slog.Logger, home string) bool {
 		logger.Warn("dev key skipped: home not specified, cannot write to keybase")
 		return false
 	}
-	if !osm.DirExists(home) {
-		// A fresh install has no ~/.config/gno yet, and `gnokey add` creates
-		// it too; any other missing -home is a typo, never materialized.
-		if filepath.Clean(home) != filepath.Clean(gnoenv.HomeDir()) {
-			logger.Warn("dev key skipped: home directory does not exist", "path", home)
-			return false
-		}
-		if err := osm.EnsureDir(home, 0o700); err != nil {
-			logger.Warn("dev key skipped: cannot create default home", "path", home, "err", err)
-			return false
-		}
+	// A fresh install has no ~/.config/gno yet, and openKeybase creates it the
+	// way `gnokey add` does; any other missing -home is a typo, never created.
+	if !osm.DirExists(home) && filepath.Clean(home) != filepath.Clean(gnoenv.HomeDir()) {
+		logger.Warn("dev key skipped: home directory does not exist", "path", home)
+		return false
 	}
 
 	kb, err := openKeybase(home)
@@ -122,9 +119,8 @@ func importDevKey(logger *slog.Logger, home string) bool {
 			"existing", info.GetAddress().String(),
 			"expected", addr)
 		return false
-	case keyerror.IsErrKeyNotFound(err):
-	default:
-		logger.Warn("dev key skipped: cannot read keybase", "name", DevKeyName, "err", err)
+	case !keyerror.IsErrKeyNotFound(err):
+		logger.Warn("dev key skipped: cannot read the name", "name", DevKeyName, "err", err)
 		return false
 	}
 

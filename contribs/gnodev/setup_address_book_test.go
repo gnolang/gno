@@ -13,22 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// otherMnemonic is a valid BIP-39 phrase distinct from DefaultDeployerSeed,
-// so a keybase can hold DevKeyName pointing somewhere else.
-const otherMnemonic = "equip will roof matter pink blind book anxiety banner elbow sun young"
-
 func newCaptureLogger() (*slog.Logger, *bytes.Buffer) {
 	var buf bytes.Buffer
 	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
 	return slog.New(h), &buf
 }
 
-func keybaseWith(t *testing.T, name, mnemonic string) string {
+// keybaseWith returns a home whose keybase holds one key, derived from the
+// well-known deployer seed at index: 0 is the deployer address itself, and any
+// other index is an unrelated address.
+func keybaseWith(t *testing.T, name string, index uint32) string {
 	t.Helper()
 	home := t.TempDir()
 	kb, err := keys.NewKeyBaseFromDir(home)
 	require.NoError(t, err)
-	_, err = kb.CreateAccount(name, mnemonic, "", "", 0, 0)
+	_, err = kb.CreateAccount(name, DefaultDeployerSeed, "", "", 0, index)
 	require.NoError(t, err)
 	return home
 }
@@ -75,13 +74,13 @@ func TestImportDevKey(t *testing.T) {
 			name: "address already held under another name keeps that name",
 			home: func(t *testing.T) string {
 				t.Helper()
-				return keybaseWith(t, "test1", DefaultDeployerSeed)
+				return keybaseWith(t, DefaultDeployerName, 0)
 			},
 			want: true,
 			log:  "already present",
 			then: func(t *testing.T, home string) {
 				t.Helper()
-				_, found := keyAddress(t, home, "test1")
+				_, found := keyAddress(t, home, DefaultDeployerName)
 				assert.True(t, found, "the user's own name must survive")
 				_, found = keyAddress(t, home, DevKeyName)
 				assert.False(t, found, "no second name for one address")
@@ -91,7 +90,7 @@ func TestImportDevKey(t *testing.T) {
 			name: "name taken by another address is left alone",
 			home: func(t *testing.T) string {
 				t.Helper()
-				return keybaseWith(t, DevKeyName, otherMnemonic)
+				return keybaseWith(t, DevKeyName, 1)
 			},
 			want: false,
 			log:  "not overwriting",
@@ -189,7 +188,6 @@ func TestImportDevKey(t *testing.T) {
 
 func TestSetupAddressBook(t *testing.T) {
 	t.Run("a plain boot writes nothing and says how to ask", func(t *testing.T) {
-		t.Helper()
 		home := t.TempDir()
 		logger, buf := newCaptureLogger()
 
@@ -207,7 +205,6 @@ func TestSetupAddressBook(t *testing.T) {
 	})
 
 	t.Run("-import-dev-key puts the key in the book", func(t *testing.T) {
-		t.Helper()
 		logger, _ := newCaptureLogger()
 
 		book, err := setupAddressBook(logger, &AppConfig{home: t.TempDir(), importDevKey: true})
@@ -218,16 +215,17 @@ func TestSetupAddressBook(t *testing.T) {
 		assert.Contains(t, names, DevKeyName)
 	})
 
-	t.Run("the I key imports and drops the placeholder name", func(t *testing.T) {
-		t.Helper()
+	t.Run("the I key names the address it imported", func(t *testing.T) {
 		home := t.TempDir()
 		logger, _ := newCaptureLogger()
 
 		book, err := setupAddressBook(logger, &AppConfig{home: home})
 		require.NoError(t, err)
+		names, _ := book.GetByAddress(defaultDeployerAddress)
+		require.Empty(t, names, "nameless until a key exists for it")
 
 		require.True(t, importDevKey(logger, home))
-		book.Rename(defaultDeployerAddress, DevKeyName)
+		require.NoError(t, book.ImportKeybase(home))
 
 		names, ok := book.GetByAddress(defaultDeployerAddress)
 		require.True(t, ok)

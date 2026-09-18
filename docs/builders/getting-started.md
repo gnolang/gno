@@ -156,10 +156,9 @@ the private side signs your transactions, and the public side derives
 the `g1…` address that identifies you on chain.
 
 :::tip
-On a local chain you can skip this entirely. Press `I` while `gnodev` runs,
-or start it with `-import-dev-key`, and its premined account lands in your
-keybase as `devtest`, ready to sign. The mnemonic is public and identical on
-every machine, so the key is a throwaway for local use only.
+A local chain needs no key of yours: `gnodev` hands you its own premined
+account on request, covered in
+[Running a local dev node](../resources/gnodev.md#automatic-deployment).
 :::
 
 Otherwise, create a fresh key:

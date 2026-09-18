@@ -29,8 +29,8 @@ You should see output along these lines:
 
 ```
 Loader      ┃ I workspace detected root={your_pwd}
-Accounts    ┃ W default address tracked in-memory only; gnokey cannot sign with it name=_default#g1jg8m addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-Accounts    ┃ I press I to import it as a local key, or start with -import-dev-key name=devtest
+Accounts    ┃ W default address tracked in-memory only; gnokey cannot sign with it addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I start with -import-dev-key to sign as it, or press I in interactive mode name=devtest
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=native
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888

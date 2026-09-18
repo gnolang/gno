@@ -69,17 +69,6 @@ func (bk *Book) Add(addr crypto.Address, name string) {
 	bk.addrsToNames[addr] = append(names, name)
 }
 
-// Rename drops every name currently associated with addr and associates name
-// instead, so a placeholder gnodev invented for an address does not outlive
-// the real entry it stood in for.
-func (bk *Book) Rename(addr crypto.Address, name string) {
-	for _, old := range bk.addrsToNames[addr] {
-		delete(bk.namesToAddrs, old)
-	}
-	delete(bk.addrsToNames, addr)
-	bk.Add(addr, name)
-}
-
 type Entry struct {
 	crypto.Address
 	Names []string
