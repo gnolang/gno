@@ -156,7 +156,10 @@ UI - Help Function component
       {{ end }}
     </form>
     {{/* Rendered on the destination page, whose URL carries the exact
-         submitted args, so page render and tx-link are one event. */}}
+         submitted args, so page render and tx-link are one event. The $help
+         index selects no function and so encodes no QR: each is a ~3ms PNG,
+         and its panel has no anchor to reveal it. */}}
+    {{ if eq $data.SelectedFunc .Name }}
     <div class="b-qr" id="qr-{{ .Name }}">
       <div class="b-qr__touch">
         <a class="b-btn b-btn--secondary" href="/wallets">Install a wallet app</a>
@@ -167,6 +170,7 @@ UI - Help Function component
           height="256" />
       </div>
     </div>
+    {{ end }}
     <div>
       <h3 class="title">Command</h3>
       <div class="b-code u-mb-2">
