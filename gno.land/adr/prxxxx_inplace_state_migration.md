@@ -28,7 +28,6 @@ other than rebuilding it.
 | Stopping | `tm2/pkg/sdk/baseapp.go:596` (BeginBlock panics at `haltHeight+1`) |
 | Startup gates | `node_params.go:133-181` (`checkNodeStartupParams`) |
 | Governance entry point | `examples/gno.land/r/sys/params/halt.gno:28` |
-| Genesis replay | `gnogenesis fork *`, ADR `pr5511` |
 
 ### What does not exist
 
@@ -183,19 +182,19 @@ Registered in one place, as a package-level literal:
 ```go
 // gno.land/pkg/gnoland/app.go
 
-// A slice, not a map keyed by version. Declaration order is release order,
-// which matters because upgrades apply in sequence and because the newest
-// entry is always the last one. An init() somewhere could assert these
-// invariants (version parses, strictly increasing, no duplicates...).
+// A slice, not a map keyed by version: the key would restate Version, and
+// declaration order is release order, which matters because upgrades apply in
+// sequence. An init() somewhere could assert these invariants (version parses,
+// strictly increasing, no duplicates...).
 var Upgrades = []upgrades.Upgrade{
 	v130.Upgrade,
 	v140.Upgrade,
 }
 ```
 
-Read in two places, both covered below: `checkNodeStartupParams` (§3), to resolve
-a pending `halt_min_version` and the chain's last completed upgrade; and the
-BeginBlocker (*Where it hooks*), to find the handler to run at `H+1`.
+Read in two places, both covered below: `checkNodeStartupParams` (§3), to look up
+the chain's last completed upgrade; and the BeginBlocker (*Where it hooks*), to
+find the handler named by a pending `halt_min_version`.
 
 An entry may be dropped once no chain the binary serves still sits at it — which
 in practice means keeping the most recent, since that is what §3 looks up.
@@ -219,11 +218,19 @@ The record exists to answer one question at startup: **does this binary know the
 shape the chain is already in?** Read the most recent completed upgrade and look
 it up in the upgrade registry.
 
-| last completed upgrade | binary | result |
-|---|---|---|
-| v1.5.0 | v1.3.0 | no entry — predates it | **refuse** |
-| v1.5.0 | v1.5.0 | entry present | proceed |
-| v1.5.0 | v1.6.0 | entry inherited | proceed |
+| last completed | binary | entry in the registry? | result |
+|---|---|---|---|
+| v1.5.0 | v1.3.0 | no — predates it | **refuse** |
+| v1.5.0 | v1.5.0 | yes | proceed |
+| v1.5.0 | v1.6.0 | yes, inherited | proceed |
+
+An upgrade with an empty `halt_min_version` records nothing: there is no version
+to record, and no handler ran. The chain's last completed upgrade stays whatever
+it was before — which is correct, since nothing about the stored data changed.
+A chain that has only ever halted this way, `gnoland-1` today, has no record at
+all, and the check has nothing to compare, so every binary passes it. That is
+the honest answer rather than a gap: without a version there is nothing to say
+which binaries understand that chain.
 
 `checkNodeStartupParams` (`node_params.go:129-181`, called once at `app.go:288`)
 therefore grows one check beside the two it has:
@@ -252,7 +259,7 @@ offline across the upgrade.
 `baseApp.SetBeginBlocker` (`tm2/pkg/sdk/options.go:68`) exists and gno.land does
 not use it — `app.go` sets only `InitChainer`, `AnteHandler`, tx hooks and
 `EndBlocker`. `BaseApp.BeginBlock` calls it at `baseapp.go:622`, after the halt
-check (`:596`) and after `deliverState` is prepared. 
+check (`:596`) and after `deliverState` is prepared.
 
 The new `BeginBlocker` goes in `app.go` beside the existing `EndBlocker`, built
 the same way: a constructor taking what it needs — `prmk` and the `Env` — and
@@ -275,8 +282,8 @@ read node:p:halt_min_version
   H      EndBlocker arms the halt (existing code, unchanged)
   H+1    BeginBlock panics; nodes stop            [existing]
   ---    operators swap binaries
-  boot   checkNodeStartupParams: version gate [existing]
-                              + registry gate + format gate [new]
+  boot   checkNodeStartupParams: version gates [existing]
+                              + completed-upgrades check [new]
   H+1    BeginBlocker runs the handler, in consensus
 ```
 
@@ -290,7 +297,8 @@ AppHash. The handler is needed either way — and running it outside consensus
 means a node that migrates differently diverges silently instead of failing at a
 block.
 
-So the handler runs in-block, and the cost below is not a choice.
+So the handler runs in-block, and everything that follows from that — no dry
+run, determinism, no rollback — is a consequence rather than a choice.
 
 ## Consequences
 

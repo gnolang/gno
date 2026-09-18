@@ -7,13 +7,6 @@
 
 - Document better the new behavior of skip_halt_height (there's a related flag as well right?)
 
-- store versinning ?
-  - called Upgrade.StateFOrmatVersion
-	- how do we introduce it in the store for the next upgrade (bc it won't be there)
-	- what is the check about versionning in case of nil upgrade handler: does this store version==min_halt_version
-	- resolve alternative about using version instead of StateFormatAfter
-	- rename StateFormatAfter to something more meaningful ? 
-
 - investigate realm patching with realm store migration (see open question 1)
 
 - investigate about WillSetParams that should reject a value the node cannot parse
