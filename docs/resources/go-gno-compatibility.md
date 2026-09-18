@@ -54,6 +54,10 @@ not as a parameter, result, receiver, range or type-switch variable, and not
 as a parameter or result name in a function type or interface method.
 `cur` is reserved the same way, and may only be declared as the first parameter
 of a crossing function (see [Captured Realm Values](gno-interrealm.md#captured-realm-values-cur-realm)).
+The rule protects readers of contract code: Go would let `var panic =
+func(string) {}` turn a later `panic("unauthorized")` into a normal return,
+and the same holds for `cross`, `revive`, `len` or any other builtin. In Gno
+these names always mean what they mean in the VM.
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go

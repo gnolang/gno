@@ -19,11 +19,15 @@ type-based `checkRealmCurDecl` wired per site.
 Separately, Gno refuses to shadow a builtin (`len := 3` fails), but only at
 package-level declarations and `var`/`:=`. Parameters, results, receivers,
 type-switch variables, range and for-init DEFINEs were never checked (#6181).
-#6196's review asked whether `cur` should be reserved by *name* like the
-builtins: a `cur` in a realm reads as the frame's identity to every reader,
-and an int named `cur` defeats that reading even where it is safe. Both are
-one question, and #6196's per-site check kept missing sites (the type-switch
-variable; then func, type and import names).
+The rule exists for the reader, not the VM: in contract code a reviewer reads
+`panic`, `cross`, `revive`, `attach`, `len` as VM semantics, and Go lets any
+of them be rebound (`var panic = func(string) {}`; `panic("unauthorized")`
+then returns). Every unchecked site was a way to spoof a builtin in a body.
+#6196's review asked whether `cur` should be reserved by *name* for the same
+reason from the other side: a reader must be able to trust that `cur` is the
+frame's identity, and an int named `cur` defeats that even where it is safe.
+Both are one question, and #6196's per-site check kept missing sites (the
+type-switch variable; then func, type and import names).
 
 ## Decision
 
