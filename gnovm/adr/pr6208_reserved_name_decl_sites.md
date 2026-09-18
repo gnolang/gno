@@ -7,17 +7,14 @@ Closes #6181 part A.
 
 ## Context
 
-#6193 made the crossing `cur` parameter a fixed binding: three preprocess
-write rules (assignment, address-of, range target) plus a runtime identity
-check in `installInheritedCur`. A post-merge review found: a same-scope
-`cur, x := ...` rebound the parameter because the assignment rule skipped
-`DEFINE`; the write rules refused a package-level `var cur realm` and a named
-result `(cur realm)` that were not the parameter, and `func F(_ realm) (cur
-realm)` let a result pose as the binding; realm tests using `t.Run` after a
-`cross()` panicked in the identity check; the identity panic named nothing for
-a function literal; `curUsesPreprocessOrigin`'s header was stale. #6196 fixed
-these and made a realm-typed `cur` declarable only as a crossing function's
-first parameter, with a type-based `checkRealmCurDecl` wired per site.
+#6193 made the crossing `cur` parameter a fixed binding (three preprocess
+write rules plus a runtime identity check). Review found: a same-scope
+`cur, x :=` rebound it; the write rules refused a package-level `var cur
+realm` and a named result `(cur realm)`, and `func F(_ realm) (cur realm)` let
+a result pose as the binding; `t.Run` after `cross()` panicked in the identity
+check; the panic named nothing for a func literal. #6196 fixed these and made
+a realm-typed `cur` declarable only as a crossing first parameter, with a
+type-based `checkRealmCurDecl` wired per site.
 
 Separately, Gno refuses to shadow a builtin (`len := 3` fails), but only at
 package-level declarations and `var`/`:=`. Parameters, results, receivers,
@@ -61,29 +58,25 @@ gas change is consensus-visible and rides with the schedule work
 
 ## Alternatives considered
 
-- **#6196's type-based check, per site.** Sufficient for the write rules, but
-  it must run where each type resolves, so it is wired by hand and missed
-  sites twice; and it leaves `cur := 41` or `var cur any = rlm` legal, so a
-  reader must resolve a type to know what `cur` is.
-- **Check in `Define`/`Define2`.** Too deep: uverse defines the builtins
-  through `Define2`, faux blocks re-define checked names, heap captures define
-  `~name`.
-- **Leave function types and interface methods alone**, since their names
-  bind nothing. Rejected: "no exception" is easier to state and learn, and the
-  names still print in types and docs.
-- **Reserve `cur` for struct fields, methods, labels.** Not bindings; qualified
-  or in another namespace.
-- **Keep the `DEFINE` carve-out in the assignment rule.** Its rationale, "the
-  name is new", is false for a same-scope `:=`.
-- **Change the harness to seed the live cur.** No getter exists; a wider
-  testing-stdlib change for the same behavior.
+- **#6196's type-based check, per site.** Enough for the write rules, but it
+  runs where each type resolves, so it is wired by hand and missed sites
+  twice; and `cur := 41` or `var cur any = rlm` stay legal, so a reader must
+  resolve a type to know what `cur` is.
+- **Check in `Define`/`Define2`.** Too deep: uverse, faux-block copies and
+  heap captures (`~name`) all define names there.
+- **Leave function types and interface methods alone.** Rejected: "no
+  exception" is easier to learn, and the names still print in types and docs.
+- **Struct fields, methods, labels.** Not bindings; left alone.
+- **Keep the `DEFINE` carve-out in the assignment rule.** "The name is new" is
+  false for a same-scope `:=`.
 - **Fix the error span** (#6181 part B). Out of scope.
 
 ## Consequences
 
 - Compatibility: any binding of a builtin name, or of `cur` outside a crossing
   first parameter, is a preprocess error. In-tree: `math/modf.gno` results
-  `int` → `ip`; `chain/runtime/unsafe` `getRealm` result `address` → `addr`
+  `int, frac` → `integer, fractional`, upstream Go's current names;
+  `chain/runtime/unsafe` `getRealm` result `address` → `addr`
   (Go bindings are positional); `p/onbloc/diff` `new` → `newStr`; `cur` locals
   in `p/nt/bylaws`, `r/nt/commondao`, `p/nt/seqid` test, four quarantined
   files, three VM fixtures; the `var cur realm` nil placeholders in 28 examples
@@ -93,10 +86,17 @@ gas change is consensus-visible and rides with the schedule work
   `restart_gas.txtar` and `storage_deposit_price_change.txtar` are re-pinned.
   Reverting only the check leaves every number at the new value: the check
   charges no gas. No gas schedule change.
-- On-chain: a deployed production package binding one of these names fails at
-  the next node restart; `PreprocessAllFilesAndSaveBlockNodes` has no
-  per-package recover. The deployed-code scan #6193 called for is a
-  precondition to release, for the uverse block names plus `cur`.
+- On-chain: this is a consensus change that existing networks cannot restart
+  into. Stdlib source is written to state once, at genesis; at every restart
+  `PreprocessAllFilesAndSaveBlockNodes` re-preprocesses the stored packages
+  with no per-package recover, so the stored `math` alone stops the node. The
+  path is the genesis-replay hardfork of `pr5511`: halt, export, new genesis
+  (which loads the new stdlibs), replay. Replay requires that every historical
+  `AddPkg` still passes, so a scan is a precondition: preprocess every stored
+  production package with this binary and list those refused, for the uverse
+  block names plus `cur`; each must get a fix-up in the new genesis. Mainnet
+  `gnoland-1` is such a network. Gating the rule per package (#5929) would
+  avoid the fork but is not in tree.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
   binding site, plus `shadow_builtin_{functype,iface_method}.gno` and
   `zrealm_cur_decl_{functype,functype_second,functype_result,iface_method}.gno`

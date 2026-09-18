@@ -11,16 +11,16 @@ package math
 //
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN
-func Modf(f float64) (ip float64, frac float64) {
+func Modf(f float64) (integer float64, fractional float64) {
 	return modf(f)
 }
 
-func modf(f float64) (ip float64, frac float64) {
+func modf(f float64) (integer float64, fractional float64) {
 	if f < 1 {
 		switch {
 		case f < 0:
-			ip, frac = Modf(-f)
-			return -ip, -frac
+			integer, fractional = Modf(-f)
+			return -integer, -fractional
 		case f == 0:
 			return f, f // Return -0, -0 when f == -0
 		}
@@ -34,7 +34,7 @@ func modf(f float64) (ip float64, frac float64) {
 	if e < 64-12 {
 		x &^= 1<<(64-12-e) - 1
 	}
-	ip = Float64frombits(x)
-	frac = f - ip
+	integer = Float64frombits(x)
+	fractional = f - integer
 	return
 }
