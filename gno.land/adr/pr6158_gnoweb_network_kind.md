@@ -3,8 +3,8 @@
 ## Context
 
 gnoweb is a single binary serving several chains under the gno.land name:
-`gnoland1` (betanet, currently at gno.land), `pearl-1`, `staging`, `dev`, and
-soon `gnoland-1` — the mainnet whose genesis is being built in #6154.
+mainnet (`gnoland-1`, at gno.land), the current testnet (`pearl-1`), staging,
+and `dev` under gnodev.
 
 Nothing in the UI tells them apart. The only signal is the chain-id inside the
 Network Info popup, behind a click, so a user cannot know which chain they are
@@ -12,11 +12,10 @@ acting on without opening it. With real value on mainnet and several public
 deployments answering under the same branding, that is a footgun.
 
 The footer made this concrete: it rendered `https://faucet.gno.land/`
-unconditionally, on every network. The link works, but the Faucet Hub it points
-to only dispenses testnet tokens (`faucet.pearl.testnets.gno.land`,
-`faucet.sapphire.testnets.gno.land`), and #6154 states mainnet ships with **no
-faucet**. So the deployment carrying real value advertised a testnet service
-without saying so.
+unconditionally, on every network, including deployments that have no faucet at
+all — gnodev has none, and the mainnet genesis funds none
+(`misc/deployments/mainnet.gno.land/README.md`: **"No faucets."**) — while the
+hub it points to lists testnet dispensers.
 
 This is item §2 of #6121, plus §3.5 and part of §3.3.
 
@@ -47,15 +46,16 @@ replace the Network Info popup, which keeps the full remote/chain-id detail.
 The config field already decides whether `/faucet` is routed, so it is the
 authority on whether this deployment *has* a faucet — and gating on it means a
 deployment without one configures nothing. A network-kind conditional would
-have been a second source of truth for the same fact.
+have been a second source of truth for the same fact, and the wrong fact at
+that: the mainnet deployment sets `-faucet-url` deliberately, the hub being due
+to serve mainnet distribution behind a form (#6121 §3.5).
 
 Its *value* is deliberately not used as the link target. `-faucet-url` holds
 the endpoint the `/faucet` route redirects to, and the deployments disagree on
-what that is: staging points it at `https://faucet-api.staging.gno.land`, which
-answers 405 to a browser GET, while its footer points at the hub. Pearl points
-it at the hub. Feeding it into an `href` would have sent staging users to a
-POST-only API. The footer keeps the hub URL as a constant; only the presence of
-the link is configuration-driven.
+what that is: the in-repo staging and home-alias compose files point it at a
+`faucet-api.*` host while their footers point at the hub. Feeding it into an
+`href` would have offered those users an API. The footer keeps the hub URL as a
+constant; only the presence of the link is configuration-driven.
 
 This narrows the footer only. `-faucet-url` still reaches an `href` on the
 `/faucet` interstitial (`components/views/redirect.html` renders it as the
@@ -65,9 +65,8 @@ scope here, but the two surfaces now disagree by design rather than by accident.
 
 **Colour is secondary.** Only `--s-logo-hat` moves under
 `[data-network="testnet"]` — layout, contrast and dark mode are untouched, and
-the chip carries the text. §2.2 of #6121 proposed also moving
-`--s-color-text-brand-default`; that token is the text *on* brand surfaces, so
-tinting it would have broken button contrast. It is left alone.
+the chip carries the text. `--s-color-text-brand-default` is left alone: it is
+the text *on* brand surfaces, so tinting it would break button contrast.
 
 Two absolute `https://gno.land/...` links (header About, footer Blog) are made
 relative in passing: on any non-mainnet deployment they silently moved the user
@@ -94,7 +93,7 @@ to mainnet.
 ## Consequences
 
 - `data-network` is available to CSS for any further per-network styling.
-- `NetworkKind` is the hook §1.6 (per-network robots policy) and §2.4 (default
+- `NetworkKind` is the hook §2.6 (per-network robots policy) and §2.4 (default
   off-mainnet banner) key off; neither is in this change.
 - Deployments that want a footer Faucet link must set `-faucet-url`. Every
   deployment in this repo that had one already does (`misc/loop`,
@@ -110,9 +109,11 @@ to mainnet.
 - `public/main.css` is a tracked, embedded build artifact and CI verifies it is
   in sync (`.github/workflows/ci-dir-gnoland.yml`, `gnoweb_generate`). Any CSS
   change here requires `make -C gno.land/pkg/gnoweb generate`.
-- `-chainid` still defaults to `"dev"` and is not validated against the node
-  (#6121 §2.1). A wrong `-chainid` now also yields a wrong network kind, which
-  makes that gap more visible but does not create it.
+- The chip prints `-chainid` verbatim, and that flag still defaults to `"dev"`,
+  is never validated against the node, and shares its variable with the
+  deprecated `-help-chainid`, so passing both is last-one-wins in silence
+  (#6121 §2.1). The kind does not derive from it, but a wrong chain-id now
+  shows on every page instead of behind the popup.
 
 ## Verification
 
