@@ -2323,6 +2323,12 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	// Every source binding is reserved here, so reserved names are refused
+	// here. The one `cur` allowed is a first parameter, carved out by
+	// position; checkCurParamType requires it to be realm-typed.
+	if !(nstype == NSFuncParam && index == 0 && nx.Name == "cur") {
+		checkDeclName(nx.Name)
+	}
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
 		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})

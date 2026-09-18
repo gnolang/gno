@@ -19,8 +19,8 @@ type Limiter interface {
 	Done() int64
 	Status() Status
 	SetTransferSize(bytes int64)
-	SetLimit(new int64) (old int64)
-	SetBlocking(new bool) (old bool)
+	SetLimit(v int64) (old int64)
+	SetBlocking(v bool) (old bool)
 }
 
 // Reader implements io.ReadCloser with a restriction on the rate of data
@@ -51,19 +51,19 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 
 // SetLimit changes the transfer rate limit to new bytes per second and returns
 // the previous setting.
-func (r *Reader) SetLimit(new int64) (old int64) {
-	old, r.limit = r.limit, new
+func (r *Reader) SetLimit(v int64) (old int64) {
+	old, r.limit = r.limit, v
 	return
 }
 
 // SetBlocking changes the blocking behavior and returns the previous setting. A
 // Read call on a non-blocking reader returns immediately if no additional bytes
 // may be read at this time due to the rate limit.
-func (r *Reader) SetBlocking(new bool) (old bool) {
-	if new == true {
+func (r *Reader) SetBlocking(v bool) (old bool) {
+	if v == true {
 		panic("blocking not yet supported")
 	}
-	old, r.block = r.block, new
+	old, r.block = r.block, v
 	return
 }
 
@@ -113,16 +113,16 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 
 // SetLimit changes the transfer rate limit to new bytes per second and returns
 // the previous setting.
-func (w *Writer) SetLimit(new int64) (old int64) {
-	old, w.limit = w.limit, new
+func (w *Writer) SetLimit(v int64) (old int64) {
+	old, w.limit = w.limit, v
 	return
 }
 
 // SetBlocking changes the blocking behavior and returns the previous setting. A
 // Write call on a non-blocking writer returns as soon as no additional bytes
 // may be written at this time due to the rate limit.
-func (w *Writer) SetBlocking(new bool) (old bool) {
-	old, w.block = w.block, new
+func (w *Writer) SetBlocking(v bool) (old bool) {
+	old, w.block = w.block, v
 	return
 }
 

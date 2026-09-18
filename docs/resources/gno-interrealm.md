@@ -655,6 +655,8 @@ boundary.
 
 A crossing-function's first parameter `cur realm` is a captured realm value:
 a typed handle on the realm-context at the moment of the crossing call.
+The name `cur` is reserved: like a builtin, it cannot be declared anywhere
+else, whatever the type, so a `cur` in a realm is always this frame's identity.
 `realm` is a uverse interface with the following methods:
 
   - `Address() address` — bech32 address derived from the realm's pkgpath

@@ -13,7 +13,7 @@ type Conn interface {
 type Resolver struct {
 	PreferGo     bool
 	StrictErrors bool                                                             // Go 1.9
-	Dial         func(ctx context.Context, network, address string) (Conn, error) // Go 1.9
+	Dial         func(ctx context.Context, network, addr string) (Conn, error) // Go 1.9
 }
 
 // XXX dummy

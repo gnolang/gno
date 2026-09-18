@@ -48,7 +48,12 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 
 Generics are currently not implemented.
 
-Note that Gno does not support shadowing of built-in types.
+Note that Gno does not support shadowing of built-in identifiers at any
+declaration site: not as a variable, constant, type, function or import name,
+not as a parameter, result, receiver, range or type-switch variable, and not
+as a parameter or result name in a function type or interface method.
+`cur` is reserved the same way, and may only be declared as the first parameter
+of a crossing function (see [Captured Realm Values](gno-interrealm.md#captured-realm-values-cur-realm)).
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go

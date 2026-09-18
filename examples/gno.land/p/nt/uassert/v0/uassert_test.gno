@@ -9,11 +9,6 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
 var _ uassert.TestingT = (*testing.T)(nil)
 
 func TestMock(t *testing.T) {

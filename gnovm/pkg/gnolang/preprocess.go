@@ -619,7 +619,11 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
-				// n.Varname is declared in each clause.
+				// n.Varname is Reserved in each clause; checked here too so a
+				// clause-less type switch is covered.
+				if n.VarName != "" {
+					checkDeclName(n.VarName)
+				}
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {
@@ -2157,19 +2161,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								case *FuncDecl:
 									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() {
+									if !dft.IsCrossing() || dft.Params[0].Name != "cur" {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
+									// The name test makes this check self-contained: a
+									// crossing declaration whose first parameter is not
+									// named `cur` (an unnamed `.arg` binding) has no
+									// `cur` for this path to forward. Belt-and-braces
+									// now that checkDeclName refuses every other
+									// `cur` declaration.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								case *FuncLitExpr:
 									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() {
+									if !dft.IsCrossing() || dft.Params[0].Name != "cur" {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
+									// The name test makes this check self-contained: a
+									// crossing declaration whose first parameter is not
+									// named `cur` (an unnamed `.arg` binding) has no
+									// `cur` for this path to forward. Belt-and-braces
+									// now that checkDeclName refuses every other
+									// `cur` declaration.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								default:
@@ -2580,10 +2596,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// so the address is what gets refused. This also covers `&cur`
 				// escaping into a helper that assigns through it, which no LHS
 				// rule would see.
-				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" {
-					if xt == gRealmType {
-						panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
-					}
+				//
+				// A realm-typed `cur` is always the crossing parameter:
+				// checkDeclName refuses every other declaration of the name,
+				// so name plus resolved type identifies the slot exactly.
+				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" && xt == gRealmType {
+					panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
 				}
 				if tt, ok := xt.(*tupleType); ok {
 					panic(fmt.Sprintf(
@@ -2833,6 +2851,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							panic("only the first realm type argument of a crossing function may have name `cur`")
 						}
 					}
+					// Reserved names are refused in function types and interface
+					// methods too, so the rule has no exception. A FuncDecl or
+					// FuncLitExpr reaches Reserve first with the same message.
+					for i := range ft.Params {
+						if i == 0 && ft.Params[i].Name == "cur" {
+							continue
+						}
+						checkDeclName(ft.Params[i].Name)
+					}
+					for i := range ft.Results {
+						checkDeclName(ft.Results[i].Name)
+					}
+					checkCurParamType(ft)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -2862,16 +2893,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// frame; rebinding the name makes it describe a realm the frame
 				// is not in.
 				//
-				// `cur` is reserved as a PARAMETER name — the preprocessor lets
-				// only a crossing function's first realm parameter use it (see
-				// FuncTypeExpr above) — but a local may still shadow it in an
-				// inner block (`cur := cur.Previous()`), so a realm-typed `cur`
-				// on the left of `=` is USUALLY, not always, that parameter.
-				// Rejecting both is deliberate: a shadowing local cannot be
-				// cur-called anyway (the provenance check below resolves the
-				// name's declaring block node and requires a crossing
-				// FuncDecl/FuncLitExpr), so refusing it costs nothing and avoids
-				// reasoning about which one this is.
+				// A realm-typed `cur` is always that parameter, because
+				// checkDeclName refuses every other declaration of the
+				// name, so the LHS name plus its resolved type
+				// identifies the slot with no scope resolution. A DEFINE that
+				// reaches this check reuses a name already declared in the
+				// same block — a rebind with a different spelling — since a
+				// fresh realm-typed `cur` is refused by defineOrDecl itself.
 				//
 				// It matters because the parameter is the one realm value a
 				// no-cross crossing call can forward (the cur-call check below
@@ -2879,19 +2907,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// becomes the callee's frame Cur, and from there IsCurrent() and
 				// cross(rlm) both agree with it. Storing a realm value into some
 				// other variable is unaffected — it cannot be cur-called and
-				// keeps its own persist-time guard — so only `cur` is rejected
-				// here. doOpCall carries the matching runtime check.
-				if n.Op != DEFINE {
-					for _, lh := range n.Lhs {
-						ne, ok := lh.(*NameExpr)
-						if !ok || ne.Name != "cur" {
-							continue
-						}
-						if evalStaticTypeOf(store, last, ne) == gRealmType {
-							panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
-						}
-					}
-				}
+				// keeps its own persist-time guard. doOpCall carries the
+				// matching runtime check.
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
@@ -3011,6 +3028,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				// Checked AFTER the branch above, because a DEFINE that
+				// reuses a name already declared in this same block assigns
+				// that slot rather than declaring a new one (defineOrDecl
+				// takes the same "already defined" branch), and only sets the
+				// name's path while doing so. A fresh realm-typed `cur` never
+				// reaches here: defineOrDecl refuses it as a declaration.
+				for _, lh := range n.Lhs {
+					ne, ok := lh.(*NameExpr)
+					if !ok || ne.Name != "cur" {
+						continue
+					}
+					if evalStaticTypeOf(store, last, ne) == gRealmType {
+						panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
+					}
+				}
+
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
 				switch n.Op {
@@ -3103,10 +3136,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// whole argument for keeping that runtime check: this is the
 				// third write shape into one slot, and the second one the
 				// syntactic rules missed.
-				// DEFINE (`for _, cur := range`) is not a write to the
-				// parameter — it binds a new name, which cannot be cur-called
-				// (the provenance check below refuses a name whose declaring
-				// block is not a crossing FuncDecl/FuncLitExpr).
+				//
+				// The assign form writes the crossing parameter, which a
+				// realm-typed `cur` always is (see checkDeclName). The
+				// DEFINE form declares a new binding in the range clause's own
+				// block; that declaration is refused where it is reserved
+				// (StaticBlock.Reserve, from initStaticBlocks2).
 				if n.Op != DEFINE {
 					for _, lh := range []Expr{n.Key, n.Value} {
 						ne, ok := lh.(*NameExpr)
@@ -6094,6 +6129,33 @@ func skipFile(n BlockNode) BlockNode {
 		return packageOf(fn)
 	} else {
 		return n
+	}
+}
+
+const curReservedMsg = "`cur` is reserved: it may only be declared as the first parameter of a crossing function"
+
+// checkDeclName refuses a binding that shadows a builtin or reuses the name
+// `cur`. StaticBlock.Reserve calls it for every source binding, carving out a
+// first parameter named `cur` (checkCurParamType then requires realm). A
+// for-init `<name>.loopvar` is checked by its source name.
+func checkDeclName(name Name) {
+	src := Name(strings.TrimSuffix(string(name), ".loopvar"))
+	if src == "" || src == blankIdentifier || strings.HasPrefix(string(src), ".") {
+		return
+	}
+	if isUverseName(src) {
+		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", src))
+	}
+	if src == "cur" {
+		panic(curReservedMsg)
+	}
+}
+
+// checkCurParamType completes the positional `cur` carve-out (Reserve, and the
+// FuncTypeExpr handler): a first parameter named `cur` must be realm-typed.
+func checkCurParamType(ft *FuncType) {
+	if len(ft.Params) > 0 && ft.Params[0].Name == "cur" && !ft.IsCrossing() {
+		panic(curReservedMsg)
 	}
 }
 
