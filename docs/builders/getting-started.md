@@ -157,8 +157,8 @@ the `g1…` address that identifies you on chain.
 
 :::tip
 On a local chain you can skip this entirely. `gnodev` auto-imports a
-`dev` key into your keybase on startup, so you can sign transactions with
-`dev` right away, no `gnokey add` needed. The mnemonic is public and
+`devtest` key into your keybase on startup, so you can sign transactions
+with `devtest` right away, no `gnokey add` needed. The mnemonic is public and
 identical on every machine, so the key is a throwaway for local use only.
 Pass `-no-dev-key` to opt out.
 :::
@@ -241,7 +241,7 @@ may consume; `-gas-fee` is the price per unit, in `ugnot`, the smallest
 GNOT denomination. Together they cap what you'll pay. See
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
-The signer at the end is the `alice` key you just created (or `dev`,
+The signer at the end is the `alice` key you just created (or `devtest`,
 auto-imported by gnodev). You'll reuse the same key in the staging and
 testnet sections below.
 

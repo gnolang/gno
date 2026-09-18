@@ -1,4 +1,4 @@
-# ADR: gnodev auto-imports the `dev` account at startup
+# ADR: gnodev auto-imports the `devtest` account at startup
 
 ## Context
 
@@ -22,7 +22,7 @@ new users routinely get stuck on it during onboarding.
 ## Decision
 
 When gnodev starts, before importing the local keybase into its
-in-memory `address.Book`, it ensures an entry named `dev` exists in
+in-memory `address.Book`, it ensures an entry named `devtest` exists in
 the user's gnokey keybase. Concretely, `ensureDevKey` in
 `setup_address_book.go` does:
 
@@ -47,15 +47,15 @@ the user's gnokey keybase. Concretely, `ensureDevKey` in
 5. If the deployer address is already in the keybase under any name, it
    is already signable: log `dev key already present in keybase,
    skipping` and stop. This is the key guard. The keybase enforces one
-   name per address, so calling `CreateAccount("dev", ...)` for an
+   name per address, so calling `CreateAccount("devtest", ...)` for an
    address already stored under another name (commonly `test1`) would
    silently delete that other name. Skipping preserves the user's
    existing entry.
-6. Otherwise, if the name `dev` belongs to a different address (the user
-   has an unrelated key they named `dev`), log a one-line warning and
+6. Otherwise, if the name `devtest` belongs to a different address (the
+   user has an unrelated key they named `devtest`), log a one-line warning and
    leave it untouched.
 7. Otherwise import via
-   `kb.CreateAccount("dev", DefaultDeployerSeed, "", "", 0, 0)` and log
+   `kb.CreateAccount("devtest", DefaultDeployerSeed, "", "", 0, 0)` and log
    `dev key imported`.
 
 Every failure along the way (missing or unwritable home, locked or
@@ -95,8 +95,8 @@ We chose default-on. Rationale:
 ### 2. Don't touch `~/.gnokey/`; let gnodev run its own keybase
 
 gnodev would create `$XDG_STATE_HOME/gnodev/keys/` (or similar), import
-`dev` there, and tell users to run
-`gnokey -home $XDG_STATE_HOME/gnodev maketx call ... dev`.
+`devtest` there, and tell users to run
+`gnokey -home $XDG_STATE_HOME/gnodev maketx call ... devtest`.
 Pros: zero side effects on the user's main keybase. Cons:
 
 - The user-facing acceptance test for this work is *literally*
@@ -116,20 +116,18 @@ zero-flag workflow.
 
 ### 3. Conflict policy: overwrite on name collision
 
-Considered always overwriting any pre-existing `dev` to enforce a
-canonical mapping. Rejected: silently replacing a user's named key,
-even one they happened to name `dev` for unrelated reasons, is worse
-than the inconvenience of a warning. Two collision cases are guarded
-separately. Same name, different address (an unrelated key named `dev`)
-is left untouched after a warning. Same address, different name (the
-deployer seed already imported as, say, `test1`) is also left untouched:
-the keybase enforces one name per address and would delete the existing
-name if we imported `dev`, so gnodev detects the address up front and
-skips the import entirely. Since `dev` is a more plausible name for a
-real user key than something like `devtest`, the same-name guard matters
-in practice.
+Considered always overwriting any pre-existing `devtest` to enforce a
+canonical mapping. Rejected: silently replacing a user's named key, even
+one they happened to name `devtest` for unrelated reasons, is worse than
+the inconvenience of a warning. Two collision cases are guarded
+separately. Same name, different address (an unrelated key named
+`devtest`) is left untouched after a warning. Same address, different
+name (the deployer seed already imported as, say, `test1`) is also left
+untouched: the keybase enforces one name per address and would delete the
+existing name if we imported `devtest`, so gnodev detects the address up
+front and skips the import entirely.
 
-### 4. Naming: `test1`, `devtest`, or `dev`
+### 4. Naming: `test1`, `dev`, or `devtest`
 
 The existing in-process constant is `DefaultAccount_Name = "test1"`.
 We considered three names for the user-facing keybase entry:
@@ -138,13 +136,14 @@ We considered three names for the user-facing keybase entry:
   N test accounts" (it isn't), and an out-of-the-box keybase entry
   called `test1` looks like leaked test fixture rather than something
   the user is supposed to sign with.
-- **`devtest`** — explicit "dev-chain test key". Self-documenting but
-  verbose; reads slightly awkward as a CLI argument
-  (`gnokey ... devtest`).
-- **`dev`** (chosen) — short, idiomatic, and consistent with the
-  command itself (`gnodev`). Trade-off: `dev` is a plausible name for
-  a real user key, so the conflict-detection branch (case 3 above)
-  matters more here than it would for a more obscure name.
+- **`dev`** — short and consistent with the command itself (`gnodev`).
+  It is also a plausible name for a real user key, so the
+  conflict-detection branch (case 3 above) fires more often than it
+  would for a more obscure name.
+- **`devtest`** (chosen) — explicit "dev-chain test key", and the name
+  the documentation already gives this account: `docs/resources/gnodev.md`
+  names it in every sample it prints. Verbose as a CLI argument, and
+  unlikely to collide with a key the user made.
 
 The in-process constant is unchanged; only the keybase entry takes
 the user-facing name. The address book still resolves any pre-existing
@@ -165,31 +164,31 @@ address.
   typically `~/.config/gno/`) is created on demand if missing, so the
   auto-import flow works out of the box on a fresh install.
 - Side effects are bounded: at most one new keybase entry, named
-  `dev`, pointing at the well-known public address. Existing entries
+  `devtest`, pointing at the well-known public address. Existing entries
   are never overwritten.
 - Users who already imported the same seed under another name (commonly
   `test1`) keep that entry. gnodev sees the address is already present
-  and skips the import, so no `dev` entry is added for them and they go
+  and skips the import, so no `devtest` entry is added for them and they go
   on signing under their existing name. The keybase enforces one name
   per address, so a single address can never carry both names at once.
-- Because `dev` is a plausible user-chosen key name, users who already
-  have an *unrelated* key called `dev` will see the conflict warning
-  and keep their existing entry untouched. They can either rename
-  their key or run gnodev with `-no-dev-key`.
+- A user who already holds an *unrelated* key called `devtest` sees the
+  conflict warning and keeps that entry untouched. They can rename their
+  key or run gnodev with `-no-dev-key`.
 - A degraded keybase never blocks startup. A missing or unwritable home,
   a locked or corrupt keybase, or a failed import each logs a warning
   and falls back to in-memory tracking, matching the other
   `ensureDevKey` branches; gnodev still boots.
 - The startup banner no longer logs the mnemonic. Tooling that scraped
   it from gnodev output will break; the same constant is available at
-  `integration.DefaultAccount_Seed` in the source. `gnokey export dev`
+  `integration.DefaultAccount_Seed` in the source. `gnokey export devtest`
   produces an armored private key, not the seed phrase.
 - Test coverage in `contribs/gnodev/setup_address_book_test.go`
-  exercises the keybase states (empty, address-present-under-`dev`,
-  address-present-under-another-name, name-`dev`-with-conflicting-address),
+  exercises the keybase states (empty, address-present-under-`devtest`,
+  address-present-under-another-name,
+  name-`devtest`-with-conflicting-address),
   the opt-out, `home==""`, missing-`home`, unwritable-default-home, and
   broken or unwritable keybase branches of `ensureDevKey`, and two
   end-to-end `setupAddressBook` paths asserting the deployer address ends
-  up in the address book under name `dev` (auto-import) or under the
+  up in the address book under name `devtest` (auto-import) or under the
   in-memory `_default#…` fallback (opt-out), with the fallback log not
   echoing the mnemonic.

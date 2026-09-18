@@ -191,7 +191,7 @@ func TestSetupAddressBook_NoDevKeyFallsBackInMemory(t *testing.T) {
 
 // The deployer seed already imported under another name (commonly test1)
 // must be left untouched: gnodev detects the address is already signable and
-// skips the import, rather than letting CreateAccount rename the entry to dev.
+// skips the import, rather than letting CreateAccount rename the entry to devtest.
 func TestEnsureDevKey_DeployerAddressUnderOtherNameIsPreserved(t *testing.T) {
 	t.Parallel()
 	home := t.TempDir()

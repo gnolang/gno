@@ -17,7 +17,7 @@ import (
 // deployer mnemonic into the user's local keybase. The derived address is
 // funded in the dev chain genesis, so signing against this name works against
 // gnodev with no further setup.
-const DevKeyName = "dev"
+const DevKeyName = "devtest"
 
 func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
@@ -120,7 +120,7 @@ func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
 
 	// If the deployer address is already in the keybase under any name, it is
 	// already signable; do not add a second name. The keybase enforces one
-	// name per address, so importing `dev` here would silently drop the
+	// name per address, so importing `devtest` here would silently drop the
 	// user's existing entry (commonly `test1`).
 	if has, err := kb.HasByAddress(defaultDeployerAddress); err != nil {
 		logger.Warn("dev key skipped: cannot read keybase", "err", err)
@@ -130,7 +130,7 @@ func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
 		return
 	}
 
-	// The address is not present, but the name `dev` might belong to an
+	// The address is not present, but the name `devtest` might belong to an
 	// unrelated key. Leave any such entry untouched.
 	switch info, err := kb.GetByName(DevKeyName); {
 	case err == nil:
