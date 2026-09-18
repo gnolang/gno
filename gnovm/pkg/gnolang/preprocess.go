@@ -619,11 +619,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
-				// n.Varname is Reserved in each clause; checked here too so a
-				// clause-less type switch is covered.
-				if n.VarName != "" {
-					checkDeclName(n.VarName)
-				}
+				// n.Varname is Reserved (and checked) in each clause.
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {

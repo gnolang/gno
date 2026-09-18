@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/demo/curdecltypeswitch
 package curdecltypeswitch
 
-// A type switch's `cur := x.(type)` is a binding, refused at the switch
-// statement whatever the clauses.
+// A type switch's `cur := x.(type)` is a binding, Reserved and refused in
+// each clause.
 
 func main(cur realm) {
 	var x any = cur
@@ -14,4 +14,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curdecltypeswitch/zrealm_cur_decl_typeswitch.gno:9:2-12:3: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// gno.land/r/demo/curdecltypeswitch/zrealm_cur_decl_typeswitch.gno:10:2-11:48: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

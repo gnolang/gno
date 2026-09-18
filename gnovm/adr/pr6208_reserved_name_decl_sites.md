@@ -40,8 +40,9 @@ keyword (`contextualKeywords` in `misc.go`: reserved as a binding name only,
 usable elsewhere, a third tier beside Go keywords and uverse names; today only
 `cur`). A
 first parameter named `cur` is carved out by position; `checkCurParamType`,
-where the function type is resolved, requires it to be realm-typed. One line
-at the `SwitchStmt` covers a clause-less type switch. A `:=` in a block where
+where the function type is resolved, requires it to be realm-typed. A
+clause-less type switch reserves its variable nowhere, but `go/types` refuses
+that shape as unused on every path. A `:=` in a block where
 the name is already reserved is not re-reserved; the write rules refuse it as
 a rebind. Function types and interface methods declare nothing, but the
 `FuncTypeExpr` handler checks their parameter and result names the same way,
