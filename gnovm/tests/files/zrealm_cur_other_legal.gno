@@ -1,10 +1,10 @@
 // PKGPATH: gno.land/r/demo/curother
 package curother
 
-// The declaration rule keys on the pair (name `cur`, resolved type `realm`).
+// The declaration rule reserves the name `cur`, not the type `realm`.
 // Realm-typed bindings under any other name — a package-level var, a named
 // result, a local, a range variable — are ordinary realm values and stay
-// legal. A `cur` of any other type is refused: the name is reserved.
+// legal.
 
 var pkgRealm realm
 

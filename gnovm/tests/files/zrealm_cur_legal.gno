@@ -1,10 +1,9 @@
 // PKGPATH: gno.land/r/demo/curlegal
 package curlegal
 
-// The fixed-binding rules key on the resolved type, so everything that is not
-// a realm-typed binding named `cur` is left alone: threading `cur` unchanged
-// into a no-cross crossing helper, crossing with cross(cur), a realm-typed
-// binding under another name.
+// `cur` is reserved by name, but only its declaration is: threading `cur`
+// unchanged into a no-cross crossing helper, crossing with cross(cur), and a
+// realm-typed binding under another name are all ordinary uses.
 
 func helper(cur realm) string { return cur.PkgPath() }
 
