@@ -1,5 +1,9 @@
 # ADR: gnoweb serves `/u/<name>` only for something that exists on the chain
 
+## Status
+
+Proposed (PR #6206).
+
 ## Context
 
 `GET /u/<name>` rendered a full profile page ("Gnome <name>", a contributions
@@ -24,11 +28,14 @@ this order:
 1. `<name>` is a bech32 address (`crypto.AddressFromBech32`, HRP `g`, 20
    bytes). An address is a namespace by construction.
 2. The namespace already holds at least one package (`ListPaths("@<name>")`,
-   already issued for the contributions list). With `r/sys/names` enabled,
-   which `gnoland-1` has had since genesis, a package under `r/<name>/` exists
-   only if `<name>` was a registered name owned by the deployer. On gnodev,
-   where `r/sys/names` is never enabled and `r/sys/users` is often not
-   loaded, it is the only proof of existence there is.
+   already issued for the contributions list). This is not a proxy for
+   registration: on `gnoland-1`, `gnops`, `jeronimoalbi`, `leon`, `mason`,
+   `sunspirit` and `tests` hold packages while `ResolveName` answers false,
+   because `r/sys/names` gates deploys from block 1 but does not retro-register
+   what genesis shipped. Their pages are legitimate and must keep working. What
+   the rule proves is that the namespace is real and has content, which is what
+   a user page shows. It is also the only proof available on gnodev, where
+   nobody registers a name.
 3. `r/sys/users.ResolveName("<name>")` answers `true` through a new
    `ClientAdapter.Eval` method (`vm/qeval`). `ResolveName` returns
    `(nil, false)` for an unknown or deleted name and `(data, false)` for a
@@ -36,9 +43,11 @@ this order:
    `true`, which is the rule `r/sys/names` itself applies before authorizing
    a deploy.
 
-Anything else is a 404. Every failure of rule 3, including a chain without the
-registry and any RPC error, counts as "no": a lookup that failed must not
-fabricate a profile.
+Anything else is a 404. A chain that does not deploy `r/sys/users` answers
+"no", which is the gnodev case; a chain that could not be asked (timeout, node
+error) surfaces that error through the handler's usual mapping, because a 404
+published on a blip deletes a real user's page for as long as a crawler
+remembers it.
 
 Before any query, `<name>` must match the registry's own name shape
 (`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, at most 64 bytes, mirrored from
@@ -47,8 +56,12 @@ which `vm/qpaths` treated as a sub-prefix (`p/moul/addrset` rendered as
 "Gnome moul/addrset"), and guarantees that nothing reaching the `qeval`
 expression can leave a Gno string literal.
 
-The gate runs before the `/r/<name>/home` fetch, so an unknown name costs two
-RPCs instead of three.
+The gate runs before the `/r/<name>/home` fetch, which is dropped for a name
+that has no page. Per request: an unknown name stays at two RPCs (`qpaths` and
+`qeval` replace `qrender` and `qpaths`), a namespace with packages stays at
+two, and a registered user with no packages pays a third. The `qeval` is the
+heavier of the two shapes, because the `qrender` it replaces returned before
+building a machine when the package was absent.
 
 ## Alternatives considered
 
@@ -74,6 +87,15 @@ RPCs instead of three.
   fabricated profile before. On gnodev with `examples/` loaded,
   `r/docs/...` exists and the page still renders.
 - A registered user with no packages keeps their page, at one extra `qeval`.
+- On gnodev a developer who has deployed nothing under their name gets a 404
+  where they used to get an empty profile; deploying one package restores it
+  through rule 2.
+- The 404 body is the shared `StatusErrorComponent` text, "Something went
+  wrong", which is wrong for a name that simply is not registered. Every other
+  404 in gnoweb says the same thing, so the copy is a separate change.
+- `$help`, `$source` and `$state` under `/u/` are not gated. They already 404
+  on chain for a name that owns nothing, and they route through
+  `GetPackageView` before this code, so closing them is a separate change.
 - A name left behind by a rename renders while it keeps packages and 404s once
   it does not, which is what the verifier does.
 - `ListPaths` returns `[""]` for an empty result, so rule 2 counts parsed

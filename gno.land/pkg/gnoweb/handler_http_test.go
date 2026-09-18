@@ -2040,7 +2040,8 @@ func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 		"renamed alias": func(context.Context, string, string) ([]byte, error) {
 			return resolveNamePayload(false), nil
 		},
-		"registry unavailable": func(context.Context, string, string) ([]byte, error) {
+		// A chain that does not deploy the registry, e.g. gnodev.
+		"no registry": func(context.Context, string, string) ([]byte, error) {
 			return nil, gnoweb.ErrClientPackageNotFound
 		},
 	} {
@@ -2049,8 +2050,13 @@ func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 
 			realmCalled := false
 			rr := getUserPage(t, &stubClient{
-				listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-				evalFunc:      eval,
+				// The node answers an empty prefix with a single blank line;
+				// if that ever counted as a contribution, rule 2 would accept
+				// every name and the gate would be dead code.
+				listPathsFunc: func(context.Context, string, int) ([]string, error) {
+					return []string{""}, nil
+				},
+				evalFunc: eval,
 				realmFunc: func(context.Context, string, string) ([]byte, error) {
 					realmCalled = true
 					return nil, errors.New("unexpected")
@@ -2142,4 +2148,21 @@ func TestHTTPHandler_GetUserView_RejectsInvalidNames(t *testing.T) {
 			assert.False(t, queried, "invalid names must not reach the chain")
 		})
 	}
+}
+
+// A node that cannot answer is not an answer: publishing 404 on a timeout
+// would delete a real user's page for as long as a crawler remembers it.
+func TestHTTPHandler_GetUserView_LookupFailureIsNotA404(t *testing.T) {
+	t.Parallel()
+
+	rr := getUserPage(t, &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) {
+			return []string{""}, nil
+		},
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientTimeout
+		},
+	}, "/u/alice")
+
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code, "a timeout must surface as a timeout, not as a missing user")
 }

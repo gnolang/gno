@@ -25,7 +25,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"golang.org/x/sync/errgroup"
 )
@@ -538,37 +537,43 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// reUserName mirrors the shape r/sys/users accepts (store.gno, reName and its
-// 64-byte cap), so a segment that could never be a registered name is refused
-// before it reaches the chain or a Gno string literal.
-var reUserName = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`)
+// reUsername and maxUsernameLen mirror the shape r/sys/users accepts
+// (store.gno, reName and maxNameLen), so a segment that could never be a
+// registered name is refused before it reaches the chain or a Gno string
+// literal. They have to stay in step with that file.
+var reUsername = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`)
+
+const maxUsernameLen = 64
 
 // userExists reports whether username is the current name of a live user.
 // ResolveName is false for unknown, deleted and renamed-away names, the same
-// rule r/sys/names applies before authorizing a deploy. Any error counts as
-// false: a lookup that failed must not fabricate a profile.
-func (h *HTTPHandler) userExists(ctx context.Context, username string) bool {
+// rule r/sys/names applies before authorizing a deploy. A chain that does not
+// deploy the registry answers false, which is the gnodev case; a chain that
+// could not be asked returns an error, because a 404 published on a timeout
+// is as wrong as a fabricated profile.
+func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, error) {
 	res, err := h.Client.Eval(ctx, "/r/sys/users", fmt.Sprintf("ResolveName(%q)", username))
-	if err != nil {
-		h.Logger.Warn("unable to resolve user", "user", username, "error", err)
-		return false
+	switch {
+	case errors.Is(err, ErrClientPackageNotFound):
+		h.Logger.Debug("no user registry on this chain", "error", err)
+		return false, nil
+	case err != nil:
+		return false, err
 	}
 
 	// One line per return value, and the UserData line carries a "(false bool)"
 	// field of its own, so only the last line answers.
 	lines := bytes.Split(bytes.TrimSpace(res), []byte("\n"))
-	return bytes.Equal(bytes.TrimSpace(lines[len(lines)-1]), []byte("(true bool)"))
+	return bytes.Equal(bytes.TrimSpace(lines[len(lines)-1]), []byte("(true bool)")), nil
 }
 
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+	if _, err := crypto.AddressFromBech32(username); err != nil {
+		return username
 	}
 
-	return username
+	return username[:4] + "..." + username[len(username)-4:]
 }
 
 // displayPackageName returns versioned name for a package path.
@@ -591,7 +596,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 
 	_, err := crypto.AddressFromBech32(username)
 	isAddress := err == nil
-	if !isAddress && (len(username) > 64 || !reUserName.MatchString(username)) {
+	if !isAddress && (len(username) > maxUsernameLen || !reUsername.MatchString(username)) {
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 
@@ -602,8 +607,15 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
-	if !isAddress && len(contribs) == 0 && !h.userExists(ctx, username) {
-		return http.StatusNotFound, components.StatusErrorComponent("user not found")
+	if !isAddress && len(contribs) == 0 {
+		exists, err := h.userExists(ctx, username)
+		if err != nil {
+			h.Logger.Error("unable to resolve user", "error", err)
+			return GetClientErrorStatusView(gnourl, err, 0)
+		}
+		if !exists {
+			return http.StatusNotFound, components.StatusErrorComponent("user not found")
+		}
 	}
 
 	var content bytes.Buffer
