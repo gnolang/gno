@@ -2,7 +2,10 @@
 
 ## Status
 
-Implemented on `fix/cur-binding-followups` (PR #6196).
+Implemented on `fix/cur-binding-followups` (PR #6196). Carried into #6208,
+offered as an alternative: it keeps fixes 1, 3, 4 and 5 below and replaces
+fix 2, the type-based `checkRealmCurDecl`, with the name-based check in
+`pr6208_reserved_name_decl_sites.md`.
 
 ## Context
 

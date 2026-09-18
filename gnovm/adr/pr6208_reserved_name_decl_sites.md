@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed in #6208, stacked on #6196. Closes #6181 part A.
+Proposed in #6208 as an alternative to #6196, whose other fixes it carries
+(`pr6196_cur_binding_followups.md`). Closes #6181 part A.
 
 ## Context
 
