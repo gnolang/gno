@@ -7,13 +7,13 @@ package launderrh_pdr_defer_apply
 //
 // Trace:
 //  1. main → m.Realm = /r/launderrh_pdr_defer_apply
-//  2. DeferApplyHook(h) → Rule 1 → m.Realm = /r/launderrvictim
+//  2. DeferApplyHook(h) → borrow rule #1 → m.Realm = /r/launderrvictim
 //  3. body: `defer ApplyHook(h)` schedules ApplyHook on defer stack
 //  4. body returns → doOpReturnCallDefers picks up deferred ApplyHook
-//  5. PushFrameCall for ApplyHook: /r/-declared → Rule 1
+//  5. PushFrameCall for ApplyHook: /r/-declared → borrow rule #1
 //     → m.Realm STAYS at /r/launderrvictim (already)
 //  6. ApplyHook body: h(gImm) → another PushFrameCall for h
-//     → Rule 1 → m.Realm = /r/launderrh_pdr_defer_apply (attacker)
+//     → borrow rule #1 → m.Realm = /r/launderrh_pdr_defer_apply (attacker)
 //  7. h body: i.Field = ... → readonly check fires
 //
 // Expected: same outcome as direct ApplyHook — the write is

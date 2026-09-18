@@ -12,7 +12,7 @@ package launderrh_conv_iface_box
 // assignment-time readonly check fires.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
@@ -79,7 +79,7 @@ func returnAsAny(x any) any { return x }
 // 2 fn(any), assert, write blocked: true
 // 3 fn() any return, assert, write blocked: true
 // 4 val box, ptr-assert blocked: true
-// 5 val box, val-assert, local write blocked: true
+// 5 val box, val-assert, local write blocked: false
 // --- final reads ---
 // ptr: bare-ptr-orig
 // slice[0]: slice0

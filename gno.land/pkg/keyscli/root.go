@@ -4,6 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -33,10 +34,10 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		commands.HelpExec,
 	)
 
-	// OnTxSuccess is only used by NewBroadcastCmd
-	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-		PrintTxInfo(tx, res, io)
-	}
+	// OnTxSuccess is used whenever we broadcast a transaction
+	cfg.OnTxSuccess = PrintTxSuccess
+	// OnTxFailure prints metrics (gas, storage, etc.) when a tx fails.
+	cfg.OnTxFailure = PrintTxMetrics
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
@@ -59,11 +60,18 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	return cmd
 }
 
-// PrintTxInfo prints the transaction result to io. If the events has storage deposit
+// PrintTxSuccess prints the transaction result to io. If the events has storage deposit
 // info then also print it with the total transaction cost.
-func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO) {
+func PrintTxSuccess(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println(string(res.DeliverTx.Data))
 	io.Println("OK!")
+	PrintTxMetrics(io, tx, res)
+}
+
+// PrintTxMetrics prints common tx metrics (gas, storage, events, info, hash).
+// This is used for both success and failure cases so users always see the
+// relevant numbers.
+func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)
@@ -83,6 +91,11 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+	for _, msg := range tx.Msgs {
+		if addPkg, ok := msg.(vm.MsgAddPackage); ok {
+			io.Println("PKGPATH:   ", addPkg.Package.Path)
+		}
+	}
 }
 
 // GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.

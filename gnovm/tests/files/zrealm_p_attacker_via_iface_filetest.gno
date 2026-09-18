@@ -9,21 +9,21 @@ import (
 )
 
 // /p/-method dispatched on an unreal foreign receiver borrows
-// m.Realm to the receiver's PkgID (Layer 2). Pre-interrealm-v2 the
+// m.Realm to the receiver's PkgID (borrow rule #2). Pre-interrealm-v2 the
 // borrow only fired for REAL foreign receivers; with allocation-time
 // PkgID stamping, unreal receivers also carry their authoring realm's
-// PkgID and Layer 2 follows.
+// PkgID and borrow rule #2 follows.
 //
 // crossrealm.Make1() returns a *p_crossrealm.Container constructed
-// inside /r/tests/vm/crossrealm (Layer 1 borrow). The Container is
+// inside /r/tests/vm/crossrealm (borrow rule #1). The Container is
 // returned to /r/caller still bearing PkgID=crossrealm. When /r/caller
-// invokes the /p/-declared Touch() method, Layer 2 fires:
+// invokes the /p/-declared Touch() method, borrow rule #2 fires:
 // unsafe.CurrentRealm() inside Touch reports /r/tests/vm/crossrealm,
 // not /r/caller.
 
 func main(cur realm) {
 	c := crossrealm.Make1() // returns *p_crossrealm.Container, PkgID=crossrealm
-	c.Touch()               // /p/-method; Layer 2 borrows m.Realm to crossrealm
+	c.Touch()               // /p/-method; borrow rule #2 borrows m.Realm to crossrealm
 	println("after Touch A=", c.A)
 	println("caller-side CurrentRealm:", unsafe.CurrentRealm().PkgPath())
 }

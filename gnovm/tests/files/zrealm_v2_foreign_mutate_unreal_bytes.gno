@@ -7,7 +7,7 @@ import "gno.land/r/tests/vm/crossrealm_d"
 // A foreign realm cannot mutate caller-allocated []byte even when
 // the slice is unreal (just allocated, not yet persisted). The byte
 // slice's underlying ArrayValue is stamped with caller's PkgID at
-// allocation; Layer 1 borrow on the /r/-declared MutateBytes
+// allocation; borrow rule #1 on the /r/-declared MutateBytes
 // activates m.Realm = crossrealm_d; the write site (bz[0] = 0xff)
 // fires the readonly taint because the underlying PkgID != m.Realm.ID.
 //

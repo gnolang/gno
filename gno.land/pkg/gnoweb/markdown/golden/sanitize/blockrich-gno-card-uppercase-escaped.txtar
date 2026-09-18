@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: before realm chrome\n%s\nafter realm chrome
+-- input.md --
+<GNO-COLUMNS>
+-- output.md --
+
+
+\<GNO-COLUMNS>
+
+-- output.html --
+<p>before realm chrome</p>
+<p>&lt;GNO-COLUMNS&gt;</p>
+<p>after realm chrome</p>

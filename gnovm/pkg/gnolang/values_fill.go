@@ -2,6 +2,9 @@ package gnolang
 
 import "fmt"
 
+// StringValue, BigintValue and BigdecValue are leaf constants that hold no
+// references, so DeepFill returns them unchanged (the identity case).
+
 func (sv StringValue) DeepFill(store Store) Value {
 	return sv
 }
@@ -37,9 +40,7 @@ func (av *ArrayValue) DeepFill(store Store) Value {
 	if av.List != nil {
 		for i := range len(av.List) {
 			tv := &av.List[i]
-			if tv.V != nil {
-				tv.V = tv.V.DeepFill(store)
-			}
+			tv.DeepFill(store)
 		}
 	}
 	return av
@@ -55,9 +56,7 @@ func (sv *SliceValue) DeepFill(store Store) Value {
 func (sv *StructValue) DeepFill(store Store) Value {
 	for i := range len(sv.Fields) {
 		tv := &sv.Fields[i]
-		if tv.V != nil {
-			tv.V = tv.V.DeepFill(store)
-		}
+		tv.DeepFill(store)
 	}
 	return sv
 }
@@ -89,8 +88,6 @@ func (erv ExportRefValue) DeepFill(_ Store) Value {
 }
 
 func (hiv *HeapItemValue) DeepFill(store Store) Value {
-	if hiv.Value.V != nil {
-		hiv.Value.V = hiv.Value.V.DeepFill(store)
-	}
+	hiv.Value.DeepFill(store)
 	return hiv
 }

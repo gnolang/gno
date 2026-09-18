@@ -4,7 +4,7 @@ package main
 
 import "filetests/extern/replacer"
 
-func main(cur realm,) {
+func main(cur realm) {
 	s := replacer.Replacer.Replace("Hello")
 	println(s)
 }

@@ -8,14 +8,14 @@ package launderrh_pdr_panic_defer
 //   defer h(gImm)
 //   panic("victim-induced panic")
 //
-// Question: does the defer's PushFrameCall still apply Rule 1 to
+// Question: does the defer's PushFrameCall still apply borrow rule #1 to
 // borrow m.Realm to attacker, even though it's running during
 // panic unwind? The doOpReturnCallDefers path uses the same
 // m.PushFrameCall(..., true) — so the borrow logic should be
 // identical.
 //
 // Expected: the write inside h triggers a readonly check (because
-// h Rule-1 borrows m.Realm to attacker). The readonly panic
+// h borrow rule #1 borrows m.Realm to attacker). The readonly panic
 // REPLACES the original "victim-induced panic" exception in m.Exception.
 // Then unwinding crosses the realm boundary → unhandled panic abort.
 

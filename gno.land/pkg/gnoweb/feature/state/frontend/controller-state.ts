@@ -1,0 +1,316 @@
+import htmx from "htmx.org";
+import { BaseController } from "../../../frontend/js/controller.js";
+
+// Hardening flags. Module-level so they apply before htmx's DOMContentLoaded
+// auto-init.
+Object.assign(htmx.config, {
+	allowEval: false,
+	allowScriptTags: false,
+	selfRequestsOnly: true,
+	includeIndicatorStyles: false,
+	defaultSwapStyle: "innerHTML",
+	historyCacheSize: 0,
+});
+
+// Client-only view-mode pref (no SSR cookie — cache key stays URL-only).
+const VIEW_STORAGE_KEY = "stateViewMode";
+const VIEW_VALID_MODES = new Set(["pretty", "tree"]);
+
+export class StateController extends BaseController {
+	private declare treeStorageKey: string;
+	private declare openSet: Set<string>;
+	private declare viewTree: HTMLElement | null;
+	private docIndex: Record<string, string> = {};
+
+	protected connect(): void {
+		// Bundled htmx auto-inits on DOMContentLoaded, but the Stimulus
+		// dynamic-import can land later → page un-processed, every
+		// hx-trigger silent. Idempotent on already-processed nodes.
+		htmx.process(this.element);
+
+		this.viewTree = this.getTarget("view-tree");
+		this.treeStorageKey = `state_tree_open:${this.getValue("pkg") || "global"}`;
+		this.openSet = this.loadOpen();
+		this.loadDocIndex();
+		if (this.viewTree) {
+			this.applyOpen(this.viewTree);
+			this.projectDocs(this.viewTree);
+			// `toggle` bubbles on every supported browser since 2020; bubble
+			// phase is fine and keeps the listener consistent with the rest.
+			this.viewTree.addEventListener("toggle", this.onToggle, false);
+		}
+		this.restoreViewMode();
+		document.addEventListener("htmx:afterSwap", this.onAfterSwap);
+	}
+
+	protected disconnect(): void {
+		this.viewTree?.removeEventListener("toggle", this.onToggle, false);
+		document.removeEventListener("htmx:afterSwap", this.onAfterSwap);
+	}
+
+	private onToggle = (e: Event): void => {
+		const t = e.target;
+		if (!(t instanceof HTMLDetailsElement)) return;
+		const k = t.getAttribute("data-tree-key");
+		// Lazy refs are never persisted — restoring them on reload would
+		// re-fire their htmx fetch. Only pre-rendered branches persist.
+		if (!k || t.classList.contains("b-state-lazy")) return;
+		if (t.open) this.openSet.add(k);
+		else this.openSet.delete(k);
+		this.persistOpen();
+	};
+
+	// Scoped: re-applied only inside the htmx swap target.
+	private applyOpen(root: HTMLElement): void {
+		if (this.openSet.size === 0) return;
+		// `:not(.b-state-lazy)` — restoring a lazy ref open would re-fire its
+		// htmx fetch; only pre-rendered branches are safe to reopen.
+		for (const el of root.querySelectorAll<HTMLDetailsElement>(
+			"details[data-tree-key]:not(.b-state-lazy)",
+		)) {
+			const k = el.getAttribute("data-tree-key");
+			if (k && this.openSet.has(k) && !el.open) el.open = true;
+		}
+	}
+
+	private onAfterSwap = (e: Event): void => {
+		const root = (e as CustomEvent<{ target?: HTMLElement }>).detail?.target;
+		if (!root) return;
+		this.applyOpen(root);
+		this.projectDocs(root);
+		// Deep-link after expansion: scroll iff #anchor is now in DOM.
+		const hash = window.location.hash.slice(1);
+		if (!hash) return;
+		root
+			.querySelector(`#${CSS.escape(hash)}`)
+			?.scrollIntoView({ behavior: "smooth", block: "start" });
+	};
+
+	// Doc-index island: server inlines a `{name: doc}` JSON blob keyed by
+	// top-level decl name. Parsed once at connect; the projection runs
+	// again per htmx swap to hydrate lazy-loaded fragments.
+	private loadDocIndex(): void {
+		try {
+			const el = document.getElementById("state-doc-index");
+			if (!el?.textContent) return;
+			const parsed = JSON.parse(el.textContent);
+			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+				this.docIndex = parsed as Record<string, string>;
+			}
+		} catch {
+			// Template guarantees `{}` fallback — reaching here means the realm
+			// shipped malformed doc data. Skip silently.
+		}
+	}
+
+	// Populate empty `[data-doc-slot]` placeholders inside the swap target
+	// when the enclosing `[data-name]` matches a doc-index entry. Idempotent:
+	// slots that already carry text are left untouched (server-rendered
+	// top-level decls win over the client projection).
+	private projectDocs(root: HTMLElement): void {
+		for (const named of root.querySelectorAll<HTMLElement>("[data-name]")) {
+			const name = named.getAttribute("data-name");
+			if (!name) continue;
+			const doc = this.docIndex[name];
+			if (!doc) continue;
+			const slot = named.querySelector<HTMLElement>(":scope > [data-doc-slot]");
+			if (!slot || slot.textContent?.trim()) continue;
+			slot.textContent = doc;
+		}
+	}
+
+	private loadOpen(): Set<string> {
+		try {
+			const raw = localStorage.getItem(this.treeStorageKey);
+			const arr = raw ? JSON.parse(raw) : null;
+			if (!Array.isArray(arr)) return new Set();
+			return new Set(arr.filter((v): v is string => typeof v === "string"));
+		} catch {
+			return new Set();
+		}
+	}
+
+	private persistOpen(): void {
+		try {
+			localStorage.setItem(
+				this.treeStorageKey,
+				JSON.stringify([...this.openSet]),
+			);
+		} catch {}
+	}
+
+	// URL-driven view-mode. CSS toggles via
+	// `body:has(#state-view-tree:checked)` — the radio drives the swap.
+	public updateView(event: Event): void {
+		const t = event.target;
+		if (!(t instanceof HTMLInputElement) || !t.checked) return;
+		const mode = t.value;
+		if (!VIEW_VALID_MODES.has(mode)) return;
+		try {
+			localStorage.setItem(VIEW_STORAGE_KEY, mode);
+		} catch {}
+		this.syncTocAria(mode);
+		this.syncViewURL(mode);
+	}
+
+	// Must write to `$webargs`, not `?query` — the server's WebQuery only
+	// reads from `$`, so `?view=tree` would silently fail to round-trip.
+	private syncViewURL(mode: string): void {
+		try {
+			const next = setWebarg(
+				window.location.href,
+				"view",
+				mode === "pretty" ? null : mode,
+			);
+			history.replaceState(null, "", next);
+		} catch {
+			// history API throws in sandboxed contexts; localStorage already saved.
+		}
+	}
+
+	private syncTocAria(mode: string): void {
+		const on = mode === "tree" ? "toc-tree" : "toc-pretty";
+		const off = mode === "tree" ? "toc-pretty" : "toc-tree";
+		for (const a of this.getTargets(on)) {
+			a.removeAttribute("aria-hidden");
+			a.removeAttribute("tabindex");
+		}
+		for (const a of this.getTargets(off)) {
+			a.setAttribute("aria-hidden", "true");
+			a.setAttribute("tabindex", "-1");
+		}
+	}
+
+	// Flip the view-radio to `mode` (if not already there) and propagate
+	// via the existing TOC + URL sync.
+	private switchViewMode(mode: string): void {
+		for (const r of this.getTargets("view-radio")) {
+			if (r instanceof HTMLInputElement && r.value === mode && !r.checked) {
+				r.checked = true;
+				this.syncTocAria(mode);
+				this.syncViewURL(mode);
+				return;
+			}
+		}
+	}
+
+	// URL wins (server already rendered the matching mode); otherwise
+	// honor localStorage and stamp the URL so it stays shareable.
+	private restoreViewMode(): void {
+		// Explicit deep-link wins over both URL webarg and localStorage:
+		// `#<anchor>-pretty|-tree` lands on a CSS-hidden view otherwise.
+		if (this.reconcileAnchorView()) return;
+		let urlMode: string | null = null;
+		try {
+			urlMode = getWebarg(window.location.href, "view");
+		} catch {}
+		if (urlMode && VIEW_VALID_MODES.has(urlMode)) {
+			try {
+				localStorage.setItem(VIEW_STORAGE_KEY, urlMode);
+			} catch {}
+			return; // server-render already correct; nothing to do
+		}
+		let saved: string | null = null;
+		try {
+			saved = localStorage.getItem(VIEW_STORAGE_KEY);
+		} catch {
+			return;
+		}
+		if (!saved || !VIEW_VALID_MODES.has(saved) || saved === "pretty") return;
+		// Local pref differs from server default — flip radio + stamp URL.
+		this.switchViewMode(saved);
+	}
+
+	// A shared `#<anchor>-pretty|-tree` link can target the view CSS is
+	// hiding. If so, switch the radio to the hash's view so the element
+	// is visible and `:target` + scroll take over. Returns true if it
+	// recognised a view-suffixed hash (caller then skips saved-pref).
+	private reconcileAnchorView(): boolean {
+		const hash = window.location.hash.slice(1);
+		const dash = hash.lastIndexOf("-");
+		if (dash === -1) return false;
+		const mode = hash.slice(dash + 1);
+		if (!VIEW_VALID_MODES.has(mode)) return false;
+		this.switchViewMode(mode);
+		try {
+			localStorage.setItem(VIEW_STORAGE_KEY, mode);
+		} catch {}
+		return true;
+	}
+}
+
+// gnoweb URLs are `<path>[$<webargs>][?<query>]`. URLSearchParams only
+// sees `?query`, so we hand-split on `$`. Pairs keep the "bare key" form
+// (e.g. `state` with no `=`) to round-trip the server's canonical shape.
+
+function splitGnoURL(href: string): {
+	prefix: string;
+	webargs: string;
+	suffix: string;
+} {
+	const u = new URL(href, window.location.href);
+	const suffix = u.search + u.hash;
+	const dollar = u.pathname.indexOf("$");
+	if (dollar === -1) {
+		return { prefix: u.origin + u.pathname, webargs: "", suffix };
+	}
+	return {
+		prefix: u.origin + u.pathname.slice(0, dollar),
+		webargs: u.pathname.slice(dollar + 1),
+		suffix,
+	};
+}
+
+function parseWebargs(webargs: string): Array<[string, string | null]> {
+	if (!webargs) return [];
+	const out: Array<[string, string | null]> = [];
+	for (const part of webargs.split("&")) {
+		if (!part) continue;
+		const eq = part.indexOf("=");
+		// Treat `key` and `key=` alike: the server's EncodeValues drops
+		// `=` for empty values, so the bare form is canonical.
+		if (eq === -1 || eq === part.length - 1) {
+			out.push([
+				decodeURIComponent(part.slice(0, eq === -1 ? undefined : eq)),
+				null,
+			]);
+		} else {
+			out.push([
+				decodeURIComponent(part.slice(0, eq)),
+				decodeURIComponent(part.slice(eq + 1)),
+			]);
+		}
+	}
+	return out;
+}
+
+function serializeWebargs(pairs: Array<[string, string | null]>): string {
+	const parts: string[] = [];
+	for (const [k, v] of pairs) {
+		const key = encodeURIComponent(k);
+		parts.push(v === null ? key : `${key}=${encodeURIComponent(v)}`);
+	}
+	return parts.join("&");
+}
+
+function getWebarg(href: string, key: string): string | null {
+	for (const [k, v] of parseWebargs(splitGnoURL(href).webargs)) {
+		if (k === key) return v ?? "";
+	}
+	return null;
+}
+
+function setWebarg(href: string, key: string, value: string | null): string {
+	const { prefix, webargs, suffix } = splitGnoURL(href);
+	const pairs = parseWebargs(webargs);
+	const idx = pairs.findIndex(([k]) => k === key);
+	if (value === null) {
+		if (idx !== -1) pairs.splice(idx, 1);
+	} else if (idx === -1) {
+		pairs.push([key, value]);
+	} else {
+		pairs[idx] = [key, value];
+	}
+	const serialized = serializeWebargs(pairs);
+	return prefix + (serialized ? `$${serialized}` : "") + suffix;
+}

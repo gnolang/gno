@@ -8,6 +8,5 @@ func main() {
 	println(b)
 }
 
-
 // Output:
 // slice[0x0000]

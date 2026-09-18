@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/hivrealrejected
 package hivrealrejected
 
-// Persisted-closure-capture case under Rule 3 (closure capture-realm
+// Persisted-closure-capture case under borrow rule #3 (closure capture-realm
 // borrow).
 //
 // persistedcap's init() calls p_closurecap.MakeCounter, which returns
@@ -13,8 +13,8 @@ package hivrealrejected
 //
 // From this realm (hivrealrejected), we grab the closure via
 // GetCounter() and invoke it directly. The closure's FuncLit lives in
-// /p/ p_closurecap, so Rule 1 (declaring-realm borrow) doesn't fire.
-// No receiver, so Rule 2 doesn't fire either. Rule 3 fires: the
+// /p/ p_closurecap, so borrow rule #1 (declaring-realm borrow) doesn't fire.
+// No receiver, so borrow rule #2 doesn't fire either. borrow rule #3 fires: the
 // closure's stamped PkgID (persistedcap) differs from m.Realm
 // (hivrealrejected), so m.Realm is borrowed to persistedcap for the
 // closure body. The write to `c` then runs in-realm under

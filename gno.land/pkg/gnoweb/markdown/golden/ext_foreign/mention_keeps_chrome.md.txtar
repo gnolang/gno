@@ -1,0 +1,13 @@
+-- input.md --
+Top-level mention @alice renders with its user link.
+
+<gno-foreign>
+A foreign mention @alice keeps its user link, but an author-written [profile link](/u/alice) is marked untrusted.
+</gno-foreign>
+-- output.html --
+<p>Top-level mention <a href="/u/alice">@alice<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> renders with its user link.</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>A foreign mention <a href="/u/alice">@alice<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> keeps its user link, but an author-written <a href="/u/alice" rel="noopener nofollow ugc">profile link</a> is marked untrusted.</p>
+</div>
+</div>

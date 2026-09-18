@@ -5,8 +5,10 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-// Verify that append within capacity on a readonly-tainted slice panics,
-// even when the backing array's ObjectID belongs to the current realm.
+// With the readonly taint removed, append within capacity succeeds: the
+// backing array's ObjectID belongs to the current realm, so the ownership
+// check permits the write. (Pre-removal the sticky taint blocked it even
+// though the backing was current-realm-owned.)
 var s []int
 
 func init() {
@@ -37,7 +39,6 @@ func main(cur realm) {
 }
 
 // Output:
-// append panic: cannot append to readonly tainted slice
 // s[0]: 1
 // s[1]: 2
 // s[2]: 3

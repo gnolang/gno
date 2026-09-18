@@ -438,9 +438,15 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// IsReadonlyBy returns true if tv is readonly by realm rid.
-//   - tv is N_Readonly, or
-//   - tv is a real object residing in external realm
+// IsReadonlyBy returns true if tv is a real object owned by a realm
+// other than rid (i.e., residing in an external realm).
+//
+// ownPkgID is the executing package's PkgID (m.Package.PkgID). An object
+// stamped with it is the executing package's own package-level data, which
+// the package may always read/copy regardless of rid — e.g. stdlib or a /p/
+// library reading its own immutable tables while running under a caller's
+// realm (those callables don't borrow, so m.Realm is the caller's, not the
+// library's). Pass a zero PkgID to disable this exemption.
 //
 // This is different from GetFirstObject in two significant ways:
 //  1. IsReadonlyBy does not go through RefValues; for this reason, it
@@ -451,12 +457,8 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 //     the heap item value AND its internal value is considered.
 //
 // This function controls heavily the behaviour of
-// [Machine.IsReadonly], and thus the readonly taint behaviour.
-func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
-	// tv is N_Readonly
-	if tv.IsReadonly() {
-		return true
-	}
+// [Machine.IsReadonly], and thus cross-realm write authority.
+func (tv *TypedValue) IsReadonlyBy(rid, ownPkgID PkgID) bool {
 	var tvoid ObjectID
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -469,7 +471,7 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 			// external while the heap item itself is
 			// not.
 			// See test/files/zrealm_crossrealm25a.gno.
-			if hiv.Value.IsReadonlyBy(rid) {
+			if hiv.Value.IsReadonlyBy(rid, ownPkgID) {
 				return true
 			}
 			// An unreal HIV is a transient heap-promotion wrapper
@@ -528,8 +530,10 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 	if tvoid.IsZero() {
 		return false
 	}
-	// tv is an object residing in external realm
-	if tvoid.PkgID != rid {
+	// tv is an object residing in external realm — unless it is the
+	// executing package's own package-level data (stamped ownPkgID),
+	// which the package may always read/copy regardless of m.Realm.
+	if tvoid.PkgID != rid && tvoid.PkgID != ownPkgID {
 		return true
 	}
 	return false

@@ -3,8 +3,8 @@ package components
 const RedirectViewType = "redirect-view"
 
 type RedirectData struct {
-	To            string
-	WithAnalytics bool
+	To        string
+	Analytics AnalyticsData
 }
 
 func RedirectView(data RedirectData) *View {

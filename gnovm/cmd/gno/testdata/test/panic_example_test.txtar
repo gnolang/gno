@@ -1,0 +1,22 @@
+# Test with a panicking example_test.gno file
+
+! gno test -v .
+
+stderr 'panic: panic message'
+
+-- example_panic.gno --
+package failing
+
+-- panic_example_test.gno --
+package failing
+
+func ExampleTestAlwaysPanicking() {
+	panic("panic message")
+	// Output:
+	// foo
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/panicking_example_tst"
+gno = "0.9"

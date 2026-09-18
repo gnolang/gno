@@ -7,13 +7,13 @@ Thank you for contributing to Gno! This guide will help you get started.
 - **[Documentation](https://docs.gno.land)** - comprehensive documentation for Gno
 - **[Go Package Docs](https://gnolang.github.io/gno/github.com/gnolang/gno.html)** - API reference documentation
 - **[Awesome Gno](https://github.com/gnoverse/awesome-gno)** - curated list of Gno resources
-- **[Discord](https://discord.gg/YFtMjWwUN7)** - join our community for discussions and support
+- **[Discord](https://discord.com/invite/gnoland)** - join our community for discussions and support
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - Unix environment (Linux/macOS/WSL2)
 - `make` command
 
@@ -94,8 +94,9 @@ This will be disabled only for the git repository you're currently on.
 
 ### Editor Setup
 
-For editor configuration and LSP support, see
-[github.com/gnoverse/gnopls](https://github.com/gnoverse/gnopls).
+See [docs/builders/editor-setup.md](./docs/builders/editor-setup.md) for
+configuring your editor with LSP support, autocompletion, and formatting
+for `.gno` files.
 
 ## Reporting Issues
 

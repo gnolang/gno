@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: HTMLEscape
+// CONTEXT: <span>%s</span>
+-- input.md --
+A & B & C
+-- output.md --
+A &amp; B &amp; C
+-- output.html --
+<p><!-- raw HTML omitted -->A &amp; B &amp; C<!-- raw HTML omitted --></p>

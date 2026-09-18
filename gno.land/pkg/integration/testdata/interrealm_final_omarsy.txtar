@@ -46,7 +46,7 @@ import (
 	"gno.land/p/demo/peter"
 )
 
-// Rule of the closure-capability model (PushFrameCall Rule 3): a
+// Rule of the closure-capability model (PushFrameCall borrow rule #3): a
 // closure carries the authority of the realm that created it, not
 // the realm that stores or runs it later.
 //

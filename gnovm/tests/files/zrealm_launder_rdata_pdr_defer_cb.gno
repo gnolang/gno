@@ -7,10 +7,10 @@ package launderrh_pdr_defer_cb
 //
 // Trace:
 //  1. main → m.Realm = /r/launderrh_pdr_defer_cb
-//  2. DeferCallback(h) → Rule 1 borrow → m.Realm = /r/launderrvictim
+//  2. DeferCallback(h) → borrow rule #1 → m.Realm = /r/launderrvictim
 //  3. body: `defer h(gImm)` schedules h on defer stack
 //  4. body returns → doOpReturnCallDefers picks up deferred h
-//  5. PushFrameCall for h: h is /r/-attacker-declared → Rule 1
+//  5. PushFrameCall for h: h is /r/-attacker-declared → borrow rule #1
 //     → m.Realm = /r/launderrh_pdr_defer_cb
 //  6. h body: `i.Field = ...` → readonly check fires (target
 //     object stamped /r/launderrvictim, m.Realm = attacker)

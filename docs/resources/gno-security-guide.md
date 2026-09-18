@@ -41,7 +41,7 @@ path is attacker-controlled.
 The VM provides four independent defenses. A realm becomes
 exploitable when an API design defeats all of them at once.
 
-### 2.1 Declaration-Site Rule (Rule 1 of PushFrameCall)
+### 2.1 Declaration-Site Rule (borrow rule #1 of PushFrameCall)
 
 Any `/r/`-declared callable (function, method, closure) executes its
 body with `m.Realm` borrowed to its declaring `/r/`. Symmetric and
@@ -51,7 +51,7 @@ unforgeable: attacker code declared in `/r/A` always runs with
 Consequence: an attacker cannot get *their own code* to run with
 victim's authority by tricking the victim into calling it.
 
-### 2.2 Storage-Site Rule (Rule 2 of PushFrameCall)
+### 2.2 Storage-Site Rule (borrow rule #2 of PushFrameCall)
 
 A `/p/`-declared method (or stdlib) invoked on an object-bearing
 receiver whose `PkgID` differs from the current `m.Realm` borrows
@@ -62,7 +62,7 @@ methods) can mutate state living in the caller's realm without
 needing per-realm copies — but only state belonging to the receiver's
 own realm.
 
-### 2.3 Closure-Capability Rule (Rule 3 of PushFrameCall)
+### 2.3 Closure-Capability Rule (borrow rule #3 of PushFrameCall)
 
 A closure (a `FuncLit`, as opposed to a top-level `FuncDecl`) carries
 the authority of the realm that created it. The creator is fixed at
@@ -113,7 +113,7 @@ Two reasons:
    attacker cannot declare `func (e Evil) Mutate(*v.User)` because
    `v.User` is unreachable to `/p/A`.
 2. Any `/r/`-attacker impl of an interface taking `*v.User` runs
-   with `m.Realm = /r/A` by Rule 1, so its writes hit readonly.
+   with `m.Realm = /r/A` by borrow rule #1, so its writes hit readonly.
 
 ### (B) No `/p/`-type embedded in `/r/V`-data has higher-order methods with concretely-`/p/`-typed callbacks.
 
@@ -127,7 +127,7 @@ type Wrapper struct {
 
 then attackers reach `Inner` (it's exported), and `somelib.Node` may
 have `Iterate(cb func(*Node) bool)` or `Apply(fn func(*Node))`.
-Inside `Apply`'s body, `m.Realm` is borrowed to `/r/V` by Rule 2 (the
+Inside `Apply`'s body, `m.Realm` is borrowed to `/r/V` by borrow rule #2 (the
 `*Node`'s `PkgID` is `/r/V`, since `/r/V` allocated it). The `Apply`
 body invokes `fn`. If `fn` is a top-level `/p/A.Evil` function with
 signature `func(*somelib.Node)`, **neither borrow rule fires** —
@@ -155,7 +155,7 @@ and an attacker passes a `/p/A`-declared `fn` (a top-level
 holds `m.Realm = /r/V`, then dispatches to attacker code that doesn't
 trigger any borrow.
 
-Closures handed in by an attacker are safe — Rule 3 (§2.3) borrows
+Closures handed in by an attacker are safe — borrow rule #3 (§2.3) borrows
 `m.Realm` back to the attacker for the body, so writes into `/r/V`
 fail readonly. The gap in (C) is narrower than it looks: it only
 applies to top-level `/p/` `FuncDecl` values, not to arbitrary
@@ -164,7 +164,7 @@ applies to top-level `/p/` `FuncDecl` values, not to arbitrary
 Defense in depth: give the callback a parameter type declared in
 `/r/V` itself, e.g. `fn func(*v.User)`. `/p/` code can't name
 `v.User`, and any `/r/A` implementation of a matching function runs
-under `/r/A`'s authority by Rule 1.
+under `/r/A`'s authority by borrow rule #1.
 
 Empirically verified across 60+ probe filetests:
 `gnovm/tests/files/zrealm_launder_rdata_*.gno`.
@@ -173,7 +173,7 @@ Empirically verified across 60+ probe filetests:
 
 ## 4. The Encapsulation Pattern (GRC20 Reference)
 
-`gno.land/p/demo/tokens/grc20` is the canonical example of *safe*
+`gno.land/p/nt/grc20/v0` is the canonical example of *safe*
 `/p/`-declared data. It violates (A) — `Token`, `PrivateLedger`, and
 `fnTeller` are all `/p/`-declared — but compensates with airtight
 encapsulation:
@@ -183,6 +183,7 @@ encapsulation:
 | All sensitive fields are unexported | `Token.ledger`, `PrivateLedger.balances`, `PrivateLedger.allowances`, `fnTeller.accountFn` all lowercase. Foreign packages cannot access them. |
 | No exported method leaks an interior pointer | No `Token` method returns `*PrivateLedger`, `*avl.Tree`, or `*avl.Node`. |
 | Authority transitions gated by `rlm.IsCurrent()` | Every `Teller` method checks `rlm.IsCurrent()` before resolving `rlm.Previous().Address()`. |
+| A frame-relative teller never leaves its realm | `CallerTeller` hangs off `*PrivateLedger`, which `NewToken` gives only to the creating realm, so a foreign realm cannot mint one. Every write also checks that the invoking realm is the token's own `origRealm` (host compared after stripping any `realm.Sub` subpath), so a teller that is legally built and then *exported as a value* is inert elsewhere. Keying on the actor instead would miss two cases: a realm charged by a realm it calls, and `TransferFrom`, whose actor is the spender while the debited owner is a parameter. |
 | Forgery defended by nominal type assertion | `IsCanonicalTeller(t)` checks `_, ok := t.(*fnTeller)`. Embedding wrappers (`type Evil struct { Teller }`) fail this check despite method promotion. |
 | `*PrivateLedger`'s unauthenticated mutators isolated by package privacy | `Mint`/`Burn`/etc. have no `rlm` check. They're safe only because no realm exports the `*PrivateLedger` pointer. |
 
@@ -213,11 +214,62 @@ Any pointer (slice header, map, struct pointer) returned by a getter
 is mutation-attempt surface. The readonly taint protects you from
 direct field writes (`Users()[0].Name = "x"` panics), but if `*User`
 has any method with a body that writes its receiver, calling that
-method on the returned pointer succeeds — Rule 2 borrows `m.Realm`
+method on the returned pointer succeeds — borrow rule #2 borrows `m.Realm`
 back to `/r/V`, and the write commits.
 
 **Rule**: getters return either values (copies), unexported method
 results, or read-only views. Never a pointer to internal mutable state.
+
+#### 5.1a `/p/`-type with unexported fields but exported mutation methods
+
+The taint-bypasses-method-dispatch gap applies even when the `/p/`-type
+has *no exported fields at all*. If every field is unexported but the
+type has exported methods that mutate the receiver, returning a pointer
+to an instance stored in your realm is equivalent to publishing those
+mutators as your own API.
+
+`avl.Tree` is the canonical example. All fields (`root`, `size`) are
+unexported — a naive reviewer sees no exposed state. But `Tree.Set`,
+`Tree.Remove`, and `Tree.ReverseIterate` all mutate or traverse the
+tree. An attacker who receives a `*avl.Tree` pointer can call
+`tree.Set(key, value)`, borrow rule #2 fires (the tree was allocated
+in `/r/V`), and the write commits under victim authority.
+
+```go
+var store = avl.NewTree()
+
+// WRONG — all fields unexported, but exported methods are mutators
+func GetStore() *avl.Tree { return store }
+
+// Attacker: GetStore().Set("k", "injected")  →  commits under /r/V
+```
+
+#### 5.1b Exported pointer fields on `/p/` structs
+
+The same path exists one level of indirection deeper. If a `/p/` struct
+has an exported field that is itself a pointer type whose type has
+mutation methods, returning a pointer to the containing struct gives
+indirect access to that inner mutator.
+
+```go
+// p/mylib
+type Container struct {
+    Items *avl.Tree   // exported pointer field — mutation methods reachable
+    Label string
+}
+
+// r/V
+var c = &Container{Items: avl.NewTree()}
+func GetContainer() *Container { return c }
+
+// Attacker: GetContainer().Items.Set(key, value)
+// Readonly taint on c does NOT block method dispatch.
+// Borrow rule #2 fires on Items (allocated in /r/V) → write commits.
+```
+
+**Rule**: treat every exported pointer field of a `/p/` type as a live
+mutator handle if the pointed-to type has any mutation method. Never
+return the containing struct as a pointer.
 
 ### 5.2 Embedding a `/p/`-type with concrete-callback higher-order methods
 
@@ -327,6 +379,40 @@ a call frame`.
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
+### 5.8 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
+
+`chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
+obtaining the previous realm. Using it in a crossing function that already
+receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
+verification that makes `cur.Previous()` safe, and silently ignores the
+`cur` capability token the runtime minted for exactly this purpose.
+
+```go
+// WRONG: cur is accepted but never used; no IsCurrent() guard
+import "chain/runtime/unsafe"
+
+func Set(cur realm, key, value string) {
+    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    ...
+}
+
+// RIGHT
+func Set(cur realm, key, value string) {
+    if !cur.IsCurrent() { panic("spoofed realm") }
+    caller := cur.Previous().Address()
+    ...
+}
+```
+
+Any import of `chain/runtime/unsafe` in a realm that also declares
+crossing functions (`func F(cur realm, ...)`) is a red flag. The
+`unsafe` package is appropriate only in non-crossing helpers or
+in realms that have not yet been migrated to the `cur realm` API.
+
+**Rule**: in crossing functions, always derive caller identity from
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+`chain/runtime/unsafe` import.
+
 ---
 
 ## 6. Properties That Make the Boundary Stronger Than Expected
@@ -367,7 +453,7 @@ victim data into their own context. Even the local copy is sticky.
 `mv := victim.Apply` (bound method value) is a function value that
 remembers the receiver. When `mv()` is invoked later — even stored
 in attacker state, boxed into an interface, retrieved through
-indirection — `PushFrameCall` sees the receiver and Rule 2 fires
+indirection — `PushFrameCall` sees the receiver and borrow rule #2 fires
 based on the receiver's `PkgID`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
@@ -376,7 +462,7 @@ go through different paths.
 
 **Implication**: if you ever return a bound method value of a
 `/p/`-type pointing into your state, an attacker can store and
-invoke it later — Rule 2 will still borrow to your realm. Don't
+invoke it later — borrow rule #2 will still borrow to your realm. Don't
 return bound method values of `/p/`-types unless you know the
 method body is safe under attacker invocation.
 
@@ -399,7 +485,7 @@ Allocating a foreign `/r/`-declared type with a composite literal,
 fabricate impostor `*v.User` instances and pass them to victim
 APIs that expect a user pointer. Construction must go through
 constructors declared in the type's home realm (which trigger
-Rule 1 declaring-borrow on call).
+borrow rule #1 declaring-borrow on call).
 
 ---
 
@@ -498,14 +584,14 @@ func SetOwner(cur realm, newOwner address) {
 // NO method like:
 //   func GetCounter() *Counter { return gCounter }
 // because that exposes an aliased pointer (the read methods on
-// *Counter would Rule-2 borrow back, and any mutator method
+// *Counter would borrow rule #2 back, and any mutator method
 // on *Counter would let attackers write under our authority).
 ```
 
 This realm passes the checklist. Attackers can:
 
 - Read `Value()` — returns a copy of the int (no taint, no harm).
-- Call `Increment(cur)` — runs under `/r/example/counter` Rule 1
+- Call `Increment(cur)` — runs under `/r/example/counter` borrow rule #1
   borrow; bumps the value. This is the intended public API.
 - Call `SetOwner(cur, ...)` — gated by ownership check.
 

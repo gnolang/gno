@@ -5,7 +5,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/cockroachdb/apd/v3"
+	"math/big"
 )
 
 // Bounded printers — single source of truth for size-bounded
@@ -268,11 +268,8 @@ func BoundedSprintException(e *Exception, m *Machine, lim int) string {
 func BoundedStacktrace(s Stacktrace, lim int) string {
 	w := newBoundedBuf(lim)
 	totalCalls := len(s.Calls)
-	visit := totalCalls
-	if visit > MaxStacktraceFrames {
-		visit = MaxStacktraceFrames
-	}
-	for i := 0; i < visit; i++ {
+	visit := min(totalCalls, MaxStacktraceFrames)
+	for i := range visit {
 		call := s.Calls[i]
 		var line int
 		if i == 0 {
@@ -398,10 +395,8 @@ func boundedSprintPrimitiveTV(w *boundedBuf, tv TypedValue) {
 	case UntypedBigdecType:
 		if tv.V == nil {
 			w.WriteString("<nil>")
-		} else if bd := tv.GetBigDec(); bd != nil {
-			boundedSprintBigDec(w, bd)
 		} else {
-			w.WriteString("<nil>")
+			boundedSprintBigDecValue(w, tv.GetBigDec())
 		}
 	default:
 		fmt.Fprintf(w, "<%v>", pt)
@@ -425,7 +420,7 @@ func boundedSprintValue(w *boundedBuf, v Value, depth int) {
 	case BigintValue:
 		boundedSprintBigInt(w, x.V)
 	case BigdecValue:
-		boundedSprintBigDec(w, x.V)
+		boundedSprintBigDecValue(w, x)
 	case *ArrayValue:
 		boundedSprintArrayValue(w, x, depth)
 	case *SliceValue:
@@ -472,10 +467,7 @@ func boundedSprintStringValue(w *boundedBuf, sv StringValue) {
 	// non-printable bytes (`\u00XX` = 6 bytes per source byte
 	// worst case). Pre-truncate to bound the intermediate.
 	const expandFactor = 6
-	preTruncCap := rem / expandFactor
-	if preTruncCap < 1 {
-		preTruncCap = 1
-	}
+	preTruncCap := max(rem/expandFactor, 1)
 	srcWasTruncated := false
 	if len(s) > preTruncCap {
 		s = s[:preTruncCap]
@@ -517,42 +509,42 @@ func boundedSprintBigInt(w *boundedBuf, bi interface {
 	writeBoundedString(w, bi.String(), rem)
 }
 
-// boundedSprintBigDec renders a *apd.Decimal. Pre-checks the
-// coefficient's bit-length before allocating the full decimal
-// string — bd.String() is O(coeff size) and would otherwise let
-// an attacker who grew the coefficient via runtime arithmetic
-// (e.g. apd's unlimited-precision Add at op_binary.go) burn
-// unmetered CPU/memory on this rendering path.
-//
-// fmtE/fmtF output length is dominated by the coefficient's
-// decimal-digit count (≈ BitLen / 3.32). The Exponent adds ≤ ~12
-// bytes (sign + int32 digits + "E"); the fmtF zero-pad path is
-// itself capped by apd's adjExponentLimit rule, so no Exponent
-// term is needed in the gate.
-func boundedSprintBigDec(w *boundedBuf, bd *apd.Decimal) {
+// boundedSprintBigDec renders a *big.Rat as a decimal string into w,
+// truncating if the representation would exceed the buffer's remaining capacity.
+func boundedSprintBigDec(w *boundedBuf, r *big.Rat) {
 	rem := w.Remaining()
 	if rem <= 0 {
 		return
 	}
-	if bd == nil {
+	if r == nil {
 		w.WriteString("<nil>")
 		return
 	}
-	// Zero coefficient — render directly. apd's fmtF zero-pad path
-	// allocates up to ~|Exponent| bytes (capped at ~2000 by apd's
-	// adjExponentLimit) for negative-Exponent zero values; we
-	// sidestep it since "0" carries the same numeric information.
-	if bd.Coeff.BitLen() == 0 {
-		w.WriteString("0")
+	// Estimate output length: numerator bits * log10(2) ≈ bits/3.32, plus denominator.
+	// Use bits/3 conservatively.
+	estimatedLen := (r.Num().BitLen() + r.Denom().BitLen()) / 3
+	if estimatedLen > rem {
+		fmt.Fprintf(w, "<bigdec, bits=%d>", r.Num().BitLen())
 		return
 	}
-	// 1 decimal digit ≈ 3.32 bits. Use ×3 conservatively
-	// (matches boundedSprintBigInt).
-	if bd.Coeff.BitLen() > rem*3 {
-		fmt.Fprintf(w, "<bigdec, bits=%d>", bd.Coeff.BitLen())
+	writeBoundedString(w, r.FloatString(10), rem)
+}
+
+// boundedSprintBigDecValue renders a BigdecValue in either rat or float form.
+func boundedSprintBigDecValue(w *boundedBuf, bdv BigdecValue) {
+	rem := w.Remaining()
+	if rem <= 0 {
 		return
 	}
-	writeBoundedString(w, bd.String(), rem)
+	if bdv.F != nil {
+		writeBoundedString(w, bdv.F.Text('g', -1), rem)
+		return
+	}
+	if bdv.V == nil {
+		w.WriteString("<nil>")
+		return
+	}
+	boundedSprintBigDec(w, bdv.V)
 }
 
 // ----------------------------------------
@@ -573,15 +565,9 @@ func boundedSprintArrayValue(w *boundedBuf, av *ArrayValue, depth int) {
 		rem := w.Remaining()
 		// "0x" prefix + 2 hex chars per byte + "...total N bytes" suffix
 		const suffixOverhead = 24 // generous — len("...total NNNNNN bytes") ≈ 22
-		previewBytes := MaxByteArrayBytes
-		if previewBytes > n {
-			previewBytes = n
-		}
+		previewBytes := min(MaxByteArrayBytes, n)
 		if previewBytes*2+2+suffixOverhead > rem {
-			previewBytes = (rem - 2 - suffixOverhead) / 2
-			if previewBytes < 0 {
-				previewBytes = 0
-			}
+			previewBytes = max((rem-2-suffixOverhead)/2, 0)
 		}
 		w.WriteString("0x")
 		for i := 0; i < previewBytes; i++ {
@@ -613,10 +599,7 @@ func boundedSprintSliceValue(w *boundedBuf, sv *SliceValue, depth int) {
 		}
 		// index range
 		from := sv.Offset
-		to := sv.Offset + sv.Length
-		if to > len(av.List) {
-			to = len(av.List)
-		}
+		to := min(sv.Offset+sv.Length, len(av.List))
 		if from < 0 {
 			from = 0
 		}
@@ -633,12 +616,9 @@ func boundedSprintList(w *boundedBuf, list []TypedValue, depth int, open, closer
 		w.WriteString(closer)
 		return
 	}
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString(open)
-	for i := 0; i < visit; i++ {
+	for i := range visit {
 		if i > 0 {
 			w.WriteString(", ")
 		}
@@ -685,10 +665,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 		return
 	}
 	n := mv.List.Size
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString("{")
 	cur := mv.List.Head
 	for i := 0; i < visit && cur != nil; i++ {
@@ -703,10 +680,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 			w.WriteString("}")
 			return
 		}
-		half := budget / 2
-		if half < 1 {
-			half = 1
-		}
+		half := max(budget/2, 1)
 		ksub := newBoundedBuf(half)
 		boundedSprintTV(ksub, cur.Key, depth+1)
 		w.WriteString(ksub.String())
@@ -736,8 +710,14 @@ func boundedSprintFuncValue(w *boundedBuf, fv *FuncValue) {
 }
 
 func boundedSprintBoundMethodValue(w *boundedBuf, bmv *BoundMethodValue) {
-	if bmv == nil || bmv.Func == nil {
+	if bmv == nil {
 		w.WriteString("<nil>")
+		return
+	}
+	if bmv.IsLazy() {
+		// Unresolved interface bind: no concrete Func until call time; render
+		// from the selector name.
+		fmt.Fprintf(w, "<bound-method ?.%s>", bmv.Method)
 		return
 	}
 	name := string(bmv.Func.Name)

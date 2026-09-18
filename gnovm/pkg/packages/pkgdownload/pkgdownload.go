@@ -20,6 +20,12 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 	}
 
 	for _, file := range files {
+		if !filepath.IsLocal(file.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", file.Name)
+		}
+	}
+
+	for _, file := range files {
 		fileDst := filepath.Join(dst, file.Name)
 		if err := os.WriteFile(fileDst, []byte(file.Body), 0o644); err != nil {
 			return fmt.Errorf("write file at %q: %w", fileDst, err)

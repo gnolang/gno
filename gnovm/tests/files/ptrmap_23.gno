@@ -8,7 +8,7 @@ func init() {
 	m[&arr] = "ok"
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	println(m[&arr]) // Output: example
 }
 

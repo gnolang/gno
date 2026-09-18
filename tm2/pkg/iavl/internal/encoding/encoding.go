@@ -11,19 +11,19 @@ import (
 )
 
 var bufPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return new(bytes.Buffer)
 	},
 }
 
 var varintPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &[binary.MaxVarintLen64]byte{}
 	},
 }
 
 var uvarintPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &[binary.MaxVarintLen64]byte{}
 	},
 }

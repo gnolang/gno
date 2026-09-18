@@ -11,6 +11,8 @@ on:
       # since this can affect test results
       - go.mod
       - .github/workflows/ci-dir-tm2.yml
+      # tm2 holds no gno source, so every *.md under it is prose.
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -22,5 +24,3 @@ jobs:
     with:
       modulepath: "tm2"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}

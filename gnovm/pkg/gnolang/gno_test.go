@@ -565,9 +565,9 @@ func BenchmarkBenchdata(b *testing.B) {
 		// Determine parameters.
 		const paramString = "// param: "
 		var params []string
-		pos := strings.Index(cont, paramString)
-		if pos >= 0 {
-			paramsRaw := strings.SplitN(cont[pos+len(paramString):], "\n", 2)[0]
+		_, after, ok := strings.Cut(cont, paramString)
+		if ok {
+			paramsRaw := strings.SplitN(after, "\n", 2)[0]
 			params = strings.Fields(paramsRaw)
 		} else {
 			params = []string{""}

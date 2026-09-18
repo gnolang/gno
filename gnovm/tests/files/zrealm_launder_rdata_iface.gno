@@ -6,7 +6,7 @@ package launderrh_iface
 // being boxed into `any` and then type-asserted back out?
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
@@ -94,7 +94,7 @@ func writeViaAny(x any) {
 // 2 fn(any)→assert→write blocked: true
 // 3 []any[i].(*Bare).Field write blocked: true
 // 4 map[any]→assert→write blocked: true
-// 5 value copy + write (no effect) blocked: true
+// 5 value copy + write (no effect) blocked: false
 // 6 box-value→assert-ptr blocked: true
 // 7 promoted-field ptr write blocked: true
 // 8 &promoted.Field write blocked: true

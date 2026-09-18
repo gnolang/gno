@@ -6,17 +6,17 @@ package launderrh_mv_apply_trampoline
 // declared. Because the callback's parameter type names the
 // /r/-victim's Immutable type, /p/ packages cannot supply the
 // callback (can't import /r/). Only /r/-realms can — and any
-// /r/-attacker callback body triggers its own Rule 1 shift,
+// /r/-attacker callback body triggers its own borrow rule #1 shift,
 // blocking the write.
 //
 // Trace:
 //   1. main → m.Realm = /r/-attacker
-//   2. MakeApplyTrampoline() — Rule 1 → /r/-victim, returns closure
+//   2. MakeApplyTrampoline() — borrow rule #1 → /r/-victim, returns closure
 //      cap = (gImm).
-//   3. Attacker invokes cap(writeVic) — Rule 1 (closure body) →
+//   3. Attacker invokes cap(writeVic) — borrow rule #1 (closure body) →
 //      m.Realm = /r/-victim during body.
 //   4. Body: fn(gImm) calls writeVic. writeVic is /r/-attacker-
-//      declared → Rule 1 → m.Realm = /r/-attacker.
+//      declared → borrow rule #1 → m.Realm = /r/-attacker.
 //   5. writeVic body: i.Field = "..." — readonly check fires →
 //      BLOCKED.
 //

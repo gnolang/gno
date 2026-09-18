@@ -249,7 +249,6 @@ func TestIsVoteTypeValid(t *testing.T) {
 	}
 
 	for _, tt := range tc {
-		tt := tt
 		t.Run(tt.name, func(st *testing.T) {
 			st.Parallel()
 
@@ -297,7 +296,11 @@ func TestMaxVoteBytes(t *testing.T) {
 		BlockID: BlockID{
 			Hash: tmhash.Sum([]byte("blockID_hash")),
 			PartsHeader: PartSetHeader{
-				Total: math.MaxInt64,
+				// Canonical PartSetHeader.Total is uint32 (matches upstream
+				// Tendermint v0.34). math.MaxUint32 is the largest value that
+				// canonicalizes — anything larger panics in
+				// CanonicalizePartSetHeader's bounds check.
+				Total: math.MaxUint32,
 				Hash:  tmhash.Sum([]byte("blockID_part_set_header_hash")),
 			},
 		},
@@ -349,7 +352,6 @@ func TestVoteValidateBasic(t *testing.T) {
 		{"Too big Signature", func(v *Vote) { v.Signature = make([]byte, MaxSignatureSize+1) }, true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 

@@ -29,4 +29,3 @@ func main(cur realm) {
 // crossrealm_b.SetObject(cross, &s.A)
 // s.A = 123
 // &(struct{(123 int)} gno.land/r/crossrealm.Struct)
-

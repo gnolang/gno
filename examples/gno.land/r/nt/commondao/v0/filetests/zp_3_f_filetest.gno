@@ -5,11 +5,13 @@ package zp_3_f_filetest
 import (
 	"testing"
 
+	pcommondao "gno.land/p/nt/commondao/v0"
+
 	"gno.land/r/nt/commondao/v0"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
@@ -19,25 +21,22 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
+	// Create a DAO owned by user, with user as the only council member
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowDissolutionProposals(true)
-
-	daoID = dao.ID()
-
-	// Dissolve the DAO
-	dao.SetDeleted(true)
+	// Dissolve the DAO through a proposal decided by supermajority
+	pID := commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
+	commondao.Vote(cross(cur), daoID, pID, pcommondao.ChoiceYes, "")
+	commondao.Execute(cross(cur), daoID, pID)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateDissolutionProposal(cross(cur), daoID)
+	// A dissolved DAO rejects new proposals
+	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 }
 
 // Error:
-// DAO has been already dissolveed
+// DAO is deleted

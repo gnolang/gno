@@ -40,6 +40,23 @@ func EncodeVarint(w io.Writer, i int64) (err error) {
 	return
 }
 
+// EncodePlainVarint encodes i as a plain protobuf varint (proto wire-type 0,
+// proto schema int64). Negative values consume 10 bytes; non-negative values
+// use the standard varint length. Use this only when wire-byte compatibility
+// with upstream protobuf int64 is required (e.g., Tendermint privval canonical
+// types). For ordinary signed-int encoding prefer EncodeVarint (zigzag,
+// proto sint64).
+func EncodePlainVarint(w io.Writer, i int64) (err error) {
+	return EncodeUvarint(w, uint64(i))
+}
+
+// EncodePlainVarint32 encodes i as a plain protobuf varint (proto int32).
+// Sign-extends int32 to int64 before varint encoding, matching upstream
+// protobuf's int32 wire format.
+func EncodePlainVarint32(w io.Writer, i int32) (err error) {
+	return EncodeUvarint(w, uint64(int64(i)))
+}
+
 func EncodeInt32(w io.Writer, i int32) (err error) {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], uint32(i))
@@ -56,6 +73,11 @@ func EncodeInt64(w io.Writer, i int64) (err error) {
 
 func VarintSize(i int64) int {
 	return UvarintSize((uint64(i) << 1) ^ uint64(i>>63))
+}
+
+// PlainVarintSize returns the number of bytes EncodePlainVarint would emit for i.
+func PlainVarintSize(i int64) int {
+	return UvarintSize(uint64(i))
 }
 
 // ----------------------------------------
@@ -387,6 +409,12 @@ func PrependVarint(buf []byte, offset int, i int64) int {
 	return offset
 }
 
+// PrependPlainVarint is the codegen-side counterpart to EncodePlainVarint:
+// emits i as plain varint (proto int64) at the given offset.
+func PrependPlainVarint(buf []byte, offset int, i int64) int {
+	return PrependUvarint(buf, offset, uint64(i))
+}
+
 func PrependUvarint(buf []byte, offset int, u uint64) int {
 	var tmp [10]byte
 	n := binary.PutUvarint(tmp[:], u)
@@ -523,6 +551,12 @@ func AppendVarintReversed(buf []byte, i int64) []byte {
 		buf = append(buf, tmp[j])
 	}
 	return buf
+}
+
+// AppendPlainVarintReversed is the reversed-emit counterpart to
+// AppendVarintReversed for plain varint (proto int64) encoding.
+func AppendPlainVarintReversed(buf []byte, i int64) []byte {
+	return AppendUvarintReversed(buf, uint64(i))
 }
 
 func AppendUvarintReversed(buf []byte, u uint64) []byte {

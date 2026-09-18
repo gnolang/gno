@@ -13,8 +13,8 @@ package launderrh_mv_immhook_apply
 // Effectively: ImmHook called from victim with i=gImm gives us
 // nothing extra over RegisterPlainHook. But: the hook can CAPTURE the
 // /p/-aliased pointer separately. The closure body is /r/-attacker
-// → Rule 1 → m.Realm = /r/-attacker. From there, captured.Apply
-// dispatches via Rule 2 to /r/-victim, then EvilWrite as
+// → borrow rule #1 → m.Realm = /r/-attacker. From there, captured.Apply
+// dispatches via borrow rule #2 to /r/-victim, then EvilWrite as
 // top-level /p/.
 //
 // Outcome: SUCCEEDS — write commits via Apply, identical primitive
@@ -22,8 +22,8 @@ package launderrh_mv_immhook_apply
 // extra safety; the captured pointer carries the exploit.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderattack/v0"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

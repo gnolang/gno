@@ -7,21 +7,21 @@ package launderrh_mv_method_value
 // method value into an /r/-attacker local variable, THEN invoke it
 // later with the attacker's /p/-declared callback. Question:
 //   Does the method value remember the recv stamp (/r/launderrvictim)?
-//   When invoked from /r/-attacker context, does Rule 2 still fire?
+//   When invoked from /r/-attacker context, does borrow rule #2 still fire?
 //
 // Trace expectation:
 //   1. main → m.Realm = /r/launderrh_mv_method_value
 //   2. mv := we.Apply — bound method value captures recv (we), recv
 //      base is /r/launderrvictim-stamped.
 //   3. mv(EvilWrite) — invoke later. PushFrameCall sees stamped recv,
-//      Rule 2 → m.Realm = /r/launderrvictim
+//      borrow rule #2 → m.Realm = /r/launderrvictim
 //   4. EvilWrite runs as top-level /p/ fn → no shift → write commits
 //      under victim authority → SUCCEEDS.
 //
 // Outcome confirms method values preserve receiver borrowing.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

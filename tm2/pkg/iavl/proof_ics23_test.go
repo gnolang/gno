@@ -27,7 +27,6 @@ func TestGetMembership(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			tree, allkeys, err := BuildTree(tc.size, 0)
 			require.NoError(t, err, "Creating tree: %+v", err)
@@ -70,7 +69,6 @@ func TestGetNonMembership(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		tc := tc
 		t.Run("fast-"+name, func(t *testing.T) {
 			tree, allkeys, err := BuildTree(tc.size, 0)
 			require.NoError(t, err, "Creating tree: %+v", err)
@@ -207,7 +205,7 @@ func BuildTree(size int, cacheSize int) (itree *MutableTree, keys [][]byte, err 
 
 	// insert lots of info and store the bytes
 	keys = make([][]byte, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := make([]byte, 4)
 		// create random 4 byte key
 		rand.Read(key) //nolint:errcheck
@@ -227,7 +225,7 @@ func BuildTree(size int, cacheSize int) (itree *MutableTree, keys [][]byte, err 
 
 // sink is kept as a global to ensure that value checks and assignments to it can't be
 // optimized away, and this will help us ensure that benchmarks successfully run.
-var sink interface{}
+var sink any
 
 func BenchmarkConvertLeafOp(b *testing.B) {
 	versions := []int64{

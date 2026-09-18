@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %sshould not lazy-continue into user paragraph
+-- input.md --
+user paragraph line
+-- output.md --
+
+
+user paragraph line
+
+-- output.html --
+<p>user paragraph line</p>
+<p>should not lazy-continue into user paragraph</p>

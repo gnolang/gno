@@ -1,10 +1,10 @@
-package tests
+package vm
 
 import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/nestedpkg"
+	"gno.land/p/nt/nestedpkg/v0"
 	rsubtests "gno.land/r/tests/vm/subtests"
 )
 
@@ -53,6 +53,13 @@ type TestRealmObject struct {
 }
 
 var TestRealmObjectValue TestRealmObject
+
+// NewTestRealmObject returns a fresh heap-allocated TestRealmObject.
+// Non-crossing — relies on borrow rule #1 to set m.Realm = /r/tests/vm
+// inside the body so the composite literal passes checkConstructionTime.
+func NewTestRealmObject() *TestRealmObject {
+	return &TestRealmObject{Field: "initial"}
+}
 
 func ModifyTestRealmObject(cur realm, t *TestRealmObject) {
 	t.Field += "_modified"

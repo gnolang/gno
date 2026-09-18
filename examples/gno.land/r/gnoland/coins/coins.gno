@@ -23,10 +23,10 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/leon/coinsort"
-	"gno.land/p/leon/ctg"
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/leon/coinsort/v0"
+	"gno.land/p/leon/ctg/v0"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -132,7 +132,7 @@ func renderBalances(req *mux.Request) string {
 	}
 
 	if coin != "" {
-		return renderSingleCoinBalance(coin, input, originalInput, wasConverted)
+		return renderSingleCoinBalance(coin, input, originalInput, wasConverted, balances.AmountOf(coin))
 	}
 
 	user, _ := users.ResolveAny(input)
@@ -170,9 +170,12 @@ func renderBalances(req *mux.Request) string {
 	return out
 }
 
-func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) string {
+// amount is taken from the balances the caller already read, rather than read again.
+// Beyond saving the read, it keeps an unvalidated denom out of the banker: denom is
+// the "coin" query parameter, and GetCoin panics on a malformed one, so on a render
+// path any URL could otherwise break the page.
+func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool, amount int64) string {
 	out := "# Coin balance\n\n"
-	banker_ := banker.NewReadonlyBanker()
 
 	if wasConverted {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", origInput)
@@ -185,7 +188,7 @@ func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) s
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker_.GetCoins(address(addr)).AmountOf(denom), denom, runtime.ChainHeight())
+		name, amount, denom, runtime.ChainHeight())
 
 	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
 

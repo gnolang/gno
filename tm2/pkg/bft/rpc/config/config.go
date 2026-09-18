@@ -62,6 +62,12 @@ type RPCConfig struct {
 	// See https://github.com/tendermint/tendermint/issues/3435
 	TimeoutBroadcastTxCommit time.Duration `json:"timeout_broadcast_tx_commit" toml:"timeout_broadcast_tx_commit" comment:"How long to wait for a tx to be committed during /broadcast_tx_commit.\n WARNING: Using a value larger than 10s will result in increasing the\n global HTTP write timeout, which applies to all connections and endpoints.\n See https://github.com/tendermint/tendermint/issues/3435"`
 
+	// How long a keep-alive HTTP connection may sit idle between requests
+	// before the server closes it. Zero falls back to the read timeout (10s).
+	// Set it larger than the idle timeout of any reverse proxy in front of
+	// the node to avoid intermittent 502s from reuse of closed connections.
+	IdleTimeout time.Duration `json:"idle_timeout" toml:"idle_timeout" comment:"How long a keep-alive HTTP connection may sit idle between requests\n before the server closes it. Zero falls back to the read timeout (10s).\n Set it larger than the idle timeout of any reverse proxy in front of\n the node to avoid intermittent 502s from reuse of closed connections."`
+
 	// Maximum size of request body, in bytes
 	MaxBodyBytes int64 `json:"max_body_bytes" toml:"max_body_bytes" comment:"Maximum size of request body, in bytes"`
 
@@ -100,6 +106,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		TimeoutBroadcastTxCommit: 10 * time.Second,
 
+		IdleTimeout: 0, // net/http: fall back to the read timeout
+
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
@@ -128,6 +136,9 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.TimeoutBroadcastTxCommit < 0 {
 		return errors.New("timeout_broadcast_tx_commit can't be negative")
+	}
+	if cfg.IdleTimeout < 0 {
+		return errors.New("idle_timeout can't be negative")
 	}
 	if cfg.MaxBodyBytes < 0 {
 		return errors.New("max_body_bytes can't be negative")

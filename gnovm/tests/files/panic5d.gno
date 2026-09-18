@@ -2,7 +2,7 @@ package main
 
 func main() {
 	a := 0
-	if i := 1/a; true  {
+	if i := 1 / a; true {
 		println(i)
 	}
 }

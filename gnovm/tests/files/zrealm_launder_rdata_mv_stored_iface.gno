@@ -9,13 +9,13 @@ package launderrh_mv_stored_iface
 //    interface boxing?
 //
 // Trace expectation: bound method value carries a closure-like
-// structure that retains the recv. After unbox + invoke, Rule 2
+// structure that retains the recv. After unbox + invoke, borrow rule #2
 // should fire and write succeeds. Method values laundered through
 // interface boxing remain dangerous.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderattack/v0"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

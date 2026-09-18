@@ -5,7 +5,7 @@ package launderj
 //
 // Variants of Attack H/I where the receiver is a nil function-typed
 // value, nil slice, or nil map of a defined type. Each has
-// `GetFirstObject` returning nil — same Rule-2 anchor gap. Each
+// `GetFirstObject` returning nil — same borrow rule #2 anchor gap. Each
 // successive call overwrites imm.Field; the test asserts the final
 // value to confirm all three shapes write through.
 //
@@ -13,7 +13,7 @@ package launderj
 // logic data is /p/-declared.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

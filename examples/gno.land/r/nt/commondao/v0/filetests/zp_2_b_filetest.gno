@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	commondao.CreateSubDAOProposal(cross(cur), 404, "", "")
+	commondao.CreateSubDAOProposal(cross(cur), 404, "", "Purpose", "", "")
 }
 
 // Error:

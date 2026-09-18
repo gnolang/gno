@@ -1,5 +1,9 @@
 # Interrealm Specification
 
+__This document is outdated, see 
+[`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
+[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md)__
+
 ## Introduction
 
 All modern popular programming languages are designed for a single programmer
@@ -28,7 +32,7 @@ Gno.land supports three types of packages:
   function call as with MsgCall.
 
 For an overview of the different package types in Gno (`/p/`, `/r/`, and
-`/e/`), see [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md).
+`/e/`), see [Gno Packages](./gno-packages.md#package-types).
 
 Interrealm programming refers to the ability of one realm to call functions
 in another realm. This can occur between:
@@ -334,7 +338,7 @@ Two consequences follow:
    type panic when invoked outside the declaring realm. Authority cannot
    be forged by constructing values of a realm's types from elsewhere —
    construction must go through a realm-declared constructor function,
-   which Layer 1 borrow temporarily activates the declaring realm for.
+   which borrow rule #1 temporarily activates the declaring realm for.
 
 Storage rent attribution follows PkgID too: when a transaction mutates an
 object owned by `/r/A` from `/r/B`'s code, the byte delta accrues to
@@ -439,7 +443,7 @@ A function declared in p packages (or in stdlib) when called:
    capability-borrow to the realm that created them. Writes inside the
    closure body run under the creator's authority. This is how persisted
    `/p/`-declared closures (e.g. the result of `/p/X.MakeCounter()` called
-   from `/r/A.init`) can be safely invoked from `/r/B` — Rule 3 borrows
+   from `/r/A.init`) can be safely invoked from `/r/B` — borrow rule #3 borrows
    `m.Realm` to `/r/A` for the body, so the captured-counter write is
    in-realm. Conversely, a closure created under `/r/M`'s authority cannot
    mutate `/r/V`, even if `/r/V` accepts and runs it. The creator's

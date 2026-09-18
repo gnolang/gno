@@ -15,14 +15,14 @@ import (
 //
 // Make1 returns a *p_crossrealm.Container whose B field is a local
 // /r/tests/vm/crossrealm.LocalStruct (PkgID=crossrealm). Calling
-// LocalStruct.String() (an /r/-declared method) triggers Layer 1
+// LocalStruct.String() (an /r/-declared method) triggers borrow rule #1
 // borrow to /r/tests/vm/crossrealm; inside the method, reading the
 // receiver's own field succeeds.
 
 func main(cur realm) {
 	c := crossrealm.Make1()
 	// c.B is *crossrealm.LocalStruct (an /r/-declared receiver).
-	// Calling String() on it goes through Layer 1 borrow.
+	// Calling String() on it goes through borrow rule #1.
 	println("B:", c.B.String())
 	println("CurrentRealm after return:", unsafe.CurrentRealm().PkgPath())
 }

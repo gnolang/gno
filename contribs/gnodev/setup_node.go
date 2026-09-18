@@ -58,7 +58,7 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -84,25 +84,18 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
 
-	// Register the init controller at genesis so it can handle
-	// post-genesis user registrations.
-	bootstrapTx := gnoland.TxWithMetadata{
-		Tx: std.Tx{
-			Msgs: []std.Msg{vm.MsgCall{
-				Caller:  nodeConfig.DefaultCreator,
-				PkgPath: "gno.land/r/sys/users/init",
-				Func:    "Bootstrap",
-			}},
-			Fee: std.NewFee(2_000_000, std.NewCoin(ugnot.Denom, 1_000_000)),
-		},
-	}
-	nodeConfig.InitialTxs = append([]gnoland.TxWithMetadata{bootstrapTx}, nodeConfig.InitialTxs...)
-
 	if len(paths) > 0 {
 		logger.Info("packages", "paths", paths)
 	} else {
 		logger.Debug("no path(s) provided")
 	}
+
+	// Genesis txs never pass through the lazy proxy, so -paths entries and
+	// txs-file dependencies must be tracked explicitly to reach genesis.
+	loader.Track(paths...)
+
+	// A reset returns to this seeded set, dropping lazily loaded packages.
+	nodeConfig.ResetState = loader.ResetTracked
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
@@ -113,11 +106,11 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	loader packages.Loader,
+	reload func() ([]*packages.Package, error),
 	book *address.Book,
 ) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
-	config.Loader = loader
+	config.Reload = reload
 
 	config.Logger = logger
 	config.Emitter = emitter

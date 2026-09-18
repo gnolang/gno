@@ -5,48 +5,42 @@ package zp_0_a_filetest
 import (
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao/v0"
-
 	"gno.land/r/nt/commondao/v0"
 )
 
 const (
-	owner         = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner         = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user          = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	newMembers    = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\ng147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d"
+	newMembers    = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx\ng147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d"
 	removeMembers = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 )
 
-var dao *pcommondao.CommonDAO
+var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross(cur), "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", string(user))
 
-	options := commondao.GetOptions(cross(cur), dao.ID())
-	options.SetAllowMembersUpdate(true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateMembersUpdateProposal(cross(cur), dao.ID(), newMembers, removeMembers)
+	pID := commondao.CreateCouncilUpdateProposal(cross(cur), daoID, newMembers, removeMembers)
 
-	p := dao.ActiveProposals().Get(pID)
-	if p == nil {
+	p, found := commondao.GetView(daoID).GetProposal(pID)
+	if !found {
 		panic("expected proposal to be created")
 	}
 
 	println(string(p.Status()))
 	println(p.Creator() == user)
-	println(p.Definition().Title() == "Members Update")
+	println(p.Title() == "Council Update")
 	println("")
-	println(p.Definition().Body())
+	println(p.Body())
 }
 
 // Output:
@@ -54,11 +48,10 @@ func main(cur realm) {
 // true
 // true
 //
-// **Members to Add:**
+// **Council Members to Add:**
+// - g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 // - g147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d
-// - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
 //
 //
-// **Members to Remove:**
+// **Council Members to Remove:**
 // - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-//

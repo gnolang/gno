@@ -111,6 +111,32 @@ func TestRunApp(t *testing.T) {
 			args:             []string{"run", "../../tests/integ/package_testonly"},
 			errShouldContain: "no non-test Gno files in ../../tests/integ/package_testonly",
 		},
+		{
+			// realm package path derived from gnomod.toml; main(cur realm) works.
+			args:                []string{"run", "../../tests/integ/run_realm"},
+			stdoutShouldContain: "realm main called, counter: 1",
+		},
+		{
+			// -expr calling a crossing function; `cur` is injected.
+			args:                []string{"run", "-expr", "Increment()", "../../tests/integ/run_realm"},
+			stdoutShouldContain: "counter: 1",
+		},
+		{
+			// realm package path derived from the "// PKGPATH:" directive.
+			args:                []string{"run", "../../tests/files/zrealm_std4.gno"},
+			stdoutShouldContain: "test2 gno.land/r/tests/vm",
+		},
+		{
+			// realm package path set explicitly with the -pkgpath flag.
+			args:                []string{"run", "-pkgpath", "gno.land/r/test/hello", "../../tests/integ/run_main/main.gno"},
+			stdoutShouldContain: "hello world!",
+		},
+		{
+			// running local files of a package existing in the store
+			// ("package fork").
+			args:                []string{"run", "-expr", `println(Render(""))`, "../../../examples/gno.land/r/demo/counter"},
+			stdoutShouldContain: "0",
+		},
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
 		// TODO: with gas meter

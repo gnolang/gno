@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "B"
 )
@@ -23,22 +23,18 @@ func init(cur realm) {
 
 	// Create a couple of DAOs
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	commondao.New(cross(cur), "A")
-	daoID = commondao.New(cross(cur), name).ID()
-	commondao.New(cross(cur), "C")
+	commondao.New(cross(cur), "A", "Purpose", "", string(user))
+	daoID = commondao.New(cross(cur), name, "Purpose", "", "")
+	commondao.New(cross(cur), "C", "Purpose", "", "")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	dao := commondao.Get(cross(cur), daoID)
-	if dao == nil {
-		panic("expected DAO to be found")
-	}
+	view := commondao.GetView(daoID)
 
-	println(dao.Name() == name)
-	println(dao.ID() == daoID)
+	println(view.Name() == name)
+	println(view.ID() == daoID)
 }
 
 // Output:
