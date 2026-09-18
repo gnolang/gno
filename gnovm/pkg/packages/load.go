@@ -51,7 +51,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 
-	loaderCtx, err := findLoaderContext()
+	loaderCtx, err := findLoaderContext(patterns)
 	if err != nil {
 		return nil, err
 	}
@@ -160,12 +160,101 @@ type loaderContext struct {
 	IsWorkspace bool
 }
 
-func findLoaderContext() (*loaderContext, error) {
+// findLoaderContext resolves the loader context for the current load: the
+// working directory when it is in a workspace or a package, else the patterns'
+// own directories (see findLoaderContextForPatterns).
+func findLoaderContext(patterns []string) (*loaderContext, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return findLoaderContextFor(wd)
+
+	ctx, err := findLoaderContextFor(wd)
+	if err == nil || !errors.Is(err, ErrGnoContextNotFound) {
+		return ctx, err
+	}
+
+	// The working directory is in neither a workspace nor a package. Fall back
+	// to the patterns: what the user asked for can locate a context the
+	// directory they happen to stand in does not, as with `gno test
+	// ./examples/...` from a repo root whose gnowork.toml lives in examples/.
+	ctx, patErr := findLoaderContextForPatterns(patterns)
+	if patErr != nil {
+		if errors.Is(patErr, ErrGnoContextNotFound) {
+			// no pattern did better than the working directory: report the
+			// original, which names the directory the user is actually in
+			return nil, err
+		}
+		return nil, patErr
+	}
+	return ctx, nil
+}
+
+// findLoaderContextForPatterns resolves a loader context from the patterns
+// themselves. Only local patterns carry a directory to resolve from; remote and
+// stdlib patterns are skipped. Every local pattern must land in the same
+// context: a load spans one workspace at a time.
+//
+// Returns ErrGnoContextNotFound when no pattern yields a context, so the caller
+// can keep reporting the working directory instead.
+func findLoaderContextForPatterns(patterns []string) (*loaderContext, error) {
+	var (
+		ctx    *loaderContext
+		ctxPat string
+	)
+
+	for _, pat := range patterns {
+		kind, err := getPatternKind(pat)
+		if err != nil {
+			// malformed pattern: let expandPatterns report it
+			continue
+		}
+
+		var dir string
+		switch kind {
+		case patternKindDirectory:
+			dir = pat
+		case patternKindRecursiveLocal:
+			// strip the trailing "..." segment; getPatternKind only accepts
+			// end-anchored recursion
+			dir, _ = filepath.Split(pat)
+		case patternKindSingleFile:
+			dir = filepath.Dir(pat)
+		default:
+			// remote patterns have no directory to resolve from
+			continue
+		}
+
+		absDir, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", pat, err)
+		}
+		if _, err := os.Stat(absDir); err != nil {
+			// a pattern that points nowhere is a clearer error than a missing
+			// workspace, and matches what expandPatterns reports in-workspace
+			return nil, fmt.Errorf("%s: %w", pat, err)
+		}
+
+		patCtx, err := findLoaderContextFor(absDir)
+		if err != nil {
+			if errors.Is(err, ErrGnoContextNotFound) {
+				continue
+			}
+			return nil, err
+		}
+
+		switch {
+		case ctx == nil:
+			ctx, ctxPat = patCtx, pat
+		case patCtx.Root != ctx.Root:
+			return nil, fmt.Errorf("patterns %q and %q are in different workspaces (%q and %q); load one workspace at a time", ctxPat, pat, ctx.Root, patCtx.Root)
+		}
+	}
+
+	if ctx == nil {
+		return nil, ErrGnoContextNotFound
+	}
+	return ctx, nil
 }
 
 // findLoaderContextFor resolves the loader context rooted at dir, which must be
