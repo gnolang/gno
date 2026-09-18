@@ -10,13 +10,11 @@ left by the PR that introduced the page (#4024) asked for the check; the
 reviewer had described the expected behaviour there: no page for a username
 that does not exist in `r/sys/users`, always a page for a valid address.
 
-On `gnoland-1` this is not cosmetic. Names are identity (20 registered at
-launch, `r/sys/namereg/v0` open), every `@mention` in a realm links to `/u/`,
-the omnibar suggests namespaces as users, and every page is indexable. A
-one-character lookalike (`/u/mou1`) rendered exactly like the real `/u/moul`
-with zero contributions, which is also what a freshly registered user looks
-like. The default alias `/docs` rendered a "Gnome docs" profile for a name that
-is not registered.
+On `gnoland-1` this is not cosmetic. Names are identity, every `@mention` in a
+realm links to `/u/`, the omnibar suggests namespaces as users, and every page
+is indexable. A one-character lookalike (`/u/mou1`) rendered exactly like the
+real `/u/moul` with zero contributions, which is also what a freshly registered
+user looks like.
 
 ## Decision
 
@@ -38,10 +36,9 @@ this order:
    `true`, which is the rule `r/sys/names` itself applies before authorizing
    a deploy.
 
-Anything else is a 404 rendered with the existing `StatusErrorComponent`, the
-same shape as "package not found". Every failure of rule 3, including a chain
-without the registry and any RPC error, counts as "no": a profile must never
-be fabricated because a lookup failed.
+Anything else is a 404. Every failure of rule 3, including a chain without the
+registry and any RPC error, counts as "no": a lookup that failed must not
+fabricate a profile.
 
 Before any query, `<name>` must match the registry's own name shape
 (`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, at most 64 bytes, mirrored from
@@ -50,9 +47,8 @@ which `vm/qpaths` treated as a sub-prefix (`p/moul/addrset` rendered as
 "Gnome moul/addrset"), and guarantees that nothing reaching the `qeval`
 expression can leave a Gno string literal.
 
-The gate runs before the `/r/<name>/home` fetch. An unknown name now costs
-two RPCs (`qpaths`, `qeval`) instead of three, and only a registered user
-with zero packages pays the third one.
+The gate runs before the `/r/<name>/home` fetch, so an unknown name costs two
+RPCs instead of three.
 
 ## Alternatives considered
 
@@ -66,12 +62,8 @@ with zero packages pays the third one.
   and the crawlable space; the status has to be a 404 for links, crawlers and
   mention rendering to behave.
 - **A dedicated `ResolveUser` method on the adapter** would hide the
-  expression, but there is one caller. A generic `Eval` is the primitive
-  every future read of a system realm needs (the Actions panel, the
-  community-realm notice), and the handler owns the one expression.
-- **Redirecting an old alias to the new name** needs the new username parsed
-  out of the `UserData` payload. Not done: the old name still renders when
-  it kept packages (rule 2), and is a 404 otherwise, like the verifier.
+  expression, but there is one caller. A generic `Eval` is the primitive every
+  future read of a system realm needs, and the handler owns the expression.
 
 ## Consequences
 
@@ -81,10 +73,10 @@ with zero packages pays the third one.
   `gnoland-1` until #5760 serves the embedded docs there; it was an empty
   fabricated profile before. On gnodev with `examples/` loaded,
   `r/docs/...` exists and the page still renders.
-- A registered user with no packages keeps their page (one extra `qeval`).
-- `ListPaths` returns `[""]` for an empty result; rule 2 counts parsed
+- A registered user with no packages keeps their page, at one extra `qeval`.
+- A name left behind by a rename renders while it keeps packages and 404s once
+  it does not, which is what the verifier does.
+- `ListPaths` returns `[""]` for an empty result, so rule 2 counts parsed
   contributions, not raw paths, or it would never fire.
-- Both `ClientAdapter` implementations gain `Eval`; the mock answers
-  "package not found", which is what a chain without `r/sys/users` does.
-- The vm/qeval payload is rendered text. Only the last line, one value per
-  line, is read, because the `UserData` line carries its own `(false bool)`.
+- The `vm/qeval` payload is rendered text, one value per line, and the
+  `UserData` line carries its own `(false bool)`, so only the last line is read.

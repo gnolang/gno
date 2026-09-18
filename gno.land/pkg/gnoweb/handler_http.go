@@ -538,24 +538,15 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// reUserName mirrors the name shape r/sys/users accepts
-// (examples/gno.land/r/sys/users/store.gno, reName plus its 64-byte cap), so a
-// path segment that could never be a registered name is refused before it
-// reaches the chain or a Gno string literal.
+// reUserName mirrors the shape r/sys/users accepts (store.gno, reName and its
+// 64-byte cap), so a segment that could never be a registered name is refused
+// before it reaches the chain or a Gno string literal.
 var reUserName = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`)
 
-const maxUserNameLen = 64
-
-func isUserName(s string) bool {
-	return len(s) <= maxUserNameLen && reUserName.MatchString(s)
-}
-
-// userExists asks r/sys/users whether username is the current name of a live
-// user. ResolveName returns (nil, false) for an unknown or deleted name and
-// (data, false) for a name left behind by a rename; only the current name
-// answers true, the same rule r/sys/names applies before authorizing a
-// deploy. Any error, including a chain without the registry, counts as "no":
-// a profile must never be fabricated because a lookup failed.
+// userExists reports whether username is the current name of a live user.
+// ResolveName is false for unknown, deleted and renamed-away names, the same
+// rule r/sys/names applies before authorizing a deploy. Any error counts as
+// false: a lookup that failed must not fabricate a profile.
 func (h *HTTPHandler) userExists(ctx context.Context, username string) bool {
 	res, err := h.Client.Eval(ctx, "/r/sys/users", fmt.Sprintf("ResolveName(%q)", username))
 	if err != nil {
@@ -563,8 +554,8 @@ func (h *HTTPHandler) userExists(ctx context.Context, username string) bool {
 		return false
 	}
 
-	// One line per return value, and the UserData line itself contains a
-	// "(false bool)" field, so only the last line is the answer.
+	// One line per return value, and the UserData line carries a "(false bool)"
+	// field of its own, so only the last line answers.
 	lines := bytes.Split(bytes.TrimSpace(res), []byte("\n"))
 	return bytes.Equal(bytes.TrimSpace(lines[len(lines)-1]), []byte("(true bool)"))
 }
@@ -592,19 +583,15 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
-//
-// A page is served only for something that exists on the chain: a bech32
-// address, a namespace that already holds packages (with r/sys/names enabled
-// that means a registered owner; on gnodev it is the only proof there is), or
-// a name r/sys/users currently resolves. Anything else is a 404, not a
-// plausible-looking empty profile.
+// GetUserView returns the user profile view for a given GnoURL. A page is
+// served only for an address, a namespace that already holds packages, or a
+// name r/sys/users resolves; anything else would be a fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	username := gnourl.Username()
 
 	_, err := crypto.AddressFromBech32(username)
 	isAddress := err == nil
-	if !isAddress && !isUserName(username) {
+	if !isAddress && (len(username) > 64 || !reUserName.MatchString(username)) {
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 
@@ -639,7 +626,6 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// Shorten a bech32 address for display
 	username = CreateUsernameFromBech32(username)
 
 	// TODO: get from user r/profile and use placeholder if not set

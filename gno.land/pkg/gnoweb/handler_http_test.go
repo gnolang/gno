@@ -2025,49 +2025,44 @@ func getUserPage(t *testing.T, client *stubClient, path string) *httptest.Respon
 	return rr
 }
 
-// A name with no packages that r/sys/users does not resolve is not a user:
-// 404, and the home realm is never fetched for it.
-func TestHTTPHandler_GetUserView_UnknownName(t *testing.T) {
+// A name with no packages that r/sys/users does not resolve is not a user, and
+// neither is a name whose lookup failed: fail closed, without fetching the
+// home realm.
+func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 	t.Parallel()
 
-	realmCalled := false
-	client := &stubClient{
-		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-		evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
-			assert.Equal(t, "/r/sys/users", pkgPath)
-			assert.Equal(t, `ResolveName("zzznotauser")`, expr)
+	for name, eval := range map[string]func(context.Context, string, string) ([]byte, error){
+		"unknown name": func(context.Context, string, string) ([]byte, error) {
 			return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)"), nil
 		},
-		realmFunc: func(context.Context, string, string) ([]byte, error) {
-			realmCalled = true
-			return nil, errors.New("unexpected")
+		// After a rename the old name still resolves to UserData, but not as
+		// the current one.
+		"renamed alias": func(context.Context, string, string) ([]byte, error) {
+			return resolveNamePayload(false), nil
 		},
-	}
-
-	rr := getUserPage(t, client, "/u/zzznotauser")
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-	assert.Contains(t, rr.Body.String(), "user not found")
-	assert.NotContains(t, rr.Body.String(), "Gnome zzznotauser")
-	assert.False(t, realmCalled, "no home realm fetch for a name that does not exist")
-}
-
-// A chain without r/sys/users, or any lookup failure, must not fabricate a
-// profile: fail closed.
-func TestHTTPHandler_GetUserView_RegistryUnavailable(t *testing.T) {
-	t.Parallel()
-
-	client := &stubClient{
-		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-		evalFunc: func(context.Context, string, string) ([]byte, error) {
+		"registry unavailable": func(context.Context, string, string) ([]byte, error) {
 			return nil, gnoweb.ErrClientPackageNotFound
 		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			realmCalled := false
+			rr := getUserPage(t, &stubClient{
+				listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+				evalFunc:      eval,
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					realmCalled = true
+					return nil, errors.New("unexpected")
+				},
+			}, "/u/alice")
+
+			assert.Equal(t, http.StatusNotFound, rr.Code)
+			assert.Contains(t, rr.Body.String(), "user not found")
+			assert.NotContains(t, rr.Body.String(), "Gnome alice")
+			assert.False(t, realmCalled, "no home realm fetch for a name that does not exist")
+		})
 	}
-
-	rr := getUserPage(t, client, "/u/alice")
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-	assert.Contains(t, rr.Body.String(), "user not found")
 }
 
 // A registered user who has not deployed anything yet still has a page.
@@ -2076,7 +2071,9 @@ func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
 
 	client := &stubClient{
 		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-		evalFunc: func(context.Context, string, string) ([]byte, error) {
+		evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
+			assert.Equal(t, "/r/sys/users", pkgPath)
+			assert.Equal(t, `ResolveName("alice")`, expr)
 			return resolveNamePayload(true), nil
 		},
 		realmFunc: func(context.Context, string, string) ([]byte, error) {
@@ -2088,23 +2085,6 @@ func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Gnome alice")
-}
-
-// After a rename the old name still resolves to UserData but is not current;
-// like r/sys/names, gnoweb treats it as gone.
-func TestHTTPHandler_GetUserView_RenamedAlias(t *testing.T) {
-	t.Parallel()
-
-	client := &stubClient{
-		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-		evalFunc: func(context.Context, string, string) ([]byte, error) {
-			return resolveNamePayload(false), nil
-		},
-	}
-
-	rr := getUserPage(t, client, "/u/alice")
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 // An address is a namespace by construction: no registry lookup.
