@@ -6,6 +6,10 @@
 # `foo` (pre-restart, same shape as bar but different pkgpath/name) and
 # `baz` (post-restart, same shape) should stay close; a large divergence
 # between them indicates restart-dependent gas, which is a bug.
+#
+# These numbers also move when stored stdlib SOURCE changes: each AddPkg reads
+# the stdlibs it imports from the store at 3 gas/byte, so a rename in
+# chain/runtime/unsafe (`address` -> `addr`, 3 bytes) shifted all three by -9.
 
 gnoland start
 
