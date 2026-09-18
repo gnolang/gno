@@ -42,6 +42,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the Gno.land ecosystem.
 - [Data Structures](resources/gno-data-structures.md) - Learn about arrays, slices, maps, structs, pointers, and when to use AVL trees for efficient storage.
 - [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
+- [JSON-RPC endpoints](resources/rpc-endpoints.md) - Transport-level reference for the node RPC interface: the available methods, Amino JSON encoding, and what the interface does not provide.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
