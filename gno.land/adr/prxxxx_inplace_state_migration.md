@@ -114,7 +114,7 @@ The two params that exist today, unchanged in name, type and wire format:
 | Param | Type | Meaning |
 |---|---|---|
 | `node:p:halt_height` | `int64` | height to stop at; `0` cancels |
-| `node:p:halt_min_version` | `string` | version floor **and** handlers' registry key |
+| `node:p:halt_min_version` | `string` | version floor **and** upgrade registry key |
 
 `NewSetHaltRequest(cur, height, minVersion)` keeps its signature. Nothing about
 the public surface moves.
@@ -141,8 +141,9 @@ type Env struct {
 	GasPrice auth.GasPriceKeeperI
 	VM       *vm.VMKeeper
 
-	// Store keys, for what the keepers do not expose — ctx.Store(BaseKey) is
-	// the VM object graph, which a re-encoding migration has to walk directly.
+	// Store keys, for what the keepers do not expose. Keepers alone are not
+	// enough: ctx.Store(BaseKey) is the VM object graph, and walking it to
+	// re-encode objects has no keeper method behind it.
 	MainKey store.StoreKey
 	BaseKey store.StoreKey
 }
@@ -151,16 +152,49 @@ type Handler func(ctx sdk.Context, env Env) error
 
 type Upgrade struct {
 	Version          string  // the release tag; what halt_min_version carries
-	Handler          Handler
+	Handler          Handler // the code of the migration
 	StateFormatAfter int64   // the format version this upgrade leaves behind
 }
 ```
 
-Registered in one place and compiled in. An entry may be dropped once nothing
-can replay the block that ran its handler.
+Suggested layout, for clarity and isolation — each upgrade declares itself in
+its own package, so its handler and whatever it touches stay reviewable on
+their own:
 
-Keepers alone are not enough: walking `base` to re-encode objects has no keeper
-method behind it.
+```go
+// gno.land/pkg/gnoland/upgrades/v1_3_0/upgrade.go
+
+const Version = "v1.3.0"
+
+var Upgrade = upgrades.Upgrade{
+	Version:          Version,
+	Handler:          migrate,
+	StateFormatAfter: 4,
+}
+
+func migrate(ctx sdk.Context, env upgrades.Env) error { ... }
+```
+
+Registered in one place, as a package-level literal:
+
+```go
+// gno.land/pkg/gnoland/app.go
+
+// A slice, not a map keyed by version. Declaration order is release order,
+// which matters because upgrades apply in sequence and because the newest
+// entry is always the last one. An init() somewhere could assert these
+// invariants (version parses, strictly increasing, no duplicates...).
+var Upgrades = []upgrades.Upgrade{
+	v130.Upgrade,
+	v140.Upgrade,
+}
+```
+
+Read in two places, both covered below: `checkNodeStartupParams` (§3), to derive
+the expected state-format version and to resolve a pending `halt_min_version`;
+and the BeginBlocker (*Where it hooks*), to find the handler to run at `H+1`.
+
+An entry may be dropped once nothing can replay the block that ran its handler.
 
 Only upgrades that migrate state register anything. A coordinated upgrade that
 breaks consensus without touching state needs a floor and nothing else, so
@@ -176,7 +210,7 @@ already-deployed realm, for the reason in Open questions.
 ### 3. State format version
 
 - a value in the binary, *derived* as the maximum `StateFormatAfter` across the
-  handlers' registry of §2 rather than written by hand — #6177 exists largely
+  upgrade registry of §2 rather than written by hand — #6177 exists largely
   because six protocol constants had to be kept equal by hand, and a bump that
   missed one panicked every node at startup. Do not repeat that shape;
 - an `int64` in `main` under a reserved key, written by the handler;
@@ -186,17 +220,16 @@ already-deployed realm, for the reason in Open questions.
 | stored vs binary | action |
 |---|---|
 | equal | proceed |
-| stored < binary | proceed **only if** a pending `halt_min_version` names an entry in the handlers' registry closing the gap; otherwise refuse |
+| stored < binary | proceed **only if** a pending `halt_min_version` names an entry in the upgrade registry closing the gap; otherwise refuse |
 | stored > binary | refuse — downgrade onto newer data |
 
 This is the piece that has no substitute today. `halt_min_version` gates which
-*binary* may start; even carrying the handlers' registry key, it says nothing
+*binary* may start; even carrying the upgrade registry key, it says nothing
 about the *data*. Nothing compares what the binary expects against what is on
 disk.
 
-`checkNodeStartupParams` (`node_params.go:129-181`, called once at `app.go:288`
-after `LoadLatestVersion` and before the app serves anything) therefore grows two
-checks beside the two it has:
+`checkNodeStartupParams` (`node_params.go:129-181`, called once at `app.go:288`)
+therefore grows one check beside the two it has:
 
 | Check | When | Bypassed by `skip_upgrade_height`? |
 |---|---|---|
@@ -223,10 +256,14 @@ pre-upgrade backup, or one simply offline across the upgrade.
 `baseApp.SetBeginBlocker` (`tm2/pkg/sdk/options.go:68`) exists and gno.land does
 not use it — `app.go` sets only `InitChainer`, `AnteHandler`, tx hooks and
 `EndBlocker`. `BaseApp.BeginBlock` calls it at `baseapp.go:622`, after the halt
-check (`:596`) and after `deliverState` is prepared. That is the same position
-Cosmos gives its `PreBlocker`.
+check (`:596`) and after `deliverState` is prepared. 
 
-At `req.Height == haltHeight+1` — mirroring the EndBlocker's existing
+The new `BeginBlocker` goes in `app.go` beside the existing `EndBlocker`, built
+the same way: a constructor taking what it needs — `prmk` and the `Env` — and
+returning the `sdk.BeginBlocker` closure (`tm2/pkg/sdk/abci.go:12`), wired with
+`baseApp.SetBeginBlocker(...)` next to the `SetEndBlocker` call at `app.go:262`.
+
+It runs at `req.Height == haltHeight+1`, mirroring the EndBlocker's existing
 exact-height arming at `app.go:1151-1162`:
 
 ```
@@ -238,7 +275,7 @@ read node:p:halt_min_version
 ```
 
 **The BeginBlocker needs to clear both params**. Left set, they are read
-forever: `halt_min_version` keeps naming an entry in the handlers' registry
+forever: `halt_min_version` keeps naming an entry in the upgrade registry
 that every later startup looks up, which pins that entry in the binary for the
 life of the chain and turns any later pruning into a refused startup on every
 node at once. It also leaves a version floor standing that nobody chose to
@@ -384,7 +421,7 @@ parse — so the name would carry no information the version does not.
 Undecided — recorded to be settled before implementation. Drop
 `StateFormatAfter` and the derived integer entirely; store the `Version` of the
 last applied upgrade, and take the expected value as the newest `Version` in the
-handlers' registry.
+upgrade registry.
 
 Orthogonal to the rest of the design: the check tables and the post-halt scoping
 are identical either way.
@@ -394,7 +431,7 @@ are identical either way.
 1. **The `StateFormatAfter` field, entirely.** Every upgrade implicitly advances
    the format to its own version. Nothing to choose per entry.
 2. **The derivation step.** The expected value is just the newest `Version` in
-   the handlers' registry.
+   the upgrade registry.
 3. **A whole numbering scheme.** Nobody has to answer "does this upgrade bump the
    format, or leave it where it was?"
 
@@ -403,7 +440,7 @@ are identical either way.
 4. **The tripwire stops being forgettable.** The strongest argument.
    `StateFormatAfter` is hand-chosen per entry — write an upgrade that changes the
    VM object encoding, leave `StateFormatAfter` at its predecessor's value, and the
-   check silently never fires. Deriving the constant from the handlers' registry
+   check silently never fires. Deriving the constant from the upgrade registry
    fixes drift
    between constant and entries; it does nothing about a wrong value *on* an entry.
    With versions there is no value to get wrong, so the error class disappears.
@@ -461,7 +498,7 @@ are identical either way.
 2. Answer open question 1. Everything downstream depends on it.
 3. State-format version + startup gate. Useful alone: it makes any future
    mismatch loud, and commits to nothing else.
-4. The handlers' registry, its startup gate, and the BeginBlocker. No param
+4. The upgrade registry, its startup gate, and the BeginBlocker. No param
    changes — `halt_min_version` already carries what is needed.
 5. First real handler, with a dry-run tool.
 
