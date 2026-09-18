@@ -84,7 +84,7 @@ that failed to open an app left them staring at nothing at all.
 | Connected, wallet reachable | straight to it, no chooser |
 | Unconnected, exactly one candidate | it fires, then the navigation follows |
 | Unconnected, two or more | chooser; picking routes, cancel still navigates |
-| No candidate at all | native submit, untouched (legacy interception intact) |
+| No candidate at all | native submit (legacy interception intact); its named inputs carry the typed args, which gnoweb folds back into `$help&func=…` with a 303 |
 | `Approved` | `?status=success&hash=…#func-<Name>`, adopting the identity if none |
 | `Rejected`, or a throw | the function help page, args pinned |
 | `not_connected` | `connect`, retry once, never surfaced to the user |
@@ -199,7 +199,17 @@ because it says so out loud.
 
 The one native submit that remains is the no-candidate case, where gnoweb has
 nothing to route to and a legacy extension may still want to intercept the
-event. That path keeps `master`'s behaviour, args included.
+event.
+
+**Superseded later on this branch.** That path no longer keeps `master`'s
+behaviour — it is now better than it. The Execute inputs carry `name` attributes,
+so the native submit rebuilds the query from the typed values instead of an
+empty form data set, and gnoweb folds that query back into its own
+`$help&func=…` shape with a 303. Measured in Chrome with every wallet disabled:
+editing an argument and submitting lands on the canonical URL with the edit
+intact, both with script enabled and with it blocked for the origin. The
+sentence above described the bug, which was inherited from `master`, not a
+property worth preserving.
 
 The spec flagged two open questions to measure rather than assume:
 
