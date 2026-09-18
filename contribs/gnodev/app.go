@@ -589,6 +589,7 @@ P           Previous TX  - Go to the previous tx
 N           Next TX      - Go to the next tx
 E           Export       - Export the current state as genesis doc
 A           Accounts     - Display known accounts and balances
+I           Import Key   - Import the dev account into your local keybase
 H           Help         - Display this message
 R           Reload       - Reload all packages to take change into account.
 Ctrl+S      Save State   - Save the current state
@@ -605,6 +606,11 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 
 	case rawterm.KeyA: // Accounts
 		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+
+	case rawterm.KeyI: // Import the dev key into the user's keybase
+		if importDevKey(ds.logger.WithGroup(AccountsLogName), ds.cfg.home) {
+			ds.book.Rename(defaultDeployerAddress, DevKeyName)
+		}
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")

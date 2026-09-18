@@ -29,8 +29,8 @@ You should see output along these lines:
 
 ```
 Loader      ┃ I workspace detected root={your_pwd}
-Accounts    ┃ I dev key imported name=devtest addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-Accounts    ┃ I default address resolved from keybase name=devtest addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ W default address tracked in-memory only; gnokey cannot sign with it name=_default#g1jg8m addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I press I to import it as a local key, or start with -import-dev-key name=devtest
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=native
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
@@ -82,15 +82,15 @@ Package path resolution:
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
 
-On first run `gnodev` writes the well-known deployer mnemonic into your local
-`gnokey` keybase as `devtest`, and the built-in node funds it, so
-`gnokey ... devtest` signs from any terminal with no further setup. That
-mnemonic is public and identical on every machine, so sign with `devtest` on
-local chains only.
+The node funds that account at genesis, but your keybase holds no key for it,
+so `gnokey` cannot sign as it until you say so. Press `I` while gnodev runs,
+or start it with `-import-dev-key`, and the well-known deployer mnemonic is
+written to your keybase as `devtest`. That mnemonic is public and identical on
+every machine, so sign with `devtest` on local chains only.
 
-`-no-dev-key` skips the import. An existing key of that name is never
-overwritten, and neither is the same address held under another name: gnodev
-logs a warning and leaves your keybase alone.
+Nothing is written until you ask, and nothing of yours is replaced when you
+do: an existing key of that name stays, and so does the same address held
+under another name, each with a warning.
 
 ### Premining
 
@@ -171,8 +171,8 @@ TX HASH:    k+WuKgPpoAg+EcR2EnzqxeWqUXB4KhOhg3l6zthSy0I=
 ```
 
 Refresh `http://localhost:8888` to see the updated `Render()` output. The
-`devtest` key works out of the box because it's premined (see above); swap it
-for any other key in your keybase.
+`devtest` key is premined, so it pays its own gas once imported with `I`;
+swap it for any other key in your keybase.
 
 If you start `gnodev` on a non-default RPC port, point `-remote` at the same
 address. For example, started with:
@@ -194,6 +194,7 @@ terminal; it turns off when output is piped or redirected, and in
 |---|---|
 | `H` | Show the in-terminal help menu |
 | `A` | List known accounts and balances |
+| `I` | Import the `devtest` key into your `gnokey` keybase |
 | `R` | Reload all packages |
 | `N` / `P` | Step to the next / previous transaction |
 | `E` | Export the current state as a genesis doc |
@@ -210,7 +211,7 @@ terminal; it turns off when output is piped or redirected, and in
 | `-remote <domain>=<rpc>` | Fetch missing packages for a chain domain from its RPC, as `<domain>=<rpc>` (e.g. `gno.land=https://rpc.staging.gno.land:443`). Only domains given an entry are fetched; with no `-remote`, gnodev never reaches the network for packages |
 | `-paths <paths>` | Preload extra package paths, comma-separated (e.g. `gno.land/r/my/realm`) |
 | `-no-examples` | Skip loading `$GNOROOT/examples` entirely |
-| `-no-dev-key` | Skip importing the `devtest` key into your `gnokey` keybase |
+| `-import-dev-key` | Import the `devtest` key into your `gnokey` keybase at startup |
 | `-add-account <name\|addr>[=<amount>]` | Premine or set the balance of an account (repeatable) |
 | `-balance-file <file>` | Seed account balances from a file (cannot be combined with `-genesis`) |
 | `-txs-file <file>` | Replay genesis transactions at startup; signers are auto-premined and referenced packages auto-loaded (cannot be combined with `-genesis`) |

@@ -17,7 +17,7 @@ type AppConfig struct {
 	home            string
 	root            string
 	premineAccounts varPremineAccounts
-	noDevKey        bool
+	importDevKey    bool
 
 	// Files
 	balancesFile string
@@ -282,10 +282,10 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.BoolVar(
-		&c.noDevKey,
-		"no-dev-key",
-		defaultCfg.noDevKey,
-		"skip auto-importing the well-known dev account into the local keybase",
+		&c.importDevKey,
+		"import-dev-key",
+		defaultCfg.importDevKey,
+		"import the well-known dev account into the local keybase at startup",
 	)
 }
 

@@ -91,10 +91,10 @@ FLAGS
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
   -genesis ...	load the given genesis file
+  -import-dev-key=false 	import the well-known dev account into the local keybase at startup
   -interactive=false 	enable gnodev interactive mode
   -log-format console	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
-  -no-dev-key=false 	skip auto-importing the well-known dev account into the local keybase
   -no-examples=false 	skip loading $GNOROOT/examples entirely
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
@@ -141,10 +141,10 @@ FLAGS
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
   -genesis ...	load the given genesis file
+  -import-dev-key=false 	import the well-known dev account into the local keybase at startup
   -interactive=false 	enable gnodev interactive mode
   -log-format json	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
-  -no-dev-key=false 	skip auto-importing the well-known dev account into the local keybase
   -no-examples=false 	skip loading $GNOROOT/examples entirely
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes

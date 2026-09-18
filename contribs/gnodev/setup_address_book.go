@@ -13,18 +13,21 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-// DevKeyName is the name under which gnodev auto-imports the well-known
-// deployer mnemonic into the user's local keybase. The derived address is
-// funded in the dev chain genesis, so signing against this name works against
-// gnodev with no further setup.
+// DevKeyName is the name under which gnodev imports the well-known deployer
+// mnemonic into the user's local keybase, on request. The derived address is
+// funded in the dev chain genesis, so signing against this name works as soon
+// as the key is there.
 const DevKeyName = "devtest"
 
 func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
 
-	// Best-effort convenience import; never fatal, so a degraded keybase can
-	// never stop gnodev from booting.
-	ensureDevKey(logger, cfg)
+	// Only on request: gnodev writes to the user's keybase when asked, by
+	// -import-dev-key here or by the `I` key while it runs. Best-effort
+	// either way, so a degraded keybase never stops gnodev from booting.
+	if cfg.importDevKey {
+		importDevKey(logger, cfg.home)
+	}
 
 	if cfg.home == "" {
 		logger.Warn("home not specified, no keybase will be loaded")
@@ -50,8 +53,9 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		logger.Info("additional account added", "addr", addr.String())
 	}
 
-	// With auto-import we usually hit this; --no-dev-key or no writable home
-	// fall through to tracking the address in-memory only.
+	// Reached once the key is in the keybase, by an earlier import or by the
+	// user's own `gnokey add -recover`; otherwise the address is tracked
+	// in-memory only.
 	if names, ok := book.GetByAddress(defaultDeployerAddress); ok {
 		var name string
 		if len(names) > 0 {
@@ -72,48 +76,48 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		"name", creatorName,
 		"addr", defaultDeployerAddress.String(),
 	)
+	logger.Info("press I to import it as a local key, or start with -import-dev-key",
+		"name", DevKeyName,
+	)
 
 	return book, nil
 }
 
-// ensureDevKey writes the well-known deployer mnemonic into the user's local
-// gnokey keybase under DevKeyName, unless opted out, already available, or the
-// name is taken by a different address.
+// importDevKey writes the well-known deployer mnemonic into the user's local
+// gnokey keybase under DevKeyName, unless the address is already there, or the
+// name is taken by a different address. It reports whether the keybase can
+// sign for that address when it returns.
 //
 // Every failure degrades to a logged warning rather than an error: the import
 // is a convenience, and a missing, unwritable, locked, or corrupt keybase must
 // never prevent gnodev from starting. The deployer address is still tracked
 // in-memory by setupAddressBook's fallback when the import is skipped.
-func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
-	if cfg.noDevKey {
-		logger.Info("dev key skipped (-no-dev-key)")
-		return
-	}
-	if cfg.home == "" {
+func importDevKey(logger *slog.Logger, home string) bool {
+	if home == "" {
 		logger.Warn("dev key skipped: home not specified, cannot write to keybase")
-		return
+		return false
 	}
-	if !osm.DirExists(cfg.home) {
+	if !osm.DirExists(home) {
 		// Default home (~/.config/gno) doesn't exist on fresh installs;
-		// create it so the auto-import actually fires for first-time users,
-		// matching `gnokey add`'s behavior. A user-supplied -home that
-		// doesn't exist is likely a typo, so refuse to materialize it.
-		// Clean both paths so a path-equivalent -home (e.g. a trailing slash)
-		// still counts as the default.
-		if filepath.Clean(cfg.home) != filepath.Clean(gnoenv.HomeDir()) {
-			logger.Warn("dev key skipped: home directory does not exist", "path", cfg.home)
-			return
+		// create it so a requested import actually lands, matching
+		// `gnokey add`'s behavior. A user-supplied -home that doesn't exist
+		// is likely a typo, so refuse to materialize it. Clean both paths so
+		// a path-equivalent -home (e.g. a trailing slash) still counts as the
+		// default.
+		if filepath.Clean(home) != filepath.Clean(gnoenv.HomeDir()) {
+			logger.Warn("dev key skipped: home directory does not exist", "path", home)
+			return false
 		}
-		if err := osm.EnsureDir(cfg.home, 0o700); err != nil {
-			logger.Warn("dev key skipped: cannot create default home", "path", cfg.home, "err", err)
-			return
+		if err := osm.EnsureDir(home, 0o700); err != nil {
+			logger.Warn("dev key skipped: cannot create default home", "path", home, "err", err)
+			return false
 		}
 	}
 
-	kb, err := openKeybase(cfg.home)
+	kb, err := openKeybase(home)
 	if err != nil {
-		logger.Warn("dev key skipped: cannot open keybase", "path", cfg.home, "err", err)
-		return
+		logger.Warn("dev key skipped: cannot open keybase", "path", home, "err", err)
+		return false
 	}
 
 	addr := defaultDeployerAddress.String()
@@ -124,10 +128,10 @@ func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
 	// user's existing entry (commonly `test1`).
 	if has, err := kb.HasByAddress(defaultDeployerAddress); err != nil {
 		logger.Warn("dev key skipped: cannot read keybase", "err", err)
-		return
+		return false
 	} else if has {
 		logger.Info("dev key already present in keybase, skipping", "addr", addr)
-		return
+		return true
 	}
 
 	// The address is not present, but the name `devtest` might belong to an
@@ -137,18 +141,19 @@ func ensureDevKey(logger *slog.Logger, cfg *AppConfig) {
 		logger.Warn("dev key name exists in keybase with a different address, not overwriting",
 			"existing", info.GetAddress().String(),
 			"expected", addr)
-		return
+		return false
 	case keyerror.IsErrKeyNotFound(err):
 	default:
 		logger.Warn("dev key skipped: cannot read keybase", "name", DevKeyName, "err", err)
-		return
+		return false
 	}
 
 	if _, err := kb.CreateAccount(DevKeyName, DefaultDeployerSeed, "", "", 0, 0); err != nil {
 		logger.Warn("dev key skipped: import failed", "err", err)
-		return
+		return false
 	}
 	logger.Info("dev key imported", "name", DevKeyName, "addr", addr)
+	return true
 }
 
 // openKeybase opens (creating the data dir if needed) the keybase at home.
