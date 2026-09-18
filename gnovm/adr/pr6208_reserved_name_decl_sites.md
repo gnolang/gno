@@ -39,9 +39,11 @@ first parameter named `cur` is carved out by position; `checkCurParamType`,
 where the function type is resolved, requires it to be realm-typed. One line
 at the `SwitchStmt` covers a clause-less type switch. A `:=` in a block where
 the name is already reserved is not re-reserved; the write rules refuse it as
-a rebind. Function types and interface methods are not bindings and are not
-checked. The older builtin-only checks in `predefineRecursively2` and
-`fillNameExprPath` stay; `Reserve` fires before both.
+a rebind. Function types and interface methods declare nothing, but the
+`FuncTypeExpr` handler checks their parameter and result names the same way,
+so the rule has no exception; it also hosts `checkCurParamType`, since every
+function's type passes through it. The older builtin-only checks in
+`predefineRecursively2` and `fillNameExprPath` stay; `Reserve` fires first.
 
 **The write rules key on name plus resolved realm type**, after the
 `DEFINE`/`ASSIGN` branch so a same-scope `cur, x :=` is refused. "A `cur` is the
@@ -66,6 +68,9 @@ gas change is consensus-visible and rides with the schedule work
 - **Check in `Define`/`Define2`.** Too deep: uverse defines the builtins
   through `Define2`, faux blocks re-define checked names, heap captures define
   `~name`.
+- **Leave function types and interface methods alone**, since their names
+  bind nothing. Rejected: "no exception" is easier to state and learn, and the
+  names still print in types and docs.
 - **Reserve `cur` for struct fields, methods, labels.** Not bindings; qualified
   or in another namespace.
 - **Keep the `DEFINE` carve-out in the assignment rule.** Its rationale, "the
@@ -93,7 +98,8 @@ gas change is consensus-visible and rides with the schedule work
   per-package recover. The deployed-code scan #6193 called for is a
   precondition to release, for the uverse block names plus `cur`.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
-  binding site; `shadow_builtin_functype_legal.gno`; `zrealm_cur_alias*.gno`
+  binding site, plus `shadow_builtin_{functype,iface_method}.gno` and
+  `zrealm_cur_decl_functype.gno` for types; `zrealm_cur_alias*.gno`
   pin the resolved-type rule through a non-`cur` first parameter and a bare
   function type; the four `zrealm_cur_shadow*.gno` are deleted (the shadow is
   now a declaration error); `zrealm_cur_reassign_define.gno`,

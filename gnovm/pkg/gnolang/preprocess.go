@@ -1038,7 +1038,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
-				checkCurParamType(ft)
 				// define parameters in new block.
 				for i, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
@@ -1148,7 +1147,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
-				checkCurParamType(ft)
 				// define receiver in new block, if method.
 				if n.IsMethod {
 					name := n.Recv.Name
@@ -2850,11 +2848,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								panic("a crossing function's first realm argument must have name `cur`")
 							}
 						} else if pn == "cur" {
-							// For a FuncDecl/FuncLitExpr, Reserve's `cur` check fires first
-							// (initStaticBlocks2); this arm is reached from bare function types.
 							panic("only the first realm type argument of a crossing function may have name `cur`")
 						}
 					}
+					// Reserved names are refused in function types and interface
+					// methods too, so the rule has no exception. A FuncDecl or
+					// FuncLitExpr reaches Reserve first with the same message.
+					for i := range ft.Params {
+						if i == 0 && ft.Params[i].Name == "cur" {
+							continue
+						}
+						checkDeclName(ft.Params[i].Name)
+					}
+					for i := range ft.Results {
+						checkDeclName(ft.Results[i].Name)
+					}
+					checkCurParamType(ft)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -6142,8 +6151,8 @@ func checkDeclName(name Name) {
 	}
 }
 
-// checkCurParamType completes Reserve's positional carve-out: a first
-// parameter named `cur` must make the function crossing, i.e. be realm-typed.
+// checkCurParamType completes the positional `cur` carve-out (Reserve, and the
+// FuncTypeExpr handler): a first parameter named `cur` must be realm-typed.
 func checkCurParamType(ft *FuncType) {
 	if len(ft.Params) > 0 && ft.Params[0].Name == "cur" && !ft.IsCrossing() {
 		panic(curReservedMsg)
