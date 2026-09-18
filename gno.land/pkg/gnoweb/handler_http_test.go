@@ -2007,8 +2007,8 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 // "(false bool)" (the deleted field), so a parser that looks for the token
 // anywhere in the payload is fooled; only the last line is the answer.
 func resolveNamePayload(current bool) []byte {
-	return []byte(fmt.Sprintf(`(&(struct{("g1manfred47kzduec920z88wfr64ylksmdcedlf5" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
-(%t bool)`, current))
+	return fmt.Appendf(nil, `(&(struct{("g1manfred47kzduec920z88wfr64ylksmdcedlf5" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+(%t bool)`, current)
 }
 
 func getUserPage(t *testing.T, client *stubClient, path string) *httptest.ResponseRecorder {
