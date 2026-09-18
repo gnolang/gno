@@ -59,6 +59,12 @@ crossing function's first parameter:
 - for-init DEFINEs, under the `cur.loopvar` name `initStaticBlocks1` renames
   them to, so the source binding is caught even though no source can spell its
   synthesized name.
+- type-switch clause variables, in the `SwitchClauseStmt` TRANS_BLOCK arm at
+  all three `Define` sites (default clause, single-type case, multi-type
+  case). The binding is typed per clause, so `case realm:` on an `any`, or any
+  clause when the switched value is itself `realm`, declares a realm-typed
+  `cur`. Found in review after the other sites landed; without it the write
+  and provenance rules still refused the binding, so the gap was fail-closed.
 
 The first-parameter rules from #6193 are unchanged: a crossing function's first
 realm parameter must be named `cur` (or be the unnamed `.arg` placeholder), and
@@ -156,8 +162,8 @@ synthesized call).
 - The write rules are name+type only; `isCrossingCurParam` is deleted.
 - Fixtures: the four `zrealm_cur_shadow*.gno` fixtures pinned the old
   shadow-stays-writable behavior; they are replaced by
-  `zrealm_cur_decl_{var,local,result,range,forinit}.gno`, one per declaration
-  site. `zrealm_cur_legal.gno` keeps the positive controls (non-realm `cur`,
+  `zrealm_cur_decl_{var,local,result,range,forinit,typeswitch,typeswitch_default}.gno`,
+  one per declaration site. `zrealm_cur_legal.gno` keeps the positive controls (non-realm `cur`,
   realm-typed bindings under other names) and `zrealm_cur_other_legal.gno` is
   rewritten for the same. `std_unsafe0.gno` is unchanged: its `cur` local is a
   `runtime.Realm` value, not the `realm` type.

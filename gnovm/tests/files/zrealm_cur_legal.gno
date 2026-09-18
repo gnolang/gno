@@ -29,6 +29,12 @@ func main(cur realm) {
 		}
 		println("int cur:", cur)
 	}
+	// a type-switch clause var named `cur` is fine when the clause type is
+	// not realm.
+	switch cur := any(7).(type) {
+	case int:
+		println("typeswitch int cur:", cur)
+	}
 }
 
 // Output:
@@ -36,3 +42,4 @@ func main(cur realm) {
 // crossed: gno.land/r/demo/curlegal
 // range pkgpath: gno.land/r/demo/curlegal
 // int cur: 7
+// typeswitch int cur: 7

@@ -1085,6 +1085,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if ss.VarName != "" {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
+							// A type-switch clause var is a declaration too; see
+							// checkRealmCurDecl. Its type is the clause's, so a
+							// realm-typed `cur` is refused per clause, here and below.
+							checkRealmCurDecl(ss.VarName, tt)
 							last.Define(
 								ss.VarName, anyValue(tt))
 						}
@@ -1112,6 +1116,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
+									checkRealmCurDecl(ss.VarName, ct)
 									last.Define(
 										ss.VarName, anyValue(ct))
 								} else {
@@ -1119,6 +1124,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// cases, or the sole case is nil,
 									// the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
+									checkRealmCurDecl(ss.VarName, tt)
 									last.Define(
 										ss.VarName, anyValue(tt))
 								}
