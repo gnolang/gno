@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// gno.land/r/demo/curdeclfunctype/zrealm_cur_decl_functype.gno:7:8-21: `cur` is reserved: it may only be declared as the first parameter of a crossing function
+// gno.land/r/demo/curdeclfunctype/zrealm_cur_decl_functype.gno:7:8-21: `cur` is a declaration-reserved identifier: it may only be declared as the first parameter of a crossing function

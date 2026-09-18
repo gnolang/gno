@@ -6132,12 +6132,13 @@ func skipFile(n BlockNode) BlockNode {
 	}
 }
 
-const curReservedMsg = "`cur` is reserved: it may only be declared as the first parameter of a crossing function"
+const curReservedMsg = "`cur` is a declaration-reserved identifier: it may only be declared as the first parameter of a crossing function"
 
-// checkDeclName refuses a binding that shadows a builtin or reuses the name
-// `cur`. StaticBlock.Reserve calls it for every source binding, carving out a
-// first parameter named `cur` (checkCurParamType then requires realm). A
-// for-init `<name>.loopvar` is checked by its source name.
+// checkDeclName refuses a binding that shadows a builtin or binds a
+// declaration-reserved identifier (declReservedNames). StaticBlock.Reserve
+// calls it for every source binding, carving out a first parameter named
+// `cur` (checkCurParamType then requires realm). A for-init `<name>.loopvar`
+// is checked by its source name.
 func checkDeclName(name Name) {
 	src := Name(strings.TrimSuffix(string(name), ".loopvar"))
 	if src == "" || src == blankIdentifier || strings.HasPrefix(string(src), ".") {
@@ -6146,7 +6147,8 @@ func checkDeclName(name Name) {
 	if isUverseName(src) {
 		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", src))
 	}
-	if src == "cur" {
+	if isDeclReservedName(src) {
+		// The set holds only `cur`, so the message can name its one site.
 		panic(curReservedMsg)
 	}
 }
