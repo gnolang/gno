@@ -6,6 +6,13 @@ gno test ./examples/...
 ! stdout .+
 stderr 'ok      ./examples/foo'
 
+# A pattern that reaches no workspace still fails, naming the ones it found.
+
+! gno test ./...
+
+! stdout .+
+stderr 'workspaces found below: examples'
+
 -- examples/gnowork.toml --
 -- examples/foo/gnomod.toml --
 module = "gno.test/p/integ/foo"

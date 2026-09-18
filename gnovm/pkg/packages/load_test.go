@@ -54,6 +54,49 @@ func TestFindLoaderRoot(t *testing.T) {
 	})
 }
 
+func TestNearbyWorkspaces(t *testing.T) {
+	mkdirs := func(t *testing.T, root string, dirs ...string) {
+		t.Helper()
+		for _, dir := range dirs {
+			full := filepath.Join(root, filepath.FromSlash(dir))
+			require.NoError(t, os.MkdirAll(full, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(full, "gnowork.toml"), nil, 0o644))
+		}
+	}
+
+	t.Run("child and grandchild workspaces", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "examples", "gnovm/stdlibs")
+
+		assert.Equal(t, []string{"examples", filepath.Join("gnovm", "stdlibs")}, nearbyWorkspaces(root))
+	})
+
+	t.Run("does not descend into a workspace it found", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "examples", "examples/subwork")
+
+		assert.Equal(t, []string{"examples"}, nearbyWorkspaces(root))
+	})
+
+	t.Run("stops at the depth limit", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "a/b/toodeep")
+
+		assert.Empty(t, nearbyWorkspaces(root))
+	})
+
+	t.Run("skips dot directories", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, ".git/hidden")
+
+		assert.Empty(t, nearbyWorkspaces(root))
+	})
+
+	t.Run("no workspace, no hint", func(t *testing.T) {
+		assert.Empty(t, nearbyWorkspaces(t.TempDir()))
+	})
+}
+
 func TestListAndNonIgnoredPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
@@ -433,6 +476,12 @@ func TestDataLoad(t *testing.T) {
 			workdir:          localFromSlash("./testdata"),
 			patterns:         []string{localFromSlash("./notexists/...")},
 			errShouldContain: "notexists",
+		},
+		{
+			name:             "err-no-context-names-nearby-workspaces",
+			workdir:          localFromSlash("./testdata"),
+			patterns:         []string{"."},
+			errShouldContain: "workspaces found below: workspace-1",
 		},
 		{
 			name:     "workspace-1-root-multi-match",

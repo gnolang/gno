@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -155,6 +156,57 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	return loaded, nil
 }
 
+// Bounds for the best-effort workspace search behind the "no context" hint:
+// deep enough to find the workspace of a repo checkout from its root, cheap
+// enough to stay unnoticeable in an unrelated tree.
+const (
+	hintMaxDepth   = 2
+	hintMaxDirs    = 500
+	hintMaxResults = 3
+)
+
+// nearbyWorkspaces returns up to hintMaxResults gnowork.toml directories found
+// within hintMaxDepth levels below dir, relative to it, so a "no context" error
+// can name a workspace the user can actually target. Best-effort: unreadable
+// directories are skipped and the walk stops at hintMaxDirs, never descending
+// into a workspace it already found.
+func nearbyWorkspaces(dir string) []string {
+	found := []string{}
+	queue := []string{"."}
+	visited := 0
+
+	for depth := 0; depth < hintMaxDepth && len(queue) > 0; depth++ {
+		next := []string{}
+		for _, rel := range queue {
+			if visited++; visited > hintMaxDirs {
+				return found
+			}
+
+			entries, err := os.ReadDir(filepath.Join(dir, rel))
+			if err != nil {
+				continue
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+				child := filepath.Join(rel, entry.Name())
+				if _, err := os.Stat(filepath.Join(dir, child, "gnowork.toml")); err == nil {
+					found = append(found, child)
+					if len(found) >= hintMaxResults {
+						return found
+					}
+					continue
+				}
+				next = append(next, child)
+			}
+		}
+		queue = next
+	}
+
+	return found
+}
+
 type loaderContext struct {
 	Root        string
 	IsWorkspace bool
@@ -182,7 +234,11 @@ func findLoaderContext(patterns []string) (*loaderContext, error) {
 	if patErr != nil {
 		if errors.Is(patErr, ErrGnoContextNotFound) {
 			// no pattern did better than the working directory: report the
-			// original, which names the directory the user is actually in
+			// original, pointing at any workspace the user could target
+			if nearby := nearbyWorkspaces(wd); len(nearby) > 0 {
+				return nil, fmt.Errorf("%w; workspaces found below: %s (target one with a pattern, e.g. ./%s/..., or run gno -C %s)",
+					err, strings.Join(nearby, ", "), filepath.ToSlash(nearby[0]), nearby[0])
+			}
 			return nil, err
 		}
 		return nil, patErr
