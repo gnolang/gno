@@ -113,7 +113,83 @@ listeners were added in, so it is the one place the page is certain to be asked.
   the extensions installed today" is a gnoweb rollout decision with an expiry
   date — putting it in the standard would have every future implementer carry
   our migration forever. Once wallets announce, the legacy entry and the claim
-  both stop mattering and both come out.
+  both stop mattering and both come out — with one carve-out, measured after
+  this was first written: see "With page JavaScript disabled" below.
+
+### With page JavaScript disabled
+
+Adena's interception is registered by its **content script**, in the isolated
+world, and gated on the `gnoconnect:*` metas — which are server-rendered markup.
+Neither depends on the page running any script of its own. Measured against
+Adena 1.21.1 with JavaScript blocked for the origin: Execute is still cancelled
+and the wallet still opens.
+
+Everything on gnoweb's side of this ADR, by contrast, is page script. With page
+JS off there is no window-capture claim, no announcement handling, and no
+chooser; gnoweb is reduced to the HTML and CSS it served. So:
+
+- **The legacy interception outlives the protocol meant to replace it.** For a
+  no-JS visitor it is the only in-page path that works at all.
+- **A no-JS page cannot arbitrate.** Choosing between wallets is page code, so
+  with two intercepting wallets installed the first to register wins — exactly
+  the race the announce protocol exists to remove. This is not fixable by any
+  protocol; it is a property of the page being unable to run.
+
+**The decision is to keep that.** Without page script, gnoweb falls back to
+`master`'s flow: it claims nothing, and a wallet that intercepts on its own
+takes the submit exactly as it does today. This costs no code — it is what
+happens already, because every mechanism this ADR adds is page script and simply
+does not register. What it costs is a commitment, stated here so it is not
+broken by accident:
+
+- The markup an intercepting wallet scrapes — `article.b-action-function >
+  form.params` and the `data-action-function-*` attributes — is a **supported
+  surface for the no-script path**, not merely an implementation detail. It may
+  not be restructured without checking case 22 in
+  [`frontend/fixtures/README.md`](../pkg/gnoweb/frontend/fixtures/README.md).
+- The Execute form's `name` attributes are a second such surface, for the visitor
+  with no wallet at all: the param inputs plus the hidden `func` input are what a
+  native submit sends, and `canonicalHelpURL` in `handler_http.go` keys off `func`
+  to fold that query back into `$help&k=v`. The send checkbox is deliberately
+  *not* named, so a submit nobody could confirm never adds coins. Removing a
+  `name=` silently returns those users to a discarded-argument Execute; cases
+  20–21c cover it. The `+`→`%20` spelling is agreed in two places —
+  `escapeWebArg` in `components/view_action.go` and the raw-query fold in
+  `canonicalHelpURL` — and the two must not diverge.
+- The registry's legacy entry and its `global` probe outlive the chooser's need
+  for them. The retirement above applies to the scripted path only.
+
+This change already satisfies the commitment: `views/action.html` adds an inert
+`data-controller` to the form and a sibling QR `<div>`, so the selector and the
+scraped attributes are untouched — verified against Adena 1.21.1 with script
+blocked, where Execute behaves as it does on `master`.
+
+What the fallback does **not** cover is a visitor with no such wallet: for them
+Execute reaches the native submit, which discards the typed arguments (see
+[`prxxxx_gnoweb_wallet_connect.md`](./prxxxx_gnoweb_wallet_connect.md) §
+Deviations — the same bug on `master`). An intercepting wallet masks it by
+cancelling the submit before the browser acts on it; nothing else does.
+
+Two further options were considered and **not** adopted, both of which remain
+compatible with the decision above rather than alternatives to it:
+
+- **Give the Execute inputs `name` attributes**, so the native submit navigates
+  to a URL that fully encodes the intent instead of emptying it. This does not
+  interact with the fallback — an intercepting wallet cancels the event before
+  the browser ever reads the form — so it only repairs the no-wallet case, and
+  additionally lets a wallet reach the intent by **observing** the navigation,
+  which `gnoconnect.md` permits ("Observing is not intercepting"). Deferred as
+  a separate change, since it alters a URL shape `master` also produces.
+- **Sanction interception conditionally in the standard**, via a liveness marker
+  gnoweb sets on boot. Unnecessary: with script disabled gnoweb registers
+  nothing, so the wallet is unopposed without needing to be told. Adopting it
+  would put a gnoweb-specific migration into a wallet-agnostic standard, which
+  the bullet above this section rejects on its own terms.
+
+In-page signing by a desktop extension with script disabled therefore works, and
+works for exactly one wallet — the first to register. That is a property of the
+page being unable to run, not a choice, and is the honest boundary of this
+fallback.
 
 ### Announcements are untrusted input
 
@@ -169,6 +245,11 @@ What the page owes them is a list that is legible and cannot be crowded out.
 - The in-page half has no automated test: gnoweb's frontend has no JS test
   runner, and adding one is a larger decision than this change should make.
   Verified in-browser against a stub wallet that announces per the spec.
+- Everything this ADR adds is page script, so a visitor with JavaScript disabled
+  falls back to `master`'s flow by design: an intercepting wallet takes the
+  submit as it does today. That path is single-wallet by construction and cannot
+  be arbitrated, and it makes the scraped Execute markup a surface this repo has
+  agreed to keep stable — see "With page JavaScript disabled".
 
 ## Validation
 
@@ -199,7 +280,24 @@ page stays put and the stub is not called.
 
 `go test ./gno.land/pkg/gnoweb/...` green (the Go side is untouched).
 
-Not covered: a real wallet extension. No such extension announces yet — that
-is what this change is for — so what is proven is that a conforming announcer
-is discovered, merged, called, and that a non-conforming page cannot dead-end
-Execute.
+### Re-run against Adena 1.21.1 from the Chrome Web Store
+
+The rows above were taken against Adena 1.20.1. Re-measured against the store
+build 1.21.1, on `gnodev` serving a two-argument realm, with every other wallet
+disabled:
+
+| Case | Result |
+|---|---|
+| The build's own code | `content.js` carries the document-capture submit listener matching `b-action-function` / `data-action-function`; no `gno:registerWallet` anywhere. The ADR's description holds for the shipped wallet. |
+| `window.adena` | legacy surface only — `DoContract`, `SignTx`, `GetAccount`. **No `sendTx`**, so handing back the submit is the only way to reach it, as designed. |
+| Adena alone, script enabled | no chooser, no navigation: one legacy candidate, fired directly. |
+| Adena + one announcing stub | **chooser opens with both entries**, labelled Extension. The window-capture claim beats Adena's document-capture listener, which is the whole point of this ADR — verified against the real extension rather than a stub interceptor. |
+| Picking the stub | `sendTx` receives the **live** form values (an argument edited after load, not the one in the URL), with `rpc` and `chainid`, and no `signer` while unconnected. |
+| The stub returning `Rejected` | lands on the function help page with the edited arguments pinned. |
+| Adena, script **disabled** for the origin | Execute still cancelled, wallet still opens — see "With page JavaScript disabled". |
+
+Now covered: a real wallet extension, on both paths. Not covered: a real wallet
+implementing the announce protocol. A development build that does exists
+(`gno:registerWallet`, `sendTx`, `getAccount`, and the spec's error codes), so
+the earlier claim that no such extension exists is no longer true, but it is not
+a shipped wallet and was disabled for these measurements.
