@@ -13,7 +13,7 @@ type FooterData struct {
 
 // faucetHubURL is the user-facing faucet for every network that has one. It is
 // deliberately not -faucet-url: that flag holds the endpoint /faucet redirects
-// to, which on staging is a POST-only API that 405s in a browser.
+// to, which some deployments point at an API rather than at a page.
 const faucetHubURL = "https://faucet.gno.land/"
 
 type FooterLink struct {
