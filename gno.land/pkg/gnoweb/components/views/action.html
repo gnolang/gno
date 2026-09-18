@@ -110,6 +110,8 @@ UI - Help Function component
     {{ end }}
     <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
       data-controller="wallet-launch" data-action-function-target="function-execute">
+      {{/* Named inputs carry a no-script submit; canonicalHelpURL folds it back. */}}
+      <input type="hidden" name="func" value="{{ .Name }}" />
       {{- with .Params }}
       <h3 class="title">
         Param{{- if gt (len .) 1 }}s{{ end }}
@@ -122,7 +124,7 @@ UI - Help Function component
           <label for="func-{{ $funcName }}-param-{{ .Name }}">
             {{ .Name }}
           </label>
-          <input type="text" {{- if eq $data.SelectedFunc $funcName }} value="{{ getSelectedArgValue $data . }}" {{- end
+          <input type="text" name="{{ .Name }}" {{- if eq $data.SelectedFunc $funcName }} value="{{ getSelectedArgValue $data . }}" {{- end
             }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ .Name }}"
             data-action-function-target="param-input" data-action="input->action-function#updateAllArgs"
             data-action-function-param-value="{{ .Name }}" autocomplete="off" autocorrect="off" autocapitalize="off"
@@ -141,6 +143,7 @@ UI - Help Function component
           <p>This transaction link is requesting <strong>{{ . }}</strong> from your
             balance. For your safety, you must manually confirm the addition of coins to the transaction.</p>
           <div class="b-btn b-switch">
+            {{/* Unnamed on purpose: a no-script submit must never add coins. */}}
             <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-action-function-send-value="{{ . }}" />
             <label for="func-{{ $funcName }}-send-flag" data-action="click->action-function#updateAllFunctionsSend"
               data-action-function-send-param="true">

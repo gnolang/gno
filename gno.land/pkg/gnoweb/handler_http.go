@@ -285,6 +285,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fold a no-script Execute submit into the canonical $help URL (see
+	// canonicalHelpURL) before the breadcrumb renders Query as editable fields
+	// and doubles the form below it.
+	if target, ok := canonicalHelpURL(gnourl, r.URL.RawQuery); ok {
+		http.Redirect(w, r, target, http.StatusSeeOther)
+		return
+	}
+
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:
 	//   - ?state&json[&oid|&tid]  → JSON API path, writes body directly to w
@@ -381,9 +389,8 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	// the path (e.g. /r/realm:args), not a URL scheme.
 	sanitizedRedirectURL := gnourl.EncodeFormURL()
 
-	// Defense-in-depth: validate redirect URL to prevent open redirects,
-	// This can happen when path is "/" and file is "evil.domain" -> "//evil.domain"
-	if strings.HasPrefix(sanitizedRedirectURL, "//") {
+	// Defense-in-depth: validate redirect URL to prevent open redirects.
+	if isProtocolRelative(sanitizedRedirectURL) {
 		h.Logger.Warn("blocked unsafe redirect", "url", sanitizedRedirectURL)
 		http.Error(w, "invalid redirect", http.StatusBadRequest)
 		return
@@ -634,6 +641,54 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	return http.StatusOK, components.UserView(data)
 }
 
+// canonicalHelpURL rewrites a `$help` URL whose args arrived as a query string
+// into gnoweb's `$help&k=v` shape, reporting whether a redirect is needed. The
+// query comes from the Execute form's no-script submit, which names the function
+// in a hidden input (see the named inputs in `components/views/action.html`), so
+// `func` is the marker. Note `height` deliberately does not work this way: it is
+// dual-read from both spellings by GnoURL.Height, which this pattern would
+// eventually replace.
+func canonicalHelpURL(gnourl *weburl.GnoURL, rawQuery string) (string, bool) {
+	// Query is parsed from rawQuery, so a `func` in it implies rawQuery != "".
+	if !gnourl.WebQuery.Has("help") || !gnourl.Query.Has("func") {
+		return "", false
+	}
+
+	// Webargs the submit did not carry — a `.send` envelope, a pinned height the
+	// help view itself ignores — ride along; the submitted ones replace the rest.
+	extras := url.Values{}
+	for key, values := range gnourl.WebQuery {
+		if key != "help" && !gnourl.Query.Has(key) {
+			extras[key] = values
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString(gnourl.Encode(weburl.EncodePath | weburl.EncodeArgs))
+	b.WriteString("$help")
+	if len(extras) > 0 {
+		b.WriteString("&" + weburl.EncodeValues(extras, true))
+	}
+	// The raw query keeps the form's input order, which is the signature order
+	// buildHelpURL emits; url.Values would sort it and drop the `=` from an
+	// empty arg, giving a second spelling of the same page. A literal `+`
+	// arrives as %2B, so the only one left here encodes a space.
+	b.WriteString("&" + strings.ReplaceAll(rawQuery, "+", "%20"))
+
+	target := b.String()
+	if isProtocolRelative(target) {
+		return "", false
+	}
+	return target, true
+}
+
+// isProtocolRelative reports whether a redirect target would leave this origin:
+// a path of "/" plus a crafted value yields "//evil.example", which a browser
+// reads as scheme-relative. Shared so both redirect paths cannot diverge.
+func isProtocolRelative(target string) bool {
+	return strings.HasPrefix(target, "//")
+}
+
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
@@ -670,7 +725,6 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		fsigs = append(fsigs, fun)
 	}
 
-	// Get selected function
 	selArgs := make(map[string]string)
 	selFn := gnourl.WebQuery.Get("func")
 	selSend := gnourl.WebQuery.Get(".send")

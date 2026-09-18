@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -1992,4 +1993,90 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
 	})
+}
+
+// Without JS the Execute form falls back to a native GET submit, which rebuilds
+// the query from its named inputs and leaves the server-rendered args stale in
+// the path. gnoweb folds the submitted ones back into its own `$help&k=v` shape
+// so both transports end on the same URL.
+func TestGet_NativeHelpSubmitRedirectsToCanonical(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Post", Signature: "func Post(author string, body string) string",
+			Params: []*doc.JSONField{{Name: "author"}, {Name: "body"}},
+		}},
+	}
+
+	cases := []struct {
+		name     string
+		target   string
+		wantCode int
+		wantLoc  string
+	}{
+		{
+			name:     "submitted args replace the stale ones",
+			target:   "/r/demo/foo$help&func=Post&author=alice&body=hi?func=Post&author=bob&body=hi",
+			wantCode: http.StatusSeeOther,
+			wantLoc:  "/r/demo/foo$help&func=Post&author=bob&body=hi",
+		},
+		{
+			name:     "a cleared field survives the fold",
+			target:   "/r/demo/foo$help&func=Post&author=alice&body=hi?func=Post&author=&body=hi",
+			wantCode: http.StatusSeeOther,
+			wantLoc:  "/r/demo/foo$help&func=Post&author=&body=hi",
+		},
+		{
+			name:     "canonical URL is served, not redirected",
+			target:   "/r/demo/foo$help&func=Post&author=alice&body=hi",
+			wantCode: http.StatusOK,
+		},
+		{
+			name:     "a query without func is not a submit",
+			target:   "/r/demo/foo$help&func=Post&author=alice&body=hi?utm=x",
+			wantCode: http.StatusOK,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := newRealRendererHelpHandler(t, jdoc)
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.target, nil))
+
+			require.Equal(t, tc.wantCode, rec.Code)
+			if tc.wantLoc != "" {
+				require.Equal(t, tc.wantLoc, rec.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// The canonical URL the redirect lands on must render the submitted args, and
+// its inputs must stay named so the next no-script submit works too.
+func TestGetHelpView_RendersNamedInputsWithArgs(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{
+		Funcs: []*doc.JSONFunc{{
+			Name: "Post", Signature: "func Post(author string, body string) string",
+			Params: []*doc.JSONField{{Name: "author"}, {Name: "body"}},
+		}},
+	}
+	authorInput := regexp.MustCompile(`<input[^>]*id="func-Post-param-author"[^>]*>`)
+
+	h := newRealRendererHelpHandler(t, jdoc)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+		"/r/demo/foo$help&func=Post&author=bob&body=hi", nil))
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	tag := authorInput.FindString(rec.Body.String())
+	require.NotEmpty(t, tag, "the author input must render")
+	require.Contains(t, tag, `name="author"`, "the native submit needs a named input")
+	require.Contains(t, tag, `value="bob"`)
+	require.Contains(t, rec.Body.String(), `name="func" value="Post"`)
 }
