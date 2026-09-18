@@ -29,12 +29,24 @@ Explore Gno through our comprehensive documentation:
   manage accounts, and interact with the blockchain
 - **[For Builders](./docs#build-on-gnoland)** - Start writing smart contracts, 
   understand the Gno language, and deploy your applications  
-- **[Reference](./docs#reference)** - Technical specifications, best 
+- **[References](./docs#references)** - Technical specifications, best 
   practices, and advanced topics
 - **[Running a node](./docs/builders/running-a-node.md)** - Start here if you were 
   about to run one — most use cases don't need it
 
 Visit [gno.land](https://gno.land) to see live smart contracts in action.
+
+## Networks
+
+gno.land **mainnet** has been live since 12 September 2026 — chain id `gnoland-1`,
+RPC `https://rpc.gno.land:443`. It launched as a fresh chain rather than a fork of
+betanet, and there is no mainnet faucet.
+
+To build and deploy for free, use a testnet. Testnets are renamed and replaced
+regularly, so rather than naming one here:
+[Gno networks](https://docs.gno.land/resources/gnoland-networks) always lists the
+current one, its RPC endpoint, and the archives of past networks. Tokens come from
+the [faucet](https://faucet.gno.land).
 
 ## Key Features
 
@@ -92,9 +104,9 @@ repository.
   community
 
 **Connect & Get Help:**
-- [Discord](https://discord.gg/YFtMjWwUN7) - Real-time support and development 
+- [Discord](https://discord.com/invite/gnoland) - Real-time support and development 
   discussions
-- [Twitter](https://twitter.com/_gnoland) - Official announcements and updates
+- [X](https://x.com/_gnoland) - Official announcements and updates
 - [YouTube](https://www.youtube.com/@_gnoland) - Tutorials, workshops, and 
   development calls
 - [Workshops](https://github.com/gnolang/workshops) - Educational materials
@@ -111,11 +123,11 @@ repository.
 
   GitHub Actions:
 
-  * [![gno.land](https://github.com/gnolang/gno/actions/workflows/gnoland.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnoland.yml)
-  * [![gnovm](https://github.com/gnolang/gno/actions/workflows/gnovm.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnovm.yml)
-  * [![tm2](https://github.com/gnolang/gno/actions/workflows/tm2.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/tm2.yml)
-  * [![examples](https://github.com/gnolang/gno/actions/workflows/examples.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/examples.yml)
-  * [![docker](https://github.com/gnolang/gno/actions/workflows/docker.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/docker.yml)
+  * [![ci / gnoland](https://github.com/gnolang/gno/actions/workflows/ci-dir-gnoland.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/ci-dir-gnoland.yml)
+  * [![ci / gnovm](https://github.com/gnolang/gno/actions/workflows/ci-dir-gnovm.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/ci-dir-gnovm.yml)
+  * [![ci / tm2](https://github.com/gnolang/gno/actions/workflows/ci-dir-tm2.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/ci-dir-tm2.yml)
+  * [![ci / examples](https://github.com/gnolang/gno/actions/workflows/ci-dir-examples.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/ci-dir-examples.yml)
+  * [![release / docker](https://github.com/gnolang/gno/actions/workflows/release-docker.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/release-docker.yml)
 
   Go Report Card:
 

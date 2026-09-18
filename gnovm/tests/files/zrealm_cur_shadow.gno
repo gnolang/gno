@@ -18,4 +18,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curshadow/zrealm_cur_shadow.gno:15:3-23: cannot reassign the crossing `cur` parameter: it is a caller-bound capability and rebinding it would forge the current-realm identity
+// gno.land/r/demo/curshadow/zrealm_cur_shadow.gno:15:3-23: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame

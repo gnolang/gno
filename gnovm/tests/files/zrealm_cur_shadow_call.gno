@@ -1,19 +1,19 @@
 // PKGPATH: gno.land/r/demo/curshadowcall
 package curshadowcall
 
-// A shadowing `cur` may hold a foreign token, but it must never reach the one
-// call shape that promotes a token into a frame identity: the cur-call check
-// resolves the name to its declaring block, and a `{ }` block is not a
+// A shadowing `cur` may hold another realm's value, but it must never reach the
+// one call shape that promotes a value into a frame identity: the cur-call
+// check resolves the name to its declaring block, and a `{ }` block is not a
 // crossing function.
 
-func steal(cur realm) {
+func probe(cur realm) {
 	_ = cur.IsCurrent()
 }
 
 func main(cur realm) {
 	{
 		cur := cur.Previous()
-		steal(cur)
+		probe(cur)
 	}
 }
 

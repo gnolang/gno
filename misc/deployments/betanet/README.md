@@ -1,6 +1,15 @@
-# gnoland1 Validator Setup
+# Betanet Validator Setup
 
-Basic, tested instructions for joining the `gnoland1` network as a validator. Advanced operators may adapt these steps to their own infrastructure (Docker, systemd, etc.) at their discretion.
+> **Retired.** Betanet is no longer running. Mainnet is a fresh chain with chain
+> id `gnoland-1`; see [`../mainnet.gno.land`](../mainnet.gno.land). This
+> directory is kept as the archive of what betanet actually ran.
+>
+> **`gnoland1` below is a chain id, not a directory or a network name.** It is
+> one hyphen away from mainnet's `gnoland-1`, and a wrong chain id in a signed
+> transaction fails silently — so the chain ids are left exactly as they were,
+> and only the naming around them says "betanet".
+
+Basic, tested instructions for joining betanet (chain id `gnoland1`) as a validator. Advanced operators may adapt these steps to their own infrastructure (Docker, systemd, etc.) at their discretion.
 
 ## Prerequisites
 

@@ -4,13 +4,13 @@ package curshadowrange
 // zrealm_cur_legal.gno shows `for _, cur := range` is legal to DECLARE; this
 // pins that the declared shadow still cannot be passed to a crossing helper.
 
-func steal(cur realm) {
+func probe(cur realm) {
 	_ = cur.IsCurrent()
 }
 
 func main(cur realm) {
 	for _, cur := range []realm{cur.Previous()} {
-		steal(cur)
+		probe(cur)
 	}
 }
 

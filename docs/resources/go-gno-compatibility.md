@@ -48,11 +48,24 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 
 Generics are currently not implemented.
 
-Note that Gno does not support shadowing of built-in types.
-While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
+## Reserved identifiers
+
+Predeclared names that Go lets you shadow, but Gno does not.
+
+Built-in types. The following typecasting assignment works in Go, but not in Gno:
 
 ```go
 rune := rune('a')
+```
+
+`iota`. Gno reserves it everywhere, not just inside `const` blocks. Go accepts it
+as an ordinary identifier outside a `const` block; Gno rejects every binding site —
+variable declarations, function parameters, results and receivers, `range` and
+type-switch variables, and the init clause of a `for`:
+
+```go
+func f(iota int) {} // error: builtin identifiers cannot be shadowed: iota
+iota := 5           // same error
 ```
 
 ## Builtin types

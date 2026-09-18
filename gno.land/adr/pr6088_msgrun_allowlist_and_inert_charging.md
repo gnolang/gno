@@ -1331,7 +1331,7 @@ Closing the `add_package` row for real transactions still means running under
     still covered, and the gnomod rules are re-applied from the stored file at
     enable regardless.
 
-    > **Superseded** by `prxxxx_pkghash_bind_gnomod_private.md`. Excluding the
+    > **Superseded** by `pr6171_pkghash_bind_gnomod_private.md`. Excluding the
     > file left `private`, `draft`, `ignore` and the gno version outside the
     > approval, and `checkGnomodConstraints`' private-override guard does not
     > fire on a first deployment — so a realm approved private could be

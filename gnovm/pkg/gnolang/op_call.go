@@ -135,10 +135,10 @@ func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 	// (withQueryEvalMachine) and the test harness. So the materialized value
 	// answered the description too, matched again at the next hop, and the
 	// rebuild cascaded down the whole call chain — handing each callee a fresh
-	// identity of its own instead of its caller's, and skipping the security
-	// check at every level because a rebuilt cur is exempt from it. Fail-open:
-	// the minted identity's Previous() reads as a direct user call, which is
-	// MORE authority than the caller had.
+	// identity of its own instead of its caller's, and skipping the check below
+	// at every level, since a rebuilt cur is exempt from it. It failed open:
+	// the minted identity's Previous() reads as a direct user call, which is a
+	// wider answer than the caller's own.
 	//
 	// The preprocessor's placeholder is a single package-level value created
 	// once (gOriginRealmTV), so pointer identity answers exactly the question
@@ -438,8 +438,7 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 	if fv.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
 		// Capture the caller's live crossing cur BEFORE this frame's Cur is
 		// set: topCrossingCur skips frames whose Cur is still unset, so right
-		// now it resolves to the caller's, not ours. Used by the security
-		// check below.
+		// now it resolves to the caller's, not ours. Used by the check below.
 		callerCur, hasCallerCur := m.topCrossingCur()
 
 		// Unwrap a heap-promoted slot: when cur is captured by a nested
@@ -472,45 +471,41 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 				*bvSlot = fresh
 			}
 		}
-		// SECURITY: a crossing function entered without cross() inherits its
-		// frame Cur verbatim from the caller-supplied `cur` argument. When
-		// there is a live crossing caller, that argument must be the caller's
-		// OWN current cur — the only realm value a crossing function can pass
-		// on by the name `cur` (preprocess rejects any other first arg to a
-		// no-cross crossing call). Threading `cur` unchanged, and delegating
-		// it to another realm's executor/callback, both preserve HIV
-		// identity; rebinding `cur = cur.Previous()` (or to any other realm
-		// value) does not. A mismatch means the caller laundered an identity
-		// it was never handed, which would otherwise become this frame's Cur
-		// and satisfy rlm.IsCurrent()/cross(rlm) for that forged identity.
-		// Preprocess rejects the two source-level routes to writing that
-		// slot: `cur = ...` (AssignStmt) and `&cur` (RefExpr). This is the
-		// runtime backstop, so the authorized actor can never be
-		// caller-chosen even if a preprocess gap is found.
+		// The inherited cur must be the CALLER'S OWN. A crossing function
+		// entered without cross() takes its frame Cur verbatim from the
+		// caller-supplied `cur` argument, so when there is a live crossing
+		// caller that argument has to be that caller's own current cur — the
+		// only realm value a crossing function can pass on by the name `cur`
+		// (preprocess rejects any other first arg to a no-cross crossing
+		// call). Threading `cur` unchanged, and delegating it to another
+		// realm's executor or callback, both preserve HIV identity; a `cur`
+		// that was rebound, or captured in a different frame, does not. A
+		// mismatch means this frame would run as a realm its caller is not
+		// in, and IsCurrent()/cross(rlm) would then agree with that.
 		//
-		// DO NOT DELETE THIS AS DEAD CODE. An earlier revision of this fix
-		// called it "unreachable from source once the preprocess rejection
-		// is in place", and that was false within the same commit:
-		// `p := &cur; *p = cur.Previous()` matched no LHS rule, deployed
-		// cleanly, and was caught HERE and nowhere else. The RefExpr
-		// rejection closes that particular route, but the lesson is that
-		// "unreachable from source" is a claim about having enumerated every
-		// syntactic route, and it was wrong the first time it was made. This
-		// check does not depend on that enumeration being complete, which is
-		// the only reason it is worth keeping.
+		// DO NOT DELETE THIS AS DEAD CODE. An earlier revision of this change
+		// called it "unreachable from source once the preprocess rejection is
+		// in place", and that was false within the same commit:
+		// `p := &cur; *p = cur.Previous()` matched no LHS rule, compiled
+		// cleanly, and was caught HERE and nowhere else. The RefExpr rejection
+		// closes that particular route, but the lesson is that "unreachable
+		// from source" is a claim about having enumerated every syntactic
+		// route, and it was wrong the first time it was made. This check does
+		// not depend on that enumeration being complete, which is the only
+		// reason it is worth keeping.
 		//
 		// Skipped when there is no crossing caller (a bootstrap entry:
 		// main/init/origin, a top-level MsgRun/query, or a test harness
 		// seeding cur through non-crossing frames) and when the cur was
 		// rebuilt from the preprocess-origin placeholder above.
 		if hasCallerCur && !rebuilt && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
-			// WORDED FOR THE PERSON MOST LIKELY TO SEE IT, who is not an
-			// attacker. The reachable source shape is a closure that captured
-			// `cur` in one crossing frame and is called from another, which is
-			// an ordinary mistake; "the caller passed a laundered realm value"
-			// accused them of an attack and named no remedy. This mirrors the
-			// cross() path's wording, which already says "stale capture or
-			// sibling frame" for the same underlying condition.
+			// WORDED FOR THE PERSON MOST LIKELY TO SEE IT. The reachable
+			// source shape is a closure that captured `cur` in one crossing
+			// frame and is called from another, which is an ordinary mistake,
+			// so the message names that shape and the remedy rather than the
+			// invariant. This mirrors the cross() path's wording, which already
+			// says "stale capture or sibling frame" for the same underlying
+			// condition.
 			panic(fmt.Sprintf(
 				"crossing function %s.%s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
 				fv.PkgPath, fv.Name))

@@ -15,6 +15,12 @@ on:
       # The reusable workflow this one calls; see the note in
       # ci-dir-examples.yml.
       - .github/workflows/_ci-go.yml
+      # TestReleaseToolingMatchesTheParser in gno.land/pkg/gnoland holds the
+      # release scripts to parseReleaseVersion, so a change to them (or to the
+      # workflow they mirror) has to run this job.
+      - misc/release/**
+      - misc/govdao-scripts/set-halt.sh
+      - .github/workflows/release-chain-tag.yml
       # *.md is prose, except in the gno source trees where it is valid
       # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns).
       # Order matters: a later positive pattern wins over an earlier negation.

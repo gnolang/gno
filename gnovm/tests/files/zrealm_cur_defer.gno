@@ -1,14 +1,14 @@
 // PKGPATH: gno.land/r/demo/curdefer
 package curdefer
 
-// A DEFERRED crossing call must be checked like any other. doOpReturnCallDefers
+// A DEFERRED crossing call must be treated like any other. doOpReturnCallDefers
 // duplicates doOpCall's block setup — its own comment says so — and the copy
 // left out the part that installs the frame's identity and checks it. So this
 // ran happily, while the identical call without `defer` was refused.
 //
 // The shape is the same stale capture as zrealm_cur_backstop.gno: cb captured
-// main's cur, but runs inside exec's frame. Deferring it changed nothing about
-// whose identity is being borrowed, only which dispatch path carried it.
+// main's cur but runs inside exec's frame. Deferring it changes nothing about
+// whose identity is being taken, only which dispatch path carries it.
 
 func target(cur realm) {
 	println("target:", cur.PkgPath())

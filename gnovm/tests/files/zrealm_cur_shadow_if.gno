@@ -4,13 +4,13 @@ package curshadowif
 // Same as zrealm_cur_shadow_call.gno through an if-init: the shadow is owned
 // by the IfStmt, so passing it to a crossing helper is refused.
 
-func steal(cur realm) {
+func probe(cur realm) {
 	_ = cur.IsCurrent()
 }
 
 func main(cur realm) {
 	if cur := cur.Previous(); cur != nil {
-		steal(cur)
+		probe(cur)
 	}
 }
 

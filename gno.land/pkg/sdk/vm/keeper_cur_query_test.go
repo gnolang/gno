@@ -20,11 +20,12 @@ import (
 // address is ALSO empty — which matches the same test at the next hop, and the
 // next. Under a query the rebuild therefore cascaded the whole way down: every
 // callee got a fresh identity of its own pkgPath instead of the caller's, and
-// the security check was skipped at every level because a rebuilt cur is
+// doOpCall's inherit check was skipped at every level, since a rebuilt cur is
 // exempt from it.
 //
-// Fail-open is the part that matters: the minted identity's Previous() reads as
-// a direct user call, which is MORE authority than the caller had, not less.
+// It failed open, which is the part that matters: the minted identity's
+// Previous() reads as a direct user call — a wider answer than the caller's own,
+// not a narrower one.
 func TestCurIsThreadedIdenticallyUnderQueryAndTx(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
