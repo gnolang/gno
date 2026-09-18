@@ -348,30 +348,17 @@ inside a block, and released together — so they cannot drift apart, and no
 consumer exists to ask about one without the other. Nor does a second counter
 save work: a handler already knows which store it touched.
 
-**A separate `node:p:upgrade_name` param.** Rejected. It would break
-`NewSetHaltRequest`'s public realm signature (three tests pin the arity at
-`params_test.gno:21,28,35`), widen a public contract that already includes two
-documented query paths and the `set_halt` event payload, and add a second source
-of truth for the question `halt_min_version` already answers. The lookup only
-happens while an upgrade is pending — the params are cleared once it has run — so
-any binary that satisfies the floor is by construction one that carries the
-entry. The two are the same predicate wherever it is consulted, and the second
-param buys nothing.
+**A separate `node:p:upgrade_name` param**, as Cosmos has. Rejected. It would
+break `NewSetHaltRequest`'s public realm signature and add a second source of
+truth for the question `halt_min_version` already answers.
 
-**Cosmos's name-only plan.** `x/upgrade`'s `Plan` is `{Name, Height, Info}` —
-there has never been a version field. That is not a rejection of the version
-approach so much as its unavailability: `x/upgrade` ships to hundreds of chains
-with their own binaries, tag schemes and version strings, so the SDK has no
-equivalent of `tm2/pkg/version.Version` to read, and no guarantee any chain's
-string is even semver. A name is opaque, so it works everywhere. Cosmos then
-matches the name exactly and lets cosmovisor supply the right binary per height,
-and a stable name survives patch releases cut between the vote and the halt
-height.
-
-The price Cosmos pays is that a wrong binary surfaces as a consensus panic at
-the upgrade height rather than a refused startup — a large part of why cosmovisor
-exists. gno has exactly the thing the SDK lacks: one binary, one release process,
-one version string it controls and can parse. It should use it.
+Cosmos's `Plan` is `{Name, Height, Info}` and has never had a version field, but
+that is unavailability rather than preference: `x/upgrade` ships to hundreds of
+chains with their own binaries and tag schemes, so the SDK has no equivalent of
+`tm2/pkg/version.Version` to read, and no guarantee any chain's string is even
+semver. A name is opaque, so it works everywhere. gno has exactly what the SDK
+lacks — one binary, one release process, one version string it controls and can
+parse — so the name would carry no information the version does not.
 
 ### The release version as the format version
 
