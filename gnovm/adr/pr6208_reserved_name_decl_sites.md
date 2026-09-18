@@ -2,87 +2,101 @@
 
 ## Status
 
-Proposed in #6208 as an alternative to #6196, whose other fixes it carries
-(`pr6196_cur_binding_followups.md`). Closes #6181 part A.
+Proposed in #6208 as an alternative to #6196, whose fixes it carries.
+Closes #6181 part A.
 
 ## Context
 
-Gno refuses to shadow a builtin (`len := 3` fails with "builtin identifiers
-cannot be shadowed"), but the check ran at only two places: package-level
-declarations (`predefineRecursively2`) and `var`/`:=` name expressions
-(`fillNameExprPath`). Parameters, named results, receivers, type-switch
-variables, range DEFINEs and for-init DEFINEs were never checked, so
-`func f(len int)` and `for len := range xs` compiled (#6181).
+#6193 made the crossing `cur` parameter a fixed binding: three preprocess
+write rules (assignment, address-of, range target) plus a runtime identity
+check in `installInheritedCur`. A post-merge review found: a same-scope
+`cur, x := ...` rebound the parameter because the assignment rule skipped
+`DEFINE`; the write rules refused a package-level `var cur realm` and a named
+result `(cur realm)` that were not the parameter, and `func F(_ realm) (cur
+realm)` let a result pose as the binding; realm tests using `t.Run` after a
+`cross()` panicked in the identity check; the identity panic named nothing for
+a function literal; `curUsesPreprocessOrigin`'s header was stale. #6196 fixed
+these and made a realm-typed `cur` declarable only as a crossing function's
+first parameter, with a type-based `checkRealmCurDecl` wired per site.
 
-#6196 made a realm-typed `cur` declarable only as a crossing function's first
-parameter, with a type-based `checkRealmCurDecl` wired at exactly the sites
-above. Its review proposed, and has not yet settled, reserving `cur` by
-*name*, like the builtins: a `cur` in a realm reads as the frame's identity to
-every reader, and an int named `cur`, or a shadow in an inner block, defeats
-that reading even where it is safe. That is the same question #6181 asks about
-builtins, so this PR puts both on one check and offers it for that decision.
+Separately, Gno refuses to shadow a builtin (`len := 3` fails), but only at
+package-level declarations and `var`/`:=`. Parameters, results, receivers,
+type-switch variables, range and for-init DEFINEs were never checked (#6181).
+#6196's review asked whether `cur` should be reserved by *name* like the
+builtins: a `cur` in a realm reads as the frame's identity to every reader,
+and an int named `cur` defeats that reading even where it is safe. Both are
+one question, and #6196's per-site check kept missing sites (the type-switch
+variable; then func, type and import names).
 
 ## Decision
 
-**One name-based check, at the one funnel every binding passes through.**
-`initStaticBlocks2` already enumerates every source binding — `:=`, `var`,
-`const`, `type`, `func`, import, receiver, params, results, range key/value,
-type-switch var — and reserves each through `StaticBlock.Reserve`. `Reserve`
-now calls `checkDeclName(name)`, which refuses a builtin name and, by name,
-`cur`. A first parameter named `cur` is carved out by position
-(`NSFuncParam`, index 0); `checkCurParamType`, at the FuncDecl and FuncLitExpr
-handlers where the function type is resolved, then requires that parameter to
-be realm-typed. One extra line at the `SwitchStmt` covers a clause-less type
-switch, whose variable no clause ever reserves.
+**One name-based check at the one funnel every binding passes through.**
+`initStaticBlocks2` enumerates every source binding (`:=`, `var`, `const`,
+`type`, `func`, import, receiver, params, results, range key/value,
+type-switch var) and reserves each through `StaticBlock.Reserve`. `Reserve`
+now calls `checkDeclName`, which refuses a builtin name and, by name, `cur`. A
+first parameter named `cur` is carved out by position; `checkCurParamType`,
+where the function type is resolved, requires it to be realm-typed. One line
+at the `SwitchStmt` covers a clause-less type switch. A `:=` in a block where
+the name is already reserved is not re-reserved; the write rules refuse it as
+a rebind. Function types and interface methods are not bindings and are not
+checked. The older builtin-only checks in `predefineRecursively2` and
+`fillNameExprPath` stay; `Reserve` fires before both.
 
-A `:=` in a block where the name is already reserved (the crossing parameter's
-own block) is not a declaration and is not re-reserved; the write rules refuse
-it as a rebind, with their message. Function *types* and interface methods
-are not bindings and are not checked; the result-name check #6196 placed in
-the `FuncTypeExpr` handler is gone for that reason. The two older builtin-only
-checks in `predefineRecursively2` and `fillNameExprPath` stay as they were;
-`Reserve` fires before both.
+**The write rules key on name plus resolved realm type**, after the
+`DEFINE`/`ASSIGN` branch so a same-scope `cur, x :=` is refused. "A `cur` is the
+parameter" implies the invariant they rely on; the cur-call provenance check is
+belt-and-braces.
 
-**The write rules are unchanged.** They still key on name plus resolved realm
-type; the invariant they rely on ("a realm-typed `cur` is the parameter") is
-now implied by the stronger "a `cur` is the parameter".
+**Carried from #6196 unchanged.** The identity check exempts calls dispatched
+by package `testing` (`harnessSeedsCur`): the harness seeds a crossing sub-test
+with the top-level test's `cur` on purpose, and the package is unreachable from
+chain code. `funcDisplayName` falls back to the source location, then `<func
+literal>`. The `curUsesPreprocessOrigin` header states the pointer-identity
+semantics. The unmetered frame walk in `installInheritedCur` is left as is: a
+gas change is consensus-visible and rides with the schedule work
+(gnolang/gno-fixes#115, `NOTE` at the call site).
 
 ## Alternatives considered
 
-- **Keep `cur` type-based** and fix only the builtin sites. Not taken: it
-  leaves `cur` locals and params of other types in realm code, which is the
-  confusion the reservation exists to prevent, and keeps two checks.
-- **Call the check at each declaration site in `preprocess1`.** The first cut
-  did this at some fifteen sites and still missed func, type and import names.
-  `Reserve` is the mechanism every binding already goes through.
+- **#6196's type-based check, per site.** Sufficient for the write rules, but
+  it must run where each type resolves, so it is wired by hand and missed
+  sites twice; and it leaves `cur := 41` or `var cur any = rlm` legal, so a
+  reader must resolve a type to know what `cur` is.
 - **Check in `Define`/`Define2`.** Too deep: uverse defines the builtins
-  through `Define2`, faux blocks re-define already-checked names, and heap
-  captures define `~name`.
-- **Reserve `cur` for struct fields, methods, labels.** Not done: none is a
-  block binding, all are qualified or in another namespace.
+  through `Define2`, faux blocks re-define checked names, heap captures define
+  `~name`.
+- **Reserve `cur` for struct fields, methods, labels.** Not bindings; qualified
+  or in another namespace.
+- **Keep the `DEFINE` carve-out in the assignment rule.** Its rationale, "the
+  name is new", is false for a same-scope `:=`.
+- **Change the harness to seed the live cur.** No getter exists; a wider
+  testing-stdlib change for the same behavior.
 - **Fix the error span** (#6181 part B). Out of scope.
 
 ## Consequences
 
-- Compatibility: any binding of a builtin name or of `cur` outside a crossing
-  first parameter is now a preprocess error. In-tree renames: `math/modf.gno`
-  (results `int` → `ip`), the `getRealm` native declarations in
-  `chain/runtime/unsafe` (result `address` → `addr`; Go bindings are
-  positional), `p/onbloc/diff` (`new` → `newStr`), `p/nt/bylaws` and
-  `r/nt/commondao` (`cur` locals → `current`), `p/nt/seqid` test (`cur` →
-  `id`), four quarantined files, and three VM fixtures.
-- App hash: stdlib sources live in state, so renaming `math/modf.gno` and
-  `unsafe.gno` moves the multistore root; `expectedCrossrealm38Hash` is
-  re-pinned, as are the byte-size goldens in `restart_gas.txtar` and
-  `storage_deposit_price_change.txtar`. Verified by reverting only the check:
-  every number is the same new value, so the check charges no gas.
-- On-chain: a deployed production package binding one of these names fails
-  at the next node restart. `PreprocessAllFilesAndSaveBlockNodes` has no
-  per-package recover, so the node does not start. The deployed-code scan
-  #6193 and #6196 called for is therefore a precondition to releasing this,
-  not a follow-up; the names to scan for are the uverse block names plus `cur`.
+- Compatibility: any binding of a builtin name, or of `cur` outside a crossing
+  first parameter, is a preprocess error. In-tree: `math/modf.gno` results
+  `int` → `ip`; `chain/runtime/unsafe` `getRealm` result `address` → `addr`
+  (Go bindings are positional); `p/onbloc/diff` `new` → `newStr`; `cur` locals
+  in `p/nt/bylaws`, `r/nt/commondao`, `p/nt/seqid` test, four quarantined
+  files, three VM fixtures; the `var cur realm` nil placeholders in 28 examples
+  test files renamed to `rlm` or deleted.
+- App hash: stdlib sources live in state, so the renames move the multistore
+  root; `expectedCrossrealm38Hash` and the byte-size goldens in
+  `restart_gas.txtar` and `storage_deposit_price_change.txtar` are re-pinned.
+  Reverting only the check leaves every number at the new value: the check
+  charges no gas. No gas schedule change.
+- On-chain: a deployed production package binding one of these names fails at
+  the next node restart; `PreprocessAllFilesAndSaveBlockNodes` has no
+  per-package recover. The deployed-code scan #6193 called for is a
+  precondition to release, for the uverse block names plus `cur`.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
-  binding site, `shadow_builtin_functype_legal.gno` (types are not bindings);
-  `zrealm_cur_alias*.gno` pin the resolved-type rule through a non-`cur` first
-  parameter and a bare function type, since a second `cur` is refused by name.
+  binding site; `shadow_builtin_functype_legal.gno`; `zrealm_cur_alias*.gno`
+  pin the resolved-type rule through a non-`cur` first parameter and a bare
+  function type; the four `zrealm_cur_shadow*.gno` are deleted (the shadow is
+  now a declaration error); `zrealm_cur_reassign_define.gno`,
+  `zrealm_cur_closure.gno`, `cur_subtest_test.gno`, `op_call_test.go`.
 - Docs: `go-gno-compatibility.md` and `gno-interrealm.md` state the rule.
+- The runtime identity check has no known reachable source route and is kept.
