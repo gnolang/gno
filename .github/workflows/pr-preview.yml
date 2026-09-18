@@ -3,8 +3,9 @@
 #
 # This is the UNTRUSTED half: it runs the pull request's own code (gnodev, the
 # realms, misc/gnopreview) and therefore has a read-only token and no secrets.
-# It only produces an artifact. Publishing it — pushing to gh-pages, writing the
-# PR comment — happens in pr-preview-publish.yml, which never checks out PR code.
+# It only produces an artifact. Publishing it — pushing to gnolang/gno-previews,
+# writing the PR comment — happens in pr-preview-publish.yml, which never checks
+# out PR code and never trusts what this job wrote beyond the rendered HTML.
 #
 # No artifact means no comment: a PR that changes neither a realm, a realm
 # dependency nor gnoweb is silently skipped.
@@ -102,12 +103,16 @@ jobs:
           rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*
           du -sh _preview
 
-      # The publishing job runs on workflow_run, where the PR number is not
-      # available for fork pull requests — carry it in the artifact instead.
-      # Not a dotfile: upload-artifact drops hidden files by default.
-      - name: Pack the snapshot for the publishing job
-        if: steps.plan.outputs.skip != 'true'
-        run: echo "$PR" > _preview/pr-number.txt
+      # The render step deletes the logs on success, and no later step runs on
+      # failure — so without this a gnodev that never came up leaves nothing to
+      # read but "not ready".
+      - name: Show the gnodev log
+        if: failure()
+        run: |
+          for f in _preview/gnodev.log _preview/gnodev-base.log; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"; tail -100 "$f"; echo "::endgroup::"
+          done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.plan.outputs.skip != 'true'

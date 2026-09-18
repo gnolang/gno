@@ -58,7 +58,6 @@ jobs:
               exit 0
             fi
             rm -rf "pr-$PR"
-            ./bin/reindex.sh
             git add -A
             if git diff --cached --quiet; then
               echo "nothing to clean"

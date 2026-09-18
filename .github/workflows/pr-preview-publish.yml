@@ -10,6 +10,11 @@
 # push. A GitHub Pages site built by an Actions workflow — like this repository's godoc
 # site — has no incremental deploy, so sharing it would rebuild and re-upload the whole
 # documentation mirror for every preview. See gnolang/gno-previews/README.md.
+#
+# Note that the previews site shares the gnolang.github.io origin with the
+# organisation's other Pages sites. The snapshots are static and hold no
+# credentials, and every page is noindex, but it is why previews are not given a
+# hostname that could be mistaken for production.
 name: pr / preview publish
 
 on:
@@ -53,14 +58,40 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read the pull request number
+      # NEVER take the pull request number from the artifact: the render job runs
+      # the fork's own copy of pr-preview.yml, so a malicious pull request could
+      # name any number and this job would replace that pull request's preview
+      # and PATCH its comment. Resolve it from the workflow_run payload, which
+      # the fork does not control. (workflow_run.pull_requests is empty for fork
+      # heads, hence the lookup.)
+      - name: Resolve the pull request from the trusted run metadata
         if: steps.download.outcome == 'success'
         id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          pr=$(tr -dc '0-9' < _preview/pr-number.txt)
-          [ -n "$pr" ] || { echo "::error::artifact carries no PR number"; exit 1; }
+          prs=$(gh api "repos/$REPO/pulls?state=open&per_page=100&head=$HEAD_OWNER:$HEAD_BRANCH" \
+                  --jq '.[] | "\(.number) \(.head.sha)"')
+          n=$(printf '%s\n' "$prs" | grep -c . || true)
+          if [ "$n" -eq 0 ]; then
+            echo "no open pull request for $HEAD_OWNER:$HEAD_BRANCH — closed while rendering; nothing to publish"
+            exit 0
+          fi
+          if [ "$n" -gt 1 ]; then
+            echo "::error::$n open pull requests share head $HEAD_OWNER:$HEAD_BRANCH; refusing to guess"
+            exit 1
+          fi
+          pr=${prs%% *}
+          sha=${prs##* }
+          if [ "$sha" != "$HEAD_SHA" ]; then
+            echo "PR #$pr has moved to $sha since this run ($HEAD_SHA) — a newer run will publish"
+            exit 0
+          fi
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          rm -f _preview/pr-number.txt
 
       # A separate repository needs a credential of its own: GITHUB_TOKEN is scoped to
       # this one. A deploy key rather than a PAT — it cannot reach any repository but
@@ -68,7 +99,7 @@ jobs:
       # commits are not attributed to whoever minted it. Credentials are persisted
       # because pushing is the point, and this job uploads no artifact to leak them into.
       - name: Check out the previews repository
-        if: steps.download.outcome == 'success'
+        if: steps.meta.outputs.pr
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
         with:
           repository: ${{ env.PREVIEWS_REPO }}
@@ -81,11 +112,24 @@ jobs:
       # the latest main and redo the copy. It only ever rewrites our own directory plus
       # the generated index, so replaying is idempotent and cannot clobber another PR.
       - name: Publish pr-<N>
-        if: steps.download.outcome == 'success'
+        if: steps.meta.outputs.pr
         working-directory: previews
         env:
           PR: ${{ steps.meta.outputs.pr }}
+          # Worst case measured is 8.8 MiB; this is headroom, not a target.
+          MAX_PREVIEW_MIB: "40"
         run: |
+          # The artifact comes from a job running the pull request's own code.
+          # A .git inside it makes `git add -A` record pr-<N> as a gitlink
+          # (mode 160000, reproduced), which GitHub Pages reports as a build
+          # error — and a failed build stops publishing for every preview, not
+          # just this one. The size cap bounds the shared 1 GB site the same way.
+          find ../_preview -name .git -prune -exec rm -rf {} +
+          size=$(du -sm ../_preview | cut -f1)
+          if [ "$size" -gt "$MAX_PREVIEW_MIB" ]; then
+            echo "::error::preview is ${size} MiB, over the ${MAX_PREVIEW_MIB} MiB cap"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3 4 5; do
@@ -94,7 +138,6 @@ jobs:
             rm -rf "pr-$PR"
             mkdir -p "pr-$PR"
             cp -r ../_preview/. "pr-$PR/"
-            ./bin/reindex.sh
             git add -A
             if git diff --cached --quiet; then
               echo "preview unchanged"
@@ -114,16 +157,19 @@ jobs:
       # The body was written by the untrusted job, so it is treated as data: passed
       # through a file, never interpolated into a shell command.
       - name: Upsert the sticky comment
-        if: steps.download.outcome == 'success'
+        if: steps.meta.outputs.pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR: ${{ steps.meta.outputs.pr }}
         run: |
           [ -s _preview/comment.md ] || { echo "no comment body — nothing to post"; exit 0; }
+          # Match the bot's own comment, not merely the marker: anyone can post
+          # a comment containing it, and this would then edit theirs forever.
           marker='<!-- gnoweb-pr-preview -->'
           id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-                --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -1)
+                --jq ".[] | select(.user.login == \"github-actions[bot]\")
+                          | select(.body | contains(\"$marker\")) | .id" | head -1)
           if [ -n "$id" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@_preview/comment.md >/dev/null
             echo "updated comment $id"

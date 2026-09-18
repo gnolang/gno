@@ -114,7 +114,7 @@ func render(cfg config, plan *Plan) error {
 	}
 
 	fmt.Printf("rendering %d realm(s): %s\n", len(plan.Realms), strings.Join(plan.Realms, " "))
-	stop, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
+	stop, died, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func render(cfg config, plan *Plan) error {
 		ChangedFiles: plan.ChangedFiles,
 		FileBudget:   fileBudget(plan),
 	}
-	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout); err != nil {
+	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
 		return err
 	}
 	if err := c.Run(); err != nil {
@@ -145,8 +145,8 @@ func render(cfg config, plan *Plan) error {
 	// a fixed sample of pages shows what the chrome now looks like. When a
 	// realm changed, the useful picture is that realm before and after.
 	if len(plan.ChangedRealms) > 0 {
-		base := renderBase(cfg, plan, c)
-		plan.Pairs = ScreenshotPairs(cfg.out, c, base, plan.ChangedRealms, cfg.chrome)
+		base, newRealms := renderBase(cfg, plan, c)
+		plan.Pairs = ScreenshotPairs(cfg.out, c, base, plan.ChangedRealms, newRealms, cfg.chrome)
 	} else if plan.Gnoweb {
 		plan.Shots = Screenshot(cfg.out, c, cfg.chrome)
 	}
@@ -164,7 +164,7 @@ func render(cfg config, plan *Plan) error {
 // startGnodev boots gnodev on the given package dirs of the given tree.
 // Dependencies resolve lazily out of examples/, so only the realms being
 // previewed are loaded.
-func startGnodev(cfg config, root string, dirs []string, port int, logName string) (func(), error) {
+func startGnodev(cfg config, root string, dirs []string, port int, logName string) (func(), <-chan error, error) {
 	examples := filepath.Join(root, examplesRel)
 	args := []string{
 		"local", "-no-watch",
@@ -182,7 +182,7 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
 	}
 	log, err := os.Create(filepath.Join(cfg.out, logName))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cmd := exec.Command(cfg.gnodev, args...)
 	cmd.Env = append(os.Environ(), "GNOROOT="+root)
@@ -190,14 +190,24 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		log.Close()
-		return nil, fmt.Errorf("start gnodev: %w", err)
+		return nil, nil, fmt.Errorf("start gnodev: %w", err)
 	}
+	// Nothing else watches this process. Without the channel, a gnodev that
+	// dies on startup — a port already taken, a realm that will not load —
+	// costs the full readiness timeout and reports "not ready", which says
+	// nothing about why.
+	died := make(chan error, 1)
+	waited := make(chan struct{})
+	go func() {
+		died <- cmd.Wait()
+		close(waited)
+	}()
 	return func() {
 		// gnodev spawns a node; kill the whole process group.
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		_ = cmd.Wait()
+		<-waited
 		log.Close()
-	}, nil
+	}, died, nil
 }
 
 // fileBudget allows a couple of per-file source pages for realms nothing
@@ -216,29 +226,33 @@ func fileBudget(plan *Plan) int {
 // by whatever else moved on master. Returns nil when there is no base checkout,
 // none of the changed realms exist there (all new), or the pass fails — a
 // missing "before" costs the comment one image, not the preview.
-func renderBase(cfg config, plan *Plan, head *Crawler) *Crawler {
+// It also reports which changed realms do not exist at the merge base at all —
+// the only sound basis for telling a reviewer a realm is new.
+func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]bool) {
 	if cfg.baseRoot == "" {
-		return nil
+		return nil, nil
 	}
+	newRealms := map[string]bool{}
 	var realms, dirs []string
 	for i, r := range plan.Realms {
 		if !contains(plan.ChangedRealms, r) {
 			continue
 		}
 		if _, err := os.Stat(filepath.Join(cfg.baseRoot, filepath.FromSlash(plan.Dirs[i]))); err != nil {
-			continue // added by this pull request
+			newRealms[r] = true // genuinely added by this pull request
+			continue
 		}
 		realms = append(realms, r)
 		dirs = append(dirs, plan.Dirs[i])
 	}
 	if len(realms) == 0 {
-		return nil
+		return nil, newRealms
 	}
 	port := cfg.port + 1
-	stop, err := startGnodev(cfg, cfg.baseRoot, dirs, port, "gnodev-base.log")
+	stop, died, err := startGnodev(cfg, cfg.baseRoot, dirs, port, "gnodev-base.log")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
-		return nil
+		return nil, newRealms
 	}
 	defer stop()
 
@@ -250,19 +264,19 @@ func renderBase(cfg config, plan *Plan, head *Crawler) *Crawler {
 		RenderOnly: true,
 		Prefix:     beforeDir,
 	}
-	if err := waitReady(base.Base, urlOf(realms[0]), cfg.timeout); err != nil {
+	if err := waitReady(base.Base, urlOf(realms[0]), cfg.timeout, died); err != nil {
 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
-		return nil
+		return nil, newRealms
 	}
 	if err := base.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
-		return nil
+		return nil, newRealms
 	}
 	if err := base.Write(cfg.out, ""); err != nil {
 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
-		return nil
+		return nil, newRealms
 	}
-	return base
+	return base, newRealms
 }
 
 // --- small helpers ---------------------------------------------------------

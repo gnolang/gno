@@ -13,7 +13,8 @@ func TestSplitURL(t *testing.T) {
 		in, base, args, query string
 	}{
 		{"/r/x/y", "/r/x/y", "", ""},
-		{"/r/x/y/", "/r/x/y", "", ""},
+		// the trailing slash is kept: gnoweb renders one and lists the other
+		{"/r/x/y/", "/r/x/y/", "", ""},
 		{"/r/x/y$source", "/r/x/y", "", "source"},
 		{"/r/x/y$source&file=a.gno", "/r/x/y", "", "source&file=a.gno"},
 		{"/r/x/y:p/about", "/r/x/y", "p/about", ""},
@@ -33,7 +34,8 @@ func TestCanonicalURL(t *testing.T) {
 	// gnoweb templates emit the web query in both orders; they are one page.
 	for _, tc := range []struct{ in, want string }{
 		{"/r/x/y", "/r/x/y"},
-		{"/r/x/y/", "/r/x/y"},
+		// the listing view keeps its slash: it is a different page
+		{"/r/x/y/", "/r/x/y/"},
 		{"/r/x/y$source&file=a.gno", "/r/x/y$file=a.gno&source"},
 		{"/r/x/y$file=a.gno&source", "/r/x/y$file=a.gno&source"},
 		{"/r/x/y:p/about$source", "/r/x/y:p/about$source"},
@@ -51,10 +53,12 @@ func TestURLToFile(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"/r/gnoland/home", "r/gnoland/home/index.html"},
 		{"/r/gnoland/home$source", "r/gnoland/home/_t/source/index.html"},
-		{"/r/gnoland/home$file=home.gno&source", "r/gnoland/home/_t/file-home.gno-source/index.html"},
-		{"/r/gnoland/blog:p/hello", "r/gnoland/blog/_a/p-hello/index.html"},
-		{"/r/gnoland/blog:p/hello$source", "r/gnoland/blog/_a/p-hello/_t/source/index.html"},
-		{"/r/", "r/index.html"},
+		// slugs that are not already a safe segment carry a digest of the input,
+		// so ":p/a-b", ":p/a/b" and ":p/a&b" cannot share a file
+		{"/r/gnoland/home$file=home.gno&source", "r/gnoland/home/_t/file-home.gno-source-2ca84ba4/index.html"},
+		{"/r/gnoland/blog:p/hello", "r/gnoland/blog/_a/p-hello-13cc55eb/index.html"},
+		{"/r/gnoland/blog:p/hello$source", "r/gnoland/blog/_a/p-hello-13cc55eb/_t/source/index.html"},
+		{"/r/", "r/_dir/index.html"},
 		{"/", "_root/index.html"},
 	} {
 		if got := urlToFile(tc.in); got != tc.want {
@@ -78,6 +82,8 @@ func TestCrawlerInScope(t *testing.T) {
 		{"/r/gnoland/home", true},
 		{"/r/gnoland/home$source", true},
 		{"/r/gnoland/home$file=home.gno&source", true},
+		// "/r/x/y/" is gnoweb's listing, a different page from the render.
+		{"/r/gnoland/home/", false},
 		{"/r/gnoland/home:p/x", true},
 		{"/r/demo/counter$help", true},
 		// out of the selected set
@@ -212,11 +218,11 @@ func TestWantFile(t *testing.T) {
 	// widely imported package cannot drag in a page per file per realm.
 	for i := range GnowebFileBudget {
 		u := fmt.Sprintf("/r/x/untouched$source&file=f%d.gno", i)
-		if !c.inScope(u) {
-			t.Errorf("inScope(%q) = false; want true within the budget", u)
+		if !c.inScope(u) || !c.chargeFile(u) {
+			t.Errorf("%q refused within the budget", u)
 		}
 	}
-	if c.inScope("/r/x/untouched$source&file=over.gno") {
+	if c.chargeFile("/r/x/untouched$source&file=over.gno") {
 		t.Error("budget exceeded but the page was still captured")
 	}
 }
@@ -231,5 +237,84 @@ func TestFileBudgetZeroDropsAllUnchanged(t *testing.T) {
 	}
 	if !c.inScope("/r/x/dep$source") {
 		t.Error("the source overview must still be captured")
+	}
+}
+
+func TestURLToFileIsSafe(t *testing.T) {
+	t.Parallel()
+	// gnoweb serves "/r/x/y:..", and path.Join would fold ".." onto the realm's
+	// own render page. No output may escape its realm directory.
+	for _, u := range []string{"/r/x/y:..", "/r/x/y$..", "/r/x/y:../..", "/r/x/y:."} {
+		got := urlToFile(u)
+		if got == "r/x/y/index.html" {
+			t.Errorf("urlToFile(%q) = %q — traversed onto the render page", u, got)
+		}
+		if !strings.HasPrefix(got, "r/x/y/") {
+			t.Errorf("urlToFile(%q) = %q — escaped the realm directory", u, got)
+		}
+		if strings.Contains(got, "/../") || strings.HasSuffix(got, "/..") {
+			t.Errorf("urlToFile(%q) = %q — contains a parent reference", u, got)
+		}
+	}
+
+	// Distinct URLs must not share a file.
+	seen := map[string]string{}
+	for _, u := range []string{
+		"/r/x/y:p/a-b", "/r/x/y:p/a/b", "/r/x/y:p/a&b",
+		"/r/x/y", "/r/x/y/", "/r/x/y$source",
+	} {
+		f := urlToFile(u)
+		if prev, dup := seen[f]; dup {
+			t.Errorf("urlToFile(%q) collides with %q on %q", u, prev, f)
+		}
+		seen[f] = u
+	}
+
+	// A long argument must not produce an unbounded path segment.
+	long := urlToFile("/r/x/y:" + strings.Repeat("z", 400))
+	for seg := range strings.SplitSeq(long, "/") {
+		if len(seg) > maxSlugLen+16 {
+			t.Errorf("segment %q is %d chars", seg, len(seg))
+		}
+	}
+}
+
+func TestSplitURLKeepsTrailingSlash(t *testing.T) {
+	t.Parallel()
+	// Measured on gnoweb: /r/gnoland/home is 62,174 bytes and /r/gnoland/home/
+	// is 48,642 — different pages. Trimming the slash merged them onto one file.
+	a, _, _ := splitURL("/r/x/y")
+	b, _, _ := splitURL("/r/x/y/")
+	if a == b {
+		t.Fatalf("splitURL collapsed the listing onto the render: both %q", a)
+	}
+}
+
+func TestSeedsSkipSingleSegmentDirs(t *testing.T) {
+	t.Parallel()
+	// gnoweb answers "/r" with 400; seeding it only buys a logged error.
+	c := &Crawler{Realms: []string{"gno.land/r/gnoland/home"}}
+	for _, s := range c.Seeds() {
+		if s == "/r" || s == "/p" {
+			t.Errorf("Seeds() includes %q, which gnoweb answers with 400", s)
+		}
+	}
+}
+
+func TestFileBudgetChargedOnCaptureNotDiscovery(t *testing.T) {
+	t.Parallel()
+	c := &Crawler{Realms: []string{"gno.land/r/x/y"}, FileBudget: 1}
+	// Discovery alone must not spend the budget: a link that 404s would
+	// otherwise consume the slot a real page needed.
+	for range 5 {
+		if !c.inScope("/r/x/y$source&file=a.gno") {
+			t.Fatal("discovery was refused before anything was captured")
+		}
+	}
+	if !c.chargeFile("/r/x/y$source&file=a.gno") {
+		t.Fatal("first capture refused")
+	}
+	if c.chargeFile("/r/x/y$source&file=b.gno") {
+		t.Error("second capture accepted with a budget of 1")
 	}
 }

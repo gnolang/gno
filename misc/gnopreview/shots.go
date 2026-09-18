@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Shot is one screenshot embedded in the PR comment.
@@ -43,12 +47,18 @@ type ShotPair struct {
 // and as this branch renders it. Both passes use the SAME gnoweb — the binary
 // and the assets come from the head — so what the pair shows is the realm
 // change and nothing else.
-func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, chrome string) []ShotPair {
+func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, newRealms map[string]bool, chrome string) []ShotPair {
 	bin := findChrome(chrome)
 	if bin == "" {
 		fmt.Fprintln(os.Stderr, "  ! no Chrome/Chromium found — publishing the preview without before/after")
 		return nil
 	}
+	srv, origin, err := serve(outDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "  ! screenshot server:", err)
+		return nil
+	}
+	defer srv.Close()
 	if err := os.MkdirAll(filepath.Join(outDir, shotsDir), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "  !", err)
 		return nil
@@ -64,25 +74,23 @@ func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, chrome
 			continue
 		}
 		name := slug(strings.TrimPrefix(urlOf(r), "/"))
-		pair := ShotPair{Realm: r, URL: path.Dir(afterFile) + "/"}
-		if err := chromeShot(bin, filepath.Join(outDir, filepath.FromSlash(afterFile)),
+		pair := ShotPair{Realm: r, URL: path.Dir(afterFile) + "/", New: newRealms[r]}
+		if err := chromeShot(bin, origin+"/"+afterFile,
 			filepath.Join(outDir, shotsDir, name+"-after.png")); err != nil {
 			fmt.Fprintf(os.Stderr, "  ! screenshot %s (after): %v\n", r, err)
 			continue
 		}
 		pair.After = path.Join(shotsDir, name+"-after.png")
 
-		// A realm added by this pull request has no "before"; say so rather
-		// than inventing one. With no base pass at all, say nothing.
+		// "New in this PR" is asserted only from the merge-base tree, never
+		// inferred from a missing capture: a base pass that ran but failed on
+		// this realm would otherwise be reported as the realm not existing.
 		if base != nil {
-			pair.New = true
 			if beforeFile, ok := base.FileOf(urlOf(r)); ok {
-				if err := chromeShot(bin, filepath.Join(outDir, filepath.FromSlash(beforeFile)),
+				if err := chromeShot(bin, origin+"/"+beforeFile,
 					filepath.Join(outDir, shotsDir, name+"-before.png")); err == nil {
 					pair.Before = path.Join(shotsDir, name+"-before.png")
-					pair.New = false
 				} else {
-					pair.New = false
 					fmt.Fprintf(os.Stderr, "  ! screenshot %s (before): %v\n", r, err)
 				}
 			}
@@ -111,6 +119,12 @@ func Screenshot(outDir string, c *Crawler, chrome string) []Shot {
 		fmt.Fprintln(os.Stderr, "  ! no Chrome/Chromium found — publishing the preview without screenshots")
 		return nil
 	}
+	srv, base, err := serve(outDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "  ! screenshot server:", err)
+		return nil
+	}
+	defer srv.Close()
 	if err := os.MkdirAll(filepath.Join(outDir, shotsDir), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "  !", err)
 		return nil
@@ -121,9 +135,8 @@ func Screenshot(outDir string, c *Crawler, chrome string) []Shot {
 		if !ok {
 			continue
 		}
-		src := filepath.Join(outDir, filepath.FromSlash(p.File))
 		dst := filepath.Join(outDir, shotsDir, s.name+".png")
-		if err := chromeShot(bin, src, dst); err != nil {
+		if err := chromeShot(bin, base+"/"+p.File, dst); err != nil {
 			fmt.Fprintf(os.Stderr, "  ! screenshot %s: %v\n", s.url, err)
 			continue
 		}
@@ -133,11 +146,24 @@ func Screenshot(outDir string, c *Crawler, chrome string) []Shot {
 	return shots
 }
 
-func chromeShot(bin, src, dst string) error {
-	abs, err := filepath.Abs(src)
+// serve exposes the snapshot over HTTP on a loopback port. Chrome refuses to
+// load ES modules over file:// (CORS), and gnoweb loads every one of its
+// controllers that way — measured: 0 controllers initialise over file://, 3
+// over http://, so a file:// screenshot is silently the no-JS rendering.
+func serve(dir string) (io.Closer, string, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return err
+		return nil, "", err
 	}
+	srv := &http.Server{
+		Handler:           http.FileServer(http.Dir(dir)),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go srv.Serve(ln) //nolint:errcheck // Serve always returns on Close
+	return ln, "http://" + ln.Addr().String(), nil
+}
+
+func chromeShot(bin, url, dst string) error {
 	out, err := filepath.Abs(dst)
 	if err != nil {
 		return err
@@ -153,7 +179,7 @@ func chromeShot(bin, src, dst string) error {
 		// frame is grabbed; without it the shot is unstyled text.
 		"--virtual-time-budget=4000",
 		"--screenshot="+out,
-		"file://"+abs,
+		url,
 	)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(b)))

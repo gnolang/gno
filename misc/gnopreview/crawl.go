@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"html"
 	"io"
@@ -88,7 +90,9 @@ func (c *Crawler) Seeds() []string {
 		}
 		add(u + "$source")
 		add(u + "$help")
-		for d := path.Dir(u); d != "/" && d != "."; d = path.Dir(d) {
+		// Walk up to the directory pages, but stop above "/r": gnoweb answers a
+		// single-segment path with 400, so seeding it only buys a logged error.
+		for d := path.Dir(u); strings.Count(d, "/") >= 2; d = path.Dir(d) {
 			dirs[d] = true
 		}
 	}
@@ -129,6 +133,10 @@ func (c *Crawler) Run() error {
 		}
 		if code != http.StatusOK {
 			fmt.Fprintf(os.Stderr, "  ! %s: HTTP %d\n", u, code)
+			continue
+		}
+		if !c.chargeFile(u) {
+			fmt.Printf("  - %s (per-file budget spent)\n", u)
 			continue
 		}
 		p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), Body: body}
@@ -177,6 +185,12 @@ func (c *Crawler) inScope(p string) bool {
 	if args != "" && query != "" {
 		return false
 	}
+	// "/r/x/y/" is gnoweb's listing view, a different page from the render at
+	// "/r/x/y". Rather than capture both, keep the render and let the listing
+	// fall through to the live site — a preview is about what a realm renders.
+	if strings.HasSuffix(base, "/") {
+		return false
+	}
 	realm := ""
 	for _, r := range c.Realms {
 		if base == urlOf(r) {
@@ -206,17 +220,45 @@ const GnowebFileBudget = 2
 // wantFile decides whether a realm's $source&file=<name> page is worth keeping.
 // Measured on a 25-realm preview: per-file source pages were 133 of 243 pages
 // and 13.3 MB of 22.2 MB. A reviewer wants the files the PR touched.
+//
+// This only tests the budget. Charging it is chargeFile's job, called once the
+// page is actually captured — a link that is discovered and then 404s must not
+// spend a slot that a page which really exists could have used.
 func (c *Crawler) wantFile(realm, name string) bool {
 	if changed, ok := c.ChangedFiles[realm]; ok {
 		return slices.Contains(changed, name)
 	}
-	if c.fileBudget == nil {
-		c.fileBudget = map[string]int{}
+	return c.fileBudget[realm] < c.FileBudget
+}
+
+// chargeFile spends one budget slot, and reports whether the page may be kept.
+func (c *Crawler) chargeFile(u string) bool {
+	base, _, query := splitURL(u)
+	name := ""
+	for part := range strings.SplitSeq(query, "&") {
+		if k, v, _ := strings.Cut(part, "="); k == "file" {
+			name = v
+		}
 	}
-	if c.fileBudget[realm] >= c.FileBudget {
-		return false
+	if name == "" {
+		return true // not a per-file page
 	}
-	c.fileBudget[realm]++
+	for _, r := range c.Realms {
+		if base != urlOf(r) {
+			continue
+		}
+		if _, listed := c.ChangedFiles[r]; listed {
+			return true // gated by the changed set, not the budget
+		}
+		if c.fileBudget == nil {
+			c.fileBudget = map[string]int{}
+		}
+		if c.fileBudget[r] >= c.FileBudget {
+			return false
+		}
+		c.fileBudget[r]++
+		return true
+	}
 	return true
 }
 
@@ -226,8 +268,11 @@ func (c *Crawler) wantFile(realm, name string) bool {
 //	/r/x/y                     -> "/r/x/y", "",        ""
 //	/r/x/y$source&file=a.gno   -> "/r/x/y", "",        "source&file=a.gno"
 //	/r/x/y:p/about$source      -> "/r/x/y", "p/about", "source"
+//
+// The trailing slash is NOT trimmed: in gnoweb "/r/x/y" renders and "/r/x/y/"
+// lists, and they are different pages of different sizes. Collapsing them would
+// map both onto one file and let one overwrite the other.
 func splitURL(p string) (base, args, query string) {
-	p = strings.TrimSuffix(p, "/")
 	if i := strings.Index(p, "$"); i >= 0 {
 		p, query = p[:i], p[i+1:]
 	}
@@ -440,11 +485,17 @@ var unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 //	/r/x/y:p/about$source  ->  r/x/y/_a/p-about/_t/source/index.html
 func urlToFile(u string) string {
 	base, args, query := splitURL(strings.TrimPrefix(u, "/"))
+	// A trailing slash is gnoweb's listing view, a different page from the
+	// render; give it its own file so the two can never overwrite each other.
+	listing := strings.HasSuffix(base, "/") && base != "/"
 	base = strings.Trim(base, "/")
 	if base == "" {
 		base = "_root"
 	}
 	parts := []string{base}
+	if listing {
+		parts = append(parts, "_dir")
+	}
 	if args != "" {
 		parts = append(parts, "_a", slug(args))
 	}
@@ -454,12 +505,31 @@ func urlToFile(u string) string {
 	return path.Join(append(parts, "index.html")...)
 }
 
+// maxSlugLen keeps a long render argument from producing a path the filesystem
+// or the static host rejects.
+const maxSlugLen = 64
+
+// slug turns a tab query or a render argument into one safe path segment.
+//
+// Two things it must not do. It must not emit "." or ".." — gnoweb happily
+// serves "/r/x/y:..", and path.Join would fold that onto r/x/y/index.html,
+// silently overwriting the realm's own render page. And it must not map two
+// different URLs onto one file: ":p/a-b", ":p/a/b" and ":p/a&b" all reduce to
+// "p-a-b" once the unsafe characters collapse. So anything that is not already
+// a safe segment carries a short digest of the input it came from.
 func slug(s string) string {
-	out := strings.Trim(unsafeSeg.ReplaceAllString(s, "-"), "-")
-	if out == "" {
-		return "default"
+	out := strings.Trim(unsafeSeg.ReplaceAllString(s, "-"), "-.")
+	if len(out) > maxSlugLen {
+		out = out[:maxSlugLen]
 	}
-	return out
+	if out == s && out != "" {
+		return out
+	}
+	sum := sha256.Sum256([]byte(s))
+	if out == "" {
+		return hex.EncodeToString(sum[:4])
+	}
+	return out + "-" + hex.EncodeToString(sum[:4])
 }
 
 func writeFile(p, body string) error {
@@ -513,8 +583,10 @@ func copyTree(src, dst string) (int, error) {
 	return rewrites, err
 }
 
-// waitReady polls probe until gnoweb answers or the deadline passes.
-func waitReady(base, probe string, timeout time.Duration) error {
+// waitReady polls probe until gnoweb answers, the process exits, or the
+// deadline passes. died carries the node's exit so a crash fails in seconds
+// with the real reason instead of timing out minutes later on "not ready".
+func waitReady(base, probe string, timeout time.Duration, died <-chan error) error {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 3 * time.Second}
 	u, err := url.JoinPath(base, probe)
@@ -522,6 +594,11 @@ func waitReady(base, probe string, timeout time.Duration) error {
 		return err
 	}
 	for time.Now().Before(deadline) {
+		select {
+		case err := <-died:
+			return fmt.Errorf("gnodev exited before serving %s — see the gnodev log: %w", probe, err)
+		default:
+		}
 		if resp, err := client.Get(u); err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
