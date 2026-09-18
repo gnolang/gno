@@ -139,8 +139,8 @@ func toTypeValue(t Type) TypeValue {
 //   - reservedNames: Go keywords; the parser never yields them as identifiers.
 //   - uverse names (isUverseName): builtins and predeclared types; usable,
 //     never re-declarable ("cannot be shadowed").
-//   - declReservedNames: ordinary identifiers that may be declared at one
-//     site only, and used anywhere. `cur` is the crossing first parameter.
+//   - contextualKeywords: reserved only as a binding name, usable anywhere
+//     else (like C#'s `var`); `cur` may only be a crossing first parameter.
 
 var reservedNames = map[Name]struct{}{
 	"break": {}, "default": {}, "func": {}, "interface": {}, "select": {},
@@ -178,14 +178,14 @@ func isReservedName(n Name) bool {
 	return ok
 }
 
-var declReservedNames = map[Name]struct{}{
+var contextualKeywords = map[Name]struct{}{
 	"cur": {},
 }
 
-// isDeclReservedName reports a declaration-reserved identifier; see the
-// tiers above. checkDeclName refuses it at every binding but its one site.
-func isDeclReservedName(n Name) bool {
-	_, ok := declReservedNames[n]
+// isContextualKeyword reports a contextual keyword; see the tiers above.
+// checkDeclName refuses it at every binding site but its one allowed site.
+func isContextualKeyword(n Name) bool {
+	_, ok := contextualKeywords[n]
 	return ok
 }
 

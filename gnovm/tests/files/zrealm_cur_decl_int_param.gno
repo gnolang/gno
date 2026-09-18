@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// gno.land/r/demo/curdeclintparam/zrealm_cur_decl_int_param.gno:7:1-20: `cur` is a declaration-reserved identifier: it may only be declared as the first parameter of a crossing function
+// gno.land/r/demo/curdeclintparam/zrealm_cur_decl_int_param.gno:7:1-20: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

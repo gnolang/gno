@@ -6132,10 +6132,10 @@ func skipFile(n BlockNode) BlockNode {
 	}
 }
 
-const curReservedMsg = "`cur` is a declaration-reserved identifier: it may only be declared as the first parameter of a crossing function"
+const curReservedMsg = "`cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function"
 
 // checkDeclName refuses a binding that shadows a builtin or binds a
-// declaration-reserved identifier (declReservedNames). StaticBlock.Reserve
+// contextual keyword (contextualKeywords). StaticBlock.Reserve
 // calls it for every source binding, carving out a first parameter named
 // `cur` (checkCurParamType then requires realm). A for-init `<name>.loopvar`
 // is checked by its source name.
@@ -6147,7 +6147,7 @@ func checkDeclName(name Name) {
 	if isUverseName(src) {
 		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", src))
 	}
-	if isDeclReservedName(src) {
+	if isContextualKeyword(src) {
 		// The set holds only `cur`, so the message can name its one site.
 		panic(curReservedMsg)
 	}

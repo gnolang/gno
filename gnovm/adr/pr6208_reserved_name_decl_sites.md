@@ -35,9 +35,10 @@ type-switch variable; then func, type and import names).
 `initStaticBlocks2` enumerates every source binding (`:=`, `var`, `const`,
 `type`, `func`, import, receiver, params, results, range key/value,
 type-switch var) and reserves each through `StaticBlock.Reserve`. `Reserve`
-now calls `checkDeclName`, which refuses a builtin name and any
-`declReservedNames` entry (`misc.go`, a third tier beside Go keywords and
-uverse names; today only `cur`). A
+now calls `checkDeclName`, which refuses a builtin name and any contextual
+keyword (`contextualKeywords` in `misc.go`: reserved as a binding name only,
+usable elsewhere, a third tier beside Go keywords and uverse names; today only
+`cur`). A
 first parameter named `cur` is carved out by position; `checkCurParamType`,
 where the function type is resolved, requires it to be realm-typed. One line
 at the `SwitchStmt` covers a clause-less type switch. A `:=` in a block where
