@@ -140,3 +140,28 @@ func TestBuildHelpURL_SpellsSpaceLikeTheFrontend(t *testing.T) {
 	data, fn := postFixture(map[string]string{"author": "a b"})
 	assert.Contains(t, buildHelpURL(data, fn), "author=a%20b")
 }
+
+// Pins HelpView's own contract, not the handler's output: GetHelpView narrows to
+// the selected function, so it never renders this two-function shape. What bites
+// in production is the `$help` index, where nothing is selected and every
+// function would otherwise encode a ~3ms PNG.
+func TestHelpView_RendersQROnlyForTheSelectedFunction(t *testing.T) {
+	t.Parallel()
+
+	other := HelpFunction{JSONFunc: &doc.JSONFunc{
+		Name:   "Render",
+		Params: []*doc.JSONField{{Name: "path"}},
+	}}
+	data, fn := helpFixture()
+	data.Functions = []HelpFunction{fn, other}
+
+	var buf bytes.Buffer
+	require.NoError(t, HelpView(data).Render(&buf))
+
+	out := buf.String()
+	assert.Contains(t, out, `id="qr-Transfer"`, "the selected function keeps its QR")
+	assert.NotContains(t, out, `id="qr-Render"`, "an unselected function must not encode one")
+	assert.Equal(t, 1, strings.Count(out, "data:image/png;base64,"))
+	// The button still points at the other function, which selects it on arrival.
+	assert.Contains(t, out, "func=Render")
+}
