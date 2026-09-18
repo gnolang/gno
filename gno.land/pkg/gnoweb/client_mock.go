@@ -219,3 +219,12 @@ func pkgHasRender(pkg *MockPackage) bool {
 	}
 	return false
 }
+
+// Eval has no registry behind it: the chain answers "package not found" for a
+// realm that is not deployed, and so does the mock.
+func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+	return nil, ErrClientPackageNotFound
+}
