@@ -114,8 +114,9 @@ type ClientAdapter interface {
 
 	// Eval evaluates a read-only Gno expression inside a package
 	// (`vm/qeval`) and returns the raw result, one line per return value.
-	// The caller owns the safety of expr: embed only values it has already
-	// validated against an allowlist.
+	// The node splits pkgPath from expr on the first dot, so pkgPath must not
+	// contain one, and the caller owns the safety of expr: embed only values
+	// it has already validated against an allowlist.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 

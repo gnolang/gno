@@ -92,9 +92,11 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 			// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
 			{"/r/sys/users", ok, "r/sys/users"},
-			// Registered in the genesis txs, so this exercises the real
-			// vm/qeval query; an unregistered name must not get a page.
+			// Registered in the genesis txs, so these exercise the real
+			// vm/qeval query. zoo_ma123 also covers the separator branch of
+			// the name shape, which the rejection cases never reach.
 			{"/u/moul001", ok, "moul001"},
+			{"/u/zoo_ma123", ok, "zoo_ma123"},
 			{"/u/zzznotauser", notFound, "user not found"},
 			{"/r/sys/users/users.gno", ok, "ResolveName"},
 			{"/r/tests/vm/deep/very/deep", ok, "it works!"},

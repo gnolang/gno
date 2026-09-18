@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -512,6 +511,12 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		// An empty listing comes back as a single blank line, and a user page
+		// that does not exist is now the common case, so this must not log.
+		if raw == "" {
+			continue
+		}
+
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -537,11 +542,11 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// reUsername and maxUsernameLen mirror the shape r/sys/users accepts
-// (store.gno, reName and maxNameLen), so a segment that could never be a
-// registered name is refused before it reaches the chain or a Gno string
-// literal. They have to stay in step with that file.
-var reUsername = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`)
+// reUsername is the shape r/sys/users accepts, which its own store.gno says it
+// mirrors from gnolang. Taking it from the same source removes the copy that
+// would silently 404 newly valid names once upstream moves. The length cap is
+// the registry's own (store.gno, maxNameLen).
+var reUsername = gno.Re_name.Compile()
 
 const maxUsernameLen = 64
 
@@ -564,7 +569,17 @@ func (h *HTTPHandler) userExists(ctx context.Context, username string) (bool, er
 	// One line per return value, and the UserData line carries a "(false bool)"
 	// field of its own, so only the last line answers.
 	lines := bytes.Split(bytes.TrimSpace(res), []byte("\n"))
-	return bytes.Equal(bytes.TrimSpace(lines[len(lines)-1]), []byte("(true bool)")), nil
+	switch answer := string(bytes.TrimSpace(lines[len(lines)-1])); answer {
+	case "(true bool)":
+		return true, nil
+	case "(false bool)":
+		return false, nil
+	default:
+		// ResolveName changed shape, or the node answered something else.
+		// Saying "no user" here would 404 every registered user at once,
+		// quietly; an error keeps that visible.
+		return false, fmt.Errorf("%w: unexpected ResolveName result %q", ErrClientResponse, answer)
+	}
 }
 
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
@@ -596,7 +611,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 
 	_, err := crypto.AddressFromBech32(username)
 	isAddress := err == nil
-	if !isAddress && (len(username) > maxUsernameLen || !reUsername.MatchString(username)) {
+	if !isAddress && (len(username) > maxUsernameLen || !reUsername.Matches(username)) {
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 

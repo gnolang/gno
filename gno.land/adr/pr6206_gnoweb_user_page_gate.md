@@ -49,9 +49,11 @@ error) surfaces that error through the handler's usual mapping, because a 404
 published on a blip deletes a real user's page for as long as a crawler
 remembers it.
 
-Before any query, `<name>` must match the registry's own name shape
-(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, at most 64 bytes, mirrored from
-`r/sys/users/store.gno`) unless it is an address. This closes `/u/foo/bar`,
+Before any query, `<name>` must match the registry's own name shape unless it
+is an address: `gnolang.Re_name`, which `r/sys/users/store.gno` states its own
+rule mirrors, plus that file's 64-byte cap. Taking the shared expression rather
+than copying it means gnoweb cannot start refusing names the chain has begun to
+accept. This closes `/u/foo/bar`,
 which `vm/qpaths` treated as a sub-prefix (`p/moul/addrset` rendered as
 "Gnome moul/addrset"), and guarantees that nothing reaching the `qeval`
 expression can leave a Gno string literal.
@@ -101,4 +103,7 @@ building a machine when the package was absent.
 - `ListPaths` returns `[""]` for an empty result, so rule 2 counts parsed
   contributions, not raw paths, or it would never fire.
 - The `vm/qeval` payload is rendered text, one value per line, and the
-  `UserData` line carries its own `(false bool)`, so only the last line is read.
+  `UserData` line carries its own `(false bool)`, so only the last line is
+  read. A last line that is neither `(true bool)` nor `(false bool)` is an
+  error, not a "no": if `ResolveName` ever changes shape, that must surface
+  instead of quietly 404ing every registered user.
