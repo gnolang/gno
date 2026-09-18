@@ -2,8 +2,7 @@
 
 ## Status
 
-Implemented on `fix-reserved-name-decl-sites`, stacked on #6196. PR number
-pending. Closes #6181 part A.
+Proposed in #6208, stacked on #6196. Closes #6181 part A.
 
 ## Context
 
