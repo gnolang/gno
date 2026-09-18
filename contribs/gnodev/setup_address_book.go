@@ -13,18 +13,14 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-// DevKeyName is the name under which gnodev imports the well-known deployer
-// mnemonic into the user's local keybase, on request. The derived address is
-// funded in the dev chain genesis, so signing against this name works as soon
-// as the key is there.
+// DevKeyName is what the well-known deployer account is called once imported;
+// the docs print that name in every sample.
 const DevKeyName = "devtest"
 
 func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
 
-	// Only on request: gnodev writes to the user's keybase when asked, by
-	// -import-dev-key here or by the `I` key while it runs. Best-effort
-	// either way, so a degraded keybase never stops gnodev from booting.
+	// The `I` key runs the same import while gnodev is up.
 	if cfg.importDevKey {
 		importDevKey(logger, cfg.home)
 	}
@@ -53,9 +49,6 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		logger.Info("additional account added", "addr", addr.String())
 	}
 
-	// Reached once the key is in the keybase, by an earlier import or by the
-	// user's own `gnokey add -recover`; otherwise the address is tracked
-	// in-memory only.
 	if names, ok := book.GetByAddress(defaultDeployerAddress); ok {
 		var name string
 		if len(names) > 0 {
@@ -70,8 +63,7 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 	creatorName := fmt.Sprintf("_default#%.6s", defaultDeployerAddress.String())
 	book.Add(defaultDeployerAddress, creatorName)
 
-	// Mnemonic intentionally omitted: it's the public DefaultDeployerSeed
-	// constant; users who need it can recover it via gnokey or the source.
+	// The mnemonic stays out of the log: it is the public DefaultDeployerSeed.
 	logger.Warn("default address tracked in-memory only; gnokey cannot sign with it",
 		"name", creatorName,
 		"addr", defaultDeployerAddress.String(),
@@ -83,27 +75,18 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 	return book, nil
 }
 
-// importDevKey writes the well-known deployer mnemonic into the user's local
-// gnokey keybase under DevKeyName, unless the address is already there, or the
-// name is taken by a different address. It reports whether the keybase can
-// sign for that address when it returns.
-//
-// Every failure degrades to a logged warning rather than an error: the import
-// is a convenience, and a missing, unwritable, locked, or corrupt keybase must
-// never prevent gnodev from starting. The deployer address is still tracked
-// in-memory by setupAddressBook's fallback when the import is skipped.
+// importDevKey writes the well-known deployer mnemonic into the keybase at
+// home and reports whether that keybase can sign for the deployer address.
+// Every failure is a warning rather than an error, so a degraded keybase never
+// stops gnodev from booting.
 func importDevKey(logger *slog.Logger, home string) bool {
 	if home == "" {
 		logger.Warn("dev key skipped: home not specified, cannot write to keybase")
 		return false
 	}
 	if !osm.DirExists(home) {
-		// Default home (~/.config/gno) doesn't exist on fresh installs;
-		// create it so a requested import actually lands, matching
-		// `gnokey add`'s behavior. A user-supplied -home that doesn't exist
-		// is likely a typo, so refuse to materialize it. Clean both paths so
-		// a path-equivalent -home (e.g. a trailing slash) still counts as the
-		// default.
+		// A fresh install has no ~/.config/gno yet, and `gnokey add` creates
+		// it too; any other missing -home is a typo, never materialized.
 		if filepath.Clean(home) != filepath.Clean(gnoenv.HomeDir()) {
 			logger.Warn("dev key skipped: home directory does not exist", "path", home)
 			return false
@@ -122,10 +105,8 @@ func importDevKey(logger *slog.Logger, home string) bool {
 
 	addr := defaultDeployerAddress.String()
 
-	// If the deployer address is already in the keybase under any name, it is
-	// already signable; do not add a second name. The keybase enforces one
-	// name per address, so importing `devtest` here would silently drop the
-	// user's existing entry (commonly `test1`).
+	// One name per address in the keybase, so importing over an address the
+	// user already holds would drop their own name for it, commonly `test1`.
 	if has, err := kb.HasByAddress(defaultDeployerAddress); err != nil {
 		logger.Warn("dev key skipped: cannot read keybase", "err", err)
 		return false
@@ -134,8 +115,7 @@ func importDevKey(logger *slog.Logger, home string) bool {
 		return true
 	}
 
-	// The address is not present, but the name `devtest` might belong to an
-	// unrelated key. Leave any such entry untouched.
+	// The name may belong to a key of the user's own; leave it untouched.
 	switch info, err := kb.GetByName(DevKeyName); {
 	case err == nil:
 		logger.Warn("dev key name exists in keybase with a different address, not overwriting",

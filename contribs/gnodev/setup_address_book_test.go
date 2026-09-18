@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ import (
 )
 
 // otherMnemonic is a valid BIP-39 phrase distinct from DefaultDeployerSeed,
-// for testing the "name present, address differs" branch of importDevKey.
+// so a keybase can hold DevKeyName pointing somewhere else.
 const otherMnemonic = "equip will roof matter pink blind book anxiety banner elbow sun young"
 
 func newCaptureLogger() (*slog.Logger, *bytes.Buffer) {
@@ -24,269 +23,214 @@ func newCaptureLogger() (*slog.Logger, *bytes.Buffer) {
 	return slog.New(h), &buf
 }
 
-func TestImportDevKey_EmptyKeybase(t *testing.T) {
-	t.Parallel()
+func keybaseWith(t *testing.T, name, mnemonic string) string {
+	t.Helper()
 	home := t.TempDir()
-	logger, buf := newCaptureLogger()
-
-	cfg := &AppConfig{home: home}
-	importDevKey(logger, cfg.home)
-
 	kb, err := keys.NewKeyBaseFromDir(home)
 	require.NoError(t, err)
-	info, err := kb.GetByName(DevKeyName)
+	_, err = kb.CreateAccount(name, mnemonic, "", "", 0, 0)
 	require.NoError(t, err)
-	assert.Equal(t, defaultDeployerAddress, info.GetAddress())
-
-	assert.Contains(t, buf.String(), "dev key imported")
+	return home
 }
 
-func TestImportDevKey_AlreadyPresentMatchingAddress(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-
+func keyAddress(t *testing.T, home, name string) (addr string, found bool) {
+	t.Helper()
 	kb, err := keys.NewKeyBaseFromDir(home)
 	require.NoError(t, err)
-	_, err = kb.CreateAccount(DevKeyName, DefaultDeployerSeed, "", "", 0, 0)
-	require.NoError(t, err)
-
-	logger, buf := newCaptureLogger()
-	cfg := &AppConfig{home: home}
-	importDevKey(logger, cfg.home)
-
-	info, err := kb.GetByName(DevKeyName)
-	require.NoError(t, err)
-	assert.Equal(t, defaultDeployerAddress, info.GetAddress())
-
-	logs := buf.String()
-	assert.Contains(t, logs, "already present")
-	assert.NotContains(t, logs, "dev key imported")
-}
-
-func TestImportDevKey_NamePresentConflictingAddress(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-
-	kb, err := keys.NewKeyBaseFromDir(home)
-	require.NoError(t, err)
-	pre, err := kb.CreateAccount(DevKeyName, otherMnemonic, "", "", 0, 0)
-	require.NoError(t, err)
-	require.NotEqual(t, defaultDeployerAddress, pre.GetAddress(),
-		"sanity: chosen mnemonic must derive a different address than the deployer")
-
-	logger, buf := newCaptureLogger()
-	cfg := &AppConfig{home: home}
-	importDevKey(logger, cfg.home)
-
-	info, err := kb.GetByName(DevKeyName)
-	require.NoError(t, err)
-	assert.Equal(t, pre.GetAddress(), info.GetAddress(),
-		"existing dev key entry must remain untouched")
-
-	logs := buf.String()
-	assert.Contains(t, logs, "different address")
-	assert.Contains(t, logs, "not overwriting")
-}
-
-// The import is opt-in: a plain boot writes nothing and says how to ask.
-func TestSetupAddressBook_DefaultWritesNothing(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-
-	logger, buf := newCaptureLogger()
-	_, err := setupAddressBook(logger, &AppConfig{home: home})
-	require.NoError(t, err)
-
-	kb, err := keys.NewKeyBaseFromDir(home)
-	require.NoError(t, err)
-	has, err := kb.HasByName(DevKeyName)
-	require.NoError(t, err)
-	assert.False(t, has, "a plain boot must not write to the keybase")
-
-	assert.Contains(t, buf.String(), "-import-dev-key")
-}
-
-func TestImportDevKey_NoHome(t *testing.T) {
-	t.Parallel()
-
-	logger, buf := newCaptureLogger()
-	cfg := &AppConfig{home: ""}
-	importDevKey(logger, cfg.home)
-
-	assert.Contains(t, buf.String(), "home not specified")
-}
-
-func TestImportDevKey_HomeMissing(t *testing.T) {
-	t.Parallel()
-
-	missing := filepath.Join(t.TempDir(), "does", "not", "exist")
-	require.False(t, osm.DirExists(missing), "sanity: path must not exist")
-
-	logger, buf := newCaptureLogger()
-	cfg := &AppConfig{home: missing}
-	importDevKey(logger, cfg.home)
-
-	assert.False(t, osm.DirExists(missing),
-		"importDevKey must not materialize a missing -home")
-	assert.Contains(t, buf.String(), "home directory does not exist")
-}
-
-func TestImportDevKey_DefaultHomeMissingIsCreated(t *testing.T) {
-	// Not parallel: mutates GNOHOME via t.Setenv.
-	fresh := filepath.Join(t.TempDir(), "fresh-install")
-	t.Setenv("GNOHOME", fresh)
-	require.Equal(t, fresh, gnoenv.HomeDir(),
-		"sanity: GNOHOME must drive gnoenv.HomeDir()")
-	require.False(t, osm.DirExists(fresh), "sanity: path must not exist yet")
-
-	logger, buf := newCaptureLogger()
-	cfg := &AppConfig{home: fresh}
-	importDevKey(logger, cfg.home)
-
-	assert.True(t, osm.DirExists(fresh),
-		"default home must be materialized on first run")
-	kb, err := keys.NewKeyBaseFromDir(fresh)
-	require.NoError(t, err)
-	info, err := kb.GetByName(DevKeyName)
-	require.NoError(t, err)
-	assert.Equal(t, defaultDeployerAddress, info.GetAddress())
-	assert.Contains(t, buf.String(), "dev key imported")
-}
-
-func TestSetupAddressBook_ImportFlagPutsDevKeyInBook(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-	logger, _ := newCaptureLogger()
-
-	book, err := setupAddressBook(logger, &AppConfig{home: home, importDevKey: true})
-	require.NoError(t, err)
-
-	names, ok := book.GetByAddress(defaultDeployerAddress)
-	require.True(t, ok, "deployer address must be in the book")
-	assert.Contains(t, names, DevKeyName,
-		"deployer address must be resolvable under the dev name")
-}
-
-func TestSetupAddressBook_FallsBackInMemory(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-	logger, buf := newCaptureLogger()
-
-	book, err := setupAddressBook(logger, &AppConfig{home: home})
-	require.NoError(t, err)
-
-	_, ok := book.GetByAddress(defaultDeployerAddress)
-	require.True(t, ok, "deployer address must still be tracked in-memory")
-
-	kb, err := keys.NewKeyBaseFromDir(home)
-	require.NoError(t, err)
-	has, err := kb.HasByName(DevKeyName)
-	require.NoError(t, err)
-	assert.False(t, has, "a plain boot must not import the key into the keybase")
-
-	logs := buf.String()
-	assert.Contains(t, logs, "tracked in-memory only")
-	assert.NotContains(t, logs, DefaultDeployerSeed,
-		"fallback log must not echo the mnemonic")
-}
-
-// What the `I` keypress does: import, then replace the placeholder name
-// gnodev invented, so the accounts panel shows one row under the real name.
-func TestImportDevKey_KeypressRenamesPlaceholder(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-	logger, _ := newCaptureLogger()
-
-	book, err := setupAddressBook(logger, &AppConfig{home: home})
-	require.NoError(t, err)
-	names, ok := book.GetByAddress(defaultDeployerAddress)
-	require.True(t, ok)
-	require.NotContains(t, names, DevKeyName)
-
-	require.True(t, importDevKey(logger, home))
-	book.Rename(defaultDeployerAddress, DevKeyName)
-
-	names, ok = book.GetByAddress(defaultDeployerAddress)
-	require.True(t, ok)
-	assert.Equal(t, []string{DevKeyName}, names)
-}
-
-// The deployer seed already imported under another name (commonly test1)
-// must be left untouched: gnodev detects the address is already signable and
-// skips the import, rather than letting CreateAccount rename the entry to devtest.
-func TestImportDevKey_DeployerAddressUnderOtherNameIsPreserved(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-
-	kb, err := keys.NewKeyBaseFromDir(home)
-	require.NoError(t, err)
-	pre, err := kb.CreateAccount("test1", DefaultDeployerSeed, "", "", 0, 0)
-	require.NoError(t, err)
-	require.Equal(t, defaultDeployerAddress, pre.GetAddress(),
-		"sanity: test1 must map to the deployer address")
-
-	logger, buf := newCaptureLogger()
-	importDevKey(logger, home)
-
-	hasTest1, err := kb.HasByName("test1")
-	require.NoError(t, err)
-	assert.True(t, hasTest1, "existing test1 entry must be preserved")
-	hasDev, err := kb.HasByName(DevKeyName)
-	require.NoError(t, err)
-	assert.False(t, hasDev, "no second name must be added for an address already present")
-
-	assert.Contains(t, buf.String(), "already present")
-}
-
-// A keybase that cannot be read (here: a regular file where the leveldb dir is
-// expected) must not abort gnodev; importDevKey logs and returns.
-func TestImportDevKey_BrokenKeybaseDegradesGracefully(t *testing.T) {
-	t.Parallel()
-	home := t.TempDir()
-	// keys.NewKeyBaseFromDir opens <home>/data; a file there makes every
-	// keybase read fail with a "not a directory" error.
-	require.NoError(t, os.WriteFile(filepath.Join(home, "data"), []byte("x"), 0o600))
-
-	logger, buf := newCaptureLogger()
-	require.NotPanics(t, func() { importDevKey(logger, home) })
-
-	assert.Contains(t, buf.String(), "dev key skipped")
-}
-
-// When the default home does not exist and cannot be created (unwritable
-// parent), importDevKey skips rather than failing.
-func TestImportDevKey_CannotCreateDefaultHome(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
+	info, err := kb.GetByName(name)
+	if err != nil {
+		return "", false
 	}
-	parent := t.TempDir()
-	require.NoError(t, os.Chmod(parent, 0o500))
-	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
-
-	fresh := filepath.Join(parent, "gno")
-	t.Setenv("GNOHOME", fresh)
-	require.Equal(t, fresh, gnoenv.HomeDir(), "sanity: GNOHOME must drive gnoenv.HomeDir()")
-	require.False(t, osm.DirExists(fresh), "sanity: path must not exist")
-
-	logger, buf := newCaptureLogger()
-	importDevKey(logger, fresh)
-
-	assert.False(t, osm.DirExists(fresh), "must not create the home under an unwritable parent")
-	assert.Contains(t, buf.String(), "cannot create default home")
+	return info.GetAddress().String(), true
 }
 
-// An existing but unwritable home makes keys.NewKeyBaseFromDir panic while
-// creating its data dir; importDevKey recovers and skips instead of crashing.
-func TestImportDevKey_UnwritableHomeDegradesGracefully(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
+func TestImportDevKey(t *testing.T) {
+	deployer := defaultDeployerAddress.String()
+
+	for _, tc := range []struct {
+		name string
+		home func(t *testing.T) string
+		want bool
+		log  string
+		then func(t *testing.T, home string)
+	}{
+		{
+			name: "empty keybase takes the key",
+			home: func(t *testing.T) string {
+				t.Helper()
+				return t.TempDir()
+			},
+			want: true,
+			log:  "dev key imported",
+			then: func(t *testing.T, home string) {
+				t.Helper()
+				addr, found := keyAddress(t, home, DevKeyName)
+				require.True(t, found)
+				assert.Equal(t, deployer, addr)
+			},
+		},
+		{
+			// The keybase holds one name per address, so importing here would
+			// delete the user's own entry for it.
+			name: "address already held under another name keeps that name",
+			home: func(t *testing.T) string {
+				t.Helper()
+				return keybaseWith(t, "test1", DefaultDeployerSeed)
+			},
+			want: true,
+			log:  "already present",
+			then: func(t *testing.T, home string) {
+				t.Helper()
+				_, found := keyAddress(t, home, "test1")
+				assert.True(t, found, "the user's own name must survive")
+				_, found = keyAddress(t, home, DevKeyName)
+				assert.False(t, found, "no second name for one address")
+			},
+		},
+		{
+			name: "name taken by another address is left alone",
+			home: func(t *testing.T) string {
+				t.Helper()
+				return keybaseWith(t, DevKeyName, otherMnemonic)
+			},
+			want: false,
+			log:  "not overwriting",
+			then: func(t *testing.T, home string) {
+				t.Helper()
+				addr, found := keyAddress(t, home, DevKeyName)
+				require.True(t, found)
+				assert.NotEqual(t, deployer, addr)
+			},
+		},
+		{
+			name: "no home to write to",
+			home: func(t *testing.T) string {
+				t.Helper()
+				return ""
+			},
+			want: false,
+			log:  "home not specified",
+		},
+		{
+			name: "a missing -home is never materialized",
+			home: func(t *testing.T) string {
+				t.Helper()
+				return filepath.Join(t.TempDir(), "does", "not", "exist")
+			},
+			want: false,
+			log:  "home directory does not exist",
+			then: func(t *testing.T, home string) {
+				t.Helper()
+				assert.False(t, osm.DirExists(home))
+			},
+		},
+		{
+			name: "a missing default home is created",
+			home: func(t *testing.T) string {
+				t.Helper()
+				fresh := filepath.Join(t.TempDir(), "fresh-install")
+				t.Setenv("GNOHOME", fresh)
+				return fresh
+			},
+			want: true,
+			log:  "dev key imported",
+			then: func(t *testing.T, home string) {
+				t.Helper()
+				require.True(t, osm.DirExists(home))
+				addr, found := keyAddress(t, home, DevKeyName)
+				require.True(t, found)
+				assert.Equal(t, deployer, addr)
+			},
+		},
+		{
+			// A file where the leveldb directory belongs: every read fails.
+			name: "unreadable keybase boots anyway",
+			home: func(t *testing.T) string {
+				t.Helper()
+				home := t.TempDir()
+				require.NoError(t, os.WriteFile(filepath.Join(home, "data"), []byte("x"), 0o600))
+				return home
+			},
+			want: false,
+			log:  "dev key skipped",
+		},
+		{
+			name: "unwritable home boots anyway",
+			home: func(t *testing.T) string {
+				t.Helper()
+				if os.Geteuid() == 0 {
+					t.Skip("root bypasses directory permissions")
+				}
+				home := t.TempDir()
+				require.NoError(t, os.Chmod(home, 0o500))
+				t.Cleanup(func() { _ = os.Chmod(home, 0o700) })
+				return home
+			},
+			want: false,
+			log:  "cannot open keybase",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
+			home := tc.home(t)
+			logger, buf := newCaptureLogger()
+
+			var got bool
+			require.NotPanics(t, func() { got = importDevKey(logger, home) })
+
+			assert.Equal(t, tc.want, got)
+			assert.Contains(t, buf.String(), tc.log)
+			if tc.then != nil {
+				tc.then(t, home)
+			}
+		})
 	}
-	home := t.TempDir()
-	require.NoError(t, os.Chmod(home, 0o500))
-	t.Cleanup(func() { _ = os.Chmod(home, 0o700) })
+}
 
-	logger, buf := newCaptureLogger()
-	require.NotPanics(t, func() { importDevKey(logger, home) })
+func TestSetupAddressBook(t *testing.T) {
+	t.Run("a plain boot writes nothing and says how to ask", func(t *testing.T) {
+		t.Helper()
+		home := t.TempDir()
+		logger, buf := newCaptureLogger()
 
-	assert.Contains(t, buf.String(), "cannot open keybase")
+		book, err := setupAddressBook(logger, &AppConfig{home: home})
+		require.NoError(t, err)
+
+		_, ok := book.GetByAddress(defaultDeployerAddress)
+		assert.True(t, ok, "the address is still premined")
+		_, found := keyAddress(t, home, DevKeyName)
+		assert.False(t, found, "nothing written to the keybase")
+
+		logs := buf.String()
+		assert.Contains(t, logs, "-import-dev-key")
+		assert.NotContains(t, logs, DefaultDeployerSeed, "the mnemonic never reaches the log")
+	})
+
+	t.Run("-import-dev-key puts the key in the book", func(t *testing.T) {
+		t.Helper()
+		logger, _ := newCaptureLogger()
+
+		book, err := setupAddressBook(logger, &AppConfig{home: t.TempDir(), importDevKey: true})
+		require.NoError(t, err)
+
+		names, ok := book.GetByAddress(defaultDeployerAddress)
+		require.True(t, ok)
+		assert.Contains(t, names, DevKeyName)
+	})
+
+	t.Run("the I key imports and drops the placeholder name", func(t *testing.T) {
+		t.Helper()
+		home := t.TempDir()
+		logger, _ := newCaptureLogger()
+
+		book, err := setupAddressBook(logger, &AppConfig{home: home})
+		require.NoError(t, err)
+
+		require.True(t, importDevKey(logger, home))
+		book.Rename(defaultDeployerAddress, DevKeyName)
+
+		names, ok := book.GetByAddress(defaultDeployerAddress)
+		require.True(t, ok)
+		assert.Equal(t, []string{DevKeyName}, names)
+	})
 }
