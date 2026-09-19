@@ -135,11 +135,16 @@ jobs:
           # carries for machines without it is otherwise never executed, and
           # it parses the same GitHub JSON by hand. Take jq away and redo the
           # install. Last step in the job: nothing after it gets jq back.
-          if jq_path="$(command -v jq)"; then
+          #
+          # A loop, not one rm: the macOS image carries jq at more than one
+          # place on PATH, so removing what `command -v` resolves to first
+          # just uncovers the next one.
+          for _ in 1 2 3 4 5; do
+            jq_path="$(command -v jq)" || break
             sudo rm -f "$jq_path"
-          fi
+          done
           if command -v jq >/dev/null 2>&1; then
-            echo "::error::jq is still on PATH; this step tested nothing"
+            echo "::error::jq is still on PATH at $(command -v jq); this step tested nothing"
             exit 1
           fi
           sh misc/install.sh --dir "$HOME/gnoawk"
