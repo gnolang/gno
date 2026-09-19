@@ -105,3 +105,24 @@ func TestStateErrorSentinelPact(t *testing.T) {
 		})
 	}
 }
+
+func TestValidFileName(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]bool{
+		"render.gno":          true,
+		"gno.mod":             true,
+		"README.md":           true,
+		".gitignore":          true,
+		".":                   false,
+		"..":                  false,
+		"../other/render.gno": false,
+		"sub/render.gno":      false,
+		"/render.gno":         false,
+	}
+	for name, want := range cases {
+		if got := validFileName(name); got != want {
+			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

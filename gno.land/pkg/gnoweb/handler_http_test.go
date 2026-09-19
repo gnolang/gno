@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -1992,4 +1993,69 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
 	})
+}
+
+// TestHTTPHandler_RealmNotice covers which pages carry the notice; the global
+// banner stays on all of them.
+func TestHTTPHandler_RealmNotice(t *testing.T) {
+	t.Parallel()
+
+	const (
+		notice = "Community realm notice"
+		banner = "Global banner"
+	)
+	render := map[string]string{"render.gno": `package main; func Render(path string) string { return "ok" }`}
+	pkg := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: render}
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(
+		pkg("/r/gnoland/home"), pkg("/r/nym-sunny000/app"), pkg("/p/nt/avl"), pkg("/p/nym-sunny000/lib"),
+	))
+	config.Aliases = gnoweb.DefaultAliases
+	noticeData, err := components.NewBannerData(notice, "")
+	require.NoError(t, err)
+	config.Meta.RealmNotice = noticeData.AsWarning()
+	config.Meta.Banner, err = components.NewBannerData(banner, "")
+	require.NoError(t, err)
+	config.TrustedPaths = []string{"gnoland", "nt"}
+
+	cases := []struct {
+		path       string
+		wantNotice bool
+	}{
+		{"/", false}, // aliased to /r/gnoland/home
+		{"/r/gnoland/home", false},
+		{"/p/nt/avl", false},
+		{"/r/", false},
+		{"/u/gnoland", false},
+		{"/u/alice", true},
+		{"/r/nym-sunny000/app", true},
+		{"/r/nym-sunny000/app/", true},
+		{"/r/nym-sunny000/app$help", true},
+		{"/r/nym-sunny000/app$source&file=render.gno", true},
+		{"/r/nym-sunny000/app?state", true},
+		{"/p/nym-sunny000/lib", true},
+		{"/r/unknown/pkg", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+			body := rr.Body.String()
+			assert.Contains(t, body, banner)
+			if tc.wantNotice {
+				assert.Contains(t, body, notice)
+			} else {
+				assert.NotContains(t, body, notice)
+			}
+		})
+	}
 }

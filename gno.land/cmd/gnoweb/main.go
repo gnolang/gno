@@ -1,7 +1,9 @@
 package main
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"maps"
@@ -59,7 +61,15 @@ type webCfg struct {
 	html             bool
 	noStrict         bool
 	verbose          bool
+	noRealmNotice    bool
+	trustedPaths     string
 }
+
+// defaultTrustedPaths are namespaces whose code the gno.land team reviews or
+// whose deploy key belongs to a party it vouches for; see the realm notice ADR.
+const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
+
+const defaultRealmNoticeText = "Community realm. Not reviewed by the gno.land team. Read the code before you interact or send coins."
 
 var defaultWebOptions = webCfg{
 	chainid:       "dev",
@@ -67,6 +77,7 @@ var defaultWebOptions = webCfg{
 	bind:          ":8888",
 	remoteTimeout: time.Minute,
 	timeout:       time.Minute,
+	trustedPaths:  defaultTrustedPaths,
 }
 
 func main() {
@@ -81,8 +92,11 @@ func main() {
 			LongHelp: `gnoweb web interface
 
 Environment variables:
-  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
-  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
+  GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_REALM_NOTICE_TEXT  Notice shown on packages outside -trusted-paths (inline markdown). Max 400 chars.
+                            Unset or empty keeps the built-in text; a value that renders to nothing
+                            refuses to start. Disable the notice with -no-realm-notice.`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -131,6 +145,20 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-default-aliases",
 		defaultWebOptions.noDefaultAliases,
 		"discard default aliases",
+	)
+
+	fs.BoolVar(
+		&c.noRealmNotice,
+		"no-realm-notice",
+		defaultWebOptions.noRealmNotice,
+		"disable the notice shown on pages of packages outside -trusted-paths",
+	)
+
+	fs.StringVar(
+		&c.trustedPaths,
+		"trusted-paths",
+		defaultWebOptions.trustedPaths,
+		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice",
 	)
 
 	fs.StringVar(
@@ -251,6 +279,22 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		}
 	} else if os.Getenv("GNOWEB_BANNER_URL") != "" {
 		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
+	}
+
+	if !cfg.noRealmNotice {
+		text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
+		notice, err := components.NewBannerData(text, "")
+		if err == nil && !notice.Enabled() {
+			err = errors.New("renders to nothing")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
+		}
+		if cfg.html {
+			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
+		}
+		appcfg.RealmNotice = notice.AsWarning()
+		appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
 	}
 
 	if cfg.noDefaultAliases {

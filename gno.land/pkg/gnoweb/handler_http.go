@@ -46,6 +46,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	BuildTime         string
 	Banner            components.BannerData
+	RealmNotice       components.BannerData
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -83,7 +84,9 @@ type HTTPHandlerConfig struct {
 	ClientAdapter ClientAdapter
 	Renderer      Renderer
 	Aliases       map[string]AliasTarget
-	Timeout       time.Duration
+	// TrustedPaths — see AppConfig field of the same name.
+	TrustedPaths []string
+	Timeout      time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
@@ -118,6 +121,7 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
+	trusted  trustedPaths
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -137,6 +141,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
+		trusted:  newTrustedPaths(cfg.TrustedPaths),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -255,6 +260,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			h.Logger.Error("failed to render error view", "error", err)
 		}
 		return
+	}
+
+	if h.showRealmNotice(gnourl) {
+		indexData.Notice = h.Static.RealmNotice
 	}
 
 	// Handle download request outside of component rendering flow.
@@ -989,7 +998,7 @@ func clientErrorMessage(err error, height int64) (int, string) {
 	if err == nil {
 		return http.StatusOK, ""
 	}
-	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientFileNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, err.Error()
 	}
 	if height > 0 {
