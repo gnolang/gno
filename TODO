@@ -1,10 +1,5 @@
-- move to an upgrade module to inherit the begin blocker
-
-- Document better the new behavior of skip_halt_height (there's a related flag as well right?)
-
 - investigate realm patching with realm store migration (see open question 1)
 
 - investigate rollbacks (theres a appd rollback command)
 
-- check if source line numbers are still accured 
-
+- review with new context

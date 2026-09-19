@@ -245,18 +245,12 @@ therefore grows one check beside the two it has:
 | binary does *not* meet the floor (`:170-178`) | pre-halt | yes, as today |
 | the last completed upgrade names a registry entry | always | **no** |
 
-The new check sits deliberately outside the escape hatch:
-
-```bash
-gnoland config set skip_upgrade_height 704052
-```
-
-That flag exists so an operator can assert "I already migrated out-of-band."
-Skipping the *version* gates is a claim about which binary is running, and the
-operator is entitled to make it. The new check is not a claim about the binary
-but about the chain — which upgrades it has already applied — so it holds
-regardless. Same for a node restored from a pre-upgrade backup, or one simply
-offline across the upgrade.
+That last row is why the check goes in its own function, called from
+`app.go:288` beside `checkNodeStartupParams` rather than inside it:
+`checkNodeStartupParams` returns early both when `skip_upgrade_height` matches
+and when no halt is pending (`node_params.go:145-152`), and the second of those
+is a chain's normal state. `skip_upgrade_height` itself is unchanged — same
+config field, same two version gates it governs.
 
 ### Where it hooks
 
@@ -424,6 +418,26 @@ parse — so the name would carry no information the version does not.
    to ask a node which upgrades it has applied. The `app` entry of the p2p
    `VersionSet` is the natural place, but it is fed by `state.AppVersion`, which
    nothing populates today.
+3. **Should the mechanism be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
+   about "run a registered handler at a height, record that it ran, check the
+   record at startup" is gno-specific, and the machinery it builds on is already
+   in tm2: `SetHaltHeight`, the `BeginBlock` panic at `baseapp.go:596`, the
+   `HaltHeight`/`SkipUpgradeHeight` config fields, the `BeginBlocker` type.
+   `tm2/pkg/sdk` is where the generic modules live — `auth`, `bank`, `params` —
+   while `gno.land/pkg/sdk` holds only `vm`. That is the split this would follow:
+   the mechanism in tm2, the `Upgrades` list and the handler bodies in gno.land,
+   the same division Cosmos draws between `x/upgrade` and a chain's own app.
+
+   The halt params are not in question either way: they stay `node:p:*`,
+   validated by the `nodeParamsKeeper` registered under that prefix, and any
+   holder of a `ParamsKeeperI` reads them.
+
+   **It does reopen §2's handler signature.** A generic package cannot name
+   `vm.VMKeeper`, so `Env` cannot live in it, and `Handler` loses its typed
+   access to the keepers — which is exactly why Cosmos's `UpgradeHandler` carries
+   none and its handlers close over the app instead, through a per-upgrade
+   constructor. Choosing tm2 means accepting that shape; keeping the mechanism in
+   gno.land is what makes a typed `Env` possible at all.
 
 ## Phasing
 
