@@ -85,7 +85,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--home` | gnokey home (`$GNOHOME`) | Keystore directory holding the approver key |
 | `--key` | *(required)* | Name or bech32 address of the approver key |
 | `--gno-root` | auto-detected | gno repo root, used to resolve stdlibs and examples for typechecking |
-| `--gas-fee` | `1000000ugnot` | Gas fee for approval transactions |
+| `--gas-fee` | `100000ugnot` | Flat fee per approval transaction, charged whether or not it succeeds. It must cover the gas an approval *asks for* — at gno.land's 1ugnot/1000gas that is `GasWanted <= 100,000,000`; raise both together for a package that genuinely wants more |
 | `--max-spend` | `100000000ugnot` | Total fees this run will pay for approvals before it stops approving |
 | `--gas-wanted` | `20000000` | Fallback gas wanted, used only when the node will not simulate an approval |
 | `--poll-interval` | `1s` | How often to poll for new blocks |
