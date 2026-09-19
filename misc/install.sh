@@ -238,6 +238,44 @@ latest_v_tag() {
     fi
 }
 
+tag_names() {
+    if [ "$JSON" = "jq" ]; then
+        jq -r '.[].name' "$TMP/tags.json"
+    else
+        # /tags objects carry exactly one "name" key each; the nested commit
+        # object has only "sha" and "url".
+        sed -n 's/.*"name": *"\([^"]*\)".*/\1/p' "$TMP/tags.json"
+    fi
+}
+
+# Highest vMAJOR.MINOR.PATCH on stdin, one candidate per line. Anything else
+# is ignored: chain/*, rc suffixes, four-component tags, and leading zeros.
+# gnoland's parseReleaseVersion refuses those too, so resolving to one would
+# hand over a binary whose version satisfies no halt_min_version floor.
+highest_v_tag() {
+    awk '
+        /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/ {
+            if (split(substr($0, 2), p, ".") != 3) next
+            if (best == "" || p[1]+0 > b1 || \
+                (p[1]+0 == b1 && p[2]+0 > b2) || \
+                (p[1]+0 == b1 && p[2]+0 == b2 && p[3]+0 > b3)) {
+                best = $0; b1 = p[1]+0; b2 = p[2]+0; b3 = p[3]+0
+            }
+        }
+        END { if (best != "") print best }
+    '
+}
+
+# The newest v* git tag, which is not the same question as the newest v*
+# *release*: v1.0.0 and v1.1.0 sat tagged with no release object for months,
+# and release-chain-tag.yml can fail that way again. Best effort: one extra
+# API call, and a failure here must not stop an install that would otherwise
+# work.
+newest_v_git_tag() {
+    api_get "${API}/tags?per_page=100" > "$TMP/tags.json" 2>/dev/null || return 0
+    tag_names | highest_v_tag
+}
+
 # The awk fallback scans pretty-printed JSON and relies on the current
 # field order ("url" before "name" within each asset).
 asset_url() {
@@ -291,11 +329,30 @@ install_gno() {
     # GitHub's /releases/latest resolves to whatever it ranks as "latest",
     # which for this repo may be a chain/* tag. Resolve "latest" to the most
     # recent non-prerelease v* tag ourselves instead.
+    #
+    # /releases is ordered by the tag commit date, newest first, and 100 is the
+    # API maximum per page. chain/* tags accrue one per testnet and per
+    # upgrade, so a single page stops covering the newest v* eventually; that
+    # is the point at which this needs paginating rather than a bigger number.
     if [ "$VERSION" = "latest" ]; then
-        api_get "${API}/releases?per_page=30" > "$TMP/releases.json" \
+        api_get "${API}/releases?per_page=100" > "$TMP/releases.json" \
             || die "failed to fetch releases list"
         VERSION="$(latest_v_tag)"
-        [ -n "$VERSION" ] || die "no v* release found; pass --version <tag> explicitly (see https://github.com/${REPO}/releases)"
+        newest_tag="$(newest_v_git_tag)"
+
+        if [ -z "$VERSION" ]; then
+            [ -z "$newest_tag" ] \
+                || die "no v* release published; $newest_tag is tagged but carries no binaries. Build it with: --from-source --version $newest_tag"
+            die "no v* release found; pass --version <tag> explicitly (see https://github.com/${REPO}/releases)"
+        fi
+
+        # A tag newer than the newest release means the release job did not
+        # publish. Say so rather than silently installing the older version.
+        if [ -n "$newest_tag" ] && [ "$newest_tag" != "$VERSION" ] \
+           && [ "$(printf '%s\n%s\n' "$newest_tag" "$VERSION" | highest_v_tag)" = "$newest_tag" ]; then
+            warn "$newest_tag is tagged but has no release binaries; installing $VERSION"
+            warn "to build the newer tag instead: --from-source --version $newest_tag"
+        fi
     fi
 
     # The public github.com/<repo>/releases/download/... path currently 404s for
