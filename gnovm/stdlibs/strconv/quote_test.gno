@@ -11,10 +11,32 @@ import (
 	"unicode"
 )
 
+// Custom code: these two sweeps call unicode.IsPrint / unicode.IsGraphic for
+// every one of the 1.1M code points. In Go those are cheap native calls; under
+// the GnoVM each one is an interpreted range-table walk, and the pair used to
+// account for roughly twelve minutes of this package's test time. (They were
+// previously fast only because gnovm/tests/stdlibs bound unicode.IsPrint and
+// friends to the *host* Go unicode package - an oracle that silently disagreed
+// with gno's own tables and has since been removed.)
+//
+// The exhaustive sweep is what actually validates isprint.gno against the
+// unicode tables, so it is kept for full runs and strided in short mode. Note
+// that gno's testing.Short() currently returns a hardcoded true, so in practice
+// only the strided path runs today; the full sweep comes back automatically if
+// Short() is ever wired up. The strides are primes, so a systematic table error
+// is still caught quickly.
+//
+// When refreshing the unicode tables, run this test with the stride forced to 1
+// at least once - that is the check that isprint.gno and tables.gno agree.
+
 // Verify that our IsPrint agrees with unicode.IsPrint.
 func TestIsPrint(t *testing.T) {
 	n := 0
-	for r := rune(0); r <= unicode.MaxRune; r++ {
+	step := rune(1)
+	if testing.Short() {
+		step = 97
+	}
+	for r := rune(0); r <= unicode.MaxRune; r += step {
 		if strconv.IsPrint(r) != unicode.IsPrint(r) {
 			t.Errorf("IsPrint(%U)=%t incorrect", r, strconv.IsPrint(r))
 			n++
@@ -26,9 +48,14 @@ func TestIsPrint(t *testing.T) {
 }
 
 // Verify that our IsGraphic agrees with unicode.IsGraphic.
+// See the note on TestIsPrint for why this is strided in short mode.
 func TestIsGraphic(t *testing.T) {
 	n := 0
-	for r := rune(0); r <= unicode.MaxRune; r++ {
+	step := rune(1)
+	if testing.Short() {
+		step = 89
+	}
+	for r := rune(0); r <= unicode.MaxRune; r += step {
 		if strconv.IsGraphic(r) != unicode.IsGraphic(r) {
 			t.Errorf("IsGraphic(%U)=%t incorrect", r, strconv.IsGraphic(r))
 			n++

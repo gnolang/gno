@@ -106,13 +106,11 @@ func exp(x float64) float64 {
 
 	// special cases
 	switch {
-	case IsNaN(x) || IsInf(x, 1):
+	case IsNaN(x):
 		return x
-	case IsInf(x, -1):
-		return 0
-	case x > Overflow:
+	case x > Overflow: // handles case where x is +Inf
 		return Inf(1)
-	case x < Underflow:
+	case x < Underflow: // handles case where x is -Inf
 		return 0
 	case -NearZero < x && x < NearZero:
 		return 1 + x
@@ -151,13 +149,11 @@ func exp2(x float64) float64 {
 
 	// special cases
 	switch {
-	case IsNaN(x) || IsInf(x, 1):
+	case IsNaN(x):
 		return x
-	case IsInf(x, -1):
-		return 0
-	case x > Overflow:
+	case x > Overflow: // handles case where x is +Inf
 		return Inf(1)
-	case x < Underflow:
+	case x < Underflow: // handles case where x is -Inf
 		return 0
 	}
 
