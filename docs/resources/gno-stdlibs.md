@@ -707,6 +707,68 @@ prevRealm := runtime.PreviousRealm()
 ```
 ---
 
+## `chain/reflect`
+
+Reports the identity the VM gives an object when it persists it. This is **not**
+Go's `reflect` package: there is no `Type`, no `Value`, no field or method
+enumeration, and no way to read or write a value you were not handed.
+
+It exists because a realm that needs a unique name for something it created has,
+otherwise, only names it chooses itself, and anything a realm chooses it can
+choose twice. The VM's `ObjectID` is the one name it cannot.
+
+### ObjectID
+```go
+type ObjectID struct { /* unexported */ }
+
+func (oid ObjectID) String() string
+func (oid ObjectID) IsZero() bool
+```
+Opaque, comparable and safe as a map key. `ObjectIDOf` is the only thing that
+returns a non-zero one, so a realm cannot mint an identity and pass it off as
+VM-issued. `String` gives the VM's own spelling of the ID, which is what to put
+in an event; do not parse it.
+
+An `ObjectID` is not an address. It has no signing key and nothing on chain can
+credit it.
+
+### ObjectIDOf
+```go
+func ObjectIDOf(v interface{}) (ObjectID, bool)
+```
+Returns the identity of the object `v` refers to. `ok` is false whenever there is
+none to report, and `HasIdentity` says which of the two reasons applies.
+
+An object's ID is not complete when the object is created: the VM stamps it when
+the owning realm persists it, which happens when a realm frame returns. So an
+object the running call created reports `ok == false` until then. Check `ok`
+rather than recording the zero ID, which is immutable once it is in an event.
+
+### HasIdentity
+```go
+func HasIdentity(v interface{}) bool
+```
+Reports whether `v` is the kind of value that gets an `ObjectID` of its own,
+whether or not it has been stamped yet. True for a pointer to a standalone
+object (`new(T)`, `&T{...}`). False for a pointer into a struct field or array
+element, a slice, a scalar, and a nil pointer, none of which has an identity
+separate from what it is part of.
+
+##### Usage
+```go
+id, ok := reflect.ObjectIDOf(thing)
+switch {
+case ok:
+    chain.Emit("created", "id", id.String())
+case reflect.HasIdentity(thing):
+    // Not persisted yet. Emit the id from a call that runs after this one
+    // returns, or refuse here.
+default:
+    panic("not an object")
+}
+```
+---
+
 ## `chain/banker`
 
 Contains everything related to the `Banker` module in Gno.

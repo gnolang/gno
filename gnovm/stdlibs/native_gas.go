@@ -154,6 +154,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "sys/params", Fn: "getSysParamInt64", Base: 323, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 322.9ns
 	{Pkg: "sys/params", Fn: "getSysParamUint64", Base: 309, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 308.7ns
 	{Pkg: "sys/params", Fn: "getSysParamString", Base: 363, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 362.8ns
+	{Pkg: "chain/reflect", Fn: "objectID", Base: 195, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 194.6ns (stamped, the dearest of the three paths; unstamped 50.6ns, no-identity 38.0ns)
 	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 44.8ns
 	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 44.5ns
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
