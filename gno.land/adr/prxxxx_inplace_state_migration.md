@@ -197,7 +197,11 @@ the chain's last completed upgrade; and the BeginBlocker (*Where it hooks*), to
 find the handler named by a pending `halt_min_version`.
 
 An entry may be dropped once no chain the binary serves still sits at it — which
-in practice means keeping the most recent, since that is what §3 looks up.
+in practice means keeping the most recent, since that is what §3 looks up. More
+may be needed: a binary able to replay across several upgrade heights must carry
+the handler for each one it crosses. Whether it can is decided by whether those
+upgrades changed the stored encoding — which nothing here marks, so it stays a
+judgement for whoever prunes.
 
 Only upgrades that migrate state register anything. A coordinated upgrade that
 breaks consensus without touching state needs a floor and nothing else, so

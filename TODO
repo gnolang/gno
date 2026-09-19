@@ -1,8 +1,5 @@
 - move to an upgrade module to inherit the begin blocker
 
-- is this really needed to have multiple upgrades ?
-	- what triggers the upgrade (version or stateformat?)
-
 - Document better the new behavior of skip_halt_height (there's a related flag as well right?)
 
 - investigate realm patching with realm store migration (see open question 1)
