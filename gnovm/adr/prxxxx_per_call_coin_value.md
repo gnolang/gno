@@ -57,10 +57,16 @@ intermediary reads zero. This PR changes no deployed realm; migrating a genesis
 realm such as `wugnot` to `CallSend` is left as a follow-up (its own fix ships
 via #6211).
 
-Scope: this is **phase 1**, the message-entry receipt. Letting a realm *forward*
-coins on a crossing call (the router/composition case) is phase 2 — a value
-channel on `cross`, sketched in `docs/proposals/per-call-coin-value.md`, not
-built here.
+Phase 2 — realm → realm forwarding — is implemented on the same primitive:
+`banker.PayCall(toPkgPath, rlm, coins)` forwards coins from the caller's realm
+to another realm and records a per-message credit for the payee, which the payee
+reads (and consumes) through the *same* `CallSend()`. A per-message credit
+ledger lives on `ExecContext` (allocated by the keeper); no VM-core, op_call, or
+grammar change. This is why `CallSend` is deliberately **call-scoped** ("what
+did this call deliver to me") rather than origin-scoped: the one receipt answers
+for both an EOA payment (the message) and a realm forward (`PayCall`). Gating
+the origin-scoped `OriginSend` instead would close the vulnerability but could
+not host forwarding — coins another realm forwarded are not an "origin send".
 
 `NumCallFrames` is untouched: it also feeds the `getRealm` gas model, and this
 change needs no frame reasoning at all.

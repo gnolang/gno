@@ -1,30 +1,48 @@
 # RFC: Per-call coin value for cross-realm calls (gno's `msg.value`)
 
-Status: draft / request for comment — **phase 1 implemented on this branch**
-Scope: GnoVM (frames, cross-call), gno.land (`chain/banker`)
-Relates to: the origin-call hardening in flight, and the `inert` policy's
-payment realms.
+Status: draft / request for comment — **phases 1 and 2 implemented on this branch**
+Scope: gno.land (`chain/banker`), a per-message ledger on the exec context
+Relates to: the origin-call hardening in flight (auth layer), and the
+credited-envelope fix that gates `OriginSend` in place.
+
+## Why a new call-scoped primitive, not a gated `OriginSend`
+
+The vulnerability can be closed by gating the existing `OriginSend` so it
+returns only to the realm the message credited. That is the right *minimal*
+fix for existing realms, and it should ship. But `OriginSend` is
+**origin-scoped** by name and meaning — "what the transaction origin (the EOA)
+sent" — a frame that only ever fits EOA → entry realm. A *general* value model
+must also cover realm → realm payments, and an `OriginSend` that returned coins
+another realm forwarded would contradict its own name.
+
+`CallSend` is **call-scoped**: "what did *this call* deliver to me," regardless
+of whether the payer was the EOA (the message) or another realm (a forward).
+That is why the same primitive carries both phases, and why gating `OriginSend`
+could not.
 
 ## Implementation status
 
-- **Phase 1 (done, this branch): the message-entry receipt.** `banker.CallSend()`
-  returns the transaction's send *only to the realm the keeper credited it to*
-  (`OriginSendRecipientPath`), and zero to any relayed realm. This needs no
-  VM-core change — the coins are already moved by the keeper and the recipient
-  is already recorded — so it is a small, self-contained native. It already
-  makes the direct-deposit case safe without `AssertOriginCall`: a relay is not
-  the recipient, so it sees zero. Files: `gnovm/stdlibs/chain/banker/banker.go`
-  (`X_bankerCallSend`), `banker.gno` (`CallSend`), `generated.go` binding,
-  `native_gas.go` row; test: `gno.land/pkg/integration/testdata/callsend.txtar`.
-- **Phase 2 (designed below, not yet built): the cross-call value channel.**
-  Letting a realm *forward* coins on a crossing call (the router case) needs
-  per-call coin movement inside the interpreter and a way to attach value to a
-  `cross`. That is the larger VM change described in "Design" §1 and §3 and is
-  left as the next step.
+- **Phase 1 (done): the message-entry receipt.** `banker.CallSend()` returns the
+  transaction's send *only to the realm the keeper credited it to*
+  (`OriginSendRecipientPath`), and zero to any relayed realm. Small,
+  self-contained native — the keeper already moves the coins and records the
+  recipient. Files: `chain/banker/banker.go` (`X_bankerCallSend`), `banker.gno`
+  (`CallSend`), `generated.go` binding, `native_gas.go` row; test:
+  `gno.land/pkg/integration/testdata/callsend.txtar`.
+- **Phase 2 (done): realm → realm forwarding.** `banker.PayCall(toPkgPath, rlm,
+  coins)` forwards coins from the caller's realm to another realm and records a
+  per-message credit for the payee; the payee reads (and consumes) it through
+  the *same* `CallSend()`. This lets a realm pay another realm it calls within
+  one atomic message, attributably — the composition the message-entry receipt
+  alone can't express. Kept in the banker/execctx layer: a per-message credit
+  ledger on `ExecContext` (allocated by the keeper), one native, and the
+  extended `CallSend`. **No VM-core, op_call, or grammar change.** Files:
+  `execctx/context.go` (`CallCredits`), `keeper.go` (ledger init), `banker.go`
+  (`X_bankerPayCall`), `banker.gno` (`PayCall`); test:
+  `gno.land/pkg/integration/testdata/callsend_forward.txtar`.
 
-Phase 1 covers "a realm knows what the message paid it"; phase 2 adds "a realm
-can pay another realm within a call." Phase 1 alone already removes wugnot's
-need for the origin check on direct deposits.
+Phase 1 answers "what did the message pay me"; phase 2 adds "and what did a
+realm forward me on this call" — one call-scoped receipt for both.
 
 ## Summary
 
