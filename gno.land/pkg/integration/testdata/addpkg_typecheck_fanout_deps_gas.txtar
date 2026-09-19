@@ -1,0 +1,59 @@
+# The type-expansion charge prices a package's whole dependency graph, not just its
+# own source. p0 is a doubling chain costing ~23M gas of type-expansion, which it
+# pays for and deploys. `user` is three lines long, but importing p0 makes the
+# deploy re-type-check it, so `user` is charged for p0's expansion too and runs out
+# of gas at a budget its own bytes would easily have covered.
+#
+# This is why a per-package limit could never have been the defence: those
+# dependencies' source bytes were paid for by an EARLIER transaction, so no
+# per-source-byte charge prices them, and the accumulation is per-transaction —
+# unbounded Tx.Msgs, and one message re-checking every dependency it imports.
+
+# start a new node
+gnoland start
+
+# p0: deploys, with enough gas to cover its own expansion
+gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+
+# user: three lines of source, but importing p0 pulls p0's expansion into this
+# deploy's gas. 5M is far more than its own bytes need and far less than what those
+# dependencies cost.
+! gnokey maketx addpkg -pkgdir $WORK/user -pkgpath gno.land/r/foobar/user -gas-fee 350001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'out of gas'
+
+# the same package deploys once its gas covers the dependency graph it pulls in
+gnokey maketx addpkg -pkgdir $WORK/user -pkgpath gno.land/r/foobar/user -gas-fee 350001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test $test1_user_addr
+
+-- p0/gnomod.toml --
+module = "gno.land/r/foobar/p0"
+gno = "0.9"
+
+-- p0/p0.gno --
+package p0
+
+type t0 struct{ v int }
+type t1 struct{ a, b [0]t0 }
+type t2 struct{ a, b [0]t1 }
+type t3 struct{ a, b [0]t2 }
+type t4 struct{ a, b [0]t3 }
+type t5 struct{ a, b [0]t4 }
+type t6 struct{ a, b [0]t5 }
+type t7 struct{ a, b [0]t6 }
+type t8 struct{ a, b [0]t7 }
+type t9 struct{ a, b [0]t8 }
+type t10 struct{ a, b [0]t9 }
+type t11 struct{ a, b [0]t10 }
+type t12 struct{ a, b [0]t11 }
+type t13 struct{ a, b [0]t12 }
+type T struct{ a, b [0]t13 }
+
+-- user/gnomod.toml --
+module = "gno.land/r/foobar/user"
+gno = "0.9"
+
+-- user/user.gno --
+package user
+
+import "gno.land/r/foobar/p0"
+
+type X p0.T
