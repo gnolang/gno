@@ -1,0 +1,75 @@
+# Removes a pull request's preview from gnolang/gno-previews when the PR closes, so the
+# published site does not grow without bound.
+#
+# pull_request_target is what gives this a token on pull requests opened from forks. It is
+# safe here because nothing from the pull request is ever checked out or executed: the job
+# deletes a directory named after the PR number and nothing else.
+#
+# gno-previews also runs its own scheduled sweep, which catches whatever this misses —
+# a failed run, a PR closed while a publish was in flight — and enforces a size budget.
+name: pr / preview cleanup
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [closed]
+
+permissions: {}
+
+# Same key as pr-preview-publish.yml, so a close that races a publish for the same pull
+# request serializes behind it instead of re-adding a deleted preview.
+concurrency:
+  group: >-
+    pr-preview-publish-${{ github.event.pull_request.head.repo.full_name }}-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: false
+
+env:
+  PREVIEWS_REPO: gnolang/gno-previews
+
+jobs:
+  cleanup:
+    # Same opt-in as pr-preview.yml; see the note there.
+    if: vars.GNOWEB_PREVIEW_BASE_URL != ''
+    runs-on: ubuntu-latest
+    permissions: {} # everything this job touches lives in the previews repository
+    env:
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # A repo-scoped deploy key, persisted on purpose: pushing to the previews
+      # repository is this job's only reason to exist, and it uploads no artifact.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked]
+        with:
+          repository: ${{ env.PREVIEWS_REPO }}
+          ref: main
+          ssh-key: ${{ secrets.PREVIEWS_DEPLOY_KEY }} # zizmor: ignore[secrets-outside-env]
+          path: previews
+
+      # Same replay story as the publish job: on a rejected push, reset onto the latest
+      # main and redo the deletion, which only ever touches our own directory.
+      - name: Remove pr-<N>
+        working-directory: previews
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            if [ ! -d "pr-$PR" ]; then
+              echo "no preview for PR #$PR — nothing to clean"
+              exit 0
+            fi
+            rm -rf "pr-$PR"
+            git add -A
+            if git diff --cached --quiet; then
+              echo "nothing to clean"
+              exit 0
+            fi
+            git commit -q -m "preview: remove PR #$PR"
+            if git push -q origin HEAD:main; then
+              echo "cleaned on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected (main moved); replaying on the latest — attempt $attempt"
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::could not clean the preview after 5 attempts"
+          exit 1

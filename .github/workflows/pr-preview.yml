@@ -1,0 +1,123 @@
+# Renders what a pull request changed with gnodev/gnoweb and stores the result
+# as a static site, so reviewers can look at a realm instead of imagining it.
+#
+# This is the UNTRUSTED half: it runs the pull request's own code (gnodev, the
+# realms, misc/gnopreview) and therefore has a read-only token and no secrets.
+# It only produces an artifact. Publishing it — pushing to gnolang/gno-previews,
+# writing the PR comment — happens in pr-preview-publish.yml, which never checks
+# out PR code and never trusts what this job wrote beyond the rendered HTML.
+#
+# No artifact means no comment: a PR that changes neither a realm, a realm
+# dependency nor gnoweb is silently skipped.
+name: pr / preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      # Realms and the packages they may import.
+      - examples/gno.land/**
+      # gnoweb itself, and the node that serves it in the preview.
+      - gno.land/pkg/gnoweb/**
+      - gno.land/cmd/gnoweb/**
+      - contribs/gnodev/**
+      # The preview tooling.
+      - misc/gnopreview/**
+      - .github/workflows/pr-preview.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    # One knob turns previews on: the repository variable GNOWEB_PREVIEW_BASE_URL,
+    # set to where the Pages site is served from (no trailing slash). Unset means
+    # previews are off — which is what every fork gets by default, so nobody pays
+    # for a gnodev build they did not ask for.
+    #
+    #   gh variable set GNOWEB_PREVIEW_BASE_URL -R <repo> -b https://<owner>.github.io/<repo>
+    if: vars.GNOWEB_PREVIEW_BASE_URL != ''
+    runs-on: ubuntu-latest
+    env:
+      PR: ${{ github.event.pull_request.number }}
+      BASE_URL: ${{ vars.GNOWEB_PREVIEW_BASE_URL }}/pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Collect the changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          git diff --name-only "$base" "$HEAD_SHA" > changed.txt
+          echo "changed files: $(wc -l < changed.txt)"
+          # A checkout of the merge base, so a changed realm can be rendered as
+          # it looks today as well as as this branch renders it. Both passes use
+          # the head's gnodev and the head's assets, so the pair differs by the
+          # realm change alone.
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+
+      # Decide before paying for a gnodev build. The paths filter above is
+      # coarse (a *_test.gno edit matches examples/**); the plan is exact.
+      - name: Plan the preview
+        id: plan
+        run: |
+          cd misc/gnopreview && go build -o "$RUNNER_TEMP/gnopreview" . && cd -
+          "$RUNNER_TEMP/gnopreview" plan -changed changed.txt | tee plan.json
+          if [ "$(jq -r 'if .gnoweb or (.realms | length > 0) then "yes" else "no" end' plan.json)" = "no" ]; then
+            echo "nothing to preview — no realm, realm dependency or gnoweb change"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build gnodev
+        if: steps.plan.outputs.skip != 'true'
+        run: cd contribs/gnodev && go build -o "$RUNNER_TEMP/gnodev" .
+
+      # Screenshots are only taken for gnoweb changes; google-chrome ships with
+      # the ubuntu-latest image, and a missing browser costs the comment its
+      # images, not the preview.
+      - name: Render the snapshot
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          GNODEV: ${{ runner.temp }}/gnodev
+          GNOROOT: ${{ github.workspace }}
+        run: |
+          "$RUNNER_TEMP/gnopreview" render \
+            -changed changed.txt \
+            -base-root "$RUNNER_TEMP/base" \
+            -out _preview \
+            -base-url "$BASE_URL" \
+            -pr "$PR"
+          rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*
+          du -sh _preview
+
+      # The render step deletes the logs on success, and no later step runs on
+      # failure — so without this a gnodev that never came up leaves nothing to
+      # read but "not ready".
+      - name: Show the gnodev log
+        if: failure()
+        run: |
+          for f in _preview/gnodev.log _preview/gnodev-base.log; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"; tail -100 "$f"; echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          name: pr-preview
+          path: _preview
+          retention-days: 3
+          if-no-files-found: error
