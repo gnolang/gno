@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -234,10 +235,30 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 	case targetName != "" && targetName == orig.Namespace():
 		// Package: the namespace matches the origin's namespace.
 		return target, GnoLinkTypePackage
+	case targetName == "" && orig.Namespace() == "" &&
+		firstPathSegment(target.Path) != "" &&
+		firstPathSegment(target.Path) == firstPathSegment(orig.Path):
+		// Neither side is a namespaced package path, and both sit under the
+		// same top-level section (/docs/a -> /docs/b). Moving around inside
+		// one such section is not a cross-package hop, so it gets no icon —
+		// the same treatment a link within one realm's namespace gets above.
+		// Without this every link between two embedded documentation pages
+		// wore the "Cross package link" badge.
+		return target, GnoLinkTypePackage
 	default:
 		// Internal: it's neither external nor a package link.
 		return target, GnoLinkTypeInternal
 	}
+}
+
+// firstPathSegment returns the first non-empty path segment of p, or "" when
+// p has none ("", "/").
+func firstPathSegment(p string) string {
+	p = strings.TrimPrefix(p, "/")
+	if i := strings.IndexByte(p, '/'); i >= 0 {
+		p = p[:i]
+	}
+	return p
 }
 
 // linkRenderer implements NodeRenderer
