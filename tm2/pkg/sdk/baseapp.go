@@ -929,9 +929,10 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		gasWanted = result.GasWanted
 	}
 
-	// CheckTx: flush ante writes (sequence, fees) and return.
-	// No msg execution happens (handler.Process is skipped for CheckTx).
-	if mode == RunTxModeCheck {
+	// CheckTx and trusted ante only delivery flush ante writes and return.
+	// Message execution is skipped in both cases.
+	anteOnly, _ := ctx.Value(deliverAnteOnlyKey{}).(bool)
+	if mode == RunTxModeCheck || anteOnly {
 		if msCache != nil {
 			msCache.MultiWrite()
 		}
