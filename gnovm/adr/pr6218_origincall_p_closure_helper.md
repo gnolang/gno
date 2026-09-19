@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Follow-up to #6211.
+Proposed in #6218. Follow-up to #6211.
 
 ## Context
 
