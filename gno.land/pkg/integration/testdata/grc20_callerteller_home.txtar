@@ -109,6 +109,7 @@ var (
 
 func init(cur realm) {
 	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, 0, cur)
+	mutable(Token) // holders may transfer through the token
 	Teller = adm.CallerTeller()
 }
 

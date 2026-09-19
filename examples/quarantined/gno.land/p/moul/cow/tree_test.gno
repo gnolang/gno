@@ -358,13 +358,13 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 		}
 
 		original := NewTree()
-		mutable := &MutableValue{Data: "original"}
-		original.Set("key", mutable)
+		mv := &MutableValue{Data: "original"}
+		original.Set("key", mv)
 
 		clone := original.Clone()
 
-		// Modify the mutable value
-		mutable.Data = "modified"
+		// Modify the mv value
+		mv.Data = "modified"
 
 		// Both original and clone should see the modification
 		// because we're not deep copying values
