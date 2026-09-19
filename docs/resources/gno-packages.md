@@ -106,6 +106,11 @@ Package paths can include version suffixes for versioned packages:
 A path may end in at most one version suffix: paths ending in consecutive
 version suffixes (e.g. `gno.land/r/demo/mylib/v2/v3`) are rejected.
 
+Deployed code is immutable, so a new version is a new deployment at a new
+path, and versions coexist: importers of `/v1` keep working unchanged after
+`/v2` ships. For upgrade and migration patterns built on this, see
+[Effective Gno](./effective-gno.md#versioning-and-upgrades).
+
 ## Namespaces
 
 Namespaces provide users with the exclusive ability to publish code under their
