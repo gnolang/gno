@@ -17,6 +17,7 @@ type AppConfig struct {
 	home            string
 	root            string
 	premineAccounts varPremineAccounts
+	importDevKey    bool
 
 	// Files
 	balancesFile string
@@ -278,6 +279,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"v",
 		defaultCfg.verbose,
 		"enable verbose output for development",
+	)
+
+	fs.BoolVar(
+		&c.importDevKey,
+		"import-dev-key",
+		defaultCfg.importDevKey,
+		"import the well-known dev account into the local keybase at startup",
 	)
 }
 
