@@ -74,7 +74,18 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          prs=$(gh api "repos/$REPO/pulls?state=open&per_page=100&head=$HEAD_OWNER:$HEAD_BRANCH" \
+          # -f, not string interpolation into the query: a branch name is
+          # whatever the fork calls it, "&" and all, and `git check-ref-format`
+          # accepts both. Pasted in raw, "zzz&head=<owner>%3A<victim-branch>"
+          # appends a second head= that the REST API honours over the first,
+          # and a legitimate "fix/a&b" simply truncates the filter and silently
+          # previews nothing. gh percent-encodes the value.
+          #
+          # Not repos/{owner}/{repo}/commits/{sha}/pulls, which looks tidier and
+          # returns [] for a fork head — verified against an open fork PR — and
+          # forks are the case this whole split exists for.
+          prs=$(gh api -X GET "repos/$REPO/pulls" \
+                  -f state=open -f per_page=100 -f "head=$HEAD_OWNER:$HEAD_BRANCH" \
                   --jq '.[] | "\(.number) \(.head.sha)"')
           n=$(printf '%s\n' "$prs" | grep -c . || true)
           if [ "$n" -eq 0 ]; then
@@ -85,8 +96,7 @@ jobs:
             echo "::error::$n open pull requests share head $HEAD_OWNER:$HEAD_BRANCH; refusing to guess"
             exit 1
           fi
-          pr=${prs%% *}
-          sha=${prs##* }
+          read -r pr sha <<< "$prs"
           if [ "$sha" != "$HEAD_SHA" ]; then
             echo "PR #$pr has moved to $sha since this run ($HEAD_SHA) — a newer run will publish"
             exit 0
