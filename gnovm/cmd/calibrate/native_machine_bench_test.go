@@ -872,8 +872,8 @@ func BenchmarkNative_Runtime_GetSessionInfo(b *testing.B) {
 	}
 }
 
-// AssertOriginCall: requires Frames[0].LastPackage.PkgPath == "" and
-// NumCallFrames() <= 2.
+// AssertOriginCall: requires the entry package to be the synthetic "" package
+// and NumCallBoundaryFrames() <= 2.
 func BenchmarkNative_Runtime_AssertOriginCall(b *testing.B) {
 	m := newDispatchMachine(0)
 	addContextAndFrames(m, "", "gno.land/r/x")
