@@ -170,7 +170,27 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	return b
 }
 
+// CallSend returns the coins this call delivered to the current realm — gno's
+// msg.value for the message-entry call.
+//
+// Unlike OriginSend, which returns the transaction-wide envelope to any realm
+// in the call chain (the tx-origin payment twin), CallSend answers only to the
+// realm the coins were actually credited to. A realm reached through a relay is
+// not the recipient and receives nothing, so it cannot mint or credit against a
+// payment it did not receive. A realm that accepts payment should read CallSend
+// rather than OriginSend + AssertOriginCall. See
+// docs/proposals/per-call-coin-value.md.
+func CallSend() chain.Coins {
+	den, amt := bankerCallSend()
+	coins := make(chain.Coins, len(den))
+	for i := range coins {
+		coins[i] = chain.Coin{Denom: den[i], Amount: amt[i]}
+	}
+	return coins
+}
+
 // These are native bindings to the banker's functions.
+func bankerCallSend() (denoms []string, amounts []int64)
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)

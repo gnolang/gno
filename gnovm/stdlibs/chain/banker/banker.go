@@ -132,6 +132,30 @@ func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amo
 	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
+// X_bankerCallSend returns the coins the message delivered to the CURRENT
+// realm, or nothing if this realm is not the one the envelope was credited to.
+//
+// This is gno's msg.value for the message-entry call. Unlike unsafe.OriginSend
+// (the tx-wide, tx-origin envelope that ANY realm in the chain can read),
+// CallSend is credited: it answers only to the realm the coins were actually
+// paid to (OriginSendRecipientPath, set by the keeper alongside the transfer).
+// A relayed call is not the recipient, so it sees zero and cannot mint against
+// coins it never received. See docs/proposals/per-call-coin-value.md.
+func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	ctx := execctx.GetContext(m)
+	var realmPath string
+	if m.Realm != nil {
+		realmPath = m.Realm.Path
+	}
+	if realmPath == "" || realmPath != ctx.OriginSendRecipientPath {
+		return nil, nil
+	}
+	// The recipient reading its own delivery makes the envelope observed,
+	// satisfying MsgCall's unobserved-send guard, exactly as OriginSend does.
+	ctx.MarkOriginSendObservedBy(realmPath)
+	return ExpandCoins(ctx.OriginSend)
+}
+
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(c))
 	amounts = make([]int64, len(c))
