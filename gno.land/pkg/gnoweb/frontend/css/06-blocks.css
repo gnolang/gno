@@ -76,14 +76,35 @@
 		@media (--lg) {
 			grid-column: span 7;
 		}
-
-		&--explorer {
-			grid-column: span 10;
-		}
 	}
 
 	.main-nav--explorer {
 		grid-column: span 10;
+	}
+
+	/* Chain-id chip, on every network; --alert escalates it off-mainnet. */
+	.network-chip {
+		align-self: center;
+		flex-shrink: 0;
+		padding-inline: var(--g-space-2);
+		padding-block: var(--g-space-1);
+		border-radius: var(--s-rounded);
+		background-color: var(--s-color-bg-network);
+		color: var(--s-color-text-network);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		white-space: nowrap;
+		max-inline-size: 14ch;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Flat, not nested `&--alert`: postcss-nesting is spec-compliant and does
+	   not concatenate `&` with a suffix -- it would compile to a dead type
+	   selector. Same reason `.main-nav--explorer` above is flat. */
+	.network-chip--alert {
+		background-color: var(--s-color-bg-network-alert);
+		color: var(--s-color-text-network-alert);
 	}
 
 	.user-picture {
