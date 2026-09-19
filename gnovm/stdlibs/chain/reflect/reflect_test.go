@@ -52,11 +52,15 @@ func newObjectFixture(t *testing.T, pkgPath string) *objectFixture {
 // instead would test a shape the VM never hands to this native.
 func (f *objectFixture) newStandaloneObject() (gno.Object, gno.TypedValue) {
 	hiv := f.alloc.NewHeapItem(nil, gno.TypedValue{})
-	hiv.SetPkgID(f.m.Realm.ID)
-	hiv.SetOwner(f.owner)
-	hiv.IncRefCount()
+	f.own(hiv)
 
 	return hiv, gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}
+}
+
+func (f *objectFixture) own(oo gno.Object) {
+	oo.SetPkgID(f.m.Realm.ID)
+	oo.SetOwner(f.owner)
+	oo.IncRefCount()
 }
 
 func (f *objectFixture) persist(oo gno.Object) {
@@ -65,48 +69,54 @@ func (f *objectFixture) persist(oo gno.Object) {
 }
 
 // The three states of an object's identity, in the order a realm meets them.
-func TestObjectIDStampingWindow(t *testing.T) {
+func TestObjectInfoStampingWindow(t *testing.T) {
 	f := newObjectFixture(t, "gno.land/r/demo/reflect")
 	oo, tv := f.newStandaloneObject()
 
 	// Created by the running call. The realm half of the ID is stamped by the
-	// allocator, the clock half only at persistence, so there is no ID yet,
-	// but it is an object, which is what tells "not yet" from "never".
-	id, stamped, hasIdentity := X_objectID(f.m, tv)
+	// allocator, the clock half only at persistence, so there is no identity
+	// and no address to derive from half an ID. It is an object though, which
+	// is what tells "not yet" from "never".
+	id, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, tv)
 	require.Equal(t, "", id)
+	require.Equal(t, "", addr)
 	require.False(t, stamped)
 	require.True(t, hasIdentity)
 
-	// Reading is not issuing. A second read must agree, and must not have
+	// Reading is not issuing. A second read must agree and must not have
 	// advanced the realm clock to mint something.
 	timeBefore := f.m.Realm.Time
-	id, stamped, hasIdentity = X_objectID(f.m, tv)
-	require.Equal(t, "", id)
+	_, _, _, _, stamped, _ = X_objectInfo(f.m, tv)
 	require.False(t, stamped)
-	require.True(t, hasIdentity)
-	require.Equal(t, timeBefore, f.m.Realm.Time, "reading an ID must not advance the realm clock")
+	require.Equal(t, timeBefore, f.m.Realm.Time, "reading must not advance the realm clock")
 
 	f.persist(oo)
 
-	// Persisted: the ID exists, and it is the VM's own spelling of it, so an
-	// ID in an event can be matched against a storage dump.
-	id, stamped, hasIdentity = X_objectID(f.m, tv)
+	// Persisted: identity and address both exist.
+	id, addr, pkgPath, _, stamped, hasIdentity := X_objectInfo(f.m, tv)
 	require.True(t, stamped)
 	require.True(t, hasIdentity)
-	require.Equal(t, oo.GetObjectID().String(), id)
-	require.NotEmpty(t, id)
+	require.Equal(t, oo.GetObjectID().String(), id, "ID must be the VM's own spelling")
+	require.Equal(t, "gno.land/r/demo/reflect", pkgPath, "PkgPath must name the creating realm")
+	require.NotEmpty(t, addr)
+
+	// The address is exactly what the VM derives from the ID, spelled out
+	// independently of the native so a changed derivation reports as such.
+	require.Equal(t, gno.DeriveObjectCryptoAddr(oo.GetObjectID()).String(), addr)
+	require.Equal(t, "g1", addr[:2], "object addresses are ordinary g1 addresses")
 
 	// And it does not move afterwards.
 	timeBefore = f.m.Realm.Time
-	id2, _, _ := X_objectID(f.m, tv)
-	require.Equal(t, id, id2)
+	_, addr2, _, _, _, _ := X_objectInfo(f.m, tv)
+	require.Equal(t, addr, addr2)
 	require.Equal(t, timeBefore, f.m.Realm.Time)
 }
 
 // Two objects persisted by the same pass take distinct ticks of the realm
-// clock. This is the property the whole package exists for: the realm chooses
-// no part of it and cannot make two objects answer the same ID.
-func TestObjectIDIsUniquePerObject(t *testing.T) {
+// clock, so they take distinct addresses. This is the property the whole
+// package exists for: the realm chooses no part of the address and cannot make
+// two objects answer the same one.
+func TestObjectAddressIsUniquePerObject(t *testing.T) {
 	f := newObjectFixture(t, "gno.land/r/demo/reflect_unique")
 
 	const n = 3
@@ -120,35 +130,65 @@ func TestObjectIDIsUniquePerObject(t *testing.T) {
 
 	seen := make(map[string]int, n)
 	for i, tv := range tvs {
-		id, stamped, _ := X_objectID(f.m, tv)
+		_, addr, _, _, stamped, _ := X_objectInfo(f.m, tv)
 		require.True(t, stamped)
-		require.NotEmpty(t, id)
-		require.NotContains(t, seen, id, "objects %d and %d share an ID", seen[id], i)
-		seen[id] = i
+		require.NotEmpty(t, addr)
+		require.NotContains(t, seen, addr, "objects %d and %d share an address", seen[addr], i)
+		seen[addr] = i
 	}
 }
 
 // Two realms mint their clocks independently, so the realm half has to take
-// part in the ID or tick 2 of one realm would collide with tick 2 of another.
-func TestObjectIDSeparatesRealms(t *testing.T) {
-	ids := make(map[string]string, 2)
+// part in the address or tick 2 of one realm would collide with tick 2 of
+// another. An object address must also never collide with the package address
+// of the realm that owns it: the two are hashed from different preimages, and a
+// realm being mistaken for one of its own objects would be a funds bug.
+func TestObjectAddressSeparatesRealmsAndPackages(t *testing.T) {
+	addrs := make(map[string]string, 4)
 	for _, pkgPath := range []string{"gno.land/r/demo/reflect_a", "gno.land/r/demo/reflect_b"} {
 		f := newObjectFixture(t, pkgPath)
 		oo, tv := f.newStandaloneObject()
 		f.persist(oo)
 
-		id, stamped, _ := X_objectID(f.m, tv)
+		_, addr, gotPath, _, stamped, _ := X_objectInfo(f.m, tv)
 		require.True(t, stamped)
-		require.NotContains(t, ids, id, "%s and %s share an ID", ids[id], pkgPath)
-		ids[id] = pkgPath
+		require.Equal(t, pkgPath, gotPath)
+		require.NotContains(t, addrs, addr, "%s and %s share an address", addrs[addr], pkgPath)
+		addrs[addr] = pkgPath
+
+		pkgAddr := gno.DerivePkgBech32Addr(pkgPath).String()
+		require.NotContains(t, addrs, pkgAddr, "an object address collides with a package address")
+		addrs[pkgAddr] = pkgPath + " (package)"
 	}
 }
 
-// Every value that has no identity of its own reports the same way: no ID, no
-// claim to one, and no panic. A caller gets one uniform answer to check rather
-// than a mix of empty strings and aborts, and the zero ID is never handed out
-// as if it were an identity.
-func TestObjectIDValuesWithoutIdentity(t *testing.T) {
+// A func value is a reference, so a stored callback is addressable in its own
+// right and every holder of it agrees on the address. That is what makes "this
+// exact lambda" linkable, separately from whatever struct holds it.
+//
+// Only the unstamped half is checked here: persisting a synthetic FuncValue
+// would need a real package in the store for assertObjectIsPublic to resolve,
+// and fabricating one would test the fixture rather than the native. The
+// stamped half is proven end to end by
+// gnovm/tests/files/zrealm_reflect_proposal_fund.gno, where a realm's stored
+// closure reports its own address, distinct from the struct holding it.
+func TestFuncValueIsAnObject(t *testing.T) {
+	f := newObjectFixture(t, "gno.land/r/demo/reflect_func")
+
+	fv := &gno.FuncValue{}
+	f.own(fv)
+
+	_, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, gno.TypedValue{V: fv})
+	require.True(t, hasIdentity, "a func value is an object")
+	require.False(t, stamped, "and is unstamped until persisted, like any other")
+	require.Equal(t, "", addr)
+}
+
+// Every value with no identity of its own reports the same way: nothing, no
+// claim to anything, and no panic. A caller gets one uniform answer to check
+// rather than a mix of empty strings and aborts, and no address is ever
+// invented for a value that has none.
+func TestObjectInfoValuesWithoutIdentity(t *testing.T) {
 	f := newObjectFixture(t, "gno.land/r/demo/reflect_nonobjects")
 	container, _ := f.newStandaloneObject()
 	f.persist(container)
@@ -172,8 +212,8 @@ func TestObjectIDValuesWithoutIdentity(t *testing.T) {
 			tv:   gno.TypedValue{V: gno.PointerValue{}},
 		},
 		{
-			// &x.Field. Resolving it to the struct would make every field of
-			// x answer x's identity as its own.
+			// &x.Field. Resolving it to the struct would make every field of x
+			// answer x's address as its own.
 			name: "pointer into a struct field",
 			tv:   gno.TypedValue{V: gno.PointerValue{TV: &structValue.Fields[0], Base: structValue}},
 		},
@@ -198,8 +238,11 @@ func TestObjectIDValuesWithoutIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, stamped, hasIdentity := X_objectID(f.m, tt.tv)
+			id, addr, pkgPath, typ, stamped, hasIdentity := X_objectInfo(f.m, tt.tv)
 			require.Equal(t, "", id)
+			require.Equal(t, "", addr, "a value with no identity must never get an address")
+			require.Equal(t, "", pkgPath)
+			require.Equal(t, "", typ)
 			require.False(t, stamped)
 			require.False(t, hasIdentity, "a value with no identity must not claim one is coming")
 		})
@@ -210,7 +253,7 @@ func TestObjectIDValuesWithoutIdentity(t *testing.T) {
 // item is an internal shape. TypedValue.GetFirstObject panics outright on both,
 // so the native resolves pointer bases itself and reports these as no identity
 // rather than aborting the transaction.
-func TestObjectIDDoesNotPanicOnInternalShapes(t *testing.T) {
+func TestObjectInfoDoesNotPanicOnInternalShapes(t *testing.T) {
 	f := newObjectFixture(t, "gno.land/r/demo/reflect_internal")
 	hiv := f.alloc.NewHeapItem(nil, gno.TypedValue{})
 
@@ -231,8 +274,8 @@ func TestObjectIDDoesNotPanicOnInternalShapes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotPanics(t, func() {
-				id, stamped, hasIdentity := X_objectID(f.m, tt.tv)
-				require.Equal(t, "", id)
+				_, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, tt.tv)
+				require.Equal(t, "", addr)
 				require.False(t, stamped)
 				require.False(t, hasIdentity)
 			})
@@ -240,28 +283,25 @@ func TestObjectIDDoesNotPanicOnInternalShapes(t *testing.T) {
 	}
 }
 
-// The docs promise an ObjectID is comparable and safe as a map key, which the
-// Gno-side ObjectID inherits from the string this returns. Distinct objects
-// must therefore land in distinct buckets, and the zero ID must not merge with
-// anything: an object created and emitted before persistence reports ok=false,
-// but a caller that stored the zero ID anyway would alias every such object.
-func TestObjectIDIsUsableAsAMapKey(t *testing.T) {
-	f := newObjectFixture(t, "gno.land/r/demo/reflect_mapkey")
+// The docs promise the address is deterministic: a pure function of the ID, so
+// a second derivation of the same ID is identical and two different IDs never
+// agree. An incomplete ID names no object and has nothing to derive from.
+func TestDeriveObjectCryptoAddrIsDeterministic(t *testing.T) {
+	t.Parallel()
 
-	const n = 3
-	byID := make(map[string]int, n)
-	for i := range n {
-		oo, tv := f.newStandaloneObject()
-		f.persist(oo)
+	pkgID := gno.PkgIDFromPkgPath("gno.land/r/demo/reflect_derive")
+	other := gno.PkgIDFromPkgPath("gno.land/r/demo/reflect_derive_other")
 
-		id, stamped, _ := X_objectID(f.m, tv)
-		require.True(t, stamped)
-		byID[id] = i
+	a := gno.DeriveObjectCryptoAddr(gno.ObjectID{PkgID: pkgID, NewTime: 7})
+	require.Equal(t, a, gno.DeriveObjectCryptoAddr(gno.ObjectID{PkgID: pkgID, NewTime: 7}))
+	require.NotEqual(t, a, gno.DeriveObjectCryptoAddr(gno.ObjectID{PkgID: pkgID, NewTime: 8}))
+	require.NotEqual(t, a, gno.DeriveObjectCryptoAddr(gno.ObjectID{PkgID: other, NewTime: 7}))
+
+	for _, oid := range []gno.ObjectID{
+		{},
+		{NewTime: 7},
+		{PkgID: pkgID},
+	} {
+		require.Panics(t, func() { gno.DeriveObjectCryptoAddr(oid) })
 	}
-	require.Len(t, byID, n, "three objects must occupy three keys")
-
-	// The zero ID is one key, shared by everything without an identity, which
-	// is why ObjectIDOf reports ok rather than handing it out.
-	noID, _, _ := X_objectID(f.m, gno.TypedValue{T: gno.StringType})
-	require.NotContains(t, byID, noID)
 }

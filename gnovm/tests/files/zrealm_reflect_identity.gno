@@ -1,6 +1,12 @@
 // PKGPATH: gno.land/r/demo/reflectkinds
 package reflectkinds
 
+// Which values get an address of their own, and which borrow nothing.
+//
+// The rule is one line: a value has an address when it is its own object, and
+// not when its identity would really be somebody else's. Everything below is
+// that rule applied.
+
 import (
 	"chain/reflect"
 )
@@ -15,60 +21,81 @@ type outer struct {
 var (
 	standalone = &inner{n: 1}
 	container  = &outer{}
+	callback   = func() int { return 1 }
 	numbers    = []int{1, 2, 3}
 	nilPtr     *inner
 )
 
-func main(cur realm) {
-	// A pointer to a standalone object: the case the package exists for.
-	// `&T{...}` gives the object its own heap item, so it has its own ID.
-	println("standalone:", reflect.HasIdentity(standalone))
+func show(label string, v interface{}) {
+	obj, ok := reflect.Of(v)
+	switch {
+	case ok:
+		println(label, "->", obj.Address())
+	case reflect.HasIdentity(v):
+		println(label, "-> (an object, not persisted yet)")
+	default:
+		println(label, "-> (no identity of its own)")
+	}
+}
 
-	// A pointer into a container borrows nothing. Were &container.field to
-	// report the container's ID, container.arr[0] would report the same one,
-	// and one ID would name three different things.
-	println("struct field:", reflect.HasIdentity(&container.field))
-	println("array element:", reflect.HasIdentity(&container.arr[0]))
+func main(cur realm) {
+	// Its own object. `&T{...}` and `new(T)` produce these.
+	show("&inner{}        ", standalone)
+	show("&outer{}        ", container)
+
+	// A func value is a reference: two variables holding one closure hold the
+	// same object, so a stored callback is addressable separately from
+	// whatever holds it.
+	show("func() int      ", callback)
+
+	// A pointer into a container is not its own object. Were &container.field
+	// to report the container's address, container.arr[0] would report the
+	// same one, and a single address would name three different things.
+	show("&container.field", &container.field)
+	show("&container.arr[0]", &container.arr[0])
 
 	// A slice resolves to its backing array, which every other view of it
 	// shares, so numbers[0:1] and numbers[1:2] would agree.
-	println("slice:", reflect.HasIdentity(numbers))
+	show("[]int           ", numbers)
 
-	// Values with no object behind them at all.
-	println("scalar:", reflect.HasIdentity(42))
-	println("string:", reflect.HasIdentity("hello"))
-	println("nil pointer:", reflect.HasIdentity(nilPtr))
+	// No object behind them at all.
+	show("42              ", 42)
+	show(`"hello"         `, "hello")
+	show("(*inner)(nil)   ", nilPtr)
 
-	// None of those aborts the call, and none of them yields an ID: a caller
-	// checking ok gets one uniform answer instead of a mix of empty strings
-	// and panics.
+	println("")
+
+	// A value created by this call is an object with no address yet, which is
+	// a different answer from having none. show prints them differently above;
+	// here is the check a realm would write.
+	fresh := &inner{n: 9}
+	_, ok := reflect.Of(fresh)
+	println("fresh: addressable now:", ok, "/ ever:", reflect.HasIdentity(fresh))
+
+	// Nothing without an identity ever yields a non-zero Object, so a caller
+	// that forgets to check ok collapses them all onto the zero value rather
+	// than inventing addresses.
 	for _, v := range []interface{}{&container.field, numbers, 42, nilPtr} {
-		if id, ok := reflect.ObjectIDOf(v); ok || !id.IsZero() {
-			println("LEAKED AN ID")
+		if obj, ok := reflect.Of(v); ok || !obj.IsZero() || obj.Address() != "" {
+			println("LEAKED AN ADDRESS")
 		}
 	}
-	println("no IDs leaked from values without identity")
-
-	// The container itself does have one, being standalone.
-	containerID, containerOK := reflect.ObjectIDOf(container)
-	standaloneID, standaloneOK := reflect.ObjectIDOf(standalone)
-	println("container has an ID:", containerOK)
-	println("standalone has an ID:", standaloneOK)
-	println("and they differ:", containerID != standaloneID)
+	println("no addresses leaked from values without identity")
 
 	println(".")
 }
 
 // Output:
-// standalone: true
-// struct field: false
-// array element: false
-// slice: false
-// scalar: false
-// string: false
-// nil pointer: false
-// no IDs leaked from values without identity
-// container has an ID: true
-// standalone has an ID: true
-// and they differ: true
+// &inner{}         -> g1aecuuaguc5654vk3yaa2jzlsr36tu543gfjuky
+// &outer{}         -> g185ejn3r7w6gef5yk6mv8xj4g34d9s57telt7h9
+// func() int       -> g1tgzz9nkvgtlr90cgha8g8lajvn9p2pew5epgmd
+// &container.field -> (no identity of its own)
+// &container.arr[0] -> (no identity of its own)
+// []int            -> (no identity of its own)
+// 42               -> (no identity of its own)
+// "hello"          -> (no identity of its own)
+// (*inner)(nil)    -> (no identity of its own)
+//
+// fresh: addressable now: false / ever: true
+// no addresses leaked from values without identity
 // .

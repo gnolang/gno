@@ -709,62 +709,96 @@ prevRealm := runtime.PreviousRealm()
 
 ## `chain/reflect`
 
-Reports the identity the VM gives an object when it persists it. This is **not**
-Go's `reflect` package: there is no `Type`, no `Value`, no field or method
-enumeration, and no way to read or write a value you were not handed.
+Gives an object an address. This is **not** Go's `reflect` package: there is no
+`Type`, no `Value`, no field or method enumeration, and no way to read or write a
+value you were not handed.
 
 It exists because a realm that needs a unique name for something it created has,
 otherwise, only names it chooses itself, and anything a realm chooses it can
-choose twice. The VM's `ObjectID` is the one name it cannot.
+choose twice. The VM's object identity is the one name it cannot, and hashing
+that identity gives an ordinary gno.land address.
 
-### ObjectID
+Being an ordinary address is the point: an object can be named anywhere an
+address is expected, by code that has never heard of objects. It can hold GRC20
+balances today, since a token's `Transfer` takes a plain `address`, and it can
+receive ugnot. It cannot yet **spend**: a banker's sender is pinned to the
+calling realm's own package address, so letting a realm move funds held by an
+object it owns is a separate change. Until then, treat an object address as an
+account that receives and does not release.
+
+### Object
 ```go
-type ObjectID struct { /* unexported */ }
+type Object struct { /* unexported */ }
 
-func (oid ObjectID) String() string
-func (oid ObjectID) IsZero() bool
+func (o Object) Address() address
+func (o Object) ID() string
+func (o Object) PkgPath() string
+func (o Object) Type() string
+func (o Object) String() string
+func (o Object) IsZero() bool
 ```
-Opaque, comparable and safe as a map key. `ObjectIDOf` is the only thing that
-returns a non-zero one, so a realm cannot mint an identity and pass it off as
-VM-issued. `String` gives the VM's own spelling of the ID, which is what to put
-in an event; do not parse it.
+Opaque, comparable and safe as a map key. `Of` is the only thing that returns a
+non-zero one, so a realm cannot mint an identity and pass it off as VM-issued.
 
-An `ObjectID` is not an address. It has no signing key and nothing on chain can
-credit it.
+- `Address` is the object's gno.land address: deterministic, unique per object,
+  stable for as long as the object lives, and never colliding with a realm's
+  package address. It has no signing key.
+- `ID` is the VM's own `<realm-id>:<clock-tick>` spelling, for matching against
+  a storage dump. Do not parse it.
+- `PkgPath` is the realm that created the object. `Type` is its declared type as
+  `<pkgpath>.<Name>`. These differ when a realm instantiates a type from a `p/`
+  package, and together with the address they are what a page needs to link to
+  an object.
+- `String` renders a line for humans:
+  `gno.land/r/demo/foo.Token#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)`.
 
-### ObjectIDOf
+### Of
 ```go
-func ObjectIDOf(v interface{}) (ObjectID, bool)
+func Of(v interface{}) (Object, bool)
 ```
-Returns the identity of the object `v` refers to. `ok` is false whenever there is
-none to report, and `HasIdentity` says which of the two reasons applies.
+Returns what the VM knows about the object `v` refers to. `ok` is false whenever
+there is nothing to report, and `HasIdentity` says which of the two reasons
+applies.
 
-An object's ID is not complete when the object is created: the VM stamps it when
-the owning realm persists it, which happens when a realm frame returns. So an
-object the running call created reports `ok == false` until then. Check `ok`
-rather than recording the zero ID, which is immutable once it is in an event.
+An object's identity is not complete when the object is created: the VM stamps
+it when the owning realm persists the object, which happens when a realm frame
+returns. So an object the running call created reports `ok == false` until then.
+Check `ok` rather than recording the zero address, which is immutable once it is
+in an event and is not an account anyone can reach.
 
 ### HasIdentity
 ```go
 func HasIdentity(v interface{}) bool
 ```
-Reports whether `v` is the kind of value that gets an `ObjectID` of its own,
+Reports whether `v` is the kind of value that gets an address of its own,
 whether or not it has been stamped yet. True for a pointer to a standalone
-object (`new(T)`, `&T{...}`). False for a pointer into a struct field or array
-element, a slice, a scalar, and a nil pointer, none of which has an identity
-separate from what it is part of.
+object (`new(T)`, `&T{...}`) and for a func or method value, which are
+references and so are addressable separately from whatever holds them. False for
+a pointer into a struct field or array element, a slice, a scalar and a nil
+pointer, none of which has an identity separate from what it is part of.
+
+### Addressable
+```go
+type Addressable interface{ Address() address }
+```
+Anything that can be named by an address: a user, a realm, or an object. Use it
+so an API accepts all three without caring which.
+
+Satisfying it is **not** authority. A realm can implement `Address()` returning
+any address at all, so use it to decide where value goes, never to decide who
+may move value.
 
 ##### Usage
 ```go
-id, ok := reflect.ObjectIDOf(thing)
-switch {
-case ok:
-    chain.Emit("created", "id", id.String())
-case reflect.HasIdentity(thing):
-    // Not persisted yet. Emit the id from a call that runs after this one
-    // returns, or refuse here.
-default:
-    panic("not an object")
+// A proposal that owns a fund. The address is derived from the proposal
+// object, so no later version of this realm can point it elsewhere and no
+// second proposal can share it.
+func (p *Proposal) Address() address {
+    obj, ok := reflect.Of(p)
+    if !ok {
+        panic("proposal not persisted yet: its fund exists from the next call on")
+    }
+    return obj.Address()
 }
 ```
 ---
