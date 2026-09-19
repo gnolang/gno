@@ -434,6 +434,7 @@ func (vm *VMKeeper) callRealmBool(
 		Timestamp:       ctx.BlockTime().Unix(),
 		OriginCaller:    creator.Bech32(),
 		OriginSendSpent: new(std.Coins),
+		CallCredits:     stdlibs.NewCallCredits(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -1160,6 +1161,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
+		CallCredits:     stdlibs.NewCallCredits(),
 		// send was credited to pkgAddr just above; that is the only
 		// address a BankerTypeOriginSend banker may spend from in this
 		// message.
@@ -1291,6 +1293,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginCaller:       caller.Bech32(),
 		OriginSend:         send,
 		OriginSendSpent:    new(std.Coins),
+		CallCredits:        stdlibs.NewCallCredits(),
 		OriginSendObserved: new(bool),
 		// send is credited to pkgAddr (the entry realm) below; that is
 		// the only address a BankerTypeOriginSend banker may spend from
@@ -1570,6 +1573,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
+		CallCredits:     stdlibs.NewCallCredits(),
 		// No OriginSendRecipient here, deliberately. pkgAddr == caller for
 		// MsgRun, so the coins move from the caller to the caller and the
 		// envelope never lands anywhere. A run script cannot construct a

@@ -20,7 +20,17 @@ type (
 
 	BankerInterface = execctx.BankerInterface
 	ParamsInterface = execctx.ParamsInterface
+
+	// CallCredits is the per-message realm->realm payment ledger; see the
+	// ExecContext field of the same name.
+	CallCredits = execctx.CallCredits
 )
+
+// NewCallCredits allocates a per-message realm->realm payment ledger. The
+// keeper calls it once per message when building the ExecContext.
+func NewCallCredits() *execctx.CallCredits {
+	return execctx.NewCallCredits()
+}
 
 // GetContext returns the execution context.
 // This is used to allow extending the exec context using interfaces,

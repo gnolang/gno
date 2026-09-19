@@ -1,0 +1,72 @@
+# banker.CallSend() returns the message's send to the realm it was CREDITED to,
+# and zero to any realm merely relayed into. Demonstrates gno's msg.value for
+# the message-entry call. See docs/proposals/per-call-coin-value.md.
+
+loadpkg gno.land/r/test/wrap $WORK/wrap
+loadpkg gno.land/r/test/relay $WORK/relay
+
+adduser user1
+gnoland start
+
+# Direct MsgCall: user1 -> wrap.Deposit with 5000ugnot. wrap IS the recipient,
+# so CallSend() reports 5000.
+gnokey maketx call -pkgpath gno.land/r/test/wrap -func Deposit -send 5000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/wrap.GetLast()"
+stdout '5000 int64'
+
+# Relayed MsgCall: user1 -> relay.Relay with 3000ugnot -> wrap.Deposit(cross).
+# The coins are credited to relay, not wrap. relay.CallSend() sees 3000;
+# wrap.CallSend() sees 0 and cannot act on coins it never received.
+gnokey maketx call -pkgpath gno.land/r/test/relay -func Relay -send 3000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/relay.GetSeen()"
+stdout '3000 int64'
+
+gnokey query vm/qeval --data "gno.land/r/test/wrap.GetLast()"
+stdout '0 int64'
+
+-- wrap/gnomod.toml --
+module = "gno.land/r/test/wrap"
+gno = "0.9"
+
+-- wrap/wrap.gno --
+package wrap
+
+import "chain/banker"
+
+var last int64
+
+// Deposit records the coins THIS call delivered to wrap. Reading CallSend also
+// marks the envelope observed, satisfying the unobserved-send guard.
+func Deposit(cur realm) {
+	last = banker.CallSend().AmountOf("ugnot")
+}
+
+func GetLast() int64 { return last }
+
+-- relay/gnomod.toml --
+module = "gno.land/r/test/relay"
+gno = "0.9"
+
+-- relay/relay.gno --
+package relay
+
+import (
+	"chain/banker"
+
+	"gno.land/r/test/wrap"
+)
+
+var seen int64
+
+// Relay is the MsgCall target, so it is the credited recipient: its CallSend
+// reports the send. It then crosses into wrap, which is NOT the recipient.
+func Relay(cur realm) {
+	seen = banker.CallSend().AmountOf("ugnot")
+	wrap.Deposit(cross(cur))
+}
+
+func GetSeen() int64 { return seen }
