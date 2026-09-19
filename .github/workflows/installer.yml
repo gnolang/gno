@@ -133,21 +133,28 @@ jobs:
         run: |
           # jq is preinstalled on every runner, so the awk path this script
           # carries for machines without it is otherwise never executed, and
-          # it parses the same GitHub JSON by hand. Take jq away and redo the
-          # install. Last step in the job: nothing after it gets jq back.
+          # it parses the same GitHub JSON by hand. Redo the install without it.
           #
-          # A loop, not one rm: the macOS image carries jq at more than one
-          # place on PATH, so removing what `command -v` resolves to first
-          # just uncovers the next one.
-          for _ in 1 2 3 4 5; do
-            jq_path="$(command -v jq)" || break
-            sudo rm -f "$jq_path"
+          # A PATH that omits jq, not a deletion: the macOS image ships one at
+          # /usr/bin/jq on a read-only volume, so removing it is not possible
+          # even with sudo. Same symlink farm as the wget job below.
+          mkdir -p "$HOME/nojq"
+          for d in /usr/local/bin /opt/homebrew/bin /usr/bin /bin /usr/sbin /sbin; do
+            [ -d "$d" ] || continue
+            for f in "$d"/*; do
+              [ -e "$f" ] || continue
+              b="${f##*/}"
+              # Not `[ ... ] && continue`: a false test is a failing command,
+              # and these steps run under `bash -e`.
+              if [ "$b" = jq ]; then continue; fi
+              [ -e "$HOME/nojq/$b" ] || ln -s "$f" "$HOME/nojq/$b"
+            done
           done
-          if command -v jq >/dev/null 2>&1; then
-            echo "::error::jq is still on PATH at $(command -v jq); this step tested nothing"
+          if PATH="$HOME/nojq" command -v jq >/dev/null 2>&1; then
+            echo "::error::jq is still reachable; this step tested nothing"
             exit 1
           fi
-          sh misc/install.sh --dir "$HOME/gnoawk"
+          PATH="$HOME/nojq" /bin/sh misc/install.sh --dir "$HOME/gnoawk"
           got="$(cd "$RUNNER_TEMP" && "$HOME/gnoawk/gno" version | awk '{print $NF}')"
           case "$got" in
             v[0-9]*) echo "awk fallback installed $got" ;;
@@ -179,6 +186,7 @@ jobs:
           for d in /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
             [ -d "$d" ] || continue
             for f in "$d"/*; do
+              [ -e "$f" ] || continue
               b="${f##*/}"
               # Not `[ ... ] && continue`: a false test is a failing command,
               # and these steps run under `bash -e`.
