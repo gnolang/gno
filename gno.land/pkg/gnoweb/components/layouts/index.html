@@ -4,6 +4,10 @@
 {{ template "layouts/head" .IndexData.HeadData -}}
 
 <body>
+  {{/* First tab stop on every page. The rail precedes the article in the DOM so
+       its toggle sits at the top on mobile; without this a keyboard user walks
+       the whole navigation before reaching the content. WCAG 2.4.1. */}}
+  <a href="#main-content" class="u-skip-link">Skip to content</a>
   {{ template "ui/icons" -}}
   {{ if .IndexData.Banner.Enabled -}}
   {{ if .IndexData.Banner.HasURL -}}
@@ -17,7 +21,7 @@
   {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
-  <main {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
+  <main id="main-content" tabindex="-1" {{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
     <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>

@@ -9,6 +9,32 @@
 	display: inline;
 }
 
+.u-skip-link {
+	position: absolute;
+	inset-block-start: var(--g-space-2);
+	inset-inline-start: var(--g-space-2);
+	/* Must outrank .b-header, which is sticky at --g-z-max with an opaque
+	   background over this exact corner: at any lower layer the link is
+	   focusable but painted behind the header, i.e. invisible. */
+	z-index: var(--g-z-max);
+	padding: var(--g-space-2) var(--g-space-4);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	outline: var(--s-focus-ring);
+
+	/* Off-screen until focused rather than display:none, so it stays in the
+	   tab order and is announced. */
+	&:not(:focus-visible) {
+		clip-path: inset(50%);
+		overflow: hidden;
+		white-space: nowrap;
+		block-size: 1px;
+		inline-size: 1px;
+		padding: 0;
+	}
+}
+
 .u-sr-only {
 	height: 1px;
 	margin: -1px;
@@ -124,5 +150,5 @@
 
 /* ===== EMPTY STATE UTILITIES ===== */
 *:empty + .u-prev-empty {
-	margin-top: var(--space-4);
+	margin-top: var(--g-space-4);
 }
