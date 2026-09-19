@@ -41,7 +41,13 @@ func Render(path string) string {
 }
 ```
 
-## Deploy to staging
+## Deploy to a testnet
+
+Testnets are renamed and replaced regularly, so this section uses
+placeholders rather than naming one. Take the current testnet's chain id,
+RPC endpoint and web URL from [Networks](../resources/gnoland-networks.md)
+and substitute them for `<chain-id>`, `<rpc>` and `<web>` below. The faucet
+funds that same network, so pick it there too.
 
 ```sh
 # 5. Create a key, then fund it at https://faucet.gno.land
@@ -50,24 +56,26 @@ gnokey add dev
 gnokey list   # copy the g1... address
 
 # 6. Confirm the faucet landed
-gnokey query bank/balances/<your-g1-addr> \
-  -remote https://rpc.staging.gno.land:443
+gnokey query bank/balances/<your-g1-addr> -remote <rpc>
 
 # 7. Deploy
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+  -chainid <chain-id> -remote <rpc> dev
 
 # 8. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+  -chainid <chain-id> -remote <rpc> dev
 ```
 
-Live at **`https://staging.gno.land/r/<your-g1-addr>/counter`**.
+Live at **`<web>/r/<your-g1-addr>/counter`**.
+
+Mainnet (`gnoland-1`, `https://rpc.gno.land:443`) works the same way, but it
+has no faucet: you need real GNOT.
 
 ## Check security patterns
 
@@ -79,4 +87,6 @@ to run the executable checks.
 
 ## Next
 
-[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land.
+[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land. Deployed
+on Staging only, so that link is the one that works; it is not in the mainnet or
+testnet genesis.

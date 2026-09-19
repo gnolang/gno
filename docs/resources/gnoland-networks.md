@@ -6,7 +6,7 @@
 |-------------------|-----------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
 | Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
-| Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
+| Staging (halted)  | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
 | Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
 
 Mainnet (`gnoland-1`) launches at `2026-09-12T14:00:00Z` as a fresh chain — not
@@ -110,6 +110,11 @@ The Staging network deployment can be found at [staging.gno.land](https://stagin
 the exposed RPC endpoints can be found on `https://rpc.staging.gno.land:443`.
 
 #### A warning note
+
+Staging has not produced a block since 2026-07-10. It still answers read-only
+queries from that frozen state, so it looks alive: a balance query returns, a
+realm renders, and only a broadcast reveals the problem, by never being
+included. Do not deploy to it. Use the current testnet instead.
 
 While allowing for quick iteration on the most up-to-date software, the Staging chain
 has some drawbacks:

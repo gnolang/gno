@@ -234,7 +234,7 @@ GNOT denomination. Together they cap what you'll pay. See
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
 The signer at the end is the `alice` key you just created. You'll
-reuse it in the staging and testnet sections below.
+reuse it in the shared-network section below.
 
 On success you'll see:
 
@@ -269,18 +269,21 @@ network dropdown and every `gnokey` command's `-remote` and
 | Network    | `-chainid`   | `-remote`                                     |
 |------------|--------------|-----------------------------------------------|
 | Local      | `dev`        | `http://localhost:26657`                      |
-| Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
 | Testnet    | `pearl-1`    | `https://rpc.pearl.testnets.gno.land:443`     |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
 Pearl is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
-Examples below use **staging** because it resets on a short cadence,
-fine for a throwaway first deploy. For anything you want to keep around,
-use the current **testnet** instead; staging wipes regularly and your
-realm will disappear with it. **Mainnet** (`gnoland-1`) is the production
-network: no faucet, and token transfers start locked per Constitution
-§126 — deploying there means holding GNOT from the genesis allocation.
+Examples below use the **testnet**, which is what the faucet funds.
+
+Staging is deliberately not in that table. It has not produced a block since
+2026-07-10, and it still answers read-only queries from that frozen state, so a
+deploy against it looks like it works right up to the point where the
+transaction is never included. Use it to browse, not to deploy.
+
+**Mainnet** (`gnoland-1`) is the production network: no faucet, and token
+transfers start locked per Constitution §126, so deploying there means holding
+GNOT from the genesis allocation.
 
 ### 1. Get test tokens
 
@@ -296,7 +299,7 @@ re-request is rejected.
 Confirm the funds landed before spending them on a deploy:
 
 ```sh
-gnokey query bank/balances/<your-g1-addr> -remote https://rpc.staging.gno.land:443
+gnokey query bank/balances/<your-g1-addr> -remote https://rpc.pearl.testnets.gno.land:443
 ```
 
 Response shows your balance as `<amount>ugnot`, where 1 GNOT is
@@ -316,8 +319,8 @@ on-chain first. See [Users and Teams](../resources/users-and-teams.md).
 **CLA.** Some networks require contributors to acknowledge and sign a
 [Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
 before deploying. It is currently off on every network; check
-[betanet](https://gno.land/r/sys/cla) or
-[staging](https://staging.gno.land/r/sys/cla) to confirm. If `addpkg` ever
+[mainnet](https://gno.land/r/sys/cla) or the
+[testnet](https://pearl.testnets.gno.land/r/sys/cla) to confirm. If `addpkg` ever
 fails with `has not signed the required CLA`, sign once at
 [`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
 
@@ -331,7 +334,7 @@ gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 \
+  -chainid pearl-1 -remote https://rpc.pearl.testnets.gno.land:443 \
   alice
 ```
 
@@ -350,8 +353,9 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The package is now live and browsable at
-**`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://pearl.testnets.gno.land/r/...` instead.
+**`https://pearl.testnets.gno.land/r/<your-g1-addr>/myrealm`**. Each network
+serves its own gnoweb at the URL listed in
+[Networks](../resources/gnoland-networks.md).
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
@@ -374,7 +378,7 @@ gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 \
+  -chainid pearl-1 -remote https://rpc.pearl.testnets.gno.land:443 \
   alice
 ```
 
@@ -396,7 +400,7 @@ To read the state without spending gas, query the realm's render:
 ```sh
 gnokey query vm/qrender \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" -data "" \
-  -remote https://rpc.staging.gno.land:443
+  -remote https://rpc.pearl.testnets.gno.land:443
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
@@ -405,7 +409,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
-1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
+1. [r/docs](https://staging.gno.land/r/docs): on-chain tour. Deployed on Staging only, so that link is the one that works
 2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
 3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix
