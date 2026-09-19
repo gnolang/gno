@@ -1,0 +1,55 @@
+loadpkg gno.land/p/demo/helper $WORK/p/demo/helper
+loadpkg gno.land/r/wug $WORK/r/wug
+loadpkg gno.land/r/relay $WORK/r/relay
+
+gnoland start
+
+## honest: wug.Deposit -> helper.Run (/p/ closure) -> wug's own closure: PASS
+gnokey maketx call -pkgpath gno.land/r/wug -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+## named /p/ helper is still a call boundary: PANIC (unchanged from master)
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: relay.Go -> helper.Run (/p/ closure) -> wug.Check (wug's exported closure): PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func Go -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+-- p/demo/helper/helper.gno --
+package helper
+
+var Run = func(f func()) { f() }
+
+func RunNamed(f func()) { f() }
+
+-- r/wug/wug.gno --
+package wug
+
+import (
+	"chain/runtime"
+
+	"gno.land/p/demo/helper"
+)
+
+func Deposit(cur realm) {
+	helper.Run(func() { runtime.AssertOriginCall() })
+}
+
+func DepositNamed(cur realm) {
+	helper.RunNamed(func() { runtime.AssertOriginCall() })
+}
+
+var Check = func() { runtime.AssertOriginCall() }
+
+-- r/relay/relay.gno --
+package relay
+
+import (
+	"gno.land/p/demo/helper"
+	"gno.land/r/wug"
+)
+
+func Go(cur realm) {
+	helper.Run(wug.Check)
+}
