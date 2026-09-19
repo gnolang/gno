@@ -98,6 +98,50 @@ type ExecContext struct {
 	Params             ParamsInterface
 	EventLogger        *sdk.EventLogger
 	SessionAccount     std.DelegatedAccount // nil for master-key txs
+	// CallCredits records within-message realm->realm payments made via
+	// banker.PayCall, keyed by the payee's package path, so the payee can read
+	// what a caller just forwarded it through banker.CallSend — even though it
+	// is not the realm the message named. This is the phase-2 forwarding path
+	// (docs/proposals/per-call-coin-value.md): it lets an intermediary realm
+	// (a router) pay another realm within one atomic message, with the payee
+	// able to attribute exactly what it received.
+	//
+	// Allocated once per message (see the keeper), so the shared map survives
+	// GetContext's value copy. Nil in envelope-less contexts, which is
+	// fail-closed: no credit can be recorded or read.
+	CallCredits *CallCredits
+}
+
+// CallCredits is a per-message ledger of realm->realm payments; see the
+// ExecContext field of the same name.
+type CallCredits struct {
+	byPayee map[string]std.Coins
+}
+
+// NewCallCredits allocates an empty ledger. The keeper calls this once when it
+// builds a message's ExecContext.
+func NewCallCredits() *CallCredits {
+	return &CallCredits{byPayee: map[string]std.Coins{}}
+}
+
+// Credit adds amt to the running credit for payeePath. No-op on a nil ledger
+// (an envelope-less context), which fails closed.
+func (c *CallCredits) Credit(payeePath string, amt std.Coins) {
+	if c == nil {
+		return
+	}
+	c.byPayee[payeePath] = c.byPayee[payeePath].Add(amt)
+}
+
+// Take returns and clears the credit recorded for payeePath. Reading consumes
+// it, so a payee cannot count the same forwarded payment twice.
+func (c *CallCredits) Take(payeePath string) std.Coins {
+	if c == nil {
+		return nil
+	}
+	amt := c.byPayee[payeePath]
+	delete(c.byPayee, payeePath)
+	return amt
 }
 
 // MarkOriginSendObservedBy records that the realm at realmPath made the

@@ -147,6 +147,12 @@ func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	if m.Realm != nil {
 		realmPath = m.Realm.Path
 	}
+	// Phase 2: coins a caller forwarded to me this message (banker.PayCall)
+	// take precedence — that is what was credited to me on this call. Reading
+	// consumes it, so the same forwarded payment cannot be counted twice.
+	if c := ctx.CallCredits.Take(realmPath); len(c) > 0 {
+		return ExpandCoins(c)
+	}
 	if realmPath == "" || realmPath != ctx.OriginSendRecipientPath {
 		return nil, nil
 	}
@@ -154,6 +160,24 @@ func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	// satisfying MsgCall's unobserved-send guard, exactly as OriginSend does.
 	ctx.MarkOriginSendObservedBy(realmPath)
 	return ExpandCoins(ctx.OriginSend)
+}
+
+// X_bankerPayCall forwards coins from the caller's realm (fromS) to toPkgPath's
+// realm and records them as a per-call credit, so the payee reads exactly this
+// via CallSend(). This is the phase-2 forwarding path: it lets a realm pay
+// another realm within one message, attributably, which is what native-coin
+// composition (routers, vaults) needs. See docs/proposals/per-call-coin-value.md.
+func X_bankerPayCall(m *gno.Machine, fromS string, toPkgPath string, denoms []string, amounts []int64) {
+	ctx := execctx.GetContext(m)
+	amt := CompactCoins(denoms, amounts)
+	from := crypto.Bech32Address(fromS)
+	to := gno.DerivePkgBech32Addr(toPkgPath)
+	// fromS is the caller realm's own address (pinned in banker.gno's PayCall
+	// via cur.Address()), so this moves the realm's own coins — RealmSend
+	// authority — and cannot spend another realm's balance.
+	ctx.Banker.SendCoins(from, to, amt)
+	// Record so only the intended payee can read it back, exactly once.
+	ctx.CallCredits.Credit(toPkgPath, amt)
 }
 
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
