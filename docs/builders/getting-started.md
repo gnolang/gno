@@ -164,9 +164,9 @@ source code, and view prefunded account balances. `gnodev` funds its own
 deployer account at genesis, along with every key your local `gnokey` keybase
 already holds. No faucet needed.
 
-Press `I` to copy that deployer account into your keybase as `devtest`, or
-start `gnodev` with `-import-dev-key`. Funding is not what a fresh keybase
-lacks: signing is.
+`gnodev` opens by asking whether to copy that deployer account into your
+keybase as `devtest`. Answer `y` and `gnokey` can sign as it. Funding is not
+what a fresh keybase lacks: signing is, and `I` asks again later.
 
 :::warning
 That mnemonic is a constant in the gno repository, so everyone holds this

@@ -186,8 +186,28 @@ func TestImportDevKey(t *testing.T) {
 	}
 }
 
+func TestDevKeySignable(t *testing.T) {
+	t.Run("a home with no keybase in it", func(t *testing.T) {
+		home := t.TempDir()
+		assert.False(t, devKeySignable(home))
+		assert.NoDirExists(t, filepath.Join(home, "data"), "the probe creates nothing")
+	})
+
+	t.Run("no home at all", func(t *testing.T) {
+		assert.False(t, devKeySignable(""))
+	})
+
+	t.Run("a keybase holding another key", func(t *testing.T) {
+		assert.False(t, devKeySignable(keybaseWith(t, "mine", 1)))
+	})
+
+	t.Run("a keybase holding the deployer", func(t *testing.T) {
+		assert.True(t, devKeySignable(keybaseWith(t, DefaultDeployerName, 0)))
+	})
+}
+
 func TestSetupAddressBook(t *testing.T) {
-	t.Run("a plain boot writes nothing and says how to ask", func(t *testing.T) {
+	t.Run("a plain boot writes nothing", func(t *testing.T) {
 		home := t.TempDir()
 		logger, buf := newCaptureLogger()
 
@@ -200,14 +220,15 @@ func TestSetupAddressBook(t *testing.T) {
 		assert.False(t, found, "nothing written to the keybase")
 
 		logs := buf.String()
-		assert.Contains(t, logs, "-import-dev-key")
+		assert.Contains(t, logs, "cannot sign with it")
 		assert.NotContains(t, logs, DefaultDeployerSeed, "the mnemonic never reaches the log")
 	})
 
-	t.Run("-import-dev-key puts the key in the book", func(t *testing.T) {
+	t.Run("an imported key names the address in the book", func(t *testing.T) {
+		home := keybaseWith(t, DevKeyName, 0)
 		logger, _ := newCaptureLogger()
 
-		book, err := setupAddressBook(logger, &AppConfig{home: t.TempDir(), importDevKey: true})
+		book, err := setupAddressBook(logger, &AppConfig{home: home})
 		require.NoError(t, err)
 
 		names, ok := book.GetByAddress(defaultDeployerAddress)
@@ -215,7 +236,7 @@ func TestSetupAddressBook(t *testing.T) {
 		assert.Contains(t, names, DevKeyName)
 	})
 
-	t.Run("the I key names the address it imported", func(t *testing.T) {
+	t.Run("the I key names the address it imports", func(t *testing.T) {
 		home := t.TempDir()
 		logger, _ := newCaptureLogger()
 

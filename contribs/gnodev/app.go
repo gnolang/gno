@@ -97,6 +97,12 @@ func runApp(cfg *AppConfig, cio commands.IO, dirs ...string) (err error) {
 		return fmt.Errorf("unable to setup logger: %w", err)
 	}
 
+	// Before any other line reaches the screen: the premined account is
+	// unsignable until its key is in the keybase, and the answer is one key.
+	if rt != nil {
+		askDevKey(logger.WithGroup(AccountsLogName), cfg.home, rt)
+	}
+
 	app := NewApp(logger, cfg, cio)
 	if err := app.Setup(ctx, dirs...); err != nil {
 		return err

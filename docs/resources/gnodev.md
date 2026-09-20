@@ -30,7 +30,6 @@ You should see output along these lines:
 ```
 Loader      ┃ I workspace detected root={your_pwd}
 Accounts    ┃ W default address tracked in-memory only; gnokey cannot sign with it addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-Accounts    ┃ I start with -import-dev-key to sign as it, or press I in interactive mode name=devtest
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=native
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
@@ -83,14 +82,28 @@ See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
 
 The node funds that account at genesis, but your keybase holds no key for it,
-so `gnokey` cannot sign as it until you say so. Press `I` while gnodev runs,
-or start it with `-import-dev-key`, and the well-known deployer mnemonic is
-written to your keybase as `devtest`. That mnemonic is public and identical on
-every machine, so sign with `devtest` on local chains only.
+so `gnokey` cannot sign as it until you say so. On a terminal, `gnodev` asks
+before anything else:
 
-Nothing is written until you ask, and nothing of yours is replaced when you
-do: an existing key of that name stays, and so does the same address held
-under another name, each with a warning.
+```
+gnodev has a test account g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 and your keybase holds no key for it.
+Add its key as "devtest"? [y/N]
+```
+
+Answer `y` and the well-known deployer mnemonic is written to your keybase as
+`devtest`. Anything else declines and writes nothing; `I` asks again later.
+That mnemonic is public and identical on every machine, so sign with `devtest`
+on local chains only.
+
+Every gnodev shares that address, which is what makes it a test key: code that
+branches on who signed sees the same `g1jg8…` everywhere, so an assertion about
+the caller can hold for the wrong reason. Use a key of your own wherever the
+realm cares which account called it.
+
+Nothing of yours is replaced when you say yes: an existing key of that name
+stays, and so does the same address held under another name, each with a
+warning. Without a terminal, as in staging or under a pipe, nothing is asked
+and nothing is written.
 
 ### Premining
 
@@ -211,7 +224,6 @@ terminal; it turns off when output is piped or redirected, and in
 | `-remote <domain>=<rpc>` | Fetch missing packages for a chain domain from its RPC, as `<domain>=<rpc>` (e.g. `gno.land=https://rpc.staging.gno.land:443`). Only domains given an entry are fetched; with no `-remote`, gnodev never reaches the network for packages |
 | `-paths <paths>` | Preload extra package paths, comma-separated (e.g. `gno.land/r/my/realm`) |
 | `-no-examples` | Skip loading `$GNOROOT/examples` entirely |
-| `-import-dev-key` | Import the `devtest` key into your `gnokey` keybase at startup |
 | `-add-account <name\|addr>[=<amount>]` | Premine or set the balance of an account (repeatable) |
 | `-balance-file <file>` | Seed account balances from a file (cannot be combined with `-genesis`) |
 | `-txs-file <file>` | Replay genesis transactions at startup; signers are auto-premined and referenced packages auto-loaded (cannot be combined with `-genesis`) |

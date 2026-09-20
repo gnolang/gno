@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -19,11 +20,6 @@ const DevKeyName = "devtest"
 
 func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
-
-	// The `I` key runs the same import while gnodev is up.
-	if cfg.importDevKey {
-		importDevKey(logger, cfg.home)
-	}
 
 	// Check for home folder
 	if cfg.home == "" {
@@ -60,7 +56,8 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 		}
 		logger.Info("default address resolved from keybase",
 			"name", name,
-			"addr", defaultDeployerAddress.String())
+			"addr", defaultDeployerAddress.String(),
+			"note", "test key, every gnodev shares this address")
 		return book, nil
 	}
 
@@ -71,11 +68,46 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 	logger.Warn("default address tracked in-memory only; gnokey cannot sign with it",
 		"addr", defaultDeployerAddress.String(),
 	)
-	logger.Info("start with -import-dev-key to sign as it, or press I in interactive mode",
-		"name", DevKeyName,
-	)
 
 	return book, nil
+}
+
+// askDevKey offers the import before gnodev prints anything else, and writes
+// nothing unless the answer is y. Only a terminal reaches it, so a run with no
+// one watching is never asked and never written to.
+func askDevKey(logger *slog.Logger, home string, rt *rawterm.RawTerm) {
+	if devKeySignable(home) {
+		return
+	}
+
+	fmt.Fprintf(rt, "gnodev has a test account %s and your keybase holds no key for it.\n"+
+		"Add its key as %q? [y/N] ",
+		defaultDeployerAddress.String(), DevKeyName)
+	// Anything but y declines, an unreadable answer included: the import is
+	// the change of state, so silence never triggers it.
+	key, err := rt.ReadKeyPress()
+	fmt.Fprintln(rt)
+	if err != nil || key.Upper() != rawterm.KeyY {
+		return
+	}
+
+	importDevKey(logger, home)
+}
+
+// devKeySignable reports whether the keybase at home already holds a key for
+// the deployer address. It creates nothing: a home with no keybase in it
+// answers false, and the question that follows is what may create one.
+func devKeySignable(home string) bool {
+	if home == "" || !osm.DirExists(filepath.Join(home, "data")) {
+		return false
+	}
+
+	kb, err := openKeybase(home)
+	if err != nil {
+		return false
+	}
+	has, err := kb.HasByAddress(defaultDeployerAddress)
+	return err == nil && has
 }
 
 // importDevKey writes the well-known deployer mnemonic into the keybase at
