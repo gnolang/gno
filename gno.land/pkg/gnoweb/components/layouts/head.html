@@ -6,8 +6,8 @@
   <title>{{ .Title }}</title>
 
   <!-- Preload -->
-  <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"
+  <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2?v={{ .BuildTime }}" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2?v={{ .BuildTime }}" as="font" type="font/woff2"
     crossorigin />
 
   <!-- Meta description -->
@@ -32,13 +32,13 @@
   <meta name="twitter:image" content="{{ .Image }}" />
 
   <!-- Favicon -->
-  <link rel="icon" href="{{ .AssetsPath }}/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .BuildTime }}" type="image/x-icon" />
 
   <!-- Robots meta tag -->
   <meta name="robots" content="index, follow" />
 
   <!-- chroma stylesheet -->
-  <link rel="stylesheet" href="{{ .ChromaPath }}" />
+  <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .BuildTime }}" />
 
   <!-- web assets -->
   <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />

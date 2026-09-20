@@ -599,3 +599,37 @@ func TestIndexLayout_Banner(t *testing.T) {
 		})
 	}
 }
+
+// Every asset URL the head emits carries the build version: an edge cache keyed
+// on the URL would otherwise serve a stale favicon, chroma stylesheet or font
+// across releases for as long as its TTL allows.
+func TestIndexLayoutVersionsEveryAssetURL(t *testing.T) {
+	data := IndexData{
+		HeadData: HeadData{
+			Title:      "Test",
+			AssetsPath: "/public/",
+			ChromaPath: "/public/_chroma/style.css",
+			BuildTime:  "20260920120000",
+		},
+		Mode: ViewModeHome,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	output := buf.String()
+
+	for _, href := range []string{
+		`href="/public/fonts/intervar/Intervar.woff2?v=20260920120000"`,
+		`href="/public/fonts/roboto/roboto-mono-normal.woff2?v=20260920120000"`,
+		`href="/public/favicon.ico?v=20260920120000"`,
+		`href="/public/_chroma/style.css?v=20260920120000"`,
+		`href="/public/main.css?v=20260920120000"`,
+	} {
+		assert.Contains(t, output, href)
+	}
+	assert.NotContains(t, output, "/public//", "an asset URL must not carry a doubled slash")
+}
