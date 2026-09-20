@@ -71,6 +71,12 @@ func runApp(cfg *AppConfig, cio commands.IO, dirs ...string) (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Before the terminal goes raw and before any log line reaches it: the
+	// premined account cannot sign until its key is in the keybase.
+	if cfg.interactive {
+		askDevKey(cio, cfg.home)
+	}
+
 	var rt *rawterm.RawTerm
 	var out io.Writer
 	if cfg.interactive {
@@ -95,12 +101,6 @@ func runApp(cfg *AppConfig, cio commands.IO, dirs ...string) (err error) {
 	logger, err := setuplogger(cfg, out)
 	if err != nil {
 		return fmt.Errorf("unable to setup logger: %w", err)
-	}
-
-	// Before any other line reaches the screen: the premined account is
-	// unsignable until its key is in the keybase, and the answer is one key.
-	if rt != nil {
-		askDevKey(logger.WithGroup(AccountsLogName), cfg.home, rt)
 	}
 
 	app := NewApp(logger, cfg, cio)
@@ -615,10 +615,12 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 
 	case rawterm.KeyI: // Import the dev key into the user's keybase
 		accounts := ds.logger.WithGroup(AccountsLogName)
-		if importDevKey(accounts, ds.cfg.home) {
-			if err = ds.book.ImportKeybase(ds.cfg.home); err != nil {
-				accounts.Error("unable to re-read the keybase", "err", err)
-			}
+		switch created, err := importDevKey(ds.cfg.home); {
+		case err != nil:
+			accounts.Warn("dev key not added", "err", err)
+		case created:
+			ds.book.Add(defaultDeployerAddress, DevKeyName)
+			accounts.Info("dev key added", "name", DevKeyName, "addr", defaultDeployerAddress.String())
 		}
 
 	case rawterm.KeyR: // Reload

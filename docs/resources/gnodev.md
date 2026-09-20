@@ -38,8 +38,9 @@ GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 
 Open `http://localhost:8888` to browse your realm via the built-in
 [gnoweb](../users/explore-with-gnoweb.md) (change the address with `-web-listener`).
-The `devtest` account is preloaded with funds, so no faucet is needed. Press `h`
-at any time for the in-terminal help menu (see [Interactive controls](#interactive-controls)).
+Every key in your keybase is funded on the built-in node, so no faucet is
+needed. Press `h` at any time for the in-terminal help menu (see
+[Interactive controls](#interactive-controls)).
 
 ## Modes
 
@@ -81,6 +82,8 @@ Package path resolution:
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
 
+### The dev key
+
 The node funds that account at genesis, but your keybase holds no key for it,
 so `gnokey` cannot sign as it until you say so. On a terminal, `gnodev` asks
 before anything else:
@@ -88,22 +91,19 @@ before anything else:
 ```
 gnodev has a test account g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 and your keybase holds no key for it.
 Add its key as "devtest"? [y/N]
+y
+dev key added as "devtest", address g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
-Answer `y` and the well-known deployer mnemonic is written to your keybase as
-`devtest`. Anything else declines and writes nothing; `I` asks again later.
-That mnemonic is public and identical on every machine, so sign with `devtest`
-on local chains only.
+Anything but `y` declines and writes nothing; `I` asks again later. Nothing of
+yours is replaced when you say yes either: an existing key of that name stays,
+and so does the same address held under another name.
 
-Every gnodev shares that address, which is what makes it a test key: code that
-branches on who signed sees the same `g1jg8…` everywhere, so an assertion about
-the caller can hold for the wrong reason. Use a key of your own wherever the
-realm cares which account called it.
-
-Nothing of yours is replaced when you say yes: an existing key of that name
-stays, and so does the same address held under another name, each with a
-warning. Without a terminal, as in staging or under a pipe, nothing is asked
-and nothing is written.
+That mnemonic is public and identical on every machine, which is what makes it
+a test key: code branching on who signed sees the same `g1jg8…` everywhere, so
+an assertion about the caller can hold for the wrong reason. Sign with
+`devtest` on local chains only, and use a key of your own wherever the realm
+cares which account called it.
 
 ### Premining
 

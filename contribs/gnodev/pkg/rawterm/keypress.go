@@ -26,7 +26,6 @@ const (
 	KeyN KeyPress = 'N'
 	KeyP KeyPress = 'P'
 	KeyR KeyPress = 'R'
-	KeyY KeyPress = 'Y'
 
 	// Special keys
 	KeyUp    KeyPress = 0x80 // Arbitrary value outside ASCII range

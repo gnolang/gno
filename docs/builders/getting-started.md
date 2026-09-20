@@ -169,9 +169,8 @@ keybase as `devtest`. Answer `y` and `gnokey` can sign as it. Funding is not
 what a fresh keybase lacks: signing is, and `I` asks again later.
 
 :::warning
-That mnemonic is a constant in the gno repository, so everyone holds this
-key. It carries balances on staging and on the current testnet too, where
-anyone can spend them. Sign with it on your local chain only.
+Everyone runs that same key, so sign with it on local chains only. See
+[the dev key](../resources/gnodev.md#the-dev-key).
 :::
 
 Save a `.gno` file and the chain reloads automatically. Pass
@@ -262,7 +261,7 @@ a private/public keypair managed locally by `gnokey`: the private side signs
 your transactions, and the public side derives the `g1…` address that
 identifies you on chain.
 
-Otherwise, create a fresh key:
+Create one:
 
 ```sh
 gnokey add alice
