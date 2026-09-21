@@ -1,5 +1,0 @@
-- investigate realm patching with realm store migration (see open question 1)
-
-- investigate rollbacks (theres a appd rollback command)
-
-- review with new context

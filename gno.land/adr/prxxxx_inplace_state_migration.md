@@ -9,13 +9,14 @@ Draft. Proposed design, nothing implemented.
 ### Where the chain is today
 
 `gnoland-1` is live. The halt mechanism from [#5368](https://github.com/gnolang/gno/pull/5368)
-works and has been exercised three times in production within a week:
+([pr5368_govdao_halt_height.md](./pr5368_govdao_halt_height.md)) works and has
+been exercised three times in production within a week:
 
-| `halt_height` | date | last block committed | back after |
-|---|---|---|---|
-| 36300 | 2026-09-14 | 36302 | 6m12s |
-| 113000 | 2026-09-17 | 113002 | 6m11s |
-| 162200 | 2026-09-19 | 162202 | 5m43s |
+| `halt_height` | date | back after |
+|---|---|---|
+| 36300 | 2026-09-14 | 6m12s |
+| 113000 | 2026-09-17 | 6m11s |
+| 162200 | 2026-09-19 | 5m43s |
 
 Every one shipped with an **empty** `halt_min_version`, i.e. no restart gate at
 all — which was the only safe choice, because no binary of that period reported a
@@ -32,7 +33,7 @@ other than rebuilding it.
 | `node:p:halt_height`, `node:p:halt_min_version` | `gno.land/pkg/gnoland/node_params.go` |
 | Arming the halt | `app.go:1151-1162` (EndBlocker, `req.Height == haltHeight`) |
 | Stopping | `tm2/pkg/sdk/baseapp.go:596` (BeginBlock panics at `haltHeight+1`) |
-| Startup gates | `node_params.go:133-181` (`checkNodeStartupParams`) |
+| Startup gates | `node_params.go:135-182` (`checkNodeStartupParams`) |
 | Governance entry point | `examples/gno.land/r/sys/params/halt.gno:28` |
 
 ### What does not exist
@@ -48,14 +49,16 @@ re-executing history rather than transforming it:
 
 - **into a fresh genesis** — built by `gnogenesis fork`: a new chain carrying the
   whole transaction history, re-executed under the new rules at `InitChain`.
-  Never used on mainnet nor testnet.
+  Never used on mainnet nor testnet. See
+  [pr5511_chain_upgrade_genesis_replay.md](./pr5511_chain_upgrade_genesis_replay.md).
 - **in place** — [#5377](https://github.com/gnolang/gno/pull/5377)
   (`gnoland start --migrate`), which replays the local block store under the new
   binary and swaps the app DB. Still open.
 
 This ADR does not treat either as an existing mechanism to extend, fall back on,
-or interoperate with. In-place migration is the upgrade path; the rest of this
-document assumes nothing else exists.
+or interoperate with. In-place migration is the upgrade path. The one thing it
+does need from outside itself is a way to join a chain past an upgrade height,
+which neither of these provides; see *Syncing past an upgrade height*.
 
 ### Why Cosmos SDK's design does not port wholesale
 
@@ -67,8 +70,10 @@ Two of those exist for reasons gno does not share.
 
 **Per-module consensus versions exist because modules are shipped to strangers.**
 `x/bank`'s author cannot know what state any given chain holds, so the module
-carries its own version and its own migration chain. gno has one `go.mod`
-(`module github.com/gnolang/gno`) — `tm2/pkg/sdk/bank` cannot be imported
+carries its own version and its own migration chain. In gno, `gnovm/`,
+`gno.land/` and `tm2/` are one Go module (`module github.com/gnolang/gno`); the
+separate modules in the repository are all tooling under `contribs/` and
+`misc/`, and no keeper lives in one. So `tm2/pkg/sdk/bank` cannot be imported
 without the whole repository, and nothing does. Every keeper ships in one binary,
 in one release, cut by the people who changed them.
 
@@ -76,7 +81,7 @@ in one release, cut by the people who changed them.
 permanent:
 
 ```go
-mainKey := store.NewStoreKey("main")   // params, auth, bank, gasprice, vm's iavl side
+mainKey := store.NewStoreKey("main")   // params, auth, bank, gasprice, vm's merkleized side
 baseKey := store.NewStoreKey("base")   // the VM object graph, raw dbadapter
 ```
 
@@ -93,12 +98,14 @@ keyed to that name, run once inside a block.
 Add a registry of upgrade handlers, and a BeginBlocker that runs the one named by
 `halt_min_version` in the block after the halt. That is the whole of it.
 
-Everything it needs already exists. `halt_min_version` is both the version floor
-it is today and the key a handler is registered under, so no param is added,
-renamed or given a new meaning. It is never cleared, so it also records the last
-upgrade, and the existing post-halt floor already refuses an older binary — so no
-new state either. The halt itself is untouched: governance sets the height, the
-EndBlocker arms it, `BeginBlock` stops the node, exactly as today.
+No new param and no new state. `halt_min_version` is both the version floor it
+is today and the key a handler is registered under, so no param is added,
+renamed or given a new meaning. It is not cleared on the ordinary path, so
+between the halt and the next halt proposal it both records the applied upgrade
+and refuses an older binary — which is why nothing has to be stored beside it.
+That window is narrower than it reads; Open questions has it. The halt itself is
+untouched: governance sets the height, the EndBlocker arms it, `BeginBlock`
+stops the node, exactly as today.
 
 ## Design
 
@@ -116,10 +123,6 @@ the public surface moves.
 
 An empty `halt_min_version` leaves no key to look up, so an upgrade on an
 unversioned binary carries no migration.
-
-`WillSetParam` (`node_params.go:69-73`) currently type-checks the string and
-nothing else. It should additionally reject a value the node cannot parse, so a
-floor that can only ever be met by byte equality cannot reach state.
 
 ### 2. Handlers
 
@@ -178,10 +181,12 @@ Registered in one place, as a package-level literal:
 ```go
 // gno.land/pkg/gnoland/app.go
 
-// A slice, not a map keyed by version: the key would restate Version, and
-// declaration order is release order, which matters because upgrades apply in
-// sequence. An init() somewhere could assert these invariants (version parses,
-// strictly increasing, no duplicates...).
+// A slice, not a map keyed by version: the key would restate Version. Nothing
+// iterates it -- the BeginBlocker looks up one entry, and a replay's sequencing
+// comes from the halt heights -- so declaration order is for the reader. An
+// init() could assert the invariants (version parses, strictly increasing, no
+// duplicates...).
+// TODO use a map finally?
 var Upgrades = []upgrades.Upgrade{
 	v130.Upgrade,
 	v140.Upgrade,
@@ -210,22 +215,36 @@ already-deployed realm, for the reason in Open questions.
 
 ### Where it hooks
 
-`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:622`, after the halt
+`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:623`, after the halt
 check (`:596`) and once `deliverState` is prepared. The new one goes in `app.go`
 beside the existing `EndBlocker`, built the same way: a constructor taking what
 it needs — `prmk` and the `Env` — and returning the `sdk.BeginBlocker` closure
 (`tm2/pkg/sdk/abci.go:12`), wired with `baseApp.SetBeginBlocker`
 (`tm2/pkg/sdk/options.go:68`) next to the `SetEndBlocker` call at `app.go:262`.
 
-It runs at `req.Height == haltHeight+1`, mirroring the EndBlocker's existing
-exact-height arming at `app.go:1151-1162`:
+It runs at `haltHeight > 0 && req.Height == haltHeight+1`, mirroring the
+EndBlocker's existing arming at `app.go:1151-1162`. The `> 0` half is not
+decoration: `halt_height` is `0` on a chain that has never been halted, and
+without it every such chain would enter the branch at block 1.
 
 ```
-read node:p:halt_min_version
+read node:p:halt_height
+  0        → no halt configured; nothing to do
+read node:p:halt_min_version, at haltHeight+1
   ""       → nothing to look up; no migration possible
   entry    → run the handler
   no entry → nothing to migrate
 ```
+
+`haltHeight` here is the param, not `BaseApp.haltHeight`. The field cannot serve
+as the trigger on either count: it is node-local and never in state, so a
+handler keyed on it would run on some validators and not others, and it is
+zeroed on restart, so at `H+1` — the one block the handler must run in — it
+reads `0` on every node that just came back. It also has a second writer, the
+`halt_height` in `config.toml` (`config.go:310`, applied at `start.go:288-292`),
+which is one operator's lever and writes no param. Reading the param is
+therefore also what keeps a config halt from running a migration nobody
+proposed.
 
 ### Timeline
 
@@ -253,10 +272,14 @@ choice.
 ## Consequences
 
 **No dry run exists.** A handler is arbitrary code that commits inside a block
-on every validator, with no way to rehearse it first.
+on every validator. An operator can rehearse one against a copy of the app DB,
+but nothing in the protocol does so, and nothing makes a rehearsal a
+precondition for the proposal that schedules the halt.
 
-**Determinism and bounded execution.** Every validator runs the handler inside a
-block: byte-identical output, no OOM, no block-timeout blowout.
+**The handler must be deterministic and bounded.** It runs on every validator
+inside a block, so anything short of byte-identical output forks the chain, and
+an OOM or a block-timeout blowout stops it. Nothing in the design enforces
+either; both are on whoever writes the handler.
 
 **There is no rollback.** A bad migration commits. Recovery is
 restore-from-backup at the halt height, on every validator.
@@ -266,11 +289,10 @@ restore-from-backup at the halt height, on every validator.
 A node joining the network replays history, and an upgrade height is where that
 breaks. Two distinct problems:
 
-**1. The encoding changed.** Once the encoding of a stored value moves, only code
-that knows the old encoding can replay the blocks that came before it, because
-the encoding impacts the AppHash. A node replaying block 5 with a binary that
-encodes differently computes an AppHash the committed header does not agree with,
-and sync fails.
+**1. The encoding changed.** The handler fixes the boundary at `H`, but not what
+came before it. Blocks 1..H were committed under the old encoding, so replaying
+block 5 needs a binary that still produces it — which one carrying only the new
+encoding does not. Sync fails on the first AppHash it cannot reproduce.
 
 **2. The halt is still armed.** The EndBlocker arms on `req.Height == haltHeight`
 from committed state, and `halt_height` is never cleared. A node syncing
@@ -388,24 +410,24 @@ parse — so the name would carry no information the version does not.
    a validator — and that is a body of work of its own.
 2. **Should the chain record which upgrades it has applied**, and check that
    record at startup so a binary can refuse a chain it does not understand? That
-   is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. It is redundant
-   while the params are never cleared: after the v1.5.0 upgrade
-   `halt_min_version` still reads `"v1.5.0"`, and the existing post-halt gate
-   (`node_params.go:158-166`) already refuses an older binary. A record would
-   differ only in being a fact rather than a governance assertion — catching a
-   typo'd floor, a floor set for a migration that did not run, or one a later
-   proposal lowered — which is narrow against a new store key, a new check and a
-   new call site.
+   is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. Right after an
+   upgrade it is redundant: `halt_min_version` still reads `"v1.5.0"`, and the
+   post-halt gate (`node_params.go:159-167`) refuses anything older.
 
-   **Clearing the params is the trigger to revisit.** The moment
-   `halt_min_version` is emptied after an upgrade, the floor goes with it,
-   nothing refuses an old binary on migrated data, and a record becomes the only
-   answer.
+   **It stops being redundant at the next halt proposal.** Nothing has to be
+   cleared for the floor to go. Setting `halt_height = H2` and
+   `halt_min_version = "v1.6.0"` puts `lastBlockHeight < haltHeight` again, so
+   startup leaves Check 1 for Check 2 (`node_params.go:171`), which refuses only
+   binaries that *meet* the new floor — and a v1.4.0 binary then starts on
+   v1.5.0-migrated data. Cancelling gets there by a shorter route: the gate
+   returns early on `haltHeight == 0` (`node_params.go:147`), so
+   `NewSetHaltRequest(cur, 0, "v1.5.0")` leaves the version in state and gates
+   nothing with it.
 
-   Related: nothing reports which upgrades a node has applied. `halt_min_version`
-   is queryable but names only the most recent. The `app` entry of the p2p
-   `VersionSet` is the natural home for something better, and is fed by
-   `state.AppVersion`, which nothing populates today.
+   So `halt_min_version` names the floor of the most recent halt *proposal*,
+   which is the applied upgrade only until the next one is scheduled. A record
+   is what would tell the two apart.
+
 3. **Should the new code be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
    about "register a handler under a version, run it at a height" is
    gno-specific, and `tm2/pkg/sdk` is where the generic modules live — `auth`,
