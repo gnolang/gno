@@ -976,7 +976,7 @@ git checkout master
 Compute the same `VERSION` string the repo uses (see `build.gnokey`) and build with equivalent `-ldflags`:
 
 ```bash
-VERSION="$(git describe --tags --exact-match 2>/dev/null || \
+VERSION="$(git describe --tags --exact-match --match 'v*' 2>/dev/null || \
   echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")"
 
 mkdir -p build
@@ -1268,9 +1268,9 @@ import (
         "chain/runtime"
         "strings"
 
-        "gno.land/p/demo/tokens/grc20"
+        "gno.land/p/nt/grc20/v0"
         "gno.land/p/nt/ufmt/v0"
-        "gno.land/r/demo/defi/grc20reg"
+        "gno.land/r/nt/grc20reg/v0"
 )
 
 var (
@@ -1489,7 +1489,7 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -pkgpath "gno.land/r/gnoland/boards2/v0" \
   -func "CreateBoard" \
   -args "MyBoard" \
   -args "true" \

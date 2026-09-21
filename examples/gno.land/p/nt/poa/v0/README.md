@@ -5,7 +5,7 @@
 
 # `poa` - Proof of Authority validator set
 
-Stateful Proof of Authority validator set with simple add/remove constraints. This is a low-level building block intended to be embedded by chain-level governance code (e.g. a GovDAO bridge to `gno.land/p/sys/validators`), not a typical realm utility.
+Stateful Proof of Authority validator set with simple add/remove constraints. This is a low-level building block intended to be embedded by chain-level governance code (e.g. a GovDAO bridge to `gno.land/p/sys/validators/v0`), not a typical realm utility.
 
 Constraints:
 - **Add**: validator must not be in the set already and voting power must be `> 0`.
@@ -16,7 +16,7 @@ Constraints:
 ```go
 import (
     "gno.land/p/nt/poa/v0"
-    "gno.land/p/sys/validators"
+    "gno.land/p/sys/validators/v0"
 )
 
 // Start with a pre-seeded validator set.
@@ -60,7 +60,7 @@ func (p *PoA) GetValidator(addr address) (validators.Validator, error)
 func (p *PoA) GetValidators() []validators.Validator
 ```
 
-Validators are stored and returned as `validators.Validator` from `gno.land/p/sys/validators`.
+Validators are stored and returned as `validators.Validator` from `gno.land/p/sys/validators/v0`.
 
 ## Errors
 

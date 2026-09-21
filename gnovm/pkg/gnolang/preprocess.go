@@ -17,6 +17,7 @@ import (
 
 const (
 	blankIdentifier           = "_"
+	iotaIdentifier            = "iota"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
 	TestingBasePkgPath        = "testing"
@@ -883,20 +884,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if p.Name == "" || p.Name == blankIdentifier {
 						panic("arg name should have been set in initStaticBlocks")
 					}
-					if nx, ok := p.Type.(*NameExpr); ok && nx.Name == Name("realm") {
-						// don't alow confusion by e.g. declaring a crossing function like
-						// func something(prev realm, x int) { ... }.
-						if i == 0 {
-							// XXX refactor .arg stuff; see isUnnamedResult.
-							if p.Name != "cur" && !strings.HasPrefix(string(p.Name), ".arg") {
-								panic("a crossing function's first realm argument must have name `cur`")
-							}
-						} else {
-							if p.Name == "cur" {
-								panic("only the first realm type argument of a crossing function may have name `cur`")
-							}
-						}
-					}
+					// The `cur` naming rules are enforced at TRANS_LEAVE below,
+					// on the RESOLVED parameter type. They used to live here and
+					// test the SPELLING (`p.Type.(*NameExpr).Name == "realm"`),
+					// which an alias walked straight past — see there.
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
@@ -1379,7 +1370,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case blankIdentifier:
 					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
 					return n, TRANS_CONTINUE
-				case "iota":
+				case iotaIdentifier:
 					pd := lastDecl(ns)
 					valueDecl, ok := pd.(*ValueDecl)
 					if !ok || !valueDecl.Const {
@@ -1530,7 +1521,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// General cases.
-				n.AssertCompatible(lt, rt) // check compatibility against binaryExprs other than shift expr
+				n.AssertCompatible(store, lt, rt) // check compatibility against binaryExprs other than shift expr
 				if lic {
 					if ric {
 						// Left const, Right const ----------------------
@@ -1719,7 +1710,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(at) {
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
-								mustAssignableTo(n, at, ct)
+								mustAssignableTo(store, n, at, ct)
 							default:
 								checkOrConvertType(store, last, n, &n.Args[0], ct)
 							}
@@ -1749,7 +1740,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					_, atIface := atBase.(*InterfaceType)
 					if ctIface {
 						// e.g. <iface type>(...)
-						mustAssignableTo(n, at, ct)
+						mustAssignableTo(store, n, at, ct)
 						// The conversion is legal, set the target type.
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
@@ -2319,12 +2310,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						for i, tv := range argTVs {
 							if hasVarg {
 								if (len(spts) - 1) <= i {
-									mustAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem())
+									mustAssignableTo(store, n, tv.T, spts[len(spts)-1].Type.Elem())
 								} else {
-									mustAssignableTo(n, tv.T, spts[i].Type)
+									mustAssignableTo(store, n, tv.T, spts[i].Type)
 								}
 							} else {
-								mustAssignableTo(n, tv.T, spts[i].Type)
+								mustAssignableTo(store, n, tv.T, spts[i].Type)
 							}
 						}
 					} else {
@@ -2577,6 +2568,24 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// on the RefExpr so doOpRef can use it (instead of
 				// the runtime type, which is wrong for interface variables).
 				xt := evalStaticTypeOf(store, last, n.X)
+				// Refuse a pointer to a realm-typed `cur`.
+				//
+				// Rejecting `cur = ...` (AssignStmt, below) only matches a
+				// *NameExpr on the left. `p := &cur; *p = cur.Previous()`
+				// writes the same slot through a StarExpr and does not match,
+				// so it preprocesses cleanly and reaches the callee's frame
+				// Cur, leaving only doOpCall's runtime check to notice — at
+				// call time rather than at compile time. Enumerating
+				// assignment shapes is the losing end of this: a slot that
+				// cannot be addressed cannot be written through any of them,
+				// so the address is what gets refused. This also covers `&cur`
+				// escaping into a helper that assigns through it, which no LHS
+				// rule would see.
+				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" {
+					if xt == gRealmType {
+						panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
+					}
+				}
 				if tt, ok := xt.(*tupleType); ok {
 					panic(fmt.Sprintf(
 						"cannot take address of multi-value call (results: %s)",
@@ -2590,7 +2599,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, status := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel)
+					tr, _, rcvr, _, status := findEmbeddedFieldType(preprocessGasMeterOf(store), ctxpn.PkgPath, cxt, n.Sel)
 					switch status {
 					case embedLookupAccessError:
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
@@ -2791,7 +2800,41 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
-				evalStaticType(store, last, n)
+				ftype := evalStaticType(store, last, n)
+				// The `cur` naming rules decide on the RESOLVED type, because
+				// that is what decides whether the function is crossing.
+				//
+				// They used to run at TRANS_ENTER against the SPELLING of the
+				// type expression — `p.Type.(*NameExpr).Name == "realm"` — while
+				// IsCrossing() compares the resolved type to gRealmType. A type
+				// alias fits exactly in that gap: `type R = realm` leaves the
+				// function crossing while neither naming rule fires, so it could
+				// take a SECOND realm parameter, ordinary and caller-supplied,
+				// literally named `cur`. That parameter then passes the cur-call
+				// provenance check (it is declared by a crossing FuncDecl) and is
+				// forwarded by bare name into a callee's frame identity, with no
+				// assignment and no address taken anywhere for the write-shape
+				// rules to catch.
+				//
+				// Deciding on the resolved type is what keeps the two answers
+				// from drifting apart again: this asks the same question
+				// IsCrossing() asks, of the same value.
+				if ft, ok := ftype.(*FuncType); ok {
+					for i := range ft.Params {
+						if ft.Params[i].Type != gRealmType {
+							continue
+						}
+						pn := ft.Params[i].Name
+						if i == 0 {
+							// XXX refactor .arg stuff; see isUnnamedResult.
+							if pn != "cur" && !strings.HasPrefix(string(pn), ".arg") {
+								panic("a crossing function's first realm argument must have name `cur`")
+							}
+						} else if pn == "cur" {
+							panic("only the first realm type argument of a crossing function may have name `cur`")
+						}
+					}
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
@@ -2810,6 +2853,43 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
 								panic("not assignable")
 							}
+						}
+					}
+				}
+
+				// The crossing `cur` parameter is a fixed binding, not a
+				// rebindable local. It names the realm the frame is executing
+				// as, established at entry and constant for the life of the
+				// frame; rebinding the name makes it describe a realm the frame
+				// is not in.
+				//
+				// `cur` is reserved as a PARAMETER name — the preprocessor lets
+				// only a crossing function's first realm parameter use it (see
+				// FuncTypeExpr above) — but a local may still shadow it in an
+				// inner block (`cur := cur.Previous()`), so a realm-typed `cur`
+				// on the left of `=` is USUALLY, not always, that parameter.
+				// Rejecting both is deliberate: a shadowing local cannot be
+				// cur-called anyway (the provenance check below resolves the
+				// name's declaring block node and requires a crossing
+				// FuncDecl/FuncLitExpr), so refusing it costs nothing and avoids
+				// reasoning about which one this is.
+				//
+				// It matters because the parameter is the one realm value a
+				// no-cross crossing call can forward (the cur-call check below
+				// requires the bare name `cur`): a rebound `cur` passed down
+				// becomes the callee's frame Cur, and from there IsCurrent() and
+				// cross(rlm) both agree with it. Storing a realm value into some
+				// other variable is unaffected — it cannot be cur-called and
+				// keeps its own persist-time guard — so only `cur` is rejected
+				// here. doOpCall carries the matching runtime check.
+				if n.Op != DEFINE {
+					for _, lh := range n.Lhs {
+						ne, ok := lh.(*NameExpr)
+						if !ok || ne.Name != "cur" {
+							continue
+						}
+						if evalStaticTypeOf(store, last, ne) == gRealmType {
+							panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
 						}
 					}
 				}
@@ -3014,6 +3094,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *RangeStmt:
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 				n.AssertCompatible(store, last)
+				// `for _, cur = range rs` writes the same parameter slot as
+				// `cur = rs[0]` but is a RangeStmt, not an AssignStmt, so the
+				// rejection in the AssignStmt handler never sees it and no
+				// address is taken for the RefExpr handler to refuse. It
+				// preprocessed cleanly and reached the callee's frame Cur,
+				// noticed only by doOpCall's runtime check at call time. Found
+				// by review AFTER the RefExpr rejection was added, which is the
+				// whole argument for keeping that runtime check: this is the
+				// third write shape into one slot, and the second one the
+				// syntactic rules missed.
+				// DEFINE (`for _, cur := range`) is not a write to the
+				// parameter — it binds a new name, which cannot be cur-called
+				// (the provenance check below refuses a name whose declaring
+				// block is not a crossing FuncDecl/FuncLitExpr).
+				if n.Op != DEFINE {
+					for _, lh := range []Expr{n.Key, n.Value} {
+						ne, ok := lh.(*NameExpr)
+						if !ok || ne.Name != "cur" {
+							continue
+						}
+						if evalStaticTypeOf(store, last, ne) == gRealmType {
+							panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
+						}
+					}
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
@@ -3424,7 +3529,7 @@ func parseMultipleAssignFromOneExpr(
 	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
-			if err := checkAssignableTo(n, tt, st); err != nil {
+			if err := checkAssignableTo(store, n, tt, st); err != nil {
 				if debug {
 					debug.Printf("checkAssignableTo fail: %v\n", err)
 				}
@@ -4862,7 +4967,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 		// nil dt rather than treating it as a no-op.
 		if t != nil {
 			// e.g. int(1) == int8(1)
-			mustAssignableTo(n, cx.T, t)
+			mustAssignableTo(store, n, cx.T, t)
 		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
@@ -4872,6 +4977,15 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 		if isUntyped(xt) {
 			if t == nil || t.Kind() == InterfaceKind {
+				if t != nil {
+					// An untyped shift assigned to an interface target takes
+					// its default type below, which drops the target on the
+					// floor — so assert satisfaction before doing that, or
+					// `var r R = 1 << 2` for a non-empty R is only caught at
+					// runtime. Checked against xt, not defaultTypeOf(xt), so
+					// the diagnostic names the untyped operand.
+					mustAssignableTo(store, n, xt, t)
+				}
 				t = defaultTypeOf(xt)
 			}
 			// t is the type from context or default.
@@ -4881,13 +4995,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			checkOrConvertType(store, last, n, &bx.Left, t)
 			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
 		} else if t != nil {
-			mustAssignableTo(n, xt, t)
+			mustAssignableTo(store, n, xt, t)
 		}
 		return
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
-			mustAssignableTo(n, xt, t)
+			mustAssignableTo(store, n, xt, t)
 		}
 		if isUntyped(xt) {
 			// Push type into expr if qualifying binary expr.
@@ -4928,7 +5042,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 				xt := evalStaticTypeOf(store, last, *x)
 				// check assignable first
 				if t != nil {
-					mustAssignableTo(n, xt, t)
+					mustAssignableTo(store, n, xt, t)
 				}
 
 				if t == nil || t.Kind() == InterfaceKind {
@@ -5042,7 +5156,7 @@ func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
 func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
-			mustAssignableTo(n, cx.T, t)
+			mustAssignableTo(store, n, cx.T, t)
 		}
 		t = nil // signifies to convert to default type.
 	}
