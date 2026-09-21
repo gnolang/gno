@@ -180,16 +180,6 @@ type ResultNetInfo struct {
 	Peers     []Peer   `json:"peers"`
 }
 
-// Log from dialing seeds
-type ResultDialSeeds struct {
-	Log string `json:"log"`
-}
-
-// Log from dialing peers
-type ResultDialPeers struct {
-	Log string `json:"log"`
-}
-
 // A peer
 type Peer struct {
 	NodeInfo         p2pTypes.NodeInfo    `json:"node_info"`
