@@ -55,6 +55,16 @@ func TestBlock(t *testing.T) {
 		{"<?php x ?>\n", "\n\n\\<?php x ?>\n\n"},
 		{"<!DOCTYPE html>\n", "\n\n\\<!DOCTYPE html>\n\n"},
 		{"```\ncode\n", "\n\n```\ncode\n```\n\n"}, // fence auto-close at EOF
+		{"[x](&#x6a;avascript:alert)\n", "\n\n[x](%26#x6a;avascript:alert)\n\n"},
+		{"[x](&#0000152;avascript:alert)\n", "\n\n[x](%26#0000152;avascript:alert)\n\n"}, // octal reference
+		// A renderer unescapes `\#` before resolving references, so this
+		// reaches it as `&#x6a;` unless the `&` is encoded here.
+		{"[x](&\\#x6a;avascript:alert)\n", "\n\n[x](%26\\#x6a;avascript:alert)\n\n"},
+		// A renderer resolves numeric references before named ones, over
+		// the same buffer, so `&#38;colon;` reaches the named pass as
+		// `&colon;` and resolves to `:`.
+		{"[x](javascript&#38;colon;alert)\n", "\n\n[x](javascript%26#38;colon;alert)\n\n"},
+		{"[x](?x=1&y=2)\n", "\n\n[x](?x=1&y=2)\n\n"},
 		// Empty / strip-to-empty inputs short-circuit (no stray blank line).
 		{"[x]: y\n", ""},
 		{"", ""},
@@ -107,6 +117,12 @@ func TestBlockRich(t *testing.T) {
 		{"[x]: y\n", ""},
 		{"", ""}, // empty input → empty output, no stray blank line
 		{"```\ncode\n", "\n\n```\ncode\n```\n\n"},
+		{"[x](javascript&colon;alert)\n", "\n\n[x](javascript%26colon;alert)\n\n"},
+		// `\;` on a named reference — unescaped to `&colon;` by a renderer.
+		{"[x](javascript&colon\\;alert)\n", "\n\n[x](javascript%26colon\\;alert)\n\n"},
+		// Numeric reference feeding the named pass — see TestBlock.
+		{"[x](javascript&#x26;colon;alert)\n", "\n\n[x](javascript%26#x26;colon;alert)\n\n"},
+		{"[x](/r/boards$help&func=DeleteThread&boardID=2)\n", "\n\n[x](/r/boards$help&func=DeleteThread&boardID=2)\n\n"},
 	}
 	for _, c := range cases {
 		got := BlockRich(c.in)

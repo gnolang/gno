@@ -1,0 +1,68 @@
+# pearl genesis
+
+Builds the **pearl** genesis. pearl is a **fresh chain** — not a hardfork, no historical replay.
+
+> **Status: all launch values are final and `CHECKSUMS_DATA` is locked.** Ceremony keys, operators, genesis time, faucet accounts, peers, and the ten vested test accounts are in; any build producing different bytes fails loudly.
+
+## What pearl contains
+
+- **Packages**: the curated `examples/` set (resolved with transitive deps) — `r/sys/...`, `r/gov/...`, `r/gnoland/{blog,wugnot,coins,boards2}/...`, `r/gnops/valopers/...`, `p/onbloc/{uint256,int256,json}`, `r/sys/validators/v3`, `r/demo/defi/grc20reg` — deployed by the deterministic `GenesisDeployer` key (packages carrying a `gnomod.toml` `[addpkg] creator` are deployed under that creator instead). The resolution includes test-only dependencies (`-test-dep`): packages ship on-chain with their `_test.gno` files, and the test deps are deployed alongside so those files keep their imports resolvable on-chain (`MsgAddPackage` itself type-checks production files only).
+- **Governance**: aeddi (`g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m`) is the sole GovDAO T1 member, seeded by the bootstrap MsgRun, which also locks `dao.UpdateImpl`'s `AllowedDAOs` to `r/gov/dao/v3/impl`. Additional members join via GovDAO proposals.
+- **Validators**: 3 founding validators (`gno-core-validator-1/-2/-3`, power 60 each) in `GenesisDoc.Validators` — at 3 × 60, one validator dark is exactly the one-third halt boundary, accepted for launch until partners join. InitChainer seeds `r/sys/params`' `valset:current` from it, so `r/sys/validators/v3` proposals manage the set post-genesis. Each founder has a valoper profile (registered at genesis via `gnogenesis fork valoper-seed`) keyed on an operator address, giving them the operator-keyed management plane (signing-key rotation, profile edits, opt-out).
+- **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The call's caller field is patched to the admin address hardcoded in `r/sys/names/verifier.gno` (trusted under `--skip-genesis-sig-verification`; the private key is not needed).
+- **Balances**: 3 faucet accounts at 1e18 ugnot (≈1T GNOT) each — the web faucet's dispensing account, the faucet-agent's dispensing account, and an operator reserve — plus exact-burn funding for the genesis-tx fee payers — the deployer, the names admin, and every `gnomod.toml` `[addpkg] creator` address in the package set — which land at zero once the genesis txs execute. No airdrop, no inherited balances.
+- **Vested accounts**: the `VESTED_ACCOUNTS` entries, created at genesis as vesting accounts via the balance-sheet vesting syntax (`addr=coins;vesting=coins,start,end[;type=delayed]`). Continuous schedules unlock linearly between start and end; delayed schedules are a cliff. The unvested remainder is spendable immediately.
+- **Transfers**: unrestricted — no bank lock, no unrestricted-accounts list.
+
+Not set at genesis (defaults apply; adjustable post-genesis via GovDAO proposals, see `misc/govdao-scripts/`): CLA, minimum fee.
+
+To run a full node and put yourself forward as a validator on pearl, see [`VALIDATOR.md`](./VALIDATOR.md).
+
+## Quick start
+
+The script is fully self-contained: builds the binaries from the worktree, assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
+
+```bash
+./gen-genesis.sh                # full build — a few minutes
+./gen-genesis.sh --no-install   # reuse previously built binaries
+./gen-genesis.sh --debug        # echo the main pipeline commands
+```
+
+Output: `genesis.json` at the root of this directory.
+
+## Directory layout
+
+```
+pearl.gno.land/
+├── gen-genesis.sh         # Single self-contained pipeline
+├── govdao-exec.sh         # Helper for post-genesis governance ops
+├── genesis.json           # Final artifact (produced by the script)
+│
+├── transactions/          # Per-tx directories (meta.json + optional body)
+│   ├── base/
+│   │   └── bootstrap/     # Bootstrap MsgRun (GovDAO T1 seed + AllowedDAOs lock)
+│   └── migration/
+│       └── names-enable/  # Genesis MsgCall to names.Enable
+│
+└── work/                  # Gitignored — generated artifacts
+```
+
+## Pipeline
+
+`gen-genesis.sh` is a single-phase script, 9 steps:
+
+1. Resolve script paths and tooling.
+2. Verify required tools (preflight with `brew` + `apt` install hints).
+3. Build binaries from source (`gno`, `gnokey`, `gnoland`, `gnogenesis`).
+4. Resolve `FILTERED_PACKAGES` deps, stage them, and `addpkg` them to the genesis.
+5. Add the bootstrap MsgRun from `transactions/base/bootstrap/`.
+6. Add the `names.Enable` MsgCall from `transactions/migration/names-enable/`.
+7. Build the valoper CSV from `INITIAL_VALSET` + `INITIAL_VALSET_OPERATORS` and add the `valopers.Register` txs (via `gnogenesis fork valoper-seed`).
+8. Measure fee-payer balances via a two-pass temp-node run (measure → verify zero). Readiness gates on committed state, and a fee payer reading zero in the measure pass aborts the build.
+9. Add the validators + balances (fee payers + faucet accounts + vested accounts), run `gnogenesis verify`, move `genesis.json` into place.
+
+The locked artifacts (package list, valoper seed, tx stream, `genesis.json`) are checked against the `CHECKSUMS_DATA` manifest embedded in the script: after the first clean build, paste the printed "not listed" lines into the heredoc to lock the build; any future run producing different bytes fails loudly.
+
+## Transactions folder
+
+Every entry under `transactions/` is a directory containing a `meta.json` (carries the `reason` audit field, a `kind` discriminator, and signing parameters) and optionally a body file. The `txn_dir_to_jsonl` helper in `gen-genesis.sh` converts such a directory into one tx jsonl line, signing via `gnokey` with the deterministic deployer key. `MsgCall` entries support `caller_override`: the caller field is jq-patched post-sign, which the chain trusts at genesis under `--skip-genesis-sig-verification` — used by `names-enable` to satisfy the admin gate without holding the admin key.

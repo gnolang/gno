@@ -161,23 +161,39 @@ func (st *Store) LastCommitID() types.CommitID {
 func (st *Store) GetStoreOptions() types.StoreOptions     { return st.opts }
 func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
-func (st *Store) LoadLatestVersion() error {
-	// Load discovers versions and loads the latest
-	latestV, err := st.mtree.Load()
+// loadImmutableView loads the tree read-only and installs an immutable view
+// at ver (0 = the latest version). LoadReadonly skips fast-index maintenance —
+// a load on this path must never write (the DB may be a snapshot, and a
+// concurrent commit could otherwise be misread as a stale index; see
+// bptree.MutableTree.LoadReadonly). The view is loaded UNREGISTERED: it is
+// long-lived and never Closed, so registering it would pin its version
+// against pruning forever.
+func (st *Store) loadImmutableView(ver int64) error {
+	latestV, err := st.mtree.LoadReadonly()
 	if err != nil {
 		return err
 	}
-	if st.opts.Immutable {
-		// Long-lived immutable store view, never Closed → load UNREGISTERED so
-		// it doesn't pin this version against pruning forever.
-		iTree, err := st.mtree.GetImmutableUnregistered(latestV)
-		if err != nil {
-			return err
-		}
-		st.tree = &immutableTreeAdapter{iTree}
-	} else {
-		st.tree = &mutableTreeAdapter{st.mtree}
+	if ver == 0 {
+		ver = latestV
 	}
+	iTree, err := st.mtree.GetImmutableUnregistered(ver)
+	if err != nil {
+		return err
+	}
+	st.tree = &immutableTreeAdapter{iTree}
+	return nil
+}
+
+func (st *Store) LoadLatestVersion() error {
+	if st.opts.Immutable {
+		return st.loadImmutableView(0)
+	}
+	// Load discovers versions, loads the latest, and performs fast-index
+	// maintenance (live store, single-threaded startup).
+	if _, err := st.mtree.Load(); err != nil {
+		return err
+	}
+	st.tree = &mutableTreeAdapter{st.mtree}
 	return nil
 }
 
@@ -186,17 +202,7 @@ func (st *Store) LoadVersion(ver int64) error {
 		return nil // version 0 is always "empty"
 	}
 	if st.opts.Immutable {
-		if _, err := st.mtree.Load(); err != nil {
-			return err
-		}
-		// Long-lived immutable store view, never Closed → load UNREGISTERED so
-		// it doesn't pin this version against pruning forever.
-		iTree, err := st.mtree.GetImmutableUnregistered(ver)
-		if err != nil {
-			return err
-		}
-		st.tree = &immutableTreeAdapter{iTree}
-		return nil
+		return st.loadImmutableView(ver)
 	}
 	// Load() discovers versions and loads the latest.
 	// Then LoadVersion loads the specific requested version.

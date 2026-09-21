@@ -91,6 +91,10 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
 	tmc.Consensus.CreateEmptyBlocks = false
+	// The dev node is in-memory and single-validator, so it never peers. Disable
+	// peer exchange to avoid persisting an address book under rootdir, which fails
+	// when rootdir is read-only (e.g. `go tool gnodev` against the module cache).
+	tmc.P2P.PeerExchange = false
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
@@ -112,6 +116,18 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
 	}
+}
+
+// devGenState returns the base genesis state for a dev node: the production
+// defaults plus this node's configured dev balances.
+//
+// run_submitters is left empty, which means the MsgRun allowlist is off and any
+// account may run code — what gnodev wants, since it exists to run arbitrary
+// local code against local packages.
+func (n *Node) devGenState() gnoland.GnoGenesisState {
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	return genesis
 }
 
 // Node is not thread safe
@@ -334,8 +350,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	pkgsTxs = append(pkgsTxs, n.bootstrapTxs(pkgs)...)
 	txs := append(pkgsTxs, n.initialState...)
 
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
@@ -528,8 +543,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 			return fmt.Errorf("reload packages: %w", err)
 		}
 
-		genesis := gnoland.DefaultGenState()
-		genesis.Balances = n.config.BalancesList
+		genesis := n.devGenState()
 		genesis.Txs = append(n.generateTxs(DefaultFee, pkgs), n.bootstrapTxs(pkgs)...)
 		return n.rebuildNode(ctx, genesis)
 	}
@@ -546,8 +560,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 
 	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)

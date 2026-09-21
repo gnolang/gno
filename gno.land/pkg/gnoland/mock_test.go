@@ -137,7 +137,17 @@ func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
-type mockBankKeeper struct{}
+type mockBankKeeper struct {
+	recomputeSupplyCalls int
+	setCoinsCalls        int
+	initCoinsCalls       int
+	// setCoinsAtRecompute is how many balances had been written, via either path,
+	// when the supply was recomputed. Neither SetCoins nor InitCoins maintains the
+	// counter, so a recompute that runs before the balance loop leaves a fresh
+	// chain with balances and no supply record — a call count alone cannot tell
+	// the two orders apart.
+	setCoinsAtRecompute int
+}
 
 func (m *mockBankKeeper) InputOutputCoins(ctx sdk.Context, inputs []bank.Input, outputs []bank.Output) error {
 	return nil
@@ -151,18 +161,26 @@ func (m *mockBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.
 	return nil
 }
 
-func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
-func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error) {
-	return nil, nil
+func (m *mockBankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
 }
 
 func (m *mockBankKeeper) InitGenesis(ctx sdk.Context, data bank.GenesisState)     {}
 func (m *mockBankKeeper) GetParams(ctx sdk.Context) bank.Params                   { return bank.Params{} }
 func (m *mockBankKeeper) GetCoins(ctx sdk.Context, addr crypto.Address) std.Coins { return nil }
 func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.setCoinsCalls++
+	return nil
+}
+
+// InitCoins is the fresh-address form of SetCoins, counted separately so a test
+// can assert which branch applyBalance took for a given address.
+func (m *mockBankKeeper) InitCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.initCoinsCalls++
 	return nil
 }
 
@@ -170,9 +188,39 @@ func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return true
 }
 
-type mockAuthKeeper struct{}
+func (m *mockBankKeeper) MintCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {
+	m.recomputeSupplyCalls++
+	m.setCoinsAtRecompute = m.setCoinsCalls + m.initCoinsCalls
+}
+
+func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
+	return 0
+}
+
+func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom string) int64 {
+	return 0
+}
+
+// mockAuthKeeper tracks which addresses it has seen so GetAccount can report a
+// repeat. Without that, applyBalance would always see a first sighting and a
+// test could never reach its SetCoins branch.
+type mockAuthKeeper struct {
+	known map[crypto.Address]bool
+}
 
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
+	if m.known == nil {
+		m.known = map[crypto.Address]bool{}
+	}
+	m.known[addr] = true
 	return nil
 }
 
@@ -184,8 +232,14 @@ func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addr
 func (m *mockAuthKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
 	return nil
 }
-func (m *mockAuthKeeper) GetNextAccountNumber(ctx sdk.Context) uint64                     { return 0 }
-func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
+func (m *mockAuthKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 { return 0 }
+
+func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
+	if m.known[addr] {
+		return &GnoAccount{}
+	}
+	return nil
+}
 func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
 func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) bool) {}

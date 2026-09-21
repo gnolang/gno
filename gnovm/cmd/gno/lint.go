@@ -396,8 +396,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// LINT STEP 6: mpkg.WriteTo():
-		err := ppkg.MPkg.WriteTo(pkg.Dir)
+		// LINT STEP 6: write the processed mempackage back, keeping
+		// filetests in their filetests/ subdir (mempackage file names
+		// are flat; the generic MPkg.WriteTo would scatter them into
+		// the package root).
+		err := gno.WriteMemPackageTo(ppkg.MPkg, pkg.Dir)
 		if err != nil {
 			return err
 		}
