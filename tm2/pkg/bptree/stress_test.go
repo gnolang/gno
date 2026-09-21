@@ -36,7 +36,7 @@ func TestStress_RandomOperationOracle(t *testing.T) {
 
 	var savedVersions []int64
 
-	for op := 0; op < numOps; op++ {
+	for op := range numOps {
 		key := fmt.Sprintf("key%04d", rng.Intn(maxKeySpace))
 		action := rng.Intn(3)
 
@@ -106,9 +106,9 @@ func TestStress_ValueLeakDetector(t *testing.T) {
 		maxKeySpace    = 500
 	)
 
-	for v := 0; v < numVersions; v++ {
+	for v := range numVersions {
 		// Random mutations
-		for i := 0; i < keysPerVersion; i++ {
+		for i := range keysPerVersion {
 			key := fmt.Sprintf("vl%04d", rng.Intn(maxKeySpace))
 			if rng.Intn(4) == 0 {
 				tree.Remove([]byte(key))
@@ -167,9 +167,9 @@ func TestStress_HashStabilityReload(t *testing.T) {
 
 	var records []versionRecord
 
-	for round := 0; round < 50; round++ {
+	for round := range 50 {
 		// Mutate
-		for i := 0; i < 200; i++ {
+		for i := range 200 {
 			key := fmt.Sprintf("hs%04d", rng.Intn(1000))
 			if rng.Intn(4) == 0 {
 				tree.Remove([]byte(key))
@@ -223,8 +223,8 @@ func TestStress_ExportImportLargeTree(t *testing.T) {
 	rng := rand.New(rand.NewSource(55))
 
 	// Build tree with random operations across multiple versions
-	for v := 0; v < 20; v++ {
-		for i := 0; i < 5000; i++ {
+	for v := range 20 {
+		for i := range 5000 {
 			key := fmt.Sprintf("ei%06d", rng.Intn(50000))
 			if rng.Intn(5) == 0 {
 				tree1.Remove([]byte(key))
@@ -284,8 +284,8 @@ func TestStress_ExportImportLargeTree(t *testing.T) {
 	}
 
 	// Continue mutating the imported tree, save, prune, verify
-	for v := 0; v < 10; v++ {
-		for i := 0; i < 1000; i++ {
+	for v := range 10 {
+		for i := range 1000 {
 			key := fmt.Sprintf("ei%06d", rng.Intn(50000))
 			tree2.Set([]byte(key), fmt.Appendf(nil, "post_%d_%d", v, i))
 		}
@@ -323,7 +323,7 @@ func TestStress_ConcurrentImmutableReads(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	// Build initial state
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		tree.Set(fmt.Appendf(nil, "cr%05d", i), fmt.Appendf(nil, "init_%05d", i))
 	}
 	tree.SaveVersion()
@@ -340,12 +340,12 @@ func TestStress_ConcurrentImmutableReads(t *testing.T) {
 	var wg sync.WaitGroup
 	errCh := make(chan error, 20)
 
-	for g := 0; g < 10; g++ {
+	for g := range 10 {
 		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
 			rng := rand.New(rand.NewSource(int64(goroutineID)))
-			for iter := 0; iter < 500; iter++ {
+			for iter := range 500 {
 				idx := rng.Intn(1000)
 				key := fmt.Appendf(nil, "cr%05d", idx)
 				val, err := imm.Get(key)
@@ -377,7 +377,7 @@ func TestStress_ConcurrentImmutableReads(t *testing.T) {
 	}
 
 	// After concurrent reads complete, verify mutations work
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		tree.Set(fmt.Appendf(nil, "cr%05d", i%1000), fmt.Appendf(nil, "mutated_%d", i))
 		if (i+1)%500 == 0 {
 			tree.SaveVersion()
@@ -405,8 +405,8 @@ func TestStress_PruneManyVersions(t *testing.T) {
 	var hashes []savedHash
 
 	// Save 500 versions with overlapping mutations
-	for v := 0; v < 500; v++ {
-		for i := 0; i < 50; i++ {
+	for v := range 500 {
+		for i := range 50 {
 			key := fmt.Sprintf("pm%04d", rng.Intn(2000))
 			if rng.Intn(5) == 0 {
 				tree.Remove([]byte(key))
@@ -493,7 +493,7 @@ func TestStress_WorstCaseRestructuring(t *testing.T) {
 	}
 
 	// Phase 1: Sequential insert (triggers 90/10 splits)
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		key := fmt.Sprintf("seq%06d", i)
 		val := fmt.Sprintf("seqval%06d", i)
 		tree.Set([]byte(key), []byte(val))
@@ -514,7 +514,7 @@ func TestStress_WorstCaseRestructuring(t *testing.T) {
 	t.Logf("phase 2: removed 1000 keys, height=%d, size=%d", tree.Height(), tree.Size())
 
 	// Phase 3: Random inserts (triggers 50/50 splits and redistributes)
-	for i := 0; i < 3000; i++ {
+	for i := range 3000 {
 		key := fmt.Sprintf("rnd%06d", rng.Intn(10000))
 		val := fmt.Sprintf("rndval_%d", i)
 		tree.Set([]byte(key), []byte(val))

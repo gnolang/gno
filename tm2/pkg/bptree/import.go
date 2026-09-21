@@ -92,6 +92,14 @@ func (t *MutableTree) Import(version int64) (*Importer, error) {
 		return nil, fmt.Errorf("import: version %d must exceed latest version %d", version, latest)
 	}
 	t.Rollback()
+	// Importer.Commit bypasses per-entry index maintenance, so pre-existing
+	// 'F' entries (stamped ≤ the import version) would be trusted
+	// stale-present after Commit. Drop the whole index now, while the batch
+	// is empty (just rolled back); see dropFastIndex for the abort-safety
+	// ordering.
+	if err := t.ndb.dropFastIndex(); err != nil {
+		return nil, err
+	}
 	return &Importer{tree: t, version: version}, nil
 }
 
@@ -302,10 +310,11 @@ func (imp *Importer) Commit() error {
 	prevVersion, prevInitial := imp.tree.version, imp.tree.initialVersion
 	imp.tree.version = imp.version - 1
 	imp.tree.initialVersion = 0
-	// Import staged values via SaveValue directly, bypassing per-entry fast-index
-	// maintenance, so the index is empty. Suppress SaveVersion's completeness
-	// stamp for this one commit (toggle off, restore after) so the next Load
-	// rebuilds the index from the imported tree rather than trusting an empty one.
+	// Import staged values via SaveValue directly, bypassing per-entry
+	// fast-index maintenance; Import() already cleared the index and its
+	// stamp. Suppress SaveVersion's completeness stamp for this one commit
+	// (toggle off, restore after) so the next Load rebuilds the index from
+	// the imported tree rather than stamping the cleared one as complete.
 	// No-op when the fast index is already disabled.
 	prevFast := imp.tree.ndb.opts.FastIndex
 	imp.tree.ndb.opts.FastIndex = false

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -61,7 +62,7 @@ func main() {
 	sharedOpts := newOpts()
 
 	const iters = 100
-	for i := 0; i < iters; i++ {
+	for i := range iters {
 		t.Run(fmt.Sprintf("iter%d", i), func(t *testing.T) {
 			_, _, _, err := sharedOpts.RunFiletest("init_order_det.gno", []byte(src), sharedOpts.TestStore)
 			require.NoError(t, err, "init order non-determinism or mismatch detected on iteration %d", i)
@@ -98,7 +99,7 @@ func main() {}`
 
 	const iters = 100
 	var seen []string
-	for i := 0; i < iters; i++ {
+	for i := range iters {
 		_, _, _, runErr := opts.RunFiletest("circ_dep_det.gno", []byte(src), opts.TestStore)
 		// A circular dep error is expected; extract just the "circular dependency: ..." line.
 		if runErr == nil {
@@ -117,13 +118,7 @@ func main() {}`
 		} else {
 			circdep = errMsg[idx:]
 		}
-		found := false
-		for _, s := range seen {
-			if s == circdep {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(seen, circdep)
 		if !found {
 			seen = append(seen, circdep)
 		}

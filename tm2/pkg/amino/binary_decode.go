@@ -36,7 +36,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
-	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Pointer {
 		panic("should not happen")
 	}
 	if printLog {
@@ -617,7 +617,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	// Amino2 will probably migrate to use the List typ3.
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
-	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
+	if ert.Kind() == reflect.Pointer && ert.Elem().Kind() == reflect.Uint8 {
 		newoptions |= bdOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
@@ -639,7 +639,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
@@ -853,7 +853,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength

@@ -174,6 +174,10 @@ func (ah authHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 }
 
 // queryAccount fetch an account for the supplied height.
+//
+// The serialised account's coins field is not the full balance: it holds only the
+// chain's gas denom. Every other denom lives in its own store key, reachable
+// through the bank module's balances query.
 // Account address are passed as path component.
 // Sub-paths: .../sessions lists all sessions, .../session/<addr> gets one.
 func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
