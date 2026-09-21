@@ -36,6 +36,11 @@ on:
       - "go.mod"
       - "go.sum"
       - ".github/workflows/ci-multiarch-determinism.yml"
+      # *.md is prose, except in the gno source trees where it is valid
+      # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns).
+      # Order matters: a later positive pattern wins over an earlier negation.
+      - "!**/*.md"
+      - "gnovm/stdlibs/**/*.md"
   workflow_dispatch:
 
 permissions:

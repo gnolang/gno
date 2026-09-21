@@ -3,7 +3,6 @@ package std
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -187,8 +186,15 @@ type Coins []Coin
 
 // NewCoins constructs a new coin set.
 func NewCoins(coins ...Coin) Coins {
+	// Sort below reorders in place, and with `NewCoins(myVar...)` the variadic
+	// array is the caller's own slice, so sorting it would silently reorder what
+	// the caller still holds. Copy first. The Gno mirror in chain/coins.gno
+	// copies for the same reason.
+	cz := make(Coins, len(coins))
+	copy(cz, coins)
+
 	// remove zeroes
-	newCoins := removeZeroCoins(Coins(coins))
+	newCoins := removeZeroCoins(cz)
 	if len(newCoins) == 0 {
 		return Coins{}
 	}
@@ -236,6 +242,12 @@ func (coins Coins) String() string {
 // and Denom does not contain upper case characters.
 func (coins Coins) IsValid() bool {
 	return coins.validate() == nil
+}
+
+// Validate is IsValid with the reason. Callers rejecting a caller-supplied set
+// want to say why.
+func (coins Coins) Validate() error {
+	return coins.validate()
 }
 
 // validate checks that the Coins are sorted, have positive amounts,
@@ -541,6 +553,9 @@ func (coins Coins) Empty() bool {
 }
 
 // Returns the amount of a denom from coins, which may be negative.
+//
+// The set must be sorted. This is a binary search, so on an unsorted set it can
+// step past a denom that is there and return 0 without saying so.
 func (coins Coins) AmountOf(denom string) int64 {
 	mustValidateDenom(denom)
 
@@ -604,14 +619,23 @@ func (coins Coins) IsAnyNegative() bool {
 
 // negative returns a set of coins with all amount negative.
 //
+// Panics rather than wrapping, like the arithmetic that uses it. MinInt64 has no
+// positive counterpart, so negating it silently returns MinInt64 again; SubUnsafe
+// subtracts by adding this, and would then add where it meant to subtract and
+// report a plausible wrong number instead of the overflow it really hit.
+//
 // TODO: Remove once unsigned integers are used.
 func (coins Coins) negative() Coins {
 	res := make([]Coin, 0, len(coins))
 
 	for _, coin := range coins {
+		amount, ok := overflow.Sub(0, coin.Amount)
+		if !ok {
+			panic(fmt.Sprintf("coin negate overflow: %v", coin))
+		}
 		res = append(res, Coin{
 			Denom:  coin.Denom,
-			Amount: -1 * coin.Amount,
+			Amount: amount,
 		})
 	}
 
@@ -619,19 +643,37 @@ func (coins Coins) negative() Coins {
 }
 
 // removeZeroCoins removes all zero coins from the given coin set in-place.
+// removeZeroCoins returns coins without its zero-amount entries.
+//
+// The argument is never modified. Callers pass a view of data they do not own:
+// [Coins.AddUnsafe] passes both its receiver and its argument, and [NewCoins]
+// passes the variadic array, which is the caller's own slice when spread with
+// `NewCoins(myVar...)`. Deleting in place shifts the rest of the set down over
+// the gap, so the caller would come back holding a reordered set with a
+// zero-amount coin at the end that it never had -- one that no longer passes
+// [Coins.Validate].
+//
+// Returns the input as-is when there is nothing to remove, which is every call
+// on a valid set, since validate rejects a zero amount. So the common path
+// still does not allocate.
 func removeZeroCoins(coins Coins) Coins {
-	i, l := 0, len(coins)
-	for i < l {
-		if coins[i].IsZero() {
-			// remove coin
-			coins = slices.Delete(coins, i, i+1)
-			l--
-		} else {
-			i++
+	zeros := 0
+	for _, coin := range coins {
+		if coin.IsZero() {
+			zeros++
 		}
 	}
+	if zeros == 0 {
+		return coins
+	}
 
-	return coins[:i]
+	res := make(Coins, 0, len(coins)-zeros)
+	for _, coin := range coins {
+		if !coin.IsZero() {
+			res = append(res, coin)
+		}
+	}
+	return res
 }
 
 // -----------------------------------------------------------------------------
@@ -653,18 +695,160 @@ func (coins Coins) Sort() Coins {
 // Parsing
 
 var (
-	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
+	// A realm denom embeds a package path verbatim (chain.CoinDenom), so this
+	// charset has to stay a superset of rePkgPathURL's charset in memfile.go.
+	// "-" was the one character missing from it. Package paths admit "-" in the
+	// domain and in namespace segments, so a realm at gno.land/r/my-org/token
+	// deployed fine and then failed on its first IssueCoin — a silent, late
+	// failure. TestValidateDenomAcceptsDeployablePaths pins that relation for
+	// every character class in rePkgPathURL. The trailing "-" is escaped so
+	// that appending another character cannot silently turn it into a range.
+	//
+	// "-" is deliberately absent from the leading class: a realm denom always
+	// starts with "/" and a native denom with a letter, so nothing needs it
+	// there, and admitting it would let "5-foo" and "100-foo" quietly parse as
+	// a coin whose denom is "-foo". (Amounts are unsigned, so this is a denom
+	// nobody meant to write, not a parsing ambiguity.)
+	//
+	// Sub-realm "#" paths are absent here, which is safe only because the banker
+	// refuses BankerTypeRealmIssue for sub-realms (banker.gno).
+	reDnmString = `[a-z\/][a-z0-9_.:\/\-]{2,}`
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
-	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
+// maxBaseDenomLength mirrors isValidBaseDenom in
+// gnovm/stdlibs/chain/banker/banker.gno. Go cannot import a constant out of
+// .gno source, so the two are kept in step by test: TestValidateDenomLength pins
+// this copy, and the paired 16-byte and 17-byte base denom cases in
+// gno.land/pkg/integration/testdata/realm_banker_issued_coin_denom.txtar pin
+// the Gno side from both directions.
+const maxBaseDenomLength = 16
+
+// MaxDenomLength is the longest a denom may be, in bytes — 274 today, being a
+// 256-byte package path, a 16-byte base name, and the two separators. The
+// charset is ASCII-only, so bytes and characters are the same thing here.
+//
+// It is the longest denom the chain can actually produce. chain.CoinDenom in
+// the Gno standard library builds a realm-issued denom as
+//
+//	"/" + pkgPath + ":" + baseName    e.g. "/gno.land/r/demo/foo:example"
+//
+// where pkgPath is capped at pkgPathLimit when the package is deployed
+// (MemPackage.ValidateBasic, memfile.go) and baseName is capped at
+// maxBaseDenomLength by the banker stdlib. Taking the exact sum is deliberate:
+// any smaller value would let a realm deploy at a perfectly legal package path
+// and then silently fail to issue coins.
+//
+// Those two caps only cover realm issuance, whereas ValidateDenom is the gate
+// every denom passes through whatever its origin, so restating them here is
+// what extends the limit to denoms arriving from a decoded transaction, a
+// genesis file, or bank params.
+//
+// Denom bytes are not free, and for a balance held in its own store key this cap
+// is the only thing bounding them, since store keys are not gas-metered. See
+// tm2/pkg/sdk/bank/balance.go.
+const MaxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
+
+const MaxCoinsCount = 256
+
 func ValidateDenom(denom string) error {
-	if !reDnm.MatchString(denom) {
+	// Length first: cheaper than the pattern, and it names the real problem
+	// instead of a generic "invalid denom".
+	if len(denom) > MaxDenomLength {
+		return fmt.Errorf("denom length %d exceeds limit %d", len(denom), MaxDenomLength)
+	}
+	if !validDenom(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)
 	}
 	return nil
+}
+
+// validDenom is `^reDnmString$` as a byte scan, and must stay exactly equivalent to
+// the compiled form (built in coin_test.go, the only place it is still needed) —
+// TestValidDenomMatchesRegexp is the gate.
+//
+// Hand-rolled because this is on paths where the cost is visible: banker.GetCoin and
+// banker.TotalCoin validate a realm-supplied denom on every call, and the invariants
+// validate every denom in state. The regexp measured 4,446ns on a maximal 274-byte
+// denom against a native gas charge of a few hundred; this is 174ns.
+func validDenom(denom string) bool {
+	// reDnmString is `[a-z/][a-z0-9_.:/\-]{2,}`, anchored, so: at least three bytes,
+	// the first from the leading class, the rest from the continuation class.
+	if len(denom) < 3 {
+		return false
+	}
+	if c := denom[0]; (c < 'a' || c > 'z') && c != '/' {
+		return false
+	}
+	for i := 1; i < len(denom); i++ {
+		switch c := denom[i]; {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case c == '_', c == '.', c == ':', c == '/', c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// IsRealmDenom reports whether denom is one a realm may issue.
+//
+// This answers who may *create* a denom, not where its balance is stored — that
+// is an allowlist in the bank (ViewKeeper.inAccountTier). Do not conflate them:
+// an IBC voucher is neither realm-issuable nor account-tier.
+//
+// chain.CoinDenom builds a realm denom as "/" + pkgPath + ":" + base and
+// reDnmString's leading class is [a-z\/], so a leading "/" identifies exactly
+// the realm-issuable set. Enforced at SDKBanker.IssueCoin, which makes it a
+// security boundary: without it a realm could mint the chain's gas denom.
+func IsRealmDenom(denom string) bool {
+	return strings.HasPrefix(denom, "/")
+}
+
+// ParseRealmDenom splits a realm-issued denom into its package path and base name
+// and reports whether it has the shape the banker can actually issue:
+// "/" + pkgPath + ":" + base.
+//
+// Callers must have established IsRealmDenom. This mirrors assertCoinDenom and
+// isValidBaseDenom in gnovm/stdlibs/chain/banker/banker.gno — deliberately without
+// their minimum base length, which is banker ergonomics with no consequence for
+// stored state, and which existing realm denoms in tests do not satisfy.
+//
+// A realm-shaped denom that fails this is not necessarily corruption: ValidateDenom
+// accepts shapes no realm could ever mint (a genesis file may name one), so a
+// caller checking stored state should report rather than reject.
+func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
+	if !IsRealmDenom(denom) {
+		return "", "", fmt.Errorf("denom %q is not realm-qualified", denom)
+	}
+	// The package path admits no colon, so the first one separates the base name.
+	pkgPath, base, ok := strings.Cut(denom[1:], ":")
+	if !ok {
+		return "", "", fmt.Errorf("denom %q has no base name", denom)
+	}
+	if len(pkgPath) > pkgPathLimit {
+		return "", "", fmt.Errorf("denom %q package path is %d bytes, over the %d limit",
+			denom, len(pkgPath), pkgPathLimit)
+	}
+	if base == "" {
+		return "", "", fmt.Errorf("denom %q has an empty base name", denom)
+	}
+	if len(base) > maxBaseDenomLength {
+		return "", "", fmt.Errorf("denom %q base name is %d bytes, over the %d limit",
+			denom, len(base), maxBaseDenomLength)
+	}
+	if base[0] < 'a' || base[0] > 'z' {
+		return "", "", fmt.Errorf("denom %q base name must start with a-z", denom)
+	}
+	for i := 1; i < len(base); i++ {
+		c := base[i]
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return "", "", fmt.Errorf("denom %q base name must be [a-z][a-z0-9]*", denom)
+		}
+	}
+	return pkgPath, base, nil
 }
 
 func mustValidateDenom(denom string) {
@@ -686,6 +870,14 @@ func MustParseCoin(coinStr string) Coin {
 func ParseCoin(coinStr string) (coin Coin, err error) {
 	coinStr = strings.TrimSpace(coinStr)
 
+	// Bound the input before the pattern runs. Coins amino-encode as a string, so
+	// every transaction decode reaches here — and decode happens before the ante
+	// handler installs a gas meter, so unbounded work here is unbilled. The cap is
+	// MaxDenomLength plus room for the amount, which cannot exceed 19 digits.
+	if len(coinStr) > MaxDenomLength+20 {
+		return Coin{}, fmt.Errorf("invalid coin expression: %d bytes exceeds the limit",
+			len(coinStr))
+	}
 	matches := reCoin.FindStringSubmatch(coinStr)
 	if matches == nil {
 		return Coin{}, fmt.Errorf("invalid coin expression: %s", coinStr)
@@ -722,15 +914,19 @@ func ParseCoins(coinsStr string) (Coins, error) {
 		return nil, nil
 	}
 
-	coinStrs := strings.Split(coinsStr, ",")
-	coins := make(Coins, len(coinStrs))
-	for i, coinStr := range coinStrs {
+	coinCount := strings.Count(coinsStr, ",") + 1
+	if coinCount > MaxCoinsCount {
+		return nil, fmt.Errorf("coin count exceeds the limit %d", MaxCoinsCount)
+	}
+
+	coins := make(Coins, 0, coinCount)
+	for coinStr := range strings.SplitSeq(coinsStr, ",") {
 		coin, err := ParseCoin(coinStr)
 		if err != nil {
 			return nil, err
 		}
 
-		coins[i] = coin
+		coins = append(coins, coin)
 	}
 
 	// sort coins for determinism
