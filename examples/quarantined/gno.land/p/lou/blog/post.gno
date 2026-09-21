@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -212,7 +212,7 @@ func (p *Post) LikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if _, exists := p.likes.Get(addr); exists {
+	if p.likes.Has(addr) {
 		return ErrAlreadyLiked
 	}
 	p.likes.Set(addr, true)
@@ -223,7 +223,7 @@ func (p *Post) UnlikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if _, exists := p.likes.Get(addr); !exists {
+	if !p.likes.Has(addr) {
 		return ErrNotLiked
 	}
 	if _, removed := p.likes.Remove(addr); !removed {
@@ -237,8 +237,8 @@ func (p *Post) SetPreviewFooter(footer string) {
 }
 
 func (p Post) GetCommentByID(id string) (*Comment, error) {
-	comment, found := p.Comments.Get(id)
-	if found {
+	comment := p.Comments.Get(id)
+	if comment != nil {
 		return comment.(*Comment), nil
 	}
 

@@ -1,9 +1,9 @@
-package gnoblog
+package blog
 
 import (
 	"testing"
 
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
@@ -24,7 +24,7 @@ func clearState(t *testing.T) {
 		Title:  "Gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	adminAddr = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	inPause = false
 	moderatorList = bptree.NewBPTree32()
 	commenterList = bptree.NewBPTree32()
@@ -91,14 +91,13 @@ func TestBlog_AddRemoveModerator(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
 	AdminAddModerator(cross(cur), mod)
 
-	_, found := moderatorList.Get(mod.String())
-	urequire.True(t, found)
+	urequire.True(t, moderatorList.Has(mod.String()))
 
 	// Remove the moderator
 	AdminRemoveModerator(cross(cur), mod)
 
 	// Make sure the moderator is disabled
-	isMod, _ := moderatorList.Get(mod.String())
+	isMod := moderatorList.Get(mod.String())
 	uassert.NotNil(t, isMod)
 
 	uassert.False(t, isMod.(bool))
@@ -123,8 +122,7 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddCommenter(cross(cur), commenter)
 
-	_, ok := commenterList.Get(commenter.String())
-	uassert.True(t, ok)
+	uassert.True(t, commenterList.Has(commenter.String()))
 
 	// Make sure a non-mod can't add commenters
 	testing.SetOriginCaller(rand)
@@ -139,7 +137,7 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModDelCommenter(cross(cur), commenter)
 
-	active, _ := commenterList.Get(commenter.String())
+	active := commenterList.Get(commenter.String())
 	uassert.False(t, active.(bool))
 }
 
@@ -192,8 +190,7 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddCommenter(cross(cur), commenter)
 
-	_, ok := commenterList.Get(commenter.String())
-	uassert.True(t, ok)
+	uassert.True(t, commenterList.Has(commenter.String()))
 
 	// Add the post
 	testing.SetOriginCaller(mod)

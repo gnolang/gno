@@ -52,7 +52,7 @@ func deepCopy(src, dst reflect.Value) {
 
 func _deepCopy(src, dst reflect.Value) {
 	switch src.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		cpy := reflect.New(src.Type().Elem())
 		_deepCopy(src.Elem(), cpy.Elem())
 		dst.Set(cpy)
@@ -170,7 +170,7 @@ func callDeepCopy(src, dst reflect.Value) bool {
 		return false
 	}
 	otype := dc.Type().Out(0)
-	if dst.Kind() == reflect.Ptr &&
+	if dst.Kind() == reflect.Pointer &&
 		dst.Type().Elem() == otype {
 		cpy := reflect.New(dst.Type().Elem())
 		out := dc.Call(nil)[0]
@@ -194,7 +194,7 @@ func callAminoCopy(src, dst reflect.Value) bool {
 		panic("should not happen")
 	}
 	switch {
-	case src.Kind() == reflect.Ptr:
+	case src.Kind() == reflect.Pointer:
 		cpy := reflect.New(src.Type().Elem())
 		dst.Set(cpy)
 	case src.CanAddr():

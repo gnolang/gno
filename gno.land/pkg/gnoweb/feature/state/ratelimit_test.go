@@ -20,7 +20,7 @@ func TestRateLimitAllowsBurst(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return now },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("request %d: expected allowed, got rejected", i+1)
 		}
@@ -34,7 +34,7 @@ func TestRateLimitRejectsOverLimit(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return now },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("warmup %d: unexpected reject", i+1)
 		}
@@ -51,7 +51,7 @@ func TestRateLimitRefillsOverTime(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return current },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("warmup %d: unexpected reject", i+1)
 		}
@@ -60,7 +60,7 @@ func TestRateLimitRefillsOverTime(t *testing.T) {
 		t.Fatal("expected reject immediately after burst")
 	}
 	current = current.Add(60 * time.Second)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("after refill, request %d: unexpected reject", i+1)
 		}

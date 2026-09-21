@@ -12,7 +12,7 @@ stderr 'p at gno.land/r/demo/panic/panic.gno:5'
 stderr 'Trigger at gno.land/r/demo/panic/panic.gno:9'
 
 -- panic.gno --
-package main
+package panic
 
 func p() {
 	i := "here"

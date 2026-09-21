@@ -102,7 +102,6 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name+"/binary", func(t *testing.T) {
 			t.Parallel()
 			orig := std.Signature{Signature: []byte("sig"), SessionAddr: tc.sessionAddr}

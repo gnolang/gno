@@ -187,7 +187,6 @@ func TestIsActive(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := isActive(tc.query, tc.label)
 			assert.Equal(t, tc.expected, result)
@@ -319,7 +318,6 @@ func TestViewModePredicates(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.wantExplorer, tc.mode.IsExplorer(), "IsExplorer")
 			assert.Equal(t, tc.wantRealm, tc.mode.IsRealm(), "IsRealm")
@@ -357,7 +355,6 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -1,5 +1,4 @@
 //go:build noembed
-// +build noembed
 
 package gnoweb
 

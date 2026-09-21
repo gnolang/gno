@@ -21,7 +21,7 @@ import (
 // message types — this is a programming error, not a runtime input.
 //
 // Mirror of cometbft/privval/msgs.go::mustWrapMsg.
-func WrapMsg(pb interface{}) *upstreampb.Message {
+func WrapMsg(pb any) *upstreampb.Message {
 	msg := &upstreampb.Message{}
 	switch m := pb.(type) {
 	case *upstreampb.PubKeyRequest:
@@ -50,7 +50,7 @@ func WrapMsg(pb interface{}) *upstreampb.Message {
 // upstreampb.Message envelope. Returns an error if the envelope is empty
 // or carries an unrecognized Sum variant — the wire was malformed or
 // emitted by an incompatible peer.
-func UnwrapMsg(msg *upstreampb.Message) (interface{}, error) {
+func UnwrapMsg(msg *upstreampb.Message) (any, error) {
 	if msg == nil || msg.Sum == nil {
 		return nil, fmt.Errorf("upstream.UnwrapMsg: empty envelope")
 	}

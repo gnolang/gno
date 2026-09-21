@@ -154,16 +154,16 @@ func TestRemove(t *testing.T) {
 	// insert a bunch of random nodes
 	keys := make([][]byte, size)
 	l := int32(len(keys))
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := make([]byte, 16)
 		rand.Read(key)
 		t1.Set(key, make([]byte, 40))
 		keys[i] = key
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		step := 50 * i
-		for j := 0; j < step; j++ {
+		for range step {
 			key := keys[rand.Int31n(l)]
 			t1.Remove(key)
 		}
@@ -346,7 +346,7 @@ func TestPersistence(t *testing.T) {
 
 	// Create some random key value pairs
 	records := make(map[string]string)
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		records[randstr(20)] = randstr(20)
 	}
 
@@ -372,7 +372,7 @@ func TestPersistence(t *testing.T) {
 func TestProof(t *testing.T) {
 	// Construct some random tree
 	tree := getTestTree(100)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		key, value := randstr(20), randstr(20)
 		tree.Set([]byte(key), []byte(value))
 	}
@@ -402,7 +402,7 @@ func TestTreeProof(t *testing.T) {
 
 	// insert lots of info and store the bytes
 	keys := make([][]byte, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		key := randstr(20)
 		tree.Set([]byte(key), []byte(key))
 		keys[i] = []byte(key)

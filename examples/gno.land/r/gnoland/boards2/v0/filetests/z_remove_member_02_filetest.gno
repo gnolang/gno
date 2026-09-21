@@ -1,0 +1,20 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_remove_member_02_filetest
+
+package z_remove_member_02_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	boards2.RemoveMember(cross(cur), 0, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // Operate on realm DAO instead of individual boards
+}
+
+// Error:
+// member not found

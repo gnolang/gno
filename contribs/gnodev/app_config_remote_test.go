@@ -72,7 +72,7 @@ func TestRemoteArr_StringDeterministic(t *testing.T) {
 		"alpha.gno":   "https://rpc.alpha.gno.land",
 	}
 	first := (&m).String()
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		assert.Equal(t, first, (&m).String())
 	}
 	assert.Equal(t,

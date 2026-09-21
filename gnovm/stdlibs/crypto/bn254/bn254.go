@@ -11,6 +11,11 @@ var fpModulus = fp.Modulus()
 
 // X_g1Add mirrors EIP-196's ECADD precompile.
 // Per EIP-196, short inputs are right-padded with zeros to 128 bytes; excess bytes are ignored.
+//
+// The excess is normally already gone: bn254.gno's G1Add truncates to 128
+// bytes before calling in, because this native is priced flat and the
+// dispatcher's Gno→Go copy is not. Keep that check there — the one below only
+// covers Go callers, by which point the copy has happened.
 func X_g1Add(input []byte) []byte {
 	padded := make([]byte, 128)
 	if len(input) < 128 {
@@ -32,6 +37,9 @@ func X_g1Add(input []byte) []byte {
 }
 
 // X_g1Mul mirrors EIP-196's ECMUL precompile.
+//
+// bn254.gno's G1Mul applies the same length check before calling in; see
+// X_g1Add for why that matters.
 func X_g1Mul(input []byte) []byte {
 	if len(input) != 96 {
 		return nil
@@ -60,7 +68,7 @@ func X_pairingCheck(input []byte) []byte {
 	}
 	g1s := make([]bn254.G1Affine, n)
 	g2s := make([]bn254.G2Affine, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		off := i * 192
 		g1, ok := parseG1(input[off : off+64])
 		if !ok {

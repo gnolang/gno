@@ -36,7 +36,7 @@ func AssertCodecParity(t *testing.T, cdc *amino.Codec, v any) {
 	t.Helper()
 
 	rv := reflect.ValueOf(v)
-	require.Equal(t, reflect.Ptr, rv.Kind(), "v must be a pointer, got %T", v)
+	require.Equal(t, reflect.Pointer, rv.Kind(), "v must be a pointer, got %T", v)
 	require.False(t, rv.IsNil(), "v must be non-nil")
 
 	pbm, ok := v.(amino.PBMessager2)

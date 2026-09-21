@@ -5,6 +5,7 @@ import (
 	// number generator here and we can run the tests a bit faster
 	"crypto/rand"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,8 +57,6 @@ func TestBlockValidateBasic(t *testing.T) {
 		}, true},
 	}
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -320,7 +319,6 @@ func TestCommitValidateBasic(t *testing.T) {
 		{"Incorrect round", func(com *Commit) { com.Precommits[0].Round = 100 }, true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -338,9 +336,9 @@ func TestHeaderByteSize(t *testing.T) {
 	// characters.
 	// Each supplementary character takes 4 bytes.
 	// http://www.i18nguy.com/unicode/supplementary-test.html
-	maxChainID := ""
+	var maxChainID strings.Builder
 	for range MaxChainIDLen {
-		maxChainID += "𠜎"
+		maxChainID.WriteString("𠜎")
 	}
 
 	// time is varint encoded so need to pick the max.
@@ -349,7 +347,7 @@ func TestHeaderByteSize(t *testing.T) {
 
 	h := Header{
 		Version:            typesver.BlockVersion,
-		ChainID:            maxChainID,
+		ChainID:            maxChainID.String(),
 		Height:             math.MaxInt64,
 		Time:               timestamp,
 		NumTxs:             math.MaxInt64,
@@ -509,7 +507,6 @@ func TestSignedHeaderValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -553,7 +550,6 @@ func TestBlockIDValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
