@@ -39,10 +39,14 @@ as a 0x-prefixed hex string such as 0x616263. The 0x form is decoded in
 httpParamsToArgs; the JSON-RPC transport accepts base64 exclusively.
 
 String arguments are safest quoted, as path="auth/accounts/g1...". An unquoted
-value is wrapped for the caller when it is an in-range integer or when it is
-not valid JSON, and passed through raw otherwise. A bare true or an
-out-of-range number therefore reaches amino as raw JSON and fails to unmarshal
-into a string; a bare null is worse, since it unmarshals silently to "".
+value is wrapped for the caller when strconv.Atoi accepts it, so a bare 123
+reaches a string parameter intact, or when it is not valid JSON at all. A bare
+true, or a number too large for Go's int, then reaches amino as raw JSON and
+fails to unmarshal into a string; a bare null is worse, since it unmarshals
+silently to "". Two edges follow from the order of those tests: surrounding
+whitespace defeats Atoi but not json.Valid, so " 123" fails where 123 works,
+and the 0x branch runs before both and ignores the parameter's declared type,
+so path=0x616263 arrives as "YWJj".
 
 The JSON-RPC envelope is ordinary JSON, but the result is marshalled with
 Amino JSON, which encodes byte arrays as base64 and 64-bit integers as quoted

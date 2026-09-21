@@ -33,8 +33,8 @@ type RPCConfig struct {
 	// A list of non simple headers the client is allowed to use with cross-domain requests.
 	CORSAllowedHeaders []string `json:"cors_allowed_headers" toml:"cors_allowed_headers" comment:"A list of non simple headers the client is allowed to use with cross-domain requests"`
 
-	// Unused: no gRPC server is started from this address. Kept so existing
-	// config files keep round-tripping.
+	// Unused: no gRPC server is started from this address. Kept so
+	// "gnoland config get/set rpc.grpc_laddr" keeps working.
 	GRPCListenAddress string `json:"grpc_laddr" toml:"grpc_laddr" comment:"Unused: no gRPC server is started from this address"`
 
 	// Maximum number of simultaneous connections.
@@ -44,9 +44,9 @@ type RPCConfig struct {
 	// 0 - unlimited.
 	GRPCMaxOpenConnections int `json:"grpc_max_open_connections" toml:"grpc_max_open_connections" comment:"Maximum number of simultaneous connections.\n Does not include RPC (HTTP&WebSocket) connections. See max_open_connections\n If you want to accept a larger number than the default, make sure\n you increase your OS limits.\n 0 - unlimited.\n Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}\n 1024 - 40 - 10 - 50 = 924 = ~900"`
 
-	// Activate the unsafe_* RPC commands: unsafe_flush_mempool and the three
+	// Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three
 	// pprof profiler endpoints. Two of those write to a caller-supplied path.
-	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate the unsafe_* RPC commands: unsafe_flush_mempool and the pprof profiler endpoints"`
+	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three pprof profiler endpoints.\n Two of the profiler endpoints create a file at a caller-supplied path."`
 
 	// Maximum number of simultaneous connections (including WebSocket).
 	// Does not include gRPC connections. See grpc_max_open_connections
