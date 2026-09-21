@@ -12,7 +12,7 @@ This document is an overview of the various methods to interact with gnoland. Th
 
 **What is it?** The core Gno codebase uses the light-weight [Amino package](https://github.com/gnolang/gno/tree/master/tm2/pkg/amino) to encode messages. Amino can generate Protobuf definitions for those message types, which a non-Go application can use to build and parse them.
 
-**When to use it?** Amino is a Go package, so an application written in another language cannot import it. Generated Protobuf definitions cover the message types — but the transport is still the JSON-RPC interface above. There is no gRPC server: the `grpc_laddr` setting present in `config.toml` is not read by anything.
+**When to use it?** Amino is a Go package, so an application written in another language cannot import it. Generated Protobuf definitions cover the message types — but the transport is still the JSON-RPC interface above. There is no gRPC server: the `grpc_laddr` setting present in `config.toml` is carried by the config tooling, and nothing starts a server from it.
 
 ## Go code with `gnoclient` and `crypto/keys`
 
