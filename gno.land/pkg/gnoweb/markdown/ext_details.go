@@ -144,10 +144,10 @@ func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd
 	return n, open, consumed + i, consumed + j, true
 }
 
-// isCloseFence returns true when the line is a run of at least min colons
-// followed only by whitespace. Up to three leading spaces are allowed, to
+// isCloseFence returns true when the line is a run of at least minColons
+// colons followed only by whitespace. Up to three leading spaces are allowed, to
 // match the indentation tolerance of the opening fence.
-func isCloseFence(line []byte, min int) bool {
+func isCloseFence(line []byte, minColons int) bool {
 	trimmed := bytes.TrimRight(line, " \t\r\n")
 	pos := 0
 	for pos < len(trimmed) && pos < 4 && trimmed[pos] == ' ' {
@@ -161,7 +161,7 @@ func isCloseFence(line []byte, min int) bool {
 	for n < len(trimmed) && trimmed[n] == ':' {
 		n++
 	}
-	return n >= min && n == len(trimmed)
+	return n >= minColons && n == len(trimmed)
 }
 
 // Open implements parser.BlockParser.
