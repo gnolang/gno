@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: InlineCode
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+pay\u200Bpal
+-- output.md --
+`paypal`
+-- output.html --
+<p><code>paypal</code></p>

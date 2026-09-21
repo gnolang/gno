@@ -22,9 +22,23 @@ func isOriginCall(m *gno.Machine) bool {
 	if !isMsgCall {
 		return false
 	}
-	// Count only actual function call frames (excludes closures
-	// and control-flow basic frames like for/range/switch).
-	return m.NumCallFrames() <= 2
+	// The code that runs has to belong to the package the message named.
+	// A message names a path, the VM credits its coins to that path, and
+	// then invokes whatever value the named symbol holds: an exported
+	// `var Dep = other.Deposit` makes Frames[0] *other's* own function
+	// while the envelope was credited to the aliasing realm. Counting
+	// frames cannot see that, because there is only ever one realm's code
+	// on the stack. OriginSendRecipientPath is the named path, set for
+	// every MsgCall whether or not it carries coins, and it is empty in
+	// contexts that have no message at all, which fails closed here.
+	entry := m.Frames[0].Func
+	if entry == nil || entry.PkgPath != execctx.GetContext(m).OriginSendRecipientPath {
+		return false
+	}
+	// Count the frames that are a call boundary: named calls, plus func
+	// literals reached by crossing into another realm. Control-flow basic
+	// frames (for/range/switch) and same-realm closures stay transparent.
+	return m.NumCallBoundaryFrames() <= 2
 }
 
 func ChainID(m *gno.Machine) string {
@@ -39,18 +53,10 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
-func X_originCaller(m *gno.Machine) string {
-	return string(execctx.GetContext(m).OriginCaller)
-}
-
-func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
-	return execctx.GetRealm(m, height)
-}
-
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
-// If the session account type doesn't implement this, allowPaths will be nil
-// (meaning "unrestricted"), which is the correct semantic — the session has
-// no path restrictions configured at the protocol level.
+// Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
+// gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;
+// only session account types that don't implement this interface can return nil.
 type pathRestricted interface{ GetAllowPaths() []string }
 
 func X_getSessionInfo(m *gno.Machine) (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool) {

@@ -1,0 +1,33 @@
+{{/* Top-level decls pagination footer. .Pagination is nil → no footer. */}}
+
+{{ define "state/pagination" }}
+  {{ with .Pagination }}
+    <nav class="b-state-pagination" aria-label="Top-level declarations pagination">
+      <p class="summary">
+        Showing
+        <strong>{{ .StartNumber }}</strong>–<strong>{{ .EndNumber }}</strong>
+        of <strong>{{ .Total }}</strong>
+        top-level declaration{{ if ne .Total 1 }}s{{ end }}
+      </p>
+      <div class="b-btns" role="group" aria-label="Page navigation">
+        {{ if .HasPrev }}
+          {{ template "state/pagination-btn" (dict "Href" .FirstHref "Label" "First" "Aria" "First page" "Right" false) }}
+          {{ template "state/pagination-btn" (dict "Href" .PrevHref "Label" "Previous" "Aria" "Previous page" "Right" false "Rel" "prev") }}
+        {{ end }}
+        {{ if .HasNext }}
+          {{ template "state/pagination-btn" (dict "Href" .NextHref "Label" "Next" "Aria" "Next page" "Right" true "Rel" "next") }}
+          {{ template "state/pagination-btn" (dict "Href" .LastHref "Label" "Last" "Aria" "Last page" "Right" true) }}
+        {{ end }}
+      </div>
+    </nav>
+  {{ end }}
+{{ end }}
+
+{{/* One pagination button — chevron on .Right side, otherwise left. */}}
+{{ define "state/pagination-btn" }}
+  <a class="b-btn b-btn--secondary c-with-icon" href="{{ .Href }}"{{ with .Rel }} rel="{{ . }}"{{ end }} aria-label="{{ .Aria }}">
+    {{ if not .Right }}<svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-left"></use></svg>{{ end }}
+    <span>{{ .Label }}</span>
+    {{ if .Right }}<svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-right"></use></svg>{{ end }}
+  </a>
+{{ end }}

@@ -1,0 +1,14 @@
+{{/* frag_error.html — visible-error fragment.
+
+     htmx 2.x silently drops 4xx/5xx swaps. To surface errors to users
+     we return HTTP 200 with this body.
+
+     Input: feature/state.FragErrorData. */}}
+
+{{ define "fragError" }}
+<div class="b-state-frag-error" role="alert">
+  <span class="b-state-frag-error-icon" aria-hidden="true">⚠</span>
+  {{ .Message }}
+  {{ if .RetryHint }}<span class="b-state-frag-error-hint">{{ .RetryHint }}</span>{{ end }}
+</div>
+{{ end }}

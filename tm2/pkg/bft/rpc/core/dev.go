@@ -9,15 +9,18 @@ import (
 )
 
 // UnsafeFlushMempool removes all transactions from the mempool.
-func UnsafeFlushMempool(ctx *rpctypes.Context) (*ctypes.ResultUnsafeFlushMempool, error) {
-	mempool.Flush()
+func (env *Environment) UnsafeFlushMempool(ctx *rpctypes.Context) (*ctypes.ResultUnsafeFlushMempool, error) {
+	env.Mempool.Flush()
 	return &ctypes.ResultUnsafeFlushMempool{}, nil
 }
 
+// profFile is process-global because CPU profiling itself is process-wide;
+// only one profiler can run at a time regardless of how many Environments
+// exist.
 var profFile *os.File
 
 // UnsafeStartCPUProfiler starts a pprof profiler using the given filename.
-func UnsafeStartCPUProfiler(ctx *rpctypes.Context, filename string) (*ctypes.ResultUnsafeProfile, error) {
+func (env *Environment) UnsafeStartCPUProfiler(ctx *rpctypes.Context, filename string) (*ctypes.ResultUnsafeProfile, error) {
 	var err error
 	profFile, err = os.Create(filename)
 	if err != nil {
@@ -31,7 +34,7 @@ func UnsafeStartCPUProfiler(ctx *rpctypes.Context, filename string) (*ctypes.Res
 }
 
 // UnsafeStopCPUProfiler stops the running pprof profiler.
-func UnsafeStopCPUProfiler(ctx *rpctypes.Context) (*ctypes.ResultUnsafeProfile, error) {
+func (env *Environment) UnsafeStopCPUProfiler(ctx *rpctypes.Context) (*ctypes.ResultUnsafeProfile, error) {
 	pprof.StopCPUProfile()
 	if err := profFile.Close(); err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func UnsafeStopCPUProfiler(ctx *rpctypes.Context) (*ctypes.ResultUnsafeProfile, 
 }
 
 // UnsafeWriteHeapProfile dumps a heap profile to the given filename.
-func UnsafeWriteHeapProfile(ctx *rpctypes.Context, filename string) (*ctypes.ResultUnsafeProfile, error) {
+func (env *Environment) UnsafeWriteHeapProfile(ctx *rpctypes.Context, filename string) (*ctypes.ResultUnsafeProfile, error) {
 	memProfFile, err := os.Create(filename)
 	if err != nil {
 		return nil, err

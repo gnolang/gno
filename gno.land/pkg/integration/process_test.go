@@ -41,7 +41,10 @@ func TestMain(m *testing.M) {
 func TestNodeProcess(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	// Generous deadline: this spawns a subprocess node, and CI runners are
+	// CPU-contended (other packages' nodes start concurrently), so a tight
+	// timeout flakes even though the node starts in a few seconds when idle.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	gnoRootDir := gnoenv.RootDir()

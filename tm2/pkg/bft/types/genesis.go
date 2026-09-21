@@ -22,6 +22,7 @@ var (
 	ErrEmptyChainID                = errors.New("chain ID is empty")
 	ErrLongChainID                 = fmt.Errorf("chain ID cannot be longer than %d chars", MaxChainIDLen)
 	ErrInvalidGenesisTime          = errors.New("invalid genesis time")
+	ErrInvalidInitialHeight        = errors.New("initial height must be non-negative")
 	ErrNoValidators                = errors.New("no validators in set")
 	ErrInvalidValidatorVotingPower = errors.New("validator has no voting power")
 	ErrInvalidValidatorAddress     = errors.New("invalid validator address")
@@ -46,6 +47,7 @@ type GenesisValidator struct {
 type GenesisDoc struct {
 	GenesisTime     time.Time            `json:"genesis_time"`
 	ChainID         string               `json:"chain_id"`
+	InitialHeight   int64                `json:"initial_height,omitempty"`
 	ConsensusParams abci.ConsensusParams `json:"consensus_params,omitempty"`
 	Validators      []GenesisValidator   `json:"validators,omitempty"`
 	AppHash         []byte               `json:"app_hash"`
@@ -88,6 +90,11 @@ func (genDoc *GenesisDoc) Validate() error {
 		return ErrInvalidGenesisTime
 	}
 
+	// Make sure the initial height is non-negative
+	if genDoc.InitialHeight < 0 {
+		return ErrInvalidInitialHeight
+	}
+
 	// Validate the consensus params
 	if consensusParamsErr := ValidateConsensusParams(genDoc.ConsensusParams); consensusParamsErr != nil {
 		return consensusParamsErr
@@ -127,6 +134,10 @@ func (genDoc *GenesisDoc) ValidateAndComplete() error {
 	}
 	if len(genDoc.ChainID) > MaxChainIDLen {
 		return errors.New("chain_id in genesis doc is too long (max: %d)", MaxChainIDLen)
+	}
+
+	if genDoc.InitialHeight < 0 {
+		return errors.New("initial_height in genesis doc must be non-negative")
 	}
 
 	// Start from defaults and fill in consensus params from GenesisDoc.

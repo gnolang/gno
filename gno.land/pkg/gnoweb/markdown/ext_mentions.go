@@ -29,6 +29,21 @@ var (
 	mentionAddressPattern = regexp.MustCompile(`^(?: |)(g1[0-9A-Za-z]{37,90})(?:[^@0-9A-Za-z]|$)`)
 )
 
+// mentionLinkAttr marks an ast.Link produced by the mention parser. The
+// link transformer reads it (ext_links.go) to keep the link's first-party
+// user chrome even inside a <gno-foreign> sandbox: a mention's destination
+// is system-resolved (/u/<name>), not author-chosen, so it is exempt from
+// the untrusted-link treatment applied to ordinary foreign links.
+//
+// The marker never reaches output: GnoLink is its own node kind and
+// renderGnoLink writes only its own hardcoded attributes — it never
+// serializes node attributes. The name is deliberately NOT "data-"-prefixed
+// so the guarantee is robust to future renderer changes: goldmark's default
+// RenderAttributes force-emits unknown attributes ONLY when they carry the
+// "data-" prefix, so a non-data key like this would be dropped by the link
+// attribute filter even if a GnoLink ever fell back to the default renderer.
+var mentionLinkAttr = []byte("gno:mention")
+
 // isValidBech32Address validates if the given string is a valid bech32 address
 func isValidBech32Address(address []byte) bool {
 	_, _, err := bech32.Decode(string(address))
@@ -61,8 +76,10 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 
 		mentionSeg := text.NewSegment(lineSegment.Start+start-1, lineSegment.Start+end)
 
-		// Craft link node
+		// Craft link node; mark it for the foreign-sandbox trust
+		// exemption (see mentionLinkAttr).
 		link := ast.NewLink()
+		link.SetAttribute(mentionLinkAttr, true)
 		link.AppendChild(link, ast.NewTextSegment(mentionSeg))
 		link.Destination = append([]byte("/u/"), line[start:end]...)
 
@@ -89,8 +106,10 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 
 		mentionSeg := text.NewSegment(lineSegment.Start+start, lineSegment.Start+end)
 
-		// Craft link node
+		// Craft link node; mark it for the foreign-sandbox trust
+		// exemption (see mentionLinkAttr).
 		link := ast.NewLink()
+		link.SetAttribute(mentionLinkAttr, true)
 		link.AppendChild(link, ast.NewTextSegment(mentionSeg))
 		link.Destination = append([]byte("/u/"), line[start:end]...)
 

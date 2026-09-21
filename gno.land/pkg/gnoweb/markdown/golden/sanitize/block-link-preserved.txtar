@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+visit [my homepage](/u/me) today
+-- output.md --
+
+
+visit [my homepage](/u/me) today
+
+-- output.html --
+<p>visit <a href="/u/me">my homepage<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a> today</p>

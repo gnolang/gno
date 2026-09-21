@@ -62,7 +62,7 @@ func go2GnoType(rt reflect.Type) Type {
 			Elt: go2GnoType(rt.Elem()),
 			Vrd: false,
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return &PointerType{
 			Elt: go2GnoType(rt.Elem()), // recursive
 		}
@@ -117,12 +117,12 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 	case reflect.Array:
 		rvl := rv.Len()
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			av := alloc.NewDataArray(rvl)
+			av := alloc.NewDataArray(nil, rvl)
 			data := av.Data
 			reflect.Copy(reflect.ValueOf(data), rv)
 			tv.V = av
 		} else {
-			av := alloc.NewListArray(rvl)
+			av := alloc.NewListArray(nil, rvl)
 			list := av.List
 			for i := range rvl {
 				list[i] = Go2GnoValue(alloc, store, rv.Index(i))
@@ -133,13 +133,23 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		rvl := rv.Len()
 		rvc := rv.Cap()
 
-		baseArray := alloc.NewListArray2(rvl, rvc)
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			// Match the reflect.Array arm above, and every other byte-slice
+			// producer in the VM: flat Data backing, 1 byte per element.
+			// Value.Bytes tests the element kind, not its identity, so this
+			// also covers named byte types (reflect.Copy would not).
+			baseArray := alloc.NewDataArray(nil, rvc)
+			copy(baseArray.Data[:rvl], rv.Bytes())
+			tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
+			return
+		}
+		baseArray := alloc.NewListArray2(nil, rvl, rvc)
 		list := baseArray.List
 		for i := range rvl {
 			list[i] = Go2GnoValue(alloc, store, rv.Index(i))
 		}
 		tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		val := Go2GnoValue(alloc, store, rv.Elem())
 		tv.V = PointerValue{TV: &val} // heap alloc
 	default:
@@ -159,33 +169,33 @@ func gno2GoType(t Type) reflect.Type {
 	case PrimitiveType:
 		switch ct {
 		case BoolType, UntypedBoolType:
-			return reflect.TypeOf(false)
+			return reflect.TypeFor[bool]()
 		case StringType, UntypedStringType:
-			return reflect.TypeOf("")
+			return reflect.TypeFor[string]()
 		case IntType:
-			return reflect.TypeOf(int(0))
+			return reflect.TypeFor[int]()
 		case Int8Type:
-			return reflect.TypeOf(int8(0))
+			return reflect.TypeFor[int8]()
 		case Int16Type:
-			return reflect.TypeOf(int16(0))
+			return reflect.TypeFor[int16]()
 		case Int32Type, UntypedRuneType:
-			return reflect.TypeOf(int32(0))
+			return reflect.TypeFor[int32]()
 		case Int64Type:
-			return reflect.TypeOf(int64(0))
+			return reflect.TypeFor[int64]()
 		case UintType:
-			return reflect.TypeOf(uint(0))
+			return reflect.TypeFor[uint]()
 		case Uint8Type:
-			return reflect.TypeOf(uint8(0))
+			return reflect.TypeFor[uint8]()
 		case Uint16Type:
-			return reflect.TypeOf(uint16(0))
+			return reflect.TypeFor[uint16]()
 		case Uint32Type:
-			return reflect.TypeOf(uint32(0))
+			return reflect.TypeFor[uint32]()
 		case Uint64Type:
-			return reflect.TypeOf(uint64(0))
+			return reflect.TypeFor[uint64]()
 		case Float32Type:
-			return reflect.TypeOf(float32(0))
+			return reflect.TypeFor[float32]()
 		case Float64Type:
-			return reflect.TypeOf(float64(0))
+			return reflect.TypeFor[float64]()
 		case UntypedBigintType:
 			panic("not yet implemented")
 		case UntypedBigdecType:
@@ -335,10 +345,15 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		sv := tv.V.(*SliceValue)
 		svo := sv.Offset
 		svl := sv.Length
-		svc := sv.Maxcap
 		svb := sv.GetBase(nil)
+		// Size by Length, not Maxcap: a native only ever reads the first
+		// Length elements, and the Go slice it receives is a copy, so capacity
+		// beyond Length is unobservable from Gno. Sizing by Maxcap let a
+		// zero-length, large-Maxcap slice buy an unmetered Go allocation and
+		// memcpy for the flat native base cost. Natives must not rely on a
+		// parameter slice's capacity; see adr/acd01fa29_gno2go_slice_gas.md.
 		if svb.Data == nil {
-			rv.Set(reflect.MakeSlice(st, svl, svc))
+			rv.Set(reflect.MakeSlice(st, svl, svl))
 			for i := range svl {
 				etv := &(svb.List[svo+i])
 				if etv.IsUndefined() {
@@ -347,8 +362,8 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				Gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			data := make([]byte, svl, svc)
-			copy(data[:svc], svb.Data[svo:svo+svc])
+			data := make([]byte, svl)
+			copy(data, svb.Data[svo:svo+svl])
 			rv.Set(reflect.ValueOf(data))
 		}
 	default:

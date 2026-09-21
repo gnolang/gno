@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -125,6 +126,26 @@ type OutOfGasError struct {
 
 func (oog OutOfGasError) Error() string {
 	return "out of gas in location: " + oog.Descriptor
+}
+
+// OutOfGasLog returns a consistent out-of-gas message for tx execution paths.
+func OutOfGasLog(gasUsed, gasWanted, maxGas int64, operation string, withSimulateHint bool) string {
+	if maxGas > 0 && gasWanted >= maxGas {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds max block gas (%d) during operation: %v",
+			gasUsed, maxGas, operation,
+		)
+	}
+	if maxGas > 0 && withSimulateHint {
+		return fmt.Sprintf(
+			"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v; simulate with consensus maximum (%d) to get real transaction usage",
+			gasUsed, gasWanted, operation, maxGas,
+		)
+	}
+	return fmt.Sprintf(
+		"gas used (%d) exceeds tx's gas wanted (%d) during operation: %v",
+		gasUsed, gasWanted, operation,
+	)
 }
 
 // GasOverflowError defines an error thrown when an action results gas consumption
@@ -266,6 +287,12 @@ func (g *infiniteGasMeter) Remaining() Gas {
 }
 
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
+	// Refused here as it is on the metered meter. Consuming a negative amount
+	// would lower the total instead of raising it, and this meter reports that
+	// total as the transaction's gas used.
+	if amount < 0 {
+		panic("gas must not be negative")
+	}
 	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
 		panic(GasOverflowError{descriptor})

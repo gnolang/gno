@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: # %s
+// INPUT_ESCAPED
+-- input.md --
+a\rb
+-- output.md --
+a b
+-- output.html --
+<h1>a b</h1>

@@ -12,6 +12,13 @@ import (
 // Validate block
 
 func (state State) ValidateBlock(block *types.Block) error {
+	// Wire-facing guard: peer-supplied block must not crash the node.
+	// Returns error rather than panicking. Internal sites use defensive
+	// panics for plumbing bugs; this is the boundary between trusted and
+	// untrusted input.
+	if block.Height < state.InitialHeight {
+		return fmt.Errorf("block height %d < state.InitialHeight %d", block.Height, state.InitialHeight)
+	}
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -92,9 +99,13 @@ func (state State) ValidateBlock(block *types.Block) error {
 	}
 
 	// Validate block LastCommit.
-	if block.Height == 1 {
+	// The genesis block of this chain (block.Height == state.InitialHeight)
+	// has an empty LastCommit; all other blocks must have a valid commit
+	// from the previous round.
+	isGenesisBlock := block.Height == state.InitialHeight
+	if isGenesisBlock {
 		if len(block.LastCommit.Precommits) != 0 {
-			return errors.New("block at height 1 can't have LastCommit precommits")
+			return errors.New("genesis block can't have LastCommit precommits")
 		}
 	} else {
 		if len(block.LastCommit.Precommits) != state.LastValidators.Size() {
@@ -108,7 +119,7 @@ func (state State) ValidateBlock(block *types.Block) error {
 	}
 
 	// Validate block Time
-	if block.Height > 1 {
+	if !isGenesisBlock {
 		if !block.Time.After(state.LastBlockTime) {
 			return fmt.Errorf("block time %v not greater than last block time %v",
 				block.Time,
@@ -123,7 +134,7 @@ func (state State) ValidateBlock(block *types.Block) error {
 				block.Time,
 			)
 		}
-	} else if block.Height == 1 {
+	} else {
 		genesisTime := state.LastBlockTime
 		if !block.Time.Equal(genesisTime) {
 			return fmt.Errorf("block time %v is not equal to genesis time %v",

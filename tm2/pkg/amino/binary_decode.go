@@ -36,7 +36,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
-	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Pointer {
 		panic("should not happen")
 	}
 	if printLog {
@@ -130,6 +130,12 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 				return
 			}
 			rv.SetInt(num)
+		} else if fopts.BinPlainVarint {
+			num, _n, err = DecodePlainVarint(bz)
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
+			rv.SetInt(num)
 		} else {
 			var u64 int64
 			u64, _n, err = DecodeVarint(bz)
@@ -144,6 +150,13 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		if fopts.BinFixed32 {
 			var num int32
 			num, _n, err = DecodeInt32(bz)
+			if slide(&bz, &n, _n) && err != nil {
+				return
+			}
+			rv.SetInt(int64(num))
+		} else if fopts.BinPlainVarint {
+			var num int32
+			num, _n, err = DecodePlainVarint32(bz)
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -178,7 +191,17 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Int:
 		var num int64
-		num, _n, err = DecodeVarint(bz)
+		if fopts.BinFixed64 {
+			num, _n, err = DecodeInt64(bz)
+		} else if fopts.BinFixed32 {
+			var n32 int32
+			n32, _n, err = DecodeInt32(bz)
+			num = int64(n32)
+		} else if fopts.BinPlainVarint {
+			num, _n, err = DecodePlainVarint(bz)
+		} else {
+			num, _n, err = DecodeVarint(bz)
+		}
 		if slide(&bz, &n, _n) && err != nil {
 			return
 		}
@@ -247,7 +270,15 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Uint:
 		var num uint64
-		num, _n, err = DecodeUvarint(bz)
+		if fopts.BinFixed64 {
+			num, _n, err = DecodeUint64(bz)
+		} else if fopts.BinFixed32 {
+			var n32 uint32
+			n32, _n, err = DecodeUint32(bz)
+			num = uint64(n32)
+		} else {
+			num, _n, err = DecodeUvarint(bz)
+		}
 		if slide(&bz, &n, _n) && err != nil {
 			return
 		}
@@ -586,7 +617,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	// Amino2 will probably migrate to use the List typ3.
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
-	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
+	if ert.Kind() == reflect.Pointer && ert.Elem().Kind() == reflect.Uint8 {
 		newoptions |= bdOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
@@ -608,7 +639,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
@@ -643,7 +674,16 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
 				slide(&bz, &n, 1)
-				erv.Set(defaultValue(erv.Type()))
+				// When NilElements is set the user has opted into "0x00 means
+				// nil" for any pointer — not just struct pointers. Use a true
+				// zero value so *T elements come back as nil, matching the
+				// genproto2 decoder. Without the tag, keep defaultValue's
+				// legacy non-nil-with-zero behavior for non-struct pointers.
+				if fopts.NilElements {
+					erv.Set(reflect.Zero(erv.Type()))
+				} else {
+					erv.Set(defaultValue(erv.Type()))
+				}
 				continue
 			}
 			// Special case: nested lists.
@@ -813,7 +853,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
@@ -851,7 +891,13 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
 				slide(&bz, &n, 1)
-				erv.Set(defaultValue(erv.Type()))
+				// See matching array-path comment: NilElements semantically
+				// means "0x00 decodes to nil" for any pointer element.
+				if fopts.NilElements {
+					erv.Set(reflect.Zero(erv.Type()))
+				} else {
+					erv.Set(defaultValue(erv.Type()))
+				}
 				srv = reflect.Append(srv, erv)
 				continue
 			}
@@ -978,6 +1024,35 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				frv.Set(defaultValue(frv.Type()))
 				continue // before sliding...
 			}
+			// Consume any wire fields with fnum < field.BinFieldNum.
+			// These correspond to fields removed from the struct (e.g. marked
+			// amino:"reserved") that are still present in older encoded data.
+			for fnum < field.BinFieldNum {
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if fnum <= lastFieldNum {
+					err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
+						fnum, lastFieldNum, bz)
+					return
+				}
+				lastFieldNum = fnum
+				_n, err = consumeAny(typ, bz)
+				if slide(&bz, &n, _n) && err != nil {
+					return
+				}
+				if len(bz) == 0 {
+					break
+				}
+				fnum, typ, _n, err = decodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return
+				}
+			}
+			if fnum != field.BinFieldNum {
+				frv.Set(defaultValue(frv.Type()))
+				continue
+			}
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -989,14 +1064,6 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			lastFieldNum = fnum
-			// NOTE: In the future, we'll support upgradeability.
-			// So in the future, this may not match,
-			// so we will need to remove this sanity check.
-			if field.BinFieldNum != fnum {
-				err = errors.New(fmt.Sprintf("expected field # %v of %v, got %v",
-					field.BinFieldNum, info.Type, fnum))
-				return
-			}
 			typWanted := finfo.GetTyp3(field.FieldOptions)
 			if typ != typWanted {
 				err = errors.New(fmt.Sprintf("expected field type %v for # %v of %v, got %v",

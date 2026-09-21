@@ -1,0 +1,9 @@
+// MARKDOWNFUNC: InlineCode
+// CONTEXT: see %s here
+// INPUT_ESCAPED
+-- input.md --
+foo\nbar
+-- output.md --
+`foo bar`
+-- output.html --
+<p>see <code>foo bar</code> here</p>

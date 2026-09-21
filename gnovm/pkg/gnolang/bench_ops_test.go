@@ -7,8 +7,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
-
-	"github.com/cockroachdb/apd/v3"
+	"time"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -482,10 +481,7 @@ func benchOpQuo_BigInt(b *testing.B, bits int) {
 	expr := &BinaryExpr{}
 	// dividend: bits-wide; divisor: bits/2-wide (min 32)
 	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
-	divisorBits := bits / 2
-	if divisorBits < 32 {
-		divisorBits = 32
-	}
+	divisorBits := max(bits/2, 32)
 	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
@@ -582,10 +578,7 @@ func benchOpRem_BigInt(b *testing.B, bits int) {
 	expr := &BinaryExpr{}
 	// dividend: bits-wide; divisor: bits/2-wide (min 32)
 	v1 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(bits)), big.NewInt(1))
-	divisorBits := bits / 2
-	if divisorBits < 32 {
-		divisorBits = 32
-	}
+	divisorBits := max(bits/2, 32)
 	v2 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(divisorBits)), big.NewInt(1))
 	bv1 := BigintValue{V: v1}
 	bv2 := BigintValue{V: v2}
@@ -1521,7 +1514,7 @@ func BenchmarkOpIndex1_ByteArray(b *testing.B) {
 	expr := &IndexExpr{}
 
 	at := &ArrayType{Elt: Uint8Type, Len: 100}
-	av := m.Alloc.NewDataArray(100)
+	av := m.Alloc.NewDataArray(nil, 100)
 	for i := range av.Data {
 		av.Data[i] = byte(i % 256)
 	}
@@ -1550,7 +1543,7 @@ func BenchmarkOpIndex1_Slice(b *testing.B) {
 	expr := &IndexExpr{}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(10)
+	baseArray := m.Alloc.NewListArray(nil, 10)
 	for i := range 10 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
@@ -1582,10 +1575,10 @@ func benchOpIndex1MapHit(b *testing.B, size int) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(size)
+	mv.MakeMap()
 	for i := range size {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 	// Look up a key near the middle.
@@ -1623,10 +1616,10 @@ func BenchmarkOpIndex1_MapMiss(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1656,11 +1649,11 @@ func benchOpIndex1_MapStringKey(b *testing.B, keyLen int) {
 
 	mt := &MapType{Key: StringType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		k := strings.Repeat("x", keyLen-1) + string(rune('A'+i))
 		kv := TypedValue{T: StringType, V: m.Alloc.NewString(k)}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
 	lookupKey := m.Alloc.NewString(strings.Repeat("x", keyLen-1) + string(rune('A'+5)))
@@ -1711,7 +1704,7 @@ func benchOpSelector(b *testing.B, nFields int, fieldIdx int) {
 	for i := range nFields {
 		fieldValues[i] = TypedValue{T: IntType, N: i2n(int64(i + 1))}
 	}
-	sv := m.Alloc.NewStruct(fieldValues)
+	sv := m.Alloc.NewStruct(nil, fieldValues)
 
 	selExpr := &SelectorExpr{
 		Path: ValuePath{
@@ -1849,10 +1842,10 @@ func BenchmarkOpIndex2_MapHit(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1886,10 +1879,10 @@ func BenchmarkOpIndex2_MapMiss(b *testing.B) {
 
 	mt := &MapType{Key: IntType, Value: IntType}
 	mv := &MapValue{}
-	mv.MakeMap(10)
+	mv.MakeMap()
 	for i := range 10 {
 		kv := TypedValue{T: IntType, N: i2n(int64(i))}
-		pv := mv.GetPointerForKey(m.Alloc, m.Store, kv)
+		pv := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, kv)
 		*pv.TV = TypedValue{T: IntType, N: i2n(int64(i * 10))}
 	}
 
@@ -1958,7 +1951,7 @@ func BenchmarkOpSlice_ByteArray(b *testing.B) {
 	}
 
 	at := &ArrayType{Elt: Uint8Type, Len: 100}
-	av := m.Alloc.NewDataArray(100)
+	av := m.Alloc.NewDataArray(nil, 100)
 	for i := range av.Data {
 		av.Data[i] = byte(i)
 	}
@@ -1992,7 +1985,7 @@ func BenchmarkOpSlice_Slice(b *testing.B) {
 	}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(100)
+	baseArray := m.Alloc.NewListArray(nil, 100)
 	for i := range 100 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
@@ -3079,11 +3072,11 @@ func BenchmarkOpDec_BigInt_4096(b *testing.B) { benchOpDec_BigInt(b, 4096) }
 // Uses strings.Repeat to build a number like "1234567890123..." of the given length.
 func makeBigDec(digits int) BigdecValue {
 	s := strings.Repeat("1234567890", (digits/10)+1)[:digits]
-	d, _, err := apd.NewFromString(s)
-	if err != nil {
-		panic(err)
+	r := new(big.Rat)
+	if _, ok := r.SetString(s); !ok {
+		panic("invalid bigdec string: " + s)
 	}
-	return BigdecValue{V: d}
+	return BigdecValue{V: r}
 }
 
 // --- doOpAdd BigDec ---
@@ -3182,10 +3175,7 @@ func benchOpQuo_BigDec(b *testing.B, digits int) {
 	expr := &BinaryExpr{}
 	bv1 := makeBigDec(digits)
 	// Divisor: smaller but non-trivial
-	divisorDigits := digits / 2
-	if divisorDigits < 5 {
-		divisorDigits = 5
-	}
+	divisorDigits := max(digits/2, 5)
 	bv2 := makeBigDec(divisorDigits)
 
 	bm.InitMeasure()
@@ -3302,7 +3292,7 @@ func BenchmarkOpSlice_3Index(b *testing.B) {
 	}
 
 	st := &SliceType{Elt: IntType}
-	baseArray := m.Alloc.NewListArray(100)
+	baseArray := m.Alloc.NewListArray(nil, 100)
 	for i := range 100 {
 		baseArray.List[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
@@ -3419,9 +3409,9 @@ func benchOpEql_ByteArray(b *testing.B, n int) {
 	expr := &BinaryExpr{}
 
 	at := &ArrayType{Elt: Uint8Type, Len: n}
-	av1 := m.Alloc.NewDataArray(n)
-	av2 := m.Alloc.NewDataArray(n)
-	for i := 0; i < n; i++ {
+	av1 := m.Alloc.NewDataArray(nil, n)
+	av2 := m.Alloc.NewDataArray(nil, n)
+	for i := range n {
 		av1.Data[i] = byte(i % 256)
 		av2.Data[i] = byte(i % 256)
 	}
@@ -3472,8 +3462,8 @@ func benchOpEql_Struct(b *testing.B, nFields int) {
 		fv1[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 		fv2[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	sv1 := m.Alloc.NewStruct(fv1)
-	sv2 := m.Alloc.NewStruct(fv2)
+	sv1 := m.Alloc.NewStruct(nil, fv1)
+	sv2 := m.Alloc.NewStruct(nil, fv2)
 
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
@@ -3772,7 +3762,7 @@ func benchOpConvert_RunesToString(b *testing.B, length int) {
 	for i := range length {
 		list[i] = TypedValue{T: Int32Type, N: i2n(int64('a' + i%26))}
 	}
-	sliceBase := m.Alloc.NewListArray(length)
+	sliceBase := m.Alloc.NewListArray(nil, length)
 	copy(sliceBase.List, list)
 	sv := m.Alloc.NewSlice(sliceBase, 0, length, length)
 	runeSliceType := &SliceType{Elt: Int32Type}
@@ -3798,6 +3788,44 @@ func BenchmarkOpConvert_RunesToString_1(b *testing.B)    { benchOpConvert_RunesT
 func BenchmarkOpConvert_RunesToString_10(b *testing.B)   { benchOpConvert_RunesToString(b, 10) }
 func BenchmarkOpConvert_RunesToString_100(b *testing.B)  { benchOpConvert_RunesToString(b, 100) }
 func BenchmarkOpConvert_RunesToString_1000(b *testing.B) { benchOpConvert_RunesToString(b, 1000) }
+
+// --- Convert []byte→String (O(len) copy) ---
+
+func benchOpConvert_BytesToString(b *testing.B, length int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Data-backed, the only backing a byte slice can have (doOpSliceLit,
+	// make, append and Go2GnoValue all produce NewDataArray).
+	sliceBase := m.Alloc.NewDataArray(nil, length)
+	for i := range sliceBase.Data {
+		sliceBase.Data[i] = byte('a' + i%26)
+	}
+	sv := m.Alloc.NewSlice(sliceBase, 0, length, length)
+	byteSliceType := &SliceType{Elt: Uint8Type}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(asValue(StringType))
+		m.PushValue(TypedValue{T: byteSliceType, V: sv})
+		bm.SwitchOpCode(bmTarget)
+		m.doOpConvert()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if len(res.GetString()) != length {
+			b.Fatalf("expected len %d, got %d", length, len(res.GetString()))
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpConvert_BytesToString_1(b *testing.B)    { benchOpConvert_BytesToString(b, 1) }
+func BenchmarkOpConvert_BytesToString_10(b *testing.B)   { benchOpConvert_BytesToString(b, 10) }
+func BenchmarkOpConvert_BytesToString_100(b *testing.B)  { benchOpConvert_BytesToString(b, 100) }
+func BenchmarkOpConvert_BytesToString_1000(b *testing.B) { benchOpConvert_BytesToString(b, 1000) }
 
 // --- doOpEval BasicLitExpr: literal parsing cost ---
 
@@ -3828,9 +3856,115 @@ func BenchmarkOpEval_BasicLitInt_Small(b *testing.B) { benchOpEval_BasicLitInt(b
 func BenchmarkOpEval_BasicLitInt_Large(b *testing.B) {
 	benchOpEval_BasicLitInt(b, strings.Repeat("9", 100))
 }
+
 func BenchmarkOpEval_BasicLitInt_Hex(b *testing.B) {
 	benchOpEval_BasicLitInt(b, "0x"+strings.Repeat("FF", 50))
 }
+
+// --- doOpEval big numeric literals: quadratic parse cost ---
+//
+// Sized series feeding the OpCPUSlopeBigIntSetString / OpCPUSlopeBigDecParse
+// fits. The _Small/_Large/_Hex benchmarks above top out at 100 digits, which
+// is far inside the constant-dominated regime -- a quadratic slope cannot be
+// recovered from them, which is why those two constants have no native
+// reference-HW fit yet. Fit ns/op(pure) against digits^2; the const block's
+// rule is slope = ns/digit^2 * 1000.
+//
+// Decimal (and octal) go through nat.scan's maxPow/mulAddWW arm and are
+// O(n^2); bases 2/4/16 take the bit-packing arm on go>=1.25 and are linear,
+// hence the Hex series as a control.
+
+func benchOpEval_BigIntLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: INT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigintType {
+			b.Fatal("expected UntypedBigintType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func benchOpEval_BigIntLitDec(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigIntLit(b, strings.Repeat("9", digits))
+}
+
+func BenchmarkOpEval_BigIntLit_1000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 1000) }
+func BenchmarkOpEval_BigIntLit_4000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 4000) }
+func BenchmarkOpEval_BigIntLit_16000(b *testing.B) { benchOpEval_BigIntLitDec(b, 16000) }
+func BenchmarkOpEval_BigIntLit_64000(b *testing.B) { benchOpEval_BigIntLitDec(b, 64000) }
+
+// Control: power-of-two base, linear on go>=1.25. The charge is
+// base-independent, so the gap here is the deliberate over-charge.
+func BenchmarkOpEval_BigIntLitHex_16000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 16000))
+}
+
+func BenchmarkOpEval_BigIntLitHex_64000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 64000))
+}
+
+func benchOpEval_BigDecLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: FLOAT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigdecType {
+			b.Fatal("expected UntypedBigdecType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// Frac-shaped: value magnitude stays ~1 so MantExp stays 2 and the
+// `MantExp > ratOverflowBits` guard never fires -- big.Rat.SetString runs on
+// the full mantissa on top of big.ParseFloat. This is the worst case and the
+// one OpCPUSlopeBigDecParse is calibrated against.
+func benchOpEval_BigDecLitFrac(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, "1."+strings.Repeat("9", digits-2))
+}
+
+func BenchmarkOpEval_BigDecLit_1000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 1000) }
+func BenchmarkOpEval_BigDecLit_4000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 4000) }
+func BenchmarkOpEval_BigDecLit_16000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 16000) }
+func BenchmarkOpEval_BigDecLit_64000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 64000) }
+
+// Int-shaped control: magnitude grows with length, so MantExp exceeds
+// ratOverflowBits above ~1234 digits and the Rat parse is skipped. Roughly
+// half the cost of the frac-shaped series above -- do not calibrate on this
+// one.
+func benchOpEval_BigDecLitInt(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, strings.Repeat("9", digits)+".0")
+}
+
+func BenchmarkOpEval_BigDecLitInt_16000(b *testing.B) { benchOpEval_BigDecLitInt(b, 16000) }
+func BenchmarkOpEval_BigDecLitInt_64000(b *testing.B) { benchOpEval_BigDecLitInt(b, 64000) }
 
 func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	m := benchMachine()
@@ -3854,7 +3988,7 @@ func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	reportBenchops(b)
 }
 
-// --- doOpTypeAssert1 interface: VerifyImplementedBy with many methods ---
+// --- doOpTypeAssert1 interface: checkImplementedBy with many methods ---
 
 // benchInterfaceAndImpl creates an InterfaceType with nMethods methods and a
 // DeclaredType that implements nImpl of them. When nImpl == nMethods the type
@@ -3893,7 +4027,7 @@ func benchInterfaceAndImpl(alloc *Allocator, nMethods, nImpl int) (*InterfaceTyp
 		}
 		dt.Methods[i] = TypedValue{T: ft, V: fv}
 	}
-	sv := alloc.NewStruct([]TypedValue{})
+	sv := alloc.NewStruct(nil, []TypedValue{})
 	return iface, dt, sv
 }
 
@@ -3926,6 +4060,175 @@ func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
 func BenchmarkOpTypeAssert1_Interface_1(b *testing.B)   { benchOpTypeAssert1_Interface(b, 1) }
 func BenchmarkOpTypeAssert1_Interface_10(b *testing.B)  { benchOpTypeAssert1_Interface(b, 10) }
 func BenchmarkOpTypeAssert1_Interface_100(b *testing.B) { benchOpTypeAssert1_Interface(b, 100) }
+
+// --- checkImplementedBy BFS: per-embedded-field cost ---
+//
+// A struct embedding nFields distinct types (each with no methods) and a
+// 1-method interface whose method matches none of them forces the BFS to
+// expand and scan every embedded field. The per-field slope is what
+// chargeCPUGas meters per embedded field (field expansion plus the
+// later resolveEmbedNode scan). Superseded for calibration by BenchmarkOpEmbedWalk,
+// which varies depth and width independently.
+
+// wideEmbedDeclaredType returns a declared struct type S embedding n distinct
+// method-less struct types, so any satisfaction check or method lookup on it
+// expands all n embedded fields.
+func wideEmbedDeclaredType(n int) *DeclaredType {
+	fields := make([]FieldType, n)
+	for i := range n {
+		fields[i] = FieldType{
+			Name:     Name(fmt.Sprintf("T%d", i)),
+			Type:     &StructType{PkgPath: "bench"},
+			Embedded: true,
+		}
+	}
+	return &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: fields}}
+}
+
+// benchIfaceImplFields times one 1-method check that misses on a
+// struct embedding nFields method-less types, so the walk expands them all.
+func benchIfaceImplFields(b *testing.B, nFields int) {
+	b.Helper()
+	iface := &InterfaceType{
+		PkgPath: "bench",
+		Methods: []FieldType{{Name: "Missing", Type: &FuncType{}}},
+	}
+	dt := wideEmbedDeclaredType(nFields)
+
+	if err := iface.checkImplementedBy(nil, dt); err == nil {
+		b.Fatal("expected missing method")
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, dt)
+	}
+	b.ReportMetric(float64(nFields), "fields/op")
+}
+
+// Field-count series for benchIfaceImplFields.
+func BenchmarkIfaceImpl_Fields_0(b *testing.B)   { benchIfaceImplFields(b, 0) }
+func BenchmarkIfaceImpl_Fields_8(b *testing.B)   { benchIfaceImplFields(b, 8) }
+func BenchmarkIfaceImpl_Fields_32(b *testing.B)  { benchIfaceImplFields(b, 32) }
+func BenchmarkIfaceImpl_Fields_128(b *testing.B) { benchIfaceImplFields(b, 128) }
+
+// --- checkImplementedBy: wide interface satisfied through wide embedding ---
+//
+// The adversarial shape: an n-method interface whose every method is provided
+// by a distinct one of n embedded types. One checkImplementedBy call per op,
+// all methods found. Exercises the shared embedWalk: the graph is expanded
+// once per check and re-scanned per method (before sharing, 128×128 cost
+// ~1.28 ms / 19K allocs per check on the dev box; after, ~0.15 ms / 536).
+
+// benchIfaceImplWide times one check of an n-method interface against
+// a struct whose n embedded types each provide one method (all hit).
+func benchIfaceImplWide(b *testing.B, n int) {
+	b.Helper()
+	methods := make([]FieldType, n)
+	fields := make([]FieldType, n)
+	for i := range n {
+		name := Name(fmt.Sprintf("M%d", i))
+		methods[i] = FieldType{Name: name, Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}}}
+		dt := &DeclaredType{PkgPath: "bench", Name: Name(fmt.Sprintf("T%d", i)), Base: &StructType{PkgPath: "bench", Fields: []FieldType{}}}
+		ft := &FuncType{Params: []FieldType{{Name: "self", Type: dt}}, Results: []FieldType{}}
+		dt.Methods = []TypedValue{{T: ft, V: &FuncValue{Type: ft, IsMethod: true, Source: &FuncDecl{}, Name: name, PkgPath: "bench", body: []Stmt{}}}}
+		fields[i] = FieldType{Name: dt.Name, Type: dt, Embedded: true}
+	}
+	iface := &InterfaceType{PkgPath: "bench", Methods: methods}
+	dt := &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: fields}}
+	if err := iface.checkImplementedBy(nil, dt); err != nil {
+		b.Fatalf("fixture should satisfy: %v", err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, dt)
+	}
+	b.ReportMetric(float64(n), "methods/op")
+}
+
+// --- embedWalk calibration grid: depth × width × hit/miss × methods ---
+//
+// gridFixture(d, w, m, hit): root S embeds w types at level 1; the first type
+// of each level embeds w more at the next level, down to level d (N = d·w
+// types). hit: all m methods are declared on the first type of level d, so
+// every lookup expands and scans all N and rebuilds a d-hop trail; miss: no
+// type provides them (checkImplementedBy stops at the first missing method).
+//
+// Slopes: miss_m1 over N gives expand+scan per type; (hit_m16 − hit_m1)/15
+// gives N × scan + trail(d) per extra method; hit_m1 − miss_m1 gives trail(d).
+// cmd/calibrate/gen_analysis.py reads them out and picks the deep end.
+
+// embedWalkGridFixture builds an m-method interface and a root embedding w
+// types per level, d levels deep; hit puts all m methods on the deepest type.
+func embedWalkGridFixture(d, w, m int, hit bool) (*InterfaceType, *DeclaredType) {
+	methods := make([]FieldType, m)
+	for i := range m {
+		methods[i] = FieldType{Name: Name(fmt.Sprintf("M%d", i)), Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}}}
+	}
+	iface := &InterfaceType{PkgPath: "bench", Methods: methods}
+	var leaf *DeclaredType
+	var build func(level int) []FieldType
+	build = func(level int) []FieldType {
+		fields := make([]FieldType, w)
+		for i := range w {
+			st := &StructType{PkgPath: "bench", Fields: []FieldType{}}
+			dt := &DeclaredType{PkgPath: "bench", Name: Name(fmt.Sprintf("L%d_%d", level, i)), Base: st}
+			if i == 0 && level < d {
+				st.Fields = build(level + 1)
+			}
+			if i == 0 && level == d {
+				leaf = dt
+			}
+			fields[i] = FieldType{Name: dt.Name, Type: dt, Embedded: true}
+		}
+		return fields
+	}
+	root := &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: build(1)}}
+	if hit {
+		for i := range m {
+			ft := &FuncType{Params: []FieldType{{Name: "self", Type: leaf}}, Results: []FieldType{}}
+			leaf.Methods = append(leaf.Methods, TypedValue{T: ft, V: &FuncValue{Type: ft, IsMethod: true, Source: &FuncDecl{}, Name: methods[i].Name, PkgPath: "bench", body: []Stmt{}}})
+		}
+	}
+	return iface, root
+}
+
+// benchEmbedWalk times one checkImplementedBy over an embedWalkGridFixture and
+// reports the columns cmd/calibrate/gen_analysis.py parses.
+func benchEmbedWalk(b *testing.B, d, w, m int, hit bool) {
+	b.Helper()
+	iface, root := embedWalkGridFixture(d, w, m, hit)
+	if err := iface.checkImplementedBy(nil, root); hit != (err == nil) {
+		b.Fatalf("fixture hit=%v but err=%v", hit, err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, root)
+	}
+	// No Machine harness here: the loop body is only the call, so pure ==
+	// total, and nothing is allocated through a gas-metered Allocator.
+	// Reported so cmd/calibrate/gen_analysis.py can parse these like ops.
+	b.ReportMetric(0, "alloc-gas/op")
+	b.ReportMetric(float64(time.Since(start).Nanoseconds())/float64(b.N), "ns/op(pure)")
+}
+
+// BenchmarkOpEmbedWalk is the calibration grid for OpCPUSlopeEmbed*; see
+// cmd/calibrate/gen_analysis.py (EMBEDWALK_SHAPES) for how the slopes are read.
+func BenchmarkOpEmbedWalk(b *testing.B) {
+	for _, s := range []struct{ d, w int }{{1, 8}, {1, 32}, {1, 128}, {2, 64}, {4, 8}, {4, 32}, {8, 1}, {8, 4}, {8, 16}} {
+		b.Run(fmt.Sprintf("d%d_w%d_miss_m1", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 1, false) })
+		b.Run(fmt.Sprintf("d%d_w%d_hit_m1", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 1, true) })
+		b.Run(fmt.Sprintf("d%d_w%d_hit_m16", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 16, true) })
+	}
+}
+
+// Method-count series for benchIfaceImplWide.
+func BenchmarkIfaceImpl_Wide_8(b *testing.B)   { benchIfaceImplWide(b, 8) }
+func BenchmarkIfaceImpl_Wide_32(b *testing.B)  { benchIfaceImplWide(b, 32) }
+func BenchmarkIfaceImpl_Wide_128(b *testing.B) { benchIfaceImplWide(b, 128) }
 
 // --- doOpSelector VPInterface: interface method dispatch via findEmbeddedFieldType ---
 // Cost is O(nMethods) due to method matching.
@@ -4004,7 +4307,7 @@ func BenchmarkOpSelector_VPValMethod(b *testing.B) {
 	dt.Methods = []TypedValue{{T: ft, V: fv}}
 
 	fieldValues := []TypedValue{{T: IntType, N: i2n(42)}}
-	sv := m.Alloc.NewStruct(fieldValues)
+	sv := m.Alloc.NewStruct(nil, fieldValues)
 
 	selExpr := &SelectorExpr{
 		Path: ValuePath{
@@ -4045,7 +4348,7 @@ func benchOpFuncLit(b *testing.B, nCaptures int) {
 	for i := range nCaptures {
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 	blk := &Block{Values: values}
@@ -4129,7 +4432,7 @@ func benchOpCall(b *testing.B, nParams int, nCaptures int) {
 	for i := range nCaptures {
 		captures[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 
@@ -4284,6 +4587,57 @@ func BenchmarkOpDefer_1Arg(b *testing.B)    { benchOpDefer(b, 1) }
 func BenchmarkOpDefer_10Args(b *testing.B)  { benchOpDefer(b, 10) }
 func BenchmarkOpDefer_100Args(b *testing.B) { benchOpDefer(b, 100) }
 
+// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
+// Scales linearly with call stack depth until the first crossing ancestor: the
+// handler walks m.Frames once with a cursor, visiting each frame at most once.
+// The benchmark constructs `depth` call frames with only the deepest marked
+// WithCross=true, forcing the walk to traverse the full depth. This is the
+// calibration source for OpCPUSlopeEnterCrossing.
+
+func benchOpEnterCrossing(b *testing.B, depth int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Make m.Package a realm and set a non-nil m.Realm so
+	// fri.LastRealm == m.Realm holds for intermediate frames.
+	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
+	m.Realm = &Realm{Path: "gno.land/r/bench"}
+
+	// Dummy *FuncValue so Frame.IsCall() returns true.
+	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
+
+	// Build `depth` call frames. The first pushed frame is the DEEPEST
+	// (the walk starts at the end of m.Frames and moves backward, so the
+	// first slot is reached last). Only the deepest has WithCross=true —
+	// this is what terminates the walk at step N.
+	m.Frames = m.Frames[:0]
+	for i := range depth {
+		fr := Frame{Func: fv, LastRealm: m.Realm}
+		if i == 0 {
+			fr.WithCross = true
+		}
+		m.Frames = append(m.Frames, fr)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
+		// DidCrossing is already true. Reset before each iteration.
+		m.Frames[len(m.Frames)-1].DidCrossing = false
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEnterCrossing()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
+func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
+func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
+func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
+
 // --- OpForLoop: heap item copy at end of iteration ---
 // Benchmarks the cost of copying HeapItemValues at the end of each loop
 // iteration (Go 1.22 loopvars semantics).
@@ -4298,7 +4652,7 @@ func benchOpForLoopHeapCopy(b *testing.B, numInit int) {
 	for i := range numInit {
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))}),
+			V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))}),
 		}
 	}
 	blk := &Block{Values: values}
@@ -4329,7 +4683,7 @@ func benchOpForLoopHeapCopy(b *testing.B, numInit int) {
 		blk.bodyStmt.NextBodyIndex = 0 // == BodyLen (0)
 		// Restore HeapItemValues (doOpExec replaces them).
 		for i := range numInit {
-			blk.Values[i].V = m.Alloc.NewHeapItem(TypedValue{T: IntType, N: i2n(int64(i))})
+			blk.Values[i].V = m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))})
 		}
 		bm.SwitchOpCode(bmTarget)
 		m.doOpExec(OpForLoop)
@@ -4625,7 +4979,7 @@ func benchMethodSetup(alloc *Allocator) (ft *FuncType, fv *FuncValue, dt *Declar
 		body:      []Stmt{},
 	}
 	dt.Methods = []TypedValue{{T: ft, V: fv}}
-	sv = alloc.NewStruct([]TypedValue{{T: IntType, N: i2n(42)}})
+	sv = alloc.NewStruct(nil, []TypedValue{{T: IntType, N: i2n(42)}})
 	return
 }
 
@@ -4639,6 +4993,39 @@ func BenchmarkOpPrecall_BoundMethod(b *testing.B) {
 	bmv := &BoundMethodValue{
 		Func:     fv,
 		Receiver: TypedValue{T: dt, V: sv},
+	}
+	cx := &CallExpr{NumArgs: 1}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: ft, V: bmv})         // bound method
+		m.PushValue(TypedValue{T: IntType, N: i2n(1)}) // arg
+		m.PushExpr(cx)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpPrecall()
+		bm.SwitchOpCode(bmSetup)
+		m.Ops = m.Ops[:0]
+		m.Frames = m.Frames[:0]
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// BenchmarkOpPrecall_BoundMethod_Lazy measures the interface-dispatched (lazy)
+// bound-method path: Func==nil, so doOpPrecall resolves the concrete method +
+// receiver at call time (resolveLazyBound walks the saved operand). This is the
+// cost of every interface method call (i.M()); compare with the concrete
+// BenchmarkOpPrecall_BoundMethod above. Value operand (re-walks every call).
+func BenchmarkOpPrecall_BoundMethod_Lazy(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+
+	ft, _, dt, sv := benchMethodSetup(m.Alloc)
+	bmv := &BoundMethodValue{
+		Func:     nil,                      // lazy: resolved at call
+		Receiver: TypedValue{T: dt, V: sv}, // saved operand (value)
+		Method:   "DoStuff",
 	}
 	cx := &CallExpr{NumArgs: 1}
 
@@ -4737,10 +5124,7 @@ func benchOpTypeAssert2_Interface(b *testing.B, nMethods int, shouldMatch bool) 
 
 	nImpl := nMethods
 	if !shouldMatch {
-		nImpl = nMethods - 1
-		if nImpl < 0 {
-			nImpl = 0
-		}
+		nImpl = max(nMethods-1, 0)
 	}
 	iface, dt, sv := benchInterfaceAndImpl(m.Alloc, nMethods, nImpl)
 
@@ -4770,6 +5154,7 @@ func BenchmarkOpTypeAssert2_Interface_Hit_10(b *testing.B) { benchOpTypeAssert2_
 func BenchmarkOpTypeAssert2_Interface_Hit_100(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 100, true)
 }
+
 func BenchmarkOpTypeAssert2_Interface_Miss_10(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 10, false)
 }
@@ -4887,10 +5272,9 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 		cfr := m.LastFrame()
 		for range nDefers {
 			cfr.PushDefer(Defer{
-				Func:   fv,
-				Args:   []TypedValue{},
-				Source: &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-				Parent: &Block{},
+				Callable: fv,
+				Args:     []TypedValue{},
+				Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
 			})
 		}
 		m.PushOp(OpReturnCallDefers) // will be consumed by the op
@@ -5006,7 +5390,7 @@ func benchOpRangeIter(b *testing.B, n int) {
 	for i := range n {
 		elems[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	av := m.Alloc.NewListArray(n)
+	av := m.Alloc.NewListArray(nil, n)
 	copy(av.List, elems)
 	at := &ArrayType{Len: n, Elt: IntType}
 	arrayTV := TypedValue{T: at, V: av}
@@ -5124,7 +5508,7 @@ func benchOpRangeIterMap(b *testing.B, n int) {
 	for i := range n {
 		k := TypedValue{T: IntType, N: i2n(int64(i))}
 		v := TypedValue{T: IntType, N: i2n(int64(i * 10))}
-		ptr := mv.GetPointerForKey(m.Alloc, m.Store, k)
+		ptr := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, k)
 		ptr.TV.Assign(m.Alloc, v, false)
 	}
 	mapTV := TypedValue{T: mt, V: mv}
@@ -5222,7 +5606,7 @@ func BenchmarkOpTypeSwitch_10(b *testing.B)   { benchOpTypeSwitch(b, 10) }
 func BenchmarkOpTypeSwitch_100(b *testing.B)  { benchOpTypeSwitch(b, 100) }
 func BenchmarkOpTypeSwitch_1000(b *testing.B) { benchOpTypeSwitch(b, 1000) }
 
-// --- doOpTypeSwitch with interface case: IsImplementedBy cost ---
+// --- doOpTypeSwitch with interface case: checkImplementedBy cost ---
 
 func benchOpTypeSwitch_Interface(b *testing.B, nMethods int) {
 	b.Helper()
@@ -5531,6 +5915,97 @@ func BenchmarkOpInterfaceType_1(b *testing.B)    { benchOpInterfaceType(b, 1) }
 func BenchmarkOpInterfaceType_10(b *testing.B)   { benchOpInterfaceType(b, 10) }
 func BenchmarkOpInterfaceType_100(b *testing.B)  { benchOpInterfaceType(b, 100) }
 func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000) }
+
+// ---------------------------------------------------------------------------
+// Copy helpers: calibrate OpCPUSlopeCopyPrimitive and OpCPUSlopeCopyElement.
+//
+// Primitive slope (OpCPUSlopeCopyPrimitive): per-byte/Uint8-element cost for
+//   copyDataToList, copyListToData, raw memcpy, and Assign2 DataByteType path.
+//   Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
+//
+// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for unrefCopy
+//   and Assign2 general path. Calibrated via BenchmarkOpUnrefCopy_Int_*
+//   (non-RefValue case); under-charges worst-case RefValue store-hit.
+//
+// These benchmarks use the standard benchMachine / reportBenchops wiring so
+// they emit ns/op(pure) and are picked up by cmd/calibrate/plot_fits.py and
+// gen_analysis.py. The linear fit against N gives the slope in ns/elem.
+// ---------------------------------------------------------------------------
+
+func benchOpCopyDataToList(b *testing.B, n int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	dst := make([]TypedValue, n)
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		bm.SwitchOpCode(bmTarget)
+		copyDataToList(dst, data, Uint8Type)
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpCopyDataToList_1k(b *testing.B)   { benchOpCopyDataToList(b, 1024) }
+func BenchmarkOpCopyDataToList_10k(b *testing.B)  { benchOpCopyDataToList(b, 10*1024) }
+func BenchmarkOpCopyDataToList_100k(b *testing.B) { benchOpCopyDataToList(b, 100*1024) }
+func BenchmarkOpCopyDataToList_1m(b *testing.B)   { benchOpCopyDataToList(b, 1024*1024) }
+
+func benchOpCopyListToData(b *testing.B, n int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	dst := make([]byte, n)
+	tvs := make([]TypedValue, n)
+	for i := range tvs {
+		tvs[i] = TypedValue{T: Uint8Type}
+		tvs[i].SetUint8(byte(i))
+	}
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		bm.SwitchOpCode(bmTarget)
+		copyListToData(dst, tvs)
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpCopyListToData_1k(b *testing.B)   { benchOpCopyListToData(b, 1024) }
+func BenchmarkOpCopyListToData_10k(b *testing.B)  { benchOpCopyListToData(b, 10*1024) }
+func BenchmarkOpCopyListToData_100k(b *testing.B) { benchOpCopyListToData(b, 100*1024) }
+func BenchmarkOpCopyListToData_1m(b *testing.B)   { benchOpCopyListToData(b, 1024*1024) }
+
+// UnrefCopy on non-RefValue (common case: IntType primitive). RefValue case
+// is more expensive due to store hit, but charged via store gas downstream.
+func benchOpUnrefCopyInt(b *testing.B, n int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	src := make([]TypedValue, n)
+	for i := range src {
+		src[i] = TypedValue{T: IntType, N: i2n(int64(i))}
+	}
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		bm.SwitchOpCode(bmTarget)
+		for i := range src {
+			_ = src[i].unrefCopy(m.Alloc, nil)
+		}
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpUnrefCopy_Int_1k(b *testing.B)   { benchOpUnrefCopyInt(b, 1024) }
+func BenchmarkOpUnrefCopy_Int_10k(b *testing.B)  { benchOpUnrefCopyInt(b, 10*1024) }
+func BenchmarkOpUnrefCopy_Int_100k(b *testing.B) { benchOpUnrefCopyInt(b, 100*1024) }
 
 // BenchmarkOpChanType removed: channels are no longer supported in Gno
 // (upstream banned them; doOpChanType was deleted).

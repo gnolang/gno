@@ -13,8 +13,8 @@ const (
 	minTextVotingPeriod = time.Hour * 24
 )
 
-// NewTextPropDefinition creates a new general text proposal definition.
-func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time.Duration) TextPropDefinition {
+// newTextPropDefinition creates a new general text proposal definition.
+func newTextPropDefinition(title, body string, votingPeriod time.Duration) textPropDefinition {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -37,38 +37,26 @@ func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time
 		panic("minimum proposal voting period is one day")
 	}
 
-	if quorum < commondao.QuorumOneThird {
-		panic("minimum quorum allowed is one third (0.33)")
-	}
-
-	return TextPropDefinition{
+	return textPropDefinition{
 		title:        title,
 		body:         body,
 		votingPeriod: votingPeriod,
-		quorum:       quorum,
 	}
 }
 
-// TextPropDefinition defines a proposal type for general text proposals.
+// textPropDefinition defines a proposal type for general text proposals.
 // These type of proposals are not executable so nothing happens when they pass.
-type TextPropDefinition struct {
+type textPropDefinition struct {
 	title, body  string
 	votingPeriod time.Duration
-	quorum       float64
 }
 
-func (p TextPropDefinition) Title() string               { return p.title }
-func (p TextPropDefinition) Body() string                { return p.body }
-func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
+func (p textPropDefinition) Title() string               { return p.title }
+func (p textPropDefinition) Body() string                { return p.body }
+func (p textPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
-func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(p.quorum, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
-	}
-
-	c, success := commondao.SelectChoiceByPlurality(ctx.VotingRecord)
-	if success {
-		return c == commondao.ChoiceYes, nil
-	}
-	return false, nil
+// Threshold returns the tally threshold: text proposals are decided by the
+// constitution's default supermajority rule.
+func (textPropDefinition) Threshold() commondao.Threshold {
+	return commondao.ThresholdSupermajority
 }

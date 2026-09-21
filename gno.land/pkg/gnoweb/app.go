@@ -36,6 +36,11 @@ type AppConfig struct {
 	UnsafeHTML bool
 	// Analytics enables SimpleAnalytics.
 	Analytics bool
+	// AnalyticsHostname, when non-empty, is rendered as data-hostname on the
+	// SimpleAnalytics script tag to override the hostname SA reports.
+	// Set this when the site listens on a host SA would otherwise report
+	// incorrectly (for example a non-default port in local development).
+	AnalyticsHostname string
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
 	// NodeRequestTimeout define how much time a request to the remote node should live before timeout.
@@ -58,6 +63,21 @@ type AppConfig struct {
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
+	// StateRateLimitPerMinute caps the per-IP request rate against
+	// ?state* URLs (also used as the token-bucket burst). 0 ⇒ the
+	// HTTPHandler default (100/min). ADR-003 §Resource bounds.
+	StateRateLimitPerMinute int
+	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
+	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
+	// only for connections originating inside one of these networks; empty
+	// (the default) trusts nothing, so untrusted deployments never trust
+	// attacker-controlled headers. ADR-003 §Resource bounds.
+	StateRateLimitTrustedProxies []string
+	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
+	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
+	// chain nodes under pressure; relax when capacity allows. ADR-003
+	// §Resource bounds.
+	MaxConcurrentRPC int
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -66,13 +86,15 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:         localRemote, // local first
-		RemoteHelp:         localRemote, // local first
-		NodeRequestTimeout: time.Minute,
-		AssetsPath:         "/public/",
-		Domain:             "gno.land",
-		Aliases:            DefaultAliases,
-		RenderConfig:       NewDefaultRenderConfig(),
+		NodeRemote:              localRemote, // local first
+		RemoteHelp:              localRemote, // local first
+		NodeRequestTimeout:      time.Minute,
+		AssetsPath:              "/public/",
+		Domain:                  "gno.land",
+		Aliases:                 DefaultAliases,
+		RenderConfig:            NewDefaultRenderConfig(),
+		StateRateLimitPerMinute: 100,
+		MaxConcurrentRPC:        32,
 	}
 }
 
@@ -98,7 +120,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 
 	// Setup client adapter
-	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain)
+	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain, cfg.MaxConcurrentRPC)
 
 	// Setup StaticMetadata
 	chromaStylePath := path.Join(assetsBase, "_chroma", "style.css")
@@ -107,14 +129,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
 
 	staticMeta := StaticMetadata{
-		Domain:     cfg.Domain,
-		AssetsPath: assetsBase,
-		ChromaPath: chromaStylePath,
-		RemoteHelp: cfg.RemoteHelp,
-		ChainId:    cfg.ChainID,
-		Analytics:  cfg.Analytics,
-		BuildTime:  buildTime,
-		Banner:     cfg.Banner,
+		Domain:            cfg.Domain,
+		AssetsPath:        assetsBase,
+		ChromaPath:        chromaStylePath,
+		RemoteHelp:        cfg.RemoteHelp,
+		ChainId:           cfg.ChainID,
+		Analytics:         cfg.Analytics,
+		AnalyticsHostname: cfg.AnalyticsHostname,
+		BuildTime:         buildTime,
+		Banner:            cfg.Banner,
 	}
 
 	// Configure Markdown renderer
@@ -131,10 +154,13 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
 	httphandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
-		ClientAdapter: adpcli,
-		Meta:          staticMeta,
-		Renderer:      renderer,
-		Aliases:       cfg.Aliases,
+		ClientAdapter:                adpcli,
+		Meta:                         staticMeta,
+		Renderer:                     renderer,
+		Aliases:                      cfg.Aliases,
+		Timeout:                      cfg.NodeRequestTimeout,
+		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
+		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
@@ -144,15 +170,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with redirect middleware
-	mux.Handle("/", RedirectMiddleware(httphandler, cfg.Analytics))
+	mux.Handle("/", RedirectMiddleware(httphandler, staticMeta))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To:            cfg.FaucetURL,
-				WithAnalytics: cfg.Analytics,
+				To:        cfg.FaucetURL,
+				Analytics: staticMeta.RedirectAnalytics(),
 			}).Render(w)
 		}))
 	}
@@ -185,6 +211,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
+
+	// Handle realm/package discovery search (browser fetches the list once and filters locally)
+	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
+	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
 	return mux, nil
 }

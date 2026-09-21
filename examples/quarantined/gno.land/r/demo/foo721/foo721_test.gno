@@ -1,0 +1,28 @@
+package foo721
+
+import (
+	"testing"
+
+	"gno.land/p/nt/grc721/v0"
+)
+
+func TestFoo721(t *testing.T) {
+	admin := address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
+
+	for _, tc := range []struct {
+		name     string
+		expected any
+		fn       func() any
+	}{
+		{"BalanceOf(admin)", int64(10), func() any { return BalanceOf(admin) }},
+		{"OwnerOf(0)", admin, func() any { return OwnerOf(grc721.TokenID("0")) }},
+		{"IsApprovedForAll(admin, admin)", false, func() any { return IsApprovedForAll(admin, admin) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.fn()
+			if tc.expected != got {
+				t.Errorf("expected: %v got: %v", tc.expected, got)
+			}
+		})
+	}
+}

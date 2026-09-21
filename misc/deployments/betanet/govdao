@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# govdao wrapper for gnoland1.
+# Usage: ./govdao [command] [args...]
+export GOVDAO_LABEL="gnoland1"
+export GNOKEY_NAME="${GNOKEY_NAME:-moul}"
+export CHAIN_ID="${CHAIN_ID:-gnoland1}"
+export REMOTE="${REMOTE:-https://rpc.gnoland1.moul.p2p.team/}"
+source "$(cd "$(dirname "$0")/../../govdao-scripts" && pwd)/govdao-wrapper.sh" "$@"

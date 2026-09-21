@@ -5,6 +5,7 @@ func main() {
 	var u2 = 1<<s + 1.0 // no type from context, fall through to default.
 	println(u2)
 }
+
 // Error:
 // main/shift_f4c.gno:5:6-21: operator << not defined on: BigdecKind
 

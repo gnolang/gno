@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_5_b_filetest
+
+package z_5_b_filetest
 
 import (
 	"testing"
@@ -10,10 +12,10 @@ import (
 
 const user = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross, 404, 1, pcommondao.ChoiceYes, "")
+	commondao.Vote(cross(cur), 404, 1, pcommondao.ChoiceYes, "")
 }
 
 // Error:

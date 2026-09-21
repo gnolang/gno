@@ -80,7 +80,7 @@ func BenchmarkIterator(b *testing.B, db db.DB) {
 
 	const numItems = int64(10000)
 
-	for i := 0; i < int(numItems); i++ {
+	for i := range int(numItems) {
 		idxBytes := int642Bytes(int64(i))
 		valBytes := int642Bytes(0)
 		batch.Set(idxBytes, valBytes)
@@ -119,7 +119,7 @@ func BenchmarkBatchWrites(b *testing.B, db db.DB) {
 	// create dummy data
 	const numItems = int64(1000000)
 	internal := map[int64]int64{}
-	for i := 0; i < int(numItems); i++ {
+	for i := range int(numItems) {
 		internal[int64(i)] = int64(0)
 	}
 

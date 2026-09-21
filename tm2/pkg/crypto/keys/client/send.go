@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -72,18 +71,10 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return errors.New("to (destination address) must be specified")
 	}
 
-	// read account pubkey.
-	nameOrBech32 := args[0]
-	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
+	fromAddr, err := cfg.RootCfg.GetCaller(args[0])
 	if err != nil {
 		return err
 	}
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return err
-	}
-	fromAddr := info.GetAddress()
-	// info.GetPubKey()
 
 	// Parse to address.
 	toAddr, err := crypto.AddressFromBech32(cfg.To)

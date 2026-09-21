@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	y := 1 << -1.0 
+	y := 1 << -1.0
 	println(y)
 }
 

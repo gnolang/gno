@@ -1,0 +1,14 @@
+-- input.md --
+before
+
+<gno-foreign>
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+</div>
+</div>
+<p>after</p>

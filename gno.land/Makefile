@@ -17,8 +17,12 @@ CGO_ENABLED ?= 0
 export CGO_ENABLED
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-# used for gnokey version [branch].[N]+[hash]
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+# Used for the binaries' `version` output. --match 'v*' is load-bearing: a
+# release commit carries both chain/<name> and v<X.Y.Z>, and an unfiltered
+# describe answers the chain/ one, which gno.land/pkg/gnoland.parseReleaseVersion
+# refuses. The [branch].[N]+[hash] fallback is unparseable on purpose — an
+# off-tag build must not satisfy a governance halt_min_version.
+VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 GOBUILD_FLAGS ?= -trimpath -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION)"
 
@@ -84,14 +88,14 @@ test:
 	set -o pipefail; $(MAKE) test.inner 2>&1 | tee "$$log"; status=$$?; \
 	if [ $$status -ne 0 ]; then \
 		echo; echo "==== Failing tests ===="; \
-		grep -E '^(--- FAIL|FAIL\t|panic:)' "$$log" || true; \
+		grep -E '^(--- FAIL|[[:space:]]+--- FAIL|FAIL[[:space:]]|panic:|[[:space:]]+FAIL: testdata/)' "$$log" || true; \
 	fi; \
 	rm -f "$$log"; exit $$status
 
 test.inner: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 _test.help:
-	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing"
+	@echo "txtar integration tests run in-memory and in parallel; set \`SEQ_TS=true\` to run them sequentially (e.g. for debugging/profiling)"
 _test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
 _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey

@@ -15,7 +15,7 @@ func main() {
 }
 
 // Storage:
-// gno.land/r/xx: 866
+// gno.land/r/xx: 871
 
 // Realm:
 // finalizerealm["gno.land/r/xx"]
@@ -168,3 +168,49 @@ func main() {
 //              }
 //          }
 //      }
+// u[0ea84df38908f9569d0f552575606e6e6e7e22dd:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "910",
+//     -        "ModTime": "0",
+//     +        "ModTime": "10",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "48fbf787cdabaa8a9f3178db52d7f4179244f8ce",
+//     +                "Hash": "3e1611b9202c0ebcf52e77afa4429246ec4ed9df",
+//                      "ObjectID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:3"
+//                  }
+//              },
+//     @@ -44,7 +44,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "c331a30779947abf214738bd50f7b5d5b4bf9a7c",
+//     +                "Hash": "88cf2834f0746a10f61d650e38d4b4d2d8850ce7",
+//                      "ObjectID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:4"
+//                  }
+//              },
+//     @@ -54,7 +54,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "e263e5aa92eb546793084471e03c529f1f3596d8",
+//     +                "Hash": "a1593b748576f13e1a3b6a32b64c78b7098788a1",
+//                      "ObjectID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:5"
+//                  }
+//              },
+//     @@ -64,7 +64,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "923bd5f136668a45c32e2f313b98f335549325e7",
+//     +                "Hash": "0d3e101a6f9f41e8ddab7a17ea54c2c2decd4df5",
+//                      "ObjectID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:6"
+//                  }
+//              },

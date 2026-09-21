@@ -183,7 +183,7 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		casesTerm := true
 		for _, clause := range n.Clauses {
 			ct := s.staticAnalysisBlockStmt(clause.Body)
-			casesTerm = ct
+			casesTerm = casesTerm && ct
 		}
 		ctx := s.pop().(*SwitchContext)
 		// there are no "break" statements referring to the "switch" statement

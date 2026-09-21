@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -43,7 +44,7 @@ func checkInvalidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, 
 
 	require.Equal(t, reflect.TypeOf(err), reflect.TypeOf(sdk.ABCIError(result.Error)), fmt.Sprintf("Expected %v, got %v", err, result))
 
-	if reflect.TypeOf(err) == reflect.TypeOf(std.OutOfGasError{}) {
+	if reflect.TypeOf(err) == reflect.TypeFor[std.OutOfGasError]() {
 		// GasWanted set correctly
 		require.Equal(t, tx.Fee.GasWanted, result.GasWanted, "Gas wanted not set correctly")
 		require.True(t, result.GasUsed > result.GasWanted, "GasUsed not greated than GasWanted")
@@ -620,7 +621,6 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -698,7 +698,6 @@ func TestCountSubkeys(t *testing.T) {
 		{"multi level multikey", args{multiLevelMultiKey}, 11},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -905,4 +904,399 @@ func TestInvalidUserFee(t *testing.T) {
 	res2 := EnsureSufficientMempoolFees(ctx, userFee2)
 	require.False(t, res2.IsOK())
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
+}
+
+// TestSetGasMeter_SkipGasMeteringKey verifies that setting the
+// SkipGasMeteringKey context value causes SetGasMeter to return an infinite
+// gas meter, even for non-genesis heights. Used by gnoland's
+// GasReplayMode="source" to preserve source-chain outcomes during hardfork
+// replay.
+func TestSetGasMeter_SkipGasMeteringKey(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx // default height 1 (not genesis)
+
+	t.Run("default meters gas", func(t *testing.T) {
+		t.Parallel()
+		got := SetGasMeter(ctx, 1000)
+		// Bounded meter: consuming >1000 should panic.
+		require.Panics(t, func() {
+			got.GasMeter().ConsumeGas(2000, "test")
+		})
+	})
+
+	t.Run("SkipGasMeteringKey yields infinite meter", func(t *testing.T) {
+		t.Parallel()
+		skipCtx := ctx.WithValue(SkipGasMeteringKey{}, true)
+		got := SetGasMeter(skipCtx, 1000)
+		// Infinite meter: should handle consumption way beyond gasLimit.
+		require.NotPanics(t, func() {
+			got.GasMeter().ConsumeGas(1_000_000_000, "test")
+		})
+	})
+
+	t.Run("SkipGasMeteringKey=false uses bounded meter", func(t *testing.T) {
+		t.Parallel()
+		noSkipCtx := ctx.WithValue(SkipGasMeteringKey{}, false)
+		got := SetGasMeter(noSkipCtx, 1000)
+		require.Panics(t, func() {
+			got.GasMeter().ConsumeGas(2000, "test")
+		})
+	})
+
+	t.Run("genesis height stays infinite regardless of key", func(t *testing.T) {
+		t.Parallel()
+		header := ctx.BlockHeader().(*bft.Header)
+		header.Height = 0
+		genCtx := ctx.WithBlockHeader(header)
+		got := SetGasMeter(genCtx, 1000)
+		require.NotPanics(t, func() {
+			got.GasMeter().ConsumeGas(10_000_000, "test")
+		})
+	})
+}
+
+// TestAnteHandlerGenesisReplaySkip verifies the genesis-replay signature
+// skip: a tx whose signature no longer matches its body (as happens to a
+// --patch-txs-rewritten historical tx) is skipped ONLY when the node ran
+// with --skip-genesis-sig-verification (VerifyGenesisSignatures == false)
+// AND the ctx carries GenesisReplayKey{}. Neither alone bypasses
+// verification, so a normally-configured node (flag unset) always verifies.
+func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	// Non-genesis block height: the BlockHeight()==0 gate does not apply,
+	// mirroring a historical/patched replay tx whose height is overridden > 0.
+	ctx := env.ctx
+	header := ctx.BlockHeader().(*bft.Header)
+	header.Height = 100
+	ctx = ctx.WithBlockHeader(header)
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	// Sign over the WRONG sequence (99) so the signature won't verify
+	// against the tx as reconstructed at the ante (sequence 0) — mirrors
+	// the invalidation a --patch-txs body rewrite causes.
+	msg := tu.NewTestMsg(addr)
+	fee := tu.NewTestFee()
+	signPayload, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      99,
+		Fee:           fee,
+		Msgs:          []std.Msg{msg},
+	})
+	require.NoError(t, err)
+	tx := tu.NewTestTxWithSignBytes([]std.Msg{msg}, []crypto.PrivKey{priv}, fee, signPayload, "")
+
+	ctxReplay := ctx.WithValue(GenesisReplayKey{}, true)
+
+	// flag OFF (VerifyGenesisSignatures=true): the replay key is present
+	// but the operator did not opt in — signature is verified and rejected.
+	verifyHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	checkInvalidTx(t, verifyHandler, ctxReplay, tx, false, std.UnauthorizedError{})
+
+	// flag ON (VerifyGenesisSignatures=false) but WITHOUT the replay key:
+	// not a replay tx, so it is still verified and rejected.
+	skipHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, AnteOptions{VerifyGenesisSignatures: false})
+	checkInvalidTx(t, skipHandler, ctx, tx, false, std.UnauthorizedError{})
+
+	// flag ON AND replay key set: signature verification is skipped.
+	checkValidTx(t, skipHandler, ctxReplay, tx, false)
+
+	// flag OFF and no replay key (a fully normal node): the feature is
+	// inert — the invalid signature is verified and rejected.
+	checkInvalidTx(t, verifyHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
+// splitTierBank reports a balance the account object does not carry, which is what
+// a fee denom looks like once non-gas balances live in their own store keys.
+//
+// This package's DummyBankKeeper keeps every balance in the account object, so
+// with it DeductFees reading through the bank cannot be told apart from reading
+// acc.GetCoins() directly: reverting the fee check to the account object passes
+// this whole package and fails only in gno.land, where fixtures happen to pay
+// fees in atom. That is what this stub exists to close.
+type splitTierBank struct {
+	BankKeeperI
+	denom  string
+	amount int64
+	sent   std.Coins
+}
+
+func (b *splitTierBank) GetCoin(_ sdk.Context, _ crypto.Address, denom string) int64 {
+	if denom == b.denom {
+		return b.amount
+	}
+	return 0
+}
+
+func (b *splitTierBank) SendCoinsUnrestricted(_ sdk.Context, _, _ crypto.Address, amt std.Coins) error {
+	b.sent = amt
+	return nil
+}
+
+// TestDeductFeesReadsTheBankNotTheAccountObject pins the reason BankKeeperI needs
+// GetCoin at all: the fee denom is whatever the transaction names, and a balance
+// for it need not be in the account object.
+func TestDeductFeesReadsTheBankNotTheAccountObject(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("fee-payer"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	collector := crypto.AddressFromPreimage([]byte("fee-collector"))
+	fees := std.Coins{{Denom: "atom", Amount: 150}}
+
+	require.Zero(t, acc.GetCoins().AmountOf("atom"),
+		"precondition: the account object must carry none of the fee denom")
+
+	funded := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 150}
+	res := DeductFees(funded, ctx, acc, collector, fees)
+	require.False(t, res.IsErr(), "a fee covered by a split-tier balance must be accepted: %s", res.Log)
+	require.Equal(t, fees, funded.sent)
+
+	// One short, so this cannot pass against a DeductFees that checks nothing.
+	short := &splitTierBank{BankKeeperI: env.bankk, denom: "atom", amount: 149}
+	res = DeductFees(short, ctx, acc, collector, fees)
+	require.True(t, res.IsErr())
+	require.Contains(t, res.Log, "insufficient funds to pay for fees; 149atom < 150atom")
+	require.Empty(t, short.sent, "a refused fee must not be sent")
+}
+
+// Simulate normally skips signature verification so gas can be estimated
+// without a key. RequireSigForSimulate opts a message type out of that, for
+// messages whose authorization is derived from the signer: `.app/simulate` is
+// a public query that executes the messages, so the skip would otherwise let
+// an unauthenticated caller name somebody else's address.
+func TestAnteHandlerRequireSigForSimulate(t *testing.T) {
+	t.Parallel()
+
+	// A tx signed over the wrong account number: the signature is present and
+	// correctly counted (tx.ValidateBasic passes) but does not verify.
+	badlySignedTx := func(ctx sdk.Context, priv crypto.PrivKey, addr crypto.Address) std.Tx {
+		return tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+			[]crypto.PrivKey{priv}, []uint64{1}, []uint64{0}, tu.NewTestFee())
+	}
+
+	tests := []struct {
+		name     string
+		requires func(std.Tx) bool
+		wantPass bool
+	}{
+		{"nil predicate keeps the skip", nil, true},
+		{"predicate declines: skip retained", func(std.Tx) bool { return false }, true},
+		{"predicate selects: verification enforced", func(std.Tx) bool { return true }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			env := setupTestEnv()
+			opts := defaultAnteOptions()
+			opts.RequireSigForSimulate = tt.requires
+			anteHandler := NewAnteHandler(env.acck, env.bankk,
+				DefaultSigVerificationGasConsumer, opts)
+			ctx := env.ctx
+
+			priv, _, addr := tu.KeyTestPubAddr()
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			acc.SetCoins(tu.NewTestCoins())
+			require.NoError(t, acc.SetAccountNumber(0))
+			env.acck.SetAccount(ctx, acc)
+
+			tx := badlySignedTx(ctx, priv, addr)
+			if tt.wantPass {
+				checkValidTx(t, anteHandler, ctx, tx, true)
+			} else {
+				checkInvalidTx(t, anteHandler, ctx, tx, true, std.UnauthorizedError{})
+			}
+		})
+	}
+}
+
+// A correctly signed tx must still simulate cleanly when the predicate selects
+// it -- the point is to verify the signature, not to refuse simulation.
+func TestAnteHandlerRequireSigForSimulateAcceptsValidSig(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	opts := defaultAnteOptions()
+	opts.RequireSigForSimulate = func(std.Tx) bool { return true }
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, opts)
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
+	checkValidTx(t, anteHandler, ctx, tx, true)
+}
+
+// The node's minimum and the block minimum are one rule, and both now go through
+// GasPrice.IsGTE. When this cross-multiplied inline it did not inherit IsGTE's
+// guards: a negative gas_wanted flips the sign of one side, so a fee of nothing
+// compared as sufficient and the transaction entered the mempool.
+//
+// Nothing was exploitable -- SetGasMeter runs two lines later and NewGasMeter
+// panics on a negative limit -- but the two implementations disagreed on the
+// same inputs, and only one of them had been fixed.
+func TestMempoolFeeRefusesNonPositiveGasWanted(t *testing.T) {
+	t.Parallel()
+
+	minGP, err := std.ParseGasPrice("1ugnot/1000gas")
+	require.NoError(t, err)
+	ctx := sdk.NewContext(sdk.RunTxModeCheck, nil, &bft.Header{ChainID: "test"}, nil).
+		WithMinGasPrices([]std.GasPrice{minGP}).
+		// No block gas price, so the node minimum is the only rule in play.
+		WithValue(GasPriceContextKey{}, std.GasPrice{})
+
+	feeOf := func(gasWanted, amount int64) std.Fee {
+		return std.Fee{GasWanted: gasWanted, GasFee: std.Coin{Denom: "ugnot", Amount: amount}}
+	}
+
+	// Controls: the rule still works for real gas, in both directions.
+	require.True(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 10)).IsOK(),
+		"paying above the minimum must be accepted")
+	require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 0)).IsOK(),
+		"paying nothing for real gas must be refused")
+
+	// A fee of nothing must not become sufficient by negating the gas.
+	for _, gasWanted := range []int64{-1, -1000, math.MinInt64} {
+		require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(gasWanted, 0)).IsOK(),
+			"gas_wanted %d must be refused", gasWanted)
+	}
+}
+
+// A TRANSACTION SIGNED BY AN OLDER CLIENT STILL ENTERS THE CHAIN. The fee moved
+// to the shape the Ledger Cosmos app will parse, and clients build the signature
+// payload themselves -- wallets, the genesis tooling, anything holding a key.
+// They cannot all ship on the day the node does, and signatures already written
+// into a genesis file cannot ship at all. So the handler verifies against the
+// current rendering and falls back to the previous one.
+//
+// See std.VerifySignaturePayload for why taking both is safe rather than merely
+// convenient: the two fee key sets are disjoint, so a signature still authorises
+// exactly one transaction.
+func TestAnteHandlerAcceptsLegacySignBytes(t *testing.T) {
+	t.Parallel()
+
+	e := newSingleSignerEnv(t)
+
+	// Signed over the gas_wanted/gas_fee rendering, which is what a client
+	// that builds the payload itself may still produce.
+	legacyBytes, err := std.GetSignaturePayloadLegacy(e.signDoc())
+	require.NoError(t, err)
+
+	// Guard the guard: if the two renderings ever coincide, this test would
+	// pass without exercising the fallback at all.
+	currentBytes, err := std.GetSignaturePayload(e.signDoc())
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, legacyBytes,
+		"the two renderings are identical, so this test proves nothing")
+
+	tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, legacyBytes, "")
+	checkValidTx(t, e.anteHandler, e.ctx, tx, false)
+}
+
+// AND THE FALLBACK IS NOT A BYPASS. Accepting a second rendering must not widen
+// what a signature authorises: bytes signed over one sign doc must still be
+// refused against a different one, and nonsense must still be refused outright.
+// A fallback that swallowed the failure would pass every test above and this is
+// the one that would catch it.
+func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("signed over a different chain id", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.ChainID = "some-other-chain"
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("signed over a different sequence", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		doc := e.signDoc()
+		doc.Sequence = 99
+		wrong, err := std.GetSignaturePayloadLegacy(doc)
+		require.NoError(t, err)
+		tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, wrong, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	t.Run("not a signature at all", func(t *testing.T) {
+		t.Parallel()
+
+		e := newSingleSignerEnv(t)
+		tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
+			PubKey: e.priv.PubKey(), Signature: []byte("nope"),
+		}}, "")
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+}
+
+// singleSignerEnv is a funded account with number 0 and sequence 0, the handler
+// that judges its transactions, and a message and fee for it to sign. Every test
+// builds its own: the ante handler writes to the store before it reaches
+// signature verification, and the store is not safe for concurrent use.
+type singleSignerEnv struct {
+	anteHandler sdk.AnteHandler
+	ctx         sdk.Context
+	priv        crypto.PrivKey
+	msgs        []std.Msg
+	fee         std.Fee
+}
+
+func newSingleSignerEnv(t *testing.T) singleSignerEnv {
+	t.Helper()
+
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	ctx := env.ctx
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	return singleSignerEnv{
+		anteHandler: anteHandler,
+		ctx:         ctx,
+		priv:        priv,
+		msgs:        []std.Msg{tu.NewTestMsg(addr)},
+		fee:         tu.NewTestFee(),
+	}
+}
+
+// signDoc is the document the account's next transaction is signed over.
+func (e singleSignerEnv) signDoc() std.SignDoc {
+	return std.SignDoc{
+		ChainID:       e.ctx.ChainID(),
+		AccountNumber: 0,
+		Sequence:      0,
+		Fee:           e.fee,
+		Msgs:          e.msgs,
+	}
 }

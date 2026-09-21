@@ -2,9 +2,9 @@ package dao
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strconv"
+	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -22,16 +22,13 @@ var allowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
-// Remember this realm for rendering.
-var gRealm = runtime.CurrentRealm()
-
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
-func Render(p string) string {
+func Render(cur realm, p string) string {
 	if dao == nil {
 		return "DAO not initialized"
 	}
-	return dao.Render(gRealm.PkgPath(), p)
+	return dao.Render(cross(cur), cur.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
@@ -70,7 +67,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	if dao == nil {
 		return -1, errors.New("DAO not initialized")
 	}
-	author, err := dao.PreCreateProposal(r)
+	author, err := dao.PreCreateProposal(0, cur, r)
 	if err != nil {
 		return -1, err
 	}
@@ -84,7 +81,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(r, pid)
+	dao.PostCreateProposal(0, cur, r, pid)
 
 	chain.Emit("ProposalCreated",
 		"id", strconv.FormatInt(int64(pid), 10),
@@ -106,7 +103,7 @@ func VoteOnProposal(cur realm, r VoteRequest) error {
 	if dao == nil {
 		return errors.New("DAO not initialized")
 	}
-	return dao.VoteOnProposal(r)
+	return dao.VoteOnProposal(0, cur, r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
@@ -117,8 +114,8 @@ func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
 	})
 }
 
-func MustGetProposal(cur realm, pid ProposalID) *Proposal {
-	p, err := GetProposal(cur, pid)
+func MustGetProposal(pid ProposalID) *Proposal {
+	p, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -126,24 +123,17 @@ func MustGetProposal(cur realm, pid ProposalID) *Proposal {
 	return p
 }
 
-// GetProposal gets created proposal by its ID
-func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
+// GetProposal gets created proposal by its ID. Non-crossing pure read:
+// looks up the proposal in this realm's package var. Callable directly
+// from any realm without cross-call syntax.
+func GetProposal(pid ProposalID) (*Proposal, error) {
 	if dao == nil {
 		return nil, errors.New("DAO not initialized")
 	}
-	if err := dao.PreGetProposal(pid); err != nil {
-		return nil, err
-	}
-
 	prop := proposals.GetProposal(pid)
 	if prop == nil {
 		return nil, errors.New(ufmt.Sprintf("Proposal %v does not exist.", int64(pid)))
 	}
-
-	if err := dao.PostGetProposal(pid, prop); err != nil {
-		return nil, err
-	}
-
 	return prop, nil
 }
 
@@ -151,17 +141,79 @@ func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 // This method will update the current govDAO implementation
 // to a new one. AllowedDAOs are a list of realms that can
 // call this method, in case the new DAO implementation had
-// a breaking bug. Any value set as nil will be ignored.
+// a breaking bug. A nil DAO is ignored.
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
+//
+// An empty AllowedDAOs is ignored rather than stored. An empty list makes
+// InAllowedDAOs() return true for every caller — the bootstrap-only state that
+// lets the genesis MsgRun seed the member set. Since this is the only site that
+// assigns allowedDAOs, ignoring empty here makes the transition
+// empty -> non-empty one-way: once locked down the DAO cannot be reopened,
+// whether the empty value arrives as a literal []string{} or from
+// NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice.
+// Individual entries must be non-blank realm paths; an empty entry would match
+// a user realm's empty PkgPath() and is rejected.
 func UpdateImpl(cur realm, r UpdateRequest) {
-	gRealm := runtime.PreviousRealm().PkgPath()
+	// AGENTS.md: in a crossing function, always check IsCurrent() before
+	// deriving caller identity from cur.Previous(). Redundant under the
+	// crossing-frame guarantee, but mandated, and this is the single most
+	// powerful entrypoint (it rewrites the allowlist and swaps the impl).
+	if !cur.IsCurrent() {
+		panic("UpdateImpl: realm value is not the caller's live cur")
+	}
+	gRealm := cur.Previous().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
 		panic("permission denied for prev realm: " + gRealm)
 	}
 
-	if r.AllowedDAOs != nil {
+	if len(r.AllowedDAOs) != 0 {
+		// Every entry must be a real realm path. len() != 0 alone is the wrong
+		// invariant: InAllowedDAOs compares by exact string, and a user realm's
+		// PkgPath() is "", so a single "" entry admits any caller whose previous
+		// frame is a user realm -- the same fail-open outcome this guard exists
+		// to prevent, just spelled differently. An empty entry can only be a
+		// drafting mistake, so reject the whole request rather than silently
+		// dropping it and storing a list the proposal did not describe.
+		for i, d := range r.AllowedDAOs {
+			trimmed := strings.TrimSpace(d)
+			if trimmed == "" {
+				panic("AllowedDAOs entries must be realm paths; got an empty one")
+			}
+			// Entries are stored exactly as given, and InAllowedDAOs compares
+			// whole strings, so an entry with surrounding spaces matches no
+			// caller at all. A non-empty list also closes the bootstrap
+			// window, so a list of only padded entries is locked shut against
+			// everyone, the DAO included, with no way to reopen it.
+			//
+			// This does not make the list typo-proof, and is not meant to be:
+			// any wrong path locks the DAO out exactly the same way, and no
+			// check here can tell a typo from a realm that does not exist yet.
+			// Whitespace is worth rejecting because it is the one spelling a
+			// human reviewing the proposal cannot see. Rejected rather than
+			// trimmed, so what gets stored is what the proposal said.
+			// Reported by position, not by value. A panic message becomes the
+			// proposal's DeniedReason, which is stored, and the entry is
+			// caller-supplied and unbounded — echoing it would put an
+			// arbitrary amount of someone else's text into this realm's
+			// storage. The index is enough to find it in a list the proposal
+			// author wrote.
+			if d != trimmed {
+				panic("AllowedDAOs entries must not have leading or trailing spaces; entry " + strconv.Itoa(i))
+			}
+		}
+		// Stored as given. A defensive copy here looks prudent but would
+		// guard a write no outside realm can perform, which was checked from
+		// a separate realm rather than assumed:
+		//
+		//   - Building this request as a literal fails outright, with
+		//     "cannot allocate gno.land/r/gov/dao.UpdateRequest in realm ...".
+		//   - Writing through a request obtained from NewUpdateRequest fails
+		//     with "cannot directly modify readonly tainted object".
+		//
+		// So the only way in is NewUpdateRequest, which copies already. Both
+		// checks are language guarantees, not conventions.
 		allowedDAOs = r.AllowedDAOs
 	}
 
@@ -192,7 +244,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if dao == nil {
 		return false
 	}
-	execute, err := dao.PreExecuteProposal(pid)
+	execute, err := dao.PreExecuteProposal(0, cur, pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -200,12 +252,12 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if !execute {
 		return false
 	}
-	prop, err := GetProposal(cur, pid)
+	prop, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	err = dao.ExecuteProposal(pid, prop.executor)
+	err = dao.ExecuteProposal(0, cur, pid, prop.executor)
 	if err != nil {
 		if execErrorRejects {
 			return false

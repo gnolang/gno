@@ -86,13 +86,15 @@ type BaseSessionAccount struct {
 ```go
 type GnoSessionAccount struct {
     BaseSessionAccount
-    AllowPaths []string  // realm path prefixes; empty = unrestricted
+    AllowPaths []string  // typed entries: "*" or <route>/<type>[:<path>]; gno.land grammar
 }
 ```
 
-`AllowPaths` is gno.land-specific. tm2 never interprets it — it's set
-via a local `allowPathsSetter` interface at creation time and read via a
-local `pathRestricted` interface in the VM native function.
+`AllowPaths` is gno.land-specific. tm2 never interprets the grammar —
+it's validated and set via local `allowPathsValidator` and
+`allowPathsSetter` interfaces at creation time, and read via a local
+`pathRestricted` interface in the VM native function. See gno.land
+ADR-001 for the grammar definition.
 
 ### Tx format
 
@@ -170,12 +172,21 @@ MsgRevokeAllSessions{Creator}
 - Invalid `SpendLimit` coins (negative amounts, malformed)
 
 `handleMsgCreateSession` additionally checks:
-- `ExpiresAt` in the past or beyond `MaxSessionDuration` (30 days)
-- `SpendPeriod` beyond `MaxSessionDuration`
+- `ExpiresAt` in the past or beyond `MaxSessionDuration` (~4 years).
+  `ExpiresAt = 0` ("no expiry") is exempt — the cap exists to catch bad
+  input (typos, milliseconds-vs-seconds confusion), not to enforce a hard
+  lifetime ceiling. SpendLimit is the authoritative bound on damage from
+  long-lived sessions.
+- `SpendPeriod` beyond `MaxSpendPeriod` (30 days). Independent of
+  `MaxSessionDuration`: a session can outlive any single spend window.
 - Session key address collides with existing regular account
 - Duplicate session key
 - Session count exceeds `MaxSessionsPerAccount` (16)
-- AllowPaths entries: no empty strings, no trailing slashes
+- AllowPaths entries fail tm2's loose check (empty string, trailing
+  slash). Stricter grammar validation is delegated to the prototype
+  via the `allowPathsValidator` interface — gno.land's
+  `*GnoSessionAccount` implements this and rejects entries that don't
+  match `<route>/<type>[:<path>]`. See gno.land ADR-001.
 
 ### Spend limits
 
@@ -262,23 +273,23 @@ isSession)` using a local `pathRestricted` interface to read
 - Empty `SpendLimit` means "no spending allowed" — useful when another
   signer pays gas.
 - `ExpiresAt = 0` means "no expiry" — valid until revoked.
-- At the gno.land layer, sessions can send `exec` (MsgCall), `run`
-  (MsgRun), `send` (bank.MsgSend), and `multisend` (bank.MsgMultiSend).
-  Other msg types are denied. `add_package` is permanently blocked
-  (sessions must not claim namespace under master); session-lifecycle
-  msgs (`create_session`, `revoke_session`, `revoke_all_sessions`)
-  are permanently blocked to prevent privilege escalation.
-- **Device login** is a primary use case for sessions without
-  `AllowPaths`. A user creates a session on a less-secure device,
-  leaves `AllowPaths` empty, and relies on `SpendLimit` + time expiry
+- At the gno.land layer, sessions are gated by AllowPaths plus a
+  always-denied list. The deny-list permanently blocks all `auth/*`
+  msgs (`create_session`/`revoke_session`/`revoke_all_sessions`,
+  privilege escalation) and `vm/add_package` (namespace claim under
+  master) — no AllowPaths entry, including `"*"`, can override it.
+  See gno.land ADR-001 for the full grammar.
+- **Device login** is a primary use case for wildcard sessions.
+  A user creates a session on a less-secure device, sets
+  `AllowPaths` to `["*"]`, and relies on `SpendLimit` + time expiry
   to bound damage if the device is compromised. Because `SpendLimit`
   is authoritative across every outflow (bank-keeper hook + storage
   deposit hook), this is safe even when the session can call
   arbitrary attacker-deployed realms.
-- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
-  `MaxSessionDuration` (30 days) are compile-time constants in
-  `tm2/pkg/std/account.go`, not tunable params. Changing them
-  requires a coordinated upgrade of all nodes.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8),
+  `MaxSessionDuration` (~4 years), and `MaxSpendPeriod` (30 days) are
+  compile-time constants in `tm2/pkg/std/account.go`, not tunable params.
+  Changing them requires a coordinated upgrade of all nodes.
 
 ## References
 

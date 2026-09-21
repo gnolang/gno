@@ -1,0 +1,11 @@
+-- input.md --
+before paragraph
+
+\|||
+
+after paragraph
+
+-- output.html --
+<p>before paragraph</p>
+<p>|||</p>
+<p>after paragraph</p>

@@ -1,13 +1,15 @@
 package client
 
 import (
-	"encoding/base64"
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -23,7 +25,12 @@ type MakeTxCfg struct {
 	Broadcast bool
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
-	ChainID  string
+	// Only used with SimulateOnly
+	GasFeeMargin uint64
+	ChainID      string
+	// Master, when set, signs the tx as a session account on behalf of this master key
+	// (name or bech32). The chain enforces which msg types a session may sign.
+	Master string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -59,6 +66,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		NewMakeSendCmd(cfg, io),
+		NewSessionCmd(cfg, io),
 	)
 
 	return cmd
@@ -103,12 +111,66 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		- only: avoids broadcasting transaction (ie. dry run)`,
 	)
 
+	fs.Uint64Var(
+		&c.GasFeeMargin,
+		"gas-fee-margin",
+		5,
+		"percent to increase the simulated gas fee (only useful with -simulate only)",
+	)
+
 	fs.StringVar(
 		&c.ChainID,
 		"chainid",
 		"dev",
 		"chainid to sign for (only useful with --broadcast)",
 	)
+
+	fs.StringVar(
+		&c.Master,
+		"master",
+		"",
+		"session account master's key name or bech32 address (optional)",
+	)
+}
+
+// GetCaller returns the address that should appear as msg.Caller. When c.Master
+// is set (session-signed tx), the caller is master; otherwise it's the signer
+// resolved from nameOrBech32.
+func (c *MakeTxCfg) GetCaller(nameOrBech32 string) (crypto.Address, error) {
+	if c.Master != "" {
+		return c.GetMaster()
+	}
+
+	kb, err := keys.NewKeyBaseFromDir(c.RootCfg.Home)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	return info.GetAddress(), nil
+}
+
+// GetMaster resolves c.Master (bech32 or keybase name) to an Address. Returns
+// an error if c.Master is empty.
+func (c *MakeTxCfg) GetMaster() (crypto.Address, error) {
+	if c.Master == "" {
+		return crypto.Address{}, errors.New("master not set")
+	}
+	if addr, err := crypto.AddressFromBech32(c.Master); err == nil {
+		// Master is already bech32; skip the keybase.
+		return addr, nil
+	}
+	kb, err := keys.NewKeyBaseFromDir(c.RootCfg.Home)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	info, err := kb.GetByNameOrAddress(c.Master)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	return info.GetAddress(), nil
 }
 
 func SignAndBroadcastHandler(
@@ -116,6 +178,7 @@ func SignAndBroadcastHandler(
 	nameOrBech32 string,
 	tx std.Tx,
 	pass string,
+	io commands.IO,
 ) (*types.ResultBroadcastTxCommit, error) {
 	baseopts := cfg.RootCfg
 	txopts := cfg
@@ -131,27 +194,63 @@ func SignAndBroadcastHandler(
 	}
 	accountAddr := info.GetAddress()
 
+	var maxGasCh chan consensusMaxGasResult
+	if cfg.Simulate != SimulateSkip {
+		maxGasCh = make(chan consensusMaxGasResult, 1)
+		go func() {
+			maxGas, err := fetchConsensusMaxGas(baseopts.Remote)
+			maxGasCh <- consensusMaxGasResult{maxGas: maxGas, err: err}
+		}()
+	}
+
+	// query for the account number and sequence
+	var accountNumber uint64
+	var sequence uint64
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
-		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
-	qres, err := QueryHandler(qopts)
-	if err != nil {
-		return nil, errors.Wrap(err, "query account")
-	}
-	var qret struct {
-		BaseAccount std.BaseAccount
-		Attributes  uint64 `json:"attributes"` // GnoAccount extension
-	}
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return nil, err
+	if cfg.Master == "" {
+		qopts.Path = fmt.Sprintf("auth/accounts/%s", accountAddr)
+		qres, err := QueryHandler(qopts)
+		if err != nil {
+			return nil, errors.Wrap(err, "query account")
+		}
+		var qret struct {
+			BaseAccount std.BaseAccount
+			Attributes  uint64 `json:"attributes"` // GnoAccount extension
+		}
+		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+		if err != nil {
+			return nil, err
+		}
+
+		accountNumber = qret.BaseAccount.AccountNumber
+		sequence = qret.BaseAccount.Sequence
+	} else {
+		masterAddr, err := cfg.GetMaster()
+		if err != nil {
+			return nil, err
+		}
+		sessionAddr := accountAddr
+		qopts.Path = fmt.Sprintf("auth/accounts/%s/session/%s", crypto.AddressToBech32(masterAddr), sessionAddr)
+		qres, err := QueryHandler(qopts)
+		if err != nil {
+			return nil, errors.Wrap(err, "query session account")
+		}
+		var qret struct {
+			BaseSessionAccount std.BaseSessionAccount
+			AllowPaths         []string `json:"allow_paths,omitempty"` // GnoSessionAccount extension
+		}
+		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+		if err != nil {
+			return nil, err
+		}
+
+		accountNumber = qret.BaseSessionAccount.BaseAccount.AccountNumber
+		sequence = qret.BaseSessionAccount.BaseAccount.Sequence
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
-
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,
 		accountSequence: sequence,
@@ -169,9 +268,41 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to sign transaction: %w", err)
 	}
 
+	if cfg.Master != "" {
+		signature.SessionAddr = info.GetAddress()
+	}
+
 	// Add the signature to the tx
 	if err = addSignature(&tx, signature); err != nil {
 		return nil, fmt.Errorf("unable to add signature: %w", err)
+	}
+
+	maxGas := resolveMaxGas(maxGasCh, io)
+
+	// Simulation raises GasWanted to consensus maxGas so the estimate is not
+	// clipped by whatever the caller guessed. That changes the sign bytes,
+	// and the chain verifies signatures on the simulate path for some message
+	// types (see auth.AnteOptions.RequireSigForSimulate), so the rewritten tx
+	// gets its own signature rather than carrying one that no longer matches.
+	var simTxBytes []byte
+	if cfg.Simulate != SimulateSkip && txNeedsSimulationSignature(tx) {
+		if simTx, rewritten := txWithGasWanted(&tx, maxGas); rewritten {
+			simTx.Signatures = nil
+			simSig, err := generateSignature(simTx, kb, sOpts, kOpts)
+			if err != nil {
+				return nil, fmt.Errorf("unable to sign simulation transaction: %w", err)
+			}
+			if cfg.Master != "" {
+				simSig.SessionAddr = info.GetAddress()
+			}
+			if err = addSignature(simTx, simSig); err != nil {
+				return nil, fmt.Errorf("unable to add simulation signature: %w", err)
+			}
+			simTxBytes, err = amino.Marshal(simTx)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal simulation transaction: %w", err)
+			}
+		}
 	}
 
 	// broadcast signed tx
@@ -179,8 +310,11 @@ func SignAndBroadcastHandler(
 		RootCfg: baseopts,
 		tx:      &tx,
 
-		DryRun:       cfg.Simulate == SimulateOnly,
-		testSimulate: cfg.Simulate == SimulateTest,
+		DryRun:         cfg.Simulate == SimulateOnly,
+		testSimulate:   cfg.Simulate == SimulateTest,
+		simulateMaxGas: maxGas,
+		simTxBytes:     simTxBytes,
+		GasFeeMargin:   cfg.GasFeeMargin,
 	}
 
 	return BroadcastHandler(bopts)
@@ -213,7 +347,7 @@ func ExecSignAndBroadcast(
 		return err
 	}
 
-	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
+	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass, io)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
@@ -221,23 +355,96 @@ func ExecSignAndBroadcast(
 		return errors.Wrapf(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		return handleDeliverResult(cfg.RootCfg, tx, bres, io)
 	}
 
 	if cfg.RootCfg.OnTxSuccess != nil {
-		cfg.RootCfg.OnTxSuccess(tx, bres)
+		cfg.RootCfg.OnTxSuccess(io, tx, bres)
 	} else {
-		io.Println(string(bres.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", bres.Height)
-		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		DefaultOnTxSuccess(io, tx, bres)
 	}
 
 	return nil
+}
+
+// handleDeliverResult handles a failed DeliverTx by invoking OnTxFailure or printing defaults.
+func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxCommit, io commands.IO) error {
+	if cfg.OnTxFailure != nil {
+		cfg.OnTxFailure(io, tx, bres)
+	} else {
+		DefaultOnTxFailure(io, tx, bres)
+	}
+	return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+}
+
+type consensusMaxGasResult struct {
+	maxGas int64
+	err    error
+}
+
+// txNeedsSimulationSignature reports whether the chain will verify a signature
+// when this transaction is simulated.
+//
+// Simulating rewrites GasWanted, which invalidates the original signature, so a
+// rewritten transaction needs its own. But signing it is not free: the result is
+// a second, fully valid, broadcastable transaction, and on a hardware wallet it
+// is a second prompt showing a different GasWanted -- which is exactly what
+// trains people to approve without reading. So it is only worth doing when the
+// chain is actually going to check it.
+//
+// gno.land verifies simulate signatures only for messages that hand it source
+// to compile, because those are authorized from a field the caller supplies. For
+// everything else -- a send, an ordinary call -- an unverified simulation is
+// harmless and the extra signature buys nothing.
+//
+// This duplicates a decision that lives on the chain (gno.land wires the
+// predicate into auth.AnteOptions.RequireSigForSimulate), so the two can drift.
+// Matching on route and type rather than importing the message types keeps the
+// coupling to two strings, and drift fails loudly: simulation of a newly-gated
+// message would be refused with a signature error rather than silently doing
+// the wrong thing.
+func txNeedsSimulationSignature(tx std.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		if msg.Route() != "vm" {
+			continue
+		}
+		switch msg.Type() {
+		case "add_package", "run", "enable_package":
+			return true
+		}
+	}
+	return false
+}
+
+func resolveMaxGas(ch chan consensusMaxGasResult, io commands.IO) int64 {
+	if ch == nil {
+		return 0
+	}
+	res := <-ch
+	if res.err != nil {
+		io.ErrPrintfln("warning: could not fetch consensus max gas, simulation will use the provided gas-wanted: %v", res.err)
+		return 0
+	}
+	return res.maxGas
+}
+
+func fetchConsensusMaxGas(remote string) (int64, error) {
+	if remote == "" {
+		return 0, errors.New("missing remote url")
+	}
+
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := cli.ConsensusParams(context.Background(), nil)
+	if err != nil {
+		return 0, err
+	}
+	if res == nil || res.ConsensusParams.Block == nil {
+		return 0, nil
+	}
+
+	return res.ConsensusParams.Block.MaxGas, nil
 }

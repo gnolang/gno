@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+```
+<!-- this is inside a fence, not an HTML block opener -->
+```
+-- output.md --
+
+
+```
+<!-- this is inside a fence, not an HTML block opener -->
+```
+
+-- output.html --
+<pre><code>&lt;!-- this is inside a fence, not an HTML block opener --&gt;
+</code></pre>

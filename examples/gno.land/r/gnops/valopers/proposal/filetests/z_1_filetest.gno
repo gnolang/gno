@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers/proposal_test
+// PKGPATH: gno.land/r/test/proposal
 // SEND: 100000000ugnot
 
-package proposal_test
+package proposal
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
-	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+	daoinit "gno.land/r/gov/dao/init/v0" // so that the govdao initializer is executed
 )
 
 var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
@@ -23,16 +23,20 @@ const (
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetOriginCaller(g1user)
-	daoinit.InitWithUsers(g1user)
+	daoinit.InitWithUsers(cross(cur), g1user)
 
-	// Register a validator and add the proposal
-	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	// Register a validator: OriginCaller must equal operator addr (squat guard).
+	testing.SetOriginCaller(validAddress)
+	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
+
+	// Switch back to g1user for the GovDAO submission.
+	testing.SetOriginCaller(g1user)
 
 	if err := revive(func() {
-		pr := proposal.NewValidatorProposalRequest(cross, validAddress)
-		dao.MustCreateProposal(cross, pr)
+		pr := proposal.NewValidatorProposalRequest(cross(cur), validAddress)
+		dao.MustCreateProposal(cross(cur), pr)
 	}); err != nil {
 		println("r: ", err)
 	} else {
@@ -40,15 +44,15 @@ func init() {
 	}
 }
 
-func main() {
-	println(dao.Render(""))
+func main(cur realm) {
+	println(dao.Render(cross(cur), ""))
 }
 
 // Output:
 // OK
 // # GovDAO
 // ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// [> Go to Memberstore <](/r/gov/dao/memberstore/v0)
 // ## Proposals
 // ### [Prop #0 - Add valoper test\-1 to the valset](/r/gov/dao:0)
 // Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w

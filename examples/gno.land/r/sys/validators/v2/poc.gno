@@ -4,14 +4,14 @@ import (
 	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 )
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
 // executed the callback.
-func NewPropRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
+func NewPropRequest(cur realm, changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
 	if changesFn == nil {
 		panic("no set changes proposed")
 	}
@@ -65,7 +65,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(callback, "")
+	e := dao.NewSimpleExecutor(0, cur, callback, "")
 
 	return dao.NewProposalRequest(title, desc.String(), e)
 }

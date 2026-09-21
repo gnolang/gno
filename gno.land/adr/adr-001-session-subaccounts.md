@@ -21,47 +21,97 @@ authorization: which message types and realm paths a session can use.
 ```go
 type GnoSessionAccount struct {
     std.BaseSessionAccount
-    AllowPaths []string  // realm path prefixes; empty = unrestricted
+    AllowPaths []string  // typed entries; required at create-time
 }
 ```
 
-`AllowPaths` restricts which realm packages the session can call.
-Path matching uses exact match or sub-path:
-`path == prefix || strings.HasPrefix(path, prefix+"/")`.
-This prevents `gno.land/r/demo` from matching `gno.land/r/demo_evil`.
+`AllowPaths` is a **required** per-session msg-type allow-list using a
+typed grammar. Empty `AllowPaths` is rejected at both the CLI and
+chain layers — every session must make an explicit choice between the
+wildcard and a specific entry list.
+
+The grammar:
+
+```
+entry      := "*" | route_type [":" path]
+route_type ∈ {"vm/exec", "vm/run", "bank/send", "bank/multisend"}
+path        — non-empty, no trailing slash, only legal after "vm/exec:"
+```
+
+The `*` wildcard matches any msg type, **subject to the always-denied
+list below**. It's the deliberate "trust this session like a master
+except for privilege-escalation msgs" form, suitable for device login.
+
+The four canonical `<route>/<type>` pairs are the only fully-qualified
+forms accepted today. Bare-route entries (e.g. `bank` to mean any bank
+msg) and unknown types are rejected. A future relaxation may permit
+bare-route entries via a fork; today's sessions never use that form.
+
+Only `vm/exec` may carry an optional `:<path>` suffix that restricts
+the call target by realm prefix:
+
+- `vm/exec:gno.land/r/jae/blog` matches `MsgCall` to that realm or any
+  sub-realm.
+- `vm/exec` (no path) matches any `MsgCall`, regardless of realm.
+- `*:<path>` is rejected — the wildcard does not accept a path.
+
+Path matching preserves the prefix-attack guard:
+`path == prefix || strings.HasPrefix(path, prefix+"/")`. This prevents
+`gno.land/r/demo` from matching `gno.land/r/demo_evil`.
+
+### Always-denied list
+
+Two filters apply at ante-time, in order:
+
+1. **Privilege-escalation deny-list** (hard floor, regardless of
+   AllowPaths or `*`):
+   - any `auth/*` msg — covers `create_session`, `revoke_session`,
+     `revoke_all_sessions`, and any future auth msgs by route.
+   - `vm/add_package` — sessions cannot claim namespace under master.
+
+2. **AllowPaths match** — a msg passes if any entry matches its
+   `(Route(), Type()[, PkgPath()])`. The wildcard `*` matches anything
+   (after step 1).
+
+The deny-list is forward-compatible: a future fork that adds a new
+auth-module msg type defaults to "denied" (because the rule denies the
+whole `auth/` route). New `vm/*` types default to allowed and may be
+granted via AllowPaths; if a future `vm/*` type is dangerous, it must
+be added to the deny-list explicitly.
+
+### Examples
+
+- `["*"]` — any msg except auth/* and vm/add_package. Device-login pattern.
+- `["vm/exec:gno.land/r/jae/blog"]` — only `MsgCall` to that realm.
+  `MsgRun`/`MsgSend`/`MsgMultiSend` rejected.
+- `["bank/send"]` — only coin transfers. No realm calls.
+- `["vm/exec:gno.land/r/jae/blog", "bank/send"]` — both: realm-scoped
+  call AND coin transfer.
+- `[]` — **invalid** at create-time.
 
 ### Ante wrapper: checkSessionRestrictions
 
-After the tm2 AnteHandler passes, a gno.land-specific check runs:
-
-1. **Message type restriction.** Session-signed messages must have
-   `msg.Type()` in the allowlist:
-   - `"exec"` (MsgCall)
-   - `"run"`  (MsgRun)
-   - `"send"` (bank.MsgSend)
-   - `"multisend"` (bank.MsgMultiSend)
-
-   MsgAddPackage and all auth msgs (create_session, revoke_session,
-   revoke_all_sessions) are denied. This check uses the
-   `DelegatedAccount` presence in the context map, not a type assertion
-   to `*GnoSessionAccount`, so it cannot be bypassed by alternative
-   session account types.
-
-2. **AllowPaths restriction.** If `AllowPaths` is non-empty, the
-   msg's `PkgPath` must match one of the allowed prefixes. Read via a
-   local `pathRestricted` interface to avoid tm2 importing gno.land
-   types. Path-less msgs — MsgRun, MsgSend, and MsgMultiSend — do not
-   implement `pkgPather`, so a session with non-empty `AllowPaths`
-   rejects them. This is intentional: a session with AllowPaths set
-   is realm-scoped, and path-less msgs (arbitrary code execution,
-   direct value transfers) would escape that scope.
+The two filters above apply per-msg, per-session-signer. The check
+uses `DelegatedAccount` presence in the context map, not a type
+assertion to `*GnoSessionAccount`, so it cannot be bypassed by
+alternative session account types.
 
 ### AllowPaths validation at creation
 
-`handleMsgCreateSession` validates AllowPaths entries:
+`handleMsgCreateSession` calls `*GnoSessionAccount.ValidateAllowPaths`
+through a local `allowPathsValidator` interface (parallel to
+`allowPathsSetter`), which delegates to the parser. Rejected at
+create-time:
+- Empty `AllowPaths` slice (required field)
 - Max `MaxAllowPathsPerSession` (8) entries
-- No empty strings
-- No trailing slashes (would silently make paths unreachable)
+- Empty entry strings
+- Trailing slashes
+- Unknown route_types (e.g. `bank/foo`, `auth/create_session`,
+  `vm/add_package`)
+- Bare routes (e.g. `bank`, `vm`) — reserved for future relaxation
+- Path suffix on non-`vm/exec` entries (e.g. `bank/send:foo`)
+- Empty path after `:` (e.g. `vm/exec:`)
+- `*:<path>` (wildcard with path)
 
 ### Spend limit enforcement
 
@@ -122,9 +172,9 @@ func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string,
 
 Return values:
 - `isSession == false`: not a session tx (master key signed)
-- `isSession == true, len(allowPaths) == 0`: session with no path restrictions
-  (nil or empty slice — both mean unrestricted)
-- `isSession == true, len(allowPaths) > 0`: session restricted to these paths
+- `isSession == true`: `allowPaths` carries the session's typed entries
+  (e.g. `["*"]` for wildcard, or `["vm/exec:gno.land/r/foo", "bank/send"]`).
+  AllowPaths is required at create-time, so an empty slice is unreachable.
 
 `pubKeyAddr` is the session key's address (for per-session tracking).
 The master address is available via `OriginCaller()` as usual.
@@ -159,9 +209,12 @@ prefix, so no realm can burn it.
 acck := auth.NewAccountKeeper(mainKey, prmk, ProtoGnoAccount, ProtoGnoSessionAccount)
 ```
 
-The tm2 handler creates sessions via `acck.NewSessionAccount()` and
-sets `AllowPaths` through a local `allowPathsSetter` interface, keeping
-tm2 unaware of AllowPaths as a concept.
+The tm2 handler creates sessions via `acck.NewSessionAccount()`,
+validates the AllowPaths grammar through a local `allowPathsValidator`
+interface (delegating to the parser in
+`gno.land/pkg/gnoland/allow_paths.go`), then sets `AllowPaths` through
+a local `allowPathsSetter` interface — keeping tm2 unaware of the
+grammar as a concept.
 
 ## Consequences
 
@@ -177,23 +230,27 @@ tm2 unaware of AllowPaths as a concept.
 
 - `checkSessionRestrictions` runs on every tx (but short-circuits when
   no sessions are in context).
-- AllowPaths entries are not validated as realm-like paths — garbage
-  entries simply fail to match anything (fail-closed).
+- Realm paths in `vm/exec:<path>` entries are not validated as
+  realm-like — garbage paths simply fail to match anything (fail-closed).
 
 ### Neutral
 
-- Unrestricted sessions (empty AllowPaths) can call any realm.
-  **Device login is the primary use case for this mode**: a user
-  creates a session on a less-secure device (browser, mobile app),
-  leaves `AllowPaths` empty, and relies on time expiry + `SpendLimit`
-  to bound damage if the device is compromised. Because `SpendLimit`
-  is authoritative across all outflows (see "Spend limit enforcement"
-  above), this is safe even when the session can call arbitrary
-  attacker-deployed realms.
-- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
-  `MaxSessionDuration` (30 days) are compile-time constants in
-  `tm2/pkg/std/account.go`, not tunable params. Changing them
-  requires a coordinated upgrade of all nodes.
+- Wildcard sessions (`AllowPaths: ["*"]`) can call any realm AND send
+  coins (still subject to the always-denied list). **Device login is
+  the primary use case for this mode**: a user creates a session on a
+  less-secure device (browser, mobile app), sets `AllowPaths` to
+  `["*"]`, and relies on time expiry + `SpendLimit` to bound damage
+  if the device is compromised. Because `SpendLimit` is authoritative
+  across all outflows (see "Spend limit enforcement" above), this is
+  safe even when the session can call arbitrary attacker-deployed
+  realms.
+- A session with `bank/send` listed needs the same `SpendLimit` care:
+  the entry permits coin transfers to any address, bounded only by
+  `SpendLimit`.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8),
+  `MaxSessionDuration` (~4 years), and `MaxSpendPeriod` (30 days) are
+  compile-time constants in `tm2/pkg/std/account.go`, not tunable params.
+  Changing them requires a coordinated upgrade of all nodes.
 
 ## References
 

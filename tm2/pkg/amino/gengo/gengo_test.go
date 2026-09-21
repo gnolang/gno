@@ -19,10 +19,9 @@ func TestBasic(t *testing.T) {
 
 	p := press.NewPress()
 	fmt.Println(p)
-	ss := SampleStruct{"cat", "dog"}
 
 	cdc := amino.NewCodec()
-	ssType := reflect.TypeOf(ss)
+	ssType := reflect.TypeFor[SampleStruct]()
 	info, err := cdc.GetTypeInfo(ssType)
 	if err != nil {
 		panic(err)

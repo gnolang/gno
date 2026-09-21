@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: CodeBlock
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+a\r\nb\rc
+-- output.md --
+```
+a
+b
+c
+```
+-- output.html --
+<pre><code>a
+b
+c
+</code></pre>

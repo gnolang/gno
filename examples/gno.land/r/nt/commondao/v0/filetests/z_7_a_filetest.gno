@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_7_a_filetest
+
+package z_7_a_filetest
 
 import (
 	"testing"
@@ -9,49 +11,55 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "Foo"
 )
 
 var parentID uint64
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
-	// The origin must be the invited user where invitation
-	// is removed after the first user call to create a DAO
+	// The direct user caller must be invited. The invitation is removed after
+	// the caller creates a DAO for the first time.
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(true))
-	parentID = parentDAO.ID()
+	parentDAO := commondao.New(cross(cur), "Parent DAO", "Purpose", "", "")
+	parentID = parentDAO
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
-	dao := commondao.NewSubDAO(cross, name, parentID)
-	if dao == nil {
-		panic("expected subDAO to be created")
-	}
+	// SubDAOs are created through a council proposal at simple majority
+	pID := commondao.CreateSubDAOProposal(cross(cur), parentID, name, "Purpose", "Sub charter", string(user))
+	commondao.Vote(cross(cur), parentID, pID, pcommondao.ChoiceYes, "")
+	commondao.Execute(cross(cur), parentID, pID)
 
-	println(dao.Name() == name)
-	println(dao.Parent().ID() == parentID)
+	subID := uint64(3)
+	view := commondao.GetView(subID)
+
+	println(view.Name() == name)
+	println(view.Description())
+
+	parent, found := view.Parent()
+	println(found && parent.ID() == parentID)
 
 	// Check that SubDAO is added as a child to the parent DAO
-	if v := dao.Parent().Children().Get(0); v != nil {
-		if subDAO, ok := v.(*pcommondao.CommonDAO); ok {
-			println(subDAO.ID() == dao.ID())
-		}
-	}
+	childFound := false
+	parent.IterateChildren(func(child pcommondao.ReadonlyCommonDAO) bool {
+		childFound = child.ID() == subID
+		return childFound
+	})
+	println(childFound)
 }
 
 // Output:
 // true
+// Sub charter
 // true
 // true
