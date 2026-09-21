@@ -33,7 +33,6 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Events](/events)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 <gno-columns-sep>
 
