@@ -4,7 +4,8 @@ A gno.land node serves its JSON-RPC interface on port 26657 by default. This
 page lists the endpoints it exposes, what each one takes, and what each one
 returns.
 
-The ABCI query paths reached through `abci_query` are documented separately in
+The `vm/` JSON state-traversal paths reached through `abci_query` are
+documented separately in
 [Querying On-Chain State](../builders/query-state-api.md). Node addresses and
 chain IDs are in [Gno networks](./gnoland-networks.md).
 
@@ -25,8 +26,8 @@ curl -s -X POST https://rpc.gno.land:443/ \
   -d '{"jsonrpc":"2.0","id":1,"method":"block","params":{"height":"51942"}}'
 ```
 
-Both JSON-RPC transports also accept an array of request objects. HTTP always
-answers with an array; WebSocket answers a one-element batch with the bare
+Both JSON-RPC transports also accept an array of request objects. HTTP answers
+a batch carrying at least one request with an array; WebSocket answers a one-element batch with the bare
 object. `params` takes either the object form above or a positional
 array, and the array form requires every parameter the endpoint declares. Send
 `"params":{}` rather than omitting the key for an endpoint whose arguments are
@@ -48,7 +49,7 @@ JSON-RPC the argument goes through Amino, which takes base64 alone.
 
 Hex without the prefix is the trap worth naming. Hexadecimal characters are a
 subset of the base64 alphabet, so 64 hex characters decode cleanly into 48
-bytes of noise, so the node returns a "could not find tx result" error rather
+bytes of noise, so the node returns a `Could not find tx result` error rather
 than rejecting the argument.
 
 ```bash
@@ -309,7 +310,7 @@ panic gives a 500 whose body is still a JSON-RPC error.
 | `dial_seeds`, `dial_persistent_peers` | Removed. |
 | Hex output | Byte arrays go out as base64, never as hex. |
 
-Four `unsafe_*` endpoints, a mempool flush and the pprof profilers, are
+Four `unsafe_*` endpoints — a mempool flush and three pprof profilers — are
 registered only when a node runs with `rpc.unsafe = true`, which public nodes
 do not. They are not safe to expose: two of them write to a file path the
 caller chooses. An unregistered endpoint answers 404 on the URI transport and
@@ -317,7 +318,7 @@ caller chooses. An unregistered endpoint answers 404 on the URI transport and
 
 ## See also
 
-- [Querying On-Chain State](../builders/query-state-api.md) — the ABCI paths
-  carried over `abci_query`
+- [Querying On-Chain State](../builders/query-state-api.md) — the `vm/` JSON
+  state-traversal paths carried over `abci_query`
 - [RPC clients](../builders/rpc-clients.md) — client libraries
 - [Gno networks](./gnoland-networks.md) — node addresses and chain IDs
