@@ -72,6 +72,11 @@ type Plan struct {
 	Realms []string `json:"realms"`
 	// Dropped counts realms left out by the cap — never silently.
 	Dropped int `json:"dropped"`
+	// Missed are realms the crawl planned but never captured: a render page
+	// that errored or answered non-200. Filled in after the crawl, so the
+	// comment and the landing page describe the same snapshot instead of each
+	// deciding for itself and linking a page that was never written.
+	Missed []string `json:"missed,omitempty"`
 	// Dirs are the repo-relative package dirs handed to gnodev.
 	Dirs []string `json:"dirs"`
 	// ChangedFiles maps a changed realm to the base names of its files that the
@@ -158,6 +163,10 @@ func modFlags(p string) (draft, ignore bool) {
 		return false, false
 	}
 	for line := range strings.SplitSeq(string(b), "\n") {
+		// A trailing comment is not part of the value: `ignore = true # why`
+		// otherwise reads as neither true nor false, and the package is
+		// previewed as if it were live.
+		line, _, _ = strings.Cut(line, "#")
 		switch strings.ReplaceAll(strings.TrimSpace(line), " ", "") {
 		case "draft=true":
 			draft = true

@@ -118,6 +118,14 @@ func render(cfg config, plan *Plan) error {
 		return writeJSON(filepath.Join(cfg.out, "preview.json"), plan)
 	}
 
+	// Empty() is false for a gnoweb change, which renders the fixed seed sample
+	// instead. If none of those realms exist in this tree the sample is empty,
+	// and everything below indexes plan.Realms[0].
+	if len(plan.Realms) == 0 {
+		fmt.Println("nothing to preview: no realm to render")
+		return writeJSON(filepath.Join(cfg.out, "preview.json"), plan)
+	}
+
 	fmt.Printf("rendering %d realm(s): %s\n", len(plan.Realms), strings.Join(plan.Realms, " "))
 	stop, died, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
 	if err != nil {
@@ -143,6 +151,12 @@ func render(cfg config, plan *Plan) error {
 	assets := filepath.Join(cfg.root, "gno.land", "pkg", "gnoweb", "public")
 	if err := c.Write(cfg.out, assets); err != nil {
 		return err
+	}
+	for _, r := range plan.Realms {
+		if _, ok := c.FileOf(urlOf(r)); !ok {
+			plan.Missed = append(plan.Missed, r)
+			fmt.Fprintf(os.Stderr, "  ! %s: planned but never captured\n", r)
+		}
 	}
 	if err := writeFile(filepath.Join(cfg.out, "index.html"), Index(plan, c)); err != nil {
 		return err

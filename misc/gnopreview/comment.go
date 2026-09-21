@@ -32,6 +32,18 @@ func Comment(p *Plan, baseURL, pr string) string {
 		}
 		return fmt.Sprintf("[`%s`](%s%s/)", label, base, urlPath)
 	}
+	// A realm the crawl never captured has no page in the snapshot, so it is
+	// named without a link: the alternative is a bullet pointing at a 404.
+	missed := map[string]bool{}
+	for _, r := range p.Missed {
+		missed[r] = true
+	}
+	bullet := func(r string) string {
+		if missed[r] {
+			return "`" + r + "` (not rendered: the page did not load)"
+		}
+		return link(urlOf(r), r) + tabs(base, r)
+	}
 
 	switch p.Mode() {
 	case "gnoweb":
@@ -41,7 +53,7 @@ func Comment(p *Plan, baseURL, pr string) string {
 		}
 		b.WriteString(shotGrid(p.Shots, base))
 		for _, r := range p.Realms {
-			b.WriteString("- " + link(urlOf(r), r) + "\n")
+			b.WriteString("- " + bullet(r) + "\n")
 		}
 	default:
 		if p.Gnoweb {
@@ -60,7 +72,7 @@ func Comment(p *Plan, baseURL, pr string) string {
 		if len(p.ChangedRealms) > 0 {
 			b.WriteString(fmt.Sprintf("**Changed realms (%d)**\n\n", len(p.ChangedRealms)))
 			for _, r := range p.ChangedRealms {
-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
+				b.WriteString("- " + bullet(r) + "\n")
 			}
 			b.WriteString("\n")
 		}
@@ -77,7 +89,7 @@ func Comment(p *Plan, baseURL, pr string) string {
 				b.WriteString("_changed: " + "`" + strings.Join(p.ChangedPkgs, "`, `") + "`_\n\n")
 			}
 			for _, r := range indirect {
-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
+				b.WriteString("- " + bullet(r) + "\n")
 			}
 		}
 	}
@@ -165,11 +177,13 @@ func isSeed(pkgPath string, p *Plan) bool {
 // reviewer who opens the root URL still finds their way around.
 func Index(p *Plan, c *Crawler) string {
 	var rows strings.Builder
+	n := 0
 	for _, r := range p.Realms {
 		u := urlOf(r)
 		if _, ok := c.pages[u]; !ok {
 			continue
 		}
+		n++
 		rows.WriteString(fmt.Sprintf(
 			`    <li><a href="%s/"><code>gno.land%s</code></a> <a href="%s/_t/source/">source</a> <a href="%s/_t/help/">help</a></li>`+"\n",
 			strings.TrimPrefix(path.Dir(urlToFile(u)), "/"), u,
@@ -192,5 +206,5 @@ func Index(p *Plan, c *Crawler) string {
 search and links outside the preview do not work.</p>
 <ul>
 %s</ul>
-`, len(p.Realms), rows.String())
+`, n, rows.String())
 }

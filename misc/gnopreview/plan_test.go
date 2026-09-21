@@ -45,6 +45,10 @@ func fakeRepo(t *testing.T) string {
 	write("examples/gno.land/r/x/ignored/gnomod.toml",
 		"module = \"gno.land/r/x/ignored\"\nignore = true\n")
 	write("examples/gno.land/r/x/ignored/lib.gno", "package ignored\nimport \"gno.land/p/x/base/v0\"\n")
+	// same, with the flag carrying a trailing comment
+	write("examples/gno.land/r/x/ignored2/gnomod.toml",
+		"module = \"gno.land/r/x/ignored2\"\nignore = true # quarantined for now\n")
+	write("examples/gno.land/r/x/ignored2/lib.gno", "package ignored2\n")
 	pkg("examples/quarantined/gno.land/r/x/quar", "gno.land/r/x/quar",
 		"package quar\nimport \"gno.land/p/x/base/v0\"\n")
 	return root
@@ -119,6 +123,25 @@ func TestBuildPlan(t *testing.T) {
 			wantMode:   "both",
 		},
 		{
+			name:       "an ignored realm is not previewed even when it changed",
+			changed:    []string{"examples/gno.land/r/x/ignored/lib.gno"},
+			wantRealms: []string{},
+			wantMode:   "none",
+		},
+		{
+			name:       "ignore = true still holds with a comment after it",
+			changed:    []string{"examples/gno.land/r/x/ignored2/lib.gno"},
+			wantRealms: []string{},
+			wantMode:   "none",
+		},
+		{
+			name:       "the cap keeps the changed realm and restores alphabetical order",
+			changed:    []string{"examples/gno.land/p/x/base/v0/lib.gno", "examples/gno.land/r/x/other/lib.gno"},
+			maxRealms:  2,
+			wantRealms: []string{"gno.land/r/x/leaf", "gno.land/r/x/other"},
+			wantMode:   "realms",
+		},
+		{
 			name:       "cap keeps the changed realm and reports the rest",
 			changed:    []string{"examples/gno.land/p/x/base/v0/lib.gno", "examples/gno.land/r/x/other/lib.gno"},
 			maxRealms:  1,
@@ -151,6 +174,17 @@ func TestBuildPlan(t *testing.T) {
 			}
 			if got.Empty() != (tc.wantMode == "none") {
 				t.Errorf("Empty = %v; want %v", got.Empty(), tc.wantMode == "none")
+			}
+			// render pairs plan.Dirs[i] with plan.Realms[i] to find the realm
+			// in the merge-base checkout, so the two slices have to stay
+			// index-aligned: a drift renders one realm under another's name.
+			if len(got.Dirs) != len(got.Realms) {
+				t.Fatalf("Dirs = %d; want one per realm (%d)", len(got.Dirs), len(got.Realms))
+			}
+			for i, r := range got.Realms {
+				if want := "examples/" + r; got.Dirs[i] != want {
+					t.Errorf("Dirs[%d] = %q; want %q", i, got.Dirs[i], want)
+				}
 			}
 		})
 	}
@@ -274,5 +308,73 @@ func TestCommentNoBaseMakesNoClaim(t *testing.T) {
 	}
 	if !strings.Contains(got, "_shots/a.png") {
 		t.Errorf("comment dropped the after screenshot:\n%s", got)
+	}
+}
+
+// A trailing comment is not part of the value. Without the cut, a package
+// carrying `ignore = true # why` reads as neither true nor false and is
+// previewed as if it were live.
+func TestModFlagsTrailingComment(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		name               string
+		body               string
+		wantDraft, wantIgn bool
+	}{
+		{"plain", "module = \"x\"\nignore = true\n", false, true},
+		{"commented", "module = \"x\"\nignore = true # quarantined\n", false, true},
+		{"draft commented", "module = \"x\"\ndraft = true  # wip\n", true, false},
+		{"false stays false", "module = \"x\"\nignore = false # not yet\n", false, false},
+		{"neither", "module = \"x\"\n", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := filepath.Join(dir, strings.ReplaceAll(tc.name, " ", "_")+".toml")
+			if err := os.WriteFile(f, []byte(tc.body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			draft, ign := modFlags(f)
+			if draft != tc.wantDraft || ign != tc.wantIgn {
+				t.Errorf("modFlags = (draft %v, ignore %v); want (%v, %v)", draft, ign, tc.wantDraft, tc.wantIgn)
+			}
+		})
+	}
+}
+
+// The landing page skips realms the crawl never captured, so its header has to
+// count the rows it wrote and not the realms that were planned.
+func TestIndexCountsOnlyCapturedRealms(t *testing.T) {
+	t.Parallel()
+	p := &Plan{Realms: []string{"gno.land/r/x/leaf", "gno.land/r/x/other"}}
+	c := &Crawler{pages: map[string]*page{
+		"/r/x/leaf": {File: "r/x/leaf/index.html"},
+	}}
+	got := Index(p, c)
+	if !strings.Contains(got, "1 realm(s) rendered") {
+		t.Errorf("header does not count the captured realm alone:\n%s", got)
+	}
+	if strings.Contains(got, "gno.land/r/x/other") {
+		t.Error("an uncaptured realm got a row")
+	}
+}
+
+// A realm the crawl never captured must not get a link: the snapshot holds no
+// page for it, so the bullet would point at a 404 on the previews site.
+func TestCommentMissedRealmIsNotLinked(t *testing.T) {
+	t.Parallel()
+	p := &Plan{
+		Realms:        []string{"gno.land/r/x/leaf", "gno.land/r/x/other"},
+		ChangedRealms: []string{"gno.land/r/x/leaf", "gno.land/r/x/other"},
+		Missed:        []string{"gno.land/r/x/other"},
+	}
+	got := Comment(p, "https://example.test/pr-1", "1")
+	if !strings.Contains(got, "[`gno.land/r/x/leaf`](https://example.test/pr-1/r/x/leaf/)") {
+		t.Errorf("the captured realm lost its link:\n%s", got)
+	}
+	if strings.Contains(got, "(https://example.test/pr-1/r/x/other/)") {
+		t.Errorf("the uncaptured realm was linked:\n%s", got)
+	}
+	if !strings.Contains(got, "`gno.land/r/x/other` (not rendered") {
+		t.Errorf("the uncaptured realm was not called out:\n%s", got)
 	}
 }

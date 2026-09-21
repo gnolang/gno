@@ -73,6 +73,10 @@ jobs:
       # coarse (a *_test.gno edit matches examples/**); the plan is exact.
       - name: Plan the preview
         id: plan
+        # `shell: bash` for pipefail: the default `bash -e` takes the pipeline's
+        # exit status from tee, so a gnopreview that fails leaves plan.json empty
+        # and the jq gate below it reads nothing and never sets skip.
+        shell: bash
         run: |
           cd misc/gnopreview && go build -o "$RUNNER_TEMP/gnopreview" . && cd -
           "$RUNNER_TEMP/gnopreview" plan -changed changed.txt | tee plan.json

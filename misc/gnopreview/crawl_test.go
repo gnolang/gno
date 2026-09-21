@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -374,5 +375,49 @@ func TestInScopeStopsFollowingArgumentsOnceSpent(t *testing.T) {
 		if !c.inScope(u) {
 			t.Fatalf("%s left scope with the argument budget spent", u)
 		}
+	}
+}
+
+// gnowebLayout is the template that emits the robots tag setNoindex replaces.
+const gnowebLayout = "../../gno.land/pkg/gnoweb/components/layouts/head.html"
+
+// robotsRe is written against one spelling of gnoweb's robots tag, and the two
+// live in separate modules, so nothing but reading the template ties them
+// together: reorder its attributes and setNoindex silently falls to its <head>
+// arm, shipping `index, follow` and `noindex, nofollow` on the same page.
+func TestNoindexMatchesGnowebLayout(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile(gnowebLayout)
+	if err != nil {
+		t.Fatalf("%s: %v (moved? robotsRe must be rechecked against its robots tag)", gnowebLayout, err)
+	}
+	src := string(b)
+	if !robotsRe.MatchString(src) {
+		t.Fatalf("robotsRe does not match the robots tag in %s, so a preview page would carry two", gnowebLayout)
+	}
+	got := setNoindex(src)
+	if n := strings.Count(got, `name="robots"`); n != 1 {
+		t.Errorf("robots metas after setNoindex = %d; want 1", n)
+	}
+	if strings.Contains(got, `content="index, follow"`) {
+		t.Error("setNoindex left gnoweb's index, follow in place")
+	}
+	if !strings.Contains(got, noindexTag) {
+		t.Error("setNoindex did not write the noindex tag")
+	}
+}
+
+// A page with a head but no robots tag must take the <head> arm, not the
+// prepend fallback: a meta ahead of <!doctype html> puts the page in quirks
+// mode. Counting the tags cannot tell the two apart.
+func TestSetNoindexInsertsInsideHead(t *testing.T) {
+	t.Parallel()
+	const body = "<!doctype html>\n<html><head><title>t</title></head><body>b</body></html>"
+	got := setNoindex(body)
+	if !strings.HasPrefix(got, "<!doctype html>") {
+		t.Errorf("noindex written ahead of the doctype: %q", got[:40])
+	}
+	if want := "<head>" + noindexTag; !strings.Contains(got, want) {
+		t.Errorf("noindex not inserted at the head: %q", got)
 	}
 }
