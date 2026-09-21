@@ -113,7 +113,14 @@ func openStateStore(dataDir, chainID string) (*stateStore, error) {
 
 // lastVerifiedHeight is the recorded cursor, or noCursor when nothing has been
 // recorded yet.
+//
+// A nil store answers noCursor rather than panicking. An oracle without one
+// keeps no cursor, which is a run that records nothing, not a crash -- and it
+// is what a test building a bare oracle gets.
 func (s *stateStore) lastVerifiedHeight() int64 {
+	if s == nil {
+		return noCursor
+	}
 	return s.height
 }
 
@@ -123,7 +130,7 @@ func (s *stateStore) lastVerifiedHeight() int64 {
 // goroutine draining a FIFO, so h only ever grows, and refusing a rewind here
 // means a future second writer cannot silently undo progress.
 func (s *stateStore) setLastVerifiedHeight(h int64) error {
-	if h <= s.height {
+	if s == nil || h <= s.height {
 		return nil
 	}
 	return s.reset(h)
@@ -131,6 +138,9 @@ func (s *stateStore) setLastVerifiedHeight(h int64) error {
 
 // reset records h as fully verified even when that moves the cursor backwards.
 func (s *stateStore) reset(h int64) error {
+	if s == nil {
+		return nil
+	}
 	// Indented, and not for looks: the file is an operator interface --
 	// scenarios and humans grep it -- so `"last_verified_height": 42` with the
 	// space is part of its shape. json.Marshal would save ~300ns per block and

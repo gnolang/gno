@@ -150,3 +150,16 @@ func TestStateRefusesAFileWithNoChainID(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "test-chain")
 }
+
+// TestNilStateIsAStoreThatRecordsNothing: an oracle built without a store --
+// which every test that constructs a bare literal is -- must not panic the
+// moment it reaches the cursor. It keeps no cursor, so it reads as noCursor and
+// its writes go nowhere.
+func TestNilStateIsAStoreThatRecordsNothing(t *testing.T) {
+	var s *stateStore
+
+	assert.Equal(t, noCursor, s.lastVerifiedHeight())
+	assert.NoError(t, s.setLastVerifiedHeight(42))
+	assert.NoError(t, s.reset(42))
+	assert.Equal(t, noCursor, s.lastVerifiedHeight(), "a nil store forgets what it was told")
+}

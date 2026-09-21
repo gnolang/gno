@@ -697,10 +697,11 @@ func (o *oracle) handleCandidate(ctx context.Context, mpkg *std.MemPackage, heig
 		return
 	}
 	if errors.Is(err, errAwaitingDependency) {
-		// Left unseen, so a resubmission or a restart once the import is
-		// enabled gets a fresh look, and uncounted: a cap would end in the
-		// outcome this branch exists to prevent, valid bytes refused for the
-		// order they were sent in.
+		// Left unseen, so a resubmission once the import is enabled gets a
+		// fresh look, and uncounted: a cap would end in the outcome this branch
+		// exists to prevent, valid bytes refused for the order they were sent
+		// in. A bare restart is not a retry: the cursor advances past this
+		// height, so it takes -start-height at or below it.
 		o.status.record(path, statusPending, err.Error(), 0)
 		o.logf("gpao: %q waits on a parked import, leaving it pending: %v", path, err)
 		return

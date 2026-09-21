@@ -196,7 +196,9 @@ reported once the import is live. An import the chain reports live but would
 not serve is fetched once more: a package enabled during the fetch resolves,
 and one whose files `vm/qfile` cannot serve leaves the package pending as
 unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
-pending package by itself: resubmit it, or restart, once the import is live.
+pending package by itself: once the import is live, resubmit it, or restart with
+`--start-height` at or below the block that submitted it. A bare restart resumes
+*past* it, the same way it does for an exceeded budget.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
