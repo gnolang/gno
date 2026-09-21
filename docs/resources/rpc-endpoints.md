@@ -54,16 +54,13 @@ than rejecting the argument.
 ```bash
 # the + percent-encoded, as it has to be
 curl -s 'https://rpc.gno.land:443/tx?hash=%22SzaFJZgg%2BQIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o%3D%22'
-# {"hash":"SzaFJZgg+QIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o=","height":"206563","index":0,...}
+# {"jsonrpc":"2.0","id":"","result":{"hash":"SzaFJZgg+QIF...","height":"206563","index":0,...}}
 
 # the same hash with a literal +, which the query string reads as a space
 curl -s 'https://rpc.gno.land:443/tx?hash=%22SzaFJZgg+QIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o%3D%22'
-# {"error":{"code":-32602,"message":"Invalid params",
-#           "data":"illegal base64 data at input byte 8"}}
+# {"jsonrpc":"2.0","id":"","error":{"code":-32602,"message":"Invalid params",
+#                                    "data":"illegal base64 data at input byte 8"}}
 ```
-
-That first response also shows the encoding rule below at work: `height` comes
-back quoted and `index` bare.
 
 ## Node and network
 
@@ -110,9 +107,10 @@ chunked variant.
 
 ## Blocks
 
-Committed chain state, addressed by height. Where `height` is optional it
-defaults to the latest block, except on `validators` and `consensus_params`,
-which default one block further on.
+Chain state by height, plus the two consensus_state endpoints, which take
+nothing and report the live round rather than a committed block. Where
+`height` is optional it defaults to the latest block, except on `validators`
+and `consensus_params`, which default one block further on.
 
 ### `blockchain`
 
@@ -165,9 +163,9 @@ than integrators.
 
 ## Transactions
 
-Sending a transaction and looking one up. A transaction is found by exact hash
-only; the three broadcast endpoints differ in how long they wait and therefore
-in how much of the outcome they can tell you.
+Sending a transaction, looking one up, and reading the mempool. A transaction
+is found by exact hash only, and the three broadcast endpoints differ in how
+much of the outcome they report back.
 
 ### `tx`
 
@@ -210,8 +208,10 @@ returns the same shape with `txs` left null.
 
 ## Application
 
-The two endpoints that reach past consensus into the application. The query
-paths they carry — `auth/`, `bank/`, `vm/`, `params/` — are documented in
+The two endpoints that reach past consensus into the application. Only
+`abci_query` carries a path, and paths come in two shapes: the module routes
+`auth/`, `bank/`, `vm/` and `params/`, and the two special prefixes `.app/`
+and `.store/`. The JSON endpoints under `vm/` are documented in
 [Querying On-Chain State](../builders/query-state-api.md).
 
 ### `abci_query`
@@ -233,13 +233,13 @@ curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kz
 #               "Key": null, "Value": null, "Proof": null, "Height": "0" }
 ```
 
-The account is in `Data`, base64, two levels down — `Key` and `Value` stay
-null on the module paths:
+The account is in `Data`, base64, two levels down. `Key` and `Value` stay null
+on the module paths, and so does `Height`, whatever height was asked for:
 
 ```bash
 curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kzduec920z88wfr64ylksmdcedlf5%22' \
   | jq -r '.result.response.ResponseBase.Data' | base64 -d
-# {"BaseAccount":{"address":"g1manfred...","coins":"110294549738ugnot",...}}
+# {"BaseAccount":{"address":"g1manfred47kzduec920z88wfr64ylksmdcedlf5",...}}
 ```
 
 `prove` returns real proof operations only on the store paths, which take their
