@@ -857,7 +857,8 @@ as a pair, and ideally cover the bypass with a regression test using
 Alternatives considered:
 
 - **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
-  intermediaries, no MsgRun". Correct, but stricter than most realms want:
+  intermediary realm, no MsgRun" (calls within your own realm and through
+  `/p/` helpers are fine). Correct, but stricter than most realms want:
   rejects `testing.NewUserRealm`-based unit tests in some configurations and
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).

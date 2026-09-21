@@ -2882,7 +2882,7 @@ func (m *Machine) NumCallFrames() int {
 	count := 0
 	for i := range m.Frames {
 		fr := &m.Frames[i]
-		if fr.Func != nil && !fr.Func.IsClosure {
+		if fr.IsCall() && !fr.Func.IsClosure {
 			count++
 		}
 	}
@@ -2892,25 +2892,20 @@ func (m *Machine) NumCallFrames() int {
 // ownsItsStorage reports whether r is a realm that has storage of its own. A
 // /p/ package does not: the Machine names it as the current realm while its
 // code runs, but the borrow rule puts its writes in whoever called it, so it
-// is the caller's code and a call into it is not a realm boundary. Without
-// this, every func literal in a pure package reads as a foreign realm. The
-// answer is the PkgID flag the finalizer reads, not a path match, so the two
-// cannot drift apart.
+// is the caller's code and a call into it is not a realm boundary. The answer
+// is the PkgID flag the finalizer reads, not a path match, so the two cannot
+// drift apart.
 func ownsItsStorage(r *Realm) bool {
 	return r != nil && r.ID.IsRealmPkg()
 }
 
-// NumCallBoundaryFrames returns the number of frames that stand for a call
-// boundary: every named function call, plus every func literal that was
-// entered from outside its own realm. Control-flow basic frames (for/range/
-// switch, where Func is nil) never count.
-//
-// A func literal is part of its caller's body for as long as it runs with its
-// caller's storage authority, which is what lets a realm factor its own code
-// into closures without changing how the call looks from outside. It stops
-// being that the moment it runs with someone else's, because then it is a call
-// made by another party, and counting it is the only thing that keeps the realm
-// boundary visible in the count.
+// NumCallBoundaryFrames returns the number of realm boundaries on the stack:
+// the frame that entered the first storage-owning realm, plus every frame
+// whose body runs in a storage-owning realm other than the nearest one below
+// it. Named and literal functions are treated alike, /p/ and stdlib frames are
+// looked through in both directions, and control-flow basic frames (for/range/
+// switch, where Func is nil) never count. This is not isRealmBoundary, which
+// serves finalization and fires on /p/ and stdlib frozen realms too.
 //
 // The test is the storage realm on each side of the call, NOT the crossing
 // flags and NOT the declaring package, both of which were tried and are wrong:
@@ -2925,36 +2920,40 @@ func ownsItsStorage(r *Realm) bool {
 //   - The declaring package is wrong for a func literal in a /p/ package: it
 //     has no storage of its own and borrows the caller's, so it is the
 //     caller's code however different the two paths look.
-//
-// Walking from the entry frame inwards, a frame's body realm is the next call
-// frame's LastRealm, and its caller is the nearest storage-owning realm below
-// it: /p/ and stdlib frames are looked through in both directions, so a
-// realm's closure handed to a /p/ helper still reads as called by the realm.
-// Realms are compared by ID, not pointer, because a realm can be reloaded from
-// the store. A nil LastRealm means the call came from the message rather than
-// from Gno code, so the frame counts like any other entry point.
 func (m *Machine) NumCallBoundaryFrames() int {
+	return m.NumCallBoundaryFramesFrom(0)
+}
+
+// NumCallBoundaryFramesFrom is NumCallBoundaryFrames over m.Frames[start:],
+// with no caller below the first frame.
+func (m *Machine) NumCallBoundaryFramesFrom(start int) int {
+	first := start
+	for first < len(m.Frames) && !m.Frames[first].IsCall() {
+		first++
+	}
+	if first == len(m.Frames) {
+		return 0
+	}
+	// A frame's body realm is the next call frame's LastRealm, m.Realm for the
+	// innermost. Realms are compared by ID, since one can be reloaded from the
+	// store; a storage-owning ID is never zero, so zero means no caller yet.
 	count := 0
-	var caller *Realm // nearest storage-owning realm below fr; nil is the message
-	for i := range m.Frames {
-		fr := &m.Frames[i]
-		if !fr.IsCall() {
+	var callerID PkgID
+	for i := first + 1; i <= len(m.Frames); i++ {
+		body := m.Realm
+		if i < len(m.Frames) {
+			if !m.Frames[i].IsCall() {
+				continue
+			}
+			body = m.Frames[i].LastRealm
+		}
+		if !ownsItsStorage(body) {
 			continue
 		}
-		body := m.Realm // the innermost call frame runs in the current realm
-		for j := i + 1; j < len(m.Frames); j++ {
-			if m.Frames[j].IsCall() {
-				body = m.Frames[j].LastRealm
-				break
-			}
-		}
-		owns := ownsItsStorage(body)
-		if !fr.Func.IsClosure || fr.LastRealm == nil || owns && (caller == nil || caller.ID != body.ID) {
+		if body.ID != callerID {
 			count++
 		}
-		if owns {
-			caller = body
-		}
+		callerID = body.ID
 	}
 	return count
 }

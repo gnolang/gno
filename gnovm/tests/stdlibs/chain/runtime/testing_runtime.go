@@ -39,35 +39,33 @@ func typedString(s gno.StringValue) gno.TypedValue {
 	return tv
 }
 
+// isOriginCall mirrors stdlibs/chain/runtime.isOriginCall with the test
+// function standing in for the message: the first storage-owning realm
+// entered after it is the entry realm, and no other realm may follow.
 func isOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
-	// Count the frames that are a call boundary (excludes control-flow basic
-	// frames like for/range/switch, and same-realm closures). Keep in sync
-	// with stdlibs/chain/runtime.isOriginCall.
-	callFrames := m.NumCallBoundaryFrames()
-	switch tname {
-	case "main": // test is a _filetest
-		// Call-boundary frames expected:
-		// 0. main
-		// 1. $RealmFuncName
-		// 2. runtime.AssertOriginCall
-		return callFrames == 3
-	case "RunTest", "runTest_cur": // _test, with or without (cur realm, t *testing.T)
-		// Call-boundary frames expected:
+	var start int // first frame after the test function
+	switch {
+	case tname == "main", strings.HasPrefix(string(tname), "init."): // _filetest
+		start = 1
+	case tname == "RunTest", tname == "runTest_cur": // _test, with or without (cur realm, t *testing.T)
 		// 0. testing.RunTest / runTest_cur
 		// 1. tRunner / tRunner_cur
 		// 2. $TestFuncName / $TestFuncName_cur
-		// 3. $RealmFuncName
-		// 4. runtime.AssertOriginCall
-		return callFrames == 5
+		start = 3
+	default:
+		panic("unable to determine if test is a _test or a _filetest")
 	}
-	// support init() in _filetest
-	// XXX do we need to distinguish from 'runtest'/_test?
-	// XXX pretty hacky even if not.
-	if strings.HasPrefix(string(tname), "init.") {
-		return callFrames == 3
+	// The entry is a realm function the message named, never the asserting
+	// frame itself; basic frames (for/range/switch) are not calls.
+	entry := start
+	for entry < len(m.Frames) && !m.Frames[entry].IsCall() {
+		entry++
 	}
-	panic("unable to determine if test is a _test or a _filetest")
+	if entry >= len(m.Frames)-1 {
+		return false
+	}
+	return m.NumCallBoundaryFramesFrom(start) == 1
 }
 
 // anyLiveOverride reports whether any on-stack frame carries a live

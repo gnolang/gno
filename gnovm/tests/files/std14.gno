@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/test
+package test
 
 import "chain/runtime"
 
@@ -11,15 +12,12 @@ func helper() {
 }
 
 func main() {
-	// Case 1: closure wrapping Register — should NOT panic.
-	// Closures are transparent: main → Register → AssertOriginCall (3 call frames).
+	// Closures in the realm are transparent.
 	func() {
 		Register()
 	}()
 	println("closure call ok")
 
-	// Case 2: nested closures wrapping Register — should NOT panic.
-	// All closures are transparent: main → Register → AssertOriginCall (3 call frames).
 	func() {
 		func() {
 			Register()
@@ -27,21 +25,13 @@ func main() {
 	}()
 	println("nested closure call ok")
 
-	// Case 3: named function calling Register — SHOULD panic.
-	// main → helper → Register → AssertOriginCall (4 call frames > 3).
-	panicked := false
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				panicked = true
-			}
-		}()
-		helper()
-	}()
-	println("named func call panicked:", panicked)
+	// A named function in the same realm is transparent too: nothing on the
+	// stack runs with another realm's storage authority.
+	helper()
+	println("named func call ok")
 }
 
 // Output:
 // closure call ok
 // nested closure call ok
-// named func call panicked: true
+// named func call ok

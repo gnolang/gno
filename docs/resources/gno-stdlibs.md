@@ -626,7 +626,7 @@ coins.Add(otherCoins)
 ```go
 func AssertOriginCall()
 ```
-Panics if caller of function is not an EOA. Only allows `MsgCall` transactions; panics on `MsgRun` calls.
+Panics unless the current realm was entered directly by a `MsgCall` naming it, with no other realm between the message and this call. Calls within the realm, through its own closures, or through `/p/` and stdlib helpers are transparent. Panics on `MsgRun` calls.
 
 ##### Usage
 ```go

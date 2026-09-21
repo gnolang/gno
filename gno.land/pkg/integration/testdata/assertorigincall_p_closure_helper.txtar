@@ -1,4 +1,5 @@
 loadpkg gno.land/p/demo/helper $WORK/p/demo/helper
+loadpkg gno.land/r/runner $WORK/r/runner
 loadpkg gno.land/r/wug $WORK/r/wug
 loadpkg gno.land/r/relay $WORK/r/relay
 
@@ -8,12 +9,25 @@ gnoland start
 gnokey maketx call -pkgpath gno.land/r/wug -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stdout 'OK!'
 
-## named /p/ helper is still a call boundary: PANIC (unchanged from master)
-! gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
-stderr 'invalid non-origin call'
+## honest: wug.DepositNamed -> helper.RunNamed (/p/ named) -> wug's own closure: PASS
+gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+## honest: wug.DepositLocal -> wug.run (own named helper) -> wug's own closure: PASS
+gnokey maketx call -pkgpath gno.land/r/wug -func DepositLocal -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout 'OK!'
 
 ## attacker: relay.Go -> helper.Run (/p/ closure) -> wug.Check (wug's exported closure): PANIC
 ! gnokey maketx call -pkgpath gno.land/r/relay -func Go -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: relay.GoNamed -> helper.RunNamed (/p/ named) -> wug.Check: PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func GoNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## wug.Deposit's shape, but the closure runner is another realm's named
+## function: runner.Run is a boundary because runner owns storage. PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositViaRunner -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
 -- p/demo/helper/helper.gno --
@@ -23,6 +37,12 @@ var Run = func(f func()) { f() }
 
 func RunNamed(f func()) { f() }
 
+-- r/runner/runner.gno --
+package runner
+
+// Run is a named closure runner in a realm that owns storage, unlike helper's.
+func Run(f func()) { f() }
+
 -- r/wug/wug.gno --
 package wug
 
@@ -30,6 +50,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/helper"
+	"gno.land/r/runner"
 )
 
 func Deposit(cur realm) {
@@ -39,6 +60,16 @@ func Deposit(cur realm) {
 func DepositNamed(cur realm) {
 	helper.RunNamed(func() { runtime.AssertOriginCall() })
 }
+
+func DepositLocal(cur realm) {
+	run(func() { runtime.AssertOriginCall() })
+}
+
+func DepositViaRunner(cur realm) {
+	runner.Run(func() { runtime.AssertOriginCall() })
+}
+
+func run(f func()) { f() }
 
 var Check = func() { runtime.AssertOriginCall() }
 
@@ -52,4 +83,8 @@ import (
 
 func Go(cur realm) {
 	helper.Run(wug.Check)
+}
+
+func GoNamed(cur realm) {
+	helper.RunNamed(wug.Check)
 }

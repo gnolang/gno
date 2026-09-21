@@ -19,22 +19,19 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 	}
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm"))
-	// CallAssertOriginCall() from a block: abort
+	// CallAssertOriginCall() from a function literal: no panic. The test's
+	// own closure is the caller's code, not another realm on the stack.
 	r := revive(func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal block).
 		if tests.CallIsOriginCall(cross(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		tests.CallAssertOriginCall(cross(cur)) // <---
+		tests.CallAssertOriginCall(cross(cur))
 	})
-	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
-		t.Error("expected abort but did not")
+	if r != nil {
+		t.Errorf("expected no abort but got %v", r)
 	}
-	// CallSubtestsAssertOriginCall(): abort
+	// CallSubtestsAssertOriginCall(): abort, a second realm is on the stack.
 	r = revive(func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal block).
 		if tests.CallSubtestsIsOriginCall(cross(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
