@@ -51,8 +51,11 @@ at any time for the in-terminal help menu (see [Interactive controls](#interacti
   load up front; `examples/` packages resolve on demand the first time they're
   referenced.
 - `gnodev staging` is tuned for server use: no interactive mode, no unsafe API,
-  and JSON logs. On top of the workspace and `-extra-root`, all of `examples/`
-  is eager-loaded at startup (use `-no-examples` to skip it).
+  JSON logs, and **no file watching**, because a staging chain should reload
+  when its operator restarts it and not when a file moves underneath it. On top
+  of the workspace and `-extra-root`, all of `examples/` is eager-loaded at
+  startup (use `-no-examples` to skip it). Pair it with `-state-dir` to keep the
+  chain's history across restarts.
 
 ## Features
 
@@ -125,6 +128,66 @@ transaction](../users/interact-with-gnokey.md#making-an-airgapped-transaction):
 
 `gnodev` watches the working directory and reloads the node on every `.gno`
 save, replaying prior transactions to preserve state across reloads.
+
+### Persisting history across restarts
+
+`gnodev` is normally ephemeral: the node is in-memory, and everything sent to it
+dies with the process. `-state-dir` changes that, and makes a run's output the
+next run's input:
+
+```bash
+gnodev staging -chain-id acme-staging -state-dir ./stagingdata ./contracts
+```
+
+Every transaction the chain commits is appended to a segment under
+`./stagingdata/history/`, and replayed on the next start. So a gnodev with a
+state dir draws on three sources:
+
+| Source | Where it comes from | How it is treated |
+|---|---|---|
+| Base | the binary and `$GNOROOT/examples` | rebuilt from source on every start |
+| Local | `[package_dir...]` and `-extra-root` | rebuilt from source on every start |
+| History | `-state-dir` | replayed after the package deployments |
+
+The first two are declarative: the latest code on disk wins. The third is an
+append-only log of everything anyone has sent to this chain.
+
+```
+stagingdata/
+  MANIFEST.json          schema version, chain id, epoch and transaction counts
+  history/
+    000001.jsonl         one segment per run, plus a new one past the size cap
+    000002.jsonl
+```
+
+A segment holds one amino-JSON `gnoland.TxWithMetadata` per line. That is the
+same encoding `tx-archive` writes, `-txs-file` and `gnoland start
+--genesis-txs-file` read, and `gnogenesis fork generate --source-txs-jsonl-file`
+consumes, so a segment can be archived or replayed by any of them with no
+conversion.
+
+Notes:
+
+- `-state-dir` cannot be combined with `-txs-file` or `-genesis`: the state dir
+  owns the history.
+- Opening a state dir whose manifest names a different `-chain-id` is an error,
+  rather than replaying one chain's transactions onto another.
+- Writes are buffered and flushed every few seconds, before every reload, and on
+  a clean shutdown. A hard kill can lose the last partial line, which is dropped
+  with a warning on the next start rather than making the directory unopenable.
+- Transactions that failed on-chain are not recorded, matching what gnodev
+  replays from its own block store today.
+- In a container, mount the state dir and the contracts directory and nothing
+  else:
+
+```bash
+docker run \
+  -v ./contracts:/contracts:ro \
+  -v ./stagingdata:/data \
+  -p 8888:8888 -p 26657:26657 \
+  <gnodev-image> \
+  staging -chain-id acme-staging -state-dir /data -extra-root /contracts
+```
 
 ### Genesis and node tuning
 
@@ -213,6 +276,7 @@ terminal; it turns off when output is piped or redirected, and in
 | `-interactive` | Force interactive controls when stdout is not a terminal (on by default in local at a terminal, off in staging) |
 | `-no-watch` | Disable file watching |
 | `-no-replay` | Skip transaction replay across reloads |
+| `-state-dir <dir>` | Persist and replay the chain's transaction history (see [Persisting history across restarts](#persisting-history-across-restarts)) |
 
 Run `gnodev --help` for the full flag list.
 
