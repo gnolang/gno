@@ -187,8 +187,10 @@ directions:
   cut; running it early is the same divergence from the other side.
 
 Both checks are skipped entirely when `halt_height` is `0` or
-`halt_min_version` is empty. A halt proposal that leaves the version empty is a
-coordinated *pause*, not an upgrade gate.
+`halt_min_version` is empty. A halt proposal that leaves the version empty still
+coordinates an upgrade — validators stop together and swap binaries — it just
+does so **with no gate**, which is what happens when the binaries carry no
+version the comparison can parse.
 
 An operator who has already migrated out-of-band can bypass both:
 
