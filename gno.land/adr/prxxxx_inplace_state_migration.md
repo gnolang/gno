@@ -210,15 +210,12 @@ already-deployed realm, for the reason in Open questions.
 
 ### Where it hooks
 
-`baseApp.SetBeginBlocker` (`tm2/pkg/sdk/options.go:68`) exists and gno.land does
-not use it — `app.go` sets only `InitChainer`, `AnteHandler`, tx hooks and
-`EndBlocker`. `BaseApp.BeginBlock` calls it at `baseapp.go:622`, after the halt
-check (`:596`) and after `deliverState` is prepared.
-
-The new `BeginBlocker` goes in `app.go` beside the existing `EndBlocker`, built
-the same way: a constructor taking what it needs — `prmk` and the `Env` — and
-returning the `sdk.BeginBlocker` closure (`tm2/pkg/sdk/abci.go:12`), wired with
-`baseApp.SetBeginBlocker(...)` next to the `SetEndBlocker` call at `app.go:262`.
+`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:622`, after the halt
+check (`:596`) and once `deliverState` is prepared. The new one goes in `app.go`
+beside the existing `EndBlocker`, built the same way: a constructor taking what
+it needs — `prmk` and the `Env` — and returning the `sdk.BeginBlocker` closure
+(`tm2/pkg/sdk/abci.go:12`), wired with `baseApp.SetBeginBlocker`
+(`tm2/pkg/sdk/options.go:68`) next to the `SetEndBlocker` call at `app.go:262`.
 
 It runs at `req.Height == haltHeight+1`, mirroring the EndBlocker's existing
 exact-height arming at `app.go:1151-1162`:
@@ -250,15 +247,13 @@ AppHash. The handler is needed either way — and running it outside consensus
 means a node that migrates differently diverges silently instead of failing at a
 block.
 
-So the handler runs in-block, and everything that follows from that — no dry
-run, determinism, no rollback — is a consequence rather than a choice.
+So the handler runs in-block, and what follows is a consequence rather than a
+choice.
 
 ## Consequences
 
 **No dry run exists.** A handler is arbitrary code that commits inside a block
-on every validator, and there is no way to rehearse one first. Something like
-`gnoland upgrade dry-run --at <height>` against a copy of the data dir has to be
-built alongside the first real handler.
+on every validator, with no way to rehearse it first.
 
 **Determinism and bounded execution.** Every validator runs the handler inside a
 block: byte-identical output, no OOM, no block-timeout blowout.
@@ -325,8 +320,8 @@ exactly the replay that cannot reach the right AppHash. What the stop needs is t
 become machine-readable, so a supervisor can act on it rather than the node
 idling until an operator notices.
 
-*Read from `app.go:1151-1162` and `baseapp.go:596`; confirm against a real sync
-of `gnoland-1` before acting on it.*
+Except for manual snapshots, which exist today, both a supervisor and state sync
+would require real work, and neither is part of this ADR.
 
 ## Alternatives considered
 
@@ -363,11 +358,34 @@ parse — so the name would carry no information the version does not.
 
 ## Open questions
 
-1. **Can a handler change the code of a deployed realm?** `addpkg` refuses a
-   path that already exists. If that cannot be worked around from inside a
-   handler, realm code changes are blocked on a VM change rather than on upgrade
-   plumbing — and that is most of what an upgrade wants to do. This needs
-   answering before anything else here is built.
+1. **Can a handler change the code of a deployed realm?** Deploying a *new*
+   package is fine — nothing occupies the path. Replacing one is the question,
+   and it has two layers.
+
+   `AddPackage` refuses outright: `if pv != nil && !pv.Private` returns
+   `ErrPkgAlreadyExists` (`gno.land/pkg/sdk/vm/keeper.go:801-805`). That is a
+   keeper policy, not a store limitation, and a handler holds `Env.VM` and
+   `Env.BaseKey`, so it could write beneath it.
+
+   The layer that matters is what happens next. A realm's stored objects were
+   created under the old code's type declarations, and those declarations live
+   in the store too. Replacing the code leaves existing objects typed by
+   definitions the new code may no longer declare, or declare differently, and
+   nothing defines what the VM does with them.
+
+   The two are really one operation: changing a realm's code generally means
+   rewriting its stored objects to match, and a handler is where that rewrite
+   would live. It has the store, so the state side is not the obstacle. The
+   question is whether the VM will accept new declarations at a path whose
+   objects are still typed by the old ones, and in which order the code and the
+   objects have to move. Until that has an answer, a handler can add realms and
+   rewrite ordinary state but cannot evolve a realm in place — which is a large
+   part of what an upgrade is usually for.
+
+   Deferred to a subsequent ADR by decision, rather than left open here. It
+   needs tooling that does not exist — some way to express the rewrite of stored
+   objects alongside the code change, and to verify the result before it reaches
+   a validator — and that is a body of work of its own.
 2. **Should the chain record which upgrades it has applied**, and check that
    record at startup so a binary can refuse a chain it does not understand? That
    is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. It is redundant
@@ -388,15 +406,23 @@ parse — so the name would carry no information the version does not.
    is queryable but names only the most recent. The `app` entry of the p2p
    `VersionSet` is the natural home for something better, and is fed by
    `state.AppVersion`, which nothing populates today.
-3. **Should the mechanism be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
-   about "run a registered handler at a height, record that it ran, check the
-   record at startup" is gno-specific, and the machinery it builds on is already
-   in tm2: `SetHaltHeight`, the `BeginBlock` panic at `baseapp.go:596`, the
-   `HaltHeight`/`SkipUpgradeHeight` config fields, the `BeginBlocker` type.
-   `tm2/pkg/sdk` is where the generic modules live — `auth`, `bank`, `params` —
-   while `gno.land/pkg/sdk` holds only `vm`. That is the split this would follow:
-   the mechanism in tm2, the `Upgrades` list and the handler bodies in gno.land,
-   the same division Cosmos draws between `x/upgrade` and a chain's own app.
+3. **Should the new code be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
+   about "register a handler under a version, run it at a height" is
+   gno-specific, and `tm2/pkg/sdk` is where the generic modules live — `auth`,
+   `bank`, `params` — while `gno.land/pkg/sdk` holds only `vm`. The split would
+   be the mechanism in tm2, the `Upgrades` list and the handler bodies in
+   gno.land, as Cosmos divides `x/upgrade` from a chain's own app.
+
+   **The question is only about the new code.** Pulling the existing halt
+   machinery in behind it is a separate and worse proposition:
+
+   - `skip_upgrade_height` does not belong to a module. It is a `BaseConfig`
+     field consumed by `gnoland start` and threaded through `NewApp`, and the
+     start command is global — it is not scoped to any module and has no reason
+     to learn about one.
+   - The EndBlocker arming, the `BeginBlock` panic and the startup gates work,
+     and have now been exercised three times on mainnet. Moving working
+     consensus-path code to reshape it buys structure and spends risk.
 
    The halt params are not in question either way: they stay `node:p:*`,
    validated by the `nodeParamsKeeper` registered under that prefix, and any
@@ -408,21 +434,3 @@ parse — so the name would carry no information the version does not.
    none and its handlers close over the app instead, through a per-upgrade
    constructor. Choosing tm2 means accepting that shape; keeping the mechanism in
    gno.land is what makes a typed `Env` possible at all.
-
-## Phasing
-
-1. Pick and build one of the three answers in *Syncing past an upgrade height*,
-   starting with manual snapshots. Everything else is blocked on it.
-2. Answer open question 1. Everything downstream depends on it.
-3. The upgrade registry and the BeginBlocker. No param changes and no new
-   state — `halt_min_version` already carries what is needed.
-4. First real handler, with a dry-run tool.
-
-Worth folding into whichever phase touches the params: the halt params have **no
-`.txtar` coverage at all** — zero hits across `gno.land/pkg/integration/testdata/`
-and `misc/gnoe2e/testdata/` for `halt_height`, `halt_min_version`, `node:p:`,
-`NewSetHaltRequest` or `set_halt`, while the valset half of the same keeper has
-around ten (`params_valset_*.txtar`). Existing coverage is Go unit tests only:
-`app_test.go:2476-2560` (`WillSetParam`), `:3442-3519`
-(`TestCheckNodeStartupParams`, including the skip-bypass case) and `:3520-3592`
-(`TestEndBlockerHalt`).
