@@ -51,6 +51,20 @@ subset of the base64 alphabet, so 64 hex characters decode cleanly into 48
 bytes of noise, so the node returns a "could not find tx result" error rather
 than rejecting the argument.
 
+```bash
+# the + percent-encoded, as it has to be
+curl -s 'https://rpc.gno.land:443/tx?hash=%22SzaFJZgg%2BQIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o%3D%22'
+# {"hash":"SzaFJZgg+QIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o=","height":"206563","index":0,...}
+
+# the same hash with a literal +, which the query string reads as a space
+curl -s 'https://rpc.gno.land:443/tx?hash=%22SzaFJZgg+QIFOQ7MFsKdbKlKXkU5lBvW3y3MF2l673o%3D%22'
+# {"error":{"code":-32602,"message":"Invalid params",
+#           "data":"illegal base64 data at input byte 8"}}
+```
+
+That first response also shows the encoding rule below at work: `height` comes
+back quoted and `index` bare.
+
 ## Node and network
 
 What a node reports about itself: whether it is answering, how far it has
@@ -211,6 +225,22 @@ paths — `auth/`, `bank/`, `vm/`, `params/` — return their result in
 A failed query still comes back as HTTP 200 with no top-level `error`; the
 failure sits at `response.ResponseBase.Error`. A client that checks only the
 top-level key reads it as a success carrying no data.
+
+```bash
+curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kzduec920z88wfr64ylksmdcedlf5%22'
+# "response": { "ResponseBase": { "Error": null, "Data": "ewogICJCYXNlQWNjb3VudCI6...",
+#                                 "Events": null, "Log": "", "Info": "" },
+#               "Key": null, "Value": null, "Proof": null, "Height": "0" }
+```
+
+The account is in `Data`, base64, two levels down — `Key` and `Value` stay
+null on the module paths:
+
+```bash
+curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kzduec920z88wfr64ylksmdcedlf5%22' \
+  | jq -r '.result.response.ResponseBase.Data' | base64 -d
+# {"BaseAccount":{"address":"g1manfred...","coins":"110294549738ugnot",...}}
+```
 
 `prove` returns real proof operations only on the store paths, which take their
 key in `data`: `path=".store/main/key"&data="<base64 key>"`. The module paths —
