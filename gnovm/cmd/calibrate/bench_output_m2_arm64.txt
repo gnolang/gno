@@ -189,3 +189,88 @@ BenchmarkAlloc_1073741824-8   	      55	 179237665 ns/op	1073741832 B/op	       
 BenchmarkAlloc_1073741824-8   	       6	 183594028 ns/op	1073741840 B/op	       1 allocs/op
 PASS
 ok  	github.com/gnolang/gno/gnovm/cmd/calibrate	296.433s
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M2
+BenchmarkOpEnterCrossing_1-8      	 4382079	       544.3 ns/op	         0 alloc-gas/op	       503.4 ns/op(pure)
+BenchmarkOpEnterCrossing_1-8      	 4394974	       544.1 ns/op	         0 alloc-gas/op	       503.1 ns/op(pure)
+BenchmarkOpEnterCrossing_1-8      	 4410666	       544.4 ns/op	         0 alloc-gas/op	       503.5 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4165647	       575.7 ns/op	         0 alloc-gas/op	       534.9 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4162605	       576.6 ns/op	         0 alloc-gas/op	       535.8 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4162598	       575.7 ns/op	         0 alloc-gas/op	       534.9 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  664548	      3611 ns/op	         0 alloc-gas/op	      3570 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  669544	      3607 ns/op	         0 alloc-gas/op	      3567 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  665548	      3611 ns/op	         0 alloc-gas/op	      3571 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    7534	    298367 ns/op	         0 alloc-gas/op	    298313 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    8038	    298185 ns/op	         0 alloc-gas/op	    298136 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    8030	    305684 ns/op	         0 alloc-gas/op	    305633 ns/op(pure)
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	32.668s
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M2
+BenchmarkOpAdd_String_10-8           	15823875	       154.5 ns/op	        37.00 alloc-gas/op	        85.06 ns/op(pure)
+BenchmarkOpAdd_String_10-8           	16382047	       145.9 ns/op	        37.00 alloc-gas/op	        79.94 ns/op(pure)
+BenchmarkOpAdd_String_10-8           	16409180	       145.2 ns/op	        37.00 alloc-gas/op	        79.47 ns/op(pure)
+BenchmarkOpAdd_String_100-8          	15133688	       158.6 ns/op	        80.00 alloc-gas/op	        90.49 ns/op(pure)
+BenchmarkOpAdd_String_100-8          	15084433	       158.5 ns/op	        80.00 alloc-gas/op	        90.18 ns/op(pure)
+BenchmarkOpAdd_String_100-8          	15150259	       158.5 ns/op	        80.00 alloc-gas/op	        90.08 ns/op(pure)
+BenchmarkOpAdd_String_1000-8         	 7583103	       321.5 ns/op	       458.0 alloc-gas/op	       228.6 ns/op(pure)
+BenchmarkOpAdd_String_1000-8         	 7646786	       320.3 ns/op	       458.0 alloc-gas/op	       228.2 ns/op(pure)
+BenchmarkOpAdd_String_1000-8         	 7325802	       318.1 ns/op	       458.0 alloc-gas/op	       225.7 ns/op(pure)
+BenchmarkOpAdd_String_10000-8        	 1779855	      1349 ns/op	      3406 alloc-gas/op	      1239 ns/op(pure)
+BenchmarkOpAdd_String_10000-8        	 1778624	      1345 ns/op	      3406 alloc-gas/op	      1233 ns/op(pure)
+BenchmarkOpAdd_String_10000-8        	 1815007	      1370 ns/op	      3406 alloc-gas/op	      1258 ns/op(pure)
+BenchmarkOpAdd_String_1KB_1MB-8      	   60336	     41382 ns/op	    195345 alloc-gas/op	     41246 ns/op(pure)
+BenchmarkOpAdd_String_1KB_1MB-8      	   57274	     41242 ns/op	    195345 alloc-gas/op	     41099 ns/op(pure)
+BenchmarkOpAdd_String_1KB_1MB-8      	   58408	     40830 ns/op	    195345 alloc-gas/op	     40672 ns/op(pure)
+BenchmarkOpAdd_String_1MB_10MB-8     	    8274	    294111 ns/op	   1696913 alloc-gas/op	    292907 ns/op(pure)
+BenchmarkOpAdd_String_1MB_10MB-8     	    7189	    292525 ns/op	   1696945 alloc-gas/op	    291003 ns/op(pure)
+BenchmarkOpAdd_String_1MB_10MB-8     	    7123	    290805 ns/op	   1696947 alloc-gas/op	    289652 ns/op(pure)
+BenchmarkOpAdd_String_10MB_100MB-8   	     584	   3464674 ns/op	  16724736 alloc-gas/op	   3453312 ns/op(pure)
+BenchmarkOpAdd_String_10MB_100MB-8   	     711	   3337547 ns/op	  16719622 alloc-gas/op	   3329488 ns/op(pure)
+BenchmarkOpAdd_String_10MB_100MB-8   	     710	   3293659 ns/op	  16719655 alloc-gas/op	   3285526 ns/op(pure)
+BenchmarkOpAdd_String_100MB_10MB-8   	     720	   3329060 ns/op	  16719328 alloc-gas/op	   3321465 ns/op(pure)
+BenchmarkOpAdd_String_100MB_10MB-8   	     718	   3299443 ns/op	  16719392 alloc-gas/op	   3291810 ns/op(pure)
+BenchmarkOpAdd_String_100MB_10MB-8   	     708	   3301857 ns/op	  16719721 alloc-gas/op	   3293694 ns/op(pure)
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M2
+BenchmarkOpCopyDataToList_1k-8     	 2258682	      1062 ns/op	         0 alloc-gas/op	      1023 ns/op(pure)
+BenchmarkOpCopyDataToList_1k-8     	 2263042	      1061 ns/op	         0 alloc-gas/op	      1022 ns/op(pure)
+BenchmarkOpCopyDataToList_1k-8     	 2251878	      1059 ns/op	         0 alloc-gas/op	      1020 ns/op(pure)
+BenchmarkOpCopyDataToList_10k-8    	  219984	     10877 ns/op	         0 alloc-gas/op	     10839 ns/op(pure)
+BenchmarkOpCopyDataToList_10k-8    	  221161	     10855 ns/op	         0 alloc-gas/op	     10816 ns/op(pure)
+BenchmarkOpCopyDataToList_10k-8    	  221089	     10885 ns/op	         0 alloc-gas/op	     10847 ns/op(pure)
+BenchmarkOpCopyDataToList_100k-8   	   21512	    110669 ns/op	         0 alloc-gas/op	    110622 ns/op(pure)
+BenchmarkOpCopyDataToList_100k-8   	   21632	    111242 ns/op	         0 alloc-gas/op	    111193 ns/op(pure)
+BenchmarkOpCopyDataToList_100k-8   	   21645	    112535 ns/op	         0 alloc-gas/op	    112487 ns/op(pure)
+BenchmarkOpCopyDataToList_1m-8     	    1939	   1271227 ns/op	         0 alloc-gas/op	   1270619 ns/op(pure)
+BenchmarkOpCopyDataToList_1m-8     	    1951	   1240352 ns/op	         0 alloc-gas/op	   1239821 ns/op(pure)
+BenchmarkOpCopyDataToList_1m-8     	    1966	   1243934 ns/op	         0 alloc-gas/op	   1243366 ns/op(pure)
+BenchmarkOpCopyListToData_1k-8     	 3409849	       705.1 ns/op	         0 alloc-gas/op	       670.6 ns/op(pure)
+BenchmarkOpCopyListToData_1k-8     	 3403174	       711.0 ns/op	         0 alloc-gas/op	       676.3 ns/op(pure)
+BenchmarkOpCopyListToData_1k-8     	 3373879	       726.7 ns/op	         0 alloc-gas/op	       691.0 ns/op(pure)
+BenchmarkOpCopyListToData_10k-8    	  370160	      6547 ns/op	         0 alloc-gas/op	      6509 ns/op(pure)
+BenchmarkOpCopyListToData_10k-8    	  363558	      6516 ns/op	         0 alloc-gas/op	      6478 ns/op(pure)
+BenchmarkOpCopyListToData_10k-8    	  369036	      6518 ns/op	         0 alloc-gas/op	      6480 ns/op(pure)
+BenchmarkOpCopyListToData_100k-8   	   37075	     65011 ns/op	         0 alloc-gas/op	     64966 ns/op(pure)
+BenchmarkOpCopyListToData_100k-8   	   37338	     64694 ns/op	         0 alloc-gas/op	     64650 ns/op(pure)
+BenchmarkOpCopyListToData_100k-8   	   37260	     65165 ns/op	         0 alloc-gas/op	     65121 ns/op(pure)
+BenchmarkOpCopyListToData_1m-8     	    3344	    712237 ns/op	         0 alloc-gas/op	    711064 ns/op(pure)
+BenchmarkOpCopyListToData_1m-8     	    3361	    707164 ns/op	         0 alloc-gas/op	    706566 ns/op(pure)
+BenchmarkOpCopyListToData_1m-8     	    3339	    729459 ns/op	         0 alloc-gas/op	    727786 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_1k-8      	  400728	      5989 ns/op	         0 alloc-gas/op	      5953 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_1k-8      	  401964	      5996 ns/op	         0 alloc-gas/op	      5959 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_1k-8      	  399702	      5970 ns/op	         0 alloc-gas/op	      5934 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_10k-8     	   38786	     61302 ns/op	         0 alloc-gas/op	     61259 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_10k-8     	   39144	     61236 ns/op	         0 alloc-gas/op	     61193 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_10k-8     	   39214	     61230 ns/op	         0 alloc-gas/op	     61188 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_100k-8    	    3896	    616083 ns/op	         0 alloc-gas/op	    615932 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_100k-8    	    3919	    615527 ns/op	         0 alloc-gas/op	    615348 ns/op(pure)
+BenchmarkOpUnrefCopy_Int_100k-8    	    3896	    610582 ns/op	         0 alloc-gas/op	    610427 ns/op(pure)
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	93.950s

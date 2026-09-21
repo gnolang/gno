@@ -12,84 +12,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
-// Get Tendermint status including node info, pubkey, latest block
+// Status returns Tendermint status including node info, pubkey, latest block
 // hash, app hash, block height and time.
 //
-// ```shell
-// curl 'localhost:26657/status'
-// ```
-//
-// Additionally, it has an optional `heightGte` parameter than will return a `409` if the latest chain height is less than it.
-// This parameter is useful for readyness probes.
-//
-// ```shell
-// curl 'localhost:26657/status?heightGte=1'
-// ```
-//
-// ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
-// err := client.Start()
-//
-//	if err != nil {
-//	  // handle error
-//	}
-//
-// defer client.Stop()
-// result, err := client.Status()
-// ```
-//
-// > The above command returns JSON structured like this:
-//
-// ```json
-// {
-// "jsonrpc": "2.0",
-// "id": "",
-//
-//	"result": {
-//	  "node_info": {
-//	  		"protocol_version": {
-//	  			"p2p": "4",
-//	  			"block": "7",
-//	  			"app": "0"
-//	  		},
-//	  		"id": "53729852020041b956e86685e24394e0bee4373f",
-//	  		"listen_addr": "10.0.2.15:26656",
-//	  		"network": "test-chain-Y1OHx6",
-//	  		"version": "0.24.0-2ce1abc2",
-//	  		"channels": "4020212223303800",
-//	  		"moniker": "ubuntu-xenial",
-//	  		"other": {
-//	  			"tx_index": "on",
-//	  			"rpc_addr": "tcp://0.0.0.0:26657"
-//	  		}
-//	  	},
-//	  	"sync_info": {
-//	  		"latest_block_hash": "F51538DA498299F4C57AC8162AAFA0254CE08286",
-//	  		"latest_app_hash": "0000000000000000",
-//	  		"latest_block_height": "18",
-//	  		"latest_block_time": "2018-09-17T11:42:19.149920551Z",
-//	  		"catching_up": false
-//	  	},
-//	  	"validator_info": {
-//	  		"address": "D9F56456D7C5793815D0E9AF07C3A355D0FC64FD",
-//	  		"pub_key": {
-//	  			"type": "tendermint/PubKeyEd25519",
-//	  			"value": "wVxKNtEsJmR4vvh651LrVoRguPs+6yJJ9Bz174gw9DM="
-//	  		},
-//	  		"voting_power": "10"
-//	  	}
-//	  }
-//	}
-//
-// ```
-func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, error) {
+// `heightGte` optionally returns 409 if the latest chain height is less than
+// it, which is useful for readyness probes.
+func (env *Environment) Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, error) {
 	_, span := traces.Tracer().Start(ctx.Context(), "Status")
 	defer span.End()
 	var latestHeight int64
-	if getFastSync() {
-		latestHeight = blockStore.Height()
+	if env.GetFastSync() {
+		latestHeight = env.BlockStore.Height()
 	} else {
-		latestHeight = consensusState.GetLastHeight()
+		latestHeight = env.Consensus.GetLastHeight()
 	}
 
 	if heightGtePtr != nil && latestHeight < *heightGtePtr {
@@ -105,7 +40,7 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 		latestBlockTimeNano int64
 	)
 	if latestHeight != 0 {
-		latestBlockMeta = blockStore.LoadBlockMeta(latestHeight)
+		latestBlockMeta = env.BlockStore.LoadBlockMeta(latestHeight)
 		if latestBlockMeta == nil {
 			return nil, fmt.Errorf("block meta not found for height %d", latestHeight)
 		}
@@ -117,22 +52,22 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 	latestBlockTime := time.Unix(0, latestBlockTimeNano)
 
 	var votingPower int64
-	if val := validatorAtHeight(latestHeight); val != nil {
+	if val := env.validatorAtHeight(latestHeight); val != nil {
 		votingPower = val.VotingPower
 	}
 
 	result := &ctypes.ResultStatus{
-		NodeInfo: p2pTransport.NodeInfo(),
+		NodeInfo: env.P2PTransport.NodeInfo(),
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:   latestBlockHash,
 			LatestAppHash:     latestAppHash,
 			LatestBlockHeight: latestHeight,
 			LatestBlockTime:   latestBlockTime,
-			CatchingUp:        getFastSync(),
+			CatchingUp:        env.GetFastSync(),
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
-			Address:     pubKey.Address(),
-			PubKey:      pubKey,
+			Address:     env.PubKey.Address(),
+			PubKey:      env.PubKey,
 			VotingPower: votingPower,
 		},
 		BuildVersion: version.Version,
@@ -141,11 +76,11 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 	return result, nil
 }
 
-func validatorAtHeight(h int64) *types.Validator {
-	privValAddress := pubKey.Address()
+func (env *Environment) validatorAtHeight(h int64) *types.Validator {
+	privValAddress := env.PubKey.Address()
 
 	// If we're still at height h, search in the current validator set.
-	lastBlockHeight, vals := consensusState.GetValidators()
+	lastBlockHeight, vals := env.Consensus.GetValidators()
 	if lastBlockHeight == h {
 		for _, val := range vals {
 			if val.Address == privValAddress {
@@ -156,7 +91,7 @@ func validatorAtHeight(h int64) *types.Validator {
 
 	// If we've moved to the next height, retrieve the validator set from DB.
 	if lastBlockHeight > h {
-		vals, err := sm.LoadValidators(stateDB, h)
+		vals, err := sm.LoadValidators(env.StateDB, h)
 		if err != nil {
 			return nil // should not happen
 		}

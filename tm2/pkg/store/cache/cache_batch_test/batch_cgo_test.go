@@ -91,7 +91,7 @@ func TestCacheBatchUsesDBBatch(t *testing.T) {
 	defer db.Close()
 
 	parent := dbadapter.Store{DB: db}
-	var iface interface{} = parent
+	var iface any = parent
 	_, ok := iface.(interface{ GetDB() dbm.DB })
 	require.True(t, ok, "dbadapter.Store should implement GetDB()")
 
@@ -110,7 +110,7 @@ func TestCacheBatchUsesDBBatchMDBX(t *testing.T) {
 	defer db.Close()
 
 	parent := dbadapter.Store{DB: db}
-	var iface interface{} = parent
+	var iface any = parent
 	_, ok := iface.(interface{ GetDB() dbm.DB })
 	require.True(t, ok, "dbadapter.Store should implement GetDB()")
 

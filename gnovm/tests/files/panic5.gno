@@ -2,7 +2,7 @@ package main
 
 func main() {
 	a := 0
-	if i := 1; true && 
+	if i := 1; true &&
 		i/a == 2 {
 		println("ok")
 	}

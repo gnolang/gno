@@ -20,4 +20,4 @@ func main(cur realm) {
 }
 
 // Output:
-// readonly(&(struct{("_modified" string)} gno.land/r/tests/vm.TestRealmObject))
+// &(struct{("_modified" string)} gno.land/r/tests/vm.TestRealmObject)

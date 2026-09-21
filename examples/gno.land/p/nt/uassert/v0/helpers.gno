@@ -14,7 +14,7 @@ func fail(t TestingT, customMsgs []string, failureMessage string, args ...any) b
 	return false
 }
 
-func checkDidPanic(f any) (didPanic bool, message string) {
+func checkDidPanic(f any, rlm realm) (didPanic bool, message string) {
 	didPanic = true
 	defer func() {
 		r := recover()
@@ -42,7 +42,7 @@ func checkDidPanic(f any) (didPanic bool, message string) {
 	case func():
 		f()
 	case func(realm):
-		f(cross)
+		f(cross(rlm))
 	default:
 		panic("f must be of type func() or func(realm)")
 	}

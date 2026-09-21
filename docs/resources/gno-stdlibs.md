@@ -178,7 +178,9 @@ Gno has a few custom builtin types & keywords that are used for handling Gno-spe
 cases:
 - `realm` - represents a Realm object
 - `address` - represents a Gno address
-- `cross` - passed as a `realm` type argument during a [crossing call](./gno-interrealm.md)
+- `cross(rlm)` - validates `rlm` is the current realm and passes it as the
+  `realm` type argument of a [crossing call](./gno-interrealm.md), e.g.
+  `fn(cross(cur), ...)`
 
 ### `address`
 
@@ -720,6 +722,7 @@ const (
 
 type Banker interface {
     GetCoins(addr address) (dst chain.Coins)
+    GetCoin(addr address, denom string) int64
     SendCoins(from, to address, amt chain.Coins)
     TotalCoin(denom string) int64
     IssueCoin(addr address, denom string, amount int64)
@@ -755,6 +758,37 @@ Returns `Coins` owned by `address`.
 ```go
 coins := banker.GetCoins(addr)
 ```
+
+:::info Cost grows with the number of denominations held
+
+`GetCoins` returns *every* denomination the address holds, so it costs gas in
+proportion to how many that is — and an address can be sent denominations it
+never asked for (see [IssueCoin](#issuecoin)), so that cost is not under its
+control. If you only care about one denomination, use
+[GetCoin](#getcoin) instead; its cost does not grow with the rest.
+
+:::
+
+---
+
+### GetCoin
+Returns the amount of a single `denom` owned by `addr`, without reading any
+other. Prefer this to [GetCoins](#getcoins) whenever one denomination will do.
+
+Panics if `denom` is malformed, where `GetCoins(addr).AmountOf(denom)` would have
+returned zero. Validate first if the denomination comes from somewhere you do not
+control — a `Render` path segment or query parameter, for instance.
+
+##### Parameters
+- `addr` **address** to read
+- `denom` **string** denomination to read
+
+##### Usage
+
+```go
+amount := banker.GetCoin(addr, denom)
+```
+
 ---
 
 ### SendCoins
@@ -785,9 +819,28 @@ Issues `amount` of coin with a denomination `denom` to address `addr`.
 banker.IssueCoin(addr, denom, amount)
 ```
 
+:::warning Issuing needs no consent from the recipient
+
+`addr` is arbitrary. A realm can issue its coins to any address without that
+address agreeing, and the recipient cannot refuse or dispose of them: destroying
+a realm coin is [RemoveCoin](#removecoin), which only the issuing realm may call,
+and a holder has no burn of its own. Do not treat "this address holds our coin"
+as evidence that its owner opted in to anything.
+
+Because of this, realm-issued balances are stored per denomination, outside the
+account object, so that coins an address was sent unsolicited cannot make that
+address's own transactions more expensive.
+
+:::
+
 :::info Coin denominations
 
-`Banker` methods expect qualified denomination of the coins. Read more [here](#coindenom).
+`IssueCoin` and `RemoveCoin` require a qualified denomination — `"/" + pkgPath +
+":" + name`, as built by [CoinDenom](#coindenom) — and a realm may only issue
+under its own `pkgPath`. The leading `/` is what distinguishes a realm-issued
+denomination from one defined at genesis, such as `ugnot`; a realm cannot issue
+the latter. `GetCoins` and `SendCoins` take whatever denomination the coin
+actually has, qualified or not.
 
 :::
 
@@ -795,6 +848,11 @@ banker.IssueCoin(addr, denom, amount)
 
 ### RemoveCoin
 Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
+
+Only the realm that issued a denomination may remove it, and it needs no consent
+from the holder — with one exception: if the holder's account carries a vesting
+schedule naming that denomination, the still-locked part cannot be removed, and
+`RemoveCoin` fails until it vests.
 
 ##### Parameters
 - `addr` **address** to remove coins from

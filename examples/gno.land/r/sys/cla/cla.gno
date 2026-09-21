@@ -2,9 +2,8 @@ package cla
 
 import (
 	"chain"
-	"chain/runtime"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 )
 
 const SignedEvent = "CLASigned"
@@ -22,7 +21,7 @@ func Sign(cur realm, hash string) {
 		panic("hash does not match required CLA hash")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	signatures.Add(caller)
 
 	chain.Emit(

@@ -3,6 +3,7 @@ package prefix
 import (
 	"bytes"
 
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -25,7 +26,7 @@ func New(parent types.Store, prefix []byte) Store {
 }
 
 func cloneAppend(bz []byte, tail []byte) (res []byte) {
-	res = make([]byte, len(bz)+len(tail))
+	res = make([]byte, overflow.Addp(len(bz), len(tail)))
 	copy(res, bz)
 	copy(res[len(bz):], tail)
 	return

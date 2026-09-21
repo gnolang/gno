@@ -69,7 +69,7 @@ main {
 		grid-auto-flow: dense;
 		grid-template-columns: var(--g-grid-1);
 		column-gap: var(--g-space-20);
-		/* align-items: flex-start; */
+		align-content: start;
 		padding-inline: var(--g-space-4);
 		min-height: 100%;
 

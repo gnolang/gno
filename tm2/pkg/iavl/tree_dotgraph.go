@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"text/template"
 
@@ -54,9 +55,7 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 			Attrs: map[string]string{},
 			Hash:  fmt.Sprintf("%x", node.hash),
 		}
-		for k, v := range defaultGraphNodeAttrs {
-			graphNode.Attrs[k] = v
-		}
+		maps.Copy(graphNode.Attrs, defaultGraphNodeAttrs)
 		shortHash := graphNode.Hash[:7]
 
 		graphNode.Label = mkLabel(string(node.key), 16, "sans-serif")

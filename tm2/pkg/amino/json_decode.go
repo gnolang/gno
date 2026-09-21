@@ -18,7 +18,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
-	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Pointer {
 		panic("should not happen")
 	}
 	if printLog {
@@ -127,12 +127,12 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 }
 
 func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) error {
-	if !rv.CanAddr() && rv.Kind() != reflect.Ptr {
+	if !rv.CanAddr() && rv.Kind() != reflect.Pointer {
 		panic("rv not addressable nor pointer")
 	}
 
 	rrv := rv
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		rrv = reflect.New(rv.Type())
 	}
 

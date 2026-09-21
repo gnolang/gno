@@ -16,7 +16,7 @@ func init() {
 	println(m[i1])
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	i2 := *i1
 	println(m[&i2] == "")
 

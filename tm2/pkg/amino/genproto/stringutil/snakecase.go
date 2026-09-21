@@ -248,19 +248,19 @@ func ToUpperSnakeCase(s string, options ...SnakeCaseOption) string {
 // Splits on '-', '_', ' ', '\t', '\n', '\r'.
 // Uppercase letters will stay uppercase,
 func ToPascalCase(s string) string {
-	output := ""
+	var output strings.Builder
 	var previous rune
 	for i, c := range strings.TrimSpace(s) {
 		if !isDelimiter(c) {
 			if i == 0 || isDelimiter(previous) || unicode.IsUpper(c) {
-				output += string(unicode.ToUpper(c))
+				output.WriteString(string(unicode.ToUpper(c)))
 			} else {
-				output += string(unicode.ToLower(c))
+				output.WriteString(string(unicode.ToLower(c)))
 			}
 		}
 		previous = c
 	}
-	return output
+	return output.String()
 }
 
 // IsAlphanumeric returns true for [0-9a-zA-Z].

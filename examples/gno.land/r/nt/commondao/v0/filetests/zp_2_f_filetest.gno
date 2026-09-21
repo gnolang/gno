@@ -1,41 +1,40 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_2_f_filetest
+
+package zp_2_f_filetest
 
 import (
 	"testing"
 
+	pdao "gno.land/p/nt/commondao/v0"
 	"gno.land/r/nt/commondao/v0"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "Foo"
 )
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
-	dao.Members().Add(user)
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	commondao.NewSubDAO(cross, name, dao.ID())
-
-	options := commondao.GetOptions(dao.ID())
-	options.SetAllowChildren(true)
-	options.SetAllowSubDAOPorposals(true)
-
-	daoID = dao.ID()
+	{
+		pID := commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", string(user))
+		commondao.Vote(cross(cur), daoID, pID, pdao.ChoiceYes, "")
+		commondao.Execute(cross(cur), daoID, pID)
+	}
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross, daoID, name, "")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, name, "Purpose", "", string(user))
 }
 
 // Error:

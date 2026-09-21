@@ -6,10 +6,10 @@ type Reader interface {
 }
 
 type csvReader struct{}
-func (r*csvReader) Read(string) string{
+
+func (r *csvReader) Read(string) string {
 	return ""
 }
-
 
 func main() {
 	var csvReader Reader = &csvReader{}

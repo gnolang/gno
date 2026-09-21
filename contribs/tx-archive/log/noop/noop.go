@@ -8,8 +8,8 @@ func New() *Logger {
 	return &Logger{}
 }
 
-func (l Logger) Info(_ string, _ ...interface{}) {}
+func (l Logger) Info(_ string, _ ...any) {}
 
-func (l Logger) Debug(_ string, _ ...interface{}) {}
+func (l Logger) Debug(_ string, _ ...any) {}
 
-func (l Logger) Error(_ string, _ ...interface{}) {}
+func (l Logger) Error(_ string, _ ...any) {}

@@ -42,9 +42,6 @@ type StoreOptions struct {
 	// gno.mod to not be auto-generated when importing from the test store.
 	DoNotGenerateGnoMod bool
 
-	// When fixing code from an earler gno version. Not supported for stdlibs.
-	FixFrom string
-
 	// Preloaded packages
 	Packages packages.PkgList
 
@@ -136,14 +133,14 @@ func StoreWithOptions(
 			if err != nil {
 				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
-			if mod == nil || mod.GetGno() == gno.GnoVerMissing {
-				panic(fmt.Errorf("cannot parse %q: transpile to %s first", mpkg.Path, gno.GnoVerLatest))
+			if mod == nil {
+				panic(fmt.Errorf("cannot parse %q: missing gnomod.toml", mpkg.Path))
 			}
 			m.Store.AddMemPackage(mpkg, mptype)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				m.ParseMemPackageAsType(mpkg, mptype),
-				save, false, opts.FixFrom)
+				save, false)
 		} else {
 			return m.RunMemPackage(mpkg, save)
 		}
@@ -314,7 +311,7 @@ func loadStdlib(
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true, "")
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true)
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)

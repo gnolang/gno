@@ -1,0 +1,5 @@
+// MARKDOWNFUNC: UserName
+-- input.md --
+alice_bob-cat
+-- output.md --
+alice_bob-cat

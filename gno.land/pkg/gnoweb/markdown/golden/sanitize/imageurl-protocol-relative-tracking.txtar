@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: ImageURL
+// CONTEXT: ![alt](%s)
+-- input.md --
+//evil.com/track.png
+-- output.md --
+
+-- output.html --
+<p><img src="" alt="alt"></p>

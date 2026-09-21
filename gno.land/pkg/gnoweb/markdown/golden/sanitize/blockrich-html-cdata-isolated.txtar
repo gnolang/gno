@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: before realm chrome\n%s\nafter realm chrome
+-- input.md --
+<![CDATA[attacker]]>
+-- output.md --
+
+
+<!\[CDATA\[attacker\]\]>
+
+-- output.html --
+<p>before realm chrome</p>
+<p>&lt;![CDATA[attacker]]&gt;</p>
+<p>after realm chrome</p>

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/tests/vm/z4_filetest
+
+package z4_filetest
 
 import (
 	"chain"
@@ -7,20 +9,15 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginSend(chain.Coins{{Denom: "foo", Amount: 42}, {Denom: "ugnot", Amount: 100}})
-	println("tests.RealmSentCoins: " + tests.RealmSentCoins(cross))
-	println("tests.BankerOriginSend: " + tests.BankerOriginSend(cross))
+	println("tests.BankerOriginSend: " + tests.BankerOriginSend(cross(cur)))
 
-	// subtests is cross-called from tests, so cur.SentCoins() returns empty there.
-	println("tests.RTestsRealmSentCoins: " + tests.RTestsRealmSentCoins(cross))
-	// banker.OriginSend() always returns the origin send regardless of call
+	// unsafe.OriginSend() always returns the origin send regardless of call
 	// depth.
-	println("tests.RTestsOriginSend: " + tests.RTestsOriginSend(cross))
+	println("tests.RTestsOriginSend: " + tests.RTestsOriginSend(cross(cur)))
 }
 
 // Output:
-// tests.RealmSentCoins: 42foo,100ugnot
 // tests.BankerOriginSend: 42foo,100ugnot
-// tests.RTestsRealmSentCoins:
 // tests.RTestsOriginSend: 42foo,100ugnot

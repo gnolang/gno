@@ -31,6 +31,7 @@ type HelpData struct {
 	PkgFullPath string
 	Doc         Component
 	Domain      string
+	Origin      string // request scheme+host; makes help URLs shareable
 }
 
 type HelpTocData struct {
@@ -68,20 +69,21 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := pkgPath + "$help&func=" + fn.Name
+		var url strings.Builder
+		url.WriteString(data.Origin + pkgPath + "$help&func=" + fn.Name)
 		if len(fn.Params) > 0 {
-			url += "&"
+			url.WriteString("&")
 			for i, param := range fn.Params {
 				if i > 0 {
-					url += "&"
+					url.WriteString("&")
 				}
-				url += param.Name + "="
+				url.WriteString(param.Name + "=")
 				if val, ok := data.SelectedArgs[param.Name]; ok {
-					url += val
+					url.WriteString(val)
 				}
 			}
 		}
-		return url
+		return url.String()
 	}
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
@@ -109,18 +111,19 @@ func HelpView(data HelpData) *View {
 	}
 
 	for i, fn := range data.Functions {
-		sig := fn.Name + "("
+		var sig strings.Builder
+		sig.WriteString(fn.Name + "(")
 		for j, param := range fn.Params {
 			if j > 0 {
-				sig += ", "
+				sig.WriteString(", ")
 			}
-			sig += param.Name
+			sig.WriteString(param.Name)
 		}
-		sig += ")"
+		sig.WriteString(")")
 
 		tocData.Items[i] = HelpTocItem{
 			Link: "#func-" + fn.Name,
-			Text: sig,
+			Text: sig.String(),
 		}
 	}
 

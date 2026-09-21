@@ -14,13 +14,13 @@ the foundations of a fairer and freer world, join us today.
 
 ---
 
-## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
+## [Boards](/r/gnoland/boards2/v0) - On-chain forum for the Gno.land community
 
 **Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
 
 Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
 
-**[Open Boards](/r/gnoland/boards2/v1)**
+**[Open Boards](/r/gnoland/boards2/v0)**
 
 ---
 
@@ -35,17 +35,17 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Explore the Ecosystem](/ecosystem)
 - [Careers](https://jobs.ashbyhq.com/allinbits)
 
-|||
+<gno-columns-sep>
 
 ## Build with Gno
 
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
+- [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
-|||
+<gno-columns-sep>
 
 ## Explore the universe
 
@@ -85,7 +85,7 @@ Official realm packages developed by the Gno.land core team.
 
 [Browse](/r/gnoland)
 
-|||
+<gno-columns-sep>
 
 ### r/sys
 
@@ -93,7 +93,7 @@ System-level realm packages used by the chain.
 
 [Browse](/r/sys)
 
-|||
+<gno-columns-sep>
 
 ### r/demo
 
@@ -101,7 +101,7 @@ Demo realm packages showcasing what's possible.
 
 [Browse](/r/demo)
 
-|||
+<gno-columns-sep>
 
 ### p/demo
 
@@ -118,12 +118,12 @@ Pure packages for demo purposes.
 ## Socials
 
 - Check out our [community projects](https://github.com/gnolang/awesome-gno)
-- [Discord](https://discord.gg/S8nKUqwkPn)
+- [Discord](https://discord.com/invite/gnoland)
 - [Twitter](https://twitter.com/_gnoland)
 - [Youtube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)
 
-|||
+<gno-columns-sep>
 
 ## Sign up for our newsletter
 

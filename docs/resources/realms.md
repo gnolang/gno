@@ -195,5 +195,5 @@ see the [Package Path Structure](./gno-packages.md#package-path-structure)
 documentation.
 
 To learn how to develop your own realms, check out the
-[Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and
-[Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.
+[Getting started](../builders/getting-started.md) and
+[Tutorial: MiniSocial dApp](../builders/tutorial-minisocial.md) guides.

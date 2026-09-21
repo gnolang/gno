@@ -1,0 +1,16 @@
+# gno test with multiple paths where one lacks gnomod.toml should report which path failed
+
+! gno test . ./valid/pkg
+
+! stdout .+
+stderr 'FAIL    \. \t\[setup failed\]'
+
+-- valid/pkg/pkg.gno --
+package pkg
+
+-- valid/pkg/gnomod.toml --
+module = "gno.land/p/valid/pkg"
+gno = "0.9"
+
+-- gnowork.toml --
+use = ["./valid/pkg"]

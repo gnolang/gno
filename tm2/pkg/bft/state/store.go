@@ -106,17 +106,31 @@ func SaveState(db dbm.DB, state State) {
 
 func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
-	// If first block, save validators for block 1.
-	if nextHeight == 1 {
+	// Defensive guard: a state with LastBlockHeight in the open interval
+	// (0, InitialHeight-1) is invalid for hardfork chains. nextHeight==1 is
+	// the legitimate fresh state pre-fix-a (LoadStateFromDBOrGenesisDoc
+	// saves the genesis state before the handshaker hoists
+	// LastBlockHeight to InitialHeight-1).
+	if nextHeight > 1 && nextHeight < state.InitialHeight {
+		panic(fmt.Sprintf("saveState: nextHeight %d in invalid range (1, state.InitialHeight=%d)", nextHeight, state.InitialHeight))
+	}
+	// If first block (standard genesis at InitialHeight==1 or hardfork at
+	// InitialHeight>1), save the full validator set and consensus params at
+	// nextHeight. This is needed so that LoadValidators/LoadConsensusParams
+	// can find the data when processing the first real block.
+	if nextHeight == state.InitialHeight {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
-		lastHeightVoteChanged := int64(1)
-		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
+		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)
+		// Save full consensus params (not just a reference) by setting
+		// changeHeight == nextHeight.
+		saveConsensusParamsInfo(db, nextHeight, nextHeight, state.ConsensusParams)
+	} else {
+		// Save next consensus params (may be just a reference if unchanged).
+		saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	}
 	// Save next validators.
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
-	// Save next consensus params.
-	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.SetSync(key, state.Bytes())
 }
 
@@ -184,9 +198,25 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // SaveABCIResponses persists the ABCIResponses to the database.
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
+//
+// The write is flushed (SetSync) because ApplyBlock writes this before the
+// application commit and flushes the state store only afterwards, in SaveState,
+// so an unsynced write is lost in exactly the window the record exists for. The
+// only reader for that window is ReplayBlocks' storeBlockHeight ==
+// stateBlockHeight+1, appBlockHeight == storeBlockHeight case, which replays the
+// height against a mock application and has no other source for its state.
+//
+// A write failure is returned rather than swallowed for the same reason: the
+// caller must stop the block before the application commits a height whose
+// recovery record was never stored.
+//
 // NOTE: this should only be used internally by the bft package and subpackages.
-func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	db.Set(CalcABCIResponsesKey(height), abciResponses.Bytes())
+func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) error {
+	if err := db.SetSync(CalcABCIResponsesKey(height), abciResponses.Bytes()); err != nil {
+		return fmt.Errorf("save ABCI responses for height %d: %w", height, err)
+	}
+
+	return nil
 }
 
 // TxResultIndex keeps the result index information for a transaction

@@ -79,6 +79,28 @@ Browser`
 	}
 }
 
+func TestTraverseByOffsetNegativeOffset(t *testing.T) {
+	// a negative offset must be treated as 0, not silently drop the right
+	// subtree. building {"a","b","c","d"} yields a tree whose root has two
+	// inner children, exercising the traverseByOffset delta computation.
+	keys := []string{"a", "b", "c", "d"}
+	r := NewNode(keys[0], nil)
+	for _, k := range keys[1:] {
+		r, _ = r.Set(k, nil)
+	}
+
+	for _, offset := range []int{-1, -2, -100} {
+		var got []string
+		r.TraverseByOffset(offset, len(keys), true, true, func(n *Node) bool {
+			got = append(got, n.Key())
+			return false
+		})
+		if !slicesEqual(keys, got) {
+			t.Errorf("offset %d: want %v got %v", offset, keys, got)
+		}
+	}
+}
+
 func TestHas(t *testing.T) {
 	tests := []struct {
 		name     string

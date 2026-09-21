@@ -6,14 +6,14 @@
       {{ with index .Sections 0 }}
       <ul aria-label="{{ .Title }}">
         {{ range .Links }}
-        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        <li><a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
       {{ with index .Sections 1 }}
       <ul class="nav-social" aria-label="{{ .Title }}">
         {{ range .Links }}
-        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        <li><a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
@@ -41,14 +41,14 @@
     <p>{{ .LegalNotice }}</p>
     <nav aria-label="Legal">
       {{ range .LegalLinks }}
-      <a href="{{ .URL }}">{{ .Label }}</a>
+      <a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a>
       {{ end }}
     </nav>
   </div>
 </footer>
 
 <!-- javascript module src -->
-<script type="module" src="{{ .AssetsPath }}js/controller.js?v={{ .BuildTime }}"></script>
-<script type="module" src="{{ .AssetsPath }}js/index.js?v={{ .BuildTime }}"></script>
+<script type="module" src="{{ .Analytics.AssetsPath }}js/controller.js?v={{ .Analytics.BuildTime }}"></script>
+<script type="module" src="{{ .Analytics.AssetsPath }}js/index.js?v={{ .Analytics.BuildTime }}"></script>
 
-{{- if .Analytics -}} {{- template "layout/analytics" }}{{- end -}} {{ end }}
+{{- if .Analytics.Enabled -}} {{- template "layout/analytics" .Analytics }}{{- end -}} {{ end }}

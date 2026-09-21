@@ -258,7 +258,7 @@ var noBindingsPkgs = map[string]struct{}{
 }
 
 func hasPBBindings(info *amino.TypeInfo) bool {
-	if info.Type.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Pointer {
 		return false
 	}
 	pkg := info.Package.GoPkgPath
@@ -1625,13 +1625,15 @@ func _var(name string, type_ ast.Expr, value ast.Expr) *ast.DeclStmt {
 
 func defaultExpr(k reflect.Kind) ast.Expr {
 	switch k {
-	case reflect.Interface, reflect.Ptr, reflect.Slice:
+	case reflect.Interface, reflect.Pointer, reflect.Slice:
 		return _x("nil")
 	case reflect.String:
 		return _x("\"\"")
 	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16,
 		reflect.Int8, reflect.Uint, reflect.Uint64, reflect.Uint32,
 		reflect.Uint16, reflect.Uint8:
+		return _x("0")
+	case reflect.Float32, reflect.Float64:
 		return _x("0")
 	case reflect.Bool:
 		return _x("false")
@@ -1921,7 +1923,7 @@ func goTypeExpr(rootPkg *amino.Package, rt reflect.Type, imports *ast.GenDecl, s
 		return _arr(rt.Len(), goTypeExpr(rootPkg, rt.Elem(), imports, scope))
 	case reflect.Slice:
 		return _sl(goTypeExpr(rootPkg, rt.Elem(), imports, scope))
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return _ptr(goTypeExpr(rootPkg, rt.Elem(), imports, scope))
 	default:
 		expr := rt.String()

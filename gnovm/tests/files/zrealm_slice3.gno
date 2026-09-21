@@ -65,3 +65,13 @@ func main(cur realm) {
 //                  "Maxcap": "5",
 //                  "Offset": "0"
 //              }
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "3cd40ab83803469676b41384c77baa3f4f008f45",
+//     +                "Hash": "98ff0da687ea202c296961c3037a19ae043d8d19",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

@@ -1,7 +1,7 @@
 package validators
 
 import (
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/poa/v0"
 )
 
@@ -10,5 +10,5 @@ func init() {
 	vp = poa.NewPoA()
 
 	// No changes to apply initially
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 }

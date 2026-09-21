@@ -91,6 +91,14 @@ func (op CommitmentOp) GetKey() []byte {
 // If length 0 args is passed in, then CommitmentOp will attempt to prove the absence of the key
 // in the CommitmentOp and return the CommitmentRoot of the proof
 func (op CommitmentOp) Run(args [][]byte) ([][]byte, error) {
+	// A nil op.Proof or nil-inner proof nil-derefs in Calculate()/ics23 below.
+	// The getters are nil-safe, so this one check rejects nil-proof, nil-inner,
+	// and (unsupported) batch/compressed shapes; the switch below only verifies
+	// existence/non-existence, so no valid proof is newly rejected. Not wire-
+	// reachable (Unmarshal always allocates the inner); defense-in-depth.
+	if op.Proof.GetExist() == nil && op.Proof.GetNonexist() == nil {
+		return nil, fmt.Errorf("proof is neither an existence nor a non-existence proof")
+	}
 	// calculate root from proof
 	root, err := op.Proof.Calculate()
 	if err != nil {

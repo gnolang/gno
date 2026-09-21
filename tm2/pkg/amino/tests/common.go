@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -300,6 +301,9 @@ func (am *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
 	if err != nil {
 		return err
 	}
+	if i < math.MinInt32 || i > math.MaxInt32 {
+		return fmt.Errorf("value %d overflows int32", i)
+	}
 	*am = AminoMarshalerInt5(i)
 	return nil
 }
@@ -368,7 +372,7 @@ func (a *SimpleAddress) UnmarshalAmino(repr string) error {
 	if len(repr) != 40 {
 		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
 	}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		var b byte
 		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
 			return err
@@ -422,6 +426,68 @@ type ContainerWithAminoLists struct {
 
 type CrossPkgPointerSlice struct {
 	Counts []*crosspkg.SmallCount
+}
+
+// FixedStringArrayStruct: a struct with a `[4]string` field — a fixed-size
+// array of ByteLength-typed elements (decoded as unpacked-list entries).
+// Exercises the unpacked-list-array short-input rejection rule: the
+// generator must reject wire input that provides fewer than N entries,
+// matching reflect (binary_decode.go:625-644).
+type FixedStringArrayStruct struct {
+	Names [4]string
+}
+
+// ByteArraySliceStruct: a struct with a `[][8]byte` field. Each element is
+// a fixed-size 8-byte array, decoded as a list element via
+// writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises the byte-array
+// element length check: the generator must enforce that the decoded
+// payload length matches the array length, mirroring reflect
+// (binary_decode.go:551-555).
+type ByteArraySliceStruct struct {
+	Items [][8]byte
+}
+
+// StructWithStringRepr is a Go struct whose MarshalAmino returns a string.
+// Used to exercise the "struct-pointer needs nil_elements" rule for list
+// elements whose Go kind is Struct but repr kind is String (Typ3ByteLength,
+// so unpacked list encoding is used). The generator must key off
+// `einfo.Type.Kind() == Struct` (Go kind), not the repr kind — matching
+// reflect at binary_encode.go:399.
+type StructWithStringRepr struct {
+	Name string
+}
+
+func (s StructWithStringRepr) MarshalAmino() (string, error) { return s.Name, nil }
+func (s *StructWithStringRepr) UnmarshalAmino(r string) error {
+	s.Name = r
+	return nil
+}
+
+// StructPtrSliceWithStringRepr exercises the list-element nil_elements
+// rule for `[]*X` where X is a Go struct with non-struct (string) repr.
+// If `ertIsStruct` were keyed off `einfo.ReprType.Type.Kind()` (string,
+// false), the generator would silently encode nil entries as 0x00
+// sentinels. Correct behavior: key off `einfo.Type.Kind() == Struct`
+// (Go kind, true) and reject nil entries without a `nil_elements` tag —
+// matching reflect.
+type StructPtrSliceWithStringRepr struct {
+	Items []*StructWithStringRepr // no nil_elements tag
+}
+
+// StructUint8ReprSliceStruct: exercises the unpacked-list packed-branch
+// bare-byte (beOptionByte) emission for AminoMarshaler-struct elements
+// whose repr is uint8. Reflect detects this via beOptionByte at
+// binary_encode.go:165 and emits EncodeByte (1 byte). Without the
+// generator's bare-byte handling at this site, writePrimitiveEncode
+// would emit `PrependUvarint(buf, offset, uint64(elem))` against a
+// struct-typed accessor — a Go compile error AND a wire divergence
+// (uvarint of byte ≥128 is 2 bytes; reflect emits 1 bare byte).
+//
+// Mirror of AminoMarshalerStruct7 (top-level repr-bytes) but at the
+// struct-field position, where writeUnpackedListMarshal handles the
+// list rather than writePackedSliceReprMarshal.
+type StructUint8ReprSliceStruct struct {
+	Vals []ReprElem7
 }
 
 // CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
@@ -529,6 +595,10 @@ var StructTypes = []any{
 	// AminoMarshaler list element types (slice/array of AminoMarshaler with
 	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
 	(*ContainerWithAminoLists)(nil),
+	(*StructPtrSliceWithStringRepr)(nil),
+	(*ByteArraySliceStruct)(nil),
+	(*FixedStringArrayStruct)(nil),
+	(*StructUint8ReprSliceStruct)(nil),
 	// Cross-package AminoMarshaler: verifies generated code uses qualified
 	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
 	// excluded from property fuzz because random nil elements in a
@@ -641,3 +711,29 @@ type InterfaceFieldsStruct struct {
 }
 
 func (*InterfaceFieldsStruct) AssertInterface1() {}
+
+// ----------------------------------------
+// Reserved-field fixtures for amino reserved-field migration tests
+// (see genproto2/gen_unmarshal_reserved_test.go).
+//
+// These two types model a V1→V2 migration of a struct with three fields
+// (A int32 at fnum 1, B int32 at fnum 2, C string at fnum 3):
+//
+//	FixtureV2Reserved — CORRECT migration: B was removed and replaced with
+//	a `_ struct{} `amino:"reserved"`` placeholder so C's fnum 3 is preserved
+//	and old wire bytes carrying B at fnum 2 can still be decoded (the
+//	generator emits a per-typ3 skip stub at the reserved fnum).
+//
+//	FixtureV2Shifted — BAD migration: B was simply deleted with no
+//	placeholder. Amino auto-numbers fields by source order, so C silently
+//	slides from fnum 3 to fnum 2; old wire bytes hit a typ3 mismatch.
+type FixtureV2Reserved struct {
+	A int32    // fnum 1
+	_ struct{} `amino:"reserved"` // fnum 2 — was: B int32
+	C string   // fnum 3
+}
+
+type FixtureV2Shifted struct {
+	A int32  // fnum 1
+	C string // fnum 2 (SHIFTED — the bug Neg #1 catches)
+}

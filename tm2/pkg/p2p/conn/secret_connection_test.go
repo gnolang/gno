@@ -119,7 +119,6 @@ func TestShareLowOrderPubkey(t *testing.T) {
 
 	// all blacklisted low order points:
 	for _, remLowOrderPubKey := range blacklist {
-		remLowOrderPubKey := remLowOrderPubKey
 		_, _ = async.Parallel(
 			func(_ int) (val any, err error, abort bool) {
 				_, err = shareEphPubKey(fooConn, locEphPub)
@@ -149,7 +148,6 @@ func TestComputeDHFailsOnLowOrder(t *testing.T) {
 
 	_, locPrivKey := genEphKeys()
 	for _, remLowOrderPubKey := range blacklist {
-		remLowOrderPubKey := remLowOrderPubKey
 		shared, err := computeDHSecret(&remLowOrderPubKey, locPrivKey)
 		_ = assert.Error(t, err) &&
 			assert.Equal(t, lowOrderPointError, err.Error())
@@ -393,20 +391,20 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 // The file format is:
 // Hex(diffie_hellman_secret), loc_is_least, Hex(recvSecret), Hex(sendSecret), Hex(challenge)
 func createGoldenTestVectors() string {
-	data := ""
+	var data strings.Builder
 	for range 32 {
 		randSecretVector := random.RandBytes(32)
 		randSecret := new([32]byte)
 		copy((*randSecret)[:], randSecretVector)
-		data += hex.EncodeToString((*randSecret)[:]) + ","
+		data.WriteString(hex.EncodeToString((*randSecret)[:]) + ",")
 		locIsLeast := random.RandBool()
-		data += strconv.FormatBool(locIsLeast) + ","
+		data.WriteString(strconv.FormatBool(locIsLeast) + ",")
 		recvSecret, sendSecret, challenge := deriveSecretAndChallenge(randSecret, locIsLeast)
-		data += hex.EncodeToString((*recvSecret)[:]) + ","
-		data += hex.EncodeToString((*sendSecret)[:]) + ","
-		data += hex.EncodeToString((*challenge)[:]) + "\n"
+		data.WriteString(hex.EncodeToString((*recvSecret)[:]) + ",")
+		data.WriteString(hex.EncodeToString((*sendSecret)[:]) + ",")
+		data.WriteString(hex.EncodeToString((*challenge)[:]) + "\n")
 	}
-	return data
+	return data.String()
 }
 
 func BenchmarkWriteSecretConnection(b *testing.B) {

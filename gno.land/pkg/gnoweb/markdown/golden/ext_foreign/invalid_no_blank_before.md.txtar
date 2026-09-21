@@ -1,0 +1,13 @@
+-- input.md --
+paragraph line
+<gno-foreign>
+body
+</gno-foreign>
+
+after
+-- output.html --
+<p>paragraph line
+<!-- raw HTML omitted -->
+body
+<!-- raw HTML omitted --></p>
+<p>after</p>

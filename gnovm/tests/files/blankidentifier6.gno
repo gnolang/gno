@@ -1,27 +1,27 @@
 package main
 
 type Animal interface {
-    Sound() string
+	Sound() string
 }
 
 type Dog struct {
-    name string
+	name string
 }
 
 func (d Dog) Sound() string {
-    return "Woof!"
+	return "Woof!"
 }
 
 func main() {
-    var a Animal = Dog{name: "Rex"}
+	var a Animal = Dog{name: "Rex"}
 
-    v := a.(_)
+	v := a.(_)
 
-    println(v)
+	println(v)
 }
 
 // Error:
-// main/blankidentifier6.gno:18:13-14: cannot use _ as value or type
+// main/blankidentifier6.gno:18:10-11: cannot use _ as value or type
 
 // TypeCheckError:
-// main/blankidentifier6.gno:18:13: cannot use _ as value or type
+// main/blankidentifier6.gno:18:10: cannot use _ as value or type
