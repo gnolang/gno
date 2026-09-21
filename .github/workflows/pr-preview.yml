@@ -60,11 +60,24 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
-          git diff --name-only "$base" "$HEAD_SHA" > changed.txt
-          echo "changed files: $(wc -l < changed.txt)"
-          # A checkout of the merge base, so a changed realm can be rendered as
-          # it looks today as well as as this branch renders it. Both passes use
+          # On a pull_request event the checkout is refs/pull/<N>/merge, whose
+          # first parent is the base tree the merge was computed against. That,
+          # not the merge base, is what the head tree has to be compared with:
+          # against the merge base, everything that landed on master in between
+          # shows up as a change this pull request made. Measured on one open PR:
+          # 6 master commits, touching a package under examples/.
+          # HEAD^1 resolves on any commit, so the merge is detected with HEAD^2,
+          # which only a merge commit has: a local run on a branch tip must fall
+          # back to the merge base rather than silently taking its own parent.
+          if base=$(git rev-parse --verify -q 'HEAD^2' >/dev/null && git rev-parse 'HEAD^1'); then
+            echo "base is the merge's own base parent"
+          else
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          fi
+          git diff --name-only "$base" HEAD > changed.txt
+          echo "changed files: $(wc -l < changed.txt) (base $base)"
+          # A checkout of that base, so a changed realm can be rendered as it
+          # looks today as well as as this branch renders it. Both passes use
           # the head's gnodev and the head's assets, so the pair differs by the
           # realm change alone.
           git worktree add --detach "$RUNNER_TEMP/base" "$base"
