@@ -87,9 +87,13 @@
 
 /* ===== HEADER IDENTITY ===== */
 .b-identity {
+	/* Sits last in .b-main-menu, after the dev/general menus and the more toggle */
+	order: 4;
 	position: relative;
 	display: flex;
+	flex: none;
 	align-items: center;
+	margin-inline-start: var(--g-space-4);
 }
 
 .b-identity__toggle {
@@ -118,6 +122,7 @@
 
 .b-identity__address {
 	font-size: 0.8125rem;
+	white-space: nowrap;
 }
 
 .b-identity__menu {
