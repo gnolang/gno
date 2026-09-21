@@ -9,7 +9,7 @@ file as `home-override.md` in the aliased folder:
 
 | File | Network | Differs by |
 |------|---------|-----------|
-| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | `boards2/v0`, faucet label |
+| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | `boards2/v0` |
 | [home.testnet.md](home.testnet.md) | testnets (pearl) | `boards2/v1`, testnet notice |
 
 `boards2/v1` is what the running pearl has. #6172 renumbered `examples/` to `v0`,

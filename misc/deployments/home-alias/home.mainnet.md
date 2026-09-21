@@ -43,7 +43,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
 - [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
-- [Faucet Hub](https://faucet.gno.land)
+- [Get testnet GNOTs](https://faucet.gno.land)
 
 <gno-columns-sep>
 
