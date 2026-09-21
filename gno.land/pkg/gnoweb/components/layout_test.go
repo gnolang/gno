@@ -46,6 +46,11 @@ func TestIndexLayout(t *testing.T) {
 			mode:     ViewModePackage,
 			viewType: DirectoryViewType,
 		},
+		{
+			name:     "Playground view",
+			mode:     ViewModePlayground,
+			viewType: "test-view",
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,7 +119,9 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 4, "expected dev links with State and Actions for home mode")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, enrichedData.Links.Dev, 6, "expected dev links with State, Actions, Fork, Run for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 5, "expected dev links with State, Actions, Run for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -203,11 +210,15 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 
 	// Test realm mode (default case)
 	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
-	assert.Len(t, links, 4, "expected Content, State, Source, and Actions links")
+	// Hide the Fork button until we have publishing support
+	//assert.Len(t, links, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	assert.Len(t, links, 5, "expected Content, State, Source, Actions, Run links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "State", links[1].Label)
 	assert.Equal(t, "Source", links[2].Label)
 	assert.Equal(t, "Actions", links[3].Label)
+	// assert.Equal(t, "Fork", links[4].Label)
+	assert.Equal(t, "Run", links[4].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -219,9 +230,12 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 
 	// Test package mode
 	links := StaticHeaderDevLinks(u, ViewModePackage, false)
-	assert.Len(t, links, 2, "expected Content and Source links only")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, links, 3, "expected Content, Source, Fork links")
+	assert.Len(t, links, 2, "expected Content, Source links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+	// assert.Equal(t, "Fork", links[2].Label)
 }
 
 func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
@@ -248,6 +262,18 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
+func TestStaticHeaderDevLinks_WithPlaygroundMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/_/play",
+	}
+
+	// Test playground mode
+	links := StaticHeaderDevLinks(u, ViewModePlayground, false)
+	assert.Empty(t, links, "expected no links in playground mode")
+}
+
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	t.Parallel()
 
@@ -261,7 +287,9 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
+	// Hide the Fork button until we have publishing support
+	// assert.Len(t, enriched.Links.Dev, 6, "expected Content, State, Source, Actions, Fork, Run links")
+	assert.Len(t, enriched.Links.Dev, 5, "expected Content, State, Source, Actions, Run links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
@@ -282,13 +310,14 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 
 func TestViewModePredicates(t *testing.T) {
 	cases := []struct {
-		mode         ViewMode
-		name         string
-		wantExplorer bool
-		wantRealm    bool
-		wantPackage  bool
-		wantHome     bool
-		wantUser     bool
+		mode           ViewMode
+		name           string
+		wantExplorer   bool
+		wantRealm      bool
+		wantPackage    bool
+		wantHome       bool
+		wantUser       bool
+		wantPlayground bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -315,6 +344,11 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "User",
 			wantUser: true,
 		},
+		{
+			mode:           ViewModePlayground,
+			name:           "Playground",
+			wantPlayground: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -324,6 +358,7 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+			assert.Equal(t, tc.wantPlayground, tc.mode.IsPlayground(), "IsPlayground")
 		})
 	}
 }
@@ -381,6 +416,61 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
 			} else {
 				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
+		})
+	}
+}
+
+// TestIndexLayout_CSPNonce verifies how HeadData.CSPNonce is rendered into the
+// page head. When set, the layout must emit a <meta name="csp-nonce"> tag whose
+// content is the nonce; the frontend reads that tag and passes it to CodeMirror's
+// EditorView.cspNonce facet so CodeMirror's runtime-injected <style> elements
+// carry the nonce and pass a strict style-src CSP. When empty (non-strict mode,
+// where no CSP nonce is issued), the meta tag must be omitted entirely.
+func TestIndexLayout_CSPNonce(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		nonce string
+		want  string // "" means the meta tag must be absent
+	}{
+		{
+			name:  "nonce set renders csp-nonce meta",
+			nonce: "Ml2rzjv6QqQEexAw32Pbeg==",
+			want:  `<meta name="csp-nonce" content="Ml2rzjv6QqQEexAw32Pbeg==" />`,
+		},
+		{
+			name:  "empty nonce omits the meta tag",
+			nonce: "",
+			want:  "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title:    "Test",
+					CSPNonce: tc.nonce,
+				},
+				Mode: ViewModeHome,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			var buf strings.Builder
+			require.NoError(t, IndexLayout(data).Render(&buf))
+			output := buf.String()
+
+			if tc.want == "" {
+				assert.NotContains(t, output, `name="csp-nonce"`, "expected no csp-nonce meta tag")
+			} else {
+				assert.Contains(t, output, tc.want, "expected csp-nonce meta tag")
 			}
 		})
 	}
