@@ -76,9 +76,9 @@ The tree must not be modified during iteration (no `Set` or `Remove` from the ca
 
 ## Subpackages
 
-- `gno.land/p/nt/bptree/v0/list` - ordered list built on top of `BPTree`.
-- `gno.land/p/nt/bptree/v0/pager` - pagination helper for trees and lists.
-- `gno.land/p/nt/bptree/v0/rotree` - read-only view of a `BPTree`.
+- `gno.land/p/nt/bptree/list/v0` - ordered list built on top of `BPTree`.
+- `gno.land/p/nt/bptree/pager/v0` - pagination helper for trees and lists.
+- `gno.land/p/nt/bptree/rotree/v0` - read-only view of a `BPTree`.
 
 ## Notes
 

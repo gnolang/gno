@@ -1,7 +1,7 @@
 package charts
 
 import (
-	"gno.land/p/samcrew/piechart"
+	"gno.land/p/samcrew/piechart/v0"
 )
 
 // RenderPieChartExample creates a simple data distribution pie chart example
@@ -38,14 +38,14 @@ func RenderPieChart() string {
 	smallExample := piechart.Render(smallData, "Simple Split")
 
 	return `
-# [Piechart](/p/samcrew/piechart) Documentation
+# [Piechart](/p/samcrew/piechart/v0) Documentation
 
 Generate pie charts with label as SVG images.
 
 ## Basic Usage
 
 ` + "```go" + `
-import "gno.land/p/samcrew/piechart"
+import "gno.land/p/samcrew/piechart/v0"
 
 data := []piechart.PieSlice{
     {Value: 35, Color: "#e74c3c", Label: "Category A"},
@@ -106,6 +106,6 @@ func Render(slices []PieSlice, title string) string
 
 ---
 
-[← Back to Charts](/r/docs/charts) | [View Package](/p/samcrew/piechart)
+[← Back to Charts](/r/docs/charts) | [View Package](/p/samcrew/piechart/v0)
 `
 }
