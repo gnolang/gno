@@ -12,6 +12,18 @@ name: pr / preview cleanup
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [closed]
+    # The same filter pr-preview.yml renders on, so a close only checks out the
+    # previews repository for a pull request that could have published one. gno
+    # closes several a day, and without this each one takes the deploy key out
+    # of the secret store to find no pr-<N>/ directory. A preview this misses
+    # (paths removed by a force-push after a publish) is what evict.yml is for.
+    paths:
+      - examples/gno.land/**
+      - gno.land/pkg/gnoweb/**
+      - gno.land/cmd/gnoweb/**
+      - contribs/gnodev/**
+      - misc/gnopreview/**
+      - .github/workflows/pr-preview.yml
 
 permissions: {}
 
