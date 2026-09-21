@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/history"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -41,6 +42,7 @@ const (
 	AccountsLogName    = "Accounts"
 	LoaderLogName      = "Loader"
 	ProxyLogName       = "Proxy"
+	HistoryLogName     = "History"
 )
 
 type App struct {
@@ -62,6 +64,7 @@ type App struct {
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
+	history       *history.Store
 
 	// XXX: move this
 	exported uint
@@ -315,6 +318,35 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	nodeCfg.PackagesModifier = modifiers // add modifiers
 
+	// The state dir is the third source of packages, after the monorepo's
+	// examples and the local workspace: everything anyone has ever sent to
+	// this chain. It is also where this run's transactions are written, so a
+	// restart replays them.
+	if ds.cfg.stateDir != "" {
+		historyLogger := ds.logger.WithGroup(HistoryLogName)
+		ds.history, err = history.Open(ds.cfg.stateDir, history.Config{
+			ChainID:     ds.cfg.chainId,
+			ChainDomain: ds.cfg.chainDomain,
+			Logger:      historyLogger,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to open state dir: %w", err)
+		}
+		ds.DeferClose(ds.history.Close)
+
+		past, err := ds.history.Load(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to load history: %w", err)
+		}
+		nodeCfg.InitialTxs = past
+		nodeCfg.TxRecorder = ds.history
+
+		// Signers and called packages have to reach genesis the same way
+		// -txs-file arranges it, or the replay fails on accounts that do not
+		// exist yet and packages nothing has loaded.
+		extractDependenciesFromTxs(nodeCfg, &ds.paths)
+	}
+
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
 	// Setup lazy proxy
@@ -532,6 +564,12 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 		ds.logger.Info("node is ready", "took", time.Since(ds.start))
 	}
 
+	// Record buffers, so this timer is what bounds how much history a hard
+	// kill can lose. A clean shutdown flushes through App.Close.
+	if ds.history != nil {
+		go ds.syncHistory(ctx)
+	}
+
 	if ds.cfg.noWatch {
 		<-ctx.Done()
 		return context.Cause(ctx)
@@ -546,12 +584,43 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 				return nil
 			}
 
+			// Flush before the node is torn down and rebuilt: a crash during
+			// a reload would otherwise drop everything still buffered.
+			ds.flushHistory()
+
 			ds.logger.WithGroup(NodeLogName).Info("reloading...")
 			if err := ds.devNode.Reload(ctx); err != nil {
 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 			}
 			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
 		}
+	}
+}
+
+// historySyncInterval is how often buffered transactions are made durable.
+const historySyncInterval = 5 * time.Second
+
+// syncHistory flushes the transaction history until ctx is done.
+func (ds *App) syncHistory(ctx context.Context) {
+	ticker := time.NewTicker(historySyncInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ds.flushHistory()
+		}
+	}
+}
+
+func (ds *App) flushHistory() {
+	if ds.history == nil {
+		return
+	}
+	if err := ds.history.Sync(); err != nil {
+		ds.logger.WithGroup(HistoryLogName).Error("unable to flush history", "err", err)
 	}
 }
 
