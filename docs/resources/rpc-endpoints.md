@@ -35,7 +35,26 @@ all optional.
 A request to `/` with an empty body returns an HTML index of the endpoints
 that node serves.
 
+### Passing byte arguments
+
+`hash`, `abci_query`'s `data` and the `tx` of the broadcast endpoints are byte
+arrays. Over JSON-RPC each takes a base64 string. The URI transport is looser:
+it also accepts the value unquoted, and a `0x`-prefixed hex string.
+
+Two rules follow. A `+` in a base64 value has to be percent-encoded as `%2B`,
+since a literal `+` means a space in a query string, and roughly half of all
+hashes contain one. And the `0x` prefix is case-sensitive and URI-only: over
+JSON-RPC the argument goes through Amino, which takes base64 alone.
+
+Hex without the prefix is the trap worth naming. Hexadecimal characters are a
+subset of the base64 alphabet, so 64 hex characters decode cleanly into 48
+bytes of noise, so the node returns a "could not find tx result" error rather
+than rejecting the argument.
+
 ## Node and network
+
+What a node reports about itself: whether it is answering, how far it has
+synced, who it is connected to, and the genesis it started from.
 
 ### `health`
 
@@ -76,6 +95,10 @@ but the message is never finalised. A batch rejects it outright. There is no
 chunked variant.
 
 ## Blocks
+
+Committed chain state, addressed by height. Where `height` is optional it
+defaults to the latest block, except on `validators` and `consensus_params`,
+which default one block further on.
 
 ### `blockchain`
 
@@ -128,6 +151,10 @@ than integrators.
 
 ## Transactions
 
+Sending a transaction and looking one up. A transaction is found by exact hash
+only; the three broadcast endpoints differ in how long they wait and therefore
+in how much of the outcome they can tell you.
+
 ### `tx`
 
 Takes `hash`. Returns `hash`, `height`, `index`, `tx_result` and the raw `tx`.
@@ -168,6 +195,10 @@ and `txs`.
 returns the same shape with `txs` left null.
 
 ## Application
+
+The two endpoints that reach past consensus into the application. The query
+paths they carry — `auth/`, `bank/`, `vm/`, `params/` — are documented in
+[Querying On-Chain State](../builders/query-state-api.md).
 
 ### `abci_query`
 
@@ -218,22 +249,6 @@ JSON-RPC errors both use it. One endpoint departs from that, `status` with
 server rather than from an endpoint: an unregistered path gives a plain-text
 404, `/websocket` without a valid upgrade handshake gives a 400, and a handler
 panic gives a 500 whose body is still a JSON-RPC error.
-
-### Passing byte arguments
-
-`hash`, `abci_query`'s `data` and the `tx` of the broadcast endpoints are byte
-arrays. Over JSON-RPC each takes a base64 string. The URI transport is looser:
-it also accepts the value unquoted, and a `0x`-prefixed hex string.
-
-Two rules follow. A `+` in a base64 value has to be percent-encoded as `%2B`,
-since a literal `+` means a space in a query string, and roughly half of all
-hashes contain one. And the `0x` prefix is case-sensitive and URI-only: over
-JSON-RPC the argument goes through Amino, which takes base64 alone.
-
-Hex without the prefix is the trap worth naming. Hexadecimal characters are a
-subset of the base64 alphabet, so 64 hex characters decode cleanly into 48
-bytes of noise, so the node returns a "could not find tx result" error rather
-than rejecting the argument.
 
 ## Not available
 
