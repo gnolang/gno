@@ -1,0 +1,127 @@
+# A chain can answer every query and accept every transaction while committing
+# nothing at all. Losing two validators of four leaves two, and BFT needs more
+# than two thirds, so consensus stops while both survivors keep serving RPC
+# from the state they already hold. The oracle sees a node that is up, healthy,
+# and frozen.
+#
+# gpao's poll loop asks the node for its tip and walks up to it, so a tip that
+# stops moving leaves the inner loop with nothing to do: no spin, no exit, no
+# lost place. No gpao test drives that loop against a tip at all, and the two
+# ways it could go wrong -- treating a stalled tip as an error and exiting, or
+# hot-spinning on it -- both look like an oracle that was fine right up until
+# the day a cluster lost quorum.
+#
+# The node gpao reads and writes through, and the node submissions enter
+# through, are both validator 0, which is never stopped here. Everything below
+# has to follow from consensus halting rather than from gpao losing the RPC
+# endpoint underneath it, and moving either stop onto validator 0 would produce
+# a script that still passes while proving only that a daemon notices its node
+# is gone.
+
+gpao start -start-height 1
+
+# ---- The oracle works on a four-validator cluster, established before
+# ---- anything is taken away.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/before -pkgpath gno.land/r/quorum/before $USER_NAME
+eventually gnokey query vm/qrender -data 'gno.land/r/quorum/before:x'
+stdout 'before'
+
+# ---- Quorum goes.
+
+# Two of four is not a majority of two thirds, so no proposal can be committed
+# by anybody.
+validator stop 1
+validator stop 2
+
+# The write is what proves the halt, so the halt needs no waiting on and no
+# height to be read. -broadcast=true is BroadcastTxCommit: it runs CheckTx
+# locally, then waits for the transaction to appear in a committed block,
+# bounded by TimeoutBroadcastTxCommit, ten seconds by default and not
+# overridden by the cluster. CheckTx passes -- the transaction is well formed
+# against state the node already has -- and the wait then expires, which is
+# the chain admitting it cannot commit.
+#
+# The transaction is left in validator 0's mempool. Only the waiter gave up.
+! gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/stalled -pkgpath gno.land/r/quorum/stalled $USER_NAME
+stderr 'request timeout'
+
+# Reads still answer, from a validator that cannot commit. ABCI queries serve
+# committed state and take no part in consensus, so this is the distinction the
+# whole scenario rests on: unreachable and unable to agree are different
+# failures, and only one of them is happening.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/quorum/stalled'
+
+# The oracle is alive through the halt -- the status board answering at all
+# proves the process is up -- and has no record of the path. Not rejected, not
+# pending: never seen, because nothing carrying it was ever committed and gpao
+# reads packages out of blocks.
+http_get $GPAO_STATUS/status/gno.land/r/quorum/stalled
+stdout '"status":"unknown"'
+
+# ---- One validator back is enough.
+
+# Three of four clears two thirds, so consensus resumes with validator 2 still
+# down.
+validator restart 1
+
+# Nothing resubmitted this package and nothing restarted the oracle. The
+# transaction was still in validator 0's mempool, the first block after quorum
+# returned carried it, it parked, and gpao -- which spent the halt with nothing
+# to read and its height unchanged -- picked that block up on an ordinary poll.
+# That is the whole claim of this file, and it is the line that fails if the
+# poll loop ever treats a stalled tip as something to recover from.
+eventually gnokey query vm/qrender -data 'gno.land/r/quorum/stalled:x'
+stdout 'stalled'
+
+# Gated rather than one-shot: status.record for an approval runs after enable()
+# returns, and enable() broadcasts with BroadcastTxCommit, so the package is
+# renderable before the board says so. http_get's second argument is checked per
+# attempt, which is what makes waiting on it mean anything.
+eventually http_get $GPAO_STATUS/status/gno.land/r/quorum/stalled '"status":"approved"'
+stdout '"status":"approved"'
+
+# ---- Validator 2 stays down.
+
+# A submission that arrives now, is verified, approved and rendered proves the
+# chain took new work on three nodes of four, which is the quorum arithmetic
+# above read from the other side.
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/after -pkgpath gno.land/r/quorum/after $USER_NAME
+eventually gnokey query vm/qrender -data 'gno.land/r/quorum/after:x'
+stdout 'after'
+
+-- cluster --
+validators: 4
+code-submission-policy: inert
+-- before/gnomod.toml --
+module = "gno.land/r/quorum/before"
+gno = "0.9"
+
+-- before/before.gno --
+package before
+
+func Render(path string) string {
+	return "before"
+}
+
+-- stalled/gnomod.toml --
+module = "gno.land/r/quorum/stalled"
+gno = "0.9"
+
+-- stalled/stalled.gno --
+package stalled
+
+func Render(path string) string {
+	return "stalled"
+}
+
+-- after/gnomod.toml --
+module = "gno.land/r/quorum/after"
+gno = "0.9"
+
+-- after/after.gno --
+package after
+
+func Render(path string) string {
+	return "after"
+}
