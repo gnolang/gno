@@ -4,8 +4,6 @@ import (
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 )
 
-// NOTE: Amino is registered in rpc/core/types/codec.go.
-
 // Routes builds the RPC route map for this Environment. Each route binds a
 // method value on env, so requests dispatch to this specific Environment's
 // state without going through package globals.
