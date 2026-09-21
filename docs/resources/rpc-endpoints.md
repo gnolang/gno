@@ -85,8 +85,9 @@ Takes an optional `heightGte`. Returns:
 
 `heightGte` turns the call into a readiness probe: the node answers 409 instead
 of 200 when it has not reached the height asked for. That status appears only
-on the URI transport; over JSON-RPC the same case returns 200 with an error
-object.
+on the URI transport; over JSON-RPC on HTTP the same case returns 200 with an
+error object, and over WebSocket there is no HTTP status at all, only the
+error in the response.
 
 ### `net_info`
 
@@ -138,8 +139,12 @@ an indexer starting at height 1 never sees.
 ### `commit`
 
 Takes an optional `height`, defaulting to the latest. Returns `signed_header`
-and `canonical`, the latter reporting whether the commit is the canonical one
-for that block.
+and `canonical`.
+
+`canonical` is `false` at the latest height, where the node has only the
+commit it saw itself, and `true` below it, where the commit comes from the
+block above. Calling without `height` therefore always answers `false`, which
+is normal rather than a sign of anything wrong.
 
 ### `validators`
 
