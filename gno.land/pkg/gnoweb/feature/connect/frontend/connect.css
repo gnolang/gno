@@ -35,7 +35,7 @@
 	gap: 0.75rem;
 	align-items: flex-start;
 	padding: 0.75rem;
-	border: 1px solid var(--gs-100, #e5e5e5);
+	border: 1px solid var(--s-color-border-primary);
 	border-radius: 0.5rem;
 }
 
@@ -134,9 +134,12 @@
 	flex-direction: column;
 	min-width: 12rem;
 	padding: 0.25rem;
-	border: 1px solid var(--gs-100, #e5e5e5);
+	border: 1px solid var(--s-color-border-primary);
 	border-radius: 0.5rem;
-	background: var(--gs-0, #fff);
+	/* Themed tokens, not literals: the panel paints its own surface over the
+	   header, so it must also set the text color the theme pairs with it. */
+	background: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
 	box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
 }
 
@@ -148,5 +151,5 @@
 }
 
 .b-identity__menu button:hover {
-	background: var(--gs-50, #f5f5f5);
+	background: var(--s-color-bg-surface-primary-hover);
 }
