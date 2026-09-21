@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ .Title }}</title>
 
-  <!-- Preload -->
-  <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2?v={{ .BuildTime }}" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2?v={{ .BuildTime }}" as="font" type="font/woff2"
+  <!-- Preload. Deliberately unversioned: a preload is claimed only by a request
+       for the very same URL, and the request for a font comes from the @font-face
+       rule in main.css, which names the file with no version. Appending one here
+       leaves the preload unclaimed and fetches the font a second time. Versioning
+       a font means changing the URL main.css emits, which is a build concern. -->
+  <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"
     crossorigin />
 
   <!-- Meta description -->
