@@ -211,7 +211,8 @@ returns the same shape with `txs` left null.
 The two endpoints that reach past consensus into the application. Only
 `abci_query` carries a path, and paths come in two shapes: the module routes
 `auth/`, `bank/`, `vm/` and `params/`, and the two special prefixes `.app/`
-and `.store/`. The JSON endpoints under `vm/` are documented in
+and `.store/`. The `vm/` state-traversal endpoints — `qeval_json`, `qpkg_json`,
+`qobject_json` and `qtype_json` — are documented in
 [Querying On-Chain State](../builders/query-state-api.md).
 
 ### `abci_query`
@@ -233,8 +234,9 @@ curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kz
 #               "Key": null, "Value": null, "Proof": null, "Height": "0" }
 ```
 
-The account is in `Data`, base64, two levels down. `Key` and `Value` stay null
-on the module paths, and so does `Height`, whatever height was asked for:
+The account is in `Data`, base64, two levels down. On the module paths `Key`
+and `Value` stay null and `Height` stays `"0"`, whatever height was asked for;
+the `.store/` paths set all three.
 
 ```bash
 curl -s 'https://rpc.gno.land:443/abci_query?path=%22auth/accounts/g1manfred47kzduec920z88wfr64ylksmdcedlf5%22' \
