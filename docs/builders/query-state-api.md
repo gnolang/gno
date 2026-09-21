@@ -209,3 +209,4 @@ This lazy-loading pattern avoids transferring the entire object graph upfront.
 
 - [`gnokey` command reference](../resources/gnokey-reference.md#querying-a-gnoland-network) — text-oriented query endpoints (`vm/qrender`, `vm/qfile`, `vm/qeval`, etc.)
 - [RPC clients](rpc-clients.md) — client library overview
+- [JSON-RPC endpoints](../resources/rpc-endpoints.md) — the transport that carries these queries
