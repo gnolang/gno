@@ -9,12 +9,18 @@ Draft. Proposed design, nothing implemented.
 ### Where the chain is today
 
 `gnoland-1` is live. The halt mechanism from [#5368](https://github.com/gnolang/gno/pull/5368)
-works and has been exercised once in production: block 36170 executed a
-`NewSetHaltRequest(cross(cur), 36300, "")`, the chain stopped after committing
-36302, and validators brought it back 6m12s later. The halt shipped with an
-**empty** `halt_min_version`, i.e. no restart gate at all — which was the only
-safe choice, because on the binary of the day no version string would have
-parsed. [#6177](https://github.com/gnolang/gno/pull/6177) fixes that.
+works and has been exercised three times in production within a week:
+
+| `halt_height` | date | last block committed | back after |
+|---|---|---|---|
+| 36300 | 2026-09-14 | 36302 | 6m12s |
+| 113000 | 2026-09-17 | 113002 | 6m11s |
+| 162200 | 2026-09-19 | 162202 | 5m43s |
+
+Every one shipped with an **empty** `halt_min_version`, i.e. no restart gate at
+all — which was the only safe choice, because no binary of that period reported a
+version string that would have parsed.
+[#6177](https://github.com/gnolang/gno/pull/6177) fixes that.
 
 So the chain can stop together. It has no way to *change state* while stopped
 other than rebuilding it.
@@ -79,30 +85,20 @@ is no per-module partition for a `VersionMap` to key on, and no substore to add,
 rename or delete. `StoreUpgrades`, `StoreLoader` and `upgrade-info.json` have
 nothing to do here.
 
-What does carry over is the part that has nothing to do with modularity: a
-binary that opens a store written by an older binary needs to know what it is
-reading.
+What does carry over is the shape of the plan: a name, a height, and a handler
+keyed to that name, run once inside a block.
 
 ## Decision
 
-Three pieces, in order of independence:
+Add a registry of upgrade handlers, and a BeginBlocker that runs the one named by
+`halt_min_version` in the block after the halt. That is the whole of it.
 
-1. **No new param.** The existing `halt_min_version` carries both roles: the
-   version floor it already is, and the key an upgrade handler is registered
-   under.
-2. **Handlers** — arbitrary Go, registered under the release version that
-   introduced them, compiled in, run inside a block.
-3. **A record of completed upgrades** in the `main` store, checked at startup
-   against the upgrade registry.
-
-Explicit non-goals, each dropped for the reasons above:
-
-- per-module `ConsensusVersion`, `VersionMap`, `module.Manager`, `Configurator`,
-  `RegisterMigration`;
-- `StoreUpgrades`, `SetStoreLoader`, `upgrade-info.json`;
-- multi-step catch-up across skipped releases (upgrades apply in sequence);
-- `InitGenesis`-for-absent-module (new keeper state is seeded explicitly in a
-  handler).
+Everything it needs already exists. `halt_min_version` is both the version floor
+it is today and the key a handler is registered under, so no param is added,
+renamed or given a new meaning. It is never cleared, so it also records the last
+upgrade, and the existing post-halt floor already refuses an older binary — so no
+new state either. The halt itself is untouched: governance sets the height, the
+EndBlocker arms it, `BeginBlock` stops the node, exactly as today.
 
 ## Design
 
@@ -192,16 +188,15 @@ var Upgrades = []upgrades.Upgrade{
 }
 ```
 
-Read in two places, both covered below: `checkNodeStartupParams` (§3), to look up
-the chain's last completed upgrade; and the BeginBlocker (*Where it hooks*), to
-find the handler named by a pending `halt_min_version`.
+Read in one place: the BeginBlocker (*Where it hooks*), to find the handler
+named by `halt_min_version`.
 
 An entry may be dropped once no chain the binary serves still sits at it — which
-in practice means keeping the most recent, since that is what §3 looks up. More
-may be needed: a binary able to replay across several upgrade heights must carry
-the handler for each one it crosses. Whether it can is decided by whether those
-upgrades changed the stored encoding — which nothing here marks, so it stays a
-judgement for whoever prunes.
+in practice means keeping the most recent. More may be needed: a binary able to
+replay across several upgrade heights must carry the handler for each one it
+crosses. Whether it can is decided by whether those upgrades changed the stored
+encoding — which nothing here marks, so it stays a judgement for whoever
+prunes.
 
 Only upgrades that migrate state register anything. A coordinated upgrade that
 breaks consensus without touching state needs a floor and nothing else, so
@@ -212,45 +207,6 @@ allows — deploy a package, rewrite params, seed data, replace the valoper set,
 walk and re-encode objects. There is no fixed list, and no attempt to define
 one. The only known limit is changing the code and/or the state of an
 already-deployed realm, for the reason in Open questions.
-
-### 3. Completed upgrades
-
-The BeginBlocker records each upgrade it applies — version and height — under a
-reserved key in the `main` store.
-
-The record exists to answer one question at startup: **does this binary know the
-shape the chain is already in?** Read the most recent completed upgrade and look
-it up in the upgrade registry.
-
-| last completed | binary | entry in the registry? | result |
-|---|---|---|---|
-| v1.5.0 | v1.3.0 | no — predates it | **refuse** |
-| v1.5.0 | v1.5.0 | yes | proceed |
-| v1.5.0 | v1.6.0 | yes, inherited | proceed |
-
-An upgrade with an empty `halt_min_version` records nothing: there is no version
-to record, and no handler ran. The chain's last completed upgrade stays whatever
-it was before — which is correct, since nothing about the stored data changed.
-A chain that has only ever halted this way, `gnoland-1` today, has no record at
-all, and the check has nothing to compare, so every binary passes it. That is
-the honest answer rather than a gap: without a version there is nothing to say
-which binaries understand that chain.
-
-`checkNodeStartupParams` (`node_params.go:129-181`, called once at `app.go:288`)
-therefore grows one check beside the two it has:
-
-| Check | When | Bypassed by `skip_upgrade_height`? |
-|---|---|---|
-| binary meets the floor (`:158-166`) | post-halt | yes, as today |
-| binary does *not* meet the floor (`:170-178`) | pre-halt | yes, as today |
-| the last completed upgrade names a registry entry | always | **no** |
-
-That last row is why the check goes in its own function, called from
-`app.go:288` beside `checkNodeStartupParams` rather than inside it:
-`checkNodeStartupParams` returns early both when `skip_upgrade_height` matches
-and when no halt is pending (`node_params.go:145-152`), and the second of those
-is a chain's normal state. `skip_upgrade_height` itself is unchanged — same
-config field, same two version gates it governs.
 
 ### Where it hooks
 
@@ -270,7 +226,7 @@ exact-height arming at `app.go:1151-1162`:
 ```
 read node:p:halt_min_version
   ""       → nothing to look up; no migration possible
-  entry    → run the handler; record (version, height) as completed
+  entry    → run the handler
   no entry → nothing to migrate
 ```
 
@@ -280,8 +236,7 @@ read node:p:halt_min_version
   H      EndBlocker arms the halt (existing code, unchanged)
   H+1    BeginBlock panics; nodes stop            [existing]
   ---    operators swap binaries
-  boot   checkNodeStartupParams: version gates [existing]
-                              + completed-upgrades check [new]
+  boot   checkNodeStartupParams: version gates [existing, unchanged]
   H+1    BeginBlocker runs the handler, in consensus
 ```
 
@@ -386,8 +341,8 @@ Rejected: the derived value is the maximum over the entries, so pruning one
 lowers it and every node reads the chain as newer than the binary — refusing to
 start, all at once. Avoiding that means a hand-maintained high-water constant
 whose only failure mode bricks the chain, or keeping pruned entries as
-headstones. Recording completed upgrades needs neither, and the presence test it
-enables answers the same question.
+headstones. The existing version floor needs neither, and answers the same
+question.
 
 Two counters, one per store, were considered alongside and rejected for the same
 reason as per-module consensus versions: there is no independent axis. Both
@@ -413,11 +368,26 @@ parse — so the name would carry no information the version does not.
    handler, realm code changes are blocked on a VM change rather than on upgrade
    plumbing — and that is most of what an upgrade wants to do. This needs
    answering before anything else here is built.
-2. **How the completed-upgrades record is read from outside.** Keeping it out of
-   the params keeper costs the `gnokey query params/...` path, so there is no way
-   to ask a node which upgrades it has applied. The `app` entry of the p2p
-   `VersionSet` is the natural place, but it is fed by `state.AppVersion`, which
-   nothing populates today.
+2. **Should the chain record which upgrades it has applied?** An earlier draft
+   did, and checked the record at startup so a binary could refuse a chain it
+   does not understand — Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`.
+   It was dropped as redundant: the params are never cleared, so after the v1.5.0
+   upgrade `halt_min_version` still reads `"v1.5.0"` and the existing post-halt
+   gate (`node_params.go:158-166`) already refuses an older binary. A record
+   would differ only in being a fact rather than a governance assertion —
+   catching a typo'd floor, a floor set for a migration that did not run, or one
+   a later proposal lowered — which is narrow against a new store key, a new
+   check and a new call site.
+
+   **Clearing the params is the trigger to revisit.** The moment
+   `halt_min_version` is emptied after an upgrade, the floor goes with it,
+   nothing refuses an old binary on migrated data, and a record becomes the only
+   answer.
+
+   Related: nothing reports which upgrades a node has applied. `halt_min_version`
+   is queryable but names only the most recent. The `app` entry of the p2p
+   `VersionSet` is the natural home for something better, and is fed by
+   `state.AppVersion`, which nothing populates today.
 3. **Should the mechanism be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
    about "run a registered handler at a height, record that it ran, check the
    record at startup" is gno-specific, and the machinery it builds on is already
@@ -444,9 +414,8 @@ parse — so the name would carry no information the version does not.
 1. Pick and build one of the three answers in *Syncing past an upgrade height*,
    starting with manual snapshots. Everything else is blocked on it.
 2. Answer open question 1. Everything downstream depends on it.
-3. The upgrade registry, the completed-upgrades record, the startup check and the
-   BeginBlocker. No param changes — `halt_min_version` already carries what is
-   needed.
+3. The upgrade registry and the BeginBlocker. No param changes and no new
+   state — `halt_min_version` already carries what is needed.
 4. First real handler, with a dry-run tool.
 
 Worth folding into whichever phase touches the params: the halt params have **no
