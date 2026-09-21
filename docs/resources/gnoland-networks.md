@@ -2,11 +2,19 @@
 
 ## Network configurations
 
-| Network           | RPC Endpoint                               | Chain ID     | Deployment files                                                                                                              |
-|-------------------|--------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------|
-| Betanet (current) | https://rpc.gno.land:443                   | `gnoland1`   | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                   |
-| Staging           | https://rpc.staging.gno.land:443           | `staging`    | [`misc/loop`](../../misc/loop)                                                                                                |
-| Sapphire / Test15 | https://rpc.sapphire.testnets.gno.land:443 | `sapphire-1` | [`misc/deployments/sapphire.gno.land`](https://github.com/gnolang/gno/tree/chain/sapphire/misc/deployments/sapphire.gno.land) |
+| Network           | RPC Endpoint                            | Chain ID    | Deployment files                                                                                                           |
+|-------------------|-----------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
+| Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
+| Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
+| Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
+| Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
+
+Mainnet (`gnoland-1`) launches at `2026-09-12T14:00:00Z` as a fresh chain — not
+a hardfork of betanet. Balances come from the audited
+[gnolang/independence-day](https://github.com/gnolang/independence-day)
+allocation, transfers start locked per Constitution §126, and there is **no
+faucet**. The `rpc.gno.land` endpoint serves `gnoland-1` from launch; betanet,
+which held that name before, is retired.
 
 ### WebSocket endpoints
 
@@ -161,26 +169,30 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](../../misc/loop) folder in the
     monorepo
 
-### Sapphire / Test15
+### Pearl / Test16
 
-The latest Gno.land testnet, released on the 7th of August, 2026, and the one to use unless you have a reason not to.
+The latest Gno.land testnet, released on the 26th of August, 2026, and the one to use unless you have a reason not to.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/sapphire](https://github.com/gnolang/gno/releases/tag/chain%2Fsapphire)
+  - Pre-deployed packages and realms are at release tag [chain/pearl](https://github.com/gnolang/gno/releases/tag/chain%2Fpearl)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 - **Versioning strategy:**
-  - Cut from the [`chain/sapphire`](https://github.com/gnolang/gno/tree/chain/sapphire)
+  - Cut from the [`chain/pearl`](https://github.com/gnolang/gno/tree/chain/pearl)
     branch; deployment files under
-    [`misc/deployments/sapphire.gno.land`](https://github.com/gnolang/gno/tree/chain/sapphire/misc/deployments/sapphire.gno.land)
+    [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Sapphire / Test15 (archive)
+
+Sapphire (Test15) was released on the 7th of August, 2026, and superseded by Pearl / Test16.
 
 ### Topaz / Test14 (archive)
 

@@ -25,6 +25,7 @@
           "builders/editor-setup",
           "builders/tutorial-minisocial",
           "builders/rpc-clients",
+          "builders/query-state-api",
           "builders/contributor-guide",
           "builders/running-a-node"
         ]
@@ -35,6 +36,7 @@
         "items": [
           "resources/effective-gno",
           "resources/gno-packages",
+          "resources/community-packages",
           "resources/gno-data-structures",
           "resources/gnoland-networks",
           "resources/users-and-teams",
@@ -46,6 +48,10 @@
           "resources/gno-testing",
           "resources/realms",
           "resources/gno-interrealm",
+          "resources/gno-interrealm-v2",
+          "resources/gno-security",
+          "resources/gno-security-guide",
+          "resources/gno-ai-contract-review",
           "resources/gno-memory-model",
           "resources/comparison-of-ways-to-interact-with-gnoland",
           "resources/glossary",

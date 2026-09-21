@@ -31,6 +31,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Editor Setup](builders/editor-setup.md) - Configure your editor with LSP support, autocompletion, and formatting for `.gno` files.
 - [Tutorial: `minisocial` dApp](builders/tutorial-minisocial.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
 - [RPC clients](builders/rpc-clients.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
+- [Querying on-chain state](builders/query-state-api.md) - The ABCI query endpoints that return structured JSON, for frontends, explorers and developer tools.
 - [Contributor guide](builders/contributor-guide.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
 - [Running a node](builders/running-a-node.md) - Start here if you were about to run a node: most use cases don't need one. Routes you to `gnodev`, public RPC, a full node, a validator, or a local chain.
 
@@ -40,8 +41,9 @@ Learn about core concepts found in Gno.land & Gno.
 
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the Gno.land ecosystem.
+- [Community Packages](resources/community-packages.md) - How to treat the community-maintained packages under `examples/gno.land/p/...` as dependencies rather than official APIs.
 - [Data Structures](resources/gno-data-structures.md) - Learn about arrays, slices, maps, structs, pointers, and when to use AVL trees for efficient storage.
-- [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
+- [Networks](resources/gnoland-networks.md) - Mainnet, the current testnet, staging and devnets — their purposes, chain ids, RPC endpoints and deployment files.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
@@ -50,7 +52,11 @@ Learn about core concepts found in Gno.land & Gno.
 - [Local development with `gnodev`](resources/gnodev-reference.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
-- [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
+- [Interrealm Specification](resources/gno-interrealm.md) - How inter-realm communication works, and how the design got here.
+- [Interrealm Specification v2](resources/gno-interrealm-v2.md) - The standalone specification as implemented at current HEAD. Supersedes the above where they disagree.
+- [Security: threat-class taxonomy](resources/gno-security.md) - The numbered threat classes referenced from `// SECURITY (Class-N …)` comments across the codebase.
+- [Security guide for realm authors](resources/gno-security-guide.md) - Long-form companion to the taxonomy: cross-realm attack vectors and the defensive patterns for each.
+- [Contract review guide for AI agents](resources/gno-ai-contract-review.md) - Condensed reference for agents performing security review of `.gno` code.
 - [Gno Memory Model](resources/gno-memory-model.md) - A peek under the hood of the Gno Virtual Machine.
 - [Comparison of ways to communicate with Gno.land](resources/comparison-of-ways-to-interact-with-gnoland.md) - An overview of the various methods to interact with Gno.land, mainly for developers writing applications.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.
