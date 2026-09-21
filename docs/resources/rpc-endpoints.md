@@ -171,13 +171,23 @@ much of the outcome they report back.
 
 Takes `hash`. Returns `hash`, `height`, `index`, `tx_result` and the raw `tx`.
 
-A transaction that is not found may be in the mempool, may have been rejected,
-or may never have been sent. The response does not distinguish them.
+A transaction that is not found comes back as a JSON-RPC error, `-32603` with
+`Could not find tx result for hash #<hex>`, not as a result with empty fields.
+It may be in the mempool, may have been rejected, or may never have been sent:
+the error is the same in all three cases. Code that polls `tx` until a
+transaction appears has to treat that error as "not yet", not as a transport
+failure.
 
 ### `broadcast_tx_sync`
 
 Takes `tx`. Returns `error`, `data`, `log` and `hash` once the mempool has run
 the application's `CheckTx`.
+
+A rejected transaction still arrives as a successful JSON-RPC response, with
+the reason at `result.error` — `{"@type": "/std.TxDecodeError"}` for an
+undecodable one. Only the mempool's own refusals, a full mempool or a
+transaction already in its cache among them, come back as a JSON-RPC error, so
+there are three outcome shapes rather than two.
 
 `CheckTx` validates a transaction for the mempool; it does not run its
 messages. An accepted transaction can still fail when it executes, and that
@@ -194,7 +204,7 @@ here as a success.
 
 Takes `tx`. Returns `check_tx`, `deliver_tx`, `hash` and `height` once the
 transaction is in a committed block. A transaction `CheckTx` rejects comes back
-immediately instead, with an empty `deliver_tx` and a `height` of `0`.
+immediately instead, with an empty `deliver_tx` and a `height` of `"0"`.
 
 The source marks it for testing and development rather than production. On
 timeout it returns an error while the transaction may still commit later.
@@ -254,7 +264,8 @@ chain tip before that check.
 
 Takes nothing. Returns `response`, with the last block height at
 `LastBlockHeight` and the application name one level down, at
-`ResponseBase.Data`.
+`ResponseBase.Data` — base64 like every other byte array, so `Z25vbGFuZA==`
+rather than `gnoland`.
 
 ## Reading a response
 
