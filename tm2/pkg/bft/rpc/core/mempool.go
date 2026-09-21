@@ -22,9 +22,19 @@ import (
 // BroadcastTxAsync returns right away, with no response. Does not wait for
 // CheckTx nor DeliverTx results.
 //
-// If you want to be sure that the transaction is included in a block, you can
-// subscribe for the result using JSONRPC via a websocket. See
-// https://docs.tendermint.com/v0.34/tendermint-core/subscription.html
+// The returned error covers what the mempool itself can decide: capacity and
+// size limits, a duplicate already in the cache, and a proxy connection
+// failure. The application's CheckTx does run — gno.land hosts the application
+// in-process, so the local client executes it before this method returns, and
+// the mempool acts on the outcome by admitting or dropping the transaction.
+// The caller is the one left out: the callback passed here is nil, so the
+// result never reaches it, and a transaction the application rejects — an
+// undecodable one, for instance — is reported as a success.
+//
+// Callers that need to know whether a transaction was accepted into the
+// mempool use BroadcastTxSync. Acceptance is not execution: CheckTx does not
+// run the messages, so the outcome of a transaction is only available from Tx
+// once it has been included in a block.
 func (env *Environment) BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	_, span := traces.Tracer().Start(ctx.Context(), "BroadcastTxAsync")
 	defer span.End()
