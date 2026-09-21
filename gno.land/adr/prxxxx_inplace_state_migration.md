@@ -368,16 +368,16 @@ parse — so the name would carry no information the version does not.
    handler, realm code changes are blocked on a VM change rather than on upgrade
    plumbing — and that is most of what an upgrade wants to do. This needs
    answering before anything else here is built.
-2. **Should the chain record which upgrades it has applied?** An earlier draft
-   did, and checked the record at startup so a binary could refuse a chain it
-   does not understand — Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`.
-   It was dropped as redundant: the params are never cleared, so after the v1.5.0
-   upgrade `halt_min_version` still reads `"v1.5.0"` and the existing post-halt
-   gate (`node_params.go:158-166`) already refuses an older binary. A record
-   would differ only in being a fact rather than a governance assertion —
-   catching a typo'd floor, a floor set for a migration that did not run, or one
-   a later proposal lowered — which is narrow against a new store key, a new
-   check and a new call site.
+2. **Should the chain record which upgrades it has applied**, and check that
+   record at startup so a binary can refuse a chain it does not understand? That
+   is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. It is redundant
+   while the params are never cleared: after the v1.5.0 upgrade
+   `halt_min_version` still reads `"v1.5.0"`, and the existing post-halt gate
+   (`node_params.go:158-166`) already refuses an older binary. A record would
+   differ only in being a fact rather than a governance assertion — catching a
+   typo'd floor, a floor set for a migration that did not run, or one a later
+   proposal lowered — which is narrow against a new store key, a new check and a
+   new call site.
 
    **Clearing the params is the trigger to revisit.** The moment
    `halt_min_version` is emptied after an upgrade, the floor goes with it,
