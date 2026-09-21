@@ -36,16 +36,16 @@
   <meta name="twitter:image" content="{{ .Image }}" />
 
   <!-- Favicon -->
-  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .BuildTime }}" type="image/x-icon" />
+  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" type="image/x-icon" />
 
   <!-- Robots meta tag -->
   <meta name="robots" content="index, follow" />
 
   <!-- chroma stylesheet -->
-  <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .BuildTime }}" />
+  <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .AssetsVersion }}" />
 
   <!-- web assets -->
-  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />
+  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .AssetsVersion }}" />
 
   <!-- wallet integrations -->
   <meta name="gnoconnect:rpc" content="{{ .Remote }}" />

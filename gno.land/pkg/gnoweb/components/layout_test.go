@@ -609,10 +609,10 @@ func headFixture(t *testing.T, version string) string {
 
 	data := IndexData{
 		HeadData: HeadData{
-			Title:      "Test",
-			AssetsPath: "/public/",
-			ChromaPath: "/public/_chroma/style.css",
-			BuildTime:  version,
+			Title:         "Test",
+			AssetsPath:    "/public/",
+			ChromaPath:    "/public/_chroma/style.css",
+			AssetsVersion: version,
 		},
 		Mode: ViewModeHome,
 		BodyView: &View{
