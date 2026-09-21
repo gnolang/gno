@@ -152,7 +152,7 @@ func main() {
 
 	// 5. Reset priv_validator_state.json
 	pvsPath := filepath.Join(*dataDir, "secrets", "priv_validator_state.json")
-	pvs := map[string]interface{}{"height": "0", "round": "0", "step": 0}
+	pvs := map[string]any{"height": "0", "round": "0", "step": 0}
 	pvsBytes, _ := json.MarshalIndent(pvs, "", "  ")
 	if err := os.WriteFile(pvsPath, pvsBytes, 0o644); err != nil {
 		log.Printf("warning: could not reset %s: %v", pvsPath, err)
@@ -164,16 +164,16 @@ func main() {
 }
 
 func deleteBlock(db dbm.DB, height int64) {
-	db.Delete([]byte(fmt.Sprintf("H:%v", height)))
-	for i := 0; i < 100; i++ {
-		key := []byte(fmt.Sprintf("P:%v:%v", height, i))
+	db.Delete(fmt.Appendf(nil, "H:%v", height))
+	for i := range 100 {
+		key := fmt.Appendf(nil, "P:%v:%v", height, i)
 		if has, _ := db.Has(key); !has {
 			break
 		}
 		db.Delete(key)
 	}
-	db.Delete([]byte(fmt.Sprintf("C:%v", height)))
-	db.Delete([]byte(fmt.Sprintf("SC:%v", height)))
+	db.Delete(fmt.Appendf(nil, "C:%v", height))
+	db.Delete(fmt.Appendf(nil, "SC:%v", height))
 }
 
 func saveBlockStoreState(db dbm.DB, height int64) {

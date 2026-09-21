@@ -1,0 +1,176 @@
+# Regression test: a BankerTypeOriginSend banker must not outlive the
+# message that created it.
+#
+# Its authority IS the send-envelope of one message. The
+# construction-time guard (rlm.Previous().IsUserCall()) only proves the
+# realm was the entry realm AT THAT MOMENT; a banker value stashed in
+# realm state and woken up in a later message spends the realm's own
+# treasury against an envelope it never received.
+#
+# The rule is enforced structurally: an OriginSend banker carries a live
+# realm handle, and the realm finalization walk refuses to persist realm
+# values. Both stash-it-yourself and hand-it-to-a-delegate therefore
+# abort the whole transaction at commit, before any coins move.
+#
+# Same-message construct-and-use — the only thing the type is actually
+# for, including cross-realm delegation within the message — is
+# unaffected.
+
+loadpkg gno.land/r/test/stash $WORK/stash
+loadpkg gno.land/r/test/plugin $WORK/plugin
+loadpkg gno.land/r/test/vault $WORK/vault
+
+adduser attacker
+
+gnoland start
+
+## Fund stash so there would be a treasury to drain.
+gnokey maketx call -pkgpath gno.land/r/test/stash -func Fund -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/stash -func Report -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout '1000000'
+
+## SHAPE 1 — self-stash. The entry realm builds a legitimate OriginSend
+## banker (envelope 1ugnot) and assigns it to a package-level var. The
+## tx must abort at commit.
+! gnokey maketx call -pkgpath gno.land/r/test/stash -func Save -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## Nothing was persisted, so nothing can be revived later.
+! gnokey maketx call -pkgpath gno.land/r/test/stash -func UseSaved -args 500000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stderr 'no saved banker'
+
+## SHAPE 2 — delegation to a hostile plugin that persists the grant.
+## vault legitimately delegates a bounded banker within the message;
+## plugin stores it. The tx must abort at commit.
+! gnokey maketx call -pkgpath gno.land/r/test/vault -func Delegate -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## stash's treasury is untouched throughout.
+gnokey maketx call -pkgpath gno.land/r/test/stash -func Report -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout '1000000'
+
+## POSITIVE 1 — same-message construct-and-use, within the envelope.
+## stash is the entry realm, receives 7ugnot, forwards 7ugnot.
+gnokey maketx call -pkgpath gno.land/r/test/stash -func Forward -args 7 -send 7ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stdout OK!
+
+## Envelope in, same amount out: treasury still 1000000.
+gnokey maketx call -pkgpath gno.land/r/test/stash -func Report -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout '1000000'
+
+## POSITIVE 2 — the envelope bound still applies within the message.
+! gnokey maketx call -pkgpath gno.land/r/test/stash -func Forward -args 500000 -send 7ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'limit'
+
+## POSITIVE 3 — same-message cross-realm delegation still works: vault
+## builds the banker and hands it to plugin, which spends it inside the
+## same message without storing it.
+gnokey maketx call -pkgpath gno.land/r/test/vault -func DelegateAndSpend -args 5 -send 5ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test attacker
+stdout OK!
+
+-- stash/gnomod.toml --
+module = "gno.land/r/test/stash"
+gno = "0.9"
+
+-- stash/stash.gno --
+package stash
+
+import (
+	"strconv"
+
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+var saved banker.Banker
+
+// Save tries to persist an OriginSend banker built by the entry realm.
+// NewBanker itself succeeds; the tx dies at commit when the realm
+// finalization walk refuses the pinned realm value.
+func Save(cur realm) {
+	saved = banker.NewBanker(banker.BankerTypeOriginSend, cur)
+}
+
+// UseSaved is the revival attempt. It can never find a banker.
+func UseSaved(cur realm, amount int64) {
+	if saved == nil {
+		panic("no saved banker")
+	}
+	me := unsafe.CurrentRealm().Address()
+	saved.SendCoins(me, unsafe.OriginCaller(), chain.Coins{{"ugnot", amount}})
+}
+
+// Fund provisions stash's address with a treasury to drain. It must
+// acknowledge the envelope or MsgCall rejects it as unobserved.
+func Fund(cur realm) { _ = unsafe.OriginSend() }
+
+func Report(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	b := banker.NewReadonlyBanker()
+	return "balance=" + strconv.FormatInt(b.GetCoins(me).AmountOf("ugnot"), 10)
+}
+
+// Forward is the legitimate shape: build and spend in one message.
+func Forward(cur realm, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	me := unsafe.CurrentRealm().Address()
+	b.SendCoins(me, unsafe.OriginCaller(), chain.Coins{{"ugnot", amount}})
+}
+
+-- plugin/gnomod.toml --
+module = "gno.land/r/test/plugin"
+gno = "0.9"
+
+-- plugin/plugin.gno --
+package plugin
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+var saved banker.Banker
+
+// Keep persists a delegated banker — the hostile-delegate shape.
+func Keep(cur realm, b banker.Banker) {
+	saved = b
+}
+
+// SpendNow uses a delegated banker within the granting message and
+// never stores it — the legitimate delegation shape.
+func SpendNow(cur realm, b banker.Banker, from address, amount int64) {
+	b.SendCoins(from, unsafe.OriginCaller(), chain.Coins{{"ugnot", amount}})
+}
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+import (
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/r/test/plugin"
+)
+
+// Delegate hands a bounded OriginSend banker to a plugin that stashes
+// it. Aborts at commit.
+func Delegate(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	plugin.Keep(cross(cur), b)
+}
+
+// DelegateAndSpend hands the same banker to a plugin that spends it
+// immediately. This must keep working.
+func DelegateAndSpend(cur realm, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	me := unsafe.CurrentRealm().Address()
+	plugin.SpendNow(cross(cur), b, me, amount)
+}

@@ -20,7 +20,7 @@ import (
 func TestGetChild_ConcurrentReadWrite_NoRace(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
 	const n = 5_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -40,8 +40,8 @@ func TestGetChild_ConcurrentReadWrite_NoRace(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		for round := 0; round < 50; round++ {
-			for i := 0; i < n; i++ {
+		for range 50 {
+			for i := range n {
 				if _, err := imm.Has(i2b(i)); err != nil {
 					t.Error(err)
 					return
@@ -51,7 +51,7 @@ func TestGetChild_ConcurrentReadWrite_NoRace(t *testing.T) {
 	}()
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 3_000; i++ {
+		for i := range 3_000 {
 			if _, err := tree.Set(i2b(n+i), i2b(i)); err != nil {
 				t.Error(err)
 				return

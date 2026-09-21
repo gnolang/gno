@@ -40,7 +40,7 @@ func TestSaveVersion_DoesNotForceLoadSiblings(t *testing.T) {
 	tree := NewMutableTreeWithDB(cdb, 2, NewNopLogger())
 
 	// Fill enough keys to get a height>=1 tree with many leaves.
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		if _, err := tree.Set(fmt.Appendf(nil, "k%06d", i), []byte("v")); err != nil {
 			t.Fatalf("Set: %v", err)
 		}

@@ -242,7 +242,7 @@ func TestDupTypesMustPanic(t *testing.T) {
 	t.Parallel()
 
 	pkg := amino.NewPackage(
-		reflect.TypeOf(SimpleStruct{}).PkgPath(),
+		reflect.TypeFor[SimpleStruct]().PkgPath(),
 		"amino_test",
 		amino.GetCallersDirname(),
 	)
@@ -264,7 +264,7 @@ func TestTypesOutsidePackageMustPanic(t *testing.T) {
 
 	makepkg := func() *amino.Package {
 		return amino.NewPackage(
-			reflect.TypeOf(tests.EmptyStruct{}).PkgPath(),
+			reflect.TypeFor[tests.EmptyStruct]().PkgPath(),
 			"amino_test",
 			amino.GetCallersDirname(),
 		)
@@ -285,7 +285,7 @@ func TestDupNamesMustPanic(t *testing.T) {
 
 	makepkg := func() *amino.Package {
 		return amino.NewPackage(
-			reflect.TypeOf(tests.EmptyStruct{}).PkgPath(),
+			reflect.TypeFor[tests.EmptyStruct]().PkgPath(),
 			"amino_test",
 			amino.GetCallersDirname(),
 		)
@@ -313,7 +313,7 @@ func TestReservedFieldMisuse(t *testing.T) {
 		_ [0]struct{}
 		B string
 	}
-	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(MissingTag{})) }) //nolint:errcheck
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeFor[MissingTag]()) }) //nolint:errcheck
 
 	// Named field with amino:"reserved" must panic.
 	type NamedReserved struct {
@@ -321,7 +321,7 @@ func TestReservedFieldMisuse(t *testing.T) {
 		B string `amino:"reserved"`
 		C string
 	}
-	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(NamedReserved{})) }) //nolint:errcheck
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeFor[NamedReserved]()) }) //nolint:errcheck
 }
 
 func TestReservedFieldDecodeBackwardCompat(t *testing.T) {
@@ -362,7 +362,7 @@ func TestReservedFieldBinFieldNum(t *testing.T) {
 	}
 
 	cdc := amino.NewCodec()
-	info, err := cdc.GetTypeInfo(reflect.TypeOf(WithReserved{}))
+	info, err := cdc.GetTypeInfo(reflect.TypeFor[WithReserved]())
 	if err != nil {
 		t.Fatal(err)
 	}

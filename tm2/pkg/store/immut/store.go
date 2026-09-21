@@ -11,10 +11,26 @@ type immutStore struct {
 	parent types.Store
 }
 
-func New(parent types.Store) immutStore {
-	return immutStore{
-		parent: parent,
+// immutStoreDE wraps a depth-estimating parent (e.g. IAVL). Flat stores (e.g.
+// dbadapter) use plain immutStore so FixedGetReadDepth100 in VM gas contexts
+// does not override their 1× ReadCostFlat rate during simulation.
+type immutStoreDE struct {
+	immutStore
+	de types.DepthEstimator
+}
+
+var (
+	_ types.Store          = immutStoreDE{}
+	_ types.DepthEstimator = immutStoreDE{}
+)
+
+// New wraps parent as immutable, forwarding DepthEstimator only if parent has it.
+func New(parent types.Store) types.Store {
+	is := immutStore{parent: parent}
+	if de, ok := parent.(types.DepthEstimator); ok {
+		return immutStoreDE{immutStore: is, de: de}
 	}
+	return is
 }
 
 // Implements Store
@@ -56,3 +72,11 @@ func (is immutStore) CacheWrap() types.Store {
 func (is immutStore) Write() {
 	panic("unexpected .Write() on immutStore")
 }
+
+func (i immutStoreDE) CacheWrap() types.Store {
+	return cache.New(i)
+}
+
+func (i immutStoreDE) ExpectedGetReadDepth100() int64 { return i.de.ExpectedGetReadDepth100() }
+func (i immutStoreDE) ExpectedSetReadDepth100() int64 { return i.de.ExpectedSetReadDepth100() }
+func (i immutStoreDE) ExpectedWriteDepth100() int64   { return i.de.ExpectedWriteDepth100() }

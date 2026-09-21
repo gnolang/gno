@@ -8,7 +8,7 @@
 //
 // Three sections:
 //
-//	-- input.md --     user-supplied content (the attacker input)
+//	-- input.md --     user-supplied content (the caller input)
 //	-- output.md --    sanitize.X(input)  (skip-on-update generated)
 //	-- output.html --  optional: rendered via goldmark+gnoweb when CONTEXT
 //	                   is declared. Validators (no CONTEXT) omit this.
@@ -317,7 +317,7 @@ func splitTwoQuoted(s string) (a, b string, ok bool) {
 // template. CodeFence uses the output twice (open + close fence).
 func substituteContext(sc sanitizeCase, output string) string {
 	count := strings.Count(sc.Context, "%s")
-	args := make([]interface{}, count)
+	args := make([]any, count)
 	for i := range args {
 		args[i] = output
 	}
@@ -401,7 +401,7 @@ func TestSanitizeIntegration(t *testing.T) {
 
 			// txtar appends a trailing newline to every section; strip
 			// that one newline before sanitizing (it's a fixture artifact,
-			// not part of the attacker input). If INPUT_ESCAPED is set,
+			// not part of the caller input). If INPUT_ESCAPED is set,
 			// also decode Go-string escapes so the case can author CR,
 			// NUL, or other bytes that editors normalize.
 			input := strings.TrimSuffix(string(inputData), "\n")
@@ -468,31 +468,31 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 		{
 			name:        "realm-with-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm\n",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h1",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "===\nattacker text\n",
+			userInput:   "===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-setext-h2",
 			realmChrome: "Realm Banner",
-			userInput:   "---\nattacker text\n",
+			userInput:   "---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-leading-blank-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\n===\nattacker text\n",
+			userInput:   "\n===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
 			name:        "realm-without-trailing-newline-plus-indented-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "   ===\nattacker text\n",
+			userInput:   "   ===\ncaller text\n",
 			htmlMustNot: "<h1>Realm Banner</h1>",
 		},
 		{
@@ -500,21 +500,21 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 			// the qualifying-setext pre-pass must also recognize it.
 			name:        "realm-no-trailing-newline-plus-u2028-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u2028===\nattacker text\n",
+			userInput:   "\u2028===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
 			// U+2029 paragraph separator — same concern.
 			name:        "realm-no-trailing-newline-plus-u2029-prefix-setext",
 			realmChrome: "Realm Banner",
-			userInput:   "\u2029---\nattacker text\n",
+			userInput:   "\u2029---\ncaller text\n",
 			htmlMustNot: "<h2>Realm Banner</h2>",
 		},
 		{
 			// U+0085 NEL — same concern.
 			name:        "realm-no-trailing-newline-plus-nel-prefix-setext",
 			realmChrome: "Welcome to MyRealm",
-			userInput:   "\u0085===\nattacker text\n",
+			userInput:   "\u0085===\ncaller text\n",
 			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
 		},
 		{
@@ -559,4 +559,65 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 				"BlockRich not idempotent for user input %q", c.userInput)
 		})
 	}
+}
+
+// SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
+// maintenance let it drift badly — it claimed 103 fixtures against 186 on
+// disk, documented a `Link` helper that no longer exists, and had no row at
+// all for BlockRich (30 fixtures) or BlockquoteRich (1). A stale count reads
+// as coverage that is not there, which is the opposite of what the corpus is
+// for, so the numbers are asserted rather than trusted. The Threats column
+// stays prose and is deliberately unchecked.
+func TestSanitizeCoverageTableMatchesCorpus(t *testing.T) {
+	corpus := map[string]int{}
+	err := filepath.Walk(sanitizeTestdataDir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || filepath.Ext(info.Name()) != ".txtar" {
+			return nil
+		}
+		archive, err := txtar.ParseFile(path)
+		if err != nil {
+			return err
+		}
+		sc := parseDirectives(t, archive.Comment)
+		require.NotEmpty(t, sc.Func, "%s: missing MARKDOWNFUNC directive", path)
+		corpus[sc.Func]++
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, corpus)
+
+	doc, err := os.ReadFile("SANITIZE.md")
+	require.NoError(t, err)
+
+	// Rows look like: | `Helper` | 12 | threats… |
+	rowRe := regexp.MustCompile("(?m)^\\| `([A-Za-z]+)` \\| ([0-9]+) \\|")
+	documented := map[string]int{}
+	for _, m := range rowRe.FindAllStringSubmatch(string(doc), -1) {
+		n, err := strconv.Atoi(m[2])
+		require.NoError(t, err)
+		documented[m[1]] = n
+	}
+	require.NotEmpty(t, documented, "no helper rows parsed out of SANITIZE.md")
+
+	for fn, want := range corpus {
+		got, ok := documented[fn]
+		require.True(t, ok,
+			"SANITIZE.md has no row for %s, which has %d fixtures", fn, want)
+		require.Equal(t, want, got,
+			"SANITIZE.md row for %s says %d cases, corpus has %d", fn, got, want)
+	}
+	for fn := range documented {
+		require.Contains(t, corpus, fn,
+			"SANITIZE.md documents %s, which has no fixtures (helper removed?)", fn)
+	}
+
+	total := 0
+	for _, n := range corpus {
+		total += n
+	}
+	require.Contains(t, string(doc), fmt.Sprintf("%d fixtures total", total),
+		"SANITIZE.md total is stale; corpus has %d fixtures", total)
 }

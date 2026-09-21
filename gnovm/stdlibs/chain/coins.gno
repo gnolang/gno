@@ -52,7 +52,9 @@ func (c Coin) IsEqual(other Coin) bool {
 // Add adds amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
-// An invalid result panics.
+//
+// The sign of the result is not checked. Adding two negative coins returns a
+// negative one, so test the sign yourself where the value is a balance.
 func (c Coin) Add(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
 
@@ -68,7 +70,10 @@ func (c Coin) Add(other Coin) Coin {
 // Sub subtracts amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
-// An invalid result panics.
+//
+// The sign of the result is not checked. Taking more than the receiver holds
+// returns a negative coin, so test the sign yourself where the value is a
+// balance.
 func (c Coin) Sub(other Coin) Coin {
 	mustMatchDenominations(c.Denom, other.Denom)
 
@@ -110,10 +115,14 @@ type Coins []Coin
 // resulting [Coins] will be sorted and one per coin, with the caveats mentioned
 // in [Coins.Add]'s godoc.
 //
-// If passing in a slice instead of variadic parameters (ie. `NewCoins(myVar...)`),
-// the slice will be modified in-place.
+// The argument is never modified, including when it is a slice passed with
+// `NewCoins(myVar...)`. Joining two coins of one denom shifts the rest of the
+// set down a place, so working in the caller's array would leave the caller
+// holding a repeat of its own last coin — value it never had. [Coins.Add]
+// copies for the same reason.
 func NewCoins(coins ...Coin) Coins {
-	cz := Coins(coins)
+	cz := make(Coins, len(coins))
+	copy(cz, coins)
 	return cz.sortAndJoin()
 }
 

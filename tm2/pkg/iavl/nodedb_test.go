@@ -38,7 +38,7 @@ func BenchmarkTreeString(b *testing.B) {
 	if sink == nil {
 		b.Fatal("Benchmark did not run")
 	}
-	sink = (interface{})(nil)
+	sink = (any)(nil)
 }
 
 func TestNewNoDbStorage_StorageVersionInDb_Success(t *testing.T) {
@@ -254,7 +254,7 @@ func TestIsFastStorageEnabled_False(t *testing.T) {
 func TestTraverseNodes(t *testing.T) {
 	tree := getTestTree(0)
 	// version 1
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		_, err := tree.Set([]byte{byte(i)}, []byte{byte(i)})
 		require.NoError(t, err)
 	}
@@ -309,7 +309,7 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 	var err error
 
 	// version 1
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		up, err = tree.Set([]byte{byte(i)}, []byte{byte(i)})
 		require.False(t, up)
 		require.NoError(t, err)
@@ -381,7 +381,7 @@ func makeAndPopulateMutableTree(tb testing.TB) *MutableTree { //nolint: thelper
 	memDB := memdb.NewMemDB()
 	tree := NewMutableTree(memDB, 0, false, NewNopLogger(), InitialVersionOption(9))
 
-	for i := 0; i < 1e4; i++ {
+	for i := range int(1e4) {
 		buf := make([]byte, 0, (i/255)+1)
 		for j := 0; 1<<j <= i; j++ {
 			buf = append(buf, byte((i>>j)&0xff))

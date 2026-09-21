@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -864,17 +865,18 @@ func (conR *ConsensusReactor) String() string {
 
 // StringIndented returns an indented string representation of the ConsensusReactor
 func (conR *ConsensusReactor) StringIndented(indent string) string {
-	s := "ConsensusReactor{\n"
-	s += indent + "  " + conR.conS.StringIndented(indent+"  ") + "\n"
+	var s strings.Builder
+	s.WriteString("ConsensusReactor{\n")
+	s.WriteString(indent + "  " + conR.conS.StringIndented(indent+"  ") + "\n")
 	for _, peer := range conR.Switch.Peers().List() {
 		ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
 		if !ok {
 			panic(fmt.Sprintf("Peer %v has no state", peer))
 		}
-		s += indent + "  " + ps.StringIndented(indent+"  ") + "\n"
+		s.WriteString(indent + "  " + ps.StringIndented(indent+"  ") + "\n")
 	}
-	s += indent + "}"
-	return s
+	s.WriteString(indent + "}")
+	return s.String()
 }
 
 // -----------------------------------------------------------------------------

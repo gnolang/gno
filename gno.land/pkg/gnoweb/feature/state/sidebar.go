@@ -162,12 +162,9 @@ func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTyp
 	}
 	kindLabel := PkgKindLabel(pkgPath)
 
-	shown := total
-	if shown > maxSidebarTOC {
-		shown = maxSidebarTOC
-	}
+	shown := min(total, maxSidebarTOC)
 	entries := make([]StateTOCEntry, 0, shown)
-	for i := 0; i < shown; i++ {
+	for i := range shown {
 		anchor := ""
 		if i < len(anchors) {
 			anchor = anchors[i]

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"slices"
@@ -113,9 +114,7 @@ func (st *fuzzState) nzKey(i int) string { return fmt.Sprintf("nz%04d", i) } // 
 
 func snapCopy(m map[string]string) map[string]string {
 	c := make(map[string]string, len(m))
-	for k, v := range m {
-		c[k] = v
-	}
+	maps.Copy(c, m)
 	return c
 }
 
@@ -312,7 +311,7 @@ func (st *fuzzState) doRollback() {
 }
 
 func (st *fuzzState) doGrowWave(start, n int) {
-	for i := 0; i < n; i++ {
+	for i := range n {
 		st.doSet(st.key(start + i))
 	}
 }
@@ -375,7 +374,7 @@ func (st *fuzzState) retainedVersions() []int64 {
 	for v := range st.snaps {
 		vs = append(vs, v)
 	}
-	sort.Slice(vs, func(i, j int) bool { return vs[i] < vs[j] })
+	slices.Sort(vs)
 	return vs
 }
 
@@ -1134,7 +1133,7 @@ func FuzzTreeOps(f *testing.F) {
 	seed(opGrow, 0, 0, 16, opSave, opSet, 0, 4, opSave, opCold, opSet, 0, 5, opSave, opPrune, 4)
 	// Import run crossing the 4×W gate: wide catch-up prune mid-run, then save.
 	importRun := []byte{opGrow, 0, 0, 12, opSave}
-	for i := 0; i < 17; i++ {
+	for i := range 17 {
 		importRun = append(importRun, opImport, byte(i%2))
 	}
 	seed(append(importRun, opSave, opPrune, 4)...)
@@ -1216,8 +1215,8 @@ func TestStress_ConcurrentSanctionedReaders(t *testing.T) {
 	rng := rand.New(rand.NewSource(2))
 
 	// Commit a baseline so readers always have versions to read.
-	for i := 0; i < 200; i++ {
-		tree.Set([]byte(fmt.Sprintf("cs%04d", i)), []byte("v0"))
+	for i := range 200 {
+		tree.Set(fmt.Appendf(nil, "cs%04d", i), []byte("v0"))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil {
 		t.Fatal(err)
@@ -1227,17 +1226,15 @@ func TestStress_ConcurrentSanctionedReaders(t *testing.T) {
 
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
-	wg.Add(1)
-	go func() { // single writer: mutate, save, prune (per the contract)
-		defer wg.Done()
+	wg.Go(func() { // single writer: mutate, save, prune (per the contract)
 		for i := 0; ; i++ {
 			select {
 			case <-stop:
 				return
 			default:
 			}
-			for j := 0; j < 20; j++ {
-				tree.Set([]byte(fmt.Sprintf("cs%04d", rng.Intn(400))), []byte(fmt.Sprintf("w%d_%d", i, j)))
+			for j := range 20 {
+				tree.Set(fmt.Appendf(nil, "cs%04d", rng.Intn(400)), fmt.Appendf(nil, "w%d_%d", i, j))
 			}
 			_, v, err := tree.SaveVersion()
 			if err != nil {
@@ -1253,22 +1250,19 @@ func TestStress_ConcurrentSanctionedReaders(t *testing.T) {
 				}
 			}
 		}
-	}()
-	for r := 0; r < 4; r++ {
+	})
+	for r := range 4 {
 		wg.Add(1)
 		go func(r int) {
 			defer wg.Done()
 			rrng := rand.New(rand.NewSource(int64(100 + r)))
-			for i := 0; i < 1500; i++ {
-				v := latest.Load() - int64(rrng.Intn(3))
-				if v < 1 {
-					v = 1
-				}
+			for range 1500 {
+				v := max(latest.Load()-int64(rrng.Intn(3)), 1)
 				imm, err := tree.GetImmutable(v)
 				if err != nil {
 					continue // raced with a prune — sanctioned outcome
 				}
-				k := []byte(fmt.Sprintf("cs%04d", rrng.Intn(400)))
+				k := fmt.Appendf(nil, "cs%04d", rrng.Intn(400))
 				if _, err := imm.Has(k); err != nil {
 					t.Errorf("reader %d: Has on held v%d: %v", r, v, err)
 				}

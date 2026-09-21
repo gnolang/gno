@@ -1,0 +1,32 @@
+# gno lint must be idempotent on a package with a filetests/ subdirectory:
+# the write-back stage must keep filetests in filetests/ rather than
+# scattering flat copies into the package root, where a second run would
+# fail on the duplicate-filename guard.
+
+gno lint .
+! exists sub_filetest.gno
+exists filetests/sub_filetest.gno
+
+gno lint .
+! exists sub_filetest.gno
+
+-- rt.gno --
+package rt
+
+func Hello() string {
+	return "hello"
+}
+
+-- gnomod.toml --
+module = "gno.land/p/demo/rt"
+gno = "0.9"
+
+-- filetests/sub_filetest.gno --
+package main
+
+func main() {
+	println("sub")
+}
+
+// Output:
+// sub

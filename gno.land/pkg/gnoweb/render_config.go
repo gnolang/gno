@@ -1,8 +1,6 @@
 package gnoweb
 
 import (
-	"strings"
-
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
@@ -34,12 +32,6 @@ func NewDefaultRenderConfig() (cfg RenderConfig) {
 
 // NewDefaultGoldmarkOptions returns the default Goldmark options for Markdown rendering.
 func NewDefaultGoldmarkOptions() []goldmark.Option {
-	// Only allow svg data image
-	allowSvgDataImage := func(uri string) bool {
-		const svgdata = "image/svg+xml"
-		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
-	}
-
 	return []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
@@ -48,7 +40,7 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.Footnote,
 			extension.TaskList,
 			md.NewGnoExtension(
-				md.WithImageValidator(allowSvgDataImage),
+				md.WithImageValidator(md.AllowSvgDataImage),
 			),
 		),
 	}
