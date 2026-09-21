@@ -74,7 +74,7 @@
 		padding-block: var(--g-space-2);
 
 		@media (--lg) {
-			grid-column: span 7;
+			grid-column: span 6;
 		}
 
 		&--explorer {
@@ -221,7 +221,8 @@
 
 /* ===== MAIN MENU ===== */
 .b-main-menu {
-	grid-column: span 3;
+	/* 4 columns: the dev menu alone fills 3, and the identity control needs ~150px */
+	grid-column: span 4;
 	height: var(--g-space-12);
 	display: flex;
 	flex: 0 0 auto;
@@ -233,12 +234,13 @@
 	/* Menu toggle button */
 	& .menu-toggle {
 		order: 3;
-		margin-inline-start: auto;
 		display: flex;
 		align-items: center;
 		cursor: pointer;
 
 		& > svg {
+			/* Without this the icon shrinks to 0 once the menu is over capacity */
+			flex: none;
 			width: var(--g-space-5);
 			height: var(--g-space-5);
 			margin-inline-start: var(--g-space-4);
@@ -270,6 +272,8 @@
 	& .menu-dev,
 	& .menu-general {
 		display: flex;
+		/* Absorbs the free space, so the toggle and the identity sit flush right */
+		margin-inline-end: auto;
 		justify-content: flex-end;
 		height: 100%;
 	}
