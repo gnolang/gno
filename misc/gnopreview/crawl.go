@@ -63,8 +63,20 @@ type Crawler struct {
 	// the syntax highlighting is the thing under review; for a realm pulled in
 	// by a dependency bump there is nothing to look at file by file.
 	FileBudget int
+	// ArgBudget caps render-argument pages (`:p/about`, `:1`) per realm.
+	//
+	// Every other axis of the crawl is bounded by the realm itself: a realm has
+	// the files it has and the tabs gnoweb defines. Render arguments are not:
+	// a realm may link one page per value it knows about, and each of those is
+	// a full page of gnoweb chrome. No realm in examples/ reaches 6 today, so
+	// the budget costs nothing here; what it buys is that a realm which starts
+	// enumerating cannot take the preview down with it.
+	//
+	// 0 means no cap, like MaxPages and MaxRealms.
+	ArgBudget int
 
 	fileBudget map[string]int
+	argBudget  map[string]int
 
 	pages map[string]*page // url -> page
 	order []string
@@ -135,8 +147,7 @@ func (c *Crawler) Run() error {
 			fmt.Fprintf(os.Stderr, "  ! %s: HTTP %d\n", u, code)
 			continue
 		}
-		if !c.chargeFile(u) {
-			fmt.Printf("  - %s (per-file budget spent)\n", u)
+		if !c.charge(u) {
 			continue
 		}
 		p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), Body: body}
@@ -201,6 +212,11 @@ func (c *Crawler) inScope(p string) bool {
 	if realm == "" {
 		return false
 	}
+	// Advisory, like wantFile below: a breadth-first crawl discovers far more
+	// links than it captures, so charge() is what actually holds the line.
+	if args != "" && c.ArgBudget > 0 && c.argBudget[realm] >= c.ArgBudget {
+		return false
+	}
 	for part := range strings.SplitSeq(query, "&") {
 		key, val, _ := strings.Cut(part, "=")
 		if explosiveArgs[key] {
@@ -221,7 +237,7 @@ const GnowebFileBudget = 2
 // Measured on a 25-realm preview: per-file source pages were 133 of 243 pages
 // and 13.3 MB of 22.2 MB. A reviewer wants the files the PR touched.
 //
-// This only tests the budget. Charging it is chargeFile's job, called once the
+// This only tests the budget. Charging it is charge's job, called once the
 // page is actually captured — a link that is discovered and then 404s must not
 // spend a slot that a page which really exists could have used.
 func (c *Crawler) wantFile(realm, name string) bool {
@@ -231,9 +247,32 @@ func (c *Crawler) wantFile(realm, name string) bool {
 	return c.fileBudget[realm] < c.FileBudget
 }
 
-// chargeFile spends one budget slot, and reports whether the page may be kept.
-func (c *Crawler) chargeFile(u string) bool {
-	base, _, query := splitURL(u)
+// charge spends what a captured page costs against its realm's budgets, and
+// reports whether it may be kept. Charging happens here rather than at link
+// discovery so that a link which is found and then 404s does not spend a slot a
+// page that really exists could have used.
+func (c *Crawler) charge(u string) bool {
+	base, args, query := splitURL(u)
+	realm := ""
+	for _, r := range c.Realms {
+		if base == urlOf(r) {
+			realm = r
+			break
+		}
+	}
+	if realm == "" {
+		return true // a directory page: not attributable to one realm
+	}
+	if args != "" && c.ArgBudget > 0 {
+		if c.argBudget == nil {
+			c.argBudget = map[string]int{}
+		}
+		if c.argBudget[realm] >= c.ArgBudget {
+			fmt.Printf("  - %s (render-argument budget spent)\n", u)
+			return false
+		}
+		c.argBudget[realm]++
+	}
 	name := ""
 	for part := range strings.SplitSeq(query, "&") {
 		if k, v, _ := strings.Cut(part, "="); k == "file" {
@@ -243,22 +282,17 @@ func (c *Crawler) chargeFile(u string) bool {
 	if name == "" {
 		return true // not a per-file page
 	}
-	for _, r := range c.Realms {
-		if base != urlOf(r) {
-			continue
-		}
-		if _, listed := c.ChangedFiles[r]; listed {
-			return true // gated by the changed set, not the budget
-		}
-		if c.fileBudget == nil {
-			c.fileBudget = map[string]int{}
-		}
-		if c.fileBudget[r] >= c.FileBudget {
-			return false
-		}
-		c.fileBudget[r]++
-		return true
+	if _, listed := c.ChangedFiles[realm]; listed {
+		return true // gated by the changed set, not the budget
 	}
+	if c.fileBudget == nil {
+		c.fileBudget = map[string]int{}
+	}
+	if c.fileBudget[realm] >= c.FileBudget {
+		fmt.Printf("  - %s (per-file budget spent)\n", u)
+		return false
+	}
+	c.fileBudget[realm]++
 	return true
 }
 

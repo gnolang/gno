@@ -28,6 +28,9 @@ const (
 	defaultLive      = "https://gno.land"
 	defaultMaxRealms = 25
 	defaultMaxPages  = 400
+	// defaultMaxArgs bounds the one axis a realm can grow without limit; see
+	// Crawler.ArgBudget. The busiest realm in examples/ renders 5.
+	defaultMaxArgs = 10
 )
 
 type config struct {
@@ -42,6 +45,7 @@ type config struct {
 	pr        string
 	maxRealms int
 	maxPages  int
+	maxArgs   int
 	chrome    string
 	timeout   time.Duration
 }
@@ -72,6 +76,7 @@ func run(args []string) error {
 	fs.StringVar(&cfg.pr, "pr", "", "pull request number (for the comment)")
 	fs.IntVar(&cfg.maxRealms, "max-realms", defaultMaxRealms, "cap on rendered realms; 0 for no cap")
 	fs.IntVar(&cfg.maxPages, "max-pages", defaultMaxPages, "cap on crawled pages; 0 for no cap")
+	fs.IntVar(&cfg.maxArgs, "max-args", defaultMaxArgs, "cap on render-argument pages per realm; 0 for no cap")
 	fs.StringVar(&cfg.chrome, "chrome", "", "Chrome/Chromium binary for screenshots (default: autodetect)")
 	fs.DurationVar(&cfg.timeout, "timeout", 5*time.Minute, "how long to wait for gnodev to come up")
 	if err := fs.Parse(args); err != nil {
@@ -127,6 +132,7 @@ func render(cfg config, plan *Plan) error {
 		Live:         strings.TrimSuffix(cfg.live, "/"),
 		ChangedFiles: plan.ChangedFiles,
 		FileBudget:   fileBudget(plan),
+		ArgBudget:    cfg.maxArgs,
 	}
 	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
 		return err

@@ -115,6 +115,14 @@ enumerate rather than describe:
 - `$download&file=X` — raw file bytes, not a page
 - `:args$source` / `:args$help` — byte-identical to the argument-free tab
 
+Render arguments get a per-realm cap of their own (`-max-args`, 10). They are the one
+axis a realm can grow without limit: the files and the tabs are whatever the realm and
+gnoweb have, but a realm may link one page per value it knows about, and each is a full
+page of chrome. Nothing in `examples/` comes close today (the busiest, `r/gnoland/coins`,
+renders 5, and a `p/nt/avl/v0` change produces 16 across 25 realms), so the cap changes
+nothing about what is rendered now; what it buys is that a realm which starts enumerating
+cannot exhaust `-max-pages`, which fails the whole render rather than trimming it.
+
 A `-max-pages` cap (400) backstops the rest.
 
 ## Search engines

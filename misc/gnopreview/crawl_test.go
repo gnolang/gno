@@ -218,11 +218,11 @@ func TestWantFile(t *testing.T) {
 	// widely imported package cannot drag in a page per file per realm.
 	for i := range GnowebFileBudget {
 		u := fmt.Sprintf("/r/x/untouched$source&file=f%d.gno", i)
-		if !c.inScope(u) || !c.chargeFile(u) {
+		if !c.inScope(u) || !c.charge(u) {
 			t.Errorf("%q refused within the budget", u)
 		}
 	}
-	if c.chargeFile("/r/x/untouched$source&file=over.gno") {
+	if c.charge("/r/x/untouched$source&file=over.gno") {
 		t.Error("budget exceeded but the page was still captured")
 	}
 }
@@ -311,10 +311,68 @@ func TestFileBudgetChargedOnCaptureNotDiscovery(t *testing.T) {
 			t.Fatal("discovery was refused before anything was captured")
 		}
 	}
-	if !c.chargeFile("/r/x/y$source&file=a.gno") {
+	if !c.charge("/r/x/y$source&file=a.gno") {
 		t.Fatal("first capture refused")
 	}
-	if c.chargeFile("/r/x/y$source&file=b.gno") {
+	if c.charge("/r/x/y$source&file=b.gno") {
 		t.Error("second capture accepted with a budget of 1")
+	}
+}
+
+// Every other axis of the crawl is bounded by the realm: it has the files it
+// has, and gnoweb defines the tabs. Render arguments are not: a realm may link
+// one page per value it knows about, and each one is a full page of chrome.
+// Nothing in examples/ does that today (the busiest renders 5), but a realm
+// that starts must not be able to exhaust -max-pages, which fails the whole
+// render rather than trimming it.
+func TestRenderArgumentsAreCappedPerRealm(t *testing.T) {
+	c := &Crawler{Realms: []string{"gno.land/r/demo/counter"}, ArgBudget: 2}
+	for i, u := range []string{"/r/demo/counter:1", "/r/demo/counter:2"} {
+		if !c.charge(u) {
+			t.Fatalf("argument page %d dropped while the budget had room", i)
+		}
+	}
+	if c.charge("/r/demo/counter:3") {
+		t.Fatal("the argument budget did not stop the third page")
+	}
+	// The budget is per realm, not global.
+	other := &Crawler{Realms: []string{"gno.land/r/demo/counter", "gno.land/r/demo/other"}, ArgBudget: 1}
+	if !other.charge("/r/demo/counter:1") || !other.charge("/r/demo/other:1") {
+		t.Fatal("one realm's arguments were charged to another")
+	}
+	// A realm's own render page and its tabs are never argument pages, and a
+	// zero budget is no cap at all (as for MaxPages and MaxRealms), so a
+	// Crawler nobody configured behaves exactly as it did before this budget.
+	free := &Crawler{Realms: []string{"gno.land/r/demo/counter"}, ArgBudget: 0}
+	if !free.charge("/r/demo/counter:1") || !free.charge("/r/demo/counter:2") {
+		t.Fatal("a zero ArgBudget dropped argument pages instead of meaning no cap")
+	}
+	for _, u := range []string{"/r/demo/counter", "/r/demo/counter$source", "/r/demo/counter$help"} {
+		if !free.charge(u) {
+			t.Fatalf("%s was charged as an argument page", u)
+		}
+	}
+	// And a directory page belongs to no realm, so it is never charged.
+	if !free.charge("/r/demo") {
+		t.Fatal("a directory page was charged to a realm")
+	}
+}
+
+// inScope must stop following argument links once the budget is spent, so the
+// queue does not grow with pages charge() will only throw away.
+func TestInScopeStopsFollowingArgumentsOnceSpent(t *testing.T) {
+	c := &Crawler{Realms: []string{"gno.land/r/demo/counter"}, ArgBudget: 1}
+	if !c.inScope("/r/demo/counter:1") {
+		t.Fatal("the first argument page was refused")
+	}
+	c.charge("/r/demo/counter:1")
+	if c.inScope("/r/demo/counter:2") {
+		t.Fatal("a second argument page was still followed after the budget was spent")
+	}
+	// The argument-free views stay in scope regardless.
+	for _, u := range []string{"/r/demo/counter", "/r/demo/counter$source"} {
+		if !c.inScope(u) {
+			t.Fatalf("%s left scope with the argument budget spent", u)
+		}
 	}
 }
