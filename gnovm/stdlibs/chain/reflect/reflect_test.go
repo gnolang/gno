@@ -68,6 +68,26 @@ func (f *objectFixture) persist(oo gno.Object) {
 	f.m.Realm.FinalizeRealmTransaction(f.tx)
 }
 
+// vmInfo names X_objectInfo's six results. Tests read the fields they care
+// about by name instead of positioning them behind a row of blank identifiers.
+type vmInfo struct {
+	id, addr, pkgPath, typ string
+	stamped, hasIdentity   bool
+}
+
+func readVMInfo(m *gno.Machine, tv gno.TypedValue) vmInfo {
+	id, addr, pkgPath, typ, stamped, hasIdentity := X_objectInfo(m, tv)
+
+	return vmInfo{
+		id:          id,
+		addr:        addr,
+		pkgPath:     pkgPath,
+		typ:         typ,
+		stamped:     stamped,
+		hasIdentity: hasIdentity,
+	}
+}
+
 // The three states of an object's identity, in the order a realm meets them.
 func TestObjectInfoStampingWindow(t *testing.T) {
 	f := newObjectFixture(t, "gno.land/r/demo/reflect")
@@ -77,38 +97,36 @@ func TestObjectInfoStampingWindow(t *testing.T) {
 	// allocator, the clock half only at persistence, so there is no identity
 	// and no address to derive from half an ID. It is an object though, which
 	// is what tells "not yet" from "never".
-	id, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, tv)
-	require.Equal(t, "", id)
-	require.Equal(t, "", addr)
-	require.False(t, stamped)
-	require.True(t, hasIdentity)
+	got := readVMInfo(f.m, tv)
+	require.Equal(t, "", got.id)
+	require.Equal(t, "", got.addr)
+	require.False(t, got.stamped)
+	require.True(t, got.hasIdentity)
 
 	// Reading is not issuing. A second read must agree and must not have
 	// advanced the realm clock to mint something.
 	timeBefore := f.m.Realm.Time
-	_, _, _, _, stamped, _ = X_objectInfo(f.m, tv)
-	require.False(t, stamped)
+	require.False(t, readVMInfo(f.m, tv).stamped)
 	require.Equal(t, timeBefore, f.m.Realm.Time, "reading must not advance the realm clock")
 
 	f.persist(oo)
 
 	// Persisted: identity and address both exist.
-	id, addr, pkgPath, _, stamped, hasIdentity := X_objectInfo(f.m, tv)
-	require.True(t, stamped)
-	require.True(t, hasIdentity)
-	require.Equal(t, oo.GetObjectID().String(), id, "ID must be the VM's own spelling")
-	require.Equal(t, "gno.land/r/demo/reflect", pkgPath, "PkgPath must name the creating realm")
-	require.NotEmpty(t, addr)
+	got = readVMInfo(f.m, tv)
+	require.True(t, got.stamped)
+	require.True(t, got.hasIdentity)
+	require.Equal(t, oo.GetObjectID().String(), got.id, "ID must be the VM's own spelling")
+	require.Equal(t, "gno.land/r/demo/reflect", got.pkgPath, "PkgPath must name the creating realm")
+	require.NotEmpty(t, got.addr)
 
 	// The address is exactly what the VM derives from the ID, spelled out
 	// independently of the native so a changed derivation reports as such.
-	require.Equal(t, gno.DeriveObjectCryptoAddr(oo.GetObjectID()).String(), addr)
-	require.Equal(t, "g1", addr[:2], "object addresses are ordinary g1 addresses")
+	require.Equal(t, gno.DeriveObjectCryptoAddr(oo.GetObjectID()).String(), got.addr)
+	require.Equal(t, "g1", got.addr[:2], "object addresses are ordinary g1 addresses")
 
 	// And it does not move afterwards.
 	timeBefore = f.m.Realm.Time
-	_, addr2, _, _, _, _ := X_objectInfo(f.m, tv)
-	require.Equal(t, addr, addr2)
+	require.Equal(t, got.addr, readVMInfo(f.m, tv).addr)
 	require.Equal(t, timeBefore, f.m.Realm.Time)
 }
 
@@ -130,11 +148,11 @@ func TestObjectAddressIsUniquePerObject(t *testing.T) {
 
 	seen := make(map[string]int, n)
 	for i, tv := range tvs {
-		_, addr, _, _, stamped, _ := X_objectInfo(f.m, tv)
-		require.True(t, stamped)
-		require.NotEmpty(t, addr)
-		require.NotContains(t, seen, addr, "objects %d and %d share an address", seen[addr], i)
-		seen[addr] = i
+		got := readVMInfo(f.m, tv)
+		require.True(t, got.stamped)
+		require.NotEmpty(t, got.addr)
+		require.NotContains(t, seen, got.addr, "objects %d and %d share an address", seen[got.addr], i)
+		seen[got.addr] = i
 	}
 }
 
@@ -150,11 +168,11 @@ func TestObjectAddressSeparatesRealmsAndPackages(t *testing.T) {
 		oo, tv := f.newStandaloneObject()
 		f.persist(oo)
 
-		_, addr, gotPath, _, stamped, _ := X_objectInfo(f.m, tv)
-		require.True(t, stamped)
-		require.Equal(t, pkgPath, gotPath)
-		require.NotContains(t, addrs, addr, "%s and %s share an address", addrs[addr], pkgPath)
-		addrs[addr] = pkgPath
+		got := readVMInfo(f.m, tv)
+		require.True(t, got.stamped)
+		require.Equal(t, pkgPath, got.pkgPath)
+		require.NotContains(t, addrs, got.addr, "%s and %s share an address", addrs[got.addr], pkgPath)
+		addrs[got.addr] = pkgPath
 
 		pkgAddr := gno.DerivePkgBech32Addr(pkgPath).String()
 		require.NotContains(t, addrs, pkgAddr, "an object address collides with a package address")
@@ -178,10 +196,10 @@ func TestFuncValueIsAnObject(t *testing.T) {
 	fv := &gno.FuncValue{}
 	f.own(fv)
 
-	_, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, gno.TypedValue{V: fv})
-	require.True(t, hasIdentity, "a func value is an object")
-	require.False(t, stamped, "and is unstamped until persisted, like any other")
-	require.Equal(t, "", addr)
+	got := readVMInfo(f.m, gno.TypedValue{V: fv})
+	require.True(t, got.hasIdentity, "a func value is an object")
+	require.False(t, got.stamped, "and is unstamped until persisted, like any other")
+	require.Equal(t, "", got.addr)
 }
 
 // Every value with no identity of its own reports the same way: nothing, no
@@ -238,13 +256,13 @@ func TestObjectInfoValuesWithoutIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, addr, pkgPath, typ, stamped, hasIdentity := X_objectInfo(f.m, tt.tv)
-			require.Equal(t, "", id)
-			require.Equal(t, "", addr, "a value with no identity must never get an address")
-			require.Equal(t, "", pkgPath)
-			require.Equal(t, "", typ)
-			require.False(t, stamped)
-			require.False(t, hasIdentity, "a value with no identity must not claim one is coming")
+			got := readVMInfo(f.m, tt.tv)
+			require.Equal(t, "", got.id)
+			require.Equal(t, "", got.addr, "a value with no identity must never get an address")
+			require.Equal(t, "", got.pkgPath)
+			require.Equal(t, "", got.typ)
+			require.False(t, got.stamped)
+			require.False(t, got.hasIdentity, "a value with no identity must not claim one is coming")
 		})
 	}
 }
@@ -274,10 +292,10 @@ func TestObjectInfoDoesNotPanicOnInternalShapes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotPanics(t, func() {
-				_, addr, _, _, stamped, hasIdentity := X_objectInfo(f.m, tt.tv)
-				require.Equal(t, "", addr)
-				require.False(t, stamped)
-				require.False(t, hasIdentity)
+				got := readVMInfo(f.m, tt.tv)
+				require.Equal(t, "", got.addr)
+				require.False(t, got.stamped)
+				require.False(t, got.hasIdentity)
 			})
 		})
 	}

@@ -88,11 +88,19 @@ type Object struct {
 // That covers the case this package is for: a realm hands out a *Thing and
 // wants the VM's name for that Thing.
 //
+// A func value or a bound method value, which are references in the same sense
+// a pointer is: two variables holding one closure hold the same object, so
+// every holder agrees on its address and a stored callback is addressable
+// separately from whatever holds it.
+//
 // Everything else reports false, on purpose. A pointer into a struct field or
 // an array element resolves to the container, and lending a value its
 // container's identity would make every sibling answer the same address. A
 // slice resolves to its backing array, which every other view of it shares. A
-// scalar, a nil pointer and a nil interface have no object at all.
+// struct, map or array arriving by value may be the persisted object or a copy
+// of it depending on how it got here, which is the question this package will
+// not guess at. A scalar, a nil pointer and a nil interface have no object at
+// all.
 //
 // This list is meant to grow, and to only ever grow. Teaching a kind of value
 // to report its identity is a compatible change; taking one back is not,
@@ -162,15 +170,17 @@ func (o Object) ID() string { return o.id }
 func (o Object) PkgPath() string { return o.pkgPath }
 
 // Type returns the object's declared type as "<pkgpath>.<Name>", for example
-// "gno.land/p/demo/tokens.Token". It is "" for an object whose type is not a
-// declared type, such as a pointer to an anonymous struct.
+// "gno.land/p/demo/tokens.Token". It is "" for an object the VM has no such
+// name for: a pointer to an anonymous struct, and any func or method value.
 func (o Object) Type() string { return o.typ }
 
 // IsZero reports whether o names no object.
 func (o Object) IsZero() bool { return o.id == "" }
 
-// String returns a line meant for a human: the type, the sequence number that
-// distinguishes objects of that type within their realm, and the address.
+// String returns a line meant for a human: the type, the clock tick that
+// distinguishes the object from every other object of its realm, and the
+// address. The ticks of a realm are not consecutive; do not read one as a
+// count.
 //
 //	gno.land/r/demo/foo.Token#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)
 //
