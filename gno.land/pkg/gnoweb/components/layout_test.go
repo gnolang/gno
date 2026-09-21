@@ -498,7 +498,7 @@ func TestNewBannerData(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			banner, err := NewBannerData(tc.input, tc.globalURL)
+			banner, err := NewBannerData(tc.input, BannerOptions{URL: tc.globalURL})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantEnabled, banner.Enabled())
 			assert.Equal(t, tc.wantHasURL, banner.HasURL())
@@ -569,7 +569,7 @@ func TestIndexLayout_Banner(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			banner, err := NewBannerData(tc.markdown, tc.url)
+			banner, err := NewBannerData(tc.markdown, BannerOptions{URL: tc.url})
 			require.NoError(t, err)
 
 			data := IndexData{

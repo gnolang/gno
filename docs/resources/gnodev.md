@@ -126,6 +126,34 @@ transaction](../users/interact-with-gnokey.md#making-an-airgapped-transaction):
 `gnodev` watches the working directory and reloads the node on every `.gno`
 save, replaying prior transactions to preserve state across reloads.
 
+### Network banner
+
+Every chain that is not gno.land mainnet gets a banner across the top of gnoweb
+naming the chain id and the RPC behind it. Without it, the chain id shows up
+only inside the "Network Info" popup, so a browser tab pointed at the wrong
+chain looks exactly like one pointed at the right chain.
+
+Replace it with your own to mark a shared environment:
+
+```bash
+gnodev staging \
+  -chain-id acme-staging \
+  -web-banner 'ACME **staging**: test funds only' \
+  -web-banner-variant caution
+```
+
+| Flag | Purpose |
+|---|---|
+| `-web-banner <markdown>` | Banner text, inline markdown, 400 characters max |
+| `-web-banner-url <url>` | Make the whole banner a link (requires `-web-banner`) |
+| `-web-banner-variant <name>` | `brand`, `success`, `info`, `warning`, `caution`, `tip` or `note` |
+| `-web-banner-color <color>` | Background as a hex color or CSS keyword; overrides the variant |
+| `-web-no-banner` | Show no banner at all, including the default one |
+
+`gnoweb` itself takes the same settings through `GNOWEB_BANNER_TEXT`,
+`GNOWEB_BANNER_URL`, `GNOWEB_BANNER_VARIANT`, `GNOWEB_BANNER_COLOR` and
+`GNOWEB_NO_NETWORK_BANNER`.
+
 ### Genesis and node tuning
 
 `gnodev` can also load a genesis file with `-genesis <file>` to seed the
@@ -213,6 +241,8 @@ terminal; it turns off when output is piped or redirected, and in
 | `-interactive` | Force interactive controls when stdout is not a terminal (on by default in local at a terminal, off in staging) |
 | `-no-watch` | Disable file watching |
 | `-no-replay` | Skip transaction replay across reloads |
+| `-web-banner <markdown>` | Replace the default network banner (see [Network banner](#network-banner)) |
+| `-web-no-banner` | Show no banner at all |
 
 Run `gnodev --help` for the full flag list.
 

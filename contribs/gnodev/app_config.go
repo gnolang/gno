@@ -2,7 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -32,6 +35,11 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
+	webBanner            string
+	webBannerURL         string
+	webBannerVariant     string
+	webBannerColor       string
+	webNoBanner          bool
 
 	// Loader
 	noExamples                 bool
@@ -120,6 +128,41 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-home",
 		defaultCfg.webHome,
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
+	)
+
+	fs.StringVar(
+		&c.webBanner,
+		"web-banner",
+		defaultCfg.webBanner,
+		"gnoweb: site-wide banner text (inline markdown); replaces the default network banner",
+	)
+
+	fs.StringVar(
+		&c.webBannerURL,
+		"web-banner-url",
+		defaultCfg.webBannerURL,
+		"gnoweb: make the banner a link to this http(s) URL (requires -web-banner)",
+	)
+
+	fs.StringVar(
+		&c.webBannerVariant,
+		"web-banner-variant",
+		defaultCfg.webBannerVariant,
+		"gnoweb: banner color scheme, one of `brand|success|info|warning|caution|tip|note`",
+	)
+
+	fs.StringVar(
+		&c.webBannerColor,
+		"web-banner-color",
+		defaultCfg.webBannerColor,
+		"gnoweb: banner background as a hex color or CSS color keyword; overrides -web-banner-variant",
+	)
+
+	fs.BoolVar(
+		&c.webNoBanner,
+		"web-no-banner",
+		defaultCfg.webNoBanner,
+		"gnoweb: do not show any banner, including the default network banner",
 	)
 
 	fs.BoolVar(
@@ -284,6 +327,20 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 func (c *AppConfig) validateConfigFlags() error {
 	if (c.balancesFile != "" || c.txsFile != "") && c.genesisFile != "" {
 		return ErrConflictingFileArgs
+	}
+
+	if c.webBanner == "" && c.webBannerURL != "" {
+		return ErrBannerURLWithoutText
+	}
+
+	// Checked here rather than where the banner is built, so a typo fails
+	// before the node spends half a minute loading packages.
+	if v := components.BannerVariant(c.webBannerVariant); v != "" && !components.ValidBannerVariant(v) {
+		return fmt.Errorf("unknown -web-banner-variant %q, want one of %s",
+			c.webBannerVariant, strings.Join(components.BannerVariants(), ", "))
+	}
+	if c.webBannerColor != "" && !components.ValidBannerColor(c.webBannerColor) {
+		return fmt.Errorf("invalid -web-banner-color %q, want a hex color (#f80, #ff8800, #ff8800cc) or a CSS color keyword", c.webBannerColor)
 	}
 
 	return nil

@@ -17,7 +17,10 @@ const DefaultDomain = "gno.land"
 // localNoWorkspaceHint is local mode's line in the no-workspace banner.
 const localNoWorkspaceHint = "running in discovery mode: packages resolve on-demand from examples, and from a chain RPC for domains passed via -remote."
 
-var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+var (
+	ErrConflictingFileArgs  = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+	ErrBannerURLWithoutText = errors.New("-web-banner-url requires -web-banner")
+)
 
 type LocalAppConfig struct {
 	AppConfig

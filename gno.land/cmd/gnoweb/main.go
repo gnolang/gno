@@ -81,8 +81,11 @@ func main() {
 			LongHelp: `gnoweb web interface
 
 Environment variables:
-  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
-  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
+  GNOWEB_BANNER_TEXT       Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL        Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_BANNER_VARIANT    Banner color scheme: brand, success, info, warning, caution, tip, note.
+  GNOWEB_BANNER_COLOR      Banner background as a hex color or CSS color keyword; overrides the variant.
+  GNOWEB_NO_NETWORK_BANNER Set to disable the banner gnoweb shows by default on any chain but mainnet.`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -241,11 +244,15 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.FaucetURL = cfg.faucetURL
 
 	// Parse banner from env
+	appcfg.NoNetworkBanner = os.Getenv("GNOWEB_NO_NETWORK_BANNER") != ""
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
-		bannerURL := os.Getenv("GNOWEB_BANNER_URL")
-		banner, err := components.NewBannerData(text, bannerURL)
+		banner, err := components.NewBannerData(text, components.BannerOptions{
+			URL:     os.Getenv("GNOWEB_BANNER_URL"),
+			Variant: components.BannerVariant(os.Getenv("GNOWEB_BANNER_VARIANT")),
+			Color:   os.Getenv("GNOWEB_BANNER_COLOR"),
+		})
 		if err != nil {
-			logger.Warn("invalid banner markdown, banner disabled", "error", err)
+			logger.Warn("invalid banner configuration, banner disabled", "error", err)
 		} else {
 			appcfg.Banner = banner
 		}

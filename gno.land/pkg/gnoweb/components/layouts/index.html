@@ -7,11 +7,11 @@
   {{ template "ui/icons" -}}
   {{ if .IndexData.Banner.Enabled -}}
   {{ if .IndexData.Banner.HasURL -}}
-  <a href="{{ .IndexData.Banner.URL }}" target="_blank" rel="noopener noreferrer" class="b-banner">
+  <a href="{{ .IndexData.Banner.URL }}" target="_blank" rel="noopener noreferrer" class="b-banner {{ .IndexData.Banner.VariantClass }}"{{ with .IndexData.Banner.Color }} style="--banner-bg:{{ . }}"{{ end }}>
     <span>{{ render .IndexData.Banner }}</span>
   </a>
   {{ else -}}
-  <div class="b-banner">
+  <div class="b-banner {{ .IndexData.Banner.VariantClass }}"{{ with .IndexData.Banner.Color }} style="--banner-bg:{{ . }}"{{ end }}>
     <span>{{ render .IndexData.Banner }}</span>
   </div>
   {{ end -}}

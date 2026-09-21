@@ -57,8 +57,13 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
-	// Banner, if set, displays a site-wide banner above the header.
+	// Banner, if set, displays a site-wide banner above the header. When it is
+	// unset, gnoweb supplies its own on any chain that is not mainnet; see
+	// NetworkBanner.
 	Banner components.BannerData
+	// NoNetworkBanner disables the automatic non-mainnet network banner. It has
+	// no effect on an explicitly configured Banner.
+	NoNetworkBanner bool
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -78,6 +83,28 @@ type AppConfig struct {
 	// chain nodes under pressure; relax when capacity allows. ADR-003
 	// §Resource bounds.
 	MaxConcurrentRPC int
+}
+
+// MainnetChainID is the chain id of gno.land mainnet. Every other chain gets
+// the network banner.
+const MainnetChainID = "gnoland-1"
+
+// NetworkBanner builds the banner gnoweb shows on any chain that is not
+// mainnet: which chain this actually is, and the RPC behind it.
+//
+// Without it the chain id appears only inside the "Network Info" popup, behind
+// a toggle, and in a gnoconnect meta tag. Nothing on the page itself says which
+// network you are looking at, so a gnoweb pointed at the wrong chain renders
+// identically to one pointed at the right chain, while the chain id it hands a
+// wallet is what a signature binds to.
+func NetworkBanner(chainID, remote string) (components.BannerData, error) {
+	text := fmt.Sprintf("Not gno.land mainnet. Chain `%s`", chainID)
+	if remote != "" {
+		text += fmt.Sprintf(", RPC `%s`", remote)
+	}
+	return components.NewBannerData(text, components.BannerOptions{
+		Variant: components.BannerWarning,
+	})
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -116,6 +143,18 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		if err != nil {
 			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
 			return nil, errors.New("no chain-id configured")
+		}
+	}
+
+	// An operator-supplied banner always wins; otherwise announce any chain
+	// that is not mainnet.
+	if !cfg.Banner.Enabled() && !cfg.NoNetworkBanner && cfg.ChainID != MainnetChainID {
+		banner, bannerErr := NetworkBanner(cfg.ChainID, cfg.RemoteHelp)
+		if bannerErr != nil {
+			// Never fatal: a missing banner must not keep gnoweb from serving.
+			logger.Warn("unable to build the network banner", "error", bannerErr)
+		} else {
+			cfg.Banner = banner
 		}
 	}
 
