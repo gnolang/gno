@@ -23,8 +23,10 @@ available on that node.
 
 Parameters live under the rpc table of the node's config.toml, inside the data
 directory given by gnoland's --data-dir, and are edited there or with
-"gnoland config set rpc.<key> <value>". The default listen address is
-tcp://127.0.0.1:26657.
+"gnoland config set rpc.<key> <value>". That command takes --config-path, not
+--data-dir, so a node on a custom data directory needs the path spelled out.
+The default listen address is tcp://127.0.0.1:26657.
+
 The unsafe_* methods are registered only when rpc.unsafe is true. Two of
 them pass a caller-supplied filename straight to os.Create, so a node running
 with rpc.unsafe on a reachable address lets any caller overwrite files as the
@@ -37,8 +39,9 @@ as a 0x-prefixed hex string such as 0x616263. The 0x form is decoded in
 httpParamsToArgs; the JSON-RPC transport accepts base64 exclusively.
 
 String arguments are safest quoted, as path="auth/accounts/g1...". An unquoted
-value is wrapped for the caller unless it already parses as JSON. A bare true
-or an out-of-range number then reaches amino as raw JSON and fails to unmarshal
+value is wrapped for the caller when it is an in-range integer or when it is
+not valid JSON, and passed through raw otherwise. A bare true or an
+out-of-range number therefore reaches amino as raw JSON and fails to unmarshal
 into a string; a bare null is worse, since it unmarshals silently to "".
 
 The JSON-RPC envelope is ordinary JSON, but the result is marshalled with
