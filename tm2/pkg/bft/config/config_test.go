@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -10,6 +11,114 @@ import (
 	// register every DB backend so validation accepts whatever the default is
 	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 )
+
+// writeConfigBytes writes raw TOML content at the default config path under root
+func writeConfigBytes(t *testing.T, root string, content []byte) {
+	t.Helper()
+
+	cfgPath := filepath.Join(root, defaultConfigPath)
+	require.NoError(t, os.MkdirAll(filepath.Dir(cfgPath), 0o755))
+	require.NoError(t, os.WriteFile(cfgPath, content, 0o644))
+}
+
+// writeConfig saves the given config at the default config path under root
+func writeConfig(t *testing.T, root string, cfg *Config) {
+	t.Helper()
+
+	cfgPath := filepath.Join(root, defaultConfigPath)
+	require.NoError(t, os.MkdirAll(filepath.Dir(cfgPath), 0o755))
+	require.NoError(t, WriteConfigFile(cfgPath, cfg))
+}
+
+func TestConfig_LoadConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("explicit zero values are honored", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		// Write a full config whose values differ from the defaults
+		// only by being explicitly set to Go zero values
+		cfg := DefaultConfig()
+		cfg.Mempool.Recheck = false
+		cfg.Consensus.CreateEmptyBlocks = false
+		writeConfig(t, cfgDir, cfg)
+
+		loadedCfg, loadErr := LoadConfig(cfgDir)
+		require.NoError(t, loadErr)
+
+		assert.False(t, loadedCfg.Mempool.Recheck)
+		assert.False(t, loadedCfg.Consensus.CreateEmptyBlocks)
+	})
+
+	t.Run("explicit empty slice is honored", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		// The default for cors_allowed_methods is a non-empty slice;
+		// an explicit empty array in the file must disable it
+		cfg := DefaultConfig()
+		cfg.RPC.CORSAllowedMethods = []string{}
+		writeConfig(t, cfgDir, cfg)
+
+		loadedCfg, loadErr := LoadConfig(cfgDir)
+		require.NoError(t, loadErr)
+
+		assert.Empty(t, loadedCfg.RPC.CORSAllowedMethods)
+	})
+
+	t.Run("keys absent from the file keep defaults", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		// Write a partial config, with entire sections and
+		// individual keys within present sections omitted
+		writeConfigBytes(t, cfgDir, []byte(
+			"moniker = \"from-file\"\n[p2p]\npersistent_peers = \"node0@127.0.0.1:26656\"\n",
+		))
+
+		loadedCfg, loadErr := LoadConfig(cfgDir)
+		require.NoError(t, loadErr)
+
+		defaultCfg := DefaultConfig()
+
+		// Present keys come from the file
+		assert.Equal(t, "from-file", loadedCfg.Moniker)
+		assert.Equal(t, "node0@127.0.0.1:26656", loadedCfg.P2P.PersistentPeers)
+
+		// Keys absent from a present section keep their defaults
+		assert.Equal(t, defaultCfg.P2P.MaxNumOutboundPeers, loadedCfg.P2P.MaxNumOutboundPeers)
+
+		// Absent sections keep their defaults
+		assert.Equal(t, defaultCfg.Mempool.Recheck, loadedCfg.Mempool.Recheck)
+		assert.Equal(t, defaultCfg.Consensus.CreateEmptyBlocks, loadedCfg.Consensus.CreateEmptyBlocks)
+		assert.Equal(t, defaultCfg.Mempool.Size, loadedCfg.Mempool.Size)
+	})
+
+	t.Run("non-zero values load unchanged", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		cfg := DefaultConfig()
+		cfg.P2P.PersistentPeers = "node0@127.0.0.1:26656"
+		cfg.P2P.SendRate = 1024000
+		writeConfig(t, cfgDir, cfg)
+
+		loadedCfg, loadErr := LoadConfig(cfgDir)
+		require.NoError(t, loadErr)
+
+		assert.Equal(t, cfg.P2P.PersistentPeers, loadedCfg.P2P.PersistentPeers)
+		assert.Equal(t, cfg.P2P.SendRate, loadedCfg.P2P.SendRate)
+
+		// A slice present in the file replaces the default slice
+		// rather than appending to it
+		assert.Equal(t, cfg.RPC.CORSAllowedMethods, loadedCfg.RPC.CORSAllowedMethods)
+	})
+}
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 	t.Parallel()
@@ -90,6 +199,51 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 		loadedCfg.SetRootDir(cfgDir)
 
 		assert.Equal(t, cfg, loadedCfg)
+	})
+
+	t.Run("file values take precedence over options", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		// Write a full config with an explicit zero value
+		// and a custom moniker
+		cfg := DefaultConfig()
+		cfg.Moniker = "from-file"
+		cfg.Mempool.Recheck = false
+		writeConfig(t, cfgDir, cfg)
+
+		loadedCfg, loadErr := LoadOrMakeConfigWithOptions(
+			cfgDir,
+			func(cfg *Config) {
+				cfg.Moniker = "from-opt"
+				cfg.Mempool.Recheck = true
+			},
+		)
+		require.NoError(t, loadErr)
+
+		assert.Equal(t, "from-file", loadedCfg.Moniker)
+		assert.False(t, loadedCfg.Mempool.Recheck)
+	})
+
+	t.Run("options are kept for keys absent from the file", func(t *testing.T) {
+		t.Parallel()
+
+		cfgDir := t.TempDir()
+
+		// Write a partial config that does not set the moniker
+		writeConfigBytes(t, cfgDir, []byte("[mempool]\nrecheck = false\n"))
+
+		loadedCfg, loadErr := LoadOrMakeConfigWithOptions(
+			cfgDir,
+			func(cfg *Config) {
+				cfg.Moniker = "from-opt"
+			},
+		)
+		require.NoError(t, loadErr)
+
+		assert.Equal(t, "from-opt", loadedCfg.Moniker)
+		assert.False(t, loadedCfg.Mempool.Recheck)
 	})
 }
 

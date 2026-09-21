@@ -1,6 +1,22 @@
 # Go - Gno compatibility
 
-Gno is modeled after Go 1.17.
+Gno targets the Go 1.17 language specification. Concretely, this means:
+
+- **Language spec, not toolchain.** Gno implements the Go 1.17 language
+  specification, while the Gno tooling itself is built with a modern Go
+  toolchain.
+- **The cut-off is Go 1.18.** Language features introduced from Go 1.18 onward
+  are not part of Gno's current language target: generics (type parameters),
+  interface type-set unions and `~T` terms, and later built-ins such as `min`,
+  `max`, and `clear`. They are rejected deliberately, not missing by accident;
+  whether any of them are adopted later is a separate design decision.
+- **Not strict conformance.** There are deliberate exceptions in both
+  directions: `any` (a Go 1.18 spec alias for `interface{}`) is supported,
+  while some pre-1.17 features such as goroutines and channels are not (yet) —
+  see the tables below.
+- **Enforced per construct.** There is no global language-version switch;
+  unsupported constructs are rejected individually by the type-checker and the
+  interpreter.
 
 ## Reserved keywords
 
@@ -32,11 +48,24 @@ Gno is modeled after Go 1.17.
 
 Generics are currently not implemented.
 
-Note that Gno does not support shadowing of built-in types.
-While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
+## Reserved identifiers
+
+Predeclared names that Go lets you shadow, but Gno does not.
+
+Built-in types. The following typecasting assignment works in Go, but not in Gno:
 
 ```go
 rune := rune('a')
+```
+
+`iota`. Gno reserves it everywhere, not just inside `const` blocks. Go accepts it
+as an ordinary identifier outside a `const` block; Gno rejects every binding site —
+variable declarations, function parameters, results and receivers, `range` and
+type-switch variables, and the init clause of a `for`:
+
+```go
+func f(iota int) {} // error: builtin identifiers cannot be shadowed: iota
+iota := 5           // same error
 ```
 
 ## Builtin types

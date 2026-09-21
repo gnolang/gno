@@ -23,7 +23,7 @@ import (
 func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
 	const n = 2_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -45,9 +45,7 @@ func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 
 	// Writer: continuously Set new keys (each Set → SaveValue writes pendingVals)
 	// WITHOUT committing, so pendingVals is being mutated for the whole window.
-	writerWg.Add(1)
-	go func() {
-		defer writerWg.Done()
+	writerWg.Go(func() {
 		k := n
 		for {
 			select {
@@ -61,27 +59,23 @@ func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 			}
 			k++
 		}
-	}()
+	})
 
 	// Reader 1: committed-snapshot Get (value resolution).
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 200; round++ {
-			for i := 0; i < n; i++ {
+	readerWg.Go(func() {
+		for range 200 {
+			for i := range n {
 				if _, err := imm.Get(i2b(i)); err != nil {
 					t.Error(err)
 					return
 				}
 			}
 		}
-	}()
+	})
 
 	// Reader 2: committed membership proof (value resolution via valueResolver).
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 400; round++ {
+	readerWg.Go(func() {
+		for range 400 {
 			for i := 0; i < n; i += 50 {
 				if _, err := tree.GetMembershipProof(i2b(i)); err != nil {
 					t.Error(err)
@@ -89,13 +83,11 @@ func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 				}
 			}
 		}
-	}()
+	})
 
 	// Reader 3: committed-snapshot iterator Value().
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 400; round++ {
+	readerWg.Go(func() {
+		for range 400 {
 			itr, err := imm.Iterator(nil, nil, true)
 			if err != nil {
 				t.Error(err)
@@ -108,14 +100,12 @@ func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 			}
 			itr.Close()
 		}
-	}()
+	})
 
 	// Reader 4: store-style snapshot iterator via NewIteratorWithNDB (the path
 	// the store wrapper uses for an immutable store).
-	readerWg.Add(1)
-	go func() {
-		defer readerWg.Done()
-		for round := 0; round < 400; round++ {
+	readerWg.Go(func() {
+		for range 400 {
 			itr := NewIteratorWithNDB(imm, nil, nil, true, tree)
 			for itr.Valid() {
 				_ = itr.Key()
@@ -124,7 +114,7 @@ func TestPendingVals_ConcurrentValueResolve_NoRace(t *testing.T) {
 			}
 			itr.Close()
 		}
-	}()
+	})
 
 	readerWg.Wait()
 	close(stop)
@@ -139,7 +129,7 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 
 	// --- Round 1: pure working session (no prior committed version). ---
 	staged := map[string][]byte{}
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		k := i2b(i)
 		v := i2b(i * 7)
 		if _, err := tree.Set(k, v); err != nil {
@@ -149,7 +139,7 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 	}
 
 	// Get-after-Set must see staged values BEFORE SaveVersion.
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		k := i2b(i)
 		got, err := tree.Get(k)
 		if err != nil {
@@ -204,7 +194,7 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 	// --- Round 2: UPDATE staged values over a committed base, then read. ---
 	// This is the critical case: a Set that overwrites a committed key must be
 	// visible to a same-session Get (the new value lives only in pendingVals).
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		k := i2b(i)
 		v := i2b(i*7 + 1) // new value
 		if _, err := tree.Set(k, v); err != nil {
@@ -212,7 +202,7 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 		}
 		staged[string(k)] = v
 	}
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		k := i2b(i)
 		got, err := tree.Get(k)
 		if err != nil {
@@ -247,7 +237,7 @@ func TestPendingVals_ReadYourWrites(t *testing.T) {
 func TestExport_ConcurrentWithWriter_NoRace(t *testing.T) {
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 1000, NewNopLogger())
 	const n = 2_000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -266,9 +256,7 @@ func TestExport_ConcurrentWithWriter_NoRace(t *testing.T) {
 	// being mutated for the whole window.
 	stop := make(chan struct{})
 	var writerWg sync.WaitGroup
-	writerWg.Add(1)
-	go func() {
-		defer writerWg.Done()
+	writerWg.Go(func() {
 		k := n
 		for {
 			select {
@@ -282,11 +270,11 @@ func TestExport_ConcurrentWithWriter_NoRace(t *testing.T) {
 			}
 			k++
 		}
-	}()
+	})
 
 	// Drain full exports of the committed snapshot while the writer runs. Each
 	// Export spawns the exporter goroutine, which resolves every leaf value.
-	for round := 0; round < 50; round++ {
+	for round := range 50 {
 		exp, err := imm.Export(imm.ndb)
 		if err != nil {
 			t.Fatal(err)

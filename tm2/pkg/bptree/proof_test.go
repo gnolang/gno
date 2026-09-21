@@ -34,7 +34,7 @@ func TestProof_MembershipSingleKey(t *testing.T) {
 func TestProof_MembershipMultipleKeys(t *testing.T) {
 	tree := newMemTree()
 	n := 100
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "pk%04d", i), fmt.Appendf(nil, "pv%04d", i))
 	}
 	tree.SaveVersion()
@@ -99,7 +99,7 @@ func TestProof_MembershipMissingKey(t *testing.T) {
 func TestProof_MembershipLargeTree(t *testing.T) {
 	tree := newMemTree()
 	n := 500
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "lg%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
 	tree.SaveVersion()
@@ -239,7 +239,7 @@ func TestProof_NonMembershipCrossLeaf(t *testing.T) {
 func TestProof_MembershipMultiLevelTree(t *testing.T) {
 	tree := newMemTree()
 	n := 2000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "ml%06d", i), fmt.Appendf(nil, "val%06d", i))
 	}
 	if tree.Height() < 2 {
@@ -267,7 +267,7 @@ func TestProof_MembershipMultiLevelTree(t *testing.T) {
 func TestProof_MembershipDBBacked(t *testing.T) {
 	db := newTestDB(t)
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "db%04d", i), fmt.Appendf(nil, "val%04d", i))
 	}
 	tree.SaveVersion()

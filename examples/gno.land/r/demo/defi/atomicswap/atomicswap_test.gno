@@ -273,7 +273,7 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20.TST")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -345,7 +345,7 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20.TST")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active

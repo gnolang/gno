@@ -21,7 +21,7 @@ func TestPersistence_SaveLoadVersion(t *testing.T) {
 	tree := newTestTree(t)
 
 	// Insert some keys and save
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "k%03d", i), fmt.Appendf(nil, "v%03d", i))
 	}
 	hash1, v1, err := tree.SaveVersion()
@@ -68,7 +68,7 @@ func TestPersistence_SaveLoadVersion(t *testing.T) {
 	}
 
 	// Verify keys
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		val, err := tree2.Get(fmt.Appendf(nil, "k%03d", i))
 		if err != nil {
 			t.Fatalf("Get k%03d: %v", i, err)
@@ -88,7 +88,7 @@ func TestPersistence_SaveLoadVersion(t *testing.T) {
 
 func TestPersistence_Load(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "l%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -115,7 +115,7 @@ func TestPersistence_Load(t *testing.T) {
 
 func TestPersistence_Rollback(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		tree.Set(fmt.Appendf(nil, "r%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -146,7 +146,7 @@ func TestPersistence_MultiVersion(t *testing.T) {
 	tree := newTestTree(t)
 
 	// Version 1: 10 keys
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "mv%02d", i), []byte("v1"))
 	}
 	tree.SaveVersion()
@@ -158,7 +158,7 @@ func TestPersistence_MultiVersion(t *testing.T) {
 	tree.SaveVersion()
 
 	// Version 3: remove some from v1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		tree.Remove(fmt.Appendf(nil, "mv%02d", i))
 	}
 	tree.SaveVersion()
@@ -197,7 +197,7 @@ func TestPersistence_HashStability(t *testing.T) {
 
 	t1 := mkTree()
 	t2 := mkTree()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Appendf(nil, "hs%04d", i)
 		val := fmt.Appendf(nil, "val%04d", i)
 		t1.Set(key, val)
@@ -250,7 +250,7 @@ func TestPersistence_VersionExists(t *testing.T) {
 
 func TestPersistence_AvailableVersions(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		tree.Set(fmt.Appendf(nil, "av%d", i), []byte("v"))
 		tree.SaveVersion()
 	}
@@ -292,7 +292,7 @@ func TestPersistence_InitialVersion(t *testing.T) {
 
 func TestPersistence_DeleteVersionsTo(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		tree.Set(fmt.Appendf(nil, "dv%d", i), []byte("v"))
 		tree.SaveVersion()
 	}
@@ -313,7 +313,7 @@ func TestPersistence_DeleteVersionsTo(t *testing.T) {
 func TestPersistence_LargeTree_SaveLoad(t *testing.T) {
 	tree := newTestTree(t)
 	n := 500
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "big%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
 	hash1, _, err := tree.SaveVersion()
@@ -355,7 +355,7 @@ func TestPersistence_SaveMutateSaveLoadBothVersions(t *testing.T) {
 	tree := newTestTree(t)
 
 	// V1: keys k000-k049
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "k%03d", i), fmt.Appendf(nil, "v%03d", i))
 	}
 	tree.SaveVersion()
@@ -407,7 +407,7 @@ func TestPersistence_SaveMutateSaveLoadBothVersions(t *testing.T) {
 
 func TestPersistence_SaveVersionNoMutations(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		tree.Set(fmt.Appendf(nil, "nm%03d", i), []byte("v"))
 	}
 	hash1, _, _ := tree.SaveVersion()
@@ -459,7 +459,7 @@ func TestPersistence_GetReturnsActualValues(t *testing.T) {
 func TestPersistence_ExportImport(t *testing.T) {
 	// Build a tree and export it
 	tree1 := newTestTree(t)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree1.Set(fmt.Appendf(nil, "ei%04d", i), fmt.Appendf(nil, "val%04d", i))
 	}
 	tree1.SaveVersion()
@@ -500,7 +500,7 @@ func TestPersistence_ExportImport(t *testing.T) {
 	if tree2.Size() != 100 {
 		t.Fatalf("imported size = %d, want 100", tree2.Size())
 	}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		val, _ := tree2.Get(fmt.Appendf(nil, "ei%04d", i))
 		expected := fmt.Appendf(nil, "val%04d", i)
 		if !bytes.Equal(val, expected) {
@@ -530,7 +530,7 @@ func TestPersistence_DeleteVersionsFrom_Unsupported(t *testing.T) {
 
 func TestPersistence_VersionReaders_BlockPruning(t *testing.T) {
 	tree := newTestTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "vr%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -610,7 +610,7 @@ func TestPersistence_ExportImportHashMatch(t *testing.T) {
 	// different tree structure (and thus different hash) than the original.
 	// This test documents that behavior.
 	tree1 := newTestTree(t)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree1.Set(fmt.Appendf(nil, "hm%04d", i), fmt.Appendf(nil, "val%04d", i))
 	}
 	hash1, _, _ := tree1.SaveVersion()

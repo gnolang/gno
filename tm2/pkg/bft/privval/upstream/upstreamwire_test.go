@@ -154,7 +154,6 @@ func TestUpstreamWire_PartSetHeader_ByteIdentical(t *testing.T) {
 		{Total: 1<<31 - 1, Hash: nil}, // max int32 as uint32 — still in range
 	}
 	for _, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -178,7 +177,6 @@ func TestUpstreamWire_BlockID_ByteIdentical(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -214,7 +212,6 @@ func TestUpstreamWire_Vote_ByteIdentical(t *testing.T) {
 		{Type: types.PrevoteType, Height: 1, Round: 1, ValidatorAddress: make([]byte, 20)},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -248,7 +245,6 @@ func TestUpstreamWire_Proposal_ByteIdentical(t *testing.T) {
 		{Type: types.ProposalType, Height: 1, Round: -1, POLRound: -1}, // negatives
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -323,7 +319,6 @@ func TestUpstreamWire_CanonicalProposal_ByteIdentical(t *testing.T) {
 		}},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -362,7 +357,6 @@ func TestUpstreamWire_CanonicalVote_ByteIdentical(t *testing.T) {
 		}, ChainID: "gno.land"},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)

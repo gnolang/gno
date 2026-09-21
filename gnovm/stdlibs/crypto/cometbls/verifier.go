@@ -314,7 +314,7 @@ func VerifyZKP(chainID string, trustedValidatorsHash []byte, headerEncoded []byt
 
 	var scalar big.Int
 	var term bn254.G1Affine
-	for i := 0; i < NbPublicInputs; i++ {
+	for i := range NbPublicInputs {
 		inputs[i].BigInt(&scalar)
 		term.ScalarMultiplication(&GammaAbcG1[i+1], &scalar)
 		msm.Add(&msm, &term)

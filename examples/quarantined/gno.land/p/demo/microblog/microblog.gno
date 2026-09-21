@@ -55,8 +55,8 @@ func (m *Microblog) NewPost(_ int, rlm realm, text string) error {
 		return errors.New("microblog: unauthorized")
 	}
 	author := rlm.Previous().Address()
-	_, found := m.Pages.Get(author.String())
-	if !found {
+	if m.Pages.Get(author.String()) == nil {
+		// make a new page for the new author
 		m.Pages.Set(author.String(), &Page{
 			Author:    author,
 			CreatedAt: time.Now(),
@@ -71,8 +71,8 @@ func (m *Microblog) NewPost(_ int, rlm realm, text string) error {
 }
 
 func (m *Microblog) GetPage(author string) (*Page, error) {
-	silo, found := m.Pages.Get(author)
-	if !found {
+	silo := m.Pages.Get(author)
+	if silo == nil {
 		return nil, ErrNotFound
 	}
 	return silo.(*Page), nil
