@@ -407,6 +407,7 @@ func TestNewRouter_NetworkKind(t *testing.T) {
 		{name: "default is testnet", chainID: "gnoland-1", want: components.NetworkTestnet},
 		{name: "default on a testnet id", chainID: "pearl-1", want: components.NetworkTestnet},
 		{name: "mainnet is explicit", chainID: "gnoland-1", override: components.NetworkMainnet, want: components.NetworkMainnet},
+		{name: "local is explicit", chainID: "dev", override: components.NetworkLocal, want: components.NetworkLocal},
 		{name: "invalid kind", chainID: "pearl-1", override: "prod", wantErr: "invalid network kind"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -427,8 +428,6 @@ func TestNewRouter_NetworkKind(t *testing.T) {
 	}
 }
 
-// The chain-id reaches markdown and a meta tag wallets read, so NewRouter
-// refuses anything that could close a code span or an attribute.
 func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 	t.Parallel()
 
@@ -441,7 +440,6 @@ func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 		{name: "testnet", chainID: "pearl-1"},
 		{name: "dev", chainID: "dev"},
 		{name: "dotted", chainID: "test6.testnets"},
-		// A backtick ends the code span, and the rest renders as markdown.
 		{name: "backtick", chainID: "x`](https://evil.example)`", wantErr: true},
 		{name: "space", chainID: "pearl 1", wantErr: true},
 		{name: "angle bracket", chainID: "<script>", wantErr: true},
@@ -463,8 +461,6 @@ func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 	}
 }
 
-// Off mainnet the page says so in words; on mainnet it stays quiet, and an
-// operator who configured a banner keeps it.
 func TestNewRouter_NetworkBanner(t *testing.T) {
 	t.Parallel()
 
@@ -479,6 +475,7 @@ func TestNewRouter_NetworkBanner(t *testing.T) {
 		wantText   string
 	}{
 		{name: "testnet gets one", kind: components.NetworkTestnet, wantBanner: true, wantText: "Not gno.land mainnet"},
+		{name: "local says so", kind: components.NetworkLocal, wantBanner: true, wantText: "Local development chain"},
 		{name: "mainnet gets none", kind: components.NetworkMainnet, wantBanner: false},
 		{name: "operator banner wins", kind: components.NetworkTestnet, banner: operator, wantBanner: true, wantText: "scheduled maintenance"},
 	} {

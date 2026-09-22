@@ -159,6 +159,8 @@
 	--s-color-text-network: var(--g-color-gray-600);
 	--s-color-bg-network-alert: var(--g-color-purple-50);
 	--s-color-text-network-alert: var(--g-color-purple-600);
+	--s-color-bg-network-strong: var(--g-color-purple-600); /* = --s-logo-hat */
+	--s-color-text-network-strong: var(--g-color-light, #ffffff);
 }
 
 /* ===== DARK THEME ===== */
@@ -210,7 +212,6 @@
 	--s-color-text-brand-default: var(--g-color-light);
 	--s-color-text-link: var(--g-color-green-500);
 	--s-color-text-link-hover: var(--g-color-green-400);
-	--s-color-text-link-active: var(--g-color-green-400);
 
 	/* Form text */
 	--s-color-text-input: var(--g-color-gray-200);
@@ -232,13 +233,11 @@
 
 	/* Interactive borders */
 	--s-color-border-hover: var(--g-color-gray-600);
-	--s-color-border-focus: var(--g-color-green-400);
 	--s-color-border-active: var(--g-color-gray-500);
 
 	/* Form borders */
 	--s-color-border-input: var(--g-color-gray-700);
 	--s-color-border-input-hover: var(--g-color-gray-600);
-	--s-color-border-input-focus: var(--g-color-green-400);
 	--s-color-border-input-disabled: var(--g-color-gray-750);
 
 	/* Semantic borders */
@@ -259,6 +258,8 @@
 	--s-color-text-network: var(--g-color-gray-300);
 	--s-color-bg-network-alert: var(--g-color-purple-950);
 	--s-color-text-network-alert: var(--g-color-purple-50);
+	--s-color-bg-network-strong: var(--g-color-purple-400);
+	--s-color-text-network-strong: var(--g-color-light, #ffffff);
 }
 
 /* ===== NETWORK ===== */
@@ -269,8 +270,37 @@
    the dark theme because it happens to come later in the file. */
 [data-network="testnet"]:not([data-theme="dark"]) {
 	--s-logo-hat: var(--g-color-purple-600);
+	--s-color-text-link: var(--g-color-purple-600);
+	--s-color-text-link-hover: var(--g-color-purple-600);
+	--s-color-bg-brand-default: var(--g-color-purple-600);
+	--s-color-border-brand-default: var(--g-color-purple-600);
 }
 
 [data-theme="dark"][data-network="testnet"] {
 	--s-logo-hat: var(--g-color-purple-400);
+	--s-color-text-link: var(--g-color-purple-300);
+	--s-color-text-link-hover: var(--g-color-purple-200);
+	--s-color-bg-brand-default: var(--g-color-purple-600);
+	--s-color-border-brand-default: var(--g-color-purple-600);
+}
+[data-network="local"]:not([data-theme="dark"]) {
+	--s-logo-hat: var(--g-color-blue-900);
+	--s-color-bg-network-alert: var(--g-color-blue-50);
+	--s-color-text-network-alert: var(--g-color-blue-900);
+	--s-color-bg-network-strong: var(--g-color-blue-900);
+	--s-color-text-link: var(--g-color-blue-900);
+	--s-color-text-link-hover: var(--g-color-blue-900);
+	--s-color-bg-brand-default: var(--g-color-blue-900);
+	--s-color-border-brand-default: var(--g-color-blue-900);
+}
+
+[data-theme="dark"][data-network="local"] {
+	--s-logo-hat: var(--g-color-blue-400);
+	--s-color-bg-network-alert: var(--g-color-blue-950);
+	--s-color-text-network-alert: var(--g-color-blue-50);
+	--s-color-bg-network-strong: var(--g-color-blue-900);
+	--s-color-text-link: var(--g-color-blue-400);
+	--s-color-text-link-hover: var(--g-color-blue-50);
+	--s-color-bg-brand-default: var(--g-color-blue-900);
+	--s-color-border-brand-default: var(--g-color-blue-900);
 }

@@ -166,7 +166,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.networkKind,
 		"network-kind",
 		defaultWebOptions.networkKind,
-		"The network kind (`mainnet` or `testnet`). Defaults to testnet; mainnet must be set explicitly.",
+		"the network kind: mainnet, testnet or local",
 	)
 
 	fs.BoolVar(

@@ -49,16 +49,13 @@
 	}
 }
 
-/* Off mainnet the banner takes the warning pair the design system already
-   validates for markdown alerts, foreground included. Taking only the
-   background and keeping the base white text is what puts a full-width bar at
-   1.67:1; this pair is 7.1:1 in light and 9.6:1 in dark. */
+/* Same purple as the logo hat and the chip, so off-mainnet reads as one
+   signal. 6.6:1 in light, 5.2:1 in dark against the base white text. */
 .b-banner--network {
-	background-color: var(--s-color-bg-warning-weak);
-	color: var(--s-color-text-warning);
+	background-color: var(--s-color-bg-network-strong);
+	color: var(--s-color-text-network-strong);
 
-	/* The base rule tints the chip with a brand token, which only works on the
-	   brand background. Tint from the text colour instead so it follows. */
+	/* The base rule tints from a brand token, which only works on brand. */
 	& code {
 		background-color: color-mix(in srgb, currentColor 12%, transparent);
 	}
@@ -99,10 +96,14 @@
 
 	/* Chain-id chip, on every network; --alert escalates it off-mainnet. */
 	.network-chip {
-		align-self: center;
+		align-self: stretch;
+		display: inline-flex;
+		align-items: center;
+
+		/* Flex would collapse the whitespace between the id and the kind. */
+		gap: var(--g-space-1);
 		flex-shrink: 0;
 		padding-inline: var(--g-space-2);
-		padding-block: var(--g-space-1);
 		border-radius: var(--s-rounded);
 		background-color: var(--s-color-bg-network);
 		color: var(--s-color-text-network);
@@ -110,9 +111,7 @@
 		font-weight: var(--g-font-semibold);
 		white-space: nowrap;
 
-		/* The chain-id is operator-supplied and unbounded, so it is what gets
-		   capped. The kind is a fixed word and must stay readable: capping the
-		   chip as a whole truncated "mainnet" instead. */
+		/* Cap the unbounded value, not the chip: that truncated "mainnet". */
 		& .network-chip__id {
 			display: inline-block;
 			max-inline-size: 14ch;
