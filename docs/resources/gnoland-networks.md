@@ -24,6 +24,9 @@ All networks follow the same pattern for websocket connections:
 wss://<rpc-endpoint:port>/websocket
 ```
 
+The endpoint serves the same request-response methods as HTTP. There is no
+event subscription — see [JSON-RPC endpoints](./rpc-endpoints.md).
+
 ### Deployment files
 
 If you intend to [run a node](../builders/running-a-node.md) — a full node
