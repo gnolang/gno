@@ -12,7 +12,7 @@ LAYOUT - Header component
       {{ if .ChainId }}
       <span class="network-chip {{ if not .NetworkKind.IsMainnet }}network-chip--alert{{ end }}"
         title="{{ .NetworkChipTitle }}">
-        <span class="u-sr-only">{{ .NetworkChipLabel }} </span>{{ .ChainId }}
+        <span class="u-sr-only">Network: </span><span class="network-chip__id">{{ .ChainId }}</span> {{ .NetworkKind }}
       </span>
       {{ end }}
 

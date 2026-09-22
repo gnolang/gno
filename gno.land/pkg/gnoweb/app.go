@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -101,6 +102,20 @@ func NewDefaultAppConfig() *AppConfig {
 	}
 }
 
+// chainIDRe is what a chain-id may contain. The value reaches markdown (the
+// network banner) and a meta tag wallets read, so it is checked once here
+// rather than escaped at each use: a backtick in a chain-id would close the
+// code span and let the rest render as markdown.
+var chainIDRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,64}$`)
+
+// networkBannerText states the negative first, because "not mainnet" needs no
+// prior knowledge, then the consequence, for a reader who has never heard of
+// mainnet. The RPC address is deliberately left out: it is in the Network Info
+// popup with a label, and it means nothing to a visitor reading a realm.
+func networkBannerText(chainID string) string {
+	return fmt.Sprintf("**Not gno.land mainnet** — chain `%s`. Tokens and data here are not real.", chainID)
+}
+
 // NewRouter initializes the gnoweb router with the specified logger and configuration.
 // It sets up all routes, static asset handling, and middleware.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
@@ -132,7 +147,21 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		}
 	}
 
+	if !chainIDRe.MatchString(cfg.ChainID) {
+		return nil, fmt.Errorf("invalid chain-id %q", cfg.ChainID)
+	}
+
 	logger.Info("network", "kind", cfg.NetworkKind, "chain-id", cfg.ChainID)
+
+	// Off mainnet, say so in words. An operator banner wins: a deployment that
+	// configured one has something more specific to say.
+	if !cfg.Banner.Enabled() && !cfg.NetworkKind.IsMainnet() {
+		banner, bannerErr := components.NewBannerData(networkBannerText(cfg.ChainID), "")
+		if bannerErr != nil {
+			return nil, fmt.Errorf("unable to build the network banner: %w", bannerErr)
+		}
+		cfg.Banner = banner
+	}
 
 	// Setup client adapter
 	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain, cfg.MaxConcurrentRPC)
