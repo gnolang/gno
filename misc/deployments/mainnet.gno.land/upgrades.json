@@ -9,10 +9,15 @@
       "halt_time": "2026-09-12T15:00:00Z",
       "halt_min_version": "",
       "proposal": null,
-      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.2.0", "digest": "sha256:4b161a2b5d5fcceab4badd4d519ea73465c078a17e6fb1e9b0bae2e01c1a7b87" },
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.2.0",
+        "digest": "sha256:4b161a2b5d5fcceab4badd4d519ea73465c078a17e6fb1e9b0bae2e01c1a7b87"
+      },
       "binaries": "https://github.com/gnolang/gno/releases/tag/v1.2.0",
       "ran_as": null,
-      "changes": ["launch"]
+      "changes": [
+        "launch"
+      ]
     },
     {
       "version": "v1.3.0",
@@ -21,10 +26,16 @@
       "halt_time": "2026-09-14T09:17:06Z",
       "halt_min_version": "",
       "proposal": 0,
-      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.3.0", "digest": null },
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.3.0",
+        "digest": "sha256:897a5c0f75e688870f2729565c2c3de6690574170723c4514c43886effe335d0"
+      },
       "binaries": "https://github.com/gnolang/gno/releases/tag/v1.3.0",
       "ran_as": "sha256:7fffc5ac2d21d6608bed35b31cfc3f2aaefed0d6bb3cdba1d5edbfd905127a3f",
-      "changes": ["#6173 sign-doc fee rendering (`tm2!`)", "#6114 gpao"]
+      "changes": [
+        "#6173 sign-doc fee rendering (`tm2!`)",
+        "#6114 gpao"
+      ]
     },
     {
       "version": "v1.4.0",
@@ -33,10 +44,16 @@
       "halt_time": "2026-09-17T13:24:04Z",
       "halt_min_version": "",
       "proposal": 5,
-      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.4.0", "digest": null },
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.4.0",
+        "digest": "sha256:a41395a8cf394f4142245702b2f84e3d0521cad216e2f279d6e7b6b8f77b4988"
+      },
       "binaries": "https://github.com/gnolang/gno/releases/tag/v1.4.0",
       "ran_as": "sha256:805d723bcd2938ac42d3056f70d11a2f50ee89ca852c618f6aee60fe1bfd79ad",
-      "changes": ["#6193 crossing `cur` fixed binding", "#6177 version gate"]
+      "changes": [
+        "#6193 crossing `cur` fixed binding",
+        "#6177 version gate"
+      ]
     },
     {
       "version": "v1.5.0",
@@ -45,10 +62,16 @@
       "halt_time": "2026-09-19T10:37:10Z",
       "halt_min_version": "",
       "proposal": 7,
-      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.5.0", "digest": null },
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.5.0",
+        "digest": "sha256:6ae099c2828c7fcfccd9b8e49ba4f11cd77e38514b7607ce70734aafd53aa73f"
+      },
       "binaries": "https://github.com/gnolang/gno/releases/tag/v1.5.0",
       "ran_as": "sha256:5b455e5784328aeda1cfa4832e3cb2a58f15f9645c710b8591401bd04c9a900e",
-      "changes": ["#6211 origin-call anchoring", "#5981 iota shadowing"]
+      "changes": [
+        "#6211 origin-call anchoring",
+        "#5981 iota shadowing"
+      ]
     }
   ]
 }
