@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	// see README
+	// Applied to unconfirmed_txs' limit argument; see
+	// docs/resources/rpc-endpoints.md.
 	defaultPerPage = 30
 	maxPerPage     = 100
 )
