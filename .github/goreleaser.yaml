@@ -16,10 +16,11 @@ builds:
     main: ./gnovm/cmd/gno
     binary: gno
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # These are development builds — master pushes and nightlies, run off a
+      # dummy v0.0.0 tag — never releases, so the version must not parse: a
+      # parseable one would satisfy a governance halt_min_version. Release
+      # binaries carry the real tag via .github/workflows/release-chain-tag.yml.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Branch }}.{{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -32,10 +33,11 @@ builds:
     main: ./gno.land/cmd/gnoland
     binary: gnoland
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # These are development builds — master pushes and nightlies, run off a
+      # dummy v0.0.0 tag — never releases, so the version must not parse: a
+      # parseable one would satisfy a governance halt_min_version. Release
+      # binaries carry the real tag via .github/workflows/release-chain-tag.yml.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Branch }}.{{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -48,10 +50,11 @@ builds:
     main: ./gno.land/cmd/gnokey
     binary: gnokey
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # These are development builds — master pushes and nightlies, run off a
+      # dummy v0.0.0 tag — never releases, so the version must not parse: a
+      # parseable one would satisfy a governance halt_min_version. Release
+      # binaries carry the real tag via .github/workflows/release-chain-tag.yml.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Branch }}.{{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -64,10 +67,11 @@ builds:
     main: ./gno.land/cmd/gnoweb
     binary: gnoweb
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # These are development builds — master pushes and nightlies, run off a
+      # dummy v0.0.0 tag — never releases, so the version must not parse: a
+      # parseable one would satisfy a governance halt_min_version. Release
+      # binaries carry the real tag via .github/workflows/release-chain-tag.yml.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Branch }}.{{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
