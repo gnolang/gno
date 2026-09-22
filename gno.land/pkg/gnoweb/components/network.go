@@ -11,11 +11,12 @@ type NetworkKind string
 const (
 	NetworkMainnet NetworkKind = "mainnet"
 	NetworkTestnet NetworkKind = "testnet"
+	NetworkLocal   NetworkKind = "local"
 )
 
 func (k NetworkKind) IsMainnet() bool { return k == NetworkMainnet }
 
 // Valid rejects a bad -network-kind rather than treating a typo as a testnet.
 func (k NetworkKind) Valid() bool {
-	return k == NetworkMainnet || k == NetworkTestnet
+	return k == NetworkMainnet || k == NetworkTestnet || k == NetworkLocal
 }

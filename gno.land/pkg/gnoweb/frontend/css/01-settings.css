@@ -303,6 +303,8 @@
 
 	/* Purple scale */
 	--g-color-purple-50: oklch(0.96 0.02 280); /* #F5F3FF */
+	--g-color-purple-200: oklch(0.72 0.18 292.75); /* #AA8BFF */
+	--g-color-purple-300: oklch(0.65 0.18 292.75); /* #9575F1 */
 	--g-color-purple-400: oklch(0.56 0.2289 292.75); /* #7F49EB */
 	--g-color-purple-600: oklch(0.4994 0.2025 292.73); /* #6C3EC9 - Tip alert color */
 	--g-color-purple-900: oklch(0.3245 0.1221 293.31); /* #39216B */

@@ -102,17 +102,14 @@ func NewDefaultAppConfig() *AppConfig {
 	}
 }
 
-// chainIDRe is what a chain-id may contain. The value reaches markdown (the
-// network banner) and a meta tag wallets read, so it is checked once here
-// rather than escaped at each use: a backtick in a chain-id would close the
-// code span and let the rest render as markdown.
+// chainIDRe guards every consumer at once: the value reaches markdown and a
+// meta tag wallets read, and a backtick in it would close a code span.
 var chainIDRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,64}$`)
 
-// networkBannerText states the negative first, because "not mainnet" needs no
-// prior knowledge, then the consequence, for a reader who has never heard of
-// mainnet. The RPC address is deliberately left out: it is in the Network Info
-// popup with a label, and it means nothing to a visitor reading a realm.
-func networkBannerText(chainID string) string {
+func networkBannerText(kind components.NetworkKind, chainID string) string {
+	if kind == components.NetworkLocal {
+		return fmt.Sprintf("**Local development chain** — `%s`. Nothing here leaves your machine.", chainID)
+	}
 	return fmt.Sprintf("**Not gno.land mainnet** — chain `%s`. Tokens and data here are not real.", chainID)
 }
 
@@ -135,8 +132,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		cfg.NetworkKind = components.NetworkTestnet
 	}
 	if !cfg.NetworkKind.Valid() {
-		return nil, fmt.Errorf("invalid network kind %q, want %q or %q",
-			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet)
+		return nil, fmt.Errorf("invalid network kind %q, want %q, %q or %q",
+			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet, components.NetworkLocal)
 	}
 
 	if cfg.ChainID == "" {
@@ -153,10 +150,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	logger.Info("network", "kind", cfg.NetworkKind, "chain-id", cfg.ChainID)
 
-	// Off mainnet, say so in words. An operator banner wins: a deployment that
-	// configured one has something more specific to say.
+	// An operator banner wins: it has something more specific to say.
 	if !cfg.Banner.Enabled() && !cfg.NetworkKind.IsMainnet() {
-		banner, bannerErr := components.NewBannerData(networkBannerText(cfg.ChainID), "")
+		banner, bannerErr := components.NewBannerData(networkBannerText(cfg.NetworkKind, cfg.ChainID), "")
 		if bannerErr != nil {
 			return nil, fmt.Errorf("unable to build the network banner: %w", bannerErr)
 		}

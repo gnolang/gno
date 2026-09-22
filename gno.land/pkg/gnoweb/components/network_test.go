@@ -11,6 +11,7 @@ func TestNetworkKindValid(t *testing.T) {
 
 	assert.True(t, NetworkMainnet.Valid())
 	assert.True(t, NetworkTestnet.Valid())
+	assert.True(t, NetworkLocal.Valid())
 	assert.False(t, NetworkKind("").Valid())
 	assert.False(t, NetworkKind("Mainnet").Valid(), "the check is case-sensitive")
 	assert.False(t, NetworkKind("prod").Valid())
