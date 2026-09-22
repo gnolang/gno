@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"maps"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -421,6 +423,81 @@ func TestNewRouter_NetworkKind(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, cfg.NetworkKind)
+		})
+	}
+}
+
+// The chain-id reaches markdown and a meta tag wallets read, so NewRouter
+// refuses anything that could close a code span or an attribute.
+func TestNewRouter_ChainIDIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		chainID string
+		wantErr bool
+	}{
+		{name: "mainnet", chainID: "gnoland-1"},
+		{name: "testnet", chainID: "pearl-1"},
+		{name: "dev", chainID: "dev"},
+		{name: "dotted", chainID: "test6.testnets"},
+		// A backtick ends the code span, and the rest renders as markdown.
+		{name: "backtick", chainID: "x`](https://evil.example)`", wantErr: true},
+		{name: "space", chainID: "pearl 1", wantErr: true},
+		{name: "angle bracket", chainID: "<script>", wantErr: true},
+		{name: "too long", chainID: strings.Repeat("a", 65), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid chain-id")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// Off mainnet the page says so in words; on mainnet it stays quiet, and an
+// operator who configured a banner keeps it.
+func TestNewRouter_NetworkBanner(t *testing.T) {
+	t.Parallel()
+
+	operator, err := components.NewBannerData("scheduled maintenance", "")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name       string
+		kind       components.NetworkKind
+		banner     components.BannerData
+		wantBanner bool
+		wantText   string
+	}{
+		{name: "testnet gets one", kind: components.NetworkTestnet, wantBanner: true, wantText: "Not gno.land mainnet"},
+		{name: "mainnet gets none", kind: components.NetworkMainnet, wantBanner: false},
+		{name: "operator banner wins", kind: components.NetworkTestnet, banner: operator, wantBanner: true, wantText: "scheduled maintenance"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = "pearl-1"
+			cfg.NetworkKind = tc.kind
+			cfg.Banner = tc.banner
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantBanner, cfg.Banner.Enabled())
+			if tc.wantText != "" {
+				var buf bytes.Buffer
+				require.NoError(t, cfg.Banner.Render(&buf))
+				assert.Contains(t, buf.String(), tc.wantText)
+			}
 		})
 	}
 }

@@ -73,6 +73,39 @@ Two absolute `https://gno.land/...` links (header About, footer Blog) are made
 relative in passing: on any non-mainnet deployment they silently moved the user
 to mainnet.
 
+### The chip names the kind, and a banner says it in a sentence
+
+A chip showing `pearl-1` and nothing else only helps a reader who already knows
+the chain-id list. The visible text is therefore `<chain-id> <kind>` on every
+network, mainnet included: a signal that exists only off mainnet makes mainnet
+an absence, and an absence is what a lookalike site produces for free. The kind
+word is a sibling of the chain-id rather than part of it, so the `14ch` cap that
+keeps an unbounded operator value from eating the header does not truncate a
+fixed word.
+
+Off mainnet, `NewRouter` also fills the existing `.b-banner` with one sentence:
+the negation first, because "not mainnet" needs no prior knowledge, then what it
+costs the reader. An operator-configured banner wins, since a deployment that
+set one has something more specific to say. The RPC address is left out: it is
+in the Network Info popup with a label, and it means nothing to a visitor
+reading a realm.
+
+The banner takes `--s-color-bg-warning-weak` with `--s-color-text-warning`, the
+pair the design system already derives for markdown alerts. Taking a `-default`
+background and keeping the base white foreground is what puts a full-width bar
+at 1.67:1; this pair measures 7.1:1 in light and 9.6:1 in dark, and both tokens
+have a dark value.
+
+### The chain-id is validated once, at the source
+
+The chain-id reaches markdown (the banner) and `<meta name="gnoconnect:chainid">`,
+which wallets read. A backtick in it would close the banner's code span and let
+the rest render as markdown, which is enough for an arbitrary link at the top of
+every page. `NewRouter` refuses anything outside `^[a-zA-Z0-9_.-]{1,64}$` rather
+than escaping at each use, so every consumer is covered, including the ones added
+later. The value is not always operator-supplied: with `-chainid` empty it comes
+from the node over the wire.
+
 ## Alternatives considered
 
 - **Deriving the kind from the chain-id** (the first revision of this PR).

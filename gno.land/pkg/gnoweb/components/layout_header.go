@@ -43,15 +43,6 @@ func (d HeaderData) NetworkChipTitle() string {
 	return "You are on " + d.ChainId + " — this is not mainnet"
 }
 
-// NetworkChipLabel prefixes the chain-id for screen readers. It deliberately
-// does not repeat the id, which follows it as the chip's visible text.
-func (d HeaderData) NetworkChipLabel() string {
-	if d.NetworkKind.IsMainnet() {
-		return "Network, mainnet:"
-	}
-	return "Network, not mainnet:"
-}
-
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
 		// Relative: an absolute gno.land URL moves the user off their deployment.

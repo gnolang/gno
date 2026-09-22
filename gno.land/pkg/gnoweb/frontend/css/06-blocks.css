@@ -49,6 +49,21 @@
 	}
 }
 
+/* Off mainnet the banner takes the warning pair the design system already
+   validates for markdown alerts, foreground included. Taking only the
+   background and keeping the base white text is what puts a full-width bar at
+   1.67:1; this pair is 7.1:1 in light and 9.6:1 in dark. */
+.b-banner--network {
+	background-color: var(--s-color-bg-warning-weak);
+	color: var(--s-color-text-warning);
+
+	/* The base rule tints the chip with a brand token, which only works on the
+	   brand background. Tint from the text colour instead so it follows. */
+	& code {
+		background-color: color-mix(in srgb, currentColor 12%, transparent);
+	}
+}
+
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;
@@ -94,9 +109,17 @@
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-semibold);
 		white-space: nowrap;
-		max-inline-size: 14ch;
-		overflow: hidden;
-		text-overflow: ellipsis;
+
+		/* The chain-id is operator-supplied and unbounded, so it is what gets
+		   capped. The kind is a fixed word and must stay readable: capping the
+		   chip as a whole truncated "mainnet" instead. */
+		& .network-chip__id {
+			display: inline-block;
+			max-inline-size: 14ch;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			vertical-align: bottom;
+		}
 	}
 
 	/* Flat, not nested `&--alert`: postcss-nesting is spec-compliant and does

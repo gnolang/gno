@@ -26,10 +26,4 @@ func TestHeaderNetworkChipText(t *testing.T) {
 	testnet := HeaderData{ChainId: "pearl-1", NetworkKind: NetworkTestnet}
 	assert.Contains(t, testnet.NetworkChipTitle(), "not mainnet")
 	assert.Contains(t, testnet.NetworkChipTitle(), "pearl-1")
-
-	// The sr-only prefix must not repeat the chain-id: it is read immediately
-	// before the chip's visible text.
-	assert.NotContains(t, testnet.NetworkChipLabel(), "pearl-1")
-	assert.Contains(t, testnet.NetworkChipLabel(), "not mainnet")
-	assert.NotContains(t, mainnet.NetworkChipLabel(), "gnoland-1")
 }
