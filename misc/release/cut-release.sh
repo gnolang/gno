@@ -224,6 +224,27 @@ check_on_master() {
 	warn "to master first, or the chain runs code the development tree never saw."
 }
 
+# The ledger is what operators read to know which version to run and what a
+# replaying node follows; a release without an entry is invisible to both. A
+# warning, not a refusal: the entry may legitimately land after the tag. The
+# pre-release suffix is stripped because an rc rehearses the final version's
+# entry rather than getting one of its own.
+check_ledger_entry() {
+	local ledger="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land/upgrades.json"
+	[[ -f ${ledger} ]] || return 0
+	if ! command -v jq >/dev/null 2>&1; then
+		warn "jq not found; skipping the upgrades.json check"
+		return 0
+	fi
+	local final="${VERSION%%-*}"
+	if jq -e --arg v "${final}" '.upgrades[] | select(.version == $v)' "${ledger}" >/dev/null 2>&1; then
+		ok "upgrades.json has an entry for ${final}"
+	else
+		warn "${ledger#"${REPO_ROOT}"/} has no entry for ${final}; add it and render UPGRADES.md"
+		warn "   (misc/deployments/${CHAIN}.gno.land/render-upgrades.sh) before announcing the release"
+	fi
+}
+
 # Everything below inspects the commit being tagged, which is usually not the
 # commit the operator has checked out: the default is origin/chain/<name>, and
 # drift that exists only there is drift the validators would be running.
@@ -428,6 +449,7 @@ main() {
 	check_tag_free
 	resolve_commit
 	check_on_master
+	check_ledger_entry
 	prepare_worktree
 	check_protocol_constants
 	check_build_reports_tag
