@@ -1207,7 +1207,7 @@ var nativeFuncs = [...]NativeFunc{
 		"chain/reflect",
 		"objectInfo",
 		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.AnyT()},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},

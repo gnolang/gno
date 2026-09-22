@@ -21,7 +21,7 @@ Two earlier attempts:
 - #6101 added `runtime.NewRealmID()`, returning `<realm-path>:<realm-time>`.
   Rejected in review: a second identity scheme no other VM concept consumes.
 - #6139 derives a bech32 address from the ObjectID and exposes it as
-  `chain/runtime.ObjectAddress(v interface{}) string`, together with a breaking
+  `chain/runtime.ObjectAddress(v any) string`, together with a breaking
   `grc20` and `grc20reg` redesign, across 50 files.
 
 ## Decision
@@ -34,8 +34,8 @@ type Addressable interface{ Address() address }
 
 type Object struct { /* unexported */ }
 
-func Of(v interface{}) (Object, bool)
-func HasIdentity(v interface{}) bool
+func Of(v any) (Object, bool)
+func HasIdentity(v any) bool
 
 func (o Object) Address() address // g1…, derived from the identity
 func (o Object) ID() string       // "<realm-id>:<clock-tick>"
@@ -160,7 +160,7 @@ treats it as real directs funds at a string that is not an account.
 
 - No change to `misc/genstd`. The native's Go parameter is `gno.TypedValue`,
   which already matches any Gno parameter type and links through with no
-  Go2Gno conversion, while the Gno side declares `interface{}` and
+  Go2Gno conversion, while the Gno side declares `any` and
   `GnoTypeExpression` maps it to `gno.AnyT()`. Pinned by the existing
   `misc/genstd/testdata/linkFunctions_TypedValue`. #6139 instead widens
   `mapping.isTypedValue` so a *Go* `any` parameter is treated as a raw

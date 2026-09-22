@@ -26,7 +26,7 @@ var (
 	nilPtr     *inner
 )
 
-func show(label string, v interface{}) {
+func show(label string, v any) {
 	obj, ok := reflect.Of(v)
 	switch {
 	case ok:
@@ -75,7 +75,7 @@ func main(cur realm) {
 	// Nothing without an identity ever yields a non-zero Object, so a caller
 	// that forgets to check ok collapses them all onto the zero value rather
 	// than inventing addresses.
-	for _, v := range []interface{}{&container.field, numbers, 42, nilPtr} {
+	for _, v := range []any{&container.field, numbers, 42, nilPtr} {
 		if obj, ok := reflect.Of(v); ok || !obj.IsZero() || obj.Address() != "" {
 			println("LEAKED AN ADDRESS")
 		}

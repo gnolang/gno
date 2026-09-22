@@ -77,7 +77,13 @@ type Object struct {
 //
 // When ok is false the returned Object is the zero value, never a distinct
 // placeholder, so a caller that ignores ok collapses every such value onto one
-// Object rather than inventing several. Check ok.
+// Object rather than inventing several.
+//
+// Always check ok. The zero Object's [Object.Address] is the empty address,
+// which is not an account anyone can reach, and a transfer aimed at it is a
+// transfer aimed at nothing. Of will not panic on your behalf: a realm that
+// wants to refuse rather than continue should say so itself, as
+// gnovm/tests/files/zrealm_reflect_proposal_fund.gno does.
 //
 // Of reads; it never writes. No realm clock advances, no object is created or
 // persisted as a side effect, and calling it twice returns the same answer.
@@ -122,7 +128,7 @@ type Object struct {
 // unusable address. Two things a realm can do: read the address later, from a
 // call that runs after the boundary; or refuse, and make the caller split the
 // work across two calls.
-func Of(v interface{}) (obj Object, ok bool) {
+func Of(v any) (obj Object, ok bool) {
 	id, addr, pkgPath, typ, stamped, _ := objectInfo(v)
 	if !stamped {
 		return Object{}, false
@@ -135,7 +141,12 @@ func Of(v interface{}) (obj Object, ok bool) {
 //
 // It exists to tell [Of]'s two false cases apart: "not yet" from "never". See
 // Of for which values qualify.
-func HasIdentity(v interface{}) bool {
+//
+// It is a second native call, and the native charges the same whichever answer
+// it gives, so call it only on the branch where Of returned false. On the
+// common path Of succeeds and one call has already produced everything the VM
+// knows, this bool included.
+func HasIdentity(v any) bool {
 	_, _, _, _, _, has := objectInfo(v)
 	return has
 }
@@ -150,6 +161,9 @@ func HasIdentity(v interface{}) bool {
 //
 // The address has no signing key, so nothing can sign for it. Coins sent to it
 // are held by the object and, today, cannot be moved. See the package comment.
+//
+// The zero Object's address is the empty address. That is the one case to guard
+// against, and checking [Of]'s ok is how.
 func (o Object) Address() address { return address(o.addr) }
 
 // ID returns the VM's own spelling of the object's identity,
@@ -212,4 +226,4 @@ func (o Object) seq() string {
 // address almost always wants to record where the object came from next to it,
 // and the realm lookup that PkgPath needs is a cache hit in the common case.
 // The exported API above is a rearrangement of these six values.
-func objectInfo(v interface{}) (id, addr, pkgPath, typ string, stamped, hasIdentity bool) // injected
+func objectInfo(v any) (id, addr, pkgPath, typ string, stamped, hasIdentity bool) // injected

@@ -754,7 +754,7 @@ non-zero one, so a realm cannot mint an identity and pass it off as VM-issued.
 
 ### Of
 ```go
-func Of(v interface{}) (Object, bool)
+func Of(v any) (Object, bool)
 ```
 Returns what the VM knows about the object `v` refers to. `ok` is false whenever
 there is nothing to report, and `HasIdentity` says which of the two reasons
@@ -763,15 +763,21 @@ applies.
 An object's identity is not complete when the object is created: the VM stamps
 it when the owning realm persists the object, which happens when a realm frame
 returns. So an object the running call created reports `ok == false` until then.
-Check `ok` rather than recording the zero address, which is immutable once it is
-in an event and is not an account anyone can reach.
+
+**Always check `ok`.** The zero `Object`'s `Address()` is the empty address: not
+an account anyone can reach, immutable once it is in an event, and a transfer
+aimed at it is a transfer aimed at nothing. `Of` will not panic on your behalf,
+so a realm that would rather refuse than continue has to say so itself.
 
 ### HasIdentity
 ```go
-func HasIdentity(v interface{}) bool
+func HasIdentity(v any) bool
 ```
 Reports whether `v` is the kind of value that gets an address of its own,
-whether or not it has been stamped yet. True for a pointer to a standalone
+whether or not it has been stamped yet. It is a **second native call**, charged
+the same whichever answer it gives, so reach for it only on the branch where
+`Of` returned false: on the common path `Of` succeeds and one call has already
+produced everything the VM knows. True for a pointer to a standalone
 object (`new(T)`, `&T{...}`) and for a func or method value, which are
 references and so are addressable separately from whatever holds them. False for
 a pointer into a struct field or array element, a slice, a scalar and a nil

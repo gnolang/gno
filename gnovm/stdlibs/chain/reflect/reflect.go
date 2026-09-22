@@ -7,7 +7,7 @@ import (
 // X_objectInfo reads everything the VM knows about the object behind v.
 //
 // The parameter is a gno.TypedValue, which genstd links straight through with
-// no Go2Gno conversion: the Gno side declares interface{} and the binding hands
+// no Go2Gno conversion: the Gno side declares any and the binding hands
 // the value over untouched. That is what lets this native look at the object a
 // value refers to instead of at a converted copy of it, and it needs no change
 // to genstd: a Go gno.TypedValue parameter already matches any Gno parameter
@@ -118,8 +118,19 @@ func creatingRealmPath(m *gno.Machine, oid gno.ObjectID) string {
 // The value is a pointer, so the name wanted is the pointee's: a *Token reports
 // the realm's Token, not "*Token". A type that is not a declared type, such as
 // a pointer to an anonymous struct, has no such name and reports "".
+//
+// The value's own type may itself be declared, as in `type P *Token`, in which
+// case the pointer is that type's Base. Unwrap it first, or a perfectly
+// ordinary named pointer type reports no name at all. The answer stays the
+// pointee's name: the object here is the Token, and P is one of possibly
+// several spellings that reach it.
 func declaredTypeName(tv gno.TypedValue) string {
-	pt, ok := tv.T.(*gno.PointerType)
+	t := tv.T
+	if dt, ok := t.(*gno.DeclaredType); ok {
+		t = dt.Base
+	}
+
+	pt, ok := t.(*gno.PointerType)
 	if !ok {
 		return ""
 	}

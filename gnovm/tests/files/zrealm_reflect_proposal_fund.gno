@@ -51,8 +51,15 @@ func (p *Proposal) Address() address {
 }
 
 // Links renders where a human goes to look at this proposal.
+//
+// ok is checked here too, even though this is only ever called on a persisted
+// proposal. Dropping it would render a link to the empty address, which is not
+// an account, and example code gets copied.
 func (p *Proposal) Links() string {
-	obj, _ := reflect.Of(p)
+	obj, ok := reflect.Of(p)
+	if !ok {
+		return "  (not persisted yet, no links)"
+	}
 	return "  realm: /r/demo/reflectgov:proposal/" + obj.ID() + "\n" +
 		"  funds: /accounts/" + string(obj.Address())
 }

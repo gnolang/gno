@@ -202,6 +202,31 @@ func TestFuncValueIsAnObject(t *testing.T) {
 	require.Equal(t, "", got.addr)
 }
 
+// A value's own type may be a declared pointer type, as in `type P *Token`.
+// The pointer is then that type's Base, not the type itself, and failing to
+// unwrap it leaves an ordinary named pointer reporting no type name at all.
+func TestDeclaredPointerTypeReportsThePointeeName(t *testing.T) {
+	f := newObjectFixture(t, "gno.land/r/demo/reflect_declptr")
+	oo, tv := f.newStandaloneObject()
+	f.persist(oo)
+
+	const want = "gno.land/r/demo/reflect_declptr.Token"
+	token := &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_declptr", Name: "Token"}
+	pointer := &gno.PointerType{Elt: token}
+
+	tv.T = pointer
+	require.Equal(t, want, readVMInfo(f.m, tv).typ, "*Token")
+
+	// type P *Token. Same object, same answer: P is one of several spellings
+	// that reach the Token, and the Token is what has the identity.
+	tv.T = &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_declptr", Name: "P", Base: pointer}
+	require.Equal(t, want, readVMInfo(f.m, tv).typ, "type P *Token")
+
+	// A pointer to something with no declared name still has no name.
+	tv.T = &gno.PointerType{Elt: &gno.StructType{}}
+	require.Equal(t, "", readVMInfo(f.m, tv).typ, "pointer to an anonymous struct")
+}
+
 // Every value with no identity of its own reports the same way: nothing, no
 // claim to anything, and no panic. A caller gets one uniform answer to check
 // rather than a mix of empty strings and aborts, and no address is ever

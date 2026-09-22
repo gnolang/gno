@@ -235,7 +235,7 @@ import (
 // reflect_test.go are Go, outside the mempackage, and the gas row is not
 // committed state either. crossrealm38 imports chain/reflect nowhere and its
 // behavior is unchanged; the zrealm_crossrealm38.gno filetest still passes.
-const expectedCrossrealm38Hash = "4006e5e54f430d92ce26286cfb8e9c8e624d8eec7b36f29c8e84d004a9bf84c1"
+const expectedCrossrealm38Hash = "9d4ab6d9712c1bad5b03f8e1d450467e6610c93e21bb62199103fc5c1a653617"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
