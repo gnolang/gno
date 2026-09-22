@@ -87,5 +87,9 @@ reported `v0.0.0`, a version that parses.
 - `cut-release.sh` warns when the ledger has no entry for the version being
   cut; the entry, the digest and the halt time are three separate edits, in
   that order, and are ported to `master`.
-- Whether `v1.5.0` alone can replay blocks 1–162200 is being tested at the time
-  of writing; it changes one paragraph of `VALIDATOR.md`, not this decision.
+- `v1.5.0` alone replays the whole chain from genesis: verified on 2026-09-22
+  with the published genesis, the `VALIDATOR.md` configuration and the
+  `ghcr.io/gnolang/gno/gnoland:v1.5.0` image — three stops at the historical
+  halt heights, a plain restart each time, block ids and app hashes identical
+  to the network's up to the tip. A future upgrade may break that property;
+  the ledger is what a joiner falls back on when it does.
