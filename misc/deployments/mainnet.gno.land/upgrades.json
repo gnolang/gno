@@ -1,0 +1,54 @@
+{
+  "chain_id": "gnoland-1",
+  "genesis_sha256": "ea22691003130eae3ba975b7d16460706b5d75ce6c04ae82c0c4faeab7de91f0",
+  "upgrades": [
+    {
+      "version": "v1.2.0",
+      "commit": "9c8eb132e483d6fd324d92c193e629ad65a98a37",
+      "halt_height": 0,
+      "halt_time": "2026-09-12T15:00:00Z",
+      "halt_min_version": "",
+      "proposal": null,
+      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.2.0", "digest": "sha256:4b161a2b5d5fcceab4badd4d519ea73465c078a17e6fb1e9b0bae2e01c1a7b87" },
+      "binaries": "https://github.com/gnolang/gno/releases/tag/v1.2.0",
+      "ran_as": null,
+      "changes": ["launch"]
+    },
+    {
+      "version": "v1.3.0",
+      "commit": "31b6650a100d9baf14e7669f8f0df924f1f841e0",
+      "halt_height": 36300,
+      "halt_time": "2026-09-14T09:17:06Z",
+      "halt_min_version": "",
+      "proposal": 0,
+      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.3.0", "digest": null },
+      "binaries": "https://github.com/gnolang/gno/releases/tag/v1.3.0",
+      "ran_as": "sha256:7fffc5ac2d21d6608bed35b31cfc3f2aaefed0d6bb3cdba1d5edbfd905127a3f",
+      "changes": ["#6173 sign-doc fee rendering (`tm2!`)", "#6114 gpao"]
+    },
+    {
+      "version": "v1.4.0",
+      "commit": "00417a1be97b9a311d9669ae7aa9585b277ee594",
+      "halt_height": 113000,
+      "halt_time": "2026-09-17T13:24:04Z",
+      "halt_min_version": "",
+      "proposal": 5,
+      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.4.0", "digest": null },
+      "binaries": "https://github.com/gnolang/gno/releases/tag/v1.4.0",
+      "ran_as": "sha256:805d723bcd2938ac42d3056f70d11a2f50ee89ca852c618f6aee60fe1bfd79ad",
+      "changes": ["#6193 crossing `cur` fixed binding", "#6177 version gate"]
+    },
+    {
+      "version": "v1.5.0",
+      "commit": "e75fef82c02876a4df92ad6e325c5479b9532168",
+      "halt_height": 162200,
+      "halt_time": "2026-09-19T10:37:10Z",
+      "halt_min_version": "",
+      "proposal": 7,
+      "image": { "ref": "ghcr.io/gnolang/gno/gnoland:v1.5.0", "digest": null },
+      "binaries": "https://github.com/gnolang/gno/releases/tag/v1.5.0",
+      "ran_as": "sha256:5b455e5784328aeda1cfa4832e3cb2a58f15f9645c710b8591401bd04c9a900e",
+      "changes": ["#6211 origin-call anchoring", "#5981 iota shadowing"]
+    }
+  ]
+}
