@@ -185,9 +185,15 @@ docker run \
   -v ./contracts:/contracts:ro \
   -v ./stagingdata:/data \
   -p 8888:8888 -p 26657:26657 \
-  <gnodev-image> \
-  staging -chain-id acme-staging -state-dir /data -extra-root /contracts
+  ghcr.io/gnolang/gno/gnodev:master \
+  staging -chain-id acme-staging -state-dir /data -extra-root /contracts \
+  -web-listener 0.0.0.0:8888 -node-rpc-listener 0.0.0.0:26657
 ```
+
+> Both listener flags are required in a container. gnodev defaults to
+> `127.0.0.1`, which inside a container means the published ports forward to
+> something only the container itself can reach, and `docker run -p` appears to
+> do nothing.
 
 ### Genesis and node tuning
 
