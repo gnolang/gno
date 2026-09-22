@@ -120,9 +120,10 @@ corresponds to something that has gone wrong before. All but one are refusals:
    though its content landed, so the operator has to read the list.
 4. **The protocol-version constants agree** (see below).
 5. **The built binary reports the tag.** Built the way CI builds it, then asked.
-   `chain/mainnet`'s published binaries report `develop`, satisfy no
-   `halt_min_version`, and are not reproducible from the tag; this check is what
-   catches that class of mistake before validators download it.
+   Mainnet's launch-day binaries were hand-built without the `-ldflags`: they
+   reported `develop`, satisfied no `halt_min_version`, and were not
+   reproducible from the tag, until the `v1.2.0` release replaced them; this
+   check is what catches that class of mistake before validators download it.
 
 Pushing the tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds

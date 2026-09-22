@@ -7,9 +7,9 @@
 #   * The tag name does not parse as a version, so a halt proposal naming it
 #     gates on byte equality instead of ordering — which refuses the very binary
 #     the upgrade was cut for, and the chain cannot restart.
-#   * The binaries do not carry the tag. `chain/mainnet`'s published gnoland
-#     reports `develop`, because it was built without the ldflags; a node built
-#     that way satisfies no halt_min_version at all.
+#   * The binaries do not carry the tag. Mainnet's launch-day gnoland was
+#     hand-built without the ldflags and reported `develop`; a node built that
+#     way satisfies no halt_min_version at all.
 #   * The tag lands on a commit that is not on master, so the chain is running
 #     code that the development tree has never seen.
 #
