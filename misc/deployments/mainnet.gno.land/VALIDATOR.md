@@ -14,23 +14,25 @@ The flow:
 
 ## 1. Binaries
 
-Everything is built from the **`chain/mainnet`** branch (<https://github.com/gnolang/gno/tree/chain/mainnet>).
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md), pinned. Never a floating tag (`latest`, `chain-mainnet`): the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
-Build from source:
+Docker (replace `v1.5.0` with the current version):
+
+```shell
+docker pull ghcr.io/gnolang/gno/gnoland:v1.5.0
+docker run --rm ghcr.io/gnolang/gno/gnoland:v1.5.0 version   # must print v1.5.0
+```
+
+Binaries: attached to that version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), with `CHECKSUMS.txt`. To run a node from a bare binary, point `GNOROOT` at a checkout of the same tag (the node reads `gnovm/stdlibs` from it).
+
+From source, from the tag — never from `master` or from the branch tip, which reach no consensus with the network and satisfy no upgrade gate:
 
 ```shell
 git clone https://github.com/gnolang/gno.git
-cd gno && git checkout chain/mainnet
+cd gno && git checkout v1.5.0
 make -C gno.land install.gnoland install.gnokey   # installs to $GOPATH/bin
+gnoland version                                     # must print v1.5.0
 ```
-
-Or build a Docker image:
-
-```shell
-docker build --target gnoland -t gnoland:mainnet .
-```
-
-Prebuilt `gnoland`/`gnokey` binaries are on the release page (below). Prebuilt container images are on the GitHub Container Registry, at `ghcr.io/gnolang/gno/gnoland`.
 
 ## 2. Genesis
 
@@ -106,6 +108,8 @@ gnoland start \
 `--skip-genesis-sig-verification` is **required**: some genesis transactions carry placeholder or intentionally-invalidated signatures (e.g. the `names.Enable` call runs with a patched caller), so the node panics on startup without it.
 
 Let the node sync, and wait until it has caught up to the chain tip before the next step.
+
+**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height.
 
 ## 5. Register as a validator candidate
 
