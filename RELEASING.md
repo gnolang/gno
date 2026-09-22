@@ -91,10 +91,12 @@ runs, and the two are not the same thing:
 - Everything on a chain branch must also be on `master`. The chain must not run
   code the development tree has never seen. `cut-release.sh` checks this.
 - `master` may be ahead, and usually is. That is fine and expected.
-- **Do not merge `master` wholesale into a chain branch.** It pulls in
-  everything unreleased, including consensus changes the network has not agreed
-  to, and the branch stops describing the network. Cherry-pick what the upgrade
-  actually contains.
+- **A chain branch moves only when a release is cut, and every move is
+  tagged.** Whether a release merges `master` or cherry-picks a set of PRs is
+  decided per release and written in the tag message; either way the range is
+  reviewed at cut time (`cut-release.sh` prints it and flags breaking commits).
+  Between releases the branch tip is the latest tag, plus at most a
+  documentation commit, so an operator can check it out blindly.
 
 ## Cutting a release
 
@@ -135,6 +137,49 @@ reproducible from the tag and generally lacks the `-ldflags` that give it a
 version at all. Note that `-ldflags` is only recorded in `go version -m` output
 for builds without `-trimpath`, so its absence there is not on its own evidence
 of a hand-built binary; the binary's own `version` output is.
+
+### Rehearse on the testnet first
+
+The testnet runs the same binary as mainnet; only the genesis balances and the
+on-chain transactions differ. Every mainnet release is therefore first cut as
+a release candidate on the same commit (`cut-release.sh v1.6.0-rc.1 --push`),
+deployed to the testnet through the operator procedure (`set-halt` naming the
+rc, validators switch at the height), and checked there: the halt fires, an
+early start is refused, blocks are produced after the restart, a fresh node
+syncs from genesis with the rc. A fix means a new commit and `rc.2`. Only then
+is the final tag cut, on the same commit as the last rc.
+
+### Container images
+
+`release / docker` publishes `ghcr.io/gnolang/gno/<tool>:vX.Y.Z` for every
+`v*` tag, release candidates included, and never re-pushes a version tag. The
+four CLI tools — `gno`, `gnokey`, `gnodev`, `gnoweb` — also get `latest`, the
+newest final release. `gnoland` deliberately has no floating tag: a node image
+that moves by itself is incompatible with a coordinated upgrade, because a
+validator restarting for an unrelated reason between "release built" and
+"halt height" would pull the new binary, and the node would refuse to start it
+until the halt. Operators pin the version the halt proposal names. Images are
+built from tags, not from branch pushes; `:master` images are development
+builds whose version does not parse.
+
+### Release pages and the upgrade ledger
+
+Two kinds of release page, one job each:
+
+- `chain/<name>` is the genesis record: `genesis.json`, its `.gz`, their
+  checksums, and a description of the chain at birth. Frozen; no binaries.
+- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
+  the halt height and `halt_min_version` of the upgrade that made it live, the
+  eight image URLs, and the changelog.
+
+`misc/deployments/<chain>/upgrades.json` is the ledger: one entry per version
+the network has run, with commit, halt height and time, `halt_min_version`,
+GovDAO proposal, image digest and changes. `UPGRADES.md` next to it is rendered
+from the JSON by `render-upgrades.sh` (CI checks it is not stale). Add the entry
+when cutting the release, fill in the digest once the image is built and the
+halt time once the halt has happened, and port both files to `master`. Every
+halt proposal names the version being released — `set-halt.sh` refuses a value
+the node cannot parse, and an empty one leaves the restart gate off.
 
 ### Coordinated upgrades
 
