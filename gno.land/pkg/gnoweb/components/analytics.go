@@ -27,10 +27,10 @@ type AnalyticsData struct {
 	// Path is the analytics pageview path (see analyticsPath) rendered as
 	// data-sa-path; the client reports it to SimpleAnalytics in place of the
 	// raw pathname.
-	Path       string
-	ChainId    string
-	AssetsPath string
-	BuildTime  string
+	Path          string
+	ChainId       string
+	AssetsPath    string
+	AssetsVersion string
 	// Hostname, when non-empty, is rendered as data-hostname on the
 	// SimpleAnalytics script tag to override the hostname SA reports.
 	// Set this when the site listens on a host SA would otherwise report
