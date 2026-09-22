@@ -22,9 +22,23 @@ func isOriginCall(m *gno.Machine) bool {
 	if !isMsgCall {
 		return false
 	}
-	// Count only actual function call frames (excludes closures
-	// and control-flow basic frames like for/range/switch).
-	return m.NumCallFrames() <= 2
+	// The code that runs has to belong to the package the message named.
+	// A message names a path, the VM credits its coins to that path, and
+	// then invokes whatever value the named symbol holds: an exported
+	// `var Dep = other.Deposit` makes Frames[0] *other's* own function
+	// while the envelope was credited to the aliasing realm. Counting
+	// frames cannot see that, because there is only ever one realm's code
+	// on the stack. OriginSendRecipientPath is the named path, set for
+	// every MsgCall whether or not it carries coins, and it is empty in
+	// contexts that have no message at all, which fails closed here.
+	entry := m.Frames[0].Func
+	if entry == nil || entry.PkgPath != execctx.GetContext(m).OriginSendRecipientPath {
+		return false
+	}
+	// Count the frames that are a call boundary: named calls, plus func
+	// literals reached by crossing into another realm. Control-flow basic
+	// frames (for/range/switch) and same-realm closures stay transparent.
+	return m.NumCallBoundaryFrames() <= 2
 }
 
 func ChainID(m *gno.Machine) string {
