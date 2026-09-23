@@ -58,13 +58,10 @@ type oracle struct {
 	// spent is the gas fees paid for approvals so far this run, and maxSpend the
 	// bound from -max-spend. Touched only by the verifier goroutine, which is
 	// the only thing that approves.
-	spent     int64
-	maxSpend  int64
-	enableFee int64
-	// feeDenom is the denom approvals are paid in, kept so the approver's
-	// balance can be read in the unit the ante will actually charge. The gas fee
-	// names it, and a chain may price gas in something other than ugnot.
-	feeDenom string
+	spent    int64
+	maxSpend int64
+	// gasFee is what one approval costs, parsed once from -gas-fee.
+	gasFee std.Coin
 	// fundsPollInterval is how often a funding pause re-reads the balance. A
 	// field rather than a constant so a test need not spend it: see
 	// defaultFundsPollInterval.
@@ -172,6 +169,12 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid gas fee %q: %w", cfg.gasFee, err)
 	}
+	// ParseCoin accepts a zero, which would divide by zero the moment the
+	// approver's balance is reported as a number of approvals.
+	if gasFee.Amount <= 0 {
+		return nil, fmt.Errorf("gas fee %q must be positive: every approval pays it "+
+			"whether or not it succeeds", cfg.gasFee)
+	}
 	var maxSpend std.Coin
 	if cfg.maxSpend != "" {
 		maxSpend, err = std.ParseCoin(cfg.maxSpend)
@@ -199,8 +202,7 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		overBudget:   make(map[string]int),
 		failedEnable: make(map[string]int),
 		status:       newStatusBoard(),
-		enableFee:    gasFee.Amount,
-		feeDenom:     gasFee.Denom,
+		gasFee:       gasFee,
 		maxSpend:     maxSpend.Amount,
 
 		fundsPollInterval: defaultFundsPollInterval,
@@ -483,12 +485,10 @@ func (o *oracle) enqueue(ctx context.Context, c candidate) error {
 		return nil
 	default:
 	}
-	// Not necessarily saturation: a verifier parked in waitForFunds stops
-	// draining too, and that pause is announced on its own line.
 	o.errf(
-		"gpao: verify queue full (%d), pausing block reads; the oracle is "+
-			"CPU-saturated or paused for funds",
-		cap(o.candidates))
+		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated or paused for funds",
+		cap(o.candidates),
+	)
 	select {
 	case o.candidates <- c:
 		return nil
@@ -594,7 +594,7 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 			"the oracle has reached its spending limit for this run", 0)
 		o.errf("gpao: not approving %q: it would take this run past its "+
 			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
-			path, o.maxSpend, ugnotDenom, o.spent)
+			path, o.maxSpend, o.gasFee.Denom, o.spent)
 		return
 	}
 
@@ -627,10 +627,7 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the
-		// chain's state rather than the code, and most such causes clear. Not
-		// held like the loop above: these need something on chain to change,
-		// which is not something to wait on with every other package queued
-		// behind it.
+		// chain's state rather than the code, and most such causes clear.
 		//
 		// As with overBudget, this does not re-offer the package by itself --
 		// heights only move forward. It is what makes a restart (with
@@ -742,30 +739,26 @@ func (o *oracle) recordEnableFailure(key string) (n int, giveUp bool) {
 // whether or not the message succeeds -- so checking afterwards would always be
 // one approval too late.
 func (o *oracle) wouldExceedSpend() bool {
-	return o.maxSpend > 0 && o.spent+o.enableFee > o.maxSpend
+	return o.maxSpend > 0 && o.spent+o.gasFee.Amount > o.maxSpend
 }
 
-const ugnotDenom = "ugnot"
-
-// approverBalance reads what the approver holds in the fee denom, and reports
-// whether the chain answered at all. The error is logged here rather than
-// returned, as in queryLatestHeight and queryBlockMaxGas: every caller's answer
-// to a silent node is the same, and only this line can say why it was silent.
-func (o *oracle) approverBalance() (balance int64, answered bool) {
+// approverGasBalance reads what the approver holds in the fee denom, and
+// reports whether the chain answered at all.
+func (o *oracle) approverGasBalance() (balance int64, answered bool) {
 	coins, _, err := o.client.QueryBalance(o.approver)
 	if err != nil {
 		o.errf("gpao: cannot read the approver's balance: %v", err)
 		return 0, false
 	}
-	return coins.AmountOf(o.feeDenom), true
+	return coins.AmountOf(o.gasFee.Denom), true
 }
 
 // affordance renders a balance as the number of approvals it buys, the one
 // quantity an operator needs. Shared so the startup line, the reminder and the
 // resume line cannot drift apart -- the README quotes one of them verbatim.
 func (o *oracle) affordance(balance int64) string {
-	return fmt.Sprintf("approver %s holds %d%s, %d approvals at %d%s each",
-		o.approver, balance, o.feeDenom, balance/o.enableFee, o.enableFee, o.feeDenom)
+	return fmt.Sprintf("approver %s holds %d%s, %d approvals at %s each",
+		o.approver, balance, o.gasFee.Denom, balance/o.gasFee.Amount, o.gasFee)
 }
 
 // blockedOnFunds records that the oracle stopped on this package for want of
@@ -777,9 +770,9 @@ func (o *oracle) blockedOnFunds(path string) {
 	o.status.record(path, statusBlocked,
 		"the approver cannot pay the approval fee; the oracle is paused until it is funded", 0)
 	o.errf("gpao: paused on %q: the approver %s cannot cover one approval fee "+
-		"of %d%s. Fund it -- this package and everything behind it resume "+
+		"of %s. Fund it -- this package and everything behind it resume "+
 		"automatically, with no restart and nothing resubmitted.",
-		path, o.approver, o.enableFee, o.feeDenom)
+		path, o.approver, o.gasFee)
 }
 
 // waitForFunds blocks until the approver can pay for one approval; false means
@@ -794,13 +787,9 @@ func (o *oracle) waitForFunds(ctx context.Context) bool {
 	defer ticker.Stop()
 
 	for polls := 1; ; polls++ {
-		// Read before waiting: the key may have been funded between the enable
-		// that failed and here, and an operator watching the log should not pay
-		// a full interval for that. An unanswered read is not a funded key, and
-		// approverBalance has already said why it was silent.
-		balance, answered := o.approverBalance()
+		balance, answered := o.approverGasBalance()
 		switch {
-		case answered && balance >= o.enableFee:
+		case answered && balance >= o.gasFee.Amount:
 			o.logf("gpao: resuming, %s, %d candidates queued",
 				o.affordance(balance), len(o.candidates))
 			return true
@@ -820,16 +809,16 @@ func (o *oracle) waitForFunds(ctx context.Context) bool {
 // reportFunding logs how many approvals the approver can afford, once, at
 // startup.
 func (o *oracle) reportFunding() {
-	balance, answered := o.approverBalance()
+	balance, answered := o.approverGasBalance()
 	if !answered {
-		// approverBalance said why. Continuing anyway: approvals report an
+		// approverGasBalance said why. Continuing anyway: approvals report an
 		// unpayable fee themselves.
 		return
 	}
-	if balance < o.enableFee {
+	if balance < o.gasFee.Amount {
 		o.errf("gpao: approver %s holds %d%s, less than one approval fee of "+
-			"%d%s: nothing can be approved until it is funded",
-			o.approver, balance, o.feeDenom, o.enableFee, o.feeDenom)
+			"%s: nothing can be approved until it is funded",
+			o.approver, balance, o.gasFee.Denom, o.gasFee)
 		return
 	}
 	o.logf("gpao: %s", o.affordance(balance))
@@ -1005,10 +994,6 @@ func broadcastWasFree(res *ctypes.ResultBroadcastTxCommit) bool {
 // packages whose cost we most need to learn, and report that failure instead of
 // a measurement.
 func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
-	gasFee, err := std.ParseCoin(o.cfg.gasFee)
-	if err != nil {
-		return fmt.Errorf("invalid gas fee %q: %w", o.cfg.gasFee, err)
-	}
 	// Name the source that was verified, and the submission it came from. The
 	// keeper hashes the parked blob the same way and refuses if they differ, so
 	// a creator who replaces the bytes after verification cannot ride this
@@ -1025,7 +1010,7 @@ func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
 	// accountNumber/sequenceNumber == 0 lets SignTx auto-query the chain.
 	probe, err := o.client.SignTx(std.Tx{
 		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(o.blockMaxGas, gasFee),
+		Fee:  std.NewFee(o.blockMaxGas, o.gasFee),
 	}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
@@ -1051,7 +1036,7 @@ func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
 
 	signed, err := o.client.SignTx(std.Tx{
 		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(gasWanted, gasFee),
+		Fee:  std.NewFee(gasWanted, o.gasFee),
 	}, 0, 0)
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
@@ -1061,12 +1046,12 @@ func (o *oracle) enable(pkgPath, pkgHash string, pkgHeight int64) error {
 	// not. No transaction exists on those, so the ante charges nothing, and
 	// counting them would make the oracle report itself out of budget while
 	// holding every coin it started with.
-	o.spent += o.enableFee
+	o.spent += o.gasFee.Amount
 	// BroadcastTxCommit returns an error if CheckTx or DeliverTx failed.
 	res, err := o.client.BroadcastTxCommit(signed)
 	if err != nil {
 		if broadcastWasFree(res) {
-			o.spent -= o.enableFee
+			o.spent -= o.gasFee.Amount
 		}
 		return fmt.Errorf("broadcast: %w", err)
 	}

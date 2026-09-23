@@ -105,10 +105,6 @@ at startup:
 gpao: approver g1... holds 4900000000ugnot, 4900 approvals at 1000000ugnot each
 ```
 
-Note that a vesting schedule on the key does not reduce this. Gas fees debit
-through the unrestricted path and never consult a schedule, so the number that
-matters is the whole balance, not the vested part.
-
 When the key cannot cover one more fee, gpao stops rather than walking past the
 packages it cannot approve. The one in hand is recorded `blocked`, keeps its
 retry allowance, and is not marked seen; the rest stay queued and unread. So
