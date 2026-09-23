@@ -614,6 +614,19 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 	return userIdentity{Name: string(match[2]), Address: string(match[1])}, nil
 }
 
+// isAliasTarget reports whether one of this gnoweb's own aliases points at
+// path. The operator published it on purpose, so the gate below must not 404 a
+// URL gnoweb itself advertises: "/docs" maps to "/u/docs", and `docs` is
+// neither a registered user nor a namespace holding a package.
+func (h *HTTPHandler) isAliasTarget(path string) bool {
+	for _, target := range h.Aliases {
+		if target.Kind == GnowebPath && target.Value == path {
+			return true
+		}
+	}
+	return false
+}
+
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
 	if _, err := crypto.AddressFromBech32(username); err != nil {
@@ -676,7 +689,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// r/sys/names applies before authorizing a deploy: unknown, deleted and
 	// renamed-away names do not.
 	isCurrentName := identity.Name != "" && identity.Name == segment
-	if !isAddress && !isCurrentName && len(contribs) == 0 {
+	if !isAddress && !isCurrentName && len(contribs) == 0 && !h.isAliasTarget(gnourl.Path) {
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 

@@ -2193,6 +2193,40 @@ func TestHTTPHandler_GetUserView_NamePrintsItsAddress(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), testUserAddr, "the page prints the address behind the name")
 }
 
+// A path this gnoweb's own aliases publish is served even though nothing else
+// about it qualifies. "/docs" maps to "/u/docs" in DefaultAliases, and `docs`
+// is neither registered nor a namespace holding a package, so without this the
+// gate would 404 a URL gnoweb advertises itself.
+func TestHTTPHandler_GetUserView_AliasTargetIsServed(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return []string{""}, nil },
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return resolveAnyMissing(), nil
+		},
+		realmFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		&gnoweb.HTTPHandlerConfig{
+			ClientAdapter: client,
+			Renderer:      &rawRenderer{},
+			Aliases:       map[string]gnoweb.AliasTarget{"/docs": {Value: "/u/docs", Kind: gnoweb.GnowebPath}},
+		},
+	)
+	require.NoError(t, err)
+
+	for _, path := range []string{"/docs", "/u/docs"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusOK, rr.Code, path)
+	}
+}
+
 // A segment that could never be a registered name is refused before any chain
 // query.
 func TestHTTPHandler_GetUserView_RejectsInvalidNames(t *testing.T) {

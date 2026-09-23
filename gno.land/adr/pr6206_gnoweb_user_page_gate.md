@@ -54,6 +54,11 @@ this order:
    behind by a rename resolves to the *current* name, not to itself, so it is
    not the current name of a live user, which is the rule `r/sys/names` itself
    applies before authorizing a deploy.
+4. One of this gnoweb's own aliases points at the path. The operator published
+   it deliberately, so the gate must not 404 a URL gnoweb advertises itself:
+   `/docs` maps to `/u/docs` in `DefaultAliases`, and `docs` is neither
+   registered nor a namespace holding a package, so rules 1 to 3 all refuse it.
+
 Anything else is a 404. A chain that does not deploy `r/sys/users` answers
 "no", which is the gnodev case; a chain that could not be asked (timeout, node
 error) surfaces that error through the handler's usual mapping, because a 404
@@ -114,10 +119,11 @@ building a machine when the package was absent.
 
 - `/u/<unknown>` and `/u/<lookalike>` are 404. `@mention`s of a name that
   does not exist land on an error page instead of a fake profile.
-- `/docs` (`DefaultAliases`, `/docs` → `/u/docs`) becomes a 404 on
-  `gnoland-1` until #5760 serves the embedded docs there; it was an empty
-  fabricated profile before. On gnodev with `examples/` loaded,
-  `r/docs/...` exists and the page still renders.
+- `/docs` (`DefaultAliases`, `/docs` → `/u/docs`) keeps its 200 through rule 4,
+  rather than 404ing on `gnoland-1` until #5760 serves the embedded docs there.
+  A gate that breaks a URL the same binary advertises is a worse trade than the
+  empty profile it removes, and the rule generalizes: any operator alias
+  pointing into `/u/` is served.
 - A registered user with no packages keeps their page, at one extra `qeval`.
 - On gnodev a developer who has deployed nothing under their name gets a 404
   where they used to get an empty profile; deploying one package restores it
