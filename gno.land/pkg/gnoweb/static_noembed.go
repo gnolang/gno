@@ -5,6 +5,7 @@ package gnoweb
 import (
 	"net/http"
 	"os"
+	"time"
 )
 
 // AssetDir is the directory to serve static assets from. It can be set at build time using -ldflags.
@@ -29,3 +30,13 @@ func AssetHandler() http.Handler {
 
 // DefaultCacheAssetsHandler in noembed mode always disables cache.
 var DefaultCacheAssetsHandler = NoCacheHandler
+
+// noembedAssetsVersion is fixed for the life of the process; assets are read
+// from disk per request here, so there is no digest of them to derive it from.
+var noembedAssetsVersion = time.Now().Format("20060102150405")
+
+// AssetsVersion returns the token stamped on asset URLs. Assets served from
+// disk can change while the process runs, which is why DefaultCacheAssetsHandler
+// disables caching outright in this build; keeping those assets fresh is its job
+// rather than this token's.
+func AssetsVersion() string { return noembedAssetsVersion }
