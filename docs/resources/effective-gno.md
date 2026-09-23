@@ -108,8 +108,8 @@ behavior. Packages should be designed to be flexible and not impose restrictions
 that could lead to user frustration or the need to fork the code.
 
 ```go
-func Foobar(cur realm) {
-	caller := cur.Previous().Address()
+func Foobar(_ int, rlm realm) {
+	caller := rlm.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
 	}
@@ -561,16 +561,18 @@ One strategy is to look at the immediate caller with `cur.Previous()` inside a
 crossing function (`func F(cur realm, ...)`). The previous realm could be the EOA
 (Externally Owned Account), or the preceding realm in the call stack.
 
-Another approach is to look specifically at the EOA. For this, you should call
+Another approach is to look specifically at the EOA with
 `unsafe.OriginCaller()` from `chain/runtime/unsafe`, which returns the public
-address of the account that signed the transaction.
-
-TODO: explain when to use `unsafe.OriginCaller`.
+address of the account that signed the transaction. This is Gno's `tx.origin`,
+and it carries the same phishing risk as Solidity's well-known `tx.origin`: an
+intermediate realm the user was tricked into calling still shows up as that
+original signer. Prefer `cur.Previous()` for caller authentication; reach for
+`unsafe.OriginCaller()` only when you specifically need the signer's identity
+rather than the immediate caller's.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers, including all the functions, anonymous functions, other realms, and
-take the initial caller. This allows you to identify the original caller and
-implement access control based on their address.
+take the initial caller.
 
 Here's an example:
 
@@ -720,18 +722,10 @@ type MySafeStruct struct {
 	admin address
 }
 
-// /p/ packages cannot declare realm-first-arg crossing functions.
-// Thread the caller's realm explicitly, as ownable does.
+// A /p/ package cannot declare realm-first-arg crossing functions, so the
+// caller's realm is threaded as a non-first argument, the way p/nt/ownable does.
 func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
 	caller := rlm.Previous().Address()
-	...
-}
-
-func (s *MySafeStruct) Inc(_ int, rlm realm) {
-	caller := rlm.Previous().Address()
-	...
-}
-	caller := cur.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
 		admin: caller,
@@ -739,8 +733,8 @@ func (s *MySafeStruct) Inc(_ int, rlm realm) {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc(cur realm) {
-	caller := cur.Previous().Address()
+func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	caller := rlm.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
 	}
@@ -754,7 +748,7 @@ Then, you can register this object in one or more other realms so that they can 
 import "gno.land/r/otherrealm"
 
 func init(cur realm) {
-	mySafeObj := NewSafeStruct(cur)
+	mySafeObj := NewSafeStruct(0, cur)
 	otherrealm.Register(mySafeObj)
 }
 

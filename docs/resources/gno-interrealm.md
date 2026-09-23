@@ -673,7 +673,7 @@ a typed handle on the realm-context at the moment of the crossing call.
     position.
   - `String() string` — debug-friendly representation.
 
-Parity with `runtime.{Current,Previous}Realm()` at every comparable
+Parity with `unsafe.{Current,Previous}Realm()` at every comparable
 position:
 
   - `cur.Address()` and `cur.PkgPath()` agree with `unsafe.CurrentRealm()`.
@@ -912,21 +912,19 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
-import "chain/runtime/unsafe"
-
 func Public(cur realm) {
 
-    // Returns (
+    // cur.Previous() is (
     //     addr:<origin_caller>,
     //     pkgpath:""
     // ) == testing.NewUserRealm(origin_caller)
-    unsafe.PreviousRealm()
+    cur.Previous()
 
-    // Returns (
+    // cur is (
     //     addr:chain.PackageAddress("gno.land/r/test/test"),
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
-    unsafe.CurrentRealm()
+    cur.PkgPath()
 
     // Call a crossing function of same realm with crossing
     AnotherPublic(cross(cur))
