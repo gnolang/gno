@@ -2,7 +2,7 @@
 
 ## Status
 
-Deferred: design note only, nothing implemented. Follow-up to #6218.
+Deferred: design note only, nothing implemented. Follow-up to #6218 (`pr6218_origincall_realm_boundaries.md`).
 
 ## Context
 
