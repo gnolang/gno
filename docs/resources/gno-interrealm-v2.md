@@ -51,7 +51,7 @@ Every executing frame in Gno carries two pieces of state:
 
 **Realm-context** — *who is acting*. Surfaced by
 `unsafe.CurrentRealm()` and `unsafe.PreviousRealm()`. Changes only
-on explicit `fn(cross, ...)` cross-calls into a crossing function
+on explicit `fn(cross(cur), ...)` cross-calls into a crossing function
 (one declared as `func fn(cur realm, ...)`).
 
 **Realm-storage-context** (`m.Realm` in VM internals) — *who has
@@ -59,7 +59,7 @@ write authority right now*. Determines which realm a mutation
 attributes to and which realm pays storage rent for new objects.
 Changes on:
 
-- Explicit `cross` cross-calls (matches realm-context after).
+- Explicit `cross(cur)` cross-calls (matches realm-context after).
 - Implicit borrows (described in §4). Borrows do NOT change
   realm-context.
 
@@ -70,8 +70,8 @@ next cross-call.
 
 | Call shape | Realm-context | Storage-context | Boundary | Finalizes |
 |---|---|---|---|---|
-| `fn(cross, ...)` into same realm | shifts† | unchanged | yes | yes |
-| `fn(cross, ...)` into different realm | shifts | shifts | yes | yes |
+| `fn(cross(cur), ...)` into same realm | shifts† | unchanged | yes | yes |
+| `fn(cross(cur), ...)` into different realm | shifts | shifts | yes | yes |
 | `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
 | Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (borrow rule #1) | yes | yes |
 | Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (borrow rule #2) | yes | yes |
@@ -331,7 +331,7 @@ top-level frame of a transaction (one of `/r/` or `/e/`).
 
 ## 5. Crossing Functions and Crossing-Methods
 
-Realm-context changes occur only through explicit `fn(cross, ...)`
+Realm-context changes occur only through explicit `fn(cross(cur), ...)`
 cross-calls into **crossing functions** — functions declared with
 `cur realm` as the first parameter:
 
@@ -515,7 +515,7 @@ Design rationale, alternatives, and the full guard analysis:
 A **realm boundary** is a transition point in the call frame stack
 where `m.Realm` (or `unsafe.CurrentRealm()`) changes:
 
-- Every explicit `fn(cross, ...)` is a boundary (even when crossing
+- Every explicit `fn(cross(cur), ...)` is a boundary (even when crossing
   into the same realm — the previous-realm-stack shifts).
 - Every implicit borrow (borrow rule #1 or borrow rule #2 firing) is a boundary
   when storage-context changes.

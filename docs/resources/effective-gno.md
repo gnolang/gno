@@ -109,6 +109,9 @@ that could lead to user frustration or the need to fork the code.
 
 ```go
 func Foobar(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
 	caller := rlm.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
@@ -725,6 +728,9 @@ type MySafeStruct struct {
 // A /p/ package cannot declare realm-first-arg crossing functions, so the
 // caller's realm is threaded as a non-first argument, the way p/nt/ownable does.
 func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
 	caller := rlm.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
@@ -734,6 +740,9 @@ func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
 	caller := rlm.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
