@@ -253,10 +253,7 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			break
 		}
 
-		from := head - window
-		if from < 0 {
-			from = 0
-		}
+		from := max(head-window, 0)
 
 		// `gt` excludes its bound, so the bottom window carries none: a chain
 		// launched with packages at genesis keeps them at height 0.

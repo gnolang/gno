@@ -83,7 +83,7 @@ func ParseQuery(raw string) (*Query, error) {
 
 	q := &Query{Raw: raw}
 	var text []string
-	for _, tok := range strings.Fields(raw) {
+	for tok := range strings.FieldsSeq(raw) {
 		key, value, found := strings.Cut(tok, ":")
 		key = strings.ToLower(strings.TrimSpace(key))
 		if !found || !isQualifierKey(key) || strings.HasPrefix(value, "//") {

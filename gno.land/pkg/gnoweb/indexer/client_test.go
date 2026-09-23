@@ -279,11 +279,9 @@ func TestConcurrentTipFetchesCoalesce(t *testing.T) {
 	heights := make([]int, callers)
 	errs := make([]error, callers)
 	for i := range callers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			heights[i], errs[i] = c.LatestBlockHeight(context.Background())
-		}()
+		})
 	}
 
 	// Let every caller reach the client before the stub answers.
