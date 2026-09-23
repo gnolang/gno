@@ -338,7 +338,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
 
-			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+			aliases[parts[0]] = gnoweb.NewStaticAlias(string(content))
 		} else { // Otherwise, treat it as a normal alias.
 			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
 		}

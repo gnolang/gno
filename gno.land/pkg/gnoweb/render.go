@@ -61,7 +61,7 @@ func writeMarkdownPlainText(w io.Writer, src []byte) (handled bool, err error) {
 // Renderer defines the interface for rendering realms, source files, and
 // doc-context markdown (function/type/package documentation).
 type Renderer interface {
-	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
+	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.RealmMeta, error)
 	RenderSource(w io.Writer, name string, src []byte) error
 	// RenderDocumentation renders doc-context markdown (from vm/qdoc) to HTML.
 	// Fenced and indented code blocks are wrapped in collapsible <details>
@@ -117,10 +117,11 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 	}
 }
 
-// RenderRealm renders a realm to HTML and returns a table of contents.
-func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error) {
+// RenderRealm renders a realm to HTML and returns what the document says
+// about itself: its table of contents and its summary.
+func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.RealmMeta, error) {
 	if handled, err := writeMarkdownPlainText(w, src); handled {
-		return md.Toc{}, err
+		return md.RealmMeta{}, err
 	}
 
 	var mdctx md.GnoContext
@@ -134,7 +135,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	// Use Goldmark for Markdown parsing
 	doc := r.gm.Parser().Parse(text.NewReader(src), parser.WithContext(pctx))
 	if err := r.gm.Renderer().Render(w, src, doc); err != nil {
-		return md.Toc{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
+		return md.RealmMeta{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
 	}
 
 	toc, err := md.TocInspect(doc, src, md.TocOptions{MaxDepth: 6, MinDepth: 2})
@@ -142,7 +143,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 		r.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
 
-	return toc, nil
+	return md.RealmMeta{Toc: toc, Description: md.Description(doc, src)}, nil
 }
 
 // RenderSource renders a source file into HTML with syntax highlighting based on its extension.

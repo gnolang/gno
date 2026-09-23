@@ -97,9 +97,9 @@ func (s *stubClient) PackageMeta(_ context.Context, path string) (*vm.PackageMet
 
 type rawRenderer struct{}
 
-func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.Toc, error) {
+func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.RealmMeta, error) {
 	_, err := w.Write(src)
-	return md.Toc{}, err
+	return md.RealmMeta{}, err
 }
 
 func (rawRenderer) RenderSource(w io.Writer, name string, src []byte) error {
@@ -2007,6 +2007,7 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 	}))
 	config.Meta.Domain = "gno.land"
 	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Meta.AssetsPath = "/public/"
 	if aliases != nil {
 		config.Aliases = aliases
 	}
@@ -2055,16 +2056,114 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 				"canonical link must address the page under the configured domain")
 			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`,
 				"og:url must carry the canonical URL")
-			// Description and the share image have no source until #3910
-			// settles which realm content gnoweb may repeat.
+			// This realm renders headings and code, no prose, so the
+			// summary has no source and its slot stays dropped.
 			assert.NotContains(t, body, `<meta name="description"`, "an unsourced slot must be dropped, not rendered empty")
-			assert.NotContains(t, body, `<meta property="og:image"`, "an unsourced slot must be dropped, not rendered empty")
-			// The card type follows the image. A large-image card with no
-			// image is a preview with a hole in it.
-			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`,
-				"the card must not claim a large image the page does not carry")
+			// The mark is gno.land's, so a realm does not get to post a card
+			// under it. No image, and the card type follows.
+			assert.NotContains(t, body, `<meta property="og:image"`,
+				"a permissionless page must not borrow the official mark")
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
 		})
 	}
+}
+
+// TestHTTPHandler_PageDescription checks the summary a page publishes is the
+// first paragraph it displays. Repeating only visible prose is what keeps a
+// permissionless page from carrying a description nobody can read on it.
+func TestHTTPHandler_PageDescription(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Renderer = gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		gnoweb.NewDefaultRenderConfig(), nil,
+	)
+	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/page": {Value: "# Heading\n\nWhat the page is about, said at the length a summary needs.\n\nSecond paragraph.\n", Kind: gnoweb.StaticMarkdown},
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/page", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	const summary = "What the page is about, said at the length a summary needs."
+	assert.Contains(t, body, `<meta name="description" content="`+summary+`" />`)
+	assert.Contains(t, body, `<meta property="og:description" content="`+summary+`" />`)
+	assert.NotContains(t, body, "Second paragraph.\" />", "the summary stops at the first paragraph")
+}
+
+// TestHTTPHandler_StaticPageFrontMatter checks that a page the operator ships
+// can name itself, instead of being titled by its path and summarised by its
+// first paragraph.
+func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Renderer = gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		gnoweb.NewDefaultRenderConfig(), nil,
+	)
+	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/about": gnoweb.NewStaticAlias(
+			"---\ntitle: About\ndescription: Why gno.land exists, in the words we chose.\n---\n\n" +
+				"# About\n\nThe body paragraph, long enough that it would otherwise be the summary.\n"),
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/about", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, "<title>About - gno.land</title>", "the page names itself, the domain stays last")
+	assert.Contains(t, body, `<meta name="description" content="Why gno.land exists, in the words we chose." />`)
+	assert.NotContains(t, body, `<meta name="description" content="The body paragraph`, "a chosen summary wins over the extracted one")
+	assert.NotContains(t, body, "title: About", "the front matter must not render as page content")
+	// The canonical still names the URL, not the title.
+	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/about" />`)
+}
+
+// TestHTTPHandler_PageDescriptionEscapes pins the escaping of a summary. The
+// text comes from a page anyone may publish and lands in an HTML attribute.
+func TestHTTPHandler_PageDescriptionEscapes(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Renderer = gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		gnoweb.NewDefaultRenderConfig(), nil,
+	)
+	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/page": {Value: `A "quote" and <script>alert(1)</script> inside a paragraph long enough to be published.` + "\n", Kind: gnoweb.StaticMarkdown},
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/page", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.NotContains(t, body, `content="A "quote"`, "a quote must not close the attribute")
+	assert.NotContains(t, body, `content="A &#34;quote&#34; and <script>`, "a tag must not survive in the attribute")
+	assert.Regexp(t, `<meta name="description" content="[^"]*&#34;quote&#34;[^"]*" />`, body)
 }
 
 // TestHTTPHandler_AliasCanonical checks that an aliased page names the

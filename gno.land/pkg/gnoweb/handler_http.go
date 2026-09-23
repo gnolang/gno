@@ -76,6 +76,10 @@ const (
 type AliasTarget struct {
 	Value string
 	Kind  AliasKind
+	// Title and Description come from a static page's front matter, and are
+	// empty for every other alias.
+	Title       string
+	Description string
 }
 
 // HTTPHandlerConfig configures an HTTPHandler.
@@ -233,6 +237,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// branch below short-circuits, so an alias-mapped state URL would
 	// previously route to the unmapped path and 404.
 	requested := *r.URL
+	// An alias is a page the operator chose to publish, whether it points at a
+	// markdown file or at a realm they vouched for. Everything else is a path
+	// anyone can occupy.
+	_, operatorPage := h.Aliases[r.URL.Path]
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -274,7 +282,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			headURL = u
 		}
 	}
-	h.setHeadMetadata(&indexData, headURL)
+	h.setHeadMetadata(&indexData, headURL, operatorPage)
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:
@@ -407,7 +415,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+		return h.GetMarkdownView(gnourl, aliasTarget, indexData)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData)
 	default:
@@ -417,11 +425,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, indexData *components.IndexData) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
 		Domain:  h.Static.Domain,
@@ -430,9 +438,18 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+	// A page the operator ships may name itself; anything else is read off
+	// what the page displays.
+	indexData.HeadData.Description = meta.Description
+	if alias.Description != "" {
+		indexData.HeadData.Description = alias.Description
+	}
+	if alias.Title != "" {
+		indexData.HeadData.Title = h.titleWithDomain(alias.Title)
+	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems:         &components.RealmTOCData{Items: toc.Items},
+		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }
@@ -493,10 +510,11 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+	indexData.HeadData.Description = meta.Description
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
-			Items: meta.Items,
+			Items: meta.Toc.Items,
 		},
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
@@ -1061,9 +1079,14 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 // rendering different content never produce one title. EncodeWebURL, which
 // canonicalURL uses, covers the same set.
 func (h *HTTPHandler) pageTitle(gnourl *weburl.GnoURL) string {
-	page := strings.TrimSuffix(gnourl.Encode(
+	return h.titleWithDomain(strings.TrimSuffix(gnourl.Encode(
 		weburl.EncodePath|weburl.EncodeArgs|weburl.EncodeWebQuery|weburl.EncodeQuery|weburl.EncodeNoEscape,
-	), "/")
+	), "/"))
+}
+
+// titleWithDomain puts the domain last, where a tab strip and a search result
+// both cut.
+func (h *HTTPHandler) titleWithDomain(page string) string {
 	switch {
 	case page == "":
 		return h.Static.Domain
@@ -1086,15 +1109,25 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	return h.Static.CanonicalOrigin + gnourl.EncodeWebURL()
 }
 
-// setHeadMetadata fills the <head> slots gnoweb declares, from the URL alone.
-// Description and the share image stay empty: their only source is realm
-// content, which is permissionless, and gno#3910 has not settled which of it
-// gnoweb may repeat.
-func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL) {
+// ogImageAsset carries gno.land's mark, so it is served only for the pages an
+// operator ships. A realm is permissionless: lending it the mark would let a
+// page nobody vetted post a card under gno.land's identity, which is the half
+// of #3910 that curation, not metadata, has to answer.
+const ogImageAsset = "imgs/og-gnoland.png"
+
+// setHeadMetadata fills the <head> slots that the URL alone answers. The
+// summary is left to whatever renders the body, since only the rendered
+// document carries one.
+func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, operatorPage bool) {
 	canonical := h.canonicalURL(gnourl)
 	indexData.HeadData.Title = h.pageTitle(gnourl)
 	indexData.HeadData.Canonical = canonical
 	indexData.HeadData.URL = canonical
+	// A crawler fetches og:image as given, with no page to resolve it
+	// against, so it needs the same declared origin as the canonical.
+	if h.Static.CanonicalOrigin != "" && operatorPage {
+		indexData.HeadData.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, ogImageAsset)
+	}
 }
 
 // setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.

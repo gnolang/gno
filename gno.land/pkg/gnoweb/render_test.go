@@ -121,7 +121,7 @@ func TestRenderRealm_OverSizeCapServesEscapedPlainText(t *testing.T) {
 	u := &weburl.GnoURL{Path: "/r/mock/path"}
 	toc, err := r.RenderRealm(&buf, u, src, RealmRenderContext{})
 	require.NoError(t, err)
-	assert.Empty(t, toc.Items)
+	assert.Empty(t, toc.Toc.Items)
 	out := buf.String()
 	assert.NotContains(t, out, "<h1", "goldmark must not run on oversize input")
 	assert.NotContains(t, out, "<script>", "raw content must be escaped")

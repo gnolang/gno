@@ -45,6 +45,31 @@ rather than the alias target, so `/about` names `/about` and not
 and `twitter:card` falls back from `summary_large_image` to `summary` when
 there is no image, rather than announcing a picture the page has not got.
 
+### The summary repeats what the page shows, and nothing else
+
+#3910 asked whether a permissionless page may author metadata, and #3797 was
+reverted by #3924 for answering yes. The answer here is narrower: a realm gets
+a description only by way of text a reader already sees, so there is no slot it
+can fill without displaying what it filled. The first paragraph long enough to
+summarise, image alt text excluded because an alt shows only when the image
+fails. Front matter is read back, but only from the markdown files an operator
+passes to `--aliases`; realm content never reaches that path.
+
+The share image carries gno.land's mark, so it is served only for pages an
+operator published: a markdown file passed to `--aliases`, or a realm they
+aliased. A bare realm path gets a title and a summary but no card image and no
+`summary_large_image`, because lending the mark to a page nobody vetted is the
+half of #3910 that curation has to answer, not metadata.
+
+A canonical URL needs a public origin, and a deployment that names the wrong
+one tells a crawler its content belongs elsewhere. `-canonical-origin` is empty
+by default: no origin declared, no canonical tag, because every deployment but
+one would otherwise be claiming gno.land's.
+
+An error shell drops its canonical, its share image and its indexability. The
+head is assembled before the body knows the page is missing, so a mistyped path
+would otherwise publish itself as a real URL.
+
 ## Alternatives considered
 
 **Build the canonical from the request host.** `requestOrigin` already reads
@@ -52,10 +77,6 @@ there is no image, rather than announcing a picture the page has not got.
 points crawlers at whatever host the caller named, so the configured domain
 is the input instead. The cost is that a chain reachable under a second
 hostname advertises only the configured one.
-
-**Derive the description from the rendered realm.** This is the #3910
-question and it is left open. Leaving the tag out is reversible; publishing
-attacker-chosen text under gno.land's name is not.
 
 **Keep the domain first in the title.** Shorter diff, and it keeps the
 existing look. A tab strip and a search result both cut the tail, so the
@@ -69,9 +90,13 @@ page and gets its own canonical.
 
 Every page under one realm now has a distinct title and a canonical URL.
 
-Nothing yet emits a description or a share image, so a link posted to a
-social network still renders without a snippet or a card image. Closing
-that needs #3910 answered first.
+Pages with prose now carry a description and a share image. Directory
+listings, `$source`, `$help` and profile pages do not: they have no paragraph
+to summarise, and an invented one is worse than none.
+
+Operators must set `-canonical-origin` to get a canonical tag, and gno.land's
+own deployment is one of them. Until it does, the tag is absent, which is the
+safe direction.
 
 A deployment served over plain HTTP advertises an `https://` canonical.
 Adding a scheme to `AppConfig` would close it and is not done here.

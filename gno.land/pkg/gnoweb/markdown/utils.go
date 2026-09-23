@@ -78,6 +78,11 @@ func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
 		_, _ = dst.Write(n.Segment.Value(src))
+		// A line break separates two words; without it they are written
+		// against each other.
+		if n.SoftLineBreak() || n.HardLineBreak() {
+			_, _ = io.WriteString(dst, " ")
+		}
 	case *ast.String:
 		_, _ = dst.Write(n.Value)
 	default:
