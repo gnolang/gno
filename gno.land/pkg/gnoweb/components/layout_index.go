@@ -52,7 +52,7 @@ type HeadData struct {
 	AnalyticsHostname string
 	Remote            string
 	ChainId           string
-	BuildTime         string
+	AssetsVersion     string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -190,7 +190,7 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)
 	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
 	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
-	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime
+	data.FooterData.Analytics.AssetsVersion = data.HeadData.AssetsVersion
 	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{

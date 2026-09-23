@@ -44,7 +44,7 @@ type StaticMetadata struct {
 	ChainId           string
 	Analytics         bool
 	AnalyticsHostname string
-	BuildTime         string
+	AssetsVersion     string
 	Banner            components.BannerData
 	NetworkKind       components.NetworkKind
 	FaucetURL         string
@@ -55,12 +55,12 @@ type StaticMetadata struct {
 // populated explicitly rather than derived from HeadData.
 func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
 	return components.AnalyticsData{
-		Enabled:    s.Analytics,
-		PageType:   "redirect",
-		ChainId:    s.ChainId,
-		AssetsPath: s.AssetsPath,
-		BuildTime:  s.BuildTime,
-		Hostname:   s.AnalyticsHostname,
+		Enabled:       s.Analytics,
+		PageType:      "redirect",
+		ChainId:       s.ChainId,
+		AssetsPath:    s.AssetsPath,
+		AssetsVersion: s.AssetsVersion,
+		Hostname:      s.AnalyticsHostname,
 		// Path is left empty: redirect targets are server-controlled constants,
 		// and the client path-overwriter falls back to SA's default path for an
 		// empty data-sa-path.
@@ -216,7 +216,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ChromaPath:        h.Static.ChromaPath,
 			ChainId:           h.Static.ChainId,
 			Remote:            h.Static.RemoteHelp,
-			BuildTime:         h.Static.BuildTime,
+			AssetsVersion:     h.Static.AssetsVersion,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{

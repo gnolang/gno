@@ -3,6 +3,9 @@ package components
 import (
 	"bytes"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -628,4 +631,72 @@ func TestIndexLayout_NetworkPropagation(t *testing.T) {
 	assert.Contains(t, mainnet, `data-network="mainnet"`)
 	assert.NotContains(t, mainnet, "network-chip--alert")
 	assert.Contains(t, mainnet, "network-chip")
+}
+
+// headFixture renders the index layout head with the given build version.
+func headFixture(t *testing.T, version string) string {
+	t.Helper()
+
+	data := IndexData{
+		HeadData: HeadData{
+			Title:         "Test",
+			AssetsPath:    "/public/",
+			ChromaPath:    "/public/_chroma/style.css",
+			AssetsVersion: version,
+		},
+		Mode: ViewModeHome,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	return buf.String()
+}
+
+// Assets the head requests on its own carry the version: an edge cache keyed on
+// the URL would otherwise serve a stale favicon or chroma stylesheet across
+// releases for as long as its TTL allows.
+func TestIndexLayout_AssetVersioning(t *testing.T) {
+	output := headFixture(t, "20260920120000")
+
+	for _, href := range []string{
+		`href="/public/favicon.ico?v=20260920120000"`,
+		`href="/public/_chroma/style.css?v=20260920120000"`,
+		`href="/public/main.css?v=20260920120000"`,
+	} {
+		assert.Contains(t, output, href)
+	}
+	assert.NotContains(t, output, "/public//", "an asset URL must not carry a doubled slash")
+}
+
+// A preload is claimed only by a request for the very same URL, and the request
+// for a font is issued by the @font-face rule in the built stylesheet. The
+// preload href therefore has to be spelled exactly as the stylesheet spells it:
+// append a version to one side only and the preload is never claimed, so the
+// font is fetched twice on every cold load. Versioning a font means changing the
+// URL the stylesheet emits, which is a build concern rather than a template one.
+func TestIndexLayout_FontPreloadsMatchStylesheet(t *testing.T) {
+	css, err := os.ReadFile(filepath.Join("..", "public", "main.css"))
+	require.NoError(t, err, "the built stylesheet is the source of truth for font URLs")
+
+	matches := regexp.MustCompile(`url\(["']?([^)"']+\.woff2)["']?\)`).FindAllSubmatch(css, -1)
+	require.NotEmpty(t, matches, "no woff2 @font-face URL found in the built stylesheet")
+
+	output := headFixture(t, "20260920120000")
+
+	var matched int
+	for _, m := range matches {
+		// main.css is served from AssetsPath, so a relative url() in it resolves there.
+		stylesheetURL := "/public/" + strings.TrimPrefix(string(m[1]), "./")
+		if !strings.Contains(output, `href="`+stylesheetURL) {
+			continue // the head does not preload this font
+		}
+		assert.Contains(t, output, `href="`+stylesheetURL+`"`,
+			"preload must match the stylesheet URL exactly, with nothing appended")
+		matched++
+	}
+	require.NotZero(t, matched, "expected the head to preload at least one stylesheet font")
 }
