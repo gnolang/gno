@@ -42,7 +42,11 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title             string
+	Title string
+	// NoIndex asks crawlers to skip the page. Set on result pages, whose
+	// URL space is unbounded and whose every URL costs the most expensive
+	// pair of RPCs gnoweb makes.
+	NoIndex           bool
 	Description       string
 	Canonical         string
 	Image             string

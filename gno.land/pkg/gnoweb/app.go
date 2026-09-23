@@ -11,23 +11,24 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 var DefaultAliases = map[string]AliasTarget{
-	"/":           {"/r/gnoland/home", GnowebPath},
-	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/devrels/events", GnowebPath},
-	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
-	"/docs":       {"/u/docs", GnowebPath},
+	"/":           {Value: "/r/gnoland/home", Kind: GnowebPath},
+	"/about":      {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath},
+	"/gnolang":    {Value: "/r/gnoland/pages:p/gnolang", Kind: GnowebPath},
+	"/ecosystem":  {Value: "/r/gnoland/pages:p/ecosystem", Kind: GnowebPath},
+	"/start":      {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath},
+	"/license":    {Value: "/r/gnoland/pages:p/license", Kind: GnowebPath},
+	"/contribute": {Value: "/r/gnoland/pages:p/contribute", Kind: GnowebPath},
+	"/links":      {Value: "/r/gnoland/pages:p/links", Kind: GnowebPath},
+	"/events":     {Value: "/r/devrels/events", Kind: GnowebPath},
+	"/partners":   {Value: "/r/gnoland/pages:p/partners", Kind: GnowebPath},
+	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
 
 // AppConfig contains configuration for gnoweb.
@@ -73,6 +74,16 @@ type AppConfig struct {
 	// (the default) trusts nothing, so untrusted deployments never trust
 	// attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
+	// IndexerURL, when non-empty, is the GraphQL endpoint of a tx-indexer
+	// gnoweb consults for search qualifiers the RPC node cannot answer
+	// (transactions, account activity, source-wide text search).
+	//
+	// Empty is the default and the whole feature switch: with no indexer,
+	// gnoweb makes no outbound request beyond its RPC node, and the
+	// qualifiers that would need one are not registered — they do not
+	// autocomplete and cannot be typed into a failing search. Indexer data is
+	// never consensus data and is labelled as such wherever it appears.
+	IndexerURL string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
 	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
 	// chain nodes under pressure; relax when capacity allows. ADR-003
@@ -153,15 +164,30 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.Aliases == nil {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
-	httphandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
+	// Built before the handler so the search feature and /search.json share
+	// one directory — and therefore one singleflight group.
+	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
+
+	handlerCfg := &HTTPHandlerConfig{
 		ClientAdapter:                adpcli,
+		Directory:                    searchDir,
 		Meta:                         staticMeta,
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
-	})
+	}
+
+	// Assigned inside the branch, never before it: an interface field holding
+	// a typed nil pointer is not nil, and that is exactly how a deployment
+	// with no indexer would end up advertising indexer-backed search.
+	if cfg.IndexerURL != "" {
+		logger.Info("indexer enabled", "url", cfg.IndexerURL)
+		handlerCfg.Indexer = indexer.New(cfg.IndexerURL)
+	}
+
+	httphandler, err := NewHTTPHandler(logger, handlerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
 	}
@@ -213,7 +239,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
-	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
 	return mux, nil

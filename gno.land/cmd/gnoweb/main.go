@@ -50,6 +50,8 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	indexerURL       string
+	trustedProxies   string
 	aliases          string
 	noDefaultAliases bool
 	noCache          bool
@@ -67,6 +69,19 @@ var defaultWebOptions = webCfg{
 	bind:          ":8888",
 	remoteTimeout: time.Minute,
 	timeout:       time.Minute,
+}
+
+// splitAndTrim parses a comma-separated flag value, dropping empty entries so
+// a trailing comma is not read as an empty CIDR.
+func splitAndTrim(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func main() {
@@ -117,6 +132,20 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"help-remote",
 		defaultWebOptions.remoteHelp,
 		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.indexerURL,
+		"indexer-url",
+		defaultWebOptions.indexerURL,
+		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
+	)
+
+	fs.StringVar(
+		&c.trustedProxies,
+		"trusted-proxies",
+		defaultWebOptions.trustedProxies,
+		"comma-separated CIDRs or IPs of reverse proxies whose X-Real-IP is honored. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket.",
 	)
 
 	fs.StringVar(
@@ -239,6 +268,10 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.IndexerURL = cfg.indexerURL
+	if cfg.trustedProxies != "" {
+		appcfg.StateRateLimitTrustedProxies = splitAndTrim(cfg.trustedProxies)
+	}
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {

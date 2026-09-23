@@ -1,0 +1,100 @@
+{{/* ===================================================================================
+LAYOUT - Omnisearch results page
+
+Server-rendered so the omnibar stays purely additive: with JavaScript off the
+header form submits here and the reader still gets every answer.
+=================================================================================== */}}
+{{ define "renderSearch" }}
+<article class="b-omni u-grid-full">
+  <header class="b-content-header">
+    <h1 class="title b-content-h1">
+      {{ if .Query }}Search results{{ else }}Search{{ end }}
+    </h1>
+    <div class="header-info">
+      {{ if .PkgPath }}
+      <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
+      {{ else }}
+      <span>Whole chain</span>
+      {{ end }}
+    </div>
+  </header>
+
+  {{/* The form is the no-JavaScript entry point, and it stays present with
+       JavaScript on so a reader can refine a query from the results page. */}}
+  <form method="GET" action="{{ .FormAction }}" class="b-omni-form" role="search">
+    <label for="omni-q" class="u-sr-only">Search query</label>
+    <input id="omni-q" type="search" name="q" value="{{ .Query }}"
+           placeholder="Search, or type a qualifier such as func: or author:"
+           autocomplete="off" />
+    <button type="submit" class="b-btn">Search</button>
+  </form>
+
+  {{ with .UnknownFilter }}
+  <p class="b-omni-notice" role="status">
+    <strong>{{ . }}:</strong> is not a search qualifier on this deployment.
+    The ones it accepts are listed below.
+  </p>
+  {{ end }}
+
+  {{ range .Groups }}{{ template "omnisearch/group" . }}{{ end }}
+
+  {{ if and .Query (not .HasResults) (not .UnknownFilter) }}
+  <p class="b-omni-notice" role="status">Nothing matched.</p>
+  {{ end }}
+
+  {{ with .Indexer }}{{ template "omnisearch/provenance" . }}{{ end }}
+
+  {{ template "omnisearch/hints" .Selectors }}
+</article>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Provenance footer
+
+Indexer results are not consensus data. Which endpoint answered and how far
+behind it is are part of the answer, not a detail: the same gnoweb binary may
+point at a community indexer, a self-hosted one, or none at all.
+=================================================================================== */}}
+{{ define "omnisearch/provenance" }}
+<footer class="b-omni-provenance" role="note">
+  <svg class="c-icon" aria-hidden="true"><use href="#ico-info"></use></svg>
+  <span>
+    Some results above come from an indexer, not from the chain.
+    They are best-effort and not consensus data.
+    Indexed by <span class="u-font-mono">{{ .URL }}</span> ·
+    {{ if .Err }}
+      last indexed block unknown ({{ errText .Err }})
+    {{ else }}
+      last indexed block {{ .LastBlock }}
+    {{ end }}
+  </span>
+</footer>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Qualifier hints
+
+The honest inventory of what this deployment can answer. Indexer-backed
+qualifiers are absent from this list when no indexer is configured, so the
+list never offers something the server will refuse.
+=================================================================================== */}}
+{{ define "omnisearch/hints" }}
+<section class="b-omni-hints">
+  <h2 class="b-omni-hints__title">Qualifiers</h2>
+  <ul>
+    {{ range . }}
+    <li>
+      <code>{{ .Hint }}</code>
+      <span class="b-omni-hints__label">{{ .Label }}</span>
+      {{ if isIndexer .Source }}<span class="b-tag b-tag--indexer">indexer</span>{{ end }}
+      {{ if eq .Scope "package" }}<span class="b-tag--tertiary">needs a package</span>{{ end }}
+    </li>
+    {{ end }}
+    <li><code>author:&lt;name&gt;</code><span class="b-omni-hints__label">Narrow to a namespace or deployer</span></li>
+    <li><code>in:/r/&lt;path&gt;</code><span class="b-omni-hints__label">Narrow to a package</span></li>
+    <li><code>is:realm</code><span class="b-omni-hints__label">Narrow to one kind</span></li>
+  </ul>
+</section>
+{{ end }}
