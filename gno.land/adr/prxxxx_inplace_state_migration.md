@@ -21,7 +21,7 @@ been exercised three times in production within a week:
 Every one shipped with an **empty** `halt_min_version`, i.e. no restart gate at
 all — which was the only safe choice, because no binary of that period reported a
 version string that would have parsed.
-[#6177](https://github.com/gnolang/gno/pull/6177) fixes that.
+[#6177](https://github.com/gnolang/gno/pull/6177) fixed that.
 
 So the chain can stop together. It has no way to *change state* while stopped
 other than rebuilding it.
