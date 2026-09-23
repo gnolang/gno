@@ -50,7 +50,7 @@ entry check already pins to the message's path. Any other storage-owning realm
 on the stack is a second boundary and is refused.
 
 The test runtime (`gnovm/tests/stdlibs/chain/runtime`) shares the counter via
-`NumCallBoundaryFramesFrom(start)`, with the test function or `main` standing
+`NumCallBoundaryFrames(start)`, with the test function or `main` standing
 in for the message: the first storage-owning realm entered after it is the
 entry, and the asserting frame may not itself be the entry. A filetest's
 `main` package is not storage-owning, so filetests that assert from their own

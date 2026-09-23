@@ -873,7 +873,7 @@ func BenchmarkNative_Runtime_GetSessionInfo(b *testing.B) {
 }
 
 // AssertOriginCall: requires the entry package to be the synthetic "" package
-// and NumCallBoundaryFrames() == 1, so the frames run in one realm.
+// and NumCallBoundaryFrames(0) == 1, so the frames run in one realm.
 func BenchmarkNative_Runtime_AssertOriginCall(b *testing.B) {
 	m := newDispatchMachine(0)
 	addContextAndFrames(m, "", "gno.land/r/x")

@@ -38,7 +38,7 @@ func isOriginCall(m *gno.Machine) bool {
 	// Exactly one realm boundary: the message entering this realm. Calls
 	// within the realm, its closures, and /p/ or stdlib helpers stay
 	// transparent; any other storage-owning realm on the stack is one more.
-	return m.NumCallBoundaryFrames() == 1
+	return m.NumCallBoundaryFrames(0) == 1
 }
 
 func ChainID(m *gno.Machine) string {

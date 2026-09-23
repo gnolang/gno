@@ -2900,13 +2900,18 @@ func ownsItsStorage(r *Realm) bool {
 	return r != nil && r.ID.IsRealmPkg()
 }
 
-// NumCallBoundaryFrames returns the number of realm boundaries on the stack:
-// the frame that entered the first storage-owning realm, plus every frame
-// whose body runs in a storage-owning realm other than the nearest one below
-// it. Named and literal functions are treated alike, /p/ and stdlib frames are
-// looked through in both directions, and control-flow basic frames (for/range/
-// switch, where Func is nil) never count. This is not isRealmBoundary, which
-// serves finalization and fires on /p/ and stdlib frozen realms too.
+// NumCallBoundaryFrames returns the number of realm boundaries in
+// m.Frames[start:]: the frame that entered the first storage-owning realm,
+// plus every frame whose body runs in a storage-owning realm other than the
+// nearest one below it. Named and literal functions are treated alike, /p/ and
+// stdlib frames are looked through in both directions, and control-flow basic
+// frames (for/range/switch, where Func is nil) never count. This is not
+// isRealmBoundary, which serves finalization and fires on /p/ and stdlib
+// frozen realms too.
+//
+// start is where the program begins: 0 on chain, where the message sits below
+// Frames[0]; the test runtime passes the index after the test function, which
+// stands in for the message, so the first realm entered after it is the entry.
 //
 // The test is the storage realm on each side of the call, NOT the crossing
 // flags and NOT the declaring package, both of which were tried and are wrong:
@@ -2921,13 +2926,7 @@ func ownsItsStorage(r *Realm) bool {
 //   - The declaring package is wrong for a func literal in a /p/ package: it
 //     has no storage of its own and borrows the caller's, so it is the
 //     caller's code however different the two paths look.
-func (m *Machine) NumCallBoundaryFrames() int {
-	return m.NumCallBoundaryFramesFrom(0)
-}
-
-// NumCallBoundaryFramesFrom is NumCallBoundaryFrames over m.Frames[start:],
-// with no caller below the first frame.
-func (m *Machine) NumCallBoundaryFramesFrom(start int) int {
+func (m *Machine) NumCallBoundaryFrames(start int) int {
 	first := start
 	for first < len(m.Frames) && !m.Frames[first].IsCall() {
 		first++

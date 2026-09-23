@@ -65,7 +65,7 @@ func isOriginCall(m *gno.Machine) bool {
 	if entry >= len(m.Frames)-1 {
 		return false
 	}
-	return m.NumCallBoundaryFramesFrom(start) == 1
+	return m.NumCallBoundaryFrames(start) == 1
 }
 
 // anyLiveOverride reports whether any on-stack frame carries a live
