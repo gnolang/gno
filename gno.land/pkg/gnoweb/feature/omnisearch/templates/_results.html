@@ -1,0 +1,56 @@
+{{/* ===================================================================================
+UI - One answered group
+=================================================================================== */}}
+{{ define "omnisearch/group" }}
+{{/* No aria-label: it would promote each group to a landmark and
+     make a screen reader read the heading twice. The h2 titles it. */}}
+<section class="b-omni-group">
+  <h2 class="b-omni-group__header">
+    <span>{{ .Label }}</span>
+    {{ if isIndexer .Source }}
+    <span class="b-tag b-tag--indexer" title="From an indexer, not from the chain">indexer</span>
+    {{ end }}
+    <span class="count">{{ len .Results }}</span>
+  </h2>
+
+  {{ with .Err }}
+  {{/* A group that failed still renders. Dropping it would leave the reader
+       thinking the answer was "nothing" when it was "could not ask". */}}
+  <p class="b-omni-group__error" role="status">Could not answer: {{ errText . }}</p>
+  {{ end }}
+
+  {{ if .Truncated }}
+  <p class="b-omni-group__notice">Showing part of the chain — the node caps this listing.</p>
+  {{ end }}
+
+  {{ if .Results }}
+  <ul class="b-omni-list">
+    {{ range .Results }}{{ template "omnisearch/result" . }}{{ end }}
+  </ul>
+  {{ end }}
+</section>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - One result row
+
+Href may be empty: a transaction has no page in gnoweb, and a chain-listed
+path that is not a realm or package gets no link. A row without a link is
+still an answer, so it renders as text rather than as a dead anchor.
+=================================================================================== */}}
+{{ define "omnisearch/result" }}
+<li class="b-omni-list__item">
+  {{ if .Href }}<a href="{{ .Href }}" class="b-omni-list__link">{{ else }}<div class="b-omni-list__link b-omni-list__link--plain">{{ end }}
+    <span class="b-omni-list__text">
+      <span class="title u-font-mono">{{ .Title }}</span>
+      {{ with .Detail }}<span class="detail">{{ . }}</span>{{ end }}
+    </span>
+    {{ with .Tags }}
+    <span class="b-omni-list__tags">
+      {{ range . }}<span class="b-tag--tertiary">{{ . }}</span>{{ end }}
+    </span>
+    {{ end }}
+  {{ if .Href }}</a>{{ else }}</div>{{ end }}
+</li>
+{{ end }}
