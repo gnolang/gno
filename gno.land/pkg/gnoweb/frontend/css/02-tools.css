@@ -157,10 +157,6 @@
 	/* Network chip: neutral by default, escalated off-mainnet */
 	--s-color-bg-network: var(--g-color-gray-100);
 	--s-color-text-network: var(--g-color-gray-600);
-	--s-color-bg-network-alert: var(--g-color-purple-50);
-	--s-color-text-network-alert: var(--g-color-purple-600);
-	--s-color-bg-network-strong: var(--g-color-purple-600); /* = --s-logo-hat */
-	--s-color-text-network-strong: var(--g-color-light, #ffffff);
 }
 
 /* ===== DARK THEME ===== */
@@ -256,10 +252,6 @@
 	/* Network chip */
 	--s-color-bg-network: var(--g-color-gray-800);
 	--s-color-text-network: var(--g-color-gray-300);
-	--s-color-bg-network-alert: var(--g-color-purple-950);
-	--s-color-text-network-alert: var(--g-color-purple-50);
-	--s-color-bg-network-strong: var(--g-color-purple-400);
-	--s-color-text-network-strong: var(--g-color-light, #ffffff);
 }
 
 /* ===== NETWORK ===== */
@@ -268,12 +260,17 @@
    alone is not a signal a screenshot or a colour-blind reader keeps. */
 /* :not() rather than source order: at equal specificity this rule only beats
    the dark theme because it happens to come later in the file. */
+/* Each block is complete: a token left out here would fall back to the
+   mainnet value, and the chip and banner only ever render off mainnet. */
 [data-network="testnet"]:not([data-theme="dark"]) {
 	--s-logo-hat: var(--g-color-purple-600);
 	--s-color-text-link: var(--g-color-purple-600);
 	--s-color-text-link-hover: var(--g-color-purple-600);
 	--s-color-bg-brand-default: var(--g-color-purple-600);
+	--s-color-bg-brand-weak: var(--g-color-purple-50);
 	--s-color-border-brand-default: var(--g-color-purple-600);
+	--s-color-bg-network-alert: var(--g-color-purple-50);
+	--s-color-text-network-alert: var(--g-color-purple-600);
 }
 
 [data-theme="dark"][data-network="testnet"] {
@@ -281,26 +278,30 @@
 	--s-color-text-link: var(--g-color-purple-300);
 	--s-color-text-link-hover: var(--g-color-purple-200);
 	--s-color-bg-brand-default: var(--g-color-purple-600);
+	--s-color-bg-brand-weak: var(--g-color-purple-950);
 	--s-color-border-brand-default: var(--g-color-purple-600);
+	--s-color-bg-network-alert: var(--g-color-purple-950);
+	--s-color-text-network-alert: var(--g-color-purple-50);
 }
+
 [data-network="local"]:not([data-theme="dark"]) {
 	--s-logo-hat: var(--g-color-blue-900);
-	--s-color-bg-network-alert: var(--g-color-blue-50);
-	--s-color-text-network-alert: var(--g-color-blue-900);
-	--s-color-bg-network-strong: var(--g-color-blue-900);
 	--s-color-text-link: var(--g-color-blue-900);
 	--s-color-text-link-hover: var(--g-color-blue-900);
 	--s-color-bg-brand-default: var(--g-color-blue-900);
+	--s-color-bg-brand-weak: var(--g-color-blue-50);
 	--s-color-border-brand-default: var(--g-color-blue-900);
+	--s-color-bg-network-alert: var(--g-color-blue-50);
+	--s-color-text-network-alert: var(--g-color-blue-900);
 }
 
 [data-theme="dark"][data-network="local"] {
 	--s-logo-hat: var(--g-color-blue-400);
-	--s-color-bg-network-alert: var(--g-color-blue-950);
-	--s-color-text-network-alert: var(--g-color-blue-50);
-	--s-color-bg-network-strong: var(--g-color-blue-900);
 	--s-color-text-link: var(--g-color-blue-400);
 	--s-color-text-link-hover: var(--g-color-blue-50);
 	--s-color-bg-brand-default: var(--g-color-blue-900);
+	--s-color-bg-brand-weak: var(--g-color-blue-950);
 	--s-color-border-brand-default: var(--g-color-blue-900);
+	--s-color-bg-network-alert: var(--g-color-blue-950);
+	--s-color-text-network-alert: var(--g-color-blue-50);
 }

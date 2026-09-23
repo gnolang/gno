@@ -44,20 +44,9 @@
 	& code {
 		padding: var(--g-space-0-5) var(--g-space-1);
 		border-radius: var(--g-border-radius-sm);
-		background-color: var(--s-color-bg-brand-action);
-		font-size: 0.96em;
-	}
-}
-
-/* Same purple as the logo hat and the chip, so off-mainnet reads as one
-   signal. 6.6:1 in light, 5.2:1 in dark against the base white text. */
-.b-banner--network {
-	background-color: var(--s-color-bg-network-strong);
-	color: var(--s-color-text-network-strong);
-
-	/* The base rule tints from a brand token, which only works on brand. */
-	& code {
+		/* Tint from the banner text so the chip follows any background. */
 		background-color: color-mix(in srgb, currentColor 12%, transparent);
+		font-size: 0.96em;
 	}
 }
 
@@ -96,12 +85,12 @@
 
 	/* Chain-id chip, on every network; --alert escalates it off-mainnet. */
 	.network-chip {
-		align-self: stretch;
 		display: inline-flex;
 		align-items: center;
 
 		/* Flex would collapse the whitespace between the id and the kind. */
 		gap: var(--g-space-1);
+
 		flex-shrink: 0;
 		padding-inline: var(--g-space-2);
 		border-radius: var(--s-rounded);

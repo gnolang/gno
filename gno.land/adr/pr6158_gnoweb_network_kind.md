@@ -64,10 +64,12 @@ canonical link, the meta-refresh target and a visible anchor), so that page
 still offers a click through to whatever the flag holds. Pre-existing and out of
 scope here, but the two surfaces now disagree by design rather than by accident.
 
-**Colour is secondary.** Only `--s-logo-hat` moves under
-`[data-network="testnet"]` — layout, contrast and dark mode are untouched, and
-the chip carries the text. `--s-color-text-brand-default` is left alone: it is
-the text *on* brand surfaces, so tinting it would break button contrast.
+**Colour is secondary, the word carries the signal.** The chip names the kind
+in text, so the tint is reinforcement and never the only cue: it survives a
+screenshot, colour blindness and forced-colors. `--s-color-text-brand-default`
+is left alone, it is the text *on* brand surfaces and tinting it would break
+button contrast, and the success tokens stay green because success is a
+meaning, not a brand.
 
 Two absolute `https://gno.land/...` links (header About, footer Blog) are made
 relative in passing: on any non-mainnet deployment they silently moved the user
@@ -118,6 +120,20 @@ every page. `NewRouter` refuses anything outside `^[a-zA-Z0-9_.-]{1,64}$` rather
 than escaping at each use, so every consumer is covered, including the ones added
 later. The value is not always operator-supplied: with `-chainid` empty it comes
 from the node over the wire.
+
+### One theming mechanism, not two
+
+The network palette lives in `[data-network="…"]` blocks beside the existing
+`[data-theme="dark"]`, redefining the same token names rather than introducing
+suffixed variants. A first revision factored the four blocks into a per-network
+ramp plus a shared mapping, which is shorter to extend but invents a second way
+to express a theme in a file that only has one. Four flat blocks that diff
+against each other line by line won.
+
+The banner's `<code>` chip is tinted from the banner text with `color-mix`
+instead of a brand token. That reaches mainnet too, and it is a fix: an operator
+banner's chip was white on `green-400`, 2.7:1, below the AA floor. It is 4.8:1
+now, and it follows whatever background the banner ends up with.
 
 ## Alternatives considered
 

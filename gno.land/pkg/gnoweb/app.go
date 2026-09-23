@@ -108,7 +108,7 @@ var chainIDRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,64}$`)
 
 func networkBannerText(kind components.NetworkKind, chainID string) string {
 	if kind == components.NetworkLocal {
-		return fmt.Sprintf("**Local development chain** — `%s`. Nothing here leaves your machine.", chainID)
+		return fmt.Sprintf("**Local development chain** — `%s`. Not a gno.land network.", chainID)
 	}
 	return fmt.Sprintf("**Not gno.land mainnet** — chain `%s`. Tokens and data here are not real.", chainID)
 }
