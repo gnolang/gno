@@ -2006,6 +2006,7 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
 	}))
 	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
 	if aliases != nil {
 		config.Aliases = aliases
 	}

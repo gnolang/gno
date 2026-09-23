@@ -38,6 +38,7 @@ const defaultRequestTimeout = 30 * time.Second
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain            string
+	CanonicalOrigin   string
 	AssetsPath        string
 	ChromaPath        string
 	RemoteHelp        string
@@ -1079,10 +1080,10 @@ func (h *HTTPHandler) pageTitle(gnourl *weburl.GnoURL) string {
 // caller-supplied, so a canonical built from it sends crawlers wherever the
 // caller asked.
 func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
-	if h.Static.Domain == "" {
+	if h.Static.CanonicalOrigin == "" {
 		return ""
 	}
-	return "https://" + h.Static.Domain + gnourl.EncodeWebURL()
+	return h.Static.CanonicalOrigin + gnourl.EncodeWebURL()
 }
 
 // setHeadMetadata fills the <head> slots gnoweb declares, from the URL alone.
