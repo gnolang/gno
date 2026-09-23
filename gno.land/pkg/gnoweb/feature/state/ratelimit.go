@@ -101,10 +101,23 @@ type IPLimiter struct {
 	rate    float64 // tokens per second derived from PerMinute
 	burst   float64
 	maxIPs  int
+	trusted []*net.IPNet
 	mu      sync.Mutex
 	buckets map[string]*ipBucket
 	order   *list.List // front = most recently used, back = oldest
 	elems   map[string]*list.Element
+}
+
+// AllowRequest resolves the client address and charges its bucket.
+//
+// Which address to trust depends on which proxies to trust, and the limiter
+// is the thing that was configured with them — so the rule lives here rather
+// than being copied into every feature that rate-limits.
+func (l *IPLimiter) AllowRequest(r *http.Request) bool {
+	if l == nil {
+		return true
+	}
+	return l.Allow(extractIP(r, l.trusted))
 }
 
 // NewIPLimiter constructs a limiter from cfg. Returns nil when cfg.PerMinute <= 0
@@ -128,6 +141,7 @@ func NewIPLimiter(cfg RateLimitConfig) *IPLimiter {
 		rate:    float64(cfg.PerMinute) / 60.0,
 		burst:   float64(cfg.Burst),
 		maxIPs:  cfg.MaxIPs,
+		trusted: cfg.TrustedProxies,
 		buckets: make(map[string]*ipBucket),
 		order:   list.New(),
 		elems:   make(map[string]*list.Element),
