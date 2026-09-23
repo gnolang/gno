@@ -258,6 +258,7 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1000000), o.enableFee)
+		assert.Equal(t, ugnotDenom, o.feeDenom)
 		assert.Positive(t, o.maxSpend)
 	})
 }

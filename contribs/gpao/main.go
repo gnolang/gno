@@ -204,5 +204,11 @@ func execOracle(ctx context.Context, cfg *config, io commands.IO) error {
 	io.Println("gpao: approver", oracle.approver.String(),
 		"watching", cfg.remote, "chain", cfg.chainID)
 
+	// What the key can afford, said while anyone is still reading the startup
+	// output. Never fatal, and deliberately before run(): an operator who
+	// reaches for the logs because nothing is being approved should find the
+	// answer at the top rather than infer it from silence.
+	oracle.reportFunding()
+
 	return oracle.run(ctx)
 }
