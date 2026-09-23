@@ -1,4 +1,4 @@
-# ADR: gnoweb serves `/u/<name>` only for something that exists on the chain
+# ADR: `/u/` is one identity, served only for something that exists on the chain
 
 ## Status
 
@@ -20,6 +20,17 @@ is indexable. A one-character lookalike (`/u/mou1`) rendered exactly like the
 real `/u/moul` with zero contributions, which is also what a freshly registered
 user looks like.
 
+The same handler knew only the half of the identity that was typed into the
+URL. `/u/moul` never printed the address that name belongs to, and
+`/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5` listed packages under
+`@g1manfred...`, found none, and rendered the same plausible empty page the
+gate above exists to remove: 200, "Gnome g1ma...dlf5", zero contributions, for
+a user with hundreds. The "user home" button linked `../r/<Username>/home`
+after `Username` had been shortened for display, so on every address page it
+pointed at `../r/g1ma...dlf5/home`, a path that cannot exist. The two TODOs
+from #4024 asked for both halves in one line: "username + gno address to be
+used".
+
 ## Decision
 
 `GetUserView` serves a page only when one of three facts holds, checked in
@@ -36,13 +47,13 @@ this order:
    the rule proves is that the namespace is real and has content, which is what
    a user page shows. It is also the only proof available on gnodev, where
    nobody registers a name.
-3. `r/sys/users.ResolveName("<name>")` answers `true` through a new
-   `ClientAdapter.Eval` method (`vm/qeval`). `ResolveName` returns
-   `(nil, false)` for an unknown or deleted name and `(data, false)` for a
-   name left behind by a rename; only the current name of a live user is
-   `true`, which is the rule `r/sys/names` itself applies before authorizing
-   a deploy.
-
+3. `r/sys/users.ResolveAny("<name>")` resolves to a live user whose current
+   name is `<name>`, through a new `ClientAdapter.Eval` method (`vm/qeval`).
+   `ResolveAny` delegates to `ResolveName` for a name and to `ResolveAddress`
+   for an address, and returns `nil` for an unknown or deleted one. A name left
+   behind by a rename resolves to the *current* name, not to itself, so it is
+   not the current name of a live user, which is the rule `r/sys/names` itself
+   applies before authorizing a deploy.
 Anything else is a 404. A chain that does not deploy `r/sys/users` answers
 "no", which is the gnodev case; a chain that could not be asked (timeout, node
 error) surfaces that error through the handler's usual mapping, because a 404
@@ -57,6 +68,17 @@ accept. This closes `/u/foo/bar`,
 which `vm/qpaths` treated as a sub-prefix (`p/moul/addrset` rendered as
 "Gnome moul/addrset"), and guarantees that nothing reaching the `qeval`
 expression can leave a Gno string literal.
+
+`ResolveAny` is chosen over `ResolveName` because it answers both questions the
+page has in a single `qeval`: whether the user exists, which gates the page,
+and the other half of the pair, which the page prints. The handler then keys
+every lookup on the **namespace** the packages live under rather than on the
+URL segment: an address the registry resolves deploys under its name, so
+`/u/<address>` switches to it. A name keeps its own segment even when it
+resolves, because it is already the namespace, and following a rename here
+would hide the packages the old name still holds. `UserData` carries
+`Namespace` for links, which is never elided and repairs the home button, and
+`Address` for display.
 
 The gate runs before the `/r/<name>/home` fetch, which is dropped for a name
 that has no page. Per request: an unknown name stays at two RPCs (`qpaths` and
@@ -79,6 +101,14 @@ building a machine when the package was absent.
 - **A dedicated `ResolveUser` method on the adapter** would hide the
   expression, but there is one caller. A generic `Eval` is the primitive every
   future read of a system realm needs, and the handler owns the expression.
+- **`ResolveName` plus a second call for the address** keeps the boolean the
+  gate wants and reads a plain string back, but it is two round trips, and
+  `.Name()`/`.Addr()` on the returned pointer panic when it is nil, so the
+  nil case has to be excluded first. `ResolveAny` answers both in one.
+- **Redirecting `/u/<address>` to `/u/<name>`** gives one canonical URL and
+  would avoid indexing the pair twice, but it needs a redirect path out of a
+  handler that returns `(status, view)`, and it has nothing to return for an
+  address with no name. Both forms render instead.
 
 ## Consequences
 
@@ -102,8 +132,14 @@ building a machine when the package was absent.
   it does not, which is what the verifier does.
 - `ListPaths` returns `[""]` for an empty result, so rule 2 counts parsed
   contributions, not raw paths, or it would never fire.
-- The `vm/qeval` payload is rendered text, one value per line, and the
-  `UserData` line carries its own `(false bool)`, so only the last line is
-  read. A last line that is neither `(true bool)` nor `(false bool)` is an
-  error, not a "no": if `ResolveName` ever changes shape, that must surface
-  instead of quietly 404ing every registered user.
+- The `vm/qeval` payload is rendered text, one value per line. `ResolveAny`
+  returns `(*UserData, bool)`, and only the first line carries the pair, so
+  that is the line read. The realm exports no string-returning resolver and
+  `.Name()` on the pointer panics when it is nil, so the pair is matched out of
+  the value repr, keyed on each field's *type tag* rather than its position: a
+  field added to `UserData` does not shift the result. `(nil ...)` is a
+  legitimate "no user"; any other unrecognized shape is an error, not a "no",
+  because quietly 404ing every registered user at once must surface.
+- `/u/<name>` and `/u/<address>` now serve the same page and print both halves,
+  so the pair is indexable twice. No canonical link tag is emitted; if that
+  matters, it is a separate change.

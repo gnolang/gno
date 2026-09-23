@@ -47,7 +47,9 @@ func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, er
 	if s.evalFunc != nil {
 		return s.evalFunc(ctx, pkgPath, expr)
 	}
-	return nil, errors.New("stubClient: Eval not implemented")
+	// A chain that does not deploy the registry, which is the gnodev case and
+	// the right default: the page still renders off the raw path segment.
+	return nil, gnoweb.ErrClientPackageNotFound
 }
 
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
@@ -2002,12 +2004,22 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 }
 
-// resolveNamePayload mirrors the raw vm/qeval output of ResolveName. The
-// UserData line carries a "(false bool)" of its own, so a parser that searches
-// the whole payload is fooled.
-func resolveNamePayload(current bool) []byte {
-	return fmt.Appendf(nil, `(&(struct{("g1manfred47kzduec920z88wfr64ylksmdcedlf5" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
-(%t bool)`, current)
+// testUserAddr is the address every resolveAnyPayload below hands back.
+const testUserAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+
+// resolveAnyPayload mirrors the raw vm/qeval output of ResolveAny for a user
+// that resolves. The UserData line carries a "(false bool)" of its own and the
+// second line is a bool too, so a parser that searches the whole payload for a
+// verdict is fooled; only the pair on the first line answers.
+func resolveAnyPayload(name string) []byte {
+	return fmt.Appendf(nil, `(&(struct{(%q .uverse.address),(%q string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+(true bool)`, testUserAddr, name)
+}
+
+// resolveAnyMissing is what the realm answers for a name or address it has
+// never seen.
+func resolveAnyMissing() []byte {
+	return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)")
 }
 
 func getUserPage(t *testing.T, client *stubClient, path string) *httptest.ResponseRecorder {
@@ -2031,11 +2043,12 @@ func TestHTTPHandler_GetUserView_NotAUser(t *testing.T) {
 
 	for name, eval := range map[string]func(context.Context, string, string) ([]byte, error){
 		"unknown name": func(context.Context, string, string) ([]byte, error) {
-			return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)"), nil
+			return resolveAnyMissing(), nil
 		},
-		// A renamed-away name still resolves, but not as the current one.
+		// A renamed-away name still resolves, but to the current name, not to
+		// itself, so it is not the name of a live user.
 		"renamed alias": func(context.Context, string, string) ([]byte, error) {
-			return resolveNamePayload(false), nil
+			return resolveAnyPayload("alice-renamed"), nil
 		},
 		// A chain that does not deploy the registry.
 		"no registry": func(context.Context, string, string) ([]byte, error) {
@@ -2075,8 +2088,8 @@ func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
 		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
 		evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
 			assert.Equal(t, "/r/sys/users", pkgPath)
-			assert.Equal(t, `ResolveName("alice")`, expr)
-			return resolveNamePayload(true), nil
+			assert.Equal(t, `ResolveAny("alice")`, expr)
+			return resolveAnyPayload("alice"), nil
 		},
 		realmFunc: func(context.Context, string, string) ([]byte, error) {
 			return nil, gnoweb.ErrClientPackageNotFound
@@ -2089,27 +2102,95 @@ func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Gnome alice")
 }
 
-// An address is a namespace by construction: no registry lookup.
+// An address is a namespace by construction, so it always has a page. It is
+// still looked up, because the registry is the only thing that can say which
+// name it belongs to, and the packages live under that name.
 func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 	t.Parallel()
 
-	evalCalled := false
-	client := &stubClient{
-		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
-		evalFunc: func(context.Context, string, string) ([]byte, error) {
-			evalCalled = true
-			return nil, errors.New("unexpected")
+	tests := []struct {
+		name          string
+		payload       []byte
+		wantNamespace string
+		wantBody      []string
+	}{
+		{
+			name:    "registered address serves the name's page",
+			payload: resolveAnyPayload("alice"),
+			// The packages live under the name, not under the address, so the
+			// lookup has to switch to it or the page reports nothing.
+			wantNamespace: "alice",
+			wantBody:      []string{"Gnome alice", testUserAddr},
 		},
-		realmFunc: func(context.Context, string, string) ([]byte, error) {
-			return nil, gnoweb.ErrClientPackageNotFound
+		{
+			name:    "unregistered address stands on its own",
+			payload: resolveAnyMissing(),
+			// Nothing resolves, so the address is the namespace; it is still
+			// printed in full, because it is the only identity the page has.
+			wantNamespace: testUserAddr,
+			wantBody:      []string{"g1ma...dlf5", testUserAddr},
 		},
 	}
 
-	rr := getUserPage(t, client, "/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotPrefix string
+			client := &stubClient{
+				listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+					gotPrefix = prefix
+					return nil, nil
+				},
+				evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
+					assert.Equal(t, "/r/sys/users", pkgPath)
+					assert.Equal(t, fmt.Sprintf("ResolveAny(%q)", testUserAddr), expr)
+					return tc.payload, nil
+				},
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}
+
+			rr := getUserPage(t, client, "/u/"+testUserAddr)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Equal(t, "@"+tc.wantNamespace, gotPrefix, "contributions query")
+			for _, want := range tc.wantBody {
+				assert.Contains(t, rr.Body.String(), want)
+			}
+		})
+	}
+}
+
+// A registered name prints the address it belongs to, and keeps its own
+// namespace: it is already the namespace, and following a rename here would
+// hide the packages the old name still holds.
+func TestHTTPHandler_GetUserView_NamePrintsItsAddress(t *testing.T) {
+	t.Parallel()
+
+	var gotPrefix, gotRealmPath string
+	client := &stubClient{
+		listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+			gotPrefix = prefix
+			return []string{"/r/alice/pkg1"}, nil
+		},
+		evalFunc: func(_ context.Context, _, expr string) ([]byte, error) {
+			assert.Equal(t, `ResolveAny("alice")`, expr)
+			return resolveAnyPayload("alice"), nil
+		},
+		realmFunc: func(_ context.Context, path, _ string) ([]byte, error) {
+			gotRealmPath = path
+			return []byte("# alice"), nil
+		},
+	}
+
+	rr := getUserPage(t, client, "/u/alice")
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "g1ma...dlf5")
-	assert.False(t, evalCalled, "an address needs no registry lookup")
+	assert.Equal(t, "@alice", gotPrefix)
+	assert.Equal(t, "/r/alice/home", gotRealmPath)
+	assert.Contains(t, rr.Body.String(), testUserAddr, "the page prints the address behind the name")
 }
 
 // A segment that could never be a registered name is refused before any chain
