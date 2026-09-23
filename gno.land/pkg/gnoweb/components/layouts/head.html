@@ -51,7 +51,7 @@
   <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" type="image/x-icon" />
 
   <!-- Robots meta tag -->
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="{{ if .NoIndex }}noindex, nofollow{{ else }}index, follow{{ end }}" />
 
   <!-- chroma stylesheet -->
   <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .AssetsVersion }}" />

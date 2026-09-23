@@ -329,6 +329,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	var status int
 	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
+	// The head is built before the body is rendered, so it does not yet know
+	// whether the page exists. A canonical on an error shell tells a crawler
+	// the URL is real, which is how a mistyped path becomes an indexed page.
+	if status != http.StatusOK {
+		indexData.HeadData.Canonical = ""
+		indexData.HeadData.URL = ""
+		indexData.HeadData.Image = ""
+		indexData.HeadData.NoIndex = true
+	}
+
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
