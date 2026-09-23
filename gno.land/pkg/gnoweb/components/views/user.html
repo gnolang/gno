@@ -12,6 +12,11 @@
         <p class="subtitle">
           {{ .Username }}
         </p>
+        {{ with .Address }}
+        <p class="subtitle u-font-mono u-word-break" title="{{ . }}">
+          {{ . }}
+        </p>
+        {{ end }}
       </div>
     </div>
 
@@ -24,7 +29,7 @@
 </aside>
 
 <md-renderer class="c-realm-view">
-  <a href="../r/{{ .Username }}/home" class="b-btn c-with-icon">
+  <a href="../r/{{ .Namespace }}/home" class="b-btn c-with-icon">
     <svg class="c-icon">
       <use href="#ico-realm"></use>
     </svg>
