@@ -51,6 +51,7 @@ type webCfg struct {
 	bind             string
 	faucetURL        string
 	indexerURL       string
+	indexerToken     string
 	trustedProxies   string
 	aliases          string
 	noDefaultAliases bool
@@ -139,6 +140,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"indexer-url",
 		defaultWebOptions.indexerURL,
 		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
+	)
+
+	fs.StringVar(
+		&c.indexerToken,
+		"indexer-token",
+		defaultWebOptions.indexerToken,
+		"bearer token sent to the indexer. Only needed for an endpoint behind authentication; most are public.",
 	)
 
 	fs.StringVar(
@@ -269,6 +277,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.IndexerURL = cfg.indexerURL
+	appcfg.IndexerToken = cfg.indexerToken
 	if cfg.trustedProxies != "" {
 		appcfg.StateRateLimitTrustedProxies = splitAndTrim(cfg.trustedProxies)
 	}

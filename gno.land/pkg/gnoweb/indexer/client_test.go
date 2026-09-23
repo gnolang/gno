@@ -24,7 +24,7 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *int) {
 		handler(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	return New(srv.URL), &calls
+	return New(srv.URL, ""), &calls
 }
 
 func respond(w http.ResponseWriter, body string) {

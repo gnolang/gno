@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
@@ -268,5 +269,58 @@ func TestFanoutSelectorIsRefusedOnTheOmnibarPath(t *testing.T) {
 	}
 	if len(resp.Groups) != 1 || resp.Groups[0].Error == "" {
 		t.Fatalf("groups = %+v, want one group explaining it runs on the page", resp.Groups)
+	}
+}
+
+// The omnibar re-asks the same question constantly. A matching If-None-Match
+// must cost a 304, not a re-render.
+func TestSearchJSONAnswers304OnAMatchingETag(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	u := parseURL(t, "/r/alice/blog$search&q=blog&json")
+
+	first := httptest.NewRecorder()
+	h.Handle(context.Background(), first, httptest.NewRequest(http.MethodGet, "/r/alice/blog", nil), u)
+
+	etag := first.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("no ETag on the first response")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/r/alice/blog", nil)
+	req.Header.Set("If-None-Match", etag)
+	second := httptest.NewRecorder()
+	status, _ := h.Handle(context.Background(), second, req, u)
+
+	if status != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304", status)
+	}
+	if second.Body.Len() != 0 {
+		t.Fatalf("body = %d bytes, want none on a 304", second.Body.Len())
+	}
+}
+
+// A bearer token is only sent when one is configured; most indexers are public.
+func TestIndexerTokenIsOptional(t *testing.T) {
+	t.Parallel()
+
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"latestBlockHeight":1}}`))
+	}))
+	defer srv.Close()
+
+	if _, err := indexer.New(srv.URL, "").LatestBlockHeight(context.Background()); err != nil {
+		t.Fatalf("no token: %v", err)
+	}
+	if _, err := indexer.New(srv.URL, "s3cret").LatestBlockHeight(context.Background()); err != nil {
+		t.Fatalf("with token: %v", err)
+	}
+
+	if len(seen) != 2 || seen[0] != "" || seen[1] != "Bearer s3cret" {
+		t.Fatalf("Authorization headers = %q, want [\"\", \"Bearer s3cret\"]", seen)
 	}
 }
