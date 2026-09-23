@@ -65,8 +65,11 @@ const (
 // Client is a tx-indexer GraphQL client. Callers hold it behind a nilable
 // interface; that nil check is the feature switch.
 type Client struct {
-	url  string
-	http *http.Client
+	url string
+	// token, when set, is sent as a bearer credential. Most indexers are
+	// public; a self-hosted one behind auth is a flag away.
+	token string
+	http  *http.Client
 
 	// slots bounds in-flight requests. Buffered, never closed.
 	slots chan struct{}
@@ -86,13 +89,15 @@ type Client struct {
 }
 
 // New returns a Client for a tx-indexer GraphQL endpoint, e.g.
-// https://indexer.gno.land/graphql/query.
-func New(url string) *Client {
+// https://indexer.gno.land/graphql/query. An empty token means no
+// Authorization header is sent.
+func New(url, token string) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = maxIdleConnsPerHost
 
 	return &Client{
 		url:   url,
+		token: token,
 		slots: make(chan struct{}, maxConcurrent),
 		http: &http.Client{
 			Timeout:   defaultTimeout,
@@ -186,6 +191,9 @@ func (c *Client) do(ctx context.Context, query string, out any) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

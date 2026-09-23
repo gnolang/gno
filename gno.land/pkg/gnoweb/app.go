@@ -84,6 +84,8 @@ type AppConfig struct {
 	// autocomplete and cannot be typed into a failing search. Indexer data is
 	// never consensus data and is labelled as such wherever it appears.
 	IndexerURL string
+	// IndexerToken, when set, is sent as a bearer credential to the indexer.
+	IndexerToken string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
 	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
 	// chain nodes under pressure; relax when capacity allows. ADR-003
@@ -181,7 +183,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// with no indexer would end up advertising indexer-backed search.
 	if cfg.IndexerURL != "" {
 		logger.Info("indexer enabled", "url", cfg.IndexerURL)
-		handlerCfg.Indexer = indexer.New(cfg.IndexerURL)
+		handlerCfg.Indexer = indexer.New(cfg.IndexerURL, cfg.IndexerToken)
 	}
 
 	httphandler, err := NewHTTPHandler(logger, handlerCfg)

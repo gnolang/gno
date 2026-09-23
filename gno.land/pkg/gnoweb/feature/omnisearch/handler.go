@@ -44,7 +44,7 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if isJSON {
 		ctx, cancel := context.WithTimeout(ctx, jsonTimeout)
 		defer cancel()
-		return h.serveJSON(ctx, w, q), nil
+		return h.serveJSON(ctx, w, r, q), nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, pageTimeout)

@@ -3,7 +3,9 @@ package omnisearch
 import (
 	"context"
 	"encoding/json"
+	"hash/fnv"
 	"net/http"
+	"strconv"
 )
 
 // jsonResult mirrors Result on the wire. Declared separately so the JSON
@@ -56,7 +58,7 @@ type jsonResponse struct {
 
 // serveJSON answers the omnibar. The body is written here; the caller wraps
 // the returned status with a nil view so no chrome is composed.
-func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, q *Query) int {
+func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, q *Query) int {
 	data := h.build(ctx, q)
 
 	resp := jsonResponse{
@@ -94,15 +96,37 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, q *Query
 		resp.Indexer = ji
 	}
 
-	writeJSONHeaders(w)
-	// Results are latest-only and an indexer moves under them; a short cache
-	// absorbs a burst of keystrokes without serving a stale answer for long.
-	w.Header().Set("Cache-Control", "max-age=1")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	body, err := json.Marshal(resp)
+	if err != nil {
 		h.deps.Logger.Error("omnisearch: encode response", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "internal error")
+		return http.StatusInternalServerError
+	}
+
+	// The omnibar re-asks the same question constantly — retyping a
+	// character, reopening the dropdown. An ETag turns a repeat into a 304
+	// instead of a re-render, which max-age alone cannot do once it lapses.
+	etag := `"` + strconv.FormatUint(bodyHash(body), 16) + `"`
+	writeJSONHeaders(w)
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "max-age=1")
+	if match := r.Header.Get("If-None-Match"); match == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return http.StatusNotModified
+	}
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(body); err != nil {
+		h.deps.Logger.Error("omnisearch: write response", "error", err)
 	}
 	return http.StatusOK
+}
+
+// bodyHash is FNV-1a: the ETag only has to change when the body does, so a
+// non-cryptographic hash from the stdlib is the whole requirement.
+func bodyHash(b []byte) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write(b)
+	return h.Sum64()
 }
 
 // writeJSONError emits the same envelope shape as a successful response's
