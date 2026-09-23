@@ -31,7 +31,7 @@ import (
 func BenchmarkPackageLoadFromStore(b *testing.B) {
 	for _, nFiles := range []int{1, 4, 12} {
 		b.Run(fmt.Sprintf("files=%d", nFiles), func(b *testing.B) {
-			const pkgPath = "gno.vm/t/bench"
+			const pkgPath = "gno.land/p/t/bench"
 			db := memdb.NewMemDB()
 			tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
 			st := NewStore(nil, tm2Store, tm2Store)

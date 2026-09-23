@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -98,17 +99,20 @@ func PkgIDFromPkgPath(path string) PkgID {
 	if v, ok := pkgIDFromPkgPathCache.Load(path); ok {
 		return *v.(*PkgID)
 	}
+	if debugAssert && !isRecognizedPkgPath(path) {
+		panic("PkgIDFromPkgPath: unrecognized package path " + strconv.Quote(path))
+	}
 	pkgID := &PkgID{HashBytes([]byte(path))}
 	// Clear the first nibble, then set flag bits.
 	pkgID.Hashlet[0] &= 0x0F
 	if IsStdlib(path) {
 		pkgID.Hashlet[0] |= 0x80
 	}
-	// Immutable: stdlib, /p/, _test overlays, synthetic packages (uverse,
-	// .dontcare) and "main". "main" (filetests, gno run) is dot-free and so
-	// already matches IsStdlib; it is named here so that is a decision, not
-	// an accident. Reclassifying it as a transient program is a separate change.
-	if IsStdlib(path) || IsPPackagePath(path) || IsTestOverlayPath(path) || IsSyntheticPath(path) || path == "main" {
+	// Storage-owning is an allowlist: /r/ realms and /e/ run paths. Everything
+	// else (stdlib, /p/, _test overlays, synthetic packages, "main", the ""
+	// message package, unrecognized strings) is immutable, so the bit and the
+	// path predicates agree for every input and an unvalidated path fails closed.
+	if !(IsRealmPath(path) || IsEphemeralPath(path)) {
 		pkgID.Hashlet[0] |= 0x40
 	}
 	if _, isInternal := IsInternalPath(path); isInternal {
@@ -116,6 +120,17 @@ func PkgIDFromPkgPath(path string) PkgID {
 	}
 	actual, _ := pkgIDFromPkgPathCache.LoadOrStore(path, pkgID)
 	return *actual.(*PkgID)
+}
+
+// isRecognizedPkgPath reports whether path is a shape the VM knows how to
+// classify. "" is the synthetic package the keeper runs a message's entry
+// expression in; "main" is a filetest or gno run program. Callers validate
+// user paths before they get here (MsgCall, AddPackage, MemPackageType.Validate),
+// so under debugAssert an unrecognized path is a missed validation, not input.
+func isRecognizedPkgPath(path string) bool {
+	return path == "" || path == "main" ||
+		IsRealmPath(path) || IsEphemeralPath(path) || IsPPackagePath(path) ||
+		IsStdlib(path) || IsTestOverlayPath(path) || IsSyntheticPath(path)
 }
 
 // IsStdlibPkg returns true if this PkgID is for a standard library package.

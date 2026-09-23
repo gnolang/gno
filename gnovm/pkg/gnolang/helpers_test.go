@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsRealmPath(t *testing.T) {
@@ -52,12 +53,34 @@ func TestPkgIDOwnsStorage(t *testing.T) {
 		{".uverse", false},
 		{".dontcare", false},
 		{"main", false},
+		{"", false}, // the keeper's message-entry package
 	}
 	for _, tc := range tt {
+		require.True(t, isRecognizedPkgPath(tc.input), "%q must be a recognized shape", tc.input)
 		pid := PkgIDFromPkgPath(tc.input)
 		assert.Equal(t, tc.realm, pid.IsRealmPkg(), "unexpected IsRealmPkg(%q)", tc.input)
 		assert.Equal(t, tc.realm, IsRealmPath(tc.input) || IsEphemeralPath(tc.input),
 			"path predicates disagree with the PkgID bit for %q", tc.input)
+	}
+}
+
+// A path no predicate recognizes is a missed validation upstream. Under
+// debugAssert it panics; otherwise it fails closed as immutable, never as a
+// storage-owning realm.
+func TestPkgIDUnrecognizedPath(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{
+		"gno.land/r/x_test_test", // overlay of a path that is itself no realm
+		"gno.land/t/main",        // unknown letter
+		"github.com/foo/bar",     // foreign domain shape
+		"gno.vm/t/hello",
+	} {
+		require.False(t, isRecognizedPkgPath(input), "%q should not be recognized", input)
+		if debugAssert {
+			assert.Panics(t, func() { PkgIDFromPkgPath(input) }, "PkgIDFromPkgPath(%q)", input)
+			continue
+		}
+		assert.False(t, PkgIDFromPkgPath(input).IsRealmPkg(), "unrecognized %q must fail closed", input)
 	}
 }
 

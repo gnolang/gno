@@ -21,7 +21,7 @@ import (
 func TestSealSkipsBuiltMethodIndex(t *testing.T) {
 	const methods = methodIndexThreshold + 1
 
-	dt := &DeclaredType{PkgPath: "gno.vm/t/seal", Name: "T", Base: IntType}
+	dt := &DeclaredType{PkgPath: "gno.land/p/t/seal", Name: "T", Base: IntType}
 	for i := range methods {
 		ft := &FuncType{}
 		dt.Methods = append(dt.Methods, TypedValue{
@@ -81,7 +81,7 @@ func TestSaveBlockNodesPublishesOneBatch(t *testing.T) {
 	rec := &batchRecorder{Store: st.BeginTransaction(wrapped, wrapped, nil, nil)}
 
 	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "gno.vm/t/batch",
+		PkgPath: "gno.land/p/t/batch",
 		Store:   rec,
 		Output:  io.Discard,
 	})
@@ -90,7 +90,7 @@ func TestSaveBlockNodesPublishesOneBatch(t *testing.T) {
 	m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
 		Name: "batch",
-		Path: "gno.vm/t/batch",
+		Path: "gno.land/p/t/batch",
 		Files: []*std.MemFile{{
 			Name: "batch.gno",
 			Body: `package batch
@@ -122,13 +122,13 @@ func TestPublicationSeals(t *testing.T) {
 	st := NewStore(nil, tm2Store, tm2Store)
 
 	t.Run("direct", func(t *testing.T) {
-		const path = "gno.vm/t/direct"
+		const path = "gno.land/p/t/direct"
 		deployOneMethodPackage(st, path, "Direct", "M")
 		requireSealedType(t, st, path, "Direct")
 	})
 
 	t.Run("transaction", func(t *testing.T) {
-		const path = "gno.vm/t/tx"
+		const path = "gno.land/p/t/tx"
 		wrapped := tm2Store.CacheWrap()
 		txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
 		deployOneMethodPackage(txSt, path, "Tx", "N")
@@ -141,7 +141,7 @@ func TestPublicationSeals(t *testing.T) {
 // deployOneMethodPackage deploys a one-file package declaring typeName with a
 // single method.
 func deployOneMethodPackage(store Store, path, typeName, methodName string) {
-	name := path[len("gno.vm/t/"):]
+	name := path[len("gno.land/p/t/"):]
 	m := NewMachineWithOptions(MachineOptions{PkgPath: path, Store: store, Output: io.Discard})
 	m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
@@ -189,7 +189,7 @@ func requireSealedType(t *testing.T, store Store, path, typeName string) {
 // so asserting on a deployed node would pass with the branch removed. Sealing a
 // fresh node is what makes this test fail when the branch is reverted.
 func TestSealFillsPackageNodePkgID(t *testing.T) {
-	const path = "gno.vm/t/sealpkgid"
+	const path = "gno.land/p/t/sealpkgid"
 
 	pn := NewPackageNode("sealpkgid", path, nil)
 	require.True(t, pn.pkgID.IsZero(), "a fresh PackageNode must start with no pkgID")
@@ -297,7 +297,7 @@ func TestSealFillsExpressionOnlyTypes(t *testing.T) {
 	st := NewStore(nil, tm2Store, tm2Store)
 	rec := &batchRecorder{Store: st}
 
-	const path = "gno.vm/t/anonexpr"
+	const path = "gno.land/p/t/anonexpr"
 	m := NewMachineWithOptions(MachineOptions{PkgPath: path, Store: rec, Output: io.Discard})
 	m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
@@ -350,7 +350,7 @@ func Assert(v any) {
 // TypeID() and so hides the gap — every other memo on the elements stays cold.
 func TestSealWalksTupleElements(t *testing.T) {
 	elt := &StructType{
-		PkgPath: "gno.vm/t/tuple",
+		PkgPath: "gno.land/p/t/tuple",
 		Fields:  []FieldType{{Name: "a", Type: IntType}},
 	}
 	tt := &tupleType{Elts: []Type{elt}}

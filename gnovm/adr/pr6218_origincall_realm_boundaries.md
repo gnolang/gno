@@ -7,17 +7,15 @@ Proposed in #6218. Follow-up to #6211.
 ## Context
 
 #6211 made `AssertOriginCall` count call boundaries: every named call, plus
-every func literal that ran under a different storage realm than its caller.
-The chain required `<= 2`, the test runtime exact totals. Two problems:
+every func literal run under another storage realm. Two problems:
 
 - A `/p/` body could become the "caller" of the next frame, so a realm's own
   closure handed to `helper.Run` (`var Run = func(f func()) { f() }` in a
   `/p/` package) was refused. Master before #6211 accepted this shape.
 - Whether a frame counted depended on spelling: `func f()` counted, `var f =
-  func()` did not. So `helper.RunNamed` and the realm's own `func run(f
+  func()` did not, so `helper.RunNamed` and the realm's own `func run(f
   func())` were refused while the closure versions passed. The rule protected
-  nothing: a `/p/` package cannot be a message target or hold coins, and a
-  realm's own helper is the realm's own code.
+  nothing: `/p/` cannot be a message target, and a realm's helper is its own code.
 
 The fix is in two parts, each with its own consequence.
 
@@ -34,16 +32,28 @@ Doing so exposed that the bit and the path predicates disagreed:
 - `IsRealmPath`/`IsPPackagePath` rejected a `_test` suffix only in the REPO
   segment, so single-segment `gno.land/r/foo_test` read as a realm while its
   PkgID was immutable. They now reject the suffix wherever it lands.
-- Synthetic packages (`.dontcare`) carried no immutable bit; they join uverse.
-- `main` (filetests, `gno run`) is dot-free, so it matched `IsStdlib` and was
-  immutable by accident. It is now named in the immutable set so that is a
-  decision. Reclassifying it as a transient program flips borrow rules,
-  construction-time checks and finalization for every `zrealm_*` filetest,
-  so it is a separate change (`prxxxx_main_transient_program.md`).
+- The bit was a denylist (stdlib, `/p/`, overlays, uverse), so any string on
+  no list got the realm bit: synthetic `.dontcare`, the keeper's `""`
+  message-entry package, an overlay of a non-realm such as
+  `gno.land/r/x_test_test`, or any unvalidated input.
 
-`TestPkgIDOwnsStorage` pins the agreement for every path shape. Cost: a
-filetest cannot assert an origin call from `package main`; `std13`-`std17`
-declare `// PKGPATH: gno.land/r/test`.
+The bit is now an allowlist: storage-owning iff `IsRealmPath ||
+IsEphemeralPath`, the predicate the loaders use, so the two agree for every
+input by construction and an unvalidated path fails closed (immutable, no
+storage) instead of open. Under `debugAssert`, `PkgIDFromPkgPath` panics on a
+path no predicate recognizes (`isRecognizedPkgPath`), since every user path is
+validated upstream (`MsgCall`, `AddPackage`, `MemPackageType.Validate`) and an
+unrecognized one is a missed validation; on a validator it stays quiet and
+deterministic. Test fixtures under `gno.vm/t/` and `gno.land/t/` moved to
+`gno.land/p/t/` so the repo's own suites are clean under the tag.
+
+`main` (filetests, `gno run`) falls out as immutable, as before via
+`IsStdlib`; making it a realm is a separate change
+(`prxxxx_main_transient_program.md`). Cost today: a filetest cannot assert an
+origin call from `package main`, so `std13`-`std17` declare a `// PKGPATH:`.
+
+`TestPkgIDOwnsStorage` pins the agreement for every recognized shape and
+`TestPkgIDUnrecognizedPath` pins the fail-closed / panic behaviour.
 
 ## Decision 2: count realm crossings, not frames
 
@@ -59,20 +69,22 @@ The chain requires exactly one boundary: the message entering the realm the
 entry check already pins to the message's path. Any other storage-owning
 realm on the stack is a second boundary and is refused.
 
-The test runtime (`gnovm/tests/stdlibs/chain/runtime`) shares the walk from
-the frame after the test function (`main`/`init.*`: 1, `RunTest`: 3), which
-stands in for the message. The asserting frame may not itself be the entry.
+The test runtime shares the walk from the frame after the test function
+(`main`/`init.*`: 1, `RunTest`: 3), which stands in for the message; the
+asserting frame may not itself be the entry.
 
 ## Alternatives
 
-- **Fix only the `/p/` closure case, keep named frames counting.** Leaves the
-  named-vs-literal asymmetry and the same-realm helper refusal in place.
+- **Fix only the `/p/` closure case.** Leaves the named-vs-literal asymmetry
+  and the same-realm helper refusal in place.
 - **Treat a `/p/` closure as its declaring package's code.** Rejected in #6211:
   the declaring package is not where the writes land.
 - **Keep the path predicates in `ownsItsStorage`.** Two sources of truth for
   one question; they had already drifted on `_test` and synthetic paths.
-- **Test runtime keeps exact frame counts.** Cannot express the new rule, and
-  the test function's package is not a realm the chain would ever see.
+- **Panic unconditionally on an unrecognized path.** Local tooling runs on
+  arbitrary module paths, and a keeper panic is the wrong failure mode for a
+  bug that lets a string through; fail closed on chain, loud under `debugAssert`.
+- **Test runtime keeps exact frame counts.** Cannot express the new rule.
 
 ## Consequences
 
@@ -84,7 +96,5 @@ stands in for the message. The asserting frame may not itself be the entry.
   exported closure, or by handing it a closure to run. Pinned in
   `assertorigincall.txtar`, `assertorigincall_p_closure_helper.txtar`, `std16`.
 - No new exposure: every interposing party has a frame whose body runs in
-  its own storage realm, and every such frame counts. What became transparent
-  was already reachable by writing the helper as a closure.
-- The `native.gno` doc comment changed with the same line count; its source
-  bytes are genesis state, so `apphash_crossrealm38_test.go` is re-pinned.
+  its own storage realm, and every such frame counts.
+- `native.gno`'s doc comment is genesis state: `apphash_crossrealm38_test.go` re-pinned.

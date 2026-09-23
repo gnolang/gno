@@ -8,10 +8,11 @@ Deferred: design note only, nothing implemented. Follow-up to #6218 (`pr6218_ori
 
 A `package main` (a filetest without `// PKGPATH:`, or `gno run`) gets its
 `PkgID` from `PkgIDFromPkgPath("main")`. `IsStdlib` matches any dot-free
-path, so `main` receives both the stdlib bit (0x80) and the immutable bit
-(0x40), while `nodes.go` still gives it a throwaway `Realm`. #6218 names
-`main` in the immutable set so this is a recorded decision, but it remains
-a misclassification: `main` is a program with its own realm, the local twin
+path, so `main` receives the stdlib bit (0x80), and since #6218 derives the
+immutable bit (0x40) as "not `IsRealmPath || IsEphemeralPath`" it is immutable
+too, while `nodes.go` still gives it a throwaway `Realm`. `isRecognizedPkgPath`
+lists it by name so the classification is recorded, but it remains a
+misclassification: `main` is a program with its own realm, the local twin
 of a `gno.land/e/<addr>/run` package, and `/e/` is realm-class.
 
 Everything below is local-only. `main` cannot be deployed (the keeper requires
@@ -19,7 +20,8 @@ Everything below is local-only. `main` cannot be deployed (the keeper requires
 
 ## The change
 
-In `PkgIDFromPkgPath`, exclude `main` from both bit assignments, so its ID is
+In `PkgIDFromPkgPath`, skip the stdlib bit for `main` and add it to the
+storage allowlist beside `IsRealmPath || IsEphemeralPath`, so its ID is
 realm-class like a run path. `IsStdlib(path)` itself stays as is: it has about
 thirty consumers (type-check import rules, mempackage typing, native
 declaration handling, store keys, tooling) and none of them is the problem.
@@ -61,7 +63,7 @@ intended realm semantics or a test that should declare a `PKGPATH`. Land
 
 ## Alternatives
 
-- Keep the explicit immutable classification from #6218 (current state).
+- Keep the immutable classification from #6218 (current state).
   Zero cost, and the only observable oddity is that `package main` cannot
   assert an origin call in a filetest.
 - Make `main` a run path outright (`gno.land/e/main/run` or similar) in the
