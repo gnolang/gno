@@ -705,8 +705,8 @@ realm:
 ```go
 // PKGPATH: gno.land/r/test/test
 func Public(cur realm) {
-    cur.Previous()  // origin user, pkgpath=""
-    cur             // /r/test/test
+    cur.Previous().PkgPath()  // origin user, pkgpath=""
+    cur.PkgPath()             // "gno.land/r/test/test"
 }
 ```
 
