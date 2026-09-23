@@ -455,6 +455,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtColumns.Extend(m)
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
+	ExtIPFS.Extend(m)     // ipfs:// and retired gateway URLs, via the carried context
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)
 	ExtEmphasis.Extend(m) // bound emphasis-parsing cost (yuin/goldmark#555)
 	if imgValidator != nil {

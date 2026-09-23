@@ -242,9 +242,16 @@ Currently, only a short list of content providers are supported:
 "https://github.com"
 "https://*.githubusercontent.com"
 
-// IPFS
-"https://ipfs.io"
-"https://cloudflare-ipfs.com"
+// IPFS: the gateway gnoweb is configured with (-ipfs-gateway),
+// https://ipfs.filebase.io by default
+±±±
+
+Content on IPFS is written with an ±ipfs://± (or ±ipns://±) URL, which gnoweb
+resolves through its IPFS gateway. URLs on retired public gateways, such as
+±https://ipfs.io/ipfs/...±, are rewritten to that gateway too:
+
+±±±markdown
+![Alt text](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/logo.png)
 ±±±
 
 

@@ -32,9 +32,12 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 
-	// Create parser context with the test URL
+	// Create parser context with the test URL. The IPFS gateway is http
+	// because the validator below erases every https image, which would
+	// hide a rewritten image behind the same empty src as a missed one.
 	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{
-		GnoURL: gnourl,
+		GnoURL:      gnourl,
+		IPFSGateway: "http://gateway.test",
 	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {

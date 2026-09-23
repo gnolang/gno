@@ -33,6 +33,7 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
+	webIPFSGateway       string
 
 	// Loader
 	noExamples                 bool
@@ -142,6 +143,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-analytics-hostname",
 		defaultCfg.webAnalyticsHostname,
 		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
+	)
+
+	fs.StringVar(
+		&c.webIPFSGateway,
+		"web-ipfs-gateway",
+		defaultCfg.webIPFSGateway,
+		"gnoweb: IPFS gateway origin that ipfs:// URLs and retired gateway URLs are rewritten to; empty disables the rewrite",
 	)
 
 	fs.BoolVar(

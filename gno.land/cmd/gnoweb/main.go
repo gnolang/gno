@@ -37,9 +37,7 @@ var cspImgHost = []string{
 	"https://github.com",
 	"https://*.githubusercontent.com",
 
-	// IPFS
-	"https://ipfs.io",
-	"https://cloudflare-ipfs.com",
+	// IPFS: the configured -ipfs-gateway is added at startup.
 }
 
 type webCfg struct {
@@ -49,6 +47,7 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	ipfsGateway      string
 	aliases          string
 	trustedProxies   string
 	noDefaultAliases bool
@@ -83,6 +82,7 @@ var defaultWebOptions = webCfg{
 	remoteTimeout: time.Minute,
 	timeout:       time.Minute,
 	trustedPaths:  defaultTrustedPaths,
+	ipfsGateway:   gnoweb.DefaultIPFSGateway,
 }
 
 func main() {
@@ -203,6 +203,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"The faucet URL will redirect the user when they access `/faucet`.",
 	)
 
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"IPFS gateway origin that ipfs:// URLs and retired gateway URLs (ipfs.io, dweb.link, ...) are rewritten to; empty disables the rewrite",
+	)
+
 	fs.BoolVar(
 		&c.json,
 		"json",
@@ -284,6 +291,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if cfg.trustedProxies != "" {
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
+	appcfg.IPFSGateway = cfg.ipfsGateway
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -340,8 +348,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
-	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	// Setup security headers. NewRouter normalized appcfg.IPFSGateway.
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -399,13 +407,19 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// SecureHeadersMiddleware sets the security headers. ipfsGateway is the
+// normalized IPFS gateway origin (empty if disabled); it is allowed as an
+// image source because rendered ipfs:// images point at it.
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
+	}
+	if ipfsGateway != "" {
+		imgSrc.WriteString(" " + ipfsGateway)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of

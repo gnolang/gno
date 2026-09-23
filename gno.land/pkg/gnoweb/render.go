@@ -128,6 +128,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
 	mdctx.Domain = ctx.Domain
+	mdctx.IPFSGateway = r.cfg.IPFSGateway
 
 	pctx := md.NewGnoParserContext(mdctx)
 

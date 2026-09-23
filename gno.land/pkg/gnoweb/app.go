@@ -85,6 +85,10 @@ type AppConfig struct {
 	// chain nodes under pressure; relax when capacity allows. ADR-003
 	// §Resource bounds.
 	MaxConcurrentRPC int
+	// IPFSGateway is the gateway origin that ipfs:// URLs and URLs on
+	// retired public IPFS gateways are rewritten to in rendered markdown.
+	// Empty disables the rewrite.
+	IPFSGateway string
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -102,6 +106,7 @@ func NewDefaultAppConfig() *AppConfig {
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
+		IPFSGateway:             DefaultIPFSGateway,
 	}
 }
 
@@ -109,6 +114,14 @@ func NewDefaultAppConfig() *AppConfig {
 // It sets up all routes, static asset handling, and middleware.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
+
+	// Normalize the IPFS gateway in place: callers building the CSP
+	// (cmd/gnoweb) read the validated origin back from cfg.
+	ipfsGateway, err := normalizeIPFSGateway(cfg.IPFSGateway, cfg.Domain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid IPFS gateway %q: %w", cfg.IPFSGateway, err)
+	}
+	cfg.IPFSGateway = ipfsGateway
 
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
@@ -147,6 +160,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Configure Markdown renderer
 	rcfg := cfg.RenderConfig
+	rcfg.IPFSGateway = cfg.IPFSGateway
 	if cfg.UnsafeHTML {
 		rcfg.GoldmarkOptions = append(rcfg.GoldmarkOptions, goldmark.WithRendererOptions(
 			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),

@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -110,6 +111,26 @@ func resolveDestination(dst []byte) []byte {
 	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(dst)))
 }
 
+// escapeDestination is the inverse of resolveDestination: it turns a
+// resolved URL back into destination bytes that resolve to that same URL.
+// Backslashes and ampersands are the only bytes the resolution acts on.
+func escapeDestination(resolved string) []byte {
+	resolved = strings.ReplaceAll(resolved, `\`, `\\`)
+	resolved = strings.ReplaceAll(resolved, "&", "&amp;")
+	return []byte(resolved)
+}
+
+// newLinkFromAutoLink builds the ast.Link that stands in for an autolink,
+// pointing at dest and labelled with the autolink's text, verbatim.
+func newLinkFromAutoLink(n *ast.AutoLink, source, dest []byte) *ast.Link {
+	link := ast.NewLink()
+	link.Destination = dest
+	label := ast.NewString(n.Label(source))
+	label.SetRaw(true)
+	link.AppendChild(link, label)
+	return link
+}
+
 // trimLeadingControlAndSpace drops the bytes a URL parser strips before it
 // reads the scheme: leading C0 controls and space (WHATWG URL, "remove any
 // leading and trailing C0 control or space"). Any check that compares a
@@ -171,12 +192,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			} else {
 				rawDest = rawURL
 			}
-			link := ast.NewLink()
-			link.Destination = rawDest
-			labelNode := ast.NewString(n.Label(source))
-			labelNode.SetRaw(true)
-			link.AppendChild(link, labelNode)
-			gnoLink = &GnoLink{Link: link}
+			gnoLink = &GnoLink{Link: newLinkFromAutoLink(n, source, rawDest)}
 
 		default:
 			return ast.WalkContinue, nil

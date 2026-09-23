@@ -10,6 +10,7 @@ var (
 	gChainIdContextKey       = parser.NewContextKey()
 	gRemoteContextKey        = parser.NewContextKey()
 	gDomainContextKey        = parser.NewContextKey()
+	gIPFSGatewayContextKey   = parser.NewContextKey()
 	gForeignOriginContextKey = parser.NewContextKey()
 )
 
@@ -18,6 +19,10 @@ type GnoContext struct {
 	ChainId string
 	Remote  string
 	Domain  string
+	// IPFSGateway is the gateway origin (e.g. "https://ipfs.filebase.io")
+	// that ipfs:// URLs and retired gateway URLs are rewritten to. Empty
+	// disables the rewrite.
+	IPFSGateway string
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -27,6 +32,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
 	ctx.Set(gDomainContextKey, mdctx.Domain)
+	ctx.Set(gIPFSGatewayContextKey, mdctx.IPFSGateway)
 	return ctx
 }
 
@@ -39,7 +45,8 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	chainId, _ := getChainIdFromContext(ctx)
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
-	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain}
+	gateway, _ := getIPFSGatewayFromContext(ctx)
+	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain, IPFSGateway: gateway}
 }
 
 // getUrlFromContext retrieves the GnoURL from the parser context
@@ -70,6 +77,14 @@ func getRemoteFromContext(ctx parser.Context) (remote string, ok bool) {
 // getDomainFromContext retrieves the Domain from the parser context
 func getDomainFromContext(ctx parser.Context) (domain string, ok bool) {
 	if domain, ok = ctx.Get(gDomainContextKey).(string); !ok {
+		return "", false
+	}
+	return
+}
+
+// getIPFSGatewayFromContext retrieves the IPFSGateway from the parser context
+func getIPFSGatewayFromContext(ctx parser.Context) (gateway string, ok bool) {
+	if gateway, ok = ctx.Get(gIPFSGatewayContextKey).(string); !ok {
 		return "", false
 	}
 	return
