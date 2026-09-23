@@ -670,6 +670,9 @@ height := runtime.ChainHeight()
 ```
 ---
 
+## chain/runtime/unsafe
+
+
 ### OriginCaller
 ```go
 func OriginCaller() address
@@ -678,7 +681,7 @@ Returns the original signer of the transaction.
 
 ##### Usage
 ```go
-caller := runtime.OriginCaller()
+caller := unsafe.OriginCaller()
 ```
 ---
 
@@ -690,7 +693,7 @@ Returns current [Realm](./realms.md) object.
 
 ##### Usage
 ```go
-currentRealm := runtime.CurrentRealm()
+currentRealm := unsafe.CurrentRealm()
 ```
 ---
 
@@ -703,7 +706,19 @@ user realm, `pkgpath` will be empty.
 
 ##### Usage
 ```go
-prevRealm := runtime.PreviousRealm()
+prevRealm := unsafe.PreviousRealm()
+```
+---
+
+### OriginSend
+```go
+func OriginSend() chain.Coins
+```
+Returns the `Coins` that were sent along with the calling transaction.
+
+##### Usage
+```go
+coinsSent := unsafe.OriginSend()
 ```
 ---
 
@@ -864,16 +879,6 @@ schedule naming that denomination, the still-locked part cannot be removed, and
 banker.RemoveCoin(addr, denom, amount)
 ```
 
-### OriginSend
-```go
-func OriginSend() Coins
-```
-Returns the `Coins` that were sent along with the calling transaction.
-
-##### Usage
-```go
-coinsSent := banker.OriginSend()
-```
 ---
 
 ## `testing`

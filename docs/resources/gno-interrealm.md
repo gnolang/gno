@@ -49,8 +49,8 @@ and permissions.
 All logic in Gno executes under two contexts that together govern identity and
 persistence:
 
-**Realm-context** determines `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()`. It controls identity and agency: who is the current
+**Realm-context** determines `unsafe.CurrentRealm()` and
+`unsafe.PreviousRealm()`. It controls identity and agency: who is the current
 actor and who called them. The realm-context has an associated Gno address from
 which native coins can be sent and received. It changes only on explicit
 cross-calls (`fn(cross, ...)`).
@@ -104,7 +104,7 @@ moves.
 | Stdlib or /p/ top-level function | No | No | No | No |
 | /p/-declared closure (FuncLit), invoked in a different realm than its minter | No | Yes (minter) | Yes | Yes |
 
-\* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
+\* `unsafe.CurrentRealm()` returns the same realm, but `unsafe.PreviousRealm()`
 shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
 for definitions of boundary and finalization.
 
@@ -129,8 +129,8 @@ package; and likewise non-crossing code should behave the same when copied
 verbatim from one realm to another. Otherwise there will be lots of security
 related bugs from user error.
 
-Realm crossing with respect to `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()` must be explicit and warrants type-checking; because
+Realm crossing with respect to `unsafe.CurrentRealm()` and
+`unsafe.PreviousRealm()` must be explicit and warrants type-checking; because
 a crossing-function of a realm should be able to call another crossing-function
 of the same realm without necessarily crossing (changing the realm-context).
 Sometimes the previous realm and current realm must be the same realm, such as
@@ -144,7 +144,7 @@ the compiler, eliminating this class of bugs by construction.
 
 Where a real object resides should not matter too much, as it is often
 difficult to predict. Thus the realm-context as returned by
-`runtime.PreviousRealm()` and `runtime.CurrentRealm()` should not change with
+`unsafe.PreviousRealm()` and `unsafe.CurrentRealm()` should not change with
 non-crossing method calls, and the realm-storage-context should be determined
 for non-crossing methods only by the realm-storage of the receiver. The
 realm-storage of a receiver should only matter for when elements reside in
@@ -218,12 +218,12 @@ and helps avoid a class of security issues that would otherwise exist.
 
 func SendMail(cur realm, text string) {
     if text == "" {
-        // runtime.PreviousRealm() is preserved for recursive call.
+        // cur.Previous() is preserved for recursive call.
         SendMail(nil, "<empty>")
     }
-    caller := runtime.PreviousRealm()
+    caller := cur.Previous()
     if inBlacklist(caller) {
-        // runtime.PreviousRealm() becomes self; message from self to self.
+        // cur.Previous() becomes self; message from self to self.
         SendMail(cross, fmt.Sprintf("blacklisted caller %v blocked", caller))
     } else {
         // sendMailPrivate not exposed to external callers.
@@ -371,7 +371,7 @@ external realm. Implicitly crossing into (borrowing) a receiver object's
 storage realm allows the method to directly modify the receiver as well as all
 other objects directly reachable from the receiver stored in the same realm as
 the receiver. Unlike explicit crosses, implicit crosses do not shift or
-otherwise affect the current realm context; `runtime.CurrentRealm()` does not
+otherwise affect the current realm context; `unsafe.CurrentRealm()` does not
 change unless a method is called like `receiver.Method(cross, args...)`.
 
 Realms hold objects in residence and they also have a Gno address to send and
@@ -468,8 +468,8 @@ authority. When victim invokes `e.Method()` where `Method` is declared in
 and any attempt to mutate victim-owned state from inside the body fails the
 `DidUpdate()` PkgID check.
 
-`runtime.CurrentRealm()` returns the current realm-context that was last
-cross-called to. `runtime.PreviousRealm()` returns the realm-context
+`unsafe.CurrentRealm()` returns the current realm-context that was last
+cross-called to. `unsafe.PreviousRealm()` returns the realm-context
 cross-called to before the last cross-call. All cross-calls are explicit via
 `cross(rlm)` at Args[0], as are non-crossing-calls of crossing-functions and
 crossing-methods (which use `nil` instead).
@@ -482,7 +482,7 @@ realm and previous realm returned are the same.
 
 The current realm and previous realm do not depend on any implicit crossing to
 the receiver's borrowed/storage realm even if the borrowed realm is the last
-realm of the call stack. In other words `runtime.CurrentRealm()` may differ
+realm of the call stack. In other words `unsafe.CurrentRealm()` may differ
 from the Machine's active storage realm (internally `m.Realm`, i.e. the borrow
 realm) when a method is called on a receiver residing in a foreign realm.
 
@@ -491,8 +491,8 @@ realm) when a method is called on a receiver residing in a foreign realm.
 Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
 syntax, implicit realm-storage-context changes occur in two scenarios. Both
 "borrow" the realm-storage-context for the duration of the call without
-changing the realm-context (so `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()` are unaffected; the agency of the caller remains
+changing the realm-context (so `unsafe.CurrentRealm()` and
+`unsafe.PreviousRealm()` are unaffected; the agency of the caller remains
 the same). In both cases the `DidUpdate()` guard in the runtime enforces
 that only objects belonging to the borrowed realm can be mutated; reachable
 objects in any *other* realm-storage cannot be modified.
@@ -639,8 +639,8 @@ A realm may cross into itself with an explicit cross-call.
 
 When a crossing-function or crossing-method is cross-called it shifts the
 "current" runtime realm-context to the "previous" runtime realm-context such
-that `runtime.PreviousRealm()` returns what used to be returned with
-`runtime.CurrentRealm()` before the realm boundary. The current
+that `unsafe.PreviousRealm()` returns what used to be returned with
+`unsafe.CurrentRealm()` before the realm boundary. The current
 realm-storage-context is always set to that of realm-context after
 cross-calling.
 
@@ -663,7 +663,7 @@ a typed handle on the realm-context at the moment of the crossing call.
   - `Previous() realm` — the captured realm that was current before this
     one. At the chain root this returns a non-nil origin realm whose
     `PkgPath() == ""`; calling `Previous()` past the origin panics with
-    the same "frame not found" message `runtime.PreviousRealm()` uses
+    the same "frame not found" message `unsafe.PreviousRealm()` uses
     for the same walk-end.
   - `IsCode() bool`, `IsUser() bool`, `IsUserCall() bool`,
     `IsUserRun() bool`, `IsEphemeral() bool` — classification methods
@@ -676,12 +676,12 @@ a typed handle on the realm-context at the moment of the crossing call.
 Parity with `runtime.{Current,Previous}Realm()` at every comparable
 position:
 
-  - `cur.Address()` and `cur.PkgPath()` agree with `runtime.CurrentRealm()`.
+  - `cur.Address()` and `cur.PkgPath()` agree with `unsafe.CurrentRealm()`.
   - `cur.Previous().Address()` and `cur.Previous().PkgPath()` agree with
-    `runtime.PreviousRealm()`.
+    `unsafe.PreviousRealm()`.
 
-The two APIs differ only in shape: `runtime.CurrentRealm()` and
-`runtime.PreviousRealm()` return a `runtime.Realm` **struct** (defined in
+The two APIs differ only in shape: `unsafe.CurrentRealm()` and
+`unsafe.PreviousRealm()` return a `runtime.Realm` **struct** (defined in
 `chain/runtime`), while `cur realm` is the uverse **interface**. They are
 **distinct types** — not assignable to each other — that happen to surface
 the same addr+pkgpath pair. The struct form is the legacy ergonomic API;
@@ -912,19 +912,21 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
+import "chain/runtime/unsafe"
+
 func Public(_ realm) {
 
     // Returns (
     //     addr:<origin_caller>,
     //     pkgpath:""
     // ) == testing.NewUserRealm(origin_caller)
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:chain.PackageAddress("gno.land/r/test/test"),
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 
     // Call a crossing function of same realm with crossing
     AnotherPublic(cross)
@@ -943,7 +945,11 @@ func AnotherPublic(_ realm) {
 ```go
 // PKGPATH: gno.land/e/g1user/run
 
-import "gno.land/r/realmA"
+import (
+    "chain/runtime/unsafe"
+
+    "gno.land/r/realmA"
+)
 
 func main() {
     // Before main() is called there is an implicit
@@ -954,13 +960,13 @@ func main() {
     //     addr:g1user,
     //     pkgpath:""
     // ) == testing.NewUserRealm(g1user)
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:g1user,
     //     pkgpath:"gno.land/e/g1user/run"
     // ) == testing.NewCodeRealm("gno.land/e/g1user/run")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 
     realmA.PublicNoncrossing()
     realmA.PublicCrossing(cross)
@@ -980,7 +986,7 @@ the address is the same.
 ### MsgAddPackage
 
 A realm package's initialization (including `init()` calls) executes with
-current realm-context of itself. `runtime.PreviousRealm()` refers to the
+current realm-context of itself. `unsafe.PreviousRealm()` refers to the
 package deployer both in global var decls and inside `init()` functions. After
 that the package deployer is no longer provided, so packages need to remember
 the deployer in the initialization phase if needed.
@@ -988,48 +994,52 @@ the deployer in the initialization phase if needed.
 ```go
 // PKGPATH: gno.land/r/test/test
 
+import "chain/runtime/unsafe"
+
 func init() {
     // Returns (
     //     addr:<origin_deployer>,
     //     pkgpath:""
     // ) == testing.NewUserRealm(origin_deployer)
     // Inside init() and global var decls
-    // are the only time runtime.PreviousRealm()
+    // are the only time unsafe.PreviousRealm()
     // returns the deployer of the package.
     // Save it here or lose it forever.
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:chain.PackageAddress("gno.land/r/test/test"),
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 }
 
 // Same as in init().
-var _ = runtime.PreviousRealm()
+var _ = unsafe.PreviousRealm()
 ```
 
 ```go
 // PKGPATH: gno.land/e/g1user/run
+
+import "chain/runtime/unsafe"
 
 func init() {
     // Returns (
     //     addr:g1user,
     //     pkgpath:""
     // ) == testing.NewUserRealm(g1user)
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:g1user,
     //     pkgpath:"gno.land/e/g1user/run"
     // ) == testing.NewCodeRealm("gno.land/e/g1user/run")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 }
 ```
 
 The same applies for pure package (`/p/`) initialization. During initialization
-and tests, `runtime.CurrentRealm()` can return a package path that starts with
+and tests, `unsafe.CurrentRealm()` can return a package path that starts with
 "/p/". This is because the package is technically still mutable during its
 initialization phase. After initialization, pure packages become immutable and
 cannot maintain state.
@@ -1052,7 +1062,7 @@ become deprecated.
 package myrealm
 
 import (
-    "chain/runtime"
+    "chain/runtime/unsafe"
     "testing"
 )
 
@@ -1066,15 +1076,15 @@ func TestFoo(t *testing.T) {
     testing.SetOriginCaller("g1user")
 
     // This panics now: seeking beyond the overridden origin frame:
-    // runtime.PreviousRealm()
+    // unsafe.PreviousRealm()
 
     // Simulate g1user cross-calling Public().
     // Produce a new frame to override
     func() {
         testing.SetRealm(testing.NewCodeRealm("gno.land/r/user/myrealm"))
 
-        runtime.PreviousRealm() // "g1user", ""
-        runtime.CurrentRealm()  // bech32(hash("gno.land/r/user/myrealm")), "gno.land/r/user/myrealm"
+        unsafe.PreviousRealm() // "g1user", ""
+        unsafe.CurrentRealm()  // bech32(hash("gno.land/r/user/myrealm")), "gno.land/r/user/myrealm"
 
         Public(...) // already in "gno.land/r/user/myrealm"
     }()
@@ -1093,7 +1103,7 @@ func TestFoo(t *testing.T) {
 package test
 
 import (
-    "chain/runtime"
+    "chain/runtime/unsafe"
     "testing"
 
     "gno.land/r/user/myrealm"
@@ -1101,13 +1111,13 @@ import (
 
 func init() {
     // XXX Frame not found, there is no deployer for filetests.
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:chain.PackageAddress("gno.land/r/test/test")
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 }
 
 func main() {
@@ -1121,13 +1131,13 @@ func main() {
     //     addr:g1user,
     //     pkgpath:""
     // ) == testing.NewUserRealm(g1user)
-    runtime.PreviousRealm()
+    unsafe.PreviousRealm()
 
     // Returns (
     //     addr:g1user,
     //     pkgpath:"gno.land/r/test/test"
     // ) == testing.NewCodeRealm("gno.land/r/test/test")
-    runtime.CurrentRealm()
+    unsafe.CurrentRealm()
 
     // gno.land/r/test/test cross-calling
     // gno.land/r/user/myrealm:
@@ -1140,9 +1150,9 @@ func main() {
 
 ## Implementation
 
-Implementation for `runtime.CurrentRealm()` and `runtime.PreviousRealm()` are
-defined in `gnovm/stdlibs/chain/runtime/native.gno` and related files in the
-directory, while overrides for testing are defined in
+Implementation for `unsafe.CurrentRealm()` and `unsafe.PreviousRealm()` are
+defined in `gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno` and related files in
+the directory, while overrides for testing are defined in
 `gnovm/tests/stdlibs/testing/context_testing.gno`. All stdlibs functions are
 available unless overridden by the latter.
 
