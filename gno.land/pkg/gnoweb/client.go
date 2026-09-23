@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	gopath "path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -203,7 +204,14 @@ func (c *rpcClient) ListFiles(ctx context.Context, path string, height int64) ([
 // Sources lists all source files available in a specified
 // package path by querying the RPC client.
 func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
-	const qpath = "vm/qpaths"
+	qpath := "vm/qpaths"
+	// The node reads the cap off the query string and silently applies its
+	// own default (1000) when none is given. Not forwarding it meant `limit`
+	// was a dead parameter and every caller saw the lexicographically first
+	// 1000 paths, with nothing to say the rest existed.
+	if limit > 0 {
+		qpath += "?limit=" + strconv.Itoa(limit)
+	}
 
 	// XXX: Consider moving this into gnoclient
 	res, err := c.query(ctx, qpath, []byte(prefix), 0)
