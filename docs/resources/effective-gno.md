@@ -720,7 +720,17 @@ type MySafeStruct struct {
 	admin address
 }
 
-func NewSafeStruct(cur realm) *MySafeStruct {
+// /p/ packages cannot declare realm-first-arg crossing functions.
+// Thread the caller's realm explicitly, as ownable does.
+func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
+	caller := rlm.Previous().Address()
+	...
+}
+
+func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	caller := rlm.Previous().Address()
+	...
+}
 	caller := cur.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
