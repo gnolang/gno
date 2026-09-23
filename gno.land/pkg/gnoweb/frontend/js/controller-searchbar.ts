@@ -27,7 +27,7 @@ type SearchResult = {
 type SearchGroup = {
 	label: string;
 	source: string;
-	results: SearchResult[];
+	results?: SearchResult[];
 	error?: string;
 };
 
@@ -190,7 +190,10 @@ export class SearchbarController extends BaseController {
 			if (id !== this.runId) return; // a newer keystroke superseded us
 			if (res) {
 				this.pageMatches = pageMatches;
-				this.drawGroups(q, res, pageMatches);
+				this.render(q, res.groups ?? [], pageMatches, {
+					unknownFilter: res.unknown_filter,
+					fullPage: true,
+				});
 				return;
 			}
 			// The endpoint did not answer: fall through to the local path
@@ -200,7 +203,7 @@ export class SearchbarController extends BaseController {
 		await this.ensureLoaded();
 		if (id !== this.runId) return;
 		this.pageMatches = pageMatches;
-		this.draw(q, this.filter(q), pageMatches);
+		this.render(q, this.filter(q), pageMatches);
 	}
 
 	// scopeBase strips any `$webquery` so `$search` hangs off the bare path.
@@ -300,48 +303,111 @@ export class SearchbarController extends BaseController {
 		this.getDOMElement("input")?.setAttribute("aria-expanded", "true");
 	}
 
-	private drawGroups(
+	// render is the single dropdown renderer. Both paths — the local path
+	// filter and the server's answer — hand it the same SearchGroup[], so
+	// ARIA bookkeeping and item collection cannot drift between them.
+	private render(
 		q: string,
-		res: SearchResponse,
+		groups: SearchGroup[],
 		pageMatches: PageMatch[],
+		opts: { unknownFilter?: string; fullPage?: boolean } = {},
 	): void {
 		const results = this.beginDraw();
 		if (!results) return;
 
-		if (res.unknown_filter) {
+		if (opts.unknownFilter) {
 			results.appendChild(
 				this.buildNotice(
-					`"${res.unknown_filter}:" is not a search qualifier here`,
+					`"${opts.unknownFilter}:" is not a search qualifier here`,
 				),
 			);
 		}
 
-		for (const group of res.groups ?? []) {
+		for (const group of groups) {
 			const label =
 				group.source === "indexer"
 					? `${group.label}, from indexer`
 					: group.label;
 			const section = this.sectionWithLabel(label);
 
-			if (group.error) {
-				section.appendChild(this.buildNotice(group.error));
-			}
-
+			if (group.error) section.appendChild(this.buildNotice(group.error));
 			for (const r of group.results ?? []) {
-				section.appendChild(this.buildRemoteItem(r, q, group.source));
+				section.appendChild(this.buildItem(r, q, group));
 			}
 			results.appendChild(section);
 		}
 
-		// A qualified query always offers its own results page, which is the
-		// only view that works without JavaScript.
-		results.appendChild(this.buildFullPageItem(q));
+		// A qualified query always offers its own results page, the only view
+		// that works without JavaScript.
+		if (opts.fullPage) results.appendChild(this.buildFullPageItem(q));
 
 		if (pageMatches.length > 0) {
 			results.appendChild(this.buildPageSection(q, pageMatches));
 		}
-
+		if (this.items.length === 0) {
+			results.appendChild(this.buildNotice("No results"));
+		}
 		this.endDraw(results);
+	}
+
+	// buildItem renders one row. Provenance belongs to the group, so it is
+	// read from there rather than repeated on every result.
+	private buildItem(
+		r: SearchResult,
+		q: string,
+		group: SearchGroup,
+	): HTMLElement {
+		const linkable = r.href?.startsWith("/") ?? false;
+		const item = document.createElement(linkable ? "a" : "div");
+		item.className = "b-omnisearch-item";
+		item.setAttribute("role", "option");
+
+		if (linkable && r.href) {
+			(item as HTMLAnchorElement).href = r.href;
+		} else {
+			// Announced but unreachable by the arrow keys — a transaction has
+			// no page in gnoweb — so it must not inflate the option count.
+			item.setAttribute("aria-disabled", "true");
+		}
+		item.setAttribute(
+			"aria-label",
+			group.source === "indexer"
+				? `from indexer: ${r.title}`
+				: `${group.label}: ${r.title}`,
+		);
+
+		const tag = this.buildTag(r, group);
+		if (tag) item.appendChild(tag);
+
+		const text = document.createElement("span");
+		text.className = "b-omnisearch-text";
+		this.fillHighlighted(text, r.title, q);
+		if (r.detail) {
+			const detail = document.createElement("small");
+			detail.textContent = ` ${r.detail}`;
+			text.appendChild(detail);
+		}
+		item.appendChild(text);
+
+		if (linkable) this.items.push(item);
+		return item;
+	}
+
+	// buildTag marks provenance for an indexer row, or the on-chain kind
+	// (r/p/u) for a path the local filter produced.
+	private buildTag(r: SearchResult, group: SearchGroup): HTMLElement | null {
+		const indexer = group.source === "indexer";
+		const type = indexer ? "i" : SearchbarController.typeOf(r.href ?? "");
+		if (!type) return null;
+
+		const tag = document.createElement("span");
+		tag.className = "b-omnisearch-tag";
+		tag.dataset.type = type;
+		tag.textContent = type;
+		// The row's aria-label already carries this; the glyph is decoration.
+		tag.setAttribute("aria-hidden", "true");
+		if (indexer) tag.title = "From an indexer, not from the chain";
+		return tag;
 	}
 
 	// buildNotice renders a message inside the listbox. It is an option
@@ -355,57 +421,6 @@ export class SearchbarController extends BaseController {
 		el.setAttribute("aria-disabled", "true");
 		el.textContent = text;
 		return el;
-	}
-
-	// Provenance is a property of the group, not of the row: the server marks
-	// the group once and every row in it inherits that mark.
-	private buildRemoteItem(
-		r: SearchResult,
-		q: string,
-		source: string,
-	): HTMLElement {
-		// A result without a destination (a transaction has no page in gnoweb)
-		// renders as a non-interactive row rather than as a dead link.
-		const item = document.createElement(r.href ? "a" : "div");
-		item.className = "b-omnisearch-item";
-		item.setAttribute("role", "option");
-		// A row with no destination (a transaction has no page in gnoweb) is
-		// announced but never reachable by the arrow keys, so it must say so
-		// rather than inflating the option count.
-		if (r.href?.startsWith("/")) {
-			(item as HTMLAnchorElement).href = r.href;
-		} else {
-			item.setAttribute("aria-disabled", "true");
-		}
-		item.setAttribute(
-			"aria-label",
-			source === "indexer" ? `from indexer: ${r.title}` : r.title,
-		);
-
-		if (source === "indexer") {
-			const tag = document.createElement("span");
-			tag.className = "b-omnisearch-tag";
-			tag.dataset.type = "i";
-			tag.textContent = "i";
-			tag.title = "From an indexer, not from the chain";
-			// The row's aria-label already says it; a bare "i" in the
-			// accessible name reads as noise.
-			tag.setAttribute("aria-hidden", "true");
-			item.appendChild(tag);
-		}
-
-		const text = document.createElement("span");
-		text.className = "b-omnisearch-text";
-		this.fillHighlighted(text, r.title, q);
-		if (r.detail) {
-			const detail = document.createElement("small");
-			detail.textContent = ` ${r.detail}`;
-			text.appendChild(detail);
-		}
-		item.appendChild(text);
-
-		if (r.href?.startsWith("/")) this.items.push(item);
-		return item;
 	}
 
 	private buildFullPageItem(q: string): HTMLElement {
@@ -450,11 +465,9 @@ export class SearchbarController extends BaseController {
 
 	// filter ranks the cached lists by relevance and keeps the top results per
 	// group. Users are derived from the first path segment of the ranked matches.
-	private filter(q: string): {
-		apps: string[];
-		packages: string[];
-		users: string[];
-	} {
+	// filter ranks the cached lists locally and emits the same shape the
+	// server returns, so one renderer serves both paths.
+	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
 		const apps = SearchbarController.rank(this.realms, needle);
 		const packages = SearchbarController.rank(this.packages, needle);
@@ -469,11 +482,19 @@ export class SearchbarController extends BaseController {
 			}
 		}
 
-		return {
-			apps: apps.slice(0, RESULTS_PER_GROUP),
-			packages: packages.slice(0, RESULTS_PER_GROUP),
-			users: users.slice(0, RESULTS_PER_GROUP),
-		};
+		const toGroup = (label: string, paths: string[]): SearchGroup => ({
+			label,
+			source: "chain",
+			results: paths
+				.slice(0, RESULTS_PER_GROUP)
+				.map((path) => ({ title: path, href: path })),
+		});
+
+		return [
+			toGroup("Apps", apps),
+			toGroup("Packages", packages),
+			toGroup("Users", users),
+		].filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
 	// rank returns the paths matching needle, most-relevant first: a match in the
@@ -507,70 +528,6 @@ export class SearchbarController extends BaseController {
 		else if (segs.some((s) => s.startsWith(needle))) score = 40;
 		else score = 20;
 		return score - segs.length;
-	}
-
-	private draw(
-		q: string,
-		groups: { apps: string[]; packages: string[]; users: string[] },
-		pageMatches: PageMatch[],
-	): void {
-		const results = this.beginDraw();
-		if (!results) return;
-
-		const gnoland = this.buildLinkSection("gno.land", q, [
-			["Apps", groups.apps],
-			["Packages", groups.packages],
-			["Users", groups.users],
-		]);
-		if (gnoland) results.appendChild(gnoland);
-
-		if (pageMatches.length > 0) {
-			results.appendChild(this.buildPageSection(q, pageMatches));
-		}
-
-		if (this.items.length === 0) {
-			results.appendChild(this.buildNotice("No results"));
-		}
-		this.endDraw(results);
-	}
-
-	private buildLinkSection(
-		title: string,
-		q: string,
-		groups: Array<[string, string[]]>,
-	): HTMLElement | null {
-		const filled = groups.filter(([, paths]) => paths.length > 0);
-		if (filled.length === 0) return null;
-
-		const section = this.sectionWithLabel(title);
-		for (const [label, paths] of filled) {
-			for (const path of paths) {
-				if (!path.startsWith("/")) continue;
-				const item = document.createElement("a");
-				item.className = "b-omnisearch-item";
-				item.href = path;
-				item.setAttribute("role", "option");
-				item.setAttribute("aria-label", `${label}: ${path}`);
-
-				const type = SearchbarController.typeOf(path);
-				if (type) {
-					const tag = document.createElement("span");
-					tag.className = "b-omnisearch-tag";
-					tag.dataset.type = type;
-					tag.textContent = type;
-					item.appendChild(tag);
-				}
-
-				const text = document.createElement("span");
-				text.className = "b-omnisearch-text";
-				this.fillHighlighted(text, path, q);
-				item.appendChild(text);
-
-				section.appendChild(item);
-				this.items.push(item);
-			}
-		}
-		return section;
 	}
 
 	private buildPageSection(q: string, matches: PageMatch[]): HTMLElement {

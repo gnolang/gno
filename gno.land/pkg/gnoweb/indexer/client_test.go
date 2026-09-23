@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -203,23 +205,82 @@ func TestTxFieldsExcludeFileBodies(t *testing.T) {
 	}
 }
 
-func TestRecentWidensWindowUntilEnough(t *testing.T) {
-	var queries []string
+func TestRecentWalksDisjointBands(t *testing.T) {
+	var bounds [][2]int
 	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		var req gqlRequest
 		_ = json.Unmarshal(body, &req)
-		queries = append(queries, req.Query)
 
 		if strings.Contains(req.Query, "latestBlockHeight") {
 			respond(w, `{"data":{"latestBlockHeight":100000}}`)
 			return
 		}
-		// Only the widest window holds a row, so the loop has to widen.
-		if strings.Contains(req.Query, "gt: 98000") {
-			respond(w, `{"data":{"getTransactions":[]}}`)
+		bounds = append(bounds, parseBounds(t, req.Query))
+		// Never enough, so the walk runs its full course.
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+
+	if _, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 5); err != nil {
+		t.Fatalf("RecentByPackage: %v", err)
+	}
+	if len(bounds) < 2 {
+		t.Fatalf("bands = %v, want at least two", bounds)
+	}
+
+	// Each band must start exactly where the previous one stopped: a window
+	// restarted from the tip re-scanned everything the earlier steps covered.
+	for i, b := range bounds {
+		gt, lt := b[0], b[1]
+		if gt >= lt {
+			t.Fatalf("band %d is empty or inverted: (%d, %d)", i, gt, lt)
+		}
+		if i == 0 {
+			continue
+		}
+		prevGt := bounds[i-1][0]
+		if lt != prevGt+1 {
+			t.Errorf("band %d starts at lt=%d, want %d — bands must be contiguous and disjoint",
+				i, lt, prevGt+1)
+		}
+	}
+
+	// The last band reaches the bottom of the chain and drops its lower
+	// bound, because `gt` would exclude block 0 where genesis packages live.
+	if last := bounds[len(bounds)-1]; last[0] != -1 {
+		t.Errorf("last band still carries gt=%d, want none at the chain bottom", last[0])
+	}
+}
+
+// parseBounds reads `block_height: { gt: N, lt: M }` back out of a query.
+// gt is -1 when the band carries no lower bound.
+func parseBounds(t *testing.T, q string) [2]int {
+	t.Helper()
+
+	gt, lt := -1, -1
+	if m := regexp.MustCompile(`gt: (\d+)`).FindStringSubmatch(q); m != nil {
+		gt, _ = strconv.Atoi(m[1])
+	}
+	m := regexp.MustCompile(`lt: (\d+)`).FindStringSubmatch(q)
+	if m == nil {
+		t.Fatalf("no lt bound in query:\n%s", q)
+	}
+	lt, _ = strconv.Atoi(m[1])
+	return [2]int{gt, lt}
+}
+
+func TestRecentStopsOnceItHasEnough(t *testing.T) {
+	queries := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":100000}}`)
 			return
 		}
+		queries++
 		respond(w, `{"data":{"getTransactions":[{"hash":"abc"}]}}`)
 	})
 
@@ -228,10 +289,10 @@ func TestRecentWidensWindowUntilEnough(t *testing.T) {
 		t.Fatalf("RecentByPackage: %v", err)
 	}
 	if len(txs) != 1 {
-		t.Fatalf("txs = %d, want 1 after widening", len(txs))
+		t.Fatalf("txs = %d, want 1", len(txs))
 	}
-	if len(queries) != 3 {
-		t.Fatalf("queries = %d (%v), want 3: height, narrow window, widened window", len(queries), queries)
+	if queries != 1 {
+		t.Fatalf("queries = %d, want 1 — the first band already had enough", queries)
 	}
 }
 

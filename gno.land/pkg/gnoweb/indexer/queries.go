@@ -233,8 +233,14 @@ const (
 	minWindowBudget = 900 * time.Millisecond
 )
 
-// recent walks DESC over a widening height window until it has `need` rows,
+// recent walks DESC over successive height bands until it has `need` rows,
 // reaches genesis, or runs out of steps.
+//
+// Bands, not widening windows: a window restarted from the tip each step, so
+// step n re-scanned everything steps 1..n-1 had already covered and
+// re-serialized the rows they had already returned. Each band picks up where
+// the previous one stopped, and since bands walk from the tip downwards the
+// concatenation is still DESC.
 func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, error) {
 	if need <= 0 {
 		return nil, nil
@@ -244,22 +250,25 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		return nil, err
 	}
 
-	var last []Tx
-	window := initialWindow
-	for step := 0; step < maxWindowSteps; step, window = step+1, window*windowGrowth {
-		// Each step re-scans the previous ones and the last covers a million
-		// blocks, so a window nobody will see costs what one they read does.
+	var (
+		found []Tx
+		upper = head + 1 // exclusive: the band below starts here
+		width = initialWindow
+	)
+	for step := 0; step < maxWindowSteps; step, width = step+1, width*windowGrowth {
+		// A band nobody will see costs the indexer what one they read does,
+		// so stop once the caller's budget cannot fit another.
 		if dl, ok := ctx.Deadline(); ok && step > 0 && time.Until(dl) < minWindowBudget {
 			break
 		}
 
-		from := max(head-window, 0)
+		lower := max(upper-1-width, 0)
 
-		// `gt` excludes its bound, so the bottom window carries none: a chain
+		// `gt` excludes its bound, so the bottom band carries none: a chain
 		// launched with packages at genesis keeps them at height 0.
-		height := fmt.Sprintf(`block_height: { gt: %d }`, from)
-		if from == 0 {
-			height = ""
+		bounds := fmt.Sprintf(`block_height: { gt: %d, lt: %d }`, lower, upper)
+		if lower == 0 {
+			bounds = fmt.Sprintf(`block_height: { lt: %d }`, upper)
 		}
 
 		var out struct {
@@ -268,25 +277,26 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		q := fmt.Sprintf(`{ getTransactions(
 			where: { %s %s }
 			order: { heightAndIndex: DESC }
-		) { %s } }`, height, where, txFields)
+		) { %s } }`, bounds, where, txFields)
 
 		err := c.Query(ctx, q, &out)
 		switch {
 		case err == nil:
 		case errors.Is(err, ErrTooLarge):
 			// The answer, not a failure: the walk is DESC, so the rows kept
-			// before the cap are the newest ones.
-			return trim(out.Txs, need), nil
+			// before the cap are the newest in this band.
+			return trim(append(found, out.Txs...), need), nil
 		default:
 			return nil, err
 		}
 
-		last = out.Txs
-		if len(last) >= need || from == 0 {
+		found = append(found, out.Txs...)
+		if len(found) >= need || lower == 0 {
 			break
 		}
+		upper = lower + 1
 	}
-	return trim(last, need), nil
+	return trim(found, need), nil
 }
 
 func trim(txs []Tx, need int) []Tx {
