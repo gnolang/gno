@@ -335,7 +335,7 @@ not as an enforced boundary.
 
 ### 5.5 `IsUser()` for payment guards
 
-When accepting native coin payment via `banker.OriginSend()`, the
+When accepting native coin payment via `unsafe.OriginSend()`, the
 caller guard must be `cur.Previous().IsUserCall()`, **not**
 `IsUser()`. `IsUser()` accepts `MsgRun` ephemeral realms, which can
 consume the origin-send envelope before calling your function,
