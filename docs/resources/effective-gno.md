@@ -847,8 +847,8 @@ Alternatives considered:
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).
 
-- **`banker.NewBanker(banker.BankerTypeOriginSend)`** — creating this banker
-  requires `PreviousRealm().PkgPath() == ""`, so it implicitly asserts EOA. But
+- **`banker.NewBanker(banker.BankerTypeOriginSend, cur)`** — creating this banker
+  requires `cur.Previous().PkgPath() == ""`, so it implicitly asserts EOA. But
   it's a side-effectful assertion; if you don't need the banker itself,
   `IsUserCall()` is clearer.
 

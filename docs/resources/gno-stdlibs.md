@@ -746,19 +746,20 @@ type Banker interface {
 ```
 
 ### NewBanker
-Returns `Banker` of the specified type.
+Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType, rlm realm) Banker`.
 
 ##### Parameters
-- `BankerType` - type of Banker to get:
+- `bt` **BankerType** - type of Banker to get:
     - `BankerTypeReadonly` - read-only access to coin balances
     - `BankerTypeOriginSend` - full access to coins sent with the transaction that calls the banker
     - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
+- `rlm` **realm** - the calling realm capability, typically the crossing function's `cur`
 
 ##### Usage
 
 ```go
-banker := banker.NewBanker(banker.<BankerType>)
+banker := banker.NewBanker(banker.<BankerType>, cur)
 ```
 ---
 
