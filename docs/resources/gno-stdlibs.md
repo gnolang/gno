@@ -746,11 +746,10 @@ type Banker interface {
 ```
 
 ### NewBanker
-Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType, rlm realm) Banker`.
+Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType, rlm realm) Banker`. For read-only access use `NewReadonlyBanker` instead. `NewBanker` panics on `BankerTypeReadonly`.
 
 ##### Parameters
 - `bt` **BankerType** - type of Banker to get:
-    - `BankerTypeReadonly` - read-only access to coin balances
     - `BankerTypeOriginSend` - full access to coins sent with the transaction that calls the banker
     - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
@@ -760,6 +759,15 @@ Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType
 
 ```go
 banker := banker.NewBanker(banker.<BankerType>, cur)
+```
+
+### NewReadonlyBanker
+Returns a read-only `Banker` for querying coin balances. Signature: `func NewReadonlyBanker() Banker`. Requires no realm capability.
+
+##### Usage
+
+```go
+banker := banker.NewReadonlyBanker()
 ```
 ---
 

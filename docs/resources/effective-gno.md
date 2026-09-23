@@ -745,7 +745,7 @@ import "gno.land/r/otherrealm"
 
 func init(cur realm) {
 	mySafeObj := NewSafeStruct(cur)
-	otherrealm.Register(mySafeObject)
+	otherrealm.Register(mySafeObj)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of

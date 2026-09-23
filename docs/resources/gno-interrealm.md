@@ -914,7 +914,7 @@ functions of other realms is still possible with MsgRun.
 
 import "chain/runtime/unsafe"
 
-func Public(_ realm) {
+func Public(cur realm) {
 
     // Returns (
     //     addr:<origin_caller>,
@@ -929,7 +929,7 @@ func Public(_ realm) {
     unsafe.CurrentRealm()
 
     // Call a crossing function of same realm with crossing
-    AnotherPublic(cross)
+    AnotherPublic(cross(cur))
 
     // Call a crossing function of same realm without crossing
     AnotherPublic(cur)

@@ -729,12 +729,12 @@ import (
     "gno.land/r/realmA"
 )
 
-func main() {
+func main(cur realm) {
     unsafe.PreviousRealm()   // g1user, pkgpath=""
     unsafe.CurrentRealm()    // g1user, pkgpath="gno.land/e/g1user/run"
 
     realmA.PublicNoncrossing()    // runs inside ephemeral, no boundary
-    realmA.PublicCrossing(cross)  // crosses into realmA
+    realmA.PublicCrossing(cross(cur))  // crosses into realmA
 }
 ```
 
