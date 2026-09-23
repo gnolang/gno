@@ -14,6 +14,8 @@ func TestIsRealmPath(t *testing.T) {
 	}{
 		{"gno.land/r/demo/users", true},
 		{"gno.land/r/hello", true},
+		{"gno.land/r/demo/users_test", false},
+		{"gno.land/r/hello_test", false},
 		{"gno.land/p/demo/users", false},
 		{"gno.land/p/hello", false},
 		{"gno.land/x", false},
@@ -27,6 +29,35 @@ func TestIsRealmPath(t *testing.T) {
 			IsRealmPath(tc.input),
 			"unexpected IsRealmPath(%q) result", tc.input,
 		)
+	}
+}
+
+// The PkgID immutable bit must agree with the path predicates for every
+// shape: ownsItsStorage reads the bit, the loaders read the predicates.
+func TestPkgIDOwnsStorage(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		input string
+		realm bool
+	}{
+		{"gno.land/r/demo/users", true},
+		{"gno.land/r/hello", true},
+		{"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", true},
+		{"gno.land/p/demo/users", false},
+		{"gno.land/p/hello_test", false},
+		{"gno.land/r/demo/users_test", false},
+		{"gno.land/r/hello_test", false},
+		{"std", false},
+		{"strings_test", false},
+		{".uverse", false},
+		{".dontcare", false},
+		{"main", false},
+	}
+	for _, tc := range tt {
+		pid := PkgIDFromPkgPath(tc.input)
+		assert.Equal(t, tc.realm, pid.IsRealmPkg(), "unexpected IsRealmPkg(%q)", tc.input)
+		assert.Equal(t, tc.realm, IsRealmPath(tc.input) || IsEphemeralPath(tc.input),
+			"path predicates disagree with the PkgID bit for %q", tc.input)
 	}
 }
 

@@ -77,3 +77,8 @@ code declare a `// PKGPATH: gno.land/r/...`.
 - No new exposure: every interposing party has a frame whose body runs in
   its own storage realm, and every such frame counts. What became transparent
   was already reachable by writing the helper as a closure.
+- The path predicates and the PkgID bit now agree on every path shape:
+  `IsRealmPath`/`IsPPackagePath` reject a `_test` suffix wherever it lands
+  (a single-segment `gno.land/r/foo_test` used to read as a realm), and
+  synthetic packages are immutable like uverse. `TestPkgIDOwnsStorage` pins
+  the agreement.

@@ -2894,7 +2894,8 @@ func (m *Machine) NumCallFrames() int {
 // code runs, but the borrow rule puts its writes in whoever called it, so it
 // is the caller's code and a call into it is not a realm boundary. The answer
 // is the PkgID flag the finalizer reads, not a path match, so the two cannot
-// drift apart.
+// drift apart. The ID is always set: NewRealm derives it from the path, and a
+// realm loaded from the store carries it on the wire and asserts it on load.
 func ownsItsStorage(r *Realm) bool {
 	return r != nil && r.ID.IsRealmPkg()
 }

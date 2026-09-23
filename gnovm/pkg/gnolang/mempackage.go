@@ -77,16 +77,14 @@ var (
 )
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state. It also excludes _test paths.
+// should persist the global state. A _test overlay is not a realm, whichever
+// segment the suffix lands in (see IsTestOverlayPath).
 func IsRealmPath(pkgPath string) bool {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "r" {
 		return false
 	}
-	if strings.HasSuffix(match.Get("REPO"), "_test") {
-		return false
-	}
-	return true
+	return !strings.HasSuffix(pkgPath, "_test")
 }
 
 // IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
@@ -137,16 +135,14 @@ func IsInternalPath(pkgPath string) (base string, isInternal bool) {
 
 // IsPPackagePath determines whether the given pkgPath is for a published Gno package.
 // It only considers "pure" those starting with gno.land/p/, so it returns false for
-// stdlib packages, realm paths, and run paths. It also excludes _test paths.
+// stdlib packages, realm paths, and run paths. A _test overlay is not a
+// package either, whichever segment the suffix lands in.
 func IsPPackagePath(pkgPath string) bool {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "p" {
 		return false
 	}
-	if strings.HasSuffix(match.Get("REPO"), "_test") {
-		return false
-	}
-	return true
+	return !strings.HasSuffix(pkgPath, "_test")
 }
 
 // IsTestOverlayPath reports whether pkgPath is a transient _test overlay

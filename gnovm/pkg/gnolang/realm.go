@@ -104,11 +104,11 @@ func PkgIDFromPkgPath(path string) PkgID {
 	if IsStdlib(path) {
 		pkgID.Hashlet[0] |= 0x80
 	}
-	// uverse is the VM-builtin runtime; treat it as immutable so the
-	// construction-time check correctly classifies uverse-declared types
-	// (gConcreteRealmType, etc.) as non-realm. _test overlays are also
-	// immutable (see IsTestOverlayPath).
-	if IsStdlib(path) || IsPPackagePath(path) || IsTestOverlayPath(path) || path == uversePkgPath {
+	// Immutable: stdlib, /p/, _test overlays, synthetic packages (uverse,
+	// .dontcare) and "main". "main" (filetests, gno run) is dot-free and so
+	// already matches IsStdlib; it is named here so that is a decision, not
+	// an accident. Reclassifying it as a transient program is a separate change.
+	if IsStdlib(path) || IsPPackagePath(path) || IsTestOverlayPath(path) || IsSyntheticPath(path) || path == "main" {
 		pkgID.Hashlet[0] |= 0x40
 	}
 	if _, isInternal := IsInternalPath(path); isInternal {
