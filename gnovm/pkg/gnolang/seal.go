@@ -77,7 +77,7 @@ func (s *sealer) sealType(t Type) {
 		ct.TypeID()
 		if len(ct.Params) > 0 {
 			// Method lookups (findEmbeddedFieldType) return the bound type and
-			// TypeID it at runtime (VerifyImplementedBy), so seal the bound's
+			// TypeID it at runtime (checkImplementedBy), so seal the bound's
 			// own typeid too, not just create it.
 			ct.BoundType().TypeID()
 		}

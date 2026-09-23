@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ .Title }}</title>
 
-  <!-- Preload -->
+  <!-- Preload. Deliberately unversioned: a preload is claimed only by a request
+       for the very same URL, and the request for a font comes from the @font-face
+       rule in main.css, which names the file with no version. Appending one here
+       leaves the preload unclaimed and fetches the font a second time. Versioning
+       a font means changing the URL main.css emits, which is a build concern. -->
   <link rel="preload" href="{{ .AssetsPath }}fonts/intervar/Intervar.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="{{ .AssetsPath }}fonts/roboto/roboto-mono-normal.woff2" as="font" type="font/woff2"
     crossorigin />
@@ -32,16 +36,16 @@
   <meta name="twitter:image" content="{{ .Image }}" />
 
   <!-- Favicon -->
-  <link rel="icon" href="{{ .AssetsPath }}/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" type="image/x-icon" />
 
   <!-- Robots meta tag -->
   <meta name="robots" content="{{ if .NoIndex }}noindex, nofollow{{ else }}index, follow{{ end }}" />
 
   <!-- chroma stylesheet -->
-  <link rel="stylesheet" href="{{ .ChromaPath }}" />
+  <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .AssetsVersion }}" />
 
   <!-- web assets -->
-  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />
+  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .AssetsVersion }}" />
 
   <!-- wallet integrations -->
   <meta name="gnoconnect:rpc" content="{{ .Remote }}" />

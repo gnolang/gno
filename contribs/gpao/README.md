@@ -15,9 +15,9 @@ sends `MsgEnablePackage`.
 2. **Extracts** `MsgAddPackage` transactions from each block.
 3. **Verifies** the submitted package off-chain — typecheck *and* preprocess,
    the same two stages the chain re-runs at `MsgEnablePackage` — under one
-   wall-clock budget. Imports resolve from the local disk store (stdlibs +
-   `examples/`) first, falling back to `vm/qfile` RPC queries against the
-   watched node for on-chain-only packages.
+   wall-clock budget. Stdlibs resolve from the local disk store; every `/p/` and
+   `/r/` import resolves from the chain, over `vm/qfile` queries against the
+   watched node, and disk is not consulted for those.
 4. If it passes **and finishes in time**, **broadcasts** a `MsgEnablePackage`
    signed by the approver key, activating the package on-chain.
 
@@ -80,7 +80,7 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--remote` | `http://127.0.0.1:26657` | RPC address of the node to watch |
+| `--remote` | `http://127.0.0.1:26657` | RPC address of the node to watch; every `/p/` and `/r/` import is resolved from it |
 | `--chain-id` | *(required)* | Chain ID used to sign approval transactions |
 | `--home` | gnokey home (`$GNOHOME`) | Keystore directory holding the approver key |
 | `--key` | *(required)* | Name or bech32 address of the approver key |
@@ -175,6 +175,20 @@ dependency not live yet, a namespace or governance param that moved, a block out
 of gas. Those clear on their own. After the last attempt the path is recorded
 and the log says a human is needed.
 
+A package importing one that is **parked**, submitted but not yet enabled, is
+left pending too, uncounted, with the import named in the reason. `vm/qfile`
+cannot see a parked package, so the type check reports the import exactly as it
+would one that was never submitted. Before the budget starts, the verifier asks
+`vm/qpkgmeta_json` about the imports the node would not serve, in path order,
+and stops at the first one that is absent: an import submitted nowhere is a
+rejection whatever else is parked. When none is absent and one is parked, a
+failed type check leaves the package pending, and an error in its own code is
+reported once the import is live. An import the chain reports live but would
+not serve is fetched once more: a package enabled during the fetch resolves,
+and one whose files `vm/qfile` cannot serve leaves the package pending as
+unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
+pending package by itself: resubmit it, or restart, once the import is live.
+
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
 transactions are rejected.
@@ -203,17 +217,21 @@ exists in the operator's `examples/` but not on the chain must not verify clean;
 if it did, the approval would fail its own type-check on chain, burning a fee and
 blaming the code for the operator's local tree.
 
-With no `--remote` there is nothing to ask, so disk answers everything. That is
-a development mode, and the verdict then describes the operator's tree rather
-than the chain.
+So the verifier requires a node: `gpao verify-one` refuses to start without
+`--remote`, and being unable to configure itself leaves the package pending
+rather than rejected. There is no mode in which disk answers for a `/p/` or
+`/r/` path — a verdict reached that way describes the operator's checkout while
+claiming to predict the validator, which is the failure this routing exists to
+remove.
 
 ## Import cache
 
-Packages fetched via `vm/qfile` are cached for the process lifetime. This is
-safe: on-chain package paths are write-once (re-adding an existing path fails),
-so a fetched package never changes. Only successful fetches are cached — a miss
-(a package still inert, or enabled later in the run) is re-queried on the next
-lookup rather than pinned to "not found".
+Each verification runs in its own child process, and the node's answers are
+cached for that run: a fetched package, because on-chain package paths are
+write-once (re-adding an existing path fails), and an answered "not found" as
+well, so the stages the budget measures never ask the node again. A transport
+fault is not cached. A missed import the chain reports live is fetched once
+more before the typecheck, since it may have been enabled after the miss.
 
 ### About `--gas-wanted`
 
