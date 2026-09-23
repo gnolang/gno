@@ -149,7 +149,15 @@ builds:
       - arm64
 
 gomod:
-  proxy: true
+  # Keep this off. Every contribs/* build below is its own Go module that resolves
+  # the monorepo through `replace github.com/gnolang/gno => ../..`, and none of them
+  # is published to the module proxy, so they cannot be built from it.
+  #
+  # goreleaser <= v2.18.1 only ever validated the root go.mod (which has no replace),
+  # so `proxy: true` was accepted and silently did nothing. v2.18.2 validates each
+  # build's own module (goreleaser/goreleaser#7096) and now fails the run outright
+  # with "cannot use the go.mod replace directive with go mod proxy enabled".
+  proxy: false
 
 archives:
   # https://goreleaser.com/customization/archive/

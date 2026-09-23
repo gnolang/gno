@@ -30,6 +30,20 @@ func AssetHandler() http.Handler {
 // assetsHash stores a global ETag representing the content of all embedded files for cache validation.
 var assetsHash string
 
+// assetsVersion stores the token stamped on asset URLs. See AssetsVersion.
+var assetsVersion string
+
+// assetsVersionLen is how much of the asset digest that token carries. A prefix
+// keeps the URL readable, and 48 bits is far more than telling two releases of
+// the same asset set apart requires.
+const assetsVersionLen = 12
+
+// AssetsVersion returns the token stamped on asset URLs so a cache keyed on the
+// URL refetches an asset once it changes. It is derived from the content of the
+// embedded assets, so it is identical across restarts and across replicas
+// running the same binary, and changes only when an asset changes.
+func AssetsVersion() string { return assetsVersion }
+
 var DefaultCacheAssetsHandler = func(next http.Handler) http.Handler {
 	return CacheHandler(assetsHash, next)
 }
@@ -56,6 +70,9 @@ func init() {
 		io.Copy(h, f)
 	}
 
+	digest := hex.EncodeToString(h.Sum(nil))
+
 	// ETag is quoted per RFC 7232
-	assetsHash = strconv.Quote(hex.EncodeToString(h.Sum(nil)))
+	assetsHash = strconv.Quote(digest)
+	assetsVersion = digest[:assetsVersionLen]
 }

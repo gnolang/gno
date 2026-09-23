@@ -15,7 +15,7 @@
 
 loadpkg gno.land/r/gnoland/wugnot
 loadpkg gno.land/r/myrlm $WORK/myrlm
-loadpkg gno.land/r/victim $WORK/victim
+loadpkg gno.land/r/vault $WORK/vault
 
 adduser user1
 
@@ -74,12 +74,12 @@ func C(cur realm) {
 	runtime.AssertOriginCall()
 }
 
--- victim/gnomod.toml --
-module = "gno.land/r/victim"
+-- vault/gnomod.toml --
+module = "gno.land/r/vault"
 gno = "0.9"
 
--- victim/victim.gno --
-package victim
+-- vault/vault.gno --
+package vault
 
 import "chain/runtime"
 
@@ -101,19 +101,19 @@ package alias
 import (
 	"gno.land/r/gnoland/wugnot"
 	"gno.land/r/myrlm"
-	"gno.land/r/victim"
+	"gno.land/r/vault"
 )
 
 type Depositor interface {
 	Deposit(cur realm)
 }
 
-var iv Depositor = victim.V
+var iv Depositor = vault.V
 
 // Every one of these is another realm's function held under this realm's name.
 var (
 	C    = myrlm.C
 	Dep  = wugnot.Deposit
 	IDep = iv.Deposit
-	EDep = victim.V.Deposit
+	EDep = vault.V.Deposit
 )
