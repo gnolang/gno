@@ -1,4 +1,5 @@
 loadpkg gno.land/p/demo/helper $WORK/p/demo/helper
+loadpkg gno.land/p/demo/hook $WORK/p/demo/hook
 loadpkg gno.land/r/runner $WORK/r/runner
 loadpkg gno.land/r/wug $WORK/r/wug
 loadpkg gno.land/r/relay $WORK/r/relay
@@ -30,12 +31,33 @@ stderr 'invalid non-origin call'
 ! gnokey maketx call -pkgpath gno.land/r/wug -func DepositViaRunner -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
+## Borrow rule #2: a /p/ method on a wug-stamped object runs as wug and fires
+## wug's stored callback. From wug itself that is wug's own code: PASS
+gnokey maketx call -pkgpath gno.land/r/wug -func FireOwn -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+## attacker: relay.Fire -> wug.Hook.Fire (/p/ method, borrowed to wug) -> wug's
+## callback. The method and callback run as wug, but relay is on the stack: PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func Fire -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
 -- p/demo/helper/helper.gno --
 package helper
 
 var Run = func(f func()) { f() }
 
 func RunNamed(f func()) { f() }
+
+-- p/demo/hook/hook.gno --
+package hook
+
+// Hook stores a callback and fires it from a /p/ method, so the method body
+// borrows the realm that constructed the Hook (borrow rule #2).
+type Hook struct{ fn func() }
+
+func New(fn func()) *Hook { return &Hook{fn: fn} }
+
+func (h *Hook) Fire() { h.fn() }
 
 -- r/runner/runner.gno --
 package runner
@@ -50,8 +72,17 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/helper"
+	"gno.land/p/demo/hook"
 	"gno.land/r/runner"
 )
+
+// Hook is constructed in wug's init, so it is stamped wug; its callback is
+// wug's own closure.
+var Hook = hook.New(func() { runtime.AssertOriginCall() })
+
+func FireOwn(cur realm) {
+	Hook.Fire()
+}
 
 func Deposit(cur realm) {
 	helper.Run(func() { runtime.AssertOriginCall() })
@@ -87,4 +118,8 @@ func Go(cur realm) {
 
 func GoNamed(cur realm) {
 	helper.RunNamed(wug.Check)
+}
+
+func Fire(cur realm) {
+	wug.Hook.Fire()
 }
