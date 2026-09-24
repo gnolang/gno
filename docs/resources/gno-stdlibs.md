@@ -626,7 +626,7 @@ coins.Add(otherCoins)
 ```go
 func AssertOriginCall()
 ```
-Panics unless the current realm was entered directly by a `MsgCall` naming it, with no other realm between the message and this call. Calls within the realm, through its own closures, or through `/p/` and stdlib helpers are transparent. Panics on `MsgRun` calls.
+Panics unless the current realm was entered directly by a `MsgCall` naming it, with no other realm between the message and this call. The realm's own closures and `/p/` or stdlib helpers are transparent; a named function of the realm between the entry function and the assertion is not, because a script can name it as a value and hand it back to the realm. Panics on `MsgRun` calls. It is not a re-entrancy lock: for the immediate caller's identity use `cur.Previous()`.
 
 ##### Usage
 ```go

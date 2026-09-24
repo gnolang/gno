@@ -56,10 +56,23 @@ that relies on `main` being transparent, so it is deferred.
 `NumCallBoundaryFrames(start)` walks from the entry frame inwards. A frame's
 body realm is the next call frame's `LastRealm` (`m.Realm` for the innermost).
 A frame counts when its body owns storage and differs from the nearest
-storage-owning realm below it; the first such frame is the entry. Named and
-literal functions are treated alike; `/p/` and stdlib bodies never count and
-never become the caller, so they are transparent in both directions; basic
-frames (for/range/switch) never count.
+storage-owning realm below it; the first such frame is the entry. It also
+counts when it runs a named function declared in the very realm its body runs
+in, above the entry. `/p/` and stdlib bodies never count and never become the
+caller, so they are transparent in both directions, and that includes a `/p/`
+method borrowed into the realm; a realm's own func literals are transparent
+inside it; basic frames (for/range/switch) never count.
+
+The named rule is the one asymmetry kept on purpose. A realm's exported named
+function is a value any `maketx run` script can name and hand back to it
+(`SetHook(cross, rlm.Withdraw)`); if the realm later invokes stored callbacks
+on a guarded path, that function runs with one boundary on the stack and the
+check cannot tell it from the realm's own control flow. A func literal inside
+the realm is reachable only through code the realm wrote, and a `/p/` body
+cannot name realm code at all, so neither gives an outsider that lever. Master
+refused every same-realm named call by counting frames; this keeps that
+refusal without the frame count, so the contract change versus master is
+exactly the regression fix: `/p/` helpers and own closures, however spelled.
 
 The chain requires exactly one boundary: the message entering the realm the
 entry check already pins to the message's path. Any other storage-owning
@@ -76,8 +89,12 @@ caller `p`: one more realm unless `p` is the entry realm itself.
 
 ## Alternatives
 
-- **Fix only the `/p/` closure case.** Leaves the named-vs-literal asymmetry
-  and the same-realm helper refusal in place.
+- **Fix only the `/p/` closure case.** Leaves master's frame count, which
+  also refused named `/p/` helpers and depended on how many frames a call
+  pushed.
+- **Treat named and literal same-realm functions alike.** Symmetric and
+  simpler, but admits the stored-callback shape above, which master refused;
+  the ergonomic gain (`myrlm.A -> myrlm.C`) is not needed for the fix.
 - **Treat a `/p/` closure as its declaring package's code.** Rejected in
   #6211: the declaring package is not where the writes land.
 - **Keep the path predicates in `ownsItsStorage`.** Two sources of truth;
@@ -88,13 +105,18 @@ caller `p`: one more realm unless `p` is the entry realm itself.
 
 ## Consequences
 
-- Contract change: a realm's own named helper, a `/p/` helper named or
-  literal, and its own closure handed to either all pass (`assertorigincall.txtar`
-  case 1 and `std14` case 3 flip).
+- Contract change: a `/p/` helper named or literal, and the realm's own
+  closure handed to it, pass (`assertorigincall_p_closure_helper.txtar`).
+  A realm's own named function between the entry and the assertion stays
+  refused, as on master (`assertorigincall.txtar` case 1, `std13`, `std14`).
 - Still refused: any other realm between the message and the assertion,
   however entered (cross-call, non-crossing call, closure handed over,
-  simulated via `SetRealm`). Pinned in `assertorigincall*.txtar`, `std16`,
-  `std19`, `r/tests/vm/tests_test.gno`.
-- No new exposure: every interposing party has a frame whose body runs in
-  its own storage realm, and every such frame counts.
+  re-entry, simulated via `SetRealm`). Pinned in `assertorigincall*.txtar`
+  (cases 29-30 are re-entry), `std16`, `std19`, `r/tests/vm/tests_test.gno`.
+- No new exposure versus master: every interposing realm has a frame whose
+  body runs in its own storage realm and counts; a foreign closure, which
+  master's count skipped, counts too. The remaining gap, shared with master,
+  is a realm's exported closure variable handed back to it; the value-based
+  guard `cur.Previous().IsUserCall()` closes it and is what payment code
+  should use. `AssertOriginCall` is not a re-entrancy lock.
 - `native.gno`'s doc comment is genesis state: `apphash_crossrealm38_test.go` re-pinned.

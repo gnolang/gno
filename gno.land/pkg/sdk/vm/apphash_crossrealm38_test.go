@@ -231,7 +231,7 @@ import (
 //
 // Bumped by the AssertOriginCall contract change (#6218): only the doc comment
 // on chain/runtime/native.gno changed, and its source bytes are genesis state.
-const expectedCrossrealm38Hash = "eb3db35da9407401efb99d6352769aaf2ad61b6419ac42a85f20179388e9de1c"
+const expectedCrossrealm38Hash = "5d50f3e1238e9a02ff72c313e701077a5b4b8b3d4fc7899ebed24055d96f36fc"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

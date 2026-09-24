@@ -14,9 +14,11 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stdout 'OK!'
 
-## honest: wug.DepositLocal -> wug.run (own named helper) -> wug's own closure: PASS
-gnokey maketx call -pkgpath gno.land/r/wug -func DepositLocal -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
-stdout 'OK!'
+## wug.DepositLocal -> wug.run (own NAMED helper) -> wug's own closure: PANIC
+## run is a value any script can name and store back into wug; a /p/ helper
+## or wug's own closure is not, so only the named same-realm frame counts.
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositLocal -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## attacker: relay.Go -> helper.Run (/p/ closure) -> wug.Check (wug's exported closure): PANIC
 ! gnokey maketx call -pkgpath gno.land/r/relay -func Go -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1

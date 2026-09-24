@@ -26,11 +26,18 @@ func aborted(f func()) bool {
 	return revive(f) != nil
 }
 
+func panicked(f func()) (r any) {
+	defer func() { r = recover() }()
+	f()
+	return nil
+}
+
 func main(cur realm) {
-	// Same-realm shapes: a callback runner and a named wrapper in this realm
-	// are this realm's own code, so neither is a call boundary.
-	callFunc(func() { Register() })
-	println("callback to own named func ok")
+	// Same-realm shape: callFunc is the entry, the closure is transparent, but
+	// Register is a named function of this realm above the entry, a value a
+	// script could hand back, so it is a boundary. Same realm, so recover.
+	println("callback to own named func panicked:",
+		panicked(func() { callFunc(func() { Register() }) }))
 
 	// Security case 1: the callback runner belongs to ANOTHER realm. The
 	// closure is ours, but it is called by subtests, so subtests is on the
@@ -48,7 +55,7 @@ func main(cur realm) {
 }
 
 // Output:
-// callback to own named func ok
+// callback to own named func panicked: invalid non-origin call
 // callback through another realm's named func panicked: true
 // second realm panicked: true
 // direct realm call ok

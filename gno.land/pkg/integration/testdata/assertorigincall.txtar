@@ -3,7 +3,7 @@
 #
 # | Num | Msg Type |      Call from      | Entry Point            | Result |
 # |-----|:--------:|:-------------------:|:----------------------:|:------:|
-# | 1   | MsgCall  | wallet direct       | myrealm.A()            | pass   |
+# | 1   | MsgCall  | wallet direct       | myrealm.A()            | PANIC  |
 # | 2   |          |                     | myrealm.B()            | pass   |
 # | 3   |          |                     | myrealm.C()            | pass   |
 # | 4   |          | through /r/foo      | myrealm.A()            | PANIC  |
@@ -46,10 +46,12 @@ gnoland start
 # The PANIC is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
 
 # Test cases
-## 1. MsgCall -> myrlm.A -> myrlm.C: PASS
-## A call within the realm is not a boundary; only another realm on the stack is.
-gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+## 1. MsgCall -> myrlm.A -> myrlm.C: PANIC
+## C is a named function of myrlm reached from inside myrlm. A script can hand
+## myrlm.C back to myrlm as a func value, so a named frame above the entry is a
+## boundary; myrlm's own closures (24-26) and /p/ helpers (28) are not.
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## 2. MsgCall -> myrlm.B: PASS
 gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1

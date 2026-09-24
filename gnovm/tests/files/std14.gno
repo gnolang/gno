@@ -12,26 +12,28 @@ func helper() {
 }
 
 func main() {
-	// Closures in the realm are transparent.
+	// Closures in the realm are transparent, at any depth.
 	func() {
-		Register()
+		runtime.AssertOriginCall()
 	}()
 	println("closure call ok")
 
 	func() {
 		func() {
-			Register()
+			runtime.AssertOriginCall()
 		}()
 	}()
 	println("nested closure call ok")
 
-	// A named function in the same realm is transparent too: nothing on the
-	// stack runs with another realm's storage authority.
+	// helper is the entry; Register is a named function of this realm above
+	// it, a value a script could hand back, so it is a boundary.
+	defer func() {
+		println("named func call panicked:", recover())
+	}()
 	helper()
-	println("named func call ok")
 }
 
 // Output:
 // closure call ok
 // nested closure call ok
-// named func call ok
+// named func call panicked: invalid non-origin call
