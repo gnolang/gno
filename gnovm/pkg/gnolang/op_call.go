@@ -126,11 +126,37 @@ func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 		return false
 	}
 	hiv, _ := prev.Base.(*HeapItemValue)
-	if !isOriginRealmHIV(hiv) {
-		return false
+	// BY IDENTITY AGAINST THE ONE PLACEHOLDER, not by what it looks like.
+	//
+	// This used to ask "is prev origin-shaped AND is its address empty?" — a
+	// description, not an identity. buildOriginRealm mints a FRESH origin realm
+	// whose address is whatever OriginCaller holds, and OriginCaller is
+	// deliberately empty wherever there is no signer: every query
+	// (withQueryEvalMachine) and the test harness. So the materialized value
+	// answered the description too, matched again at the next hop, and the
+	// rebuild cascaded down the whole call chain — handing each callee a fresh
+	// identity of its own instead of its caller's, and skipping the check below
+	// at every level, since a rebuilt cur is exempt from it. It failed open:
+	// the minted identity's Previous() reads as a direct user call, which is a
+	// wider answer than the caller's own.
+	//
+	// The preprocessor's placeholder is a single package-level value created
+	// once (gOriginRealmTV), so pointer identity answers exactly the question
+	// meant all along — "is this THE placeholder?" — and a materialized realm,
+	// being freshly allocated, can never be mistaken for it however empty its
+	// address is.
+	return hiv != nil && hiv == originPlaceholderHIV()
+}
+
+// originPlaceholderHIV returns the single HeapItemValue that the preprocessor's
+// `.cur` placeholder points at as its prev.
+func originPlaceholderHIV() *HeapItemValue {
+	pv, ok := gOriginRealmTV.V.(PointerValue)
+	if !ok {
+		return nil
 	}
-	prevSV := hiv.Value.V.(*StructValue)
-	return prevSV.Fields[0].GetString() == ""
+	hiv, _ := pv.Base.(*HeapItemValue)
+	return hiv
 }
 
 // callingCurOrOrigin returns the captured cur TypedValue of the most recent
@@ -229,15 +255,21 @@ func (m *Machine) doOpEnterCrossing() {
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
 	//
-	// PERF: O(n^2) in call-stack depth. PeekCallFrame(i) restarts from the
-	// top of m.Frames every iteration; outer loop runs until the first
-	// crossing ancestor, visiting 1+2+...+D = O(D^2) frames. Fix is to
-	// walk m.Frames once with a cursor, yielding each call frame in
-	// order, which makes the handler O(D). If/when that lands, drop
-	// OpCPUSlopeEnterCrossingQuad and switch this handler to a linear
-	// per-depth charge (OpCPUSlopeEnterCrossing * depth).
-	for i := 1; ; i++ {
-		fri := m.PeekCallFrame(i) // see PERF note above.
+	// Walk m.Frames once from top to bottom, counting only call frames,
+	// so each frame is visited at most once: O(D) in call depth. The
+	// charge is OpCPUSlopeEnterCrossing per call frame visited, applied
+	// at the accept exit. i counts one extra virtual step for the faux
+	// deployer frame, which is what the walk actually costs to discover.
+	var i int64
+	for cursor := len(m.Frames) - 1; ; cursor-- {
+		var fri *Frame
+		if cursor >= 0 {
+			fri = &m.Frames[cursor]
+			if !fri.IsCall() {
+				continue
+			}
+		}
+		i++
 		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux
@@ -250,7 +282,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// runs like cross(fn)(...) which
 			// meains fri.WithCross would have been
 			// found below.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -259,7 +291,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// everything under it is also valid.
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
-			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
+			m.incrCPU(i * OpCPUSlopeEnterCrossing)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -364,11 +396,51 @@ func (m *Machine) doOpCall() {
 	// origin placeholder. Inheriting + rebuilding here would replace
 	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
 	// trip cross's IsCurrent-strict check.
+	m.installInheritedCur(fr, fv, b)
+}
+
+// installInheritedCur gives a crossing function entered WITHOUT cross() the
+// identity its caller was running as, and refuses a value that is not the
+// caller's own.
+//
+// SHARED BY doOpCall AND doOpReturnCallDefers, and it has to be. The defer path
+// duplicates doOpCall's block setup — its own comment says so — and the copy
+// left this out, so `defer target(cur)` ran a crossing function with no identity
+// installed and no check performed, while the identical undeferred call was
+// refused. One function means the two paths cannot drift apart again.
+func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
+	// WHERE `cur` SITS IN THE BLOCK. A method's receiver occupies b.Values[0]
+	// either way, so `cur` is at 1 for every method and 0 otherwise.
+	//
+	// fv.IsMethod, NOT fr.Receiver. A METHOD EXPRESSION — `f := (*S).m; f(s,
+	// cur)` — passes the receiver as an ordinary first argument, so fr.Receiver
+	// is undefined while the block still starts with the receiver. Keying off
+	// fr.Receiver left curIdx at 0 there and read the RECEIVER as if it were
+	// the cur: a legitimate call passing its genuine cur was rejected, because
+	// a *S is not a realm and so matched no caller identity. That was invisible
+	// while ft.IsCrossing() answered false for methods and the whole block was
+	// skipped; making the block run for methods turned a silent no-op into a
+	// hard panic on valid code. IsMethod is a property of the declaration and
+	// is true for both spellings.
 	curIdx := 0
-	if !fr.Receiver.IsUndefined() {
+	if fv.IsMethod || !fr.Receiver.IsUndefined() {
 		curIdx = 1
 	}
-	if ft.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
+	// fv.IsCrossing(), NOT ft.IsCrossing(), AND THE DIFFERENCE IS A METHOD.
+	// `ft` is the UNBOUND type: for `func (s *S) M(cur realm)` its Params[0] is
+	// the receiver, so ft.IsCrossing() — which only ever looks at Params[0] —
+	// answered false for every crossing method, and this whole block was
+	// skipped. No frame identity was installed and the check below never ran;
+	// the `curIdx = 1` adjustment just above could not be reached at all.
+	// fv.Crossing is set at preprocess from the DECLARED type, which excludes
+	// the receiver, so it is already right for methods — and it is the same
+	// predicate doOpPrecall uses a few lines up for the same question.
+	if fv.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
+		// Capture the caller's live crossing cur BEFORE this frame's Cur is
+		// set: topCrossingCur skips frames whose Cur is still unset, so right
+		// now it resolves to the caller's, not ours. Used by the check below.
+		callerCur, hasCallerCur := m.topCrossingCur()
+
 		// Unwrap a heap-promoted slot: when cur is captured by a nested
 		// closure, the preprocessor heap-promotes its block slot, so
 		// b.Values[curIdx] is a *HeapItemValue wrapper rather than the
@@ -388,16 +460,79 @@ func (m *Machine) doOpCall() {
 		} else {
 			fr.Cur = *bvSlot
 		}
+		rebuilt := false
 		if m.curUsesPreprocessOrigin(&fr.Cur) {
 			fresh := NewConcreteRealm(m.Alloc, fv.PkgPath, buildOriginRealm(m))
 			fr.Cur = fresh
+			rebuilt = true
 			if isHeap {
 				hiv.Value = fresh
 			} else {
 				*bvSlot = fresh
 			}
 		}
+		// The inherited cur must be the CALLER'S OWN. A crossing function
+		// entered without cross() takes its frame Cur verbatim from the
+		// caller-supplied `cur` argument, so when there is a live crossing
+		// caller that argument has to be that caller's own current cur — the
+		// only realm value a crossing function can pass on by the name `cur`
+		// (preprocess rejects any other first arg to a no-cross crossing
+		// call). Threading `cur` unchanged, and delegating it to another
+		// realm's executor or callback, both preserve HIV identity; a `cur`
+		// that was rebound, or captured in a different frame, does not. A
+		// mismatch means this frame would run as a realm its caller is not
+		// in, and IsCurrent()/cross(rlm) would then agree with that.
+		//
+		// DO NOT DELETE THIS AS DEAD CODE. An earlier revision of this change
+		// called it "unreachable from source once the preprocess rejection is
+		// in place", and that was false within the same commit:
+		// `p := &cur; *p = cur.Previous()` matched no LHS rule, compiled
+		// cleanly, and was caught HERE and nowhere else. The RefExpr rejection
+		// closes that particular route, but the lesson is that "unreachable
+		// from source" is a claim about having enumerated every syntactic
+		// route, and it was wrong the first time it was made. This check does
+		// not depend on that enumeration being complete, which is the only
+		// reason it is worth keeping.
+		//
+		// Skipped when there is no crossing caller (a bootstrap entry:
+		// main/init/origin, a top-level MsgRun/query, or a test harness
+		// seeding cur through non-crossing frames) and when the cur was
+		// rebuilt from the preprocess-origin placeholder above.
+		if hasCallerCur && !rebuilt && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
+			// WORDED FOR THE PERSON MOST LIKELY TO SEE IT. The reachable
+			// source shape is a closure that captured `cur` in one crossing
+			// frame and is called from another, which is an ordinary mistake,
+			// so the message names that shape and the remedy rather than the
+			// invariant. This mirrors the cross() path's wording, which already
+			// says "stale capture or sibling frame" for the same underlying
+			// condition.
+			panic(fmt.Sprintf(
+				"crossing function %s.%s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
+				fv.PkgPath, fv.Name))
+		}
 	}
+}
+
+// realmMatchesCurHIV reports whether the realm value tv is the same live cur
+// as the one identified by target, by HIV identity — mirroring the comparison
+// realmIsCurrentOnMachine makes against the topmost crossing frame, including
+// the sub-token relaxation (a sub-token matches iff its minting parent does).
+func realmMatchesCurHIV(tv *TypedValue, target *HeapItemValue) bool {
+	if target == nil {
+		return false
+	}
+	recvHIV := realmHIV(tv)
+	if recvHIV == nil {
+		return false
+	}
+	checkHIV := recvHIV
+	if sv := derefRealmStruct(tv); realmSubpathOf(sv) != "" {
+		checkHIV = realmParentOf(sv)
+		if checkHIV == nil {
+			return false
+		}
+	}
+	return target == checkHIV
 }
 
 func (m *Machine) doOpCallNativeBody() {
@@ -657,6 +792,13 @@ func (m *Machine) doOpReturnCallDefers() {
 		// faster.
 		b.Values[i].AssignToBlock(arg)
 	}
+	// AFTER the parameters are in the block, because this reads `cur` out of
+	// it. A deferred crossing call takes the identity of the frame that
+	// deferred it — the same frame its arguments were evaluated in — exactly
+	// as the undeferred call would. Without this a deferred `target(cur)` ran
+	// with no identity installed and no check, while the identical undeferred
+	// call was refused.
+	m.installInheritedCur(m.LastFrame(), fv, b)
 }
 
 // ft: the (bound) func type.
@@ -677,6 +819,14 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	if isMethod == 1 {
 		args[0] = recv
 	}
+	// args is a Go local, and every PopCopyValues below writes fresh copies
+	// into it. Anchor it so a GC triggered by one argument's copy still
+	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
+	// its own headroom once per argument. The caller assigns args into the
+	// call block without allocating, so dropping the anchor on return is
+	// safe — GC only runs from Allocate. See Allocator.anchors.
+	m.Alloc.PushAnchor(args)
+	defer m.Alloc.PopAnchor()
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -691,6 +841,7 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 			// Convert variadic argument to slice argument.
 			// Convert last nvar to slice.
 			list := make([]TypedValue, nvar)
+			m.Alloc.PushAnchor(list)
 			m.PopCopyValues(list)
 			varg := m.Alloc.NewSliceFromList(list)
 			// Pop non-receiver non-varg args.
@@ -701,6 +852,9 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 				T: vart,
 				V: varg,
 			}
+			// varg is reachable through args now, which stays anchored
+			// until this function returns.
+			m.Alloc.PopAnchor()
 			return args
 		}
 	}
@@ -712,7 +866,12 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 func (m *Machine) doOpDefer() {
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	numArgs := len(ds.Call.Args)
+	// NumArgs, not len(Args): for an embedded multi-value call the single
+	// arg expression leaves len(Call.Args[0].Results) operands on the stack
+	// (nodes.go: "len(Args) or len(Args[0].Results)"). Using len(Args) here
+	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
+	// the deferred call to one of g's results instead of to f.
+	numArgs := ds.Call.NumArgs
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.

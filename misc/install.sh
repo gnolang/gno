@@ -9,8 +9,8 @@ set -eu
 REPO="gnolang/gno"
 API="https://api.github.com/repos/${REPO}"
 
-COMPONENTS="gno gnokey gnodev gnobro gnoweb"
-FULL_COMPONENTS="gno gnokey gnodev gnobro gnoweb gnoland"
+COMPONENTS="gno gnokey gnodev gnoweb"
+FULL_COMPONENTS="gno gnokey gnodev gnoweb gnoland"
 
 VERSION="${GNO_VERSION:-latest}"
 INSTALL_DIR="${GNO_INSTALL_DIR:-${HOME}/.gno/bin}"
@@ -50,7 +50,7 @@ Flags:
                     Requires go, git, and make.
   --help            show this help
 
-By default installs: gno, gnokey, gnodev, gnobro, gnoweb.
+By default installs: gno, gnokey, gnodev, gnoweb.
 Use --full to additionally install gnoland (validator node).
 To remove an installation, see misc/uninstall.sh.
 
@@ -289,8 +289,8 @@ install_gno() {
     fi
 
     # GitHub's /releases/latest resolves to whatever it ranks as "latest",
-    # which for this repo is a chain/* tag without binaries. Resolve "latest"
-    # to the most recent v* tag ourselves instead.
+    # which for this repo may be a chain/* tag. Resolve "latest" to the most
+    # recent non-prerelease v* tag ourselves instead.
     if [ "$VERSION" = "latest" ]; then
         api_get "${API}/releases?per_page=30" > "$TMP/releases.json" \
             || die "failed to fetch releases list"
@@ -307,13 +307,36 @@ install_gno() {
     VERSION="$(release_tag)"
     [ -n "$VERSION" ] || die "could not parse tag_name from release metadata"
 
-    ARCHIVE="gno_${VERSION#v}_${OS}_${ARCH}.tar.gz"
     log "installing gno ${VERSION} (${OS}/${ARCH}) into ${INSTALL_DIR}"
 
+    if [ "$FULL" = 1 ]; then
+        components="$FULL_COMPONENTS"
+    else
+        components="$COMPONENTS"
+    fi
+
+    # Two release shapes exist, and "latest" can resolve to either: the older
+    # goreleaser releases ship one tarball per platform, release-chain-tag.yml
+    # ships one binary per target plus CHECKSUMS.txt. Pick by what the release
+    # actually carries.
+    ARCHIVE="gno_${VERSION#v}_${OS}_${ARCH}.tar.gz"
     ARCHIVE_URL="$(asset_url "$ARCHIVE")"
+    if [ -n "$ARCHIVE_URL" ]; then
+        install_from_archive
+    elif [ -n "$(asset_url "gno_${OS}_${ARCH}")" ]; then
+        install_from_binaries
+    else
+        die "$VERSION has no binaries for ${OS}/${ARCH} (looked for $ARCHIVE and gno_${OS}_${ARCH})"
+    fi
+
+    log "installed into $INSTALL_DIR"
+    print_next_steps
+}
+
+# goreleaser's shape: one tar.gz per platform, plus lowercase checksums.txt.
+install_from_archive() {
     SUMS_URL="$(asset_url "checksums.txt")"
-    [ -n "$ARCHIVE_URL" ] || die "$ARCHIVE is not an asset of $VERSION (no binaries for ${OS}/${ARCH}?)"
-    [ -n "$SUMS_URL" ]    || die "checksums.txt missing from $VERSION"
+    [ -n "$SUMS_URL" ] || die "checksums.txt missing from $VERSION"
 
     log "downloading $ARCHIVE"
     # Signed CDN URLs carry short-lived query credentials; keep them out of xtrace.
@@ -335,11 +358,6 @@ install_gno() {
 
     mkdir -p "$INSTALL_DIR" "$TMP/ext"
     tar -xzf "$TMP/$ARCHIVE" -C "$TMP/ext"
-    if [ "$FULL" = 1 ]; then
-        components="$FULL_COMPONENTS"
-    else
-        components="$COMPONENTS"
-    fi
     missing=""
     installed_count=0
     for c in $components; do
@@ -347,16 +365,63 @@ install_gno() {
             missing="${missing} ${c}"
             continue
         fi
-        install -m 0755 "$TMP/ext/$c" "$INSTALL_DIR/$c"
+        install_binary "$TMP/ext/$c" "$c"
         installed_count=$((installed_count + 1))
-        # Best-effort Gatekeeper unblock on macOS; harmless on Linux.
-        [ "$OS" = "darwin" ] && xattr -d com.apple.quarantine "$INSTALL_DIR/$c" 2>/dev/null || true
     done
     [ "$installed_count" -gt 0 ] || die "no expected binaries found in $ARCHIVE (missing:${missing})"
     [ -z "$missing" ] || log "warning: expected binaries missing from $ARCHIVE:${missing}"
+}
 
-    log "installed into $INSTALL_DIR"
-    print_next_steps
+# release / chain-tag's shape: <name>_<os>_<arch> per binary, plus an uppercase
+# CHECKSUMS.txt covering all platforms. It ships the chain binaries and gnodev
+# only, so anything else is reported as missing, not fatal.
+install_from_binaries() {
+    SUMS_URL="$(asset_url "CHECKSUMS.txt")"
+    [ -n "$SUMS_URL" ] || die "CHECKSUMS.txt missing from $VERSION"
+
+    suspend_xtrace
+    SUMS_SIGNED="$(resolve_asset "$SUMS_URL")"
+    [ -n "$SUMS_SIGNED" ] || die "could not resolve CHECKSUMS.txt download URL"
+    http_get "$TMP/CHECKSUMS.txt" "$SUMS_SIGNED" || die "checksums download failed"
+    restore_xtrace
+
+    mkdir -p "$INSTALL_DIR"
+    missing=""
+    installed_count=0
+    for c in $components; do
+        name="${c}_${OS}_${ARCH}"
+        url="$(asset_url "$name")"
+        if [ -z "$url" ]; then
+            missing="${missing} ${c}"
+            continue
+        fi
+
+        log "downloading $name"
+        suspend_xtrace
+        signed="$(resolve_asset "$url")"
+        [ -n "$signed" ] || die "could not resolve $name download URL"
+        http_get "$TMP/$name" "$signed" || die "$name download failed"
+        restore_xtrace
+
+        # Tolerate a leading "./": shasum writes the path it was given.
+        expected="$(awk -v n="$name" '{ f = $2; sub(/^\.\//, "", f); if (f == n) { print $1; exit } }' "$TMP/CHECKSUMS.txt")"
+        [ -n "$expected" ] || die "$name not listed in CHECKSUMS.txt"
+        actual="$(cd "$TMP" && $SHA "$name" | awk '{print $1}')"
+        [ "$expected" = "$actual" ] || die "sha256 mismatch for $name: expected $expected, got $actual"
+
+        install_binary "$TMP/$name" "$c"
+        installed_count=$((installed_count + 1))
+    done
+    [ "$installed_count" -gt 0 ] || die "no expected binaries found in $VERSION (missing:${missing})"
+    [ -z "$missing" ] || log "warning: not published in $VERSION:${missing}"
+    log "sha256 verified"
+}
+
+install_binary() {
+    install -m 0755 "$1" "$INSTALL_DIR/$2"
+    # Best-effort Gatekeeper unblock on macOS; harmless on Linux.
+    [ "$OS" = "darwin" ] && xattr -d com.apple.quarantine "$INSTALL_DIR/$2" 2>/dev/null || true
+    return 0
 }
 
 print_next_steps() {
