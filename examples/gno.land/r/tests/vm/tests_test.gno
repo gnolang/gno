@@ -10,7 +10,7 @@ import (
 )
 
 func TestAssertOriginCall(cur realm, t *testing.T) {
-	// CallAssertOriginCall(): no panic
+	// Pretend the caller is a user: the message itself, nothing in between.
 	caller := testutils.TestAddress("caller")
 	testing.SetRealm(testing.NewUserRealm(caller))
 	tests.CallAssertOriginCall(cross(cur))
