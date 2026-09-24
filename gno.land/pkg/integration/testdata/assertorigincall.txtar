@@ -31,12 +31,15 @@
 # | 26  |          |                     | myrealm.G() (deferred) | pass   |
 # | 27  |          | through /r/foo      | myrlm's own closure    | PANIC  |
 # | 28  |          | wallet direct       | bar's closure (/p/)    | pass   |
+# | 29  |          | wallet direct       | myrlm -> hook -> myrlm | PANIC  |
+# | 30  |          | wallet direct       | myrlm -> hook -> clo   | PANIC  |
 
 # Init
 ## set up and start a new node
 loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 loadpkg gno.land/r/foo $WORK/r/foo
+loadpkg gno.land/r/hook $WORK/r/hook
 
 gnoland start
 
@@ -175,6 +178,18 @@ stderr 'invalid non-origin call'
 gnokey maketx call -pkgpath gno.land/r/myrlm -func H -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stdout 'OK!'
 
+## Re-entry: the ENTRY realm is myrlm, another realm sits on the stack, and
+## myrlm's own code runs again above it. The walk counts myrlm, hook, myrlm:
+## three boundaries, one more than any case above, and the body realm of the
+## re-entrant frame equals the entry realm's while the realm below it does not.
+## 29. MsgCall -> myrlm.I -> r/hook.Notify -> myrlm.C: PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func I -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 30. MsgCall -> myrlm.J -> r/hook.Run -> myrlm's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func J -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
 
 -- r/myrlm/rlm.gno --
 package myrlm
@@ -240,6 +255,30 @@ var Check = func() {
 func H(cur realm) {
 	bar.Check()
 }
+
+// Hook is registered by r/hook at init; myrlm cannot import it back.
+type Hook interface {
+	Notify(cur realm)
+	Run(f func())
+}
+
+var hook Hook
+
+func SetHook(cur realm, h Hook) {
+	hook = h
+}
+
+// I and J re-enter myrlm from r/hook: I by a cross-call back into C, J by
+// handing hook a closure of myrlm's own. Either way hook is on the stack.
+func I(cur realm) {
+	hook.Notify(cross(cur))
+}
+
+func J(cur realm) {
+	hook.Run(func() {
+		runtime.AssertOriginCall()
+	})
+}
 -- r/foo/foo.gno --
 package foo
 
@@ -276,6 +315,25 @@ var E = func(cur realm) {
 func G(cur realm) {
 	myrlm.Check()
 }
+-- r/hook/hook.gno --
+package hook
+
+import "gno.land/r/myrlm"
+
+type h struct{}
+
+func (h) Notify(cur realm) {
+	myrlm.C(cross(cur))
+}
+
+func (h) Run(f func()) {
+	f()
+}
+
+func init(cur realm) {
+	myrlm.SetHook(cross(cur), h{})
+}
+
 -- p/demo/bar/bar.gno --
 package bar
 
