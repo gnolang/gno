@@ -175,7 +175,7 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 // calling realm forwarded with PayCall. It is gno's msg.value. Reading consumes
 // the receipt, so a second read, a re-entrant call, or a realm reached through
 // a relay all get zero. A realm that accepts payment should credit against
-// CallSend, not against OriginSend. See docs/proposals/per-call-coin-value.md.
+// CallSend, not against OriginSend. See gnovm/adr/pr6213_per_call_coin_value.md.
 func CallSend() chain.Coins {
 	den, amt := bankerCallSend()
 	coins := make(chain.Coins, len(den))

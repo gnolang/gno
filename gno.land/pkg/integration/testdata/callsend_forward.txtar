@@ -1,7 +1,7 @@
 # Phase 2: a realm forwards a native-coin payment to another realm within one
 # message (banker.PayCall), and the payee reads exactly what it was forwarded
 # via banker.CallSend(). This is the composition the message-entry receipt alone
-# cannot express. See docs/proposals/per-call-coin-value.md.
+# cannot express. See gnovm/adr/pr6213_per_call_coin_value.md.
 
 loadpkg gno.land/r/test/wrap $WORK/wrap
 loadpkg gno.land/r/test/router $WORK/router

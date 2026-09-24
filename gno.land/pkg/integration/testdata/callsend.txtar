@@ -1,6 +1,6 @@
 # banker.CallSend() returns the message's send to the realm it was CREDITED to,
 # and zero to any realm merely relayed into. Demonstrates gno's msg.value for
-# the message-entry call. See docs/proposals/per-call-coin-value.md.
+# the message-entry call. See gnovm/adr/pr6213_per_call_coin_value.md.
 
 loadpkg gno.land/r/test/wrap $WORK/wrap
 loadpkg gno.land/r/test/relay $WORK/relay
