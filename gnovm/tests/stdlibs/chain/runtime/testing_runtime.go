@@ -65,7 +65,45 @@ func isOriginCall(m *gno.Machine) bool {
 	if entry >= len(m.Frames)-1 {
 		return false
 	}
-	return m.NumCallBoundaryFrames(start) == 1
+	if m.NumCallBoundaryFrames(start) != 1 {
+		return false
+	}
+	// A live testing.SetRealm(NewCodeRealm(p)) below the entry realm stands in
+	// for a code caller p, as relay -> entry would on chain: another realm on
+	// the stack unless p is the entry realm itself (a realm calling its own
+	// function is still an origin call). A user override changes nothing; the
+	// test function already stands in for the message.
+	entryIdx, entryPath := firstStorageRealm(m, start)
+	for i := entryIdx - 1; i >= 0; i-- {
+		override, overridden := getOverride(m, i)
+		if !overridden {
+			continue
+		}
+		return override.PkgPath == "" || override.PkgPath == entryPath
+	}
+	return true
+}
+
+// firstStorageRealm returns the index of the first call frame at or after
+// start whose body runs in a storage-owning realm, and that realm's path. The
+// caller has already established that exactly one such realm is on the stack.
+func firstStorageRealm(m *gno.Machine, start int) (int, string) {
+	for i := start; i < len(m.Frames); i++ {
+		if !m.Frames[i].IsCall() {
+			continue
+		}
+		body := m.Realm
+		for j := i + 1; j < len(m.Frames); j++ {
+			if m.Frames[j].IsCall() {
+				body = m.Frames[j].LastRealm
+				break
+			}
+		}
+		if body != nil && body.ID.IsRealmPkg() {
+			return i, body.Path
+		}
+	}
+	return len(m.Frames), ""
 }
 
 // anyLiveOverride reports whether any on-stack frame carries a live

@@ -982,7 +982,10 @@ Sets the realm for the current frame. After calling `SetRealm()`, calling
 any `PreviousRealm()` called from a function used after SetRealm will yield `rlm`.
 
 Should be used in combination with [`NewUserRealm`](#newuserrealm) &
-[`NewCodeRealm`](#newcoderealm).
+[`NewCodeRealm`](#newcoderealm). A `NewCodeRealm` naming a realm other than
+the one under test also counts as a realm between the caller and the callee
+for [`AssertOriginCall`](#assertorigincall), so the refusal path can be
+unit-tested without a second realm.
 
 #### Usage
 

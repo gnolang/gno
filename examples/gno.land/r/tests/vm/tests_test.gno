@@ -29,6 +29,19 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 	if r != nil {
 		t.Errorf("expected no abort but got %v", r)
 	}
+	// Simulated code caller from another realm: abort, as
+	// subtests -> r/tests/vm would on chain.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm/subtests"))
+	r = revive(func() {
+		if tests.CallIsOriginCall(cross(cur)) {
+			t.Errorf("expected IsOriginCall=false but got true")
+		}
+		tests.CallAssertOriginCall(cross(cur))
+	})
+	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
+		t.Error("expected abort but did not")
+	}
+	testing.SetRealm(testing.NewUserRealm(caller))
 	// Through a second realm (r/tests/vm -> r/tests/vm/subtests): abort.
 	r = revive(func() {
 		if tests.CallSubtestsIsOriginCall(cross(cur)) {

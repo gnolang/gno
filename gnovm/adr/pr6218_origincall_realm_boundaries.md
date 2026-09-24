@@ -17,15 +17,11 @@ every func literal run under another storage realm. Two problems:
   func())` were refused while the closure versions passed. The rule protected
   nothing: `/p/` cannot be a message target, and a realm's helper is its own code.
 
-The fix is in two parts, each with its own consequence.
-
 ## Decision 1: storage ownership from the PkgID bit
 
 `ownsItsStorage(r)` is `r.ID.IsRealmPkg()`, the immutable bit the finalizer
-reads to decide what to persist, instead of `IsRealmPath || IsEphemeralPath`
-on the frame's path. The origin check and persistence then share one answer
-about who owns storage, and there is no regexp per frame (native bench stays
-at 0 allocs). Realms compare by ID, since one path can be loaded twice.
+reads, instead of `IsRealmPath || IsEphemeralPath` on the path: one answer, no
+regexp per frame (0 allocs). Realms compare by ID; one path can be loaded twice.
 
 Doing so exposed that the bit and the path predicates disagreed:
 
@@ -71,16 +67,19 @@ realm on the stack is a second boundary and is refused.
 
 The test runtime shares the walk from the frame after the test function
 (`main`/`init.*`: 1, `RunTest`: 3), which stands in for the message; the
-asserting frame may not itself be the entry.
+asserting frame may not itself be the entry. A live `testing.SetRealm(
+NewCodeRealm(p))` below the entry realm stands in for a code caller `p`: one
+more realm unless `p` is the entry realm itself (a realm calling its own
+function). A user override changes nothing.
 
 ## Alternatives
 
 - **Fix only the `/p/` closure case.** Leaves the named-vs-literal asymmetry
   and the same-realm helper refusal in place.
-- **Treat a `/p/` closure as its declaring package's code.** Rejected in #6211:
-  the declaring package is not where the writes land.
-- **Keep the path predicates in `ownsItsStorage`.** Two sources of truth for
-  one question; they had already drifted on `_test` and synthetic paths.
+- **Treat a `/p/` closure as its declaring package's code.** Rejected in
+  #6211: the declaring package is not where the writes land.
+- **Keep the path predicates in `ownsItsStorage`.** Two sources of truth;
+  they had already drifted on `_test` and synthetic paths.
 - **Panic unconditionally on an unrecognized path.** Local tooling runs on
   arbitrary module paths, and a keeper panic is the wrong failure mode for a
   bug that lets a string through; fail closed on chain, loud under `debugAssert`.
@@ -88,13 +87,13 @@ asserting frame may not itself be the entry.
 
 ## Consequences
 
-- Contract change: a realm's own named helper (`myrlm.A -> myrlm.C`), a `/p/`
-  helper named or literal, and the realm's own closure handed to either all
-  pass. `assertorigincall.txtar` case 1 flips; `std14` case 3 flips.
+- Contract change: a realm's own named helper, a `/p/` helper named or
+  literal, and its own closure handed to either all pass (`assertorigincall.txtar`
+  case 1 and `std14` case 3 flip).
 - Still refused: any other realm between the message and the assertion,
-  whether entered by cross-call, by a non-crossing call into its function or
-  exported closure, or by handing it a closure to run. Pinned in
-  `assertorigincall.txtar`, `assertorigincall_p_closure_helper.txtar`, `std16`.
+  however entered (cross-call, non-crossing call, closure handed over,
+  simulated via `SetRealm`). Pinned in `assertorigincall*.txtar`, `std16`,
+  `std19`, `r/tests/vm/tests_test.gno`.
 - No new exposure: every interposing party has a frame whose body runs in
   its own storage realm, and every such frame counts.
 - `native.gno`'s doc comment is genesis state: `apphash_crossrealm38_test.go` re-pinned.
