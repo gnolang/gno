@@ -1,0 +1,27 @@
+# A funded MsgAddPackage credits its send to the new realm; init() reads it
+# through CallSend like any other entry call.
+adduser user1
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/initpay -pkgpath gno.land/r/test/initpay -send 700ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/initpay.GetInit()"
+stdout '700 int64'
+
+-- initpay/gnomod.toml --
+module = "gno.land/r/test/initpay"
+gno = "0.9"
+
+-- initpay/initpay.gno --
+package initpay
+
+import "chain/banker"
+
+var got int64
+
+func init() {
+	got = banker.CallSend().AmountOf("ugnot")
+}
+
+func GetInit() int64 { return got }

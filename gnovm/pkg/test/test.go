@@ -70,6 +70,7 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 		// the entry realm's address (keeper.go).
 		OriginSendRecipient:     pkgAddr,
 		OriginSendRecipientPath: pkgPath,
+		CallCredits:             stdlibs.NewCallCredits(pkgPath, send),
 		Banker:                  banker,
 		Params:                  newTestParams(),
 		EventLogger:             sdk.NewEventLogger(),

@@ -5,6 +5,7 @@ package stdlibs
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // These types are aliases to the equivalent types in internal/execctx.
@@ -26,10 +27,10 @@ type (
 	CallCredits = execctx.CallCredits
 )
 
-// NewCallCredits allocates a per-message realm->realm payment ledger. The
-// keeper calls it once per message when building the ExecContext.
-func NewCallCredits() *execctx.CallCredits {
-	return execctx.NewCallCredits()
+// NewCallCredits allocates the per-message call-credit ledger, seeded with
+// the message send credited to payee (nothing for a zero send).
+func NewCallCredits(payee string, send std.Coins) *execctx.CallCredits {
+	return execctx.NewCallCredits(payee, send)
 }
 
 // GetContext returns the execution context.

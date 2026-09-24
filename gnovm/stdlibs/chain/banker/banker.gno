@@ -170,16 +170,12 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	return b
 }
 
-// CallSend returns the coins this call delivered to the current realm — gno's
-// msg.value for the message-entry call.
-//
-// Unlike OriginSend, which returns the transaction-wide envelope to any realm
-// in the call chain (the tx-origin payment twin), CallSend answers only to the
-// realm the coins were actually credited to. A realm reached through a relay is
-// not the recipient and receives nothing, so it cannot mint or credit against a
-// payment it did not receive. A realm that accepts payment should read CallSend
-// rather than OriginSend + AssertOriginCall. See
-// docs/proposals/per-call-coin-value.md.
+// CallSend returns the coins delivered to the current realm on this call:
+// the message send when the user entered this realm directly, or what the
+// calling realm forwarded with PayCall. It is gno's msg.value. Reading consumes
+// the receipt, so a second read, a re-entrant call, or a realm reached through
+// a relay all get zero. A realm that accepts payment should credit against
+// CallSend, not against OriginSend. See docs/proposals/per-call-coin-value.md.
 func CallSend() chain.Coins {
 	den, amt := bankerCallSend()
 	coins := make(chain.Coins, len(den))
@@ -189,30 +185,25 @@ func CallSend() chain.Coins {
 	return coins
 }
 
-// PayCall forwards coins from the caller's realm to another realm and records
-// them as a per-call credit, so the payee can read exactly what it was paid via
-// CallSend() — even though the message did not name it. Use it to pay a realm
-// you call within the same transaction (the phase-2 forwarding path that makes
-// native-coin composition possible). See docs/proposals/per-call-coin-value.md.
+// PayCall forwards amt from the current realm's address to the realm at
+// toPkgPath and records the forward, so that realm reads exactly amt via
+// CallSend when this realm crosses into it next. Only that (payer, payee) pair
+// can read it, and the message fails if nobody does, so a forward to a realm
+// you do not then call is an error, not a lost payment.
 //
-// rlm must be the live current realm; the coins move from its address, so a
-// realm can only forward its own balance. toPkgPath is the realm being paid —
-// the one it is about to cross into. rlm is a capability argument (like
-// NewBanker's rlm), not the first parameter: a realm-first signature is the
-// crossing-function form, which this non-realm package may not declare.
+// rlm must be the live current realm: it authorizes spending that realm's own
+// balance, like a BankerTypeRealmSend banker.
 func PayCall(toPkgPath string, rlm realm, amt chain.Coins) {
-	// Same authority as a BankerTypeRealmSend banker: holding the live realm is
-	// what lets it spend from its own address.
 	if !rlm.IsCurrent() {
 		panic("PayCall can only be called for the current realm")
 	}
 	denoms, amounts := expandNative(amt)
-	bankerPayCall(string(rlm.Address()), toPkgPath, denoms, amounts)
+	bankerPayCall(string(rlm.Address()), rlm.PkgPath(), toPkgPath, denoms, amounts)
 }
 
 // These are native bindings to the banker's functions.
 func bankerCallSend() (denoms []string, amounts []int64)
-func bankerPayCall(from string, toPkgPath string, denoms []string, amounts []int64)
+func bankerPayCall(from, fromPkgPath, toPkgPath string, denoms []string, amounts []int64)
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)

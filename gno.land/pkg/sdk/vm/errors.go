@@ -53,6 +53,9 @@ type (
 	// no realm identity, so it can never obtain a banker and can never
 	// spend from its own address — the coins would be lost for good.
 	UnspendableSendError struct{ abciError }
+	// UnclaimedPayCallError is returned when a banker.PayCall forward was
+	// never read by its payee: the coins moved, no realm recorded them.
+	UnclaimedPayCallError struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
@@ -65,6 +68,9 @@ func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
 func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e ObjectNotFoundError) Error() string   { return "object not found" }
 func (e TypeCheckError) Error() string        { return "invalid gno package; type check failed" }
+func (e UnclaimedPayCallError) Error() string {
+	return "coins were forwarded with PayCall but the payee never read them"
+}
 func (e UnobservedSendError) Error() string {
 	return "coins were sent but the called function never read them"
 }
@@ -118,6 +124,10 @@ func ErrExportDepthExceeded(msg string) error {
 
 func ErrUnobservedSend(msg string) error {
 	return errors.Wrap(UnobservedSendError{}, msg)
+}
+
+func ErrUnclaimedPayCall(msg string) error {
+	return errors.Wrap(UnclaimedPayCallError{}, msg)
 }
 
 func ErrUnspendableSend(msg string) error {

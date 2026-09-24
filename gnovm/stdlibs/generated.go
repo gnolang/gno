@@ -202,8 +202,9 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
 			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("p2"), Type: gno.X("[]string")},
-			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p4"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
@@ -214,10 +215,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 				p1  string
 				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []string
+				p2  string
 				rp2 = reflect.ValueOf(&p2).Elem()
-				p3  []int64
+				p3  []string
 				rp3 = reflect.ValueOf(&p3).Elem()
+				p4  []int64
+				rp4 = reflect.ValueOf(&p4).Elem()
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
@@ -232,10 +235,13 @@ var nativeFuncs = [...]NativeFunc{
 			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
 			tv3.DeepFill(m.Store)
 			gno.Gno2GoValue(tv3, rp3)
+			tv4 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV
+			tv4.DeepFill(m.Store)
+			gno.Gno2GoValue(tv4, rp4)
 
 			libs_chain_banker.X_bankerPayCall(
 				m,
-				p0, p1, p2, p3)
+				p0, p1, p2, p3, p4)
 		},
 	},
 	{

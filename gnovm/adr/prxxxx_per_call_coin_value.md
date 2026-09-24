@@ -34,42 +34,30 @@ message — fail-closed). Nothing exposed that fact to realm code.
 
 ## Decision
 
-Add `banker.CallSend()`: it returns the message's send **only to the realm the
-keeper credited** (`m.Realm.Path == OriginSendRecipientPath`), and nothing to any
-other realm. It reads no frames.
+A per-message **call-credit ledger** on `ExecContext`, keyed by `(payer, payee)`
+package path and consumed on read, behind two natives:
 
-This makes "what did I receive in this call" a direct, credited, non-forgeable
-fact:
+- `banker.CallSend()` takes the entry keyed by (`cur.Previous()`, `cur`), using
+  the presented identities (`execctx.GetRealm`, which agrees with `cur`). The
+  keeper seeds the message send as (user `""`, entry realm) for `MsgCall` and a
+  funded `MsgAddPackage`. A relayed realm, a re-entrant call back into the entry
+  realm, or a second read in the same call all take nothing. Reading marks the
+  envelope observed for the unobserved-send guard.
+- `banker.PayCall(toPkgPath, rlm, coins)` moves coins from the live current
+  realm's address to the payee's and records (payer, payee). Only the payee,
+  entered by that payer, can read it. The keeper fails the message if a forward
+  is never read (`ErrUnclaimedPayCall`, deterministic text: the ledger is an
+  ordered slice, never a ranged map). `toPkgPath` must be a realm path; a
+  context with no ledger refuses before any coins move.
 
-- A realm reached by any interposition — relay, closure, func-value alias, bound
-  or interface method, or a shape no rule enumerates — is not the credited
-  recipient, so `CallSend` reads zero and the realm mints/credits nothing. It
-  closes *both* of #6211's blind spots for a payment realm without reasoning
-  about the stack at all, because it keys on *who was paid*, not on call shape.
-- The receipt is atomic and credited: the keeper's transfer and the recorded
-  recipient are one message-level fact; `CallSend` reports exactly that, gated to
-  the payee.
+`CallSend()` is call-scoped, not origin-scoped, so one receipt serves both an
+EOA payment and a realm forward; a gated `OriginSend` could not host forwarding.
+No VM-core, op_call, or grammar change; `NumCallFrames` is untouched.
 
-A standalone showcase realm
-(`gno.land/pkg/integration/testdata/callsend.txtar`) demonstrates it: a payment
-realm reads the credited send on a direct call, and a realm reached through an
-intermediary reads zero. This PR changes no deployed realm; migrating a genesis
-realm such as `wugnot` to `CallSend` is left as a follow-up (its own fix ships
-via #6211).
-
-Phase 2 — realm → realm forwarding — is implemented on the same primitive:
-`banker.PayCall(toPkgPath, rlm, coins)` forwards coins from the caller's realm
-to another realm and records a per-message credit for the payee, which the payee
-reads (and consumes) through the *same* `CallSend()`. A per-message credit
-ledger lives on `ExecContext` (allocated by the keeper); no VM-core, op_call, or
-grammar change. This is why `CallSend` is deliberately **call-scoped** ("what
-did this call deliver to me") rather than origin-scoped: the one receipt answers
-for both an EOA payment (the message) and a realm forward (`PayCall`). Gating
-the origin-scoped `OriginSend` instead would close the vulnerability but could
-not host forwarding — coins another realm forwarded are not an "origin send".
-
-`NumCallFrames` is untouched: it also feeds the `getRealm` gas model, and this
-change needs no frame reasoning at all.
+Why consume and key by payer: an unconsumed, path-only receipt let a re-entrant
+call mint twice against one envelope, and a path-only forward credit went to
+whichever realm entered the payee next. Both were demonstrated on this branch
+before the ledger took this shape.
 
 ## Relationship to #6211
 
@@ -94,13 +82,13 @@ payment primitive.
 
 ## Consequences
 
-- A payment realm can mint/credit against `CallSend()` with no origin check; the
-  guarantee no longer depends on frame counting.
-- This PR changes no deployed realm. The showcase realm reads the credited send
-  on a direct call and zero when reached through an intermediary; a forwarding
-  router also reads zero until phase 2 — it mints nothing.
-- New native surface: gas row added (mirrors `originSend`, recalibrate with the
-  table on the reference machine); `generated.go` binding added by hand and
-  should be confirmed against `go generate`.
-- Rests on the same VM fact #6211 uses: an aliased/relayed body runs under its
-  declaring realm while `OriginSendRecipientPath` stays the message-named path.
+- A payment realm credits against `CallSend()` with no origin check; the
+  guarantee rests on a consumed, payer-keyed ledger entry, not frame counting.
+- A router that pays a realm and does not then cross into it gets an error, not
+  a lost payment. Internal callouts (`callRealmBool`) carry no ledger, so a
+  `PayCall` there fails closed. `gnovm/pkg/test.Context` seeds the ledger so
+  `gno test` matches the chain.
+- New natives shift the stdlib state hash (pinned app-hash updated); gas rows
+  mirror `originSend`/`bankerSendCoins` and need recalibration.
+- Tests: `callsend.txtar` (relay reads zero), `callsend_forward.txtar`,
+  `callsend_reentrant.txtar`, `callsend_unclaimed.txtar`, `callsend_addpkg.txtar`.

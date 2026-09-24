@@ -1,6 +1,9 @@
 package execctx
 
 import (
+	"slices"
+	"strings"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -98,50 +101,85 @@ type ExecContext struct {
 	Params             ParamsInterface
 	EventLogger        *sdk.EventLogger
 	SessionAccount     std.DelegatedAccount // nil for master-key txs
-	// CallCredits records within-message realm->realm payments made via
-	// banker.PayCall, keyed by the payee's package path, so the payee can read
-	// what a caller just forwarded it through banker.CallSend — even though it
-	// is not the realm the message named. This is the phase-2 forwarding path
-	// (docs/proposals/per-call-coin-value.md): it lets an intermediary realm
-	// (a router) pay another realm within one atomic message, with the payee
-	// able to attribute exactly what it received.
-	//
-	// Allocated once per message (see the keeper), so the shared map survives
-	// GetContext's value copy. Nil in envelope-less contexts, which is
-	// fail-closed: no credit can be recorded or read.
+	// CallCredits is the per-message ledger of coins delivered to a realm by a
+	// call: the message send (seeded by the keeper) and banker.PayCall forwards.
+	// Keyed by (payer, payee) and consumed on read by banker.CallSend. Nil in
+	// contexts that cannot carry a send: reads see zero, PayCall refuses.
 	CallCredits *CallCredits
 }
 
+// callCredit is one delivery. The message send has payer "" (the user); the
+// unclaimed guard skips it, since the keeper already handles that envelope.
+type callCredit struct {
+	payer, payee string
+	amt          std.Coins
+}
+
 // CallCredits is a per-message ledger of realm->realm payments; see the
-// ExecContext field of the same name.
+// ExecContext field of the same name. A slice, not a map: it is small, and the
+// unclaimed report must come out in a deterministic order.
 type CallCredits struct {
-	byPayee map[string]std.Coins
+	entries []callCredit
 }
 
-// NewCallCredits allocates an empty ledger. The keeper calls this once when it
-// builds a message's ExecContext.
-func NewCallCredits() *CallCredits {
-	return &CallCredits{byPayee: map[string]std.Coins{}}
+// NewCallCredits allocates a ledger seeded with the message send credited to
+// payee, from the user (payer ""). A zero send seeds nothing.
+func NewCallCredits(payee string, send std.Coins) *CallCredits {
+	c := &CallCredits{}
+	c.SeedEnvelope(payee, send)
+	return c
 }
 
-// Credit adds amt to the running credit for payeePath. No-op on a nil ledger
-// (an envelope-less context), which fails closed.
-func (c *CallCredits) Credit(payeePath string, amt std.Coins) {
-	if c == nil {
+// SeedEnvelope replaces the message-send entry: payee received send from the
+// user. The test harness calls it when a test re-points the envelope.
+func (c *CallCredits) SeedEnvelope(payee string, send std.Coins) {
+	c.entries = slices.DeleteFunc(c.entries, func(e callCredit) bool { return e.payer == "" })
+	if payee != "" && !send.IsZero() {
+		c.entries = append(c.entries, callCredit{payee: payee, amt: send})
+	}
+}
+
+// Credit records that payer forwarded amt to payee (banker.PayCall).
+func (c *CallCredits) Credit(payer, payee string, amt std.Coins) {
+	if amt.IsZero() {
 		return
 	}
-	c.byPayee[payeePath] = c.byPayee[payeePath].Add(amt)
+	c.entries = append(c.entries, callCredit{payer: payer, payee: payee, amt: amt})
 }
 
-// Take returns and clears the credit recorded for payeePath. Reading consumes
-// it, so a payee cannot count the same forwarded payment twice.
-func (c *CallCredits) Take(payeePath string) std.Coins {
+// Take returns and removes everything payer delivered to payee. Reading
+// consumes, so a re-entrant or repeated read sees zero. Nil-safe.
+func (c *CallCredits) Take(payer, payee string) std.Coins {
 	if c == nil {
 		return nil
 	}
-	amt := c.byPayee[payeePath]
-	delete(c.byPayee, payeePath)
-	return amt
+	var sum std.Coins
+	c.entries = slices.DeleteFunc(c.entries, func(e callCredit) bool {
+		if e.payer != payer || e.payee != payee {
+			return false
+		}
+		sum = sum.Add(e.amt)
+		return true
+	})
+	return sum
+}
+
+// Unclaimed describes the PayCall forwards nobody read, in the order made,
+// or "" if none. Nil-safe.
+func (c *CallCredits) Unclaimed() string {
+	if c == nil {
+		return ""
+	}
+	var out []string
+	for _, e := range c.entries {
+		if e.payer != "" {
+			out = append(out, e.amt.String()+" forwarded by "+e.payer+" to "+e.payee)
+		}
+	}
+	if len(out) == 0 {
+		return ""
+	}
+	return strings.Join(out, "; ") + ": never read by the payee"
 }
 
 // MarkOriginSendObservedBy records that the realm at realmPath made the

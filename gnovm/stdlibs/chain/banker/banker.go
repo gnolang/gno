@@ -132,52 +132,37 @@ func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amo
 	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
-// X_bankerCallSend returns the coins the message delivered to the CURRENT
-// realm, or nothing if this realm is not the one the envelope was credited to.
-//
-// This is gno's msg.value for the message-entry call. Unlike unsafe.OriginSend
-// (the tx-wide, tx-origin envelope that ANY realm in the chain can read),
-// CallSend is credited: it answers only to the realm the coins were actually
-// paid to (OriginSendRecipientPath, set by the keeper alongside the transfer).
-// A relayed call is not the recipient, so it sees zero and cannot mint against
-// coins it never received. See docs/proposals/per-call-coin-value.md.
+// X_bankerCallSend is the native for CallSend; see banker.gno. Payer and payee
+// are the presented identities (what cur.Previous() and cur report), not the
+// innermost frame, so a same-realm helper reads the same receipt.
 func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	ctx := execctx.GetContext(m)
-	var realmPath string
-	if m.Realm != nil {
-		realmPath = m.Realm.Path
-	}
-	// Phase 2: coins a caller forwarded to me this message (banker.PayCall)
-	// take precedence — that is what was credited to me on this call. Reading
-	// consumes it, so the same forwarded payment cannot be counted twice.
-	if c := ctx.CallCredits.Take(realmPath); len(c) > 0 {
-		return ExpandCoins(c)
-	}
-	if realmPath == "" || realmPath != ctx.OriginSendRecipientPath {
-		return nil, nil
-	}
-	// The recipient reading its own delivery makes the envelope observed,
-	// satisfying MsgCall's unobserved-send guard, exactly as OriginSend does.
-	ctx.MarkOriginSendObservedBy(realmPath)
-	return ExpandCoins(ctx.OriginSend)
+	_, payee := execctx.CurrentRealm(m)
+	_, payer := execctx.GetRealm(m, 1)
+	// Reading is what makes the entry realm payable (the unobserved-send
+	// guard), whether or not anything is left to read — as unsafe.OriginSend.
+	ctx.MarkOriginSendObservedBy(payee)
+	return ExpandCoins(ctx.CallCredits.Take(payer, payee))
 }
 
-// X_bankerPayCall forwards coins from the caller's realm (fromS) to toPkgPath's
-// realm and records them as a per-call credit, so the payee reads exactly this
-// via CallSend(). This is the phase-2 forwarding path: it lets a realm pay
-// another realm within one message, attributably, which is what native-coin
-// composition (routers, vaults) needs. See docs/proposals/per-call-coin-value.md.
-func X_bankerPayCall(m *gno.Machine, fromS string, toPkgPath string, denoms []string, amounts []int64) {
+// X_bankerPayCall is the native for PayCall; see banker.gno. fromS and fromPath
+// are pinned to the live rlm there, so this spends only the caller's balance.
+func X_bankerPayCall(m *gno.Machine, fromS, fromPath, toPkgPath string, denoms []string, amounts []int64) {
 	ctx := execctx.GetContext(m)
+	if ctx.CallCredits == nil {
+		// Refuse before moving anything: a forward nobody can read is a loss.
+		m.PanicString("PayCall is not available in this context")
+		return
+	}
+	if !gno.IsRealmPath(toPkgPath) {
+		m.PanicString(fmt.Sprintf("PayCall: %q is not a realm path", toPkgPath))
+		return
+	}
 	amt := CompactCoins(denoms, amounts)
 	from := crypto.Bech32Address(fromS)
 	to := gno.DerivePkgBech32Addr(toPkgPath)
-	// fromS is the caller realm's own address (pinned in banker.gno's PayCall
-	// via cur.Address()), so this moves the realm's own coins — RealmSend
-	// authority — and cannot spend another realm's balance.
 	ctx.Banker.SendCoins(from, to, amt)
-	// Record so only the intended payee can read it back, exactly once.
-	ctx.CallCredits.Credit(toPkgPath, amt)
+	ctx.CallCredits.Credit(fromPath, toPkgPath, amt)
 }
 
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {

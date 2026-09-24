@@ -22,27 +22,29 @@ could not.
 
 ## Implementation status
 
-- **Phase 1 (done): the message-entry receipt.** `banker.CallSend()` returns the
-  transaction's send *only to the realm the keeper credited it to*
-  (`OriginSendRecipientPath`), and zero to any relayed realm. Small,
-  self-contained native — the keeper already moves the coins and records the
-  recipient. Files: `chain/banker/banker.go` (`X_bankerCallSend`), `banker.gno`
-  (`CallSend`), `generated.go` binding, `native_gas.go` row; test:
-  `gno.land/pkg/integration/testdata/callsend.txtar`.
-- **Phase 2 (done): realm → realm forwarding.** `banker.PayCall(toPkgPath, rlm,
-  coins)` forwards coins from the caller's realm to another realm and records a
-  per-message credit for the payee; the payee reads (and consumes) it through
-  the *same* `CallSend()`. This lets a realm pay another realm it calls within
-  one atomic message, attributably — the composition the message-entry receipt
-  alone can't express. Kept in the banker/execctx layer: a per-message credit
-  ledger on `ExecContext` (allocated by the keeper), one native, and the
-  extended `CallSend`. **No VM-core, op_call, or grammar change.** Files:
-  `execctx/context.go` (`CallCredits`), `keeper.go` (ledger init), `banker.go`
-  (`X_bankerPayCall`), `banker.gno` (`PayCall`); test:
-  `gno.land/pkg/integration/testdata/callsend_forward.txtar`.
+Both phases are implemented on one primitive: a per-message **call-credit
+ledger** on `ExecContext`, keyed by `(payer, payee)` package path and consumed
+on read. No VM-core, op_call, or grammar change.
 
-Phase 1 answers "what did the message pay me"; phase 2 adds "and what did a
-realm forward me on this call" — one call-scoped receipt for both.
+- **Phase 1: the message-entry receipt.** The keeper seeds the ledger with the
+  message send, credited to the entry realm from the user (payer `""`), for
+  `MsgCall` and a funded `MsgAddPackage`. `banker.CallSend()` takes the entry
+  keyed by (`cur.Previous()`, `cur`), so the entry realm entered by the user
+  reads the send once; a relayed realm, a re-entrant call, or a second read in
+  the same call reads zero. Reading marks the envelope observed for the
+  unobserved-send guard, as `unsafe.OriginSend` does.
+- **Phase 2: realm → realm forwarding.** `banker.PayCall(toPkgPath, rlm, coins)`
+  moves coins from the current realm's address to the payee's and records
+  (payer = current realm, payee) on the ledger. Only the payee, entered by that
+  payer, reads it, through the same `CallSend()`. `toPkgPath` must be a realm
+  path. The keeper fails the message if a forward
+  is never read — the coins moved, but no realm recorded them — mirroring the
+  unobserved-send guard. Contexts without a ledger (queries, internal callouts)
+  refuse `PayCall` before any coins move.
+
+Files: `execctx/context.go` (`CallCredits`), `chain/banker/banker.{go,gno}`,
+`keeper.go` / `keeper_inert.go` (seeding, unclaimed guard), `native_gas.go`.
+Tests: `gno.land/pkg/integration/testdata/callsend*.txtar`.
 
 ## Summary
 
@@ -180,10 +182,15 @@ func SwapAndWrap(cur realm, ...) {
 - **Receipt is non-forgeable and atomic.** Value moves and its acknowledgment
   are the same event; no caller or intermediary can report coins it did not
   deliver.
-- **This is receipt/attribution safety, not blanket payment safety.** Reentrancy
-  is orthogonal (Ethereum has `msg.value` and still has reentrancy). Callees
-  keep the checks-effects-interactions discipline; this RFC does not change
-  reentrancy exposure.
+- **Single-read, payer-keyed receipt.** The ledger entry is consumed by the
+  first read and only matches the pair (`cur.Previous()`, `cur`). So a callee
+  that calls out before finishing cannot be made to count the same delivery
+  twice by a re-entrant call, and a payee reached by a realm other than the one
+  that paid it reads zero rather than crediting the wrong caller. Reentrancy
+  remains otherwise orthogonal; callees keep checks-effects-interactions.
+- **No silent loss.** A `PayCall` nobody reads fails the message; a `PayCall`
+  in a context with no ledger, or to a non-realm path, panics before the
+  transfer.
 - **Interaction with readonly/borrow rules** must be specified: a value-carrying
   call is a state mutation (a transfer) and must be rejected in read-only
   contexts, like any other write.

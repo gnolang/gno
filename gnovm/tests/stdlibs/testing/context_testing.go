@@ -2,6 +2,7 @@ package testing
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -154,6 +155,11 @@ func X_setContext(
 		ctx.OriginSendRecipient = crypto.Bech32Address(currRealmAddr)
 		ctx.OriginSendRecipientPath = currRealmPkgPath
 	}
+	// The CallSend receipt follows the envelope.
+	if ctx.CallCredits == nil {
+		ctx.CallCredits = new(stdlibs.CallCredits)
+	}
+	ctx.CallCredits.SeedEnvelope(ctx.OriginSendRecipientPath, ctx.OriginSend)
 
 	m.Context = ctx
 }

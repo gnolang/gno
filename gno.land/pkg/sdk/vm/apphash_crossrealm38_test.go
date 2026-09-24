@@ -228,7 +228,7 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "9e0c61d9f91c26c89b8d456183b2ab67c2cdef2584efe0777663233795c65225"
+const expectedCrossrealm38Hash = "40ac2b0e1339e49dac73384d719cb2200356d4a65d8897bece864a6dcd88e756"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
