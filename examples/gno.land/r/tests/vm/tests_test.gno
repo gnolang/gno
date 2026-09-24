@@ -29,8 +29,9 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 	if r != nil {
 		t.Errorf("expected no abort but got %v", r)
 	}
-	// Simulated code caller from another realm: abort, as
-	// subtests -> r/tests/vm would on chain.
+	// Pretend the caller is realm subtests. A realm cannot originate a
+	// message, so on chain this shape is user -> subtests -> r/tests/vm,
+	// with subtests in between: abort.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm/subtests"))
 	r = revive(func() {
 		if tests.CallIsOriginCall(cross(cur)) {
