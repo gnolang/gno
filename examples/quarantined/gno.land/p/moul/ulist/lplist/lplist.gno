@@ -58,7 +58,7 @@ package lplist
 import (
 	"errors"
 
-	"gno.land/p/moul/ulist"
+	"gno.land/p/moul/ulist/v0"
 )
 
 // MigratorFn is a function type that lazily converts values from source to target

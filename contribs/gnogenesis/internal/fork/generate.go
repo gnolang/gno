@@ -465,29 +465,24 @@ func buildHardforkGenesis(
 		appState.GasReplayMode = "source"
 	}
 
-	// Source chains generated before the gas-storage refactor (PR #5415)
-	// have no min_*/fixed_*_depth_100 or iter_next_cost_flat fields in
-	// vm.params. When deserialized into the post-refactor Params struct
-	// these default to 0, which fails Validate() (iter_next_cost_flat must
-	// be > 0). Populate from code defaults when every field is unset, so
-	// the resulting genesis boots on a post-refactor node without manual
-	// patching. Do not overwrite if any value is already set — an operator
-	// may have intentionally tuned these.
-	if appState.VM.Params.IterNextCostFlat == 0 &&
-		appState.VM.Params.MinGetReadDepth100 == 0 &&
-		appState.VM.Params.MinSetReadDepth100 == 0 &&
-		appState.VM.Params.MinWriteDepth100 == 0 &&
-		appState.VM.Params.FixedGetReadDepth100 == 0 &&
-		appState.VM.Params.FixedSetReadDepth100 == 0 &&
-		appState.VM.Params.FixedWriteDepth100 == 0 {
-		defaults := vm.DefaultParams()
-		appState.VM.Params.MinGetReadDepth100 = defaults.MinGetReadDepth100
-		appState.VM.Params.MinSetReadDepth100 = defaults.MinSetReadDepth100
-		appState.VM.Params.MinWriteDepth100 = defaults.MinWriteDepth100
-		appState.VM.Params.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
-		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
-		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
-		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
+	// Rewrite untuned depth/iteration gas params to the current defaults.
+	// A source genesis matching an era fingerprint EXACTLY is untuned by
+	// definition; any deviation means an operator tuned the values, which
+	// carry over verbatim. See untunedDepthFingerprints for the eras.
+	for _, fp := range untunedDepthFingerprints {
+		if depthParamsMatch(appState.VM.Params, fp) {
+			applyDefaultDepthParams(&appState.VM.Params)
+			break
+		}
+	}
+
+	// preprocess_gas_per_byte (PR #5892) is not covered by the depth-param
+	// legacy fill above (fingerprint-matched), so a source chain that
+	// predates #5892 leaves it 0 — which Validate() rejects (must be > 0).
+	// Fill it independently so the emitted genesis is self-contained
+	// rather than relying on the node's applyLegacyDefaults tolerance.
+	if appState.VM.Params.PreprocessGasPerByte == 0 {
+		appState.VM.Params.PreprocessGasPerByte = vm.DefaultParams().PreprocessGasPerByte
 	}
 
 	// Tag base-genesis txs (SourceBase) before the historical stream is
@@ -679,4 +674,53 @@ func gnoPackageNameFromFileBody(_ string, body string) string {
 		}
 	}
 	return ""
+}
+
+// untunedDepthFingerprints are the exact depth/iteration gas params (only
+// those seven fields are compared) that identify an UNTUNED source genesis of
+// each historical era. A new era fingerprint must be appended whenever the
+// vm defaults change (see the note on the defaults in
+// gno.land/pkg/sdk/vm/params.go).
+var untunedDepthFingerprints = []vm.Params{
+	// Pre-#5415 (gas-storage refactor): the fields did not exist; they
+	// deserialize to zero, which fails Validate() (iter_next_cost_flat
+	// must be > 0) without the rewrite.
+	{},
+	// Post-#5415, pre-bptree-mount: IAVL-era untuned defaults. Left as-is
+	// on a bptree+fast-index fork they are simply wrong prices (GET 3×
+	// overcharged, writes missing the fast-index cost).
+	{
+		MinGetReadDepth100:   300,
+		MinSetReadDepth100:   200,
+		MinWriteDepth100:     440,
+		FixedGetReadDepth100: 300,
+		FixedSetReadDepth100: 200,
+		FixedWriteDepth100:   440,
+		IterNextCostFlat:     1_000,
+	},
+}
+
+// depthParamsMatch reports whether p's seven depth/iteration gas params equal
+// fp's exactly (all other Params fields are ignored).
+func depthParamsMatch(p, fp vm.Params) bool {
+	return p.MinGetReadDepth100 == fp.MinGetReadDepth100 &&
+		p.MinSetReadDepth100 == fp.MinSetReadDepth100 &&
+		p.MinWriteDepth100 == fp.MinWriteDepth100 &&
+		p.FixedGetReadDepth100 == fp.FixedGetReadDepth100 &&
+		p.FixedSetReadDepth100 == fp.FixedSetReadDepth100 &&
+		p.FixedWriteDepth100 == fp.FixedWriteDepth100 &&
+		p.IterNextCostFlat == fp.IterNextCostFlat
+}
+
+// applyDefaultDepthParams copies the current default depth/iteration gas
+// params into p.
+func applyDefaultDepthParams(p *vm.Params) {
+	defaults := vm.DefaultParams()
+	p.MinGetReadDepth100 = defaults.MinGetReadDepth100
+	p.MinSetReadDepth100 = defaults.MinSetReadDepth100
+	p.MinWriteDepth100 = defaults.MinWriteDepth100
+	p.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
+	p.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
+	p.FixedWriteDepth100 = defaults.FixedWriteDepth100
+	p.IterNextCostFlat = defaults.IterNextCostFlat
 }

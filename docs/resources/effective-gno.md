@@ -108,10 +108,11 @@ behavior. Packages should be designed to be flexible and not impose restrictions
 that could lead to user frustration or the need to fork the code.
 
 ```go
-import "chain/runtime"
-
-func Foobar() {
-	caller := runtime.PreviousRealm().Address()
+func Foobar(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
 	}
@@ -141,8 +142,8 @@ In Gno, `init()` primarily serves two purposes:
 ```go
 import "gno.land/r/some/registry"
 
-func init() {
-	registry.Register(cross, "myID", myCallback)
+func init(cur realm) {
+	registry.Register(cross(cur), "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -152,10 +153,7 @@ A common use case could be to set the "admin" as the caller uploading the
 package.
 
 ```go
-import (
-	"chain/runtime"
-	"time"
-)
+import "time"
 
 var (
 	created time.Time
@@ -163,12 +161,12 @@ var (
 	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
-func init() {
+func init(cur realm) {
 	created = time.Now()
-	// runtime.OriginCaller in the context of realm initialisation is,
-	// of course, the publisher of the realm :)
-	// This can be better than hardcoding an admin address as a constant.
-	admin = runtime.OriginCaller()
+	// During initialization the previous realm is the publisher of the realm
+	// (the EOA that deployed it), so capturing it here is better than
+	// hardcoding an admin address as a constant.
+	admin = cur.Previous().Address()
 	// list is already initialized, so it will already contain "foo", "bar" and
 	// the current time as existing items.
 	list = append(list, admin.String())
@@ -293,7 +291,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://staging.gno.land/p/demo/tokens/grc20$source&file=types.gno)
+Here's an example from [grc20](https://staging.gno.land/p/nt/grc20/v0$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -469,10 +467,8 @@ realm's functionality and ensure that only authorized callers can execute
 certain operations.
 
 ```go
-import "chain/runtime"
-
-func PublicMethod(nb int) {
-	caller := runtime.PreviousRealm().Address()
+func PublicMethod(cur realm, nb int) {
+	caller := cur.Previous().Address()
 	privateMethod(caller, nb)
 }
 
@@ -480,7 +476,7 @@ func privateMethod(caller address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `runtime.PreviousRealm().Address()`, and
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
 then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
@@ -506,19 +502,16 @@ the Gno standard library:
 ```go
 package events
 
-import (
-	"chain"
-	"chain/runtime"
-)
+import "chain"
 
 var owner address
 
-func init() {
-	owner = runtime.PreviousRealm().Address()
+func init(cur realm) {
+	owner = cur.Previous().Address()
 }
 
-func ChangeOwner(_ realm, newOwner address) {
-	caller := runtime.PreviousRealm().Address()
+func ChangeOwner(cur realm, newOwner address) {
+	caller := cur.Previous().Address()
 
 	if caller != owner {
 		panic("access denied")
@@ -567,40 +560,41 @@ whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-One strategy is to look at the caller with `runtime.PreviousRealm()`, which could be the
-EOA (Externally Owned Account), or the preceding realm in the call stack.
+One strategy is to look at the immediate caller with `cur.Previous()` inside a
+crossing function (`func F(cur realm, ...)`). The previous realm could be the EOA
+(Externally Owned Account), or the preceding realm in the call stack.
 
-Another approach is to look specifically at the EOA. For this, you should call
-`runtime.OriginCaller()`, which returns the public address of the account that
-signed the transaction.
-
-TODO: explain when to use `runtime.OriginCaller`.
+Another approach is to look specifically at the EOA with
+`unsafe.OriginCaller()` from `chain/runtime/unsafe`, which returns the public
+address of the account that signed the transaction. This is Gno's `tx.origin`,
+and it carries the same phishing risk as Solidity's well-known `tx.origin`: an
+intermediate realm the user was tricked into calling still shows up as that
+original signer. Prefer `cur.Previous()` for caller authentication; reach for
+`unsafe.OriginCaller()` only when you specifically need the signer's identity
+rather than the immediate caller's.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers, including all the functions, anonymous functions, other realms, and
-take the initial caller. This allows you to identify the original caller and
-implement access control based on their address.
+take the initial caller.
 
 Here's an example:
 
 ```go
-import "chain/runtime"
-
 var admin address = "g1xxxxx"
 
-func AdminOnlyFunction(_ realm) {
-	caller := runtime.PreviousRealm().Address()
+func AdminOnlyFunction(cur realm) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
 	// ...
 }
 
-// func UpdateAdminAddress(_ realm, newAddr address) { /* ... */ }
+// func UpdateAdminAddress(cur realm, newAddr address) { /* ... */ }
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `runtime.PreviousRealm().Address()`,
+the admin. It retrieves the caller's address using `cur.Previous().Address()`,
 this can be either another realm contract, or the calling user if there is no
 other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
@@ -613,10 +607,8 @@ the behavior of the default grc20 implementation.
 Here's an example:
 
 ```go
-import "chain/runtime"
-
-func TransferTokens(_ realm, to address, amount int64) {
-	caller := runtime.PreviousRealm().Address()
+func TransferTokens(cur realm, to address, amount int64) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
@@ -625,7 +617,7 @@ func TransferTokens(_ realm, to address, amount int64) {
 ```
 
 In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `runtime.PreviousRealm().Address()`, and
+admin. It retrieves the caller's address using `cur.Previous().Address()`, and
 then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
@@ -728,15 +720,18 @@ pointer can be "stored" by other realms without issue, because it protects its
 usage completely.
 
 ```go
-import "chain/runtime"
-
 type MySafeStruct struct {
 	counter int
 	admin address
 }
 
-func NewSafeStruct() *MySafeStruct {
-	caller := runtime.PreviousRealm().Address()
+// A /p/ package cannot declare realm-first-arg crossing functions, so the
+// caller's realm is threaded as a non-first argument, the way p/nt/ownable does.
+func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
 		admin: caller,
@@ -744,8 +739,11 @@ func NewSafeStruct() *MySafeStruct {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc(_ realm) {
-	caller := runtime.PreviousRealm().Address()
+func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
 	}
@@ -758,9 +756,9 @@ Then, you can register this object in one or more other realms so that they can 
 ```go
 import "gno.land/r/otherrealm"
 
-func init() {
-	mySafeObj := NewSafeStruct()
-	otherrealm.Register(mySafeObject)
+func init(cur realm) {
+	mySafeObj := NewSafeStruct(0, cur)
+	otherrealm.Register(mySafeObj)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of
@@ -785,31 +783,38 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
+store key, while `GetCoins(addr)` reads every denom the address holds. That
+distinction is not just an optimization. Anyone can send any address a new denom
+without its consent, so `GetCoins` on a caller-supplied address costs whatever a
+third party decided it should — enough of them and your function can no longer be
+called at all.
+
 #### Verifying inbound Coin payments
 
 A realm that wants to charge for a function typically attaches a payment check
 like this:
 
 ```go
-func BuyThing(_ realm, ...) {
-    if !runtime.PreviousRealm().IsUser() {   // BAD
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUser() {   // BAD
         panic("must be called by a user")
     }
-    if banker.OriginSend().AmountOf("ugnot") != price {
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
         panic("wrong payment amount")
     }
     // ... do the thing ...
 }
 ```
 
-This is **subtly unsafe**. `banker.OriginSend()` returns the coins attached to
+This is **subtly unsafe**. `unsafe.OriginSend()` returns the coins attached to
 the *original transaction*, not the coins actually received by this realm. If
 anything runs between the tx origin and this realm's function, those coins may
 have been consumed by the intermediary. Two attacker shapes bypass the check:
 
 1. **Intermediate code realm.** User calls `r/attacker/wrapper.DoIt()` with
    `-send 1000000ugnot`. The wrapper keeps the coins (via its own banker) and
-   then calls `BuyThing(cross, ...)` on your realm. Your realm sees
+   then calls `BuyThing(cross(cur), ...)` on your realm. Your realm sees
    `OriginSend() = 1000000ugnot`, the `IsUser()` check passes because... actually
    it doesn't — `IsUser()` rejects pure code realms. Which leads to:
 
@@ -818,7 +823,7 @@ have been consumed by the intermediary. Two attacker shapes bypass the check:
    That script runs in an ephemeral code realm at path
    `gno.land/e/{attacker}/run`. Inside main, the script consumes the origin-send
    envelope (via its own `BankerTypeOriginSend`) or simply does whatever it
-   wants with the coins, then calls `BuyThing(cross, ...)`. Your realm sees
+   wants with the coins, then calls `BuyThing(cross(cur), ...)`. Your realm sees
    `OriginSend() = 1000000ugnot` in the envelope and `IsUser() = true` because
    **`IsUser()` accepts both `IsUserCall()` (pure EOA) AND `IsUserRun()` (user-run
    ephemeral realm)**. The check passes but no coins reached your realm.
@@ -826,18 +831,18 @@ have been consumed by the intermediary. Two attacker shapes bypass the check:
 The fix is to use `IsUserCall()` instead of `IsUser()`:
 
 ```go
-func BuyThing(_ realm, ...) {
-    if !runtime.PreviousRealm().IsUserCall() {  // GOOD
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUserCall() {  // GOOD
         panic("must be called directly by an EOA (maketx call)")
     }
-    if banker.OriginSend().AmountOf("ugnot") != price {
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
         panic("wrong payment amount")
     }
     // ... do the thing ...
 }
 ```
 
-`IsUserCall()` returns true only when `PreviousRealm().PkgPath() == ""`, i.e.
+`IsUserCall()` returns true only when `cur.Previous().PkgPath() == ""`, i.e.
 the caller is a pure EOA. In that case the `-send` coins are guaranteed to
 have landed at this realm's address, so `OriginSend()` and receipt agree.
 
@@ -855,8 +860,8 @@ Alternatives considered:
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).
 
-- **`banker.NewBanker(banker.BankerTypeOriginSend)`** — creating this banker
-  requires `PreviousRealm().PkgPath() == ""`, so it implicitly asserts EOA. But
+- **`banker.NewBanker(banker.BankerTypeOriginSend, cur)`** — creating this banker
+  requires `cur.Previous().PkgPath() == ""`, so it implicitly asserts EOA. But
   it's a side-effectful assertion; if you don't need the banker itself,
   `IsUserCall()` is clearer.
 
@@ -884,26 +889,31 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import (
-	"chain/runtime"
-
-	"gno.land/p/demo/tokens/grc20"
-)
+import "gno.land/p/nt/grc20/v0"
 
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
-	UserTeller    grc20.Teller
+	// Keep the teller unexported: it is a spend capability. It is built from
+	// the ledger, which never leaves this realm, and it only works here.
+	userTeller grc20.Teller
 )
 
 func init(cur realm) {
-	Token, privateLedger = grc20.NewToken(0, cur, "Foo Token", "FOO", 4)
-	UserTeller = Token.CallerTeller()
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
+	userTeller = privateLedger.CallerTeller()
 }
 
-func MyBalance(_ realm) int64 {
-	caller := runtime.PreviousRealm().Address()
-	return UserTeller.BalanceOf(caller)
+// Transfer moves the caller's own tokens (userTeller debits cur.Previous()).
+func Transfer(cur realm, to address, amount int64) {
+	if err := userTeller.Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func MyBalance(cur realm) int64 {
+	caller := cur.Previous().Address()
+	return Token.BalanceOf(caller)
 }
 ```
 

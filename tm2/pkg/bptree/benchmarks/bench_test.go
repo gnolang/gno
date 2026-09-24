@@ -61,8 +61,11 @@ type TreeBench interface {
 	// CommittedReader opens a read-only snapshot at version and returns a
 	// point-read function over it (the ABCI-query read path) plus a closer.
 	// bptree routes through ImmutableTree.Get (so the fast index engages); iavl
-	// through its ImmutableTree (fast nodes engage). The working-tree Get does
-	// NOT use the bptree fast index, so this is the path that exercises it.
+	// through its ImmutableTree (fast nodes engage). Note the bptree
+	// working-tree Get now ALSO serves from the fast index while the session
+	// is clean (which it always is in these benchmarks — they read between
+	// saves), so for index-on factories the default working-tree mode and
+	// this committed-read mode measure the same 1-read fast path.
 	CommittedReader(version int64) (get func([]byte) ([]byte, error), closeFn func() error, err error)
 }
 

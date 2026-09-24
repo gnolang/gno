@@ -5,8 +5,8 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -97,7 +97,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var token *grc20.Token
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
-		token, ledger = grc20.NewToken(0, cur, "Test Token", "TEST", 6)
+		token, ledger = grc20.NewToken("Test Token", "TEST", 6, 0, cur)
 	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))

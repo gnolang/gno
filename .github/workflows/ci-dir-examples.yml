@@ -11,6 +11,13 @@ on:
       - misc/deployments/**
       - contribs/gnogenesis/**
       - .github/workflows/ci-dir-examples.yml
+      # *.md is prose, except in the gno source trees where it is valid
+      # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns)
+      # and is therefore linted/tested here.
+      # Order matters: a later positive pattern wins over an earlier negation.
+      - '!**/*.md'
+      - examples/**/*.md
+      - gnovm/stdlibs/**/*.md
   workflow_dispatch:
     inputs:
       debug:

@@ -1617,3 +1617,118 @@ func TestClient_EstimateGas(t *testing.T) {
 		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }
+
+func TestQueryBalanceAndSupply(t *testing.T) {
+	t.Parallel()
+
+	addr, err := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	require.NoError(t, err)
+	const realmDenom = "/gno.land/r/demo/foo:gold"
+
+	// Records the path so the realm denom's slashes can be checked to survive.
+	newClient := func(data string, gotPath *string) *Client {
+		return &Client{
+			RPCClient: &mockRPCClient{
+				abciQuery: func(_ context.Context, path string, _ []byte) (*ctypes.ResultABCIQuery, error) {
+					*gotPath = path
+					return &ctypes.ResultABCIQuery{Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{Data: []byte(data)},
+					}}, nil
+				},
+			},
+		}
+	}
+
+	// Every other Client method has a nil-RPCClient case (TestBlockErrors,
+	// TestLatestBlockHeightErrors, TestEstimateGas, ...); these two are new, so
+	// they need one too, or nothing checks that they validate before dereferencing.
+	t.Run("no RPC client", func(t *testing.T) {
+		t.Parallel()
+		c := &Client{RPCClient: nil}
+
+		coins, _, err := c.QueryBalance(addr)
+		assert.ErrorIs(t, err, ErrMissingRPCClient)
+		assert.Nil(t, coins)
+
+		supply, _, err := c.QuerySupply("ugnot")
+		assert.ErrorIs(t, err, ErrMissingRPCClient)
+		assert.Zero(t, supply)
+	})
+
+	// A response that does not decode must not read as an empty answer. This is the
+	// same defect as the node-error case below, one layer down: swallowing the
+	// decode error returns a zero balance or a zero supply with err == nil.
+	t.Run("an undecodable response is not an empty answer", func(t *testing.T) {
+		t.Parallel()
+		var path string
+
+		coins, _, err := newClient(`{`, &path).QueryBalance(addr)
+		require.Error(t, err, "an undecodable response must not be read as a balance")
+		require.Nil(t, coins)
+
+		supply, _, err := newClient(`{`, &path).QuerySupply("ugnot")
+		require.Error(t, err, "an undecodable response must not be read as a supply")
+		require.Zero(t, supply)
+	})
+
+	t.Run("balance across both tiers", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		coins, _, err := newClient(`"7`+realmDenom+`,100ugnot"`, &path).QueryBalance(addr)
+		require.NoError(t, err)
+		require.Equal(t, "bank/balances/"+crypto.AddressToBech32(addr), path)
+		require.Equal(t, int64(100), coins.AmountOf("ugnot"))
+		require.Equal(t, int64(7), coins.AmountOf(realmDenom))
+	})
+
+	t.Run("supply of a realm denom keeps its slashes", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		supply, _, err := newClient(`"42"`, &path).QuerySupply(realmDenom)
+		require.NoError(t, err)
+		require.Equal(t, "bank/supply/"+realmDenom, path,
+			"the denom must reach the route whole, not split")
+		require.Equal(t, int64(42), supply)
+	})
+
+	// A node error response must not be read as data. The same defect was fixed on
+	// the handler side in this change — queryBalance was missing a return, so an
+	// error response also carried a balance — and QuerySupply is the worse case
+	// here: swallowing the error means returning 0, which a caller reads as
+	// "this denom has no supply".
+	t.Run("a node error is not mistaken for an answer", func(t *testing.T) {
+		t.Parallel()
+		// Data is deliberately well-formed as well. With an empty body, skipping the
+		// error check still fails on the amino decode, so the assertion would hold
+		// either way; a decodable body is what makes this discriminating.
+		errClient := func(data string) *Client {
+			return &Client{RPCClient: &mockRPCClient{
+				abciQuery: func(_ context.Context, _ string, _ []byte) (*ctypes.ResultABCIQuery, error) {
+					return &ctypes.ResultABCIQuery{Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{
+							Error: abci.StringError("boom"),
+							Data:  []byte(data),
+						},
+					}}, nil
+				},
+			}}
+		}
+
+		_, _, err := errClient(`"100ugnot"`).QueryBalance(addr)
+		require.Error(t, err, "an error response must not be read as a balance")
+		require.ErrorContains(t, err, "boom", "the node's error must be the one returned")
+
+		supply, _, err := errClient(`"42"`).QuerySupply(realmDenom)
+		require.Error(t, err, "an error response must not be read as a supply")
+		require.ErrorContains(t, err, "boom", "the node's error must be the one returned")
+		require.Zero(t, supply, "and no plausible-looking number alongside it")
+	})
+
+	t.Run("a malformed denom is rejected before the round trip", func(t *testing.T) {
+		t.Parallel()
+		var path string
+		_, _, err := newClient(`"0"`, &path).QuerySupply("UPPER")
+		require.Error(t, err)
+		require.Empty(t, path, "an invalid denom must not reach the node")
+	})
+}

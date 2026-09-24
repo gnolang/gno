@@ -22,7 +22,7 @@ adduser alice
 gnoland start
 
 ## deploy registry
-gnokey maketx addpkg -pkgdir $WORK/registry -pkgpath gno.land/r/test/escbug/registry -gas-fee 2000000ugnot -gas-wanted 6_000_000 -chainid=tendermint_test alice
+gnokey maketx addpkg -pkgdir $WORK/registry -pkgpath gno.land/r/test/escbug/registry -gas-fee 2000000ugnot -gas-wanted 8_000_000 -chainid=tendermint_test alice
 
 ## deploy holder — its init(cur) cross-constructs and cross-registers X
 gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/escbug/holder -gas-fee 2000000ugnot -gas-wanted 8_000_000 -chainid=tendermint_test alice

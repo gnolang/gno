@@ -2,8 +2,9 @@ package gnoland
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -20,7 +21,7 @@ const (
 	// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
 	//
 	//   dirty    flag set by realm; EndBlocker clears after applying.
-	//   proposed v3's full target valset.
+	//   proposed v0's full target valset.
 	//   current  chain-managed: the set that becomes active at H+2 once
 	//            the most recent EndBlock's updates apply. NOT the set
 	//            actively signing the current block.
@@ -31,9 +32,12 @@ const (
 	valsetProposedPath = "node:valset:proposed"
 	valsetCurrentPath  = "node:valset:current"
 
+	// pubkey_types: chain-managed mirror of the consensus-params validator allow-list, so realms can read it.
+	valsetPubKeyTypesPath = "node:valset:pubkey_types"
+
 	// maxValsetEntries caps len(valset:proposed) at WillSetParam time.
-	// v3 enforces 40 at proposal-creation; this is defense-in-depth at
-	// 2.5x to protect against future writers that bypass v3's cap.
+	// v0 enforces 40 at proposal-creation; this is defense-in-depth at
+	// 2.5x to protect against future writers that bypass v0's cap.
 	maxValsetEntries = 100
 )
 
@@ -103,6 +107,15 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
 			panic(fmt.Sprintf("invalid valset:current (chain-internal corruption): %v", err))
+		}
+	case "valset:pubkey_types":
+		// Chain-only mirror; reject user-routed writes (like valset:current).
+		v, _ := ctx.Value(internalWriteCtxKey{}).(bool)
+		if !v {
+			panic("valset:pubkey_types is chain-managed; not writable via params")
+		}
+		if _, ok := value.([]string); !ok {
+			panic(fmt.Sprintf("valset:pubkey_types must be []string, got %T", value))
 		}
 	default:
 		if strings.HasPrefix(key, "p:") {
@@ -176,42 +189,74 @@ func safeBlockHeight(ctx sdk.Context) (h int64) {
 }
 
 // meetsMinVersion reports whether binaryVersion satisfies the minVersion requirement.
-// Versions are expected to follow the "chain/gnolandX.Y" format used for gno.land chain releases.
-// If either version cannot be parsed in that format, an exact string match is required.
+//
+// Two release-tag shapes are understood, ordered against each other as a single
+// line (see RELEASING.md):
+//
+//	vMAJOR.MINOR.PATCH        the current shape, e.g. "v1.2.0"
+//	chain/gnolandMAJOR.MINOR  betanet's retired shape, e.g. "chain/gnoland1.1"
+//
+// Anything else does not parse: "develop" (a plain `go build`),
+// "master.3335+bc43a5fb7" (an off-tag `make` build), or an un-numbered chain tag
+// such as "chain/mainnet". A binary whose version does not parse satisfies no
+// floor, which is the intended outcome — an ad-hoc build must not pass an
+// upgrade gate.
+//
+// A minVersion that does not parse is the dangerous case, and the reason this
+// function takes shapes rather than one: it degrades to byte equality, so the
+// correctly-upgraded binary is refused alongside the stale ones and the chain
+// cannot restart at all. Governance must name a parseable release tag; the
+// release tooling in misc/release refuses to emit a proposal that does not.
 func meetsMinVersion(binaryVersion, minVersion string) bool {
 	if minVersion == "" {
 		return true
 	}
 
-	bMajor, bMinor, bOK := parseGnolandVersion(binaryVersion)
-	mMajor, mMinor, mOK := parseGnolandVersion(minVersion)
+	bv, bOK := parseReleaseVersion(binaryVersion)
+	mv, mOK := parseReleaseVersion(minVersion)
 
 	if bOK && mOK {
-		if bMajor != mMajor {
-			return bMajor > mMajor
-		}
-		return bMinor >= mMinor
+		return semver.Compare(bv, mv) >= 0
 	}
 
 	// Fall back to exact match if versions are not in the recognized format.
 	return binaryVersion == minVersion
 }
 
-// parseGnolandVersion parses a version string like "chain/gnoland1.2" into its major and minor parts.
-func parseGnolandVersion(v string) (major, minor int, ok bool) {
-	const prefix = "chain/gnoland"
-	if !strings.HasPrefix(v, prefix) {
-		return 0, 0, false
+// legacyChainPrefix is betanet's tag shape. It is frozen: chain/gnoland1.0 and
+// chain/gnoland1.1 are the only two tags that ever used it, and they are the
+// version strings compiled into the binaries that ran that chain.
+const legacyChainPrefix = "chain/gnoland"
+
+// parseReleaseVersion normalises a release tag into a canonical semver string,
+// which semver.Compare then orders. Betanet's two-component shape is widened to
+// its equivalent vMAJOR.MINOR.0 so that both shapes live on one line.
+//
+// Deferring to golang.org/x/mod/semver rather than splitting on dots is what
+// makes the awkward cases come out right: numeric pre-release identifiers order
+// numerically (rc.10 outranks rc.9, which plain string comparison inverts), and
+// leading zeros, signed components and a dangling "-" are rejected instead of
+// being coerced into a version that is not the tag anyone pushed.
+func parseReleaseVersion(v string) (string, bool) {
+	if rest, ok := strings.CutPrefix(v, legacyChainPrefix); ok {
+		major, minor, found := strings.Cut(rest, ".")
+		if !found {
+			return "", false
+		}
+		v = "v" + major + "." + minor + ".0"
 	}
-	rest := v[len(prefix):]
-	before, after, ok0 := strings.Cut(rest, ".")
-	if !ok0 {
-		return 0, 0, false
+
+	if !semver.IsValid(v) {
+		return "", false
 	}
-	maj, err1 := strconv.Atoi(before)
-	mnr, err2 := strconv.Atoi(after)
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
+	// Build metadata takes no part in ordering, so drop it before comparing:
+	// "v1.2.0+abc" and "v1.2.0" are the same version.
+	v = strings.TrimSuffix(v, semver.Build(v))
+	// IsValid also accepts "v1" and "v1.2"; a release tag names all three
+	// components. Canonical fills the missing ones in, so requiring it to be a
+	// no-op pins the shape to exactly vMAJOR.MINOR.PATCH[-PRERELEASE].
+	if semver.Canonical(v) != v {
+		return "", false
 	}
-	return maj, mnr, true
+	return v, true
 }

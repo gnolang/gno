@@ -1,0 +1,63 @@
+{
+  "reason": "API drift fix (post-#5669): chain/runtime moved PreviousRealm to chain/runtime/unsafe; banker.NewBanker(BankerTypeReadonly) split into banker.NewReadonlyBanker(). Mirrors the migration the official examples/gno.land/r/gnoland/boards2/v1 already did.",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774441476",
+    "block_height": "227223",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun",
+        "account_num": "3262719",
+        "sequence": "3"
+      }
+    ]
+  },
+  "pkg_dir": "pkg/",
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_addpkg",
+        "creator": "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun",
+        "package": {
+          "name": "permissions",
+          "path": "gno.land/r/g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun/boards2/permissions/v1",
+          "files": [
+            {
+              "name": "gnomod.toml",
+              "body": ""
+            },
+            {
+              "name": "permissions.gno",
+              "body": ""
+            },
+            {
+              "name": "validators.gno",
+              "body": ""
+            }
+          ],
+          "type": {
+            "@type": "/gno.MemPackageType",
+            "value": "MPUserAll"
+          }
+        },
+        "send": "",
+        "max_deposit": ""
+      }
+    ],
+    "fee": {
+      "gas_wanted": "800000000",
+      "gas_fee": "800000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AvC68IPWD/o8iYM+et/K6YpBp4+m0hF3mLXIdFZnWH1Y"
+        },
+        "signature": "PbotefbHkyA2q4VML71TmuQMR/7kJnB3/YXCtzDGJ0w/A2BnKaV4q/7hPFyLXPCxRNqRUD7ULIj5zi/lbtOl8w=="
+      }
+    ],
+    "memo": ""
+  }
+}
