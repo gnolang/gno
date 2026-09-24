@@ -16,13 +16,19 @@ type StagingAppConfig struct {
 const stagingNoWorkspaceHint = "staging eager-loads $GNOROOT/examples (unless -no-examples) and every -extra-root up front."
 
 var defaultStagingOptions = AppConfig{
-	chainId:                    "dev",
-	chainDomain:                DefaultDomain,
-	logFormat:                  "json",
-	maxGas:                     10_000_000_000,
-	webHome:                    ":none:",
-	webListenerAddr:            "127.0.0.1:8888",
-	nodeRPCListenerAddr:        "127.0.0.1:26657",
+	chainId:     "dev",
+	chainDomain: DefaultDomain,
+	logFormat:   "json",
+	maxGas:      10_000_000_000,
+	webHome:     ":none:",
+	// Staging binds every interface, unlike local mode. This is the mode
+	// meant for server use, and the published gnodev image is unusable
+	// without it: bound to loopback inside a container, `docker run -p` maps
+	// a port only the container itself can reach, so the node reports ready
+	// and nothing outside can connect. Narrow it explicitly when running
+	// staging on a machine whose network you do not trust.
+	webListenerAddr:            "0.0.0.0:8888",
+	nodeRPCListenerAddr:        "0.0.0.0:26657",
 	deployKey:                  defaultDeployerAddress.String(),
 	home:                       gnoenv.HomeDir(),
 	root:                       gnoenv.RootDir(),
