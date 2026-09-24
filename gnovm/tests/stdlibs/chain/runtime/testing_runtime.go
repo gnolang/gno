@@ -39,9 +39,14 @@ func typedString(s gno.StringValue) gno.TypedValue {
 	return tv
 }
 
-// isOriginCall mirrors stdlibs/chain/runtime.isOriginCall with the test
-// function standing in for the message: the first storage-owning realm
-// entered after it is the entry realm, and no other realm may follow.
+// isOriginCall mirrors stdlibs/chain/runtime.isOriginCall. The runner's call
+// into the test function (or a filetest's main) is the message, and that
+// function is the message's own script: its realm is never an intermediary,
+// even when the file declares an /r/ PKGPATH. The first storage-owning realm
+// entered after it is the entry realm, and no other realm may follow. So a
+// realm filetest can drive other realms like a user, but only by calling
+// them directly: wrap the call in its own closure or helper and the file's
+// realm is entered first and becomes the entry (std16, std18).
 func isOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
 	var start int // first frame after the test function
@@ -72,7 +77,7 @@ func isOriginCall(m *gno.Machine) bool {
 	// for a code caller p, as relay -> entry would on chain: another realm on
 	// the stack unless p is the entry realm itself (a realm calling its own
 	// function is still an origin call). A user override changes nothing; the
-	// test function already stands in for the message.
+	// runner's call is already the message.
 	entryIdx, entryPath := firstStorageRealm(m, start)
 	for i := entryIdx - 1; i >= 0; i-- {
 		override, overridden := getOverride(m, i)

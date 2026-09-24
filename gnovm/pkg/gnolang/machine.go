@@ -2910,8 +2910,9 @@ func ownsItsStorage(r *Realm) bool {
 // frozen realms too.
 //
 // start is where the program begins: 0 on chain, where the message sits below
-// Frames[0]; the test runtime passes the index after the test function, which
-// stands in for the message, so the first realm entered after it is the entry.
+// Frames[0]; the test runtime passes the index after the test function, whose
+// frame is the message's own script, so the first realm entered after it is
+// the entry.
 //
 // The test is the storage realm on each side of the call, NOT the crossing
 // flags and NOT the declaring package, both of which were tried and are wrong:

@@ -14,8 +14,7 @@ every func literal run under another storage realm. Two problems:
   `/p/` package) was refused. Master before #6211 accepted this shape.
 - Whether a frame counted depended on spelling: `func f()` counted, `var f =
   func()` did not, so `helper.RunNamed` and the realm's own `func run(f
-  func())` were refused while the closure versions passed. The rule protected
-  nothing: `/p/` cannot be a message target, and a realm's helper is its own code.
+  func())` were refused while the closure versions passed, protecting nothing.
 
 ## Decision 1: storage ownership from the PkgID bit
 
@@ -67,11 +66,13 @@ entry check already pins to the message's path. Any other storage-owning
 realm on the stack is a second boundary and is refused.
 
 The test runtime shares the walk from the frame after the test function
-(`main`/`init.*`: 1, `RunTest`: 3), which stands in for the message; the
-asserting frame may not itself be the entry. A live `testing.SetRealm(
-NewCodeRealm(p))` below the entry realm stands in for a code caller `p`: one
-more realm unless `p` is the entry realm itself (a realm calling its own
-function). A user override changes nothing.
+(`main`/`init.*`: 1, `RunTest`: 3). The runner's call into that function is
+the message and the function is the message's own script: its realm is never
+an intermediary, even under an `/r/` `PKGPATH`, so a realm filetest can drive
+other realms like a user, but only by calling them directly (a wrapping
+closure or helper enters the file's realm first and makes it the entry). A
+live `testing.SetRealm(NewCodeRealm(p))` below the entry stands in for a code
+caller `p`: one more realm unless `p` is the entry realm itself.
 
 ## Alternatives
 
@@ -84,7 +85,6 @@ function). A user override changes nothing.
 - **Panic unconditionally on an unrecognized path.** Local tooling runs on
   arbitrary module paths, and a keeper panic is the wrong failure mode for a
   bug that lets a string through; fail closed on chain, loud under `debugAssert`.
-- **Test runtime keeps exact frame counts.** Cannot express the new rule.
 
 ## Consequences
 

@@ -16,6 +16,11 @@ func callFunc(f func()) {
 	f()
 }
 
+// main is the message's own script, so r/test is never an intermediary: a
+// direct cross into r/tests/vm is an origin call, while any r/test frame
+// between main and the cross (aborted, callFunc) enters r/test first and
+// makes it the entry.
+//
 // A panic that crosses a realm boundary is an abort, so revive, not recover.
 func aborted(f func()) bool {
 	return revive(f) != nil
