@@ -44,12 +44,13 @@ deterministic. Test fixtures under `gno.vm/t/` and `gno.land/t/` moved to
 `gno.land/p/t/` so the repo's own suites are clean under the tag.
 
 `main` (filetests, `gno run`) falls out as immutable, as before via
-`IsStdlib`; making it a realm is a separate change
-(`prxxxx_main_transient_program.md`). Cost today: a filetest cannot assert an
-origin call from `package main`, so `std13`-`std17` declare a `// PKGPATH:`.
+`IsStdlib`, so a filetest cannot assert an origin call from `package main` and
+`std13`-`std17` declare a `// PKGPATH:`. Making it a realm (the local twin of
+a `/e/.../run` path: allowlist it, drop its stdlib bit) would also flip borrow
+rules, construction-time checks and finalization for every `zrealm_*` filetest
+that relies on `main` being transparent, so it is deferred.
 
-`TestPkgIDOwnsStorage` pins the agreement for every recognized shape and
-`TestPkgIDUnrecognizedPath` pins the fail-closed / panic behaviour.
+`TestPkgIDOwnsStorage` and `TestPkgIDUnrecognizedPath` pin both behaviours.
 
 ## Decision 2: count realm crossings, not frames
 
