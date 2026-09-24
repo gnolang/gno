@@ -84,6 +84,30 @@ func TestPkgIDUnrecognizedPath(t *testing.T) {
 	}
 }
 
+// IsUserlib is the loaders' admission check: a user path whose letter names a
+// kind the VM knows. An unknown letter must be refused here, before any
+// predicate or PkgIDFromPkgPath sees the path.
+func TestIsUserlib(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		input string
+		want  bool
+	}{
+		{"gno.land/r/demo/users", true},
+		{"gno.land/p/demo/avl", true},
+		{"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", true},
+		{"gno.test/p/integ/valid", true},
+		{"gno.land/t/main", false},
+		{"gno.land/x/foo", false},
+		{"gno.land/r", false},
+		{"std", false},
+		{"", false},
+	}
+	for _, tc := range tt {
+		assert.Equal(t, tc.want, IsUserlib(tc.input), "IsUserlib(%q)", tc.input)
+	}
+}
+
 func TestIsStdlib(t *testing.T) {
 	t.Parallel()
 

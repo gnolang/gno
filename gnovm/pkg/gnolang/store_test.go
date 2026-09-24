@@ -380,9 +380,9 @@ func TestIterMemPackageYieldsAReAddedPathAtItsNewestIndex(t *testing.T) {
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
-		"fruits.org/t/abricot",
-		"fruits.org/t/abricot/fraise",
-		"fruits.org/t/fraise",
+		"fruits.org/p/abricot",
+		"fruits.org/p/abricot/fraise",
+		"fruits.org/p/fraise",
 	}
 
 	cases := []struct {
@@ -392,11 +392,11 @@ func TestFindByPrefix(t *testing.T) {
 	}{
 		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
 		{"fruits.org", 100, pkgs},
-		{"fruits.org/t/abricot", 100, []string{
-			"fruits.org/t/abricot", "fruits.org/t/abricot/fraise",
+		{"fruits.org/p/abricot", 100, []string{
+			"fruits.org/p/abricot", "fruits.org/p/abricot/fraise",
 		}},
-		{"fruits.org/t/abricot/", 100, []string{
-			"fruits.org/t/abricot/fraise",
+		{"fruits.org/p/abricot/", 100, []string{
+			"fruits.org/p/abricot/fraise",
 		}},
 		{"fruits", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},

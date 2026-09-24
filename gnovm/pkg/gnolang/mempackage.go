@@ -182,10 +182,19 @@ func isImmutableLibraryPath(pkgPath string) bool {
 }
 
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
-// It must be of the form <domain>/<letter>/<user>(/<repo>).
+// It must be of the form <domain>/<letter>/<user>(/<repo>), and the letter
+// must name a kind the VM knows: r (realm), p (package) or e (run). This is
+// the loaders' admission check; the chain's is stricter (r or p only).
 func IsUserlib(pkgPath string) bool {
 	match := ReGnoUserPkgPath.Match(pkgPath)
-	return match != nil
+	if match == nil {
+		return false
+	}
+	switch match.Get("LETTER") {
+	case "r", "p", "e":
+		return true
+	}
+	return false
 }
 
 func IsTestFile(file string) bool {
