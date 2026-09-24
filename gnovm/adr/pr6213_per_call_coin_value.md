@@ -75,12 +75,39 @@ every realm using it including non-payment authorization. This removes a
 - **Gate `OriginSend` to the credited recipient.** Minimal fix for existing
   realms, but origin-scoped by name and meaning, so it cannot carry a realm
   forward. Could still ship alongside.
-- **Value as a call attribute, `f(cross(cur, send(coins)))`.** The cleanest
-  spelling, bound to the frame like `msg.value`; needs grammar, typechecker and
-  op_call work. `PayCall` gives the same semantics in the banker layer today
-  and can become the implementation of that form later.
+- **Value as a call attribute (frame form).** The target syntax; see below.
 - **Vault balance delta (`balance - totalSupply`).** Captures stray donations
   and bricks deposits if the balance dips below supply; no attribution.
+
+## Frame form: `f(cross(cur, send(coins)))`
+
+`PayCall` binds value to the (payer, payee) pair for the rest of the message,
+so between two calls from the payer into the payee the first `CallSend` read
+wins, and a forgotten call surfaces only as the unclaimed error. Binding value
+to one call frame, like `msg.value` or CosmWasm `funds`, removes both. User
+code collapses to one line and the payee is unchanged:
+
+```go
+wrap.Deposit(cross(cur, send(chain.Coins{{"ugnot", got}})))   // A: chosen
+wrap.Deposit(cross(cur), send(coins))                           // B: 2nd call attribute
+wrap.Deposit(cross(cur).send(coins))                            // C: method on realm
+```
+
+A keeps `send` inside `cross`: the preprocessor already validates `cross` at
+`Args[0]` and the realm's liveness there, and hangs the coins on the CallExpr;
+precall moves them and sets `Frame.Received` beside `Frame.Cur`; `CallSend`
+reads the nearest crossing frame. B adds a second positional slot to every
+call site and needs its own rejection rules; C makes `send` look like a
+`realm` method, so `x := cur.send(coins)` becomes a storable value that
+carries money. `send` is syntax the preprocessor consumes, not a transfer and
+not part of `realm`.
+
+Cost: grammar, typechecker shim, a banker hook in `doOpPrecall` (the VM core
+does not know the banker), and a decision on a callee panic recovered by the
+caller, where the coins have already moved like any other Gno state change.
+Sequencing: land `PayCall` to review the semantics; the frame form then wires
+precall to the same transfer and deletes the ledger, `PayCall`, the unclaimed
+guard and their error type.
 
 ## Consequences
 
@@ -94,5 +121,4 @@ every realm using it including non-payment authorization. This removes a
   mirror `getRealm`/`bankerSendCoins`/`packageAddress` and need recalibration.
 - Tests: `callsend.txtar` (relay reads zero), `callsend_forward.txtar`,
   `callsend_reentrant.txtar`, `callsend_unclaimed.txtar`, `callsend_addpkg.txtar`.
-- Follow-ups: migrate `wugnot.Deposit` to `CallSend()`; decide whether the
-  unobserved-send bit should itself become a ledger entry.
+- Follow-ups: migrate `wugnot.Deposit` to `CallSend()`; the frame form above.
