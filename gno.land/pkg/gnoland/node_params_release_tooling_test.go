@@ -142,13 +142,13 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			nightly    = ".github/workflows/release-goreleaser.yml"
 			goreleaser = ".github/goreleaser.yaml"
 			// What the two workflows evaluate when no v* tag matches.
-			shell = `${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)`
+			shellExpr = `${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)`
 			// The same thing in make syntax.
-			make = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
+			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
 		)
-		assert.Contains(t, repoFile(t, docker), `echo "`+shell+`"`, "%s computes a different fallback", docker)
-		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shell+`"`, "%s computes a different fallback", nightly)
-		assert.Contains(t, repoFile(t, makefile), make, "%s computes a different fallback", makefile)
+		assert.Contains(t, repoFile(t, docker), `echo "`+shellExpr+`"`, "%s computes a different fallback", docker)
+		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
+		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
 
 		// goreleaser takes the value from the workflow, never from its dummy tag.
 		yaml := repoFile(t, goreleaser)
