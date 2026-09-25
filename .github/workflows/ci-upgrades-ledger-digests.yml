@@ -1,0 +1,44 @@
+# The upgrade ledgers record, for every version a network has run, the digest
+# its gnoland image tag resolved to when the entry was written. A re-pushed
+# tag or a registry clean-up changes that silently; this compares each
+# recorded digest with what the registry serves today and fails on the first
+# difference. Read-only, public images, no login.
+name: ci / upgrades-ledger-digests
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Recorded digests still match the registry
+        run: |
+          shopt -s nullglob
+          status=0
+          for ledger in misc/deployments/*/upgrades.json; do
+            echo "== ${ledger}"
+            while read -r ref digest; do
+              actual=$(docker buildx imagetools inspect "${ref}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+              if [ "${actual}" = "${digest}" ]; then
+                echo "   ok       ${ref} ${digest}"
+              else
+                echo "::error::${ledger}: ${ref} is recorded as ${digest} but the registry serves ${actual:-nothing}"
+                status=1
+              fi
+            done < <(jq -r '.upgrades[] | select(.image.digest != null) | .image.ref + " " + .image.digest' "${ledger}")
+          done
+          exit "${status}"
