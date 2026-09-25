@@ -14,24 +14,26 @@ The flow:
 
 ## 1. Binaries
 
-Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md), pinned. Never a floating tag (`latest`, `chain-mainnet`): the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) — `v1.5.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
-Docker (replace `v1.5.0` with the current version):
+**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
+
+```shell
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_linux_amd64
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/CHECKSUMS.txt
+shasum -a 256 gnoland_linux_amd64                   # must match the line in CHECKSUMS.txt
+git clone --branch v1.5.0 --depth 1 https://github.com/gnolang/gno.git ~/gno
+export GNOROOT=~/gno
+chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.5.0
+```
+
+Or build it from the tag (`git checkout v1.5.0 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.5.0`). Never from `master` or from the branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
+
+**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.5.0` is the same binary with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount `secrets/` read-only.
 
 ```shell
 docker pull ghcr.io/gnolang/gno/gnoland:v1.5.0
 docker run --rm ghcr.io/gnolang/gno/gnoland:v1.5.0 version   # must print v1.5.0
-```
-
-Binaries: attached to that version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), with `CHECKSUMS.txt`. To run a node from a bare binary, point `GNOROOT` at a checkout of the same tag (the node reads `gnovm/stdlibs` from it).
-
-From source, from the tag — never from `master` or from the branch tip, which reach no consensus with the network and satisfy no upgrade gate:
-
-```shell
-git clone https://github.com/gnolang/gno.git
-cd gno && git checkout v1.5.0
-make -C gno.land install.gnoland install.gnokey   # installs to $GOPATH/bin
-gnoland version                                     # must print v1.5.0
 ```
 
 ## 2. Genesis
