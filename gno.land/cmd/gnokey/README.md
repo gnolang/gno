@@ -8,7 +8,7 @@
     $> cd ./gno
     $> make install.gnokey
 
-Also, see the [quickstart guide](../../../docs/users/interact-with-gnokey.md).
+Also, see the [quickstart guide](../../../docs/users/using-gnokey.md).
 
 ## Manual Entropy Generation
 

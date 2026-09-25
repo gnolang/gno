@@ -44,7 +44,7 @@ Enable it in your editor's settings, for example VS Code's
 
 `gnodev` runs a local Gno.land node that hot-reloads on save: edit a
 `.gno` file, save it, and refresh `gnoweb` to see the result. See
-[Local development with `gnodev`](../resources/gnodev.md).
+[Local development with `gnodev`](../resources/gnodev-reference.md).
 
 ## Contributing
 
