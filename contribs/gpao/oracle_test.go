@@ -18,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// ugnotDenom is the denom these tests fund their chains in. Production reads
+// the denom off the gas fee instead; this is the fixtures' own choice.
+const ugnotDenom = "ugnot"
+
 // A valid BIP39 mnemonic (the standard gno integration test seed). The oracle
 // only needs it to derive the approver address; no network access happens here.
 const testMnemonic = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"

@@ -94,6 +94,31 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
 
+### Funding the approver
+
+Every approval costs the full `--gas-fee`, charged by the ante handler whether
+or not the message succeeds. The approver's balance in that denom bounds how
+many packages a run can activate just as `--max-spend` does, and gpao reports it
+at startup:
+
+```
+gpao: approver g1... holds 4900000000ugnot, 4900 approvals at 1000000ugnot each
+```
+
+When the key cannot cover one more fee, gpao stops rather than walking past the
+packages it cannot approve. The one in hand is recorded `blocked`, keeps its
+retry allowance, and is not marked seen; the rest stay queued and unread. So
+funding the key resumes the run in place, with no restart and no resubmission:
+
+```sh
+curl http://127.0.0.1:8546/status/gno.land/r/you/yours
+# {"path":"...","status":"blocked","reason":"the approver cannot pay the approval fee; the oracle is paused until it is funded"}
+```
+
+No verdicts are issued while paused, rejections included, and block reads stop
+once the verify queue fills behind the held package. The balance is re-read
+every 30s.
+
 ### About `--status-listen`
 
 gpao decides things nobody else can see. That a package failed to typecheck,
@@ -120,7 +145,8 @@ curl http://127.0.0.1:8546/status/gno.land/r/you/yours   # one package
 
 `status` is one of `rejected` (the code did not pass), `pending` (will be
 retried), `gave_up` (retried to the cap, needs a human), `blocked` (nothing
-wrong with the package -- the oracle has hit `--max-spend`), `approved`, or
+wrong with the package -- the oracle has hit `--max-spend`, or cannot pay the
+fee at all; see [Funding the approver](#funding-the-approver)), `approved`, or
 `unknown` (never seen). `blocked` is the one worth separating: it means to go
 and ask the operator, not to go and fix your code.
 
