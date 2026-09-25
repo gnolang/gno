@@ -256,8 +256,8 @@ func TestSchemaDescribesTheStructs(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(raw, &schema))
 
-	assert.ElementsMatch(t, jsonTags(reflect.TypeOf(Ledger{})), keys(schema.Properties), "root properties")
-	assert.ElementsMatch(t, jsonTags(reflect.TypeOf(Entry{})), keys(schema.Defs.Entry.Properties), "entry properties")
+	assert.ElementsMatch(t, jsonTags(reflect.TypeFor[Ledger]()), keys(schema.Properties), "root properties")
+	assert.ElementsMatch(t, jsonTags(reflect.TypeFor[Entry]()), keys(schema.Defs.Entry.Properties), "entry properties")
 }
 
 func jsonTags(typ reflect.Type) []string {
