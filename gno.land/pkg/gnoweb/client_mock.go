@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -30,6 +31,9 @@ type MockPackage struct {
 // MockClient is a mock implementation of the ClientAdapter interface for testing.
 type MockClient struct {
 	Packages map[string]*MockPackage // path -> package
+	// Users stages the r/sys/users registry Eval reads. A nil map is a chain
+	// that does not deploy the realm.
+	Users map[string]MockUser // name or address -> registration
 }
 
 var _ ClientAdapter = (*MockClient)(nil)
@@ -218,4 +222,45 @@ func pkgHasRender(pkg *MockPackage) bool {
 		}
 	}
 	return false
+}
+
+// MockUser stages one r/sys/users registration. Key the Users map by both the
+// name and the address, the way the realm keys its two stores, so a test can
+// stage either lookup direction.
+type MockUser struct {
+	Name    string
+	Address string
+}
+
+// Eval answers vm/qeval for the one expression gnoweb sends, r/sys/users'
+// ResolveAny. It prints the value repr a real node prints rather than a
+// convenient shape, so the handler's parser is exercised against what it will
+// actually meet. Every other expression, and every mock with no Users staged,
+// answers like a chain that does not deploy the realm.
+func (m *MockClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+
+	arg, ok := strings.CutPrefix(expr, "ResolveAny(")
+	if m.Users == nil || pkgPath != UserRegistryPath || !ok {
+		return nil, ErrClientPackageNotFound
+	}
+	arg, ok = strings.CutSuffix(arg, ")")
+	if !ok {
+		return nil, ErrClientBadRequest
+	}
+	input, err := strconv.Unquote(arg)
+	if err != nil {
+		return nil, ErrClientBadRequest
+	}
+
+	// ResolveAny returns (*UserData, bool); the bool is a second line.
+	user, found := m.Users[input]
+	if !found {
+		return []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)\n"), nil
+	}
+	return fmt.Appendf(nil,
+		"(&(struct{(%q .uverse.address),(%q string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\n(true bool)\n",
+		user.Address, user.Name), nil
 }

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -536,7 +537,65 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+// UserRegistryPath is the realm that maps gno.land names to addresses, and the
+// only source gnoweb has for either side of the pair.
+const UserRegistryPath = "/r/sys/users"
+
+// userIdentity is the pair behind a /u/ path segment. Each field is empty when
+// the registry could not confirm it, so a chain that does not deploy the
+// registry yields the zero value and every caller falls back to the segment.
+type userIdentity struct {
+	Name    string // the user's current registered name
+	Address string // the bech32 address that name belongs to
+}
+
+// reUserData reads the pair out of the value repr vm/qeval prints for a
+// *UserData:
+//
+//	(&(struct{("g1…" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+//
+// An unresolved lookup prints "(nil *gno.land/r/sys/users.UserData)" instead
+// and simply does not match. The realm exports no string-returning resolver
+// and .Name() on the pointer panics when it is nil, so one qeval plus this
+// match is the cheapest lookup that cannot fault. Matching on each field's
+// type tag rather than its position means a field added to UserData does not
+// shift the result; a repr change makes this match nothing, which leaves the
+// page exactly as it was before gnoweb asked.
+var reUserData = regexp.MustCompile(`\("(g1[a-z0-9]+)" \.uverse\.address\),\("([a-z0-9_-]*)" string\)`)
+
+// resolveUser asks r/sys/users which name and address stand behind a /u/
+// segment, accepting either form as input. It is best effort by design: the
+// registry is absent on gnodev and on every chain that predates it, and a
+// profile page is not worth failing over a lookup that only enriches it.
+func (h *HTTPHandler) resolveUser(ctx context.Context, input string) userIdentity {
+	// A sub-path is neither a name nor an address, so it cannot resolve;
+	// skipping it here saves the round trip. Everything reaching this point
+	// has already passed GnoURL.IsUser, which bounds the segment to
+	// [a-z0-9_/-], so %q below cannot break out of the Gno string literal.
+	if input == "" || strings.Contains(input, "/") {
+		return userIdentity{}
+	}
+
+	// An address is its own answer for half the pair, registry or not: it is
+	// already the address, and it is a namespace by construction.
+	identity := userIdentity{}
+	if _, _, err := bech32.Decode(input); err == nil {
+		identity.Address = input
+	}
+
+	res, err := h.Client.Eval(ctx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
+	if err != nil {
+		h.Logger.Debug("unable to resolve user against the registry", "input", input, "error", err)
+		return identity
+	}
+
+	match := reUserData.FindSubmatch(res)
+	if match == nil {
+		return identity
+	}
+	return userIdentity{Name: string(match[2]), Address: string(match[1])}
+}
+
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
 	_, _, err := bech32.Decode(username)
@@ -560,14 +619,28 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
+// GetUserView returns the user profile view for a given GnoURL. The segment
+// may be either half of the pair: /u/<name> and /u/<address> serve the same
+// page, and each shows the other half.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	segment := gnourl.Username()
+	identity := h.resolveUser(ctx, segment)
+
+	// Everything below keys on the namespace the packages live under. An
+	// address that the registry resolves deploys under its name, so /u/<addr>
+	// has to switch to it or the page reports zero contributions for a user
+	// who has hundreds. A name keeps its own segment even when it resolves,
+	// because it is already the namespace, and following a rename here would
+	// hide the packages the old name still holds.
+	namespace := segment
+	if identity.Name != "" && segment == identity.Address {
+		namespace = identity.Name
+	}
 
 	var content bytes.Buffer
 
 	// Render user profile realm
-	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
+	raw, err := h.Client.Realm(ctx, "/r/"+namespace+"/home", "")
 	if err == nil {
 		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
 			ChainId: h.Static.ChainId,
@@ -577,11 +650,11 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	}
 
 	if content.Len() == 0 {
-		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
+		h.Logger.Debug("unable to fetch user realm", "username", namespace, "error", err)
 	}
 
 	// Build contributions
-	contribs, realmCount, err := h.buildContributions(ctx, username)
+	contribs, realmCount, err := h.buildContributions(ctx, namespace)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -591,15 +664,17 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-	// Try to decode the bech32 address
-	username = CreateUsernameFromBech32(username)
+	// An unregistered address is all the page has to show for a name, so it
+	// is shortened to stay readable next to the avatar.
+	username := CreateUsernameFromBech32(namespace)
 
 	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username
 
 	data := components.UserData{
 		Username:      username,
+		Namespace:     namespace,
+		Address:       identity.Address,
 		Handlename:    handlename,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
