@@ -335,7 +335,6 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      std.Coins{},
 		OriginSendSpent: new(std.Coins),
-		CallCredits:     new(stdlibs.CallCredits),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -370,9 +369,6 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		priorRealm = gnostore.GetPackageRealm(msg.PkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
-	if err := unclaimedPayCalls(msgCtx); err != nil {
-		return err
-	}
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//

@@ -85,9 +85,6 @@ message UnobservedSendError {
 message UnspendableSendError {
 }
 
-message UnclaimedPayCallError {
-}
-
 message GenesisState {
 	Params params = 1;
 	repeated string realm_params = 2;

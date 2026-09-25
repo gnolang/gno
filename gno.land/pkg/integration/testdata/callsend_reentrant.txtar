@@ -1,5 +1,6 @@
-# CallSend is consumed on read and keyed to the payer: a re-entrant call back
-# into the entry realm reads zero, so the 5000ugnot envelope is counted once.
+# The receipt is bound to the call frame: a re-entrant cross back into the
+# entry realm is a new call with no coins attached, so it reads zero and the 5000ugnot
+# envelope is counted once.
 loadpkg gno.land/r/test/vault $WORK/vault
 loadpkg gno.land/r/test/hook $WORK/hook
 
@@ -36,8 +37,8 @@ var (
 func SetHook(cur realm, c Callback) { cb = c }
 
 // Deposit credits CallSend, then calls out before finishing: the classic
-// re-entrancy shape. The receipt is single-read, so the callback cannot
-// count the same envelope again.
+// re-entrancy shape. The callback's cross carries no coins, so its read is
+// zero.
 func Deposit(cur realm) {
 	deposits++
 	minted += banker.CallSend().AmountOf("ugnot")

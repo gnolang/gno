@@ -39,11 +39,15 @@ func (x *BinaryExpr) Copy() Node {
 }
 
 func (x *CallExpr) Copy() Node {
-	return &CallExpr{
+	c := &CallExpr{
 		Func: x.Func.Copy().(Expr),
 		Args: copyExprs(x.Args),
 		Varg: x.Varg,
 	}
+	if x.Send != nil {
+		c.Send = x.Send.Copy().(Expr)
+	}
+	return c
 }
 
 func (x *IndexExpr) Copy() Node {

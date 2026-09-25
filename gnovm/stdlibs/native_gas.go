@@ -94,7 +94,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -128,8 +128,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "math", Fn: "Float32frombits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 32.4ns
 	{Pkg: "math", Fn: "Float64bits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                              // flat, median 28.7ns
 	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
-	{Pkg: "chain/banker", Fn: "bankerCallSend", Base: 2006, Slope: 2638, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // two getRealm-shaped identity lookups (2x chain/runtime/unsafe.getRealm) + ledger take; mirrored, recalibrate with the table
-	{Pkg: "chain/banker", Fn: "bankerPayCall", Base: 874, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                  // bankerSendCoins (322) + chain.packageAddress base (552) for deriving the payee address; mirrored, recalibrate with the table
+	{Pkg: "chain/banker", Fn: "bankerCallSend", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // one identity lookup + a frame walk to the entering cross; mirrors chain/runtime/unsafe.getRealm, recalibrate with the table
 	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
 	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
 	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 129, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 129.2ns

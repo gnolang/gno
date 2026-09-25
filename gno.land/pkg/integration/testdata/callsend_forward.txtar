@@ -1,7 +1,7 @@
-# Phase 2: a realm forwards a native-coin payment to another realm within one
-# message (banker.PayCall), and the payee reads exactly what it was forwarded
-# via banker.CallSend(). This is the composition the message-entry receipt alone
-# cannot express. See gnovm/adr/pr6213_per_call_coin_value.md.
+# A realm forwards a native-coin payment to another realm within one message
+# by attaching it to the cross: wrap.Deposit(cross(cur, coins)). The
+# payee reads exactly what that call delivered via banker.CallSend().
+# See gnovm/adr/pr6213_per_call_coin_value.md.
 
 loadpkg gno.land/r/test/wrap $WORK/wrap
 loadpkg gno.land/r/test/router $WORK/router
@@ -9,13 +9,12 @@ loadpkg gno.land/r/test/router $WORK/router
 adduser user1
 gnoland start
 
-# user1 -> router.Route with 5000ugnot. The router is the message recipient, so
-# CallSend() reports 5000 to it; it then PayCall-forwards all 5000 to wrap and
-# calls wrap.Deposit, which reads the forwarded 5000 via CallSend and mints.
+# user1 -> router.Route with 5000ugnot. The router is the entry call, so
+# CallSend() reports 5000 to it; it crosses into wrap with 5000 attached, and
+# wrap reads 5000 on its own call.
 gnokey maketx call -pkgpath gno.land/r/test/router -func Route -send 5000ugnot -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
 stdout 'OK!'
 
-# wrap saw the forwarded amount (not zero — it is not the message recipient):
 gnokey query vm/qeval --data "gno.land/r/test/wrap.GetMinted()"
 stdout '5000 int64'
 
@@ -37,7 +36,7 @@ import (
 
 var minted int64
 
-// Deposit mints against the coins forwarded to wrap on THIS call.
+// Deposit mints against the coins delivered to wrap on THIS call.
 func Deposit(cur realm) {
 	minted += banker.CallSend().AmountOf("ugnot")
 }
@@ -62,10 +61,8 @@ import (
 	"gno.land/r/test/wrap"
 )
 
-// Route receives the user's ugnot, forwards it to wrap within the same message,
-// then calls wrap so wrap can mint against exactly what was forwarded.
+// Route receives the user's ugnot and forwards it to wrap on the cross.
 func Route(cur realm) {
 	got := banker.CallSend().AmountOf("ugnot")
-	banker.PayCall("gno.land/r/test/wrap", cur, chain.Coins{{"ugnot", got}})
-	wrap.Deposit(cross(cur))
+	wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}}))
 }

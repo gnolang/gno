@@ -67,28 +67,3 @@ func TestOriginSendIsSpendableOnlyByThePaidRealm(t *testing.T) {
 	require.False(t, send(m, paid), "the paid realm must be able to spend")
 	require.Equal(t, 1, bk.sends, "the paid realm's send must reach the bank")
 }
-
-// PayCall must not move coins in a context that cannot record the forward:
-// the payee could never read it, so the transfer would be a silent loss.
-func TestPayCallRefusesWithoutLedger(t *testing.T) {
-	bk := &countingBanker{}
-	m := &gno.Machine{Context: execctx.ExecContext{Banker: bk}}
-	require.Panics(t, func() {
-		X_bankerPayCall(m, string(gno.DerivePkgBech32Addr("gno.land/r/router")),
-			"gno.land/r/router", "gno.land/r/vault", []string{"ugnot"}, []int64{10})
-	})
-	require.Zero(t, bk.sends, "no coins may move when the forward cannot be recorded")
-}
-
-// PayCall to anything but a realm path is refused before any coins move.
-func TestPayCallRefusesNonRealmPayee(t *testing.T) {
-	bk := &countingBanker{}
-	m := &gno.Machine{Context: execctx.ExecContext{Banker: bk, CallCredits: new(execctx.CallCredits)}}
-	for _, bad := range []string{"", "gno.land/p/demo/avl", "gno.land/r/router#sub", "nonsense"} {
-		require.Panics(t, func() {
-			X_bankerPayCall(m, string(gno.DerivePkgBech32Addr("gno.land/r/router")),
-				"gno.land/r/router", bad, []string{"ugnot"}, []int64{10})
-		}, bad)
-	}
-	require.Zero(t, bk.sends)
-}

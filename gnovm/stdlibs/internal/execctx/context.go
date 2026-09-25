@@ -1,9 +1,6 @@
 package execctx
 
 import (
-	"slices"
-	"strings"
-
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -101,85 +98,6 @@ type ExecContext struct {
 	Params             ParamsInterface
 	EventLogger        *sdk.EventLogger
 	SessionAccount     std.DelegatedAccount // nil for master-key txs
-	// CallCredits is the per-message ledger of coins delivered to a realm by a
-	// call: the message send (seeded by the keeper) and banker.PayCall forwards.
-	// Keyed by (payer, payee) and consumed on read by banker.CallSend. Nil in
-	// contexts that cannot carry a send: reads see zero, PayCall refuses.
-	CallCredits *CallCredits
-}
-
-// callCredit is one delivery. The message send has payer "" (the user); the
-// unclaimed guard skips it, since the keeper already handles that envelope.
-type callCredit struct {
-	payer, payee string
-	amt          std.Coins
-}
-
-// CallCredits is a per-message ledger of realm->realm payments; see the
-// ExecContext field of the same name. A slice, not a map: it is small, and the
-// unclaimed report must come out in a deterministic order.
-type CallCredits struct {
-	entries []callCredit
-}
-
-// NewCallCredits allocates a ledger seeded with the message send credited to
-// payee, from the user (payer ""). A zero send seeds nothing.
-func NewCallCredits(payee string, send std.Coins) *CallCredits {
-	c := &CallCredits{}
-	c.SeedEnvelope(payee, send)
-	return c
-}
-
-// SeedEnvelope replaces the message-send entry: payee received send from the
-// user. The test harness calls it when a test re-points the envelope.
-func (c *CallCredits) SeedEnvelope(payee string, send std.Coins) {
-	c.entries = slices.DeleteFunc(c.entries, func(e callCredit) bool { return e.payer == "" })
-	if payee != "" && !send.IsZero() {
-		c.entries = append(c.entries, callCredit{payee: payee, amt: send})
-	}
-}
-
-// Credit records that payer forwarded amt to payee (banker.PayCall).
-func (c *CallCredits) Credit(payer, payee string, amt std.Coins) {
-	if amt.IsZero() {
-		return
-	}
-	c.entries = append(c.entries, callCredit{payer: payer, payee: payee, amt: amt})
-}
-
-// Take returns and removes everything payer delivered to payee. Reading
-// consumes, so a re-entrant or repeated read sees zero. Nil-safe.
-func (c *CallCredits) Take(payer, payee string) std.Coins {
-	if c == nil {
-		return nil
-	}
-	var sum std.Coins
-	c.entries = slices.DeleteFunc(c.entries, func(e callCredit) bool {
-		if e.payer != payer || e.payee != payee {
-			return false
-		}
-		sum = sum.Add(e.amt)
-		return true
-	})
-	return sum
-}
-
-// Unclaimed describes the PayCall forwards nobody read, in the order made,
-// or "" if none. Nil-safe.
-func (c *CallCredits) Unclaimed() string {
-	if c == nil {
-		return ""
-	}
-	var out []string
-	for _, e := range c.entries {
-		if e.payer != "" {
-			out = append(out, e.amt.String()+" forwarded by "+e.payer+" to "+e.payee)
-		}
-	}
-	if len(out) == 0 {
-		return ""
-	}
-	return strings.Join(out, "; ") + ": never read by the payee"
 }
 
 // MarkOriginSendObservedBy records that the realm at realmPath made the
@@ -265,4 +183,33 @@ func init() {
 		}
 		return ""
 	}
+	gno.CrossSendHandler = crossSend
+}
+
+// crossSend implements fn(cross(rlm, coins)) for the VM: decode the chain.Coins
+// value, drop zero coins (no send), reject anything std would, and move the
+// rest through the context's banker.
+func crossSend(m *gno.Machine, from, to string, send gno.TypedValue) std.Coins {
+	var coins std.Coins
+	for i := range send.GetLength() {
+		sv := send.GetPointerAtIndexInt(m.Store, i).Deref().V.(*gno.StructValue)
+		c := std.Coin{Denom: sv.Fields[0].GetString(), Amount: sv.Fields[1].GetInt64()}
+		if c.Amount != 0 {
+			coins = append(coins, c)
+		}
+	}
+	if len(coins) == 0 {
+		return nil
+	}
+	if err := coins.Validate(); err != nil {
+		m.PanicString("send: " + err.Error())
+		return nil
+	}
+	bank := GetContext(m).Banker
+	if bank == nil {
+		m.PanicString("send: no banker in this context")
+		return nil
+	}
+	bank.SendCoins(crypto.Bech32Address(from), crypto.Bech32Address(to), coins)
+	return coins
 }

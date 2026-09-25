@@ -1,7 +1,9 @@
 // PKGPATH: gno.land/r/demo/crossextra
 package crossextra
 
-// cross with more than one argument is rejected at preprocess time.
+// cross with a second argument that is not chain.Coins is rejected at
+// preprocess time; the Go shim accepts any extra args, so only the
+// preprocessor reports it.
 
 func callee(cur realm) string {
 	return cur.PkgPath()
@@ -12,9 +14,5 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/crossextra/zrealm_cross_extra.gno:11:17-32: cross takes exactly one argument: the in-scope realm
+// gno.land/r/demo/crossextra/zrealm_cross_extra.gno:13:17-32: the second argument of cross must be a chain.Coins value
 
-// TypeCheckError:
-// gno.land/r/demo/crossextra/zrealm_cross_extra.gno:11:28: too many arguments in call to cross
-// 	have (realm, realm)
-// 	want (realm)

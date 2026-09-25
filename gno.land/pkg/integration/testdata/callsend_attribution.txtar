@@ -1,0 +1,98 @@
+# The value of a call is bound to that call: the payee attributes it to
+# cur.Previous(), the realm that crossed in with coins attached. A relay that
+# crosses in without coins delivers nothing, and a realm that pays with its
+# own balance is credited itself.
+
+loadpkg gno.land/r/test/vault $WORK/vault
+loadpkg gno.land/r/test/third $WORK/third
+loadpkg gno.land/r/test/router $WORK/router
+
+adduser user1
+gnoland start
+
+# router forwards the user's 5000 on its cross: credited to router.
+gnokey maketx call -pkgpath gno.land/r/test/router -func Route -send 5000ugnot -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/vault.CreditedTo(\"gno.land/r/test/router\")"
+stdout '5000 int64'
+
+# router keeps the user's 3000 and relays through third, which crosses in
+# with no coins: nothing is delivered, nobody is credited.
+gnokey maketx call -pkgpath gno.land/r/test/router -func Relay -send 3000ugnot -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/vault.CreditedTo(\"gno.land/r/test/third\")"
+stdout '0 int64'
+
+# A send that exceeds the calling realm's balance fails before the callee runs.
+! gnokey maketx call -pkgpath gno.land/r/test/router -func Overpay -send 100ugnot -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
+stderr 'insufficient'
+
+gnokey query vm/qeval --data "gno.land/r/test/vault.Bal()"
+stdout '5000 int64'
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+var credited = map[string]int64{}
+
+func Deposit(cur realm) {
+	credited[cur.Previous().PkgPath()] += banker.CallSend().AmountOf("ugnot")
+}
+
+func CreditedTo(p string) int64 { return credited[p] }
+
+func Bal() int64 {
+	return banker.NewReadonlyBanker().GetCoin(chain.PackageAddress("gno.land/r/test/vault"), "ugnot")
+}
+
+-- third/gnomod.toml --
+module = "gno.land/r/test/third"
+gno = "0.9"
+
+-- third/third.gno --
+package third
+
+import "gno.land/r/test/vault"
+
+func Go(cur realm) { vault.Deposit(cross(cur)) }
+
+-- router/gnomod.toml --
+module = "gno.land/r/test/router"
+gno = "0.9"
+
+-- router/router.gno --
+package router
+
+import (
+	"chain"
+	"chain/banker"
+
+	"gno.land/r/test/third"
+	"gno.land/r/test/vault"
+)
+
+func Route(cur realm) {
+	got := banker.CallSend().AmountOf("ugnot")
+	vault.Deposit(cross(cur, chain.Coins{{"ugnot", got}}))
+}
+
+func Relay(cur realm) {
+	banker.CallSend() // observe the envelope; keep the coins
+	third.Go(cross(cur))
+}
+
+func Overpay(cur realm) {
+	banker.CallSend()
+	vault.Deposit(cross(cur, chain.Coins{{"ugnot", 1_000_000_000}}))
+}

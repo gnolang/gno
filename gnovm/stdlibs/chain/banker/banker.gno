@@ -170,12 +170,11 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	return b
 }
 
-// CallSend returns the coins delivered to the current realm on this call:
-// the message send when the user entered this realm directly, or what the
-// calling realm forwarded with PayCall. It is gno's msg.value. Reading consumes
-// the receipt, so a second read, a re-entrant call, or a realm reached through
-// a relay all get zero. A realm that accepts payment should credit against
-// CallSend, not against OriginSend. See gnovm/adr/pr6213_per_call_coin_value.md.
+// CallSend returns the coins delivered to the current realm by the call that
+// entered it: the message send, or the coins of the cross that made the call,
+// as in wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}})) — gno's msg.value.
+// Same-realm helper(cur) calls see it; any further cross reads zero.
+// See gnovm/adr/pr6213_per_call_coin_value.md.
 func CallSend() chain.Coins {
 	den, amt := bankerCallSend()
 	coins := make(chain.Coins, len(den))
@@ -185,25 +184,8 @@ func CallSend() chain.Coins {
 	return coins
 }
 
-// PayCall forwards amt from the current realm's address to the realm at
-// toPkgPath and records the forward, so that realm reads exactly amt via
-// CallSend when this realm crosses into it next. Only that (payer, payee) pair
-// can read it, and the message fails if nobody does, so a forward to a realm
-// you do not then call is an error, not a lost payment.
-//
-// rlm must be the live current realm: it authorizes spending that realm's own
-// balance, like a BankerTypeRealmSend banker.
-func PayCall(toPkgPath string, rlm realm, amt chain.Coins) {
-	if !rlm.IsCurrent() {
-		panic("PayCall can only be called for the current realm")
-	}
-	denoms, amounts := expandNative(amt)
-	bankerPayCall(string(rlm.Address()), rlm.PkgPath(), toPkgPath, denoms, amounts)
-}
-
 // These are native bindings to the banker's functions.
 func bankerCallSend() (denoms []string, amounts []int64)
-func bankerPayCall(from, fromPkgPath, toPkgPath string, denoms []string, amounts []int64)
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)

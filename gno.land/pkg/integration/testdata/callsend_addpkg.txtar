@@ -1,5 +1,5 @@
-# A funded MsgAddPackage credits its send to the new realm; init() reads it
-# through CallSend like any other entry call.
+# A funded MsgAddPackage credits its send to the new realm; init(cur realm)
+# is the entry call and reads it through CallSend.
 adduser user1
 gnoland start
 
@@ -20,7 +20,7 @@ import "chain/banker"
 
 var got int64
 
-func init() {
+func init(cur realm) {
 	got = banker.CallSend().AmountOf("ugnot")
 }
 

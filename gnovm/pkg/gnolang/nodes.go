@@ -419,6 +419,7 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Varg      bool  // if true, final arg is variadic.
 	NumArgs   int   // len(Args) or len(Args[0].Results)
 	WithCross bool  // if cross-called with `cur`.
+	Send      Expr  // coins of fn(cross(rlm, coins), ...); nil if none.
 }
 
 // returns true if x is of form fn(cur, ...) or fn(cross(rlm), ...).

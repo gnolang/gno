@@ -1,4 +1,4 @@
-# ADR: per-call coin value for realms (banker.CallSend / banker.PayCall)
+# ADR: per-call coin value for realms (`cross(cur, coins)` / `banker.CallSend`)
 
 ## Context
 
@@ -14,111 +14,87 @@ gno has the per-call *sender* but not the per-call *value*:
 A realm's only payment signal is `unsafe.OriginSend()`, the envelope attached at
 the chain root and read identically by every realm in the call chain. A realm
 that mints against it must *infer*, from `AssertOriginCall`, that no realm
-interposed and so the envelope is its own. That inference is fragile (payment
-safety rides on a stack-shape heuristic, repaired in #6211 but still a
-heuristic) and forbids composition (a router cannot legitimately relay a
-payment). The chain already records the missing fact: every `MsgCall` credits
-its send to one realm, stored as `OriginSendRecipientPath`.
+interposed and so the envelope is its own. That inference is fragile (repaired
+in #6211, but still a stack-shape heuristic) and forbids composition: a router
+cannot legitimately relay a payment, so nothing in `examples/` calls
+`wugnot.Deposit` from another realm.
 
 ## Decision
 
-A per-message **call-credit ledger** on `ExecContext`, keyed by `(payer, payee)`
-package path and consumed on read, behind two natives in `chain/banker`:
-
-- `CallSend()` takes the entry keyed by (`cur.Previous()`, `cur`), using the
-  presented identities (`execctx.GetRealm`, which agrees with `cur`). The keeper
-  seeds the message send as (user `""`, entry realm) for `MsgCall` and a funded
-  `MsgAddPackage`. A relayed realm, a re-entrant call back into the entry realm,
-  or a second read in the same call all take nothing. Reading marks the envelope
-  observed for the unobserved-send guard.
-- `PayCall(toPkgPath, rlm, coins)` moves coins from the live current realm's
-  address to the payee's and records (payer, payee). Only the payee, entered by
-  that payer, can read it. The keeper fails the message if a forward is never
-  read (`ErrUnclaimedPayCall`; deterministic text, the ledger is an ordered
-  slice, never a ranged map). `toPkgPath` must be a realm path; a context with
-  no ledger refuses before any coins move.
+Value is a property of one call, carried on the cross that makes it:
 
 ```go
-func Deposit(cur realm) {                       // payee: fact, not inference
+func Deposit(cur realm) {                        // payee: a fact, not an inference
     got := banker.CallSend().AmountOf("ugnot")
     mint(cur.Previous().Address(), got)
 }
-func Route(cur realm) {                         // router: forward, then cross
+func Route(cur realm) {                          // router: forward on the cross
     got := banker.CallSend().AmountOf("ugnot")
-    banker.PayCall("gno.land/r/x/vault", cur, chain.Coins{{"ugnot", got}})
-    vault.Deposit(cross(cur))                   // vault reads exactly got
+    wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}}))
 }
 ```
 
-`CallSend()` is call-scoped, not origin-scoped, so one receipt serves both an
-EOA payment and a realm forward; a gated `OriginSend` could not host forwarding.
-No VM-core, op_call, or grammar change; `NumCallFrames` is untouched. `rlm` is
-not `PayCall`'s first parameter because a realm-first signature is the
-crossing-function form this non-realm package may not declare.
+- **Syntax.** `cross(rlm, coins)` takes an optional second argument of static
+  type `chain.Coins`. Preprocess moves it to `CallExpr.Send` and keeps `cross`
+  one-argument at runtime; the Go shim is `cross(rlm realm, coins ...any)`.
+  Anything else in that position, or `cross` outside `Args[0]` of a crossing
+  call, is a preprocess error.
+- **Transfer.** `Send` is evaluated after the arguments; `doOpPrecall` pops it
+  and, after `installCrossingCur`, hands it to `gno.CrossSendHandler` with the
+  caller's and the freshly minted callee cur's addresses. `execctx` implements
+  the hook: decode the `chain.Coins`, drop zero coins (no send), validate as
+  `std` does, move through the context's banker, and return what moved, which
+  becomes `Frame.Received`. No banker means any send panics. Gas:
+  `OpCPUCrossSendBase/Slope`, mirrored from `bankerSendCoins`.
+- **Entry call.** `Machine.CallReceived` walks to the nearest `WithCross`
+  frame and returns its `Received`, or reports the call as the message entry:
+  the MsgCall `.origin` frame (`Frame.EntryCall`, set by `installCrossingCur`)
+  or code with no cross above it (`init`, `main`, tests). For the entry, the
+  banker native returns the context's send when the current realm is the one
+  the keeper credited (`OriginSendRecipientPath`, now also set by AddPackage),
+  and marks it observed. MsgRun sets no recipient, so its self-transfer is not
+  a receipt. Nothing is latched: every entry-level frame of a message sees the
+  send, as `OriginSend` does today.
+- **Reading.** `banker.CallSend()` is that: plain `fn(cur)` same-realm calls
+  are transparent; a further cross, even into the same realm, a re-entrant
+  call, or a relayed call reads zero.
 
-Why consume and key by payer: an unconsumed, path-only receipt let a re-entrant
-call mint twice against one envelope, and a path-only forward credit went to
-whichever realm entered the payee next. Both were demonstrated on this branch
-before the ledger took this shape. Reentrancy is otherwise orthogonal; callees
-keep checks-effects-interactions.
-
-## Relationship to #6211
-
-Complementary. #6211 repairs the *auth* primitive `AssertOriginCall`, needed by
-every realm using it including non-payment authorization. This removes a
-*payment* realm's dependence on that primitive; for such a realm the two overlap.
+No ledger, no payee path as a string, no end-of-message state: the coins and
+the receipt exist exactly for the duration of the call, like `msg.value` and
+CosmWasm `funds`.
 
 ## Alternatives considered
 
 - **OriginSend + AssertOriginCall (status quo).** Correct only while the auth
   heuristic is; forbids composition.
 - **Gate `OriginSend` to the credited recipient.** Minimal fix for existing
-  realms, but origin-scoped by name and meaning, so it cannot carry a realm
-  forward. Could still ship alongside.
-- **Value as a call attribute (frame form).** The target syntax; see below.
+  realms, but origin-scoped by meaning, so it cannot carry a realm forward.
+- **A banker-layer ledger (`banker.PayCall`), tried first on this branch.**
+  A per-message credit keyed by (payer, payee) and consumed on read. It needed
+  an unclaimed-credit guard, a nil-ledger refusal, harness seeding, and still
+  let the first of several calls into the payee take the credit. Every one of
+  those is what frame binding removes.
+- **A `send(coins)` marker, `cross(cur, send(coins))`.** Reads well, but a
+  uverse `send` cannot be shadowed and `send` is an ordinary identifier in
+  nineteen existing realms and tests. The bare `chain.Coins` argument is typed
+  just as strictly.
 - **Vault balance delta (`balance - totalSupply`).** Captures stray donations
   and bricks deposits if the balance dips below supply; no attribution.
-
-## Frame form: `f(cross(cur, send(coins)))`
-
-`PayCall` binds value to the (payer, payee) pair for the rest of the message,
-so between two calls from the payer into the payee the first `CallSend` read
-wins, and a forgotten call surfaces only as the unclaimed error. Binding value
-to one call frame, like `msg.value` or CosmWasm `funds`, removes both. User
-code collapses to one line and the payee is unchanged:
-
-```go
-wrap.Deposit(cross(cur, send(chain.Coins{{"ugnot", got}})))   // A: chosen
-wrap.Deposit(cross(cur), send(coins))                           // B: 2nd call attribute
-wrap.Deposit(cross(cur).send(coins))                            // C: method on realm
-```
-
-A keeps `send` inside `cross`: the preprocessor already validates `cross` at
-`Args[0]` and the realm's liveness there, and hangs the coins on the CallExpr;
-precall moves them and sets `Frame.Received` beside `Frame.Cur`; `CallSend`
-reads the nearest crossing frame. B adds a second positional slot to every
-call site and needs its own rejection rules; C makes `send` look like a
-`realm` method, so `x := cur.send(coins)` becomes a storable value that
-carries money. `send` is syntax the preprocessor consumes, not a transfer and
-not part of `realm`.
-
-Cost: grammar, typechecker shim, a banker hook in `doOpPrecall` (the VM core
-does not know the banker), and a decision on a callee panic recovered by the
-caller, where the coins have already moved like any other Gno state change.
-Sequencing: land `PayCall` to review the semantics; the frame form then wires
-precall to the same transfer and deletes the ledger, `PayCall`, the unclaimed
-guard and their error type.
 
 ## Consequences
 
 - A payment realm credits against `CallSend()` with no origin check; the
-  guarantee rests on a consumed, payer-keyed ledger entry, not frame counting.
-- A router that pays and does not then cross into the payee gets an error, not
-  a lost payment. Internal callouts (`callRealmBool`) carry no ledger, so a
-  `PayCall` there fails closed. `gnovm/pkg/test.Context` seeds the ledger so
-  `gno test` matches the chain.
-- New natives shift the stdlib state hash (pinned app-hash updated); gas rows
-  mirror `getRealm`/`bankerSendCoins`/`packageAddress` and need recalibration.
-- Tests: `callsend.txtar` (relay reads zero), `callsend_forward.txtar`,
-  `callsend_reentrant.txtar`, `callsend_unclaimed.txtar`, `callsend_addpkg.txtar`.
-- Follow-ups: migrate `wugnot.Deposit` to `CallSend()`; the frame form above.
+  guarantee rests on the frame, not frame counting.
+- A callee panic recovered by the caller has already moved the coins, as any
+  other Gno state change; only a failed message reverts them.
+- `CallExpr` gains a persisted `Send` field (amino regenerated); `TransField`
+  gains `TRANS_CALL_SEND`; `Frame` gains `Received`.
+- A funded `MsgAddPackage` reads its send from `init`, crossing or not.
+  `testing.SetOriginSend` drives `CallSend` at the entry level of a test.
+- Stdlib source changed, so the pinned app hash is re-derived. `getRealm`-shaped
+  gas row for `bankerCallSend`; all rows mirrored, recalibrate.
+- Tests: `zrealm_cross_send{0,1}.gno`, `callsend.txtar` (relay reads zero),
+  `callsend_forward.txtar`, `callsend_attribution.txtar`,
+  `callsend_reentrant.txtar`, `callsend_addpkg.txtar`.
+- Follow-ups: migrate `wugnot.Deposit` to `CallSend()`; a `Render`-safe
+  read-only cross (a send is a write) once read-only crosses exist.

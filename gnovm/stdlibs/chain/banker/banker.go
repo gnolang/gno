@@ -132,37 +132,21 @@ func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amo
 	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
-// X_bankerCallSend is the native for CallSend; see banker.gno. Payer and payee
-// are the presented identities (what cur.Previous() and cur report), not the
-// innermost frame, so a same-realm helper reads the same receipt.
+// X_bankerCallSend is the native for CallSend; see banker.gno. A cross frame
+// carries its own receipt; the message entry reads the send the keeper credited
+// to this realm (OriginSendRecipientPath), which also marks it observed.
 func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	coins, entry := m.CallReceived()
+	if !entry {
+		return ExpandCoins(coins)
+	}
 	ctx := execctx.GetContext(m)
 	_, payee := execctx.CurrentRealm(m)
-	_, payer := execctx.GetRealm(m, 1)
-	// Reading is what makes the entry realm payable (the unobserved-send
-	// guard), whether or not anything is left to read — as unsafe.OriginSend.
+	if payee == "" || payee != ctx.OriginSendRecipientPath {
+		return nil, nil
+	}
 	ctx.MarkOriginSendObservedBy(payee)
-	return ExpandCoins(ctx.CallCredits.Take(payer, payee))
-}
-
-// X_bankerPayCall is the native for PayCall; see banker.gno. fromS and fromPath
-// are pinned to the live rlm there, so this spends only the caller's balance.
-func X_bankerPayCall(m *gno.Machine, fromS, fromPath, toPkgPath string, denoms []string, amounts []int64) {
-	ctx := execctx.GetContext(m)
-	if ctx.CallCredits == nil {
-		// Refuse before moving anything: a forward nobody can read is a loss.
-		m.PanicString("PayCall is not available in this context")
-		return
-	}
-	if !gno.IsRealmPath(toPkgPath) {
-		m.PanicString(fmt.Sprintf("PayCall: %q is not a realm path", toPkgPath))
-		return
-	}
-	amt := CompactCoins(denoms, amounts)
-	from := crypto.Bech32Address(fromS)
-	to := gno.DerivePkgBech32Addr(toPkgPath)
-	ctx.Banker.SendCoins(from, to, amt)
-	ctx.CallCredits.Credit(fromPath, toPkgPath, amt)
+	return ExpandCoins(ctx.OriginSend)
 }
 
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {

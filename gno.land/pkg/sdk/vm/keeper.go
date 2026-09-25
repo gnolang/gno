@@ -1160,15 +1160,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		CallCredits:     stdlibs.NewCallCredits(pkgPath, send),
 		// send was credited to pkgAddr just above; that is the only
 		// address a BankerTypeOriginSend banker may spend from in this
-		// message.
-		OriginSendRecipient: pkgAddr.Bech32(),
-		Banker:              NewSDKBanker(vm, ctx),
-		Params:              NewSDKParams(vm.prmk, ctx),
-		EventLogger:         ctx.EventLogger(),
-		SessionAccount:      getSessionAccount(ctx, creator),
+		// message, and the realm whose init reads it via CallSend.
+		OriginSendRecipient:     pkgAddr.Bech32(),
+		OriginSendRecipientPath: pkgPath,
+		Banker:                  NewSDKBanker(vm, ctx),
+		Params:                  NewSDKParams(vm.prmk, ctx),
+		EventLogger:             ctx.EventLogger(),
+		SessionAccount:          getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -1216,9 +1216,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		priorRealm = gnostore.GetPackageRealm(pkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
-	if err := unclaimedPayCalls(msgCtx); err != nil {
-		return err
-	}
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {
@@ -1234,15 +1231,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		},
 	)
 
-	return nil
-}
-
-// unclaimedPayCalls fails a message whose PayCall forwards nobody read: the
-// coins moved to the payee's address, but no realm recorded them.
-func unclaimedPayCalls(msgCtx stdlibs.ExecContext) error {
-	if msg := msgCtx.CallCredits.Unclaimed(); msg != "" {
-		return ErrUnclaimedPayCall(msg)
-	}
 	return nil
 }
 
@@ -1304,7 +1292,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginCaller:       caller.Bech32(),
 		OriginSend:         send,
 		OriginSendSpent:    new(std.Coins),
-		CallCredits:        stdlibs.NewCallCredits(pkgPath, send),
 		OriginSendObserved: new(bool),
 		// send is credited to pkgAddr (the entry realm) below; that is
 		// the only address a BankerTypeOriginSend banker may spend from
@@ -1407,9 +1394,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		return "", ErrUnobservedSend(fmt.Sprintf(
 			"%s sent to %s.%s, which never read the send-envelope",
 			send.String(), pkgPath, fnc))
-	}
-	if err := unclaimedPayCalls(msgCtx); err != nil {
-		return "", err
 	}
 
 	// Use parameters before executing the message, as they may change during execution.
@@ -1587,7 +1571,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		CallCredits:     new(stdlibs.CallCredits),
 		// No OriginSendRecipient here, deliberately. pkgAddr == caller for
 		// MsgRun, so the coins move from the caller to the caller and the
 		// envelope never lands anywhere. A run script cannot construct a
@@ -1660,9 +1643,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
 	m2.RunMainMaybeCrossing()
-	if err := unclaimedPayCalls(msgCtx); err != nil {
-		return "", err
-	}
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
