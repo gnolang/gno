@@ -270,10 +270,10 @@ network dropdown and every `gnokey` command's `-remote` and
 |------------|--------------|-----------------------------------------------|
 | Local      | `dev`        | `http://localhost:26657`                      |
 | Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
-| Testnet    | `pearl-1`    | `https://rpc.pearl.testnets.gno.land:443`     |
+| Testnet    | `onyx-1`     | `https://rpc.onyx.testnets.gno.land:443`      |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-Pearl is the current testnet. See [Networks](../resources/gnoland-networks.md) for the live list.
+Onyx is the current testnet: it runs mainnet's exact binaries and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
@@ -351,7 +351,7 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://pearl.testnets.gno.land/r/...` instead.
+testnet the URL is `https://onyx.testnets.gno.land/r/...` instead.
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.

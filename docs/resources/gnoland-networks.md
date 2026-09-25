@@ -5,9 +5,10 @@
 | Network           | RPC Endpoint                            | Chain ID    | Deployment files                                                                                                           |
 |-------------------|-----------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
+| Onyx / Test17     | https://rpc.onyx.testnets.gno.land:443  | `onyx-1`    | [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)       |
 | Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
 | Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
-| Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
+| Pearl / Test16 (retiring) | https://rpc.pearl.testnets.gno.land:443 | `pearl-1` | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)   |
 
 Mainnet (`gnoland-1`) launched at `2026-09-12T15:00:00Z` as a fresh chain — not
 a hardfork of betanet. Balances come from the audited
@@ -17,6 +18,14 @@ faucet**. The `rpc.gno.land` endpoint serves `gnoland-1`; betanet, which held
 that name before, is retired. The version mainnet runs today, and every
 coordinated upgrade since launch, are listed in `UPGRADES.md` under
 [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
+
+Onyx (`onyx-1`) is the testnet on the mainnet line: it launches on
+`2026-09-28T00:00:00Z` running mainnet's exact binaries, and is upgraded
+whenever mainnet is — every mainnet release is rehearsed there first. It has a
+faucet and open transfers, mainnet's package set, namespaces and governance
+seed, and its own `UPGRADES.md` under
+[`misc/deployments/onyx.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land).
+Pearl is retiring in its favour.
 
 ### WebSocket endpoints
 
@@ -42,9 +51,11 @@ its genesis (or the script that regenerates it), and a `README.md` /
 Two conventions to know:
 
 - A network's directory sits on that network's **`chain/<name>` branch**,
-  not on `master` — that's the branch the chain's release is cut from. The
-  `master` copy is where the next network is prepared, plus the archives of
-  past ones.
+  not on `master` — that's the branch the chain's release is cut from. A
+  testnet on the mainnet line (onyx) has no branch of its own: its directory
+  sits on `chain/mainnet`, and its `chain/<name>` launch tag marks the commit
+  of the mainnet version it launched on. The `master` copy is where the next
+  network is prepared, plus the archives of past ones.
 - The `chain/<name>` [release](https://github.com/gnolang/gno/releases)
   carries the network's `genesis.json` and its checksum, nothing else. Binaries
   and container images belong to version releases (`vX.Y.Z`): one per binary
@@ -175,9 +186,28 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](../../misc/loop) folder in the
     monorepo
 
-### Pearl / Test16
+### Onyx / Test17
 
-The latest Gno.land testnet, released on the 26th of August, 2026, and the one to use unless you have a reason not to.
+The current Gno.land testnet, launching on the 28th of September, 2026, and the one to use unless you have a reason not to. It runs mainnet's exact binaries and follows every mainnet upgrade, so what works here works on mainnet.
+
+- **Persistence of state:**
+  - State is fully persisted across coordinated upgrades, exactly as on mainnet:
+    every upgrade is rehearsed here before it reaches mainnet
+- **Timeliness of code:**
+  - The version onyx runs is the version mainnet runs; the launch version and
+    every upgrade since are in `UPGRADES.md` under
+    [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
+- **Intended purpose**
+  - Running a full node, testing validator coordination, deploying Gno dApps
+    against mainnet's code and package set with faucet funds and open transfers
+- **Versioning strategy:**
+  - No branch of its own: the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx)
+    tag marks the mainnet commit it launched on; deployment files under
+    [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
+
+### Pearl / Test16 (retiring)
+
+Released on the 26th of August, 2026; superseded by Onyx / Test17.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
