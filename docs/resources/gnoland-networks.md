@@ -5,7 +5,7 @@
 | Network           | RPC Endpoint                            | Chain ID    | Deployment files                                                                                                           |
 |-------------------|-----------------------------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
-| Onyx / Test17     | https://rpc.onyx.testnets.gno.land:443  | `onyx-1`    | [`misc/deployments/onyx.gno.land`](../../misc/deployments/onyx.gno.land)                                                   |
+| Onyx / Test17     | https://rpc.onyx.testnets.gno.land:443  | `onyx-1`    | [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)       |
 | Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
 | Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
 | Pearl / Test16 (retiring) | https://rpc.pearl.testnets.gno.land:443 | `pearl-1` | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)   |
@@ -24,7 +24,7 @@ Onyx (`onyx-1`) is the testnet on the mainnet line: it launches on
 whenever mainnet is — every mainnet release is rehearsed there first. It has a
 faucet and open transfers, mainnet's package set, namespaces and governance
 seed, and its own `UPGRADES.md` under
-[`misc/deployments/onyx.gno.land/`](../../misc/deployments/onyx.gno.land).
+[`misc/deployments/onyx.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land).
 Pearl is retiring in its favour.
 
 ### WebSocket endpoints
@@ -195,16 +195,15 @@ The current Gno.land testnet, launching on the 28th of September, 2026, and the 
     every upgrade is rehearsed here before it reaches mainnet
 - **Timeliness of code:**
   - The version onyx runs is the version mainnet runs; the launch version and
-    every upgrade since are in
-    [`misc/deployments/onyx.gno.land/UPGRADES.md`](../../misc/deployments/onyx.gno.land/UPGRADES.md)
+    every upgrade since are in `UPGRADES.md` under
+    [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying Gno dApps
     against mainnet's code and package set with faucet funds and open transfers
 - **Versioning strategy:**
-  - No branch of its own: the `chain/onyx` tag marks the mainnet commit it
-    launched on, and its [release](https://github.com/gnolang/gno/releases)
-    carries the genesis; deployment files under
-    [`misc/deployments/onyx.gno.land`](../../misc/deployments/onyx.gno.land)
+  - No branch of its own: the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx)
+    tag marks the mainnet commit it launched on; deployment files under
+    [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
 
 ### Pearl / Test16 (retiring)
 
