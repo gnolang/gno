@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gnolang/gno/misc/deployments/upgrades/upgrades.schema.json",
+  "title": "gno.land upgrade ledger",
+  "description": "Every binary a gno.land network has run, in chain order. A version runs the blocks from the previous entry's halt_height + 1 (1 for genesis) up to and including the next entry's halt_height. The authoritative rules are in gno.land/pkg/upgrades (Go); this schema documents the shape for third-party readers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "chain_id", "genesis_sha256", "genesis_time", "upgrades"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "chain_id": { "type": "string", "minLength": 1 },
+    "genesis_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256 of the genesis.json on the chain/<name> release" },
+    "genesis_time": { "type": "string", "format": "date-time" },
+    "upgrades": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "version", "commit", "halt_height", "halt_time", "halt_min_version", "proposal", "image", "binaries", "ran_as", "release"],
+      "properties": {
+        "kind": { "enum": ["genesis", "upgrade"], "description": "genesis: the first entry only, no halt. upgrade: activated by a coordinated halt." },
+        "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$", "description": "the release tag compiled into the binary; a testnet may run a pre-release" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "halt_height": { "type": ["integer", "null"], "minimum": 1, "description": "the halt that activated this version; null for genesis" },
+        "halt_time": { "type": ["string", "null"], "format": "date-time", "description": "block time of the halt block; null until the halt has happened" },
+        "halt_min_version": { "type": ["string", "null"], "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$", "description": "the floor the proposal set; null when it set none (never the empty string)" },
+        "proposal": { "type": ["integer", "null"], "minimum": 0, "description": "GovDAO proposal id" },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ref", "digest"],
+          "properties": {
+            "ref": { "type": "string", "pattern": "^ghcr\\.io/gnolang/gno/gnoland:v" },
+            "digest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$", "description": "null until CI has built the image" }
+          }
+        },
+        "binaries": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z0-9]+/[a-z0-9]+$" },
+          "additionalProperties": { "type": "string", "pattern": "[?&]checksum=sha256:[0-9a-f]{64}$" },
+          "description": "os/arch → download URL with a ?checksum=sha256:<hex> suffix (the cosmovisor convention)"
+        },
+        "ran_as": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$", "description": "the image digest the network actually ran when it differs from image.digest (versions tagged after the fact)" },
+        "release": { "type": "string", "format": "uri", "description": "the vX.Y.Z release page: binaries, checksums, changelog" }
+      }
+    }
+  }
+}
