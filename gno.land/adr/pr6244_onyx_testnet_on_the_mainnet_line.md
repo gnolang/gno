@@ -80,5 +80,5 @@ exist because mainnet has no faucet.
 - The build reproduces only from the `chain/mainnet` tree at the launch
   commit; a run from `master` fails on the package list by design, and the
   script's manifest comment says so.
-- The horcrux-held validator signing address holds nothing at genesis; the
-  operator (aeddi) is funded and the faucet covers the rest.
+- The validator's signing address holds nothing at genesis; the operator
+  (aeddi) is funded and the faucet covers the rest.

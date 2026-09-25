@@ -98,13 +98,14 @@ FILTERED_PACKAGES=(
 
 # Initial onyx validator set. Format: "name power address pub_key".
 #
-# One founding validator, run by gno-core behind a 4-of-6 horcrux cluster:
-# no node holds the validator key. Power 60 as on mainnet — 60 divides evenly
-# many ways, so later valset changes can hand out proportional fractions
-# without fractional remainders; with a single validator it is 100% either
-# way. The identity was derived from the key at the ceremony and checked a
-# second way on 2026-09-25 (address = bech32("g", sha256(pubkey)[:20])). The
-# name follows the house <org>-validator-<n> form.
+# One founding validator, run by gno-core. Power 60 as on mainnet — 60
+# divides evenly many ways, so later valset changes can hand out proportional
+# fractions without fractional remainders; with a single validator it is 100%
+# either way. The identity was derived from the key at the ceremony and
+# checked a second way on 2026-09-25 (address = bech32("g",
+# sha256(pubkey)[:20])). The name follows the house <org>-validator-<n> form.
+# How the signing key is protected is the operator's own infra, outside this
+# genesis.
 INITIAL_VALSET=(
   "gno-core-validator-1 60 g19429enajcectdlhwulwza8x2h6mkygu0hpt6y4 gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqq83v3kcqg709z574hwjn2y7fd0mtt4vuxkvpnjeen5uq5gsarf3rtpksl"
 )
@@ -907,7 +908,7 @@ print_substep "2.3" "GovDAO T1 members: $t1_count seeded with $t1_points invitat
 # No founding-validator funding guard here, unlike mainnet's step 2.8: the
 # validator's management actions (key rotation, profile edits, opt-out) are
 # paid txs, but onyx has a faucet, and the operator (aeddi) is funded above
-# anyway. The horcrux-held signing address holds nothing at genesis.
+# anyway. The validator's signing address holds nothing at genesis.
 
 # ---- NAMES_ADMIN must match the admin compiled into r/sys/names ----
 # names.Enable is gated on an address hardcoded in the realm source, and
