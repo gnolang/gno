@@ -34,6 +34,12 @@ var defaultStagingOptions = AppConfig{
 	emptyBlocks:                false,
 	emptyBlocksInterval:        1,
 
+	// A staging chain reloads when its operator restarts it, not when a file
+	// moves underneath it. Watching a mounted source tree on a server means
+	// an unrelated checkout or editor save rebuilds genesis and replays the
+	// whole history.
+	noWatch: true,
+
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
 	nodeP2PListenerAddr:      "tcp://127.0.0.1:0",

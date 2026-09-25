@@ -18,6 +18,8 @@ Please note that this is a quick overview. For a more detailed guide, refer to t
 -  **Hot Reload**: Monitors loaded package directories for file changes, reloading the
    package and automatically restarting the node as needed.
 -  **State Maintenance**: Ensures the previous node state is preserved by replaying all transactions.
+-  **Persistent History**: With `-state-dir`, every committed transaction is appended to disk in the
+   `tx-archive` JSONL format and replayed on the next start, so a run's output is the next run's input.
 -  **Transaction Manipulation**: Allows for interactive cancellation and redoing of transactions.
 -  **State Export**: Export the current state at any time in a genesis doc format.
 
@@ -101,6 +103,7 @@ FLAGS
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
   -remote ...	fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched
+  -state-dir ...	persist this chain's transaction history in the given directory, and replay it on the next start
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
@@ -145,11 +148,12 @@ FLAGS
   -max-gas 10000000000	set the maximum gas per block
   -no-examples=false 	skip loading $GNOROOT/examples entirely
   -no-replay=false 	do not replay previous transactions upon reload
-  -no-watch=false 	do not watch for file changes
+  -no-watch=true 	do not watch for file changes
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
   -remote ...	fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched
+  -state-dir ...	persist this chain's transaction history in the given directory, and replay it on the next start
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
