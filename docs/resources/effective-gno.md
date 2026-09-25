@@ -852,6 +852,21 @@ without the amount check lets users pay nothing. Keep them together, commented
 as a pair, and ideally cover the bypass with a regression test using
 `testing.NewCodeRealm()` to simulate an intermediate attacker realm.
 
+Preferred for new realms: **`banker.CallSend()`**, the coins delivered to the
+current realm *by this call*. It is bound to the call frame, so a relayed or
+re-entrant call reads zero, and it needs no origin guard at all. A realm may
+also pay another realm on the cross, `fn(cross(cur, coins), ...)`, which is what
+routers and vaults need:
+
+```go
+func BuyThing(cur realm, ...) {
+    if banker.CallSend().AmountOf("ugnot") != price {   // GOOD: a fact, not an inference
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
 Alternatives considered:
 
 - **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
@@ -867,9 +882,9 @@ Alternatives considered:
 
 - **Pulling coins from the caller** — **not possible** in current gno. Every
   `banker.SendCoins(from, to, amt)` requires `from == pkgAddr` (your own realm's
-  address); there is no ERC-20-style `transferFrom`. Payment flow is push-only
-  via `-send`. The `OriginSend` amount check + `IsUserCall` guard is the only
-  pattern available.
+  address); there is no ERC-20-style `transferFrom`. Payment flow is push-only:
+  `-send` from a user, or `cross(cur, coins)` from a realm, both read with
+  `CallSend()`.
 
 #### GRC20 tokens
 

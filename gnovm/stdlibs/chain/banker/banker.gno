@@ -170,7 +170,22 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	return b
 }
 
+// CallSend returns the coins delivered to the current realm by the call that
+// entered it: the message send, or the coins of the cross that made the call,
+// as in wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}})) — gno's msg.value.
+// Same-realm helper(cur) calls see it; any further cross reads zero.
+// See gnovm/adr/pr6213_per_call_coin_value.md.
+func CallSend() chain.Coins {
+	den, amt := bankerCallSend()
+	coins := make(chain.Coins, len(den))
+	for i := range coins {
+		coins[i] = chain.Coin{Denom: den[i], Amount: amt[i]}
+	}
+	return coins
+}
+
 // These are native bindings to the banker's functions.
+func bankerCallSend() (denoms []string, amounts []int64)
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
