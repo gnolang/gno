@@ -213,8 +213,9 @@ release_tag() {
     fi
 }
 
-# /releases/latest may point at a chain/* tag with no binaries, so we walk
-# the list and pick the first non-prerelease goreleaser-built tag.
+# /releases/latest may point at a chain/* tag, which pins a network rather than
+# naming a version to install, so we walk the list and pick the first
+# non-prerelease v* tag instead.
 latest_v_tag() {
     if [ "$JSON" = "jq" ]; then
         jq -r 'map(select(.prerelease == false and (.tag_name | startswith("v")))) | .[0].tag_name // empty' "$TMP/releases.json"
@@ -292,7 +293,11 @@ install_gno() {
     # which for this repo may be a chain/* tag. Resolve "latest" to the most
     # recent non-prerelease v* tag ourselves instead.
     if [ "$VERSION" = "latest" ]; then
-        api_get "${API}/releases?per_page=30" > "$TMP/releases.json" \
+        # per_page is the whole search window: this walks one page and does not
+        # paginate. chain/* tags are cut far more often than v* ones, so a small
+        # window eventually holds nothing but chain tags and "latest" stops
+        # resolving. 100 is the API maximum.
+        api_get "${API}/releases?per_page=100" > "$TMP/releases.json" \
             || die "failed to fetch releases list"
         VERSION="$(latest_v_tag)"
         [ -n "$VERSION" ] || die "no v* release found; pass --version <tag> explicitly (see https://github.com/${REPO}/releases)"
@@ -301,8 +306,19 @@ install_gno() {
     # The public github.com/<repo>/releases/download/... path currently 404s for
     # this repository; resolving assets via the API endpoint works around it.
     META_URL="${API}/releases/tags/${VERSION}"
-    api_get "$META_URL" > "$TMP/release.json" \
-        || die "failed to fetch release metadata ($VERSION)"
+    if ! api_get "$META_URL" > "$TMP/release.json" 2>"$TMP/meta_err"; then
+        # A tag can exist in git with no Release object behind it: the release
+        # workflow is what creates the Release, and until it has run there is
+        # nothing to download. That is a different failure from a typo'd tag and
+        # it has a way through, so do not report both as "metadata fetch failed".
+        if api_get "${API}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
+            die "$VERSION is a git tag but has no published release, so there are no binaries to download. Build that exact ref instead: --from-source --version $VERSION"
+        fi
+        # Any other cause: replay what the API said, including the rate-limit
+        # hint api_get emits, before giving up on it.
+        cat "$TMP/meta_err" >&2
+        die "no release tagged $VERSION (see https://github.com/${REPO}/releases)"
+    fi
 
     VERSION="$(release_tag)"
     [ -n "$VERSION" ] || die "could not parse tag_name from release metadata"
@@ -426,8 +442,28 @@ install_binary() {
 
 print_next_steps() {
     [ -x "$INSTALL_DIR/gno" ] || die "installation failed: $INSTALL_DIR/gno not found"
-    "$INSTALL_DIR/gno" version \
-        || warn "gno installed but failed to run; the binary may not be compatible with this system"
+    # Run it rather than trust the download: a binary can install cleanly and
+    # still be unusable. Releases built with -trimpath produce a gno that cannot
+    # work out its own GNOROOT and panics on every subcommand, which looks
+    # identical on the release page. Name that case instead of guessing at
+    # architecture, which is what the old message did and it was always wrong.
+    #
+    # Run it from / rather than here: gnoenv also resolves GNOROOT by asking
+    # `go list` about the module of the current directory, so a binary that
+    # cannot find its stdlib on its own still passes this check when the
+    # installer happens to be run from inside a gno checkout, which is exactly
+    # where CI runs it. --dir accepts a relative path, so resolve it first.
+    gno_bin="$INSTALL_DIR/gno"
+    case "$gno_bin" in /*) ;; *) gno_bin="$(pwd)/$gno_bin" ;; esac
+    if ! gno_check="$(cd / && "$gno_bin" version 2>&1)"; then
+        printf '%s\n' "$gno_check" >&2
+        case "$gno_check" in
+            *GNOROOT*) warn "gno cannot locate its standard library. These binaries were built without a usable GNOROOT; install a newer release (--version latest) or build locally (--from-source)." ;;
+            *)         warn "gno installed but failed to run; the binary may not be compatible with this system" ;;
+        esac
+    else
+        printf '%s\n' "$gno_check"
+    fi
 
     case ":$PATH:" in
         *":$INSTALL_DIR:"*) ;;
