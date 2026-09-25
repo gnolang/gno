@@ -96,8 +96,12 @@ caller `p`: one more realm unless `p` is the entry realm itself.
   also refused named `/p/` helpers and depended on how many frames a call
   pushed.
 - **Let the realm's own closures and named helpers through.** Symmetric and
-  ergonomic, but every function the realm declares is a value it can be
-  handed back, so each admits the stored-callback shape above.
+  ergonomic, and a coherent contract ("a key entered this realm, no other
+  realm is on the stack"), but every function the realm declares is a value
+  it can be handed back, so each admits the stored-callback shape above, and
+  the VM cannot tell a value the realm built from one it was handed. Strict
+  is a deliberate choice, not a necessity; the security guide (§5.3, §5.9)
+  records what a realm would have to police itself under the lenient rule.
 - **Refuse `/p/` and stdlib frames too (nothing above the entry).** Airtight
   in the same way, but a `/p/` wrapper around the assertion is harmless, since
   `/p/` code cannot reach the realm's guarded code, and the entry-realm check
