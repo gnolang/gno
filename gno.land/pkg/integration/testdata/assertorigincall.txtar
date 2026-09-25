@@ -48,8 +48,8 @@ gnoland start
 # Test cases
 ## 1. MsgCall -> myrlm.A -> myrlm.C: PANIC
 ## C is a named function of myrlm reached from inside myrlm. A script can hand
-## myrlm.C back to myrlm as a func value, so a named frame above the entry is a
-## boundary; myrlm's own closures (24-26) and /p/ helpers (28) are not.
+## myrlm.C back to myrlm as a func value, so any frame myrlm declares above the
+## entry is a boundary, closures included (24-26); /p/ helpers (28) are not.
 ! gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
@@ -131,10 +131,10 @@ stderr 'invalid non-origin call'
 ! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1 $WORK/run/baz.gno
 stderr 'invalid non-origin call'
 
-## A func literal is transparent inside its own realm, and a call boundary
-## across one. Cases 21-23 pin both halves: an exported func value is a
-## legitimate entry point, but it does not stop being a call when another
-## realm is the one that entered through it.
+## A func literal is a legitimate entry point, and a call boundary when it
+## sits above one. Cases 21-23 pin both halves: myrlm.D is the entry itself
+## and passes, but foo's func values are another realm's frames above
+## myrlm.C, so they count like foo's named functions.
 
 ## 21. MsgCall -> myrlm.D (func value): PASS
 gnokey maketx call -pkgpath gno.land/r/myrlm -func D -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1

@@ -20,8 +20,8 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## wug.DepositLocal -> wug.run (own NAMED helper) -> wug's own closure: PANIC
-## run is a value any script can name and store back into wug; a /p/ helper
-## or wug's own closure is not, so only the named same-realm frame counts.
+## Both run and the closure are wug's own frames above the entry, so each
+## counts on its own; the /p/ helpers in the two cases above never did.
 ! gnokey maketx call -pkgpath gno.land/r/wug -func DepositLocal -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
