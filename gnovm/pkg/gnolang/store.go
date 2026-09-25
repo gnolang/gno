@@ -890,11 +890,10 @@ func (ds *defaultStore) SetType(tt Type) {
 		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	tid := tt.TypeID()
-	// Idempotent: if this TypeID is already known in-cache, do nothing.
-	// The cache is populated either by a previous SetType (which also
-	// persisted to backend) or by loading from backend on GetType — either
-	// way the backend already has the canonical entry.
-	if _, exists := ds.cacheTypes[tid]; exists {
+	// Idempotent only for the same in-memory type instance. A redeployed type
+	// may have the same TypeID but a different layout, which must replace the
+	// backend entry.
+	if cached, exists := ds.cacheTypes[tid]; exists && cached == tt {
 		return
 	}
 	// save type to backend.

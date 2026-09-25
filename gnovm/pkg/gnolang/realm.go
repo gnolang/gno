@@ -1573,9 +1573,9 @@ func copyTypeWithRefs(typ Type) Type {
 		// Invariant: uverse DeclaredTypes never reach here. Callers either
 		// collapse DeclaredTypes to RefType at Layer 1 via refOrCopyType
 		// (field types, method types, the TypeValue case in copyValueWithRefs),
-		// or route through SetType which short-circuits on a cache hit
-		// before calling copyTypeWithRefs. Uverse types are preloaded in
-		// cacheTypes, so SetType's early-return always fires for them.
+		// or route through SetType which short-circuits when the cached type is
+		// the same instance. Uverse types are preloaded in cacheTypes as those
+		// same instances, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
