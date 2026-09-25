@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // setupGnoWebServer initializes the gnoweb HTTP handler from the gnodev
@@ -21,6 +22,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
+	appcfg.NetworkKind = components.NetworkLocal
 	if cfg.webRemoteHelperAddr != "" {
 		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
 	} else {

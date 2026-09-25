@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -53,8 +54,11 @@ type AppConfig struct {
 	NoAssetsCache bool
 	// ChainID is the chain id, used for constructing the help page.
 	ChainID string
-	// FaucetURL, if specified, will be the URL to which `/faucet` redirects.
+	// FaucetURL is where `/faucet` redirects and the faucet the footer
+	// advertises. Empty means this deployment has no faucet.
 	FaucetURL string
+	// NetworkKind defaults to testnet when left empty; mainnet is explicit.
+	NetworkKind components.NetworkKind
 	// Domain is the domain used by the node.
 	Domain string
 	// Banner, if set, displays a site-wide banner above the header.
@@ -98,6 +102,17 @@ func NewDefaultAppConfig() *AppConfig {
 	}
 }
 
+// chainIDRe guards every consumer at once: the value reaches markdown and a
+// meta tag wallets read, and a backtick in it would close a code span.
+var chainIDRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,64}$`)
+
+func networkBannerText(kind components.NetworkKind, chainID string) string {
+	if kind == components.NetworkLocal {
+		return fmt.Sprintf("**Local development chain** — `%s`. Not a gno.land network.", chainID)
+	}
+	return fmt.Sprintf("**Not gno.land mainnet** — chain `%s`. Tokens and data here are not real.", chainID)
+}
+
 // NewRouter initializes the gnoweb router with the specified logger and configuration.
 // It sets up all routes, static asset handling, and middleware.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
@@ -111,12 +126,37 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
+	// Operator-set, never guessed from the chain-id. Default is the safe kind.
+	// Validated before the chain-id probe so a typo fails without a round-trip.
+	if cfg.NetworkKind == "" {
+		cfg.NetworkKind = components.NetworkTestnet
+	}
+	if !cfg.NetworkKind.Valid() {
+		return nil, fmt.Errorf("invalid network kind %q, want %q, %q or %q",
+			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet, components.NetworkLocal)
+	}
+
 	if cfg.ChainID == "" {
 		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
 			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
 			return nil, errors.New("no chain-id configured")
 		}
+	}
+
+	if !chainIDRe.MatchString(cfg.ChainID) {
+		return nil, fmt.Errorf("invalid chain-id %q", cfg.ChainID)
+	}
+
+	logger.Info("network", "kind", cfg.NetworkKind, "chain-id", cfg.ChainID)
+
+	// An operator banner wins: it has something more specific to say.
+	if !cfg.Banner.Enabled() && !cfg.NetworkKind.IsMainnet() {
+		banner, bannerErr := components.NewBannerData(networkBannerText(cfg.NetworkKind, cfg.ChainID), "")
+		if bannerErr != nil {
+			return nil, fmt.Errorf("unable to build the network banner: %w", bannerErr)
+		}
+		cfg.Banner = banner
 	}
 
 	// Setup client adapter
@@ -135,6 +175,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
+		NetworkKind:       cfg.NetworkKind,
+		FaucetURL:         cfg.FaucetURL,
 	}
 
 	// Configure Markdown renderer

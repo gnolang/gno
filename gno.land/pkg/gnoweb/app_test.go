@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"maps"
@@ -8,11 +9,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/rs/xid"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -384,4 +387,114 @@ func TestHealthEndpoints(t *testing.T) {
 			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
 		})
 	})
+}
+
+// NewRouter is where the network-kind default and validation are enforced.
+// With ChainID preset the node is never contacted, so this needs no running
+// chain.
+func TestNewRouter_NetworkKind(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		chainID  string
+		override components.NetworkKind
+		want     components.NetworkKind
+		wantErr  string
+	}{
+		// Never guessed from the chain-id: even the mainnet id defaults to
+		// the safe kind unless the operator says otherwise.
+		{name: "default is testnet", chainID: "gnoland-1", want: components.NetworkTestnet},
+		{name: "default on a testnet id", chainID: "pearl-1", want: components.NetworkTestnet},
+		{name: "mainnet is explicit", chainID: "gnoland-1", override: components.NetworkMainnet, want: components.NetworkMainnet},
+		{name: "local is explicit", chainID: "dev", override: components.NetworkLocal, want: components.NetworkLocal},
+		{name: "invalid kind", chainID: "pearl-1", override: "prod", wantErr: "invalid network kind"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+			cfg.NetworkKind = tc.override
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, cfg.NetworkKind)
+		})
+	}
+}
+
+func TestNewRouter_ChainIDIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		chainID string
+		wantErr bool
+	}{
+		{name: "mainnet", chainID: "gnoland-1"},
+		{name: "testnet", chainID: "pearl-1"},
+		{name: "dev", chainID: "dev"},
+		{name: "dotted", chainID: "test6.testnets"},
+		{name: "backtick", chainID: "x`](https://evil.example)`", wantErr: true},
+		{name: "space", chainID: "pearl 1", wantErr: true},
+		{name: "angle bracket", chainID: "<script>", wantErr: true},
+		{name: "too long", chainID: strings.Repeat("a", 65), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid chain-id")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNewRouter_NetworkBanner(t *testing.T) {
+	t.Parallel()
+
+	operator, err := components.NewBannerData("scheduled maintenance", "")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name       string
+		kind       components.NetworkKind
+		banner     components.BannerData
+		wantBanner bool
+		wantText   string
+	}{
+		{name: "testnet gets one", kind: components.NetworkTestnet, wantBanner: true, wantText: "Not gno.land mainnet"},
+		{name: "local says so", kind: components.NetworkLocal, wantBanner: true, wantText: "Local development chain"},
+		{name: "mainnet gets none", kind: components.NetworkMainnet, wantBanner: false},
+		{name: "operator banner wins", kind: components.NetworkTestnet, banner: operator, wantBanner: true, wantText: "scheduled maintenance"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = "pearl-1"
+			cfg.NetworkKind = tc.kind
+			cfg.Banner = tc.banner
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantBanner, cfg.Banner.Enabled())
+			if tc.wantText != "" {
+				var buf bytes.Buffer
+				require.NoError(t, cfg.Banner.Render(&buf))
+				assert.Contains(t, buf.String(), tc.wantText)
+			}
+		})
+	}
 }

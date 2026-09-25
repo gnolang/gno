@@ -165,6 +165,8 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
+	// NetworkKind reaches the document as data-network and drives the header chip.
+	NetworkKind NetworkKind
 }
 
 type indexLayoutParams struct {
@@ -175,9 +177,12 @@ type indexLayoutParams struct {
 	ViewType     string
 	JSController string
 	Theme        string
+	NetworkKind  NetworkKind
 }
 
 func IndexLayout(data IndexData) Component {
+	data.HeaderData.NetworkKind = data.NetworkKind
+
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
 
@@ -189,9 +194,10 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{
-		IndexData: data,
-		ViewType:  data.BodyView.String(),
-		Theme:     data.Theme,
+		IndexData:   data,
+		ViewType:    data.BodyView.String(),
+		Theme:       data.Theme,
+		NetworkKind: data.NetworkKind,
 	}
 
 	// Set dev mode based on view type and mode
