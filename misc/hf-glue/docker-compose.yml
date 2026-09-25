@@ -1,0 +1,55 @@
+# misc/hf-glue — HIGHLY EXPERIMENTAL hardfork testbed.
+# Runs a single-validator gnoland node replaying a hardforked genesis.
+#
+# Prereqs (run from misc/hf-glue):
+#   make fetch init
+# Then:
+#   make up
+
+services:
+  gnoland:
+    container_name: hf-glue-node
+    image: hf-glue-gnoland:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: all
+    restart: unless-stopped
+    command:
+      - start
+      - --lazy=true
+      # Genesis-mode txs (BlockHeight==0) from gnogenesis are signed by the
+      # deployer key while msg.Creator is a different address (manfred, etc).
+      # The ante handler's pubkey-address check rejects these. Production
+      # gnoland1 uses the same flag; historical txs (BlockHeight>0) are still
+      # signature-verified via PastChainIDs.
+      - --skip-genesis-sig-verification
+      - --skip-failing-genesis-txs
+      - --data-dir=/gnoroot/gnoland-data
+      - --genesis=/gnoroot/gnoland-data/genesis.json
+    environment:
+      GNOROOT: /gnoroot
+    volumes:
+      - ./out/gnoland-home:/gnoroot/gnoland-data
+    entrypoint: ["/usr/bin/gnoland"]
+    ports:
+      - "26656:26656" # p2p
+      - "26657:26657" # rpc
+    stop_grace_period: 30s
+
+  gnoweb:
+    container_name: hf-glue-gnoweb
+    image: hf-glue-gnoland:latest
+    depends_on:
+      - gnoland
+    restart: unless-stopped
+    command:
+      - -remote=http://gnoland:26657
+      - -chainid=${CHAIN_ID:-gnoland-1}
+      - -help-chainid=${CHAIN_ID:-gnoland-1}
+      - -help-remote=http://127.0.0.1:26657
+      - -bind=0.0.0.0:8888
+    entrypoint: ["/usr/bin/gnoweb"]
+    ports:
+      - "8888:8888"
+    stop_grace_period: 10s
