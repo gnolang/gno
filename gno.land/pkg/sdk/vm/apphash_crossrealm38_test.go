@@ -228,7 +228,10 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by the AssertOriginCall contract change (#6218): only the doc comment
+// on chain/runtime/native.gno changed, and its source bytes are genesis state.
+const expectedCrossrealm38Hash = "a4bb24c0fe4bf205eb69b2ffdf16b3ade4a114252220f0bda19ea5758a9d07a4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

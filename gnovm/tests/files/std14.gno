@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/test
+package test
 
 import "chain/runtime"
 
@@ -10,38 +11,34 @@ func helper() {
 	Register()
 }
 
+func panicked(f func()) (r any) {
+	defer func() { r = recover() }()
+	f()
+	return nil
+}
+
+// main is the message's script, so the first function of this realm after it
+// is the entry, and any function of this realm above the entry, named or
+// literal, is a boundary. Same realm throughout, so recover.
 func main() {
-	// Case 1: closure wrapping Register — should NOT panic.
-	// Closures are transparent: main → Register → AssertOriginCall (3 call frames).
+	// The closure is the entry and asserts itself.
 	func() {
-		Register()
+		runtime.AssertOriginCall()
 	}()
 	println("closure call ok")
 
-	// Case 2: nested closures wrapping Register — should NOT panic.
-	// All closures are transparent: main → Register → AssertOriginCall (3 call frames).
-	func() {
+	// The inner closure is this realm's function above the entry.
+	println("nested closure panicked:", panicked(func() {
 		func() {
-			Register()
+			runtime.AssertOriginCall()
 		}()
-	}()
-	println("nested closure call ok")
+	}))
 
-	// Case 3: named function calling Register — SHOULD panic.
-	// main → helper → Register → AssertOriginCall (4 call frames > 3).
-	panicked := false
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				panicked = true
-			}
-		}()
-		helper()
-	}()
-	println("named func call panicked:", panicked)
+	// helper is the entry; Register is above it.
+	println("named func call panicked:", panicked(helper))
 }
 
 // Output:
 // closure call ok
-// nested closure call ok
-// named func call panicked: true
+// nested closure panicked: invalid non-origin call
+// named func call panicked: invalid non-origin call

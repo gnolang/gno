@@ -10,7 +10,7 @@ import (
 )
 
 func TestAssertOriginCall(cur realm, t *testing.T) {
-	// CallAssertOriginCall(): no panic
+	// Pretend the caller is a user: the message itself, nothing in between.
 	caller := testutils.TestAddress("caller")
 	testing.SetRealm(testing.NewUserRealm(caller))
 	tests.CallAssertOriginCall(cross(cur))
@@ -18,23 +18,33 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm"))
-	// CallAssertOriginCall() from a block: abort
+	// From a function literal in the caller's own code: still an origin
+	// call. Only another realm on the stack changes the answer.
 	r := revive(func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal block).
+		if !tests.CallIsOriginCall(cross(cur)) {
+			t.Errorf("expected IsOriginCall=true but got false")
+		}
+		tests.CallAssertOriginCall(cross(cur))
+	})
+	if r != nil {
+		t.Errorf("expected no abort but got %v", r)
+	}
+	// Pretend the caller is realm subtests. A realm cannot originate a
+	// message, so on chain this shape is user -> subtests -> r/tests/vm,
+	// with subtests in between: abort.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm/subtests"))
+	r = revive(func() {
 		if tests.CallIsOriginCall(cross(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		tests.CallAssertOriginCall(cross(cur)) // <---
+		tests.CallAssertOriginCall(cross(cur))
 	})
 	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
 		t.Error("expected abort but did not")
 	}
-	// CallSubtestsAssertOriginCall(): abort
+	testing.SetRealm(testing.NewUserRealm(caller))
+	// Through a second realm (r/tests/vm -> r/tests/vm/subtests): abort.
 	r = revive(func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal block).
 		if tests.CallSubtestsIsOriginCall(cross(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}

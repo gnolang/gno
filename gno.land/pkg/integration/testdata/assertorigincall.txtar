@@ -26,24 +26,30 @@
 # | 21  | MsgCall  | wallet direct       | myrealm.D() (func val) | pass   |
 # | 22  |          | through /r/foo      | foo.D() (func val)     | PANIC  |
 # | 23  |          | through /r/foo      | foo.E() (nested)       | PANIC  |
-# | 24  |          | wallet direct       | myrealm.E() (own clo)  | pass   |
-# | 25  |          |                     | myrealm.F() (own clo)  | pass   |
-# | 26  |          |                     | myrealm.G() (deferred) | pass   |
+# | 24  |          | wallet direct       | myrealm.E() (own clo)  | PANIC  |
+# | 25  |          |                     | myrealm.F() (own clo)  | PANIC  |
+# | 26  |          |                     | myrealm.G() (deferred) | PANIC  |
 # | 27  |          | through /r/foo      | myrlm's own closure    | PANIC  |
 # | 28  |          | wallet direct       | bar's closure (/p/)    | pass   |
+# | 29  |          | wallet direct       | myrlm -> hook -> myrlm | PANIC  |
+# | 30  |          | wallet direct       | myrlm -> hook -> clo   | PANIC  |
 
 # Init
 ## set up and start a new node
 loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 loadpkg gno.land/r/foo $WORK/r/foo
+loadpkg gno.land/r/hook $WORK/r/hook
 
 gnoland start
 
 # The PANIC is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
 
 # Test cases
-## 1. MsgCall -> myrlm.A: PANIC
+## 1. MsgCall -> myrlm.A -> myrlm.C: PANIC
+## C is a named function of myrlm reached from inside myrlm. A script can hand
+## myrlm.C back to myrlm as a func value, so any frame myrlm declares above the
+## entry is a boundary, closures included (24-26); /p/ helpers (28) are not.
 ! gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
@@ -125,10 +131,10 @@ stderr 'invalid non-origin call'
 ! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1 $WORK/run/baz.gno
 stderr 'invalid non-origin call'
 
-## A func literal is transparent inside its own realm, and a call boundary
-## across one. Cases 21-23 pin both halves: an exported func value is a
-## legitimate entry point, but it does not stop being a call when another
-## realm is the one that entered through it.
+## A func literal is a legitimate entry point, and a call boundary when it
+## sits above one. Cases 21-23 pin both halves: myrlm.D is the entry itself
+## and passes, but foo's func values are another realm's frames above
+## myrlm.C, so they count like foo's named functions.
 
 ## 21. MsgCall -> myrlm.D (func value): PASS
 gnokey maketx call -pkgpath gno.land/r/myrlm -func D -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
@@ -142,24 +148,24 @@ stderr 'invalid non-origin call'
 ! gnokey maketx call -pkgpath gno.land/r/foo -func E -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
-## A realm calling its OWN crossing func literal never leaves its realm, so it
-## keeps the origin call either way it is invoked. Both spellings set a crossing
-## flag regardless (24 sets DidCrossing via the inherited-cur path, 25 sets
-## WithCross), which is why the boundary test cannot read those flags alone.
+## A realm's OWN func literal above the entry is a boundary like its named
+## functions: a closure the realm exports or returns is a value a script can
+## hand back. The crossing flags do not decide it (24 sets DidCrossing via the
+## inherited-cur path, 25 sets WithCross); the declaring realm does.
 
-## 24. MsgCall -> myrlm.E -> own crossing closure, called as f(cur): PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func E -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+## 24. MsgCall -> myrlm.E -> own crossing closure, called as f(cur): PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func E -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
-## 25. MsgCall -> myrlm.F -> own crossing closure, called as f(cross(cur)): PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func F -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+## 25. MsgCall -> myrlm.F -> own crossing closure, called as f(cross(cur)): PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func F -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
-## 26. MsgCall -> myrlm.G -> own crossing closure, deferred: PASS
+## 26. MsgCall -> myrlm.G -> own crossing closure, deferred: PANIC
 ## The defer path builds its frame in doOpReturnCallDefers rather than doOpCall
 ## and reaches installInheritedCur separately, so it gets its own case.
-gnokey maketx call -pkgpath gno.land/r/myrlm -func G -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func G -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## A plain call into ANOTHER realm's exported closure sets no crossing flag at
 ## all, yet the closure runs with that realm's storage authority. 27 and 28 are
@@ -173,6 +179,18 @@ stderr 'invalid non-origin call'
 ## 28. MsgCall -> myrlm.H -> p/demo/bar's non-crossing closure: PASS
 gnokey maketx call -pkgpath gno.land/r/myrlm -func H -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stdout 'OK!'
+
+## Re-entry: the ENTRY realm is myrlm, another realm sits on the stack, and
+## myrlm's own code runs again above it. The walk counts myrlm, hook, myrlm:
+## three boundaries, one more than any case above, and the body realm of the
+## re-entrant frame equals the entry realm's while the realm below it does not.
+## 29. MsgCall -> myrlm.I -> r/hook.Notify -> myrlm.C: PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func I -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 30. MsgCall -> myrlm.J -> r/hook.Run -> myrlm's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func J -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 
 -- r/myrlm/rlm.gno --
@@ -204,9 +222,9 @@ var D = func(cur realm) {
 	runtime.AssertOriginCall()
 }
 
-// E and F call a crossing func literal belonging to myrlm itself. Neither
-// leaves the realm, so neither is a call boundary, however the literal is
-// invoked: E forwards cur directly, F crosses to it.
+// E and F call a crossing func literal belonging to myrlm itself. The
+// literal is myrlm's own function above the entry, so it is a boundary
+// however it is invoked: E forwards cur directly, F crosses to it.
 func E(cur realm) {
 	f := func(cur realm) {
 		runtime.AssertOriginCall()
@@ -238,6 +256,30 @@ var Check = func() {
 // is myrlm's own code.
 func H(cur realm) {
 	bar.Check()
+}
+
+// Hook is registered by r/hook at init; myrlm cannot import it back.
+type Hook interface {
+	Notify(cur realm)
+	Run(f func())
+}
+
+var hook Hook
+
+func SetHook(cur realm, h Hook) {
+	hook = h
+}
+
+// I and J re-enter myrlm from r/hook: I by a cross-call back into C, J by
+// handing hook a closure of myrlm's own. Either way hook is on the stack.
+func I(cur realm) {
+	hook.Notify(cross(cur))
+}
+
+func J(cur realm) {
+	hook.Run(func() {
+		runtime.AssertOriginCall()
+	})
 }
 -- r/foo/foo.gno --
 package foo
@@ -275,6 +317,25 @@ var E = func(cur realm) {
 func G(cur realm) {
 	myrlm.Check()
 }
+-- r/hook/hook.gno --
+package hook
+
+import "gno.land/r/myrlm"
+
+type h struct{}
+
+func (h) Notify(cur realm) {
+	myrlm.C(cross(cur))
+}
+
+func (h) Run(f func()) {
+	f()
+}
+
+func init(cur realm) {
+	myrlm.SetHook(cross(cur), h{})
+}
+
 -- p/demo/bar/bar.gno --
 package bar
 

@@ -21,14 +21,14 @@ func TestTransactionStore(t *testing.T) {
 	wrappedTm2Store := tm2Store.CacheWrap()
 	txSt := st.BeginTransaction(wrappedTm2Store, wrappedTm2Store, nil, nil)
 	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "gno.vm/t/hello",
+		PkgPath: "gno.land/p/t/hello",
 		Store:   txSt,
 		Output:  io.Discard,
 	})
 	_, pv := m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
 		Name: "hello",
-		Path: "gno.vm/t/hello",
+		Path: "gno.land/p/t/hello",
 		Files: []*std.MemFile{
 			{Name: "hello.gno", Body: "package hello; func main() { println(A(11)); }; type A int"},
 		},
@@ -39,12 +39,12 @@ func TestTransactionStore(t *testing.T) {
 	// mem package should only exist in txSt
 	// (check both memPackage and types - one is stored directly in the db,
 	// the other uses txlog)
-	assert.Nil(t, st.GetMemPackage("gno.vm/t/hello"))
-	assert.NotNil(t, txSt.GetMemPackage("gno.vm/t/hello"))
-	assert.PanicsWithValue(t, "unexpected type with id gno.vm/t/hello.A", func() { st.GetType("gno.vm/t/hello.A") })
+	assert.Nil(t, st.GetMemPackage("gno.land/p/t/hello"))
+	assert.NotNil(t, txSt.GetMemPackage("gno.land/p/t/hello"))
+	assert.PanicsWithValue(t, "unexpected type with id gno.land/p/t/hello.A", func() { st.GetType("gno.land/p/t/hello.A") })
 
 	// Check that hello.A is set in txSt.
-	stA := txSt.GetType("gno.vm/t/hello.A")
+	stA := txSt.GetType("gno.land/p/t/hello.A")
 	assert.NotNil(t, stA)
 	assert.Empty(t, stA.(*DeclaredType).Methods)
 
@@ -53,10 +53,10 @@ func TestTransactionStore(t *testing.T) {
 	wrappedTm2Store.Write()
 
 	// mem package should exist and be ==.
-	res := st.GetMemPackage("gno.vm/t/hello")
+	res := st.GetMemPackage("gno.land/p/t/hello")
 	assert.NotNil(t, res)
-	assert.Equal(t, txSt.GetMemPackage("gno.vm/t/hello"), res)
-	helloA := st.GetType("gno.vm/t/hello.A")
+	assert.Equal(t, txSt.GetMemPackage("gno.land/p/t/hello"), res)
+	helloA := st.GetType("gno.land/p/t/hello.A")
 	assert.NotNil(t, helloA)
 	// Normalize nil vs empty slice: amino-unmarshal of an empty repeated field
 	// returns nil, while the in-memory type retains nil from construction.
@@ -92,14 +92,14 @@ func TestGetPackageLazyFileBlocks(t *testing.T) {
 	wrapped := tm2Store.CacheWrap()
 	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
 	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "gno.vm/t/multi",
+		PkgPath: "gno.land/p/t/multi",
 		Store:   txSt,
 		Output:  io.Discard,
 	})
 	m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
 		Name: "multi",
-		Path: "gno.vm/t/multi",
+		Path: "gno.land/p/t/multi",
 		Files: []*std.MemFile{
 			{Name: "a.gno", Body: "package multi\nfunc FA() int { return 1 }"},
 			{Name: "b.gno", Body: "package multi\nfunc FB() int { return 2 }"},
@@ -112,7 +112,7 @@ func TestGetPackageLazyFileBlocks(t *testing.T) {
 	// Load the package fresh in a new transaction: its file blocks come
 	// back from the store as RefValues.
 	txSt2 := st.BeginTransaction(tm2Store.CacheWrap(), tm2Store.CacheWrap(), nil, nil)
-	pv := txSt2.GetPackage("gno.vm/t/multi", false)
+	pv := txSt2.GetPackage("gno.land/p/t/multi", false)
 	require.NotNil(t, pv)
 	require.Len(t, pv.FNames, 3)
 
@@ -139,14 +139,14 @@ func TestGetPackageSingleFileEagerHydration(t *testing.T) {
 	wrapped := tm2Store.CacheWrap()
 	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
 	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "gno.vm/t/single",
+		PkgPath: "gno.land/p/t/single",
 		Store:   txSt,
 		Output:  io.Discard,
 	})
 	m.RunMemPackage(&std.MemPackage{
 		Type: MPUserProd,
 		Name: "single",
-		Path: "gno.vm/t/single",
+		Path: "gno.land/p/t/single",
 		Files: []*std.MemFile{
 			{Name: "a.gno", Body: "package single\nfunc FA() int { return 1 }"},
 		},
@@ -156,7 +156,7 @@ func TestGetPackageSingleFileEagerHydration(t *testing.T) {
 
 	// Load the package fresh in a new transaction.
 	txSt2 := st.BeginTransaction(tm2Store.CacheWrap(), tm2Store.CacheWrap(), nil, nil)
-	pv := txSt2.GetPackage("gno.vm/t/single", false)
+	pv := txSt2.GetPackage("gno.land/p/t/single", false)
 	require.NotNil(t, pv)
 	require.Len(t, pv.FNames, 1)
 
@@ -380,9 +380,9 @@ func TestIterMemPackageYieldsAReAddedPathAtItsNewestIndex(t *testing.T) {
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
-		"fruits.org/t/abricot",
-		"fruits.org/t/abricot/fraise",
-		"fruits.org/t/fraise",
+		"fruits.org/p/abricot",
+		"fruits.org/p/abricot/fraise",
+		"fruits.org/p/fraise",
 	}
 
 	cases := []struct {
@@ -392,11 +392,11 @@ func TestFindByPrefix(t *testing.T) {
 	}{
 		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
 		{"fruits.org", 100, pkgs},
-		{"fruits.org/t/abricot", 100, []string{
-			"fruits.org/t/abricot", "fruits.org/t/abricot/fraise",
+		{"fruits.org/p/abricot", 100, []string{
+			"fruits.org/p/abricot", "fruits.org/p/abricot/fraise",
 		}},
-		{"fruits.org/t/abricot/", 100, []string{
-			"fruits.org/t/abricot/fraise",
+		{"fruits.org/p/abricot/", 100, []string{
+			"fruits.org/p/abricot/fraise",
 		}},
 		{"fruits", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},
