@@ -106,10 +106,15 @@ FLAGS
   -v=false 	enable verbose output for development
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
+  -web-banner ...	gnoweb: site-wide banner text (inline markdown); replaces the default network banner
+  -web-banner-color ...	gnoweb: banner background as a hex color or CSS color keyword; overrides -web-banner-variant
+  -web-banner-url ...	gnoweb: make the banner a link to this http(s) URL (requires -web-banner)
+  -web-banner-variant ...	gnoweb: banner color scheme, one of `brand|success|info|warning|caution|tip|note`
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-no-banner=false 	gnoweb: do not show any banner, including the default network banner
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
@@ -155,10 +160,15 @@ FLAGS
   -v=false 	enable verbose output for development
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
+  -web-banner ...	gnoweb: site-wide banner text (inline markdown); replaces the default network banner
+  -web-banner-color ...	gnoweb: banner background as a hex color or CSS color keyword; overrides -web-banner-variant
+  -web-banner-url ...	gnoweb: make the banner a link to this http(s) URL (requires -web-banner)
+  -web-banner-variant ...	gnoweb: banner color scheme, one of `brand|success|info|warning|caution|tip|note`
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-no-banner=false 	gnoweb: do not show any banner, including the default network banner
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 

@@ -21,7 +21,7 @@
 	align-items: center;
 	width: 100%;
 	padding: var(--g-space-1-5) var(--g-space-4);
-	background-color: var(--s-color-bg-brand-default);
+	background-color: var(--banner-bg, var(--s-color-bg-brand-default));
 	color: var(--s-color-text-base);
 	font-size: var(--g-font-size-50);
 	font-weight: var(--g-font-semibold);
@@ -41,12 +41,47 @@
 		opacity: 0.8;
 	}
 
+	/* Tinted from the banner's own background rather than a brand token, so a
+	   variant or a custom --banner-bg keeps a legible chip. */
 	& code {
 		padding: var(--g-space-0-5) var(--g-space-1);
 		border-radius: var(--g-border-radius-sm);
-		background-color: var(--s-color-bg-brand-action);
+		background-color: rgb(255 255 255 / 20%);
 		font-size: 0.96em;
 	}
+}
+
+/* Banner variants. Each sets --banner-bg from a design-system token; the
+   .b-banner rule above reads it. These class names are also written out in
+   components/layout_index.go (bannerVariantClass), which is what keeps
+   purgecss from dropping them: purgecss scans *.go and *.html for whole
+   tokens, so a name only ever assembled at runtime would not survive. */
+.b-banner--brand {
+	--banner-bg: var(--s-color-bg-brand-default);
+}
+
+.b-banner--success {
+	--banner-bg: var(--s-color-bg-success-default);
+}
+
+.b-banner--info {
+	--banner-bg: var(--s-color-bg-info-default);
+}
+
+.b-banner--warning {
+	--banner-bg: var(--s-color-bg-warning-default);
+}
+
+.b-banner--caution {
+	--banner-bg: var(--s-color-bg-caution-default);
+}
+
+.b-banner--tip {
+	--banner-bg: var(--s-color-bg-tip-default);
+}
+
+.b-banner--note {
+	--banner-bg: var(--s-color-bg-note-default);
 }
 
 /* ===== HEADER COMPONENT ===== */

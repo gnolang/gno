@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // setupGnoWebServer initializes the gnoweb HTTP handler from the gnodev
@@ -21,6 +22,18 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
+	appcfg.NoNetworkBanner = cfg.webNoBanner
+	if cfg.webBanner != "" && !cfg.webNoBanner {
+		banner, err := components.NewBannerData(cfg.webBanner, components.BannerOptions{
+			URL:     cfg.webBannerURL,
+			Variant: components.BannerVariant(cfg.webBannerVariant),
+			Color:   cfg.webBannerColor,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("invalid banner configuration: %w", err)
+		}
+		appcfg.Banner = banner
+	}
 	if cfg.webRemoteHelperAddr != "" {
 		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
 	} else {
