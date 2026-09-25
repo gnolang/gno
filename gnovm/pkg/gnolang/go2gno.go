@@ -869,8 +869,16 @@ func toDecl(fs *token.FileSet, god ast.Decl, fileComments []*ast.CommentGroup) D
 	}
 }
 
+const constInheritanceNodeFactor = 2
+
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
+	var inheritanceNodeBudget int64
+	if gd.Tok == token.CONST {
+		// Both positions are offsets from the same file base, so their
+		// difference is the declaration's byte length with or without a FileSet.
+		inheritanceNodeBudget = int64(gd.End()-gd.Pos()) * constInheritanceNodeFactor
+	}
 	/*
 		Within a parenthesized const declaration list the
 		expression list may be omitted from any but the
@@ -880,6 +888,8 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	*/
 	var lastValues Exprs // (see Go iota spec above)
 	var lastType Expr    // (see Go iota spec above)
+	var lastValueNodes, inheritedNodes int64
+	var lastValueHasBlock bool // see the function literal check below
 	for si, s := range gd.Specs {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
@@ -915,11 +925,40 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					// Does not work unless len(s.Names) == len(lastValues)
 					if len(s.Names) != len(lastValues) {
 						lastValues = nil
+						lastValueNodes = 0
+						lastValueHasBlock = false
+					}
+					// A function literal is the only way to put block nodes,
+					// each several times larger than any expression node, into
+					// a constant expression. Refusing to copy one keeps the
+					// per-node budget below a bound on bytes.
+					if lastValueHasBlock {
+						panic("const declaration inheritance of a function literal is not supported; repeat the expression explicitly")
+					}
+					inheritedNodes += lastValueNodes
+					if inheritedNodes > inheritanceNodeBudget {
+						panic(fmt.Errorf(
+							"const declaration inheritance exceeds limit (%d nodes); expand inherited values or simplify the repeated expression",
+							inheritedNodes,
+						))
 					}
 					values = copyExprs(lastValues)
 				} else {
 					values = toExprs(fs, s.Values)
 					lastValues = values
+					lastValueNodes = 0
+					lastValueHasBlock = false
+					for _, value := range values {
+						Transcribe(value, func(_ []Node, _ TransField, _ int, n Node, stage TransStage) (Node, TransCtrl) {
+							if stage == TRANS_ENTER {
+								lastValueNodes++
+								if _, ok := n.(BlockNode); ok {
+									lastValueHasBlock = true
+								}
+							}
+							return n, TRANS_CONTINUE
+						})
+					}
 				}
 				cd := &ValueDecl{
 					NameExprs: names,
