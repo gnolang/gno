@@ -722,6 +722,108 @@ coinsSent := unsafe.OriginSend()
 ```
 ---
 
+## `chain/reflect`
+
+Gives an object an address. This is **not** Go's `reflect` package: there is no
+`Type`, no `Value`, no field or method enumeration, and no way to read or write a
+value you were not handed.
+
+It exists because a realm that needs a unique name for something it created has,
+otherwise, only names it chooses itself, and anything a realm chooses it can
+choose twice. The VM's object identity is the one name it cannot, and hashing
+that identity gives an ordinary gno.land address.
+
+Being an ordinary address is the point: an object can be named anywhere an
+address is expected, by code that has never heard of objects. It can hold GRC20
+balances today, since a token's `Transfer` takes a plain `address`, and it can
+receive ugnot. It cannot yet **spend**: a banker's sender is pinned to the
+calling realm's own package address, so letting a realm move funds held by an
+object it owns is a separate change. Until then, treat an object address as an
+account that receives and does not release.
+
+### Object
+```go
+type Object struct { /* unexported */ }
+
+func (o Object) Address() address
+func (o Object) ID() string
+func (o Object) PkgPath() string
+func (o Object) Type() string
+func (o Object) String() string
+func (o Object) IsZero() bool
+```
+Opaque, comparable and safe as a map key. `Of` is the only thing that returns a
+non-zero one, so a realm cannot mint an identity and pass it off as VM-issued.
+
+- `Address` is the object's gno.land address: deterministic, unique per object,
+  stable for as long as the object lives, and never colliding with a realm's
+  package address. It has no signing key.
+- `ID` is the VM's own `<realm-id>:<clock-tick>` spelling, for matching against
+  a storage dump. Do not parse it.
+- `PkgPath` is the realm that created the object. `Type` is its declared type as
+  `<pkgpath>.<Name>`. These differ when a realm instantiates a type from a `p/`
+  package, and together with the address they are what a page needs to link to
+  an object.
+- `String` renders a line for humans:
+  `gno.land/r/demo/foo.Token#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)`.
+
+### Of
+```go
+func Of(v any) (Object, bool)
+```
+Returns what the VM knows about the object `v` refers to. `ok` is false whenever
+there is nothing to report, and `HasIdentity` says which of the two reasons
+applies.
+
+An object's identity is not complete when the object is created: the VM stamps
+it when the owning realm persists the object, which happens when a realm frame
+returns. So an object the running call created reports `ok == false` until then.
+
+**Always check `ok`.** The zero `Object`'s `Address()` is the empty address: not
+an account anyone can reach, immutable once it is in an event, and a transfer
+aimed at it is a transfer aimed at nothing. `Of` will not panic on your behalf,
+so a realm that would rather refuse than continue has to say so itself.
+
+### HasIdentity
+```go
+func HasIdentity(v any) bool
+```
+Reports whether `v` is the kind of value that gets an address of its own,
+whether or not it has been stamped yet. It is a **second native call**, charged
+the same whichever answer it gives, so reach for it only on the branch where
+`Of` returned false: on the common path `Of` succeeds and one call has already
+produced everything the VM knows. True for a pointer to a standalone
+object (`new(T)`, `&T{...}`) and for a func or method value, which are
+references and so are addressable separately from whatever holds them. False for
+a pointer into a struct field or array element, a slice, a scalar and a nil
+pointer, none of which has an identity separate from what it is part of.
+
+### Addressable
+```go
+type Addressable interface{ Address() address }
+```
+Anything that can be named by an address: a user, a realm, or an object. Use it
+so an API accepts all three without caring which.
+
+Satisfying it is **not** authority. A realm can implement `Address()` returning
+any address at all, so use it to decide where value goes, never to decide who
+may move value.
+
+##### Usage
+```go
+// A proposal that owns a fund. The address is derived from the proposal
+// object, so no later version of this realm can point it elsewhere and no
+// second proposal can share it.
+func (p *Proposal) Address() address {
+    obj, ok := reflect.Of(p)
+    if !ok {
+        panic("proposal not persisted yet: its fund exists from the next call on")
+    }
+    return obj.Address()
+}
+```
+---
+
 ## `chain/banker`
 
 Contains everything related to the `Banker` module in Gno.
