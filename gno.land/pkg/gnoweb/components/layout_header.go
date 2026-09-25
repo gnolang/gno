@@ -23,14 +23,20 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath  string
-	RealmURL   weburl.GnoURL
-	Breadcrumb BreadcrumbData
-	Links      HeaderLinks
-	ChainId    string
-	Remote     string
-	Mode       ViewMode
-	Static     bool
+	RealmPath string
+	// SearchAction is the omnibar form's target. It exists so the bar works
+	// with JavaScript disabled: the form submits here and the reader gets
+	// the server-rendered results page. With JavaScript the controller
+	// intercepts the submit, so this stays the fallback rather than the
+	// normal path.
+	SearchAction string
+	RealmURL     weburl.GnoURL
+	Breadcrumb   BreadcrumbData
+	Links        HeaderLinks
+	ChainId      string
+	Remote       string
+	Mode         ViewMode
+	Static       bool
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
@@ -92,6 +98,12 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
+	// A page that names no package still searches — chain-wide.
+	searchBase := data.RealmURL.Path
+	if searchBase == "" {
+		searchBase = "/"
+	}
+	data.SearchAction = searchBase + "$search"
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	data.Links.General = nil
 

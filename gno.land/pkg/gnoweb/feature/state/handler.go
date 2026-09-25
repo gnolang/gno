@@ -20,11 +20,11 @@ const pageTimeout = 10 * time.Second
 // htmx clients see a fragment-error (HTTP 200 + visible body); non-htmx
 // clients get the standard 429 + Retry-After.
 func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL) (int, *components.View) {
-	if h.limiter != nil {
-		ip := extractIP(r, h.deps.RateLimit.TrustedProxies)
-		if !h.limiter.Allow(ip) {
-			return writeRateLimited(w, r), nil
-		}
+	// AllowRequest owns the trusted-proxy rule, because the limiter is what
+	// was configured with the proxies. Extracting the address here as well
+	// would put one security decision in two places.
+	if !h.limiter.AllowRequest(r) {
+		return writeRateLimited(w, r), nil
 	}
 	// State has no historical view, so reject a pinned ?height=N with 400
 	// instead of silently serving latest. Fragments are internal and never

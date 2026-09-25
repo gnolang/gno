@@ -55,6 +55,7 @@ module.exports = (ctx) => {
 						/c-doc-view\b/,
 						/b-source-code\b/,
 						/b-state-/,
+						/b-omni-/,
 					],
 				},
 				dynamicAttributes: ["data-type"],

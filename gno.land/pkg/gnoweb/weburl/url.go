@@ -279,7 +279,9 @@ func (gnoURL GnoURL) Namespace() string {
 	}
 
 	path := gnoURL.Path[3:] // skip `/x/`
-	if idx := strings.Index(path, "/"); idx > 1 {
+	// idx > 0, not > 1: a one-character namespace puts the separator at
+	// index 1, and `/r/a/b` used to return "a/b".
+	if idx := strings.Index(path, "/"); idx > 0 {
 		return path[:idx] // namespace
 	}
 
