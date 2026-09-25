@@ -14,7 +14,9 @@ a hardfork of betanet. Balances come from the audited
 [gnolang/independence-day](https://github.com/gnolang/independence-day)
 allocation, transfers start locked per Constitution §126, and there is **no
 faucet**. The `rpc.gno.land` endpoint serves `gnoland-1`; betanet, which held
-that name before, is retired.
+that name before, is retired. The version mainnet runs today, and every
+coordinated upgrade since launch, are listed in `UPGRADES.md` under
+[`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
 ### WebSocket endpoints
 
@@ -23,6 +25,9 @@ All networks follow the same pattern for websocket connections:
 ```shell
 wss://<rpc-endpoint:port>/websocket
 ```
+
+The endpoint serves the same request-response methods as HTTP. There is no
+event subscription — see [JSON-RPC endpoints](./rpc-endpoints.md).
 
 ### Deployment files
 
@@ -40,9 +45,10 @@ Two conventions to know:
   not on `master` — that's the branch the chain's release is cut from. The
   `master` copy is where the next network is prepared, plus the archives of
   past ones.
-- Release artifacts — binaries, container images, `genesis.json` and its
-  checksum — are attached to the matching
-  [release tag](https://github.com/gnolang/gno/releases).
+- The `chain/<name>` [release](https://github.com/gnolang/gno/releases)
+  carries the network's `genesis.json` and its checksum, nothing else. Binaries
+  and container images belong to version releases (`vX.Y.Z`): one per binary
+  the network has run, listed in that network's `UPGRADES.md`.
 
 Related infrastructure directories in the monorepo:
 
