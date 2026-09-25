@@ -94,8 +94,47 @@ LAYOUT - Header component
         {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
       </div>
       {{ end }}
+
+      {{/* Identity control; filled in by controller-connect.ts from localStorage. */}}
+      <div class="b-identity" data-controller="connect">
+        <button type="button" class="b-btn b-btn--secondary b-identity__connect"
+          data-connect-target="connect-btn">Connect</button>
+        <div data-connect-target="account" class="b-identity__account" hidden>
+          <button type="button" class="b-identity__toggle" data-connect-target="toggle" aria-haspopup="menu"
+            aria-expanded="false" aria-controls="identity-menu">
+            <span class="b-identity__avatar" data-connect-target="avatar"></span>
+            <span class="b-identity__address u-font-mono" data-connect-target="address"></span>
+          </button>
+          <div class="b-identity__menu" id="identity-menu" role="menu" data-connect-target="menu" hidden>
+            <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
+            <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+            <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+          </div>
+        </div>
+      </div>
     </div>
   </nav>
+  {{/* Wallet registry and chooser, shared by controller-wallet-launch and
+       controller-connect; both read them through their own target attribute. */}}
+  <script type="application/json" data-wallet-launch-target="wallet-registry"
+    data-connect-target="wallet-registry">{{ .WalletsJSON }}</script>
+  <dialog class="b-wallet-chooser" data-wallet-launch-target="chooser" data-connect-target="chooser">
+    <div class="b-wallet-chooser__inner">
+      <h3 class="b-wallet-chooser__title" data-wallet-launch-target="chooser-title"
+        data-connect-target="chooser-title">Open with a wallet</h3>
+      <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"
+        data-connect-target="chooser-list"></ul>
+      <a class="b-wallet-chooser__install" href="/wallets">Install a compatible wallet</a>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-browser"
+        data-connect-target="chooser-browser" hidden>
+        Continue in browser
+      </button>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-cancel"
+        data-connect-target="chooser-cancel">
+        Cancel
+      </button>
+    </div>
+  </dialog>
 </header>
 {{ end }}
 

@@ -74,7 +74,7 @@
 		padding-block: var(--g-space-2);
 
 		@media (--lg) {
-			grid-column: span 7;
+			grid-column: span 6;
 		}
 
 		&--explorer {
@@ -221,7 +221,8 @@
 
 /* ===== MAIN MENU ===== */
 .b-main-menu {
-	grid-column: span 3;
+	/* 4 columns: the dev menu alone fills 3, and the identity control needs ~150px */
+	grid-column: span 4;
 	height: var(--g-space-12);
 	display: flex;
 	flex: 0 0 auto;
@@ -233,12 +234,13 @@
 	/* Menu toggle button */
 	& .menu-toggle {
 		order: 3;
-		margin-inline-start: auto;
 		display: flex;
 		align-items: center;
 		cursor: pointer;
 
 		& > svg {
+			/* Without this the icon shrinks to 0 once the menu is over capacity */
+			flex: none;
 			width: var(--g-space-5);
 			height: var(--g-space-5);
 			margin-inline-start: var(--g-space-4);
@@ -270,6 +272,8 @@
 	& .menu-dev,
 	& .menu-general {
 		display: flex;
+		/* Absorbs the free space, so the toggle and the identity sit flush right */
+		margin-inline-end: auto;
 		justify-content: flex-end;
 		height: 100%;
 	}
@@ -3451,4 +3455,123 @@ main.dev-mode > section:has(.c-overview-view) {
 	background-color: var(--s-color-bg-brand-default);
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
+}
+
+/* ===== WALLET CHOOSER (GnoConnect external wallets) ===== */
+.b-wallet-chooser {
+	padding: 0;
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
+
+	&::backdrop {
+		background-color: rgb(0 0 0 / 50%);
+	}
+}
+
+.b-wallet-chooser__inner {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	/* 100% cap: the dialog is width-capped to the visual viewport by
+	   controller-wallet-launch.ts; a hard 16rem would overflow it when
+	   the page is zoomed past ~1.35x. */
+	min-width: min(16rem, 100%);
+	max-width: 90vw;
+	padding: var(--g-space-4);
+}
+
+.b-wallet-chooser__title {
+	font-size: var(--g-font-size-200);
+	font-weight: var(--g-font-semibold);
+}
+
+.b-wallet-chooser__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.b-wallet-chooser__item {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	width: 100%;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: 1px solid var(--s-color-border-secondary);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-secondary);
+	color: inherit;
+	font-size: var(--g-font-size-100);
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-primary-hover);
+	}
+}
+
+.b-wallet-chooser__icon {
+	width: var(--g-space-6);
+	height: var(--g-space-6);
+	flex-shrink: 0;
+}
+
+/* Transport of the entry — an extension signing in the page, or an app the
+   launch link opens. Pushed to the trailing edge, secondary to the name. */
+.b-wallet-chooser__kind {
+	margin-left: auto;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.b-wallet-chooser__install {
+	display: block;
+	margin-block: 0.5rem;
+	font-size: 0.875rem;
+	text-align: center;
+	text-decoration: underline;
+}
+
+/* ===== HELP PAGE QR ===== */
+/* Collapsed until its anchor is the target: the QR button navigates to the
+   fresh URL, and landing there opens the panel. */
+.b-qr {
+	display: none;
+	margin-block: var(--g-space-4);
+}
+
+.b-qr:target {
+	display: block;
+}
+
+.b-qr__code {
+	display: block;
+	width: 16rem;
+	max-width: 100%;
+	height: auto;
+	image-rendering: pixelated;
+}
+
+/* The help page is pointer-aware: a fine pointer leads with the QR, a touch
+   device leads with the app and drops the QR, which is useless on the phone
+   holding it. */
+.b-qr__touch {
+	display: none;
+}
+
+@media (pointer: coarse) {
+	.b-qr__pointer {
+		display: none;
+	}
+
+	.b-qr__touch {
+		display: block;
+	}
 }

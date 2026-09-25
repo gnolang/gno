@@ -1,0 +1,155 @@
+/* ===== WALLETS INSTALL PAGE ===== */
+/* main > section is a ten-column grid; without a span the page would render in
+   one column, a word wide. There is no aside here, so it takes them all. */
+.b-wallets {
+	grid-column: 1 / -1;
+}
+
+/* The shared h1 centers itself for realm titles; this page reads as prose. */
+.b-wallets .b-content-h1 {
+	text-align: start;
+}
+
+.b-wallets__intro {
+	max-width: 60ch;
+	margin-block-end: 2rem;
+}
+
+.b-wallets__groups {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+
+.b-wallets__list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+	gap: 1rem;
+	margin-block-start: 0.75rem;
+	list-style: none;
+	padding: 0;
+}
+
+.b-wallets__item {
+	display: flex;
+	gap: 0.75rem;
+	align-items: flex-start;
+	padding: 0.75rem;
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: 0.5rem;
+}
+
+.b-wallets__icon {
+	width: 2.5rem;
+	height: 2.5rem;
+	flex: none;
+	border-radius: 0.375rem;
+}
+
+.b-wallets__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.b-wallets__name {
+	font-weight: 600;
+}
+
+.b-wallets__kind {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.7;
+}
+
+.b-wallets__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	list-style: none;
+	padding: 0;
+	font-size: 0.875rem;
+}
+
+.b-wallets__links a {
+	text-decoration: underline;
+}
+
+/* "Grouped by platform, with the current platform first" — no UA sniffing:
+   a coarse primary pointer floats the mobile groups to the front. */
+@media (pointer: coarse) {
+	.b-wallets__group[data-platform="ios"],
+	.b-wallets__group[data-platform="android"] {
+		order: -1;
+	}
+}
+
+/* ===== HEADER IDENTITY ===== */
+.b-identity {
+	/* Sits last in .b-main-menu, after the dev/general menus and the more toggle */
+	order: 4;
+	position: relative;
+	display: flex;
+	flex: none;
+	align-items: center;
+	margin-inline-start: var(--g-space-4);
+}
+
+.b-identity__toggle {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.25rem 0.5rem;
+	border-radius: 0.375rem;
+	cursor: pointer;
+}
+
+.b-identity__avatar {
+	display: block;
+	width: 1.5rem;
+	height: 1.5rem;
+	flex: none;
+	border-radius: 0.25rem;
+	overflow: hidden;
+}
+
+.b-identity__avatar svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.b-identity__address {
+	font-size: 0.8125rem;
+	white-space: nowrap;
+}
+
+.b-identity__menu {
+	position: absolute;
+	inset-inline-end: 0;
+	inset-block-start: calc(100% + 0.25rem);
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	min-width: 12rem;
+	padding: 0.25rem;
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: 0.5rem;
+	/* Themed tokens, not literals: the panel paints its own surface over the
+	   header, so it must also set the text color the theme pairs with it. */
+	background: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.b-identity__menu button {
+	padding: 0.5rem 0.625rem;
+	text-align: start;
+	border-radius: 0.375rem;
+	cursor: pointer;
+}
+
+.b-identity__menu button:hover {
+	background: var(--s-color-bg-surface-primary-hover);
+}

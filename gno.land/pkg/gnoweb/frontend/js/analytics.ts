@@ -48,7 +48,11 @@ onClick<HTMLButtonElement>(
 
 // ---- submit_action: action-form submission with func + pkgpath.
 // Capture phase: FormExecController.stopPropagation runs on bubble.
-document.addEventListener(
+// On window, not document: the wallet chooser cancels the submit at
+// window-capture so a legacy extension cannot take it, and document is
+// downstream of that. Same node and phase means no ordering dependency —
+// stopPropagation does not skip sibling listeners.
+window.addEventListener(
 	"submit",
 	(ev) => {
 		if (!(ev.target instanceof Element)) return;
