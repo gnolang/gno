@@ -351,7 +351,7 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://onyx.testnets.gno.land/r/...` instead.
+testnet it is the same path under its gnoweb host, `onyx.testnets.gno.land`.
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
