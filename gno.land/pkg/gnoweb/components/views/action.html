@@ -59,6 +59,8 @@ UI - Help Function component
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}
 </h2>
+{{/* External-wallet registry, consumed by controller-wallet-launch.ts. */}}
+<script type="application/json" data-wallet-launch-target="wallet-registry">{{ $data.WalletsJSON }}</script>
 <div class="c-stack">
   {{ range .Functions }}
   <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
@@ -102,7 +104,7 @@ UI - Help Function component
     <div class="c-doc-view description">{{ render . }}</div>
     {{ end }}
     <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
-      data-action-function-target="function-execute">
+      data-controller="wallet-launch" data-action-function-target="function-execute">
       {{- with .Params }}
       <h3 class="title">
         Param{{- if gt (len .) 1 }}s{{ end }}
@@ -176,4 +178,17 @@ UI - Help Function component
   </article>
   {{ end }}
 </div>
+{{/* GnoConnect wallet chooser; populated by controller-wallet-launch.ts. */}}
+<dialog class="b-wallet-chooser" data-wallet-launch-target="chooser">
+  <div class="b-wallet-chooser__inner">
+    <h3 class="b-wallet-chooser__title">Open with a wallet</h3>
+    <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"></ul>
+    <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-browser">
+      Continue in browser
+    </button>
+    <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-cancel">
+      Cancel
+    </button>
+  </div>
+</dialog>
 {{ end }}

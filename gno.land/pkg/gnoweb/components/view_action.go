@@ -32,6 +32,9 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+
+	// External-wallet registry for the GnoConnect chooser; set by HelpView.
+	WalletsJSON template.JS
 }
 
 type HelpTocData struct {
@@ -105,6 +108,8 @@ func registerHelpFuncs(funcs template.FuncMap) {
 }
 
 func HelpView(data HelpData) *View {
+	data.WalletsJSON = WalletsJSON()
+
 	tocData := HelpTocData{
 		Icon:  "code",
 		Items: make([]HelpTocItem, len(data.Functions)),
