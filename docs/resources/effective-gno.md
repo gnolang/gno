@@ -855,10 +855,12 @@ as a pair, and ideally cover the bypass with a regression test using
 Alternatives considered:
 
 - **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
-  intermediary realm, no MsgRun" (your own closures and `/p/` helpers are
-  fine; your own named function between the entry and the assertion is not,
-  since a script can hand that function back to you as a value). It is not a
-  re-entrancy lock. Correct, but stricter than most realms want:
+  intermediary realm, no MsgRun", and must be the first statement of the
+  exported function the message names: nothing of your own, named or
+  literal, may sit between that function and the call, since any function
+  you declare is a value a script can hand back to you (`/p/` helpers are
+  transparent). It is not a re-entrancy lock. Correct, but stricter than
+  most realms want:
   rejects `testing.NewUserRealm`-based unit tests in some configurations and
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).

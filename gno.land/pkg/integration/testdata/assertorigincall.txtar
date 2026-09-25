@@ -26,9 +26,9 @@
 # | 21  | MsgCall  | wallet direct       | myrealm.D() (func val) | pass   |
 # | 22  |          | through /r/foo      | foo.D() (func val)     | PANIC  |
 # | 23  |          | through /r/foo      | foo.E() (nested)       | PANIC  |
-# | 24  |          | wallet direct       | myrealm.E() (own clo)  | pass   |
-# | 25  |          |                     | myrealm.F() (own clo)  | pass   |
-# | 26  |          |                     | myrealm.G() (deferred) | pass   |
+# | 24  |          | wallet direct       | myrealm.E() (own clo)  | PANIC  |
+# | 25  |          |                     | myrealm.F() (own clo)  | PANIC  |
+# | 26  |          |                     | myrealm.G() (deferred) | PANIC  |
 # | 27  |          | through /r/foo      | myrlm's own closure    | PANIC  |
 # | 28  |          | wallet direct       | bar's closure (/p/)    | pass   |
 # | 29  |          | wallet direct       | myrlm -> hook -> myrlm | PANIC  |
@@ -148,24 +148,24 @@ stderr 'invalid non-origin call'
 ! gnokey maketx call -pkgpath gno.land/r/foo -func E -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
-## A realm calling its OWN crossing func literal never leaves its realm, so it
-## keeps the origin call either way it is invoked. Both spellings set a crossing
-## flag regardless (24 sets DidCrossing via the inherited-cur path, 25 sets
-## WithCross), which is why the boundary test cannot read those flags alone.
+## A realm's OWN func literal above the entry is a boundary like its named
+## functions: a closure the realm exports or returns is a value a script can
+## hand back. The crossing flags do not decide it (24 sets DidCrossing via the
+## inherited-cur path, 25 sets WithCross); the declaring realm does.
 
-## 24. MsgCall -> myrlm.E -> own crossing closure, called as f(cur): PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func E -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+## 24. MsgCall -> myrlm.E -> own crossing closure, called as f(cur): PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func E -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
-## 25. MsgCall -> myrlm.F -> own crossing closure, called as f(cross(cur)): PASS
-gnokey maketx call -pkgpath gno.land/r/myrlm -func F -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+## 25. MsgCall -> myrlm.F -> own crossing closure, called as f(cross(cur)): PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func F -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
-## 26. MsgCall -> myrlm.G -> own crossing closure, deferred: PASS
+## 26. MsgCall -> myrlm.G -> own crossing closure, deferred: PANIC
 ## The defer path builds its frame in doOpReturnCallDefers rather than doOpCall
 ## and reaches installInheritedCur separately, so it gets its own case.
-gnokey maketx call -pkgpath gno.land/r/myrlm -func G -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test test1
-stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func G -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## A plain call into ANOTHER realm's exported closure sets no crossing flag at
 ## all, yet the closure runs with that realm's storage authority. 27 and 28 are
@@ -222,9 +222,9 @@ var D = func(cur realm) {
 	runtime.AssertOriginCall()
 }
 
-// E and F call a crossing func literal belonging to myrlm itself. Neither
-// leaves the realm, so neither is a call boundary, however the literal is
-// invoked: E forwards cur directly, F crosses to it.
+// E and F call a crossing func literal belonging to myrlm itself. The
+// literal is myrlm's own function above the entry, so it is a boundary
+// however it is invoked: E forwards cur directly, F crosses to it.
 func E(cur realm) {
 	f := func(cur realm) {
 		runtime.AssertOriginCall()

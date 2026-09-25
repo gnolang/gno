@@ -2903,18 +2903,19 @@ func ownsItsStorage(r *Realm) bool {
 // NumCallBoundaryFrames returns the number of realm boundaries in
 // m.Frames[start:]: the frame that entered the first storage-owning realm,
 // plus every frame whose body runs in a storage-owning realm other than the
-// nearest one below it, plus every frame above the entry that runs a realm's
-// own named function inside that same realm. /p/ and stdlib frames are looked
-// through in both directions, a realm's func literals are transparent inside
-// it, and control-flow basic frames (for/range/switch, where Func is nil)
-// never count. This is not isRealmBoundary, which serves finalization and
-// fires on /p/ and stdlib frozen realms too.
+// nearest one below it, plus every frame above the entry that runs a function
+// the realm itself declared, named or literal. /p/ and stdlib frames are
+// looked through in both directions, and control-flow basic frames
+// (for/range/switch, where Func is nil) never count. This is not
+// isRealmBoundary, which serves finalization and fires on /p/ and stdlib
+// frozen realms too.
 //
-// The named rule exists because a realm's exported named function is a value
-// any script can name and hand back to it (`SetHook(cross, rlm.Withdraw)`),
-// while a func literal inside the realm is reachable only through code the
-// realm wrote. A /p/ declaration borrowed into the realm (a method on an
-// object the realm stamped) stays transparent: it cannot name realm code.
+// The own-function rule exists because code a realm declared is the only code
+// an outsider can hand back to it: a named function by naming it
+// (`SetHook(cross, rlm.Withdraw)`), a closure through an exported variable or
+// a return value. A /p/ body cannot name realm code, so a /p/ declaration
+// borrowed into the realm (a method on an object the realm stamped) stays
+// transparent. So an origin call is asserted from the entry function itself.
 //
 // start is where the program begins: 0 on chain, where the message sits below
 // Frames[0]; the test runtime passes the index after the test function, whose
@@ -2957,7 +2958,7 @@ func (m *Machine) NumCallBoundaryFrames(start int) int {
 			body = m.Frames[i].LastRealm
 		}
 		if ownsItsStorage(body) {
-			if body.ID != callerID || isOwnNamedFunc(fn, body) {
+			if body.ID != callerID || isOwnFunc(fn, body) {
 				count++
 			}
 			callerID = body.ID
@@ -2969,10 +2970,10 @@ func (m *Machine) NumCallBoundaryFrames(start int) int {
 	return count
 }
 
-// isOwnNamedFunc reports whether fv is a named function declared in the realm
-// whose storage its body runs in. See NumCallBoundaryFrames.
-func isOwnNamedFunc(fv *FuncValue, body *Realm) bool {
-	return !fv.IsClosure && fv.PkgPath == body.Path
+// isOwnFunc reports whether fv was declared in the realm whose storage its
+// body runs in. See NumCallBoundaryFrames.
+func isOwnFunc(fv *FuncValue, body *Realm) bool {
+	return fv.PkgPath == body.Path
 }
 
 // Returns the current frame.

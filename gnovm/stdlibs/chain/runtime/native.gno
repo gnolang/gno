@@ -1,10 +1,10 @@
 package runtime
 
-// AssertOriginCall panics unless the current realm was entered directly by a
-// MsgCall naming it, with no other realm between the message and this call.
-// The realm's own closures and /p/ or stdlib helpers are transparent; one of
-// its own named functions above the entry is not. Panics under MsgRun. Keep
-// the line count: persisted native FuncValues below hash their source position.
+// AssertOriginCall panics unless called from the function a MsgCall named,
+// with nothing of this realm's own, named or literal, between that function
+// and this call; /p/ and stdlib helpers are transparent. Panics under MsgRun.
+// Not a re-entrancy lock nor a caller check: use cur.Previous(). Keep the
+// line count: persisted native FuncValues below hash their source position.
 func AssertOriginCall()   // injected
 func ChainID() string     // injected
 func ChainDomain() string // injected

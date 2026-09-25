@@ -8,9 +8,8 @@ func Register() {
 }
 
 // main is the message's script, so the closure is the entry. Asserting inside
-// it is an origin call; reaching Register, a named function of this realm,
-// from it is not: a script can hand Register back as a value, a closure it
-// cannot.
+// it is an origin call; reaching Register, another function of this realm,
+// from it is not: only the entry function asserts an origin call.
 func main() {
 	fn := func() {
 		runtime.AssertOriginCall()

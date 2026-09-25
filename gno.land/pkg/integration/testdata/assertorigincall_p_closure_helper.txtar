@@ -6,13 +6,18 @@ loadpkg gno.land/r/relay $WORK/r/relay
 
 gnoland start
 
-## honest: wug.Deposit -> helper.Run (/p/ closure) -> wug's own closure: PASS
-gnokey maketx call -pkgpath gno.land/r/wug -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
-stdout 'OK!'
+## The asserting code must be the entry function itself. A /p/ runner, named
+## or literal, is transparent, but the closure wug hands it is wug's own
+## function above the entry: a value wug could export or return, so a value a
+## script could hand back. All three honest-looking shapes are refused.
 
-## honest: wug.DepositNamed -> helper.RunNamed (/p/ named) -> wug's own closure: PASS
-gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
-stdout 'OK!'
+## wug.Deposit -> helper.Run (/p/ closure) -> wug's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## wug.DepositNamed -> helper.RunNamed (/p/ named) -> wug's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## wug.DepositLocal -> wug.run (own NAMED helper) -> wug's own closure: PANIC
 ## run is a value any script can name and store back into wug; a /p/ helper
@@ -34,9 +39,10 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## Borrow rule #2: a /p/ method on a wug-stamped object runs as wug and fires
-## wug's stored callback. From wug itself that is wug's own code: PASS
-gnokey maketx call -pkgpath gno.land/r/wug -func FireOwn -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
-stdout 'OK!'
+## wug's stored callback. The method is transparent, the callback is wug's
+## own closure above the entry: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func FireOwn -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
 
 ## attacker: relay.Fire -> wug.Hook.Fire (/p/ method, borrowed to wug) -> wug's
 ## callback. The method and callback run as wug, but relay is on the stack: PANIC
