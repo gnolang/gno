@@ -1203,6 +1203,71 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	assert.Len(t, res.DeliverTxs, numInitResponses)
 }
 
+// TestHandshakeInitChainError checks that an app rejecting the genesis via
+// ResponseInitChain.Error aborts the handshake, leaving the genesis ABCI
+// responses unsaved. The field is the only channel an app has for "refusing to
+// boot": InitChainSync is a pass-through and never synthesizes a Go-level
+// error.
+func TestHandshakeInitChainError(t *testing.T) {
+	t.Parallel()
+
+	// rejectingHandshake runs a handshake against an app that refuses the
+	// genesis with errMsg, and returns the state DB and the handshake error.
+	rejectingHandshake := func(t *testing.T, errMsg string, initialHeight int64) (dbm.DB, error) {
+		t.Helper()
+
+		app := initChainApp{
+			initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
+				return abci.ResponseInitChain{
+					ResponseBase: abci.ResponseBase{Error: abci.StringError(errMsg)},
+				}
+			},
+		}
+
+		config, genesisFile := ResetConfig("handshake_test_")
+		t.Cleanup(func() { require.NoError(t, os.RemoveAll(config.RootDir)) })
+		stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
+
+		genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
+		genDoc.InitialHeight = initialHeight
+
+		proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+		require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+		t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
+
+		return stateDB, NewHandshaker(stateDB, state, store, genDoc).Handshake(proxyApp)
+	}
+
+	t.Run("fresh genesis", func(t *testing.T) {
+		t.Parallel()
+
+		stateDB, err := rejectingHandshake(t,
+			"strict replay: 1 genesis tx(s) failed; chain refusing to boot", 1)
+		require.ErrorContains(t, err, "chain refusing to boot",
+			"handshake must fail when InitChain rejects the genesis")
+
+		_, loadErr := sm.LoadABCIResponses(stateDB, 0)
+		assert.Error(t, loadErr, "genesis ABCI responses must not be saved after a rejected InitChain")
+	})
+
+	// On a hardfork genesis ReplayBlocks persists the InitialHeight alignment
+	// before InitChain runs. The abort does not roll that write back; a retry
+	// with the same genesis re-runs InitChain and converges.
+	t.Run("hardfork genesis keeps the alignment write", func(t *testing.T) {
+		t.Parallel()
+
+		stateDB, err := rejectingHandshake(t, "InitialHeight mismatch", 100)
+		require.ErrorContains(t, err, "InitialHeight mismatch")
+
+		_, loadErr := sm.LoadABCIResponses(stateDB, 0)
+		require.Error(t, loadErr, "genesis ABCI responses must not be saved after a rejected InitChain")
+
+		after := sm.LoadState(stateDB)
+		assert.Equal(t, int64(100), after.InitialHeight)
+		assert.Equal(t, int64(99), after.LastBlockHeight)
+	})
+}
+
 type initChainApp struct {
 	abci.BaseApplication
 	initChain func(req abci.RequestInitChain) abci.ResponseInitChain
