@@ -5247,41 +5247,56 @@ func BenchmarkOpReturnToBlock(b *testing.B) {
 
 // --- doOpReturnCallDefers: processes defer chain ---
 
-func benchOpReturnCallDefers(b *testing.B, nDefers int) {
+func benchOpReturnCallDefers(b *testing.B, nParams, nCaptures int, warm bool) {
 	b.Helper()
 	m := benchMachine()
 	defer m.Release()
-	// Outer function with defers.
-	ft := &FuncType{Params: []FieldType{}, Results: []FieldType{}}
-	fd := benchFuncDeclNode(0, nil)
+	// Exactly one defer; vary normalized parameter slots and heap captures.
+	params := make([]FieldType, nParams)
+	args := make([]TypedValue, nParams)
+	for i := range nParams {
+		params[i] = FieldType{Type: IntType}
+		args[i] = TypedValue{T: IntType, N: i2n(int64(i))}
+	}
+	ft := &FuncType{Params: params}
+	captures := make([]TypedValue, nCaptures)
+	for i := range nCaptures {
+		captures[i] = TypedValue{T: heapItemType{}, V: m.Alloc.NewHeapItem(nil, TypedValue{T: IntType, N: i2n(int64(i))})}
+	}
+	fd := benchFuncDeclNode(nParams+nCaptures, nil)
 	fv := &FuncValue{
 		Type:      ft,
+		Captures:  captures,
 		IsClosure: true,
 		Source:    fd,
 		PkgPath:   "bench",
 		body:      []Stmt{},
 	}
 	cx := &CallExpr{NumArgs: 0}
+	if warm {
+		m.blockPool = append(m.blockPool, &Block{Values: make([]TypedValue, 0, nParams+nCaptures)})
+	}
 	bm.InitMeasure()
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		m.PushValue(TypedValue{T: ft, V: fv})
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
 		m.Blocks = append(m.Blocks, &Block{})
-		// Add defers.
+		// Arguments were already copied and normalized by doOpDefer.
 		cfr := m.LastFrame()
-		for range nDefers {
-			cfr.PushDefer(Defer{
-				Callable: fv,
-				Args:     []TypedValue{},
-				Source:   &DeferStmt{Call: CallExpr{NumArgs: 0, Args: []Expr{}}},
-			})
-		}
+		cfr.PushDefer(Defer{
+			Callable: fv,
+			Args:     args,
+			Source:   &DeferStmt{Call: CallExpr{NumArgs: nParams, Args: make([]Expr, nParams)}},
+		})
 		m.PushOp(OpReturnCallDefers) // will be consumed by the op
 		bm.SwitchOpCode(bmTarget)
 		m.doOpReturnCallDefers()
 		bm.SwitchOpCode(bmSetup)
 		// doOpReturnCallDefers pops one defer and sets up the call.
+		if warm {
+			returnBlock(m, m.LastBlock())
+		}
 		m.Ops = m.Ops[:0]
 		m.Stmts = m.Stmts[:0]
 		m.Blocks = m.Blocks[:0]
@@ -5291,10 +5306,18 @@ func benchOpReturnCallDefers(b *testing.B, nDefers int) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpReturnCallDefers_1(b *testing.B)    { benchOpReturnCallDefers(b, 1) }
-func BenchmarkOpReturnCallDefers_10(b *testing.B)   { benchOpReturnCallDefers(b, 10) }
-func BenchmarkOpReturnCallDefers_100(b *testing.B)  { benchOpReturnCallDefers(b, 100) }
-func BenchmarkOpReturnCallDefers_1000(b *testing.B) { benchOpReturnCallDefers(b, 1000) }
+func BenchmarkOpReturnCallDefers(b *testing.B) {
+	for _, warm := range []bool{false, true} {
+		b.Run(fmt.Sprintf("warm=%t", warm), func(b *testing.B) {
+			for _, n := range []int{0, 1, 10, 100, 1000} {
+				b.Run(fmt.Sprintf("%dParams_0Captures", n), func(b *testing.B) { benchOpReturnCallDefers(b, n, 0, warm) })
+				if n != 0 {
+					b.Run(fmt.Sprintf("0Params_%dCaptures", n), func(b *testing.B) { benchOpReturnCallDefers(b, 0, n, warm) })
+				}
+			}
+		})
+	}
+}
 
 // --- doOpPanic2: unwind to call frame ---
 

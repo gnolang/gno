@@ -311,6 +311,10 @@ func (m *Machine) doOpCall() {
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
+	// Charge parameters and captures before acquiring the block, so an
+	// out-of-gas stops before that work. Matches doOpReturnCallDefers.
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
 	b := m.acquireBlock(fs, pb)
@@ -327,8 +331,6 @@ func (m *Machine) doOpCall() {
 	}
 
 	m.PushBlock(b)
-	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
-		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
@@ -750,6 +752,8 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Call last deferred call.
 	ft := fv.GetType(m.Store)
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
