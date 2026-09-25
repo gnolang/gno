@@ -26,6 +26,7 @@
 #   --halt-height <H>    also print the GovDAO halt proposal for a coordinated upgrade
 #   --push               push the tag to origin (otherwise: dry run)
 #   --allow-dirty        skip the clean-worktree check (local rehearsal only)
+#   --allow-merge        cut a range that merges master and touches consensus code
 #
 # Examples:
 #   # what the mainnet launch should have been tagged with
@@ -57,6 +58,7 @@ PREVIOUS=""
 HALT_HEIGHT=""
 PUSH=0
 ALLOW_DIRTY=0
+ALLOW_MERGE=0
 VERSION=""
 # A checkout of the commit being tagged, shared by every preflight check that
 # has to inspect that tree rather than the one the operator is standing on. A
@@ -124,6 +126,10 @@ parse_args() {
 			;;
 		--allow-dirty)
 			ALLOW_DIRTY=1
+			shift
+			;;
+		--allow-merge)
+			ALLOW_MERGE=1
 			shift
 			;;
 		-*) die "unknown option $1 (try --help)" ;;
@@ -225,23 +231,22 @@ check_on_master() {
 }
 
 # The ledger is what operators read to know which version to run and what a
-# replaying node follows; a release without an entry is invisible to both. A
-# warning, not a refusal: the entry may legitimately land after the tag. The
-# pre-release suffix is stripped because an rc rehearses the final version's
-# entry rather than getting one of its own.
+# replaying node follows; a final release without an entry is invisible to
+# both, so it is refused. A release candidate only warns: it rehearses the
+# final version's entry, which may not be written yet.
 check_ledger_entry() {
-	local ledger="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land/upgrades.json"
-	[[ -f ${ledger} ]] || return 0
-	if ! command -v jq >/dev/null 2>&1; then
-		warn "jq not found; skipping the upgrades.json check"
-		return 0
+	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
+	[[ -f ${dir}/upgrades.json ]] || return 0
+	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
+		ok "upgrades.json has an entry for ${VERSION}"
+		return
 	fi
-	local final="${VERSION%%-*}"
-	if jq -e --arg v "${final}" '.upgrades[] | select(.version == $v)' "${ledger}" >/dev/null 2>&1; then
-		ok "upgrades.json has an entry for ${final}"
+	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
+       go run ./misc/deployments/upgrades render misc/deployments/${CHAIN}.gno.land"
+	if [[ ${VERSION} == *-* ]]; then
+		warn "upgrades.json has no entry for ${VERSION%%-*} yet; ${hint}"
 	else
-		warn "${ledger#"${REPO_ROOT}"/} has no entry for ${final}; add it and render UPGRADES.md"
-		warn "   (misc/deployments/${CHAIN}.gno.land/render-upgrades.sh) before announcing the release"
+		die "upgrades.json has no entry for ${VERSION}. ${hint}"
 	fi
 }
 
@@ -372,11 +377,37 @@ classify() {
 	else
 		info "PATCH: no validator coordination needed."
 		if [[ ${breaking} -gt 0 ]]; then
-			warn "...but ${breaking} commit(s) in this range are marked breaking (feat!:/BREAKING)."
-			warn "   A consensus change is a MINOR bump, not a patch. Re-check the number."
+			die "${breaking} commit(s) in this range are marked breaking (feat!:/BREAKING).
+       A consensus change is a MINOR bump, not a patch: validators must halt
+       together. Cut the next MINOR instead."
 		fi
 	fi
 	printf '\n'
+
+	check_merge_ships_consensus
+}
+
+# A merge of master ships everything master had, agreed or not. When such a
+# range touches the code nodes agree on, the operator says so explicitly with
+# --allow-merge; otherwise the release is cherry-picked (RELEASING.md).
+check_merge_ships_consensus() {
+	[[ -n ${PREVIOUS} ]] || return 0
+	local merges consensus
+	merges="$(git -C "${REPO_ROOT}" log --merges --first-parent --format=%h "${PREVIOUS}..${COMMIT}")"
+	[[ -n ${merges} ]] || return 0
+	consensus="$(git -C "${REPO_ROOT}" diff --name-only "${PREVIOUS}" "${COMMIT}" -- \
+		gnovm tm2 gno.land/pkg ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
+	[[ -n ${consensus} ]] || return 0
+	if [[ ${ALLOW_MERGE} -eq 1 ]]; then
+		warn "the range merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code; --allow-merge given"
+		return 0
+	fi
+	die "the range ${PREVIOUS}..${COMMIT:0:9} merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code:
+
+$(printf '%s\n' "${consensus}" | head -10 | sed 's/^/       /')
+
+       A merge ships everything master had, agreed or not. Re-run with
+       --allow-merge to acknowledge that, or cherry-pick the upgrade's PRs."
 }
 
 # ------------------------------------------------------------------- output
