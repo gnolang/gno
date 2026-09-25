@@ -147,7 +147,7 @@ FLAGS
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
-  -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
+  -node-rpc-listener 0.0.0.0:26657	listening address for GnoLand RPC node
   -paths ...	additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas
   -remote ...	fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
@@ -158,7 +158,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-listener 0.0.0.0:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
