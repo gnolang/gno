@@ -17,17 +17,17 @@ import (
 )
 
 var DefaultAliases = map[string]AliasTarget{
-	"/":           {"/r/gnoland/home", GnowebPath},
-	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/devrels/events", GnowebPath},
-	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
-	"/docs":       {"/u/docs", GnowebPath},
+	"/":           {Value: "/r/gnoland/home", Kind: GnowebPath},
+	"/about":      {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath},
+	"/gnolang":    {Value: "/r/gnoland/pages:p/gnolang", Kind: GnowebPath},
+	"/ecosystem":  {Value: "/r/gnoland/pages:p/ecosystem", Kind: GnowebPath},
+	"/start":      {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath},
+	"/license":    {Value: "/r/gnoland/pages:p/license", Kind: GnowebPath},
+	"/contribute": {Value: "/r/gnoland/pages:p/contribute", Kind: GnowebPath},
+	"/links":      {Value: "/r/gnoland/pages:p/links", Kind: GnowebPath},
+	"/events":     {Value: "/r/devrels/events", Kind: GnowebPath},
+	"/partners":   {Value: "/r/gnoland/pages:p/partners", Kind: GnowebPath},
+	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
 
 // AppConfig contains configuration for gnoweb.
@@ -57,6 +57,12 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+
+	// CanonicalOrigin is the public origin this deployment is reachable at,
+	// scheme included. Empty means no canonical tag: a canonical naming a host
+	// the visitor did not reach tells a crawler the content belongs elsewhere,
+	// and every deployment but one would be claiming gno.land's.
+	CanonicalOrigin string
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
 	// Aliases is a map of aliases pointing to another path or a static file.
@@ -127,6 +133,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
+		CanonicalOrigin:   strings.TrimSuffix(cfg.CanonicalOrigin, "/"),
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,

@@ -44,6 +44,7 @@ var cspImgHost = []string{
 }
 
 type webCfg struct {
+	canonicalOrigin  string
 	chainid          string
 	remote           string
 	remoteTimeout    time.Duration
@@ -131,6 +132,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-default-aliases",
 		defaultWebOptions.noDefaultAliases,
 		"discard default aliases",
+	)
+
+	fs.StringVar(
+		&c.canonicalOrigin,
+		"canonical-origin",
+		defaultWebOptions.canonicalOrigin,
+		"public origin of this deployment, scheme included; empty emits no canonical tag",
 	)
 
 	fs.StringVar(
@@ -230,6 +238,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
+	appcfg.CanonicalOrigin = cfg.canonicalOrigin
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
@@ -329,7 +338,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
 
-			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+			aliases[parts[0]] = gnoweb.NewStaticAlias(string(content))
 		} else { // Otherwise, treat it as a normal alias.
 			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
 		}
