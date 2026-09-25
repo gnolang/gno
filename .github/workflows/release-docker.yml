@@ -1,15 +1,14 @@
 # Build and Push Docker Images using Docker Bake
 name: release / docker
 
-# Images are built from tags only. A branch push used to build a floating
-# chain-<name> image whose version string satisfies no halt_min_version and
-# which operators nevertheless pulled; a release is a tag, so the image is too.
+# Images are built from version tags only. A branch push used to build a
+# floating chain-<name> image whose version string satisfies no
+# halt_min_version and which operators nevertheless pulled; and a chain/<name>
+# launch tag would recreate that name for an image reporting a different
+# version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 on:
   push:
     tags:
-      - chain/*
-      # Release tags: VALIDATOR.md points operators at ghcr.io for upgrade
-      # images, and every coordinated upgrade is a v* tag.
       - v*
   workflow_dispatch:
     inputs:
@@ -24,7 +23,17 @@ jobs:
   bake:
     strategy:
       matrix:
-        image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs,gpao]
+        # `latest` only for the CLI tools: a node image that moves by itself
+        # breaks coordinated upgrades (RELEASING.md, "Container images").
+        include:
+          - { image: gnoland, latest: false }
+          - { image: gnokey, latest: true }
+          - { image: gnoweb, latest: true }
+          - { image: gno, latest: true }
+          - { image: gnofaucet, latest: false }
+          - { image: gnodev, latest: true }
+          - { image: gnocontribs, latest: false }
+          - { image: gpao, latest: false }
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,6 +62,11 @@ jobs:
           # label the image with the event's sha instead, which on a dispatch
           # is the default branch's tip, not the tag being built.
           echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          # `latest` may only move forward. Gate it on being the highest final
+          # v* tag, not merely a final one: a backport cut after a newer line
+          # must not re-point latest at the older line.
+          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
+          echo "is_highest=$([ -n "$HIGHEST" ] && [ "$HIGHEST" = "$GITHUB_REF_NAME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
@@ -78,13 +92,10 @@ jobs:
           INPUTS_TAG: ${{ inputs.tag }}
 
       # Tags: the git tag itself, the dispatch input, the built commit's sha,
-      # and `latest` only for the CLI tools on a final release. A node image
-      # that moves by itself breaks coordinated upgrades (a validator restarting
-      # between "release built" and "halt height" would pull a binary the gate
-      # refuses), and a pre-release must not become what developers get by
-      # default. The action's own default adds `latest` to every tag build,
-      # gnoland included, so it is turned off and the raw rule below is the only
-      # `latest` published. See RELEASING.md, "Container images".
+      # and `latest` for the images the matrix marks, only when this tag is the
+      # highest final release. The action's own default adds `latest` to every
+      # tag build, gnoland included, so it is turned off and the raw rule below
+      # is the only `latest` published. See RELEASING.md, "Container images".
       - name: Extract metadata
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
@@ -94,7 +105,7 @@ jobs:
             type=ref,event=tag
             type=raw,value=${{ steps.resolve_tag.outputs.tag }},enable=${{ inputs.tag != '' }}
             type=raw,value=sha-${{ steps.build_version.outputs.short_sha }}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && contains(fromJSON('["gno","gnokey","gnodev","gnoweb"]'), matrix.image) }}
+            type=raw,value=latest,enable=${{ matrix.latest && steps.build_version.outputs.is_highest == 'true' }}
           flavor: |
             latest=false
           labels: |
