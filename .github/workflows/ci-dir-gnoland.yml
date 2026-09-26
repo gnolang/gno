@@ -10,6 +10,7 @@ on:
       - gnovm/**
       - tm2/**
       - examples/**
+      - docs/**
       - go.mod
       - .github/workflows/ci-dir-gnoland.yml
       # TestReleaseToolingMatchesTheParser in gno.land/pkg/gnoland holds the
