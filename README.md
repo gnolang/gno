@@ -99,7 +99,6 @@ repository.
 - [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of 
   resources
 - [Gnoscan](https://gnoscan.io) - Blockchain explorer
-- [Gno Studio](https://gno.studio) - Web IDE for Gno development
 - [Contributor guide](./docs/builders/contributor-guide.md) - Join the contributor 
   community
 
