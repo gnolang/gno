@@ -530,6 +530,7 @@ func TestIndexLayout_Banner(t *testing.T) {
 		name            string
 		markdown        string
 		url             string
+		warning         bool
 		wantBanner      bool
 		wantContains    string
 		wantNotContains string
@@ -540,10 +541,18 @@ func TestIndexLayout_Banner(t *testing.T) {
 			wantBanner: false,
 		},
 		{
-			name:         "plain text renders in div",
-			markdown:     "Maintenance",
+			name:            "plain text renders in div",
+			markdown:        "Maintenance",
+			wantBanner:      true,
+			wantContains:    "Maintenance",
+			wantNotContains: "b-banner--warning",
+		},
+		{
+			name:         "warning tone adds the modifier class",
+			markdown:     "Community realm",
+			warning:      true,
 			wantBanner:   true,
-			wantContains: "Maintenance",
+			wantContains: `class="b-banner b-banner--warning"`,
 		},
 		{
 			name:         "markdown link renders inline",
@@ -574,6 +583,9 @@ func TestIndexLayout_Banner(t *testing.T) {
 
 			banner, err := NewBannerData(tc.markdown, tc.url)
 			require.NoError(t, err)
+			if tc.warning {
+				banner = banner.AsWarning()
+			}
 
 			data := IndexData{
 				HeadData: HeadData{Title: "Test"},

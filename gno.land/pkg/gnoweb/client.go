@@ -149,6 +149,12 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
+// validFileName reports whether name can be a package file. Package files
+// are flat; a separator or dot segment would path-join into another package.
+func validFileName(name string) bool {
+	return name != "." && name != ".." && !strings.ContainsRune(name, '/')
+}
+
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
@@ -158,6 +164,9 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	fileName = strings.TrimSpace(fileName)
 	if fileName == "" {
 		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
+	}
+	if !validFileName(fileName) {
+		return nil, meta, ErrClientFileNotFound
 	}
 
 	// XXX: Consider moving this into gnoclient
