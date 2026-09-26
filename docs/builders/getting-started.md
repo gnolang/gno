@@ -148,44 +148,7 @@ gno lint ./...    # static checks for common mistakes
 gno test ./...    # run _test.gno files
 ```
 
-### 4. Create a key
-
-To deploy your realm or call `Increment`, you sign each action with a
-key. A **key** is a private/public keypair managed locally by `gnokey`:
-the private side signs your transactions, and the public side derives
-the `g1…` address that identifies you on chain.
-
-Create one:
-
-```sh
-gnokey add alice
-```
-
-It prompts for an encryption password and prints a 24-word mnemonic.
-Store it somewhere safe to recover the key later. List your keys
-to see the derived `g1...` address:
-
-```sh
-gnokey list
-```
-
-```text
-0. alice (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
-```
-
-That `g1...` address is your on-chain identity. It owns funds, signs
-transactions, and forms the base of your address-based namespace
-when you deploy to a shared network.
-
-:::warning
-Keys created this way are **development-only**. Do not reuse the
-mnemonic for real funds.
-:::
-
-For key import, derivation, and the full keybase reference, see
-[Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
-
-### 5. Run a local chain
+### 4. Run a local chain
 
 Once the code passes tests, boot a devnet from the package directory.
 `gnodev` starts a single-node chain, loads the realm at its declared
@@ -197,15 +160,24 @@ gnodev .
 
 Open http://localhost:8888, where gnoweb shows your realm. Click into it
 to see the `Render` output ("Count: 0"), browse exported functions and
-source code, and view prefunded account balances. Every key in your
-local `gnokey` keybase is auto-funded at startup, so `alice` already has
-GNOT to spend. No faucet needed.
+source code, and view prefunded account balances. `gnodev` funds its own
+deployer account at genesis, along with every key your local `gnokey` keybase
+already holds. No faucet needed.
+
+`gnodev` opens by asking whether to copy that deployer account into your
+keybase as `devtest`. Answer `y` and `gnokey` can sign as it. Funding is not
+what a fresh keybase lacks: signing is, and `I` asks again later.
+
+:::warning
+Everyone runs that same key, so sign with it on local chains only. See
+[the dev key](../resources/gnodev.md#the-dev-key).
+:::
 
 Save a `.gno` file and the chain reloads automatically. Pass
 additional directories on the command line to load several packages
 at once.
 
-### 6. Call Increment
+### 5. Call Increment
 
 Every realm page in gnoweb has three tabs in the top header:
 **Content** (the `Render` output you've already seen), **Source**
@@ -224,7 +196,7 @@ gnokey maketx call \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 1000000000 \
   -chainid dev -remote http://localhost:26657 \
-  alice
+  devtest
 ```
 
 `-pkgpath` is the realm's on-chain path, the same one you passed to
@@ -233,8 +205,8 @@ may consume; `-gas-fee` is the price per unit, in `ugnot`, the smallest
 GNOT denomination. Together they cap what you'll pay. See
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
-The signer at the end is the `alice` key you just created. You'll
-reuse it in the staging and testnet sections below.
+The signer at the end is `devtest`, and any other key in your keybase signs
+this just as well.
 
 On success you'll see:
 
@@ -282,7 +254,43 @@ realm will disappear with it. **Mainnet** (`gnoland-1`) is the production
 network: no faucet, and token transfers start locked per Constitution
 §126 — deploying there means holding GNOT from the genesis allocation.
 
-### 1. Get test tokens
+### 1. Create a key
+
+Every action on a shared network is signed by a key of your own. A **key** is
+a private/public keypair managed locally by `gnokey`: the private side signs
+your transactions, and the public side derives the `g1…` address that
+identifies you on chain.
+
+Create one:
+
+```sh
+gnokey add alice
+```
+
+It prompts for an encryption password and prints a 24-word mnemonic.
+Store it somewhere safe to recover the key later. List your keys
+to see the derived `g1...` address:
+
+```sh
+gnokey list
+```
+
+```text
+0. alice (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
+```
+
+That `g1...` address is your on-chain identity. It owns funds, signs
+transactions, and forms the base of your address-based namespace.
+
+:::warning
+Keys created this way are **development-only**. Do not reuse the
+mnemonic for real funds.
+:::
+
+For key import, derivation, and the full keybase reference, see
+[Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
+
+### 2. Get test tokens
 
 Deploys cost [gas](../resources/gas-fees.md), paid in `ugnot`. Get them
 from the faucet: go to **[faucet.gno.land](https://faucet.gno.land)**,
@@ -291,7 +299,7 @@ seconds. The
 faucet is rate-limited per address; wait out the cooldown if a
 re-request is rejected.
 
-### 2. Query on-chain
+### 3. Query on-chain
 
 Confirm the funds landed before spending them on a deploy:
 
@@ -303,7 +311,7 @@ Response shows your balance as `<amount>ugnot`, where 1 GNOT is
 1,000,000 ugnot. Read-only queries like this don't need a chainid or a
 key; they hit the RPC endpoint directly.
 
-### 3. Before you deploy
+### 4. Before you deploy
 
 Two things to know before publishing your first package:
 
@@ -321,7 +329,7 @@ before deploying. It is currently off on every network; check
 fails with `has not signed the required CLA`, sign once at
 [`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
 
-### 4. Deploy your package
+### 5. Deploy your package
 
 `addpkg` uploads your package directory and its `gnomod.toml` to the
 network as a single package. Deploy yours:
@@ -363,11 +371,11 @@ For the full flag list, see
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 
-### 5. Call Increment
+### 6. Call Increment
 
-Same shape as the local call earlier, with two changes: the package
-path uses your address-based namespace, and `-gas-wanted` is tuned to
-a realistic value. Call it:
+Same shape as the local call, with three changes: the package path uses
+your address-based namespace, `alice` signs it, and `-gas-wanted` is tuned
+to a realistic value. Call it:
 
 ```sh
 gnokey maketx call \

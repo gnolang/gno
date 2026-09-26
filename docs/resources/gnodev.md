@@ -29,7 +29,7 @@ You should see output along these lines:
 
 ```
 Loader      ┃ I workspace detected root={your_pwd}
-Accounts    ┃ I default address imported name=devtest addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ W default address tracked in-memory only; gnokey cannot sign with it addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=native
 Node        ┃ I packages paths=[gno.land/r/dev/counter]
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
@@ -38,8 +38,9 @@ GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 
 Open `http://localhost:8888` to browse your realm via the built-in
 [gnoweb](../users/explore-with-gnoweb.md) (change the address with `-web-listener`).
-The `devtest` account is preloaded with funds, so no faucet is needed. Press `h`
-at any time for the in-terminal help menu (see [Interactive controls](#interactive-controls)).
+Every key in your keybase is funded on the built-in node, so no faucet is
+needed. Press `h` at any time for the in-terminal help menu (see
+[Interactive controls](#interactive-controls)).
 
 ## Modes
 
@@ -81,8 +82,28 @@ Package path resolution:
 See [Configuring Gno projects](./configuring-gno-projects.md) for `gnomod.toml`
 details. The default deployer is `devtest`[^1]; override with `-deploy-key`.
 
-The `devtest` account is automatically imported and pre-funded with locally usable GNOT.
-It is available for immediate use in development and testing.
+### The dev key
+
+The node funds that account at genesis, but your keybase holds no key for it,
+so `gnokey` cannot sign as it until you say so. On a terminal, `gnodev` asks
+before anything else:
+
+```
+gnodev has a test account g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 and your keybase holds no key for it.
+Add its key as "devtest"? [y/N]
+y
+dev key added as "devtest", address g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+```
+
+Anything but `y` declines and writes nothing; `I` asks again later. Nothing of
+yours is replaced when you say yes either: an existing key of that name stays,
+and so does the same address held under another name.
+
+That mnemonic is public and identical on every machine, which is what makes it
+a test key: code branching on who signed sees the same `g1jg8…` everywhere, so
+an assertion about the caller can hold for the wrong reason. Sign with
+`devtest` on local chains only, and use a key of your own wherever the realm
+cares which account called it.
 
 ### Premining
 
@@ -163,8 +184,8 @@ TX HASH:    k+WuKgPpoAg+EcR2EnzqxeWqUXB4KhOhg3l6zthSy0I=
 ```
 
 Refresh `http://localhost:8888` to see the updated `Render()` output. The
-`devtest` key works out of the box because it's premined (see above); swap it
-for any other key in your keybase.
+`devtest` key is premined, so it pays its own gas once imported with `I`;
+swap it for any other key in your keybase.
 
 If you start `gnodev` on a non-default RPC port, point `-remote` at the same
 address. For example, started with:
@@ -186,6 +207,7 @@ terminal; it turns off when output is piped or redirected, and in
 |---|---|
 | `H` | Show the in-terminal help menu |
 | `A` | List known accounts and balances |
+| `I` | Import the `devtest` key into your `gnokey` keybase |
 | `R` | Reload all packages |
 | `N` / `P` | Step to the next / previous transaction |
 | `E` | Export the current state as a genesis doc |
