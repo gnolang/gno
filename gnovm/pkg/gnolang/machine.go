@@ -2681,9 +2681,15 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//       function). /r/attacker code runs with /r/attacker's
 	//       authority, not victim's.
 	//
-	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
-	//       foreign-stamped object, borrow to the receiver's constructing
-	//       realm (which is the same as its storage realm).
+	//   #2. Otherwise (/p/-declared) → if the receiver is a foreign-stamped
+	//       object its owner granted with mutable(x) (ObjectInfo.IsMutable),
+	//       borrow to the receiver's constructing realm (which is the same
+	//       as its storage realm). Without the grant the reference is a
+	//       view, real or not, and the method's writes hit the readonly
+	//       gate; a constructor that means to hand out a handle (a token's
+	//       teller) grants the fresh object itself. A /p/-owned receiver
+	//       always borrows so the post-init immutability gate reports the
+	//       write.
 	//
 	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
 	//       package, borrow to the realm context that was active when
@@ -2709,9 +2715,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
 		if obj != nil {
-			recvOID := obj.GetObjectInfo().ID
+			oi := obj.GetObjectInfo()
+			recvOID := oi.ID
 			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
-				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) &&
+				(oi.IsMutable || recvOID.PkgID.IsImmutablePkg()) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				r := objpv.GetRealm()
@@ -3085,7 +3093,7 @@ func panicIllegalPointerLHS(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString(readonlyAccessPanic(lx)))
+		m.Panic(typedString(m.readonlyAccessPanic(lx)))
 	}
 	return pv
 }
@@ -3096,7 +3104,13 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // through a method or crossing function re-enters via PushFrameCall, whose
 // implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
 // the target's owner.
-func readonlyAccessPanic(x Expr) string {
+func (m *Machine) readonlyAccessPanic(x Expr) string {
+	if m.Package != nil && m.Package.PkgID.IsImmutablePkg() && !m.Package.PkgID.IsStdlibPkg() {
+		// /p/ code writing an object another realm owns: no borrow happened
+		// because the owner never granted mutable(x). Stdlib receivers never
+		// borrow, so the hint would be wrong there.
+		return "cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): " + x.String()
+	}
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
@@ -3216,7 +3230,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 			ro = m.IsReadonly(xv)
 			if ro {
 				// Ensure we always panic, without expecting the caller to do it.
-				m.Panic(typedString(readonlyAccessPanic(lx)))
+				m.Panic(typedString(m.readonlyAccessPanic(lx)))
 			}
 			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {
