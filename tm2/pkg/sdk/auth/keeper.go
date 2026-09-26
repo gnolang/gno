@@ -31,6 +31,9 @@ type AccountKeeper struct {
 
 	// The prototypical SessionAccount constructor.
 	sessionProto func() std.Account
+
+	accountNumbers         map[AccountIdentity]uint64
+	nextAccountNumberFloor uint64
 }
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
@@ -48,6 +51,34 @@ func NewAccountKeeper(
 	}
 }
 
+// AccountIdentity distinguishes a regular account from session accounts whose
+// key may be delegated by more than one master. Master is zero for regular accounts.
+type AccountIdentity struct {
+	Master  crypto.Address
+	Address crypto.Address
+}
+
+// WithAccountNumbers preserves account identity while development genesis adds
+// accounts before historical transactions. The map is immutable after setup.
+func (ak AccountKeeper) WithAccountNumbers(numbers map[AccountIdentity]uint64) AccountKeeper {
+	ak.accountNumbers = numbers
+	ak.nextAccountNumberFloor = 0
+	for _, number := range numbers {
+		if number >= ak.nextAccountNumberFloor {
+			ak.nextAccountNumberFloor = number + 1
+		}
+	}
+	return ak
+}
+
+func (ak AccountKeeper) accountNumber(ctx sdk.Context, master, addr crypto.Address) uint64 {
+	if number, ok := ak.accountNumbers[AccountIdentity{Master: master, Address: addr}]; ok {
+		ak.reserveAccountNumber(ctx, number)
+		return number
+	}
+	return ak.GetNextAccountNumber(ctx)
+}
+
 // NewAccountWithAddress implements AccountKeeper.
 func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	acc := ak.proto()
@@ -57,7 +88,7 @@ func (ak AccountKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addre
 		// Handle w/ #870
 		panic(err)
 	}
-	err = acc.SetAccountNumber(ak.GetNextAccountNumber(ctx))
+	err = acc.SetAccountNumber(ak.accountNumber(ctx, crypto.Address{}, addr))
 	if err != nil {
 		// Handle w/ #870
 		panic(err)
@@ -187,6 +218,12 @@ func (ak AccountKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr cryp
 		panic(err)
 	}
 
+	ak.reserveAccountNumber(ctx, accNum)
+
+	return acc
+}
+
+func (ak AccountKeeper) reserveAccountNumber(ctx sdk.Context, accNum uint64) {
 	// Read global counter directly. Don't call GetNextAccountNumber, it has
 	// side effects: reads AND increments.
 	gctx := ctx.GasContext()
@@ -204,8 +241,6 @@ func (ak AccountKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr cryp
 		bz = amino.MustMarshal(accNum + 1)
 		stor.Set(gctx, []byte(GlobalAccountNumberKey), bz)
 	}
-
-	return acc
 }
 
 // GetNextAccountNumber Returns and increments the global account number counter
@@ -221,6 +256,10 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	if accNumber < ak.nextAccountNumberFloor {
+		accNumber = ak.nextAccountNumberFloor
 	}
 
 	bz = amino.MustMarshal(accNumber + 1)
@@ -307,7 +346,7 @@ func (ak AccountKeeper) NewSessionAccount(ctx sdk.Context, master crypto.Address
 	if err := acc.SetPubKey(pubKey); err != nil {
 		panic(err)
 	}
-	if err := acc.SetAccountNumber(ak.GetNextAccountNumber(ctx)); err != nil {
+	if err := acc.SetAccountNumber(ak.accountNumber(ctx, master, pubKey.Address())); err != nil {
 		panic(err)
 	}
 	da := acc.(std.DelegatedAccount)
