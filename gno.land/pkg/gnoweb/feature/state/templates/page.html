@@ -68,13 +68,13 @@
 {{ end }}
 
 {{ define "state/kind-tabs" }}
-<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs">
+<div class="b-packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs">
   {{ template "state/kind-tabs-inner" .KindCounts }}
 </div>
 {{ end }}
 
 {{ define "state/kind-tabs-oob" }}
-<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs" hx-swap-oob="true">
+<div class="b-packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs" hx-swap-oob="true">
   {{ template "state/kind-tabs-inner" .KindCounts }}
 </div>
 {{ end }}
@@ -141,7 +141,7 @@
 
 {{ define "state/sidebar" }}
 {{ if .Sidebar }}
-<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="State navigation">
+<aside class="b-sidebar sidebar" id="state-sidebar">
   {{ template "state/sidebar-inner" . }}
 </aside>
 {{ end }}
@@ -150,18 +150,19 @@
 {{/* Rendered even when .Sidebar is nil so a prior non-empty sidebar
      can be cleared on swap. */}}
 {{ define "state/sidebar-oob" }}
-<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="State navigation" hx-swap-oob="true">
+<aside class="b-sidebar sidebar" id="state-sidebar" hx-swap-oob="true">
   {{ if .Sidebar }}{{ template "state/sidebar-inner" . }}{{ end }}
 </aside>
 {{ end }}
 
 {{ define "state/sidebar-inner" }}
   <div>
-    <div id="sidebar-summary" class="inner u-no-scrollbar">
-      {{ template "state/expend-label" "On this page" }}
+    <div class="inner u-no-scrollbar">
+      {{ template "ui/expend_label" "Package state" }}
       {{/* Copy JSON + meta + TOC all live inside <nav> to preserve the
            shared `.b-expend-btn:has(:checked) + nav` adjacency on mobile. */}}
-      <nav>
+      <nav aria-labelledby="state-rail-heading">
+        <h2 id="state-rail-heading" class="b-sidebar-heading">Package state</h2>
         {{/* Click → fetch ?state&json. Raw JSON is not inlined in the page
              (memory amp per viewer). */}}
         <div class="b-state-export">
@@ -176,7 +177,7 @@
         {{ if .Sidebar.Meta }}
           <dl class="b-state-meta">
             {{ range .Sidebar.Meta }}
-              {{ if .Section }}<dt class="section">{{ .Section }}</dt>{{ end }}
+              {{ if .Section }}<dt class="section b-sidebar-heading">{{ .Section }}</dt>{{ end }}
               <div class="row{{ if .Inline }} inline{{ end }}{{ if .Mono }} mono{{ end }}{{ if .Block }} block{{ end }}">
                 <dt class="label">{{ .Label }}</dt>
                 <dd class="value">
@@ -193,7 +194,7 @@
           </dl>
         {{ end }}
         {{ if .Sidebar.TOC }}
-          {{ if .Sidebar.Heading }}<h3 class="b-state-meta-heading">{{ .Sidebar.Heading }}</h3>{{ end }}
+          {{ if .Sidebar.Heading }}<h2 class="b-sidebar-heading">{{ .Sidebar.Heading }}</h2>{{ end }}
           {{ $treeMode := eq .ViewMode "tree" }}
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
@@ -219,23 +220,6 @@
       </nav>
     </div>
   </div>
-{{ end }}
-
-{{/* Mirror of components/layouts/aside.html "ui/expend_label" — the
-     state feature template-set is isolated so we can't `template` into
-     the shared partial. Keep the markup identical (label + checkbox +
-     SVG chevron) so the mobile sidebar collapse-affordance and the
-     .b-expend-btn CSS rules still match. */}}
-{{ define "state/expend-label" }}
-<label for="toc-expend" class="b-expend-btn">
-  {{ . }}
-  <input id="toc-expend" type="checkbox" />
-  <span class="wrapper-icon">
-    <svg class="c-icon u-icon-static">
-      <use href="#ico-arrow-down"></use>
-    </svg>
-  </span>
-</label>
 {{ end }}
 
 {{ define "state/copy-icon" }}<svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>{{ end }}

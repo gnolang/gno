@@ -1,0 +1,17 @@
+{{/* ===================================================================================
+UI - Expend Label component
+=================================================================================== */}}
+{{/* Input: the rail's title. Mobile-only, and the panel it opens (with the
+     matching <h2> inside) is display:none while it shows, so this string is the
+     only name of the rail a phone user gets. */}}
+{{ define "ui/expend_label" }}
+<label for="toc-expend" class="b-expend-btn">
+  {{ . }}
+  <input id="toc-expend" type="checkbox" class="u-sr-only" />
+  <span class="wrapper-icon">
+    <svg class="c-icon u-icon-static">
+      <use href="#ico-arrow-down"></use>
+    </svg>
+  </span>
+</label>
+{{ end }}
