@@ -1,0 +1,8 @@
+-- input.md --
+:::details[open]NoSpace
+Body line.
+:::
+-- output.html --
+<p>:::details[open]NoSpace
+Body line.
+:::</p>

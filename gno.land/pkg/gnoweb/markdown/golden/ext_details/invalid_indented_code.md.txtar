@@ -1,0 +1,9 @@
+-- input.md --
+    :::details Four-space indent is a code block
+    Body
+    :::
+-- output.html --
+<pre><code>:::details Four-space indent is a code block
+Body
+:::
+</code></pre>

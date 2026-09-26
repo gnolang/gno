@@ -864,6 +864,60 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
+### Collapsible blocks
+
+For neutral collapsible content — logs, JSON dumps, long changelogs — that should not carry alert styling, use a ±:::details± block. It renders as a bare expandable section.
+
+By default the block is closed. Add ±[open]± right after ±:::details± to start it open. The closing fence is a line of colons matching the opening fence, so ±:::± closes a ±:::details± block.
+
+±±±markdown
+:::details Summary text
+arbitrary **markdown**
+:::
+±±±
+
+:::details Summary text
+arbitrary **markdown**
+:::
+
+±±±markdown
+:::details[open] Open by default
+You can see me without clicking.
+:::
+±±±
+
+:::details[open] Open by default
+You can see me without clicking.
+:::
+
+±±±markdown
+:::details Changelog
+- First entry
+- Second entry
+:::
+±±±
+
+:::details Changelog
+- First entry
+- Second entry
+:::
+
+To nest blocks, or to show content that itself contains a ±:::± line such as a code sample, open the outer block with more colons than anything inside it. A block closes on the first fence with at least its own colon count.
+
+±±±markdown
+::::details Outer
+:::details Inner
+Nested content.
+:::
+::::
+±±±
+
+::::details Outer
+:::details Inner
+Nested content.
+:::
+::::
+
 ### User Mentions and Bech32 Addresses
 
 Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.
