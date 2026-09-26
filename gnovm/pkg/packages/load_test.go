@@ -54,6 +54,49 @@ func TestFindLoaderRoot(t *testing.T) {
 	})
 }
 
+func TestNearbyWorkspaces(t *testing.T) {
+	mkdirs := func(t *testing.T, root string, dirs ...string) {
+		t.Helper()
+		for _, dir := range dirs {
+			full := filepath.Join(root, filepath.FromSlash(dir))
+			require.NoError(t, os.MkdirAll(full, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(full, "gnowork.toml"), nil, 0o644))
+		}
+	}
+
+	t.Run("child and grandchild workspaces", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "examples", "gnovm/stdlibs")
+
+		assert.Equal(t, []string{"examples", filepath.Join("gnovm", "stdlibs")}, nearbyWorkspaces(root))
+	})
+
+	t.Run("does not descend into a workspace it found", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "examples", "examples/subwork")
+
+		assert.Equal(t, []string{"examples"}, nearbyWorkspaces(root))
+	})
+
+	t.Run("stops at the depth limit", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, "a/b/toodeep")
+
+		assert.Empty(t, nearbyWorkspaces(root))
+	})
+
+	t.Run("skips dot directories", func(t *testing.T) {
+		root := t.TempDir()
+		mkdirs(t, root, ".git/hidden")
+
+		assert.Empty(t, nearbyWorkspaces(root))
+	})
+
+	t.Run("no workspace, no hint", func(t *testing.T) {
+		assert.Empty(t, nearbyWorkspaces(t.TempDir()))
+	})
+}
+
 func TestListAndNonIgnoredPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
@@ -343,6 +386,102 @@ func TestDataLoad(t *testing.T) {
 					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\" (type: *errors.errorString)", filepath.Join(workspace1Abs, "invalidpkg")),
 				}},
 			}},
+		},
+		{
+			// the documented `gno test ./examples/...` shape: the working
+			// directory is in no workspace, the pattern points at one
+			name:     "workspace-1-recursive-from-parent",
+			workdir:  localFromSlash("./testdata"),
+			patterns: []string{localFromSlash("./workspace-1/...")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Dir:        workspace1Abs,
+				Match:      []string{localFromSlash("./workspace-1/...")},
+				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}, {
+				Dir:   filepath.Join(workspace1Abs, "emptygnomod"),
+				Match: []string{localFromSlash("./workspace-1/...")},
+				Files: FilesMap{},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "emptygnomod"),
+					Msg: "invalid gnomod.toml: 'module' is required (type: *errors.errorString)",
+				}},
+			}, {
+				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
+				Dir:        filepath.Join(workspace1Abs, "invalidpkg"),
+				Match:      []string{localFromSlash("./workspace-1/...")},
+				Files:      FilesMap{},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
+					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\" (type: *errors.errorString)", filepath.Join(workspace1Abs, "invalidpkg")),
+				}},
+			}},
+		},
+		{
+			name:     "workspace-1-root-from-parent",
+			workdir:  localFromSlash("./testdata"),
+			patterns: []string{localFromSlash("./workspace-1")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Dir:        workspace1Abs,
+				Match:      []string{localFromSlash("./workspace-1")},
+				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			// single-package mode (gnomod.toml, no gnowork.toml) resolves
+			// from the pattern too
+			name:     "singlepkg-1-from-parent",
+			workdir:  localFromSlash("./testdata"),
+			patterns: []string{localFromSlash("./singlepkg-1")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/single/foo",
+				Name:       "foo",
+				Dir:        singlepkg1Abs,
+				Match:      []string{localFromSlash("./singlepkg-1")},
+				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			name:             "err-patterns-in-two-workspaces",
+			workdir:          localFromSlash("./testdata"),
+			patterns:         []string{localFromSlash("./workspace-1/..."), localFromSlash("./workspace-2/...")},
+			errShouldContain: "are in different workspaces",
+		},
+		{
+			name:             "err-pattern-dir-not-found-from-parent",
+			workdir:          localFromSlash("./testdata"),
+			patterns:         []string{localFromSlash("./notexists/...")},
+			errShouldContain: "notexists",
+		},
+		{
+			name:             "err-no-context-names-nearby-workspaces",
+			workdir:          localFromSlash("./testdata"),
+			patterns:         []string{"."},
+			errShouldContain: "workspaces found below: workspace-1",
 		},
 		{
 			name:     "workspace-1-root-multi-match",
