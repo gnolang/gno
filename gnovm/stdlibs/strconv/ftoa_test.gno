@@ -223,8 +223,10 @@ func TestFtoaRandom(t *testing.T) {
 		N = 100
 	}
 	t.Logf("testing %d random numbers with fast and slow FormatFloat", N)
+	// Custom code: Gno's math/rand has no package-level source.
+	rng := rand.New(rand.NewPCG(1, 2))
 	for i := 0; i < N; i++ {
-		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
+		bits := uint64(rng.Uint32())<<32 | uint64(rng.Uint32())
 		x := math.Float64frombits(bits)
 
 		shortFast := strconv.FormatFloat(x, 'g', -1, 64)
@@ -235,7 +237,7 @@ func TestFtoaRandom(t *testing.T) {
 			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
 		}
 
-		prec := rand.IntN(12) + 5
+		prec := rng.IntN(12) + 5
 		shortFast = strconv.FormatFloat(x, 'e', prec, 64)
 		strconv.SetOptimize(false)
 		shortSlow = strconv.FormatFloat(x, 'e', prec, 64)
