@@ -29,6 +29,7 @@ func TestEnrichFooterData_Outbound(t *testing.T) {
 		"https://github.com/gnolang/gno":                        OutboundGitHub,
 		"https://twitter.com/_gnoland":                          OutboundTwitter,
 		"https://discord.com/invite/gnoland":                    OutboundDiscord,
+		"https://bubblerumble.net/":                             OutboundBubbleRumble,
 		"https://www.youtube.com/@_gnoland":                     OutboundYouTube,
 		"https://github.com/gnolang/gno/blob/master/LICENSE.md": OutboundGitHub,
 		"https://github.com/gnolang/gno/blob/master/TERMS.md":   OutboundGitHub,
