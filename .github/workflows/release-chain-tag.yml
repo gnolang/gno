@@ -1,21 +1,20 @@
 # Build and upload binaries for release tags.
 #
-# Two tag shapes reach this workflow:
-#
-#   v1.2.0          a release of the current network (see RELEASING.md)
-#   chain/<name>    a chain's launch tag, and betanet's retired chain/gnoland1.N
+# Only vX.Y.Z tags reach this workflow (see RELEASING.md). A chain/<name>
+# launch tag builds nothing: its release is the genesis record and carries no
+# binaries, and a binary reporting "chain/<name>" would satisfy no governance
+# halt_min_version anyway. The dispatch input still accepts any tag, for
+# rebuilding a historical one.
 #
 # The tag is compiled into the binaries VERBATIM. That matters: the node parses
-# its own version to decide whether it satisfies a governance halt_min_version,
-# and it only understands these two shapes. Stripping the "chain/" prefix, as
-# this workflow used to, produced binaries reporting "mainnet" — a string that
-# parses as nothing and satisfies no upgrade gate.
+# its own version to decide whether it satisfies a governance halt_min_version.
+# Stripping the "chain/" prefix, as this workflow used to, produced binaries
+# reporting "mainnet" — a string that parses as nothing.
 name: release / chain-tag
 
 on:
   push:
     tags:
-      - "chain/*"
       - "v*"
   workflow_dispatch:
     inputs:
@@ -232,19 +231,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
-          # "Latest" — which is the page misc/deployments/*/VALIDATOR.md sends
-          # operators to, and what misc/install.sh resolves "latest" to. Mark
-          # pre-releases as such, matching goreleaser's `prerelease: auto`.
+          # "Latest" — the page misc/deployments/*/VALIDATOR.md sends operators
+          # to. Mark pre-releases as such, matching goreleaser's `prerelease:
+          # auto`. "Latest" may only move forward, too: GitHub would otherwise
+          # give it to whichever release was created last, so a backport cut
+          # after a newer line would take it. Only the highest final tag gets it.
           PRERELEASE=""
           case "${TAG}" in
             v*-*) PRERELEASE="--prerelease" ;;
           esac
+          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
+          LATEST="--latest=false"
+          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
           gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "${TAG}" \
               --notes-file notes.md \
               --verify-tag \
+              ${LATEST} \
               ${PRERELEASE}
 
       - name: Upload release assets

@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
 // repoFile reads a file by its path relative to the repository root.
@@ -125,5 +127,64 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		// And the symbol has to be the one the node actually reports.
 		assert.True(t, strings.HasPrefix(pkg, "github.com/gnolang/gno/tm2/pkg/version."),
 			"VERSION_PKG (%s) is not in tm2/pkg/version, which is what meetsMinVersion reads", pkg)
+	})
+
+	// Every build that is not a release compiles in a version that must not
+	// parse, or it would satisfy a governance halt_min_version — the goreleaser
+	// nightlies once shipped v0.0.0, which does. Three files compute that
+	// fallback; this pins them to one shell expression and checks the result.
+	t.Run("off-tag builds agree on one unparseable shape", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			makefile   = "gno.land/Makefile"
+			docker     = ".github/workflows/release-docker.yml"
+			nightly    = ".github/workflows/release-goreleaser.yml"
+			goreleaser = ".github/goreleaser.yaml"
+			// What the two workflows evaluate when no v* tag matches.
+			shellExpr = `${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)`
+			// The same thing in make syntax.
+			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
+		)
+		assert.Contains(t, repoFile(t, docker), `echo "`+shellExpr+`"`, "%s computes a different fallback", docker)
+		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
+		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
+
+		// goreleaser takes the value from the workflow, never from its dummy tag.
+		yaml := repoFile(t, goreleaser)
+		assert.Equal(t, 4, strings.Count(yaml, "version.Version={{ .Env.BUILD_VERSION }}"),
+			"%s: every build's ldflags should read BUILD_VERSION", goreleaser)
+		assert.NotContains(t, yaml, "version.Version={{ .Tag }}", "%s: {{ .Tag }} is the dummy v0.0.0 on nightlies", goreleaser)
+		assert.NotContains(t, yaml, "version.Version={{ .Version }}")
+
+		// Rendered with plausible values, none of it parses — including the
+		// detached-HEAD case and a branch that shares its name with a tag.
+		for _, v := range []string{"master.3335+bc43a5fb7", "HEAD.3335+bc43a5fb7", "chain/mainnet.3444+e75fef82c", "develop"} {
+			_, parses := parseReleaseVersion(v)
+			assert.False(t, parses, "%q must not satisfy a halt_min_version", v)
+		}
+	})
+
+	// The upgrade ledger records versions the node has to order against
+	// halt_min_version, so its idea of a version must be the node's.
+	t.Run("the ledger parses versions the way the node does", func(t *testing.T) {
+		t.Parallel()
+
+		for _, v := range []string{
+			"v1.2.0", "v1.3.0-rc.1", "v1.2.0+deadbeef", "v10.20.30",
+			"v1.02.0", "v1.2", "1.2.0", "", "develop", "chain/mainnet", "chain/gnoland1.1", "master.3335+bc43a5fb7",
+		} {
+			nodeCanon, nodeOK := parseReleaseVersion(v)
+			ledgerCanon, ledgerOK := upgrades.ParseVersion(v)
+			// The node also understands betanet's retired chain/gnolandX.Y shape;
+			// the ledger holds v tags only, and never will hold one of those.
+			if strings.HasPrefix(v, "chain/gnoland") {
+				assert.True(t, nodeOK)
+				assert.False(t, ledgerOK)
+				continue
+			}
+			assert.Equal(t, nodeOK, ledgerOK, "node and ledger disagree on %q", v)
+			assert.Equal(t, nodeCanon, ledgerCanon, "node and ledger canonicalise %q differently", v)
+		}
 	})
 }

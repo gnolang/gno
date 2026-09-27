@@ -9,12 +9,14 @@
 | Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
 | Pearl / Test16    | https://rpc.pearl.testnets.gno.land:443 | `pearl-1`   | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)       |
 
-Mainnet (`gnoland-1`) launches at `2026-09-12T14:00:00Z` as a fresh chain — not
+Mainnet (`gnoland-1`) launched at `2026-09-12T15:00:00Z` as a fresh chain — not
 a hardfork of betanet. Balances come from the audited
 [gnolang/independence-day](https://github.com/gnolang/independence-day)
 allocation, transfers start locked per Constitution §126, and there is **no
-faucet**. The `rpc.gno.land` endpoint serves `gnoland-1` from launch; betanet,
-which held that name before, is retired.
+faucet**. The `rpc.gno.land` endpoint serves `gnoland-1`; betanet, which held
+that name before, is retired. The version mainnet runs today, and every
+coordinated upgrade since launch, are listed in `UPGRADES.md` under
+[`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
 ### WebSocket endpoints
 
@@ -43,9 +45,10 @@ Two conventions to know:
   not on `master` — that's the branch the chain's release is cut from. The
   `master` copy is where the next network is prepared, plus the archives of
   past ones.
-- Release artifacts — binaries, container images, `genesis.json` and its
-  checksum — are attached to the matching
-  [release tag](https://github.com/gnolang/gno/releases).
+- The `chain/<name>` [release](https://github.com/gnolang/gno/releases)
+  carries the network's `genesis.json` and its checksum, nothing else. Binaries
+  and container images belong to version releases (`vX.Y.Z`): one per binary
+  the network has run, listed in that network's `UPGRADES.md`.
 
 Related infrastructure directories in the monorepo:
 
