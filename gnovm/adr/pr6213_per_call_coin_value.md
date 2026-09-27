@@ -81,6 +81,19 @@ CosmWasm `funds`.
 - **Vault balance delta (`balance - totalSupply`).** Captures stray donations
   and bricks deposits if the balance dips below supply; no attribution.
 
+## Possible future work: the OriginSend layer
+
+With value on the cross, the message send is the user's cross into the entry
+realm, and `OriginSend` is the tx-wide view of the same coins. Nothing changes
+for it in this PR: `unsafe.OriginSend()` (18 example realms) and
+`BankerTypeOriginSend` (5) keep their semantics and are not deprecated. If the
+frame form proves out, a later PR could migrate those realms, remove the two
+APIs with their spend gate (`OriginSendSpent`, `OriginSendRecipient`), decide
+the unobserved-send guard (keep: users paying a non-payable function are
+refunded; drop: EVM semantics, as realm→realm sends have), and fold the entry
+branch of `CallSend` into `Frame.Received`. `OriginSendRecipientPath` would
+stay regardless as `isOriginCall`'s anchor (#6211).
+
 ## Consequences
 
 - A payment realm credits against `CallSend()` with no origin check; the
@@ -96,5 +109,4 @@ CosmWasm `funds`.
 - Tests: `zrealm_cross_send{0,1}.gno`, `callsend.txtar` (relay reads zero),
   `callsend_forward.txtar`, `callsend_attribution.txtar`,
   `callsend_reentrant.txtar`, `callsend_addpkg.txtar`.
-- Follow-ups: migrate `wugnot.Deposit` to `CallSend()`; a `Render`-safe
-  read-only cross (a send is a write) once read-only crosses exist.
+- Follow-ups: the possible future work above; a read-only cross once those exist.

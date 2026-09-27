@@ -67,7 +67,8 @@ const (
 	// Can only send from tx send: at most the coins this message's
 	// send-envelope credited to the realm's own address. Valid only
 	// inside the message that created it (it cannot be persisted) and
-	// only while that realm is the envelope's recipient.
+	// only while that realm is the envelope's recipient. To forward coins
+	// on a call, see fn(cross(cur, coins)).
 	BankerTypeOriginSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
