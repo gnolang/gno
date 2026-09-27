@@ -482,10 +482,21 @@ tracked.)
 Allocating a foreign `/r/`-declared type with a composite literal,
 `new()`, or `make()` panics:
 `cannot allocate <type> in realm <m.Realm>`. Attackers cannot
-fabricate impostor `*v.User` instances and pass them to victim
+populate impostor `*v.User` instances and pass them to victim
 APIs that expect a user pointer. Construction must go through
 constructors declared in the type's home realm (which trigger
-borrow rule #1 declaring-borrow on call).
+borrow rule #1 declaring-borrow on call). Converting to such a type,
+directly or through one pointer level like `(*v.User)(&Fake{...})`,
+panics with `illegal conversion to external realm type` (nil
+pointers excepted, as are types whose underlying type is a
+primitive, func, or chan type).
+
+**Implication**: holding a realm-typed value, or a pointer to one, is
+not authority. Another realm can still write `var u v.User` (zero
+value, stamped with `v`'s PkgID) and pass `&u` to a victim API. A check
+like `if u == nil { deny }` authorizes that caller. Authenticate the
+caller through `cur.Previous()`. A pointer that matches one in state
+you own proves only where it came from, not who is calling.
 
 ---
 
@@ -517,6 +528,9 @@ Before deploying a realm:
 - [ ] No exported field is a `/p/`-pointer or embedded `/p/`-type
   whose type has `Iterate(cb func(*T))` / `Apply(fn func(*T))` /
   similar concretely-typed callback methods.
+
+- [ ] No function treats a non-nil pointer to one of my types as
+  proof of authorization (see §7.3).
 
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.
