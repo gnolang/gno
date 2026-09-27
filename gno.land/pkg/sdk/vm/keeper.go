@@ -1103,7 +1103,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// a test-stdlib overlay off the node's local filesystem, making
 		// consensus depend on node-local state. No TestGetter is supplied:
 		// with ProdOnly the passes that would consult it never run.
-		ProdOnly: true,
+		ProdOnly:     true,
+		LegacyCopies: auth.IsGenesisReplay(ctx),
 	}
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
@@ -1547,7 +1548,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
 		// test files, so there is nothing for the test passes to check; being
 		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly: true,
+		ProdOnly:     true,
+		LegacyCopies: auth.IsGenesisReplay(ctx),
 	})
 	if err != nil {
 		return "", ErrTypeCheck(err)

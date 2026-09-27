@@ -1,5 +1,12 @@
 # Bound Go2Gno const-inheritance materialisation
 
+> **Superseded in part by #140** (`prxxxx_field_name_list_expansion.md`). The
+> node budget below ran inside `ParseFile`, so it rejected packages stored
+> before it at boot, and it ran after `go/types`, which is itself quadratic on
+> inherited consts. #140 removes it and bounds inherited values with
+> `checkCopies` before type checking instead. The refusal to inherit a function
+> literal is kept.
+
 ## Context
 
 Go permits a const spec with no expression list to inherit the preceding

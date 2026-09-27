@@ -28,6 +28,7 @@ import (
 	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -3721,4 +3722,26 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 				tc.name, len(expr), gas, pct, budget, elapsed, qerr != nil)
 		})
 	}
+}
+
+// Genesis replay reproduces packages accepted before checkCopies existed.
+func TestVMKeeperAddPackage_ReplayedCopies(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/grid"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "grid.gno", Body: "package grid\n\ntype Board struct{ a, b, c, d, e, f, g, h struct{ x, y, z struct{ r, g int } } }\n"},
+	}
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+	require.Equal(t, TypeCheckError{}, tmerrors.Cause(err))
+	assert.Contains(t, fmt.Sprintf("%#v", err), "declarations copy more than")
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, env.vmk.AddPackage(replayCtx, NewMsgAddPackage(addr, pkgPath, files)))
 }

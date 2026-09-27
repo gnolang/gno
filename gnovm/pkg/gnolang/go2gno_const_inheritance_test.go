@@ -8,21 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseFileRejectsOversizedConstInheritance(t *testing.T) {
+// An oversized const block is refused by the checkCopies bound at type check,
+// not by ParseFile: ParseFile also re-parses stored packages at boot, so a bound
+// there would stop a node on code it accepted before.
+func TestOversizedConstInheritanceRejectedAtTypeCheck(t *testing.T) {
 	block := inheritedConstBlock(200, 2000)
 	tests := []struct {
 		name string
 		src  string
 	}{
-		{"top level", "package test\n" + block},
-		{"function body", "package test\nfunc f() {\n" + block + "}\n"},
+		{"top level", "package grid\n" + block},
+		{"function body", "package grid\nfunc f() {\n" + block + "}\n"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			require.ErrorContains(t, tcCopies(tt.src), "declarations copy")
 			var m *Machine
 			_, err := m.ParseFile("test.gno", tt.src)
-			require.ErrorContains(t, err, "const declaration inheritance exceeds limit")
+			require.NoError(t, err, "ParseFile must accept what boot re-parses")
 		})
 	}
 }
@@ -127,5 +131,5 @@ func TestParseExprConstInheritance(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = m.ParseExpr("func() int {\n" + inheritedConstBlock(200, 2000) + "return 0\n}()")
-	require.ErrorContains(t, err, "const declaration inheritance exceeds limit")
+	require.ErrorContains(t, err, "declarations copy")
 }
