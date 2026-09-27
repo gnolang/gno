@@ -146,8 +146,17 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			// The same thing in make syntax.
 			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
 		)
-		assert.Contains(t, repoFile(t, docker), `echo "`+shellExpr+`"`, "%s computes a different fallback", docker)
-		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
+		// The internal fork drops the upstream-only release workflows
+		// (124be791e), so only check the ones present in this tree.
+		for file, want := range map[string]string{
+			docker:  `echo "` + shellExpr + `"`,
+			nightly: `echo "version=` + shellExpr + `"`,
+		} {
+			if _, err := os.Stat(filepath.Join("..", "..", "..", filepath.FromSlash(file))); os.IsNotExist(err) {
+				continue
+			}
+			assert.Contains(t, repoFile(t, file), want, "%s computes a different fallback", file)
+		}
 		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
 
 		// goreleaser takes the value from the workflow, never from its dummy tag.
