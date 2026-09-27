@@ -390,13 +390,31 @@ classify() {
 # A merge of master ships everything master had, agreed or not. When such a
 # range touches the code nodes agree on, the operator says so explicitly with
 # --allow-merge; otherwise the release is cherry-picked (RELEASING.md).
+#
+# "The code nodes agree on" is named path by path rather than as whole trees:
+# gno.land/pkg also holds gnoweb, gnoclient and the CLI helpers, and tm2 holds
+# the RPC server, none of which can fork a chain — a gnoweb-only merge must not
+# be refused as a consensus change.
+readonly CONSENSUS_PATHS=(
+	gnovm
+	tm2/pkg/amino
+	tm2/pkg/bft
+	tm2/pkg/crypto
+	tm2/pkg/db
+	tm2/pkg/p2p
+	tm2/pkg/sdk
+	tm2/pkg/std
+	tm2/pkg/store
+	gno.land/pkg/gnoland
+	gno.land/pkg/sdk
+)
 check_merge_ships_consensus() {
 	[[ -n ${PREVIOUS} ]] || return 0
 	local merges consensus
 	merges="$(git -C "${REPO_ROOT}" log --merges --first-parent --format=%h "${PREVIOUS}..${COMMIT}")"
 	[[ -n ${merges} ]] || return 0
 	consensus="$(git -C "${REPO_ROOT}" diff --name-only "${PREVIOUS}" "${COMMIT}" -- \
-		gnovm tm2 gno.land/pkg ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
+		"${CONSENSUS_PATHS[@]}" ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
 	[[ -n ${consensus} ]] || return 0
 	if [[ ${ALLOW_MERGE} -eq 1 ]]; then
 		warn "the range merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code; --allow-merge given"
