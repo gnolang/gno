@@ -46,3 +46,33 @@ func TestSignAndVerifyGolden(t *testing.T) {
 	hexOut := hex.EncodeToString(out)
 	require.Equal(t, signedGolden, hexOut)
 }
+
+func TestPubKeyIsSmallOrder(t *testing.T) {
+	t.Parallel()
+
+	// libsodium's ed25519_is_small_order list: order 4, 1, 8, 8, 2, then the
+	// non-canonical p (a 0, order 4) and p+1 (a 1, order 1).
+	for _, h := range []string{
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		"0100000000000000000000000000000000000000000000000000000000000000",
+		"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+		"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+		"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	} {
+		b, err := hex.DecodeString(h)
+		require.NoError(t, err)
+		for _, sign := range []byte{0, 0x80} {
+			var pub ed25519.PubKeyEd25519
+			copy(pub[:], b)
+			pub[31] |= sign
+			assert.True(t, pub.IsSmallOrder(), "%s with sign bit %#x", h, sign)
+		}
+	}
+
+	for range 100 {
+		pub := ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)
+		assert.False(t, pub.IsSmallOrder(), "a key derived from a private key has prime order")
+	}
+}
