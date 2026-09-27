@@ -21,7 +21,10 @@ const (
 	v3 = "gno.land/r/gov/dao/v3/impl"
 )
 
-const invalid = "gno.land/r/invalid/dao"
+const (
+	invalid = "gno.land/r/invalid/dao"
+	loader  = "gno.land/r/gov/dao/loader/v0"
+)
 
 var alice = testutils.TestAddress("alice")
 

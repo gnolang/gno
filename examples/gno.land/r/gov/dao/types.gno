@@ -263,7 +263,8 @@ func (e *SafeExecutor) Execute(cur realm) error {
 	// Live proposal execution goes through the Executor interface to
 	// SimpleExecutor.Execute, which now gates on the invoking realm being the
 	// proxy -- deliberately NOT on InAllowedDAOs, which holds the impl path
-	// and therefore rejects the approved route and fails open while empty.
+	// and therefore rejects the approved route, and fails open while empty
+	// at genesis (height 0) and on the dev chain IDs.
 	// That is this method's bug; see SimpleExecutor.Execute.
 	if !cur.IsCurrent() {
 		return errors.New("execution denied: cur is not the caller's live realm")

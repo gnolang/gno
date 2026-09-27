@@ -125,7 +125,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.chainID,
 		"chainid",
 		"dev",
-		"the ID of the chain",
+		"the ID of the chain (on dev and tendermint_test, r/gov/dao can still be initialized after genesis)",
 	)
 
 	fs.StringVar(

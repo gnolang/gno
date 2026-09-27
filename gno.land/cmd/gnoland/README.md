@@ -70,7 +70,7 @@ Flags worth knowing on `gnoland start`:
 |------|--------------|
 | `-lazy` | Generate secrets, config, and genesis if missing (local dev only) |
 | `-genesis` | Path to `genesis.json` (default `genesis.json`) |
-| `-chainid` | Chain ID; must match the network's exactly (default `dev`) |
+| `-chainid` | Chain ID; must match the network's exactly (default `dev`). On `dev` and `tendermint_test`, `r/gov/dao` can still be initialized after genesis; on any other ID it must be set up by a genesis transaction |
 | `-data-dir` | Node data directory (default `gnoland-data`) |
 | `-log-level` | `debug`, `info`, `warn`, `error` — **default `debug`**, see above |
 | `-skip-genesis-sig-verification` | Don't panic on genesis txs with invalid signatures |
