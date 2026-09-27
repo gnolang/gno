@@ -1,0 +1,44 @@
+name: meta / require-labels
+
+on:
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions: {}
+
+jobs:
+  check-label:
+    # One check per label family, so each passes or fails on its own and
+    # keeps its own name for branch protection.
+    name: require ${{ matrix.prefix }}:* label
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - prefix: class
+            choices: class:node, class:hardfork, class:migration, class:none
+          - prefix: severity
+            choices: severity:critical, severity:high, severity:medium, severity:low, severity:none
+    steps:
+      - name: Check exactly one known ${{ matrix.prefix }}:* label is present
+        env:
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          PREFIX: ${{ matrix.prefix }}
+          CHOICES: ${{ matrix.choices }}
+        run: |
+          echo "$LABELS_JSON" | jq --arg p "$PREFIX:" --arg choices "$CHOICES" '
+            [ .[] | select(startswith($p)) ] as $found |
+            ($choices | split(", ")) as $allowed |
+            if ($found | length) == 0 then
+              ("No \($p)* label found. Apply exactly one of: \($choices)." | halt_error(1))
+            elif ($found | length) > 1 then
+              ("Multiple \($p)* labels found (\($found | join(", "))). Apply exactly one." | halt_error(1))
+            elif (any($allowed[]; . == $found[0]) | not) then
+              ("Unknown label \($found[0]). Apply exactly one of: \($choices)." | halt_error(1))
+            else
+              empty
+            end
+          '
+        shell: bash
