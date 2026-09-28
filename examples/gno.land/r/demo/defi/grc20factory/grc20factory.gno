@@ -6,6 +6,7 @@ import (
 	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"
@@ -165,7 +166,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		out += md.BulletItem(
 			md.Link(
 				ufmt.Sprintf("%s ($%s)", token.GetName(), token.GetSymbol()),
-				ufmt.Sprintf("/r/demo/grc20factory:%s", token.GetSymbol()),
+				ufmt.Sprintf("/r/demo/defi/grc20factory:%s", token.GetSymbol()),
 			),
 		)
 	}
@@ -185,7 +186,7 @@ func renderToken(res *mux.ResponseWriter, req *mux.Request) {
 	// Render the token details.
 	out := inst.token.RenderHome()
 	out += md.BulletItem(
-		ufmt.Sprintf("%s: %s", md.Bold("Admin"), inst.admin.Owner()),
+		ufmt.Sprintf("%s: %s", md.Bold("Admin"), sanitize.InlineText(inst.admin.Owner().String())),
 	)
 
 	res.Write(out)
@@ -203,7 +204,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render the balance information.
 	out := md.Paragraph(
-		ufmt.Sprintf("%s balance: %d", md.Bold(addr), balance),
+		ufmt.Sprintf("%s balance: %d", md.Bold(sanitize.InlineText(addr)), balance),
 	)
 
 	res.Write(out)

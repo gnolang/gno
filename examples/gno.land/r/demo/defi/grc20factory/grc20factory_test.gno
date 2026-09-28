@@ -1,6 +1,7 @@
 package grc20factory
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -64,4 +65,24 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	testing.SetOriginCaller(bob)
 	TransferFrom(cross(cur), "FOO", admin, carl, 600_000)
 	checkBalances("step6", 1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)
+}
+
+func TestRenderEscapesAttackerText(cur realm, t *testing.T) {
+	testing.SetOriginCaller(testutils.TestAddress("attacker"))
+	NewWithAdmin(cross(cur), "Phish", "PHISH", 0, 0, 0, address("x\n\n# PWNED"))
+
+	uassert.Equal(t,
+		"**x\\*\\*  \\# PWNED  \\[Claim\\]\\(evil\\.example\\)  \\*\\*z** balance: 0\n\n",
+		Render("PHISH/balance/x**\n\n# PWNED\n\n[Claim](evil.example)\n\n**z"),
+	)
+	out := Render("PHISH")
+	uassert.True(t, strings.HasSuffix(out, "- **Admin**: x  \\# PWNED\n"), out)
+}
+
+func TestRenderHomeLinksToTheRealm(cur realm, t *testing.T) {
+	testing.SetOriginCaller(testutils.TestAddress("linker"))
+	New(cross(cur), "Linked", "LINK", 0, 0, 0)
+
+	out := Render("")
+	uassert.True(t, strings.Contains(out, "](/r/demo/defi/grc20factory:LINK)"), out)
 }
