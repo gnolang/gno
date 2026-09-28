@@ -126,6 +126,34 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 	return nil
 }
 
+// validateOpenThreadRepost validates PermissionThreadRepost.
+//
+// Expected `args` values:
+// 1. Caller address
+// 2. Board ID
+// 3. Thread ID
+// 4. Destination board ID
+// 5. Repost ID
+// 6. Title
+// 7. Body
+func validateOpenThreadRepost(perms boards.Permissions, args boards.Args) error {
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
+	// Owners and admins can repost threads without special requirements
+	if perms.HasRole(caller, RoleOwner) || perms.HasRole(caller, RoleAdmin) {
+		return nil
+	}
+
+	// Require non members to have some GNOT in their accounts
+	if err := checkAccountHasAmount(caller, RequiredAccountAmount); err != nil {
+		return ufmt.Errorf("caller is not allowed to repost threads: %s", err)
+	}
+	return nil
+}
+
 // validateOpenReplyCreate validates PermissionReplyCreate.
 //
 // Expected `args` values:
