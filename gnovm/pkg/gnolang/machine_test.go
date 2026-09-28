@@ -308,3 +308,24 @@ func TestCallGas(t *testing.T) {
 		})
 	}
 }
+
+// A deferred nil func must still pop its call's arguments. Otherwise each
+// `defer f(...)` leaves them on m.Values, uncharged, until the frame returns.
+func TestDeferNilFuncPopsArgs(t *testing.T) {
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "main", Output: io.Discard})
+	defer m.Release()
+	m.RunFiles(m.MustParseFile("main.go", `package main
+
+var f func(a, b, c, d int)
+
+func run() {
+	defer func() { recover() }()
+	for i := 0; i < 1000; i++ {
+		defer f(i, i, i, i)
+	}
+}
+
+func main() { run() }`))
+	m.RunMain()
+	assert.Less(t, cap(m.Values), 1000, "value stack grew with the nil defers' arguments")
+}

@@ -115,6 +115,7 @@ const (
 	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
+	_allocDefer            = 48  // unsafe.Sizeof(Defer{})
 
 	// Estimated heap sizes for pointed-to objects.
 	// BigintValue and BigdecValue are just 8-byte pointers;
@@ -170,6 +171,8 @@ const (
 
 	allocDataByte   = 1
 	allocTypedValue = _allocTypedValue
+	// allocDefer is one pending Defer record; its Args are allocTypedValue each.
+	allocDefer = _allocHeap + _allocDefer
 )
 
 func init() {
@@ -190,6 +193,7 @@ func init() {
 	check("_allocTypeValue", _allocTypeValue, unsafe.Sizeof(TypeValue{}))
 	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
 	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
+	check("_allocDefer", _allocDefer, unsafe.Sizeof(Defer{}))
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
 }
 
@@ -494,6 +498,10 @@ func (alloc *Allocator) AllocateBoundMethod() {
 
 func (alloc *Allocator) AllocatePackageValue() {
 	alloc.Allocate(allocPackage)
+}
+
+func (alloc *Allocator) AllocateDefer(args int64) {
+	alloc.Allocate(overflow.Addp(allocDefer, overflow.Mulp(allocTypedValue, args)))
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {

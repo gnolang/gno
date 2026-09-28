@@ -884,34 +884,40 @@ func (m *Machine) doOpDefer() {
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
+	dfr := Defer{Source: ds}
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
-		cfr.PushDefer(Defer{Source: ds})
+		m.PopValues(numArgs)
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
+	cfr.PushDefer(dfr)
+	// The record and its Args live until the frame returns, but popCopyArgs
+	// and PushDefer allocate them as plain Go memory. Count them after
+	// PushDefer, so a GC triggered by this call already sees them in the frame.
+	m.Alloc.AllocateDefer(int64(len(dfr.Args)))
 	m.PopValue() // pop func
 }
 

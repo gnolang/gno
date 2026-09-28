@@ -611,6 +611,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
+		alloc.Recount(allocDefer)
 		// visit dfr.Callable (the deferred func / bound method)
 		if dfr.Callable != nil {
 			stop = vis(dfr.Callable)
