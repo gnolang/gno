@@ -2593,11 +2593,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// escaping into a helper that assigns through it, which no LHS
 				// rule would see.
 				//
-				// A realm-typed `cur` is always the crossing parameter:
-				// checkDeclName refuses every other declaration of the name,
-				// so name plus resolved type identifies the slot exactly.
-				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" && xt == gRealmType {
-					panic("cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
+				// A name `cur` is always the crossing parameter: Reserve refuses
+				// every other declaration (checkDeclName), so the name alone
+				// identifies the slot.
+				if ne, ok := n.X.(*NameExpr); ok && ne.Name == "cur" {
+					panic("cannot take the address of the crossing `cur` parameter: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value")
 				}
 				if tt, ok := xt.(*tupleType); ok {
 					panic(fmt.Sprintf(
@@ -2889,13 +2889,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// frame; rebinding the name makes it describe a realm the frame
 				// is not in.
 				//
-				// A realm-typed `cur` is always that parameter, because
-				// checkDeclName refuses every other declaration of the
-				// name, so the LHS name plus its resolved type
-				// identifies the slot with no scope resolution. A DEFINE that
-				// reaches this check reuses a name already declared in the
-				// same block — a rebind with a different spelling — since a
-				// fresh realm-typed `cur` is refused by defineOrDecl itself.
+				// A name `cur` is always that parameter, because Reserve refuses
+				// every other declaration (checkDeclName), so the LHS name
+				// alone identifies the slot with no scope resolution. A DEFINE
+				// that reaches this check reuses a name already declared in
+				// the same block — a rebind with a different spelling — since
+				// a fresh `cur` is refused at Reserve.
 				//
 				// It matters because the parameter is the one realm value a
 				// no-cross crossing call can forward (the cur-call check below
@@ -3028,14 +3027,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// reuses a name already declared in this same block assigns
 				// that slot rather than declaring a new one (defineOrDecl
 				// takes the same "already defined" branch), and only sets the
-				// name's path while doing so. A fresh realm-typed `cur` never
-				// reaches here: defineOrDecl refuses it as a declaration.
+				// name's path while doing so. A fresh `cur` never reaches
+				// here: Reserve refuses it as a declaration.
 				for _, lh := range n.Lhs {
-					ne, ok := lh.(*NameExpr)
-					if !ok || ne.Name != "cur" {
-						continue
-					}
-					if evalStaticTypeOf(store, last, ne) == gRealmType {
+					if ne, ok := lh.(*NameExpr); ok && ne.Name == "cur" {
 						panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
 					}
 				}
@@ -3133,19 +3128,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// third write shape into one slot, and the second one the
 				// syntactic rules missed.
 				//
-				// The assign form writes the crossing parameter, which a
-				// realm-typed `cur` always is (see checkDeclName). The
-				// DEFINE form declares a new binding in the range clause's own
-				// block; that declaration is refused where it is reserved
+				// The assign form writes the crossing parameter, which a name
+				// `cur` always is (see checkDeclName). The DEFINE form declares
+				// a new binding in the range clause's own block; that
+				// declaration is refused where it is reserved
 				// (StaticBlock.Reserve, from initStaticBlocks2).
 				if n.Op != DEFINE {
 					for _, lh := range []Expr{n.Key, n.Value} {
-						ne, ok := lh.(*NameExpr)
-						if !ok || ne.Name != "cur" {
-							continue
-						}
-						if evalStaticTypeOf(store, last, ne) == gRealmType {
-							panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
+						if ne, ok := lh.(*NameExpr); ok && ne.Name == "cur" {
+							panic("cannot assign to the crossing `cur` parameter in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
 						}
 					}
 				}

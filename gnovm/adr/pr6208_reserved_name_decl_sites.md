@@ -50,9 +50,10 @@ so the rule has no exception; it also hosts `checkCurParamType`, since every
 function's type passes through it. The older builtin-only checks in
 `predefineRecursively2` and `fillNameExprPath` stay; `Reserve` fires first.
 
-**The write rules key on name plus resolved realm type**, after the
-`DEFINE`/`ASSIGN` branch so a same-scope `cur, x :=` is refused. "A `cur` is the
-parameter" implies the invariant they rely on; the cur-call provenance check is
+**The write rules key on the name alone** (assignment, address-of, range
+target), after the `DEFINE`/`ASSIGN` branch so a same-scope `cur, x :=` is
+refused. "A `cur` is the parameter" makes the resolved-type test #6196 kept
+always true, so it is dropped; the cur-call provenance check is
 belt-and-braces.
 
 **Carried from #6196 unchanged.** The identity check exempts calls dispatched
