@@ -119,7 +119,7 @@ Two layers fire in parallel.
 |---|---|
 | `docs` | docs.gno.land |
 | `faucet` | faucet.gno.land |
-| `status` | status.gnoteam.com |
+| `status` | status.gno.land |
 | `github` | github.com/gnolang/* |
 | `twitter` | twitter.com/_gnoland |
 | `discord` | discord.com/invite/gnoland |
