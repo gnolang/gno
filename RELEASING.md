@@ -194,9 +194,11 @@ Two kinds of release page, one job each:
   eight image URLs, and the changelog.
 
 `misc/deployments/<chain>/upgrades.json` is the ledger: one entry per version
-the network has run — the genesis, then one per coordinated halt — with commit,
-halt height and time, `halt_min_version`, GovDAO proposal, image digest, and a
-per-platform map of binary downloads with checksums. The format is
+the network has run — the genesis, one per coordinated halt, and one per
+rolling patch (`kind: rolling`: no halt, no floor, no proposal, same MINOR as
+its predecessor) — with commit, halt height and time, `halt_min_version`,
+GovDAO proposal, image digest, and a per-platform map of binary downloads with
+checksums. The format is
 [`misc/deployments/upgrades/upgrades.schema.json`](misc/deployments/upgrades/upgrades.schema.json);
 the rules — chain order, one genesis, versions the node can order, `null` for a
 fact that has not happened yet and never `""` — are enforced by
