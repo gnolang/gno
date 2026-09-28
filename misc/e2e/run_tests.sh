@@ -113,8 +113,59 @@ echo "8. Checking test2 balance..."
 echo "9. Checking test1 final balance..."
 /usr/bin/gnokey query bank/balances/"$TEST1_ADDR" -remote="$NODE_URL" || { echo "Failed to query test1 final balance"; exit 1; }
 
-# TODO:
-# - interact with existing contracts
-# - upload a new contract and interact with it
+PASS=0
+FAIL=0
+KNOWN=0
+REPORT=""
 
-echo "All tests passed successfully!"
+run_test() {
+    NAME="$1"
+    SCRIPT="$2"
+    KNOWN_NOTE="$3"
+    echo ""
+    echo "--- $NAME ---"
+    if "$SCRIPT"; then
+        PASS=$((PASS + 1))
+        REPORT="${REPORT}  [PASS]  $NAME\n"
+    elif [ -n "$KNOWN_NOTE" ]; then
+        KNOWN=$((KNOWN + 1))
+        REPORT="${REPORT}  [KNOWN] $NAME — $KNOWN_NOTE\n"
+    else
+        FAIL=$((FAIL + 1))
+        REPORT="${REPORT}  [FAIL]  $NAME\n"
+    fi
+}
+
+echo "=== Running VM Audit Tests ==="
+run_test "audit_runtime_pkg"        /e2e/audit/audit_runtime_pkg.sh
+run_test "audit_chan_type"          /e2e/audit/audit_chan_type.sh
+run_test "audit_security"          /e2e/audit/audit_security.sh
+run_test "audit_gas_alloc"         /e2e/audit/audit_gas_alloc.sh
+run_test "audit_byteslice"         /e2e/audit/audit_byteslice.sh
+run_test "audit_array_alias"       /e2e/audit/audit_array_alias.sh
+run_test "audit_var_init_order"    /e2e/audit/audit_var_init_order.sh
+# audit_cross_realm_recover tests a broader pattern (method-call + recover)
+# than the fix f87249327 (NameExpr assign + recover). Expected VULNERABLE
+# on current master — serves as a regression marker for future fixes.
+run_test "audit_cross_realm_recover" /e2e/audit/audit_cross_realm_recover.sh "broader pattern not yet fixed, see f87249327"
+
+echo ""
+echo "=== Running E2E Tests ==="
+run_test "e2e_nonce_replay"    /e2e/e2e/e2e_nonce_replay.sh
+run_test "e2e_counter"         /e2e/e2e/e2e_counter.sh
+run_test "e2e_mempool_stress"  /e2e/e2e/e2e_mempool_stress.sh
+
+echo ""
+echo "========================================="
+echo "  TEST SUMMARY"
+echo "========================================="
+printf "%b" "$REPORT"
+echo "-----------------------------------------"
+echo "  PASS: $PASS   FAIL: $FAIL   KNOWN: $KNOWN"
+echo "========================================="
+
+if [ "$FAIL" -gt 0 ]; then
+    echo "Some tests FAILED."
+    exit 1
+fi
+echo "All tests passed."
