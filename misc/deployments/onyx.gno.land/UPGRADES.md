@@ -1,6 +1,6 @@
 # onyx-1 upgrades
 
-Every binary onyx has run, one row per version. Onyx runs mainnet's exact binaries and is upgraded whenever mainnet is, so this ledger mirrors [mainnet's](../mainnet.gno.land/UPGRADES.md) one release ahead: every mainnet release is rehearsed here first, as a release candidate on the same commit. The source of truth is [`upgrades.json`](./upgrades.json) (format: [`misc/deployments/upgrades/upgrades.schema.json`](../upgrades/upgrades.schema.json), rules in `gno.land/pkg/upgrades`); the table below is generated from it and never edited by hand:
+Every binary onyx has run, one row per version. Onyx runs mainnet's code, one release candidate ahead, and is upgraded whenever mainnet is, so this ledger mirrors [mainnet's](../mainnet.gno.land/UPGRADES.md) one release ahead: every mainnet release is rehearsed here first, as a release candidate on the same commit. The source of truth is [`upgrades.json`](./upgrades.json) (format: [`misc/deployments/upgrades/upgrades.schema.json`](../upgrades/upgrades.schema.json), rules in `gno.land/pkg/upgrades`); the table below is generated from it and never edited by hand:
 
 ```shell
 go run ./misc/deployments/upgrades render misc/deployments/onyx.gno.land   # after editing upgrades.json

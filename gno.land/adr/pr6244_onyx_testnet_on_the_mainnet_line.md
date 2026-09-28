@@ -1,4 +1,4 @@
-# ADR: Onyx, a testnet that runs mainnet's binaries and has no branch of its own
+# ADR: Onyx, a testnet that runs mainnet's code and has no branch of its own
 
 ## Context
 
@@ -21,8 +21,9 @@ exist because mainnet has no faucet.
 
 ## Decision
 
-1. **Onyx runs mainnet's exact binaries.** It launches on `v1.5.0`, the
-   version mainnet runs on launch day, and is upgraded whenever mainnet is:
+1. **Onyx runs mainnet's code, one release candidate ahead.** It launches on
+   `v1.5.0`, exactly the binary mainnet runs on launch day, and is upgraded
+   whenever mainnet is:
    from the next release on, onyx runs the candidate (`v1.6.0-rc.N`) and
    mainnet the final tag on the same commit. Its ledger names what it ran.
 2. **No `chain/onyx` branch.** A branch that never differs in code is a trap

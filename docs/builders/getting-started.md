@@ -273,7 +273,7 @@ network dropdown and every `gnokey` command's `-remote` and
 | Testnet    | `onyx-1`     | `https://rpc.onyx.testnets.gno.land:443`      |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-Onyx is the current testnet: it runs mainnet's exact binaries and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
+Onyx is the current testnet: it runs mainnet's code (one release candidate ahead) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,

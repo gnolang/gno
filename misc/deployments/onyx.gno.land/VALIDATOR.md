@@ -1,6 +1,6 @@
 # Joining onyx as a validator
 
-> Launch: **2026-09-28T00:00:00Z**, chain-id `onyx-1`. Onyx runs mainnet's exact binaries and is upgraded whenever mainnet is.
+> Launch: **2026-09-28T00:00:00Z**, chain-id `onyx-1`. Onyx runs mainnet's code, one release candidate ahead, and is upgraded whenever mainnet is.
 
 How to run a full node on **onyx** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to onyx.
 

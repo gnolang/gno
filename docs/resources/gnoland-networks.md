@@ -22,8 +22,9 @@ coordinated upgrade since launch, are listed in `UPGRADES.md` under
 To watch mainnet live, [Gnockpit](https://gnockpit.gno.land/) shows its chain state, recent blocks, validators and peers, and [status.gno.land](https://status.gno.land/) reports service health, incidents and scheduled maintenance.
 
 Onyx (`onyx-1`) is the testnet on the mainnet line: it launches on
-`2026-09-28T00:00:00Z` running mainnet's exact binaries, and is upgraded
-whenever mainnet is — every mainnet release is rehearsed there first. It has a
+`2026-09-28T00:00:00Z` running mainnet's code, one release candidate ahead,
+and is upgraded whenever mainnet is — every mainnet release is rehearsed there
+first. It has a
 faucet and open transfers, mainnet's package set, namespaces and governance
 seed, and its own `UPGRADES.md` under
 [`misc/deployments/onyx.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land).
@@ -190,7 +191,7 @@ is the `gnoweb` render of the Staging testnet.
 
 ### Onyx / Test17
 
-The current Gno.land testnet, launching on the 28th of September, 2026, and the one to use unless you have a reason not to. It runs mainnet's exact binaries and follows every mainnet upgrade, so what works here works on mainnet.
+The current Gno.land testnet, launching on the 28th of September, 2026, and the one to use unless you have a reason not to. It runs mainnet's code, one release candidate ahead, and follows every mainnet upgrade, so what works here works on mainnet.
 
 - **Persistence of state:**
   - State is fully persisted across coordinated upgrades, exactly as on mainnet:
