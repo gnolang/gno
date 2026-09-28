@@ -391,30 +391,44 @@ classify() {
 # range touches the code nodes agree on, the operator says so explicitly with
 # --allow-merge; otherwise the release is cherry-picked (RELEASING.md).
 #
-# "The code nodes agree on" is named path by path rather than as whole trees:
-# gno.land/pkg also holds gnoweb, gnoclient and the CLI helpers, and tm2 holds
-# the RPC server, none of which can fork a chain — a gnoweb-only merge must not
-# be refused as a consensus change.
-readonly CONSENSUS_PATHS=(
+# "The code nodes agree on" is everything under the node's trees minus a short
+# list of directories that provably cannot fork a chain — not a list of the
+# directories that can. A directory forgotten from an allowlist is a consensus
+# change waved through silently; one forgotten from this denylist costs one
+# --allow-merge with a human looking. gno.land/pkg holds gnoweb, gnoclient and
+# the CLI helpers next to the node, so only its two consensus packages are
+# roots. go.mod and go.sum are in: a dependency bump or a toolchain directive
+# changes behaviour inside these packages without touching a listed file.
+readonly CONSENSUS_ROOTS=(
 	gnovm
-	tm2/pkg/amino
-	tm2/pkg/bft
-	tm2/pkg/crypto
-	tm2/pkg/db
-	tm2/pkg/p2p
-	tm2/pkg/sdk
-	tm2/pkg/std
-	tm2/pkg/store
+	tm2
 	gno.land/pkg/gnoland
 	gno.land/pkg/sdk
+	go.mod
+	go.sum
+)
+# Under the roots, but unable to fork a chain: the RPC server, CLI plumbing,
+# logging, telemetry, and the command-line front ends.
+readonly NON_CONSENSUS_DIRS=(
+	tm2/pkg/bft/rpc
+	tm2/pkg/commands
+	tm2/pkg/colors
+	tm2/pkg/log
+	tm2/pkg/telemetry
+	tm2/pkg/testutils
+	tm2/pkg/iavl/cmd
+	gnovm/cmd
 )
 check_merge_ships_consensus() {
 	[[ -n ${PREVIOUS} ]] || return 0
-	local merges consensus
+	local merges consensus excludes=() dir
 	merges="$(git -C "${REPO_ROOT}" log --merges --first-parent --format=%h "${PREVIOUS}..${COMMIT}")"
 	[[ -n ${merges} ]] || return 0
+	for dir in "${NON_CONSENSUS_DIRS[@]}"; do
+		excludes+=(":!${dir}")
+	done
 	consensus="$(git -C "${REPO_ROOT}" diff --name-only "${PREVIOUS}" "${COMMIT}" -- \
-		"${CONSENSUS_PATHS[@]}" ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
+		"${CONSENSUS_ROOTS[@]}" "${excludes[@]}" ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
 	[[ -n ${consensus} ]] || return 0
 	if [[ ${ALLOW_MERGE} -eq 1 ]]; then
 		warn "the range merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code; --allow-merge given"
