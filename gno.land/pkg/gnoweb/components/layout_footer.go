@@ -39,6 +39,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "GitHub", URL: "https://github.com/gnolang/gno", Outbound: OutboundGitHub},
 				{Label: "Twitter", URL: "https://twitter.com/_gnoland", Outbound: OutboundTwitter},
 				{Label: "Discord", URL: "https://discord.com/invite/gnoland", Outbound: OutboundDiscord},
+				{Label: "Bubble Rumble", URL: "https://bubblerumble.net/", Outbound: OutboundBubbleRumble},
 				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland", Outbound: OutboundYouTube},
 			},
 		},

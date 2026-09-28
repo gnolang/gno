@@ -11,13 +11,14 @@ import (
 // must stay in sync with the enum in frontend/js/analytics.ts and the values
 // documented in SIMPLEANALYTICS.md.
 const (
-	OutboundDocs    = "docs"
-	OutboundFaucet  = "faucet"
-	OutboundStatus  = "status"
-	OutboundGitHub  = "github"
-	OutboundTwitter = "twitter"
-	OutboundDiscord = "discord"
-	OutboundYouTube = "youtube"
+	OutboundDocs         = "docs"
+	OutboundFaucet       = "faucet"
+	OutboundStatus       = "status"
+	OutboundGitHub       = "github"
+	OutboundTwitter      = "twitter"
+	OutboundDiscord      = "discord"
+	OutboundYouTube      = "youtube"
+	OutboundBubbleRumble = "bubblerumble"
 )
 
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.
