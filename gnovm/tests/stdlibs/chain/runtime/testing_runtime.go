@@ -41,18 +41,19 @@ func typedString(s gno.StringValue) gno.TypedValue {
 
 func isOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
-	// Count only actual function call frames (excludes closures and
-	// control-flow basic frames like for/range/switch).
-	callFrames := m.NumCallFrames()
+	// Count the frames that are a call boundary (excludes control-flow basic
+	// frames like for/range/switch, and same-realm closures). Keep in sync
+	// with stdlibs/chain/runtime.isOriginCall.
+	callFrames := m.NumCallBoundaryFrames()
 	switch tname {
 	case "main": // test is a _filetest
-		// Non-closure frames expected:
+		// Call-boundary frames expected:
 		// 0. main
 		// 1. $RealmFuncName
 		// 2. runtime.AssertOriginCall
 		return callFrames == 3
 	case "RunTest", "runTest_cur": // _test, with or without (cur realm, t *testing.T)
-		// Non-closure frames expected:
+		// Call-boundary frames expected:
 		// 0. testing.RunTest / runTest_cur
 		// 1. tRunner / tRunner_cur
 		// 2. $TestFuncName / $TestFuncName_cur
