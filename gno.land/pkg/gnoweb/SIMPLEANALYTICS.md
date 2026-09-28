@@ -123,6 +123,7 @@ Two layers fire in parallel.
 | `github` | github.com/gnolang/* |
 | `twitter` | twitter.com/_gnoland |
 | `discord` | discord.com/invite/gnoland |
+| `bubblerumble` | bubblerumble.net |
 | `youtube` | youtube.com/@_gnoland |
 
 `data-outbound` is set in Go (`layout_footer.go`, `layout_header.go`) and rendered by `footer.html` / `ui/header_link`. To tag a new outbound: add `Outbound: "<target>"` to the `FooterLink` / `HeaderLink` in Go.
