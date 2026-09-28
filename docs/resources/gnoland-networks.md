@@ -18,6 +18,8 @@ that name before, is retired. The version mainnet runs today, and every
 coordinated upgrade since launch, are listed in `UPGRADES.md` under
 [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
+To watch mainnet live, [Gnockpit](https://gnockpit.gno.land/) shows its chain state, recent blocks, validators and peers, and [status.gno.land](https://status.gno.land/) reports service health, incidents and scheduled maintenance.
+
 ### WebSocket endpoints
 
 All networks follow the same pattern for websocket connections:

@@ -30,7 +30,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
 				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
-				{Label: "Status", URL: "https://status.gnoteam.com/", Outbound: OutboundStatus},
+				{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
 			},
 		},
 		{
